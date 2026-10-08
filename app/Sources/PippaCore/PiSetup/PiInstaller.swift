@@ -90,6 +90,10 @@ public final class PiInstaller: @unchecked Sendable {
             let result = writeProvider(models: options.providerModels, port: options.port)
             // Without the extension everything goes into Pippa; only `pi` in the terminal then does not start the server itself.
             if result.isDone { installTerminalExtension() }
+            // Compaction threshold and thinking level per model. Not fatal: without them Pi runs on its defaults.
+            if result.isDone, !writeModelTuning(models: options.providerModels) {
+                DiagnosticsLog.shared.event("pi-settings-unverändert", ["datei": roots.piSettingsJSON.lastPathComponent])
+            }
             return result
         case .ready: return checkReady(modelIDs: options.providerModels.map(\.id), model: options.model)
         }
@@ -614,6 +618,33 @@ public final class PiInstaller: @unchecked Sendable {
         return finish(.provider, .providerWritten(port: port, backup: state.modelsJSONBackup.map(URL.init(fileURLWithPath:)), changed: true))
     }
 
+    /// Merges `PiModelTuning` into Pi's settings.json (atomically, keeps everything else). A file that is not
+    /// readable JSON stays unchanged (`false`).
+    @discardableResult
+    public func writeModelTuning(models: [PiProviderModel]) -> Bool {
+        let url = roots.piSettingsJSON
+        var document: [String: Any] = [:]
+        let existed = fm.fileExists(atPath: url.path)
+        if existed {
+            guard let data = try? Data(contentsOf: url),
+                  let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
+            document = object
+        }
+        let merged = PiModelTuning.merge(into: document, models: models)
+        if existed, Self.canonical(merged) == Self.canonical(document) { return true }
+        do {
+            try makeDirectory(url.deletingLastPathComponent())
+            let data = try JSONSerialization.data(withJSONObject: merged, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+            let temporary = url.deletingLastPathComponent().appendingPathComponent(".settings.json.pippa-\(UUID().uuidString)")
+            try (data + Data("\n".utf8)).write(to: temporary)
+            let mode = (try? fm.attributesOfItem(atPath: url.path)[.posixPermissions] as? NSNumber)?.intValue ?? 0o600
+            try fm.setAttributes([.posixPermissions: mode], ofItemAtPath: temporary.path)
+            guard rename(temporary.path, url.path) == 0 else { try? fm.removeItem(at: temporary); return false }
+            if !existed { state.record(url); save() }
+            return true
+        } catch { return false }
+    }
+
     /// Model ids of `pippa-local` in a models.json (empty if unreadable or not listed).
     public static func providerModelIDs(modelsJSON: URL) -> [String] {
         let providers = (try? Data(contentsOf: modelsJSON))
@@ -644,7 +675,12 @@ public final class PiInstaller: @unchecked Sendable {
     /// a foreign `cat` in the terminal's PATH changes nothing.
     public static func providerEntry(models: [PiProviderModel], port: Int, keyFile: URL) -> [String: Any] {
         ["baseUrl": "http://127.0.0.1:\(port)/v1", "api": "openai-completions", "apiKey": "!/bin/cat " + shellQuoted(keyFile.path),
-         "models": models.map { ["id": $0.id, "name": $0.name, "contextWindow": $0.contextWindow, "maxTokens": $0.maxTokens] as [String: Any] }]
+         "models": models.map { model -> [String: Any] in
+             var entry: [String: Any] = ["id": model.id, "name": model.name, "contextWindow": model.contextWindow, "maxTokens": model.maxTokens]
+             // How Pi switches the model's thinking (PiModelTuning); without it Pi never asks for any.
+             if let style = PiReasoningStyle.of(modelKey: model.id) { entry.merge(style.modelFields) { $1 } }
+             return entry
+         }]
     }
 
     /// For `/bin/sh`: in single quotes, a `'` inside as `'\\''`.

@@ -172,8 +172,9 @@ public actor LlamaServer {
         // few tokens, llama-server re-reads everything. With a full SWA cache it can truncate anywhere.
         if swaFull, ok("--swa-full") { args.append("--swa-full") }
         if ok("--no-webui") { args.append("--no-webui") }
-        // Pippa wants only JSON, no "thinking": regardless of what the model's template calls it.
-        if ok("--reasoning") { args += ["--reasoning", "off"] }
+        // The fixed JSON flows want no "thinking", whatever the template calls it. Pi's server (with `alias`) leaves it to
+        // Pi, which sets the level per request (`chat_template_kwargs`, PiModelTuning).
+        if alias == nil, ok("--reasoning") { args += ["--reasoning", "off"] }
         if ok("--cache-type-k") { args += ["--cache-type-k", "q8_0", "--cache-type-v", "q8_0"] }
         for key in choice.sampling.keys.sorted() where ok("--\(key)") {
             args += ["--\(key)", JSONScalar.number(choice.sampling[key]!).description]

@@ -234,6 +234,39 @@ func runSetupChecks() async {
             && (try? fm.contentsOfDirectory(atPath: r2.agentDirectory.path)) == ["models.json"]
     }
 
+    check("Installer: Pi settings get compaction and thinking per pippa-local model; the person's own values stay") {
+        let home = fakeHome("pi-settings"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        try fm.createDirectory(at: r.agentDirectory, withIntermediateDirectories: true)
+        write(#"{"theme": "dark", "modelThinkingLevels": {"pippa-local/qwen3.5-4b-q4": "medium"}}"#, r.piSettingsJSON)
+        let models = [PiProviderModel(id: "k2-horizon-7b", name: "K2", contextWindow: 16384),
+                      PiProviderModel(id: "qwen3.5-4b-q4", name: "Qwen", contextWindow: 32768)]
+        let wrote = PiInstaller(roots: r).writeModelTuning(models: models)
+        let doc = try JSONSerialization.jsonObject(with: Data(contentsOf: r.piSettingsJSON)) as? [String: Any]
+        let overrides = (doc?["compaction"] as? [String: Any])?["modelOverrides"] as? [String: [String: Int]]
+        let levels = doc?["modelThinkingLevels"] as? [String: String]
+        let k2 = overrides?["pippa-local/k2-horizon-7b"], qwen = overrides?["pippa-local/qwen3.5-4b-q4"]
+        // Provider entry: K2 thinks via reasoning_effort ("off" means "low"), Qwen via enable_thinking.
+        let entry = PiInstaller.providerEntry(models: models, port: 1, keyFile: r.llamaKeyFile)
+        let listed = entry["models"] as? [[String: Any]] ?? []
+        let k2Compat = listed.first?["compat"] as? [String: Any]
+        let k2Kwargs = k2Compat?["chatTemplateKwargs"] as? [String: Any]
+        let qwenCompat = listed.last?["compat"] as? [String: Any]
+        let unknown = PiInstaller.providerEntry(models: [PiProviderModel(id: "other", name: "O", contextWindow: 8192)], port: 1, keyFile: r.llamaKeyFile)
+        return wrote && doc?["theme"] as? String == "dark"
+            && k2?["reserveTokens"] == 4096 && k2?["keepRecentTokens"] == 6144
+            && qwen?["reserveTokens"] == 4096 && qwen?["keepRecentTokens"] == 12288
+            && levels?["pippa-local/k2-horizon-7b"] == "low" && levels?["pippa-local/qwen3.5-4b-q4"] == "medium"
+            && listed.first?["reasoning"] as? Bool == true && k2Compat?["thinkingFormat"] as? String == "chat-template"
+            && (k2Kwargs?["reasoning_effort"] as? [String: String])?["$var"] == "thinking.effort"
+            && (listed.first?["thinkingLevelMap"] as? [String: Any])?["off"] as? String == "low"
+            && qwenCompat?["thinkingFormat"] as? String == "qwen-chat-template"
+            && (unknown["models"] as? [[String: Any]])?.first?["reasoning"] == nil
+            && LlamaServer.arguments(choice: ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 << 30)!, model: URL(fileURLWithPath: "/m.gguf"),
+                                     port: 1, supported: nil, alias: "qwen3.5-9b-q4").contains("--reasoning") == false
+    }
+
     check("Installer: model adopted without asking via clone, hardlink or copy; existing ~/models reused; originals stay") {
         let home = fakeHome("adopt"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))

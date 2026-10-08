@@ -92,6 +92,8 @@ public struct PiInstallRoots: Sendable {
     /// Own root folder when a foreign-installed `pi` exists.
     public var pippaRoot: URL { support.appendingPathComponent("pi", isDirectory: true) }
     public var modelsJSON: URL { agentDirectory.appendingPathComponent("models.json") }
+    /// Pi's global settings (Pippa merges only its per-model compaction and thinking values, `PiModelTuning`).
+    public var piSettingsJSON: URL { agentDirectory.appendingPathComponent("settings.json") }
     /// Pi's folder for the person's extensions; Pippa's terminal extension lives in it as its own folder.
     public var extensionsDirectory: URL { agentDirectory.appendingPathComponent("extensions", isDirectory: true) }
     public var stateFile: URL { support.appendingPathComponent("install-state.json") }

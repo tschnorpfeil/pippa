@@ -353,7 +353,7 @@
       "ctx": 32768,
       "moe": false,
       "rank": 30,
-      "thinking": "low",
+      "thinking": "off",
       "license": "Apache-2.0",
       "licenseUrl": "https://huggingface.co/Qwen/Qwen3.5-4B/blob/main/LICENSE",
       "pinned": {

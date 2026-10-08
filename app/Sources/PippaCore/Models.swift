@@ -16,6 +16,9 @@ public struct CatalogModel: Sendable, Codable, Hashable {
     public var ctx: Int
     public var moe: Bool?
     public var rank: Int
+    /// Pippa's default thinking level for this model in Pi (`off`, `low`, `medium`); written to Pi's
+    /// `modelThinkingLevels` (PiModelTuning). Pi clamps it to what the model supports.
+    public var thinking: String?
     public var pending: String?
     public var pinned: Pinned?
     public var sampling: [String: Double]?
