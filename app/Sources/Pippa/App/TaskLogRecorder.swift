@@ -102,17 +102,6 @@ final class TaskLogRecorder {
         }
     }
 
-    /// A lookup ("Check online") is done. Never the query itself, only whether something was sourced.
-    func lookup(found: Bool) {
-        guard let log else { return }
-        let record = TaskRecord(kind: .lookup, offered: ["check-online"], chosen: "check-online", outcome: found ? .kept : nil)
-        let previous = tail
-        tail = Task {
-            _ = await previous?.value
-            _ = try? await log.record(record)
-        }
-    }
-
     /// Event without content (permission asked, granted, denied).
     func event(_ event: TaskEvent) {
         guard let log else { return }

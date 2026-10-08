@@ -44,7 +44,8 @@ public enum PiLocalServer {
         public var errorDescription: String? {
             switch self {
             case .binaryMissing: "llama-server fehlt (Contents/Helpers oder PIPPA_LLAMA_SERVER)."
-            case .unknownModel(let id): "Modell \(id) steht nicht in Pippas Katalog."
+            // E.g. Gemma from Pippa 1.0: no longer in the catalog. Pippa's setup sets up the current model.
+            case .unknownModel(let id): "Modell \(id) steht nicht mehr in Pippas Katalog. Öffne Pippa; die Einrichtung holt das aktuelle Modell."
             case .modelMissing(let id): "Modell \(id) liegt weder im Modellordner des Installers noch in Pippas Modellordner."
             case .portMismatch(let a, let b): "Port in models.json (\(a)) passt nicht zu Pippas Einstellungen (\(b)); Installer-Schritt „models.json“ reparieren."
             }

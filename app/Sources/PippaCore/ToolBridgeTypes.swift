@@ -1,32 +1,11 @@
 import Foundation
 
-// Shared values between host (Swift) and model: letter action choices, web citations, online
+// Shared values between host (Swift) and model: online
 // lookup in conversation (WebAccessGate, Pi tools via PippaMCP), reading the calendar (MCP).
-// Everything that comes from the model is unchecked: `LetterActions.validated` checks suggestions, `WebQuotes.verify` quotes.
 // The network is never the model's, always the host's (Lookup/LookupHost.swift, WebAccessGate.swift).
 
-/// One action that may be offered for a letter (only ids from this list are allowed).
-public struct AgentActionChoice: Sendable, Equatable {
-    public var id: String          // LetterActions id, e.g. "object"
-    public var label: String       // English verb for the model, e.g. "Object"
-    public var does: String        // English one-liner for the model
-    public init(id: String, label: String, does: String) {
-        self.id = id; self.label = label; self.does = does
-    }
-}
-
-/// Untrusted proposal from the model (validated again by LetterActions.validated).
-public struct AgentActionProposal: Sendable, Equatable, Codable {
-    public var id: String
-    public var instruction: String
-    public var reason: String
-    public init(id: String, instruction: String, reason: String) {
-        self.id = id; self.instruction = instruction; self.reason = reason
-    }
-}
-
 public struct LookupRequest: Sendable, Equatable {
-    /// `lookup`: request for "Check online" (letter, LookupHost). `search`/`page`: `web_search`/`read_web_page` in conversation (FLOW-7,
+    /// `lookup`: a plain query (default). `search`/`page`: `web_search`/`read_web_page` in conversation (FLOW-7,
     /// WebAccessGate); for `page` the address is in `query`.
     public enum Kind: String, Sendable { case lookup, search, page }
     public var query: String
@@ -55,16 +34,6 @@ public struct LookupReply: Sendable, Equatable {
     public var passages: [LookupPassage]
     public init(status: Status, passages: [LookupPassage]) {
         self.status = status; self.passages = passages
-    }
-}
-
-/// Untrusted citation from the model; the host verifies quote against the fetched page.
-public struct WebCitation: Sendable, Equatable, Codable {
-    public var sourceID: String
-    public var quote: String
-    public var statement: String
-    public init(sourceID: String, quote: String, statement: String) {
-        self.sourceID = sourceID; self.quote = quote; self.statement = statement
     }
 }
 

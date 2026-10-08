@@ -1,8 +1,8 @@
 import Foundation
 import PippaCore
 
-/// Values between host and model (ToolBridgeTypes.swift): ChatContext defaults, proposals and
-/// citations from JSON, inserting into Mail only with permission and without sending.
+/// Values between host and model (ToolBridgeTypes.swift): ChatContext defaults, lookup status names,
+/// inserting into Mail only with permission and without sending.
 func runAgentBridgeChecks() async {
     check("Agent bridge: ChatContext without arguments shows nothing and allows no online lookup") {
         let plain = ChatContext()
@@ -10,12 +10,8 @@ func runAgentBridgeChecks() async {
         return plain.files.isEmpty && plain.web == nil && plain.onWork == nil && plain.maximumFileCount == 20
             && selected.maximumFileCount == 19
     }
-    check("Agent bridge: values from the model decode from JSON (proposals, citations)") {
-        let actions = try JSONDecoder().decode([AgentActionProposal].self, from: Data(#"[{"id":"object","instruction":"Widerspruch schreiben","reason":"Frist"}]"#.utf8))
-        let citations = try JSONDecoder().decode([WebCitation].self, from: Data(#"[{"sourceID":"w1","quote":"Ein Monat","statement":"Ein Monat."}]"#.utf8))
-        return actions == [AgentActionProposal(id: "object", instruction: "Widerspruch schreiben", reason: "Frist")]
-            && citations == [WebCitation(sourceID: "w1", quote: "Ein Monat", statement: "Ein Monat.")]
-            && LookupReply.Status.needsPerson.rawValue == "needs_person" && LookupReply.Status(rawValue: "refused") == .refused
+    check("Agent bridge: lookup status values keep their wire names") {
+        LookupReply.Status.needsPerson.rawValue == "needs_person" && LookupReply.Status(rawValue: "refused") == .refused
     }
     await checkAsync("Agent bridge: inserting creates only an unsent reply window, and only with permission for Mail") {
         let draft = MailDraft(messageID: "bridge@example.invalid", to: "a@b.de", toName: nil, subject: "x", body: "y")

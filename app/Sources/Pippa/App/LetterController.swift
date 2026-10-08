@@ -5,11 +5,10 @@ import PippaCore
 // Letter in the line (reading a mail, first line, actions, draft, insert as an unsent reply).
 //
 // Call in Mail → "Looking at the mail …" → (first time a sentence, then the system prompt) → the chosen mail as .eml
-// onto the tray → first line from code (optionally sharpened by the system model, never by the large one) → type actions at once,
-// suggested ones later in the same slots → draft in the line → insert as an unsent reply in Mail.
-// Decisions live in PippaCore (LetterReading, FirstLineBuilder, LetterActions, LookupHost); only the flow is here.
-// Pippa never sends. The network for "Check online" is used only by the host (LookupHost/WebFetcher), never by the agent.
-// All conversations with the engine run one after another: suggestion, draft and check never overlap.
+// onto the tray → first line from code (optionally sharpened by the system model, never by the large one) → type actions
+// from code → draft in the line → insert as an unsent reply in Mail. "Check online" hands over to the conversation.
+// Decisions live in PippaCore (LetterReading, FirstLineBuilder, LetterActions); only the flow is here.
+// Pippa never sends.
 
 /// State of the letter in the line.
 enum LetterPhase: Equatable {

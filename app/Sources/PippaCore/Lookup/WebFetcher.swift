@@ -25,7 +25,7 @@ public enum WebFetchError: Error, Sendable, Equatable {
 
 /// The own fetch process (runtime/pippa-web/src/fetcher.mjs, pi-web-access; in the bundle Contents/Resources/pippa-web).
 /// Only the app starts it, for `web_search`/`read_web_page` from Pippa's MCP server (PippaMCPTurn) after approval in
-/// WebAccessGate and for "Check online" (LookupHost); Pi and the model have no network of their own.
+/// WebAccessGate (also for "Check online" on a letter, which is a Pi conversation now); Pi has no network of its own here.
 /// Protocol: JSON lines, see the header of fetcher.mjs. One request at a time, 30 s limit, ended after 120 s idle.
 /// Reading happens on the pipe's read queue, the result arrives as a finished value at the actor; nothing here ever waits
 /// blocking on the cooperative pool (no waitUntilExit).
@@ -65,7 +65,7 @@ public actor WebFetcher: WebFetching {
 
     public static var isAvailable: Bool { locations() != nil }
 
-    /// Pages for the query. No hits -> empty list. The ids (`id`) are assigned only by LookupHost.
+    /// Pages for the query. No hits -> empty list. The ids (`id`) are assigned only by WebAccessGate.
     public func lookup(_ query: String, language: String) async throws -> [WebSource] {
         try Task.checkCancellation()
         guard pending == nil else { throw WebFetchError.busy }

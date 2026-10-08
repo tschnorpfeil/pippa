@@ -3,8 +3,3 @@
   Module PippaCore, looked up with L("…", table: "Lookup"): Check online — notes under web facts and source tiles.
   Key = the English text itself. Format: "English key" = "Translation";
 */
-"I couldn’t confirm this on the pages I found." = "Auf den gefundenen Seiten konnte ich das nicht bestätigen.";
-"Some of these pages are more than a year old. Please check." = "Manche dieser Seiten sind älter als ein Jahr. Bitte prüf das nach.";
-"The sources don’t quite agree. Please check." = "Die Quellen sagen nicht ganz dasselbe. Bitte prüf das nach.";
-"as of %@" = "Stand %@";
-"checked %@" = "abgerufen am %@";

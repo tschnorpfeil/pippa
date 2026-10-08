@@ -2,7 +2,7 @@ import Foundation
 
 // "Check online": the core proposes a search query, the app checks it here in code before it
 // leaves the Mac. Filters known personal patterns and words: names, numbers, IBAN, addresses,
-// email addresses, file names. The heuristic does not prove a free query safe; LookupHost therefore requires
+// email addresses, file names. The heuristic does not prove a free query safe; WebAccessGate therefore requires
 // a preview and approval even for `.pass`. Pure, deterministic, no model.
 
 /// Words from the person's things that must never go into a search query (folded: lowercase, no accents, ≥ 3 letters).
