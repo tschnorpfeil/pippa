@@ -34,7 +34,7 @@ enum DropReader {
     }
 
     @MainActor
-    static func read(_ pb: NSPasteboard, completion: @escaping @MainActor (Result?) -> Void) {
+    static func read(_ pb: NSPasteboard, imageName: String = "Bild.png", completion: @escaping @MainActor (Result?) -> Void) {
         // 1. Real files and folders
         if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
             return completion(Result(payload: .files(urls), items: urls))
@@ -48,7 +48,7 @@ enum DropReader {
         // 3. Images
         if let data = pb.data(forType: .png) ?? pb.data(forType: .tiff).flatMap({ NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:]) }),
            let folder = try? Inbox.freshFolder() {
-            let url = folder.appendingPathComponent("Bild.png")
+            let url = folder.appendingPathComponent(imageName)
             if (try? data.write(to: url)) != nil {
                 return completion(Result(payload: .files([url]), items: [url]))
             }

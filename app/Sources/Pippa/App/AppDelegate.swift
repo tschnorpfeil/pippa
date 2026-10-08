@@ -105,7 +105,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .separator(),
             edit(T("Cut", table: "App"), #selector(NSText.cut(_:)), "x"),
             edit(T("Copy", table: "App"), #selector(NSText.copy(_:)), "c"),
-            edit(T("Paste", table: "App"), #selector(NSText.paste(_:)), "v"),
+            // Files and pictures on the clipboard become attachments; everything else pastes as text.
+            MenuAction.item(T("Paste", table: "App"), key: "v", modifiers: [.command]) { [weak self] in
+                if self?.shell?.pasteAsAttachment() == true { return }
+                NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+            },
             edit(T("Select All", table: "App"), #selector(NSText.selectAll(_:)), "a"),
         ])
         submenu(T("Help", table: "App"), [

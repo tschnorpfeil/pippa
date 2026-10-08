@@ -45,7 +45,23 @@ extension ShellController {
     func performDrop(_ pb: NSPasteboard) -> Bool {
         guard canDrop else { return false }
         dragAnnounced = false
-        DropReader.read(pb) { [weak self] result in
+        return receive(pb, imageName: "Bild.png")
+    }
+
+    /// ⌘V in the input: copied files or a picture are attached exactly like a drop; text pastes as usual.
+    /// Returns false when the normal text paste should happen. `pb` is injectable for checks.
+    func pasteAsAttachment(_ pb: NSPasteboard = .general, requireFocus: Bool = true) -> Bool {
+        guard canDrop, !requireFocus || (panel.isKeyWindow && panel.firstResponder is NSTextView) else { return false }
+        let decision = PasteDecision.decide(
+            hasFileURLs: pb.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]),
+            hasImage: pb.availableType(from: [.png, .tiff]) != nil,
+            plainText: pb.string(forType: .string))
+        guard decision != .text else { return false }
+        return receive(pb, imageName: T("Clipboard image %@.png", table: "App", PasteDecision.timeStamp(Date())))
+    }
+
+    private func receive(_ pb: NSPasteboard, imageName: String) -> Bool {
+        DropReader.read(pb, imageName: imageName) { [weak self] result in
             guard let self else { return }
             if let result {
                 self.model.receive(result.payload, items: result.items)

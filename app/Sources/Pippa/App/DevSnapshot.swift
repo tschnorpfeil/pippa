@@ -210,6 +210,12 @@ enum DevSnapshot {
                 return
             }
 
+            if only == "paste" {
+                await PasteSnapshot.run(model: model, shell: shell, directory: dir)
+                NSApp.terminate(nil)
+                return
+            }
+
             if only == "promptattachments" {
                 await PromptAttachmentSnapshot.run(model: model, shell: shell, directory: dir)
                 NSApp.terminate(nil)
