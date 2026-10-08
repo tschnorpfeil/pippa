@@ -281,7 +281,7 @@
       "rank": 52,
       "thinking": "high",
       "sampling": {
-        "temp": 1,
+        "temp": 0.6,
         "top-p": 0.95,
         "top-k": 0,
         "min-p": 0

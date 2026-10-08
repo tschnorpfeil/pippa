@@ -40,7 +40,7 @@ case "${1:-}" in
 llama-start)
   case "${2:-k2}" in
     qwen) model="$cache/models/Qwen3.5-4B-Q4_K_M.gguf"; alias=qwen3.5-4b ;;
-    *) model="$cache/models/K2-Horizon-7B-Q4_K_M.gguf"; alias=k2-horizon-7b; sampling="--temp 1 --top-p 0.95 --top-k 0 --min-p 0" ;;
+    *) model="$cache/models/K2-Horizon-7B-Q4_K_M.gguf"; alias=k2-horizon-7b; sampling="--temp 0.6 --top-p 0.95 --top-k 0 --min-p 0" ;;
   esac
   [ -f "$support/llama-key" ] || { echo "run first: $0 setup"; exit 2; }
   # As the app starts Pi's server: no --reasoning off (Pi sets the level per request), the bundled (patched) build if
