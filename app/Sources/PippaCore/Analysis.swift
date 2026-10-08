@@ -18,10 +18,12 @@ public struct DocInsight: Sendable {
     public var folder: String? = nil
     /// The model answered for this classification (otherwise patterns only).
     public var fromModel = false
+    /// Byte-identical copy of this file (which stays): the copy goes to the Trash.
+    public var duplicateOf: URL? = nil
 }
 
 /// Model answers (JSON per schema).
-struct ClassifyJSON: Decodable { var kategorie: String; var absender: String; var art: String; var datum: String; var betreff: String; var entwurf: Bool; var beleg: String?; var entwurf_beleg: String? }
+struct ClassifyJSON: Decodable, Sendable { var kategorie: String; var absender: String; var art: String; var datum: String; var betreff: String; var entwurf: Bool; var beleg: String?; var entwurf_beleg: String? }
 struct InvoiceJSON: Decodable { var typ: String; var datum: String; var absender: String; var betrag: String; var beleg: String }
 
 /// Patterns without a model.

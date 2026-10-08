@@ -10,12 +10,16 @@ struct SortSheet: View {
     @ObservedObject var model: AppModel
     /// Row with keyboard focus: the space bar toggles it on or off.
     @FocusState private var focusedRow: UUID?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     struct Row: Identifiable {
         var id: UUID
         var op: PlanOp
         var new: String
-        var old: String
+        /// Old name, only if the step renames the file.
+        var old: String?
+        /// The file as it lies now (for the thumbnail).
+        var source: URL?
         var reason: String
         var unsure: Bool
     }
@@ -26,6 +30,8 @@ struct SortSheet: View {
         var subs: [String]
         var rows: [Row]
         var isNew: Bool
+        /// Identical copies that go to the Trash (with undo); always shown last.
+        var isTrash = false
     }
 
     struct Stay: Identifiable {
@@ -46,7 +52,12 @@ struct SortSheet: View {
         var order: [String] = []
         var byKey: [String: Group] = [:]
         var stay: [Stay] = []
+        var trash = Group(key: T("Move to Trash · duplicates", table: "Views"), subs: [], rows: [], isNew: false, isTrash: true)
         for op in plan.ops where op.kind != .mkdir {
+            if op.kind == .trash, op.certainty != .unreadable {
+                trash.rows.append(Row(id: op.id, op: op, new: op.target.lastPathComponent, old: nil, source: op.source, reason: op.reason, unsure: false))
+                continue
+            }
             if op.certainty == .unreadable {
                 stay.append(Stay(id: op.id.uuidString, name: op.source?.lastPathComponent ?? op.target.lastPathComponent, why: op.reason, url: op.source))
                 continue
@@ -59,11 +70,11 @@ struct SortSheet: View {
                 byKey[key] = Group(key: key, subs: [], rows: [], isNew: made.contains(key))
             }
             if !sub.isEmpty, !(byKey[key]!.subs.contains(sub)) { byKey[key]!.subs.append(sub) }
-            byKey[key]!.rows.append(Row(id: op.id, op: op, new: op.target.lastPathComponent, old: op.source?.lastPathComponent ?? "",
-                                        reason: op.reason, unsure: op.certainty == .unsure))
+            byKey[key]!.rows.append(Row(id: op.id, op: op, new: op.target.lastPathComponent, old: op.previousName,
+                                        source: op.source, reason: op.reason, unsure: op.certainty == .unsure))
         }
         stay += plan.skipped.enumerated().map { Stay(id: "skip-\($0.offset)", name: $0.element.url.lastPathComponent, why: $0.element.why, url: $0.element.url) }
-        let groups = order.compactMap { byKey[$0] }.map { g -> Group in
+        let groups = (order.compactMap { byKey[$0] } + (trash.rows.isEmpty ? [] : [trash])).map { g -> Group in
             var g = g
             g.rows.sort { $0.new.localizedStandardCompare($1.new) == .orderedAscending }
             return g
@@ -83,12 +94,13 @@ struct SortSheet: View {
                           markSize: 36, sheet: true, onClose: { model.escape() })
                 AdaptiveScroll {
                     VStack(spacing: 0) {
-                        BeforeAfter(total: all.count + stay.count + plan.pending.count + plan.later.count, groups: groups)
+                        BeforeAfter(total: all.count + stay.count + plan.pending.count + plan.later.count, groups: groups.filter { !$0.isTrash })
                             .padding(.horizontal, 20)
                             .padding(.top, 14)
                             .stagger(4)
-                        if !plan.pending.isEmpty || !plan.remaining.isEmpty || !plan.later.isEmpty { comingNext(plan) }
-                        if all.count > 1 { selectionBar(chosen: chosen, all: all) }
+                        if !plan.pending.isEmpty || !plan.remaining.isEmpty || !plan.later.isEmpty { comingNext(plan, placed: all.count + stay.count + plan.later.count) }
+                        // While files are still being looked at, the count would only grow under the person's eyes.
+                        if all.count > 1 && !model.sortFilling { selectionBar(chosen: chosen, all: all) }
                         VStack(spacing: 0) {
                             ForEach(Array(groups.enumerated()), id: \.element.id) { index, g in
                                 groupView(g, index: index)
@@ -113,22 +125,28 @@ struct SortSheet: View {
         }
     }
 
-    /// What is still to come: files being read right now (the preview grows), documents waiting to wake up,
-    /// and those for a second round.
-    private func comingNext(_ plan: Plan) -> some View {
+    /// What is still to come, in plain words: one progress line while Pippa is still looking at files (the groups fill in
+    /// meanwhile, organizing waits until every file has its place), documents for later, and the rest of a very full folder.
+    private func comingNext(_ plan: Plan, placed: Int) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if !plan.pending.isEmpty {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text(plan.pending.count == 1 ? T("I’m still reading 1 file more closely. You can organize the rest now.", table: "Views")
-                         : T("I’m still reading %lld files more closely. You can organize the rest now.", table: "Views", plan.pending.count))
+                let total = placed + plan.pending.count
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(T("Looking at %lld files… %lld of %lld", table: "Views", total, placed, total))
+                        .monospacedDigit()
+                    ProgressView(value: Double(placed), total: Double(max(total, 1)))
+                        .progressViewStyle(.linear)
+                        .controlSize(.small)
+                        .tint(Theme.accent)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: placed)
                 }
             }
-            if !plan.later.isEmpty {
+            if !plan.later.isEmpty && plan.pending.isEmpty {
                 Text(laterText(plan.later.count))
             }
             if !plan.remaining.isEmpty {
-                Text(T("Newest files first. You can organize the other %lld afterward.", table: "Views", plan.remaining.count))
+                Text(T("This folder is very full. I’m starting with the newest %lld files; the other %lld come afterward.", table: "Views",
+                       placed + plan.pending.count, plan.remaining.count))
             }
         }
         .font(.system(size: 12.5))
@@ -143,9 +161,9 @@ struct SortSheet: View {
     private func laterText(_ count: Int) -> String {
         let what = AppModel.laterCount(count)
         if count == 1 {
-            return T("I’ll organize %@ more closely %@. Until then, it stays where it is.", table: "Views", what, model.laterPhrase)
+            return T("I’ll take a calm look at %@ later, %@. Until then, it stays where it is.", table: "Views", what, model.laterPhrase)
         }
-        return T("I’ll organize %@ more closely %@. Until then, they stay where they are.", table: "Views", what, model.laterPhrase)
+        return T("I’ll take a calm look at %@ later, %@. Until then, they stay where they are.", table: "Views", what, model.laterPhrase)
     }
 
     /// "All" / "None" for the whole preview; single rows are toggled by their checkbox (or the space bar).
@@ -183,7 +201,15 @@ struct SortSheet: View {
                     if included == g.rows.count { model.excluded.formUnion(ids) } else { model.excluded.subtract(ids) }
                 }
                 .accessibilityLabel(T("All in %@", table: "Views", g.key))
-                FolderArt(width: 26)
+                if g.isTrash {
+                    Image(systemName: "trash")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Theme.ink2)
+                        .frame(width: 26)
+                        .accessibilityHidden(true)
+                } else {
+                    FolderArt(width: 26)
+                }
                 (Text(g.key).foregroundStyle(Theme.ink)
                  + Text(g.subs.isEmpty ? "" : "  › " + g.subs.sorted().joined(separator: ", ")).foregroundStyle(Theme.ink3).fontWeight(.medium))
                     .font(.system(size: 14, weight: .semibold))
@@ -236,23 +262,25 @@ struct SortSheet: View {
         return HStack(alignment: .center, spacing: 12) {
             CheckBox(state: on ? .on : .off) { toggle(row) }
             .accessibilityLabel(T("Include %@", table: "Views", row.new))
-            DocIcon(kind: DocIcon.kind(for: row.op.target), width: 20).opacity(on ? 1 : 0.38)
+            FileThumbnail(url: row.source ?? row.op.target, width: 20).opacity(on ? 1 : 0.38)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(FileName.display(row.new))
+                    // The full name with extension: "Bild.png", not "Bild" (several files may differ only there).
+                    Text(row.new)
                         .font(.system(size: 13.5, weight: .medium))
                         .foregroundStyle(Theme.ink)
                         .strikethrough(!on, color: Theme.fill3)
                         .lineLimit(1).truncationMode(.middle)
                     if row.unsure { Chip(text: T("unsure", table: "Views"), kind: .need) }
                 }
-                if model.showReasons || row.unsure {
+                // Copies for the Trash always say which file stays.
+                if model.showReasons || row.unsure || row.op.kind == .trash {
                     Text(row.reason)
                         .font(.system(size: 11.5))
                         .foregroundStyle(row.unsure ? Theme.need : Theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text(T("was: %@", table: "Views", FileName.display(row.old)))
+                } else if let old = row.old {
+                    Text(T("was: %@", table: "Views", old))
                         .font(Fonts.mono(11.5))
                         .foregroundStyle(Theme.ink3)
                         .lineLimit(1).truncationMode(.middle)
@@ -286,9 +314,9 @@ struct SortSheet: View {
             .frame(height: 40)
             ForEach(stay) { s in
                 HStack(spacing: 12) {
-                    DocIcon(kind: DocIcon.kind(for: s.url), width: 20)
+                    FileThumbnail(url: s.url, width: 20)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(FileName.display(s.name)).font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1).truncationMode(.middle)
+                        Text(s.name).font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1).truncationMode(.middle)
                         Text(s.why).font(.system(size: 11.5)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)

@@ -64,7 +64,8 @@ public enum Certainty: String, Sendable, Codable { case sure, unsure, unreadable
 
 /// A planned change. Executed only after approval, by the `Executor`.
 public struct PlanOp: Sendable, Identifiable, Codable, Hashable {
-    public enum Kind: String, Sendable, Codable { case rename, move, mkdir }
+    /// `trash`: a byte-identical copy goes to the Trash (`source` = `target` = the copy); undo brings it back.
+    public enum Kind: String, Sendable, Codable { case rename, move, mkdir, trash }
     public var id: UUID
     public var kind: Kind
     public var source: URL?
@@ -76,6 +77,13 @@ public struct PlanOp: Sendable, Identifiable, Codable, Hashable {
     public init(id: UUID = UUID(), kind: Kind, source: URL?, target: URL, reason: String, certainty: Certainty, fingerprint: FileFingerprint? = nil) {
         self.id = id; self.kind = kind; self.source = source; self.target = target; self.reason = reason; self.certainty = certainty
         self.fingerprint = fingerprint
+    }
+
+    /// The old file name, only when the step really renames the file (exact comparison, extension included).
+    /// `nil` for a plain move that keeps the name: the preview then shows no "was: …" line.
+    public var previousName: String? {
+        guard let old = source?.lastPathComponent, !old.isEmpty, old != target.lastPathComponent else { return nil }
+        return old
     }
 }
 

@@ -22,7 +22,6 @@
 "Compressed archive" = "Compressed archive";
 "Spreadsheet or presentation" = "Spreadsheet or presentation";
 "Not a document, so it goes to “%@”" = "Not a document, so it goes to “%@”";
-"Same content as “%@”" = "Same content as “%@”";
 "Date" = "Date";
 "Sender" = "Sender";
 "Amount" = "Amount";
@@ -53,3 +52,4 @@
 "From: %@" = "From: %@";
 "Page %@" = "Page %@";
 "Added by Pippa." = "Added by Pippa.";
+"Same content as “%@”. I’ll keep that one." = "Same content as “%@”. I’ll keep that one.";

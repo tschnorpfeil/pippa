@@ -49,10 +49,12 @@ public enum Prompts {
 
     // MARK: JSON schemas (as text so they are Sendable)
 
+    /// Every field is used (names and folders from sender, kind, date, subject; draft mark; evidence check); the length
+    /// limits keep the answer short (each output token costs time on the local model) without cutting what the checks need.
     public static let classifySchema = #"""
     {"type":"object","properties":{"kategorie":{"type":"string","enum":["rechnung","vertrag","brief","sonstiges"]},
-    "absender":{"type":"string"},"art":{"type":"string"},"datum":{"type":"string"},"betreff":{"type":"string"},
-    "entwurf":{"type":"boolean"},"entwurf_beleg":{"type":"string"},"beleg":{"type":"string"}},"required":["kategorie","absender","art","datum","betreff","entwurf","entwurf_beleg","beleg"],"additionalProperties":false}
+    "absender":{"type":"string","maxLength":60},"art":{"type":"string","maxLength":30},"datum":{"type":"string","maxLength":10},"betreff":{"type":"string","maxLength":60},
+    "entwurf":{"type":"boolean"},"entwurf_beleg":{"type":"string","maxLength":40},"beleg":{"type":"string","maxLength":120}},"required":["kategorie","absender","art","datum","betreff","entwurf","entwurf_beleg","beleg"],"additionalProperties":false}
     """#
 
     public static let invoiceSchema = #"""

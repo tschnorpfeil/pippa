@@ -6,8 +6,9 @@ import UniformTypeIdentifiers
 /// Only documents are read (PDF, Word, text, images with receipt-like names); the model only sees those whose place stays unclear afterwards.
 /// The file name stays for everything that gets a folder here (except camera photos, which are named by date as before).
 public enum PreSort {
-    /// The first time only the newest files, to keep the preview manageable; the rest follows afterwards.
-    public static let firstRunLimit = 30
+    /// The first time at most this many (the newest) files. High enough that an everyday folder is done in one go
+    /// (the preview's groups are collapsed anyway); only really big folders get a second round ("Tidy more …").
+    public static let firstRunLimit = 300
 
     static let screenshots = "Bildschirmfotos"
     static let images = "Bilder"
@@ -15,7 +16,6 @@ public enum PreSort {
     static let music = "Musik"
     static let installers = "Installer (kann weg?)"
     static let archives = "Archive"
-    static let duplicates = "Doppelt"
     static let documents = "Dokumente"
 
     static let installerExtensions: Set<String> = ["dmg", "pkg", "mpkg", "app"]
@@ -76,8 +76,9 @@ public enum PreSort {
         urls.map { ($0, arrival($0)) }.sorted { $0.1 > $1.1 }.map(\.0)
     }
 
-    /// Exactly identical files (size first, then checksum): copy → original. The original is the oldest, with equal time
-    /// the one with the shortest name ("Rechnung.pdf" before "Rechnung (1).pdf"). Empty files and cloud files do not count.
+    /// Exactly identical files (size first, then a SHA-256 of the whole content): copy → original. The original keeps the
+    /// cleaner name ("Rechnung.pdf" before "Rechnung (1).pdf", "Rechnung-1.pdf", "Rechnung Kopie.pdf", "Rechnung copy.pdf"),
+    /// then the older one, then the shorter name. Empty files and cloud files do not count.
     public static func duplicates(in urls: [URL]) -> [URL: URL] {
         var bySize: [Int: [URL]] = [:]
         for url in urls {
@@ -90,15 +91,26 @@ public enum PreSort {
             var byHash: [Data: [URL]] = [:]
             for url in group { if let h = hash(url) { byHash[h, default: []].append(url) } }
             for same in byHash.values where same.count > 1 {
-                let ordered = same.map { ($0, arrival($0)) }.sorted { a, b in
-                    if a.1 != b.1 { return a.1 < b.1 }
-                    let (na, nb) = (a.0.lastPathComponent, b.0.lastPathComponent)
-                    return na.count != nb.count ? na.count < nb.count : na < nb
-                }.map(\.0)
+                let ordered = same.map { ($0, arrival($0)) }.sorted { a, b in keepFirst((a.0, a.1), (b.0, b.1)) }.map(\.0)
                 for copy in ordered.dropFirst() { copies[copy] = ordered[0] }
             }
         }
         return copies
+    }
+
+    /// Which of two identical files to keep: `true` if `a` comes first. Clean name, then older, then shorter name.
+    public static func keepFirst(_ a: (url: URL, arrived: Date), _ b: (url: URL, arrived: Date)) -> Bool {
+        let (na, nb) = (a.url.lastPathComponent, b.url.lastPathComponent)
+        let (ca, cb) = (looksLikeCopy(na), looksLikeCopy(nb))
+        if ca != cb { return !ca }
+        if a.arrived != b.arrived { return a.arrived < b.arrived }
+        return na.count != nb.count ? na.count < nb.count : na < nb
+    }
+
+    /// Names that browsers and Finder give copies: "Name (1).pdf", "Name-1.pdf", "Name Kopie.pdf", "Name copy 2.pdf".
+    public static func looksLikeCopy(_ name: String) -> Bool {
+        let base = (name as NSString).deletingPathExtension
+        return base.range(of: #"(?i)(\s\(\d{1,3}\)|-\d{1,2}|\s(kopie|copy)(\s\d{1,3})?)$"#, options: .regularExpression) != nil
     }
 
     static func hash(_ url: URL) -> Data? {
@@ -109,8 +121,10 @@ public enum PreSort {
         return Data(sha.finalize())
     }
 
+    /// A byte-identical copy: to the Trash (with undo), the original stays.
     static func duplicate(_ url: URL, of original: URL) -> DocInsight {
-        DocInsight(url: url, facts: FileFacts.read(url), category: .other, reason: L("Same content as “%@”", table: "Analysis", original.lastPathComponent),
-                   certainty: .sure, folder: duplicates)
+        DocInsight(url: url, facts: FileFacts.read(url), category: .other,
+                   reason: L("Same content as “%@”. I’ll keep that one.", table: "Analysis", original.lastPathComponent),
+                   certainty: .sure, duplicateOf: original)
     }
 }

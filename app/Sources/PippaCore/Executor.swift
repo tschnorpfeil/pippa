@@ -122,7 +122,7 @@ public struct UndoReport: Sendable {
 }
 
 /// Executes approved plans. Writes each operation to the journal (SQLite) before running it
-/// and marks it done afterwards. Never deletes anything.
+/// and marks it done afterwards. Never deletes anything: identical copies go to the Trash, and undo brings them back.
 public actor Executor {
     let db: SQLiteDB
     let fm = FileManager.default
@@ -288,12 +288,13 @@ public actor Executor {
         var done: [UUID] = []
         var taken = Set<String>()
         var targetFolders = Set<String>()
+        var trashed = 0
         let mkdirs = ops.filter { $0.kind == .mkdir }.sorted { $0.target.pathComponents.count < $1.target.pathComponents.count }
 
         func receipt() -> JobReceipt {
             let files = done.count - mkdirs.filter { done.contains($0.id) }.count
             let summary = files == 1 ? L("1 file tidied", table: "Core") : L("%lld files tidied", table: "Core", files)
-            return JobReceipt(id: job, summary: summary, detail: Self.detail(folders: targetFolders.count, stayed: stayed.count),
+            return JobReceipt(id: job, summary: summary, detail: Self.detail(folders: targetFolders.count, stayed: stayed.count, trashed: trashed),
                               revealURL: scope, stayed: stayed, date: Date())
         }
 
@@ -321,6 +322,22 @@ public actor Executor {
                 try skip(L("It changed since the preview, so it stays where it is.", table: "Core")); continue
             }
             if FileFacts.isCloudPlaceholder(source) { try skip(L("It’s only in the cloud, and I don’t download anything.", table: "Core")); continue }
+            if op.kind == .trash {
+                // The Trash location is known only afterwards; until then the journal names the file itself.
+                let seq = try journalStart(job, opID: op.id, kind: "trash", source: source, target: source, fp: current)
+                do {
+                    let inTrash = try moveToTrash(source)
+                    try db.run("UPDATE ops SET target=? WHERE job=? AND seq=?", [.text(inTrash.path), .text(job.uuidString), .int(seq)])
+                    try journalMark(job, seq, "done")
+                    done.append(op.id)
+                    trashed += 1
+                } catch {
+                    let why = SystemError.reason(error)
+                    try journalMark(job, seq, "failed", note: why)
+                    skipped.append((source, why)); stayed.append(FileReason(name: source.lastPathComponent, why: why))
+                }
+                continue
+            }
             let parent = op.target.deletingLastPathComponent()
             do { created += try ensureDirectory(parent, job: job, guardrail: guardrail, opID: nil) }
             catch { try skip(Self.reason(error)); continue }
@@ -361,12 +378,31 @@ public actor Executor {
         return ExecutionReport(receipt: r, done: done, skipped: skipped, createdFolders: created)
     }
 
-    /// "In 4 folders · 1 stays"; parts with 0 are dropped.
-    public static func detail(folders: Int, stayed: Int) -> String {
+    /// "In 4 folders · 2 in the Trash · 1 stays"; parts with 0 are dropped.
+    public static func detail(folders: Int, stayed: Int, trashed: Int = 0) -> String {
         var parts: [String] = []
         if folders > 0 { parts.append(folders == 1 ? L("In 1 folder", table: "Core") : L("In %lld folders", table: "Core", folders)) }
+        if trashed > 0 { parts.append(trashed == 1 ? L("1 in the Trash", table: "Core") : L("%lld in the Trash", table: "Core", trashed)) }
         if stayed > 0 { parts.append(stayed == 1 ? L("1 stays put", table: "Core") : L("%lld stay put", table: "Core", stayed)) }
         return parts.isEmpty ? L("Nothing changed", table: "Core") : parts.joined(separator: " · ")
+    }
+
+    /// Moves a file to the Trash and returns where it now lies (for undo). Debug builds with `PIPPA_CHECK_TRASH` use that
+    /// folder instead, so checks never touch the person's real Trash.
+    private func moveToTrash(_ url: URL) throws -> URL {
+        #if DEBUG
+        if let dir = ProcessInfo.processInfo.environment["PIPPA_CHECK_TRASH"] {
+            let folder = URL(fileURLWithPath: dir, isDirectory: true)
+            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+            var taken = Set<String>()
+            let target = Naming.unique(url.lastPathComponent, in: folder, taken: &taken)
+            try fm.moveItem(at: url, to: target)
+            return target
+        }
+        #endif
+        var resulting: NSURL?
+        try fm.trashItem(at: url, resultingItemURL: &resulting)
+        return (resulting as URL?) ?? url
     }
 
     struct GuardError: Error { let why: String }
@@ -561,6 +597,22 @@ public actor Executor {
                     conflicts.append((target, L("The file has changed since then, so it stays.", table: "Core"))); continue
                 }
                 try fm.trashItem(at: target, resultingItemURL: nil)
+                try journalMark(jobID, seq, "undone")
+                restored += 1
+            case "trash":
+                // Back from the Trash to the old place, only unchanged and only if that place is free.
+                guard let sourcePath = r[2].string else { continue }
+                let source = URL(fileURLWithPath: sourcePath)
+                let sourceThere = fm.fileExists(atPath: source.path)
+                if state == "started" && sourceThere { try journalMark(jobID, seq, "undone"); continue } // was never executed
+                guard target.path != source.path, fm.fileExists(atPath: target.path) else {
+                    conflicts.append((source, L("It’s no longer in the Trash.", table: "Core"))); continue
+                }
+                guard let fp, fp.matches(FileFingerprint.of(target)) else {
+                    conflicts.append((target, L("The file has changed since then, so it stays.", table: "Core"))); continue
+                }
+                guard !sourceThere else { conflicts.append((source, L("Something else is in the old place now.", table: "Core"))); continue }
+                try fm.moveItem(at: target, to: source)
                 try journalMark(jobID, seq, "undone")
                 restored += 1
             case "result":

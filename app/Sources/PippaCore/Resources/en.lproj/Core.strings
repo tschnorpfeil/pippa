@@ -98,6 +98,7 @@
 "Heading on page 1" = "Heading on page 1";
 "New folder" = "New folder";
 "I can’t make out any text. I won’t guess, so the file stays where it is." = "I can’t make out any text. I won’t guess, so the file stays where it is.";
+"Reading this one took too long. It stays where it is for now." = "Reading this one took too long. It stays where it is for now.";
 "1 invoice" = "1 invoice";
 "%lld invoices" = "%lld invoices";
 "%@ · %lld to check" = "%@ · %lld to check";
@@ -201,3 +202,6 @@
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
 "I didn’t ask %@. Nothing left your Mac." = "I didn’t ask %@. Nothing left your Mac.";
+"1 in the Trash" = "1 in the Trash";
+"%lld in the Trash" = "%lld in the Trash";
+"It’s no longer in the Trash." = "It’s no longer in the Trash.";

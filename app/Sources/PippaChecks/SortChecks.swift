@@ -73,7 +73,7 @@ func runSortChecks() async {
     await checkAsync("Pre-sort: images, photos, screenshot, installer, archive, music, video, duplicates, invoice, list, unknown") {
         let plan = try await engine.proposeSort(items: nil, scope: downloads, limit: PreSort.firstRunLimit) { updates.add($0) }
         let placed = Dictionary(uniqueKeysWithValues: plan.ops.filter { $0.kind != .mkdir }.compactMap { op in
-            op.source.map { ($0.lastPathComponent, op.target.path.replacingOccurrences(of: downloads.path + "/", with: "")) }
+            op.source.map { ($0.lastPathComponent, op.kind == .trash ? "Papierkorb" : op.target.path.replacingOccurrences(of: downloads.path + "/", with: "")) }
         })
         for (k, v) in placed.sorted(by: { $0.key < $1.key }) { print("   \(k) → \(v)") }
         let expected = [
@@ -86,9 +86,10 @@ func runSortChecks() async {
             "Lied.mp3": "Musik/Lied.mp3",
             "Clip.mov": "Videos/Clip.mov",
             "daten.xyz": "Sonstiges/daten.xyz",
-            "Rechnung (1).pdf": "Doppelt/Rechnung (1).pdf",
+            "Rechnung (1).pdf": "Papierkorb",   // identical copy: to the Trash, the clean name stays
         ]
-        return placed == expected && Set(plan.later.map(\.lastPathComponent)) == ["liste.txt", "Rechnung.pdf"] && plan.skipped.isEmpty && plan.pending.isEmpty && plan.remaining.isEmpty
+        let copy = plan.ops.first { $0.source?.lastPathComponent == "Rechnung (1).pdf" }
+        return placed == expected && copy?.kind == .trash && copy?.reason.contains("Rechnung.pdf") == true && Set(plan.later.map(\.lastPathComponent)) == ["liste.txt", "Rechnung.pdf"] && plan.skipped.isEmpty && plan.pending.isEmpty && plan.remaining.isEmpty
             && plan.ops.allSatisfy { $0.certainty == .sure } && asked.count == 2
     }
 
@@ -110,21 +111,51 @@ func runSortChecks() async {
         try await engine.undo(receipt)
         if tree(downloads) != before { print("   Difference: \(tree(downloads).symmetricDifference(before).sorted())") }
         if !receipt.stayed.isEmpty { print("   Stayed in place: \(receipt.stayed)") }
-        return moved != before && moved.contains("Installer (kann weg?)/Firefox 140.dmg") && moved.contains("Doppelt/Rechnung (1).pdf")
+        return moved != before && moved.contains("Installer (kann weg?)/Firefox 140.dmg") && !moved.contains("Rechnung (1).pdf")
+            && moved.contains("Rechnung.pdf") && !moved.contains(where: { $0.hasPrefix("Doppelt") })
             && receipt.stayed.isEmpty && tree(downloads) == before
     }
 
-    await checkAsync("First sort: only the 30 newest, the rest stay for \"Sort more\"") {
+    await checkAsync("Duplicates: whole-content hash, the clean or older name stays, browser copies \"Name (1).ext\" found") {
+        let folder = dir("Doppelte")
+        // The browser copy arrived first (older), the clean name later: the clean name stays anyway.
+        write("Kontoauszug März", folder.appendingPathComponent("Auszug (1).txt"))
+        try await Task.sleep(for: .milliseconds(1100))
+        write("Kontoauszug März", folder.appendingPathComponent("Auszug.txt"))
+        // Two plain names, same content: the older stays.
+        write("Foto-Rohdaten 1234", folder.appendingPathComponent("aaa.dat"))
+        try await Task.sleep(for: .milliseconds(1100))
+        write("Foto-Rohdaten 1234", folder.appendingPathComponent("bbb.dat"))
+        // Same size and name pattern, different content: no duplicate.
+        write("Rechnung Nummer 01", folder.appendingPathComponent("Beleg.txt"))
+        write("Rechnung Nummer 02", folder.appendingPathComponent("Beleg Kopie.txt"))
+        let urls = (try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+        let copies = Dictionary(uniqueKeysWithValues: PreSort.duplicates(in: urls).map { ($0.key.lastPathComponent, $0.value.lastPathComponent) })
+        print("   \(copies)")
+        let names = ["Rechnung (1).pdf", "Rechnung-1.pdf", "Rechnung Kopie.pdf", "Rechnung copy 2.pdf", "Rechnung copy.pdf"]
+        return copies == ["Auszug (1).txt": "Auszug.txt", "bbb.dat": "aaa.dat"]
+            && names.allSatisfy(PreSort.looksLikeCopy)
+            && !["Rechnung.pdf", "Rechnung 2024.pdf", "Scan (Seite).pdf", "Kopierer.pdf"].contains(where: PreSort.looksLikeCopy)
+    }
+
+    await checkAsync("First sort: an everyday folder in one go, only a folder above \(PreSort.firstRunLimit) files leaves the oldest for \"Sort more\"") {
+        let limit = PreSort.firstRunLimit
+        // An everyday folder (well below the limit): everything in the first round, nothing left over.
+        let everyday = dir("Alltag")
+        for i in 0..<40 { write("datei \(i)", everyday.appendingPathComponent("paket-\(i).zip")) }
+        let whole = try await engine.proposeSort(items: nil, scope: everyday, limit: limit) { _ in }
+        // A really big folder: the newest `limit` first, the 5 oldest for the second round.
         let many = dir("Viele")
         for i in 0..<5 { write("alt \(i)", many.appendingPathComponent("alt-\(i).zip")) }
         // The system sets \"Date Added\" on creation; one second later the new ones are clearly newer.
         try await Task.sleep(for: .milliseconds(1100))
-        for i in 0..<30 { write("neu \(i)", many.appendingPathComponent("neu-\(i).zip")) }
-        let plan = try await engine.proposeSort(items: nil, scope: many, limit: 30) { _ in }
+        for i in 0..<limit { write("neu \(i)", many.appendingPathComponent("neu-\(i).zip")) }
+        let plan = try await engine.proposeSort(items: nil, scope: many, limit: limit) { _ in }
         let rest = try await engine.proposeSort(items: plan.remaining, scope: many, limit: nil) { _ in }
         let sources = Set(plan.ops.compactMap { $0.source?.lastPathComponent })
-        return plan.remaining.map(\.lastPathComponent).sorted() == (0..<5).map { "alt-\($0).zip" }
-            && sources.count == 30 && sources.allSatisfy { $0.hasPrefix("neu-") }
+        return limit >= 300 && whole.remaining.isEmpty && whole.ops.filter { $0.kind == .move }.count == 40
+            && plan.remaining.map(\.lastPathComponent).sorted() == (0..<5).map { "alt-\($0).zip" }
+            && sources.count == limit && sources.allSatisfy { $0.hasPrefix("neu-") }
             && rest.remaining.isEmpty && rest.ops.filter { $0.kind == .move }.count == 5
     }
 

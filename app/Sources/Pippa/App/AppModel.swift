@@ -1200,9 +1200,8 @@ final class AppModel: ObservableObject {
 
     /// Only the visible, valid preview can be approved from the keyboard.
     var canConfirmPreview: Bool {
-        // While the tidy preview is still growing, what is already there can be approved.
-        let sortStillReading = if case .sortSheet = mode { sortFilling && !taskWrites } else { false }
-        guard !isActiveWork || sortStillReading else { return false }
+        // One process: the tidy preview can be approved only once every file has its place (not while still reading).
+        guard !isActiveWork else { return false }
         switch mode {
         case .sortSheet:
             return plan?.ops.contains { $0.kind != .mkdir && $0.certainty != .unreadable && !excluded.contains($0.id) } == true

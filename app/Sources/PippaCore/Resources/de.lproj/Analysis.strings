@@ -22,7 +22,6 @@
 "Compressed archive" = "Gepacktes Archiv";
 "Spreadsheet or presentation" = "Tabelle oder Präsentation";
 "Not a document, so it goes to “%@”" = "Keine Unterlage, kommt zu %@";
-"Same content as “%@”" = "Gleicher Inhalt wie „%@“";
 "Date" = "Datum";
 "Sender" = "Absender";
 "Amount" = "Betrag";
@@ -53,3 +52,4 @@
 "From: %@" = "Aus: %@";
 "Page %@" = "S. %@";
 "Added by Pippa." = "Eingetragen von Pippa.";
+"Same content as “%@”. I’ll keep that one." = "Gleicher Inhalt wie „%@“ – die behalte ich.";
