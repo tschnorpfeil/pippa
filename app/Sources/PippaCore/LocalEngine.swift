@@ -754,7 +754,7 @@ public actor LocalEngine: PippaEngine {
         var outcomes: [TidyClassifier.Outcome] = []
         for route in TidyClassifier.routes(replay: replay != nil, appleAvailable: TidyClassifier.appleAvailable, localReady: canAskModel) {
             let started = Date()
-            let (answer, timedOut) = try await TidyClassifier.withTimeout(TidyClassifier.perFileTimeout) { [self] () async throws -> ClassifyJSON? in
+            let (answer, timedOut) = try await TidyClassifier.withTimeout(TidyClassifier.perFileTimeout(route)) { [self] () async throws -> ClassifyJSON? in
                 switch route {
                 case .apple: try await TidyClassifier.askApple(system: system, prompt: prompt)
                 case .local: try await self.askModel(.classify, user: prompt, schema: Prompts.classifySchema, name: "einordnung", as: ClassifyJSON.self)

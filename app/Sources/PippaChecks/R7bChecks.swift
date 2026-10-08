@@ -139,7 +139,7 @@ func runR7bChecks() async {
             && C.settle([.declined, .answered]) == .answered
             && C.settle([.timedOut, .declined]) == .timedOut
             && C.settle([.declined]) == .declined && C.settle([]) == .declined
-            && C.excerptChars <= 1500
+            && C.excerptChars <= 1500 && C.perFileTimeout(.apple) <= .seconds(20) && C.perFileTimeout(.local) <= .seconds(60)
             && C.prompt(name: "a.txt", doc: DocumentText(url: URL(fileURLWithPath: "/tmp/a.txt"), pages: [String(repeating: "x", count: 9000)], isPaged: false, usedOCR: false, headers: [:])).count < 1600
     }
 

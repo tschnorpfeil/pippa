@@ -8,6 +8,7 @@ import PippaCore
 //   PIPPA_LIVE=1 swift run PippaLive download [model]   Load a model through the app's own downloader (resumable, SHA256)
 //   PIPPA_LIVE=1 swift run PippaLive run <corpus> [model]   all flows, timings and checks
 //   PIPPA_LIVE=1 swift run PippaLive decide   decision spike (no llama-server needed, see DecisionSpike.swift)
+//   PIPPA_LIVE=1 swift run PippaLive tidy-speed <corpus> [model]   seconds per unclear document while tidying (TidySpeedLive.swift)
 //
 // Model: catalog key; if omitted, the choice by memory.
 
@@ -34,6 +35,8 @@ case "p0-suggestions":
     try await P0SuggestionLive.run(useAppleFM: args.contains("--apple-fm"))
 case "w4a-letter":
     try await W4aLetterLive.run(base: base, arguments: Array(args.dropFirst()))
+case "tidy-speed":
+    try await TidySpeedLive.run(base: base, arguments: Array(args.dropFirst()))
 case "ctxsug-suggestions":
     try await CtxSugLive.run(arguments: Array(args.dropFirst()))
 case "download":

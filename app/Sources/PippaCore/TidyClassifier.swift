@@ -14,7 +14,14 @@ public enum TidyClassifier {
     /// Characters of document text per file: about the first page. Enough for sender, kind and date in the letterhead.
     public static let excerptChars = 1500
     /// At most this long per file and model; then the next model, or the file stays where it is.
-    public static let perFileTimeout: Duration = .seconds(20)
+    /// The local model gets more: measured 2026-10-08 (gemma-4-12b, this corpus) p50 26 s, max 39 s per file, almost all of it
+    /// generating the ~110–140 answer tokens at ~5 tokens/s (prefill with the cached system prompt ~5 s). The system model: ~3 s.
+    public static func perFileTimeout(_ route: Route) -> Duration {
+        switch route {
+        case .apple: .seconds(20)
+        case .local: .seconds(60)
+        }
+    }
     /// Answer budget for the system model (the guided answer is a handful of short fields).
     static let appleResponseTokens = 200
 
