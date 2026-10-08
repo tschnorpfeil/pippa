@@ -487,6 +487,12 @@ final class AppModel: ObservableObject {
     }
 
     /// Evaluated only on an explicit reopen, never by a timer while the surface is visible.
+    /// An example from the empty conversation: into the input field, focus there, nothing is sent yet.
+    func suggest(_ text: String) {
+        query = text
+        composerFocus += 1
+    }
+
     func openConversationFromPill(now: Date = Date()) {
         guard hasResumableConversation, let current = conversations.current else { return openInput() }
         let requiresAttention = isActiveWork || tray.isWorking

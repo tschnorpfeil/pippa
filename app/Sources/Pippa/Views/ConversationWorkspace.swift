@@ -270,6 +270,12 @@ struct ConversationWorkspace: View {
             .accessibilityHidden(true)
     }
 
+    /// Everyday starters for the empty conversation (keys in Views.strings).
+    static var examples: [String] {
+        [T("Tidy up my Downloads folder", table: "Views"), T("What’s on my calendar tomorrow?", table: "Views"),
+         T("Where is my rental agreement?", table: "Views"), T("Remind me tomorrow morning to take out the paper recycling", table: "Views")]
+    }
+
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(T("What would you like to do?", table: "Views"))
@@ -302,6 +308,20 @@ struct ConversationWorkspace: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(T("Drop or choose files or folders", table: "Views"))
+
+            // Examples put a sentence into the input field: the person sees it, can change it, and sends it with Return.
+            VStack(alignment: .leading, spacing: 6) {
+                Text(T("For example:", table: "Views"))
+                    .font(Fonts.hint).foregroundStyle(Theme.ink2)
+                ForEach(Self.examples, id: \.self) { example in
+                    Button { model.suggest(example) } label: {
+                        Label(example, systemImage: "text.bubble")
+                            .font(Fonts.body).foregroundStyle(Theme.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(T("Puts this sentence into the input field", table: "Views"))
+                }
+            }
         }.padding(.vertical, 14)
     }
 
