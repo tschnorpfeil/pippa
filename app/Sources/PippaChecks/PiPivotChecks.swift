@@ -88,7 +88,7 @@ func runPiPivotChecks() async {
             && (try? String(contentsOf: trashDir.appendingPathComponent("Brief.md"), encoding: .utf8)) == "neu\n"
             && create.status == .restored && text("Frisch.md") == nil
             && (try? String(contentsOf: trashDir.appendingPathComponent("Frisch.md"), encoding: .utf8)) == "frisch\n"
-            && !pruned.canUndo && pruned.line(language: "de") == "Geändert: Alt.md · nicht mehr rückgängig machbar (Sicherung nach einiger Zeit aufgeräumt)"
+            && !pruned.canUndo && pruned.line(language: "de") == "Geändert: Alt.md · nicht mehr rückgängig machbar"
             && rename.status == .restored && text("Einkauf.txt") == "liste\n" && text("Liste.txt") == nil
             && bash.status == .notRestorable && !PiUndo.isRestored(f.bash)
             && again.status == .alreadyRestored && outside.status == .outsideRoot

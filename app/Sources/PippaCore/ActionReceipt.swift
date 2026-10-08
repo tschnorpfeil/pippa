@@ -150,6 +150,10 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
             case "failed": return L("%@ (didn’t work)", table: "Thought", language: language, base)
             default:
                 if action == "look" || (action == "createFolder" && !restorable) { return base }
+                // Something in the Trash can always be put back from there, even when Pippa's own undo has expired.
+                if action == "trash", undoPruned || !restorable {
+                    return L("%@ · you can put it back from the Trash", table: "Thought", language: language, base)
+                }
                 if undoPruned { return L("%@ · can no longer be undone (undo copy cleared after a while)", table: "Thought", language: language, base) }
                 return restorable ? L("%@ · can be undone", table: "Thought", language: language, base) : L("%@ · can’t be undone", table: "Thought", language: language, base)
             }
