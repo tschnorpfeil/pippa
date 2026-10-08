@@ -32,7 +32,8 @@ extension AppModel {
     /// The shown folder stays shown; a named everyday folder does not become the conversation's shown item.
     func answerTidy(_ question: String, intent: TidyIntent) {
         conversations.append(.user, question)
-        DiagnosticsLog.shared.event("aufraeumen-nativ", ["quelle": intent.source == .shownFolder ? "gezeigt" : "genannt"])
+        let source = switch intent.source { case .shownFolder: "gezeigt"; case .named: "genannt"; case .found: "name" }
+        DiagnosticsLog.shared.event("aufraeumen-nativ", ["quelle": source])
         var isFolder: ObjCBool = false
         guard FileManager.default.fileExists(atPath: intent.folder.path, isDirectory: &isFolder), isFolder.boolValue else {
             conversations.append(.system, T("I can’t find the folder “%@” on this Mac.", table: "App", intent.folder.lastPathComponent), notice: true)
