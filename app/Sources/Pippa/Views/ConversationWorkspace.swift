@@ -248,10 +248,16 @@ struct ConversationWorkspace: View {
                         .disabled(model.isActiveWork)
                 }
             } label: {
-                Label(T("For future answers", table: "Views"), systemImage: "paperclip")
-                    .font(Fonts.hint).foregroundStyle(Theme.ink2)
+                HStack(spacing: 6) {
+                    Label(T("For future answers", table: "Views"), systemImage: "paperclip")
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                }
+                .font(Fonts.hint).foregroundStyle(Theme.ink2)
+                .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton)
+            // Plain style: the label is drawn by SwiftUI, so it follows the text size (the borderless
+            // pop-up button ignores fonts).
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
             .fixedSize(horizontal: false, vertical: true)
             .help(T("Earlier messages keep their attachments. Original files stay where they are.", table: "Views"))
         }
@@ -279,7 +285,7 @@ struct ConversationWorkspace: View {
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(T("What would you like to do?", table: "Views"))
-                .font(.system(size: 20, weight: .semibold))
+                .font(.scaled(size: 20, weight: .semibold))
                 .foregroundStyle(Theme.ink)
 
             Button {
@@ -287,7 +293,7 @@ struct ConversationWorkspace: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "arrow.down.doc")
-                        .font(.system(size: 20, weight: .medium))
+                        .font(.scaled(size: 20, weight: .medium))
                         .foregroundStyle(Theme.accent)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(T("Drop files or folders here…", table: "Views"))
@@ -333,13 +339,13 @@ struct ConversationWorkspace: View {
                     Theme.hair.frame(height: 0.5)
                     HStack(spacing: 6) {
                         Image(systemName: "sparkles")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.scaled(size: 11, weight: .semibold))
                             .foregroundStyle(Theme.accent)
                         Text(T("New Topic", table: "Views"))
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.scaled(size: 12, weight: .semibold))
                             .foregroundStyle(Theme.ink)
                         Button(T("Previous Conversation…", table: "Views")) { model.continueInPrevious(previous) }
-                            .font(.system(size: 11.5, weight: .medium))
+                            .font(.scaled(size: 11.5, weight: .medium))
                             .foregroundStyle(Theme.accent)
                             .buttonStyle(.plain)
                             .disabled(model.isActiveWork)
@@ -430,10 +436,10 @@ struct ConversationWorkspace: View {
                     .background(Theme.chatUser.opacity(0.55), in: RoundedRectangle(cornerRadius: 16))
                     .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.chatBorder, style: StrokeStyle(lineWidth: 1, dash: [4, 3])) }
                 HStack(spacing: 6) {
-                    Image(systemName: "clock").font(.system(size: 10, weight: .medium))
-                    Text(note).font(.system(size: 11, weight: .medium))
+                    Image(systemName: "clock").font(.scaled(size: 10, weight: .medium))
+                    Text(note).font(.scaled(size: 11, weight: .medium))
                     if removable {
-                        Button { chat.removeQueued(entry.id) } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)) }
+                        Button { chat.removeQueued(entry.id) } label: { Image(systemName: "xmark").font(.scaled(size: 10, weight: .semibold)) }
                             .buttonStyle(.plain).help(T("Don’t Send", table: "Views")).accessibilityLabel(T("Don’t send this waiting message", table: "Views"))
                     }
                 }.foregroundStyle(Theme.ink3)
@@ -449,7 +455,7 @@ struct ConversationWorkspace: View {
             if message.role == .user { Spacer(minLength: 60) }
             VStack(alignment: .leading, spacing: 5) {
                 if let label = visibleLabel(message) {
-                    Text(label).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
+                    Text(label).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
                 }
                 if message.role == .assistant, let draft = message.mailDraft {
                     MailDraftCard(model: model, chat: chat, messageID: message.id, draft: draft)
@@ -486,7 +492,7 @@ struct ConversationWorkspace: View {
                     WorkReceiptView(receipt: work, expanded: chat.expandedReceipts.contains(message.id)) { chat.toggleReceipt(message.id) }
                 }
                 if message.stopped == true {
-                    Text(T("Stopped", table: "Views")).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
+                    Text(T("Stopped", table: "Views")).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
                 } else if message.draft == true, message.mailDraft == nil {
                     draftActions(message)
                 }
@@ -527,7 +533,7 @@ struct ConversationWorkspace: View {
             } label: {
                 Label(copied == message.id ? T("Copied", table: "Views") : T("Copy", table: "Views"), systemImage: copied == message.id ? "checkmark" : "doc.on.doc")
             }.pippa(.quiet).accessibilityLabel(T("Copy Draft", table: "Views"))
-            Text(T("Just a draft · nothing sent", table: "Views")).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
+            Text(T("Just a draft · nothing sent", table: "Views")).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
         }
     }
 

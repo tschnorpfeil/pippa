@@ -149,7 +149,7 @@ struct SortSheet: View {
                        placed + plan.pending.count, plan.remaining.count))
             }
         }
-        .font(.system(size: 12.5))
+        .font(.scaled(size: 12.5))
         .foregroundStyle(Theme.ink3)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 22)
@@ -170,7 +170,7 @@ struct SortSheet: View {
     private func selectionBar(chosen: Int, all: [Row]) -> some View {
         HStack(spacing: 14) {
             Text(T("%lld of %lld selected", table: "Views", chosen, all.count))
-                .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+                .font(.scaled(size: 12.5, weight: .medium).monospacedDigit())
                 .foregroundStyle(Theme.ink3)
             Spacer(minLength: 6)
             LinkButton(title: T("All", table: "Views"), icon: nil) { model.excluded.subtract(all.map(\.id)) }
@@ -203,7 +203,7 @@ struct SortSheet: View {
                 .accessibilityLabel(T("All in %@", table: "Views", g.key))
                 if g.isTrash {
                     Image(systemName: "trash")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.scaled(size: 16, weight: .medium))
                         .foregroundStyle(Theme.ink2)
                         .frame(width: 26)
                         .accessibilityHidden(true)
@@ -212,11 +212,11 @@ struct SortSheet: View {
                 }
                 (Text(g.key).foregroundStyle(Theme.ink)
                  + Text(g.subs.isEmpty ? "" : "  › " + g.subs.sorted().joined(separator: ", ")).foregroundStyle(Theme.ink3).fontWeight(.medium))
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.scaled(size: 14, weight: .semibold))
                     .lineLimit(1)
                 if g.isNew {
                     Text(T("NEW", table: "Views"))
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.scaled(size: 10, weight: .bold))
                         .tracking(0.2)
                         .foregroundStyle(Theme.accent)
                         .padding(.horizontal, 6).padding(.vertical, 3)
@@ -224,10 +224,10 @@ struct SortSheet: View {
                 }
                 Spacer(minLength: 6)
                 Text(included == g.rows.count ? "\(g.rows.count)" : T("%lld of %lld", table: "Views", included, g.rows.count))
-                    .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+                    .font(.scaled(size: 12.5, weight: .medium).monospacedDigit())
                     .foregroundStyle(Theme.ink3)
                 Image(systemName: open ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.scaled(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.ink3)
                     .frame(width: 14)
             }
@@ -245,7 +245,7 @@ struct SortSheet: View {
                 if g.rows.count > shown.count {
                     HStack {
                         LinkButton(title: T("and %lld more following the same pattern", table: "Views", g.rows.count - shown.count), icon: nil) { model.fullGroups.insert(g.key) }
-                        Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.accent)
+                        Image(systemName: "chevron.down").font(.scaled(size: 10, weight: .semibold)).foregroundStyle(Theme.accent)
                         Spacer()
                     }
                     .padding(.leading, 80)
@@ -267,7 +267,7 @@ struct SortSheet: View {
                 HStack(spacing: 6) {
                     // The full name with extension: "Bild.png", not "Bild" (several files may differ only there).
                     Text(row.new)
-                        .font(.system(size: 13.5, weight: .medium))
+                        .font(.scaled(size: 13.5, weight: .medium))
                         .foregroundStyle(Theme.ink)
                         .strikethrough(!on, color: Theme.fill3)
                         .lineLimit(1).truncationMode(.middle)
@@ -276,7 +276,7 @@ struct SortSheet: View {
                 // Copies for the Trash always say which file stays.
                 if model.showReasons || row.unsure || row.op.kind == .trash {
                     Text(row.reason)
-                        .font(.system(size: 11.5))
+                        .font(.scaled(size: 11.5))
                         .foregroundStyle(row.unsure ? Theme.need : Theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if let old = row.old {
@@ -306,9 +306,9 @@ struct SortSheet: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Circle().fill(Theme.needDot).frame(width: 7, height: 7)
-                Text(T("Stays where it is", table: "Views")).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(T("Stays where it is", table: "Views")).font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
                 Spacer()
-                Text("\(stay.count)").font(.system(size: 12.5, weight: .medium).monospacedDigit()).foregroundStyle(Theme.ink3)
+                Text("\(stay.count)").font(.scaled(size: 12.5, weight: .medium).monospacedDigit()).foregroundStyle(Theme.ink3)
             }
             .padding(.horizontal, 22)
             .frame(height: 40)
@@ -316,8 +316,8 @@ struct SortSheet: View {
                 HStack(spacing: 12) {
                     FileThumbnail(url: s.url, width: 20)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(s.name).font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1).truncationMode(.middle)
-                        Text(s.why).font(.system(size: 11.5)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+                        Text(s.name).font(.scaled(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1).truncationMode(.middle)
+                        Text(s.why).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                 }
@@ -362,19 +362,19 @@ struct BeforeAfter: View {
                     }
                     .frame(width: 130, height: 70, alignment: .topLeading)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(T("Now", table: "Views")).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.ink)
-                        Text(T("%lld loose files", table: "Views", total)).font(.system(size: 12.5)).foregroundStyle(Theme.ink3)
+                        Text(T("Now", table: "Views")).font(.scaled(size: 12.5, weight: .semibold)).foregroundStyle(Theme.ink)
+                        Text(T("%lld loose files", table: "Views", total)).font(.scaled(size: 12.5)).foregroundStyle(Theme.ink3)
                     }
                     .padding(.top, 8)
                 }
                 .frame(width: 150, alignment: .leading)
-                Image(systemName: "arrow.right").font(.system(size: 15, weight: .medium)).foregroundStyle(Theme.ink3).frame(width: 40)
+                Image(systemName: "arrow.right").font(.scaled(size: 15, weight: .medium)).foregroundStyle(Theme.ink3).frame(width: 40)
                 HStack(alignment: .top, spacing: 10) {
                     ForEach(groups.prefix(4)) { g in
                         VStack(spacing: 4) {
                             FolderArt()
-                            Text(g.key).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.ink).multilineTextAlignment(.center).lineLimit(2)
-                            Text(detail(g)).font(.system(size: 11.5)).foregroundStyle(Theme.ink3)
+                            Text(g.key).font(.scaled(size: 12.5, weight: .semibold)).foregroundStyle(Theme.ink).multilineTextAlignment(.center).lineLimit(2)
+                            Text(detail(g)).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3)
                         }
                         .frame(maxWidth: .infinity)
                     }

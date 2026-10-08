@@ -108,7 +108,7 @@ struct DeadlineCard: View {
         HStack(alignment: .top, spacing: 14) {
             if let date = deadline.date { DateTile(date: date) }
             VStack(alignment: .leading, spacing: 6) {
-                Text(deadline.title).font(.system(size: 14.5, weight: .semibold)).foregroundStyle(Theme.paperInk)
+                Text(deadline.title).font(.scaled(size: 14.5, weight: .semibold)).foregroundStyle(Theme.paperInk)
                     .fixedSize(horizontal: false, vertical: true)
                 if deadline.certainty != .sure || deadline.date == nil {
                     Chip(text: chipText, kind: .need)
@@ -209,18 +209,18 @@ struct EntryPreviewContent: View {
             HStack(alignment: .top, spacing: 12) {
                 Circle().strokeBorder(Theme.fill3, lineWidth: 1.6).frame(width: 20, height: 20).padding(.top, 1)
                 VStack(alignment: .leading, spacing: 6) {
-                    EditableText(placeholder: T("Title", table: "Settings"), text: titleBinding, font: .system(size: 15, weight: .semibold))
+                    EditableText(placeholder: T("Title", table: "Settings"), text: titleBinding, font: .scaled(size: 15, weight: .semibold))
                     HStack(spacing: 14) {
                         HStack(spacing: 5) {
-                            Image(systemName: "calendar").font(.system(size: 11)).foregroundStyle(Theme.ink3)
+                            Image(systemName: "calendar").font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
                             EditableDate(date: e.date) { model.setEntryDate($0) }
                         }
                         HStack(spacing: 5) {
-                            Image(systemName: "bell").font(.system(size: 11)).foregroundStyle(Theme.ink3)
+                            Image(systemName: "bell").font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
                             Text(T("%@ at 9:00", table: "Settings", GermanDate.compact(e.alertDay)))
                         }
                     }
-                    .font(.system(size: 12.5))
+                    .font(.scaled(size: 12.5))
                     .foregroundStyle(Theme.ink2)
                     if let q = model.entryDeadline?.quote, !q.isEmpty {
                         Text(T("“%@”", table: "Settings", q))
@@ -243,7 +243,7 @@ struct EntryPreviewContent: View {
                     HStack(spacing: 6) { DocIcon(kind: DocIcon.kind(for: src), width: 13); Text(src.lastPathComponent).lineLimit(1).truncationMode(.middle) }
                 }
             }
-            .font(.system(size: 12, weight: .medium))
+            .font(.scaled(size: 12, weight: .medium))
             .foregroundStyle(Theme.ink3)
             .padding(.horizontal, 18)
             .padding(.vertical, 10)
@@ -255,22 +255,22 @@ struct EntryPreviewContent: View {
     private func calendarPaper(_ e: CalendarEntry) -> some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(verbatim: "\(e.date.day)").font(.system(size: 30, weight: .heavy, design: .rounded).monospacedDigit()).foregroundStyle(Theme.accent)
-                Text(GermanDate.weekdays[GermanDate.weekday(e.date)]).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.paperInk)
+                Text(verbatim: "\(e.date.day)").font(.scaled(size: 30, weight: .heavy, design: .rounded).monospacedDigit()).foregroundStyle(Theme.accent)
+                Text(GermanDate.weekdays[GermanDate.weekday(e.date)]).font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.paperInk)
                 Spacer()
                 EditableDate(date: e.date) { model.setEntryDate($0) }
-                    .font(.system(size: 12)).foregroundStyle(Theme.ink3)
+                    .font(.scaled(size: 12)).foregroundStyle(Theme.ink3)
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
             .padding(.bottom, 10)
             HStack(spacing: 10) {
-                Text(T("all-\nday", table: "Settings")).font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.ink3).frame(width: 40, alignment: .leading)
+                Text(T("all-\nday", table: "Settings")).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink3).frame(width: 40, alignment: .leading)
                 HStack(alignment: .top, spacing: 8) {
                     Circle().fill(Theme.accentFill).frame(width: 7, height: 7).padding(.top, 5)
                     VStack(alignment: .leading, spacing: 2) {
-                        EditableText(placeholder: T("Title", table: "Settings"), text: titleBinding, font: .system(size: 13, weight: .semibold), color: Theme.accent)
-                        Text(T("Alert: %@ at 9:00", table: "Settings", GermanDate.compact(e.alertDay))).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.accent.opacity(0.8))
+                        EditableText(placeholder: T("Title", table: "Settings"), text: titleBinding, font: .scaled(size: 13, weight: .semibold), color: Theme.accent)
+                        Text(T("Alert: %@ at 9:00", table: "Settings", GermanDate.compact(e.alertDay))).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.accent.opacity(0.8))
                     }
                 }
                 .padding(.horizontal, 10)
@@ -285,7 +285,7 @@ struct EntryPreviewContent: View {
             VStack(spacing: 0) {
                 ForEach(["9:00", "10:00", "11:00"], id: \.self) { h in
                     HStack(spacing: 0) {
-                        Text(h).font(.system(size: 10.5)).foregroundStyle(Theme.ink3).frame(width: 50, alignment: .leading)
+                        Text(h).font(.scaled(size: 11)).foregroundStyle(Theme.ink3).frame(width: 50, alignment: .leading)
                         Theme.hair.frame(height: 0.5)
                     }
                     .frame(height: 26)

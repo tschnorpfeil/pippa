@@ -158,7 +158,7 @@ struct SheetTableLine: View {
     private func findingRow(_ finding: SheetFinding) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: Self.symbol(for: finding.kind))
-                .font(.system(size: 12, weight: .semibold))
+                .font(.scaled(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.need)
                 .accessibilityHidden(true)
             Text(finding.sentence)
@@ -184,7 +184,7 @@ struct SheetTableLine: View {
     private func resultSentence(_ text: String, symbol: String, tint: Color = Theme.ink3) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.scaled(size: 12, weight: .semibold))
                 .foregroundStyle(tint)
                 .accessibilityHidden(true)
             Text(text)

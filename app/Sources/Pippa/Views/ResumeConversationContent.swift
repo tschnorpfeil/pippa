@@ -20,7 +20,7 @@ struct ResumeConversationContent: View {
                     if sourceCount > 0 {
                         Button { model.resumeConversation() } label: {
                             Label(sourceCount == 1 ? T("1 source", table: "Views") : T("%lld sources", table: "Views", sourceCount), systemImage: "paperclip")
-                                .font(.system(size: 11)).foregroundStyle(Theme.ink3)
+                                .font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
                         }
                         .buttonStyle(.plain)
                         .help(T("Open Conversation", table: "Views"))
@@ -29,7 +29,7 @@ struct ResumeConversationContent: View {
                 Spacer(minLength: 4)
                 Button { model.resumeConversation() } label: {
                     Label(T("Open Conversation", table: "Views"), systemImage: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 11.5, weight: .medium))
+                        .font(.scaled(size: 11.5, weight: .medium))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Theme.accent)
@@ -37,7 +37,7 @@ struct ResumeConversationContent: View {
                 .accessibilityLabel(T("Open Conversation", table: "Views"))
                 Button(T("New Topic", table: "Views")) { model.newConversation() }
                     .buttonStyle(.plain)
-                    .font(.system(size: 11.5))
+                    .font(.scaled(size: 11.5))
                     .foregroundStyle(Theme.ink2)
                     .disabled(model.isActiveWork)
                     .help(T("Start a new conversation", table: "Views"))
@@ -56,7 +56,7 @@ struct ResumeConversationContent: View {
                     .accessibilityLabel(T("Continue this conversation…", table: "Views"))
                 Button { submit() } label: {
                     Image(systemName: "arrow.up")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.scaled(size: 13, weight: .semibold))
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }

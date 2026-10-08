@@ -26,7 +26,7 @@ struct DocumentAttachmentStrip: View {
                         .font(Fonts.hint)
                         .frame(minWidth: 24, minHeight: 28)
                 }
-                .menuStyle(.borderlessButton)
+                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
                 .fixedSize()
                 .help(T("More", table: "Line"))
                 .accessibilityLabel(T("More", table: "Line"))
@@ -39,7 +39,7 @@ struct DocumentAttachmentStrip: View {
     private func chip(_ file: URL) -> some View {
         HStack(spacing: 5) {
             Image(systemName: file.hasDirectoryPath ? "folder" : "doc.text")
-                .font(.system(size: 12))
+                .font(.scaled(size: 12))
                 .accessibilityHidden(true)
             Text(verbatim: file.lastPathComponent)
                 .font(Fonts.hint)
@@ -49,7 +49,7 @@ struct DocumentAttachmentStrip: View {
             if let onRemove {
                 Button { onRemove(file) } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.scaled(size: 9, weight: .semibold))
                         .frame(width: 24, height: 28)
                         .contentShape(Rectangle())
                 }
@@ -62,7 +62,7 @@ struct DocumentAttachmentStrip: View {
         .foregroundStyle(Theme.ink2)
         .padding(.leading, 9)
         .padding(.trailing, 2)
-        .frame(maxWidth: 170, minHeight: 28)
+        .frame(maxWidth: 170 * CGFloat(TextScaleStore.current), minHeight: 28)
         .background(Theme.fill2, in: Capsule())
         .help(file.lastPathComponent)
         .accessibilityElement(children: .contain)

@@ -147,10 +147,10 @@ struct WorkReceiptView: View {
                 HStack(spacing: 5) {
                     Text(receipt.summary).lineLimit(1).truncationMode(.middle)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 8.5, weight: .semibold))
+                        .font(.scaled(size: 8.5, weight: .semibold))
                         .rotationEffect(.degrees(expanded ? 180 : 0))
                 }
-                .font(.system(size: 11, weight: .medium))
+                .font(.scaled(size: 11, weight: .medium))
                 .foregroundStyle(Theme.ink3)
                 .contentShape(Rectangle())
             }
@@ -194,14 +194,14 @@ struct WorkReceiptView: View {
     private func row(icon: String, strong: Bool, title: String, detail: String?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
+                .font(.scaled(size: 11, weight: .medium))
                 .foregroundStyle(strong ? Theme.accent : Theme.ink3)
                 .frame(width: 14)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(Fonts.hint.weight(.medium)).foregroundStyle(Theme.ink2)
                     .lineLimit(1).truncationMode(.middle)
                 if let detail, !detail.isEmpty {
-                    Text(detail).font(.system(size: 11)).foregroundStyle(Theme.ink3)
+                    Text(detail).font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -242,7 +242,7 @@ struct ActionReceiptView: View {
             ForEach(Array(receipt.lines.enumerated()), id: \.offset) { _, entry in
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Image(systemName: Self.icon(entry.item))
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .font(.scaled(size: 11.5, weight: .semibold))
                         // Read is neutral: neither success nor warning, only what Pippa looked at.
                         .foregroundStyle(entry.item.action == "read" ? Theme.ink3 : entry.item.happened ? Theme.ok : Theme.need)
                         .frame(width: 14)

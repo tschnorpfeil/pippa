@@ -11,7 +11,7 @@ struct AssistantAnswerView: View {
                 blockView(block)
             }
         }
-        .font(.system(size: 15, weight: .regular))
+        .font(.scaled(size: 15, weight: .regular))
         .lineSpacing(5)
         .foregroundStyle(Theme.ink)
         .tint(Theme.accent)
@@ -30,7 +30,7 @@ struct AssistantAnswerView: View {
             inline(value).fixedSize(horizontal: false, vertical: true)
         case .heading(let level, let value):
             inline(value)
-                .font(.system(size: level == 1 ? 18 : 16, weight: .semibold))
+                .font(.scaled(size: level == 1 ? 18 : 16, weight: .semibold))
                 .padding(.top, 4)
                 .accessibilityAddTraits(.isHeader)
         case .item(let depth, let marker, let value):
@@ -45,9 +45,9 @@ struct AssistantAnswerView: View {
             }.fixedSize(horizontal: false, vertical: true)
         case .code(let language, let value):
             VStack(alignment: .leading, spacing: 6) {
-                if !language.isEmpty { Text(verbatim: language).font(.system(size: 11)).foregroundStyle(Theme.ink3) }
+                if !language.isEmpty { Text(verbatim: language).font(.scaled(size: 11)).foregroundStyle(Theme.ink3) }
                 ScrollView(.horizontal) {
-                    Text(verbatim: value).font(.system(size: 13, design: .monospaced)).lineSpacing(3)
+                    Text(verbatim: value).font(.scaled(size: 13, design: .monospaced)).lineSpacing(3)
                         .fixedSize(horizontal: true, vertical: true)
                 }
                 .fixedSize(horizontal: false, vertical: true)
@@ -81,7 +81,7 @@ struct AssistantAnswerView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(Array(headers.enumerated()), id: \.offset) { index, header in
                         VStack(alignment: .leading, spacing: 2) {
-                            inline(header).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.ink2)
+                            inline(header).font(.scaled(size: 12, weight: .medium)).foregroundStyle(Theme.ink2)
                             inline(row[index])
                         }.accessibilityElement(children: .combine)
                     }

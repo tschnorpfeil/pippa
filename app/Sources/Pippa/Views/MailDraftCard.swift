@@ -88,7 +88,7 @@ struct MailDraftCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 ScrollView {
                     Text(verbatim: draft.body)
-                        .font(.system(size: 14, weight: .regular)).lineSpacing(4)
+                        .font(.scaled(size: 14, weight: .regular)).lineSpacing(4)
                         .foregroundStyle(Theme.ink)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
@@ -102,15 +102,15 @@ struct MailDraftCard: View {
     private var editableDraft: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 7) {
-                Image(systemName: "envelope").font(.system(size: 12)).foregroundStyle(Theme.ink3)
-                Text(T("Draft", table: "Views")).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.paperInk)
+                Image(systemName: "envelope").font(.scaled(size: 12)).foregroundStyle(Theme.ink3)
+                Text(T("Draft", table: "Views")).font(.scaled(size: 13, weight: .medium)).foregroundStyle(Theme.paperInk)
             }
             field(T("To", table: "Views"), placeholder: T("Add recipient (optional)", table: "Views"), text: recipientState.projectedValue, focus: .recipient)
             field(T("Subject", table: "Views"), placeholder: T("Add subject (optional)", table: "Views"), text: subjectState.projectedValue, focus: .subject)
             Theme.chatBorder.frame(height: 0.5)
             VStack(alignment: .leading, spacing: 4) {
                 TextEditor(text: bodyState.projectedValue)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.scaled(size: 14, weight: .regular))
                     .scrollContentBackground(.hidden)
                     .foregroundStyle(Theme.paperInk)
                     .frame(height: 120)
@@ -147,7 +147,7 @@ struct MailDraftCard: View {
 
     private func field(_ label: String, placeholder: String, text: Binding<String>, focus: Field) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label).font(.system(size: 11)).foregroundStyle(Theme.ink2)
+            Text(label).font(.scaled(size: 11)).foregroundStyle(Theme.ink2)
                 .frame(width: 52, alignment: .leading)
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain).font(Fonts.body).foregroundStyle(Theme.paperInk)

@@ -161,3 +161,10 @@
 "More thorough (%@)" = "More thorough (%@)";
 "New knowledge is ready to load. Until then, Pippa keeps working with what she has." = "New knowledge is ready to load. Until then, Pippa keeps working with what she has.";
 "Keep Loading in the Background" = "Keep Loading in the Background";
+
+/* Text size */
+"Text size" = "Text size";
+"Makes all text in Pippa larger." = "Makes all text in Pippa larger.";
+"Normal" = "Normal";
+"Large" = "Large";
+"Extra large" = "Extra large";

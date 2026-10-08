@@ -133,9 +133,11 @@ struct ShellHostRoot: View {
     @ObservedObject var reveal: RevealState
 
     var body: some View {
-        ShellRootView(model: model, frozen: reveal.frozen)
-            .environment(\.reveal, reveal)
-            .coordinateSpace(name: "shell")
+        TextScaleRoot {
+            ShellRootView(model: model, frozen: reveal.frozen)
+                .environment(\.reveal, reveal)
+                .coordinateSpace(name: "shell")
+        }
     }
 }
 

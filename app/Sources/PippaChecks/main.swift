@@ -1293,6 +1293,7 @@ await runR6Checks()
 await runR7Checks()
 await runR7bChecks()
 await runW4aChecks()
+await runTextScaleChecks()
 runLegacyMigrationChecks()
 
 print(failures == 0 ? "All checks passed." : "\(failures) check(s) failed.")

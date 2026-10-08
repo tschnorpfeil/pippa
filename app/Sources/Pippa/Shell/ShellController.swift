@@ -133,6 +133,20 @@ final class ShellController: NSObject {
             .sink { [weak self] _ in self?.scheduleLayout() }
             .store(in: &cancellables)
 
+        TextScaleStore.shared.$factor.dropFirst()
+            .sink { [weak self] _ in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    // New text size: widths change too, so forget the old placement and default width.
+                    self.workspace = nil
+                    if self.customWorkspace == nil {
+                        self.model.conversationSize = CGSize(width: Theme.conversationWidth, height: self.model.conversationSize.height)
+                    }
+                    self.layout(animated: false, force: true)
+                }
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.layout(animated: false, force: true) }
         }

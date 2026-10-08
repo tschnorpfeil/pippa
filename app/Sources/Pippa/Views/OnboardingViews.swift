@@ -74,7 +74,7 @@ struct LearningContent: View {
                     Button(T("Try Again", table: "Settings")) { model.retryDownloadNow() }.pippa(.secondary).padding(.top, 8)
                 } else if let progress = model.progressValue {
                 Text(T("%lld%%", table: "Settings", Int((progress * 100).rounded())))
-                    .font(.system(size: 52, weight: .heavy, design: .rounded).monospacedDigit())
+                    .font(.scaled(size: 52, weight: .heavy, design: .rounded).monospacedDigit())
                     .tracking(-1)
                     .foregroundStyle(Theme.ink)
                     .contentTransition(.numericText())
@@ -87,7 +87,7 @@ struct LearningContent: View {
                     Spacer()
                     Text(T("Loading", table: "Settings"))
                 }
-                .font(.system(size: 12.5))
+                .font(.scaled(size: 12.5))
                 .foregroundStyle(Theme.ink3)
                 } else if let status = model.learningText {
                     Text(status).font(Fonts.body).foregroundStyle(Theme.ink2).padding(.top, 12)
@@ -107,8 +107,8 @@ struct LearningContent: View {
                     HStack(spacing: 12) {
                         FolderArt(width: 26)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(T("%@ is remembered", table: "Settings", ctx.name)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink)
-                            Text(T("You can pick up here later.", table: "Settings")).font(.system(size: 13)).foregroundStyle(Theme.ink2)
+                            Text(T("%@ is remembered", table: "Settings", ctx.name)).font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.ink)
+                            Text(T("You can pick up here later.", table: "Settings")).font(.scaled(size: 13)).foregroundStyle(Theme.ink2)
                         }
                         Spacer(minLength: 6)
                         Chip(text: T("ready", table: "Settings"), kind: .ok, icon: "checkmark")
@@ -146,12 +146,12 @@ struct DownloadConsent: View {
         VStack(alignment: .leading, spacing: 8) {
             if let size = model.downloadSize {
                 Text(T("Pippa loads her knowledge once: %@.", table: "Settings", ModelDownloadSize.gigabytes(size.remaining)))
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
+                    .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
                 Text(T("With a fast connection, this takes %@. After that, everything runs on your Mac.", table: "Settings", ModelDownloadSize.durationText(size.remaining)))
                     .font(Fonts.body).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
             } else {
                 Text(T("Pippa loads her knowledge once. After that, everything runs on your Mac.", table: "Settings"))
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
+                    .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
             }
             Text(model.capabilityText)
                 .font(Fonts.body).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)

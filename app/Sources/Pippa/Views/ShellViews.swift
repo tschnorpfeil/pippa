@@ -174,7 +174,7 @@ struct ShimmerText: View {
     private var phase: CGFloat { get { phaseState.wrappedValue } nonmutating set { phaseState.wrappedValue = newValue } }
 
     var body: some View {
-        let label = Text(text).font(.system(size: 15, weight: .semibold, design: .rounded))
+        let label = Text(text).font(.scaled(size: 15, weight: .semibold, design: .rounded))
         label
             .foregroundStyle(Theme.ink)
             .lineLimit(1)
@@ -202,7 +202,7 @@ struct TargetContent: View {
         HStack(spacing: 8) {
             MarkSlot(size: hot ? 34 : 28)
             Text(hot ? T("Let Go", table: "Views") : T("Drop Here", table: "Views"))
-                .font(.system(size: hot ? 16.5 : 15, weight: .semibold, design: .rounded))
+                .font(.scaled(size: hot ? 16.5 : 15, weight: .semibold, design: .rounded))
                 .foregroundStyle(hot ? Theme.accent : Theme.ink)
         }
         .padding(.leading, 10)
@@ -230,16 +230,16 @@ struct ScopeChip: View {
     var clear: () -> Void
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.accent)
+            Image(systemName: icon).font(.scaled(size: 12, weight: .medium)).foregroundStyle(Theme.accent)
             Text(name).lineLimit(1).truncationMode(.middle).frame(maxWidth: 150, alignment: .leading).fixedSize()
             Button(action: clear) {
-                Image(systemName: "xmark").font(.system(size: 7.5, weight: .heavy)).foregroundStyle(Theme.ink3)
+                Image(systemName: "xmark").font(.scaled(size: 7.5, weight: .heavy)).foregroundStyle(Theme.ink3)
                     .frame(width: 16, height: 16).background(Circle().fill(Theme.fill2))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(T("Remove Attachment", table: "Views"))
         }
-        .font(.system(size: 12.5, weight: .medium))
+        .font(.scaled(size: 12.5, weight: .medium))
         .foregroundStyle(Theme.ink)
         .padding(.leading, 9)
         .padding(.trailing, 6)
@@ -266,7 +266,7 @@ struct WorkingContent: View {
                     Text(model.context?.name ?? "Pippa")
                         .font(Fonts.hint).foregroundStyle(Theme.ink3)
                     Text(title)
-                        .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.ink)
+                        .font(.scaled(size: 16, weight: .medium)).foregroundStyle(Theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -286,7 +286,7 @@ struct WorkingContent: View {
                     }
                     Spacer(minLength: 0)
                     Text(T("%lld of %lld", table: "Views", min(p.done, p.total), p.total))
-                        .font(.system(size: 12, weight: .medium).monospacedDigit())
+                        .font(.scaled(size: 12, weight: .medium).monospacedDigit())
                         .foregroundStyle(Theme.ink2).fixedSize()
                 }
             }
@@ -428,8 +428,8 @@ struct Pile: View {
     var body: some View {
         VStack(spacing: 2) {
             art.frame(width: 60, height: 52).padding(.bottom, 6)
-            Text("\(count)").font(.system(size: 20, weight: .semibold).monospacedDigit()).foregroundStyle(Theme.ink)
-            Text(name).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.ink2).multilineTextAlignment(.center).lineLimit(2)
+            Text("\(count)").font(.scaled(size: 20, weight: .semibold).monospacedDigit()).foregroundStyle(Theme.ink)
+            Text(name).font(.scaled(size: 11.5, weight: .medium)).foregroundStyle(Theme.ink2).multilineTextAlignment(.center).lineLimit(2)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
@@ -483,7 +483,7 @@ struct DocumentOverview: View {
                 HStack(spacing: 12) {
                     SenderMark(name: overview.sender ?? overview.title, round: isMail)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(overview.sender ?? overview.title).font(.system(size: 14.5, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                        Text(overview.sender ?? overview.title).font(.scaled(size: 14.5, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
                         Text(overview.subtitle).font(Fonts.hint.monospacedDigit()).foregroundStyle(Theme.ink3).lineLimit(1)
                     }
                 }
@@ -494,8 +494,8 @@ struct DocumentOverview: View {
                         HStack(spacing: 16) {
                             DateTile(date: date)
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(T("no later than", table: "Views")).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.ink3)
-                                Text(GermanDate.long(date)).font(.system(size: 18, weight: .bold, design: .rounded)).foregroundStyle(Theme.ink)
+                                Text(T("no later than", table: "Views")).font(.scaled(size: 12, weight: .medium)).foregroundStyle(Theme.ink3)
+                                Text(GermanDate.long(date)).font(.scaled(size: 18, weight: .bold, design: .rounded)).foregroundStyle(Theme.ink)
                                     .padding(.top, 3).padding(.bottom, 4)
                                 HStack(spacing: 6) {
                                     Chip(text: GermanDate.relative(date), icon: "clock")
@@ -513,9 +513,9 @@ struct DocumentOverview: View {
                         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
                             ForEach(Array(overview.facts.prefix(5).enumerated()), id: \.offset) { _, f in
                                 GridRow {
-                                    Image(systemName: Self.factIcon(f.label)).font(.system(size: 13)).foregroundStyle(Theme.accent)
+                                    Image(systemName: Self.factIcon(f.label)).font(.scaled(size: 13)).foregroundStyle(Theme.accent)
                                     (Text(f.label + " ").fontWeight(.semibold) + Text(f.value))
-                                        .font(.system(size: 13.5).monospacedDigit())
+                                        .font(.scaled(size: 13.5).monospacedDigit())
                                         .foregroundStyle(Theme.ink)
                                         .textSelection(.enabled)
                                 }
@@ -585,7 +585,7 @@ struct QuoteCard: View {
         VStack(alignment: .leading, spacing: 0) {
             if let section {
                 Text(section.uppercased())
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.scaled(size: 11, weight: .semibold))
                     .tracking(0.4)
                     .foregroundStyle(Theme.ink3)
                     .padding(.leading, 20)
@@ -631,16 +631,16 @@ struct ErrorContent: View {
                         openState.wrappedValue.toggle()
                     } label: {
                         HStack(spacing: 6) {
-                            Image(systemName: openState.wrappedValue ? "chevron.down" : "chevron.right").font(.system(size: 10, weight: .bold))
+                            Image(systemName: openState.wrappedValue ? "chevron.down" : "chevron.right").font(.scaled(size: 10, weight: .bold))
                             Text(T("What happened?", table: "Views"))
                         }
-                        .font(.system(size: 12.5, weight: .medium))
+                        .font(.scaled(size: 12.5, weight: .medium))
                         .foregroundStyle(Theme.ink2)
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 6)
                     if openState.wrappedValue {
-                        Text(message).font(.system(size: 13)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+                        Text(message).font(.scaled(size: 13)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -674,8 +674,8 @@ struct ReasonList: View {
                 HStack(alignment: .top, spacing: 10) {
                     DocIcon(kind: DocIcon.kind(for: URL(fileURLWithPath: r.name)), width: 16).padding(.top, 2)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(FileName.display(r.name)).font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1).truncationMode(.middle)
-                        Text(r.why).font(.system(size: 12)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+                        Text(FileName.display(r.name)).font(.scaled(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1).truncationMode(.middle)
+                        Text(r.why).font(.scaled(size: 12)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                 }

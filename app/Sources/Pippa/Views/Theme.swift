@@ -74,15 +74,16 @@ enum Theme {
     static let materialTintSolid = dyn(NSColor(srgbRed: 250 / 255, green: 251 / 255, blue: 249 / 255, alpha: 0.92),
                                        NSColor(srgbRed: 30 / 255, green: 34 / 255, blue: 32 / 255, alpha: 0.90))
 
-    // Breiten
-    static let inputWidth: CGFloat = 440
-    static let panelWidth: CGFloat = 420
-    static let wideWidth: CGFloat = 440
-    static let workWidth: CGFloat = 400
-    static let toastWidth: CGFloat = 360
-    static let welcomeWidth: CGFloat = 560
-    static let conversationWidth: CGFloat = 760
-    static let sheetWidth: CGFloat = 720
+    // Breiten: grow modestly (60 % of the text factor) with the text size; heights follow the content.
+    static var widthScale: CGFloat { 1 + (CGFloat(TextScaleStore.current) - 1) * 0.6 }
+    static var inputWidth: CGFloat { 440 * widthScale }
+    static var panelWidth: CGFloat { 420 * widthScale }
+    static var wideWidth: CGFloat { 440 * widthScale }
+    static var workWidth: CGFloat { 400 * widthScale }
+    static var toastWidth: CGFloat { 360 * widthScale }
+    static var welcomeWidth: CGFloat { 560 * widthScale }
+    static var conversationWidth: CGFloat { 760 * widthScale }
+    static var sheetWidth: CGFloat { 720 * widthScale }
 }
 
 extension MarkPalette {
@@ -92,23 +93,23 @@ extension MarkPalette {
 // MARK: - Schrift
 
 enum Fonts {
-    static func rounded(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font { .system(size: size, weight: weight, design: .rounded) }
-    static func text(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font { .system(size: size, weight: weight) }
-    static func serif(_ size: CGFloat) -> Font { .system(size: size, weight: .regular, design: .serif) }
-    static func mono(_ size: CGFloat) -> Font { .system(size: size, weight: .regular, design: .monospaced) }
+    static func rounded(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font { .scaled(size: size, weight: weight, design: .rounded) }
+    static func text(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font { .scaled(size: size, weight: weight) }
+    static func serif(_ size: CGFloat) -> Font { .scaled(size: size, weight: .regular, design: .serif) }
+    static func mono(_ size: CGFloat) -> Font { .scaled(size: size, weight: .regular, design: .monospaced) }
 
-    static let resultXL = rounded(28, .bold)
-    static let resultL = rounded(22, .bold)
-    static let head = rounded(14, .semibold)
-    static let headSheet = rounded(17, .semibold)
-    static let body = text(13.5)
-    static let lead = text(14.5)
-    static let hint = text(12)
-    static let sill = text(11.5, .medium)
+    static var resultXL: Font { rounded(28, .bold) }
+    static var resultL: Font { rounded(22, .bold) }
+    static var head: Font { rounded(14, .semibold) }
+    static var headSheet: Font { rounded(17, .semibold) }
+    static var body: Font { text(13.5) }
+    static var lead: Font { text(14.5) }
+    static var hint: Font { text(12) }
+    static var sill: Font { text(11.5, .medium) }
     /// Welcome: Bagel Fat One (bundled, OFL); if missing, SF Rounded Heavy.
     @MainActor static var display: Font {
         DisplayFont.register()
-        return DisplayFont.available ? .custom(DisplayFont.name, size: 44) : rounded(44, .heavy)
+        return DisplayFont.available ? .custom(DisplayFont.name, size: CGFloat(TextScale.scaled(44, by: TextScaleStore.current))) : rounded(44, .heavy)
     }
 }
 
@@ -139,7 +140,7 @@ enum ShellTokens {
     static let hotHeight: CGFloat = 54
     static let screenInset: CGFloat = 8
     static let edgeMagnet: CGFloat = 26
-    static let workspaceMax = CGSize(width: max(Theme.sheetWidth, Theme.conversationWidth), height: 700)
+    static var workspaceMax: CGSize { CGSize(width: max(Theme.sheetWidth, Theme.conversationWidth), height: 700) }
     /// Smallest conversation window when dragging the corner (the views are checked down to 400 pt).
     static let workspaceMin = CGSize(width: 400, height: 440)
 
@@ -460,7 +461,7 @@ struct TrustSill: View {
     private func label(_ text: String, _ icon: String?) -> some View {
         HStack(spacing: 6) {
             if let icon {
-                Image(systemName: icon).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
+                Image(systemName: icon).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
             }
             Text(text).lineLimit(1)
         }
@@ -505,7 +506,7 @@ struct PippaButtonStyle: ButtonStyle {
             let pressed = configuration.isPressed
             configuration.label
                 .labelStyle(ButtonLabelStyle())
-                .font(.system(size: large ? 14.5 : 13.5, weight: .semibold))
+                .font(.scaled(size: large ? 14.5 : 13.5, weight: .semibold))
                 .lineLimit(1)
                 .foregroundStyle(foreground)
                 .padding(.horizontal, kind == .quiet ? 12 : (large ? 20 : 16))
@@ -548,7 +549,7 @@ struct PippaButtonStyle: ButtonStyle {
 private struct ButtonLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 7) {
-            configuration.icon.font(.system(size: 13, weight: .semibold))
+            configuration.icon.font(.scaled(size: 13, weight: .semibold))
             configuration.title
         }
     }
@@ -570,7 +571,7 @@ struct CloseButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.scaled(size: 11, weight: .semibold))
                 .foregroundStyle(hover ? Theme.ink2 : Theme.ink3)
                 .frame(width: 26, height: 26)
                 .background(Circle().fill(hover ? Theme.fill2 : .clear))
@@ -590,10 +591,10 @@ struct LinkButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                if let icon { Image(systemName: icon).font(.system(size: 12, weight: .medium)) }
+                if let icon { Image(systemName: icon).font(.scaled(size: 12, weight: .medium)) }
                 Text(title)
             }
-            .font(.system(size: 12.5, weight: .medium))
+            .font(.scaled(size: 12.5, weight: .medium))
             .foregroundStyle(Theme.accent)
             .contentShape(Rectangle())
         }
@@ -614,10 +615,10 @@ struct Chip: View {
     var body: some View {
         HStack(spacing: 5) {
             if kind == .need { Circle().fill(Theme.needDot).frame(width: 7, height: 7) }
-            if let icon { Image(systemName: icon).font(.system(size: 10, weight: .bold)) }
+            if let icon { Image(systemName: icon).font(.scaled(size: 10, weight: .bold)) }
             Text(text).lineLimit(1)
         }
-        .font(.system(size: 11.5, weight: .semibold).monospacedDigit())
+        .font(.scaled(size: 11.5, weight: .semibold).monospacedDigit())
         .foregroundStyle(fg)
         .padding(.horizontal, 9)
         .frame(height: 22)
@@ -663,13 +664,13 @@ struct TaskButton: View {
             HStack(spacing: 14) {
                 Tile(icon: icon, size: 38, filled: preselected && enabled)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 14.5, weight: .semibold)).foregroundStyle(Theme.ink)
+                    Text(title).font(.scaled(size: 14.5, weight: .semibold)).foregroundStyle(Theme.ink)
                     if let subtitle {
-                        Text(subtitle).font(.system(size: 12.5)).foregroundStyle(Theme.ink2).lineLimit(2)
+                        Text(subtitle).font(.scaled(size: 12.5)).foregroundStyle(Theme.ink2).lineLimit(2)
                     }
                 }
                 Spacer(minLength: 6)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.ink3)
+                Image(systemName: "chevron.right").font(.scaled(size: 12, weight: .semibold)).foregroundStyle(Theme.ink3)
             }
             .padding(.leading, 12)
             .padding(.trailing, 14)
@@ -768,15 +769,15 @@ struct SourceChip: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if mail {
-                    Image(systemName: "envelope").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.accent).frame(width: 16)
+                    Image(systemName: "envelope").font(.scaled(size: 12, weight: .medium)).foregroundStyle(Theme.accent).frame(width: 16)
                 } else {
                     DocIcon(kind: DocIcon.kind(for: url))
                 }
                 Text(FileName.display(name)).lineLimit(1).truncationMode(.tail).foregroundStyle(tinted ? Theme.accent : Theme.ink)
                 if let location { Text(Self.page(location)).foregroundStyle(tinted ? Theme.accent.opacity(0.75) : Theme.ink3).monospacedDigit().fixedSize() }
-                Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.accent)
+                Image(systemName: "arrow.up.right").font(.scaled(size: 10, weight: .bold)).foregroundStyle(Theme.accent)
             }
-            .font(.system(size: 12.5, weight: .medium))
+            .font(.scaled(size: 12.5, weight: .medium))
             .padding(.leading, 7)
             .padding(.trailing, 10)
             .frame(height: 28)
@@ -823,7 +824,7 @@ struct QuoteText: View {
             .padding(.leading, 20)
             .overlay(alignment: .topLeading) {
                 Text("„")
-                    .font(.system(size: 34, weight: .bold, design: .serif))
+                    .font(.scaled(size: 34, weight: .bold, design: .serif))
                     .foregroundStyle(Theme.accent.opacity(0.55))
                     .offset(x: -2, y: -16)
                     .accessibilityHidden(true)
@@ -848,7 +849,7 @@ struct SenderMark: View {
     var round = false
     var body: some View {
         Text(Self.initials(name))
-            .font(.system(size: 14, weight: .heavy, design: .rounded))
+            .font(.scaled(size: 14, weight: .heavy, design: .rounded))
             .tracking(0.3)
             .foregroundStyle(Theme.monoInk)
             .frame(width: 40, height: 40)
@@ -920,19 +921,19 @@ struct DateTile: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(GermanDate.monthsShort[date.month - 1])
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.scaled(size: 11, weight: .heavy, design: .rounded))
                 .tracking(1.3)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, minHeight: 22)
                 .background(Theme.accentFill)
             Text("\(date.day)")
-                .font(.system(size: 36, weight: .heavy, design: .rounded).monospacedDigit())
+                .font(.scaled(size: 36, weight: .heavy, design: .rounded).monospacedDigit())
                 .tracking(-0.7)
                 .foregroundStyle(Theme.paperInk)
                 .padding(.top, 8)
                 .padding(.bottom, 2)
             Text(GermanDate.weekdaysShort[GermanDate.weekday(date)])
-                .font(.system(size: 11, weight: .semibold))
+                .font(.scaled(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.ink3)
                 .padding(.bottom, 9)
         }
@@ -955,7 +956,7 @@ struct CheckBox: View {
                     .fill(state == .off ? Theme.paper : Theme.accentFill)
                     .overlay { if state == .off { RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Theme.fill3, lineWidth: 1.5) } }
                 switch state {
-                case .on: Image(systemName: "checkmark").font(.system(size: 9.5, weight: .black)).foregroundStyle(.white)
+                case .on: Image(systemName: "checkmark").font(.scaled(size: 9.5, weight: .black)).foregroundStyle(.white)
                 case .mixed: Capsule().fill(.white).frame(width: 8, height: 2)
                 case .off: EmptyView()
                 }
@@ -989,10 +990,10 @@ struct Segment<Value: Hashable>: View {
                 let on = o.value == selection
                 Button { selection = o.value } label: {
                     HStack(spacing: 6) {
-                        if let icon = o.icon { Image(systemName: icon).font(.system(size: 12, weight: .medium)) }
+                        if let icon = o.icon { Image(systemName: icon).font(.scaled(size: 12, weight: .medium)) }
                         Text(o.title)
                     }
-                    .font(.system(size: 12.5, weight: .medium))
+                    .font(.scaled(size: 12.5, weight: .medium))
                     .foregroundStyle(on ? Theme.ink : Theme.ink2)
                     .padding(.horizontal, 13)
                     .frame(height: 26)
@@ -1051,7 +1052,7 @@ struct SheetArt: View {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                if euro { Text("€").font(.system(size: 9, weight: .heavy, design: .rounded)).foregroundStyle(Theme.accent).padding(3) }
+                if euro { Text("€").font(.scaled(size: 9, weight: .heavy, design: .rounded)).foregroundStyle(Theme.accent).padding(3) }
             }
             .shadow(color: .black.opacity(0.08), radius: 0.5)
             .shadow(color: .black.opacity(0.22), radius: 2, y: 2)
@@ -1118,9 +1119,50 @@ struct ApprovalLabel: View {
     var body: some View {
         HStack(spacing: 10) {
             Label(title, systemImage: icon)
-            Text("⌘↵").font(.system(size: 12, weight: .medium))
+            Text("⌘↵").font(.scaled(size: 12, weight: .medium))
                 .opacity(0.8).accessibilityHidden(true)
         }
         .help(T("%@ (⌘ Return)", table: "Views", title))
     }
+}
+
+// MARK: - Text size (setting "Text Size", live)
+
+/// Current factor; changing it re-renders the whole UI (roots observe and re-identify).
+@MainActor
+final class TextScaleStore: ObservableObject {
+    static let shared = TextScaleStore()
+    /// Read by font builders from any context; written only on the main actor.
+    nonisolated(unsafe) static var current: Double = {
+        #if DEBUG
+        if let raw = DevEnvironment.value("PIPPA_TEXT_SCALE"), DevEnvironment.value("PIPPA_SNAPSHOT") != nil, let v = Double(raw) {
+            return TextScale.step(for: v)
+        }
+        #endif
+        return TextScale.load()
+    }()
+    @Published private(set) var factor: Double = TextScaleStore.current
+    func set(_ value: Double) {
+        let v = TextScale.step(for: value)
+        guard v != factor else { return }
+        UserDefaults.standard.set(v, forKey: TextScale.key)
+        Self.current = v
+        factor = v
+    }
+}
+
+extension Font {
+    /// `.system(size:)` scaled by the text size setting. Use for all text; pure icons may use `.system`.
+    static func scaled(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
+        .system(size: CGFloat(TextScale.scaled(Double(size), by: TextScaleStore.current)), weight: weight, design: design)
+    }
+}
+
+/// Wraps a root view so it re-renders when the text size changes.
+struct TextScaleRoot<Content: View>: View {
+    @ObservedObject private var store = TextScaleStore.shared
+    let content: Content
+    init(@ViewBuilder _ content: () -> Content) { self.content = content() }
+    /// Default font 13 pt (the macOS system default) scaled, so text without an explicit font scales too.
+    var body: some View { content.font(.scaled(size: 13)).id(store.factor) }
 }

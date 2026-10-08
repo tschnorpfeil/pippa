@@ -59,7 +59,7 @@ struct LineContent: View {
                             Text(verbatim: "+\(previousResults.count - 3)")
                                 .font(Fonts.hint)
                         }
-                        .menuStyle(.borderlessButton)
+                        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
                         .fixedSize()
                         .disabled(model.isActiveWork || isWorking)
                         .accessibilityLabel(T("More", table: "Line"))
@@ -96,7 +96,7 @@ struct LineContent: View {
                 .accessibilityLabel(T("What should I do with these?", table: "Line"))
             Button { submit() } label: {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.scaled(size: 13, weight: .semibold))
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }
@@ -165,7 +165,7 @@ struct LineContent: View {
             Spacer(minLength: 0)
             Button { tray.remove(item.id) } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.scaled(size: 9, weight: .semibold))
                     .frame(width: 24, height: 28)
                     .contentShape(Rectangle())
             }

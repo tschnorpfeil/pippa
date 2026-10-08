@@ -107,7 +107,7 @@ struct PiSetupContent: View {
             .padding(.top, 18)
             if setup.showsDetails {
                 Text(problem.details)
-                    .font(.system(size: 11.5, design: .monospaced))
+                    .font(.scaled(size: 11.5, design: .monospaced))
                     .foregroundStyle(Theme.ink2)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -138,12 +138,12 @@ struct PiSetupContent: View {
             Well(padding: 14) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "folder")
-                        .font(.system(size: 17, weight: .medium))
+                        .font(.scaled(size: 17, weight: .medium))
                         .foregroundStyle(Theme.accent)
                         .frame(width: 22)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(T("Try it: your Downloads folder", table: "Settings"))
-                            .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
+                            .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
                         Text(T("I’ll suggest some order first. Nothing moves until you say so, and Undo puts everything back.", table: "Settings"))
                             .font(Fonts.body).foregroundStyle(Theme.ink2)
                             .fixedSize(horizontal: false, vertical: true)
@@ -187,7 +187,7 @@ struct SetupThoughtLine: View {
     var body: some View {
         HStack(spacing: 10) {
             DotMatrixView(pattern: pattern, reduceMotion: reduceMotion)
-            Text(text).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+            Text(text).foregroundStyle(Theme.ink2).lineLimit(2).fixedSize(horizontal: false, vertical: true).layoutPriority(1)
             Spacer(minLength: 8)
             if let remaining, remaining > 0, (progress ?? 0) < 1 {
                 Text(AppModel.remainingText(remaining)).foregroundStyle(Theme.ink3).lineLimit(1)
@@ -232,11 +232,11 @@ struct SetupExamplesCard: View {
                     ForEach(Array(examples.enumerated()), id: \.offset) { offset, example in
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: example.icon)
-                                .font(.system(size: 17, weight: .medium))
+                                .font(.scaled(size: 17, weight: .medium))
                                 .foregroundStyle(Theme.accent)
                                 .frame(width: 22)
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(example.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
+                                Text(example.title).font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
                                 Text(example.body).font(Fonts.body).foregroundStyle(Theme.ink2)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -259,7 +259,7 @@ struct SetupExamplesCard: View {
     private func pagerButton(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.scaled(size: 10, weight: .semibold))
                 .foregroundStyle(Theme.ink2)
                 .frame(width: 22, height: 22)
                 .background(Circle().fill(Theme.fill2))

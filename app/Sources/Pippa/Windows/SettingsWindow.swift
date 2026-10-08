@@ -39,7 +39,7 @@ private struct SettingsGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let title {
-                Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.ink3).padding(.leading, 12)
+                Text(title).font(.scaled(size: 12, weight: .semibold)).foregroundStyle(Theme.ink3).padding(.leading, 12)
             }
             VStack(spacing: 0) { content }
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.fill)
@@ -56,8 +56,8 @@ struct SettingsRow<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13.5)).foregroundStyle(Theme.ink)
-                if let detail { Text(detail).font(.system(size: 12)).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true) }
+                Text(title).font(.scaled(size: 13.5)).foregroundStyle(Theme.ink)
+                if let detail { Text(detail).font(.scaled(size: 12)).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true) }
             }
             Spacer(minLength: 8)
             trailing
@@ -139,7 +139,13 @@ struct SettingsView: View {
     private let learningStatusState = State<String?>(initialValue: nil)
     private let forgettingState = State(initialValue: false)
 
-    var body: some View {
+    private var textScaleBinding: Binding<Double> {
+        Binding(get: { TextScaleStore.shared.factor }, set: { TextScaleStore.shared.set($0) })
+    }
+
+    var body: some View { TextScaleRoot { content } }
+
+    private var content: some View {
         VStack(spacing: 0) {
             ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -167,6 +173,9 @@ struct SettingsView: View {
                                     loginState.wrappedValue = SMAppService.mainApp.status == .enabled
                                 }
                             }
+                    }
+                    SettingsRow(title: T("Text size", table: "Settings"), detail: T("Makes all text in Pippa larger.", table: "Settings")) {
+                        TextSizeControl()
                     }
                     if !model.alwaysUsesConnection && !model.modelReady && model.unsupportedReason == nil {
                         SettingsRow(title: T("Pippa’s knowledge", table: "Settings"), detail: model.learningText ?? model.capabilityText) {
@@ -278,11 +287,11 @@ struct SettingsView: View {
         let states = integrations.compactMap { accessState.wrappedValue[$0] }
         return SettingsRow(title: title, divider: divider) {
             if !states.isEmpty && states.allSatisfy({ $0 == .granted }) {
-                Label(T("allowed", table: "Settings"), systemImage: "checkmark").font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.ok)
+                Label(T("allowed", table: "Settings"), systemImage: "checkmark").font(.scaled(size: 12.5, weight: .medium)).foregroundStyle(Theme.ok)
             } else if states.contains(.denied) {
                 Button(T("Open System Settings", table: "Settings")) { NSWorkspace.shared.open(integrations[0].settingsURL) }.pippa(.quiet)
             } else {
-                Text(T("asks the first time", table: "Settings")).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.ink3)
+                Text(T("asks the first time", table: "Settings")).font(.scaled(size: 12.5, weight: .medium)).foregroundStyle(Theme.ink3)
             }
         }
     }
@@ -301,5 +310,38 @@ struct SettingsView: View {
         var access: [Integration: IntegrationAccess] = [:]
         for i in Integration.allCases { access[i] = await model.engine.integrationAccess(i) }
         accessState.wrappedValue = access
+    }
+}
+
+/// Three steps as large buttons in our own text (the system segmented control does not follow the text size).
+private struct TextSizeControl: View {
+    @ObservedObject private var store = TextScaleStore.shared
+    private var options: [(Double, String)] {
+        [(TextScale.normal, T("Normal", table: "Settings")),
+         (TextScale.large, T("Large", table: "Settings")),
+         (TextScale.extraLarge, T("Extra large", table: "Settings"))]
+    }
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(options, id: \.0) { value, title in
+                let selected = store.factor == value
+                Button { store.set(value) } label: {
+                    Text(title)
+                        .font(.scaled(size: 12.5, weight: selected ? .semibold : .regular))
+                        .foregroundStyle(selected ? Color.white : Theme.ink)
+                        .lineLimit(1)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(selected ? Theme.accentFill : Color.clear))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.hair))
+        .fixedSize()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(T("Text size", table: "Settings"))
     }
 }

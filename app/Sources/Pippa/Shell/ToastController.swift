@@ -169,12 +169,12 @@ struct ToastView: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(.system(size: 15.5, weight: .bold, design: .rounded))
+                        .font(.scaled(size: 15.5, weight: .bold, design: .rounded))
                         .foregroundStyle(Theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     if !detail.isEmpty {
                         Text(detail)
-                            .font(.system(size: 12.5))
+                            .font(.scaled(size: 12.5))
                             .foregroundStyle(Theme.ink2)
                             .lineSpacing(2)
                             .fixedSize(horizontal: false, vertical: true)

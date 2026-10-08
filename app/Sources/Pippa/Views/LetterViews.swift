@@ -158,7 +158,7 @@ struct LetterLine: View {
     private func statementRow(_ deadline: Deadline) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "calendar")
-                .font(.system(size: 12, weight: .medium))
+                .font(.scaled(size: 12, weight: .medium))
                 .foregroundStyle(Theme.ink3)
                 .accessibilityHidden(true)
             Text(FirstLineBuilder.statement(for: deadline))
@@ -300,7 +300,7 @@ struct LetterLine: View {
     private func insertedRow(viaReply: Bool) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.scaled(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.ok)
                 .accessibilityHidden(true)
             Text(Self.insertedText(viaReply: viaReply))
@@ -317,7 +317,7 @@ struct LetterLine: View {
     private var pasteRow: some View {
         HStack(spacing: 8) {
             Image(systemName: "doc.on.clipboard")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.scaled(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.ink2)
                 .accessibilityHidden(true)
             Text(Self.pasteText)
@@ -405,11 +405,11 @@ enum DraftMetrics {
     static let minHeight: CGFloat = 60
     static let maxHeight: CGFloat = 320
     /// Zeilenbreite − 2 × 16 Rand − 2 × 12 Kartenrand.
-    static let textWidth: CGFloat = Theme.inputWidth - 32 - 24
+    static var textWidth: CGFloat { Theme.inputWidth - 32 - 24 }
 
     static func height(for text: String) -> CGFloat {
         guard !text.isEmpty else { return minHeight }
-        let font = NSFont.systemFont(ofSize: 13.5)
+        let font = NSFont.systemFont(ofSize: CGFloat(TextScale.scaled(13.5, by: TextScaleStore.current)))
         let bounds = CGSize(width: textWidth, height: .greatestFiniteMagnitude)
         let rect = (text as NSString).boundingRect(with: bounds, options: [.usesLineFragmentOrigin, .usesFontLeading],
                                                    attributes: [.font: font])
