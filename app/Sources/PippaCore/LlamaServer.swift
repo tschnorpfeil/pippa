@@ -184,7 +184,7 @@ public actor LlamaServer {
         return args
     }
 
-    /// Server environment: inherited, plus the key as LLAMA_API_KEY (equivalent to `--api-key`, llama.cpp b11146).
+    /// Server environment: inherited, plus the key as LLAMA_API_KEY (equivalent to `--api-key`, llama.cpp b11146 and b11503).
     public static func environment(apiKey: String, base: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
         var env = base
         env["LLAMA_API_KEY"] = apiKey

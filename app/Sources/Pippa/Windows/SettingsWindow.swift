@@ -69,6 +69,62 @@ struct SettingsRow<Trailing: View>: View {
     }
 }
 
+/// "Pippas Wissen" once setup is ready: on 24 GB and up the one choice "Standard" / "Gründlicher" (plain words and the
+/// download size, no model names), and on every Mac the offer to load new knowledge while the old one keeps working
+/// (after an update that changed the table). Nothing else; previously loaded knowledge is never deleted.
+private struct KnowledgeRow: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var setup: PiSetupController
+
+    var body: some View {
+        if setup.isReady, setup.offersThorough || setup.update != nil {
+            SettingsRow(title: T("Pippa’s knowledge", table: "Settings"), detail: detail) {
+                VStack(alignment: .trailing, spacing: 6) {
+                    if setup.offersThorough {
+                        Picker("", selection: Binding(get: { setup.preference }, set: { setup.choose($0) })) {
+                            Text(T("Standard (fast, %@)", table: "Settings", size(.standard))).tag(ModelPreference.standard)
+                            Text(T("More thorough (%@)", table: "Settings", size(.thorough))).tag(ModelPreference.thorough)
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                        .disabled(model.isActiveWork)
+                    }
+                    switch setup.update {
+                    case .offer(let bytes)?:
+                        Button(T("Load Pippa’s Knowledge Now (%@)", table: "App", ModelDownloadSize.gigabytes(bytes))) { setup.loadUpdate() }
+                            .pippa(.secondary)
+                    case .downloading?:
+                        Button(T("Cancel", table: "Settings")) { setup.cancelUpdate() }.pippa(.quiet)
+                    case .failed?:
+                        Button(T("Try Again", table: "Settings")) { setup.loadUpdate() }.pippa(.quiet)
+                    case nil:
+                        EmptyView()
+                    }
+                }
+            }
+        }
+    }
+
+    private func size(_ preference: ModelPreference) -> String {
+        setup.downloadBytes(preference).map(ModelDownloadSize.gigabytes) ?? "–"
+    }
+
+    private var detail: String? {
+        switch setup.update {
+        case .offer?:
+            return T("New knowledge is ready to load. Until then, Pippa keeps working with what she has.", table: "Settings")
+        case .downloading(let progress, let remaining)?:
+            var text = T("Pippa is loading her knowledge · %lld %%", table: "App", Int((progress * 100).rounded()))
+            if let remaining, remaining > 0 { text += " · " + AppModel.remainingText(remaining) }
+            return text
+        case .failed(let reason)?:
+            return reason
+        case nil:
+            return nil
+        }
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject var model: AppModel
     // @State is not available without Xcode (macro plugin): storage by hand.
@@ -122,6 +178,9 @@ struct SettingsView: View {
                                 Button(T("Try Again", table: "Settings")) { model.retryDownloadNow() }.pippa(.quiet)
                             }
                         }
+                    }
+                    if let setup = PiSetupController.shared, !model.alwaysUsesConnection {
+                        KnowledgeRow(model: model, setup: setup)
                     }
                 }
                 SettingsGroup(title: T("Allow Pippa to…", table: "Settings")) {

@@ -47,6 +47,7 @@ public enum JSONScalar: Sendable, Codable, Hashable, CustomStringConvertible {
 public struct ModelCatalog: Sendable, Codable {
     public var sampling: [String: Double]
     public var models: [CatalogModel]
+    public init(sampling: [String: Double], models: [CatalogModel]) { self.sampling = sampling; self.models = models }
 
     public static func bundled() -> ModelCatalog {
         guard let url = Bundle.module.url(forResource: "catalog", withExtension: "json"),
@@ -68,7 +69,16 @@ public struct ModelChoice: Sendable, Hashable {
     public var sampling: [String: Double]
 }
 
-/// Chosen by memory size, no user decision.
+/// The one model setting in Pippa's settings ("Pippas Wissen"), only on Macs with 24 GB or more
+/// (`ModelSelector.offersThorough`). Plain words in the UI, never model names or quantizations.
+public enum ModelPreference: String, Codable, Sendable, CaseIterable {
+    /// The table's default (K2 Horizon 7B from 16 GB on).
+    case standard
+    /// The larger model (Qwen3.6 35B-A3B IQ3), 24 GB and up.
+    case thorough
+}
+
+/// Chosen by memory size; the only decision is "Standard" or "Gründlicher" on 24 GB and up.
 public enum ModelSelector {
     public static var isAppleSilicon: Bool {
         #if arch(arm64)
@@ -92,26 +102,54 @@ public enum ModelSelector {
         }
     }
 
-    /// The one table of which model a Mac gets; the app offers no model choice (docs/settings-simplification.md).
-    /// A change is one line in the `switch`.
-    /// Fixed mapping: 8 GB → Qwen3.5 4B, 16 and 24 GB → Gemma 4 12B, 32 GB and up → Qwen3.6 35B Q4.
-    /// 24 GB no longer gets Qwen3.6 35B Q3: 17.5 GiB against an 18 GiB budget leaves little headroom, and a 16.8 GB download is too much for first launch.
-    public static func choose(physicalMemory: UInt64, appleSilicon: Bool = isAppleSilicon,
+    /// The one table of which model a Mac gets (docs/settings-simplification.md). A change is one line here.
+    /// - 8 GB → Qwen3.5 4B (K2 Horizon 7B needs 8.5 GiB, the 8 GB budget is 4.8 GiB).
+    /// - 16 GB and up → K2 Horizon 7B (5.6 GB download): the default for every Mac that fits it.
+    /// - 24 GB and up, "Gründlicher" in settings → Qwen3.6 35B-A3B IQ3 (13.7 GB download, 14.5 GiB of an 18 GiB budget).
+    ///   Not the default: the download is too large for first launch.
+    /// `preference` counts only where `offersThorough` holds; below, `.thorough` falls back to the standard row.
+    /// Keys between the `table` markers are read by scripts/build-app.sh: each must be pinned in catalog.json.
+    public static func table(tier: Int, preference: ModelPreference = .standard) -> (key: String, ctx: Int, extra: [String: String]) {
+        // table:begin
+        switch (tier, preference) {
+        case (8, _): ("qwen3.5-4b-q4", 16384, [:])
+        case (16, _): ("k2-horizon-7b", 16384, ["ctx-checkpoints": "4", "cache-ram": "0"])
+        case (_, .thorough): ("qwen3.6-35b-a3b-iq3", 32768, [:])
+        default: ("k2-horizon-7b", 32768, [:])
+        }
+        // table:end
+    }
+
+    /// Memory classes the table distinguishes (`tierGB`).
+    public static let tiers = [8, 16, 24, 32]
+
+    /// Settings show "Standard" / "Gründlicher" only on Macs with 24 GB or more.
+    public static func offersThorough(physicalMemory: UInt64) -> Bool { tierGB(physicalMemory: physicalMemory) >= 24 }
+
+    /// Every catalog key the table can hand out. A release must have all of them pinned (PippaChecks, build-app.sh).
+    public static var tableKeys: [String] {
+        var keys: [String] = []
+        for tier in tiers {
+            for preference in ModelPreference.allCases {
+                let key = table(tier: tier, preference: preference).key
+                if !keys.contains(key) { keys.append(key) }
+            }
+        }
+        return keys
+    }
+
+    public static func choose(physicalMemory: UInt64, preference: ModelPreference = .standard, appleSilicon: Bool = isAppleSilicon,
                               catalog: ModelCatalog = .bundled()) -> Result<ModelChoice, PippaError> {
         guard appleSilicon else {
             return .failure(.unsupportedHardware(L("Pippa needs a Mac with Apple silicon (M1 or later).", table: "Core")))
         }
-        let tier = tierGB(physicalMemory: physicalMemory)
-        let (key, ctx, extra): (String, Int, [String: String]) = switch tier {
-        case 8: ("qwen3.5-4b-q4", 16384, [:])
-        case 16: ("gemma-4-12b", 16384, ["ctx-checkpoints": "4", "cache-ram": "0"])
-        case 24: ("gemma-4-12b", 32768, [:])
-        default: ("qwen3.6-35b-a3b-q4", 32768, [:])
-        }
-        guard let model = catalog.model(key), model.pending == nil, model.pinned != nil else {
+        let row = table(tier: tierGB(physicalMemory: physicalMemory), preference: preference)
+        // An unpinned table model makes the whole setup fail on purpose: a release must never ship one
+        // (scripts/pin-model.sh pins it, PippaChecks "default model is pinned" and build-app.sh refuse otherwise).
+        guard let model = catalog.model(row.key), model.pending == nil, model.pinned != nil else {
             return .failure(.modelUnavailable)
         }
-        return .success(choice(model, ctx: ctx, overrides: extra, catalog: catalog))
+        return .success(choice(model, ctx: row.ctx, overrides: row.extra, catalog: catalog))
     }
 
     static func choice(_ model: CatalogModel, ctx: Int, overrides: [String: String], catalog: ModelCatalog) -> ModelChoice {
@@ -129,9 +167,11 @@ public enum ModelSelector {
 
     /// A specific catalog model instead of the table above, only for developers and measurements (`PIPPA_PI_MODEL`,
     /// PippaLive, spikes) and for the model already in Pi's models.json (`PiLocalServer.plan`). The app offers
-    /// no choice. If `key` is the table's model, exactly its entry applies; otherwise context by memory size.
+    /// no choice. If `key` is one of the table's models for this Mac, exactly its entry applies; otherwise context by memory size.
     public static func named(_ key: String, physicalMemory: UInt64, catalog: ModelCatalog = .bundled()) -> ModelChoice? {
-        if case .success(let automatic) = choose(physicalMemory: physicalMemory, catalog: catalog), automatic.model.key == key { return automatic }
+        for preference in ModelPreference.allCases {
+            if case .success(let row) = choose(physicalMemory: physicalMemory, preference: preference, catalog: catalog), row.model.key == key { return row }
+        }
         guard let model = catalog.model(key), model.pinned != nil else { return nil }
         let small = physicalMemory < 20 * 1_073_741_824
         return choice(model, ctx: small ? 16384 : 32768, overrides: small ? ["cache-ram": "0"] : [:], catalog: catalog)
@@ -183,7 +223,7 @@ public struct DownloadStallWatch: Sendable {
 
 /// Small settings file (settings.json) in the support folder.
 public struct PippaSettings: Codable, Sendable, Equatable {
-    // Formerly `modelOverride`, `automaticChosen` (old path) and `piModel`: model choice no longer exists. Old
+    // Formerly `modelOverride`, `automaticChosen` (old path) and `piModel`: the free model choice no longer exists. Old
     // settings.json files with these keys still load (unknown keys ignored); the table's model applies.
     /// Fixed llama-server port for Pi's models.json (installer, `PiInstaller.stablePort`); chosen once.
     public var llamaPort: Int?
@@ -199,9 +239,25 @@ public struct PippaSettings: Codable, Sendable, Equatable {
     /// Effective value: stored value, else the default (on).
     public var inlinesShortText: Bool { piInlineShortText ?? Self.inlineShortTextDefault }
     public static let inlineShortTextDefault = true
-    public init(llamaPort: Int? = nil, llamaIdleMinutes: Int? = nil, onlinePort: Int? = nil, piInlineShortText: Bool? = nil) {
+    /// "Pippas Wissen" in settings (24 GB and up), raw value of `ModelPreference`; `nil` or unknown = standard. A string,
+    /// so that an unknown value never makes the whole file unreadable (it holds the port). Read via `preference`.
+    public var modelPreference: String?
+    /// Effective value; counts only where `ModelSelector.offersThorough` holds.
+    public var preference: ModelPreference {
+        get { modelPreference.flatMap(ModelPreference.init(rawValue:)) ?? .standard }
+        set { modelPreference = newValue == .standard ? nil : newValue.rawValue }
+    }
+    public init(llamaPort: Int? = nil, llamaIdleMinutes: Int? = nil, onlinePort: Int? = nil, piInlineShortText: Bool? = nil,
+                modelPreference: String? = nil) {
         self.llamaPort = llamaPort; self.llamaIdleMinutes = llamaIdleMinutes; self.onlinePort = onlinePort
-        self.piInlineShortText = piInlineShortText
+        self.piInlineShortText = piInlineShortText; self.modelPreference = modelPreference
+    }
+
+    /// Change only the model preference (load, change, save), so other values written meanwhile stay.
+    public static func savePreference(_ preference: ModelPreference, to base: URL) throws {
+        var settings = load(from: base)
+        settings.preference = preference
+        try settings.save(to: base)
     }
 
     public static func load(from base: URL) -> PippaSettings {

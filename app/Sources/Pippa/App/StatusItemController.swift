@@ -63,6 +63,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(MenuAction.item(title) { [weak self] in self?.model.startModelDownload() })
         } else if model.downloadStalled {
             menu.addItem(MenuAction.item(T("Try Loading Again", table: "App")) { [weak self] in self?.model.retryDownloadNow() })
+        } else if case .offer(let bytes)? = PiSetupController.shared?.update {
+            // New knowledge after an update; the previous one keeps working until it is loaded.
+            menu.addItem(MenuAction.item(T("Load Pippa’s Knowledge Now (%@)", table: "App", ModelDownloadSize.gigabytes(bytes))) {
+                PiSetupController.shared?.loadUpdate()
+            })
         }
         menu.addItem(.separator())
         let hotkey = Hotkey.current

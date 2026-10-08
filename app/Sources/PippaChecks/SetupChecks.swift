@@ -59,10 +59,10 @@ private func roots(_ home: URL, _ payload: PiPayload) -> PiInstallRoots {
 }
 
 /// Small model from random bytes plus a catalog entry with its SHA-256 (never the real GGUFs).
-private func dummyModel(name: String = "Dummy-1B-Q4_K_M.gguf", bytes: Int = 1_048_576) -> (CatalogModel, Data) {
+private func dummyModel(name: String = "Dummy-1B-Q4_K_M.gguf", bytes: Int = 1_048_576, key: String = "dummy-1b") -> (CatalogModel, Data) {
     let data = Data((0..<bytes).map { _ in UInt8.random(in: 0...255) })
     let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-    let json: [String: Any] = ["key": "dummy-1b", "label": "Dummy 1B", "repo": "fixture/dummy", "quant": "Q4_K_M", "memGiB": 1, "ctx": 4096, "rank": 1,
+    let json: [String: Any] = ["key": key, "label": "Dummy 1B", "repo": "fixture/dummy", "quant": "Q4_K_M", "memGiB": 1, "ctx": 4096, "rank": 1,
                                "pinned": ["revision": "test", "files": [["path": name, "size": bytes, "sha256": hash]]]]
     let model = try! JSONDecoder().decode(CatalogModel.self, from: JSONSerialization.data(withJSONObject: json))
     return (model, data)
@@ -517,6 +517,40 @@ func runSetupFlowChecks() async {
             && problem.canRetry && question == .askDownload(bytes: Int64(data.count))
             && offlineKind && offline.canRetry && !offline.message.contains("NSURL") && done == .ready(adoptedFrom: nil)
         if !ok { print("   ", problem, question, offline, done) }
+        return ok
+    }
+
+    await checkAsync("Setup: new table model while the old one works (update, \"More thorough\"): ready with the old one, download offered; afterwards the new one, old file kept; switching back is instant") {
+        let home = fakeHome("flow-fallback"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (old, oldData) = dummyModel(name: "Old-Q4.gguf", key: "old-model")
+        let (new, newData) = dummyModel(name: "New-Q4.gguf", bytes: 524_288, key: "new-model")
+        let catalog = ModelCatalog(sampling: [:], models: [old, new])
+        // Before the update: the old table model is set up and listed in models.json.
+        let before = PiSetupFlow(roots: r, model: old, contextWindow: 4096, searchRoots: [], port: 18_471, catalog: catalog, download: stubDownload(oldData))
+        guard case .askDownload = before.prepare(), await before.download(progress: { _, _ in }) == .ready(adoptedFrom: nil) else { return false }
+        // After the update the table names `new`: no question, the old one keeps answering, the download is offered.
+        let after = PiSetupFlow(roots: r, model: new, contextWindow: 8192, searchRoots: [], port: 18_471, catalog: catalog, download: stubDownload(newData))
+        let waiting = after.prepare()
+        let keptOld = PiInstaller.providerModelIDs(modelsJSON: r.modelsJSON) == ["old-model"]
+            && PiInstaller.providerContextWindow(modelsJSON: r.modelsJSON, id: "old-model") == 4096
+        let offered = after.pendingDownload == Int64(newData.count) && after.activeModelKey == "old-model"
+        let done = await after.download { _, _ in }
+        let switched = PiInstaller.providerModelIDs(modelsJSON: r.modelsJSON) == ["new-model"] && after.pendingDownload == nil
+            && after.activeModelKey == "new-model" && ModelDownloader(directory: r.pippaModels).isInstalled(old)
+        // Back (e.g. "Standard" again): already there, so instant and without a download.
+        let back = PiSetupFlow(roots: r, model: old, contextWindow: 4096, searchRoots: [], port: 18_471, catalog: catalog, download: stubDownload(Data()))
+        let backState = back.prepare()
+        let backOK = backState == .ready(adoptedFrom: nil) && back.pendingDownload == nil
+            && PiInstaller.providerModelIDs(modelsJSON: r.modelsJSON) == ["old-model"]
+        // Without a usable previous model (file gone) it is the normal question again.
+        try fm.removeItem(at: r.pippaModels.appendingPathComponent("New-Q4.gguf"))
+        try fm.removeItem(at: r.pippaModels.appendingPathComponent("Old-Q4.gguf"))
+        let none = PiSetupFlow(roots: r, model: new, contextWindow: 8192, searchRoots: [], port: 18_471, catalog: catalog).prepare()
+        let ok = waiting == .ready(adoptedFrom: nil) && keptOld && offered && done == .ready(adoptedFrom: nil) && switched && backOK
+            && none == .askDownload(bytes: Int64(newData.count))
+        if !ok { print("   ", waiting, keptOld, offered, done, switched, backState, none) }
         return ok
     }
 

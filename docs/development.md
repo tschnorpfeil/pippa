@@ -66,7 +66,9 @@ Models are downloaded only after consent (resumable, SHA256-verified) or adopted
 pill: the server's resident memory against the size of the weights, capped at 95 % until `/health` is 200, then a
 short "almost ready" until the first words (`ColdStart.swift`; on Apple silicon the mmap'd weights show in the
 resident size, not in the physical footprint). Opening the pill or conversation starts loading ahead of time
-(`PiRPCChat+ColdStart.swift`); `PIPPA_LIVE=1 swift run PippaLive coldprogress` measures it.
+(`PiRPCChat+ColdStart.swift`); `PIPPA_LIVE=1 swift run PippaLive coldprogress` measures it. A new or changed catalog model is pinned with `scripts/pin-model.sh <catalog-key> <hf-repo> [<file>]`
+(revision, path, size and SHA256 from the Hugging Face API, written into catalog.json); `build-app.sh` refuses a table model
+without a pin.
 
 **Setup (`app/Sources/PippaCore/PiSetup`).** `PiInstaller` copies the bundled Pi payload into Pi's managed layout
 (`~/.pi/agent/install/releases/<version>`), puts Node under `~/.local/share/pi-node`, and writes the `pippa-local`
@@ -158,6 +160,7 @@ ticket.
 swift build --package-path app                                          # all targets
 swift run --package-path app PippaChecks                                # native checks, no model
 python3 scripts/check-strings.py                                        # every UI text in en and de
+python3 scripts/check-default-models.py                                 # every model in ModelSelector's table is pinned
 node --experimental-strip-types --test runtime/pippa-guard/*.test.mjs   # guard (bypass.test.mjs needs a Pi payload)
 (cd runtime/pippa-web && npm ci --ignore-scripts && npm test)           # web fetcher (pretest bundles pi-web-access)
 node --test runtime/pippa-local-server/test/autostart.test.mjs          # terminal autostart with a fake llama-server

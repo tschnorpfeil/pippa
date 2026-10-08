@@ -96,7 +96,7 @@ log("Source in cache unchanged (size, modification date, inode): \(untouched)")
 let apiKey = try PiInstaller.stableKey(support: roots.support)
 let modelFile = modelsFolder.appendingPathComponent((file.path as NSString).lastPathComponent)
 let server = Process()
-server.executableURL = cache.appendingPathComponent("llama-b11146/llama-server")
+server.executableURL = cache.appendingPathComponent("llama-b11503/llama-server")
 server.arguments = ["-m", modelFile.path, "--host", "127.0.0.1", "--port", String(port), "--jinja", "-ngl", "999", "-c", "16384",
                     "--parallel", "1", "--no-webui", "--reasoning", "off", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0", "--alias", model.key]
 server.environment = LlamaServer.environment(apiKey: apiKey)

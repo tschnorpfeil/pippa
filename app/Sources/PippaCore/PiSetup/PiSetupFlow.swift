@@ -3,8 +3,10 @@ import Foundation
 // Setup as the UI sees it, with no technical questions. Pi, Node, model folder, adopting existing models and models.json run silently;
 // the only question is the download. Errors are one sentence plus "Nochmal versuchen", technical details only in `details`.
 //
-// Order: detect → Pi → model folder → models.json → model → ready. models.json comes before the model, so
-// everything else is in place before the download question and only the model needs checking after loading.
+// Order: detect → Pi → model folder → model → models.json → ready. The model step only checks and adopts (no network);
+// its answer decides which model goes into models.json: the table's model, or, while that one still has to be
+// downloaded, the model Pippa used so far (`fallback`). models.json is written before the download question either way,
+// so only the model needs checking after loading.
 
 /// What the UI shows.
 public enum PiSetupState: Sendable, Equatable {
@@ -40,29 +42,56 @@ public final class PiSetupFlow: @unchecked Sendable {
     public let model: CatalogModel
     public let options: PiInstallOptions
     private let download: PiInstaller.Download
+    private let catalog: ModelCatalog
     private let lock = NSLock()
     private var adopted: String?
+    private var pending: Int64?
+    private var active: String?
 
     /// `searchRoots`: `nil` = all known places (old container, LM Studio, Ollama, Hugging Face …).
     /// `download`: a stand-in only for tests and recordings; otherwise the real ModelDownloader.
     public init(roots: PiInstallRoots, model: CatalogModel, contextWindow: Int, searchRoots: [ModelLocation]? = nil,
-                port: Int? = nil, download: @escaping PiInstaller.Download = PiInstaller.modelDownloader) {
+                port: Int? = nil, catalog: ModelCatalog = .bundled(), download: @escaping PiInstaller.Download = PiInstaller.modelDownloader) {
         installer = PiInstaller(roots: roots)
         self.model = model
+        self.catalog = catalog
         options = PiInstallOptions(model: model, modelSearchRoots: searchRoots,
                                    providerModels: [PiProviderModel(id: model.key, name: model.label, contextWindow: contextWindow)],
                                    port: port ?? PiInstaller.stablePort(support: roots.support))
         self.download = download
     }
 
-    /// The model for this Mac: the table by memory size (`ModelSelector.choose`). There is no choice in
-    /// settings any more (docs/settings-simplification.md). `override`: developers only (`PIPPA_PI_MODEL`).
-    public static func choice(override: String?, physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory,
+    /// The model for this Mac: the table by memory size (`ModelSelector.choose`); `preference` is the one setting
+    /// "Standard" / "Gründlicher" (24 GB and up, docs/settings-simplification.md). `override`: developers only (`PIPPA_PI_MODEL`).
+    public static func choice(override: String?, preference: ModelPreference = .standard,
+                              physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory,
                               catalog: ModelCatalog = .bundled()) -> ModelChoice? {
         if let override, let model = catalog.model(override), model.pinned != nil {
             return ModelSelector.choice(model, ctx: min(model.ctx, 16384), overrides: [:], catalog: catalog)
         }
-        return try? ModelSelector.choose(physicalMemory: physicalMemory, catalog: catalog).get()
+        return try? ModelSelector.choose(physicalMemory: physicalMemory, preference: preference, catalog: catalog).get()
+    }
+
+    /// After `prepare`: bytes still to download for `model` while the previous model keeps working (`.ready` with the
+    /// fallback in models.json). `nil`: `model` is the one in use, or there was no fallback (then `.askDownload`).
+    public var pendingDownload: Int64? { lock.withLock { pending } }
+
+    /// After `prepare`: the catalog key now in models.json (`model.key`, or the fallback's).
+    public var activeModelKey: String? { lock.withLock { active } }
+
+    /// The model Pippa used so far, kept while `model` still has to be downloaded (e.g. Gemma 4 12B after the table moved
+    /// to K2 Horizon 7B, or the standard model while "Gründlicher" loads): the first `pippa-local` model in models.json that
+    /// is a pinned catalog model, verified in the model folder. Its context stays as listed there. Nothing is deleted.
+    func fallback() -> (model: CatalogModel, provider: PiProviderModel)? {
+        guard let folder = installer.state.modelsFolder else { return nil }
+        let downloader = ModelDownloader(directory: URL(fileURLWithPath: folder, isDirectory: true))
+        let modelsJSON = installer.roots.modelsJSON
+        for id in PiInstaller.providerModelIDs(modelsJSON: modelsJSON) where id != model.key {
+            guard let previous = catalog.model(id), previous.pinned != nil, downloader.isInstalled(previous) else { continue }
+            let context = PiInstaller.providerContextWindow(modelsJSON: modelsJSON, id: id) ?? min(previous.ctx, 16384)
+            return (previous, PiProviderModel(id: previous.key, name: previous.label, contextWindow: context))
+        }
+        return nil
     }
 
     /// Fast, without reading or changing anything: is the AI already with another program? Then the
@@ -76,17 +105,29 @@ public final class PiSetupFlow: @unchecked Sendable {
         return model.pinned?.files.lazy.compactMap { found[$0.sha256]?.source }.first
     }
 
-    /// All without network. Stops only at the download question or an error.
+    /// All without network. Stops only at the download question or an error. If the model is missing but the previous one
+    /// is there, setup is `.ready` with the previous one and `pendingDownload` says what the switch still needs.
     public func prepare() -> PiSetupState {
-        for step in [PiInstallStep.detect, .pi, .modelsFolder, .provider, .model, .ready] {
-            let result = installer.perform(step, options)
-            switch result.outcome {
-            case .failed(let failure): return .failed(PiSetupProblem(failure))
-            case .needsDownload(let bytes): return .askDownload(bytes: bytes)
-            case .modelReady(_, .some, let source): lock.withLock { adopted = source }
-            default: break
-            }
+        for step in [PiInstallStep.detect, .pi, .modelsFolder] {
+            if case .failed(let failure) = installer.perform(step, options).outcome { return .failed(PiSetupProblem(failure)) }
         }
+        var use = options
+        var missing: Int64?
+        switch installer.perform(.model, options).outcome {
+        case .failed(let failure): return .failed(PiSetupProblem(failure))
+        case .needsDownload(let bytes):
+            missing = bytes
+            if let previous = fallback() {
+                use = PiInstallOptions(model: previous.model, modelSearchRoots: options.modelSearchRoots,
+                                       providerModels: [previous.provider], port: options.port)
+            }
+        case .modelReady(_, .some, let source): lock.withLock { adopted = source }
+        default: break
+        }
+        if case .failed(let failure) = installer.perform(.provider, use).outcome { return .failed(PiSetupProblem(failure)) }
+        lock.withLock { active = use.model?.key; pending = use.model == options.model ? nil : missing }
+        if let missing, use.model == options.model { return .askDownload(bytes: missing) }
+        if case .failed(let failure) = installer.perform(.ready, use).outcome { return .failed(PiSetupProblem(failure)) }
         return .ready(adoptedFrom: lock.withLock { adopted })
     }
 

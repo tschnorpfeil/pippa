@@ -61,7 +61,7 @@ e2e)
   export PI_CODING_AGENT_DIR="$home/.pi/agent" PIPPA_UNDO_DIR="$home/undo" PIPPA_PI_WORKDIR="$home/work" PIPPA_TRASH_DIR="$home/trash"
   export PIPPA_PI_GUARD="$root/runtime/pippa-guard/pippa-guard.ts" PIPPA_PI_TOOLS="$root/runtime/pippa-guard/pippa-tools.ts"
   # Binary from the cache (read only); the model comes from the installer's models folder, not from PIPPA_MODEL_FILE.
-  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11146/llama-server}"
+  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11503/llama-server}"
   unset PIPPA_MODEL_FILE || true
   export PIPPA_SNAPSHOT="$shot" PIPPA_SNAPSHOT_ONLY=setup-e2e PIPPA_LOG_DIR="$shot/logs"
   "$bin/Pippa" -AppleLanguages "(de)" -AppleLocale de_DE >"$shot/app.log" 2>&1 || true
@@ -91,7 +91,7 @@ r6)
   export PIPPA_PI_RPC=1 PIPPA_DEMO=1 PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-qwen3.5-4b-q4}"
   export PI_CODING_AGENT_DIR="$home/.pi/agent" PIPPA_TRASH_DIR="$home/trash"
   unset PIPPA_PI_GUARD PIPPA_PI_TOOLS PIPPA_PI_WORKDIR PIPPA_UNDO_DIR PIPPA_MODEL_FILE || true
-  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11146/llama-server}"
+  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11503/llama-server}"
   export PIPPA_R2_CORPUS="$root/.build/quality/ctxsug-corpus"
   export PIPPA_SNAPSHOT="$shot" PIPPA_SNAPSHOT_ONLY=r6 PIPPA_LOG_DIR="$shot/logs"
   "$bin/Pippa" -AppleLanguages "(de)" -AppleLocale de_DE >"$shot/app.log" 2>&1 || true

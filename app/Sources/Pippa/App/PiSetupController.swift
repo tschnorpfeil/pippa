@@ -11,8 +11,20 @@ import SwiftUI
 ///
 /// Environment like PiRPCChat: `PIPPA_PI_PAYLOAD` (otherwise the payload in the app), `PIPPA_PI_HOME` (fake HOME for
 /// test runs), `PIPPA_PI_MODEL` (otherwise by memory like LocalEngine).
+///
+/// New knowledge while the old one keeps working (`update`): after an app update whose table names a different model
+/// (Gemma 4 12B → K2 Horizon 7B), or after "Gründlicher" in settings, setup stays `.ready` with the previous model and
+/// offers the download ("Pippas Wissen jetzt laden (5,6 GB)"). After loading, models.json names the new model; Pi and the
+/// llama-server follow on the next request. The previous model's file stays on disk.
 @MainActor
 final class PiSetupController: ObservableObject {
+    /// Loading new knowledge beside a working one.
+    enum KnowledgeUpdate: Equatable {
+        case offer(bytes: Int64)
+        case downloading(progress: Double, remaining: TimeInterval?)
+        case failed(String)
+    }
+
     /// Recordings (`PIPPA_SNAPSHOT_ONLY=setup-*`) inject a state here without the installer.
     static var shared: PiSetupController? = makeLive()
 
@@ -21,7 +33,18 @@ final class PiSetupController: ObservableObject {
     /// Which example is currently showing (here rather than in the view, so measurement and display passes match).
     @Published var exampleIndex = 0
 
-    private let flow: PiSetupFlow?
+    private var flow: PiSetupFlow?
+    /// Installer roots of the live setup (for switching knowledge); `nil` in recordings without an installer.
+    private var roots: PiInstallRoots?
+    @Published private(set) var update: KnowledgeUpdate?
+    /// "Standard" or "Gründlicher" (settings.json); the control shows only where `offersThorough` holds.
+    @Published private(set) var preference: ModelPreference = .standard
+    let offersThorough = ModelSelector.offersThorough(physicalMemory: ProcessInfo.processInfo.physicalMemory)
+    private var updateTask: Task<Void, Never>?
+    private var updateID: UUID?
+    /// After a switch in settings: load right away (choosing counts as consent), and on "Cancel" go back to this.
+    private var loadsUpdate = false
+    private var switchedFrom: ModelPreference?
     private weak var model: AppModel?
     private var task: Task<Void, Never>?
     private var forward: AnyCancellable?
@@ -47,12 +70,19 @@ final class PiSetupController: ObservableObject {
         } else {
             roots = PiInstallRoots(support: Pippa.supportDirectory, payload: payload)
         }
-        // The model is dictated by the memory table; there is no choice in settings.
-        guard let choice = PiSetupFlow.choice(override: env["PIPPA_PI_MODEL"]) else {
+        // The model comes from the memory table; the only setting is "Standard" / "Gründlicher" (24 GB and up).
+        let preference = PippaSettings.load(from: roots.support).preference
+        guard let choice = PiSetupFlow.choice(override: env["PIPPA_PI_MODEL"], preference: preference) else {
+            // Also an unpinned table model (scripts/pin-model.sh): loud on purpose, a release must never get here.
+            let unpinned = ModelSelector.tableKeys.filter { ModelCatalog.bundled().model($0)?.pinned == nil }
             return PiSetupController(flow: nil, state: .failed(PiSetupProblem(message: T("Pippa needs a Mac with Apple silicon (M1 or later).", table: "Settings"),
-                                                                              details: "No catalog model fits this Mac", canRetry: false)))
+                                                                              details: unpinned.isEmpty ? "No catalog model fits this Mac" : "Not pinned in catalog.json: \(unpinned.joined(separator: ", "))",
+                                                                              canRetry: false)))
         }
-        return PiSetupController(flow: PiSetupFlow(roots: roots, model: choice.model, contextWindow: choice.ctx))
+        let setup = PiSetupController(flow: PiSetupFlow(roots: roots, model: choice.model, contextWindow: choice.ctx))
+        setup.roots = roots
+        setup.preference = preference
+        return setup
     }
 
     var isReady: Bool { if case .ready = state { true } else { false } }
@@ -116,17 +146,110 @@ final class PiSetupController: ObservableObject {
 
     private func finish(_ result: PiSetupState) {
         task = nil
+        let wantsUpdate = loadsUpdate
+        loadsUpdate = false
         if case .askDownload = result, downloadChosen { return load() }
         state = result
         if case .ready = result {
-            DiagnosticsLog.shared.event("pi-setup", ["stand": "bereit"])
+            DiagnosticsLog.shared.event("pi-setup", ["stand": "bereit", "modell": flow?.activeModelKey ?? ""])
             PiRPCChat.refreshLaunchFile()
+            if updateTask == nil { update = flow?.pendingDownload.map { .offer(bytes: $0) } }
+            if flow?.pendingDownload == nil { switchedFrom = nil }
+            if wantsUpdate { loadUpdate() }
         } else if case .failed(let problem) = result {
             DiagnosticsLog.shared.event("pi-setup", ["stand": "fehler", "details": problem.details])
         }
         // Not done yet (e.g. earlier "Später"): show the Welcome once at start. Not in recordings.
         guard let model, DevSnapshot.directory == nil, !isReady, model.mode.key == "pill", !model.isActiveWork else { return }
         model.show(.onboarding)
+    }
+}
+
+// MARK: Knowledge switch ("Pippas Wissen" in settings) and new knowledge beside the working one
+
+extension PiSetupController {
+    /// Download size of the knowledge for `preference` on this Mac (for the plain labels "Standard (schnell, 5,6 GB)").
+    func downloadBytes(_ preference: ModelPreference) -> Int64? {
+        guard let model = PiSetupFlow.choice(override: nil, preference: preference)?.model else { return nil }
+        return model.pinned?.files.reduce(Int64(0)) { $0 + $1.size } ?? model.approxBytes
+    }
+
+    /// "Standard" / "Gründlicher": saves the choice, puts the knowledge in use if it is there, else loads it right away
+    /// (choosing in settings, with the size in the label, is the consent) while the previous one keeps working.
+    /// `load: false` only for going back after "Cancel".
+    func choose(_ new: ModelPreference, load: Bool = true) {
+        guard new != preference, offersThorough, isReady, task == nil, let roots,
+              let choice = PiSetupFlow.choice(override: nil, preference: new) else { return }
+        do { try PippaSettings.savePreference(new, to: roots.support) }
+        catch { UserMessage.record(error, context: "wissen-wechseln"); return }
+        DiagnosticsLog.shared.event("wissen-wechseln", ["wahl": new.rawValue, "modell": choice.model.key])
+        stopUpdate()
+        switchedFrom = load ? preference : nil
+        preference = new
+        let flow = PiSetupFlow(roots: roots, model: choice.model, contextWindow: choice.ctx)
+        self.flow = flow
+        downloadChosen = load
+        loadsUpdate = load
+        update = nil
+        // Quietly: the conversation keeps working with the knowledge in use until the new one is there.
+        task = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { flow.prepare() }.value
+            self?.finish(result)
+        }
+    }
+
+    /// "Pippas Wissen jetzt laden (5,6 GB)": loads the new knowledge beside the working one (resumable).
+    func loadUpdate() {
+        guard let flow, updateTask == nil, flow.pendingDownload != nil else { return }
+        let id = UUID()
+        updateID = id
+        update = .downloading(progress: 0, remaining: nil)
+        DiagnosticsLog.shared.event("wissen-laden", ["modell": flow.model.key])
+        updateTask = Task { [weak self] in
+            let result = await flow.download { progress, remaining in
+                Task { @MainActor in self?.updateProgress(progress, remaining, id: id) }
+            }
+            self?.finishUpdate(result, id: id)
+        }
+    }
+
+    /// "Cancel": stops loading (what came already stays for later). After a switch in settings, back to the previous choice.
+    func cancelUpdate() {
+        stopUpdate()
+        update = flow?.pendingDownload.map { .offer(bytes: $0) }
+        if let previous = switchedFrom { switchedFrom = nil; choose(previous, load: false) }
+    }
+
+    private func stopUpdate() {
+        updateTask?.cancel()
+        updateTask = nil
+        updateID = nil
+    }
+
+    private func updateProgress(_ value: Double, _ remaining: TimeInterval?, id: UUID) {
+        guard updateID == id, case .downloading(let shown, _) = update else { return }
+        guard value >= 1 || abs(value - shown) >= 0.002 else { return }
+        update = .downloading(progress: value, remaining: remaining)
+    }
+
+    private func finishUpdate(_ result: PiSetupState, id: UUID) {
+        guard updateID == id else { return }
+        updateTask = nil
+        updateID = nil
+        switch result {
+        case .ready:
+            switchedFrom = nil
+            update = nil
+            state = result
+            DiagnosticsLog.shared.event("wissen-geladen", ["modell": flow?.activeModelKey ?? ""])
+            PiRPCChat.refreshLaunchFile()
+        case .failed(let problem):
+            // The previous knowledge keeps working; "Try Again" continues where it stopped.
+            update = .failed(problem.message)
+            DiagnosticsLog.shared.event("wissen-laden-fehler", ["details": problem.details])
+        default:
+            update = flow?.pendingDownload.map { .offer(bytes: $0) }
+        }
     }
 }
 

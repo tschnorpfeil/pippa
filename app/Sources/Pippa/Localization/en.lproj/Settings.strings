@@ -157,3 +157,6 @@
 "Saving first sends one short test message. No files and nothing from your conversations." = "Saving first sends one short test message. No files and nothing from your conversations.";
 "Version %@" = "Version %@";
 "I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay." = "I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay.";
+"Standard (fast, %@)" = "Standard (fast, %@)";
+"More thorough (%@)" = "More thorough (%@)";
+"New knowledge is ready to load. Until then, Pippa keeps working with what she has." = "New knowledge is ready to load. Until then, Pippa keeps working with what she has.";
