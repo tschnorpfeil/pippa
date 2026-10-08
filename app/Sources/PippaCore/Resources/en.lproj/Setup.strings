@@ -12,5 +12,5 @@
 "Pippa couldn’t save her files on this Mac." = "Pippa couldn’t save her files on this Mac.";
 "A settings file Pippa shares with other tools can’t be read. Pippa changed nothing; the details say which one." = "A settings file Pippa shares with other tools can’t be read. Pippa changed nothing; the details say which one.";
 "A file of Pippa’s AI isn’t the one she expects. Pippa leaves it untouched." = "A file of Pippa’s AI isn’t the one she expects. Pippa leaves it untouched.";
-"There isn’t enough free space on this Mac. About %@ more is needed." = "There isn’t enough free space on this Mac. About %@ more is needed.";
+"There isn’t enough free space on this Mac. About %@ more is needed." = "There isn’t enough free space on this Mac. About %@ more is needed. Empty the Trash or delete large files you no longer need, then click “Try Again”.";
 "Loading stopped because the connection dropped. It picks up where it left off." = "Loading stopped because the connection dropped. It picks up where it left off.";

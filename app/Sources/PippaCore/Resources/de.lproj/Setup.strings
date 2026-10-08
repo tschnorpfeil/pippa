@@ -12,5 +12,5 @@
 "Pippa couldn’t save her files on this Mac." = "Pippa konnte ihre Dateien auf diesem Mac nicht ablegen.";
 "A settings file Pippa shares with other tools can’t be read. Pippa changed nothing; the details say which one." = "Eine Einstellungsdatei, die Pippa mit anderen Programmen teilt, lässt sich nicht lesen. Pippa hat nichts geändert; unter „Details“ steht, welche.";
 "A file of Pippa’s AI isn’t the one she expects. Pippa leaves it untouched." = "Eine Datei von Pippas KI ist nicht die erwartete. Pippa lässt sie unberührt.";
-"There isn’t enough free space on this Mac. About %@ more is needed." = "Auf diesem Mac ist nicht genug Platz frei. Es fehlen etwa %@.";
+"There isn’t enough free space on this Mac. About %@ more is needed." = "Auf diesem Mac ist nicht genug Platz frei. Es fehlen etwa %@. Leer den Papierkorb oder lösch große Dateien, die du nicht mehr brauchst, und klick dann auf „Erneut versuchen“.";
 "Loading stopped because the connection dropped. It picks up where it left off." = "Das Laden hat aufgehört, weil die Verbindung weg war. Es geht dort weiter, wo es stand.";

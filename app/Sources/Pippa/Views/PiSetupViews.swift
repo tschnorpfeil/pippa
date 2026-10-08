@@ -75,7 +75,7 @@ struct PiSetupContent: View {
                 .padding(.top, 20)
                 .stagger(3)
             ActionBar {
-                Button(T("Hide", table: "Settings")) { setup.later() }.pippa(.quiet)
+                Button(T("Keep Loading in the Background", table: "Settings")) { setup.later() }.pippa(.quiet)
             }
         }
     }
