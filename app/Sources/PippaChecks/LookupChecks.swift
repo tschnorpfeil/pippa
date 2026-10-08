@@ -144,3 +144,8 @@ func runLookupChecks() async {
         }
     }
 }
+
+private func containsAny(_ text: String, _ words: [String]) -> Bool {
+    let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
+    return words.contains { folded.contains($0) }
+}

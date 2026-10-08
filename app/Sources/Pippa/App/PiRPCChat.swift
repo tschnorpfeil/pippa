@@ -170,7 +170,7 @@ final class PiRPCChat {
             return LaunchRoute(key: "local|" + target.model, online: nil)
         }
         let key = try await Task.detached { try ModelCredentialStore.read(connection.id) }.value ?? ""
-        try await Task.detached { try PiOnlineProvider.sync(connection, modelsJSON: modelsJSON) }.value
+        _ = try await Task.detached { try PiOnlineProvider.sync(connection, modelsJSON: modelsJSON) }.value
         let routeKey = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
                         connection.modelID, String(connection.contextWindow), String(key.hashValue)].joined(separator: "|")
         return LaunchRoute(key: routeKey, online: (connection, key))
