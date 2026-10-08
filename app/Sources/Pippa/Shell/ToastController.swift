@@ -97,7 +97,7 @@ final class ToastController {
         hosting.frame = clip.bounds
         clip.addSubview(hosting)
 
-        let screen = model.shell?.panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
+        let screen = model.shell?.shellScreen ?? NSScreen.main ?? NSScreen.screens[0]
         let vis = screen.visibleFrame
         let anchor = model.shell?.shellScreenRect ?? NSRect(x: vis.maxX - 110, y: vis.minY + 20, width: 90, height: 46)
         let x = anchor.midX > vis.midX ? anchor.maxX - w : anchor.minX
