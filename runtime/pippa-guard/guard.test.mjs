@@ -201,7 +201,10 @@ test("classification: file tools, look, delete, network, send, other commands, f
 			["bash", { command: "mdfind -onlyin ~/Documents 'Mietvertrag'" }], ["bash", { command: "mdfind -name Rechnung | head -20" }],
 			["bash", { command: "fd -e pdf . ~/Documents" }], ["bash", { command: "rg -il nebenkosten ~/Documents" }], ["bash", { command: "mdls -name kMDItemContentCreationDate a.pdf" }],
 			["bash", { command: "ls -lax" }], ["bash", { command: "find /Users/remi -type f -name \"*.md\" 2>/dev/null | head -50" }],
-			["bash", { command: "grep -ril nullkalkulation ~/Documents 2>&1 | head" }], ["bash", { command: "ls x >/dev/null && echo ja" }]],
+			["bash", { command: "grep -ril nullkalkulation ~/Documents 2>&1 | head" }], ["bash", { command: "ls x >/dev/null && echo ja" }],
+			["bash", { command: "grep -ril kalkulation ~ 2>/dev/null | grep -viE \"\\.md$|\\.txt$\" | head -40" }], ["bash", { command: "cd ~/Downloads && ls -la" }],
+			["bash", { command: "find . -name '*.pdf' -exec grep -l Miete {} \\;" }], ["bash", { command: "find . -print0 | xargs -0 grep -l Miete" }],
+			["bash", { command: "textutil -convert txt -stdout Brief.docx" }], ["bash", { command: "echo \"a > b\"" }], ["bash", { command: "ls \"a|b\"" }]],
 		delete: [["bash", { command: "rm Brief.md" }], ["bash", { command: "rm -rf Archiv" }], ["bash", { command: "find . -name '*.tmp' -delete" }],
 			["bash", { command: "cd x && unlink a" }], ["bash", { command: "find . -exec rm {} \\;" }]],
 		network: [["bash", { command: "curl https://example.com" }], ["bash", { command: "wget x" }], ["bash", { command: "python3 skript.py" }],
@@ -212,7 +215,9 @@ test("classification: file tools, look, delete, network, send, other commands, f
 			["bash", { command: "mkdir a && touch a/b" }], ["bash", { command: "mkdir *.x" }], ["bash", { command: "mkdir" }], ["bash", { command: "mkdir -- -p" }],
 			["bash", { command: "fd -e tmp -x gzip" }], ["bash", { command: "fd . -X trash" }], ["bash", { command: "fd -HX ls" }], ["bash", { command: "fd --exec-batch zip a.zip" }],
 			["bash", { command: "rg --pre ./skript x" }], ["bash", { command: "mdfind -live Rechnung" }],
-			["bash", { command: "find . 2>/dev/null > liste.txt" }], ["bash", { command: "ls > /dev/null.txt" }], ["bash", { command: "ls 2>fehler.log" }]],
+			["bash", { command: "find . 2>/dev/null > liste.txt" }], ["bash", { command: "ls > /dev/null.txt" }], ["bash", { command: "ls 2>fehler.log" }],
+			["bash", { command: "find . -exec mv {} x \\;" }], ["bash", { command: "xargs -0 mv" }], ["bash", { command: "textutil -convert txt Brief.docx" }],
+			["bash", { command: "sort -o out.txt in.txt" }], ["bash", { command: "cat a | sh" }], ["bash", { command: "grep x a; touch b" }]],
 		tool: [["save_note", {}], ["mcp__notes__create", {}]],
 	};
 	for (const [category, calls] of Object.entries(cases)) {

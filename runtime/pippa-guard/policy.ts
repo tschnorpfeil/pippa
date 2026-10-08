@@ -103,6 +103,37 @@ export function mkdirTargets(command: string): { parents: boolean; paths: string
 }
 
 /**
+ * Splits a shell line at unquoted `|`, `||`, `&&`, `;` and newlines, and returns each part plus a "shape" of the
+ * whole line in which quoted text is blanked out, except what the shell still runs inside double quotes (`$(`,
+ * backticks). `grep -viE "\.md$|\.txt$"` is one part; `echo "$(rm x)"` keeps its `$(`.
+ */
+export function shellParts(command: string): { parts: string[]; shape: string } {
+	const parts: string[] = [];
+	let part = "", shape = "", quote: string | undefined;
+	for (let i = 0; i < command.length; i++) {
+		const ch = command[i];
+		if (quote) {
+			part += ch;
+			if (ch === quote) { quote = undefined; shape += ch; continue; }
+			if (quote === '"' && ch === "\\") { part += command[++i] ?? ""; shape += "  "; continue; }
+			shape += quote === '"' && (ch === "`" || (ch === "$" && command[i + 1] === "(")) ? ch : " ";
+			continue;
+		}
+		if (ch === "\\") { part += ch + (command[i + 1] ?? ""); shape += "  "; i++; continue; }
+		if (ch === "'" || ch === '"') { quote = ch; part += ch; shape += ch; continue; }
+		const two = command.slice(i, i + 2);
+		if (two === "||" || two === "&&") { parts.push(part); part = ""; shape += two; i++; continue; }
+		if (ch === "|" || ch === ";" || ch === "\n") { parts.push(part); part = ""; shape += ch; continue; }
+		part += ch; shape += ch;
+	}
+	parts.push(part);
+	return { parts: parts.map((p) => p.trim()).filter(Boolean), shape };
+}
+
+/** Programs `xargs`, `find -exec` and `fd -x` may run while the whole line stays "only looking". */
+const LOOK_RUNNERS = new Set(["grep", "rg", "ls", "stat", "file", "wc", "head", "cat", "mdls", "basename", "dirname"]);
+
+/**
  * Read-only commands (ls, cat, wc, ...) without redirection, substitution or dangerous options: what they do, in
  * words (German, shown to the person). `undefined` as soon as any part could be something else.
  */
@@ -110,24 +141,36 @@ export function lookOnly(command: string): string | undefined {
 	// Discarding output or merging stderr writes nothing: `find ~ -name "*.md" 2>/dev/null | head -50` is the usual
 	// way models search, and it must not ask.
 	command = command.replace(/\s*(?:[12&]?>>?)\s*\/dev\/null(?=$|[\s|;&)])/g, " ").replace(/\s*2>&1(?=$|[\s|;&)])/g, " ");
-	if (/[>`]|\$\(|<\(|(^|\s)-(delete|exec|execdir|ok|fprint\w*)\b/.test(command)) return undefined;
+	const { parts, shape } = shellParts(command);
+	if (/[>`]|\$\(|<\(/.test(shape)) return undefined;
 	const words: Record<string, string> = {
 		ls: "Dateien auflisten", find: "Dateien suchen", cat: "Dateien lesen", head: "Dateien lesen", tail: "Dateien lesen",
-		less: "Dateien lesen", wc: "zählen", grep: "Text suchen", rg: "Text suchen", pwd: "Ordner anzeigen", stat: "Dateiangaben lesen",
+		less: "Dateien lesen", wc: "zählen", grep: "Text suchen", egrep: "Text suchen", rg: "Text suchen", pwd: "Ordner anzeigen", stat: "Dateiangaben lesen",
 		file: "Dateiart prüfen", du: "Größe messen", sort: "sortieren", uniq: "zusammenfassen", date: "Datum anzeigen", echo: "Text anzeigen",
-		fd: "Dateien suchen", mdfind: "mit Spotlight suchen", mdls: "Dateiangaben lesen",
+		fd: "Dateien suchen", mdfind: "mit Spotlight suchen", mdls: "Dateiangaben lesen", cd: "Ordner wechseln", basename: "Namen lesen",
+		dirname: "Namen lesen", realpath: "Namen lesen", tree: "Dateien auflisten", cut: "Text zuschneiden", tr: "Text umformen",
+		nl: "Zeilen zählen", column: "Text ordnen", printf: "Text anzeigen", true: "", test: "prüfen", shasum: "prüfen", md5: "prüfen",
+		xargs: "", textutil: "Dateien lesen",
 	};
 	const seen = new Set<string>();
-	for (const part of command.split(/\|\|?|&&|;/)) {
-		const first = part.trim().split(/\s+/)[0];
-		if (!first) continue;
+	for (const part of parts) {
+		const tokens = part.split(/\s+/);
+		const first = tokens[0];
 		const meaning = words[first];
-		if (!meaning) return undefined;
+		if (meaning === undefined) return undefined;
+		if (/(^|\s)-(delete|ok|okdir|fprint\w*|fls)\b/.test(part)) return undefined;
+		// find -exec/-execdir and xargs only with a program that itself only looks.
+		for (const m of part.matchAll(/(?:^|\s)-exec(?:dir)?\s+(\S+)/g)) if (!LOOK_RUNNERS.has(m[1])) return undefined;
+		if (first === "xargs" && !LOOK_RUNNERS.has(tokens.slice(1).find((t) => !t.startsWith("-")) ?? "")) return undefined;
 		// fd -x/-X/--exec(-batch) and rg --pre run other programs; mdfind -live never ends.
 		if (first === "fd" && /(^|\s)(-[a-zA-Z]*[xX]\b|--exec)/.test(part)) return undefined;
 		if (first === "rg" && /(^|\s)--pre\b/.test(part)) return undefined;
 		if (first === "mdfind" && /(^|\s)-live\b/.test(part)) return undefined;
-		seen.add(meaning);
+		// textutil only prints (-stdout); -convert without it writes a file next to the original.
+		if (first === "textutil" && !/(^|\s)-stdout\b/.test(part)) return undefined;
+		if (first === "sort" && /(^|\s)(-o\b|--output)/.test(part)) return undefined;
+		if (first === "tree" && /(^|\s)-o\b/.test(part)) return undefined;
+		if (meaning) seen.add(meaning);
 	}
 	return seen.size ? [...seen].join(", ") : undefined;
 }
