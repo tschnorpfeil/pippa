@@ -62,7 +62,11 @@ Web requests wait for a click on a card that shows exactly what goes out (`WebAc
 unloads the model when idle (`PIPPA_LLAMA_IDLE_SECONDS`). `ModelSelector.choose` picks the model by memory from the
 catalog (`app/Sources/PippaCore/Resources/catalog.json`); see [settings-simplification.md](settings-simplification.md).
 Models are downloaded only after consent (resumable, SHA256-verified) or adopted from other apps' folders
-(`ExistingModels.swift`).
+(`ExistingModels.swift`). A cold start (server not running) shows measured progress in the thought line and the
+pill: the server's resident memory against the size of the weights, capped at 95 % until `/health` is 200, then a
+short "almost ready" until the first words (`ColdStart.swift`; on Apple silicon the mmap'd weights show in the
+resident size, not in the physical footprint). Opening the pill or conversation starts loading ahead of time
+(`PiRPCChat+ColdStart.swift`); `PIPPA_LIVE=1 swift run PippaLive coldprogress` measures it.
 
 **Setup (`app/Sources/PippaCore/PiSetup`).** `PiInstaller` copies the bundled Pi payload into Pi's managed layout
 (`~/.pi/agent/install/releases/<version>`), puts Node under `~/.local/share/pi-node`, and writes the `pippa-local`

@@ -74,6 +74,37 @@ case "cold":
         print("Start \(i): \(String(format: "%.2f", Date().timeIntervalSince(t))) s")
         await s.stop()
     }
+case "coldprogress":
+    // Which memory figure grows while llama-server loads (ColdStart.swift): resident set vs. physical footprint
+    // against the model size, every 250 ms until /health = 200. Model file read only: PIPPA_MODEL_FILE.
+    let memory = ProcessInfo.processInfo.physicalMemory
+    let c = try args.dropFirst().first.flatMap { ModelSelector.named($0, physicalMemory: memory) } ?? ModelSelector.choose(physicalMemory: memory).get()
+    guard let file = env["PIPPA_MODEL_FILE"].map({ URL(fileURLWithPath: $0) }), let bin = LlamaServer.binaryURL() else {
+        print("PIPPA_MODEL_FILE and PIPPA_LLAMA_SERVER needed"); exit(1)
+    }
+    let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+    print("Model \(file.lastPathComponent): \(size >> 20) MiB, ctx \(c.ctx)")
+    for run in 1...2 {
+        let s = LlamaServer(choice: c, modelPath: file, binary: bin, logDirectory: base)
+        let t = Date()
+        let start = Task { try await s.ensureRunning() }
+        var tracker = ColdStart.Tracker()
+        while true {
+            let sample = await s.coldStartSample()
+            if let pid = await s.processID, let m = ColdStart.memory(pid: pid) {
+                if let sample { tracker.update(sample) }
+                print(String(format: "run %d  %5.2f s  rss %6d MiB (%3.0f %%)  footprint %6d MiB (%3.0f %%)  health %@  shown %@", run,
+                             Date().timeIntervalSince(t), m.resident >> 20, Double(m.resident) / Double(max(size, 1)) * 100,
+                             m.footprint >> 20, Double(m.footprint) / Double(max(size, 1)) * 100,
+                             sample.map { "\($0.health)" } ?? "ready", "\(tracker.stage.map { "\($0)" } ?? "-")"))
+            }
+            if sample == nil, await s.state == .ready { break }
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        try await start.value
+        print(String(format: "run %d: ready after %.2f s", run, Date().timeIntervalSince(t)))
+        await s.stop()
+    }
 case "dltest":
     // Downloader against a local stand-in (PIPPA_HF_ENDPOINT): dltest <file> <size> <sha256>
     guard args.count >= 4, let size = Int64(args[2]) else { print("dltest <file> <size> <sha256>"); exit(2) }

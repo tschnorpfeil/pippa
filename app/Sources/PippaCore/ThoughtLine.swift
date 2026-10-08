@@ -20,6 +20,11 @@ public enum WorkPhase: Sendable, Equatable {
     case choosingPassages
     /// The local helper is starting (only when it was not already running).
     case gettingReady
+    /// Cold start: the knowledge is being loaded into memory. `progress` 0…1 measured from the server process
+    /// (ColdStart.swift), `nil` while nothing can be measured yet.
+    case wakingUp(progress: Double?)
+    /// Cold start: loaded; Pippa's instructions are read once before the first words.
+    case warmingUp
     /// Sent; waiting for the first words. `continuing`: part of the answer is already visible.
     case waitingForAnswer(continuing: Bool)
     /// Looking through the attached sources during the answer; `name` only when the host knows which one.
@@ -48,6 +53,8 @@ public enum WorkPhase: Sendable, Equatable {
         case .recognizing(let name, _, _): "recognizing:" + name
         case .choosingPassages: "choosing"
         case .gettingReady: "ready"
+        case .wakingUp: "waking"
+        case .warmingUp: "warming"
         case .waitingForAnswer(let continuing): continuing ? "continuing" : "waiting"
         case .lookingThrough(let name): "looking:" + (name ?? "")
         case .lookingUpOnline: "online"
@@ -68,7 +75,8 @@ public enum WorkPhase: Sendable, Equatable {
         case .starting: 0
         case .reading, .recognizing: 1
         case .choosingPassages: 2
-        case .gettingReady: 3
+        case .gettingReady, .wakingUp: 3
+        case .warmingUp: 4
         default: nil
         }
     }
@@ -82,6 +90,8 @@ public enum WorkPhase: Sendable, Equatable {
             pages > 1 ? L("Recognizing text on page %lld of %lld…", table: "Thought", page, pages) : L("Recognizing text…", table: "Thought")
         case .choosingPassages: L("Finding the right passages…", table: "Thought")
         case .gettingReady: L("Getting ready…", table: "Thought")
+        case .wakingUp: L("Waking up…", table: "Thought")
+        case .warmingUp: L("Almost ready…", table: "Thought")
         case .waitingForAnswer(continuing: true): L("Continuing the answer…", table: "Thought")
         case .lookingThrough(let name):
             name.map { L("Looking in %@…", table: "Thought", $0) } ?? L("Looking through your documents…", table: "Thought")
@@ -102,6 +112,7 @@ public enum WorkPhase: Sendable, Equatable {
         switch self {
         case .reading(_, let index, let count) where count > 1: L("%lld of %lld", table: "Thought", index, count)
         case .recognizing(let name, _, _): name
+        case .wakingUp, .warmingUp: L("Takes a moment now, then it’s quicker", table: "Thought")
         default: nil
         }
     }

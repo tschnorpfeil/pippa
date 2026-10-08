@@ -467,6 +467,8 @@ final class AppModel: ObservableObject {
             if !(self.mode.isConversation && mode.isConversation) { shell?.modeWillChange() }
         }
         if mode.isConversation, let id = conversations.current?.id { conversationPresentations[id] = mode }
+        // Someone is about to ask: load the knowledge now if it is not in memory (PiRPCChat+ColdStart).
+        if mode.isConversation || mode.key == "resume" { PiRPCChat.shared.preloadIfCold() }
         self.mode = mode                // The transition is done by the shell (Core Animation), not SwiftUI
         shell?.modeChanged()
     }

@@ -6,6 +6,13 @@
 "Recognizing text…" = "Recognizing text…";
 "Finding the right passages…" = "Finding the right passages…";
 "Getting ready…" = "Getting ready…";
+/* Cold start: the knowledge is loaded into memory once (ColdStart.swift). */
+"Waking up…" = "Waking up…";
+"Almost ready…" = "Almost ready…";
+"Takes a moment now, then it’s quicker" = "Takes a moment now, then it’s quicker";
+"Pippa is waking up…" = "Pippa is waking up…";
+"Pippa is almost ready…" = "Pippa is almost ready…";
+"%lld percent" = "%lld percent";
 "Continuing the answer…" = "Continuing the answer…";
 "Looking in %@…" = "Looking in %@…";
 "Looking through your documents…" = "Looking through your documents…";

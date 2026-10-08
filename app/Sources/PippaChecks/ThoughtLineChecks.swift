@@ -178,7 +178,7 @@ func runThoughtLineChecks() async {
 
     check("Thought Line: plain language without model/tech words") {
         let phases: [WorkPhase] = [.starting, .reading(name: "a.pdf", index: 1, count: 2), .recognizing(name: "a.pdf", page: 1, pages: 2),
-            .choosingPassages, .gettingReady, .waitingForAnswer(continuing: false), .waitingForAnswer(continuing: true),
+            .choosingPassages, .gettingReady, .wakingUp(progress: 0.4), .warmingUp, .waitingForAnswer(continuing: false), .waitingForAnswer(continuing: true),
             .lookingThrough(name: nil), .lookingThrough(name: "a.pdf"), .lookingUpOnline, .checkingCalendar, .preparingPreview,
             .retrying, .condensing, .checkingSources, .waitingForPerson, .writing, .stopping]
         let banned = ["model", "modell", "token", "prompt", "agent", "llm", "pi ", "context", "kontext", "tool", "werkzeug", "think", "denke"]

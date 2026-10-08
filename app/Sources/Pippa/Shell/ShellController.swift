@@ -363,7 +363,7 @@ final class ShellController: NSObject {
 
     private func pillMeasure() -> (width: CGFloat, slot: CGRect?) {
         let label = model.busy ? "Pippa liest …" : "Pippa"
-        let key = "\(label)|\(model.busy)|\(model.parked != nil)"
+        let key = "\(label)|\(model.busy)|\(model.parked != nil)|\(model.coldStartPillLabel ?? "")"
         if let c = pillCache, c.key == key { return (c.width, c.slot) }
         let m = measure(width: nil)
         let w = ceil(m.size.width)

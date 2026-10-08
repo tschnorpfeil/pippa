@@ -20,7 +20,7 @@ import PippaCore
 ///
 /// **llama-server for `pippa-local`:** owned by the app. One server for all conversations, fixed port and
 /// key as in models.json, 127.0.0.1 only, switches like LocalEngine's server (`PiLocalServer`). Pi starts only
-/// when `/health` returns 200; until then the thought line shows "Mache mich bereit …". Every answer holds the server
+/// when `/health` returns 200; until then the thought line shows how far loading is ("Ich werde wach …"). Every answer holds the server
 /// (lease); after `llamaIdleMinutes` (default 10) without a request the model is unloaded and reloaded
 /// at the next answer. `PIPPA_PI_OWN_LLAMA=0`: the app starts none (server already running, e.g. `pi-rpc-spike.sh llama-start`).
 ///
@@ -229,7 +229,7 @@ final class PiRPCChat {
 
     /// The llama-server for `pippa-local`, created anew if needed (not yet started). The plan (port, key,
     /// model file) is read by `PiLocalServer` off the main thread.
-    private func localModelServer() async throws -> LlamaServer {
+    func localModelServer() async throws -> LlamaServer {
         let target = try Self.installTarget(ProcessInfo.processInfo.environment)
         let support = Pippa.supportDirectory
         let plan: PiLocalServer.Plan
@@ -276,12 +276,11 @@ final class PiRPCChat {
     }
 
     /// Holds the server for an answer (starts it if needed and waits for `/health`). If it has to load first,
-    /// "Mache mich bereit …" shows in the thought line. `nil`: the app runs no server (`PIPPA_PI_OWN_LLAMA=0`).
+    /// the thought line shows the progress (`lease(_:onWork:)`). `nil`: the app runs no server (`PIPPA_PI_OWN_LLAMA=0`).
     private func modelLease(onWork: WorkEventHandler?) async throws -> (server: LlamaServer, lease: LlamaServer.AgentLease)? {
         guard Self.ownsLocalServer else { return nil }
         let server = try await localModelServer()
-        if await !server.isWarm { onWork?(.phase(.gettingReady)) }
-        return (server, try await server.acquireAgentLease())
+        return (server, try await Self.lease(server, onWork: onWork))
     }
 
     /// LocalEngine (sort classification, invoices, deadlines, letter suggestions) no longer gets its own llama-server,
@@ -421,8 +420,7 @@ final class PiRPCChat {
         do {
             if Self.ownsLocalServer {
                 let server = try await localModelServer()
-                if await !server.isWarm { onWork?(.phase(.gettingReady)) }
-                turnLocal = (server, try await server.acquireAgentLease())
+                turnLocal = (server, try await Self.lease(server, onWork: onWork))
             }
             _ = try await client.command(["type": "set_model", "provider": PiInstaller.providerKey, "modelId": target.model])
             switchedToLocal = true

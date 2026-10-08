@@ -54,7 +54,10 @@ struct WorkflowContentView: View {
     @ViewBuilder private var content: some View {
         switch mode {
         case .pill:
-            PillContent(label: model.busy ? T("Pippa is reading…", table: "Views") : "Pippa", working: model.busy)
+            // Cold start of an answer in the background: say so in the pill, with the measured progress (ColdStart.swift).
+            let wake = model.coldStartPhase
+            PillContent(label: model.coldStartPillLabel ?? (model.busy ? T("Pippa is reading…", table: "Views") : "Pippa"),
+                        working: model.busy || wake != nil, progress: wake.flatMap(ColdStart.pillProgress))
         case .target(let hot):
             TargetContent(hot: hot)
         case .input:
@@ -135,6 +138,9 @@ struct NoticeContent: View {
 struct PillContent: View {
     var label: String
     var working: Bool
+    /// Cold start: how far the knowledge has loaded, as a thin bar along the bottom.
+    var progress: Double? = nil
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     var body: some View {
         HStack(spacing: 8) {
@@ -145,6 +151,12 @@ struct PillContent: View {
         .padding(.trailing, 20)
         .frame(height: ShellTokens.pillHeight)
         .fixedSize()
+        .overlay(alignment: .bottom) {
+            if let progress {
+                WakeBar(progress: progress, reduceMotion: systemReduceMotion || MarkHub.shared.reduced, height: 2)
+                    .padding(.horizontal, 22).padding(.bottom, 5)
+            }
+        }
         .overlay {
             if working {
                 Capsule()

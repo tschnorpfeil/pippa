@@ -191,13 +191,39 @@ public actor LlamaServer {
         return env
     }
 
-    /// Is the server running and the model loaded? Starts on demand.
+    /// Is the server running and the model loaded? Starts on demand. Callers that arrive while a start is under way
+    /// (a preload when the pill opens, then the first answer) wait for that start instead of beginning another one.
     public func ensureRunning() async throws {
+        if let pendingStart { return try await pendingStart.value }
+        let start = Task { try await self.startIfNeeded() }
+        pendingStart = start
+        defer { pendingStart = nil }
+        try await start.value
+    }
+
+    private var pendingStart: Task<Void, Error>?
+    /// While loading: when the process started, what `/health` last said, the size of the weights (cold-start progress).
+    private var loadStartedAt: Date?
+    private var lastHealth = ColdStart.Health.silent
+    private var loadBytes: UInt64 = 0
+
+    /// Progress of a start under way (`nil` when the server is ready or stopped). Memory of the own process; a server
+    /// started by the terminal is measured by time only.
+    public func coldStartSample() -> ColdStart.Sample? {
+        guard state == .starting, let loadStartedAt else { return nil }
+        let pid = process?.isRunning == true ? process?.processIdentifier : nil
+        return ColdStart.Sample(residentBytes: pid.flatMap(ColdStart.memory(pid:))?.resident, modelBytes: loadBytes, health: lastHealth,
+                                elapsed: Date().timeIntervalSince(loadStartedAt), lastLoadSeconds: ColdStart.lastLoadSeconds)
+    }
+
+    private func startIfNeeded() async throws {
         installPressureWatch()
         if state == .ready, let process, process.isRunning, await health() == 200 { return }
         if state == .ready, let adoptedPID, PiServerLock.isAlive(adoptedPID), await health() == 200 { touchLock(); return }
         stop()
         state = .starting
+        loadStartedAt = Date(); lastHealth = .silent
+        if loadBytes == 0 { loadBytes = ColdStart.modelBytes(choice, file: modelPath) }
         port = fixedPort ?? Self.freePort()
         apiKey = fixedKey ?? Self.randomKey()
         // Lock file (shared with the terminal extension): if the terminal is already starting or running the server,
@@ -250,8 +276,10 @@ public actor LlamaServer {
         let deadline = Date().addingTimeInterval(600)
         while Date() < deadline {
             guard p.isRunning else { state = .stopped; releaseLock(); DiagnosticsLog.shared.event("llama-beendet", ["phase": "start"]); throw PippaError.modelFailed }
-            if await health() == 200 {
+            lastHealth = ColdStart.Health(status: await health())
+            if lastHealth == .ready {
                 lastStartSeconds = Date().timeIntervalSince(started)
+                ColdStart.rememberLoad(seconds: lastStartSeconds ?? 0)
                 if fixedPort != nil { DiagnosticsLog.shared.event("llama-bereit", ["dauer-s": String(format: "%.1f", lastStartSeconds ?? 0)]) }
                 // Restore the saved slot before the first request arrives (lease and Pi wait for this function).
                 slotsActive = p.arguments?.contains("--slot-save-path") == true
@@ -259,7 +287,7 @@ public actor LlamaServer {
                 state = .ready
                 scheduleIdle(); return
             }
-            try await Task.sleep(for: .milliseconds(500))
+            try await Task.sleep(for: .milliseconds(250))
         }
         DiagnosticsLog.shared.event("llama-start-zeitueberschreitung", ["dauer-s": "600"])
         stop()
@@ -285,7 +313,8 @@ public actor LlamaServer {
                 throw PippaError.modelFailed
             }
             // The terminal's server is loading or running: wait until it responds.
-            if await health() == 200 {
+            lastHealth = ColdStart.Health(status: await health())
+            if lastHealth == .ready {
                 adoptedPID = lock.pid ?? lock.holder
                 slotsActive = false
                 touchLock()
