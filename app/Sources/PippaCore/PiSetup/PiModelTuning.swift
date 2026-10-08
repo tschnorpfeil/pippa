@@ -10,8 +10,11 @@ import Foundation
 /// (`reserveTokens` 16384, `keepRecentTokens` 20000) would put that threshold at 0 for a 16k model, so Pippa sets
 /// both per `pippa-local/<id>` in `compaction.modelOverrides`.
 public enum PiReasoningStyle: String, Sendable, Equatable {
-    /// K2 Horizon: `chat_template_kwargs.reasoning_effort`. The template always thinks at least "low", so Pi's
-    /// "off" maps to "low" as well.
+    /// K2 Horizon: `chat_template_kwargs.reasoning_effort`, always "high" for now. llama.cpp b11503's K2 parser only
+    /// accepts the think tag of the requested effort (`<ifm|think_faster>` for low, `<ifm|think_fast>` for medium),
+    /// but after tool results K2 often writes `<ifm|think>`; the tool call then lands in `reasoning_content` and Pi
+    /// ends the turn without text. Measured with Pi 1.1.0 (read a file, answer): low 24/30, medium 0/20, high 30/30.
+    /// Without thinking (`enable_thinking: false`) K2 loops on `read`.
     case reasoningEffort
     /// Qwen 3.x: `chat_template_kwargs.enable_thinking` (the same map Pi's own llama.cpp provider uses).
     case enableThinking
@@ -27,7 +30,7 @@ public enum PiReasoningStyle: String, Sendable, Equatable {
         switch self {
         case .reasoningEffort:
             return ["reasoning": true,
-                    "thinkingLevelMap": ["off": "low", "minimal": NSNull(), "low": "low", "medium": "medium", "high": "high",
+                    "thinkingLevelMap": ["off": "high", "minimal": NSNull(), "low": "high", "medium": "high", "high": "high",
                                          "xhigh": NSNull(), "max": NSNull()] as [String: Any],
                     "compat": ["thinkingFormat": "chat-template",
                                "chatTemplateKwargs": ["reasoning_effort": ["$var": "thinking.effort"], "tool_call_format": "xml"] as [String: Any]]

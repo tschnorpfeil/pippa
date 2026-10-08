@@ -279,7 +279,7 @@
       "ctx": 32768,
       "moe": false,
       "rank": 52,
-      "thinking": "low",
+      "thinking": "high",
       "sampling": {
         "temp": 1,
         "top-p": 0.95,

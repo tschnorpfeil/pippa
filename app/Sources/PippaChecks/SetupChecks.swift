@@ -247,7 +247,7 @@ func runSetupChecks() async {
         let overrides = (doc?["compaction"] as? [String: Any])?["modelOverrides"] as? [String: [String: Int]]
         let levels = doc?["modelThinkingLevels"] as? [String: String]
         let k2 = overrides?["pippa-local/k2-horizon-7b"], qwen = overrides?["pippa-local/qwen3.5-4b-q4"]
-        // Provider entry: K2 thinks via reasoning_effort ("off" means "low"), Qwen via enable_thinking.
+        // Provider entry: K2 thinks via reasoning_effort (every level means "high", see PiReasoningStyle), Qwen via enable_thinking.
         let entry = PiInstaller.providerEntry(models: models, port: 1, keyFile: r.llamaKeyFile)
         let listed = entry["models"] as? [[String: Any]] ?? []
         let k2Compat = listed.first?["compat"] as? [String: Any]
@@ -257,10 +257,10 @@ func runSetupChecks() async {
         return wrote && doc?["theme"] as? String == "dark"
             && k2?["reserveTokens"] == 4096 && k2?["keepRecentTokens"] == 6144
             && qwen?["reserveTokens"] == 4096 && qwen?["keepRecentTokens"] == 12288
-            && levels?["pippa-local/k2-horizon-7b"] == "low" && levels?["pippa-local/qwen3.5-4b-q4"] == "medium"
+            && levels?["pippa-local/k2-horizon-7b"] == "high" && levels?["pippa-local/qwen3.5-4b-q4"] == "medium"
             && listed.first?["reasoning"] as? Bool == true && k2Compat?["thinkingFormat"] as? String == "chat-template"
             && (k2Kwargs?["reasoning_effort"] as? [String: String])?["$var"] == "thinking.effort"
-            && (listed.first?["thinkingLevelMap"] as? [String: Any])?["off"] as? String == "low"
+            && (listed.first?["thinkingLevelMap"] as? [String: Any])?["off"] as? String == "high"
             && qwenCompat?["thinkingFormat"] as? String == "qwen-chat-template"
             && (unknown["models"] as? [[String: Any]])?.first?["reasoning"] == nil
             && LlamaServer.arguments(choice: ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 << 30)!, model: URL(fileURLWithPath: "/m.gguf"),
