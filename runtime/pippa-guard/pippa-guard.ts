@@ -186,6 +186,20 @@ function commandDetail(command: string): string {
 	return `Genauer Befehl: ${one}`;
 }
 
+/** Files Pi's `read` only returns as raw bytes (or as an image the local model cannot see). */
+const DOCUMENT_TYPES = /\.(pdf|docx?|pages|rtf|odt|xlsx?|numbers|key|pptx?|eml|emlx|msg|png|jpe?g|heic|heif|tiff?|gif|webp|bmp)$/i;
+
+/**
+ * `read` on a PDF, Word, image, mail or spreadsheet: the reason that sends Pi to Pippa's document reader instead
+ * (text, OCR for scans). K2 read a PDF with `read`, got the raw bytes and ran out of context mid-answer.
+ */
+export function documentForRead(tool: string, input: any): string | undefined {
+	if (tool !== "read") return undefined;
+	const path = String(input?.path ?? input?.file_path ?? "");
+	if (!DOCUMENT_TYPES.test(path)) return undefined;
+	return `Not read: '${path.split("/").pop()}' is a document (PDF, Word, image, mail or spreadsheet); read gives raw bytes. Call mcp__pippa__read_document with the same path instead.`;
+}
+
 /**
  * Loop brake for one answer: `undefined` lets the call run (and counts it), otherwise the reason Pi gets instead.
  * Identical means same tool and same arguments. Two failures or four runs of exactly that are enough; a call that
@@ -338,6 +352,8 @@ export default function (pi: ExtensionAPI) {
 		const tool: string = event.toolName;
 		const info = pi.getAllTools?.().find((t: any) => t.name === tool);
 		const looksOnly = readsOnly(tool, info) || (tool === "bash" && classify(tool, event.input) === "look");
+		const document = documentForRead(tool, event.input);
+		if (document) return { block: true, reason: document };
 		const loop = loopBrake(callCounts, callKeys, event.toolCallId, tool, event.input, !looksOnly);
 		if (loop) {
 			if (++loopStops >= 3) ctx.abort?.();

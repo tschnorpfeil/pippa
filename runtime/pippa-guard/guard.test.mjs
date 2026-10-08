@@ -502,3 +502,13 @@ test("loop brake: an identical call stops after two failures or four runs; other
 	assert.deepEqual(reads, [true, true, true, true, false, false]);
 	assert.equal(loopBrake(c2, k2, "r9", "read", { path: "b.txt" }), undefined);
 });
+
+test("read on a document is sent to read_document; text files and other tools pass", async () => {
+	const { documentForRead } = await import("./pippa-guard.ts");
+	assert.match(documentForRead("read", { path: "/x/Rechnung Elektro.pdf" }), /mcp__pippa__read_document/);
+	assert.match(documentForRead("read", { path: "Scan.JPG" }), /read_document/);
+	assert.match(documentForRead("read", { path: "a/Brief.docx" }), /read_document/);
+	assert.equal(documentForRead("read", { path: "termine.txt" }), undefined);
+	assert.equal(documentForRead("read", { path: "notizen.md" }), undefined);
+	assert.equal(documentForRead("mcp__pippa__read_document", { path: "a.pdf" }), undefined);
+});
