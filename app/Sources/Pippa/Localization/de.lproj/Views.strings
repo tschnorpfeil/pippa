@@ -59,8 +59,8 @@
 "Or click to choose documents, letters, or spreadsheets." = "Oder klicken, um Dokumente, Briefe oder Tabellen auszuwählen.";
 "Drop or choose files or folders" = "Dateien oder Ordner hier ablegen oder auswählen";
 "New Topic" = "Neues Thema";
-"Previous Conversation…" = "Voriges Gespräch …";
-"New topic. Previous conversation in history." = "Neues Thema. Voriges Gespräch im Verlauf.";
+"Previous Conversation…" = "Vorheriges Gespräch …";
+"New topic. Previous conversation in history." = "Neues Thema. Vorheriges Gespräch im Verlauf.";
 "Note: %@" = "Hinweis: %@";
 "You" = "Du";
 "Note" = "Hinweis";
@@ -119,7 +119,7 @@
 "please check" = "bitte prüfen";
 "Add to Calendar" = "In den Kalender";
 "I read it and can draft a reply; you send it" = "Ich lese sie und entwerfe auf Wunsch eine Antwort; abschicken tust du";
-"Runs on your Mac" = "Rechnet auf deinem Mac";
+"Runs on your Mac" = "Läuft auf deinem Mac";
 "Nothing sent" = "Nichts gesendet";
 "Read only" = "Nur gelesen";
 "Email" = "Mail";
@@ -128,7 +128,7 @@
 "Nothing was changed. Your files are just as they were." = "Nichts wurde geändert. Deine Dateien sind, wie sie waren.";
 "What happened?" = "Was war los?";
 "Report a Problem…" = "Problem melden …";
-"Try Again" = "Nochmal versuchen";
+"Try Again" = "Erneut versuchen";
 "and %lld more" = "und %lld weitere";
 "Choose Folder…" = "Ordner wählen …";
 "Show in Finder" = "Im Finder zeigen";
@@ -192,7 +192,7 @@
 "Progress" = "Fortschritt";
 "%@ (⌘ Return)" = "%@ (⌘ Enter)";
 
-"New topic. Previous conversation under Recent Conversations." = "Neues Thema. Voriges Gespräch unter „Letzte Gespräche“.";
+"New topic. Previous conversation under Recent Conversations." = "Neues Thema. Vorheriges Gespräch unter „Letzte Gespräche“.";
 
 "Preparing your answer…" = "Ich bereite die Antwort vor…";
 

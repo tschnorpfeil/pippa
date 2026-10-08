@@ -43,7 +43,7 @@
 "asks the first time" = "fragt beim ersten Mal";
 "Hello, I’m" = "Hallo, ich bin";
 "I tidy up your files, read your invoices and tell you what your letters say." = "Ich räume deine Unterlagen auf, lese Rechnungen aus und sage dir, was in deinen Briefen steht.";
-"Runs on your Mac" = "Rechnet auf deinem Mac";
+"Runs on your Mac" = "Läuft auf deinem Mac";
 "Asks before anything leaves your Mac" = "Fragt, bevor etwas deinen Mac verlässt";
 "File changes can be undone" = "Dateien: rückgängig möglich";
 "You’ll see everything first. Or drag a different folder here." = "Du siehst vorher alles. Oder zieh einen anderen Ordner hier hinein.";
@@ -144,7 +144,7 @@
 "The overflowing Downloads folder." = "Der volle Downloads-Ordner.";
 "I sort invoices, photos and installers into folders. If something isn’t right, Undo puts it back." = "Ich sortiere Rechnungen, Fotos und Installationsdateien in Ordner. Passt etwas nicht, holst du es mit „Rückgängig“ zurück.";
 "Pippa needs a Mac with Apple silicon (M1 or later)." = "Pippa braucht einen Mac mit Apple-Chip (M1 oder neuer).";
-"Try again" = "Nochmal versuchen";
+"Try again" = "Erneut versuchen";
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
 "Your conversations and what you show Pippa go to your online service. Your key stays in your macOS Keychain." = "Deine Gespräche und was du Pippa zeigst, gehen an deinen Online-Dienst. Dein Schlüssel bleibt in deinem macOS-Schlüsselbund.";

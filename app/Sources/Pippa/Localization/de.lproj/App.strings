@@ -77,7 +77,7 @@
 "Locally on this Mac" = "Lokal auf diesem Mac";
 "Connected service" = "Verbundener Dienst";
 "Online · %@" = "Online · %@";
-"Runs on this Mac" = "Rechnet auf diesem Mac";
+"Runs on this Mac" = "Läuft auf diesem Mac";
 "Later" = "Später";
 "Load Now" = "Jetzt laden";
 "I’m still working" = "Ich arbeite gerade noch";
@@ -227,7 +227,7 @@
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
 "Draft in Mail" = "Entwurf in Mail";
-"I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”." = "Ich bin noch nicht ganz eingerichtet. Öffne Pippas Einrichtung und wähle „Nochmal versuchen“.";
+"I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”." = "Ich bin noch nicht ganz eingerichtet. Öffne Pippas Einrichtung und wähle „Erneut versuchen“.";
 "The answer didn’t come through just now. Please try again in a moment." = "Die Antwort ist gerade nicht durchgekommen. Bitte versuch es gleich noch einmal.";
 "May Pippa do this?" = "Darf Pippa das?";
 "Allow" = "Erlauben";
