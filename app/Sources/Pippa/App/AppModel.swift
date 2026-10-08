@@ -1112,8 +1112,8 @@ final class AppModel: ObservableObject {
             if case .sortSheet = self.mode {} else { self.show(.sortSheet) }
             let n = plan.ops.filter { $0.kind != .mkdir }.count
             let line = n == 1
-                ? T("Sorting preview: 1 file, nothing changed yet", table: "App")
-                : T("Sorting preview: %lld files, nothing changed yet", table: "App", n)
+                ? T("Tidy preview: 1 file", table: "App")
+                : T("Tidy preview: %lld files", table: "App", n)
             self.conversations.append(.system, line)
         }
     }

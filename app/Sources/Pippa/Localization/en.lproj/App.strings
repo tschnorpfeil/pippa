@@ -140,8 +140,6 @@
 "Nothing is changed yet." = "Nothing is changed yet.";
 "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”." = "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”.";
 "Nothing to tidy here" = "Nothing to tidy here";
-"Sorting preview: 1 file, nothing changed yet" = "Sorting preview: 1 file, nothing changed yet";
-"Sorting preview: %lld files, nothing changed yet" = "Sorting preview: %lld files, nothing changed yet";
 "once online help is connected (Settings → Advanced)" = "once online help is connected (Settings → Advanced)";
 "once my knowledge has loaded" = "once my knowledge has loaded";
 "once I’m fully awake" = "once I’m fully awake";
@@ -249,3 +247,6 @@
 "I’m almost ready. I’ll answer as soon as I am." = "I’m almost ready. I’ll answer as soon as I am.";
 "I’m not set up yet. Setup is open now." = "I’m not set up yet. Setup is open now.";
 "Clipboard image %@.png" = "Clipboard image %@.png";
+"“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done.";
+"Tidy preview: 1 file" = "Tidy preview: 1 file";
+"Tidy preview: %lld files" = "Tidy preview: %lld files";

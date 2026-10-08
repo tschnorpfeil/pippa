@@ -140,8 +140,6 @@
 "Nothing is changed yet." = "Es wird noch nichts geändert.";
 "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”." = "In „%@“ habe ich keine losen Dateien gefunden. Hat dein Mac nach einer Erlaubnis gefragt und du hast abgelehnt? Dann kannst du sie in den Systemeinstellungen unter „Datenschutz & Sicherheit“ → „Dateien und Ordner“ geben.";
 "Nothing to tidy here" = "Hier gibt es nichts zu ordnen";
-"Sorting preview: 1 file, nothing changed yet" = "Sortiervorschau: 1 Datei, noch nichts geändert";
-"Sorting preview: %lld files, nothing changed yet" = "Sortiervorschau: %lld Dateien, noch nichts geändert";
 "once online help is connected (Settings → Advanced)" = "sobald ein Sprachmodell verbunden ist (Einstellungen → Erweitert)";
 "once my knowledge has loaded" = "sobald mein Wissen geladen ist";
 "once I’m fully awake" = "sobald ich ganz wach bin";
@@ -249,3 +247,6 @@
 "I’m almost ready. I’ll answer as soon as I am." = "Ich bin gleich so weit und antworte dann sofort.";
 "I’m not set up yet. Setup is open now." = "Ich bin noch nicht eingerichtet. Die Einrichtung ist jetzt offen.";
 "Clipboard image %@.png" = "Bild aus der Zwischenablage %@.png";
+"“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "„Für diese Aufgabe erlauben“ heißt: Bis die Antwort fertig ist, frage ich bei dieser Art Schritt nicht mehr.";
+"Tidy preview: 1 file" = "Vorschau zum Ordnen: 1 Datei";
+"Tidy preview: %lld files" = "Vorschau zum Ordnen: %lld Dateien";

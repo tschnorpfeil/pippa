@@ -66,8 +66,8 @@ import PippaCore
         verify(!moves.isEmpty, "Vorschau enthält Dateien")
         let messages = model.conversations.current?.messages ?? []
         verify(messages.contains { $0.role == .user && $0.text == ask }, "Nachricht steht im Verlauf")
-        verify(messages.contains { $0.role == .system && ($0.text.contains("Sorting preview") || $0.text.contains("Sortiervorschau")) },
-               "Zeile „Sortiervorschau … noch nichts geändert“ im Verlauf")
+        verify(messages.contains { $0.role == .system && ($0.text.contains("Tidy preview") || $0.text.contains("Vorschau zum Ordnen")) },
+               "Zeile „Vorschau zum Ordnen …“ im Verlauf")
         verify(tree(downloads) == before, "vor dem Ausführen nichts geändert")
         await snap("vorschau")
 

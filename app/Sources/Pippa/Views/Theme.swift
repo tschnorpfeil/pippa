@@ -25,9 +25,9 @@ enum Theme {
 
     // Text
     static let ink = inkA(1, 1)
-    static let ink2 = inkA(0.70, 0.72)
-    /// Hints; raised to 60% so that contrast is >= 4.5:1 on the glass.
-    static let ink3 = inkA(0.60, 0.60)
+    static let ink2 = inkA(0.78, 0.72)
+    /// Hints: >= 4.5:1 on every light surface (white 5.3, glass ECECEC 4.9, green well 4.9) and dark (5.5 to 6.1).
+    static let ink3 = inkA(0.68, 0.60)
     // Surfaces
     static let hair = whiteA(0.10, 0.10)
     static let fill = whiteA(0.045, 0.055)

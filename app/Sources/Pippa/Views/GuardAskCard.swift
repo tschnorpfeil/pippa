@@ -69,12 +69,17 @@ struct GuardAskCard: View {
                     }
                 }
             }
+            if ask.options.contains("Für diese Aufgabe erlauben") {
+                Text(T("“Allow for This Task” means I won’t ask again for this kind of step until the answer is done.", table: "App"))
+                    .font(Fonts.hint).foregroundStyle(Theme.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if !ask.detail.isEmpty {
                 Button {
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) { detailState.wrappedValue.toggle() }
                 } label: {
                     Label(T("Details", table: "App"), systemImage: showsDetail ? "chevron.down" : "chevron.right")
-                        .font(Fonts.hint).foregroundStyle(Theme.ink3)
+                        .font(Fonts.hint).foregroundStyle(Theme.ink2)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(showsDetail ? T("Hide details", table: "App") : T("Show details", table: "App"))
