@@ -341,7 +341,7 @@
     {
       "key": "k2-horizon-7b",
       "label": "K2 Horizon 7B",
-      "description": "Compact model from MBZUAI/IFM; 5 of 7 tasks in testing with a custom llama.cpp build",
+      "description": "Pippa's default from 16 GB: compact model from MBZUAI/IFM (needs llama.cpp b11503 or later)",
       "repo": "IFM/K2-Horizon-7B-GGUF",
       "quant": "Q4_K_M",
       "approxBytes": 5592217984,
@@ -349,7 +349,7 @@
       "ctx": 32768,
       "moe": false,
       "rank": 52,
-      "thinking": "medium",
+      "thinking": "low",
       "sampling": {
         "temp": 1,
         "top-p": 0.95,
@@ -357,11 +357,10 @@
         "min-p": 0
       },
       "extra": {
-        "chat-template-kwargs": "{\"reasoning_effort\":\"medium\",\"tool_call_format\":\"xml\"}"
+        "chat-template-kwargs": "{\"reasoning_effort\":\"low\",\"tool_call_format\":\"xml\"}"
       },
       "license": "Apache-2.0",
-      "licenseUrl": "https://huggingface.co/IFM/K2-Horizon-7B",
-      "pending": "waiting for K2 support in llama.cpp (PR #29535)"
+      "licenseUrl": "https://huggingface.co/IFM/K2-Horizon-7B"
     },
     {
       "key": "qwen3.5-9b-q4",

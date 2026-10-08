@@ -36,15 +36,15 @@ Limits worth knowing: Pippa runs **without** the macOS App Sandbox, because a sa
 
 - A Mac with Apple silicon (M1 or later)
 - macOS 15 or later. On macOS 26 with Apple Intelligence, the instant one-line summary uses the Mac's own model.
-- Free disk space for the model, about 3 to 23 GB depending on memory:
+- Free disk space for the model, about 3 to 6 GB depending on memory (14 GB more for *More thorough*):
 
 | Memory | Model Pippa picks | Download |
 |---|---|---|
 | 8 GB | Qwen3.5 4B | about 2.7 GB |
-| 16 GB and 24 GB | Gemma 4 12B | about 6.7 GB |
-| 32 GB or more | Qwen3.6 35B-A3B | about 22.4 GB |
+| 16 GB or more | K2 Horizon 7B | about 5.6 GB |
+| 24 GB or more, *More thorough* in Settings | Qwen3.6 35B-A3B | about 13.7 GB |
 
-16 GB is recommended. Pippa picks the model for your Mac; there is nothing to choose. If a matching model is already on your Mac (LM Studio, Ollama, Hugging Face cache), Pippa reuses it instead of downloading it again and leaves the original untouched.
+16 GB is recommended. Pippa picks the model for your Mac. The only choice, on Macs with 24 GB or more, is *Pippa's knowledge* in Settings: *Standard* or *More thorough*. Choosing loads the other model while the current one keeps working; switching back is instant, and nothing is deleted. If a matching model is already on your Mac (LM Studio, Ollama, Hugging Face cache), Pippa reuses it instead of downloading it again and leaves the original untouched.
 
 ## Install
 
@@ -119,7 +119,7 @@ Pippa builds on:
 - [Sparkle](https://sparkle-project.org) (MIT), for updates
 - [pi-web-access](https://github.com/nicobailon/pi-web-access) by Nico Bailon (MIT), for web search and page reading
 - [Bagel Fat One](https://fonts.google.com/specimen/Bagel+Fat+One) (SIL Open Font License 1.1), the welcome headline
-- the open models [Qwen](https://huggingface.co/Qwen) (Apache 2.0) and [Gemma 4](https://ai.google.dev/gemma/docs/gemma_4_license) (Apache 2.0). Models are downloaded from Hugging Face on your Mac; they are not part of the app or this repository.
+- the open models [K2 Horizon](https://huggingface.co/IFM/K2-Horizon-7B) by MBZUAI and IFM (Apache 2.0), [Qwen](https://huggingface.co/Qwen) (Apache 2.0) and [Gemma 4](https://ai.google.dev/gemma/docs/gemma_4_license) (Apache 2.0). Models are downloaded from Hugging Face on your Mac; they are not part of the app or this repository.
 
 Licence texts and the full list of bundled components: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

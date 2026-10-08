@@ -129,7 +129,7 @@ func runWave2dChecks() async {
     }
 
     check("LocalEngine server unchanged: without alias the same arguments as before (no --alias)") {
-        guard case .success(let choice) = ModelSelector.choose(physicalMemory: 16 << 30) else { return false }
+        guard let choice = ModelSelector.named("gemma-4-12b", physicalMemory: 16 << 30) else { return false }
         let args = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1234, supported: nil)
         return !args.contains("--alias") && Array(args.prefix(6)) == ["-m", "/m.gguf", "--host", "127.0.0.1", "--port", "1234"]
     }
@@ -177,7 +177,7 @@ func runWave2dChecks() async {
         let support = dir("w2d-busy")
         let port = PiInstaller.stablePort(support: support)
         let key = try PiInstaller.stableKey(support: support)
-        guard case .success(let choice) = ModelSelector.choose(physicalMemory: 16 << 30) else { return false }
+        guard let choice = ModelSelector.named("gemma-4-12b", physicalMemory: 16 << 30) else { return false }
         let server = LlamaServer(choice: choice, modelPath: URL(fileURLWithPath: "/m.gguf"), binary: binary, logDirectory: support,
                                  fixedPort: port, fixedKey: key, idleAfter: 0.8, logName: "busy.log")
         write("", busyFlag)

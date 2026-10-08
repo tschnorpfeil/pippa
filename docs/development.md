@@ -62,7 +62,9 @@ Web requests wait for a click on a card that shows exactly what goes out (`WebAc
 unloads the model when idle (`PIPPA_LLAMA_IDLE_SECONDS`). `ModelSelector.choose` picks the model by memory from the
 catalog (`app/Sources/PippaCore/Resources/catalog.json`); see [settings-simplification.md](settings-simplification.md).
 Models are downloaded only after consent (resumable, SHA256-verified) or adopted from other apps' folders
-(`ExistingModels.swift`).
+(`ExistingModels.swift`). A new or changed catalog model is pinned with `scripts/pin-model.sh <catalog-key> <hf-repo> [<file>]`
+(revision, path, size and SHA256 from the Hugging Face API, written into catalog.json); `build-app.sh` refuses a table model
+without a pin.
 
 **Setup (`app/Sources/PippaCore/PiSetup`).** `PiInstaller` copies the bundled Pi payload into Pi's managed layout
 (`~/.pi/agent/install/releases/<version>`), puts Node under `~/.local/share/pi-node`, and writes the `pippa-local`
@@ -154,6 +156,7 @@ ticket.
 swift build --package-path app                                          # all targets
 swift run --package-path app PippaChecks                                # native checks, no model
 python3 scripts/check-strings.py                                        # every UI text in en and de
+python3 scripts/check-default-models.py                                 # every model in ModelSelector's table is pinned
 node --experimental-strip-types --test runtime/pippa-guard/*.test.mjs   # guard (bypass.test.mjs needs a Pi payload)
 (cd runtime/pippa-web && npm ci --ignore-scripts && npm test)           # web fetcher (pretest bundles pi-web-access)
 node --test runtime/pippa-local-server/test/autostart.test.mjs          # terminal autostart with a fake llama-server

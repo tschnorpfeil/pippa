@@ -140,7 +140,7 @@ import PippaCore
         let rewritten = String(decoding: try Data(contentsOf: old.appendingPathComponent("settings.json")), as: UTF8.self)
         return loaded.llamaPort == 1234 && PippaSettings.load(from: old).llamaPort == 1234
             && !rewritten.contains("piModel") && !rewritten.contains("modelOverride")
-            && PiSetupFlow.choice(override: nil, physicalMemory: 24 * gib)?.model.key == "gemma-4-12b"
+            && ModelSelector.table(tier: ModelSelector.tierGB(physicalMemory: 24 * gib)).key == "k2-horizon-7b"
             && PiSetupFlow.choice(override: nil, physicalMemory: 8 * gib)?.model.key == "qwen3.5-4b-q4"
     }
 

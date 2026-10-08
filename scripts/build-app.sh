@@ -42,6 +42,17 @@ COMMITS="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)"
 BUILD="$(( $(tr -d '[:space:]' < "$ROOT/app/Packaging/build-number-base") + COMMITS ))"
 say "Pippa $VERSION ($BUILD)"
 
+# --- Default models pinned (catalog.json) -----------------------------------
+# A model from ModelSelector's table without revision and SHA256 cannot be downloaded: never ship that.
+# PIPPA_ALLOW_UNPINNED=1 only for local test builds, never for a distribution build.
+if ! python3 "$ROOT/scripts/check-default-models.py"; then
+  if [[ "${PIPPA_ALLOW_UNPINNED:-0}" == 1 && "${PIPPA_REQUIRE_DISTRIBUTION:-0}" != 1 ]]; then
+    warn "default model not pinned (PIPPA_ALLOW_UNPINNED=1): this build cannot set up 16 GB Macs and up"
+  else
+    die "default model not pinned; run scripts/pin-model.sh (see above)"
+  fi
+fi
+
 # --- SwiftPM-Release ---------------------------------------------------------
 if [[ "${PIPPA_SKIP_BUILD:-}" != 1 ]]; then
   say "swift build -c release --arch arm64"
