@@ -35,7 +35,7 @@
 "Allow Pippa to…" = "Darf Pippa …";
 "Add deadlines to Reminders and Calendar" = "Fristen in Erinnerungen und Kalender eintragen";
 "Read the selected mail" = "Ausgewählte Mail lesen";
-"Before anything is sent to %@, Pippa asks you. The internet is also used for downloads and updates." = "Vor einer Übertragung an %@ fragt Pippa dich. Internet wird außerdem für Modell-Downloads und Updates verwendet.";
+"Your conversations go to %@. The internet is also used for downloads and updates." = "Deine Gespräche gehen an %@. Internet wird außerdem für Modell-Downloads und Updates verwendet.";
 "Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve." = "Lokale Modelle verarbeiten deine Inhalte auf deinem Mac. Das Internet wird für Downloads, Updates und Netzzugriffe verwendet, die du freigibst.";
 "%@ (Default)" = "%@ (Standard)";
 "allowed" = "erlaubt";
@@ -147,12 +147,12 @@
 "Try again" = "Nochmal versuchen";
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
-"Pippa asks you before every request to your online service and shows what goes along. Your key stays in your macOS Keychain." = "Pippa fragt dich vor jeder Anfrage an deinen Online-Dienst und zeigt, was mitgeht. Dein Schlüssel bleibt in deinem macOS-Schlüsselbund.";
+"Your conversations and what you show Pippa go to your online service. Your key stays in your macOS Keychain." = "Deine Gespräche und was du Pippa zeigst, gehen an deinen Online-Dienst. Dein Schlüssel bleibt in deinem macOS-Schlüsselbund.";
 
 /* Vereinfachte Einstellungen (docs/settings-simplification.md) */
 "Online service" = "Online-Dienst";
 "Use my own online AI" = "Meine eigene Online-KI nutzen";
-"Off: everything stays on this Mac. On: Pippa may use your own OpenAI or Anthropic account, and asks you before every request." = "Aus: alles bleibt auf diesem Mac. An: Pippa darf dein eigenes OpenAI- oder Anthropic-Konto nutzen und fragt dich vor jeder Anfrage.";
+"Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there." = "Aus: alles bleibt auf diesem Mac. An: Pippa arbeitet mit deinem eigenen OpenAI- oder Anthropic-Konto; deine Gespräche gehen dorthin.";
 "Remove" = "Entfernen";
 "Saving first sends one short test message. No files and nothing from your conversations." = "Beim Speichern geht zuerst eine kurze Testnachricht raus. Keine Dateien und nichts aus deinen Gesprächen.";
 "Version %@" = "Version %@";

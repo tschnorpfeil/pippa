@@ -1,9 +1,8 @@
 import AppKit
 import PippaCore
 
-// Pippa's "own online service" setting. The connection uses only Pi's conversation, via Pippa's broker with
-// approval per request (PippaOnlineService, PiRPCChat.launchRoute). Fixed flows (sorting, invoices, deadlines,
-// letter) always run on the local model; there is no per-task approval card anymore.
+// Pippa's "own online service" setting. Pi's conversation then goes to the service through Pi's own provider
+// (PiOnlineProvider, PiRPCChat.launchRoute); switching it on is the consent.
 extension AppModel {
     static var inferenceSettingsDirectory: URL {
         if let path = DevEnvironment.value("PIPPA_SNAPSHOT") {
@@ -29,7 +28,6 @@ extension AppModel {
     var inferenceSummary: String {
         guard hasConfiguredInference, let connection = inferenceSettings.connection else { return T("Runs on this Mac", table: "App") }
         if connection.isLocal { return T("On this Mac · Connected service", table: "App") }
-        if inferenceSettings.policy == .ask { return T("Asks before sending to %@", table: "App", connection.destination) }
         return T("Online · %@", table: "App", connection.destination)
     }
 

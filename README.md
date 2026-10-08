@@ -26,7 +26,7 @@ Because Pi is a real agent with real tools, Pippa can also handle tasks nobody p
 - **Pippa reads only when you call her,** but then she may read what you yourself can open: files, the selected mail, your calendar. Reading changes nothing, so she does not ask first.
 - **Pippa asks before anything leaves your Mac or is deleted for good:** a web search (you see the exact text that goes out), sending, shell commands she cannot recognise as read-only, and permanent deletion.
 - **File changes can be undone.** Before Pippa changes, moves or trashes a file, she keeps a copy of the original (an APFS clone, kept for up to seven days and up to 500 MB in total). Each change shows a receipt with an *Undo* button. The receipt is built from what the tools actually did, not from what the model says it did.
-- **Online models are optional.** In Settings you can connect an online service (OpenAI or Anthropic) with your own API key, which is stored in the macOS Keychain. Pi never talks to that service directly: every request goes through a proxy inside Pippa, which shows you what would be sent and waits for your answer (just this once, for this conversation, do it on this Mac instead, or no).
+- **Online models are optional.** In Settings you can connect an online service (OpenAI or Anthropic) with your own API key, which is stored in the macOS Keychain. Switching it on is your consent: Pi then sends your conversations to that service through its own provider support. The key stays in the Keychain and reaches only Pippa's own Pi, never a file.
 
 The network is used only for the model download (Hugging Face), app updates (Sparkle, from GitHub releases), web lookups you approve, and an online service you connected yourself.
 
@@ -64,7 +64,6 @@ Pippa.app (Swift, SwiftUI)
  │             ├─ --extension pippa-guard   asks, keeps undo copies, writes receipts
  │             └─ MCP client ─────────────► Pippa's MCP server (inside the app, 127.0.0.1)
  │                                          mail, calendar, reminders, Excel, documents, web
- └─ proxy for an optional online model      asks before each request
 ```
 
 - **Pippa app** (`app/Sources/Pippa`, `app/Sources/PippaCore`): the native interface, model download and selection, the installer that sets up Pi, and the features that need no model at all (scans, sheet totals).

@@ -2,8 +2,8 @@ import SwiftUI
 import PippaCore
 
 /// The user's own online service, as plain as possible (docs/settings-simplification.md): a switch, below it only
-/// service, model and key, a "Test and save" button, a "Remove" button. Pippa asks before every request
-/// that leaves the Mac; "always connect", context size and "remove key only" no longer exist.
+/// service, model and key, a "Test and save" button, a "Remove" button. Switching it on is the consent: Pi then talks to
+/// the service directly; context size and "remove key only" no longer exist.
 /// Drafts never contain an already stored key.
 struct ModelConnectionSettings: View {
     @ObservedObject var model: AppModel
@@ -25,7 +25,7 @@ struct ModelConnectionSettings: View {
               saved.provider == providerState.wrappedValue else { return false }
         return saved.provider != .compatible || saved.endpoint == URL(string: endpointState.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines))
     }
-    /// On = Pippa may use the service after asking (`ask`); off = this Mac only. An old "always" counts as on.
+    /// On = Pi works with the service (stored as `ask` for older versions); off = this Mac only. An old "always" counts as on.
     private var onBinding: Binding<Bool> {
         Binding(get: { model.inferenceSettings.policy != .localOnly }, set: { on in
             guard !blocked else { return }
@@ -121,9 +121,9 @@ struct ModelConnectionSettings: View {
 
     private var explanation: String {
         if model.inferenceSettings.policy == .localOnly {
-            return T("Off: everything stays on this Mac. On: Pippa may use your own OpenAI or Anthropic account, and asks you before every request.", table: "Settings")
+            return T("Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there.", table: "Settings")
         }
-        return T("Pippa asks you before every request to your online service and shows what goes along. Your key stays in your macOS Keychain.", table: "Settings")
+        return T("Your conversations and what you show Pippa go to your online service. Your key stays in your macOS Keychain.", table: "Settings")
     }
 
     private func loadDraft() {

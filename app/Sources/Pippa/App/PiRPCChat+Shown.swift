@@ -31,14 +31,8 @@ extension PiRPCChat {
         let turn = PippaMCPTurn(web: context.web, onWork: context.onWork)
         PippaMCPTurns.shared.begin(turn)
         Self.pendingWeb = nil
-        // Requests to the own online service ask with this conversation's shown items (PippaOnlineService).
-        Self.pendingOnline = nil
-        PippaOnlineService.shared.beginTurn(conversation: taskID, shown: context.files, onWork: context.onWork)
         Self.pendingMail = nil
-        defer {
-            PippaMCPTurns.shared.end(turn)
-            Self.pendingOnline = PippaOnlineService.shared.endTurn()
-        }
+        defer { PippaMCPTurns.shared.end(turn) }
         // The web card marks words from the documents: the text layer suffices (fast, no text recognition).
         if let gate = context.web, !context.files.isEmpty || !context.selectedText.isEmpty {
             let files = context.files, selected = context.selectedText
@@ -85,10 +79,6 @@ extension PiRPCChat {
             return ShownAnswer(text: review.text, reviewed: true)
         } catch {
             Self.pendingWeb = await Self.webItems(context.web)
-            // "No" on the card ends the answer with Pi's error; the person gets Pippa's own sentence.
-            if case Failure.model? = error as? Failure, let declined = PippaOnlineService.shared.records.peekDeclined() {
-                throw InferenceError.onlineDeclined(declined)
-            }
             throw error
         }
     }
@@ -110,9 +100,7 @@ extension PiRPCChat {
         let events = (takeActions()?.items ?? []).filter { !($0.action == "tool" && own.contains($0.name ?? "")) }
         let web = Self.pendingWeb ?? []
         Self.pendingWeb = nil
-        let online = Self.pendingOnline ?? []
-        Self.pendingOnline = nil
-        var items = events + web + online
+        var items = events + web
         // Answer text without a mail draft from code → "Noch kein Entwurf in Mail" + "Als Entwurf in Mail".
         var offer: MailDraftOffer?
         if let (answer, source) = Self.pendingMail {
@@ -129,8 +117,6 @@ extension PiRPCChat {
     /// Answer and identity of the mail in question (shown .eml or `mail_selected`), of the last finished answer.
     @MainActor static var pendingMail: (answer: String, source: MailReplySource?)?
 
-    /// Lines "Online gefragt: …" of the running answer (PippaOnlineService), like `pendingWeb`.
-    @MainActor static var pendingOnline: [ActionReceipt.Item]?
 
     /// One line per request: exactly the text that went out (or would have), and what came of it.
     static func webItems(_ gate: WebAccessGate?) async -> [ActionReceipt.Item] {

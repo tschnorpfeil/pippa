@@ -13,7 +13,6 @@ Pippa.app (Swift, SwiftUI)
  │   ├─ --extension pippa-guard      approvals, undo copies, receipts (runtime/pippa-guard)
  │   └─ MCP client ───────────────►  Pippa's MCP server inside the app (127.0.0.1)
  ├─ node runtime/pippa-web           web fetcher, started only after the person approves a request
- └─ proxy for an optional online model, asks before each request
 ```
 
 | Piece | Where | Role |
@@ -104,7 +103,7 @@ need neither Terminal nor npm.
 | `app/Sources/PippaChecks` | Checks without a model: `swift run --package-path app PippaChecks` |
 | `app/Sources/PippaLive` | Flows against a real model, only with `PIPPA_LIVE=1` |
 | `app/Sources/PippaUpdateProbe` | Probe for a real Sparkle update through a loopback feed |
-| `app/Sources/PiSetupSpike`, `PiRPCR2Spike`, `PiRPCR3Spike`, `PiRPCR10Spike` | Developer probes: installer, shown items and online lookup, calendar/reminder/mail draft, own online service. Driven by `scripts/pi-rpc-spike.sh` |
+| `app/Sources/PiSetupSpike`, `PiRPCR2Spike`, `PiRPCR3Spike` | Developer probes: installer, shown items and online lookup, calendar/reminder/mail draft, own online service. Driven by `scripts/pi-rpc-spike.sh` |
 | `app/Fixtures` | Data files used by `PippaLive`, the probes and `PippaChecks` (suggestion cases, answer fixtures, decision gold labels) |
 | `app/Packaging` | `Info.plist` and its translations, entitlements, icon generator, pinned llama.cpp, Node and Pi releases |
 | `runtime/` | Guard, terminal autostart, web fetcher, abilities (above) |
@@ -299,7 +298,7 @@ into an empty folder; the container is never changed).
 
 **Network.** Only these go out: model download from Hugging Face (after consent), Sparkle's update check, web search and
 page reads (each request approved on a card, personal details removed in code first, the query never logged), and the
-optional online model the person connects (every request through Pippa's loopback proxy, approved on a card). Files,
+optional online model the person switches on (Pi's own provider `pippa-online`, key only in the environment of Pippa's Pi). Files,
 conversations, journal and the model stay on the Mac.
 
 **Uninstall.** Quit Pippa, move `Pippa.app` to the Trash, then remove `~/Library/Application Support/Pippa`, the

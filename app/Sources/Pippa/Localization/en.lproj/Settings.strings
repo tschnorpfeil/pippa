@@ -35,7 +35,7 @@
 "Allow Pippa to…" = "Allow Pippa to…";
 "Add deadlines to Reminders and Calendar" = "Add deadlines to Reminders and Calendar";
 "Read the selected mail" = "Read the selected mail";
-"Before anything is sent to %@, Pippa asks you. The internet is also used for downloads and updates." = "Before anything is sent to %@, Pippa asks you. The internet is also used for downloads and updates.";
+"Your conversations go to %@. The internet is also used for downloads and updates." = "Your conversations go to %@. The internet is also used for downloads and updates.";
 "Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve." = "Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve.";
 "%@ (Default)" = "%@ (Default)";
 "allowed" = "allowed";
@@ -147,12 +147,12 @@
 "Try again" = "Try Again";
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
-"Pippa asks you before every request to your online service and shows what goes along. Your key stays in your macOS Keychain." = "Pippa asks you before every request to your online service and shows what goes along. Your key stays in your macOS Keychain.";
+"Your conversations and what you show Pippa go to your online service. Your key stays in your macOS Keychain." = "Your conversations and what you show Pippa go to your online service. Your key stays in your macOS Keychain.";
 
 /* Vereinfachte Einstellungen (docs/settings-simplification.md) */
 "Online service" = "Online service";
 "Use my own online AI" = "Use my own online AI";
-"Off: everything stays on this Mac. On: Pippa may use your own OpenAI or Anthropic account, and asks you before every request." = "Off: everything stays on this Mac. On: Pippa may use your own OpenAI or Anthropic account, and asks you before every request.";
+"Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there." = "Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there.";
 "Remove" = "Remove";
 "Saving first sends one short test message. No files and nothing from your conversations." = "Saving first sends one short test message. No files and nothing from your conversations.";
 "Version %@" = "Version %@";

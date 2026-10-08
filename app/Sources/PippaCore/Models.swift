@@ -233,7 +233,7 @@ public struct PippaSettings: Codable, Sendable, Equatable {
     /// Minutes without a request until Pippa unloads the `pippa-local` model; `nil` = 10
     /// (`PiLocalServer.defaultIdleMinutes`). The next request loads it again.
     public var llamaIdleMinutes: Int?
-    /// Fixed port of Pippa's online access (`pippa-online` in models.json, `PippaOnlineProxy`); chosen once.
+    /// Port of the former online proxy; unused since Pi talks to the service itself (kept so old settings round-trip).
     public var onlinePort: Int?
     /// On by default: short shown text documents go straight into Pi's
     /// message instead of via a `read_document` round (`PiShownContext.inlineShortLimit`). `nil` = on (also old

@@ -257,11 +257,11 @@ struct SettingsView: View {
         }
     }
 
-    /// A custom online service gets only Pi's conversation requests, each only after Pippa's approval (PippaOnlineService).
+    /// A custom online service gets Pi's conversation requests (PiOnlineProvider).
     private var inferenceFooter: String {
         if model.inferenceSettings.policy != .localOnly,
            let connection = model.inferenceSettings.connection, !connection.isLocal {
-            return T("Before anything is sent to %@, Pippa asks you. The internet is also used for downloads and updates.", table: "Settings", connection.destination)
+            return T("Your conversations go to %@. The internet is also used for downloads and updates.", table: "Settings", connection.destination)
         }
         return T("Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve.", table: "Settings")
     }

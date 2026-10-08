@@ -79,7 +79,7 @@ and never called it, so it prevented no download there. Keeping it would have ke
 | "What Pippa knows" learned-actions list + "Show all" | Per-action history | **Reduced** to one row with "Forget" | Keeps the privacy control. Drops the technical list |
 | "Data and log" (size, Show in Finder) | Row | **Deleted**. The version moves to the footer | Logs are reached via Help → "Report a Problem…" |
 | Footer privacy sentence | Text | **Keep** (+ version) | Says where content goes |
-| Online: Off / Ask / Always picker | 3 modes | **One switch** (on = ask) | The Pi path already treated "Always" as "Ask". Pippa asks before every request |
+| Online: Off / Ask / Always picker | 3 modes | **One switch** (on = use it) | Since the rebuild, switching it on is the consent; Pi talks to the service itself (no card per request) |
 | Online: service | OpenAI / Anthropic / OpenAI-compatible | **OpenAI, Anthropic**. Compatible only if already saved | A custom server URL is a techie feature. Saved connections keep working |
 | Online: model ID, API key (Keychain) | Fields | **Keep** | Required. There is no sign-in alternative |
 | Online: context size | Disclosure + field | **Deleted** (default 32,768, saved value kept) | Nobody non-technical knows this number |

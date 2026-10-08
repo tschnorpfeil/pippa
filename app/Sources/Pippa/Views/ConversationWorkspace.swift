@@ -47,8 +47,6 @@ struct ConversationWorkspace: View {
                             // Real phases only; steps aside while answer text streams, returns for a tool after text.
                             ThoughtLineView(thought: chat.thought).id("thought")
                             if let ask = chat.webAsk { WebAccessCard(ask: ask) { chat.answerWebAsk(ask.id, approved: $0) }.id("web-ask") }
-                            // Request to the user's own online service (RPC path), PippaOnlineService.
-                            if PiRPCChat.isLive { OnlineAskSlot() }
                         }
                         ForEach(chat.queued) { entry in queuedView(entry) }
                         if !showsCard { card }
@@ -80,7 +78,6 @@ struct ConversationWorkspace: View {
                 }
                 .onChange(of: chat.streamingText) { _, _ in follow(reader) }
                 .onChange(of: chat.webAsk?.id) { _, _ in follow(reader) }
-                .onReceive(PippaOnlineService.shared.$ask) { _ in follow(reader) }
                 .onChange(of: chat.queued.count) { _, _ in follow(reader) }
                 // Opening the receipt of the latest answer keeps its details in view.
                 .onChange(of: chat.expandedReceipts) { _, _ in follow(reader) }

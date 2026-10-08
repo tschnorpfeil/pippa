@@ -54,7 +54,7 @@ if ProcessInfo.processInfo.environment["PIPPA_MCP_CHECKS"] == "1" {
     exit(failures == 0 ? 0 : 1)
 }
 
-// Only the R10 checks (own online service via Pippa's broker, AI choice on the RPC path); the full run includes them.
+// Only the R10 checks (own online service as Pi provider); the full run includes them.
 if ProcessInfo.processInfo.environment["PIPPA_R7_CHECKS"] == "1" {
     await runR7Checks()
     print(failures == 0 ? "All checks passed." : "\(failures) check(s) failed.")

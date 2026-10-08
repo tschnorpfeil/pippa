@@ -128,7 +128,7 @@ final class PiRPCChat {
         let tools = env["PIPPA_PI_TOOLS"] ?? URL(fileURLWithPath: guardPath).deletingLastPathComponent().appendingPathComponent("pippa-tools.ts").path
         try FileManager.default.createDirectory(at: Self.sessionDirectory, withIntermediateDirectories: true)
         var extra = ["PIPPA_UNDO_DIR": Self.undoRoot.path]
-        if let online = route.online { extra[PiOnlineProvider.tokenVariable] = online.token }
+        if let online = route.online { extra[PiOnlineProvider.keyVariable] = online.key }
         // Test scripts only (scripts/pi-rpc-spike.sh app): own Pi folder instead of ~/.pi, test trash under .build.
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR", "PIPPA_GUARD_POLICY"] { if let value = env[key] { extra[key] = value } }
         let paths = PippaPiLaunch.Paths(guardExtension: URL(fileURLWithPath: guardPath),
@@ -156,24 +156,24 @@ final class PiRPCChat {
 
     struct LaunchRoute {
         var key: String
-        var online: (connection: ModelConnection, token: String)?
+        var online: (connection: ModelConnection, key: String)?
     }
 
-    /// If an own online service is connected and on, Pi works with `pippa-online` (Pippa's broker,
-    /// approval per request); otherwise with `pippa-local`. models.json then gets exactly the matching `pippa-online` entry
-    /// (or none). The real key stays in the keychain; Pi only gets this app run's access token.
+    /// If an own online service is connected and on, Pi works with `pippa-online` (Pi's own provider, straight to the
+    /// service); otherwise with `pippa-local`. models.json then gets exactly the matching `pippa-online` entry (or none).
+    /// The key stays in the Keychain and reaches only this Pi, as an environment variable.
     private func launchRoute(_ env: [String: String]) async throws -> LaunchRoute {
         let target = try Self.installTarget(env)
         let modelsJSON = target.agent.appendingPathComponent("models.json")
         guard let connection = Self.onlineConnection else {
-            _ = try? await Task.detached { try PiOnlineProvider.sync(nil, port: 0, modelsJSON: modelsJSON) }.value
+            _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
             return LaunchRoute(key: "local|" + target.model, online: nil)
         }
-        let (port, token) = try await PippaOnlineService.shared.endpoint(for: connection, support: target.roots.support)
-        try await Task.detached { try PiOnlineProvider.sync(connection, port: port, modelsJSON: modelsJSON) }.value
-        let key = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
-                   connection.modelID, String(port), token].joined(separator: "|")
-        return LaunchRoute(key: key, online: (connection, token))
+        let key = try await Task.detached { try ModelCredentialStore.read(connection.id) }.value ?? ""
+        try await Task.detached { try PiOnlineProvider.sync(connection, modelsJSON: modelsJSON) }.value
+        let routeKey = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
+                        connection.modelID, String(connection.contextWindow), String(key.hashValue)].joined(separator: "|")
+        return LaunchRoute(key: routeKey, online: (connection, key))
     }
 
     /// The enabled own service according to the saved settings (`nil`: Pippa works on this Mac).
@@ -181,13 +181,12 @@ final class PiRPCChat {
         PiOnlineProvider.activeConnection(InferenceSettings.load(from: AppModel.inferenceSettingsDirectory))
     }
 
-    /// "Eigener Dienst" settings changed: approvals expire, the broker ends; if no service is on any more, `pippa-online` disappears
-    /// from models.json right away. The next Pi start takes the new path (`launchKey`).
+    /// "Eigener Dienst" settings changed: if no service is on any more, `pippa-online` disappears from models.json right
+    /// away. The next Pi start takes the new path (`launchKey`).
     func onlineSettingsChanged() {
-        PippaOnlineService.shared.reset()
         guard Self.onlineConnection == nil, let target = try? Self.installTarget(ProcessInfo.processInfo.environment) else { return }
         let modelsJSON = target.agent.appendingPathComponent("models.json")
-        Task.detached { _ = try? PiOnlineProvider.sync(nil, port: 0, modelsJSON: modelsJSON) }
+        Task.detached { _ = try? PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }
     }
 
     /// Pinned release + Pippa's Node from the installer. If step "Pi" has not run yet, now (off the
@@ -371,7 +370,6 @@ final class PiRPCChat {
             lastSelectedMail = reads.last { $0.tool == "mail_selected" && $0.read }?.mail
             lastActions = Self.actions(receipt, reads: reads)
         }
-        await endLocalTurn()
         var toolArguments: [String: String] = [:]
         do {
         for try await event in try await client.prompt(text) {
@@ -404,47 +402,10 @@ final class PiRPCChat {
                 break
             }
         }
-        } catch { await endLocalTurn(); throw error }
-        await endLocalTurn()
+        }
         if lastStop == "aborted" { throw AnswerFailure.stopped(partial: segment) }
         if lastStop == "error" { throw Failure.model(lastError ?? "unbekannt") }
         return segment.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    /// "Auf diesem Mac" on the online card: Pi works for the rest of this answer with `pippa-local` (RPC
-    /// `set_model`), the local server is held. The broker then reports a temporary error to Pi; Pi
-    /// retries on its own and thereby reaches the AI on this Mac. After the answer back to `pippa-online`.
-    func switchTurnToLocal(onWork: WorkEventHandler?) async -> Bool {
-        if switchedToLocal { return true }
-        guard let client, let target = try? Self.installTarget(ProcessInfo.processInfo.environment) else { return false }
-        do {
-            if Self.ownsLocalServer {
-                let server = try await localModelServer()
-                turnLocal = (server, try await Self.lease(server, onWork: onWork))
-            }
-            _ = try await client.command(["type": "set_model", "provider": PiInstaller.providerKey, "modelId": target.model])
-            switchedToLocal = true
-            DiagnosticsLog.shared.event("online-auf-diesem-mac", ["modell": target.model])
-            return true
-        } catch {
-            await endLocalTurn()
-            DiagnosticsLog.shared.event("online-auf-diesem-mac-fehler", ["fehler": String(describing: error)])
-            return false
-        }
-    }
-
-    private var turnLocal: (server: LlamaServer, lease: LlamaServer.AgentLease)?
-    private var switchedToLocal = false
-
-    /// After an answer with "Auf diesem Mac": release the server, Pi back to the enabled online service.
-    private func endLocalTurn() async {
-        if let held = turnLocal { turnLocal = nil; await held.server.releaseAgentLease(held.lease) }
-        guard switchedToLocal else { return }
-        switchedToLocal = false
-        if let client, let connection = Self.onlineConnection {
-            do { _ = try await client.command(["type": "set_model", "provider": PiOnlineProvider.providerKey, "modelId": connection.modelID]) }
-            catch { await client.shutdown(); self.client = nil; sessionKey = nil; launchKey = nil }
-        }
     }
 
     /// The receipt of the last answer, once. `nil` if no tool wanted to change anything.

@@ -33,8 +33,6 @@ let package = Package(
         .executableTarget(name: "PiSetupSpike", dependencies: ["PippaCore", "PiRPC"]),
         // Probe: R2 and R7 acceptance on the RPC path (R7.swift).
         .executableTarget(name: "PiRPCR2Spike", dependencies: ["PippaCore", "PiRPC"]),
-        // Probe: switching the AI, own online service only via Pippa's approval.
-        .executableTarget(name: "PiRPCR10Spike", dependencies: ["PippaCore", "PiRPC"]),
         // Probe: event, reminder, mail draft with stand-in integrations + real Pi.
         .executableTarget(name: "PiRPCR3Spike", dependencies: ["PippaCore", "PiRPC"]),
     ]

@@ -1,8 +1,7 @@
 import Foundation
 
 /// "Test connection" in the settings: a small request to the person's own online service, directly in Swift.
-/// Same two shapes as the intermediary
-/// (`PippaOnlineProxy`, `PiOnlineProvider`): OpenAI shape `<address>/chat/completions`, Anthropic shape
+/// Same two shapes Pi uses (`PiOnlineProvider`): OpenAI shape `<address>/chat/completions`, Anthropic shape
 /// `<address>/v1/messages`. The person clicked "Test"; only a fixed sentence goes out, no content.
 public enum ModelConnectionTest {
     static let prompt = "Connection test. Reply with: ok"
@@ -10,10 +9,7 @@ public enum ModelConnectionTest {
     /// The request (visible for checks without network). The key is only in the header.
     public static func request(_ connection: ModelConnection, apiKey: String, timeout: TimeInterval = 30) throws -> URLRequest {
         try connection.validated()
-        var endpoint = connection.endpoint.absoluteString
-        while endpoint.hasSuffix("/") { endpoint.removeLast() }
-        let path = PiOnlineProvider.allowedPaths(connection.provider).first ?? "/chat/completions"
-        guard let url = URL(string: endpoint + path) else { throw InferenceError.invalidConnection(AnswerFailureCode.providerRejected.fallbackText) }
+        guard let url = URL(string: PiOnlineProvider.baseURL(connection) + PiOnlineProvider.chatPath(connection.provider)) else { throw InferenceError.invalidConnection(AnswerFailureCode.providerRejected.fallbackText) }
         var request = URLRequest(url: url, timeoutInterval: timeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

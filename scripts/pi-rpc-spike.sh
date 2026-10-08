@@ -14,8 +14,6 @@
 #   scripts/pi-rpc-spike.sh app [manual|wave2d]        Pippa window with PIPPA_PI_RPC=1 (scripted snapshot "pirpc",
 #                                                      the wave2d snapshot, or drive it yourself); the app starts llama-server itself
 #   scripts/pi-rpc-spike.sh r2 [hbsomiwWn|all]         shown items, read_document, look up online (PiRPCR2Spike, run swift build first)
-#   scripts/pi-rpc-spike.sh r10 [p|all]                own online service only via Pippa's approval (stand-in services, no
-#                                                      network, own fake HOME .build/r10-home)
 #   scripts/pi-rpc-spike.sh r3 [hfbar|all]             calendar, reminder, mail draft (PiRPCR3Spike, stand-in connections)
 #   scripts/pi-rpc-spike.sh r7 latency|cold|slot|ans1|sort  acceptance run (PiRPCR2Spike r7, server as in the app)
 set -eu
@@ -110,14 +108,6 @@ r7)
   esac
   name=$(echo "$*" | tr ' ' '-')
   (cd "$root" && "$root/app/.build/debug/PiRPCR2Spike" r7 "$@" -AppleLanguages "(de)") 2>&1 | tee "$logs/r7-${name:-latency}-$(date +%H%M%S).log"
-  ;;
-r10)
-  # Own fake HOME; starts at most one llama-server and stops it itself.
-  shift
-  export PIPPA_PI_PAYLOAD="$payload" PIPPA_LLAMA_SERVER="$cache/llama-b11503/llama-server"
-  export R10_HOME="$root/.build/r10-home" PIPPA_LOG_DIR="$root/.build/r10-logs"
-  export PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
-  (cd "$root" && "$root/app/.build/debug/PiRPCR10Spike" "${1:-all}") 2>&1 | tee "$logs/r10-${1:-all}.log"
   ;;
 r3)
   # Calendar, reminder, mail draft only with stand-in connections (never real Mail/Calendar).
