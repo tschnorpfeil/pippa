@@ -71,11 +71,11 @@ Pippa.app (Swift, SwiftUI)
 - **Guard extension** (`runtime/pippa-guard`): a Pi extension loaded before any of your own on every start. It sees each tool call, asks where needed, clones files before changing them, and writes receipts that the app turns into the "what happened" line with *Undo*. It also adds four small file tools (`list_folder`, `rename_or_move`, `move_files`, `move_to_trash`) so everyday tasks do not need the shell.
 - **MCP server** (`app/Sources/PippaCore/MCP`): the app itself serves the Model Context Protocol on 127.0.0.1 with a per-launch key, registered for Pippa's Pi sessions only (nothing is written to your own Pi configuration). Its tools read the selected mail, search mail, read calendar and reminders, read the Excel selection, read documents (with text recognition for scans), create a mail draft, add an appointment or reminder, and search and read the web. Because the app does the reading, macOS asks for permission in Pippa's name.
 - **Abilities and web fetcher**: Pippa's 14 abilities are Pi skills in [`runtime/pippa-skills`](runtime/pippa-skills), bundled and loaded into Pi with `--skill` (your own Pi skills are not mixed in). Web search and page reading run in Pippa's own fetcher process [`runtime/pippa-web`](runtime/pippa-web) (pi-web-access, own lockfile), started by the app only after your approval.
-- **llama-server** (`app/Packaging/llama-release.json`): a pinned, checksum-verified llama.cpp build inside the app bundle. It listens on 127.0.0.1 only and unloads the model when idle.
+- **llama-server** (`app/Packaging/llama-release.json`): a pinned llama.cpp release (source checksum-verified, plus a small K2 Horizon patch in `app/Packaging/llama-patches`), built by `scripts/build-app.sh` and bundled in the app. It listens on 127.0.0.1 only and unloads the model when idle.
 
 ## Building from source
 
-You need Apple silicon, macOS 15 or later and the Command Line Tools with Swift 6 (`xcode-select --install`); Xcode is not required. The build downloads the pinned llama.cpp release and Node.js and installs Pi's locked npm dependencies, all checksum-verified, so it needs network access the first time (cached under `~/Library/Caches/pippa-build`).
+You need Apple silicon, macOS 15 or later and the Command Line Tools with Swift 6 (`xcode-select --install`); Xcode is not required. The build downloads the pinned llama.cpp source and Node.js and installs Pi's locked npm dependencies, all checksum-verified, and compiles llama-server (needs `cmake`, e.g. `brew install cmake`), so it needs network access the first time (cached under `~/Library/Caches/pippa-build`).
 
 ```sh
 scripts/build-app.sh      # builds dist/Pippa.app (ad-hoc signed without PIPPA_SIGN_IDENTITY)

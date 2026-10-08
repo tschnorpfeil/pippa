@@ -148,9 +148,10 @@ scripts/make-dmg.sh       # dist/Pippa.dmg
 
 `build-app.sh` runs a release `swift build`, fills `Contents/Info.plist` from `app/Packaging/Info.plist` (version from
 `Pippa.version` in `PippaCore.swift`), copies the SwiftPM resources and the Info.plist translations
-(`Contents/Resources/<language>.lproj`), draws the icon (`app/Packaging/make-icon.swift`), adds `llama-server` and its
-dylibs from the pinned llama.cpp release (`llama-release.json`, SHA256-verified, cached in
-`~/Library/Caches/pippa-build`), bundles Node and the web fetcher (`bundle-web-fetcher.sh`), the Pi install payload
+(`Contents/Resources/<language>.lproj`), draws the icon (`app/Packaging/make-icon.swift`), adds `llama-server`
+(static, no dylibs), built with cmake from the pinned llama.cpp source tarball plus the patches in
+`app/Packaging/llama-patches` (`llama-release.json`, SHA256-verified, cached in `~/Library/Caches/pippa-build`; cmake from
+PATH or `PIPPA_CMAKE`), bundles Node and the web fetcher (`bundle-web-fetcher.sh`), the Pi install payload
 (`bundle-pi-payload.sh`), the abilities and the guard files, removes Sparkle's XPC services and signs everything from
 the inside out. Of the guard folder only the sources Pi loads are copied (`pippa-guard.ts`, `pippa-tools.ts`,
 `pippa-mcp.ts` and their imports), without tests.

@@ -1,8 +1,33 @@
 {
-  "about": "llama.cpp build Pippa bundles. Bump by editing this file and app/Packaging/llama-release.json (tag, release, asset hashes) after testing.",
+  "about": "llama.cpp build Pippa bundles. scripts/build-app.sh builds llama-server from the pinned source tarball (\"bundled\") plus the patches in app/Packaging/llama-patches. Bump by editing this file and app/Packaging/llama-release.json (tag, release, source hash, patches) after testing. \"assets\" are the upstream binary release, no longer bundled; scripts/live-test.sh still uses the macOS arm64 asset.",
   "tag": "b11503",
   "release": "after v0.6.0 (first builds with K2 Horizon support, PR #29535)",
   "tested": "2026-10-08: llama-server --help of the macOS arm64 asset has every flag Pippa passes; K2 Horizon 7B still to be run on a Mac (Hugging Face was unreachable)",
+  "bundled": {
+    "note": "Official binary plus a K2 Horizon parser patch: K2 writes </ifm|think> after tool results even for low/medium effort, upstream only accepts the end tag of the requested effort. Drop the patch once upstream accepts it (docs/rebuild/llama-cpp-k2-pr.md).",
+    "tag": "b11503",
+    "commit": "03aa006acb547549162a00dddeab3d3b38ebf7b2",
+    "source": "https://github.com/ggml-org/llama.cpp/archive/refs/tags/b11503.tar.gz",
+    "sourceSha256": "dc612f5d33363614c662b08031797aa013b92b6b00f3028f9a795621ff86c342",
+    "patches": [
+      {
+        "file": "llama-patches/k2-horizon-think-tags.patch",
+        "sha256": "70c216cb5bfe6296d54ad966dc9dc8617970f1f7af74790e9eef11c97d8ee3a3"
+      }
+    ],
+    "cmake": [
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DBUILD_SHARED_LIBS=OFF",
+      "-DLLAMA_CURL=OFF",
+      "-DLLAMA_OPENSSL=OFF",
+      "-DLLAMA_BUILD_NUMBER=11503",
+      "-DLLAMA_BUILD_COMMIT=03aa006",
+      "-DLLAMA_BUILD_TESTS=OFF",
+      "-DLLAMA_BUILD_EXAMPLES=OFF",
+      "-DGGML_METAL=ON",
+      "-DGGML_METAL_EMBED_LIBRARY=ON"
+    ]
+  },
   "assets": {
     "cudart-llama-b11503-bin-ubuntu-cuda-12.8-x64.tar.gz": {
       "sha256": "276d04f57325420a9a04de1e4090590d8574ca12c391f14808471348ee6b955c",

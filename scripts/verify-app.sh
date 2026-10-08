@@ -115,6 +115,15 @@ expect_entitlements "$APP/Contents/Helpers/node" "Helpers/node" "com.apple.secur
 expect_entitlements "$APP/Contents/Helpers/llama-server" "Helpers/llama-server" "-"
 expect_entitlements "$APP/Contents/Helpers/fd" "Helpers/fd" "-"
 expect_entitlements "$APP/Contents/Helpers/rg" "Helpers/rg" "-"
+# llama-server is built by build-app.sh: static (only system libraries) and with Pippa's K2 Horizon patch.
+LLAMA_BIN="$APP/Contents/Helpers/llama-server"
+if otool -L "$LLAMA_BIN" | awk 'NR > 1 { print $1 }' | grep -qv '^/\(usr/lib\|System/Library\)/'; then
+  fail "llama-server links libraries outside the system (otool -L): $(otool -L "$LLAMA_BIN" | awk 'NR > 1 { print $1 }' | grep -v '^/\(usr/lib\|System/Library\)/' | tr '\n' ' ')"
+fi
+llama_strings="$(strings -a "$LLAMA_BIN")"
+[[ "$llama_strings" == *'</ifm|think_faster>'* && "$llama_strings" == *'</ifm|think_fast>'* ]] ||
+  fail "llama-server lacks the K2 Horizon end tags (app/Packaging/llama-patches not applied?)"
+ok "llama-server: static, only system libraries, K2 Horizon think-tag patch included"
 native_executables=()
 while IFS= read -r -d '' file; do
   if [[ "$file" != *.node ]] && file -b "$file" | grep -q 'Mach-O.*executable'; then native_executables+=("$file"); fi

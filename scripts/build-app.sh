@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Builds dist/Pippa.app (arm64): SwiftPM release, Info.plist, resource bundles,
-# app icon, llama-server from the pinned llama.cpp release, signing.
+# app icon, llama-server built from the pinned llama.cpp source plus Pippa's patches, signing.
 #
 #   scripts/build-app.sh
 #
 # Environment:
 #   PIPPA_SIGN_IDENTITY  "Developer ID Application: Name (TEAMID)"; without: ad hoc
 #   PIPPA_SKIP_BUILD=1   use the existing release build (no swift build)
-#   PIPPA_CACHE          download cache (default ~/Library/Caches/pippa-build)
+#   PIPPA_CACHE          download and llama.cpp build cache (default ~/Library/Caches/pippa-build)
+#   PIPPA_CMAKE          cmake to build llama-server with (default: cmake from PATH); PIPPA_NINJA likewise
 #   PIPPA_REQUIRE_DISTRIBUTION=1  Developer ID mandatory (release pipeline)
 set -euo pipefail
 
@@ -29,7 +30,7 @@ warn() { printf '\033[33mWarning: %s\033[0m\n' "$*" >&2; }
 die() { printf '\033[31mError: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [[ "$(uname -s)" == Darwin ]] || die "macOS only"
-for tool in swift codesign iconutil sips plutil install_name_tool otool shasum curl python3; do
+for tool in swift codesign iconutil sips plutil install_name_tool otool shasum curl python3 tar; do
   command -v "$tool" >/dev/null || die "$tool missing (Command Line Tools installed?)"
 done
 
@@ -61,38 +62,96 @@ fi
 BIN="$(cd "$APP_SRC" && swift build -c release --arch arm64 --show-bin-path)"
 [[ -x "$BIN/Pippa" ]] || die "no release binary at $BIN/Pippa"
 
-# --- llama.cpp (pinned, checksum-verified) -----------------------------------
-read -r LLAMA_TAG LLAMA_ASSET LLAMA_SHA < <(python3 - "$RELEASE_JSON" <<'PY'
+# --- llama.cpp (pinned source + Pippa patches, built here) -------------------
+# Not the official binary: the K2 Horizon parser of b11503 needs a patch (app/Packaging/llama-patches).
+# Source tarball and patches are checksum-pinned in llama-release.json ("bundled").
+find_cmake() {
+  if [[ -n "${PIPPA_CMAKE:-}" ]]; then
+    [[ -x "$PIPPA_CMAKE" ]] || die "PIPPA_CMAKE=$PIPPA_CMAKE is not an executable"
+    printf '%s\n' "$PIPPA_CMAKE"
+  elif command -v cmake >/dev/null; then
+    command -v cmake
+  else
+    die "cmake missing: llama-server is built from source. Install cmake (e.g. brew install cmake, or pip install cmake ninja in a venv) or set PIPPA_CMAKE=/path/to/cmake"
+  fi
+}
+CMAKE="$(find_cmake)"
+# Prefer Ninja (also next to a venv cmake), else Makefiles.
+NINJA="${PIPPA_NINJA:-$(command -v ninja || true)}"
+[[ -n "$NINJA" || ! -x "$(dirname "$CMAKE")/ninja" ]] || NINJA="$(dirname "$CMAKE")/ninja"
+if [[ -n "$NINJA" ]]; then GENERATOR=(-G Ninja "-DCMAKE_MAKE_PROGRAM=$NINJA"); else GENERATOR=(-G "Unix Makefiles"); fi
+command -v patch >/dev/null || die "patch missing (Command Line Tools installed?)"
+
+LLAMA_INFO="$(python3 - "$RELEASE_JSON" <<'PY'
 import json, sys
 r = json.load(open(sys.argv[1]))
-name = f"llama-{r['tag']}-bin-macos-arm64.tar.gz"
-print(r["tag"], name, r["assets"][name]["sha256"])
+b = r["bundled"]
+print(b["tag"]); print(b["source"]); print(b["sourceSha256"])
+print(" ".join(b["cmake"]))
+for p in b["patches"]:
+    print("PATCH " + p["file"] + " " + p["sha256"])
 PY
-)
-[[ -n "${LLAMA_SHA:-}" ]] || die "macOS arm64 asset missing in $RELEASE_JSON"
+)"
+LLAMA_TAG="$(sed -n 1p <<<"$LLAMA_INFO")"
+LLAMA_URL="$(sed -n 2p <<<"$LLAMA_INFO")"
+LLAMA_SHA="$(sed -n 3p <<<"$LLAMA_INFO")"
+read -r -a LLAMA_CMAKE_ARGS <<<"$(sed -n 4p <<<"$LLAMA_INFO")"
+[[ -n "$LLAMA_SHA" && "$LLAMA_URL" == https://github.com/ggml-org/llama.cpp/* ]] || die "bundled source missing or unexpected in $RELEASE_JSON"
 mkdir -p "$CACHE"
-ARCHIVE="$CACHE/$LLAMA_ASSET"
+ARCHIVE="$CACHE/llama.cpp-$LLAMA_TAG.tar.gz"
 sha_of() { shasum -a 256 "$1" | cut -d' ' -f1; }
 if [[ -f "$ARCHIVE" && "$(sha_of "$ARCHIVE")" != "$LLAMA_SHA" ]]; then
   warn "cached file has the wrong checksum, downloading again"
   rm -f "$ARCHIVE"
 fi
 if [[ ! -f "$ARCHIVE" ]]; then
-  say "Downloading llama.cpp $LLAMA_TAG ($LLAMA_ASSET)"
-  curl -fL --retry 3 --progress-bar -o "$ARCHIVE.part" \
-    "https://github.com/ggml-org/llama.cpp/releases/download/$LLAMA_TAG/$LLAMA_ASSET"
+  say "Downloading llama.cpp $LLAMA_TAG source"
+  curl -fL --retry 3 --progress-bar -o "$ARCHIVE.part" "$LLAMA_URL"
   ACTUAL="$(sha_of "$ARCHIVE.part")"
   if [[ "$ACTUAL" != "$LLAMA_SHA" ]]; then
     rm -f "$ARCHIVE.part"
-    die "SHA256 of $LLAMA_ASSET does not match: expected $LLAMA_SHA, got $ACTUAL"
+    die "SHA256 of the llama.cpp source does not match: expected $LLAMA_SHA, got $ACTUAL"
   fi
   mv "$ARCHIVE.part" "$ARCHIVE"
 fi
-say "llama.cpp $LLAMA_TAG verified (sha256 $LLAMA_SHA)"
-LLAMA_DIR="$CACHE/$LLAMA_TAG-macos-arm64"
-rm -rf "$LLAMA_DIR"
-mkdir -p "$LLAMA_DIR"
-tar -xzf "$ARCHIVE" -C "$LLAMA_DIR" --strip-components=1
+say "llama.cpp $LLAMA_TAG source verified (sha256 $LLAMA_SHA)"
+
+PATCHES=()
+PATCH_KEY=""
+while read -r _ pfile psha; do
+  [[ -f "$PACKAGING/$pfile" ]] || die "patch $pfile missing"
+  [[ "$(sha_of "$PACKAGING/$pfile")" == "$psha" ]] || die "patch $pfile does not match the SHA256 in $RELEASE_JSON"
+  PATCHES+=("$PACKAGING/$pfile")
+  PATCH_KEY+="$psha"
+done < <(grep '^PATCH ' <<<"$LLAMA_INFO")
+
+# Build tree is keyed by source + patches + flags: any change starts from a clean tree, otherwise it is reused (incremental).
+BUILD_KEY="$(printf '%s|%s|%s|%s' "$LLAMA_SHA" "$PATCH_KEY" "${LLAMA_CMAKE_ARGS[*]}" "${GENERATOR[*]}" | shasum -a 256 | cut -c1-12)"
+LLAMA_DIR="$CACHE/llama-$LLAMA_TAG-$BUILD_KEY"
+LLAMA_SRC="$LLAMA_DIR/src"
+LLAMA_BUILD="$LLAMA_DIR/build"
+if [[ ! -f "$LLAMA_DIR/.patched" ]]; then
+  rm -rf "$LLAMA_DIR"
+  mkdir -p "$LLAMA_SRC"
+  tar -xzf "$ARCHIVE" -C "$LLAMA_SRC" --strip-components=1
+  for p in "${PATCHES[@]}"; do
+    say "Applying $(basename "$p")"
+    patch -p1 --batch -d "$LLAMA_SRC" -i "$p" || die "patch $(basename "$p") does not apply to llama.cpp $LLAMA_TAG"
+  done
+  touch "$LLAMA_DIR/.patched"
+fi
+say "Building llama-server $LLAMA_TAG (cmake: $CMAKE)"
+"$CMAKE" -S "$LLAMA_SRC" -B "$LLAMA_BUILD" "${GENERATOR[@]}" \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+  "${LLAMA_CMAKE_ARGS[@]}" >"$LLAMA_DIR/configure.log" 2>&1 || { tail -30 "$LLAMA_DIR/configure.log" >&2; die "llama.cpp configure failed (log: $LLAMA_DIR/configure.log)"; }
+"$CMAKE" --build "$LLAMA_BUILD" --target llama-server -j "$(sysctl -n hw.ncpu)" >"$LLAMA_DIR/build.log" 2>&1 ||
+  { tail -30 "$LLAMA_DIR/build.log" >&2; die "llama.cpp build failed (log: $LLAMA_DIR/build.log)"; }
+LLAMA_BIN="$LLAMA_BUILD/bin/llama-server"
+[[ -x "$LLAMA_BIN" ]] || die "no llama-server at $LLAMA_BIN"
+# Static build: everything except system libraries/frameworks must be inside the binary.
+if otool -L "$LLAMA_BIN" | awk 'NR > 1 { print $1 }' | grep -q '^@rpath/'; then
+  die "llama-server links shared libraries (@rpath); expected a static build (-DBUILD_SHARED_LIBS=OFF in llama-release.json)"
+fi
 
 # --- fd and ripgrep for Pi's find and grep (pinned, checksum-verified) -------
 SEARCH_JSON="$ROOT/app/Packaging/search-tools.json"
@@ -160,26 +219,11 @@ if ((${#frameworks[@]})); then
 fi
 shopt -u nullglob
 
-# llama-server goes to Helpers, its dylibs (transitively, via @rpath) to Frameworks.
-cp "$LLAMA_DIR/llama-server" "$APP/Contents/Helpers/llama-server"
-cp "$LLAMA_DIR/LICENSE" "$APP/Contents/Resources/llama.cpp-LICENSE.txt"
+# llama-server (static build, no dylibs) goes to Helpers.
+cp "$LLAMA_BIN" "$APP/Contents/Helpers/llama-server"
+cp "$LLAMA_SRC/LICENSE" "$APP/Contents/Resources/llama.cpp-LICENSE.txt"
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/THIRD_PARTY_NOTICES.md"
-queue=("$LLAMA_DIR/llama-server")
-while ((${#queue[@]})); do
-  current="${queue[0]}"
-  queue=("${queue[@]:1}")
-  while read -r dep; do
-    lib="${dep#@rpath/}"
-    [[ -f "$APP/Contents/Frameworks/$lib" ]] && continue
-    [[ -e "$LLAMA_DIR/$lib" ]] || die "llama.cpp library $lib missing from the archive"
-    cp -L "$LLAMA_DIR/$lib" "$APP/Contents/Frameworks/$lib"
-    queue+=("$LLAMA_DIR/$lib")
-  done < <(otool -L "$current" | awk 'NR > 1 && $1 ~ /^@rpath\// { print $1 }')
-done
-# The dylibs carry rpath @loader_path and find each other in Frameworks;
-# llama-server additionally needs the path from Helpers to Frameworks.
-install_name_tool -add_rpath @loader_path/../Frameworks "$APP/Contents/Helpers/llama-server"
-echo "    Helpers: llama-server + $(find "$APP/Contents/Frameworks" -name '*.dylib' | wc -l | tr -d ' ') dylibs"
+echo "    Helpers: llama-server $LLAMA_TAG (patched, static, $(du -h "$APP/Contents/Helpers/llama-server" | cut -f1 | tr -d ' '))"
 
 # Pi is bundled by default. Customers never need a separate Node/npm install.
 say "Node, web fetcher, Pi install payload, abilities"
@@ -246,7 +290,7 @@ else
   SIGN_LLAMA=(codesign --force --timestamp=none --sign -)
 fi
 # Inside out: dylibs, helpers, app. No --deep signing (it overwrites entitlements).
-for lib in "$APP"/Contents/Frameworks/*.dylib; do "${SIGN_LLAMA[@]}" "$lib"; done
+for lib in "$APP"/Contents/Frameworks/*.dylib; do [[ -e "$lib" ]] && "${SIGN_LLAMA[@]}" "$lib"; done
 for fw in "$APP"/Contents/Frameworks/*.framework; do
   if [[ -e "$fw" ]]; then
     if [[ "$(basename "$fw")" == Sparkle.framework ]]; then
