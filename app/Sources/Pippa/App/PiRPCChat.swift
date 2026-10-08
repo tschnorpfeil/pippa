@@ -133,7 +133,7 @@ final class PiRPCChat {
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR", "PIPPA_GUARD_POLICY"] { if let value = env[key] { extra[key] = value } }
         let paths = PippaPiLaunch.Paths(guardExtension: URL(fileURLWithPath: guardPath),
                                         toolsExtension: FileManager.default.fileExists(atPath: tools) ? URL(fileURLWithPath: tools) : nil,
-                                        sessionDirectory: Self.sessionDirectory)
+                                        sessionDirectory: Self.sessionDirectory, skillsDirectory: PippaSkill.bundledDirectory())
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         var launcher = try await Self.launcher(env)
         if let online = route.online { launcher.piArguments = PiOnlineProvider.launchArguments(online.connection) }

@@ -54,35 +54,30 @@ public enum PiConversationDefault {
     }
 }
 
-/// Capabilities (buttons like "Einfach erklären", "Antwort schreiben") on the Pi RPC path. The instruction comes from the
-/// signed app bundle (`PippaSkill.instructions`) and is placed as text before the message; Pi loads no skills for this.
-/// Reason: a button press is an explicit choice, so exactly this instruction should apply, without the model
-/// having to find it first, and without a same-named skill of the person replacing it. The German instructions
-/// stay unchanged (they themselves say "Answer in the language of the person.").
+/// Capabilities (buttons like "Einfach erklären", "Antwort schreiben") on the Pi RPC path. Pi loads the bundled skills
+/// itself (`PippaPiLaunch`: `--no-skills --skill <bundle>`, so a same-named skill of the person never replaces Pippa's);
+/// a button sends `/skill:<name> <message>`, which Pi expands to the instructions before the message (skills.md,
+/// rpc-commands.md). Reason for the explicit command: a button press is a choice, so exactly this skill applies without
+/// the model having to find it. All of Pippa's skills are `disable-model-invocation: true`: none costs prompt space.
 public enum PiSkillTurn {
-    /// The message to Pi: frame with instruction, then the message (with what is shown, `PiShownContext.prompt`).
-    /// `draftOnly`: the text lands in Pippa's own row (letter), Pi should create or change nothing.
-    public static func prompt(skill name: String, instructions: String, message: String, language: String, draftOnly: Bool = false) -> String {
-        let german = language.hasPrefix("de")
+    /// The message to Pi. `draftOnly`: the text lands in Pippa's own row (letter), Pi should create or change nothing.
+    public static func prompt(skill name: String, message: String, language: String, draftOnly: Bool = false) -> String {
+        guard PippaSkill.isValid(name: name) else { return message }
         var lines: [String] = []
-        lines.append(german ? "[Fähigkeit „\(name)“ – die Person hat diesen Knopf gewählt; folge dieser Anleitung]"
-                            : "[Skill “\(name)” – the person chose this button; follow these instructions]")
-        lines.append("<<<")
-        lines.append(instructions.trimmingCharacters(in: .whitespacesAndNewlines))
-        lines.append(">>>")
         if draftOnly {
-            lines.append(german ? "Schreib nur den Text. Pippa zeigt ihn der Person; leg keinen Entwurf an und ändere nichts."
-                                : "Write only the text. Pippa shows it to the person; do not create a draft or change anything.")
+            lines.append(language.hasPrefix("de") ? "Schreib nur den Text. Pippa zeigt ihn der Person; leg keinen Entwurf an und ändere nichts."
+                                                  : "Write only the text. Pippa shows it to the person; do not create a draft or change anything.")
+            lines.append("")
         }
-        lines.append("")
         lines.append(message)
-        return lines.joined(separator: "\n")
+        // Pi takes the skill name up to the first space; everything after it follows the instructions.
+        return "/skill:\(name) " + lines.joined(separator: "\n")
     }
 
-    /// The instruction of a bundled capability as a Pi message; without a valid instruction the message stays as it is.
+    /// The command for a bundled capability; for a capability that is not bundled the message stays as it is.
     public static func prompt(for skill: PippaSkill, message: String, language: String, draftOnly: Bool = false,
-                              instructions: (String) -> String? = PippaSkill.instructions(named:)) -> String {
-        guard let text = instructions(skill.name), !text.isEmpty else { return message }
-        return prompt(skill: skill.name, instructions: text, message: message, language: language, draftOnly: draftOnly)
+                              bundled: (String) -> Bool = { name in PippaSkill.bundled.contains { $0.name == name } }) -> String {
+        guard bundled(skill.name) else { return message }
+        return prompt(skill: skill.name, message: message, language: language, draftOnly: draftOnly)
     }
 }

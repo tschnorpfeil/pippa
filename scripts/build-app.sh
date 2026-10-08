@@ -94,6 +94,31 @@ rm -rf "$LLAMA_DIR"
 mkdir -p "$LLAMA_DIR"
 tar -xzf "$ARCHIVE" -C "$LLAMA_DIR" --strip-components=1
 
+# --- fd and ripgrep for Pi's find and grep (pinned, checksum-verified) -------
+SEARCH_JSON="$ROOT/app/Packaging/search-tools.json"
+SEARCH_DIR="$CACHE/search-tools"
+mkdir -p "$SEARCH_DIR"
+while read -r TOOL URL SHA; do
+  FILE="$CACHE/$(basename "$URL")"
+  if [[ -f "$FILE" && "$(sha_of "$FILE")" != "$SHA" ]]; then rm -f "$FILE"; fi
+  if [[ ! -f "$FILE" ]]; then
+    say "Downloading $TOOL ($(basename "$URL"))"
+    curl -fL --retry 3 --progress-bar -o "$FILE.part" "$URL"
+    ACTUAL="$(sha_of "$FILE.part")"
+    [[ "$ACTUAL" == "$SHA" ]] || { rm -f "$FILE.part"; die "SHA256 of $(basename "$URL") does not match: expected $SHA, got $ACTUAL"; }
+    mv "$FILE.part" "$FILE"
+  fi
+  rm -rf "${SEARCH_DIR:?}/$TOOL"
+  mkdir -p "$SEARCH_DIR/$TOOL"
+  tar -xzf "$FILE" -C "$SEARCH_DIR/$TOOL" --strip-components=1
+  [[ -x "$SEARCH_DIR/$TOOL/$TOOL" ]] || die "$TOOL binary missing in $(basename "$URL")"
+done < <(python3 - "$SEARCH_JSON" <<'PY'
+import json, sys
+for name, tool in json.load(open(sys.argv[1]))["tools"].items():
+    print(name, tool["url"], tool["sha256"])
+PY
+)
+
 # --- Assemble the bundle -----------------------------------------------------
 say "Assembling $APP"
 rm -rf "$APP"
@@ -163,7 +188,14 @@ say "Node, web fetcher, Pi install payload, abilities"
 # Install payload for Pi's standard location (PiInstaller): pinned release in layout releases-v1 plus npm.
 # Node itself comes from Contents/Helpers/node, not duplicated.
 "$ROOT/scripts/bundle-pi-payload.sh" "$APP/Contents/Resources/pi-payload"
-# Pippa's curated abilities (SKILL.md per folder; PippaSkill.bundledDirectory). Pi does not load them as skills.
+# fd and rg next to Node: Pi's PATH starts with Node's folder (PiInstaller.baseEnvironment), so find and grep use these.
+for TOOL in fd rg; do
+  cp "$SEARCH_DIR/$TOOL/$TOOL" "$APP/Contents/Helpers/$TOOL"
+  for LICENSE in $(python3 -c "import json,sys; print(' '.join(json.load(open(sys.argv[1]))['tools'][sys.argv[2]]['licenses']))" "$SEARCH_JSON" "$TOOL"); do
+    cp "$SEARCH_DIR/$TOOL/$LICENSE" "$APP/Contents/Resources/$TOOL-$LICENSE.txt"
+  done
+done
+# Pippa's curated abilities (SKILL.md per folder; PippaSkill.bundledDirectory). Pi loads them with --skill (PippaPiLaunch).
 cp -R "$ROOT/runtime/pippa-skills" "$APP/Contents/Resources/pippa-skills"
 find "$APP/Contents/Resources/pippa-skills" -name '.DS_Store' -delete
 echo "    Resources: pippa-skills ($(find "$APP/Contents/Resources/pippa-skills" -name SKILL.md | wc -l | tr -d ' ') abilities)"
@@ -243,6 +275,8 @@ done < <(find "$APP/Contents/Resources/pi-payload" "$APP/Contents/Resources/pipp
 "${SIGN_LLAMA[@]}" --identifier io.github.tschnorpfeil.pippa.node \
   --entitlements "$PACKAGING/Node.entitlements" "$APP/Contents/Helpers/node"
 "${SIGN_LLAMA[@]}" --identifier io.github.tschnorpfeil.pippa.llama-server "$APP/Contents/Helpers/llama-server"
+"${SIGN_LLAMA[@]}" --identifier io.github.tschnorpfeil.pippa.fd "$APP/Contents/Helpers/fd"
+"${SIGN_LLAMA[@]}" --identifier io.github.tschnorpfeil.pippa.rg "$APP/Contents/Helpers/rg"
 "${SIGN[@]}" --entitlements "$PACKAGING/Pippa.entitlements" "$APP"
 codesign --verify --deep --strict "$APP"
 

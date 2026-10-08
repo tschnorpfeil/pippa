@@ -88,6 +88,8 @@ ok "Info.plist + en/de: texts for Calendar, Reminders, Apple Events, Desktop, Do
 
 # Helpers: run without a sandbox, also outside the bundle (the installer copies Node and esbuild to the home folder).
 [[ -x "$APP/Contents/Helpers/node" ]] || fail "bundled Node runtime missing"
+# fd and rg for Pi's find and grep (next to Node, first in Pi's PATH).
+for tool in fd rg; do [[ -x "$APP/Contents/Helpers/$tool" ]] || fail "bundled $tool missing"; done
 WEB="$APP/Contents/Resources/pippa-web"
 for path in src/fetcher.mjs src/generated/extract.mjs src/generated/duckduckgo.mjs package-lock.json; do
   [[ -f "$WEB/$path" ]] || fail "pippa-web/$path missing (web fetcher)"
@@ -111,6 +113,8 @@ done
 ok "Pippa's guard for Pi in Contents/Resources/pippa-guard"
 expect_entitlements "$APP/Contents/Helpers/node" "Helpers/node" "com.apple.security.cs.allow-jit com.apple.security.cs.disable-library-validation"
 expect_entitlements "$APP/Contents/Helpers/llama-server" "Helpers/llama-server" "-"
+expect_entitlements "$APP/Contents/Helpers/fd" "Helpers/fd" "-"
+expect_entitlements "$APP/Contents/Helpers/rg" "Helpers/rg" "-"
 native_executables=()
 while IFS= read -r -d '' file; do
   if [[ "$file" != *.node ]] && file -b "$file" | grep -q 'Mach-O.*executable'; then native_executables+=("$file"); fi
@@ -119,7 +123,7 @@ done < <(find "$APP/Contents/Resources/pi-payload" "$APP/Contents/Resources/pipp
 for file in "${native_executables[@]}"; do
   expect_entitlements "$file" "${file#"$APP/"}" "-"
 done
-signed_helpers=("$APP/Contents/Helpers/node" "$APP/Contents/Helpers/llama-server" "${native_executables[@]}")
+signed_helpers=("$APP/Contents/Helpers/node" "$APP/Contents/Helpers/llama-server" "$APP/Contents/Helpers/fd" "$APP/Contents/Helpers/rg" "${native_executables[@]}")
 while IFS= read -r -d '' file; do signed_helpers+=("$file"); done < <(find "$APP/Contents/Resources/pi-payload" "$APP/Contents/Resources/pippa-web" -type f -name '*.node' -print0)
 for file in "${signed_helpers[@]}"; do
   codesign --verify --strict "$file" 2>/dev/null || fail "${file#"$APP/"} invalidly signed"

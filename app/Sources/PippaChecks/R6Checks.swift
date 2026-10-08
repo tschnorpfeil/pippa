@@ -44,19 +44,17 @@ func runR6Checks() async {
             && PiConversationDefault.gate(nil, online: false, devModel: false) == .open
     }
 
-    // Skills: bundled German instructions before the message, message last.
+    // Skills: Pi expands `/skill:<name>` itself (loaded with --skill from the bundle); the message follows the name.
     let brief = PippaSkill.bundled.first { $0.name == "brief-verstehen" }
     check("R6: skill 'brief-verstehen' is bundled") { brief != nil }
     if let brief {
         let message = "[Gezeigt …]\nWas steht in diesem Brief, und was muss ich jetzt tun?"
         let prompt = PiSkillTurn.prompt(for: brief, message: message, language: "de")
-        check("R6: instructions (German, from the bundle) come before the message, message last") {
-            prompt.contains("Erkläre den angehängten Brief in einfacher Sprache") && prompt.hasSuffix(message)
-                && prompt.hasPrefix("[Fähigkeit „brief-verstehen“")
-                && prompt.range(of: "Erkläre")!.lowerBound < prompt.range(of: message)!.lowerBound
+        check("R6: button sends /skill:<name>, then the message") {
+            prompt == "/skill:brief-verstehen " + message
         }
-        check("R6: without instructions the message stays unchanged") {
-            PiSkillTurn.prompt(for: brief, message: message, language: "de", instructions: { _ in nil }) == message
+        check("R6: a capability that is not bundled leaves the message unchanged") {
+            PiSkillTurn.prompt(for: brief, message: message, language: "de", bundled: { _ in false }) == message
         }
         let reply = PippaSkill.bundled.first { $0.name == "antwort-schreiben" }
         check("R6: letter draft tells Pi 'do not create anything' (English and German)") {
@@ -64,6 +62,7 @@ func runR6Checks() async {
             return PiSkillTurn.prompt(for: reply, message: "x", language: "de", draftOnly: true).contains("leg keinen Entwurf an")
                 && PiSkillTurn.prompt(for: reply, message: "x", language: "en", draftOnly: true).contains("do not create a draft")
                 && !PiSkillTurn.prompt(for: reply, message: "x", language: "de").contains("leg keinen Entwurf an")
+                && PiSkillTurn.prompt(for: reply, message: "x", language: "de", draftOnly: true).hasPrefix("/skill:antwort-schreiben ")
         }
     }
     check("R6: all button skills have instructions for Pi") {

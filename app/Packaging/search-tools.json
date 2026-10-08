@@ -1,0 +1,17 @@
+{
+  "about": "fd and ripgrep for Pi's find and grep tools. Pippa puts them next to its Node (Contents/Helpers), which is first in PATH for Pi, so Pi never downloads them (PI_OFFLINE). Bump by editing version, url and sha256 together.",
+  "tools": {
+    "fd": {
+      "version": "10.3.0",
+      "url": "https://github.com/sharkdp/fd/releases/download/v10.3.0/fd-v10.3.0-aarch64-apple-darwin.tar.gz",
+      "sha256": "0570263812089120bc2a5d84f9e65cd0c25e4a4d724c80075c357239c74ae904",
+      "licenses": ["LICENSE-MIT", "LICENSE-APACHE"]
+    },
+    "rg": {
+      "version": "14.1.1",
+      "url": "https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-aarch64-apple-darwin.tar.gz",
+      "sha256": "24ad76777745fbff131c8fbc466742b011f925bfa4fffa2ded6def23b5b937be",
+      "licenses": ["LICENSE-MIT", "UNLICENSE"]
+    }
+  }
+}

@@ -1,11 +1,10 @@
 import Foundation
 
-/// What Pippa can do with paperwork, texts and Office files: curated instructions in the format of Pi skills, only from the
-/// app bundle (runtime/pippa-skills -> Contents/Resources/pippa-skills). Pi does not load them as skills: a button puts the
-/// instruction as text before the message (`PiSkillTurn`), fixed flows use it as system text (`Prompts`, `LetterModel`).
+/// What Pippa can do with paperwork, texts and Office files: Pi skills, only from the app bundle
+/// (runtime/pippa-skills -> Contents/Resources/pippa-skills). Pi loads them with `--skill` (PippaPiLaunch); a button sends
+/// `/skill:<name>` (`PiSkillTurn`) and Pi puts the instructions before the message.
 /// Swift keeps no list of its own: button and suggestion are in the header of the respective SKILL.md.
-/// A new skill is a new folder, no Swift. Pippa invokes a capability only on a button press, Pi then puts its
-/// instruction before the question. Results are text in the conversation: nothing is written or sent.
+/// A new skill is a new folder, no Swift. All of them are `disable-model-invocation: true`: only a button invokes one.
 ///
 /// Header (Pi's rules: `name` like the folder, `description`), plus Pippa's own fields, all optional:
 /// - `pippa-label`: button text, English. Without it there is no button.

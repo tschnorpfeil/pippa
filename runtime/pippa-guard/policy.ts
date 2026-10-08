@@ -112,6 +112,7 @@ export function lookOnly(command: string): string | undefined {
 		ls: "Dateien auflisten", find: "Dateien suchen", cat: "Dateien lesen", head: "Dateien lesen", tail: "Dateien lesen",
 		less: "Dateien lesen", wc: "zählen", grep: "Text suchen", rg: "Text suchen", pwd: "Ordner anzeigen", stat: "Dateiangaben lesen",
 		file: "Dateiart prüfen", du: "Größe messen", sort: "sortieren", uniq: "zusammenfassen", date: "Datum anzeigen", echo: "Text anzeigen",
+		fd: "Dateien suchen", mdfind: "mit Spotlight suchen", mdls: "Dateiangaben lesen",
 	};
 	const seen = new Set<string>();
 	for (const part of command.split(/\|\|?|&&|;/)) {
@@ -119,6 +120,10 @@ export function lookOnly(command: string): string | undefined {
 		if (!first) continue;
 		const meaning = words[first];
 		if (!meaning) return undefined;
+		// fd -x/-X/--exec(-batch) and rg --pre run other programs; mdfind -live never ends.
+		if (first === "fd" && /(^|\s)(-[a-zA-Z]*[xX]\b|--exec)/.test(part)) return undefined;
+		if (first === "rg" && /(^|\s)--pre\b/.test(part)) return undefined;
+		if (first === "mdfind" && /(^|\s)-live\b/.test(part)) return undefined;
 		seen.add(meaning);
 	}
 	return seen.size ? [...seen].join(", ") : undefined;

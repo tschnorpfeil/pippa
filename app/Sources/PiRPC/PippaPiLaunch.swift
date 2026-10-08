@@ -12,6 +12,7 @@ import Foundation
 ///   the counterpart of `defaultProjectTrust: "never"`, without touching the person's settings.
 /// - `--session-dir` in Pippa's support folder and `--session-id` per conversation (one Pi session per Pippa conversation).
 /// - `--system-prompt`: Pippa's own short prompt instead of "expert coding assistant"; fixed per language (prompt cache).
+/// - `--tools`: a fixed list (`tools`); `--no-skills --skill <bundle>`: only Pippa's skills.
 public enum PippaPiLaunch {
     public struct Paths: Sendable {
         /// runtime/pippa-guard/pippa-guard.ts
@@ -20,8 +21,11 @@ public enum PippaPiLaunch {
         public var toolsExtension: URL?
         /// Folder for Pi's session files, e.g. ~/Library/Application Support/Pippa/pi-sessions
         public var sessionDirectory: URL
-        public init(guardExtension: URL, toolsExtension: URL?, sessionDirectory: URL) {
+        /// Pippa's skills (runtime/pippa-skills -> Contents/Resources/pippa-skills), loaded with `--skill`.
+        public var skillsDirectory: URL?
+        public init(guardExtension: URL, toolsExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil) {
             self.guardExtension = guardExtension; self.toolsExtension = toolsExtension; self.sessionDirectory = sessionDirectory
+            self.skillsDirectory = skillsDirectory
         }
     }
 
@@ -70,7 +74,9 @@ public enum PippaPiLaunch {
     /// Pi options except `--mode rpc` and `--extension` (set by PiRPCClient). `sessionID`: `nil` = do not
     /// save a session (`--no-session`, trial runs only).
     public static func arguments(paths: Paths, sessionID: String?, language: String) -> [String] {
-        var args = ["--no-context-files", "--no-approve", "--system-prompt", systemPrompt(language: language)]
+        var args = ["--no-context-files", "--no-approve", "--tools", tools.joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
+        // Only Pippa's skills, so a same-named skill of the person never replaces the one a button means (PiSkillTurn).
+        if let skills = paths.skillsDirectory { args += ["--no-skills", "--skill", skills.path] }
         if let sessionID {
             args += ["--session-dir", paths.sessionDirectory.path, "--session-id", piSessionID(sessionID)]
         } else {
@@ -78,6 +84,12 @@ public enum PippaPiLaunch {
         }
         return args
     }
+
+    /// The tools Pi declares to the model, named explicitly so the person's `defaultTools` cannot widen or narrow
+    /// them (cli.md "Tools"). Pi's read/search tools (`grep`, `find`, `ls` use the bundled `rg` and `fd`), its file tools,
+    /// Pippa's file tools (pippa-tools.ts) and Pippa's MCP server. Names Pi does not know are ignored.
+    public static let tools = ["read", "bash", "edit", "write", "grep", "find", "ls",
+                               "list_folder", "rename_or_move", "move_files", "move_to_trash", "mcp__pippa__*"]
 
     /// Pi allows only letters, digits, `.`, `_`, `-` in session IDs, and a letter or digit at start and end
     /// (cli.md "Sessions"). Pippa's ID is `<conversation UUID>` or `<conversation UUID>:<revision UUID>`.
@@ -104,6 +116,7 @@ public enum PippaPiLaunch {
     Halte Namen, Daten, Zahlen und Zitate genau. Rate nicht; was du nicht gelesen hast, weißt du nicht.
     Was die Person zeigt, steht mit Pfad in ihrer Nachricht; lies es selbst, PDF, Scan, Bild, Word und Mail mit mcp__pippa__read_document.
     Alltagsordner liegen im Benutzerordner, nie im Arbeitsordner: Downloads = ~/Downloads, Dokumente = ~/Documents, Schreibtisch = ~/Desktop.
+    Eigene Dateien findest du mit find und grep, nach Inhalt auch mit mdfind (Spotlight) über bash; dafür nie web_search.
     Für Aktuelles (Wetter, Öffnungszeiten, Nachrichten) ruf mcp__pippa__web_search auf; nenne die Quellen mit Link.
     Soll etwas geändert, eingetragen oder nachgesehen werden, ruf das passende Werkzeug gleich auf; wo nötig, fragt Pippa selbst. Frag nie im Text, ob du darfst, und schreib keinen Plan aus.
     Aufräumen oder Sortieren: list_folder, dann ein einziger move_files-Aufruf, danach kurz sagen, was wohin kam.
@@ -117,6 +130,7 @@ public enum PippaPiLaunch {
     Keep names, dates, numbers and quotes exact. Don't guess; what you haven't read, you don't know.
     What the person shows you is listed with its path in their message; read it yourself, PDF, scan, image, Word and email with mcp__pippa__read_document.
     Everyday folders are in the home folder, never in the working folder: Downloads = ~/Downloads, Documents = ~/Documents, Desktop = ~/Desktop.
+    Find the person's own files with find and grep, by content also with mdfind (Spotlight) via bash; never web_search for that.
     For current facts (weather, opening hours, news) call mcp__pippa__web_search and name the sources with their link.
     When something should be changed, added or looked up, call the matching tool right away; where needed, Pippa asks the person itself. Never ask for permission in your text and don't write out a plan.
     Tidying or sorting: list_folder, then one move_files call, then say briefly what went where.
