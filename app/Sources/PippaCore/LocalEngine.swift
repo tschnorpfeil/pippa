@@ -721,21 +721,51 @@ public actor LocalEngine: PippaEngine {
             if i == toRead.count - 1 || Date().timeIntervalSince(published) > 0.3 { publish(pending: Array(toRead.dropFirst(i + 1)) + unclear) }
         }
 
-        // 3. Model, only for unclear ones. If it isn't there (still loading, waking up, not answering), Pippa doesn't guess:
-        // the document stays put and goes to `later`, for one round, once the model is ready.
+        // 3. Model, only for unclear ones (TidyClassifier: system model first, else the local one; short excerpt, time limit).
+        // If none is there (still loading, waking up, not answering), Pippa doesn't guess: the document stays put and goes
+        // to `later`, for one round, once the model is ready. Small, text-rich files first, so the progress moves visibly.
+        unclear = TidyClassifier.readingOrder(unclear)
         for (i, url) in unclear.enumerated() {
             try Task.checkCancellation()
-            guard canAskModel else {
+            guard canClassify else {
                 later += unclear.dropFirst(i)
                 publish(pending: [])
                 break
             }
             step(i, of: unclear.count, url)
             let insight = try await insight(for: url, model: true)
-            if insight.fromModel || insight.skipReason != nil { insights.append(insight) } else { later.append(url) }
+            if let why = insight.skipReason { skipped.append((url, why)) }
+            else if insight.fromModel { insights.append(insight) }
+            else { later.append(url) }
             publish(pending: Array(unclear.dropFirst(i + 1)))
         }
         return plan
+    }
+
+    /// Can stage 3 classify now (system model or local model)? No side effects.
+    var canClassify: Bool {
+        TidyClassifier.canClassify(replay: replay != nil, appleAvailable: TidyClassifier.appleAvailable, localReady: canAskModel)
+    }
+
+    /// One unclear document while tidying: the routes of `TidyClassifier` in order, each with the per-file time limit.
+    private func classifyForTidy(name: String, doc: DocumentText) async throws -> (answer: ClassifyJSON?, outcome: TidyClassifier.Outcome) {
+        let prompt = TidyClassifier.prompt(name: name, doc: doc)
+        let system = Prompts.system(.classify)
+        var outcomes: [TidyClassifier.Outcome] = []
+        for route in TidyClassifier.routes(replay: replay != nil, appleAvailable: TidyClassifier.appleAvailable, localReady: canAskModel) {
+            let started = Date()
+            let (answer, timedOut) = try await TidyClassifier.withTimeout(TidyClassifier.perFileTimeout(route)) { [self] () async throws -> ClassifyJSON? in
+                switch route {
+                case .apple: try await TidyClassifier.askApple(system: system, prompt: prompt)
+                case .local: try await self.askModel(.classify, user: prompt, schema: Prompts.classifySchema, name: "einordnung", as: ClassifyJSON.self)
+                }
+            }
+            DiagnosticsLog.shared.event("einordnen", ["weg": route.rawValue, "ms": String(Int(Date().timeIntervalSince(started) * 1000)),
+                                                      "ergebnis": answer != nil ? "ja" : timedOut ? "zeit" : "nein"])
+            if let answer { return (answer, .answered) }
+            outcomes.append(timedOut ? .timedOut : .declined)
+        }
+        return (nil, TidyClassifier.settle(outcomes))
     }
 
     /// Can stage 3 ask the model now? No side effects: starts no server and loads nothing.
@@ -777,7 +807,17 @@ public actor LocalEngine: PippaEngine {
         var insight = DocInsight(url: url, facts: facts, text: doc, category: .other, reason: "", certainty: .unsure)
         var fromModel = false
         var unbacked = false
-        if model, let m = try await askModel(.classify, user: "Dateiname: \(name)\n\n\(doc.capped())", schema: Prompts.classifySchema, name: "einordnung", as: ClassifyJSON.self) {
+        var classified: ClassifyJSON?
+        if model {
+            let (answer, outcome) = try await classifyForTidy(name: name, doc: doc)
+            // Too slow everywhere: no guessing and no waiting, the file stays where it is (calm note in the preview).
+            if outcome == .timedOut {
+                return DocInsight(url: url, facts: facts, text: doc, category: .other, reason: "", certainty: .unreadable,
+                                  skipReason: L("Reading this one took too long. It stays where it is for now.", table: "Core"))
+            }
+            classified = answer
+        }
+        if let m = classified {
             fromModel = true
             insight.fromModel = true
             let modelCategory: DocCategory? = switch m.kategorie {
@@ -868,6 +908,11 @@ public actor LocalEngine: PippaEngine {
         let sorted = ordered.filter { $0.category != .photo } + ordered.filter { $0.category == .photo }
 
         for i in sorted {
+            if i.duplicateOf != nil {
+                ops.append(PlanOp(id: id(i.url), kind: .trash, source: i.url, target: i.url, reason: i.reason, certainty: i.certainty,
+                                  fingerprint: FileFingerprint.of(i.url)))
+                continue
+            }
             let ext = i.url.pathExtension
             let rel: String
             var name: String

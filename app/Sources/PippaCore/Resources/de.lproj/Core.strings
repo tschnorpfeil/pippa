@@ -98,6 +98,7 @@
 "Heading on page 1" = "Überschrift auf Seite 1";
 "New folder" = "Neuer Ordner";
 "I can’t make out any text. I won’t guess, so the file stays where it is." = "Kein Text erkennbar. Ich rate nicht, die Datei bleibt, wo sie ist.";
+"Reading this one took too long. It stays where it is for now." = "Das Lesen hat zu lange gedauert. Die Datei bleibt erst einmal, wo sie ist.";
 "1 invoice" = "1 Rechnung";
 "%lld invoices" = "%lld Rechnungen";
 "%@ · %lld to check" = "%@ · %lld zum Prüfen";
@@ -201,3 +202,6 @@
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
 "I didn’t ask %@. Nothing left your Mac." = "Ich habe %@ nicht gefragt. Nichts hat deinen Mac verlassen.";
+"1 in the Trash" = "1 im Papierkorb";
+"%lld in the Trash" = "%lld im Papierkorb";
+"It’s no longer in the Trash." = "Die Datei liegt nicht mehr im Papierkorb.";

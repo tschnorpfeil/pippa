@@ -74,6 +74,75 @@ func runR7bChecks() async {
             && TidyIntent.folder(for: .documents, home: home).path == home.path + "/Documents"
     }
 
+    // Folders by their own name or path: only existing, ordinary, unique folders under home; everything else to Pi.
+    let invoices = documents.appendingPathComponent("Rechnungen", isDirectory: true)
+    let english = desktop.appendingPathComponent("Invoices", isDirectory: true)
+    let garden = home.appendingPathComponent("Projekt Garten", isDirectory: true)
+    let gardenOnly = downloads.appendingPathComponent("Garten", isDirectory: true)
+    let twice1 = documents.appendingPathComponent("Steuer", isDirectory: true)
+    let twice2 = downloads.appendingPathComponent("Steuer", isDirectory: true)
+    for folder in [invoices, english, garden, gardenOnly, twice1, twice2, home.appendingPathComponent("Library/Mail", isDirectory: true),
+                   home.appendingPathComponent("Pictures/Urlaub", isDirectory: true), documents.appendingPathComponent(".geheim", isDirectory: true),
+                   documents.appendingPathComponent("Fotos.photoslibrary", isDirectory: true)] {
+        try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
+    }
+    let named: [(String, URL?)] = [
+        ("Räum meinen Ordner Rechnungen auf", invoices),
+        ("räum den rechnungen-ordner auf", invoices),
+        ("Tidy my Invoices folder", english),
+        ("Sortier Projekt Garten", garden),                        // the longer name wins over "Garten"
+        ("Räum den Ordner Garten auf", gardenOnly),
+        ("Räum meinen Ordner Rechnungen in Dokumente auf", invoices),
+        ("Räum ~/Documents/Rechnungen auf", invoices),
+        ("Räum \"\(garden.path)\" auf", garden),
+        // To Pi: ambiguous, unknown, Library, media library, hidden, package, outside home.
+        ("Räum meinen Ordner Steuer auf", nil),
+        ("Räum meinen Ordner Urlaubsfotos auf", nil),
+        ("Räum den Ordner Mail auf", nil),
+        ("Räum den Ordner Urlaub auf", nil),
+        ("Räum ~/Library/Mail auf", nil),
+        ("Räum ~/Pictures/Urlaub auf", nil),
+        ("Räum ~/Documents/.geheim auf", nil),
+        ("Räum den Ordner Fotos auf", nil),
+        ("Räum /System/Library auf", nil),
+        ("Räum ~/Documents/Gibtsnicht auf", nil),
+        ("Wie räume ich meinen Ordner Rechnungen auf?", nil),
+    ]
+    var wrongNamed: [String] = []
+    for (text, expected) in named {
+        let intent = TidyIntent.parse(text, shownFolder: nil, home: home)
+        if intent?.folder.standardizedFileURL != expected?.standardizedFileURL || (expected != nil && intent?.source != .found) {
+            wrongNamed.append("\"\(text)\": \(intent?.folder.path ?? "Pi") instead of \(expected?.path ?? "Pi")")
+        }
+    }
+    check("R7b: tidy a folder by its own name or path (\(named.count) cases, unique matches only, never Library or hidden)") {
+        if !wrongNamed.isEmpty { print("    " + wrongNamed.joined(separator: "\n    ")) }
+        return wrongNamed.isEmpty
+    }
+
+    check("Tidy preview: \"was: …\" only when the name really changes (extension included)") {
+        let folder = URL(fileURLWithPath: "/tmp/x", isDirectory: true)
+        let same = PlanOp(kind: .move, source: folder.appendingPathComponent("Bild.png"), target: folder.appendingPathComponent("Bilder/Bild.png"), reason: "", certainty: .sure)
+        let renamed = PlanOp(kind: .move, source: folder.appendingPathComponent("IMG_1.jpg"), target: folder.appendingPathComponent("Fotos/2024-05-03 Foto 01.jpg"), reason: "", certainty: .sure)
+        let ext = PlanOp(kind: .rename, source: folder.appendingPathComponent("Bild.jpeg"), target: folder.appendingPathComponent("Bild.jpg"), reason: "", certainty: .sure)
+        return same.previousName == nil && renamed.previousName == "IMG_1.jpg" && ext.previousName == "Bild.jpeg"
+    }
+
+    check("Tidy classification: system model first, local model as fallback, recordings alone; time limit leaves the file in place") {
+        typealias C = TidyClassifier
+        return C.routes(replay: false, appleAvailable: true, localReady: true) == [.apple, .local]
+            && C.routes(replay: false, appleAvailable: true, localReady: false) == [.apple]
+            && C.routes(replay: false, appleAvailable: false, localReady: true) == [.local]
+            && C.routes(replay: true, appleAvailable: true, localReady: false) == [.local]
+            && !C.canClassify(replay: false, appleAvailable: false, localReady: false)
+            && C.canClassify(replay: false, appleAvailable: true, localReady: false)       // not deferred to "later" when the system model is there
+            && C.settle([.declined, .answered]) == .answered
+            && C.settle([.timedOut, .declined]) == .timedOut
+            && C.settle([.declined]) == .declined && C.settle([]) == .declined
+            && C.excerptChars <= 1500 && C.perFileTimeout(.apple) <= .seconds(20) && C.perFileTimeout(.local) <= .seconds(60)
+            && C.prompt(name: "a.txt", doc: DocumentText(url: URL(fileURLWithPath: "/tmp/a.txt"), pages: [String(repeating: "x", count: 9000)], isPaged: false, usedOCR: false, headers: [:])).count < 1600
+    }
+
     // MARK: Undo all
 
     await checkAsync("R7b: \"Undo all\" restores all lines bottom to top (new folder last), one result line per step") {

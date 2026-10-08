@@ -27,6 +27,10 @@ let root = fm.temporaryDirectory.appendingPathComponent("pippa-checks-\(UUID().u
 try fm.createDirectory(at: root, withIntermediateDirectories: true)
 defer { try? fm.removeItem(at: root) }
 setenv("PIPPA_LOG_DIR", root.appendingPathComponent("log").path, 1)
+// Identical copies go "to the Trash" in a folder of the run, never into the real Trash.
+setenv("PIPPA_CHECK_TRASH", root.appendingPathComponent("Papierkorb").path, 1)
+// Checks never depend on this Mac's system model (Apple Intelligence on or off): tidying uses recordings or nothing.
+setenv("PIPPA_NO_SYSTEM_MODEL", "1", 1)
 
 if ProcessInfo.processInfo.environment["PIPPA_DOWNLOAD_CHECKS"] == "1" {
     await runDownloadChecks()
