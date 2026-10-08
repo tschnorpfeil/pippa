@@ -290,7 +290,17 @@
         "chat-template-kwargs": "{\"reasoning_effort\":\"low\",\"tool_call_format\":\"xml\"}"
       },
       "license": "Apache-2.0",
-      "licenseUrl": "https://huggingface.co/IFM/K2-Horizon-7B"
+      "licenseUrl": "https://huggingface.co/IFM/K2-Horizon-7B",
+      "pinned": {
+        "revision": "9fb01f7b397994455262f4b8256e4e00e4949ea9",
+        "files": [
+          {
+            "path": "K2-Horizon-7B-Q4_K_M.gguf",
+            "size": 5592217984,
+            "sha256": "eb89c15a0ae9712be2ee462bf43802de14200f20f93b73da6eb68c2ebdd28e4e"
+          }
+        ]
+      }
     },
     {
       "key": "qwen3.5-9b-q4",
