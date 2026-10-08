@@ -167,7 +167,7 @@ public actor LlamaServer {
                     "--jinja", "--ctx-size", String(choice.ctx), "--parallel", "1"]
         if let alias, ok("--alias") { args += ["--alias", alias] }
         if let slotSavePath, ok("--slot-save-path") { args += ["--slot-save-path", slotSavePath.path] }
-        // Gemma's sliding-window layers otherwise keep only the last window. After restoring a slot, the intermediate
+        // Sliding-window layers otherwise keep only the last window. After restoring a slot, the intermediate
         // states are missing (checkpoints are not in the file); if the end of the new request differs by even a
         // few tokens, llama-server re-reads everything. With a full SWA cache it can truncate anywhere.
         if swaFull, ok("--swa-full") { args.append("--swa-full") }

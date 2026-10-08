@@ -1,7 +1,7 @@
 import Foundation
 import PippaCore
 
-/// Host-side source fidelity. Answers below are real raw model answers (Apple FM, Gemma 4 12B baseline);
+/// Host-side source fidelity. Answers below are real raw model answers (Apple FM and a local 12B model as baseline);
 /// sources are the fixture texts as LocalEngine.snapshots reads them.
 func runSourceFidelityChecks() {
     typealias S = SourceFidelity
@@ -55,7 +55,7 @@ func runSourceFidelityChecks() {
             && !review.text.contains("enthält keine Angaben") && review.text.contains("08.12.2026 um 10 Uhr")
             && review.text.contains("Die Lücke liegt bei der vollständigen Analyse von Quelle 2.") && review.text.hasPrefix(open)
     }
-    check("Source fidelity: partially read source – Gemma table loses only the invented row") {
+    check("Source fidelity: partially read source – a local model's table loses only the invented row") {
         let answer = """
         Ein direkter Vergleich der Liefertermine ist nicht möglich, da die Bestätigung keinen Termin nennt.
 
@@ -139,7 +139,7 @@ func runSourceFidelityChecks() {
             && !review.text.contains("sind gleich") && !review.text.contains("Beide Dokumente") && !review.text.contains("Keine Abweichung")
             && !review.text.contains("identisch") && review.text.hasPrefix(open)
     }
-    check("Source fidelity: unknown counter-source – a correct Gemma answer stays unchanged") {
+    check("Source fidelity: unknown counter-source – a correct local answer stays unchanged") {
         let answer = """
         Ein Vergleich der Lieferbedingungen ist aktuell nicht möglich, da der Inhalt von Quelle 2 fehlt.
 

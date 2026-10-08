@@ -191,7 +191,7 @@ Started by hand with *app* ticked it also builds an ad-hoc signed `Pippa.app` an
 ```sh
 scripts/live-test.sh                # smallest catalog model, all flows with timings and checks
 scripts/live-test.sh auto           # model chosen by memory, as in the app
-scripts/live-test.sh gemma-4-12b    # any catalog key
+scripts/live-test.sh qwen3.5-9b-q4  # any catalog key
 ```
 
 The script fetches the pinned `llama-server` and the model into `~/Library/Caches/pippa-live` (`PIPPA_LIVE_DIR`),

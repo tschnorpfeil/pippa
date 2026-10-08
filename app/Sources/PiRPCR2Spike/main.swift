@@ -89,7 +89,7 @@ func runRPC() async throws {
     }
     let homeURL = URL(fileURLWithPath: home, isDirectory: true)
     let roots = PiInstallRoots(home: homeURL, payload: payload, searchPath: [homeURL.appendingPathComponent(".local/bin")])
-    let model = env["PIPPA_PI_MODEL"] ?? "gemma-4-12b"
+    let model = env["PIPPA_PI_MODEL"] ?? "k2-horizon-7b"
     guard let spec = PiInstaller(roots: roots).launchSpec(modelID: model) else { print("Pi missing in the fake HOME (setup)"); exit(2) }
     let launcher = PippaPiLaunch.Launcher(executable: spec.executable, launcherArguments: spec.launcherArguments, piArguments: spec.piArguments, environment: spec.environment)
     let guardDir = URL(fileURLWithPath: guardPath).deletingLastPathComponent()

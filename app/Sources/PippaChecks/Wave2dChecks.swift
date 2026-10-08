@@ -61,7 +61,7 @@ func runWave2dChecks() async {
     let busyFlag = base.appendingPathComponent("busy")
     setenv("FAKE_LLAMA_BUSY", busyFlag.path, 1)
     let catalog = ModelCatalog.bundled()
-    guard let gemma = catalog.model("gemma-4-12b") else { check("Catalog knows gemma-4-12b") { false }; return }
+    guard let model9b = catalog.model("qwen3.5-9b-q4") else { check("Catalog knows qwen3.5-9b-q4") { false }; return }
 
     /// Fake HOME with installer state: payload (metadata.json only), support folder with port and key, models.json.
     func installed(_ name: String, contextWindow: Int = 16384, modelsJSONPort: Int? = nil) throws -> (roots: PiInstallRoots, port: Int) {
@@ -71,7 +71,7 @@ func runWave2dChecks() async {
         write(#"{"version":"1.0.4"}"#, release.appendingPathComponent("metadata.json"))
         let roots = PiInstallRoots(home: home, payload: try PiPayload(release: release, node: URL(fileURLWithPath: "/usr/bin/false")), searchPath: [])
         let port = PiInstaller.stablePort(support: roots.support)
-        let entry = PiInstaller.providerEntry(models: [PiProviderModel(id: "gemma-4-12b", name: "Gemma", contextWindow: contextWindow)],
+        let entry = PiInstaller.providerEntry(models: [PiProviderModel(id: "qwen3.5-9b-q4", name: "Qwen", contextWindow: contextWindow)],
                                               port: modelsJSONPort ?? port, keyFile: roots.llamaKeyFile)
         try fm.createDirectory(at: roots.agentDirectory, withIntermediateDirectories: true)
         try JSONSerialization.data(withJSONObject: ["providers": [PiInstaller.providerKey: entry]]).write(to: roots.modelsJSON)
@@ -85,8 +85,8 @@ func runWave2dChecks() async {
         var state = PiInstallState()
         state.modelsFolder = roots.sharedModels.path
         try state.save(to: roots.stateFile)
-        try fakeInstalled(gemma, in: roots.sharedModels)
-        let plan = try PiLocalServer.plan(roots: roots, modelID: "gemma-4-12b", legacySupport: base.appendingPathComponent("leer"),
+        try fakeInstalled(model9b, in: roots.sharedModels)
+        let plan = try PiLocalServer.plan(roots: roots, modelID: "qwen3.5-9b-q4", legacySupport: base.appendingPathComponent("leer"),
                                           physicalMemory: 16 << 30, binary: binary, environment: [:])
         let key = try String(contentsOf: roots.llamaKeyFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
         let mode = ((try? fm.attributesOfItem(atPath: roots.llamaKeyFile.path)[.posixPermissions] as? NSNumber)?.intValue ?? 0) & 0o777
@@ -94,9 +94,9 @@ func runWave2dChecks() async {
         let joined = args.joined(separator: " ")
         return plan.port == port && plan.key == key && mode == 0o600 && plan.source == "installer"
             && plan.modelFile.deletingLastPathComponent().standardizedFileURL == roots.sharedModels.standardizedFileURL
-            && plan.choice.ctx == 8192 && plan.idleSeconds == 600 && plan.modelID == "gemma-4-12b"
+            && plan.choice.ctx == 8192 && plan.idleSeconds == 600 && plan.modelID == "qwen3.5-9b-q4"
             && plan.slotDirectory == roots.support.appendingPathComponent("llama-slots", isDirectory: true)
-            && joined.contains("--host 127.0.0.1 --port \(port)") && joined.contains("--alias gemma-4-12b") && joined.contains("--ctx-size 8192")
+            && joined.contains("--host 127.0.0.1 --port \(port)") && joined.contains("--alias qwen3.5-9b-q4") && joined.contains("--ctx-size 8192")
             && !joined.contains(key)   // key only in the environment, never in the arguments (ps)
     }
 
@@ -104,11 +104,11 @@ func runWave2dChecks() async {
         let (roots, _) = try installed("w2d-fallback")
         let legacy = base.appendingPathComponent("w2d-legacy-support", isDirectory: true)
         func plan(_ env: [String: String], legacy: URL) throws -> PiLocalServer.Plan {
-            try PiLocalServer.plan(roots: roots, modelID: "gemma-4-12b", legacySupport: legacy, physicalMemory: 16 << 30, binary: binary, environment: env)
+            try PiLocalServer.plan(roots: roots, modelID: "qwen3.5-9b-q4", legacySupport: legacy, physicalMemory: 16 << 30, binary: binary, environment: env)
         }
         var missing = false
-        do { _ = try plan([:], legacy: legacy) } catch PiLocalServer.Failure.modelMissing("gemma-4-12b") { missing = true }
-        try fakeInstalled(gemma, in: legacy.appendingPathComponent("models", isDirectory: true))
+        do { _ = try plan([:], legacy: legacy) } catch PiLocalServer.Failure.modelMissing("qwen3.5-9b-q4") { missing = true }
+        try fakeInstalled(model9b, in: legacy.appendingPathComponent("models", isDirectory: true))
         let old = try plan([:], legacy: legacy)
         let devFile = base.appendingPathComponent("dev.gguf"); write("x", devFile)
         let dev = try plan(["PIPPA_MODEL_FILE": devFile.path, "PIPPA_LLAMA_IDLE_SECONDS": "30", "PIPPA_LLAMA_SLOT_CACHE": "0"], legacy: legacy)
@@ -116,20 +116,20 @@ func runWave2dChecks() async {
         let minutes = try plan([:], legacy: legacy)
         let (other, port) = try installed("w2d-mismatch", modelsJSONPort: 1)
         var mismatch = false
-        do { _ = try PiLocalServer.plan(roots: other, modelID: "gemma-4-12b", legacySupport: legacy, binary: binary, environment: [:]) }
+        do { _ = try PiLocalServer.plan(roots: other, modelID: "qwen3.5-9b-q4", legacySupport: legacy, binary: binary, environment: [:]) }
         catch PiLocalServer.Failure.portMismatch(modelsJSON: 1, settings: port) { mismatch = true }
         var unknown = false
         do { _ = try PiLocalServer.plan(roots: roots, modelID: "gibt-es-nicht", legacySupport: legacy, binary: binary, environment: [:]) }
         catch PiLocalServer.Failure.unknownModel { unknown = true }
         var noBinary = false
-        do { _ = try PiLocalServer.plan(roots: roots, modelID: "gemma-4-12b", legacySupport: legacy, binary: nil, environment: [:]) }
+        do { _ = try PiLocalServer.plan(roots: roots, modelID: "qwen3.5-9b-q4", legacySupport: legacy, binary: nil, environment: [:]) }
         catch PiLocalServer.Failure.binaryMissing { noBinary = true }
         return missing && old.source == "pippa" && dev.source == "dev" && dev.modelFile == devFile && dev.idleSeconds == 30 && dev.slotDirectory == nil
             && minutes.idleSeconds == 180 && mismatch && unknown && noBinary
     }
 
     check("LocalEngine server unchanged: without alias the same arguments as before (no --alias)") {
-        guard let choice = ModelSelector.named("gemma-4-12b", physicalMemory: 16 << 30) else { return false }
+        guard let choice = ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 << 30) else { return false }
         let args = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1234, supported: nil)
         return !args.contains("--alias") && Array(args.prefix(6)) == ["-m", "/m.gguf", "--host", "127.0.0.1", "--port", "1234"]
     }
@@ -141,9 +141,9 @@ func runWave2dChecks() async {
         let support = dir("w2d-server")
         let port = PiInstaller.stablePort(support: support)
         let key = try PiInstaller.stableKey(support: support)
-        guard let choice = ModelSelector.named("gemma-4-12b", physicalMemory: 16 << 30) else { return false }
+        guard let choice = ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 << 30) else { return false }
         let server = LlamaServer(choice: choice, modelPath: URL(fileURLWithPath: "/m.gguf"), binary: binary, logDirectory: support,
-                                 fixedPort: port, fixedKey: key, alias: "gemma-4-12b", idleAfter: 1.0, logName: "llama-server-pi.log")
+                                 fixedPort: port, fixedKey: key, alias: "qwen3.5-9b-q4", idleAfter: 1.0, logName: "llama-server-pi.log")
         let coldBefore = await server.isWarm
         let lease = try await server.acquireAgentLease()
         let firstPID = await server.processID
@@ -177,7 +177,7 @@ func runWave2dChecks() async {
         let support = dir("w2d-busy")
         let port = PiInstaller.stablePort(support: support)
         let key = try PiInstaller.stableKey(support: support)
-        guard let choice = ModelSelector.named("gemma-4-12b", physicalMemory: 16 << 30) else { return false }
+        guard let choice = ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 << 30) else { return false }
         let server = LlamaServer(choice: choice, modelPath: URL(fileURLWithPath: "/m.gguf"), binary: binary, logDirectory: support,
                                  fixedPort: port, fixedKey: key, idleAfter: 0.8, logName: "busy.log")
         write("", busyFlag)

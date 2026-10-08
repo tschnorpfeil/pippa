@@ -56,13 +56,13 @@ func runR7Checks() async {
     try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: binary.path)
     let log = base.appendingPathComponent("requests.log")
     setenv("FAKE_R7_LOG", log.path, 1)
-    guard let choice = ModelSelector.named("gemma-4-12b", physicalMemory: 16 << 30) else {
-        check("R7: catalog knows gemma-4-12b") { false }; return
+    guard let choice = ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 << 30) else {
+        check("R7: catalog knows qwen3.5-9b-q4") { false }; return
     }
 
     check("R7: with slot folder --slot-save-path and --swa-full; LocalEngine server without both") {
         let slots = URL(fileURLWithPath: "/S/Pippa/llama-slots", isDirectory: true)
-        let with = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1, supported: nil, alias: "gemma-4-12b",
+        let with = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1, supported: nil, alias: "qwen3.5-9b-q4",
                                          slotSavePath: slots, swaFull: true).joined(separator: " ")
         let without = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1, supported: nil).joined(separator: " ")
         let unknown = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1, supported: ["--alias"], alias: "a",
@@ -72,10 +72,10 @@ func runR7Checks() async {
             && !unknown.contains("--slot-save-path") && !unknown.contains("--swa-full")   // old llama.cpp without these switches
     }
     check("R7: slot file name per model and context, allowed characters only") {
-        let a = LlamaServer.slotFileName(alias: "gemma-4-12b", model: URL(fileURLWithPath: "/x/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"), ctx: 16384)
-        let b = LlamaServer.slotFileName(alias: "gemma-4-12b", model: URL(fileURLWithPath: "/x/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"), ctx: 8192)
+        let a = LlamaServer.slotFileName(alias: "qwen3.5-9b-q4", model: URL(fileURLWithPath: "/x/Qwen3.5-9B-Q4_K_M.gguf"), ctx: 16384)
+        let b = LlamaServer.slotFileName(alias: "qwen3.5-9b-q4", model: URL(fileURLWithPath: "/x/Qwen3.5-9B-Q4_K_M.gguf"), ctx: 8192)
         let odd = LlamaServer.slotFileName(alias: "a/b c", model: URL(fileURLWithPath: "/x/Mein Modell (neu).gguf"), ctx: 1)
-        return a == "pippa-slot-gemma-4-12b-gemma-4-12B-it-qat-UD-Q4_K_XL-c16384.bin" && a != b
+        return a == "pippa-slot-qwen3.5-9b-q4-Qwen3.5-9B-Q4_K_M-c16384.bin" && a != b
             && !odd.contains("/") && !odd.contains(" ") && !odd.contains("(") && odd.hasSuffix(".bin")
     }
 
@@ -85,8 +85,8 @@ func runR7Checks() async {
         let slots = support.appendingPathComponent("llama-slots", isDirectory: true)
         let port = PiInstaller.stablePort(support: support)
         let key = try PiInstaller.stableKey(support: support)
-        let server = LlamaServer(choice: choice, modelPath: URL(fileURLWithPath: "/m/gemma.gguf"), binary: binary, logDirectory: support,
-                                 fixedPort: port, fixedKey: key, alias: "gemma-4-12b", idleAfter: 1.0, logName: "llama-server-pi.log",
+        let server = LlamaServer(choice: choice, modelPath: URL(fileURLWithPath: "/m/model.gguf"), binary: binary, logDirectory: support,
+                                 fixedPort: port, fixedKey: key, alias: "qwen3.5-9b-q4", idleAfter: 1.0, logName: "llama-server-pi.log",
                                  slotDirectory: slots)
         let lease = try await server.acquireAgentLease()
         let firstRestore = await server.lastSlotRestore            // nothing saved → nothing restored
@@ -107,7 +107,7 @@ func runR7Checks() async {
         await server.discardSavedSlot()
         let gone = !fm.fileExists(atPath: file.path)
         return firstRestore == nil && unloaded && saved?.ok == true && saved?.tokens == 1234 && mode == 0o600 && dirMode == 0o700
-            && restored?.ok == true && posts.count == 2 && posts[0].contains("/slots/0 save pippa-slot-gemma-4-12b-gemma-c")
+            && restored?.ok == true && posts.count == 2 && posts[0].contains("/slots/0 save pippa-slot-qwen3.5-9b-q4-model-c")
             && posts[1].contains("/slots/0 restore") && startsWithSlots && gone
     }
 

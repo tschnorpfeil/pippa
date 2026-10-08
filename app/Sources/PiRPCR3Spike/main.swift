@@ -7,7 +7,7 @@ import PippaCore
 // MCP server in this process). **Stand-in integrations only** (`DemoIntegrations`): invented appointments, drafts and
 // entries live only in this process's memory; real Mail, real Calendar and real Reminders are never touched.
 //
-//   scripts/pi-rpc-spike.sh setup && scripts/pi-rpc-spike.sh llama-start [qwen|gemma]
+//   scripts/pi-rpc-spike.sh setup && scripts/pi-rpc-spike.sh llama-start [k2|qwen]
 //   scripts/pi-rpc-spike.sh r3 [hfbar|all]
 //   scripts/pi-rpc-spike.sh llama-stop
 //
@@ -77,7 +77,7 @@ let cases: [Case] = [
 
 let homeURL = URL(fileURLWithPath: home, isDirectory: true)
 let roots = PiInstallRoots(home: homeURL, payload: payload, searchPath: [homeURL.appendingPathComponent(".local/bin")])
-let model = env["PIPPA_PI_MODEL"] ?? "gemma-4-12b"
+let model = env["PIPPA_PI_MODEL"] ?? "k2-horizon-7b"
 guard let spec = PiInstaller(roots: roots).launchSpec(modelID: model) else { print("Pi missing in the fake HOME (setup)"); exit(2) }
 let launcher = PippaPiLaunch.Launcher(executable: spec.executable, launcherArguments: spec.launcherArguments, piArguments: spec.piArguments, environment: spec.environment)
 let guardDir = URL(fileURLWithPath: guardPath).deletingLastPathComponent()

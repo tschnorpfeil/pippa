@@ -1,6 +1,6 @@
 import Foundation
 
-// Gemma often wrote the reply to a shown mail only into the text and once claimed "draft created" without calling
+// Small local models often wrote the reply to a shown mail only into the text and once claimed "draft created" without calling
 // `mail_draft`. Pippa makes that visible and fixable without a model:
 //
 // - If the answer has a shown mail (.eml) or a read selected mail, contains a reply text and there is no mail draft

@@ -253,8 +253,8 @@ func runR3Checks() async {
 
     // MARK: Addendum 'As draft in Mail' (reply text without mail_draft)
 
-    // Wording as produced by Gemma 12B and Qwen 4B in the end-to-end run.
-    let gemmaAnswer = """
+    // Wording as produced by local models in the end-to-end run.
+    let modelAnswer = """
     Ja, der Termin am Donnerstag, 8. Oktober um 9:00 Uhr passt, da dein Kalender für diese Zeit frei ist.
 
     Ich habe einen Entwurf für die Antwort erstellt:
@@ -281,18 +281,18 @@ func runR3Checks() async {
     Soll ich diesen Entwurf versenden?
     """
     check("R3+ reply text: salutation to closing (without To/Subject), block in quotation marks, follow-up question after it dropped; without reply text nil") {
-        let gemma = MailReplyText.extract(gemmaAnswer)
+        let extracted = MailReplyText.extract(modelAnswer)
         let qwen = MailReplyText.extract(qwenAnswer)
         let withName = MailReplyText.extract("Klar, so ginge es:\n\nHallo Frau Beispiel,\n\ndas passt mir gut.\n\nViele Grüße\nTobias\n\nSoll ich das so anlegen?")
         let noClose = MailReplyText.extract("Vorschlag:\n\nLiebe Frau Beispiel,\nDonnerstag passt leider nicht, ginge Freitag?\n\nMöchtest du das so schicken?")
         let none = MailReplyText.extract("Der Termin am Donnerstag ist frei.")
-        return gemma == "Guten Tag,\n\nvielen Dank für den Terminvorschlag. Der Termin am Donnerstag, 8. Oktober um 9:00 Uhr passt mir sehr gut.\n\nMit freundlichen Grüßen"
+        return extracted == "Guten Tag,\n\nvielen Dank für den Terminvorschlag. Der Termin am Donnerstag, 8. Oktober um 9:00 Uhr passt mir sehr gut.\n\nMit freundlichen Grüßen"
             && qwen == "Guten Tag,\nder vorgeschlagene Termin für Donnerstag, 8. Oktober, um 9:00 Uhr passt mir.\nVielen Dank.\nMit freundlichen Grüßen"
             && withName == "Hallo Frau Beispiel,\n\ndas passt mir gut.\n\nViele Grüße\nTobias"
             && noClose == "Liebe Frau Beispiel,\nDonnerstag passt leider nicht, ginge Freitag?" && none == nil
     }
     check("R3+ claim detected: 'Entwurf … erstellt', 'als Entwurf gespeichert', 'draft saved'; not for 'Soll ich einen Entwurf anlegen?'") {
-        MailReplyText.claimsDraft(gemmaAnswer) && MailReplyText.claimsDraft("Die Antwort wurde als Entwurf in Mail gespeichert.")
+        MailReplyText.claimsDraft(modelAnswer) && MailReplyText.claimsDraft("Die Antwort wurde als Entwurf in Mail gespeichert.")
             && MailReplyText.claimsDraft("I created a draft reply for you.") && !MailReplyText.claimsDraft("Soll ich einen Entwurf anlegen?")
             && !MailReplyText.claimsDraft(qwenAnswer)
     }
@@ -300,10 +300,10 @@ func runR3Checks() async {
     check("R3+ rule: reply text + mail identity without draft → 'Noch kein Entwurf in Mail' + offer for exactly this mail; claim without mail → line only; with draft → nothing") {
         let offered = MailDraftOfferRule.evaluate(answer: qwenAnswer, mailSource: termin, items: [])
         let claimOnly = MailDraftOfferRule.evaluate(answer: "Ich habe den Entwurf erstellt.", mailSource: nil, items: [])
-        let drafted = MailDraftOfferRule.evaluate(answer: gemmaAnswer, mailSource: termin,
+        let drafted = MailDraftOfferRule.evaluate(answer: modelAnswer, mailSource: termin,
                                                   items: [ActionReceipt.Item(action: "mailDraft", outcome: "done", name: "„Re: X“", reason: "reply")])
-        let unclear = MailDraftOfferRule.evaluate(answer: gemmaAnswer, mailSource: termin, items: [ActionReceipt.Item(action: "mailDraft", outcome: "unclear")])
-        let failed = MailDraftOfferRule.evaluate(answer: gemmaAnswer, mailSource: termin, items: [ActionReceipt.Item(action: "mailDraft", outcome: "failed")])
+        let unclear = MailDraftOfferRule.evaluate(answer: modelAnswer, mailSource: termin, items: [ActionReceipt.Item(action: "mailDraft", outcome: "unclear")])
+        let failed = MailDraftOfferRule.evaluate(answer: modelAnswer, mailSource: termin, items: [ActionReceipt.Item(action: "mailDraft", outcome: "failed")])
         let plain = MailDraftOfferRule.evaluate(answer: "Der Termin ist frei.", mailSource: termin, items: [])
         let fallback = MailDraftOfferRule.evaluate(answer: "Hier mein Entwurf, den ich erstellt habe:\nDonnerstag passt mir, bis dann!", mailSource: termin, items: [])
         let noID = base.appendingPathComponent("ohne-id.eml")
@@ -330,7 +330,7 @@ func runR3Checks() async {
     }
     await checkAsync("R3+ click: reply to exactly the offer's mail (Message-ID), never to the selection at click time; same receipt") {
         let s = setup()   // a different mail is selected in Mail (Nebenkosten)
-        let offer = MailDraftOfferRule.evaluate(answer: gemmaAnswer, mailSource: termin, items: []).offer!
+        let offer = MailDraftOfferRule.evaluate(answer: modelAnswer, mailSource: termin, items: []).offer!
         let saved = await MailDraftOfferRule.save(offer, with: PippaMCPWriteTools(host: s.host))
         let draft = s.demo.insertedDrafts.first
         return !saved.missing && saved.item.line(language: "de").hasPrefix("Antwort-Entwurf in Mail angelegt: ") && saved.item.canOpenMailDraft
@@ -340,11 +340,11 @@ func runR3Checks() async {
     }
     await checkAsync("R3+ click: mail no longer in Mail → nothing created, 'Die Mail finde ich nicht mehr in Mail', no fallback; offer → 'Text kopieren'") {
         let s = setup(); s.demo.replyFailure = .missingOriginal
-        var offer = MailDraftOfferRule.evaluate(answer: gemmaAnswer, mailSource: termin, items: []).offer!
+        var offer = MailDraftOfferRule.evaluate(answer: modelAnswer, mailSource: termin, items: []).offer!
         let saved = await MailDraftOfferRule.save(offer, with: PippaMCPWriteTools(host: s.host))
         offer.used = true; offer.missing = true
         let other = setup(); other.demo.replyFailure = .notCreated
-        let retry = await MailDraftOfferRule.save(MailDraftOfferRule.evaluate(answer: gemmaAnswer, mailSource: termin, items: []).offer!,
+        let retry = await MailDraftOfferRule.save(MailDraftOfferRule.evaluate(answer: modelAnswer, mailSource: termin, items: []).offer!,
                                                   with: PippaMCPWriteTools(host: other.host))
         return saved.missing && saved.item.outcome == "failed" && s.demo.insertedDrafts.isEmpty
             && saved.item.line(language: "de").hasSuffix("(Die Mail finde ich nicht mehr in Mail)")

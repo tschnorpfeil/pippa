@@ -80,7 +80,7 @@ export interface PlannedMove {
  * Plan of `move_files` (pippa-tools.ts), computed the same way by the guard (question, undo manifest) and the tool.
  * `rawGroups` groups the files by target, `[{ into: "Bilder", files: ["a.jpg", "b.png"] }, { into: "PDFs/2026", files: [...] }]`,
  * so every target name is written once (fewer output tokens than one `{name, into}` object per file). A list of typed
- * objects rather than a map `{"Bilder": [...]}`: Gemma's chat template drops `additionalProperties`, so the model saw
+ * objects rather than a map `{"Bilder": [...]}`: some chat templates drop `additionalProperties`, so the model saw
  * an untyped object and wrote comma-separated strings (r7 sort). A map is still accepted. A target is a subfolder of
  * `folder`: relative (may be nested) or a path that lands inside `folder`; a target outside `folder` gets a per-item
  * error (other places: rename_or_move). A name is a file or folder in `folder`.
@@ -99,7 +99,7 @@ export async function planMoves(rawFolder: unknown, rawGroups: unknown, cwd: str
 		: rawGroups && typeof rawGroups === "object" ? Object.entries(rawGroups as Record<string, unknown>) : [];
 	for (const [rawTarget, rawNames] of groups) {
 		const intoText = String(rawTarget ?? "").trim();
-		// Written as a path ("~/Downloads/Bilder") is fine as long as it lands inside folder (r7: Gemma does that).
+		// Written as a path ("~/Downloads/Bilder") is fine as long as it lands inside folder (r7: models do that).
 		const into = resolvePath(intoText, folder);
 		const outside = !into.startsWith(`${folder}/`);
 		for (const raw of Array.isArray(rawNames) ? rawNames : rawNames == null ? [] : [rawNames]) {

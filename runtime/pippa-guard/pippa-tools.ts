@@ -91,7 +91,7 @@ export default function (pi: ExtensionAPI) {
 		}),
 		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
 			const folder = resolvePath(params?.path || ".", ctx?.cwd ?? process.cwd());
-			// A wrongly shortened path must not be retried ten times in a row (seen with Gemma 12B).
+			// A wrongly shortened path must not be retried ten times in a row (seen with a 12B model).
 			if (!(await exists(folder))) throw new Error(`There is no folder at ${folder}. Use the exact path from the message (starting with / or ~), not a shortened one.`);
 			const names = (await readdir(folder)).filter((name) => !name.startsWith(".")).sort((a, b) => a.localeCompare(b));
 			const lines: string[] = [];

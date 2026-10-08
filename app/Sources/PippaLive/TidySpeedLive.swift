@@ -57,7 +57,7 @@ enum TidySpeedLive {
         }
 
         // 3. Local model: old against new request, same server.
-        let key = arguments.dropFirst().first ?? "gemma-4-12b"
+        let key = arguments.dropFirst().first ?? "k2-horizon-7b"
         let memory = ProcessInfo.processInfo.physicalMemory
         guard let choice = ModelSelector.named(key, physicalMemory: memory),
               let file = ModelDownloader(directory: LocalEngine.modelsDirectory(base: base)).primaryFile(choice.model),

@@ -54,11 +54,11 @@ function writeConfig(port, extra = {}) {
 		port,
 		binary: fakeBinary,
 		app: join(root, "Pippa.app"),
-		modelID: "gemma-4-12b",
+		modelID: "k2-horizon-7b",
 		keyFile,
 		idleSeconds: 600,
 		logFile: join(support, "llama-server-pi.log"),
-		arguments: ["-m", modelFile, "--host", "127.0.0.1", "--port", String(port), "--jinja", "--alias", "gemma-4-12b",
+		arguments: ["-m", modelFile, "--host", "127.0.0.1", "--port", String(port), "--jinja", "--alias", "k2-horizon-7b",
 			"--slot-save-path", join(support, "llama-slots"), "--swa-full"],
 		...extra,
 	};
@@ -131,8 +131,8 @@ test("pippa-local, no server: starts it with Pippa's exact arguments, shows a st
 	const port = await freePort();
 	const config = writeConfig(port);
 	const { handlers, ui, ctx } = loadPi();
-	const model = { provider: "pippa-local", id: "gemma-4-12b", baseUrl: `http://127.0.0.1:${port}/v1` };
-	await handlers.before_provider_request({ payload: { model: "gemma-4-12b" } }, ctx(model));
+	const model = { provider: "pippa-local", id: "k2-horizon-7b", baseUrl: `http://127.0.0.1:${port}/v1` };
+	await handlers.before_provider_request({ payload: { model: "k2-horizon-7b" } }, ctx(model));
 	assert.equal(await common.health(port, "k".repeat(64)), 200);
 	const [start, ...more] = startLines();
 	assert.equal(more.length, 0);

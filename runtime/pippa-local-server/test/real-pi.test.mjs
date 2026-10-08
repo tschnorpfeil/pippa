@@ -38,17 +38,17 @@ test("real Pi: plain `pi -p` with pippa-local starts the server, answers, and le
 	const keyFile = join(support, "llama-key");
 	writeFileSync(keyFile, "k".repeat(64) + "\n", { mode: 0o600 });
 	writeFileSync(join(support, "pippa-local-server.json"), JSON.stringify({
-		schemaVersion: 1, provider: "pippa-local", port, binary, keyFile, idleSeconds: 600, modelID: "gemma-4-12b",
-		arguments: ["--host", "127.0.0.1", "--port", String(port), "--jinja", "--alias", "gemma-4-12b"],
+		schemaVersion: 1, provider: "pippa-local", port, binary, keyFile, idleSeconds: 600, modelID: "k2-horizon-7b",
+		arguments: ["--host", "127.0.0.1", "--port", String(port), "--jinja", "--alias", "k2-horizon-7b"],
 	}));
 	writeFileSync(join(home, ".pi/agent/models.json"), JSON.stringify({ providers: { "pippa-local": {
 		baseUrl: `http://127.0.0.1:${port}/v1`, api: "openai-completions", apiKey: `!/bin/cat '${keyFile}'`,
-		models: [{ id: "gemma-4-12b", name: "Gemma", contextWindow: 16384, maxTokens: 512 }],
+		models: [{ id: "k2-horizon-7b", name: "K2 Horizon 7B", contextWindow: 16384, maxTokens: 512 }],
 	} } }));
 	const starts = join(root, "starts.jsonl");
 	const env = { HOME: home, PATH: "/usr/bin:/bin", PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1", PI_TELEMETRY: "0", FAKE_LLAMA_LOG: starts };
 	const run = () => new Promise((resolve) => {
-		const child = execFile(node, [cli, "-p", "--provider", "pippa-local", "--model", "gemma-4-12b", "--no-session", "say pong"],
+		const child = execFile(node, [cli, "-p", "--provider", "pippa-local", "--model", "k2-horizon-7b", "--no-session", "say pong"],
 			{ env, cwd: root, timeout: 60_000 }, (error, stdout, stderr) => resolve({ error, stdout, stderr }));
 		child.stdin.end(); // `pi -p` reads piped stdin until EOF
 	});

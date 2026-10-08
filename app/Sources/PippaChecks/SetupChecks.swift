@@ -202,7 +202,7 @@ func runSetupChecks() async {
         write(original, r.modelsJSON)
         try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: r.modelsJSON.path)
         let installer = PiInstaller(roots: r)
-        let models = [PiProviderModel(id: "gemma-4-12b", name: "Gemma 4 12B", contextWindow: 16384)]
+        let models = [PiProviderModel(id: "qwen3.5-9b-q4", name: "Qwen3.5 9B", contextWindow: 16384)]
         let first = installer.writeProvider(models: models, port: 18_471)
         let again = installer.writeProvider(models: models, port: 18_471)
         let moved = installer.writeProvider(models: models, port: 18_472)
@@ -226,7 +226,7 @@ func runSetupChecks() async {
             && again.outcome == .providerWritten(port: 18_471, backup: installer.state.modelsJSONBackup.map(URL.init(fileURLWithPath:)), changed: false)
             && moved.isDone && ours?["baseUrl"] as? String == "http://127.0.0.1:18472/v1"
             && ours?["apiKey"] as? String == "!/bin/cat '\(r.llamaKeyFile.path)'" && ours?["api"] as? String == "openai-completions"
-            && ((ours?["models"] as? [[String: Any]])?.first?["id"] as? String) == "gemma-4-12b"
+            && ((ours?["models"] as? [[String: Any]])?.first?["id"] as? String) == "qwen3.5-9b-q4"
             && ollama?["apiKey"] as? String == "ollama" && (doc?["custom"] as? [String: Any])?["keep"] as? Bool == true
             && backups.count == 1 && backupText == original && mode == 0o600 && leftovers.isEmpty
             && refused.outcome == .failed(.modelsJSONUnreadable(r2.modelsJSON.path))

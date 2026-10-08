@@ -426,7 +426,7 @@ export default function (pi: ExtensionAPI) {
 			receipt(event.toolCallId, tool, plan, "declined", { category, asked: true });
 			return {
 				block: true,
-				// The wording decides whether Gemma 12B stays honest afterwards (measured, scenario h):
+				// The wording decides whether a small model stays honest afterwards (measured, scenario h):
 				// v1 honest 5/5, but once "writing doesn't work here" for the rest of the conversation;
 				// v2 (verbose, "the tool still works ...") 0/5 honest: claimed every time that the file was created.
 				// v3 = v1 plus a short sentence for a repeated request. PIPPA_GUARD_DECLINE only selects for comparison.

@@ -7,7 +7,7 @@
 #
 #   scripts/pi-rpc-spike.sh setup                      set up Pi in the fake HOME (installer: release, models.json
 #                                                      with pippa-local, fixed port and key file), settings.json
-#   scripts/pi-rpc-spike.sh llama-start [gemma|qwen]   llama-server on 127.0.0.1:<installer port> with the key from
+#   scripts/pi-rpc-spike.sh llama-start [k2|qwen]     llama-server on 127.0.0.1:<installer port> with the key from
 #                                                      the key file (PID in .build/spike-logs)
 #   scripts/pi-rpc-spike.sh llama-stop                 stop exactly that llama-server
 #   scripts/pi-rpc-spike.sh env                        print the environment for probe runs (eval "$(... env)")
@@ -40,9 +40,9 @@ port="${PIPPA_SPIKE_PORT:-${port:-18080}}"
 
 case "${1:-}" in
 llama-start)
-  case "${2:-gemma}" in
+  case "${2:-k2}" in
     qwen) model="$cache/models/Qwen3.5-4B-Q4_K_M.gguf"; alias=qwen3.5-4b ;;
-    *) model="$cache/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"; alias=gemma-4-12b ;;
+    *) model="$cache/models/K2-Horizon-7B-Q4_K_M.gguf"; alias=k2-horizon-7b ;;
   esac
   [ -f "$support/llama-key" ] || { echo "run first: $0 setup"; exit 2; }
   LLAMA_API_KEY=$(cat -- "$support/llama-key") nohup "$cache/llama-b11503/llama-server" -m "$model" --jinja --host 127.0.0.1 --port "$port" \
@@ -60,7 +60,7 @@ llama-stop)
 setup)
   mkdir -p "$work" "$undo" "$sessions" "$trash"
   # Like the app: detect installer steps, install Pi, write models.json in the fake HOME (PiSetupSpike --install-only).
-  PIPPA_PI_PAYLOAD="$payload" "$root/app/.build/debug/PiSetupSpike" --install-only "$home" gemma-4-12b qwen3.5-4b
+  PIPPA_PI_PAYLOAD="$payload" "$root/app/.build/debug/PiSetupSpike" --install-only "$home" k2-horizon-7b qwen3.5-4b-q4
   # No project resources, quiet start; the model comes via --provider/--model from PiInstaller.launchSpec.
   cat >"$agent/settings.json" <<EOF
 {
@@ -88,7 +88,7 @@ r2)
   # Corpus: .build/quality/ctxsug-corpus (swift scripts/quality/make-ctxsug-corpus.swift).
   # Fetch process (case W): Pippa's Node + runtime/pippa-web (npm ci + npm test builds src/generated).
   shift
-  export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-gemma-4-12b}"
+  export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-k2-horizon-7b}"
   export PI_CODING_AGENT_DIR="$agent" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
   export PIPPA_UNDO_DIR="$undo" PIPPA_SPIKE_WORK="$work" PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools"
   export PIPPA_SPIKE_SESSIONS="$sessions" PIPPA_TRASH_DIR="$trash" PIPPA_SPIKE_PORT="$port"
@@ -99,14 +99,14 @@ r7)
   # Acceptance run on the standard path. The llama-server comes from PiLocalServer.plan as in the app (port, key,
   # slot folder in the fake HOME); do not start one with llama-start beforehand.
   shift
-  export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-gemma-4-12b}"
+  export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-k2-horizon-7b}"
   export PI_CODING_AGENT_DIR="$agent" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
   export PIPPA_UNDO_DIR="$undo" PIPPA_SPIKE_WORK="$work" PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools"
   export PIPPA_SPIKE_SESSIONS="$sessions" PIPPA_TRASH_DIR="$trash" PIPPA_R7_LOGS="$logs/r7"
   export PIPPA_LLAMA_SERVER="$cache/llama-b11503/llama-server"
   case "$PIPPA_PI_MODEL" in
     qwen*) export PIPPA_MODEL_FILE="$cache/models/Qwen3.5-4B-Q4_K_M.gguf" ;;
-    *) export PIPPA_MODEL_FILE="$cache/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf" ;;
+    *) export PIPPA_MODEL_FILE="$cache/models/K2-Horizon-7B-Q4_K_M.gguf" ;;
   esac
   name=$(echo "$*" | tr ' ' '-')
   (cd "$root" && "$root/app/.build/debug/PiRPCR2Spike" r7 "$@" -AppleLanguages "(de)") 2>&1 | tee "$logs/r7-${name:-latency}-$(date +%H%M%S).log"
@@ -122,7 +122,7 @@ r10)
 r3)
   # Calendar, reminder, mail draft only with stand-in connections (never real Mail/Calendar).
   shift
-  export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-gemma-4-12b}"
+  export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-k2-horizon-7b}"
   export PI_CODING_AGENT_DIR="$agent" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
   export PIPPA_UNDO_DIR="$undo" PIPPA_SPIKE_WORK="$work" PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools"
   export PIPPA_SPIKE_SESSIONS="$sessions" PIPPA_TRASH_DIR="$trash" PIPPA_SPIKE_PORT="$port"
@@ -133,13 +133,13 @@ app)
   # With "app manual" the app starts with the switch only, no snapshot (then type and click yourself).
   # PI_CODING_AGENT_DIR only here, so ~/.pi stays untouched; the app itself never sets it (PippaPiLaunch).
   # Sessions end up in the snapshot's support folder (PIPPA_SNAPSHOT/support/pi-sessions).
-  export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-gemma-4-12b}"
+  export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-k2-horizon-7b}"
   export PI_CODING_AGENT_DIR="$agent" PIPPA_UNDO_DIR="$undo" PIPPA_PI_WORKDIR="$work" PIPPA_TRASH_DIR="$trash"
   export PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools" PIPPA_PI_RPC=1 PIPPA_DEMO=1
   # The app starts the llama-server for pippa-local itself (fixed port + key from the fake HOME).
   # Binary and model from the cache are only read. If one is already running (llama-start), set PIPPA_PI_OWN_LLAMA=0.
   export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11503/llama-server}"
-  export PIPPA_MODEL_FILE="${PIPPA_MODEL_FILE:-$cache/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf}"
+  export PIPPA_MODEL_FILE="${PIPPA_MODEL_FILE:-$cache/models/K2-Horizon-7B-Q4_K_M.gguf}"
   [ "${2:-}" = wave2d ] && export PIPPA_PIRPC_SCENARIO=wave2d
   shot="$root/.build/spike-app-$(date +%Y%m%d-%H%M%S)"
   export PIPPA_LOG_DIR="$shot/logs"

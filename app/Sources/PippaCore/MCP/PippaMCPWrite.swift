@@ -346,7 +346,7 @@ public struct PippaMCPWriteTools: Sendable {
 
     private func mailDraft(_ input: Input) async -> PippaMCPToolResult {
         guard var body = input.text("body") else { return Self.invalid("body is required.") }
-        // In the proof of concept, Gemma 12B wrote line breaks doubly escaped ("\\n" instead of a break): without a real break
+        // In the proof of concept, a 12B model wrote line breaks doubly escaped ("\\n" instead of a break): without a real break
         // this is translated back, otherwise "\n" would appear literally in the mail.
         if !body.contains("\n"), body.contains("\\n") { body = body.replacingOccurrences(of: "\\n", with: "\n") }
         guard body.count <= Self.mailBodyLimit else { return Self.invalid("body is too long.") }

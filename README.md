@@ -119,7 +119,7 @@ Pippa builds on:
 - [Sparkle](https://sparkle-project.org) (MIT), for updates
 - [pi-web-access](https://github.com/nicobailon/pi-web-access) by Nico Bailon (MIT), for web search and page reading
 - [Bagel Fat One](https://fonts.google.com/specimen/Bagel+Fat+One) (SIL Open Font License 1.1), the welcome headline
-- the open models [K2 Horizon](https://huggingface.co/IFM/K2-Horizon-7B) by MBZUAI and IFM (Apache 2.0), [Qwen](https://huggingface.co/Qwen) (Apache 2.0) and [Gemma 4](https://ai.google.dev/gemma/docs/gemma_4_license) (Apache 2.0). Models are downloaded from Hugging Face on your Mac; they are not part of the app or this repository.
+- the open models [K2 Horizon](https://huggingface.co/IFM/K2-Horizon-7B) by MBZUAI and IFM (Apache 2.0) and [Qwen](https://huggingface.co/Qwen) (Apache 2.0). Models are downloaded from Hugging Face on your Mac; they are not part of the app or this repository.
 
 Licence texts and the full list of bundled components: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

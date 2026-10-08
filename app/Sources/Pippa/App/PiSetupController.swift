@@ -13,7 +13,7 @@ import SwiftUI
 /// test runs), `PIPPA_PI_MODEL` (otherwise by memory like LocalEngine).
 ///
 /// New knowledge while the old one keeps working (`update`): after an app update whose table names a different model
-/// (Gemma 4 12B → K2 Horizon 7B), or after "Gründlicher" in settings, setup stays `.ready` with the previous model and
+/// (e.g. the 1.0 move to K2 Horizon 7B), or after "Gründlicher" in settings, setup stays `.ready` with the previous model and
 /// offers the download ("Pippas Wissen jetzt laden (5,6 GB)"). After loading, models.json names the new model; Pi and the
 /// llama-server follow on the next request. The previous model's file stays on disk.
 @MainActor

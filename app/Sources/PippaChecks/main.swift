@@ -610,9 +610,8 @@ check("Model: table only; `named` only for measurements and models.json (both ta
     let same = ModelSelector.named("k2-horizon-7b", physicalMemory: 16 * GB, catalog: tableCatalog)
     let thorough = ModelSelector.named("qwen3.6-35b-a3b-iq3", physicalMemory: 24 * GB, catalog: tableCatalog)
     let other = ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 * GB, catalog: tableCatalog)
-    let gemma = ModelSelector.named("gemma-4-12b", physicalMemory: 16 * GB, catalog: tableCatalog)
     return same == auto && thorough == pick(24, .thorough) && other?.model.key == "qwen3.5-9b-q4" && other?.ctx == 16384
-        && other?.extra["cache-ram"] == "0" && gemma?.model.key == "gemma-4-12b"
+        && other?.extra["cache-ram"] == "0"
         && ModelSelector.named("gibt-es-nicht", physicalMemory: 16 * GB) == nil
 }
 check("Model: \"Pippa's knowledge\" is saved in settings.json; old files and unknown values mean Standard, the port stays") {
@@ -759,8 +758,8 @@ check("Existing models: llama.cpp name only with exactly the repo prefix") {
     return ExistingModels.find(catalog, roots: roots).first?.value.source == "llama.cpp"
 }
 check("Download URL as in installer/hf.mjs") {
-    ModelDownloader.url(repo: "unsloth/gemma-4-12B-it-qat-GGUF", revision: "980b060c40a8539ac159e0501a3e0f66a6365af3", path: "gemma-4-12B-it-qat-UD-Q4_K_XL.gguf").absoluteString
-        == "https://huggingface.co/unsloth/gemma-4-12B-it-qat-GGUF/resolve/980b060c40a8539ac159e0501a3e0f66a6365af3/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"
+    ModelDownloader.url(repo: "unsloth/Qwen3.5-4B-GGUF", revision: "e87f176479d0855a907a41277aca2f8ee7a09523", path: "Qwen3.5-4B-Q4_K_M.gguf").absoluteString
+        == "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf"
 }
 check("Server arguments: local only, key only in the environment, jinja, catalogue values") {
     let c = pick(16)!

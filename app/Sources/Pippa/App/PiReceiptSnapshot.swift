@@ -4,7 +4,7 @@ import PippaCore
 #if DEBUG
 /// Receipt "Was passiert ist" (ActionReceipt) in the real conversation window, without Pi and without a model:
 /// `PIPPA_DEMO=1 PIPPA_SNAPSHOT=<fresh folder> PIPPA_SNAPSHOT_ONLY=pireceipt` (optional `PIPPA_APPEARANCE=dark`).
-/// The first answer text claims success after a No (as Gemma did in the trial run); the receipt
+/// The first answer text claims success after a No (as a local model did in the trial run); the receipt
 /// below says "Nicht angelegt … (du hast abgelehnt)". Report `pireceipt.txt`, image `pireceipt.png`.
 @MainActor enum PiReceiptSnapshot {
     static func run(model: AppModel, shell: ShellController, directory: URL) async {

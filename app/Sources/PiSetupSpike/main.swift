@@ -38,7 +38,7 @@ if CommandLine.arguments.dropFirst().first == "--install-only", CommandLine.argu
     let home = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
     try fm.createDirectory(at: home, withIntermediateDirectories: true)
     let roots = PiInstallRoots(home: home, payload: payload, searchPath: [home.appendingPathComponent(".local/bin")])
-    let ids = CommandLine.arguments.count > 3 ? Array(CommandLine.arguments.dropFirst(3)) : ["gemma-4-12b", "qwen3.5-4b"]
+    let ids = CommandLine.arguments.count > 3 ? Array(CommandLine.arguments.dropFirst(3)) : ["k2-horizon-7b", "qwen3.5-4b-q4"]
     let port = PiInstaller.stablePort(support: roots.support)
     let installer = PiInstaller(roots: roots)
     let options = PiInstallOptions(model: nil,

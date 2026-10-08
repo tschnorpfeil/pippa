@@ -5,7 +5,7 @@ import PippaCore
 /// with a real model. As in the app's Pi path, LocalEngine uses a shared server (`useSharedServer`), no
 /// PiRuntimeClient, no runtime/pi. Invented letter, fake support directory (PIPPA_LIVE_BASE).
 ///
-///   PIPPA_LIVE=1 PIPPA_LLAMA_SERVER=… PIPPA_MODEL_FILE=…gemma….gguf PippaLive w4a-letter [stub|web]
+///   PIPPA_LIVE=1 PIPPA_LLAMA_SERVER=… PIPPA_MODEL_FILE=…K2-Horizon-7B….gguf PippaLive w4a-letter [stub|web]
 ///
 /// `stub` (default): an invented official page instead of the network. `web`: the real fetch process (PIPPA_NODE_BINARY,
 /// PIPPA_WEB_RUNTIME=runtime/pippa-web), a general search query, after approval exactly as in the app.
@@ -16,7 +16,7 @@ enum W4aLetterLive {
             print("needs PIPPA_MODEL_FILE and PIPPA_LLAMA_SERVER"); exit(2)
         }
         let memory = ProcessInfo.processInfo.physicalMemory
-        let choice = try ModelSelector.named("gemma-4-12b", physicalMemory: memory) ?? ModelSelector.choose(physicalMemory: memory).get()
+        let choice = try ModelSelector.named("k2-horizon-7b", physicalMemory: memory) ?? ModelSelector.choose(physicalMemory: memory).get()
         let server = LlamaServer(choice: choice, modelPath: URL(fileURLWithPath: model), binary: binary, logDirectory: base)
         let engine = LocalEngine(baseDirectory: base, integrations: DemoIntegrations(), existingModelRoots: [])
         await engine.useSharedServer(.init(server: { try await server.ensureRunning(); return server }, status: { .ready }))

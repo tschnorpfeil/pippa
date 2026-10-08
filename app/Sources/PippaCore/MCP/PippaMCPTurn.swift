@@ -282,7 +282,7 @@ public struct PippaMCPTurnTools: Sendable {
         guard await turn.takeWebCall() else {
             return Self.failure("limit", "At most four online lookups per message. Answer with what you have.")
         }
-        // "Not now" applies to the whole message: no second card with a differently worded request (Gemma 12B asked
+        // "Not now" applies to the whole message: no second card with a differently worded request (a 12B model asked
         // again otherwise). What she wants to know afterwards, the person writes in a new message.
         if await gate.records.contains(where: { $0.outcome == .declined }) {
             return PippaMCPToolResult(text: PippaMCPTools.json(["untrusted": true, "status": "refused", "sources": [Any](),

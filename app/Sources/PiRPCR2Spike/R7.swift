@@ -60,7 +60,7 @@ final class R7 {
         let homeURL = URL(fileURLWithPath: home, isDirectory: true)
         roots = PiInstallRoots(home: homeURL, payload: payload, searchPath: [homeURL.appendingPathComponent(".local/bin")])
         agent = URL(fileURLWithPath: agentPath, isDirectory: true)
-        model = env["PIPPA_PI_MODEL"] ?? "gemma-4-12b"
+        model = env["PIPPA_PI_MODEL"] ?? "k2-horizon-7b"
         guard let spec = PiInstaller(roots: roots).launchSpec(modelID: model) else { print("Pi missing in the fake HOME (setup)"); exit(2) }
         launcher = PippaPiLaunch.Launcher(executable: spec.executable, launcherArguments: spec.launcherArguments, piArguments: spec.piArguments, environment: spec.environment)
         guardDir = URL(fileURLWithPath: guardPath).deletingLastPathComponent()

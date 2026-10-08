@@ -169,41 +169,6 @@
       "licenseUrl": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE"
     },
     {
-      "key": "gemma-4-26b-a4b",
-      "label": "Gemma 4 26B-A4B",
-      "description": "Fast alternative with a long context (128K); thinks longer than Qwen",
-      "repo": "unsloth/gemma-4-26B-A4B-it-qat-GGUF",
-      "quant": "UD-Q4_K_XL",
-      "approxBytes": 14249047104,
-      "memGiB": 16.5,
-      "ctx": 65536,
-      "moe": true,
-      "rank": 74,
-      "thinking": "medium",
-      "sampling": {
-        "temp": 1,
-        "top-p": 0.95,
-        "top-k": 64,
-        "min-p": 0
-      },
-      "extra": {
-        "ctx-checkpoints": 16
-      },
-      "license": "Apache-2.0",
-      "licenseUrl": "https://ai.google.dev/gemma/docs/gemma_4_license",
-      "pinned": {
-        "revision": "7b92b5b28818151e8669af2e45e88d6086f490dd",
-        "files": [
-          {
-            "path": "gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
-            "size": 14249047104,
-            "sha256": "a7c5bc715f5ff8e99a3e8901ce7d2b42b402c669bf24f7c5250747633d0f5891"
-          }
-        ]
-      },
-      "thinkingRequired": true
-    },
-    {
       "key": "qwen3.8-27b-q4",
       "label": "Qwen3.8 27B (Q4)",
       "description": "Most thorough model in testing (solved every task), but slow; worth it on Pro/Max chips",
@@ -277,41 +242,6 @@
           }
         ]
       }
-    },
-    {
-      "key": "gemma-4-12b",
-      "label": "Gemma 4 12B",
-      "description": "Most reliable compact model in testing (solved every task), ~18 tokens/s",
-      "repo": "unsloth/gemma-4-12B-it-qat-GGUF",
-      "quant": "UD-Q4_K_XL",
-      "approxBytes": 6716356800,
-      "memGiB": 9,
-      "ctx": 32768,
-      "moe": false,
-      "rank": 56,
-      "thinking": "medium",
-      "sampling": {
-        "temp": 1,
-        "top-p": 0.95,
-        "top-k": 64,
-        "min-p": 0
-      },
-      "extra": {
-        "ctx-checkpoints": 8
-      },
-      "license": "Apache-2.0",
-      "licenseUrl": "https://ai.google.dev/gemma/docs/gemma_4_license",
-      "pinned": {
-        "revision": "980b060c40a8539ac159e0501a3e0f66a6365af3",
-        "files": [
-          {
-            "path": "gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
-            "size": 6716356800,
-            "sha256": "90fd44e29e0d7cffeb0fd00dc73cfdab9ed0b0e95306ecf7821ea634c940c370"
-          }
-        ]
-      },
-      "thinkingRequired": true
     },
     {
       "key": "qwen3.5-9b-q8",

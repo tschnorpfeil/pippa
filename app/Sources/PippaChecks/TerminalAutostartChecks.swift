@@ -23,12 +23,12 @@ func runTerminalAutostartChecks(binary: URL, argsLog: URL) async {
         for file in ["index.ts", "common.mjs", "ensure.mjs", "supervisor.mjs"] { write("// \(file)\n", ext.appendingPathComponent(file)) }
         let roots = PiInstallRoots(home: home, payload: try PiPayload(release: release, node: URL(fileURLWithPath: "/usr/bin/false")), searchPath: [])
         let port = PiInstaller.stablePort(support: roots.support)
-        let entry = PiInstaller.providerEntry(models: [PiProviderModel(id: "gemma-4-12b", name: "Gemma", contextWindow: 16384)],
+        let entry = PiInstaller.providerEntry(models: [PiProviderModel(id: "qwen3.5-9b-q4", name: "Qwen", contextWindow: 16384)],
                                               port: port, keyFile: roots.llamaKeyFile)
         try fm.createDirectory(at: roots.agentDirectory, withIntermediateDirectories: true)
         try JSONSerialization.data(withJSONObject: ["providers": [PiInstaller.providerKey: entry]]).write(to: roots.modelsJSON)
         let model = home.appendingPathComponent("dev.gguf"); write("x", model)
-        let plan = try PiLocalServer.plan(roots: roots, modelID: "gemma-4-12b", legacySupport: home.appendingPathComponent("legacy"),
+        let plan = try PiLocalServer.plan(roots: roots, modelID: "qwen3.5-9b-q4", legacySupport: home.appendingPathComponent("legacy"),
                                           physicalMemory: 16 << 30, binary: binary, environment: ["PIPPA_MODEL_FILE": model.path])
         return (roots, plan)
     }
@@ -183,7 +183,7 @@ func runTerminalAutostartChecks(binary: URL, argsLog: URL) async {
 
     check("Installer step \"models.json\" also installs the terminal extension; without an extension in the payload the step still succeeds") {
         let (roots, _) = try setup("ta-step")
-        let options = PiInstallOptions(model: nil, providerModels: [PiProviderModel(id: "gemma-4-12b", name: "Gemma", contextWindow: 16384)],
+        let options = PiInstallOptions(model: nil, providerModels: [PiProviderModel(id: "qwen3.5-9b-q4", name: "Qwen", contextWindow: 16384)],
                                        port: PiInstaller.stablePort(support: roots.support))
         let done = PiInstaller(roots: roots).perform(.provider, options).isDone
         let installed = fm.fileExists(atPath: roots.extensionsDirectory.appendingPathComponent("pippa-local-server/index.ts").path)
