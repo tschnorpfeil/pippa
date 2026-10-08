@@ -146,7 +146,7 @@ export function lookOnly(command: string): string | undefined {
 	const words: Record<string, string> = {
 		ls: "Dateien auflisten", find: "Dateien suchen", cat: "Dateien lesen", head: "Dateien lesen", tail: "Dateien lesen",
 		less: "Dateien lesen", wc: "zählen", grep: "Text suchen", egrep: "Text suchen", rg: "Text suchen", pwd: "Ordner anzeigen", stat: "Dateiangaben lesen",
-		file: "Dateiart prüfen", du: "Größe messen", sort: "sortieren", uniq: "zusammenfassen", date: "Datum anzeigen", echo: "Text anzeigen",
+		file: "Dateiart prüfen", du: "Größe messen", sort: "sortieren", uniq: "doppelte Zeilen ausblenden", date: "Datum anzeigen", echo: "Text anzeigen",
 		fd: "Dateien suchen", mdfind: "mit Spotlight suchen", mdls: "Dateiangaben lesen", cd: "Ordner wechseln", basename: "Namen lesen",
 		dirname: "Namen lesen", realpath: "Namen lesen", tree: "Dateien auflisten", cut: "Text zuschneiden", tr: "Text umformen",
 		nl: "Zeilen zählen", column: "Text ordnen", printf: "Text anzeigen", true: "", test: "prüfen", shasum: "prüfen", md5: "prüfen",

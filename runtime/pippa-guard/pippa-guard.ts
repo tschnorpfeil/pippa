@@ -109,16 +109,16 @@ export function describeAppEntry(action: AppEntry, input: any): { name: string; 
 	switch (action) {
 		case "calendarAdd": {
 			const name = one(input?.title) || "Termin";
-			return { name, sentence: `Pippa möchte in deinem Kalender den Termin ‚${name}‘ eintragen${when ? ` (${when})` : ""}. Das lässt sich rückgängig machen. OK?` };
+			return { name, sentence: `Pippa möchte in deinem Kalender den Termin „${name}“ eintragen${when ? ` (${when})` : ""}. Das lässt sich rückgängig machen.` };
 		}
 		case "reminderAdd": {
 			const name = one(input?.title) || "Erinnerung";
-			return { name, sentence: `Pippa möchte die Erinnerung ‚${name}‘ anlegen${when ? ` (fällig ${when})` : ""}. Das lässt sich rückgängig machen. OK?` };
+			return { name, sentence: `Pippa möchte die Erinnerung „${name}“ anlegen${when ? ` (fällig ${when})` : ""}. Das lässt sich rückgängig machen.` };
 		}
 		default: {
-			if (input?.reply_to) return { name: "Antwort", sentence: "Pippa möchte in Mail eine Antwort als Entwurf anlegen. Gesendet wird nichts. OK?" };
+			if (input?.reply_to) return { name: "Antwort", sentence: "Pippa möchte in Mail eine Antwort als Entwurf anlegen. Gesendet wird nichts." };
 			const name = one(input?.subject) || "Mail";
-			return { name, sentence: `Pippa möchte in Mail eine neue Mail ‚${name}‘ als Entwurf öffnen. Gesendet wird nichts. OK?` };
+			return { name, sentence: `Pippa möchte in Mail eine neue Mail „${name}“ als Entwurf öffnen. Gesendet wird nichts.` };
 		}
 	}
 }
@@ -141,19 +141,19 @@ export function describeCommand(command: string, cwd = ""): string {
 	const looks = lookOnly(command);
 	if (looks) {
 		const folder = basename(cwd) || cwd;
-		return `Pippa möchte im Ordner ‚${folder}‘ nur nachsehen (${looks}). Dabei wird nach Pippas Einschätzung nichts verändert.`;
+		return `Pippa möchte im Ordner „${folder}“ nur nachsehen (${looks}). Dabei ändert sich nach Pippas Einschätzung nichts.`;
 	}
 	// Common single cases with file names in the sentence: `rm Einkauf.txt`, `mv Einkauf.txt Liste.txt`.
 	const simple = command.trim().match(/^(rm|mv)\s+((?:-\w+\s+)*)([^\s;&|<>'"`$*?]+)(?:\s+([^\s;&|<>'"`$*?]+))?$/);
 	if (simple) {
 		const [, verb, , a, b] = simple;
-		if (verb === "rm" && !b) return `Pippa möchte ${fileWords(resolve(cwd, a))} löschen. Sie landet nicht im Papierkorb.`;
+		if (verb === "rm" && !b) return `Pippa möchte ${fileWords(resolve(cwd, a))} endgültig löschen. Das landet nicht im Papierkorb, es ist danach weg.`;
 		if (verb === "mv" && b) {
 			const from = resolve(cwd, a);
 			const to = resolve(cwd, b);
 			return dirname(from) === dirname(to)
-				? `Pippa möchte ${fileWords(from)} in ‚${basename(to)}‘ umbenennen.`
-				: `Pippa möchte ${fileWords(from)} nach ‚${to}‘ verschieben.`;
+				? `Pippa möchte ${fileWords(from)} in „${basename(to)}“ umbenennen.`
+				: `Pippa möchte ${fileWords(from)} in „${basename(to)}“ verschieben.`;
 		}
 	}
 	const effects: string[] = [];
@@ -165,12 +165,12 @@ export function describeCommand(command: string, cwd = ""): string {
 		effects.push("Dateien anlegen oder ändern");
 	if (/\bcurl\b|\bwget\b|\bssh\b|\bscp\b|\bnc\b|\bgit\s+(push|pull|fetch|clone)\b|\bnpm\s+(i|install|publish)\b|\bpip3?\s+install\b|\bbrew\b|\bhttps?:\/\//.test(c))
 		effects.push("ins Internet gehen");
-	if (/\bmail\b|\bsendmail\b|\bosascript\b|\bopen\b/.test(c)) effects.push("andere Programme steuern oder etwas versenden");
-	if (/\bsudo\b|\bkill(all)?\b|\blaunchctl\b|\bdefaults\s+write\b/.test(c)) effects.push("Einstellungen oder laufende Programme dieses Macs verändern");
+	if (/\bmail\b|\bsendmail\b|\bosascript\b|\bopen\b/.test(c)) effects.push("andere Programme bedienen oder etwas verschicken");
+	if (/\bsudo\b|\bkill(all)?\b|\blaunchctl\b|\bdefaults\s+write\b/.test(c)) effects.push("Einstellungen des Macs ändern oder Programme beenden");
 	if (effects.length === 0) {
-		return "Pippa möchte einen Befehl auf diesem Mac ausführen. Was er genau bewirkt, kann Pippa nicht sicher sagen; er könnte Dateien ändern.";
+		return "Pippa möchte etwas auf diesem Mac ausführen. Was dabei genau passiert, kann Pippa nicht sicher sagen; es könnte Dateien ändern.";
 	}
-	return `Pippa möchte einen Befehl auf diesem Mac ausführen, der ${effects.join(", ").replace(/, ([^,]*)$/, " und $1")} kann.`;
+	return `Pippa möchte etwas auf diesem Mac ausführen. Dabei könnte sie ${effects.join(", ").replace(/, ([^,]*)$/, " und $1")}.`;
 }
 
 /** Source file of `rm file` or `mv old new` (no wildcards, one file), otherwise `undefined`. */
@@ -183,7 +183,7 @@ function simpleFileCommand(command: string, cwd: string): string | undefined {
 /** Short command as a detail line; long commands are truncated so the sentence above stays the main point. */
 function commandDetail(command: string): string {
 	const one = command.length > 300 ? `${command.slice(0, 300)} …` : command;
-	return `Befehl (für Fachleute): ${one}`;
+	return `Genauer Befehl: ${one}`;
 }
 
 function declineReason(tool: string, style = "v3"): string {
@@ -323,7 +323,7 @@ export default function (pi: ExtensionAPI) {
 				files = [path];
 				const existed = await exists(path);
 				plan = { action: existed ? "overwrite" : "create", name: basename(path), path };
-				sentence = `Pippa möchte ${fileWords(path)} ${existed ? "überschreiben" : "anlegen"}. OK?`;
+				sentence = `Pippa möchte ${fileWords(path)} ${existed ? "überschreiben" : "anlegen"}.`;
 				const size = String(event.input?.content ?? "").length;
 				detail = `Ort: ${path} (${size} Zeichen). Eine Kopie des alten Stands wird vorher gesichert.`;
 				break;
@@ -333,7 +333,7 @@ export default function (pi: ExtensionAPI) {
 				files = [path];
 				plan = { action: "change", name: basename(path), path };
 				const n = Array.isArray(event.input?.edits) ? event.input.edits.length : 1;
-				sentence = `Pippa möchte ${fileWords(path)} ändern (${n === 1 ? "eine Stelle" : `${n} Stellen`}). OK?`;
+				sentence = `Pippa möchte ${fileWords(path)} ändern (${n === 1 ? "eine Stelle" : `${n} Stellen`}).`;
 				detail = `Ort: ${path}. Eine Kopie des alten Stands wird vorher gesichert.`;
 				break;
 			}
@@ -346,8 +346,8 @@ export default function (pi: ExtensionAPI) {
 					? { action: "rename", name: basename(from), path: from, toName: basename(to), to }
 					: { action: "move", name: basename(from), path: from, toName: basename(dirname(to)), to };
 				sentence = same
-					? `Pippa möchte ${fileWords(from, folder)} in ‚${basename(to)}‘ umbenennen. OK?`
-					: `Pippa möchte ${fileWords(from, folder)} in den Ordner ‚${basename(dirname(to))}‘ verschieben. OK?`;
+					? `Pippa möchte ${fileWords(from, folder)} in „${basename(to)}“ umbenennen.`
+					: `Pippa möchte ${fileWords(from, folder)} in den Ordner „${basename(dirname(to))}“ verschieben.`;
 				detail = `Von: ${from}\nNach: ${to}\nLässt sich rückgängig machen.`;
 				break;
 			}
@@ -358,7 +358,7 @@ export default function (pi: ExtensionAPI) {
 				const targets = [...new Set(ok.map((item) => where(item.into)))];
 				const n = ok.length;
 				plan = { action: "move", name: `${n} ${n === 1 ? "Datei" : "Dateien"}`, path: batch.folder, toName: targets.join(", ") || basename(batch.folder) };
-				sentence = `Pippa möchte im Ordner ‚${basename(batch.folder)}‘ ${n === 1 ? "eine Datei" : `${n} Dateien`} in ${targets.length === 1 ? `den Ordner ‚${targets[0]}‘` : `${targets.length} Ordner (${targets.join(", ")})`} einsortieren. OK?`;
+				sentence = `Pippa möchte im Ordner „${basename(batch.folder)}“ ${n === 1 ? "eine Datei" : `${n} Dateien`} in ${targets.length === 1 ? `den Ordner „${targets[0]}“` : `${targets.length} Ordner (${targets.join(", ")})`} einsortieren.`;
 				const lines = ok.slice(0, 12).map((item) => `${item.name} → ${where(item.into)}`);
 				if (ok.length > 12) lines.push(`… und ${ok.length - 12} weitere`);
 				detail = `${lines.join("\n")}\nOrdner: ${batch.folder}. Lässt sich rückgängig machen.`;
@@ -368,7 +368,7 @@ export default function (pi: ExtensionAPI) {
 				const path = resolvePath(event.input?.path, cwd);
 				const folder = await isFolder(path);
 				plan = { action: "trash", name: basename(path), path };
-				sentence = `Pippa möchte ${fileWords(path, folder)} in den Papierkorb legen. Du kannst ${folder ? "ihn" : "sie"} dort wieder herausholen. OK?`;
+				sentence = `Pippa möchte ${fileWords(path, folder)} in den Papierkorb legen. Du kannst ${folder ? "ihn" : "sie"} dort wieder herausholen.`;
 				detail = `Ort: ${path}`;
 				break;
 			}
@@ -381,15 +381,15 @@ export default function (pi: ExtensionAPI) {
 					const path = resolvePath(folders.paths[0], cwd);
 					const more = folders.paths.length > 1 ? ` (und ${folders.paths.length - 1} weitere)` : "";
 					plan = { action: "createFolder", name: basename(path), path };
-					sentence = `Pippa möchte ${fileWords(path, true)}${more} anlegen. OK?`;
+					sentence = `Pippa möchte ${fileWords(path, true)}${more} anlegen.`;
 					detail = `${commandDetail(command)}\nLässt sich rückgängig machen, solange der Ordner leer ist.`;
 					break;
 				}
 				plan = bashPlan(command, cwd);
-				sentence = `${describeCommand(command, cwd)} OK?`;
+				sentence = `${describeCommand(command, cwd)}`;
 				const undo = simpleFileCommand(command, cwd)
 					? "Eine Kopie der Datei wird vorher gesichert."
-					: "Was dieser Befehl ändert, kann Pippa nicht automatisch rückgängig machen.";
+					: "Das kann Pippa nicht automatisch rückgängig machen.";
 				detail = `${commandDetail(command)}\nOrdner: ${cwd}. ${undo}`;
 				break;
 			}
@@ -398,12 +398,12 @@ export default function (pi: ExtensionAPI) {
 					const described = describeAppEntry(entryAction, event.input);
 					plan = { action: entryAction, name: described.name };
 					sentence = described.sentence;
-					detail = `Angaben (für Fachleute): ${JSON.stringify(event.input ?? {}).slice(0, 300)}`;
+					detail = `Genaue Angaben: ${JSON.stringify(event.input ?? {}).slice(0, 300)}`;
 					break;
 				}
 				plan = { action: "tool", name: tool };
-				sentence = `Pippa möchte das Werkzeug ‚${tool}‘ benutzen. Es könnte etwas verändern, verschicken oder ins Internet gehen. OK?`;
-				detail = `Angaben (für Fachleute): ${JSON.stringify(event.input ?? {}).slice(0, 300)}`;
+				sentence = "Pippa möchte etwas tun, das etwas verändern, verschicken oder ins Internet bringen könnte.";
+				detail = `Werkzeug: ${tool}\nGenaue Angaben: ${JSON.stringify(event.input ?? {}).slice(0, 300)}`;
 			}
 		}
 

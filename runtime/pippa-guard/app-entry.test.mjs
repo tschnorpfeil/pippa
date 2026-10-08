@@ -117,7 +117,7 @@ test("ask-all fragt in Worten; abgelehnt → nichts passiert, Quittung „declin
 	const g = load("ask-all", false);
 	const { result } = await g.call("mcp__pippa__calendar_add", { title: "Zahnarzt", date: "thursday", time: "09:00" });
 	assert.equal(result.block, true);
-	assert.match(g.asked[0], /Termin ‚Zahnarzt‘ eintragen \(thursday, 09:00\)\. Das lässt sich rückgängig machen/);
+	assert.match(g.asked[0], /Termin „Zahnarzt“ eintragen \(thursday, 09:00\)\. Das lässt sich rückgängig machen/);
 	assert.deepEqual([g.entries[0].outcome, g.entries[0].action, g.entries[0].category, g.entries[0].asked], ["declined", "calendarAdd", "appEntry", true]);
 	assert.match(describeAppEntry("mailDraft", { reply_to: "selected", body: "x" }).sentence, /Antwort als Entwurf anlegen\. Gesendet wird nichts/);
 });

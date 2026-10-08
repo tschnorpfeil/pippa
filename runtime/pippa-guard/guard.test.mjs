@@ -110,7 +110,7 @@ test("rename: plain-language question, manifest with moves, restore.mjs brings t
 	const g = load();
 	await writeFile(join(root, "Alt.txt"), "a");
 	const { toolCallId } = await g.call("rename_or_move", { from: "Alt.txt", to: "Neu-Name.txt" });
-	assert.match(g.asked[0], /‚Alt\.txt‘ im Ordner .* in ‚Neu-Name\.txt‘ umbenennen/);
+	assert.match(g.asked[0], /„Alt\.txt“ im Ordner .* in „Neu-Name\.txt“ umbenennen/);
 	await rename(join(root, "Alt.txt"), join(root, "Neu-Name.txt"));   // the tool itself
 	await g.result("rename_or_move", toolCallId, false, { from: join(root, "Alt.txt"), to: join(root, "Neu-Name.txt") });
 	const [entry] = g.entries;
@@ -125,7 +125,7 @@ test("verschieben in einen Ordner: Frage nennt den Zielordner", async () => {
 	await mkdir(join(root, "Archiv"), { recursive: true });
 	await writeFile(join(root, "Brief.txt"), "b");
 	await g.call("rename_or_move", { from: "Brief.txt", to: "Archiv" });
-	assert.match(g.asked[0], /in den Ordner ‚Archiv‘ verschieben/);
+	assert.match(g.asked[0], /in den Ordner „Archiv“ verschieben/);
 	assert.deepEqual(g.entries.map((e) => [e.outcome, e.action, e.toName]), [["declined", "move", "Archiv"]]);
 });
 
@@ -133,7 +133,7 @@ test("trash: target from the result into the manifest, restorable", async () => 
 	const g = load();
 	await writeFile(join(root, "Weg.txt"), "w");
 	const { toolCallId } = await g.call("move_to_trash", { path: "Weg.txt" });
-	assert.match(g.asked[0], /‚Weg\.txt‘ .* in den Papierkorb legen/);
+	assert.match(g.asked[0], /„Weg\.txt“ .* in den Papierkorb legen/);
 	const trashed = join(root, "fake-trash", "Weg.txt");
 	await mkdir(join(root, "fake-trash"), { recursive: true });
 	await rename(join(root, "Weg.txt"), trashed);
@@ -270,7 +270,7 @@ test("mkdir: no longer empty stays, restore.mjs reports it; already existing mea
 
 	const asking = load({ policy: "ask-all", answer: false });
 	await asking.call("bash", { command: "mkdir Neu" });
-	assert.match(asking.asked[0], /den Ordner ‚Neu‘ im Ordner .* anlegen/);
+	assert.match(asking.asked[0], /den Ordner „Neu“ im Ordner .* anlegen/);
 	assert.deepEqual(asking.entries.map((e) => [e.outcome, e.action]), [["declined", "createFolder"]]);
 	assert.equal(await present(join(root, "Neu")), false);
 });
@@ -307,7 +307,7 @@ test("undo-first: deleting asks with three answers; 'allow for this task' lasts 
 	await g.call("bash", { command: "rm b.txt" });          // same category: no second question
 	await g.call("bash", { command: "curl https://x.y" });  // andere Art: fragt
 	assert.equal(g.asked.length, 2);
-	assert.match(g.asked[0], /^Darf Pippa das\?\n\nPippa möchte die Datei ‚a\.txt‘/);
+	assert.match(g.asked[0], /^Darf Pippa das\?\n\nPippa möchte die Datei „a\.txt“/);
 	await g.handlers.agent_end?.({});
 	await g.call("bash", { command: "rm c.txt" });          // neue Antwort: fragt wieder
 	assert.equal(g.asked.length, 3);
@@ -437,7 +437,7 @@ test("move_files partial success: manifest rewritten to what really moved; ask-a
 	const asking = load({ policy: "ask-all", answer: false });
 	await asking.call("move_files", { folder: dir, groups: [{ into: "PDFs", files: ["a.pdf"] }, { into: "Alt", files: ["b.pdf"] }] });
 	assert.equal(asking.asked.length, 1);
-	assert.match(asking.asked[0], /im Ordner ‚partial‘ 2 Dateien in 2 Ordner \(PDFs, Alt\) einsortieren/);
+	assert.match(asking.asked[0], /im Ordner „partial“ 2 Dateien in 2 Ordner \(PDFs, Alt\) einsortieren/);
 	assert.deepEqual(asking.entries.map((e) => [e.outcome, e.action, e.name]), [["declined", "move", "2 Dateien"]]);
 });
 

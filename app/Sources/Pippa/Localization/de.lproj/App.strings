@@ -25,7 +25,7 @@
 "Ask Pippa…" = "Pippa fragen …";
 "Look at a Folder…" = "Ordner ansehen …";
 "Look at Selected Mail" = "Ausgewählte Mail ansehen";
-"Hide Pippa" = "Pille ausblenden";
+"Hide Pippa" = "Pippa ausblenden";
 "Pippa menu" = "Pippa-Menü";
 "Load Pippa’s Knowledge Now (%@)" = "Pippas Wissen jetzt laden (%@)";
 "Load Pippa’s Knowledge Now" = "Pippas Wissen jetzt laden";
@@ -35,7 +35,7 @@
 "Last task: %@" = "Zuletzt: %@";
 "%@ · Undo…" = "%@ · Rückgängig …";
 "Recent Tasks" = "Letzte Aufträge";
-"Show Pippa" = "Pille einblenden";
+"Show Pippa" = "Pippa einblenden";
 "That didn’t work" = "Hat nicht geklappt";
 "Ready" = "Bereit";
 "Still learning" = "Lernt noch";
@@ -232,8 +232,6 @@
 "May Pippa do this?" = "Darf Pippa das?";
 "Allow" = "Erlauben";
 "Don’t Allow" = "Nicht erlauben";
-"I’m still getting my AI ready. Ask me again in a moment." = "Ich mache meine KI noch bereit. Frag mich gleich noch einmal.";
-"I still need to load my AI before I can answer." = "Ich muss erst meine KI laden, bevor ich antworten kann.";
 
 /* R5: einmalige Übernahme aus dem alten Sandbox-Container (App/LegacyMigrationPrompt.swift). */
 "Bring over your conversations?" = "Deine Gespräche übernehmen?";
@@ -248,3 +246,5 @@
 "Details" = "Details";
 "Show details" = "Details zeigen";
 "Hide details" = "Details ausblenden";
+"I’m almost ready. I’ll answer as soon as I am." = "Ich bin gleich so weit und antworte dann sofort.";
+"I’m not set up yet. Setup is open now." = "Ich bin noch nicht eingerichtet. Die Einrichtung ist jetzt offen.";

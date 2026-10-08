@@ -19,7 +19,7 @@ import PippaCore
         chat.append(.user, "Benenne die Scans in Downloads nach ihrem Inhalt um.")
         // The guard's real wording for a rename (pippa-guard.ts describeCommand + commandDetail).
         let request = PiUIRequest(id: "snap", method: "select",
-                                  title: "Darf Pippa das?\n\nPippa möchte im Ordner ‚Downloads‘ eine Datei umbenennen: „Scan 3.pdf“ wird zu „Mietvertrag.pdf“. OK?\n\nBefehl (für Fachleute): mv \"Scan 3.pdf\" Mietvertrag.pdf\nOrdner: ~/Downloads. Rückgängig geht mit einem Klick.",
+                                  title: "Darf Pippa das?\n\nPippa möchte im Ordner „Downloads“ eine Datei umbenennen: „Scan 3.pdf“ wird zu „Mietvertrag.pdf“.\n\nGenauer Befehl: mv \"Scan 3.pdf\" Mietvertrag.pdf\nOrdner: ~/Downloads. Rückgängig geht mit einem Klick.",
                                   message: "", options: ["Erlauben", "Für diese Aufgabe erlauben", "Nicht erlauben"])
         let ask = GuardAsk(request)
         verify(ask?.sentence.hasPrefix("Pippa möchte im Ordner") == true, "Satz ohne Befehl: \(ask?.sentence ?? "-")")

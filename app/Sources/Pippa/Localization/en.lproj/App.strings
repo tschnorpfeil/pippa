@@ -232,8 +232,6 @@
 "May Pippa do this?" = "May Pippa do this?";
 "Allow" = "Allow";
 "Don’t Allow" = "Don’t Allow";
-"I’m still getting my AI ready. Ask me again in a moment." = "I’m still getting my AI ready. Ask me again in a moment.";
-"I still need to load my AI before I can answer." = "I still need to load my AI before I can answer.";
 
 /* R5: einmalige Übernahme aus dem alten Sandbox-Container (App/LegacyMigrationPrompt.swift). */
 "Bring over your conversations?" = "Bring over your conversations?";
@@ -248,3 +246,5 @@
 "Details" = "Details";
 "Show details" = "Show details";
 "Hide details" = "Hide details";
+"I’m almost ready. I’ll answer as soon as I am." = "I’m almost ready. I’ll answer as soon as I am.";
+"I’m not set up yet. Setup is open now." = "I’m not set up yet. Setup is open now.";

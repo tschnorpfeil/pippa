@@ -32,10 +32,10 @@ export async function isFolder(path: string): Promise<boolean> {
 	}
 }
 
-/** German phrase for the person, e.g. "die Datei ‚Notizen.txt‘ im Ordner ‚Test‘": folder name instead of a long path; the path goes in the detail line. */
+/** German phrase for the person, e.g. "die Datei „Notizen.txt“ im Ordner „Test“": folder name instead of a long path; the path goes in the detail line. */
 export function fileWords(path: string, folder = false): string {
 	const parent = basename(dirname(path)) || dirname(path);
-	return `${folder ? "den Ordner" : "die Datei"} ‚${basename(path)}‘ im Ordner ‚${parent}‘`;
+	return `${folder ? "den Ordner" : "die Datei"} „${basename(path)}“ im Ordner „${parent}“`;
 }
 
 /**
