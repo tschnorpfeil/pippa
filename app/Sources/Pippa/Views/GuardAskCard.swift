@@ -31,7 +31,8 @@ struct GuardAsk: Identifiable, Equatable {
         default:
             return nil
         }
-        self.title = title.isEmpty ? T("May Pippa do this?", table: "App") : title
+        // The guard always writes German; its fixed heading follows the app language.
+        self.title = title.isEmpty || title == "Darf Pippa das?" ? T("May Pippa do this?", table: "App") : title
         let parts = message.components(separatedBy: "\n\n")
         sentence = parts.first ?? message
         detail = parts.dropFirst().joined(separator: "\n\n")
