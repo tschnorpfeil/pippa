@@ -43,3 +43,9 @@ Weiter auf dem Mac: `docs/rebuild/MAC-HANDOFF.md`.
 - [x] Einordnen beim Aufräumen gemessen: Apple FM p50 2,0 s/Datei, K2-Rückfall p50 3,2 s/Datei → Rückfall bleibt.
 - [ ] Erste OCR nach längerer Pause: 53–60 s im Spike (warm 0,08 s/Seite); in der App nach Leerlauf nachmessen.
 - [ ] K2-Deutsch: Kernfakten stimmen, aber Füllsätze und Halbsätze (r2 b/s/n); Owner-Entscheidung, ob Qwen später wieder verglichen wird.
+- [x] Nachtrag 09.10. früh: Freigabe-Karte/Kontrast/Vorschauzeile (`77ad89b`), Speicherplatz-Fehler + „Im Hintergrund weiterladen“ (`7aa17ba`),
+      Beispiele im leeren Gespräch (`c7bcac5`), Papierkorb-Quittung (`b15b005`), K2 Temperatur 0.6 (`efae00c`), Schriftgröße (`a51a5d8`).
+- [x] r7 latency Endstand (K2 gepatcht, high, 0.6): 18/18 mit Antwort, erstes Wort Median ~12 s, gesamt ~16 s; Kaltstart 11,7 s.
+- [ ] UI-Rundgang offen: KI/Wissen/Modell einheitlich (Owner-Wahl), Einstellungen „Gemerkte Aktionen“ und Online-Dienst-Begriffe,
+      „Für weitere Antworten“ → „Verwendete Dateien (n)“, Mail-Karte „Ich sende nichts“, Workspace-Szene `workspace-02-overview` (schon auf main rot).
+- [ ] Echte Klicks in der App (Erststart, Drag-and-drop, ⌘V, Rechtedialoge) – nur Snapshots und Spikes gelaufen.
