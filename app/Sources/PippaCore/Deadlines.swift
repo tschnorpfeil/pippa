@@ -1,7 +1,7 @@
 import Foundation
 
-// Deadlines from letters and contracts. Product analysis: Pi skill and DeadlineAnalysis; the
-// historical patterns below remain comparison fixtures. Each deadline carries its
+// Deadlines from letters and contracts. Further analysis: Pi with skill fristen-erkennen; the
+// patterns below find deadlines without a model (letter line, overview). Each deadline carries its
 // verbatim evidence passage (excerpt of the read text) and the page.
 
 /// A found deadline.

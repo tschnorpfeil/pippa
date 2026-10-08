@@ -1,11 +1,11 @@
 import Foundation
 
-// Shared values between host (Swift) and model: letter suggestions and "Check online" (LetterModel), online
+// Shared values between host (Swift) and model: letter action choices, web citations, online
 // lookup in conversation (WebAccessGate, Pi tools via PippaMCP), reading the calendar (MCP).
 // Everything that comes from the model is unchecked: `LetterActions.validated` checks suggestions, `WebQuotes.verify` quotes.
 // The network is never the model's, always the host's (Lookup/LookupHost.swift, WebAccessGate.swift).
 
-/// One action the model may propose for a letter (LetterModel: only ids from this list are allowed in the schema).
+/// One action that may be offered for a letter (only ids from this list are allowed).
 public struct AgentActionChoice: Sendable, Equatable {
     public var id: String          // LetterActions id, e.g. "object"
     public var label: String       // English verb for the model, e.g. "Object"

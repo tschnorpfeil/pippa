@@ -108,7 +108,6 @@ struct ConversationWorkspace: View {
             if mode.shape == .sheet {
                 Theme.hair.frame(height: 0.5)
                 if case .sortSheet = mode { SortActions(model: model) }
-                if case .invoiceSheet = mode { InvoiceActions(model: model) }
             }
             composer
         }
@@ -512,7 +511,7 @@ struct ConversationWorkspace: View {
 
     private var workspaceStatus: String {
         switch mode {
-        case .sortSheet, .invoiceSheet, .entryPreview: return T("Preview · Nothing changed yet", table: "Views")
+        case .sortSheet, .entryPreview: return T("Preview · Nothing changed yet", table: "Views")
         case .overview, .deadlines: return T("Read only · Nothing changed", table: "Views")
         case .working(_, _, let writes): return writes ?? T("Just reading · Nothing will change", table: "Views")
         default: return ""

@@ -33,8 +33,6 @@ case "p0-answers":
     print("p0-answers no longer exists; ANS-1 on the Pi path: scripts/pi-rpc-spike.sh r7 ans1"); exit(2)
 case "p0-suggestions":
     try await P0SuggestionLive.run(useAppleFM: args.contains("--apple-fm"))
-case "w4a-letter":
-    try await W4aLetterLive.run(base: base, arguments: Array(args.dropFirst()))
 case "tidy-speed":
     try await TidySpeedLive.run(base: base, arguments: Array(args.dropFirst()))
 case "ctxsug-suggestions":
@@ -148,18 +146,6 @@ case "ocr-bench":
 case "decide":
     // Measurement spike for the decision model: Apple FM, NaturalLanguage, BM25 (see DecisionSpike.swift).
     try await DecisionSpike.run()
-case "analyze":
-    guard args.count >= 4 else { print("analyze <deadlines|invoices> <model> <files…>"); exit(2) }
-    let e = try await engine(model: args[2])
-    try await e.prepareModel()
-    let urls = args.dropFirst(3).map { URL(fileURLWithPath: $0) }
-    if args[1] == "deadlines" {
-        let result = try await e.deadlines(in: urls)
-        for d in result { print("\(d.kind) | \(d.date?.german ?? "no date") | \(d.title) | \(d.location ?? "") | \(d.quote) | \(d.note ?? "")") }
-    } else if args[1] == "invoices" {
-        for r in try await e.extractInvoices(in: urls) { print("\(r.source.lastPathComponent) | \(r.amount.map { GermanText.formatAmount($0) } ?? "empty") | \(r.certainty) | \(r.evidence ?? "")") }
-    } else { await e.shutdown(); exit(2) }
-    await e.shutdown()
 case "run":
     guard args.count >= 2 else { print("run <corpus> [model]"); exit(2) }
     let corpus = URL(fileURLWithPath: args[1], isDirectory: true)

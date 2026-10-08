@@ -103,22 +103,6 @@ public struct Plan: Sendable {
     }
 }
 
-public struct InvoiceRow: Sendable, Identifiable {
-    public var id = UUID()
-    public var date: String?              // DD.MM.YYYY
-    public var sender: String?
-    public var amount: Decimal?
-    public var currency: String = "EUR"
-    public var source: URL
-    public var evidence: String?          // verbatim evidence passage
-    public var certainty: Certainty
-    public init(date: String?, sender: String?, amount: Decimal?, source: URL, evidence: String?, certainty: Certainty) {
-        self.date = date; self.sender = sender; self.amount = amount; self.source = source; self.evidence = evidence; self.certainty = certainty
-    }
-}
-
-public enum ExportFormat: String, Sendable, CaseIterable { case xlsx, csv }
-
 public struct Answer: Sendable {
     public var text: String               // short answer
     public var source: URL?
@@ -215,8 +199,6 @@ public protocol PippaEngine: AnyObject, Sendable {
     func overview(of payload: DropPayload) async throws -> Overview
     func proposeSort(folder: URL) async throws -> Plan
     func apply(_ plan: Plan, excluding: Set<UUID>) async throws -> JobReceipt
-    func extractInvoices(in items: [URL]) async throws -> [InvoiceRow]
-    func exportInvoices(_ rows: [InvoiceRow], format: ExportFormat, to folder: URL) async throws -> JobReceipt
     func undo(_ receipt: JobReceipt) async throws
     func pendingRecovery() async -> [JobReceipt]   // after a crash: resume or undo
 
@@ -247,8 +229,6 @@ public protocol PippaEngine: AnyObject, Sendable {
 
     // Integrations with other apps (see Integrations/). Reading is free, writing only after "Apply".
 
-    /// Deadlines in files (patterns only), each with a verbatim evidence passage.
-    func deadlines(in items: [URL]) async throws -> [Deadline]
     func integrationAccess(_ integration: Integration) async -> IntegrationAccess
     /// Show the system prompt. Call only when the person is currently using the feature.
     func requestIntegrationAccess(_ integration: Integration) async -> IntegrationAccess
@@ -264,11 +244,6 @@ public protocol PippaEngine: AnyObject, Sendable {
 
     // Letter (ToolBridgeTypes.swift):
 
-    /// Up to three next steps for a letter from `choices`, structured on the local model
-    /// (LetterModel). Unchecked; `LetterActions.validated` checks them. `nil`: no model ready or nothing usable.
-    func proposeLetterActions(mail: URL, choices: [AgentActionChoice]) async throws -> [AgentActionProposal]?
-    /// "Check online" as a fixed flow (LetterModel): request, fetch via `host`, verbatim quotes.
-    func checkOnline(statement: String, host: LookupHost) async throws -> LetterModel.CheckOutcome
     /// Creates an unsent reply window in Mail. Never sends.
     func insertMailReply(_ draft: MailDraft) async throws -> MailInsertResult
     /// After a call: keep the local model loaded for 20 minutes. Starts nothing.
@@ -310,15 +285,12 @@ public extension PippaEngine {
     func warmUp() async {}
     func recentJobs(limit: Int) async -> [JobReceipt] { [] }
     var workProgress: WorkProgress? { get async { nil } }
-    func deadlines(in items: [URL]) async throws -> [Deadline] { [] }
     func integrationAccess(_ integration: Integration) async -> IntegrationAccess { .unavailable(L("That isn’t possible here right now.", table: "Core")) }
     func requestIntegrationAccess(_ integration: Integration) async -> IntegrationAccess { await integrationAccess(integration) }
     func addEntry(_ entry: CalendarEntry) async throws -> JobReceipt { throw PippaError.notAvailable }
     func selectedMail() async throws -> MailMessage? { throw PippaError.notAvailable }
     func readCalendar(_ range: CalendarRange) async -> CalendarReadResult { .failed(CalendarReadResult.failureText) }
     func recordResult(_ files: [URL], summary: String, detail: String) async throws -> JobReceipt { throw PippaError.notAvailable }
-    func proposeLetterActions(mail: URL, choices: [AgentActionChoice]) async throws -> [AgentActionProposal]? { nil }
-    func checkOnline(statement: String, host: LookupHost) async throws -> LetterModel.CheckOutcome { .failed }
     func insertMailReply(_ draft: MailDraft) async throws -> MailInsertResult { throw PippaError.notAvailable }
     func keepWarmAfterCall() async {}
     func sheetAccess() async -> IntegrationAccess { .unavailable(L("That isn’t possible here right now.", table: "Core")) }

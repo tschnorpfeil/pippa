@@ -39,19 +39,11 @@ final class LetterController: ObservableObject {
     @Published private(set) var callingText = ""
     @Published private(set) var firstLine: FirstLine?
     @Published private(set) var facts: LetterFacts?
-    /// At most three; suggested ones replace the type actions in the same slots.
+    /// At most three, from the letter's type and habits (code, no model).
     @Published private(set) var actions: [LetterAction] = []
-    @Published private(set) var proposing = false
     /// The draft; while editing, bound directly to the text field. Kept when collapsed.
     @Published var draft = ""
     @Published private(set) var editing = false
-    /// Sourced web facts for the checked deadline (`webDeadline`).
-    @Published private(set) var web: WebAnswer?
-    @Published private(set) var webDeadline: UUID?
-    /// Deadline currently being checked online.
-    @Published private(set) var checkingDeadline: UUID?
-    /// Actual search query waiting for the person's click ("Search online for: …?").
-    @Published private(set) var lookupConfirm: String?
     /// Sentence about the attachment that Pippa cannot read from Mail.
     @Published private(set) var note: String?
     /// Insert failed: one sentence under the draft, the draft stays.
@@ -96,19 +88,10 @@ final class LetterController: ObservableObject {
 
     private var callTask: Task<Void, Never>?
     private var refineTask: Task<Void, Never>?
-    private var proposalTask: Task<Void, Never>?
     private var chooseTask: Task<Void, Never>?
     private var draftTask: Task<Void, Never>?
-    private var checkTask: Task<Void, Never>?
     private var insertTask: Task<Void, Never>?
     private var trayWatch: AnyCancellable?
-
-    /// One lookup process for all checks (exits by itself after two minutes idle).
-    private let fetcher = WebFetcher()
-    private var lookupHost: LookupHost?
-    private var checkedDeadline: Deadline?
-    /// This check is already in the log (one line per check, never the query).
-    private var lookupLogged = true
 
     // MARK: State for line and figure
 
@@ -130,10 +113,8 @@ final class LetterController: ObservableObject {
         return model.tray.items.contains { $0.id == itemID }
     }
 
-    /// Is an engine answer of our own running (suggestion, draft, check)? Then everything else waits.
-    var isWorking: Bool {
-        proposing || checkingDeadline != nil || isDrafting
-    }
+    /// Is an answer of our own running (draft)? Then everything else waits.
+    var isWorking: Bool { isDrafting }
 
     var hasSession: Bool { session != nil }
 
@@ -144,15 +125,14 @@ final class LetterController: ObservableObject {
 
     var isInserting: Bool { insertTask != nil }
 
-    /// "Check online" only with the large local model (fixed flow on the local model, never over a
-    /// separate connection); the system model does not fill the fields reliably.
-    var canCheckOnline: Bool { localModelReady }
+    /// "Check online" hands the statement to Pi (skill `online-pruefen`, Pippa's web card asks before any lookup).
+    var canCheckOnline: Bool { session != nil }
 
     /// Can the actions be chosen right now?
     var canChoose: Bool {
         guard session != nil else { return false }
         switch phase {
-        case .ready, .failure: return checkingDeadline == nil
+        case .ready, .failure: return true
         default: return false
         }
     }
@@ -304,7 +284,6 @@ final class LetterController: ObservableObject {
         choseSinceOpen = false
         phase = .ready
         refine(facts, body: mail.body, sid: started.id)
-        proposalTask = Task { [weak self] in await self?.propose(started.id) }
     }
 
     /// A repeated call while a letter is open: if a different mail is selected meanwhile, Pippa starts with it.
@@ -369,42 +348,10 @@ final class LetterController: ObservableObject {
         }
     }
 
-    // MARK: Suggestions
-
-    /// Suggestions and "Check online" are fixed flows with structured calls on the local model
-    /// (`LocalEngine.proposeLetterActions`/`checkOnline`, LetterModel), no longer a conversation over the old core. In the
-    /// Pi path this is the app's single llama-server (`LocalEngine.useSharedServer`); never a connection that bypasses Pippa's
-    /// approval. Stopping means: cancel its own task (`cancelLetterWork`).
-    private var localModelReady: Bool {
-        model?.chatReadiness == .ready
-    }
-
-    /// Large model ready: fetch suggestions and swap them into the same slots. Errors stay silent.
-    private func propose(_ sid: UUID) async {
-        guard let model, let current = session, current.id == sid, phase == .ready else { return }
-        guard localModelReady else { return }
-        guard !model.busy, !model.conversations.isRunning, !Task.isCancelled else { return }
-        proposing = true
-        // Reset only its own suggestion; a new letter may already have started its own.
-        defer { if session == nil || session?.id == sid { proposing = false } }
-        let proposals: [AgentActionProposal]
-        do {
-            proposals = try await model.engine.proposeLetterActions(mail: current.emlURL, choices: LetterActions.allowedForAgent()) ?? []
-        } catch {
-            return
-        }
-        guard session?.id == sid, phase == .ready, !Task.isCancelled else { return }
-        guard let valid = LetterActions.validated(proposals) else { return }
-        actions = valid
-    }
-
     /// Stop its own running answer and wait before the next begins (the engine takes only one).
     private func settle() async {
         guard model != nil else { return }
-        let running = [proposalTask, checkTask, draftTask].compactMap { $0 }
-        // Suggestions and checking (structured calls) stop when their task is cancelled; a draft goes through Pi.
-        if proposing { proposalTask?.cancel() }
-        if checkingDeadline != nil { checkTask?.cancel() }
+        let running = [draftTask].compactMap { $0 }
         if isWorking { await Self.cancel(pi: piDrafting) }
         for task in running { await task.value }
     }
@@ -580,17 +527,12 @@ final class LetterController: ObservableObject {
         phase = .draft
     }
 
-    /// "Stop": the running own answer stops (draft or check).
+    /// "Stop": the running draft stops.
     func stop() {
-        guard isDrafting || checkingDeadline != nil else { return }
+        guard isDrafting else { return }
         stopRequested = true
-        let host = lookupHost
         let pi = piDrafting
-        if checkingDeadline != nil { checkTask?.cancel() }
-        Task {
-            await host?.cancel()
-            await Self.cancel(pi: pi)
-        }
+        Task { await Self.cancel(pi: pi) }
     }
 
     /// ⌘Return: unsent reply to the captured original mail; no silent compose fallback.
@@ -697,104 +639,15 @@ final class LetterController: ObservableObject {
 
     // MARK: Check online
 
+    /// "Check online" on a deadline: the conversation takes over with skill `online-pruefen` and only the general
+    /// statement about the deadline. Pi searches with Pippa's web tool, whose card shows the exact query first and whose
+    /// QueryGuard keeps personal details out.
     func checkOnline(_ deadline: Deadline) {
-        guard canCheckOnline, let model, let current = session, checkingDeadline == nil, !isDrafting, chooseTask == nil else { return }
+        guard canCheckOnline, let model, !isDrafting, chooseTask == nil else { return }
         guard !model.busy, !model.conversations.isRunning else { return }
-        let personal = PersonalTerms.from(mail: current.mail, fileNames: model.tray.items.map(\.name), userName: NSFullUserName())
-        let host = LookupHost(fetcher: fetcher, personal: personal)
-        logPendingLookup()
-        lookupHost = host
-        checkedDeadline = deadline
-        web = nil
-        webDeadline = deadline.id
-        lookupConfirm = nil
-        lookupLogged = false
-        stopRequested = false
-        let wasProposing = proposing
-        let running = proposalTask
-        checkingDeadline = deadline.id
-        let sid = current.id
-        checkTask = Task { [weak self] in
-            // A running suggestion yields: the model takes only one job at a time.
-            if wasProposing { running?.cancel() }
-            await running?.value
-            await self?.runCheck(deadline, host: host, sid: sid)
-        }
-    }
-
-    /// "Search online for: …?" clicked: approve exactly this query once and check again.
-    func confirmLookup() {
-        guard let query = lookupConfirm, let host = lookupHost, let deadline = checkedDeadline, let current = session else { return }
-        guard checkingDeadline == nil, !isDrafting else { return }
-        lookupConfirm = nil
-        web = nil
-        stopRequested = false
-        checkingDeadline = deadline.id
-        let sid = current.id
-        checkTask = Task { [weak self] in
-            await host.approve(query)
-            await self?.runCheck(deadline, host: host, sid: sid)
-        }
-    }
-
-    private func runCheck(_ deadline: Deadline, host: LookupHost, sid: UUID) async {
-        guard let model, let current = session, current.id == sid else { return }
-        if stopRequested || Task.isCancelled {
-            stopRequested = false
-            checkingDeadline = nil
-            logLookup(found: false)
-            return
-        }
-        // Fixed flow (LetterModel) instead of a conversation over the old core. The mail itself does not go along,
-        // only the statement about the deadline; query, approval and quote check stay with LookupHost.
+        guard let skill = PippaSkill.bundled.first(where: { $0.name == "online-pruefen" }) else { return }
         let statement = FirstLineBuilder.statement(for: deadline)
-        var stopped = false
-        var citations: [WebCitation] = []
-        do {
-            if stopRequested || Task.isCancelled { throw CancellationError() }
-            if case .cited(let found) = try await model.engine.checkOnline(statement: statement, host: host) { citations = found }
-            if Task.isCancelled { stopped = true }
-        } catch {
-            if error is CancellationError || (error as? URLError)?.code == .cancelled { stopped = true }
-        }
-        guard session?.id == sid else { return }
-        if stopped || stopRequested {
-            stopRequested = false
-            checkingDeadline = nil
-            web = nil
-            webDeadline = nil
-            logLookup(found: false)
-            return
-        }
-        let answer = await host.verify(citations)
-        let pending = answer.facts.isEmpty ? await host.pendingConfirmation : nil
-        guard session?.id == sid else { return }
-        // Stop can arrive while source verification crosses the actor boundary.
-        guard !stopRequested, !Task.isCancelled else {
-            stopRequested = false
-            checkingDeadline = nil
-            web = nil
-            webDeadline = nil
-            logLookup(found: false)
-            return
-        }
-        web = answer
-        webDeadline = deadline.id
-        lookupConfirm = pending
-        checkingDeadline = nil
-        // If the query is waiting for the person, the line enters the log only after their click (or on close).
-        if pending == nil { logLookup(found: !answer.facts.isEmpty) }
-    }
-
-    private func logLookup(found: Bool) {
-        guard !lookupLogged else { return }
-        lookupLogged = true
-        model?.taskLog.lookup(found: found)
-    }
-
-    /// A check that was still waiting for the person counts as "nothing sourced" when moving on.
-    private func logPendingLookup() {
-        if checkedDeadline != nil { logLookup(found: false) }
+        leave { model.route(statement, skill: skill) }
     }
 
     // MARK: Line open, closed, end
@@ -833,18 +686,13 @@ final class LetterController: ObservableObject {
     /// End everything: stop own answers, forget this letter's Pi session, clear state.
     func end() {
         let ending = session
-        let endingLookup = lookupHost
-        Task { await endingLookup?.cancel() }
         if isWorking {
             let pi = piDrafting
             Task { await Self.cancel(pi: pi) }
         }
-        logPendingLookup()
         callTask?.cancel(); callTask = nil
         refineTask?.cancel(); refineTask = nil
-        proposalTask?.cancel(); proposalTask = nil
         draftTask?.cancel(); draftTask = nil
-        checkTask?.cancel(); checkTask = nil
         if let ending {
             // The Pi session of this letter (draft) goes to the trash instead of being deleted for good.
             let taskID = ending.taskID
@@ -861,16 +709,8 @@ final class LetterController: ObservableObject {
         firstLine = nil
         facts = nil
         actions = []
-        proposing = false
         draft = ""
         editing = false
-        web = nil
-        webDeadline = nil
-        checkingDeadline = nil
-        lookupConfirm = nil
-        lookupHost = nil
-        checkedDeadline = nil
-        lookupLogged = true
         note = nil
         insertProblem = nil
         choseSinceOpen = true

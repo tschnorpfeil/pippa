@@ -134,58 +134,8 @@ struct LiveRun {
         t.add("Undo", restored == before ? "everything back in its old place" : "Difference: \(restored.symmetricDifference(before).sorted())",
               restored == before, s5)
 
-        // 5. Invoices
-        let (rows, s6) = try await timed { try await engine.extractInvoices(in: [corpus]) }
-        var correct = 0
-        for r in rows {
-            let truth = Corpus.invoices.first { $0.file == r.source.lastPathComponent }
-            let amountOK = truth.map { r.amount == $0.amount } ?? false
-            let dateOK = truth.map { r.date == $0.date } ?? false
-            let senderOK = truth.map { (r.sender ?? "").lowercased().contains($0.senderNeedle) } ?? false
-            let evidenceOK = r.evidence.map { e in r.amount.map { a in GermanText.amounts(in: e).contains { $0.value == a } } ?? false } ?? false
-            if amountOK && dateOK && senderOK && evidenceOK && r.certainty == .sure { correct += 1 }
-            let verdict = truth == nil ? "  (not an expected invoice)"
-                : "  Amount \(amountOK ? "✓" : "✗") Date \(dateOK ? "✓" : "✗") Sender \(senderOK ? "✓" : "✗") Evidence \(evidenceOK ? "✓" : "✗")"
-            print("     \(r.source.lastPathComponent): \(r.date ?? "–") · \(r.sender ?? "–") · \(r.amount.map { GermanText.formatAmount($0) } ?? "–") · [\(r.certainty.rawValue)] “\(r.evidence ?? "")”" + verdict)
-        }
-        let extra = Set(rows.map { $0.source.lastPathComponent }).subtracting(Corpus.invoices.map(\.file)).sorted()
-        t.add("Extract invoices", "\(rows.count) rows, \(correct)/\(Corpus.invoices.count) fully correct and sure; others: \(extra)",
-              correct == Corpus.invoices.count, s6)
-        t.add("  per invoice", "", nil, s6 / Double(max(rows.count, 1)))
-
-        // 6. Export
-        let out = base.appendingPathComponent("export", isDirectory: true)
-        try? FileManager.default.removeItem(at: out)
-        try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
-        if !rows.isEmpty {
-            let (rc, s7) = try await timed { try await engine.exportInvoices(rows, format: .csv, to: out) }
-            let data = try Data(contentsOf: out.appendingPathComponent("Rechnungen.csv"))
-            let bom = data.prefix(3) == Data([0xEF, 0xBB, 0xBF])
-            let text = String(decoding: data.dropFirst(3), as: UTF8.self)
-            let lines = text.components(separatedBy: "\r\n").filter { !$0.isEmpty }
-            let german = lines.dropFirst().allSatisfy { line in
-                let cols = line.components(separatedBy: ";")
-                return cols.count >= 6 && (cols[0].isEmpty || cols[0].range(of: #"^\d{2}\.\d{2}\.\d{4}$"#, options: .regularExpression) != nil)
-                    && (cols[2].isEmpty || cols[2].range(of: #"^\d+,\d{2}$"#, options: .regularExpression) != nil)
-            }
-            print(lines.map { "     " + $0 }.joined(separator: "\n"))
-            t.add("Export CSV", "\(rc.summary): BOM \(bom), semicolon/decimal comma/DD.MM.YYYY \(german)", bom && german, s7)
-            let (rx, s8) = try await timed { try await engine.exportInvoices(rows, format: .xlsx, to: out) }
-            let zip = Process(); zip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-            zip.arguments = ["-tq", out.appendingPathComponent("Rechnungen.xlsx").path]
-            zip.standardOutput = FileHandle.nullDevice; zip.standardError = FileHandle.nullDevice
-            try zip.run(); zip.waitUntilExit()
-            t.add("Export XLSX", "\(rx.summary), ZIP valid \(zip.terminationStatus == 0)", zip.terminationStatus == 0, s8)
-        }
-
-        // 8. Deadlines
-        let (dl, s13) = try await timed { try await engine.deadlines(in: [corpus]) }
-        for d in dl { print("     \(d.title) [\(d.certainty.rawValue)] \(d.source?.lastPathComponent ?? "") \(d.location ?? "") “\(d.quote.prefix(90))” \(d.note ?? "")") }
-        let wantPay = dl.contains { $0.kind == .payment && $0.date == DayDate(year: 2026, month: 10, day: 31) }
-        let wantNotice = dl.contains { $0.kind == .cancellation && $0.source?.lastPathComponent == Corpus.lease && $0.location == "S. 4" }
-        let wantMobile = dl.contains { $0.kind == .cancellation && $0.date == DayDate(year: 2027, month: 1, day: 28) }
-        t.add("Deadlines", "\(dl.count) deadlines; back payment \(wantPay), notice period p. 4 \(wantNotice), mobile contract 28.01.2027 \(wantMobile)",
-              wantPay && wantNotice && wantMobile, s13)
+        // Invoices and deadlines are Pi conversations with skills now (rechnung-auslesen, fristen-erkennen):
+        // measure them on the Pi path (scripts/pi-rpc-spike.sh), not here.
 
         await engine.shutdown()
         try? await Task.sleep(for: .seconds(1))

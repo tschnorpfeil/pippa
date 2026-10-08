@@ -1,11 +1,10 @@
 import Foundation
 
 /// A structured call directly to the local llama-server (OpenAI-compatible `/v1/chat/completions` with
-/// `response_format: json_schema`), without Pi and without Node. For the fixed flows that need a model but no
-/// conversation: sort classification, invoices, deadlines (`LocalEngine.askModel`), letter suggestions and "Check online"
-/// (`LetterModel`). Replaces `PiRuntimeClient.structured` (runtime/pi/src/structured.mjs) with the same
-/// settings: temperature 0.1, thinking off, response limit a quarter of the context (at most 4096), grammar from the
-/// schema. The response is then checked in code (Decodable + the respective check), never in the model text.
+/// `response_format: json_schema`), without Pi and without Node. Only one fixed task uses it any more: classifying an
+/// unclear document while tidying when Apple's on-device model is not available (`TidyClassifier`, `LocalEngine.askModel`;
+/// keep or drop after measuring it against Pi with K2). Temperature 0.1, thinking off, response limit a quarter of the
+/// context (at most 4096), grammar from the schema. The response is checked in code (Decodable + checks), never trusted.
 public enum LocalModelJSON {
     public enum Failure: Error, Equatable, Sendable {
         /// System, user text and schema together larger than the context allows.

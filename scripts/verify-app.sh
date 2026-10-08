@@ -100,7 +100,7 @@ ok "web fetcher in Contents/Resources/pippa-web, lockfile matches this checkout"
 # Pippa's abilities: exactly the folders of runtime/pippa-skills, each with its SKILL.md.
 expected_skills="$(find "$ROOT/runtime/pippa-skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')"
 found_skills="$(find "$APP/Contents/Resources/pippa-skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
-((expected_skills >= 15)) || fail "runtime/pippa-skills has only $expected_skills abilities"
+((expected_skills >= 14)) || fail "runtime/pippa-skills has only $expected_skills abilities"
 [[ "$found_skills" == "$expected_skills" ]] || fail "Pippa's abilities: $found_skills in the bundle, $expected_skills in runtime/pippa-skills"
 diff -rq "$ROOT/runtime/pippa-skills" "$APP/Contents/Resources/pippa-skills" -x .DS_Store >/dev/null || fail "bundled abilities differ from runtime/pippa-skills"
 ok "Pippa's abilities: $found_skills in Contents/Resources/pippa-skills, same as runtime/pippa-skills"

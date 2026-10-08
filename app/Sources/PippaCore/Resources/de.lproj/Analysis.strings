@@ -22,17 +22,6 @@
 "Compressed archive" = "Gepacktes Archiv";
 "Spreadsheet or presentation" = "Tabelle oder Präsentation";
 "Not a document, so it goes to “%@”" = "Keine Unterlage, kommt zu %@";
-"Date" = "Datum";
-"Sender" = "Absender";
-"Amount" = "Betrag";
-"Amount (EUR)" = "Betrag (EUR)";
-"File" = "Datei";
-"Source text" = "Belegstelle";
-"Check" = "Prüfen";
-"please check" = "bitte prüfen";
-"unreadable" = "nicht lesbar";
-"Worked out from the period in the document: %@. Please check." = "Aus der belegten Frist berechnet: %@. Bitte prüfen.";
-"Please check the date and choose one." = "Bitte das Datum prüfen und auswählen.";
 "Cancel %@" = "%@ kündigen";
 "Cancel contract" = "Vertrag kündigen";
 "Pay the utilities balance" = "Nebenkosten nachzahlen";

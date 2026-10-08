@@ -26,7 +26,7 @@ extension ShellController {
         if model.mode.isConversation { return true }
         if model.busy { return false }
         switch model.mode {
-        case .working, .sortSheet, .invoiceSheet: return false
+        case .working, .sortSheet: return false
         default: return true
         }
     }

@@ -104,8 +104,6 @@ final class AppModel: ObservableObject {
     @Published var openGroups: Set<String> = []
     @Published var fullGroups: Set<String> = []
     // Invoices
-    @Published var invoices: [InvoiceRow] = []
-    @Published var exportFormat: ExportFormat = .xlsx
     // Deadlines
     @Published var deadlines: [Deadline] = []
     @Published var entryDraft: CalendarEntry?
@@ -168,7 +166,7 @@ final class AppModel: ObservableObject {
             case .failure: return .fehler
             default: return .ruht
             }
-        case .overview, .sortSheet, .invoiceSheet, .deadlines, .entryPreview, .notice: return .offen
+        case .overview, .sortSheet, .deadlines, .entryPreview, .notice: return .offen
         case .working: return .arbeitet
         default: break
         }
@@ -427,7 +425,7 @@ final class AppModel: ObservableObject {
 
     func show(_ mode: ShellMode, recordResult: Bool = true, receipt: UUID? = nil, preserveCardAnchor: Bool = false) {
         switch mode {
-        case .overview, .sortSheet, .invoiceSheet, .deadlines, .entryPreview, .notice:
+        case .overview, .sortSheet, .deadlines, .entryPreview, .notice:
             taskCard = mode
         default: break
         }
@@ -441,11 +439,6 @@ final class AppModel: ObservableObject {
                 conversations.append(.system, T("Overview: %@", table: "App", heading))
             case .sortSheet:
                 break   // The line is added only when the preview is complete (see proposeSort); at the first interim state N would be too small.
-            case .invoiceSheet:
-                let line = invoices.count == 1
-                    ? T("Invoice table preview: 1 invoice", table: "App")
-                    : T("Invoice table preview: %lld invoices", table: "App", invoices.count)
-                conversations.append(.system, line)
             case .deadlines:
                 let line = deadlines.count == 1
                     ? T("Found 1 deadline", table: "App")
@@ -548,7 +541,7 @@ final class AppModel: ObservableObject {
     /// Esc: one step back in the sheet, otherwise to the pill.
     func escape() {
         switch mode {
-        case .sortSheet, .invoiceSheet, .deadlines:
+        case .sortSheet, .deadlines:
             stopSortFilling()
             if let o = lastOverview { show(.overview(o), recordResult: false) } else { collapse() }
         case .entryPreview:
@@ -689,34 +682,33 @@ final class AppModel: ObservableObject {
     }
 
     private func resetFileWork() {
-        taskCard = nil; plan = nil; invoices = []; deadlines = []; lastOverview = nil; parked = nil
+        taskCard = nil; plan = nil; deadlines = []; lastOverview = nil; parked = nil
         entryDraft = nil; entryDeadline = nil; excluded = []; deadlineSender = nil
     }
 
     /// Open preview, overview or receipt per conversation: kept when switching (while Pippa is running).
     private struct FileWork {
-        var taskCard: ShellMode?, plan: Plan?, excluded: Set<UUID>, invoices: [InvoiceRow]
+        var taskCard: ShellMode?, plan: Plan?, excluded: Set<UUID>
         var deadlines: [Deadline], lastOverview: Overview?, deadlineSender: String?
     }
     private var savedWork: [UUID: FileWork] = [:]
 
     private func stashFileWork() {
         guard let id = conversations.current?.id else { return }
-        savedWork[id] = FileWork(taskCard: taskCard, plan: plan, excluded: excluded, invoices: invoices,
+        savedWork[id] = FileWork(taskCard: taskCard, plan: plan, excluded: excluded,
                                  deadlines: deadlines, lastOverview: lastOverview, deadlineSender: deadlineSender)
     }
 
     private func restoreFileWork() {
         resetFileWork()
         guard let id = conversations.current?.id, let w = savedWork[id] else { return }
-        taskCard = w.taskCard; plan = w.plan; excluded = w.excluded; invoices = w.invoices
+        taskCard = w.taskCard; plan = w.plan; excluded = w.excluded
         deadlines = w.deadlines; lastOverview = w.lastOverview; deadlineSender = w.deadlineSender
     }
 
     var taskCardTitle: String {
         switch taskCard {
         case .sortSheet: return T("Sorting Preview", table: "App")
-        case .invoiceSheet: return T("Invoice Table", table: "App")
         case .notice: return T("Result & Undo", table: "App")
         case .deadlines, .entryPreview: return T("Dates & Deadlines", table: "App")
         default: return T("Files & Suggestions", table: "App")
@@ -746,7 +738,6 @@ final class AppModel: ObservableObject {
             }
             if plan.ops.count > 40 { parts.append("Weitere Vorschauzeilen hier nicht enthalten.") }
         }
-        if taskCard?.key == "invoice", !invoices.isEmpty { parts.append("Rechnungsvorschau: \(invoices.count) Zeilen; noch kein Export durch diese Vorschau.") }
         if case .notice(let title, let detail, _) = taskCard { parts.append("Bestätigtes Ergebnis: " + title + "\n" + detail) }
         return String(parts.joined(separator: "\n").prefix(12000))
     }
@@ -1207,7 +1198,6 @@ final class AppModel: ObservableObject {
         switch mode {
         case .sortSheet:
             return plan?.ops.contains { $0.kind != .mkdir && $0.certainty != .unreadable && !excluded.contains($0.id) } == true
-        case .invoiceSheet: return !invoices.isEmpty
         case .entryPreview: return entryDraft?.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         default: return false
         }
@@ -1217,7 +1207,6 @@ final class AppModel: ObservableObject {
         guard canConfirmPreview else { return }
         switch mode {
         case .sortSheet: applySort()
-        case .invoiceSheet: exportInvoices()
         case .entryPreview: applyEntry()
         default: break
         }
@@ -1247,43 +1236,12 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Invoices as a table: Pi reads them and writes `Rechnungen.csv` next to them (skill `rechnung-auslesen`, Pi's
+    /// `write` with the guard's undo copy). Nothing goes through a fixed JSON flow any more.
     func startInvoices() {
         guard let ctx = context, !ctx.items.isEmpty else { return askForContext() }
-        if needsModel() { return }
-        let items = ctx.items
-        perform(title: T("Reading the invoices…", table: "App"), subtitle: T("Date, sender and amount. Nothing gets changed.", table: "App"),
-                retry: { [weak self] in self?.startInvoices() }) { engine in
-            try await engine.extractInvoices(in: items)
-        } done: { [weak self] rows in
-            guard let self else { return }
-            if rows.isEmpty {
-                self.show(.message(title: T("No invoices found", table: "App"), body: T("I didn’t recognize an invoice in these files.", table: "App"), isError: false))
-            } else {
-                self.invoices = rows
-                self.show(.invoiceSheet)
-            }
-        }
-    }
-
-    func exportInvoices() {
-        guard let ctx = context else { return }
-        guard let folder = ctx.folder else {
-            return chooseFolder(prompt: T("Create Here", table: "App"), message: T("Your invoices are in different places. Where should the table go?", table: "App"),
-                                start: ctx.commonAncestor) { [weak self] chosen in self?.exportInvoices(to: chosen) }
-        }
-        exportInvoices(to: folder)
-    }
-
-    private func exportInvoices(to folder: URL) {
-        let rows = invoices, format = exportFormat
-        perform(title: T("Creating the table…", table: "App"), subtitle: "", writes: T("I’m creating a new file", table: "App"),
-                retry: { [weak self] in self?.exportInvoices(to: folder) }) { engine in
-            try await engine.exportInvoices(rows, format: format, to: folder)
-        } done: { [weak self] receipt in
-            guard let self else { return }
-            self.finish(receipt)
-            self.showResultToast(receipt, open: T("Open", table: "App"), openFirst: true) { if let u = receipt.revealURL { NSWorkspace.shared.open(u) } }
-        }
+        guard let skill = PippaSkill.bundled.first(where: { $0.name == "rechnung-auslesen" }) else { return }
+        runSkill(skill)
     }
 
     /// Receipt with "Undo" and a button that shows the result (file, calendar, notes).
@@ -1441,10 +1399,10 @@ final class AppModel: ObservableObject {
 
     // MARK: Input
 
-    /// Jobs in the overview, with approval depending on model state.
+    /// Jobs in the overview. Tidy works without a model (unclear items stay); invoices and deadlines go to Pi, whose
+    /// setup gate (`piSetupHolds`) speaks for itself.
     func overviewActions(_ o: Overview) -> [(action: Action, enabled: Bool)] {
-        // Tidy works without a model (unclear items stay); only invoices need the knowledge.
-        o.actions.map { a in (a, a == .invoiceTable ? canRunModelWork : true) }
+        o.actions.map { ($0, true) }
     }
 
     /// Deselection, reasons and expanded groups apply to one preview only.

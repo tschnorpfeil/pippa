@@ -185,25 +185,6 @@ public final class StubEngine: PippaEngine, @unchecked Sendable {
         ("30.01.2026", "HUK-Coburg", "312.00", "HUK Beitragsrechnung.pdf", "Jahresbeitrag 312,00 €", false),
     ]
 
-    public func extractInvoices(in items: [URL]) async throws -> [InvoiceRow] {
-        await read(18, 2)
-        let base = items.first.map { $0.hasDirectoryPath ? $0 : $0.deletingLastPathComponent() } ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
-        return (Self.sampleBills + Self.moreBills).map {
-            InvoiceRow(date: $0.date, sender: $0.sender, amount: Decimal(string: $0.amount),
-                       source: base.appendingPathComponent($0.file), evidence: $0.evidence,
-                       certainty: $0.unsure ? .unsure : .sure)
-        }
-    }
-
-    public func exportInvoices(_ rows: [InvoiceRow], format: ExportFormat, to folder: URL) async throws -> JobReceipt {
-        await pause()
-        let unsure = rows.filter { $0.certainty != .sure }.count
-        let invoices = L("%lld invoices", table: "Core", rows.count)
-        return JobReceipt(id: UUID(), summary: L("New file: %@", table: "Core", "Rechnungen.\(format.rawValue)"),
-                          detail: unsure == 0 ? invoices : L("%@ · %lld to check", table: "Core", invoices, unsure),
-                          revealURL: folder.appendingPathComponent("Rechnungen.\(format.rawValue)"))
-    }
-
     public func undo(_ receipt: JobReceipt) async throws { await pause() }
 
     // MARK: Integrations (in memory only)
@@ -216,11 +197,6 @@ public final class StubEngine: PippaEngine, @unchecked Sendable {
                      quote: "Der Vertrag kann mit einer Frist von drei Monaten zum Ende der Laufzeit am 31.12.2027 gekündigt werden.",
                      source: file, location: "S. 2", certainty: .unsure, note: "3 Monate vor dem Vertragsende 31.12.2027 gerechnet. Bitte prüfen."),
         ]
-    }
-
-    public func deadlines(in items: [URL]) async throws -> [Deadline] {
-        await pause()
-        return Self.sampleDeadlines(items.first ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads/Stadtwerke.pdf"))
     }
 
     public func integrationAccess(_ integration: Integration) async -> IntegrationAccess { await integrations.access(integration) }

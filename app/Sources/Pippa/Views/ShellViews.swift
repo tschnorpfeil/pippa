@@ -74,8 +74,6 @@ struct WorkflowContentView: View {
             OverviewContent(model: model, overview: overview)
         case .sortSheet:
             SortSheet(model: model)
-        case .invoiceSheet:
-            InvoiceSheet(model: model)
         case .deadlines:
             DeadlinesContent(model: model)
         case .entryPreview:

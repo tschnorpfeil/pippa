@@ -35,34 +35,10 @@
 "%lld loose files" = "%lld loose files";
 "%lld loose files → %lld folders" = "%lld loose files → %lld folders";
 "%lld · by year" = "%lld · by year";
-"Invoices from %@" = "Invoices from %@";
-"Needs you: " = "Needs you: ";
-"A new file; your invoices stay untouched" = "A new file; your invoices stay untouched";
-"1 invoice" = "1 invoice";
-"%lld invoices" = "%lld invoices";
-"%@ · %lld needs you" = "%@ · %lld needs you";
-"%@ · %lld need you" = "%@ · %lld need you";
-"in %lld of %@" = "in %lld of %@";
-"in %@" = "in %@";
-"About %@ %@" = "About %@ %@";
-"I’m not sure about %@. Please take a quick look." = "I’m not sure about %@. Please take a quick look.";
-"I can’t read the amount clearly. Please take a quick look." = "I can’t read the amount clearly. Please take a quick look.";
-"Plus %lld more." = "Plus %lld more.";
-"Unknown sender" = "Unknown sender";
-"Date unknown" = "Date unknown";
-"Source: “%@”" = "Source: “%@”";
-"Please Check" = "Please Check";
-"and %lld more rows" = "and %lld more rows";
-"Total" = "Total";
-"Spreadsheet Preview" = "Spreadsheet Preview";
-"new, in %@" = "new, in %@";
 "Hide Reasons" = "Hide Reasons";
 "Why This Way?" = "Why This Way?";
 "Not Now" = "Not Now";
 "Organize %lld Files" = "Organize %lld Files";
-"Other Apps" = "Other Apps";
-"Format" = "Format";
-"Create Spreadsheet" = "Create Spreadsheet";
 
 /* ConversationWorkspace.swift */
 "Pippa is thinking…" = "Pippa is thinking…";

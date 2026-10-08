@@ -6,7 +6,6 @@
 
 "Ask about this mail" = "Ask about this mail";
 "Check online" = "Check online";
-"Checking sources online …" = "Checking sources online …";
 "Continue" = "Continue";
 "Copy" = "Copy";
 "Done" = "Done";
@@ -19,17 +18,14 @@
 "In your reply in Mail" = "In your reply in Mail";
 "Insert" = "Insert";
 "I’m not allowed to read Mail. You can change that in System Settings." = "I’m not allowed to read Mail. You can change that in System Settings.";
-"Search online for: %@?" = "Search online for: %@?";
 "Mail" = "Mail";
 "Mail is not open." = "Mail is not open.";
 "Nothing is selected in Mail." = "Nothing is selected in Mail.";
 "Nothing is sent. You send it yourself in Mail." = "Nothing is sent. You send it yourself in Mail.";
 "Open Settings" = "Open Settings";
-"Open the source: %@" = "Open the source: %@";
 "Puts the draft into a reply in Mail (⌘Return)" = "Puts the draft into a reply in Mail (⌘Return)";
 "Stop" = "Stop";
 "The draft is ready." = "The draft is ready.";
-"To look this up, I would search for this. Nothing else goes along." = "To look this up, I would search for this. Nothing else goes along.";
 "To read the mail you selected, your Mac will ask whether I may." = "To read the mail you selected, your Mac will ask whether I may.";
 "please check" = "please check";
 "Insert Again" = "Insert Again";

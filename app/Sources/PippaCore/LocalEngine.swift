@@ -407,73 +407,6 @@ public actor LocalEngine: PippaEngine {
         }
     }
 
-    // MARK: Letter: suggestions and "Check online" (LetterModel)
-
-    /// For checks: answers of the letter calls (schema name, user text → JSON text) instead of from the server.
-    public typealias LetterReplay = @Sendable (String, String) -> String?
-    private var letterReplay: LetterReplay?
-    public func setLetterReplay(_ replay: LetterReplay?) { letterReplay = replay }
-
-    /// One structured call on the local model (shared server on the Pi path). `nil`: no model ready.
-    /// Never alongside other model work; stop via the task (`Task.cancel`).
-    private func letterJSON<T: Decodable>(system: String, user: String, schema: String, name: String, as: T.Type) async throws -> T? {
-        if let letterReplay { return letterReplay(name, user).flatMap { Self.decodeModelJSON(T.self, from: Data($0.utf8)) } }
-        guard !structuredBusy, !inferenceWorkBusy else { throw InferenceError.busy }
-        structuredBusy = true
-        defer { structuredBusy = false }
-        guard modelEnabled, let server = await modelServer() else { return nil }
-        let lease = try await server.acquireAgentLease()
-        do {
-            let data = try await LocalModelJSON.request(lease, system: system, user: user, schema: schema, name: name)
-            await server.releaseAgentLease(lease)
-            return Self.decodeModelJSON(T.self, from: data)
-        } catch {
-            await server.releaseAgentLease(lease)
-            DiagnosticsLog.shared.event("brief-modell-fehler", ["aufruf": name])
-            throw error
-        }
-    }
-
-    /// Up to three next steps from `choices` for the letter (unchecked; `LetterActions.validated` checks them).
-    public func proposeLetterActions(mail: URL, choices: [AgentActionChoice]) async throws -> [AgentActionProposal]? {
-        guard !choices.isEmpty else { return nil }
-        let doc = await text(mail, options: TextReader.Options(maxPages: 6))
-        let body = doc.fullText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !body.isEmpty else { return nil }
-        try Task.checkCancellation()
-        return try await letterJSON(system: LetterModel.proposalSystem(), user: LetterModel.proposalUser(mailText: body, choices: choices),
-                                    schema: LetterModel.proposalSchema(choices: choices), name: LetterModel.proposalSchemaName,
-                                    as: LetterModel.Proposals.self)?.actions
-    }
-
-    /// "Check online": request from the model (or the already approved one), fetch via `host`, quotes from the model.
-    public func checkOnline(statement: String, host: LookupHost) async throws -> LetterModel.CheckOutcome {
-        let request: LookupRequest
-        if await host.hasApprovedQuery {
-            request = LookupRequest(query: "", why: "")
-        } else {
-            guard let query = try await letterJSON(system: LetterModel.checkSystem(), user: LetterModel.queryUser(statement: statement),
-                                                   schema: LetterModel.querySchema, name: LetterModel.querySchemaName, as: LetterModel.Query.self)
-            else { return .failed }
-            request = LookupRequest(query: query.query, why: query.why)
-        }
-        try Task.checkCancellation()
-        let reply = await host.handle(request)
-        switch reply.status {
-        case .needsPerson: return .needsPerson
-        case .refused: return .refused
-        case .failed: return .failed
-        case .done: break
-        }
-        guard !reply.passages.isEmpty else { return .cited([]) }
-        try Task.checkCancellation()
-        let cited = try await letterJSON(system: LetterModel.checkSystem(), user: LetterModel.citeUser(statement: statement, passages: reply.passages),
-                                         schema: LetterModel.citeSchema(sourceIDs: reply.passages.map(\.id)), name: LetterModel.citeSchemaName,
-                                         as: LetterModel.Citations.self)
-        guard let cited else { return .failed }
-        return .cited(Array(cited.facts.prefix(WebQuotes.maxCitations)))
-    }
-
     /// Read the JSON of the model answer; tolerates text before or after the object (e.g. truncated fences).
     public nonisolated static func decodeModelJSON<T: Decodable>(_ type: T.Type, from data: Data) -> T? {
         if let v = try? JSONDecoder().decode(T.self, from: data) { return v }
@@ -613,8 +546,9 @@ public actor LocalEngine: PippaEngine {
         var facts: [(label: String, value: String)] = []
         var sender: String?
         var kindWord: String?
+        // Same routes as tidying (Apple's on-device model first, ~3 s), then the evidence checks below.
         if let doc = look.doc, doc.hasText,
-           let m = try? await askModel(.classify, user: "Dateiname: \(look.facts.url.lastPathComponent)\n\n\(doc.capped())", schema: Prompts.classifySchema, name: "einordnung", as: ClassifyJSON.self) {
+           let m = try? await classifyForTidy(name: look.facts.url.lastPathComponent, doc: doc).answer {
             if !m.absender.isEmpty, GermanText.normalize(text).contains(GermanText.normalize(m.absender)) { sender = Heuristics.displayName(m.absender) }
             if let sender { facts.append((L("Sender", table: "Core"), sender)) }
             if let d = GermanText.parseDate(m.datum), GermanText.dates(in: text).contains(where: { $0.value == d }) { facts.append((L("Date", table: "Core"), d.german)) }
@@ -627,11 +561,13 @@ public actor LocalEngine: PippaEngine {
         if let pages = look.facts.pdfPageCount { subtitle = pages == 1 ? L("%@ · 1 page", table: "Core", subtitle) : L("%@ · %lld pages", table: "Core", subtitle, pages) }
         if let att = look.doc?.attachments, !att.isEmpty { subtitle = att.count == 1 ? L("%@ · 1 attachment", table: "Core", subtitle) : L("%@ · %lld attachments", table: "Core", subtitle, att.count) }
         if look.doc?.problem == .protected { facts.append((L("Note", table: "Core"), L("Protected, so I can’t look inside.", table: "Core"))) }
-        // Deadlines: for a single letter it's worth reading beyond page 1 (a cancellation is often at the end).
+        // Deadlines the code finds in the text (no model); for a single letter it's worth reading beyond page 1 (a
+        // cancellation is often at the end). Anything further: "Add deadlines" hands the letter to Pi (fristen-erkennen).
         var deadlines: [Deadline] = []
         if look.doc?.hasText == true || look.facts.isPDF {
             let doc = await self.text(look.facts.url, options: TextReader.Options(maxPages: 10))
-            deadlines = (try? await modelDeadlines(in: doc)) ?? []
+            let today = DayDate(Date())
+            deadlines = Deadlines.find(in: doc, today: today).filter { $0.date.map { $0 >= today } ?? true }
         }
         if let first = deadlines.first {
             let value = deadlines.count == 1 ? first.title : L("%@ · and %lld more", table: "Core", first.title, deadlines.count - 1)
@@ -966,96 +902,7 @@ public actor LocalEngine: PippaEngine {
         try await requireExecutor().apply(plan, excluding: excluding).receipt
     }
 
-    // MARK: Invoices
-
-    public func extractInvoices(in items: [URL]) async throws -> [InvoiceRow] {
-        try beginInferenceWork()
-        defer { inferenceWorkBusy = false }
-        let files = Self.files(in: items, depth: 3, limit: 1000)
-        var rows: [InvoiceRow] = []
-        defer { progress = nil }
-        for (i, url) in files.enumerated() {
-            step(i, of: files.count, url)
-            let facts = FileFacts.read(url)
-            let ext = url.pathExtension.lowercased()
-            guard Self.documentExtensions.contains(ext) || facts.isImage else { continue }
-            if facts.isImage && (facts.captureDate != nil || facts.looksLikeScreenshot) { continue }
-            let doc = await text(url)
-            let nameHint = ["rechnung", "invoice", "beleg", "quittung"].contains { url.lastPathComponent.lowercased().contains($0) }
-            guard doc.hasText else {
-                if nameHint { rows.append(InvoiceRow(date: nil, sender: nil, amount: nil, source: url, evidence: nil, certainty: .unreadable)) }
-                continue
-            }
-            let prompt = "Dateiname: \(url.lastPathComponent)\n\n\(doc.capped())"
-            if var m = try await askModel(.invoice, user: prompt, schema: Prompts.invoiceSchema, name: "rechnung", as: InvoiceJSON.self) {
-                var row = Verify.invoice(typ: m.typ, datum: m.datum, absender: m.absender, betrag: m.betrag, beleg: m.beleg, text: doc.fullText, source: url)
-                if row?.certainty != .sure, m.typ != "keine_rechnung", let repaired = try await askModel(.invoice,
-                    user: Prompts.invoiceRepair(prompt: prompt, amount: m.betrag, evidence: m.beleg),
-                    schema: Prompts.invoiceSchema, name: "rechnung", as: InvoiceJSON.self) {
-                    m = repaired
-                    row = Verify.invoice(typ: m.typ, datum: m.datum, absender: m.absender, betrag: m.betrag, beleg: m.beleg, text: doc.fullText, source: url)
-                }
-                if let row { rows.append(row) }
-                else if m.typ != "keine_rechnung" { throw InferenceError.invalidResponse }
-            } else if nameHint {
-                rows.append(InvoiceRow(date: nil, sender: nil, amount: nil, source: url, evidence: nil, certainty: .unsure))
-            }
-        }
-        return rows.sorted { (GermanText.parseDate($0.date ?? "") ?? DayDate(year: 1900, month: 1, day: 1)!) < (GermanText.parseDate($1.date ?? "") ?? DayDate(year: 1900, month: 1, day: 1)!) }
-    }
-
-    public func exportInvoices(_ rows: [InvoiceRow], format: ExportFormat, to folder: URL) async throws -> JobReceipt {
-        guard !rows.isEmpty else { throw PippaError.nothingToExport }
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDir), isDir.boolValue else { throw PippaError.scopeMissing }
-        let data = format == .xlsx ? InvoiceExport.xlsx(rows) : InvoiceExport.csv(rows)
-        let unsure = rows.filter { $0.certainty != .sure }.count
-        let invoices = rows.count == 1 ? L("1 invoice", table: "Core") : L("%lld invoices", table: "Core", rows.count)
-        let detail = unsure > 0 ? L("%@ · %lld to check", table: "Core", invoices, unsure) : invoices
-        return try await requireExecutor().createFile(data, named: "Rechnungen.\(format.rawValue)", in: folder,
-                                                      summary: { L("New file: %@", table: "Core", $0.lastPathComponent) }, detail: detail)
-    }
-
     // MARK: Integrations
-
-    private func modelDeadlines(in doc: DocumentText) async throws -> [Deadline] {
-        guard doc.hasText else { return [] }
-        let content = doc.pages.prefix(10).enumerated().map { "[Seite \($0.offset + 1)]\n" + $0.element }.joined(separator: "\n\n")
-        guard var result = try await askModel(.deadlines, user: "Heute: \(DayDate(Date()).german)\n\n" + String(content.prefix(14000)),
-                                             schema: Prompts.deadlinesSchema, name: "fristen", as: DeadlineAnalysis.self) else {
-            throw canAskModel ? PippaError.modelFailed : PippaError.modelUnavailable
-        }
-        let dates = DeadlineAnalysis.dateSources(in: doc)
-        let choices = dates.map { "\($0.id) | \($0.date.german) | Seite \($0.page) | \($0.quote)" }.joined(separator: "\n")
-        for i in result.items.indices.prefix(12) {
-            result.items[i].quote = DeadlineAnalysis.sourceQuote(result.items[i].quote)
-            let item = result.items[i]
-            guard DeadlineAnalysis.hasTemporalEvidence(item.quote), !dates.isEmpty, item.page > 0, item.page <= doc.pages.count,
-                  GermanText.isVerbatim(item.quote, in: doc.pages[item.page - 1], minLength: 8),
-                  GermanText.dates(in: item.quote).isEmpty else { continue }
-            let prompt = "Gesuchte relative Frist: \(item.quote)\n\nDatierte Quellen (ID | Datum | Seite | wörtlicher Kontext):\n" + choices
-            if let choice = try await askModel(.deadlineCalculation, user: prompt, schema: Prompts.deadlineCalculationSchema,
-                                              name: "fristbezug", as: DeadlineAnalysis.CalculationChoice.self),
-               let date = dates.first(where: { $0.id == choice.baseID }) {
-                result.items[i].calculation = .init(baseDate: date.date.german, baseQuote: date.quote, basePage: date.page, unit: choice.unit, amount: choice.amount)
-            }
-        }
-        return result.verified(in: doc)
-    }
-
-    public func deadlines(in items: [URL]) async throws -> [Deadline] {
-        try beginInferenceWork()
-        defer { inferenceWorkBusy = false }
-        let files = Self.files(in: items, depth: 1, limit: 60).filter { Self.documentExtensions.contains($0.pathExtension.lowercased()) }
-        var out: [Deadline] = []
-        defer { progress = nil }
-        for (i, url) in files.enumerated() {
-            step(i, of: files.count, url)
-            let doc = await text(url, options: TextReader.Options(maxPages: 10))
-            out += try await modelDeadlines(in: doc)
-        }
-        return out.sorted { ($0.date ?? DayDate(year: 2100, month: 1, day: 1)!) < ($1.date ?? DayDate(year: 2100, month: 1, day: 1)!) }
-    }
 
     public func integrationAccess(_ integration: Integration) async -> IntegrationAccess { await integrations.access(integration) }
     public func requestIntegrationAccess(_ integration: Integration) async -> IntegrationAccess { await integrations.requestAccess(integration) }

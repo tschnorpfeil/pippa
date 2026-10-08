@@ -22,17 +22,6 @@
 "Compressed archive" = "Compressed archive";
 "Spreadsheet or presentation" = "Spreadsheet or presentation";
 "Not a document, so it goes to “%@”" = "Not a document, so it goes to “%@”";
-"Date" = "Date";
-"Sender" = "Sender";
-"Amount" = "Amount";
-"Amount (EUR)" = "Amount (EUR)";
-"File" = "File";
-"Source text" = "Source text";
-"Check" = "Check";
-"please check" = "please check";
-"unreadable" = "unreadable";
-"Worked out from the period in the document: %@. Please check." = "Worked out from the period in the document: %@. Please check.";
-"Please check the date and choose one." = "Please check the date and choose one.";
 "Cancel %@" = "Cancel %@";
 "Cancel contract" = "Cancel contract";
 "Pay the utilities balance" = "Pay the utilities balance";

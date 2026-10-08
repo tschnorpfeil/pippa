@@ -439,55 +439,7 @@ check("Case: only the same file counts as a pure rename") {
 
 // MARK: - Export
 
-let rows = [
-    InvoiceRow(date: "02.03.2026", sender: "Stadtwerke", amount: Decimal(string: "84.20"), source: URL(fileURLWithPath: "/x/2026-03 Stadtwerke Rechnung.pdf"), evidence: "Gesamtbetrag 84,20 €", certainty: .sure),
-    InvoiceRow(date: "18.02.2026", sender: "Zahnarzt Dr. Weber; Praxis", amount: Decimal(string: "1234.5"), source: URL(fileURLWithPath: "/x/download.pdf"), evidence: nil, certainty: .unsure),
-]
-check("CSV: BOM, semicolon, decimal comma") {
-    let data = InvoiceExport.csv(rows)
-    let bom = Array(data.prefix(3)) == [0xEF, 0xBB, 0xBF]
-    let text = String(decoding: data.dropFirst(3), as: UTF8.self)
-    let lines = text.components(separatedBy: "\r\n")
-    // Header row and review note follow the system language (table "Analysis").
-    let header = [L("Date", table: "Analysis"), L("Sender", table: "Analysis"), L("Amount (EUR)", table: "Analysis"),
-                  L("File", table: "Analysis"), L("Source text", table: "Analysis"), L("Check", table: "Analysis")].joined(separator: ";")
-    let unsure = "18.02.2026;\"Zahnarzt Dr. Weber; Praxis\";1234,50;download.pdf;;" + L("please check", table: "Analysis")
-    return bom && lines[0] == header
-        && lines[1] == "02.03.2026;Stadtwerke;84,20;2026-03 Stadtwerke Rechnung.pdf;Gesamtbetrag 84,20 €;"
-        && lines[2] == unsure
-}
-check("CSV: document text stays text, negative amounts stay numbers") {
-    let row = InvoiceRow(date: "=1+1", sender: "  +SUM(1)", amount: -12,
-                         source: URL(fileURLWithPath: "/x/@formula.pdf"), evidence: "\t=1+1", certainty: .sure)
-    let text = String(decoding: InvoiceExport.csv([row]).dropFirst(3), as: UTF8.self)
-    return text.contains("'=1+1;'  +SUM(1);-12,00;'@formula.pdf;'\t=1+1;")
-}
 check("ZIP: CRC-32") { ZipWriter.crc32(Data("123456789".utf8)) == 0xCBF4_3926 }
-check("XLSX is a valid ZIP (unzip -t)") {
-    let url = root.appendingPathComponent("test.xlsx")
-    try InvoiceExport.xlsx(rows).write(to: url)
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-    p.arguments = ["-t", url.path]
-    let out = Pipe(); p.standardOutput = out; p.standardError = out
-    try p.run(); p.waitUntilExit()
-    let log = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-    return p.terminationStatus == 0 && log.contains("No errors") && log.contains("xl/worksheets/sheet1.xml")
-}
-check("XLSX: amount as number, review column") {
-    let data = InvoiceExport.xlsx(rows)
-    let text = String(decoding: data, as: UTF8.self)
-    return text.contains("<v>84.2</v>") && text.contains(L("please check", table: "Analysis")) && text.contains("&quot;€&quot;")
-}
-
-await checkAsync("Export creates a new file, collision → \" (2)\"") {
-    let folder = dir("export")
-    write("vorhanden", folder.appendingPathComponent("Rechnungen.csv"))
-    let engine = LocalEngine(baseDirectory: dir("support-export"), modelEnabled: false)
-    let receipt = try await engine.exportInvoices(rows, format: .csv, to: folder)
-    let old = try String(contentsOf: folder.appendingPathComponent("Rechnungen.csv"), encoding: .utf8)
-    return receipt.revealURL?.lastPathComponent == "Rechnungen (2).csv" && receipt.summary == L("New file: %@", table: "Core", "Rechnungen (2).csv") && old == "vorhanden"
-}
 
 // MARK: - Search and evidence
 
@@ -500,24 +452,6 @@ check("FTS5 (trigram) finds the passage with the phrase") {
     let hits2 = try index.search("Rechnungsnummer 2026-118734")
     return hits.first?.page == 2 && hits.first?.text.contains("drei Monaten") == true && hits2.first?.file.lastPathComponent == "a.pdf"
 }
-check("Invoice: verbatim evidence and amount from it → certain") {
-    let r = Verify.invoice(typ: "rechnung", datum: "02.03.2026", absender: "Stadtwerke Musterstadt", betrag: "84,20", beleg: "Gesamtbetrag 84,20 €", text: invoiceText, source: URL(fileURLWithPath: "/x/a.pdf"))
-    return r?.certainty == .sure && r?.amount == Decimal(string: "84.2") && r?.date == "02.03.2026"
-}
-check("Invoice: invented evidence or wrong amount → uncertain") {
-    let made = Verify.invoice(typ: "rechnung", datum: "", absender: "Stadtwerke", betrag: "84,20", beleg: "Summe 84,20 EUR", text: invoiceText, source: URL(fileURLWithPath: "/x/a.pdf"))
-    let wrong = Verify.invoice(typ: "rechnung", datum: "", absender: "Stadtwerke", betrag: "48,20", beleg: "Gesamtbetrag 84,20 €", text: invoiceText, source: URL(fileURLWithPath: "/x/a.pdf"))
-    let none = Verify.invoice(typ: "rechnung", datum: "", absender: "", betrag: "", beleg: "", text: "", source: URL(fileURLWithPath: "/x/a.pdf"))
-    return made?.certainty == .unsure && wrong?.certainty == .unsure && none?.certainty == .unreadable
-}
-
-check("Invoice: whole receipt as evidence → total line counts, certain") {
-    let bon = "Apotheke am Markt\n14.08.2026 10:41 Kasse 2\nIbuprofen 400 akut 20 St. 5,95\nSUMME EUR 23,45\nBar 30,00\nMwSt 19 % netto 19,71 MwSt 3,14"
-    let r = Verify.invoice(typ: "rechnung", datum: "14.08.2026", absender: "Apotheke am Markt", betrag: "23,45",
-                           beleg: String(bon.split(separator: "\n", maxSplits: 1)[1]), text: bon, source: URL(fileURLWithPath: "/x/bon.png"))
-    return r?.certainty == .sure && r?.evidence == "SUMME EUR 23,45"
-}
-
 // MARK: - Fixed context
 
 check("Persona + rules under 500 tokens (per task)") {
@@ -525,7 +459,7 @@ check("Persona + rules under 500 tokens (per task)") {
     print("   fixed contexts: \(sizes) tokens (estimated)")
     return Prompts.persona.contains("Pippa") && sizes.allSatisfy { $0 < Prompts.budget }
 }
-check("Strict Pi schemas: every required field declared, no open objects, deadlines too") {
+check("Strict schema for the one fixed task (tidy classification): every required field declared, no open objects") {
     func valid(_ value: Any) -> Bool {
         if let list = value as? [Any] { return list.allSatisfy(valid) }
         guard let object = value as? [String: Any] else { return true }
@@ -535,7 +469,7 @@ check("Strict Pi schemas: every required field declared, no open objects, deadli
         }
         return object.values.allSatisfy(valid)
     }
-    return [Prompts.classifySchema, Prompts.invoiceSchema, Prompts.deadlinesSchema, Prompts.deadlineCalculationSchema].allSatisfy {
+    return [Prompts.classifySchema].allSatisfy {
         guard let schema = try? JSONSerialization.jsonObject(with: Data($0.utf8)) else { return false }
         return valid(schema)
     }
@@ -862,8 +796,6 @@ await engine.setModelReplay { task, user in
         if user.contains("Stadtwerke") { return #"{"kategorie":"rechnung","absender":"Stadtwerke Musterstadt","art":"Rechnung","datum":"02.03.2026","betreff":"","entwurf":false,"beleg":"Rechnung"}"#.replacingOccurrences(of: "2026", with: user.contains("2025") ? "2025" : "2026") }
         if user.contains("Mietvertrag") { return #"{"kategorie":"vertrag","absender":"Hausverwaltung Berger","art":"Mietvertrag","datum":"14.06.2021","betreff":"Wohnung","entwurf":false,"beleg":"Mietvertrag"}"# }
         return #"{"kategorie":"sonstiges","absender":"","art":"","datum":"","betreff":"","entwurf":false,"beleg":""}"#
-    case .invoice: return #"{"typ":"rechnung","datum":"02.03.2026","absender":"Stadtwerke Musterstadt","betrag":"84,20","beleg":"Gesamtbetrag 84,20 €"}"#
-    case .deadlines, .deadlineCalculation: return nil
     }
 }
 
@@ -908,12 +840,6 @@ await checkAsync("Organise: in \"Rechnungen/2026\" an invoice from 2025 stays he
     return names.count == 1 && names[0].hasPrefix("2025-03 Stadtwerke") && !plan.ops.contains { $0.kind == .mkdir }
 }
 
-await checkAsync("Invoices without a model: no invented amounts or pattern decisions") {
-    let noModel = LocalEngine(baseDirectory: dir("support-invoices-unavailable"), modelEnabled: false)
-    let rows = try await noModel.extractInvoices(in: [folder])
-    return rows.allSatisfy { $0.amount == nil && $0.certainty != .sure }
-}
-
 await checkAsync("Overview of 50 files under 15 s") {
     let big = dir("Gross")
     for i in 0..<50 {
@@ -930,8 +856,7 @@ await checkAsync("Overview of 50 files under 15 s") {
 await checkAsync("StubEngine returns the sample data") {
     let stub = StubEngine(delay: 0)
     let o = try await stub.overview(of: .files([URL(fileURLWithPath: "/Users/x/Downloads")]))
-    let rows = try await stub.extractInvoices(in: [])
-    return o.subtitle == L("%lld files", table: "Core", 47) && rows.first?.amount == Decimal(string: "84.2")
+    return o.subtitle == L("%lld files", table: "Core", 47)
 }
 
 // MARK: - Deadlines (patterns only, fixed "today")
@@ -1069,19 +994,18 @@ await checkAsync("Entry changed in the meantime stays on undo") {
         return restored == 0 && conflicts == 1 && list.first?.why == L("It has changed since then, so it stays.", table: "Core") && !err.changedSomething
     }
 }
-await checkAsync("Overview of a letter offers deadlines") {
+await checkAsync("Overview of a letter offers deadlines; the date comes from the code's patterns, no model") {
     let f = dir("brief").appendingPathComponent("Brief.txt")
     write("Stadtwerke Musterstadt\nRechnungsdatum 02.03.2026\nRechnung\nBitte zahlen Sie den Betrag von 84,20 € bis 31.12.2099.", f)
     let o = try await linkedEngine.overview(of: .files([f]))
-    return o.actions.first == .deadlines && o.deadlines.isEmpty && !o.facts.contains { $0.label == L("Deadline", table: "Core") }
+    return o.actions.first == .deadlines && o.deadlines.allSatisfy { $0.date == DayDate(year: 2099, month: 12, day: 31) }
 }
-await checkAsync("StubEngine: deadlines and mail from sample data") {
+await checkAsync("StubEngine: mail from sample data") {
     let stub = StubEngine(delay: 0)
-    let d = try await stub.deadlines(in: [])
     let denied = (try? await stub.selectedMail()) == nil
     _ = await stub.requestIntegrationAccess(.mail)
     let mail = try await stub.selectedMail()
-    return d.count == 2 && denied && mail?.attachmentNames == ["Nebenkosten 2025.pdf"]
+    return denied && mail?.attachmentNames == ["Nebenkosten 2025.pdf"]
 }
 await checkAsync("Script for reading mail compiles (nothing is sent)") {
     let result = await MainActor.run { IntegrationScripts.compileAll() }
@@ -1171,24 +1095,6 @@ check("Sentences: not cut off at \"2.460,00\" or \"31.10.2026\"") {
     let s = Deadlines.sentences(in: "Bitte zahlen Sie bis zum 31.10.2026 auf unser Konto. Danke.")
     return s == ["Bitte zahlen Sie bis zum 31.10.2026 auf unser Konto.", "Danke."]
 }
-check("Invoice (model): date must be in the text, evidence must be the total") {
-    let src = URL(fileURLWithPath: "/x/a.pdf")
-    let invented = Verify.invoice(typ: "rechnung", datum: "01.03.2026", absender: "Stadtwerke Musterstadt", betrag: "84,20", beleg: "Gesamtbetrag 84,20 €", text: invoiceText, source: src)
-    let lineItem = Verify.invoice(typ: "rechnung", datum: "02.03.2026", absender: "Stadtwerke Musterstadt", betrag: "2026,11", beleg: "Strom März 2026", text: invoiceText, source: src)
-    let marked = Verify.invoice(typ: "rechnung", datum: "02.03.2026", absender: "Stadtwerke Musterstadt GmbH", betrag: "84,20 €", beleg: "[S. 1] Gesamtbetrag 84,20 €", text: invoiceText, source: src)
-    return invented?.date == nil && invented?.certainty == .unsure && lineItem?.certainty == .unsure
-        && marked?.certainty == .sure && marked?.evidence == "Gesamtbetrag 84,20 €" && marked?.sender == "Stadtwerke Musterstadt"
-}
-check("Invoice: model and pattern contradict each other → please review") {
-    let src = URL(fileURLWithPath: "/x/a.pdf")
-    let model = InvoiceRow(date: "02.03.2026", sender: "Stadtwerke", amount: Decimal(string: "70.76"), source: src, evidence: "Nettobetrag 70,76 €", certainty: .sure)
-    let pattern = InvoiceRow(date: "02.03.2026", sender: "Stadtwerke", amount: Decimal(string: "84.20"), source: src, evidence: "Gesamtbetrag 84,20 €", certainty: .sure)
-    let noEvidence = InvoiceRow(date: "02.03.2026", sender: "Stadtwerke", amount: nil, source: src, evidence: nil, certainty: .unsure)
-    let filled = Verify.merge(model: noEvidence, pattern: pattern)
-    let conflict = Verify.merge(model: model, pattern: pattern)
-    return conflict.certainty == .unsure && conflict.amount == Decimal(string: "84.2")
-        && filled.amount == Decimal(string: "84.2") && filled.evidence == "Gesamtbetrag 84,20 €" && filled.certainty == .unsure
-}
 check("Model JSON: text around the object and fences are tolerated") {
     struct J: Decodable { var a: Int }
     return LocalEngine.decodeModelJSON(J.self, from: Data("{\"a\":1}".utf8))?.a == 1
@@ -1212,10 +1118,6 @@ await replayEngine.setModelReplay { task, user in
         if user.contains("download.txt") { return #"{"kategorie":"brief","absender":"Kleingartenverein Aeschach","art":"Einladung","datum":"12.09.2026","betreff":"Sommerfest","entwurf":true}"# }
         if user.contains("Rechnung.txt") || user.contains("Strom.txt") { return #"{"kategorie":"vertrag","absender":"Stadtwerke Musterstadt GmbH","art":"Rechnung","datum":"02.03.2026","betreff":"Strom","entwurf":false}"# }
         return #"{"kategorie":"vertrag","absender":"Hausverwaltung Berger","art":"Mietvertrag","datum":"14.06.2021","betreff":"Wohnung","entwurf":false}"#
-    case .invoice:
-        return #"{"typ":"rechnung","datum":"02.03.2026","absender":"Stadtwerke Musterstadt GmbH","betrag":"70,76","beleg":"Nettobetrag 70,76 €"}"#
-    case .deadlines, .deadlineCalculation:
-        return nil
     }
 }
 await checkAsync("Intake: model classification without keywords or against the keywords → please review, no invented draft") {
@@ -1231,11 +1133,6 @@ await checkAsync("Intake: model classification without keywords or against the k
         && lease.certainty == .unsure && lease.target.lastPathComponent == "Mietvertrag 2021.txt"
         && asked == ["download.txt", "Strom.txt", "Rechnung.txt", "Vertrag.txt"]
 }
-await checkAsync("Intake: net amount is not automatically replaced by a pattern decision; please review") {
-    let rows = try await replayEngine.extractInvoices(in: [replayDir.appendingPathComponent("Rechnung.txt")])
-    return rows.count == 1 && rows[0].amount == Decimal(string: "70.76") && rows[0].evidence == "Nettobetrag 70,76 €" && rows[0].certainty == .unsure
-}
-
 check("Image: receipt scan is a receipt, camera photo stays a photo") {
     // OCR of a receipt (as TextReader returns it after assembling the lines).
     let bon = "Apotheke am Markt\nMaximilianstraße 9\n88131 Lindau\n14.08.2026 10:41 Kasse 2\nIbuprofen 400 akut 5,95\nSUMME EUR 23,45\nBar 30,00"
@@ -1293,8 +1190,7 @@ await checkAsync("History: completed jobs, newest first; gone after undo") {
     write("a", a); write("b", b)
     let e = LocalEngine(baseDirectory: dir("support-history"), modelEnabled: false)
     let first = try await e.apply(Plan(scope: scope, ops: [PlanOp(kind: .move, source: a, target: scope.appendingPathComponent("X/a.txt"), reason: "", certainty: .sure)], skipped: []), excluding: [])
-    let second = try await e.exportInvoices([InvoiceRow(date: "02.03.2026", sender: "Stadtwerke", amount: 84.2, source: b, evidence: "Gesamtbetrag 84,20 €", certainty: .sure)],
-                                            format: .csv, to: scope)
+    let second = try await e.apply(Plan(scope: scope, ops: [PlanOp(kind: .move, source: b, target: scope.appendingPathComponent("Y/b.txt"), reason: "", certainty: .sure)], skipped: []), excluding: [])
     let jobs = await e.recentJobs(limit: 10)
     guard jobs.map(\.id) == [second.id, first.id], jobs[1].summary == L("1 file tidied", table: "Core"), jobs[1].detail == L("In 1 folder", table: "Core"), jobs[0].date != nil else { return false }
     try await e.undo(jobs[1])

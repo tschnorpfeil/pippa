@@ -6,7 +6,6 @@
 
 "Ask about this mail" = "Frag mich zu dieser Mail";
 "Check online" = "Online prüfen";
-"Checking sources online …" = "Ich prüfe online nach …";
 "Continue" = "Weiter";
 "Copy" = "Kopieren";
 "Done" = "Fertig";
@@ -19,17 +18,14 @@
 "In your reply in Mail" = "In deiner Antwort in Mail";
 "Insert" = "Einfügen";
 "I’m not allowed to read Mail. You can change that in System Settings." = "Ich darf Mail nicht lesen. Das kannst du in den Systemeinstellungen ändern.";
-"Search online for: %@?" = "Online suchen nach: %@?";
 "Mail" = "Mail";
 "Mail is not open." = "Mail ist nicht geöffnet.";
 "Nothing is selected in Mail." = "In Mail ist nichts ausgewählt.";
 "Nothing is sent. You send it yourself in Mail." = "Es wird nichts gesendet. Du sendest selbst in Mail.";
 "Open Settings" = "Einstellungen öffnen";
-"Open the source: %@" = "Quelle öffnen: %@";
 "Puts the draft into a reply in Mail (⌘Return)" = "Setzt den Entwurf in eine Antwort in Mail (⌘Return)";
 "Stop" = "Stoppen";
 "The draft is ready." = "Der Entwurf ist fertig.";
-"To look this up, I would search for this. Nothing else goes along." = "Zum Nachschlagen würde ich danach suchen. Sonst geht nichts mit.";
 "To read the mail you selected, your Mac will ask whether I may." = "Damit ich die ausgewählte Mail lesen kann, fragt dein Mac gleich, ob ich darf.";
 "please check" = "bitte prüfen";
 "Insert Again" = "Erneut einfügen";

@@ -33,7 +33,6 @@ struct LetterLine: View {
         .workflowWidth(Theme.inputWidth)
         .animation(animation, value: letter.phase)
         .animation(animation, value: letter.actions)
-        .animation(animation, value: letter.web)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text(verbatim: "Pippa"))
         .onAppear { if !measuring { fieldFocused = true } }
@@ -157,73 +156,23 @@ struct LetterLine: View {
     }
 
     private func statementRow(_ deadline: Deadline) -> some View {
-        let checking = letter.checkingDeadline == deadline.id
-        let showsWeb = letter.webDeadline == deadline.id && !checking
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Theme.ink3)
-                    .accessibilityHidden(true)
-                Text(FirstLineBuilder.statement(for: deadline))
-                    .font(Fonts.body)
-                    .foregroundStyle(Theme.ink2)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
-                if letter.canCheckOnline && !checking {
-                    Button(T("Check online", table: "Call")) { letter.checkOnline(deadline) }
-                        .pippa(.quiet)
-                        .disabled(letter.isWorking && !letter.proposing)
-                        .help(T("I check the search question for personal details before looking it up.", table: "Call"))
-                }
-            }
-            if checking {
-                HStack(spacing: 10) {
-                    ProgressView().controlSize(.small)
-                    Text(T("Checking sources online …", table: "Call"))
-                        .font(Fonts.hint)
-                        .foregroundStyle(Theme.ink2)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Button(T("Stop", table: "Call")) { letter.stop() }
-                        .pippa(.quiet)
-                }
-                .padding(.leading, 20)
-            }
-            if showsWeb, let web = letter.web {
-                webAnswer(web)
-                    .padding(.leading, 20)
-                    .transition(.opacity)
-            }
-        }
-    }
-
-    /// Sourced web facts with a source tile; otherwise a calm sentence or the follow-up question about the request.
-    @ViewBuilder private func webAnswer(_ web: WebAnswer) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(web.facts) { fact in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(fact.statement)
-                        .font(Fonts.body)
-                        .foregroundStyle(Theme.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    SourceTileView(fact: fact, measuring: measuring)
-                }
-            }
-            if let query = letter.lookupConfirm {
-                Text(T("To look this up, I would search for this. Nothing else goes along.", table: "Call"))
-                    .font(Fonts.hint)
-                    .foregroundStyle(Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button(T("Search online for: %@?", table: "Call", query)) { letter.confirmLookup() }
-                    .pippa(.tinted)
-                    .help(query)
-            } else if let note = web.note {
-                Text(note)
-                    .font(Fonts.hint)
-                    .foregroundStyle(Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 8) {
+            Image(systemName: "calendar")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.ink3)
+                .accessibilityHidden(true)
+            Text(FirstLineBuilder.statement(for: deadline))
+                .font(Fonts.body)
+                .foregroundStyle(Theme.ink2)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            if letter.canCheckOnline {
+                // Hands over to the conversation (skill online-pruefen); the web card there shows the query first.
+                Button(T("Check online", table: "Call")) { letter.checkOnline(deadline) }
+                    .pippa(.quiet)
+                    .disabled(letter.isWorking)
+                    .help(T("I check the search question for personal details before looking it up.", table: "Call"))
             }
         }
     }
@@ -448,36 +397,6 @@ struct LetterLine: View {
         }
         NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
                              userInfo: [.announcement: "Pippa: " + text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
-    }
-}
-
-/// Source tile of a web fact: website · page · date. Opens the page at the cited spot.
-private struct SourceTileView: View {
-    var fact: VerifiedWebFact
-    var measuring: Bool
-
-    var body: some View {
-        let caption = SourceTile.caption(fact.source)
-        Button {
-            if !measuring { NSWorkspace.shared.open(fact.link) }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "globe")
-                    .font(.system(size: 11, weight: .semibold))
-                Text(caption)
-                    .font(Fonts.hint)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            .foregroundStyle(Theme.ink2)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.fill2))
-            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .help(fact.quote)
-        .accessibilityLabel(T("Open the source: %@", table: "Call", caption))
     }
 }
 

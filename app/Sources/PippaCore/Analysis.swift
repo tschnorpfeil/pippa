@@ -24,7 +24,6 @@ public struct DocInsight: Sendable {
 
 /// Model answers (JSON per schema).
 struct ClassifyJSON: Decodable, Sendable { var kategorie: String; var absender: String; var art: String; var datum: String; var betreff: String; var entwurf: Bool; var beleg: String?; var entwurf_beleg: String? }
-struct InvoiceJSON: Decodable { var typ: String; var datum: String; var absender: String; var betrag: String; var beleg: String }
 
 /// Patterns without a model.
 public enum Heuristics {
@@ -127,18 +126,6 @@ public enum Heuristics {
         return best.map { ($0.0, $0.1, false) }
     }
 
-    /// Invoice row from patterns only.
-    public static func invoiceRow(_ doc: DocumentText) -> InvoiceRow {
-        guard doc.hasText else {
-            return InvoiceRow(date: nil, sender: nil, amount: nil, source: doc.url, evidence: nil, certainty: .unreadable)
-        }
-        let text = doc.fullText
-        let found = invoiceAmount(text: text)
-        return InvoiceRow(date: documentDate(text: text)?.german, sender: sender(text: text, headers: doc.headers),
-                          amount: found?.amount, source: doc.url, evidence: found?.evidence,
-                          certainty: found?.sure == true ? .sure : .unsure)
-    }
-
     /// Receipt instead of photo: text with a totals line including amount and a recognizable sender (merchant, practice …).
     public static func looksLikeReceipt(text: String) -> Bool {
         guard text.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20,
@@ -173,50 +160,6 @@ public enum Verify {
     static func stripMarkers(_ quote: String) -> String {
         quote.replacingOccurrences(of: #"\[S\. \d+\]\s*"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "„“\"'")))
-    }
-
-    /// Invoice: `beleg` must appear verbatim in the text, contain a word for the total amount, and `betrag` must be
-    /// readable from `beleg`. Date and sender must appear in the text. Unsupported values stay empty; an incomplete total-amount passage means "bitte prüfen" (please check).
-    public static func invoice(typ: String, datum: String, absender: String, betrag: String, beleg rawBeleg: String,
-                               text: String, source: URL) -> InvoiceRow? {
-        if typ == "keine_rechnung" { return nil }
-        guard text.trimmingCharacters(in: .whitespacesAndNewlines).count >= 15 else {
-            return InvoiceRow(date: nil, sender: nil, amount: nil, source: source, evidence: nil, certainty: .unreadable)
-        }
-        let amount = GermanText.parseAmount(betrag)
-        // If the model quotes several lines (a whole receipt including "MwSt"), the line with amount and total word applies.
-        var beleg = stripMarkers(rawBeleg)
-        if beleg.contains("\n"), let a = amount,
-           let line = beleg.split(whereSeparator: \.isNewline).map({ $0.trimmingCharacters(in: .whitespaces) })
-               .first(where: { l in Heuristics.mentionsTotal(l) && GermanText.amounts(in: l).contains { $0.value == a } }) {
-            beleg = line
-        }
-        let belegOK = GermanText.isVerbatim(beleg, in: text, minLength: 4)
-        let inBeleg = amount.map { a in GermanText.amounts(in: beleg).contains { $0.value == a } } ?? false
-        let sure = amount != nil && belegOK && inBeleg && Heuristics.mentionsTotal(beleg)
-        // Date only if it appears like that in the text (the model otherwise likes to convert or guess).
-        let date = GermanText.parseDate(datum).flatMap { d in GermanText.dates(in: text).contains { $0.value == d } ? d : nil }
-        let sender = Heuristics.stripLegalForm(absender)
-        let senderOK = sender.count >= 3 && GermanText.normalize(text).contains(GermanText.normalize(sender))
-        return InvoiceRow(date: date?.german, sender: senderOK ? Heuristics.displayName(sender, maxLength: 60) : nil,
-                          amount: belegOK && inBeleg ? amount : nil, source: source, evidence: belegOK ? beleg : nil,
-                          certainty: sure && senderOK && date != nil ? .sure : .unsure)
-    }
-
-    /// Complement the model row (verified) with the pattern row. What comes only from the patterns stays "please check"
-    /// (the model row's confidence does not change); the same if two amounts contradict each other.
-    public static func merge(model: InvoiceRow, pattern: InvoiceRow) -> InvoiceRow {
-        var r = model
-        if r.date == nil { r.date = pattern.date }
-        if r.sender == nil { r.sender = pattern.sender }
-        if r.amount == nil || r.evidence == nil, let a = pattern.amount, pattern.evidence != nil, r.amount.map({ $0 == a }) ?? true {
-            r.amount = a; r.evidence = pattern.evidence
-        }
-        // Contradiction with an unambiguous total-amount line: show that line (found in code), but have it checked.
-        if pattern.certainty == .sure, let a = pattern.amount, let b = r.amount, a != b {
-            r.amount = a; r.evidence = pattern.evidence; r.certainty = .unsure
-        }
-        return r
     }
 
     /// Every number and time span of the full answer also appears in the selected quote.

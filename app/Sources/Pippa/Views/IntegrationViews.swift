@@ -190,7 +190,7 @@ struct EntryPreviewContent: View {
     /// How it was calculated, without "Please check" (the chip says that).
     static func calcNote(_ note: String?) -> String {
         guard var n = note, !n.isEmpty else { return T("I calculated this date.", table: "Settings") }
-        // German tails from the analysis and Pi, English ones from DeadlineAnalysis with an English UI.
+        // German tails from the analysis and Pi, English ones with an English UI.
         for tail in [" Bitte prüfen.", " Bitte kurz prüfen.", "Bitte prüfen.", " Please check.", "Please check."] { n = n.replacingOccurrences(of: tail, with: "") }
         // "vor dem Vertragsende 31.12.2027" -> "vor Vertragsende (31.12.2027)"
         if let r = n.range(of: #"vor dem Vertragsende (\d{2}\.\d{2}\.\d{4})"#, options: .regularExpression) {

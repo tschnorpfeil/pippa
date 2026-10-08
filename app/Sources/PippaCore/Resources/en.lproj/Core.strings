@@ -99,9 +99,6 @@
 "New folder" = "New folder";
 "I can’t make out any text. I won’t guess, so the file stays where it is." = "I can’t make out any text. I won’t guess, so the file stays where it is.";
 "Reading this one took too long. It stays where it is for now." = "Reading this one took too long. It stays where it is for now.";
-"1 invoice" = "1 invoice";
-"%lld invoices" = "%lld invoices";
-"%@ · %lld to check" = "%@ · %lld to check";
 "Added to Reminders" = "Added to Reminders";
 "Added to Calendar" = "Added to Calendar";
 "I didn’t find anything about that in your files." = "I didn’t find anything about that in your files.";

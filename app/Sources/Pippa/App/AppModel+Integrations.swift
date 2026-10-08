@@ -58,6 +58,8 @@ extension AppModel {
         show(.deadlines)
     }
 
+    /// Deadlines the code already found go straight to the cards ("Add…" to the calendar). Otherwise Pi reads the
+    /// documents with skill `fristen-erkennen` and adds what the person wants with `calendar_add` (the guard asks).
     func startDeadlines() {
         if let o = lastOverview, !o.deadlines.isEmpty {
             deadlines = o.deadlines
@@ -65,20 +67,8 @@ extension AppModel {
             return show(.deadlines)
         }
         guard let ctx = context, !ctx.items.isEmpty else { return askForContext() }
-        let items = ctx.items
-        perform(title: T("Looking for deadlines…", table: "App"), subtitle: T("I’m only reading. Nothing is added until you agree.", table: "App"),
-                retry: { [weak self] in self?.startDeadlines() }) { engine in
-            try await engine.deadlines(in: items)
-        } done: { [weak self] found in
-            guard let self else { return }
-            if found.isEmpty {
-                self.show(.message(title: T("No deadlines found", table: "App"), body: T("I didn’t find a date by which something needs to be done.", table: "App"), isError: false))
-            } else {
-                self.deadlines = found
-                self.deadlineSender = nil
-                self.show(.deadlines)
-            }
-        }
+        guard let skill = PippaSkill.bundled.first(where: { $0.name == "fristen-erkennen" }) else { return }
+        runSkill(skill)
     }
 
     func prepareEntry(_ deadline: Deadline, target: CalendarEntry.Target) {

@@ -44,7 +44,6 @@ enum ShellMode {
     case onboarding
     case overview(Overview)
     case sortSheet
-    case invoiceSheet
     case deadlines                                   // deadlines with source passage
     case entryPreview                                // preview of an entry (reminders/calendar)
     case permission(Integration, denied: Bool)       // a sentence before the system prompt, or the way to Settings
@@ -58,7 +57,7 @@ enum ShellMode {
         case .pill: .pill
         case .target: .target
         case .input, .resume, .line: .input
-        case .sortSheet, .invoiceSheet: .sheet
+        case .sortSheet: .sheet
         default: .panel
         }
     }
@@ -75,7 +74,6 @@ enum ShellMode {
         case .onboarding: "onboarding"
         case .overview: "overview"
         case .sortSheet: "sort"
-        case .invoiceSheet: "invoice"
         case .deadlines: "deadlines"
         case .entryPreview: "entry"
         case .permission: "permission"
@@ -96,7 +94,7 @@ enum ShellMode {
     /// Pending decisions retain the full conversation on reopen; completed results may compact.
     var requiresReviewOnReopen: Bool {
         switch self {
-        case .sortSheet, .invoiceSheet, .entryPreview, .permission: true
+        case .sortSheet, .entryPreview, .permission: true
         default: false
         }
     }
@@ -104,7 +102,7 @@ enum ShellMode {
     /// Results that may wait when the shell is closed.
     var isResult: Bool {
         switch self {
-        case .overview, .sortSheet, .invoiceSheet, .deadlines, .notice: true
+        case .overview, .sortSheet, .deadlines, .notice: true
         default: false
         }
     }
@@ -112,7 +110,7 @@ enum ShellMode {
     /// Cards that stay open on follow-up questions: the answer appears below them in the conversation.
     var staysWhileChatting: Bool {
         switch self {
-        case .overview, .sortSheet, .invoiceSheet, .deadlines, .entryPreview, .notice: true
+        case .overview, .sortSheet, .deadlines, .entryPreview, .notice: true
         default: false
         }
     }

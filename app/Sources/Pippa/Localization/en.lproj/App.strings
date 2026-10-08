@@ -65,9 +65,6 @@
 "One moment…" = "One moment…";
 "Your Mac will ask you in a moment." = "Your Mac will ask you in a moment.";
 "Looking for deadlines…" = "Looking for deadlines…";
-"I’m only reading. Nothing is added until you agree." = "I’m only reading. Nothing is added until you agree.";
-"No deadlines found" = "No deadlines found";
-"I didn’t find a date by which something needs to be done." = "I didn’t find a date by which something needs to be done.";
 "Adding it to Reminders…" = "Adding it to Reminders…";
 "Adding it to Calendar…" = "Adding it to Calendar…";
 "I’m creating a new entry" = "I’m creating a new entry";
@@ -81,7 +78,6 @@
 "Connected service" = "Connected service";
 "Online · %@" = "Online · %@";
 "Runs on this Mac" = "Runs on this Mac";
-"Asks before sending to %@" = "Asks before sending to %@";
 "Later" = "Later";
 "Load Now" = "Load Now";
 "I’m still working" = "I’m still working";
@@ -95,8 +91,6 @@
 "Leave It" = "Leave It";
 "Picking up where I left off…" = "Picking up where I left off…";
 "Overview: %@" = "Overview: %@";
-"Invoice table preview: 1 invoice" = "Invoice table preview: 1 invoice";
-"Invoice table preview: %lld invoices" = "Invoice table preview: %lld invoices";
 "Found 1 deadline" = "Found 1 deadline";
 "Found %lld deadlines" = "Found %lld deadlines";
 "I started a new conversation for this. You’ll find the previous one in the history." = "I started a new conversation for this. You’ll find the previous one in the history.";
@@ -106,7 +100,6 @@
 "1 attachment waiting · coming right up" = "1 attachment waiting · coming right up";
 "%lld attachments waiting · coming right up" = "%lld attachments waiting · coming right up";
 "Sorting Preview" = "Sorting Preview";
-"Invoice Table" = "Invoice Table";
 "Result & Undo" = "Result & Undo";
 "Dates & Deadlines" = "Dates & Deadlines";
 "Files & Suggestions" = "Files & Suggestions";
@@ -162,13 +155,6 @@
 "I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first." = "I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first.";
 "Tidy Now" = "Tidy Now";
 "Click again once I’m done." = "Click again once I’m done.";
-"Date, sender and amount. Nothing gets changed." = "Date, sender and amount. Nothing gets changed.";
-"No invoices found" = "No invoices found";
-"I didn’t recognize an invoice in these files." = "I didn’t recognize an invoice in these files.";
-"Create Here" = "Create Here";
-"Your invoices are in different places. Where should the table go?" = "Your invoices are in different places. Where should the table go?";
-"I’m creating a new file" = "I’m creating a new file";
-"Open" = "Open";
 "The files go back to where they were. Nothing is deleted." = "The files go back to where they were. Nothing is deleted.";
 "The entry will be removed again." = "The entry will be removed again.";
 "Undo “%@”?" = "Undo “%@”?";
@@ -240,18 +226,6 @@
 "Not Now" = "Not Now";
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
-"May I ask %@ for this?" = "May I ask %@ for this?";
-"Included: %@" = "Included: %@";
-"Goes to %@ (model %@). Your service’s usual costs apply." = "Goes to %@ (model %@). Your service’s usual costs apply.";
-"Just This Once" = "Just This Once";
-"For This Conversation" = "For This Conversation";
-"No" = "No";
-"Your message and this conversation so far (%lld messages)" = "Your message and this conversation so far (%lld messages)";
-", with %lld results from my tools, for example files I read" = ", with %lld results from my tools, for example files I read";
-", %lld pictures" = ", %lld pictures";
-". Together %@." = ". Together %@.";
-"Applies to this message. Newly shown things need a new OK." = "Applies to this message. Newly shown things need a new OK.";
-"On This Mac" = "On This Mac";
 "Draft in Mail" = "Draft in Mail";
 "I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”." = "I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”.";
 "The answer didn’t come through just now. Please try again in a moment." = "The answer didn’t come through just now. Please try again in a moment.";

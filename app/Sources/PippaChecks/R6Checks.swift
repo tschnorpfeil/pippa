@@ -134,11 +134,4 @@ func runR6Checks() async {
         try await engine.prepareModel(allowDownload: true)
         return calls.value == 0
     }
-    await checkAsync("R6: model work fetches the shared server (here: not ready → continues without model)") {
-        // Deadlines with model: no exception without a ready server, the code finds the deadline anyway; requested once.
-        let letter = folder.appendingPathComponent("frist.txt")
-        write("Bitte zahlen Sie bis zum 06.11.2026.", letter)
-        _ = try? await engine.deadlines(in: [letter])
-        return calls.value >= 1
-    }
 }

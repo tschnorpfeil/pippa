@@ -99,9 +99,6 @@
 "New folder" = "Neuer Ordner";
 "I can’t make out any text. I won’t guess, so the file stays where it is." = "Kein Text erkennbar. Ich rate nicht, die Datei bleibt, wo sie ist.";
 "Reading this one took too long. It stays where it is for now." = "Das Lesen hat zu lange gedauert. Die Datei bleibt erst einmal, wo sie ist.";
-"1 invoice" = "1 Rechnung";
-"%lld invoices" = "%lld Rechnungen";
-"%@ · %lld to check" = "%@ · %lld zum Prüfen";
 "Added to Reminders" = "In Erinnerungen eingetragen";
 "Added to Calendar" = "Im Kalender eingetragen";
 "I didn’t find anything about that in your files." = "Dazu habe ich in deinen Dateien nichts gefunden.";

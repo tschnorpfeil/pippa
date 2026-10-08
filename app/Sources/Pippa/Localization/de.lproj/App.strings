@@ -65,9 +65,6 @@
 "One moment…" = "Einen Moment …";
 "Your Mac will ask you in a moment." = "Dein Mac fragt dich gleich.";
 "Looking for deadlines…" = "Ich suche Fristen …";
-"I’m only reading. Nothing is added until you agree." = "Ich lese nur. Eingetragen wird erst, wenn du zustimmst.";
-"No deadlines found" = "Keine Fristen gefunden";
-"I didn’t find a date by which something needs to be done." = "Ich habe kein Datum gefunden, bis zu dem etwas zu tun ist.";
 "Adding it to Reminders…" = "Ich trage es in Erinnerungen ein …";
 "Adding it to Calendar…" = "Ich trage es in den Kalender ein …";
 "I’m creating a new entry" = "Ich lege einen neuen Eintrag an";
@@ -81,7 +78,6 @@
 "Connected service" = "Verbundener Dienst";
 "Online · %@" = "Online · %@";
 "Runs on this Mac" = "Rechnet auf diesem Mac";
-"Asks before sending to %@" = "Fragt vor dem Senden an %@";
 "Later" = "Später";
 "Load Now" = "Jetzt laden";
 "I’m still working" = "Ich arbeite gerade noch";
@@ -95,8 +91,6 @@
 "Leave It" = "So lassen";
 "Picking up where I left off…" = "Ich mache weiter …";
 "Overview: %@" = "Übersicht: %@";
-"Invoice table preview: 1 invoice" = "Rechnungstabelle als Vorschau: 1 Rechnung";
-"Invoice table preview: %lld invoices" = "Rechnungstabelle als Vorschau: %lld Rechnungen";
 "Found 1 deadline" = "1 Frist gefunden";
 "Found %lld deadlines" = "%lld Fristen gefunden";
 "I started a new conversation for this. You’ll find the previous one in the history." = "Dafür habe ich ein neues Gespräch angefangen. Das vorige findest du im Verlauf.";
@@ -106,7 +100,6 @@
 "1 attachment waiting · coming right up" = "1 Anhang wartet · kommt gleich dazu";
 "%lld attachments waiting · coming right up" = "%lld Anhänge warten · kommen gleich dazu";
 "Sorting Preview" = "Sortiervorschau";
-"Invoice Table" = "Rechnungstabelle";
 "Result & Undo" = "Ergebnis & Rückgängig";
 "Dates & Deadlines" = "Termine & Fristen";
 "Files & Suggestions" = "Dateien & Vorschläge";
@@ -162,13 +155,6 @@
 "I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first." = "%1$@ aus „%2$@“ kann ich jetzt genauer einordnen. Du siehst vorher alles.";
 "Tidy Now" = "Jetzt ordnen";
 "Click again once I’m done." = "Sobald ich fertig bin, nochmal klicken.";
-"Date, sender and amount. Nothing gets changed." = "Datum, Absender und Betrag. Nichts wird geändert.";
-"No invoices found" = "Keine Rechnungen gefunden";
-"I didn’t recognize an invoice in these files." = "In diesen Dateien habe ich keine Rechnung erkannt.";
-"Create Here" = "Hier anlegen";
-"Your invoices are in different places. Where should the table go?" = "Deine Rechnungen liegen an verschiedenen Orten. Wohin soll die Tabelle?";
-"I’m creating a new file" = "Ich lege eine neue Datei an";
-"Open" = "Öffnen";
 "The files go back to where they were. Nothing is deleted." = "Die Dateien kommen wieder an ihren alten Platz. Gelöscht wird nichts.";
 "The entry will be removed again." = "Der Eintrag wird wieder entfernt.";
 "Undo “%@”?" = "„%@“ rückgängig machen?";
@@ -240,18 +226,6 @@
 "Not Now" = "Nicht jetzt";
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
-"May I ask %@ for this?" = "Darf ich dafür %@ fragen?";
-"Included: %@" = "Dabei: %@";
-"Goes to %@ (model %@). Your service’s usual costs apply." = "Geht an %@ (Modell %@). Es gelten die üblichen Kosten deines Dienstes.";
-"Just This Once" = "Nur diesmal";
-"For This Conversation" = "Für dieses Gespräch";
-"No" = "Nein";
-"Your message and this conversation so far (%lld messages)" = "Deine Nachricht und der bisherige Verlauf (%lld Nachrichten)";
-", with %lld results from my tools, for example files I read" = ", dabei %lld Ergebnisse meiner Werkzeuge, zum Beispiel gelesene Dateien";
-", %lld pictures" = ", %lld Bilder";
-". Together %@." = ". Zusammen %@.";
-"Applies to this message. Newly shown things need a new OK." = "Gilt für diese Nachricht. Neu Gezeigtes braucht ein neues OK.";
-"On This Mac" = "Auf diesem Mac";
 "Draft in Mail" = "Entwurf in Mail";
 "I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”." = "Ich bin noch nicht ganz eingerichtet. Öffne Pippas Einrichtung und wähle „Nochmal versuchen“.";
 "The answer didn’t come through just now. Please try again in a moment." = "Die Antwort ist gerade nicht durchgekommen. Bitte versuch es gleich noch einmal.";

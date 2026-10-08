@@ -12,10 +12,13 @@ func runSkillChecks() {
 
     check("Skills: Swift finds every shipped folder from the SKILL.md header, nothing is kept twice") {
         skills.map(\.name) == shipped
-            && Set(shipped) == ["text-kuerzen", "stichpunkte", "dokument-einordnen", "rechnung-auslesen", "frage-belegen", "fristen-erkennen", "frist-berechnen", "antwort-schreiben", "brief-verstehen", "dokument-gestalten", "tabelle-pruefen", "text-verbessern", "zusammenfassen",
-                                  "aktionen-vorschlagen", "online-pruefen", "termin-aus-mail"]
+            && Set(shipped) == ["text-kuerzen", "stichpunkte", "dokument-einordnen", "rechnung-auslesen", "frage-belegen", "fristen-erkennen", "antwort-schreiben", "brief-verstehen", "dokument-gestalten", "tabelle-pruefen", "text-verbessern", "zusammenfassen",
+                                  "online-pruefen", "termin-aus-mail"]
     }
-    check("Skills: SKILL.md follows Pi's header rules (name like folder, lowercase with hyphens, description), explicit invocation only, short, no tool names, changes nothing") {
+    // Two skills act through Pi's tools on purpose: the invoice table (write, with the guard's undo copy) and deadlines
+    // (calendar_add, the guard asks). All others change nothing.
+    let acting: Set<String> = ["rechnung-auslesen", "fristen-erkennen"]
+    check("Skills: SKILL.md follows Pi's header rules (name like folder, lowercase with hyphens, description), explicit invocation only, short, no tool names, changes nothing unless meant to") {
         var bad: [String] = []
         for name in shipped {
             let parts = read(name).components(separatedBy: "---\n")
@@ -24,7 +27,7 @@ func runSkillChecks() {
             let ok = head.contains("name: \(name)\n") && PippaSkill.isValid(name: name) && head.contains("description: ")
                 && head.contains("disable-model-invocation: true\n")
                 && body.count <= 1300 && !body.contains("list_context") && !body.contains("read_context") && !body.contains("http")
-                && body.contains("Du änderst keine Datei")
+                && (acting.contains(name) || body.contains("Du änderst keine Datei"))
             if !ok { bad.append(name) }
         }
         if !bad.isEmpty { print("   ", bad) }
