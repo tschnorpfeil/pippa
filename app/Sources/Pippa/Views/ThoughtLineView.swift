@@ -31,6 +31,12 @@ struct ThoughtLineView: View {
                 }
                 .accessibilityElement(children: .contain)
                 .transition(reduceMotion ? .identity : .opacity)
+                let recent = thought.recentSteps
+                if !recent.shown.isEmpty {
+                    StepList(steps: recent.shown, hidden: recent.hidden, reduceMotion: reduceMotion)
+                        .padding(.leading, 30).padding(.top, 5)
+                        .transition(reduceMotion ? .identity : .opacity)
+                }
                 if case .wakingUp(let progress?) = phase {
                     WakeBar(progress: progress, reduceMotion: reduceMotion)
                         .padding(.leading, 30).padding(.top, 6)
@@ -48,7 +54,7 @@ struct ThoughtLineView: View {
                 Text(phase.title).foregroundStyle(Theme.ink2)
                     .lineLimit(1).truncationMode(.middle)
                     .layoutPriority(1)
-                if let detail = phase.detail {
+                if let detail = thought.currentStep ?? phase.detail {
                     Text(detail).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle)
                 }
                 if let elapsed {
@@ -58,9 +64,47 @@ struct ThoughtLineView: View {
             .font(Fonts.hint)
             // VoiceOver reads the phase when it lands here; changes are announced politely by the controller.
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(["Pippa", phase.title, phase.detail].compactMap { $0 }.joined(separator: ", "))
+            .accessibilityLabel(["Pippa", phase.title, thought.currentStep ?? phase.detail].compactMap { $0 }.joined(separator: ", "))
             .accessibilityValue(elapsed ?? "")
         }
+    }
+}
+
+/// What Pippa has just done, quietly under the line: the last few steps in everyday words, with the result when
+/// known. A step that appears fades in; with Reduce Motion nothing animates. Older steps collapse into one count.
+struct StepList: View {
+    var steps: [WorkStep]
+    var hidden = 0
+    var reduceMotion: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            if hidden > 0 {
+                Text(hidden == 1 ? T("1 earlier step", table: "ThoughtUI") : T("%lld earlier steps", table: "ThoughtUI", hidden))
+                    .font(Fonts.hint).foregroundStyle(Theme.ink3)
+            }
+            ForEach(Array(steps.enumerated()), id: \.offset) { _, step in
+                StepRow(step: step)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: steps)
+        .frame(maxWidth: 520, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(T("What I did", table: "ThoughtUI"))
+        .accessibilityValue(steps.map(\.line).joined(separator: ". "))
+    }
+}
+
+struct StepRow: View {
+    var step: WorkStep
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(step.text).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+            if let outcome = step.outcome {
+                Text("· " + outcome).foregroundStyle(Theme.ink3).lineLimit(1).fixedSize()
+            }
+        }
+        .font(Fonts.hint)
     }
 }
 
@@ -126,6 +170,16 @@ struct WorkReceiptView: View {
                     }
                     if receipt.checkedCalendar {
                         row(icon: "calendar", strong: false, title: T("Checked your calendar", table: "ThoughtUI"), detail: nil)
+                    }
+                    if let steps = receipt.steps, !steps.isEmpty {
+                        if !receipt.sources.isEmpty || receipt.lookedUpOnline || receipt.checkedCalendar { Divider() }
+                        Text(T("What I did", table: "ThoughtUI")).font(Fonts.hint.weight(.medium)).foregroundStyle(Theme.ink2)
+                        VStack(alignment: .leading, spacing: 3) {
+                            ForEach(Array(steps.enumerated()), id: \.offset) { _, step in StepRow(step: step) }
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(T("What I did", table: "ThoughtUI"))
+                        .accessibilityValue(steps.map(\.line).joined(separator: ". "))
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 10)

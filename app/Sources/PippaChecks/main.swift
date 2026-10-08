@@ -92,6 +92,7 @@ if ProcessInfo.processInfo.environment["PIPPA_LEGACY_CHECKS"] == "1" {
 // Only the Thought Line checks (fast, for parallel work on a busy machine); the full run includes them.
 if ProcessInfo.processInfo.environment["PIPPA_THOUGHT_CHECKS"] == "1" {
     await runThoughtLineChecks()
+    runWorkStepChecks()
     runColdStartChecks()
     print(failures == 0 ? "Thought Line checks passed." : "Thought Line checks failed.")
     exit(failures == 0 ? 0 : 1)
@@ -1280,6 +1281,7 @@ await runAgentBridgeChecks()
 await runCalendarChecks()
 runCalendarStoreChecks()
 await runThoughtLineChecks()
+runWorkStepChecks()
 runColdStartChecks()
 await runSetupChecks()
 await runMCPChecks()

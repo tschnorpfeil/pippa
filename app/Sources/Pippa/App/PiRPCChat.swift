@@ -87,6 +87,9 @@ final class PiRPCChat {
         return PiConversationDefault.bundledGuard(bundle: Bundle.main.bundleURL).path
     }
 
+    /// For the everyday step wording (WorkStepPhrase): the person's home folder.
+    static let homePath = FileManager.default.homeDirectoryForCurrentUser.path
+
     /// Working directory of new sessions: environment, otherwise an own folder in Pippa's support folder (created).
     static func workingDirectory(_ env: [String: String]) throws -> URL {
         if let path = env["PIPPA_PI_WORKDIR"], !path.isEmpty { return URL(fileURLWithPath: path, isDirectory: true) }
@@ -380,14 +383,19 @@ final class PiRPCChat {
                 segment += delta
                 onDelta(delta)
             case .toolStarted(let id, let name, let arguments):
-                if name == "read" { toolArguments[id] = arguments }
-                onWork?(.toolStarted(name: name, source: nil))
+                if name == "read" || WorkStepPhrase.hasOutcome(tool: name) { toolArguments[id] = arguments }
+                onWork?(.toolStarted(name: name, source: nil, step: WorkStepPhrase.phrase(tool: name, arguments: arguments, home: Self.homePath)))
             case .toolEnded(let id, let name, let isError, let result):
                 // What Pi read with `read`, for this answer's source check (PiReadLedger).
-                if name == "read", !isError, let arguments = toolArguments.removeValue(forKey: id) {
+                let arguments = toolArguments.removeValue(forKey: id)
+                if name == "read", !isError, let arguments {
                     await PippaMCPTurns.shared.active?.notePiRead(arguments: arguments, result: result)
                 }
-                onWork?(.toolEnded(name: name))
+                let outcome = arguments.flatMap {
+                    WorkStepPhrase.outcome(tool: name, arguments: $0, isError: isError, result: result, home: Self.homePath,
+                                           resultWasCut: result.count >= PiRPCClient.listingResultLimit)
+                }
+                onWork?(.toolEnded(name: name, outcome: outcome))
             case .userMessage:
                 onSteered(segment)
                 segment = ""

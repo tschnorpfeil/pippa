@@ -32,6 +32,8 @@ public enum WorkPhase: Sendable, Equatable {
     case lookingUpOnline
     case checkingCalendar
     case preparingPreview
+    /// Pi works with its own tools (searching, reading, changing files); the step says what exactly.
+    case working
     /// A failed attempt was discarded and is being repeated.
     case retrying
     /// The earlier conversation is being condensed to make room.
@@ -60,6 +62,7 @@ public enum WorkPhase: Sendable, Equatable {
         case .lookingUpOnline: "online"
         case .checkingCalendar: "calendar"
         case .preparingPreview: "preview"
+        case .working: "working"
         case .retrying: "retry"
         case .condensing: "condensing"
         case .checkingSources: "checking"
@@ -98,6 +101,7 @@ public enum WorkPhase: Sendable, Equatable {
         case .lookingUpOnline: L("Looking it up online…", table: "Thought")
         case .checkingCalendar: L("Checking your calendar…", table: "Thought")
         case .preparingPreview: L("Preparing a preview…", table: "Thought")
+        case .working: L("Working on it…", table: "Thought")
         case .retrying: L("Trying again…", table: "Thought")
         case .condensing: L("Summarizing our conversation so far…", table: "Thought")
         case .checkingSources: L("Checking the answer against your documents…", table: "Thought")
@@ -144,8 +148,10 @@ public enum WorkEvent: Sendable, Equatable {
     /// What went into the answer (read status and passages), replaces earlier facts per name.
     case sources([SourceReading])
     /// A Pi tool started; `source` is the host's name of the source it opened, never agent text.
-    case toolStarted(name: String, source: String?)
-    case toolEnded(name: String)
+    /// `step`: the everyday phrase for what the tool does (WorkStepPhrase), computed by the host.
+    case toolStarted(name: String, source: String?, step: String? = nil)
+    /// `outcome`: a short result such as "3 matches", when cheaply known.
+    case toolEnded(name: String, outcome: String? = nil)
 }
 
 public typealias WorkEventHandler = @Sendable (WorkEvent) -> Void
@@ -200,8 +206,11 @@ public struct WorkReceipt: Codable, Sendable, Equatable {
     public var sources: [SourceReading]
     public var lookedUpOnline: Bool
     public var checkedCalendar: Bool
-    public init(seconds: Int, sources: [SourceReading], lookedUpOnline: Bool = false, checkedCalendar: Bool = false) {
+    /// The steps of the tool loop in everyday words (older receipts have none).
+    public var steps: [WorkStep]?
+    public init(seconds: Int, sources: [SourceReading], lookedUpOnline: Bool = false, checkedCalendar: Bool = false, steps: [WorkStep]? = nil) {
         self.seconds = seconds; self.sources = sources; self.lookedUpOnline = lookedUpOnline; self.checkedCalendar = checkedCalendar
+        self.steps = steps?.isEmpty == false ? steps : nil
     }
 
     /// "3 sources read · 12 s" and its honest variants (partly read, not readable).
@@ -223,6 +232,9 @@ public struct WorkReceipt: Codable, Sendable, Equatable {
         }
         if lookedUpOnline { return L("Looked it up online · %@", table: "Thought", time) }
         if checkedCalendar { return L("Checked your calendar · %@", table: "Thought", time) }
+        if let steps, !steps.isEmpty {
+            return steps.count == 1 ? L("1 step · %@", table: "Thought", time) : L("%lld steps · %@", table: "Thought", steps.count, time)
+        }
         return time
     }
 
@@ -252,9 +264,31 @@ public struct ThoughtLine: Sendable, Equatable {
     private var furthest = 0
     private var textSeen = false
     private var openTools: [WorkPhase?] = []
+    /// Index into `steps` per open tool (parallel to `openTools`); `nil`: the tool shows no step.
+    private var openSteps: [Int?] = []
+    /// Steps so far, oldest first (at most `maxSteps`); the open ones have no `finished` mark.
+    public private(set) var steps: [WorkStep] = []
+    private var finishedSteps = 0
     private var stopped = false
 
     public init() {}
+
+    public static let maxSteps = 40
+    /// How many finished steps stay in the quiet list under the line.
+    public static let visibleSteps = 4
+
+    /// The step that is running now (the newest open one), in everyday words.
+    public var currentStep: String? {
+        guard let index = openSteps.last(where: { $0 != nil }) ?? nil, steps.indices.contains(index) else { return nil }
+        return steps[index].text
+    }
+
+    /// Finished steps, newest last, for the quiet list (`hidden`: how many older ones are not listed).
+    public var recentSteps: (shown: [WorkStep], hidden: Int) {
+        let open = Set(openSteps.compactMap { $0 })
+        let done = steps.enumerated().filter { !open.contains($0.offset) }.map(\.element)
+        return (Array(done.suffix(Self.visibleSteps)), max(0, done.count - Self.visibleSteps))
+    }
 
     /// The line is visible while something real happens before or between answer text.
     public var isVisible: Bool {
@@ -281,6 +315,7 @@ public struct ThoughtLine: Sendable, Equatable {
     public mutating func apply(_ event: WorkEvent, request: UUID, at now: Date) -> Bool {
         guard accepts(request) else { return false }
         let before = phase
+        let stepBefore = currentStep
         switch event {
         case .phase(let next): enter(next)
         case .sourceRead(let name, let pagesRead, let pageCount, let recognized):
@@ -297,7 +332,7 @@ public struct ThoughtLine: Sendable, Equatable {
                 }
                 upsert(source)
             }
-        case .toolStarted(let name, let sourceName):
+        case .toolStarted(let name, let sourceName, let step):
             // Only names the host listed as sources are shown; anything else stays generic.
             var mapped = WorkPhase.tool(name, source: nil)
             if case .lookingThrough = mapped, let sourceName, var known = sources.first(where: { $0.name == sourceName }) {
@@ -307,16 +342,26 @@ public struct ThoughtLine: Sendable, Equatable {
             }
             if mapped == .lookingUpOnline { lookedUpOnline = true }
             if mapped == .checkingCalendar { checkedCalendar = true }
+            var stepIndex: Int?
+            if let step, !step.isEmpty {
+                steps.append(WorkStep(text: step))
+                if steps.count > Self.maxSteps { steps.removeFirst(); openSteps = openSteps.map { $0.map { $0 - 1 }.flatMap { $0 >= 0 ? $0 : nil } } }
+                stepIndex = steps.count - 1
+                // Pi's own tools (no mapped phase) still move the line: "Working on it" with the step as detail.
+                if mapped == nil { mapped = .working }
+            }
+            openSteps.append(stepIndex)
             openTools.append(mapped)
             furthest = Int.max
             if let mapped { phase = mapped }
-        case .toolEnded:
+        case .toolEnded(_, let outcome):
+            if let index = openSteps.popLast() ?? nil, steps.indices.contains(index) { steps[index].outcome = outcome }
             // A tool that never changed the line does not change it when it ends either.
             let ended = openTools.popLast() ?? nil
             if let running = openTools.compactMap({ $0 }).last { phase = running }
             else if ended != nil { phase = .waitingForAnswer(continuing: textSeen) }
         }
-        return phase != before
+        return phase != before || currentStep != stepBefore
     }
 
     /// Answer text arrived: the line steps aside.
@@ -346,9 +391,10 @@ public struct ThoughtLine: Sendable, Equatable {
     /// Answer finished. Returns the receipt when there is something worth reporting (sources or tools); resets.
     public mutating func finish(request: UUID, at now: Date) -> WorkReceipt? {
         guard self.request == request, !stopped else { if self.request == request { self = ThoughtLine() }; return nil }
-        let receipt = WorkReceipt(seconds: elapsedSeconds(at: now), sources: sources, lookedUpOnline: lookedUpOnline, checkedCalendar: checkedCalendar)
+        let receipt = WorkReceipt(seconds: elapsedSeconds(at: now), sources: sources, lookedUpOnline: lookedUpOnline, checkedCalendar: checkedCalendar,
+                                  steps: steps)
         self = ThoughtLine()
-        return receipt.sources.isEmpty && !receipt.lookedUpOnline && !receipt.checkedCalendar ? nil : receipt
+        return receipt.sources.isEmpty && !receipt.lookedUpOnline && !receipt.checkedCalendar && receipt.steps == nil ? nil : receipt
     }
 
     /// Ends the line without a receipt (stopped, failed, or the request is gone).
@@ -359,7 +405,12 @@ public struct ThoughtLine: Sendable, Equatable {
 
     /// Should VoiceOver hear this phase? Only a new kind of activity, not the writing itself, and not too often.
     public static func shouldAnnounce(_ phase: WorkPhase, lastKind: String?, lastAnnouncement: Date?, now: Date) -> Bool {
-        guard phase != .writing, phase.kind != lastKind else { return false }
+        shouldAnnounce(kind: phase.kind, phase: phase, lastKind: lastKind, lastAnnouncement: lastAnnouncement, now: now)
+    }
+
+    /// Same rule for a step ("Lese Brief.docx"): `kind` identifies it; the throttle is shared with the phases.
+    public static func shouldAnnounce(kind: String, phase: WorkPhase, lastKind: String?, lastAnnouncement: Date?, now: Date) -> Bool {
+        guard phase != .writing, kind != lastKind else { return false }
         if phase == .stopping || phase == .waitingForPerson { return true }
         guard let lastAnnouncement else { return true }
         return now.timeIntervalSince(lastAnnouncement) >= announcementInterval

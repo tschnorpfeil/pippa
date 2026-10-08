@@ -20,7 +20,7 @@ enum DotPattern: Equatable {
         switch phase {
         case .reading, .lookingThrough(name: .some): self = .sweep
         case .recognizing: self = .scan
-        case .choosingPassages, .lookingThrough(name: nil), .checkingCalendar: self = .sequence
+        case .choosingPassages, .lookingThrough(name: nil), .checkingCalendar, .working: self = .sequence
         case .checkingSources: self = .fill
         case .stopping: self = .still
         default: self = .breathe

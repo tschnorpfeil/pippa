@@ -324,7 +324,8 @@ public actor PiRPCClient {
             let name = record["toolName"] as? String ?? ""
             // Pi's own `read` in full (up to 200,000 characters; Pi itself returns at most 50 KB per call): the
             // source check checks against exactly what Pi read (PiReadLedger). Everything else only the beginning.
-            let limit = name == "read" ? Self.readResultLimit : 400
+            // Searches and listings: enough to count result lines for the everyday step summary ("3 matches").
+            let limit = name == "read" ? Self.readResultLimit : Self.listingTools.contains(name) ? Self.listingResultLimit : 400
             events?.yield(.toolEnded(id: record["toolCallId"] as? String ?? "", name: name,
                                      isError: record["isError"] as? Bool == true, result: String(result.prefix(limit))))
         case "entry_appended":
@@ -345,6 +346,8 @@ public actor PiRPCClient {
     }
 
     public static let readResultLimit = 200_000
+    public static let listingResultLimit = 20_000
+    static let listingTools: Set<String> = ["bash", "find", "grep", "ls"]
 
     private func uiRequest(_ record: [String: Any]) {
         guard let id = record["id"] as? String, let method = record["method"] as? String else { return }

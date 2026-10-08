@@ -47,7 +47,7 @@ private final class PhaseGate: @unchecked Sendable {
         condition.lock()
         let waiting = Array(pending.values)
         pending.removeAll()
-        released.formUnion(["read", "ocr", "waiting", "looking", "writing", "again", "continuing", "stop-wait"])
+        released.formUnion(["read", "ocr", "waiting", "searching", "looking", "writing", "again", "continuing", "stop-wait"])
         holding = nil
         condition.broadcast()
         condition.unlock()
@@ -96,6 +96,15 @@ private actor ThoughtScript {
         }))
         work?(.phase(.waitingForAnswer(continuing: false)))
         await gate.hold("waiting")
+        // Pi searches with its own tools first: finished steps with results, as the host words them.
+        for (step, outcome) in [("Suche .md-Dateien in deinem Benutzerordner", "3 Treffer"), ("Suche mit Spotlight nach „Kaution“", "nichts gefunden"),
+                                ("Schaue in Downloads nach", "12 Einträge")] {
+            work?(.toolStarted(name: "bash", source: nil, step: step))
+            work?(.toolEnded(name: "bash", outcome: outcome))
+        }
+        work?(.toolStarted(name: "bash", source: nil, step: "Suche „Miete“ in deinen Dokumenten"))
+        await gate.hold("searching")
+        work?(.toolEnded(name: "bash", outcome: "2 Treffer"))
         work?(.toolStarted(name: "read_context", source: "Mietvertrag.pdf"))
         await gate.hold("looking")
         work?(.toolEnded(name: "read_context"))
@@ -224,6 +233,14 @@ private actor ThoughtScript {
         verify(facts["Foto Zählerstand.heic"].map { !$0.wasRead } == true, "Unreadable photo is marked, not counted as read")
         await snap("03-waiting")
         gate.release("waiting")
+
+        // 3b Pi's own tools: the running step is the detail, finished ones listed quietly below.
+        verify(await waitFor("searching"), "Engine reached its own search tool")
+        try? await Task.sleep(for: .milliseconds(150))
+        verify(chat.thought.phase == .working && chat.thought.currentStep == "Suche „Miete“ in deinen Dokumenten", "Phase: working, current step shown")
+        verify(chat.thought.recentSteps.shown.count == 3, "Three finished steps listed")
+        await snap("03b-steps")
+        gate.release("searching")
 
         // 4 Pi opens a source again: only the host's name is shown.
         verify(await waitFor("looking"), "Engine reached the source tool")

@@ -506,10 +506,13 @@ final class ConversationController: ObservableObject {
     private func announcePhase() {
         guard let phase = thought.phase else { return }
         let now = Date()
-        guard ThoughtLine.shouldAnnounce(phase, lastKind: lastAnnouncedKind, lastAnnouncement: lastAnnouncement, now: now) else { return }
-        lastAnnouncedKind = phase.kind; lastAnnouncement = now
+        // A running step ("Lese Brief.docx") is heard instead of the general phase; same throttle.
+        let step = thought.currentStep
+        let kind = step.map { "step:" + $0 } ?? phase.kind
+        guard ThoughtLine.shouldAnnounce(kind: kind, phase: phase, lastKind: lastAnnouncedKind, lastAnnouncement: lastAnnouncement, now: now) else { return }
+        lastAnnouncedKind = kind; lastAnnouncement = now
         NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
-                             userInfo: [.announcement: phase.title, .priority: NSAccessibilityPriorityLevel.low.rawValue])
+                             userInfo: [.announcement: step ?? phase.title, .priority: NSAccessibilityPriorityLevel.low.rawValue])
     }
 
     /// For tray cleanup: what conversations still have attached.

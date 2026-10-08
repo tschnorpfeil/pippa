@@ -8,3 +8,7 @@
 "Checked your calendar" = "Checked your calendar";
 /* Quittung aus Werkzeug-Ereignissen (ActionReceipt), nie aus dem Modelltext. */
 "What happened" = "What happened";
+/* Steps under the line */
+"What I did" = "What I did";
+"1 earlier step" = "1 earlier step";
+"%lld earlier steps" = "%lld earlier steps";
