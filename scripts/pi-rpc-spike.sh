@@ -40,12 +40,16 @@ case "${1:-}" in
 llama-start)
   case "${2:-k2}" in
     qwen) model="$cache/models/Qwen3.5-4B-Q4_K_M.gguf"; alias=qwen3.5-4b ;;
-    *) model="$cache/models/K2-Horizon-7B-Q4_K_M.gguf"; alias=k2-horizon-7b ;;
+    *) model="$cache/models/K2-Horizon-7B-Q4_K_M.gguf"; alias=k2-horizon-7b; sampling="--temp 1 --top-p 0.95 --top-k 0 --min-p 0" ;;
   esac
   [ -f "$support/llama-key" ] || { echo "run first: $0 setup"; exit 2; }
-  LLAMA_API_KEY=$(cat -- "$support/llama-key") nohup "$cache/llama-b11503/llama-server" -m "$model" --jinja --host 127.0.0.1 --port "$port" \
-    -ngl 999 -c 16384 --parallel 1 --no-webui --reasoning off --cache-type-k q8_0 --cache-type-v q8_0 \
-    --alias "$alias" >"$logs/llama-server.log" 2>&1 &
+  # As the app starts Pi's server: no --reasoning off (Pi sets the level per request), the bundled (patched) build if
+  # there is one, else the cached release.
+  bin="${PIPPA_LLAMA_SERVER:-$root/dist/Pippa.app/Contents/Helpers/llama-server}"
+  [ -x "$bin" ] || bin="$cache/llama-b11503/llama-server"
+  LLAMA_API_KEY=$(cat -- "$support/llama-key") nohup "$bin" -m "$model" --jinja --host 127.0.0.1 --port "$port" \
+    -ngl 999 -c 16384 --parallel 1 --no-webui --cache-type-k q8_0 --cache-type-v q8_0 \
+    ${sampling:-} --alias "$alias" >"$logs/llama-server.log" 2>&1 &
   echo $! >"$logs/llama-server.pid"
   echo "llama-server PID $(cat "$logs/llama-server.pid") ($alias) on port $port"
   ;;
@@ -101,7 +105,7 @@ r7)
   export PI_CODING_AGENT_DIR="$agent" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
   export PIPPA_UNDO_DIR="$undo" PIPPA_SPIKE_WORK="$work" PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools"
   export PIPPA_SPIKE_SESSIONS="$sessions" PIPPA_TRASH_DIR="$trash" PIPPA_R7_LOGS="$logs/r7"
-  export PIPPA_LLAMA_SERVER="$cache/llama-b11503/llama-server"
+  export PIPPA_LLAMA_SERVER="$( [ -x "$root/dist/Pippa.app/Contents/Helpers/llama-server" ] && echo "$root/dist/Pippa.app/Contents/Helpers/llama-server" || echo "$cache/llama-b11503/llama-server")"
   case "$PIPPA_PI_MODEL" in
     qwen*) export PIPPA_MODEL_FILE="$cache/models/Qwen3.5-4B-Q4_K_M.gguf" ;;
     *) export PIPPA_MODEL_FILE="$cache/models/K2-Horizon-7B-Q4_K_M.gguf" ;;
@@ -128,7 +132,7 @@ app)
   export PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools" PIPPA_PI_RPC=1 PIPPA_DEMO=1
   # The app starts the llama-server for pippa-local itself (fixed port + key from the fake HOME).
   # Binary and model from the cache are only read. If one is already running (llama-start), set PIPPA_PI_OWN_LLAMA=0.
-  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11503/llama-server}"
+  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$( [ -x "$root/dist/Pippa.app/Contents/Helpers/llama-server" ] && echo "$root/dist/Pippa.app/Contents/Helpers/llama-server" || echo "$cache/llama-b11503/llama-server")}"
   export PIPPA_MODEL_FILE="${PIPPA_MODEL_FILE:-$cache/models/K2-Horizon-7B-Q4_K_M.gguf}"
   [ "${2:-}" = wave2d ] && export PIPPA_PIRPC_SCENARIO=wave2d
   shot="$root/.build/spike-app-$(date +%Y%m%d-%H%M%S)"

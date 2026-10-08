@@ -479,3 +479,26 @@ test("parameter texts of Pi's built-in tools get shorter in the request; schema,
 	assert.equal(shortenParameters({ messages: [] }), undefined);
 	assert.equal(shortenParameters(out), undefined, "already short: nothing to change");
 });
+
+test("loop brake: an identical call stops after two failures or four runs; other arguments still run", async () => {
+	const { loopBrake } = await import("./pippa-guard.ts");
+	const counts = new Map(), keys = new Map();
+	const input = { time: "18:00", title: "Müll" };
+	// A change that worked once is not done twice.
+	const c0 = new Map(), k0 = new Map();
+	assert.equal(loopBrake(c0, k0, "a1", "mcp__pippa__reminder_add", { title: "Müll" }, true), undefined);
+	c0.get(k0.get("a1")).successes++;
+	assert.match(loopBrake(c0, k0, "a2", "mcp__pippa__reminder_add", { title: "Müll" }, true), /would make a duplicate/);
+	const ran = [];
+	for (let i = 0; i < 4; i++) {
+		const stop = loopBrake(counts, keys, `f${i}`, "mcp__pippa__reminder_add", input);
+		ran.push(!stop);
+		if (!stop) counts.get(keys.get(`f${i}`)).failures++;
+	}
+	assert.deepEqual(ran, [true, true, false, false]);
+	assert.match(loopBrake(counts, keys, "f9", "mcp__pippa__reminder_add", input), /already failed 2 times/);
+	const c2 = new Map(), k2 = new Map();
+	const reads = Array.from({ length: 6 }, (_, i) => !loopBrake(c2, k2, `r${i}`, "read", { path: "a.txt" }));
+	assert.deepEqual(reads, [true, true, true, true, false, false]);
+	assert.equal(loopBrake(c2, k2, "r9", "read", { path: "b.txt" }), undefined);
+});

@@ -84,7 +84,7 @@ public struct PippaMCPWriteTools: Sendable {
                   "location": text, "notes": text, "if_free": ["type": "boolean"]],
                  required: ["title", "date"]),
             tool("reminder_add", "Erinnerung anlegen",
-                 "Add a reminder. Optional: date (YYYY-MM-DD, today, tomorrow or a weekday), time (HH:MM), list name.",
+                 "Add a reminder. When the person names a day or time, always send date (today, tomorrow, a weekday or YYYY-MM-DD); time (HH:MM) only together with date. Optional: list name.",
                  ["title": text, "date": date, "time": time, "list": text, "notes": text], required: ["title"]),
             tool("mail_draft", "Mail-Entwurf",
                  "Create an unsent Mail draft. reply_to: exact path of a shown email file, or selected (the one selected in Mail); otherwise a new email with subject and to.",
@@ -316,7 +316,7 @@ public struct PippaMCPWriteTools: Sendable {
             }
             due = parts
         } else if input.text("time") != nil {
-            return Self.invalid("time needs a date.")
+            return Self.invalid("time needs a date: also send date (today, tomorrow, a weekday or YYYY-MM-DD), the day the person said.")
         }
         let label = Self.singleLine(title, max: 80)
         let short = dueDate.map { L("%@ (due %@)", table: "MCP", label, format($0, dueHasTime ? "EEE d MMM HH:mm" : "EEE d MMM")) } ?? label

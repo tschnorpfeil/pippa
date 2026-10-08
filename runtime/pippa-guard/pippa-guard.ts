@@ -186,6 +186,33 @@ function commandDetail(command: string): string {
 	return `Genauer Befehl: ${one}`;
 }
 
+/**
+ * Loop brake for one answer: `undefined` lets the call run (and counts it), otherwise the reason Pi gets instead.
+ * Identical means same tool and same arguments. Two failures or four runs of exactly that are enough; a call that
+ * changes something (`changes`) only runs once successfully.
+ */
+export interface LoopCount { runs: number; failures: number; successes: number }
+
+export function loopBrake(counts: Map<string, LoopCount>, keys: Map<string, string>,
+	toolCallId: string, tool: string, input: unknown, changes = false): string | undefined {
+	let key: string;
+	try { key = `${tool} ${JSON.stringify(input ?? {})}`; } catch { return undefined; }
+	const count = counts.get(key) ?? { runs: 0, failures: 0, successes: 0 };
+	if (changes && count.successes >= 1) {
+		return `Stopped: this exact '${tool}' call already worked in this answer; doing it again would make a duplicate. It is done. Do not call it again; tell the user in one short German sentence what was done.`;
+	}
+	if (count.failures >= 2) {
+		return `Stopped: this exact '${tool}' call already failed ${count.failures} times in this answer. Do not repeat it. Change the arguments (read the error), take another way, or tell the user in one short German sentence what did not work.`;
+	}
+	if (count.runs >= 4) {
+		return `Stopped: you already ran this exact '${tool}' call ${count.runs} times in this answer; the result will not change. Use what you already have and answer the user now.`;
+	}
+	count.runs++;
+	counts.set(key, count);
+	keys.set(toolCallId, key);
+	return undefined;
+}
+
 function declineReason(tool: string, style = "v3"): string {
 	const v1 = `The user declined this action ('${tool}'). Nothing was changed. Do not retry the same action; tell the user briefly in German that you did not do it, and ask what they would like instead.`;
 	if (style === "v1") return v1;
@@ -288,8 +315,16 @@ export default function (pi: ExtensionAPI) {
 		try { await pruneUndo(UNDO_ROOT, policy); } catch { /* Pruning must never hold up an answer. */ }
 	}
 	pi.on("session_start", async () => { await prune(); });
-	pi.on("agent_start", async () => { allowedForTask.clear(); });
-	pi.on("agent_end", async () => { allowedForTask.clear(); await prune(); });
+	// Loop brake: small local models repeat the very same call (K2 sent the same failing reminder_add 20 times, or read
+	// one file 200 times, or added the same reminder four times). Per answer: an identical call that already failed
+	// twice, an identical change that already worked once, or any identical call run four times is stopped; after three
+	// stops the answer ends (the receipt still shows what really happened).
+	const callCounts = new Map<string, LoopCount>();
+	const callKeys = new Map<string, string>();
+	let loopStops = 0;
+	const resetLoops = () => { callCounts.clear(); callKeys.clear(); loopStops = 0; };
+	pi.on("agent_start", async () => { allowedForTask.clear(); resetLoops(); });
+	pi.on("agent_end", async () => { allowedForTask.clear(); resetLoops(); await prune(); });
 
 	function receipt(toolCallId: string, tool: string, plan: Planned, outcome: string, extra: Record<string, unknown> = {}) {
 		try {
@@ -302,6 +337,12 @@ export default function (pi: ExtensionAPI) {
 	pi.on("tool_call", async (event: any, ctx: any) => {
 		const tool: string = event.toolName;
 		const info = pi.getAllTools?.().find((t: any) => t.name === tool);
+		const looksOnly = readsOnly(tool, info) || (tool === "bash" && classify(tool, event.input) === "look");
+		const loop = loopBrake(callCounts, callKeys, event.toolCallId, tool, event.input, !looksOnly);
+		if (loop) {
+			if (++loopStops >= 3) ctx.abort?.();
+			return { block: true, reason: loop };
+		}
 		if (readsOnly(tool, info)) return undefined;
 		// Online lookup via Pippa's server: kind "network"; Pippa asks the one question per request itself (self-asking.ts).
 		if (asksItself(tool, info, TRUSTED_MCP, trustedSource)) return undefined;
@@ -479,6 +520,10 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_result", async (event: any, ctx: any) => {
+		const key = callKeys.get(event.toolCallId);
+		callKeys.delete(event.toolCallId);
+		const count = key ? callCounts.get(key) : undefined;
+		if (count) { if (event.isError) count.failures++; else count.successes++; }
 		const entry = approved.get(event.toolCallId);
 		if (!entry) return undefined;
 		approved.delete(event.toolCallId);
