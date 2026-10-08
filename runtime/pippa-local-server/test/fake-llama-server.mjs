@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 
 const args = process.argv.slice(2);
 if (args.includes("--help")) {
-	console.log("--host --port --alias --jinja --ctx-size --parallel --no-webui --slot-save-path --swa-full");
+	console.log("--host --port --alias --jinja --ctx-size --parallel --no-webui --slot-save-path");
 	process.exit(0);
 }
 const key = process.env.LLAMA_API_KEY ?? "";

@@ -2,7 +2,7 @@ import Foundation
 import PippaCore
 
 // Prompt cache across unloading when idle. The llama-server for `pippa-local` starts with
-// `--slot-save-path <Support>/llama-slots` and `--swa-full`; slot 0 is saved before unloading and restored after the
+// `--slot-save-path <Support>/llama-slots`; slot 0 is saved before unloading and restored after the
 // next start before the first request. A small Python program plays llama-server (no model).
 // Runs with PIPPA_R7_CHECKS=1 and in the full run.
 
@@ -13,7 +13,7 @@ private let fakeSlotLlama = """
 import http.server, json, os, sys, time, urllib.parse
 args = sys.argv[1:]
 if "--help" in args:
-    print("--host --port --alias --jinja --ctx-size --parallel --no-webui --slot-save-path --swa-full")
+    print("--host --port --alias --jinja --ctx-size --parallel --no-webui --slot-save-path")
     sys.exit(0)
 port = int(args[args.index("--port") + 1])
 slots = args[args.index("--slot-save-path") + 1] if "--slot-save-path" in args else None
@@ -60,16 +60,16 @@ func runR7Checks() async {
         check("R7: catalog knows qwen3.5-9b-q4") { false }; return
     }
 
-    check("R7: with slot folder --slot-save-path and --swa-full; LocalEngine server without both") {
+    check("R7: with slot folder --slot-save-path, never --swa-full; LocalEngine server without it") {
         let slots = URL(fileURLWithPath: "/S/Pippa/llama-slots", isDirectory: true)
         let with = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1, supported: nil, alias: "qwen3.5-9b-q4",
-                                         slotSavePath: slots, swaFull: true).joined(separator: " ")
+                                         slotSavePath: slots).joined(separator: " ")
         let without = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1, supported: nil).joined(separator: " ")
         let unknown = LlamaServer.arguments(choice: choice, model: URL(fileURLWithPath: "/m.gguf"), port: 1, supported: ["--alias"], alias: "a",
-                                            slotSavePath: slots, swaFull: true)
-        return with.contains("--slot-save-path /S/Pippa/llama-slots") && with.contains("--swa-full")
-            && !without.contains("--slot-save-path") && !without.contains("--swa-full")
-            && !unknown.contains("--slot-save-path") && !unknown.contains("--swa-full")   // old llama.cpp without these switches
+                                            slotSavePath: slots)
+        return with.contains("--slot-save-path /S/Pippa/llama-slots") && !with.contains("--swa-full")
+            && !without.contains("--slot-save-path")
+            && !unknown.contains("--slot-save-path")   // old llama.cpp without the switch
     }
     check("R7: slot file name per model and context, allowed characters only") {
         let a = LlamaServer.slotFileName(alias: "qwen3.5-9b-q4", model: URL(fileURLWithPath: "/x/Qwen3.5-9B-Q4_K_M.gguf"), ctx: 16384)
@@ -103,7 +103,7 @@ func runR7Checks() async {
         await server.stop()
         let lines = (try? String(contentsOf: log, encoding: .utf8))?.split(separator: "\n").map(String.init) ?? []
         let posts = lines.filter { $0.hasPrefix("POST") }
-        let startsWithSlots = lines.filter { $0.hasPrefix("start") }.allSatisfy { $0.contains("--slot-save-path") && $0.contains("--swa-full") }
+        let startsWithSlots = lines.filter { $0.hasPrefix("start") }.allSatisfy { $0.contains("--slot-save-path") && !$0.contains("--swa-full") }
         await server.discardSavedSlot()
         let gone = !fm.fileExists(atPath: file.path)
         return firstRestore == nil && unloaded && saved?.ok == true && saved?.tokens == 1234 && mode == 0o600 && dirMode == 0o700

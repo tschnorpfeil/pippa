@@ -59,7 +59,7 @@ function writeConfig(port, extra = {}) {
 		idleSeconds: 600,
 		logFile: join(support, "llama-server-pi.log"),
 		arguments: ["-m", modelFile, "--host", "127.0.0.1", "--port", String(port), "--jinja", "--alias", "k2-horizon-7b",
-			"--slot-save-path", join(support, "llama-slots"), "--swa-full"],
+			"--slot-save-path", join(support, "llama-slots")],
 		...extra,
 	};
 	writeFileSync(join(support, "pippa-local-server.json"), JSON.stringify(config));

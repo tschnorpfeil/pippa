@@ -122,9 +122,8 @@ public enum PiLocalServer {
     /// Contents of the launch file. `supported`: the program's flags (`LlamaServer.supportedFlags`), as on app start.
     public static func launchConfiguration(_ plan: Plan, support: URL, supported: Set<String>?,
                                            environment: [String: String] = ProcessInfo.processInfo.environment) -> [String: Any] {
-        let swaFull = plan.slotDirectory != nil && environment["PIPPA_LLAMA_SWA_FULL"] != "0"
         let arguments = LlamaServer.arguments(choice: plan.choice, model: plan.modelFile, port: plan.port, supported: supported,
-                                              alias: plan.modelID, slotSavePath: plan.slotDirectory, swaFull: swaFull)
+                                              alias: plan.modelID, slotSavePath: plan.slotDirectory)
         // Pippa.app, if the program lives in it (for the message "Pippa.app is missing").
         var app: String?
         var probe = plan.binary.deletingLastPathComponent()

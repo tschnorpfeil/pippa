@@ -57,8 +57,6 @@ public actor LlamaServer {
     /// (`/slots/0?action=save`), and after the next start `ensureRunning` restores it before the first request arrives.
     /// Without a folder, as before.
     public let slotDirectory: URL?
-    /// With a slot folder also `--swa-full` (see `arguments`); `PIPPA_LLAMA_SWA_FULL=0` only for measurements.
-    let swaFullWithSlots = ProcessInfo.processInfo.environment["PIPPA_LLAMA_SWA_FULL"] != "0"
     /// Does the current server run with `--slot-save-path` (does this llama.cpp know the switch)? Only then save/restore.
     private var slotsActive = false
     /// Last save or restore (measurements, diagnostics log).
@@ -161,16 +159,12 @@ public actor LlamaServer {
     /// The key is not in the arguments (readable by any process via `ps`) but in `environment(apiKey:)`.
     /// `alias`: only for Pi's `pippa-local` (model id from models.json), otherwise none as before.
     public static func arguments(choice: ModelChoice, model: URL, port: Int, supported: Set<String>?, alias: String? = nil,
-                                 slotSavePath: URL? = nil, swaFull: Bool = false) -> [String] {
+                                 slotSavePath: URL? = nil) -> [String] {
         func ok(_ flag: String) -> Bool { supported.map { $0.isEmpty || $0.contains(flag) } ?? true }
         var args = ["-m", model.path, "--host", "127.0.0.1", "--port", String(port),
                     "--jinja", "--ctx-size", String(choice.ctx), "--parallel", "1"]
         if let alias, ok("--alias") { args += ["--alias", alias] }
         if let slotSavePath, ok("--slot-save-path") { args += ["--slot-save-path", slotSavePath.path] }
-        // Sliding-window layers otherwise keep only the last window. After restoring a slot, the intermediate
-        // states are missing (checkpoints are not in the file); if the end of the new request differs by even a
-        // few tokens, llama-server re-reads everything. With a full SWA cache it can truncate anywhere.
-        if swaFull, ok("--swa-full") { args.append("--swa-full") }
         if ok("--no-webui") { args.append("--no-webui") }
         // The fixed JSON flows want no "thinking", whatever the template calls it. Pi's server (with `alias`) leaves it to
         // Pi, which sets the level per request (`chat_template_kwargs`, PiModelTuning).
@@ -252,8 +246,7 @@ public actor LlamaServer {
         let slots = slotDirectory.flatMap { dir -> URL? in
             (try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])) != nil ? dir : nil
         }
-        p.arguments = Self.arguments(choice: choice, model: modelPath, port: port, supported: flags(), alias: alias, slotSavePath: slots,
-                                     swaFull: slots != nil && swaFullWithSlots)
+        p.arguments = Self.arguments(choice: choice, model: modelPath, port: port, supported: flags(), alias: alias, slotSavePath: slots)
         p.environment = Self.environment(apiKey: apiKey)
         p.currentDirectoryURL = logURL.deletingLastPathComponent()
         rotateLog()

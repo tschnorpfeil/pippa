@@ -66,7 +66,7 @@ func runTerminalAutostartChecks(binary: URL, argsLog: URL) async {
         var plan = base
         let app = roots.home.appendingPathComponent("Applications/Pippa.app/Contents/Helpers/llama-server")
         plan.binary = app
-        let flags: Set<String> = ["--host", "--port", "--alias", "--jinja", "--ctx-size", "--parallel", "--slot-save-path", "--swa-full", "--no-webui"]
+        let flags: Set<String> = ["--host", "--port", "--alias", "--jinja", "--ctx-size", "--parallel", "--slot-save-path", "--no-webui"]
         let wrote = try PiLocalServer.publishLaunchFile(plan, support: roots.support, supported: flags)
         let again = try PiLocalServer.publishLaunchFile(plan, support: roots.support, supported: flags)
         let url = PiLocalServer.launchFile(support: roots.support)
@@ -74,7 +74,7 @@ func runTerminalAutostartChecks(binary: URL, argsLog: URL) async {
         let json = try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] ?? [:]
         let mode = ((try? fm.attributesOfItem(atPath: url.path)[.posixPermissions] as? NSNumber)?.intValue ?? 0) & 0o777
         let expected = LlamaServer.arguments(choice: plan.choice, model: plan.modelFile, port: plan.port, supported: flags, alias: plan.modelID,
-                                             slotSavePath: plan.slotDirectory, swaFull: true)
+                                             slotSavePath: plan.slotDirectory)
         let args = json["arguments"] as? [String] ?? []
         return wrote && !again && mode == 0o600 && json["schemaVersion"] as? Int == 1 && json["provider"] as? String == "pippa-local"
             && json["port"] as? Int == plan.port && json["binary"] as? String == app.path
