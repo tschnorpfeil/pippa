@@ -35,8 +35,8 @@
 "Allow Pippa to…" = "Darf Pippa …";
 "Add deadlines to Reminders and Calendar" = "Fristen in Erinnerungen und Kalender eintragen";
 "Read the selected mail" = "Ausgewählte Mail lesen";
-"Your conversations go to %@. The internet is also used for downloads and updates." = "Deine Gespräche gehen an %@. Internet wird außerdem für Modell-Downloads und Updates verwendet.";
-"Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve." = "Lokale Modelle verarbeiten deine Inhalte auf deinem Mac. Das Internet wird für Downloads, Updates und Netzzugriffe verwendet, die du freigibst.";
+"Your conversations go to %@. The internet is also used for downloads and updates." = "Deine Gespräche gehen an %@. Sonst nutzt Pippa das Internet nur für Downloads und Updates.";
+"Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve." = "Deine Inhalte bleiben auf deinem Mac. Ins Internet geht Pippa nur für Downloads, Updates und Suchen, die du erlaubst.";
 "%@ (Default)" = "%@ (Standard)";
 "allowed" = "erlaubt";
 "Open System Settings" = "Systemeinstellungen öffnen";
