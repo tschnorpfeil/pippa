@@ -34,7 +34,12 @@ Weiter auf dem Mac: `docs/rebuild/MAC-HANDOFF.md`.
 - [x] Freigabe als Karte im Gespräch statt Fenster, Befehl hinter „Details“ (`6ef4afb`).
 - [x] Frage beim Laden merken statt „Frag mich gleich noch einmal“; Guard-Sätze ohne Fachwörter (`1e1e4f4`).
 - [x] Prompt: eigene Dateien zuerst mit Spotlight, find/grep nur mit Pfad (`30f6a02`).
-- [ ] Werkzeug-Schritte in der „Denkt nach“-Zeile (läuft).
-- [ ] K2-Denkstufe nach dem Patch neu wählen (low vs. high, Zeiten ohne Fremdlast).
+- [x] Werkzeug-Schritte in der „Denkt nach“-Zeile und in der Quittung (`4f4ca97`).
+- [x] K2-Denkstufe nach dem Patch: high bleibt (gepatcht high 20/20, Median 6,6 s; low 18/20, 9,6 s).
 - [ ] Restliche Texte aus dem Audit (KI/Wissen-Begriff, Einstellungen „API-Schlüssel“, Skill-Labels, englische Meldungen der Terminal-Erweiterung).
 - [ ] Phase 3/4: Szenarien mit K2 + Apple FM in der echten App, UI-Rundgang.
+- [x] Schleifenbremse im Guard, `read` auf Dokumente → `read_document`, Mail-Hinweis nur auf Wunsch (`4cfbcc8`, `a31e0fa`, `1892c0f`).
+- [x] ⌘V mit Datei oder Bild hängt an wie Ziehen (`198cd17`).
+- [x] Einordnen beim Aufräumen gemessen: Apple FM p50 2,0 s/Datei, K2-Rückfall p50 3,2 s/Datei → Rückfall bleibt.
+- [ ] Erste OCR nach längerer Pause: 53–60 s im Spike (warm 0,08 s/Seite); in der App nach Leerlauf nachmessen.
+- [ ] K2-Deutsch: Kernfakten stimmen, aber Füllsätze und Halbsätze (r2 b/s/n); Owner-Entscheidung, ob Qwen später wieder verglichen wird.

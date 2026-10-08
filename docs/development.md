@@ -57,6 +57,15 @@ high 30/30, about 9 s instead of 3 s). Pippa merges into Pi's `settings.json` a 
   guard alone falls back to `$TMPDIR/pippa-undo`), each entry with a `manifest.json`. Entries are pruned after 7 days or
   500 MB. `restore.mjs` restores an entry; the app has the same rules in Swift (`PiUndo.swift`), and the two change
   together.
+- Quoted text and harmless redirections do not make a search ask: `shellParts` splits only at unquoted `|`, `&&`, `;`,
+  and `2>/dev/null` / `2>&1` are dropped before the check; `cd`, `basename`, `xargs grep`, `find -exec grep` and
+  `textutil -stdout` count as looking.
+- Small local models loop. Per answer the guard stops an identical call that failed twice, an identical change that
+  already worked once (no duplicate reminders), and any identical call after four runs; after three stops it ends the
+  answer (`loopBrake`). `read` on a PDF, Word, image, mail or spreadsheet is sent to `mcp__pippa__read_document`
+  (`documentForRead`), because Pi's `read` returns raw bytes.
+- Questions reach the app as a card in the running conversation (`GuardAskCard`); the exact command is only under
+  "Details".
 - For every changing call the guard appends a `pippa-receipt` session entry (`pi.appendEntry`). The app builds the
   "what happened" line and the *Undo* button from it, never from model text.
 - Foreign extensions (see `bypass.test.mjs`): arguments are frozen after approval; a foreign tool named like a
@@ -112,8 +121,10 @@ own address and `apiKey: "$PIPPA_ONLINE_KEY"`; Pippa reads the key from the Keyc
 environment (`PiOnlineProvider`). Pi in the terminal has no key and stops before any request.
 
 **Apple's on-device model.** `AppleQuickModel` for short decisions: document suggestions, the letter's first line, and
-classifying unclear documents while tidying (`TidyClassifier`, ~3 s instead of ~26 s per file on a local 12B model).
-Only when it is missing does tidying fall back to a direct structured call on the local server (`LocalModelJSON`).
+classifying unclear documents while tidying (`TidyClassifier`). Measured on the Mac mini M6 (`PippaLive tidy-speed`, 25
+unclear files): Apple's model p50 2.0 s per file, all answered; the fallback when it is missing, a direct structured call on
+the local server (`LocalModelJSON`) with K2 Horizon 7B, p50 3.2 s per file (it was ~26 s with the old 12B model), so the
+fallback stays.
 
 ## Requirements
 
