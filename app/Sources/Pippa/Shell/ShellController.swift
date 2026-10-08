@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import PippaCore
 import QuartzCore
 import SwiftUI
 
@@ -250,50 +251,87 @@ final class ShellController: NSObject {
 
     // MARK: Geometry (screen coordinates)
 
+    /// Screen under the middle of a rect, else the one it overlaps most, else the pill's screen.
+    /// Never `NSScreen.main`: that follows the key window, i.e. the last click.
     private func screen(containing rect: NSRect) -> NSScreen {
-        let mid = NSPoint(x: rect.midX, y: rect.midY)
-        return NSScreen.screens.first { $0.frame.contains(mid) } ?? NSScreen.main ?? NSScreen.screens[0]
+        let screens = NSScreen.screens
+        if let i = PillPlacement.displayIndex(containing: rect, in: screens.map(Self.display)) { return screens[i] }
+        return pillScreen
     }
 
-    /// Saved position of the pill, for a given width.
-    func pillFrame(width: CGFloat) -> NSRect {
+    private static func display(_ s: NSScreen) -> PillPlacement.Display {
+        let id = (s.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+        return PillPlacement.Display(id: id, name: s.localizedName, frame: s.frame, visibleFrame: s.visibleFrame)
+    }
+
+    /// The pill's screen comes only from its saved position. A missing display falls back to the
+    /// primary one (the pill returns when the display does); mouse and key window never count.
+    var pillScreen: NSScreen {
+        let screens = NSScreen.screens
+        let i = PillPlacement.displayIndex(for: savedPill(width: pillCache?.width ?? 90), in: screens.map(Self.display)) ?? 0
+        return screens[i]
+    }
+
+    /// Screen of the visible shell (pill or opened workspace); toasts and cards open here.
+    var shellScreen: NSScreen { screen(containing: shellScreenRect) }
+
+    private var pillPlacement: PillPlacement.Saved?
+
+    /// Saved pill position. Written by a drag; the very first default (on `NSScreen.main`, the
+    /// display the person works on at first launch) and older absolute positions are saved once.
+    private func savedPill(width: CGFloat) -> PillPlacement.Saved {
+        if let p = pillPlacement { return p }
         let d = UserDefaults.standard
-        var rect: NSRect
-        if d.object(forKey: "pill.y") != nil {
-            let alignRight = d.bool(forKey: "pill.alignRight")
-            let x = alignRight ? d.double(forKey: "pill.right") - width : d.double(forKey: "pill.left")
-            rect = NSRect(x: x, y: d.double(forKey: "pill.y"), width: width, height: ShellTokens.pillHeight)
-            if !NSScreen.screens.contains(where: { $0.visibleFrame.intersects(rect) }) { rect = defaultPillFrame(width: width) }
-        } else {
-            rect = defaultPillFrame(width: width)
+        let displays = NSScreen.screens.map(Self.display)
+        var placement: PillPlacement.Saved?
+        if d.object(forKey: "pill.display") != nil {
+            placement = PillPlacement.Saved(displayID: UInt32(truncatingIfNeeded: d.integer(forKey: "pill.display")),
+                                            displayName: d.string(forKey: "pill.displayName") ?? "",
+                                            alignRight: d.bool(forKey: "pill.alignRight"), alignTop: d.bool(forKey: "pill.alignTop"),
+                                            dx: d.double(forKey: "pill.dx"), dy: d.double(forKey: "pill.dy"))
+        } else if d.object(forKey: "pill.y") != nil {
+            placement = PillPlacement.migrate(left: d.double(forKey: "pill.left"), right: d.double(forKey: "pill.right"),
+                                              y: d.double(forKey: "pill.y"), height: ShellTokens.pillHeight, in: displays)
+            if let placement { storePill(placement) }
         }
-        return clamp(rect, to: screen(containing: rect).visibleFrame)
+        if placement == nil {
+            let main = NSScreen.main ?? NSScreen.screens[0]
+            placement = PillPlacement.initial(width: width, height: ShellTokens.pillHeight, on: Self.display(main))
+            storePill(placement!)
+        }
+        pillPlacement = placement
+        return placement!
     }
 
-    private func defaultPillFrame(width: CGFloat) -> NSRect {
-        let vis = (NSScreen.main ?? NSScreen.screens[0]).visibleFrame
-        return NSRect(x: vis.maxX - 20 - width, y: vis.minY + 20, width: width, height: ShellTokens.pillHeight)
+    private func storePill(_ p: PillPlacement.Saved) {
+        pillPlacement = p
+        let d = UserDefaults.standard
+        d.set(Int(p.displayID), forKey: "pill.display")
+        d.set(p.displayName, forKey: "pill.displayName")
+        d.set(p.alignRight, forKey: "pill.alignRight")
+        d.set(p.alignTop, forKey: "pill.alignTop")
+        d.set(p.dx, forKey: "pill.dx")
+        d.set(p.dy, forKey: "pill.dy")
+    }
+
+    /// Saved position of the pill, for a given width. Never discarded: a Dock or a smaller
+    /// display only clamps it for showing, the saved state stays until the next drag.
+    func pillFrame(width: CGFloat) -> NSRect {
+        let saved = savedPill(width: width)
+        let screens = NSScreen.screens
+        let displays = screens.map(Self.display)
+        let i = PillPlacement.displayIndex(for: saved, in: displays) ?? 0
+        return PillPlacement.frame(for: saved, width: width, height: ShellTokens.pillHeight, on: displays[i], inset: ShellTokens.screenInset)
     }
 
     func savePill(_ frame: NSRect) {
         workspace = nil
         customWorkspace = nil
-        let vis = screen(containing: frame).visibleFrame
-        let d = UserDefaults.standard
-        d.set(frame.minX, forKey: "pill.left")
-        d.set(frame.maxX, forKey: "pill.right")
-        d.set(frame.minY, forKey: "pill.y")
-        d.set(frame.midX > vis.midX, forKey: "pill.alignRight")
+        storePill(PillPlacement.save(frame, on: Self.display(screen(containing: frame))))
     }
 
     private func clamp(_ r: NSRect, to vis: NSRect) -> NSRect {
-        var r = r
-        let i = ShellTokens.screenInset
-        r.size.height = min(r.height, vis.height - 2 * i)
-        r.size.width = min(r.width, vis.width - 2 * i)
-        r.origin.x = max(vis.minX + i, min(vis.maxX - r.width - i, r.origin.x))
-        r.origin.y = max(vis.minY + i, min(vis.maxY - r.height - i, r.origin.y))
-        return r
+        PillPlacement.clamp(r, to: vis, inset: ShellTokens.screenInset)
     }
 
     /// Dragging the pill: edge magnet and minimum distance.
@@ -377,7 +415,8 @@ final class ShellController: NSObject {
         let pill = pillFrame(width: pillW.width)
         let menuAnchor = model.pillVisible ? nil : statusAnchor?()
         let anchor = menuAnchor ?? pill
-        let vis = screen(containing: anchor).visibleFrame
+        // Expanded states open on the pill's screen, wherever the mouse or the key window is.
+        let vis = (menuAnchor.map { screen(containing: $0) } ?? pillScreen).visibleFrame
 
         switch shape {
         case .pill:
