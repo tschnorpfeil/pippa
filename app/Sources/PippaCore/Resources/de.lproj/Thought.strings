@@ -6,6 +6,13 @@
 "Recognizing text…" = "Erkenne Text …";
 "Finding the right passages…" = "Suche die passenden Stellen …";
 "Getting ready…" = "Mache mich bereit …";
+/* Cold start: the knowledge is loaded into memory once (ColdStart.swift). */
+"Waking up…" = "Ich werde wach …";
+"Almost ready…" = "Gleich bin ich bereit …";
+"Takes a moment now, then it’s quicker" = "Dauert nur jetzt etwas, danach geht’s schneller";
+"Pippa is waking up…" = "Pippa wird wach …";
+"Pippa is almost ready…" = "Pippa ist gleich bereit …";
+"%lld percent" = "%lld Prozent";
 "Continuing the answer…" = "Schreibe gleich weiter …";
 "Looking in %@…" = "Schaue in %@ nach …";
 "Looking through your documents…" = "Sehe deine Unterlagen durch …";

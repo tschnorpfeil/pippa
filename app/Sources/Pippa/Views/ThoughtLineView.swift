@@ -31,6 +31,11 @@ struct ThoughtLineView: View {
                 }
                 .accessibilityElement(children: .contain)
                 .transition(reduceMotion ? .identity : .opacity)
+                if case .wakingUp(let progress?) = phase {
+                    WakeBar(progress: progress, reduceMotion: reduceMotion)
+                        .padding(.leading, 30).padding(.top, 6)
+                        .frame(maxWidth: 360, alignment: .leading)
+                }
             }
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: thought.isVisible)
@@ -56,6 +61,29 @@ struct ThoughtLineView: View {
             .accessibilityLabel(["Pippa", phase.title, phase.detail].compactMap { $0 }.joined(separator: ", "))
             .accessibilityValue(elapsed ?? "")
         }
+    }
+}
+
+/// Cold start: how much of the knowledge is in memory (measured, ColdStart.swift). A thin calm bar; with Reduce Motion
+/// it jumps instead of gliding. Also used by the pill.
+struct WakeBar: View {
+    var progress: Double
+    var reduceMotion: Bool
+    var height: CGFloat = 3
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Theme.accentTint)
+                Capsule().fill(Theme.accent.opacity(0.75))
+                    .frame(width: max(height, geo.size.width * min(1, max(0, progress))))
+            }
+        }
+        .frame(height: height)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: progress)
+        .accessibilityElement()
+        .accessibilityLabel(ColdStart.pillLabel(.wakingUp(progress: progress)) ?? "")
+        .accessibilityValue(ColdStart.spokenProgress(progress))
     }
 }
 
