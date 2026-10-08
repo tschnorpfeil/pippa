@@ -19,4 +19,7 @@ geprüft, **nicht gebaut**. Vor dem Mergen auf einem Mac `swift build` und `Pipp
 - [ ] 7b. Umstieg auf Pis `llama.cpp`-Provider – Befund und Optionen beim Owner (siehe Zusammenfassung), noch nicht gebaut.
 - [x] 8. Online-Dienst über Pi-Provider, ohne Rückfrage (Owner-Entscheidung): Proxy, Karte und Desk entfernt.
 - [ ] 9. Abkürzungen messen – **blockiert**: braucht Mac und Modell.
-- [~] 10. Aufräumen, Doku: README, development.md, settings-simplification.md, Datenschutzseite angepasst.
+- [~] 10. Aufräumen, Doku: README, development.md, settings-simplification.md, Datenschutzseite angepasst; toter Code der
+      alten Brief-/Web-Abläufe entfernt. Messzahlen in die Doku nach Schritt 9.
+
+Weiter auf dem Mac: `docs/rebuild/MAC-HANDOFF.md`.

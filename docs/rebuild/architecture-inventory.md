@@ -132,6 +132,10 @@ Gemma steht **nicht** mehr in `ModelSelector.table`; erreichbar nur über `Model
 
 ## 4. Offene Fragen an den Owner
 
+> Stand nach dem Umbau: Fragen 1–3, 5, 6, 8, 9 sind in `HANDOFF.md` (Owner-Entscheidungen) bzw. in den Commits
+> beantwortet; 4 (Messungen) und 7 (llama.cpp-Provider) stehen in `MAC-HANDOFF.md`. Die Tabellen oben beschreiben
+> den Stand **vor** dem Umbau.
+
 1. **8-GB-Macs ohne Gemma/Qwen:** K2 7B braucht 8,5 GiB, Budget bei 8 GB ist 4,8 GiB (`Models.swift` Z. 106). Heute: `qwen3.5-4b-q4`. Bei „nur AFM + K2“ bliebe 8 GB **nur AFM**, das Pi nicht ansprechen kann. Optionen: (a) Qwen 4B als Ausnahme behalten, (b) 8 GB ohne Pi-Gespräch, nur Fixflows mit AFM, (c) AFM als lokaler OpenAI-kompatibler Endpunkt für Pi (Shim wie `PippaOnlineProxy`) – neuer Code, Tool-Calling mit AFM ungetestet.
 2. **„Gründlicher“ (Qwen3.6 35B-A3B IQ3, 24 GB+) streichen?** Ersatz `k2-horizon-mova-36b-a4b` ist `pending` (llama.cpp PR #29535).
 3. **Eigener Online-Dienst (`pippa-online`):** behalten oder entfernen?
