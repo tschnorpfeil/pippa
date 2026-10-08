@@ -1,0 +1,203 @@
+/*
+  Core.strings (en): English (development language, fallback)
+  Module PippaCore, looked up with L("…", table: "Core").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+"The folder is no longer there." = "The folder is no longer there.";
+"That’s outside the folder you shared." = "That’s outside the folder you shared.";
+"I can’t find this task anymore." = "I can’t find this task anymore.";
+"1 step was undone" = "1 step was undone";
+"%lld steps were undone" = "%lld steps were undone";
+"1 wasn’t" = "1 wasn’t";
+"%lld weren’t" = "%lld weren’t";
+"%@, %@: %@" = "%@, %@: %@";
+"%@, %@. Something has changed there in the meantime." = "%@, %@. Something has changed there in the meantime.";
+"I need my knowledge for this, and it hasn’t loaded yet." = "I need my knowledge for this, and it hasn’t loaded yet.";
+"That didn’t work. Nothing was changed. Please try again." = "That didn’t work. Nothing was changed. Please try again.";
+"The download isn’t working right now. I’ll try again shortly." = "The download isn’t working right now. I’ll try again shortly.";
+"The download arrived damaged. I’ll download it again." = "The download arrived damaged. I’ll download it again.";
+"Part of the app is missing. Please reinstall Pippa." = "Part of the app is missing. Please reinstall Pippa.";
+"Your Mac doesn’t have enough free space. I need %@ more for my knowledge. Once you free up some space, I’ll pick up where I left off." = "Your Mac doesn’t have enough free space. I need %@ more for my knowledge. Once you free up some space, I’ll pick up where I left off.";
+"I couldn’t create anything." = "I couldn’t create anything.";
+"I couldn’t create anything. %@" = "I couldn’t create anything. %@";
+"There’s nothing for the table." = "There’s nothing for the table.";
+"I don’t have access to %@ yet. You can allow it in System Settings." = "I don’t have access to %@ yet. You can allow it in System Settings.";
+"%@ isn’t open right now." = "%@ isn’t open right now.";
+"That couldn’t be added." = "That couldn’t be added.";
+"That couldn’t be added. %@" = "That couldn’t be added. %@";
+"That isn’t possible here right now. Nothing was changed." = "That isn’t possible here right now. Nothing was changed.";
+"Stopped partway through: %@ %@, and that can be undone." = "Stopped partway through: %@ %@, and that can be undone.";
+"I don’t have access to that." = "I don’t have access to that.";
+"The file is no longer there." = "The file is no longer there.";
+"There’s already a file with that name." = "There’s already a file with that name.";
+"It’s on a different drive." = "It’s on a different drive.";
+"There’s no space left." = "There’s no space left.";
+"That didn’t work just now." = "That didn’t work just now.";
+"1 file tidied" = "1 file tidied";
+"%lld files tidied" = "%lld files tidied";
+"It’s outside the folder, so it stays where it is." = "It’s outside the folder, so it stays where it is.";
+"It changed since the preview, so it stays where it is." = "It changed since the preview, so it stays where it is.";
+"It’s only in the cloud, and I don’t download anything." = "It’s only in the cloud, and I don’t download anything.";
+"It’s on a different drive. I can’t move it there yet." = "It’s on a different drive. I can’t move it there yet.";
+"In 1 folder" = "In 1 folder";
+"In %lld folders" = "In %lld folders";
+"1 stays put" = "1 stays put";
+"%lld stay put" = "%lld stay put";
+"Nothing changed" = "Nothing changed";
+"It’s outside the folder." = "It’s outside the folder.";
+"There’s a file where the folder should be." = "There’s a file where the folder should be.";
+"I couldn’t create the folder “%@”. %@" = "I couldn’t create the folder “%@”. %@";
+"The file has changed since then, so it stays." = "The file has changed since then, so it stays.";
+"Something else is in the old place now." = "Something else is in the old place now.";
+"Something else is in it now, so the folder stays." = "Something else is in it now, so the folder stays.";
+"The reminder is gone again." = "The reminder is gone again.";
+"The event is gone again." = "The event is gone again.";
+"Interrupted: tidying “%@”" = "Interrupted: tidying “%@”";
+"1 file already done" = "1 file already done";
+"%lld files already done" = "%lld files already done";
+"New file: %@" = "New file: %@";
+"interrupted" = "interrupted";
+"Development" = "Development";
+"That didn’t work just now. Please try again. If it keeps happening, choose “Report a Problem…” in the Help menu." = "That didn’t work just now. Please try again. If it keeps happening, choose “Report a Problem…” in the Help menu.";
+"%@ Check the folder or the free space and try again." = "%@ Check the folder or the free space and try again.";
+"There’s no internet connection right now. Check your Wi-Fi or cable, then try again." = "There’s no internet connection right now. Check your Wi-Fi or cable, then try again.";
+"The connection isn’t working right now. Please try again in a few minutes." = "The connection isn’t working right now. Please try again in a few minutes.";
+"Answer stopped." = "Answer stopped.";
+"The answer didn’t come through just now. Please try again in a moment." = "The answer didn’t come through just now. Please try again in a moment.";
+"The request was turned down. Please check the service and address under Settings › Advanced." = "The request was turned down. Please check the service and address under Settings › Advanced.";
+"The service you chose didn’t let me in. Please check the key under Settings › Advanced." = "The service you chose didn’t let me in. Please check the key under Settings › Advanced.";
+"Sample answer: Here you can ask Pippa a question or attach files for context. In the finished app, Pippa answers right here on your Mac." = "Sample answer: Here you can ask Pippa a question or attach files for context. In the finished app, Pippa answers right here on your Mac.";
+"Sender" = "Sender";
+"Date" = "Date";
+"Amount" = "Amount";
+"Deadline" = "Deadline";
+"Subject" = "Subject";
+"Period" = "Period";
+"%@ · 1 page" = "%@ · 1 page";
+"%@ · %lld pages" = "%@ · %lld pages";
+"%@ · 1 attachment" = "%@ · 1 attachment";
+"%@ · %lld attachments" = "%@ · %lld attachments";
+"From %@" = "From %@";
+"Text" = "Text";
+"%lld characters" = "%lld characters";
+"Selection" = "Selection";
+"%lld files" = "%lld files";
+"Sender and invoice date on page 1" = "Sender and invoice date on page 1";
+"Date taken, from the photo’s details" = "Date taken, from the photo’s details";
+"Heading “%@”, signed on %@" = "Heading “%@”, signed on %@";
+"Letterhead and invoice date %@" = "Letterhead and invoice date %@";
+"Recognized: practice name and date" = "Recognized: practice name and date";
+"No signature, so it’s a draft" = "No signature, so it’s a draft";
+"Nothing to go by" = "Nothing to go by";
+"Sender and date on page 1" = "Sender and date on page 1";
+"Subject “%@”" = "Subject “%@”";
+"Heading on page 1" = "Heading on page 1";
+"New folder" = "New folder";
+"I can’t make out any text. I won’t guess, so the file stays where it is." = "I can’t make out any text. I won’t guess, so the file stays where it is.";
+"1 invoice" = "1 invoice";
+"%lld invoices" = "%lld invoices";
+"%@ · %lld to check" = "%@ · %lld to check";
+"Added to Reminders" = "Added to Reminders";
+"Added to Calendar" = "Added to Calendar";
+"I didn’t find anything about that in your files." = "I didn’t find anything about that in your files.";
+"I don’t have anything suitable for this Mac right now." = "I don’t have anything suitable for this Mac right now.";
+"Part of the app is missing. Please open Pippa from the Applications folder." = "Part of the app is missing. Please open Pippa from the Applications folder.";
+"Linked files weren’t searched." = "Linked files weren’t searched.";
+"Deeper subfolders weren’t searched." = "Deeper subfolders weren’t searched.";
+"Some folders couldn’t be read." = "Some folders couldn’t be read.";
+"At most %lld files were included." = "At most %lld files were included.";
+"1 word" = "1 word";
+"%lld words" = "%lld words";
+"I haven’t opened the link. Nothing has left this Mac." = "I haven’t opened the link. Nothing has left this Mac.";
+"1 file" = "1 file";
+"No readable text" = "No readable text";
+"Only in the cloud" = "Only in the cloud";
+"Photo" = "Photo";
+"Note" = "Note";
+"Protected, so I can’t look inside." = "Protected, so I can’t look inside.";
+"%@ · and %lld more" = "%@ · and %lld more";
+"It’s only a link, so it stays where it is." = "It’s only a link, so it stays where it is.";
+"Image without camera details, no receipt recognized" = "Image without camera details, no receipt recognized";
+"Protected. I can’t look inside, so the file stays where it is." = "Protected. I can’t look inside, so the file stays where it is.";
+"sender" = "sender";
+"invoice date" = "invoice date";
+"date" = "date";
+"heading “%@”" = "heading “%@”";
+" and " = " and ";
+"Recognized: %@" = "Recognized: %@";
+"Suggested from the content" = "Suggested from the content";
+"%@ in the pages read" = "%@ in the pages read";
+"%@ (text read from the image)" = "%@ (text read from the image)";
+"%@, marked as a draft" = "%@, marked as a draft";
+"Not sorted yet" = "Not sorted yet";
+"%@. The kind of document isn’t confirmed by its text" = "%@. The kind of document isn’t confirmed by its text";
+"Event" = "Event";
+"Reminder" = "Reminder";
+"Entry" = "Entry";
+"changed in the meantime" = "changed in the meantime";
+"It has changed since then, so it stays." = "It has changed since then, so it stays.";
+"The conversation history couldn’t be read. The saved file is kept." = "The conversation history couldn’t be read. The saved file is kept.";
+"This conversation history comes from a newer version of Pippa. The saved file is kept." = "This conversation history comes from a newer version of Pippa. The saved file is kept.";
+"I can’t find this conversation anymore." = "I can’t find this conversation anymore.";
+"The conversation history was changed outside this window. Please open Pippa again." = "The conversation history was changed outside this window. Please open Pippa again.";
+"New Conversation" = "New Conversation";
+"With this context, you can attach at most %lld files." = "With this context, you can attach at most %lld files.";
+"That isn’t possible here right now." = "That isn’t possible here right now.";
+"Pippa needs a Mac with Apple silicon (M1 or later)." = "Pippa needs a Mac with Apple silicon (M1 or later).";
+"%.1f GB" = "%.1f GB";
+"a few minutes" = "a few minutes";
+"about %lld minutes" = "about %lld minutes";
+"about an hour" = "about an hour";
+"about %lld hours" = "about %lld hours";
+"Reminders" = "Reminders";
+"Calendar" = "Calendar";
+"Mail" = "Mail";
+"First open Mail and select an email there. Then try again." = "First open Mail and select an email there. Then try again.";
+"I can’t find a calendar." = "I can’t find a calendar.";
+"I can’t find a reminders list." = "I can’t find a reminders list.";
+"%@ isn’t responding right now." = "%@ isn’t responding right now.";
+"Please add an API key for this service." = "Please add an API key for this service.";
+"I’m still busy with something else. Please try again in a moment." = "I’m still busy with something else. Please try again in a moment.";
+"The API key couldn’t be saved to or read from the keychain." = "The API key couldn’t be saved to or read from the keychain.";
+"Your connected service didn’t give a valid answer for this task." = "Your connected service didn’t give a valid answer for this task.";
+"Please enter a secure address (starting with https://) or an address on this Mac, without a user name or password in it." = "Please enter a secure address (starting with https://) or an address on this Mac, without a user name or password in it.";
+"Please connect a service first." = "Please connect a service first.";
+"Custom Server" = "Custom Server";
+"Please enter a valid model ID." = "Please enter a valid model ID.";
+"The context size must be between 4,096 and 1,048,576." = "The context size must be between 4,096 and 1,048,576.";
+
+
+
+"This draft can no longer be changed or opened again. Start a new draft to try again." = "This draft can no longer be changed or opened again. Start a new draft to try again.";
+
+
+"On {date}, {sender} wrote:" = "On {date}, {sender} wrote:";
+
+"Whether the details match therefore remains open." = "Whether the details match therefore remains open.";
+
+"Open:" = "Open:";
+
+"I can’t confirm that from the sources I read." = "I can’t confirm that from the sources I read.";
+
+"please check: not in this source" = "please check: not in this source";
+
+"please check: not in the sources I read" = "please check: not in the sources I read";
+
+"%@ (source %lld)" = "%@ (source %lld)";
+
+"I could read only part of “%@”; the rest is unknown." = "I could read only part of “%@”; the rest is unknown.";
+
+"I couldn’t read any text in “%@”." = "I couldn’t read any text in “%@”.";
+
+"Of “%@” I know only the names, not the contents." = "Of “%@” I know only the names, not the contents.";
+
+"“%@” is not available, so I couldn’t read it." = "“%@” is not available, so I couldn’t read it.";
+
+"I looked only at excerpts of “%@” for this answer; anything else in it is unchecked." = "I looked only at excerpts of “%@” for this answer; anything else in it is unchecked.";
+
+/* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
+"I didn’t ask %@. Nothing left your Mac." = "I didn’t ask %@. Nothing left your Mac.";

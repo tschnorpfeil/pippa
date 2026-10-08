@@ -1,0 +1,283 @@
+/*
+  Views.strings (en): English (development language, fallback)
+  Module Pippa, looked up with T("…", table: "Views").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+/* Sheets.swift */
+"Here" = "Here";
+"Organize %@" = "Organize %@";
+"%lld files get a place · %lld new folders · nothing is deleted" = "%lld files get a place · %lld new folders · nothing is deleted";
+"Only moved and renamed · nothing deleted" = "Only moved and renamed · nothing deleted";
+"I’m still reading 1 file more closely. You can organize the rest now." = "I’m still reading 1 file more closely. You can organize the rest now.";
+"I’m still reading %lld files more closely. You can organize the rest now." = "I’m still reading %lld files more closely. You can organize the rest now.";
+"Newest files first. You can organize the other %lld afterward." = "Newest files first. You can organize the other %lld afterward.";
+"I’ll organize %@ more closely %@. Until then, it stays where it is." = "I’ll organize %@ more closely %@. Until then, it stays where it is.";
+"I’ll organize %@ more closely %@. Until then, they stay where they are." = "I’ll organize %@ more closely %@. Until then, they stay where they are.";
+"%lld of %lld selected" = "%lld of %lld selected";
+"All" = "All";
+"Select All Files" = "Select All Files";
+"None" = "None";
+"Select No Files" = "Select No Files";
+"All in %@" = "All in %@";
+"NEW" = "NEW";
+"%lld of %lld" = "%lld of %lld";
+"and %lld more following the same pattern" = "and %lld more following the same pattern";
+"Include %@" = "Include %@";
+"unsure" = "unsure";
+"was: %@" = "was: %@";
+"Stays where it is" = "Stays where it is";
+"%lld files go into %lld folders" = "%lld files go into %lld folders";
+"Now" = "Now";
+"%lld loose files" = "%lld loose files";
+"%lld loose files → %lld folders" = "%lld loose files → %lld folders";
+"%lld · by year" = "%lld · by year";
+"Invoices from %@" = "Invoices from %@";
+"Needs you: " = "Needs you: ";
+"A new file; your invoices stay untouched" = "A new file; your invoices stay untouched";
+"1 invoice" = "1 invoice";
+"%lld invoices" = "%lld invoices";
+"%@ · %lld needs you" = "%@ · %lld needs you";
+"%@ · %lld need you" = "%@ · %lld need you";
+"in %lld of %@" = "in %lld of %@";
+"in %@" = "in %@";
+"About %@ %@" = "About %@ %@";
+"I’m not sure about %@. Please take a quick look." = "I’m not sure about %@. Please take a quick look.";
+"I can’t read the amount clearly. Please take a quick look." = "I can’t read the amount clearly. Please take a quick look.";
+"Plus %lld more." = "Plus %lld more.";
+"Unknown sender" = "Unknown sender";
+"Date unknown" = "Date unknown";
+"Source: “%@”" = "Source: “%@”";
+"Please Check" = "Please Check";
+"and %lld more rows" = "and %lld more rows";
+"Total" = "Total";
+"Spreadsheet Preview" = "Spreadsheet Preview";
+"new, in %@" = "new, in %@";
+"Hide Reasons" = "Hide Reasons";
+"Why This Way?" = "Why This Way?";
+"Not Now" = "Not Now";
+"Organize %lld Files" = "Organize %lld Files";
+"Other Apps" = "Other Apps";
+"Format" = "Format";
+"Create Spreadsheet" = "Create Spreadsheet";
+
+/* ConversationWorkspace.swift */
+"Pippa is thinking…" = "Pippa is thinking…";
+"Jump to Latest" = "Jump to Latest";
+"Drop here · I’ll add it next" = "Drop here · I’ll add it next";
+"Add to Conversation" = "Add to Conversation";
+"Selected Text" = "Selected Text";
+"What should I do with this? Tell me, or pick a suggestion:" = "What should I do with this? Tell me, or pick a suggestion:";
+"Organize" = "Organize";
+"Undo" = "Undo";
+"Your Conversation" = "Your Conversation";
+"Delete This Conversation…" = "Delete This Conversation…";
+"Conversation History" = "Conversation History";
+"New Conversation" = "New Conversation";
+"Resize" = "Resize";
+"What would you like to do?" = "What would you like to do?";
+"Drop files or folders here…" = "Drop files or folders here…";
+"Or click to choose documents, letters, or spreadsheets." = "Or click to choose documents, letters, or spreadsheets.";
+"Drop or choose files or folders" = "Drop or choose files or folders";
+"New Topic" = "New Topic";
+"Previous Conversation…" = "Previous Conversation…";
+"New topic. Previous conversation in history." = "New topic. Previous conversation in history.";
+"Note: %@" = "Note: %@";
+"You" = "You";
+"Note" = "Note";
+"%@ (stopped)" = "%@ (stopped)";
+"Pippa will read this after the current step" = "Pippa will read this after the current step";
+"Up next" = "Up next";
+"Don’t Send" = "Don’t Send";
+"Don’t send this waiting message" = "Don’t send this waiting message";
+"You, waiting: %@. %@" = "You, waiting: %@. %@";
+"Stopped" = "Stopped";
+"Copied" = "Copied";
+"Copy" = "Copy";
+"Copy Draft" = "Copy Draft";
+"Just a draft · nothing sent" = "Just a draft · nothing sent";
+"Preview · Nothing changed yet" = "Preview · Nothing changed yet";
+"Read only · Nothing changed" = "Read only · Nothing changed";
+"Just reading · Nothing will change" = "Just reading · Nothing will change";
+"Ask about this preview…" = "Ask about this preview…";
+"Ask about this text…" = "Ask about this text…";
+"What should I do with this…" = "What should I do with this…";
+"Ask Pippa…" = "Ask Pippa…";
+"Remove Waiting Attachments" = "Remove Waiting Attachments";
+"Ask About This" = "Ask About This";
+"Add Files" = "Add Files";
+"Stop Answering" = "Stop Answering";
+"Send When Ready" = "Send When Ready";
+"Send Message" = "Send Message";
+"Send when ready · up next" = "Send when ready · up next";
+
+/* ShellViews.swift */
+"Pippa is reading…" = "Pippa is reading…";
+"Close" = "Close";
+"Let Go" = "Let Go";
+"Drop Here" = "Drop Here";
+"Let go to drop" = "Let go to drop";
+"Remove Attachment" = "Remove Attachment";
+"Attached: %@" = "Attached: %@";
+"Stop" = "Stop";
+"Almost ready · %lld%%" = "Almost ready · %lld%%";
+"Almost ready" = "Almost ready";
+"Organize by Type and Month" = "Organize by Type and Month";
+"Invoices as a Spreadsheet" = "Invoices as a Spreadsheet";
+"Find Something Inside…" = "Find Something Inside…";
+"Add Deadline" = "Add Deadline";
+"Add Deadlines" = "Add Deadlines";
+"Give files clear names and put them in place" = "Give files clear names and put them in place";
+"One row per invoice: date, sender, amount" = "One row per invoice: date, sender, amount";
+"To Reminders or Calendar" = "To Reminders or Calendar";
+"Nothing changed yet" = "Nothing changed yet";
+"%@ over %@" = "%@ over %@";
+"What does this email want from me?" = "What does this email want from me?";
+"A Link" = "A Link";
+"Some Text" = "Some Text";
+"What does this letter want?" = "What does this letter want?";
+"no later than" = "no later than";
+"please check" = "please check";
+"Add to Calendar" = "Add to Calendar";
+"I read it and can draft a reply; you send it" = "I read it and can draft a reply; you send it";
+"Runs on your Mac" = "Runs on your Mac";
+"Nothing sent" = "Nothing sent";
+"Read only" = "Read only";
+"Email" = "Email";
+"That didn’t work." = "That didn’t work.";
+"Part of it is already done. One click puts everything back the way it was." = "Part of it is already done. One click puts everything back the way it was.";
+"Nothing was changed. Your files are just as they were." = "Nothing was changed. Your files are just as they were.";
+"What happened?" = "What happened?";
+"Report a Problem…" = "Report a Problem…";
+"Try Again" = "Try Again";
+"and %lld more" = "and %lld more";
+"Choose Folder…" = "Choose Folder…";
+"Show in Finder" = "Show in Finder";
+"%lld months" = "%lld months";
+"%lld years" = "%lld years";
+"%lld½ years" = "%lld½ years";
+
+/* Theme.swift */
+"Undo with one click" = "Undo with one click";
+"%@, open" = "%@, open";
+"Page" = "Page";
+"January" = "January";
+"February" = "February";
+"March" = "March";
+"April" = "April";
+"May" = "May";
+"June" = "June";
+"July" = "July";
+"August" = "August";
+"September" = "September";
+"October" = "October";
+"November" = "November";
+"December" = "December";
+"JAN" = "JAN";
+"FEB" = "FEB";
+"MAR" = "MAR";
+"APR" = "APR";
+"MAY" = "MAY";
+"JUN" = "JUN";
+"JUL" = "JUL";
+"AUG" = "AUG";
+"SEP" = "SEP";
+"OCT" = "OCT";
+"NOV" = "NOV";
+"DEC" = "DEC";
+"Sunday" = "Sunday";
+"Monday" = "Monday";
+"Tuesday" = "Tuesday";
+"Wednesday" = "Wednesday";
+"Thursday" = "Thursday";
+"Friday" = "Friday";
+"Saturday" = "Saturday";
+"Sun" = "Sun";
+"Mon" = "Mon";
+"Tue" = "Tue";
+"Wed" = "Wed";
+"Thu" = "Thu";
+"Fri" = "Fri";
+"Sat" = "Sat";
+"%1$@, %2$@ %3$lld" = "%1$@, %2$@ %3$lld";
+"%1$@., %2$@" = "%1$@, %2$@";
+"%1$@., %2$@. %3$lld" = "%1$@, %2$@ %3$lld";
+"today" = "today";
+"tomorrow" = "tomorrow";
+"in %lld days" = "in %lld days";
+"yesterday" = "yesterday";
+"%lld days ago" = "%lld days ago";
+"on" = "on";
+"off" = "off";
+"mixed" = "mixed";
+"Progress" = "Progress";
+"%@ (⌘ Return)" = "%@ (⌘ Return)";
+
+"New topic. Previous conversation under Recent Conversations." = "New topic. Previous conversation under Recent Conversations.";
+
+"Preparing your answer…" = "Preparing your answer…";
+
+"To (optional)" = "To (optional)";
+"Subject (optional)" = "Subject (optional)";
+"Draft text" = "Draft text";
+"Opened in Mail · not sent" = "Opened in Mail · not sent";
+"Draft discarded" = "Draft discarded";
+"Check Mail before continuing. The draft may already be open; nothing was sent." = "Check Mail before continuing. The draft may already be open; nothing was sent.";
+"The draft could not be saved. Keep your text here and try again." = "The draft could not be saved. Keep your text here and try again.";
+"Opening in Mail…" = "Opening in Mail…";
+"Open in Mail" = "Open in Mail";
+"Discard Draft" = "Discard Draft";
+
+"Draft" = "Draft";
+"Recipient and subject must each be one line." = "Recipient and subject must each be one line.";
+"Enter one email address, or leave To empty." = "Enter one email address, or leave To empty.";
+
+"View Draft" = "View Draft";
+
+"To" = "To";
+
+"Subject" = "Subject";
+
+"Add recipient (optional)" = "Add recipient (optional)";
+
+"Add subject (optional)" = "Add subject (optional)";
+
+"Handoff simulated · Mail was not opened" = "Handoff simulated · Mail was not opened";
+
+"Test handoff could not be confirmed · Mail was not opened" = "Test handoff could not be confirmed · Mail was not opened";
+
+"Test draft · does not open Mail" = "Test draft · does not open Mail";
+
+"Testing handoff…" = "Testing handoff…";
+
+"Test Handoff" = "Test Handoff";
+
+"These are available for future answers. Earlier messages keep their attachments." = "These are available for future answers. Earlier messages keep their attachments.";
+
+"Stop using %@" = "Stop using %@";
+
+"Stop using selected text" = "Stop using selected text";
+
+"For future answers" = "For future answers";
+
+"Earlier messages keep their attachments. Original files stay where they are." = "Earlier messages keep their attachments. Original files stay where they are.";
+
+"Open Conversation" = "Open Conversation";
+
+"Continue this conversation…" = "Continue this conversation…";
+
+"%lld sources" = "%lld sources";
+
+"Start a new conversation" = "Start a new conversation";
+
+"1 source" = "1 source";
+"Back to Draft" = "Back to Draft";
+"Looking for the original in Mail (%lld of %lld) …" = "Looking for the original in Mail (%lld of %lld) …";
+"Open draft" = "Open draft";
+"Save as draft in Mail" = "Save as draft in Mail";
+"Copy text" = "Copy text";
+"Undo All" = "Undo All";
+"Undoes every change above, the last one first." = "Undoes every change above, the last one first.";

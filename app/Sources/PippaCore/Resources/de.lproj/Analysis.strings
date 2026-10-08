@@ -1,0 +1,55 @@
+/*
+  Analysis.strings (de): German (full translation)
+  Module PippaCore, looked up with L("…", table: "Analysis").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+"Invoices" = "Rechnungen";
+"Contracts" = "Verträge";
+"Photos" = "Fotos";
+"Other" = "Sonstiges";
+"Only in the cloud. I don’t download anything, so the file stays as it is." = "Nur in der Cloud. Ich lade nichts herunter, die Datei bleibt.";
+"Screenshot" = "Bildschirmfoto";
+"Date taken, from the photo’s details" = "Aufnahmedatum aus den Fotodaten";
+"File date, since the photo has no date taken" = "Datum der Datei, keine Aufnahmezeit";
+"Picture without camera details" = "Bild ohne Kameradaten";
+"Installer, usually not needed anymore" = "Installationsdatei, wird meist nicht mehr gebraucht";
+"Video" = "Video";
+"Music or audio" = "Musik oder Ton";
+"Compressed archive" = "Gepacktes Archiv";
+"Spreadsheet or presentation" = "Tabelle oder Präsentation";
+"Not a document, so it goes to “%@”" = "Keine Unterlage, kommt zu %@";
+"Same content as “%@”" = "Gleicher Inhalt wie „%@“";
+"Date" = "Datum";
+"Sender" = "Absender";
+"Amount" = "Betrag";
+"Amount (EUR)" = "Betrag (EUR)";
+"File" = "Datei";
+"Source text" = "Belegstelle";
+"Check" = "Prüfen";
+"please check" = "bitte prüfen";
+"unreadable" = "nicht lesbar";
+"Worked out from the period in the document: %@. Please check." = "Aus der belegten Frist berechnet: %@. Bitte prüfen.";
+"Please check the date and choose one." = "Bitte das Datum prüfen und auswählen.";
+"Cancel %@" = "%@ kündigen";
+"Cancel contract" = "Vertrag kündigen";
+"Pay the utilities balance" = "Nebenkosten nachzahlen";
+"Pay the balance due" = "Nachzahlung überweisen";
+"Pay %@" = "%@ bezahlen";
+"Pay invoice" = "Rechnung bezahlen";
+"Object to %@" = "Einspruch %@";
+"File an objection" = "Einspruch einlegen";
+"Appointment with %@" = "Termin bei %@";
+"Appointment" = "Termin";
+"Direct debit" = "Abbuchung";
+"%@ ends" = "%@ endet";
+"Contract ends" = "Vertrag endet";
+"Deadline: %@" = "Frist %@";
+"Deadline" = "Frist";
+"“%@”" = "„%@“";
+"From: %@" = "Aus: %@";
+"Page %@" = "S. %@";
+"Added by Pippa." = "Eingetragen von Pippa.";

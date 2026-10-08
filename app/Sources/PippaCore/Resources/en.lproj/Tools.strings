@@ -1,0 +1,35 @@
+/*
+  Tools.strings (en): English (development language)
+  Module PippaCore, looked up with L("…", table: "Tools") (one-answer tools, PippaCore/Tools).
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+"Make one PDF" = "Make one PDF";
+"Make smaller" = "Make smaller";
+"As PDF" = "As PDF";
+"As JPG" = "As JPG";
+"As PNG" = "As PNG";
+"Making one PDF" = "Making one PDF";
+"Making it smaller" = "Making it smaller";
+"Making a PDF" = "Making a PDF";
+"Making a JPG" = "Making a JPG";
+"Making a PNG" = "Making a PNG";
+"This PDF is locked. Type the password and I’ll continue." = "This PDF is locked. Type the password and I’ll continue.";
+"That password didn’t open it. Please try again." = "That password didn’t open it. Please try again.";
+"There’s nothing here I can use for this." = "There’s nothing here I can use for this.";
+"This is already as small as I can make it." = "This is already as small as I can make it.";
+"Not enough space to write this." = "Not enough space to write this.";
+"I couldn’t open %@." = "I couldn’t open %@.";
+"I couldn’t open this file." = "I couldn’t open this file.";
+"I skipped %@. %@" = "I skipped %@. %@";
+"I skipped %@." = "I skipped %@.";
+"%lld images as PDF" = "%lld images as PDF";
+"%lld images as JPG" = "%lld images as JPG";
+"%lld images as PNG" = "%lld images as PNG";
+"%lld files made smaller" = "%lld files made smaller";
+"I can only turn images and PDFs into a PDF." = "I can only turn images and PDFs into a PDF.";
+"I can only make images and PDFs smaller." = "I can only make images and PDFs smaller.";
+"I can only convert images." = "I can only convert images.";

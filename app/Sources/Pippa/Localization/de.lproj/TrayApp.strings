@@ -1,0 +1,16 @@
+/*
+  TrayApp.strings (de): German translation
+  Module Pippa, looked up with T("…", table: "TrayApp").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+/* TrayController.swift */
+"Undo" = "Rückgängig";
+"Removed." = "Entfernt.";
+"Show" = "Zeigen";
+"That didn’t work. Your files are unchanged." = "Das hat nicht geklappt. Deine Dateien sind unverändert.";
+"I couldn’t save it there. Nothing was changed." = "Dort konnte ich es nicht sichern. Es wurde nichts geändert.";
+"Mail" = "Mail";
+"Pasted" = "Eingefügt";

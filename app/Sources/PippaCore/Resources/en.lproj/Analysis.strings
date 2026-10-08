@@ -1,0 +1,55 @@
+/*
+  Analysis.strings (en): English (development language, fallback)
+  Module PippaCore, looked up with L("…", table: "Analysis").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+"Invoices" = "Invoices";
+"Contracts" = "Contracts";
+"Photos" = "Photos";
+"Other" = "Other";
+"Only in the cloud. I don’t download anything, so the file stays as it is." = "Only in the cloud. I don’t download anything, so the file stays as it is.";
+"Screenshot" = "Screenshot";
+"Date taken, from the photo’s details" = "Date taken, from the photo’s details";
+"File date, since the photo has no date taken" = "Date of the file, the photo has no date taken";
+"Picture without camera details" = "Picture without camera details";
+"Installer, usually not needed anymore" = "Installer, usually not needed anymore";
+"Video" = "Video";
+"Music or audio" = "Music or audio";
+"Compressed archive" = "Compressed archive";
+"Spreadsheet or presentation" = "Spreadsheet or presentation";
+"Not a document, so it goes to “%@”" = "Not a document, so it goes to “%@”";
+"Same content as “%@”" = "Same content as “%@”";
+"Date" = "Date";
+"Sender" = "Sender";
+"Amount" = "Amount";
+"Amount (EUR)" = "Amount (EUR)";
+"File" = "File";
+"Source text" = "Source text";
+"Check" = "Check";
+"please check" = "please check";
+"unreadable" = "unreadable";
+"Worked out from the period in the document: %@. Please check." = "Worked out from the period in the document: %@. Please check.";
+"Please check the date and choose one." = "Please check the date and choose one.";
+"Cancel %@" = "Cancel %@";
+"Cancel contract" = "Cancel contract";
+"Pay the utilities balance" = "Pay the utilities balance";
+"Pay the balance due" = "Pay the balance due";
+"Pay %@" = "Pay %@";
+"Pay invoice" = "Pay invoice";
+"Object to %@" = "Object to %@";
+"File an objection" = "File an objection";
+"Appointment with %@" = "Appointment with %@";
+"Appointment" = "Appointment";
+"Direct debit" = "Direct debit";
+"%@ ends" = "%@ ends";
+"Contract ends" = "Contract ends";
+"Deadline: %@" = "Deadline: %@";
+"Deadline" = "Deadline";
+"“%@”" = "“%@”";
+"From: %@" = "From: %@";
+"Page %@" = "Page %@";
+"Added by Pippa." = "Added by Pippa.";

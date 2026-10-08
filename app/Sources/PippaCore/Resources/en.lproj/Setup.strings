@@ -1,0 +1,16 @@
+/* Installer (PiSetup/PiInstallMessages.swift), decision “installer without technical questions”: plain words, no “Pi”, no “Terminal”, no paths. Technical text only behind “Details”. */
+"Pippa is setting herself up." = "Pippa is setting herself up.";
+"Pippa is set up." = "Pippa is set up.";
+"Pippa’s AI is ready." = "Pippa’s AI is ready.";
+"Pippa uses the AI that’s already in %@, without taking extra space. Nothing there changes." = "Pippa uses the AI that’s already in %@, without taking extra space. Nothing there changes.";
+"Pippa copied her AI from %@. The original stays where it is." = "Pippa copied her AI from %@. The original stays where it is.";
+"May I load my AI now? %1$@, %2$@. After that I run without the internet." = "May I load my AI now? %1$@, %2$@. After that I run without the internet.";
+"Everything is ready." = "Everything is ready.";
+"Part of Pippa is missing. Please download Pippa again." = "Part of Pippa is missing. Please download Pippa again.";
+"Pippa couldn’t finish setting herself up." = "Pippa couldn’t finish setting herself up.";
+"An earlier installation on this Mac is in the way. Pippa leaves it untouched; the details say what helps." = "An earlier installation on this Mac is in the way. Pippa leaves it untouched; the details say what helps.";
+"Pippa couldn’t save her files on this Mac." = "Pippa couldn’t save her files on this Mac.";
+"A settings file Pippa shares with other tools can’t be read. Pippa changed nothing; the details say which one." = "A settings file Pippa shares with other tools can’t be read. Pippa changed nothing; the details say which one.";
+"A file of Pippa’s AI isn’t the one she expects. Pippa leaves it untouched." = "A file of Pippa’s AI isn’t the one she expects. Pippa leaves it untouched.";
+"There isn’t enough free space on this Mac. About %@ more is needed." = "There isn’t enough free space on this Mac. About %@ more is needed.";
+"Loading stopped because the connection dropped. It picks up where it left off." = "Loading stopped because the connection dropped. It picks up where it left off.";

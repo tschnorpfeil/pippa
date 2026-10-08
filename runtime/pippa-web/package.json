@@ -1,0 +1,21 @@
+{
+  "name": "@pippa/web-fetcher",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pippa's own web fetcher process (search and read pages) for Look online and Check online. Only the app starts it; the Pi agent never imports it.",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "pretest": "node build-web-provider.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "pi-web-access": "0.37.0",
+    "typebox": "1.3.27"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

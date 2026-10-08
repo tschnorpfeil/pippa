@@ -1,0 +1,41 @@
+/*
+  Sheet.strings (en): English (development language, value = key)
+  Module PippaCore, looked up with L("…", table: "Sheet"): reading a table in Excel and "Check the total" (R3).
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+
+"Excel" = "Excel";
+"First open your table in Excel and select the cells. Then try again." = "First open your table in Excel and select the cells. Then try again.";
+"Looking at your table …" = "Looking at your table …";
+"Looking at your table: %@" = "Looking at your table: %@";
+"Looking at your table: %@, column %@" = "Looking at your table: %@, column %@";
+"I didn’t find a total here." = "I didn’t find a total here.";
+"The total adds up." = "The total adds up.";
+"The totals add up." = "The totals add up.";
+"I couldn’t fully check this total." = "I couldn’t fully check this total.";
+"I couldn’t check this total because some of its numbers are outside the part I read." = "I couldn’t check this total because some of its numbers are outside the part I read.";
+"This total depends on which rows are visible. I couldn’t check that here." = "This total depends on which rows are visible. I couldn’t check that here.";
+"I couldn’t check this total because it contains an error or a value I can’t add safely." = "I couldn’t check this total because it contains an error or a value I can’t add safely.";
+"This total leaves out one row." = "This total leaves out one row.";
+"This total leaves out some rows." = "This total leaves out some rows.";
+"The total for “%@” leaves out one row." = "The total for “%@” leaves out one row.";
+"The total for “%@” leaves out some rows." = "The total for “%@” leaves out some rows.";
+"This total doesn’t match its numbers." = "This total doesn’t match its numbers.";
+"The total for “%@” doesn’t match its numbers." = "The total for “%@” doesn’t match its numbers.";
+"One number here is stored as text." = "One number here is stored as text.";
+"Some numbers here are stored as text." = "Some numbers here are stored as text.";
+"This total leaves out %@." = "This total leaves out %@.";
+"The total for “%@” leaves out %@." = "The total for “%@” leaves out %@.";
+"With it, the total would be %@." = "With it, the total would be %@.";
+"With them, the total would be %@." = "With them, the total would be %@.";
+"This total says %@, but its numbers add up to %@." = "This total says %@, but its numbers add up to %@.";
+"The total for “%@” says %@, but its numbers add up to %@." = "The total for “%@” says %@, but its numbers add up to %@.";
+"“%@” in “%@” is stored as text, so sums skip it." = "“%@” in “%@” is stored as text, so sums skip it.";
+"The number for “%@” is stored as text, so sums skip it." = "The number for “%@” is stored as text, so sums skip it.";
+"A number in “%@” is stored as text, so sums skip it." = "A number in “%@” is stored as text, so sums skip it.";
+"A number here is stored as text, so sums skip it." = "A number here is stored as text, so sums skip it.";
+"“%@”" = "“%@”";
+"the row with %@" = "the row with %@";
+"the column with %@" = "the column with %@";
+"Compared with last year, “%@” changed most: %@ instead of %@." = "Compared with last year, “%@” changed most: %@ instead of %@.";
+"Nothing changed compared with last year." = "Nothing changed compared with last year.";

@@ -1,0 +1,467 @@
+{
+  "version": 1,
+  "about": "Curated GGUF models for Pippa. ModelSelector.choose (Models.swift) picks one by the Mac's memory. Entries with `pinned` are verified against a fixed revision and SHA256. Optional per entry: `sampling` (overrides the default), `extra` (further llama.cpp preset keys), `pending` (listed, never installed: the reason why).",
+  "sampling": {
+    "temp": 0.6,
+    "top-p": 0.95,
+    "top-k": 20,
+    "min-p": 0
+  },
+  "models": [
+    {
+      "key": "qwen3.5-122b-a10b-q4",
+      "label": "Qwen3.5 122B-A10B (Q4)",
+      "description": "Very large, best quality for Macs with a lot of memory",
+      "repo": "unsloth/Qwen3.5-122B-A10B-GGUF",
+      "quant": "UD-Q4_K_XL",
+      "approxBytes": 77029996032,
+      "memGiB": 80,
+      "ctx": 131072,
+      "moe": true,
+      "rank": 100,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.5-122B-A10B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "51eab4d59d53f573fb9206cb3ce613f1d0aa392b",
+        "files": [
+          {
+            "path": "UD-Q4_K_XL/Qwen3.5-122B-A10B-UD-Q4_K_XL-00001-of-00003.gguf",
+            "size": 10943552,
+            "sha256": "467c9bd92ea518539cf75bf5a5fbfbd35e9a0b40d766ccaa67bf120e12041df3"
+          },
+          {
+            "path": "UD-Q4_K_XL/Qwen3.5-122B-A10B-UD-Q4_K_XL-00002-of-00003.gguf",
+            "size": 49640779424,
+            "sha256": "ecdbd42d43b0df9fa0ef9a584e09e95a43966ef03a122aba0b87a99d44d9ad98"
+          },
+          {
+            "path": "UD-Q4_K_XL/Qwen3.5-122B-A10B-UD-Q4_K_XL-00003-of-00003.gguf",
+            "size": 27378273056,
+            "sha256": "13300e0f059e6fa21aa0fabde2a554f9deea366c0e54f268045769b214b28c97"
+          }
+        ]
+      }
+    },
+    {
+      "key": "qwen3.6-35b-a3b-q8",
+      "label": "Qwen3.6 35B-A3B (Q8)",
+      "description": "Fast, with nearly full quality",
+      "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+      "quant": "Q8_0",
+      "approxBytes": 36903140320,
+      "memGiB": 38,
+      "ctx": 131072,
+      "moe": true,
+      "rank": 90,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "a483e9e6cbd595906af30beda3187c2663a1118c",
+        "files": [
+          {
+            "path": "Qwen3.6-35B-A3B-Q8_0.gguf",
+            "size": 36903140320,
+            "sha256": "d1a395809f65a43a13ad119eb4e7acdef1ac6d68120f39902c8ab96e72794a59"
+          }
+        ]
+      }
+    },
+    {
+      "key": "k2-horizon-mova-36b-a4b",
+      "label": "K2 Horizon MoVA 36B-A4B",
+      "description": "Strong agentic scores according to the maker (Terminal-Bench 58.6)",
+      "repo": "IFM/K2-Horizon-MoVA-36B-A4B-GGUF",
+      "quant": "Q4_K_M",
+      "approxBytes": 22400000000,
+      "memGiB": 24.5,
+      "ctx": 65536,
+      "moe": true,
+      "rank": 86,
+      "thinking": "medium",
+      "sampling": {
+        "temp": 1,
+        "top-p": 0.95,
+        "top-k": 0,
+        "min-p": 0
+      },
+      "extra": {
+        "chat-template-kwargs": "{\"reasoning_effort\":\"medium\",\"tool_call_format\":\"xml\"}"
+      },
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/IFM/K2-Horizon-MoVA-36B-A4B",
+      "pending": "waiting for K2 support in llama.cpp (PR #29535)"
+    },
+    {
+      "key": "qwen3.6-35b-a3b-q6",
+      "label": "Qwen3.6 35B-A3B (Q6)",
+      "description": "Fast, very good quality",
+      "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+      "quant": "UD-Q6_K",
+      "approxBytes": 29308320736,
+      "memGiB": 29.5,
+      "ctx": 65536,
+      "moe": true,
+      "rank": 85,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "a483e9e6cbd595906af30beda3187c2663a1118c",
+        "files": [
+          {
+            "path": "Qwen3.6-35B-A3B-UD-Q6_K.gguf",
+            "size": 29308320736,
+            "sha256": "4fe53b148b46f9b88830e2a3055c5b15c3a4d1e3ddc9a1384a108d8b9d59f043"
+          }
+        ]
+      }
+    },
+    {
+      "key": "qwen3.6-35b-a3b-q4",
+      "label": "Qwen3.6 35B-A3B (Q4)",
+      "description": "Fast, good quality",
+      "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+      "quant": "UD-Q4_K_XL",
+      "approxBytes": 22360456160,
+      "memGiB": 23.5,
+      "ctx": 65536,
+      "moe": true,
+      "rank": 80,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "a483e9e6cbd595906af30beda3187c2663a1118c",
+        "files": [
+          {
+            "path": "Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf",
+            "size": 22360456160,
+            "sha256": "707a55a8a4397ecde44de0c499d3e68c1ad1d240d1da65826b4949d1043f4450"
+          }
+        ]
+      }
+    },
+    {
+      "key": "qwen3.6-35b-a3b-q3",
+      "label": "Qwen3.6 35B-A3B (Q3)",
+      "description": "Tested on the 24 GB Mac mini: 20 of 21 agent tasks, ~45 tokens/s",
+      "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+      "quant": "UD-Q3_K_XL",
+      "approxBytes": 16845511648,
+      "memGiB": 17.5,
+      "ctx": 65536,
+      "moe": true,
+      "rank": 75,
+      "thinking": "medium",
+      "pinned": {
+        "revision": "a483e9e6cbd595906af30beda3187c2663a1118c",
+        "files": [
+          {
+            "path": "Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf",
+            "size": 16845511648,
+            "sha256": "a832b9689925f1bd335bbe985cdfb06c36bf2cf268f4f8f6eceafa3ceb515617"
+          }
+        ]
+      },
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE"
+    },
+    {
+      "key": "gemma-4-26b-a4b",
+      "label": "Gemma 4 26B-A4B",
+      "description": "Fast alternative with a long context (128K); thinks longer than Qwen",
+      "repo": "unsloth/gemma-4-26B-A4B-it-qat-GGUF",
+      "quant": "UD-Q4_K_XL",
+      "approxBytes": 14249047104,
+      "memGiB": 16.5,
+      "ctx": 65536,
+      "moe": true,
+      "rank": 74,
+      "thinking": "medium",
+      "sampling": {
+        "temp": 1,
+        "top-p": 0.95,
+        "top-k": 64,
+        "min-p": 0
+      },
+      "extra": {
+        "ctx-checkpoints": 16
+      },
+      "license": "Apache-2.0",
+      "licenseUrl": "https://ai.google.dev/gemma/docs/gemma_4_license",
+      "pinned": {
+        "revision": "7b92b5b28818151e8669af2e45e88d6086f490dd",
+        "files": [
+          {
+            "path": "gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
+            "size": 14249047104,
+            "sha256": "a7c5bc715f5ff8e99a3e8901ce7d2b42b402c669bf24f7c5250747633d0f5891"
+          }
+        ]
+      },
+      "thinkingRequired": true
+    },
+    {
+      "key": "qwen3.8-27b-q4",
+      "label": "Qwen3.8 27B (Q4)",
+      "description": "Most thorough model in testing (solved every task), but slow; worth it on Pro/Max chips",
+      "repo": "unsloth/Qwen3.8-27B-GGUF",
+      "quant": "UD-Q4_K_XL",
+      "approxBytes": 17559178144,
+      "memGiB": 20.5,
+      "ctx": 65536,
+      "moe": false,
+      "rank": 71,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+        "files": [
+          {
+            "path": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
+            "size": 17559178144,
+            "sha256": "3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e"
+          }
+        ]
+      }
+    },
+    {
+      "key": "qwen3.6-35b-a3b-iq3",
+      "label": "Qwen3.6 35B-A3B (IQ3)",
+      "description": "Smaller variant for limited memory",
+      "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+      "quant": "UD-IQ3_S",
+      "approxBytes": 13676723168,
+      "memGiB": 14.5,
+      "ctx": 32768,
+      "moe": true,
+      "rank": 70,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "a483e9e6cbd595906af30beda3187c2663a1118c",
+        "files": [
+          {
+            "path": "Qwen3.6-35B-A3B-UD-IQ3_S.gguf",
+            "size": 13676723168,
+            "sha256": "66a3ca888ce13482b40c333db2432c0ebde3a7b13754fc29f0c6f5e89703ec66"
+          }
+        ]
+      }
+    },
+    {
+      "key": "qwen3.8-27b-q3",
+      "label": "Qwen3.8 27B (Q3)",
+      "description": "Thorough, solved every task in testing, but only ~10 tokens/s on an M6",
+      "repo": "unsloth/Qwen3.8-27B-GGUF",
+      "quant": "UD-Q3_K_XL",
+      "approxBytes": 13146393504,
+      "memGiB": 15.5,
+      "ctx": 65536,
+      "moe": false,
+      "rank": 69,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+        "files": [
+          {
+            "path": "Qwen3.8-27B-UD-Q3_K_XL.gguf",
+            "size": 13146393504,
+            "sha256": "8c2a45ff85e7674ca185ec8eb6cdeab0e617ed9d8018caed0b64380eb2a67a5e"
+          }
+        ]
+      }
+    },
+    {
+      "key": "gemma-4-12b",
+      "label": "Gemma 4 12B",
+      "description": "Most reliable compact model in testing (solved every task), ~18 tokens/s",
+      "repo": "unsloth/gemma-4-12B-it-qat-GGUF",
+      "quant": "UD-Q4_K_XL",
+      "approxBytes": 6716356800,
+      "memGiB": 9,
+      "ctx": 32768,
+      "moe": false,
+      "rank": 56,
+      "thinking": "medium",
+      "sampling": {
+        "temp": 1,
+        "top-p": 0.95,
+        "top-k": 64,
+        "min-p": 0
+      },
+      "extra": {
+        "ctx-checkpoints": 8
+      },
+      "license": "Apache-2.0",
+      "licenseUrl": "https://ai.google.dev/gemma/docs/gemma_4_license",
+      "pinned": {
+        "revision": "980b060c40a8539ac159e0501a3e0f66a6365af3",
+        "files": [
+          {
+            "path": "gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
+            "size": 6716356800,
+            "sha256": "90fd44e29e0d7cffeb0fd00dc73cfdab9ed0b0e95306ecf7821ea634c940c370"
+          }
+        ]
+      },
+      "thinkingRequired": true
+    },
+    {
+      "key": "qwen3.5-9b-q8",
+      "label": "Qwen3.5 9B (Q8)",
+      "description": "Compact, full quality",
+      "repo": "unsloth/Qwen3.5-9B-GGUF",
+      "quant": "Q8_0",
+      "approxBytes": 9527502048,
+      "memGiB": 10.5,
+      "ctx": 32768,
+      "moe": false,
+      "rank": 55,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "3885219b6810b007914f3a7950a8d1b469d598a5",
+        "files": [
+          {
+            "path": "Qwen3.5-9B-Q8_0.gguf",
+            "size": 9527502048,
+            "sha256": "809626574d0cb43d4becfa56169980da2bb448f2299270f7be443cb89d0a6ae4"
+          }
+        ]
+      }
+    },
+    {
+      "key": "k2-horizon-7b",
+      "label": "K2 Horizon 7B",
+      "description": "Compact model from MBZUAI/IFM; 5 of 7 tasks in testing with a custom llama.cpp build",
+      "repo": "IFM/K2-Horizon-7B-GGUF",
+      "quant": "Q4_K_M",
+      "approxBytes": 5592217984,
+      "memGiB": 8.5,
+      "ctx": 32768,
+      "moe": false,
+      "rank": 52,
+      "thinking": "medium",
+      "sampling": {
+        "temp": 1,
+        "top-p": 0.95,
+        "top-k": 0,
+        "min-p": 0
+      },
+      "extra": {
+        "chat-template-kwargs": "{\"reasoning_effort\":\"medium\",\"tool_call_format\":\"xml\"}"
+      },
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/IFM/K2-Horizon-7B",
+      "pending": "waiting for K2 support in llama.cpp (PR #29535)"
+    },
+    {
+      "key": "qwen3.5-9b-q4",
+      "label": "Qwen3.5 9B (Q4)",
+      "description": "Compact and fast, for little memory",
+      "repo": "unsloth/Qwen3.5-9B-GGUF",
+      "quant": "Q4_K_M",
+      "approxBytes": 5680522464,
+      "memGiB": 7,
+      "ctx": 32768,
+      "moe": false,
+      "rank": 50,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "3885219b6810b007914f3a7950a8d1b469d598a5",
+        "files": [
+          {
+            "path": "Qwen3.5-9B-Q4_K_M.gguf",
+            "size": 5680522464,
+            "sha256": "03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8"
+          }
+        ]
+      }
+    },
+    {
+      "key": "qwen3-8b-q4",
+      "label": "Qwen3 8B (Q4)",
+      "description": "Proven fallback",
+      "repo": "unsloth/Qwen3-8B-GGUF",
+      "quant": "Q4_K_M",
+      "approxBytes": 5027784512,
+      "memGiB": 7.5,
+      "ctx": 32768,
+      "moe": false,
+      "rank": 45,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3-8B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+        "files": [
+          {
+            "path": "Qwen3-8B-Q4_K_M.gguf",
+            "size": 5027784512,
+            "sha256": "120307ba529eb2439d6c430d94104dabd578497bc7bfe7e322b5d9933b449bd4"
+          }
+        ]
+      }
+    },
+    {
+      "key": "qwen3.5-4b-q4",
+      "label": "Qwen3.5 4B (Q4)",
+      "description": "Small, for 8 GB Macs and simple tasks",
+      "repo": "unsloth/Qwen3.5-4B-GGUF",
+      "quant": "Q4_K_M",
+      "approxBytes": 2740937888,
+      "memGiB": 4.2,
+      "ctx": 32768,
+      "moe": false,
+      "rank": 30,
+      "thinking": "low",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.5-4B/blob/main/LICENSE",
+      "pinned": {
+        "revision": "e87f176479d0855a907a41277aca2f8ee7a09523",
+        "files": [
+          {
+            "path": "Qwen3.5-4B-Q4_K_M.gguf",
+            "size": 2740937888,
+            "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4"
+          }
+        ]
+      }
+    },
+    {
+      "key": "qwen3-4b-q4",
+      "label": "Qwen3 4B Instruct (Q4)",
+      "description": "Small fallback",
+      "repo": "unsloth/Qwen3-4B-Instruct-2507-GGUF",
+      "quant": "Q4_K_M",
+      "approxBytes": 2497281120,
+      "memGiB": 4.5,
+      "ctx": 32768,
+      "moe": false,
+      "rank": 28,
+      "thinking": "off",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE",
+      "pinned": {
+        "revision": "a06e946bb6b655725eafa393f4a9745d460374c9",
+        "files": [
+          {
+            "path": "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+            "size": 2497281120,
+            "sha256": "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597"
+          }
+        ]
+      }
+    }
+  ]
+}

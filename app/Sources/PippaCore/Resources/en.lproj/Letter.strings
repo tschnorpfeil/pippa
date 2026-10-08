@@ -1,0 +1,43 @@
+/*
+  Letter.strings (en): English (development language, value = key)
+  Module PippaCore, looked up with L("…", table: "Letter"): the first line of a letter or mail and its actions (R2).
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+
+"Looking at the mail from %@" = "Looking at the mail from %@";
+"Looking at the mail …" = "Looking at the mail …";
+"%@ to pay by %@" = "%@ to pay by %@";
+"%@ to pay" = "%@ to pay";
+"Payment due by %@" = "Payment due by %@";
+"Payment due" = "Payment due";
+"Objection possible until %@" = "Objection possible until %@";
+"Objection possible" = "Objection possible";
+"Cancel by %@" = "Cancel by %@";
+"Cancellation possible" = "Cancellation possible";
+"Appointment on %@" = "Appointment on %@";
+"Appointment" = "Appointment";
+"Deadline: %@" = "Deadline: %@";
+"There’s a deadline" = "There’s a deadline";
+"%@ mentioned" = "%@ mentioned";
+"%@ wrote about “%@”" = "%@ wrote about “%@”";
+"%@ wrote to you" = "%@ wrote to you";
+"About “%@”" = "About “%@”";
+"I found no date and no amount in it." = "I found no date and no amount in it.";
+"Explain" = "Explain";
+"Reading the letter …" = "Reading the letter …";
+"Please explain this letter in plain words." = "Please explain this letter in plain words.";
+"Reply" = "Reply";
+"Writing the reply …" = "Writing the reply …";
+"Please write a short, polite reply to this mail." = "Please write a short, polite reply to this mail.";
+"Object" = "Object";
+"Writing the objection …" = "Writing the objection …";
+"Please write an objection to this letter." = "Please write an objection to this letter.";
+"Cancel" = "Cancel";
+"Writing the cancellation …" = "Writing the cancellation …";
+"Please write a cancellation for this contract." = "Please write a cancellation for this contract.";
+"Summarise" = "Summarise";
+"Summarising …" = "Summarising …";
+"Please summarise this in a few sentences." = "Please summarise this in a few sentences.";
+"Add the date" = "Add the date";
+"Looking for the date …" = "Looking for the date …";
+"Please add the date from this letter." = "Please add the date from this letter.";

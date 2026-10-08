@@ -1,0 +1,97 @@
+# Builds and checks Pippa on a real Mac (Apple silicon).
+# checks: on every push to claude/** branches and by hand. app: by hand only, uploads Pippa.app as an artifact.
+name: CI
+
+on:
+  push:
+    branches: ['claude/**']
+    paths-ignore: ['docs/**', 'site/**', '**/*.md']
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Build Pippa.app and upload it as an artifact'
+        type: boolean
+        default: true
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: app/.build
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('app/Package.swift', 'app/Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Select latest Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+          swift --version
+      - name: Check translations
+        run: python3 scripts/check-strings.py
+      - name: swift build (all targets)
+        run: |
+          set +e
+          swift build --package-path app > build.log 2>&1; status=$?
+          tail -n 40 build.log
+          echo "=== Errors (unique) ==="
+          grep -E "error:" build.log | sed -E 's/^ +//' | sort -u | head -n 120
+          exit $status
+        shell: bash {0}
+      - name: PippaChecks
+        timeout-minutes: 15
+        env:
+          PIPPA_OCR_FAST: '1'
+        run: swift run --package-path app PippaChecks 2>&1
+        shell: bash -o pipefail {0}
+      - name: Fetch process tests (runtime/pippa-web)
+        working-directory: runtime/pippa-web
+        run: npm ci --ignore-scripts && npm test 2>&1 | tail -n 200
+        shell: bash -o pipefail {0}
+      - name: Guard tests (runtime/pippa-guard)
+        run: node --experimental-strip-types --test runtime/pippa-guard/guard.test.mjs runtime/pippa-guard/mcp.test.mjs runtime/pippa-guard/self-asking.test.mjs runtime/pippa-guard/app-entry.test.mjs 2>&1 | tail -n 200
+        shell: bash -o pipefail {0}
+      - name: Terminal autostart tests (runtime/pippa-local-server)
+        run: node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200
+        shell: bash -o pipefail {0}
+
+  app:
+    if: github.event_name == 'workflow_dispatch' && inputs.app
+    needs: checks
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Select latest Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+          swift --version
+      - name: Pippa.app (ad-hoc signed)
+        run: scripts/build-app.sh
+      - name: Zip
+        run: ditto -c -k --keepParent dist/Pippa.app dist/Pippa.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pippa-app
+          path: dist/Pippa.zip
+          retention-days: 14

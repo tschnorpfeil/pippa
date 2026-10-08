@@ -1,0 +1,13 @@
+/*
+  InfoPlist.strings (de): texts from app/Packaging/Info.plist.
+  Key = Info.plist key (CFBundleTypeName: the English type name). scripts/build-app.sh fills in __YEAR__.
+  Installed to Pippa.app/Contents/Resources/de.lproj/ by scripts/build-app.sh.
+*/
+"NSHumanReadableCopyright" = "© __YEAR__ Tobias Schnorpfeil.";
+"NSCalendarsFullAccessUsageDescription" = "Wenn du fragst, liest Pippa deine Termine für den Zeitraum, nach dem du fragst, und trägt Fristen aus deinen Briefen in den Kalender ein, die Pippa auch wieder entfernen kann.";
+"NSRemindersFullAccessUsageDescription" = "Pippa trägt Fristen aus deinen Briefen in Erinnerungen ein, wenn du es sagst, und kann sie wieder entfernen.";
+"NSAppleEventsUsageDescription" = "Pippa liest die Mail, die du in Mail ausgewählt hast, und die Tabelle, die du in Excel ansiehst. Ohne deine Freigabe wird nichts verschickt.";
+"NSDesktopFolderUsageDescription" = "Pippa liest und ordnet Dateien auf deinem Schreibtisch, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
+"NSDocumentsFolderUsageDescription" = "Pippa liest und ordnet Dateien in deinem Ordner „Dokumente“, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
+"NSDownloadsFolderUsageDescription" = "Pippa liest und ordnet Dateien in deinem Ordner „Downloads“, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
+"File or Folder" = "Datei oder Ordner";

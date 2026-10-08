@@ -1,0 +1,19 @@
+/*
+  Shelf.strings (en): English (development language, fallback)
+  Module Pippa, looked up with T("…", table: "Shelf").
+  The things lying on Pippa at rest (Shell/TrayStackView.swift) and taking them along (Shell/TakeDrag.swift).
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+"%@, ready" = "%@, ready";
+"%1$@, from %2$@" = "%1$@, from %2$@";
+"Click to see what I can do with it. Drag it to where you need it." = "Click to see what I can do with it. Drag it to where you need it.";
+"Save…" = "Save…";
+"Ready" = "Ready";
+"from %@" = "from %@";
+
+"Remove %@" = "Remove %@";
+
+"Show Attachments" = "Show Attachments";

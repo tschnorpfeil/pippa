@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Pippa.app: Hardened Runtime, WITHOUT App Sandbox (a sandboxed app cannot set up and
+  start Pi in the user's home folder). Only rights the Hardened Runtime itself requires are listed here.
+
+  - automation.apple-events: the Hardened Runtime otherwise blocks Apple Events (macOS still asks per target app,
+    text: NSAppleEventsUsageDescription). Pippa uses it only to read the selected mail and the active sheet in Excel
+    (NSAppleScript in its own process, no osascript) and to create unsent drafts in Mail.
+  - personal-information.calendars: Hardened Runtime right for EventKit; covers Calendar AND Reminders (there is no
+    separate right for Reminders). Without it macOS refuses silently, without a prompt.
+
+  Dropped with the sandbox (effective only inside it): app-sandbox, files.user-selected.read-write,
+  files.bookmarks.app-scope, files.downloads.read-write, network.client, network.server,
+  temporary-exception.apple-events (Mail, Excel), temporary-exception.files.home-relative-path.read-only
+  (other apps' model folders) and temporary-exception.mach-lookup.global-name (Sparkle's -spks/-spki).
+  Desktop, Documents and Downloads are now protected by TCC (NSDesktop/Documents/DownloadsFolderUsageDescription).
+
+  Deliberately NOT set: cs.disable-library-validation, cs.allow-jit, cs.allow-unsigned-executable-memory.
+  All dylibs are signed with the same identity at build time; only Node needs JIT (Node.entitlements).
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+</dict>
+</plist>

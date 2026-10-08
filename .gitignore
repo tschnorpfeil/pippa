@@ -1,0 +1,13 @@
+.build/
+dist/
+.DS_Store
+*.gguf
+*.part
+site/_test.html
+site/_docs
+runtime/pippa-web/src/generated/
+node_modules/
+
+# Local quality validation
+.build-quality/
+.cache/

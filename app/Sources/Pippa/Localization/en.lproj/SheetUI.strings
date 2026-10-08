@@ -1,0 +1,32 @@
+/*
+  SheetUI.strings (en): English (development language, value = key)
+  Module Pippa, looked up with T("…", table: "SheetUI"): the Call in Excel and the table line (R3, SheetController, SheetViews).
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+
+"Ask about this table" = "Ask about this table";
+"Check the total" = "Check the total";
+"Choose the table as a file. I only read it." = "Choose the table as a file. I only read it.";
+"Compare with last year" = "Compare with last year";
+"Continue" = "Continue";
+"Explain this table" = "Explain this table";
+"Give me the file instead" = "Give me the file instead";
+"I add the numbers up again myself. Nothing in the table changes." = "I add the numbers up again myself. Nothing in the table changes.";
+"I added the numbers up again myself. Nothing is missing." = "I added the numbers up again myself. Nothing is missing.";
+"I explain what this table shows." = "I explain what this table shows.";
+"I look at what changed since last year." = "I look at what changed since last year.";
+"I’m not allowed to read Excel. You can change that in System Settings." = "I’m not allowed to read Excel. You can change that in System Settings.";
+"Look" = "Look";
+"No table is open in Excel." = "No table is open in Excel.";
+"Nothing in your table was changed." = "Nothing in your table was changed.";
+"Open Settings" = "Open Settings";
+"Please compare this table with last year. What changed most? Name rows and columns by their headings, not by cell address." = "Please compare this table with last year. What changed most? Name rows and columns by their headings, not by cell address.";
+"Please explain this table in plain words. Name rows and columns by their headings, not by cell address." = "Please explain this table in plain words. Name rows and columns by their headings, not by cell address.";
+"Privacy & Security › Automation" = "Privacy & Security › Automation";
+"Select the total, or the numbers it adds up, and call me again." = "Select the total, or the numbers it adds up, and call me again.";
+"Table" = "Table";
+"There is more. Ask me, and we’ll go through it together." = "There is more. Ask me, and we’ll go through it together.";
+"This sheet looks empty to me." = "This sheet looks empty to me.";
+"This table is large. I looked at its first part." = "This table is large. I looked at its first part.";
+"To read the table you selected, your Mac will ask whether I may. When checking, I only read and change nothing." = "To read the table you selected, your Mac will ask whether I may. When checking, I only read and change nothing.";
+"Which table should I look at? I only read it." = "Which table should I look at? I only read it.";

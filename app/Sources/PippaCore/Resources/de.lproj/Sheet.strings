@@ -1,0 +1,41 @@
+/*
+  Sheet.strings (de): German (full translation)
+  Module PippaCore, looked up with L("…", table: "Sheet"): reading a table in Excel and "Check the total" (R3).
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+
+"Excel" = "Excel";
+"First open your table in Excel and select the cells. Then try again." = "Öffne zuerst deine Tabelle in Excel und wähle die Zellen aus. Dann versuch es noch einmal.";
+"Looking at your table …" = "Ich schaue mir deine Tabelle an …";
+"Looking at your table: %@" = "Ich schaue mir deine Tabelle an: %@";
+"Looking at your table: %@, column %@" = "Ich schaue mir deine Tabelle an: %@, Spalte %@";
+"I didn’t find a total here." = "Ich habe hier keine Summe gefunden.";
+"The total adds up." = "Die Summe stimmt.";
+"The totals add up." = "Die Summen stimmen.";
+"I couldn’t fully check this total." = "Ich konnte diese Summe nicht vollständig prüfen.";
+"I couldn’t check this total because some of its numbers are outside the part I read." = "Ich konnte diese Summe nicht prüfen, weil einige ihrer Zahlen außerhalb des gelesenen Ausschnitts liegen.";
+"This total depends on which rows are visible. I couldn’t check that here." = "Diese Summe hängt davon ab, welche Zeilen sichtbar sind. Das konnte ich hier nicht prüfen.";
+"I couldn’t check this total because it contains an error or a value I can’t add safely." = "Ich konnte diese Summe nicht prüfen, weil sie einen Fehler oder einen Wert enthält, den ich nicht sicher addieren kann.";
+"This total leaves out one row." = "Diese Summe lässt eine Zeile aus.";
+"This total leaves out some rows." = "Diese Summe lässt einige Zeilen aus.";
+"The total for “%@” leaves out one row." = "Die Summe für „%@“ lässt eine Zeile aus.";
+"The total for “%@” leaves out some rows." = "Die Summe für „%@“ lässt einige Zeilen aus.";
+"This total doesn’t match its numbers." = "Diese Summe passt nicht zu ihren Zahlen.";
+"The total for “%@” doesn’t match its numbers." = "Die Summe für „%@“ passt nicht zu ihren Zahlen.";
+"One number here is stored as text." = "Eine Zahl hier ist als Text gespeichert.";
+"Some numbers here are stored as text." = "Einige Zahlen hier sind als Text gespeichert.";
+"This total leaves out %@." = "Diese Summe lässt %@ aus.";
+"The total for “%@” leaves out %@." = "Die Summe für „%@“ lässt %@ aus.";
+"With it, the total would be %@." = "Damit wäre die Summe %@.";
+"With them, the total would be %@." = "Mit ihnen wäre die Summe %@.";
+"This total says %@, but its numbers add up to %@." = "Diese Summe sagt %@, ihre Zahlen ergeben aber %@.";
+"The total for “%@” says %@, but its numbers add up to %@." = "Die Summe für „%@“ sagt %@, ihre Zahlen ergeben aber %@.";
+"“%@” in “%@” is stored as text, so sums skip it." = "„%@“ in „%@“ ist als Text gespeichert, deshalb zählt eine Summe es nicht mit.";
+"The number for “%@” is stored as text, so sums skip it." = "Die Zahl bei „%@“ ist als Text gespeichert, deshalb zählt eine Summe sie nicht mit.";
+"A number in “%@” is stored as text, so sums skip it." = "Eine Zahl in „%@“ ist als Text gespeichert, deshalb zählt eine Summe sie nicht mit.";
+"A number here is stored as text, so sums skip it." = "Eine Zahl hier ist als Text gespeichert, deshalb zählt eine Summe sie nicht mit.";
+"“%@”" = "„%@“";
+"the row with %@" = "die Zeile mit %@";
+"the column with %@" = "die Spalte mit %@";
+"Compared with last year, “%@” changed most: %@ instead of %@." = "Im Vergleich zum Vorjahr hat sich „%@“ am meisten verändert: %@ statt %@.";
+"Nothing changed compared with last year." = "Im Vergleich zum Vorjahr hat sich nichts verändert.";

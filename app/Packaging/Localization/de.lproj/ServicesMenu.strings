@@ -1,0 +1,4 @@
+/*
+  ServicesMenu.strings (de): titles in the Services menu. Key = NSMenuItem "default" in app/Packaging/Info.plist.
+*/
+"Look at with Pippa" = "Mit Pippa ansehen";

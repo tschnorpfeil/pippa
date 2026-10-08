@@ -1,0 +1,16 @@
+/* Installer (PiSetup/PiInstallMessages.swift), Entscheidung „Installer ohne technische Fragen“: Alltagssprache, kein „Pi“, kein „Terminal“, keine Pfade. Technisches nur hinter „Details“. */
+"Pippa is setting herself up." = "Pippa richtet sich ein.";
+"Pippa is set up." = "Pippa ist eingerichtet.";
+"Pippa’s AI is ready." = "Pippas KI ist bereit.";
+"Pippa uses the AI that’s already in %@, without taking extra space. Nothing there changes." = "Pippa nutzt die KI, die schon in %@ liegt, ohne zusätzlichen Platz. Dort ändert sich nichts.";
+"Pippa copied her AI from %@. The original stays where it is." = "Pippa hat ihre KI aus %@ kopiert. Das Original bleibt, wo es ist.";
+"May I load my AI now? %1$@, %2$@. After that I run without the internet." = "Darf ich jetzt meine KI laden? %1$@, %2$@. Danach laufe ich ohne Internet.";
+"Everything is ready." = "Alles ist bereit.";
+"Part of Pippa is missing. Please download Pippa again." = "Ein Teil von Pippa fehlt. Bitte lade Pippa neu herunter.";
+"Pippa couldn’t finish setting herself up." = "Pippa konnte sich nicht fertig einrichten.";
+"An earlier installation on this Mac is in the way. Pippa leaves it untouched; the details say what helps." = "Eine frühere Installation auf diesem Mac ist im Weg. Pippa lässt sie unberührt; unter „Details“ steht, was hilft.";
+"Pippa couldn’t save her files on this Mac." = "Pippa konnte ihre Dateien auf diesem Mac nicht ablegen.";
+"A settings file Pippa shares with other tools can’t be read. Pippa changed nothing; the details say which one." = "Eine Einstellungsdatei, die Pippa mit anderen Programmen teilt, lässt sich nicht lesen. Pippa hat nichts geändert; unter „Details“ steht, welche.";
+"A file of Pippa’s AI isn’t the one she expects. Pippa leaves it untouched." = "Eine Datei von Pippas KI ist nicht die erwartete. Pippa lässt sie unberührt.";
+"There isn’t enough free space on this Mac. About %@ more is needed." = "Auf diesem Mac ist nicht genug Platz frei. Es fehlen etwa %@.";
+"Loading stopped because the connection dropped. It picks up where it left off." = "Das Laden hat aufgehört, weil die Verbindung weg war. Es geht dort weiter, wo es stand.";

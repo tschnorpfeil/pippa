@@ -1,0 +1,8 @@
+/*
+  TrayCore.strings (en): English (development language)
+  Module PippaCore, looked up with L("…", table: "TrayCore"): the tray model and its offered actions.
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+"Removed." = "Removed.";
+"Tidy Up" = "Tidy Up";
+"Invoices as a Spreadsheet" = "Invoices as a Spreadsheet";

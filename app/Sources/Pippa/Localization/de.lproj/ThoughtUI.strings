@@ -1,0 +1,10 @@
+/* Thought Line views (Views/ThoughtLineView.swift). */
+"Stop" = "Stoppen";
+"Show What I Read" = "Zeigen, was ich gelesen habe";
+"Hide Details" = "Details ausblenden";
+"Details shown" = "Details eingeblendet";
+"Details hidden" = "Details ausgeblendet";
+"Looked it up online" = "Online nachgeschlagen";
+"Checked your calendar" = "Kalender angesehen";
+/* Quittung aus Werkzeug-Ereignissen (ActionReceipt), nie aus dem Modelltext. */
+"What happened" = "Was passiert ist";

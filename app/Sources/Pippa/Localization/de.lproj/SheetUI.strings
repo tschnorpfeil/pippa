@@ -1,0 +1,32 @@
+/*
+  SheetUI.strings (de): German (full translation)
+  Module Pippa, looked up with T("…", table: "SheetUI"): the Call in Excel and the table line (R3, SheetController, SheetViews).
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+
+"Ask about this table" = "Frag mich zu dieser Tabelle";
+"Check the total" = "Summe prüfen";
+"Choose the table as a file. I only read it." = "Wähl die Tabelle als Datei. Ich lese sie nur.";
+"Compare with last year" = "Mit dem Vorjahr vergleichen";
+"Continue" = "Weiter";
+"Explain this table" = "Tabelle erklären";
+"Give me the file instead" = "Gib mir stattdessen die Datei";
+"I add the numbers up again myself. Nothing in the table changes." = "Ich rechne die Zahlen selbst nach. In der Tabelle ändert sich nichts.";
+"I added the numbers up again myself. Nothing is missing." = "Ich habe die Zahlen selbst nachgerechnet. Es fehlt nichts.";
+"I explain what this table shows." = "Ich erkläre, was diese Tabelle zeigt.";
+"I look at what changed since last year." = "Ich schaue, was sich seit dem Vorjahr verändert hat.";
+"I’m not allowed to read Excel. You can change that in System Settings." = "Ich darf Excel nicht lesen. Das kannst du in den Systemeinstellungen ändern.";
+"Look" = "Ansehen";
+"No table is open in Excel." = "In Excel ist keine Tabelle offen.";
+"Nothing in your table was changed." = "In deiner Tabelle wurde nichts geändert.";
+"Open Settings" = "Einstellungen öffnen";
+"Please compare this table with last year. What changed most? Name rows and columns by their headings, not by cell address." = "Bitte vergleich diese Tabelle mit dem Vorjahr. Was hat sich am meisten verändert? Nenne Zeilen und Spalten bei ihren Überschriften, nicht bei der Zelladresse.";
+"Please explain this table in plain words. Name rows and columns by their headings, not by cell address." = "Bitte erklär mir diese Tabelle in einfachen Worten. Nenne Zeilen und Spalten bei ihren Überschriften, nicht bei der Zelladresse.";
+"Privacy & Security › Automation" = "Datenschutz & Sicherheit › Automation";
+"Select the total, or the numbers it adds up, and call me again." = "Wähl die Summe oder die Zahlen, die sie zusammenzählt, und ruf mich noch einmal.";
+"Table" = "Tabelle";
+"There is more. Ask me, and we’ll go through it together." = "Da ist noch mehr. Frag mich, dann gehen wir es zusammen durch.";
+"This sheet looks empty to me." = "Dieses Blatt sieht für mich leer aus.";
+"This table is large. I looked at its first part." = "Diese Tabelle ist groß. Ich habe mir ihren ersten Teil angesehen.";
+"To read the table you selected, your Mac will ask whether I may. When checking, I only read and change nothing." = "Um die Tabelle zu lesen, die du ausgewählt hast, fragt dein Mac, ob ich das darf. Beim Prüfen lese ich nur und ändere nichts.";
+"Which table should I look at? I only read it." = "Welche Tabelle soll ich mir ansehen? Ich lese sie nur.";

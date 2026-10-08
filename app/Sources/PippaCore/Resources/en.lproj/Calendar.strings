@@ -1,0 +1,37 @@
+/*
+  Calendar.strings (en): English (development language)
+  Module PippaCore, looked up with L("…", table: "Calendar"): reading the calendar (FLOW-10) — answers, periods, access.
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+"%@ in %@" = "%@ in %@";
+"%@ to %@" = "%@ to %@";
+"%@ until the end of the day" = "%@ until the end of the day";
+"%@ – %@" = "%@ – %@";
+"(No title)" = "(No title)";
+"All day" = "All day";
+"Appointments: %lld" = "Appointments: %lld";
+"Calendars: %lld" = "Calendars: %lld";
+"Cancelled or declined: %lld" = "Cancelled or declined: %lld";
+"I couldn’t read your calendar just now. That doesn’t mean it’s empty. Please try again." = "I couldn’t read your calendar just now. That doesn’t mean it’s empty. Please try again.";
+"I didn’t find a calendar on this Mac that I can read." = "I didn’t find a calendar on this Mac that I can read.";
+"I’m not allowed to read your calendar, so I haven’t looked at any appointments. You can allow it in System Settings under Privacy & Security → Calendars." = "I’m not allowed to read your calendar, so I haven’t looked at any appointments. You can allow it in System Settings under Privacy & Security → Calendars.";
+"Last week" = "Last week";
+"Next week" = "Next week";
+"Nothing in your calendar for this period." = "Nothing in your calendar for this period.";
+"Showing the first %lld of %lld appointments. Ask about a shorter period for the rest." = "Showing the first %lld of %lld appointments. Ask about a shorter period for the rest.";
+"Source: Calendar on this Mac · %@ · read at %@" = "Source: Calendar on this Mac · %@ · read at %@";
+"This week, from now" = "This week, from now";
+"To answer this, I need to read your calendar on this Mac – only the period you ask about, and only when you ask." = "To answer this, I need to read your calendar on this Mac – only the period you ask about, and only when you ask.";
+"Today, %@" = "Today, %@";
+"Tomorrow, %@" = "Tomorrow, %@";
+"Until %@" = "Until %@";
+"Weekend" = "Weekend";
+"Your appointments" = "Your appointments";
+"all day long" = "all day long";
+"cancelled" = "cancelled";
+"declined" = "declined";
+"from %@" = "from %@";
+"no calendars" = "no calendars";
+"since %@" = "since %@";
+"tentative" = "tentative";
+"until %@" = "until %@";

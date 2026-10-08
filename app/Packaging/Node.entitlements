@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Contents/Helpers/node (Hardened Runtime, no sandbox).
+  The installer copies this file with its signature to ~/.local/share/pi-node/<version>/bin/node; the terminal Pi
+  starts it directly from there. Hence no app-sandbox/inherit: with inherit a process without a sandboxed parent aborts.
+
+  - cs.allow-jit: V8 (and WebAssembly) generate code in MAP_JIT pages.
+  - cs.disable-library-validation: Pi packages that the user installs in the terminal (`pi install`) ship their own
+    native add-ons (.node) that are not signed with Pippa's team ID. Without this, dyld rejects them. The official
+    Node from nodejs.org carries the same right.
+
+  Deliberately NOT taken over from the official Node: allow-unsigned-executable-memory,
+  disable-executable-page-protection (V8 on arm64 works with MAP_JIT), allow-dyld-environment-variables and
+  get-task-allow (notarization).
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key><true/>
+    <key>com.apple.security.cs.disable-library-validation</key><true/>
+</dict>
+</plist>

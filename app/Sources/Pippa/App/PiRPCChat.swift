@@ -1,0 +1,542 @@
+import AppKit
+import PiRPC
+import PippaCore
+
+/// The **conversation path in every
+/// build**: free text and capabilities in the conversation go to the real Pi (`pi --mode rpc`) instead of the own core.
+/// Questions from the Pippa guard (runtime/pippa-guard) appear as a simple Pippa prompt (NSAlert). The old
+/// own core no longer exists; only debug recordings use a stand-in (`ConversationChat`).
+///
+/// Launch as in `PippaPiLaunch.configuration`: the **pinned release with Pippa's Node** (`PiInstaller.launchSpec`, never
+/// `~/.local/bin/pi`), `--provider pippa-local`, shared `~/.pi/agent`, guard + Pippa's file tools, no
+/// `AGENTS.md`, no project trust, Pippa's system prompt, Pi's version check before launch. If the
+/// installer step "Pi" is missing, it runs at the first conversation (idempotent; only creates what is missing).
+///
+/// **One Pi session per conversation:** `--session-id` from the conversation id in `<Support>/pi-sessions`. When
+/// the conversation changes, Pi restarts with the other session (instead of `switch_session`). Pi finds an id only among
+/// sessions with the same working directory; so for an existing session Pi starts in its working directory
+/// (`PiSessionFiles.pinnedWorkingDirectory`), otherwise a second session with the same id would arise. Conversation
+/// deleted → session files to the trash (`forget`).
+///
+/// **llama-server for `pippa-local`:** owned by the app. One server for all conversations, fixed port and
+/// key as in models.json, 127.0.0.1 only, switches like LocalEngine's server (`PiLocalServer`). Pi starts only
+/// when `/health` returns 200; until then the thought line shows "Mache mich bereit …". Every answer holds the server
+/// (lease); after `llamaIdleMinutes` (default 10) without a request the model is unloaded and reloaded
+/// at the next answer. `PIPPA_PI_OWN_LLAMA=0`: the app starts none (server already running, e.g. `pi-rpc-spike.sh llama-start`).
+///
+/// Environment (all optional; without it the app bundle or Pippa's support folder applies): `PIPPA_PI_GUARD` (path to the
+/// guard, otherwise Contents/Resources/pippa-guard, in a debug run without a bundle runtime/pippa-guard in the repo),
+/// `PIPPA_PI_WORKDIR` (working directory of new sessions, otherwise `<Support>/pi-work`),
+/// `PIPPA_PI_PAYLOAD` (install payload; in the finished app from the bundle), optional `PIPPA_PI_TOOLS` (otherwise
+/// pippa-tools.ts next to the guard), `PIPPA_PI_MODEL` (otherwise the first model of `pippa-local` in models.json),
+/// `PIPPA_UNDO_DIR` (otherwise `<Support>/pi-undo`), `PIPPA_GUARD_POLICY` (`undo-first` default, `ask-all`;
+/// runtime/pippa-guard/policy.ts). Tests only: `PIPPA_PI_HOME` (fake HOME under .build for
+/// installer and Pi, so ~/.pi and ~/.local stay untouched) and `PI_CODING_AGENT_DIR` (isolated agent folder,
+/// passed through; Pippa never sets it itself).
+@MainActor
+final class PiRPCChat {
+    static let shared = PiRPCChat()
+    /// Does the real Pi run the conversation? Always in release builds; in debug recordings not without `PIPPA_PI_RPC=1`
+    /// (`PiConversationDefault.usesPiRPC`, then `SnapshotChat`). Pi, setup and llama-server run only then.
+    static let isLive = PiConversationDefault.usesPiRPC(debug: isDebugBuild)
+
+    static var isDebugBuild: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
+    /// What the person reads is always one everyday sentence; technical detail goes only to the diagnostic log.
+    enum Failure: LocalizedError {
+        case setup(String)
+        case model(String)
+        var errorDescription: String? {
+            switch self {
+            case .setup: T("I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”.", table: "App")
+            case .model: T("The answer didn’t come through just now. Please try again in a moment.", table: "App")
+            }
+        }
+        /// For the log only (DiagnosticsLog), never in the UI; own technical texts, no content.
+        var details: String {
+            switch self {
+            case .setup(let what): "setup: " + what
+            case .model: "model"   // Pi's error text may contain content: not into the log
+            }
+        }
+    }
+
+    /// Error text for the person: Pi-path errors as an everyday sentence (technical detail only to the log), otherwise as usual.
+    static func userText(for error: Error, context: String) -> String {
+        guard let failure = error as? Failure else { return UserMessage.text(for: error, context: context) }
+        DiagnosticsLog.shared.event("pi-weg-fehler", ["wo": context, "details": String(failure.details.prefix(300))])
+        return failure.localizedDescription
+    }
+
+    /// Guard and Pippa's extensions: environment, otherwise the app bundle, in a debug run without a bundle the repo.
+    static func guardPath(_ env: [String: String]) -> String? {
+        if let path = env["PIPPA_PI_GUARD"], !path.isEmpty { return path }
+        #if DEBUG
+        if Bundle.main.bundleURL.pathExtension != "app" {
+            return URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+                .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("runtime/pippa-guard/pippa-guard.ts").path
+        }
+        #endif
+        return PiConversationDefault.bundledGuard(bundle: Bundle.main.bundleURL).path
+    }
+
+    /// Working directory of new sessions: environment, otherwise an own folder in Pippa's support folder (created).
+    static func workingDirectory(_ env: [String: String]) throws -> URL {
+        if let path = env["PIPPA_PI_WORKDIR"], !path.isEmpty { return URL(fileURLWithPath: path, isDirectory: true) }
+        let url = PiConversationDefault.workingDirectory(support: Pippa.supportDirectory)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    private var client: PiRPCClient?
+    /// The one llama-server for `pippa-local` and what it was started with (if the plan changes, it restarts).
+    private var localServer: LlamaServer?
+    private var localPlan: PiLocalServer.Plan?
+    static var ownsLocalServer: Bool { ProcessInfo.processInfo.environment["PIPPA_PI_OWN_LLAMA"] != "0" }
+    /// Pippa conversation id whose Pi session the running process has.
+    private var sessionKey: String?
+    /// Receipt of the last answer (also stopped or with error); `takeActions()` collects it.
+    private var lastActions: ActionReceipt?
+    /// The mail the last answer read via `mail_selected` (identity from Pippa's result), otherwise `nil`.
+    private(set) var lastSelectedMail: MailReplySource?
+
+    static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
+
+    /// Pippa's undo folder for guard entries; "Rückgängig" touches only entries in it (PiUndo).
+    static var undoRoot: URL {
+        ProcessInfo.processInfo.environment["PIPPA_UNDO_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? Pippa.supportDirectory.appendingPathComponent("pi-undo", isDirectory: true)
+    }
+
+    private func ready(session key: String) async throws -> PiRPCClient {
+        let env = ProcessInfo.processInfo.environment
+        // Local model or own online service (only via Pippa's broker). If the path changes, Pi restarts.
+        let route = try await launchRoute(env)
+        if let client, sessionKey == key, launchKey == route.key, await client.isRunning { return client }
+        if let old = client { await old.shutdown(); client = nil }
+        guard let guardPath = Self.guardPath(env), FileManager.default.fileExists(atPath: guardPath) else {
+            // Without the guard Pi would write and run commands without asking.
+            throw Failure.setup("Wächter fehlt (PIPPA_PI_GUARD oder Contents/Resources/pippa-guard)")
+        }
+        let work = try Self.workingDirectory(env)
+        let tools = env["PIPPA_PI_TOOLS"] ?? URL(fileURLWithPath: guardPath).deletingLastPathComponent().appendingPathComponent("pippa-tools.ts").path
+        try FileManager.default.createDirectory(at: Self.sessionDirectory, withIntermediateDirectories: true)
+        var extra = ["PIPPA_UNDO_DIR": Self.undoRoot.path]
+        if let online = route.online { extra[PiOnlineProvider.tokenVariable] = online.token }
+        // Test scripts only (scripts/pi-rpc-spike.sh app): own Pi folder instead of ~/.pi, test trash under .build.
+        for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR", "PIPPA_GUARD_POLICY"] { if let value = env[key] { extra[key] = value } }
+        let paths = PippaPiLaunch.Paths(guardExtension: URL(fileURLWithPath: guardPath),
+                                        toolsExtension: FileManager.default.fileExists(atPath: tools) ? URL(fileURLWithPath: tools) : nil,
+                                        sessionDirectory: Self.sessionDirectory)
+        let language = Bundle.module.preferredLocalizations.first ?? "en"
+        var launcher = try await Self.launcher(env)
+        if let online = route.online { launcher.piArguments = PiOnlineProvider.launchArguments(online.connection) }
+        // Existing session: Pi starts in its working directory, otherwise it would not find the id (see above).
+        let cwd = PiSessionFiles.pinnedWorkingDirectory(id: PippaPiLaunch.piSessionID(key), in: Self.sessionDirectory)
+            ?? work
+        // Pippa's MCP server (calendar, reminders, mail, read Excel), see PippaMCPService.
+        let mcp = await PippaMCPService.endpoint(guardPath: guardPath)
+        let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: key,
+                                                        language: language, environment: extra, mcp: mcp)
+        let fresh = PiRPCClient(configuration: configuration)
+        await fresh.setUIHandler { request in await Self.ask(request) }
+        try await fresh.start()
+        client = fresh; sessionKey = key; launchKey = route.key
+        return fresh
+    }
+
+    /// What the running Pi was started with (provider, model, broker); if it changes, Pi restarts.
+    private var launchKey: String?
+
+    struct LaunchRoute {
+        var key: String
+        var online: (connection: ModelConnection, token: String)?
+    }
+
+    /// If an own online service is connected and on, Pi works with `pippa-online` (Pippa's broker,
+    /// approval per request); otherwise with `pippa-local`. models.json then gets exactly the matching `pippa-online` entry
+    /// (or none). The real key stays in the keychain; Pi only gets this app run's access token.
+    private func launchRoute(_ env: [String: String]) async throws -> LaunchRoute {
+        let target = try Self.installTarget(env)
+        let modelsJSON = target.agent.appendingPathComponent("models.json")
+        guard let connection = Self.onlineConnection else {
+            _ = try? await Task.detached { try PiOnlineProvider.sync(nil, port: 0, modelsJSON: modelsJSON) }.value
+            return LaunchRoute(key: "local|" + target.model, online: nil)
+        }
+        let (port, token) = try await PippaOnlineService.shared.endpoint(for: connection, support: target.roots.support)
+        try await Task.detached { try PiOnlineProvider.sync(connection, port: port, modelsJSON: modelsJSON) }.value
+        let key = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
+                   connection.modelID, String(port), token].joined(separator: "|")
+        return LaunchRoute(key: key, online: (connection, token))
+    }
+
+    /// The enabled own service according to the saved settings (`nil`: Pippa works on this Mac).
+    static var onlineConnection: ModelConnection? {
+        PiOnlineProvider.activeConnection(InferenceSettings.load(from: AppModel.inferenceSettingsDirectory))
+    }
+
+    /// "Eigener Dienst" settings changed: approvals expire, the broker ends; if no service is on any more, `pippa-online` disappears
+    /// from models.json right away. The next Pi start takes the new path (`launchKey`).
+    func onlineSettingsChanged() {
+        PippaOnlineService.shared.reset()
+        guard Self.onlineConnection == nil, let target = try? Self.installTarget(ProcessInfo.processInfo.environment) else { return }
+        let modelsJSON = target.agent.appendingPathComponent("models.json")
+        Task.detached { _ = try? PiOnlineProvider.sync(nil, port: 0, modelsJSON: modelsJSON) }
+    }
+
+    /// Pinned release + Pippa's Node from the installer. If step "Pi" has not run yet, now (off the
+    /// main thread; checks `--version`, creates only what is missing).
+    /// Installer roots, agent folder (models.json) and model id of `pippa-local`, for Pi and the llama-server.
+    static func installTarget(_ env: [String: String]) throws -> (roots: PiInstallRoots, agent: URL, model: String) {
+        guard let payload = PiPayload.locate(environment: env) else { throw Failure.setup("Pi-Ladung fehlt (PIPPA_PI_PAYLOAD)") }
+        let roots: PiInstallRoots
+        if let home = env["PIPPA_PI_HOME"] {
+            let url = URL(fileURLWithPath: home, isDirectory: true)
+            roots = PiInstallRoots(home: url, payload: payload, searchPath: [url.appendingPathComponent(".local/bin")])
+        } else {
+            roots = PiInstallRoots(support: Pippa.supportDirectory, payload: payload)
+        }
+        let agent = env["PI_CODING_AGENT_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) } ?? roots.agentDirectory
+        guard let model = env["PIPPA_PI_MODEL"] ?? PiInstaller.providerModelIDs(modelsJSON: agent.appendingPathComponent("models.json")).first else {
+            throw Failure.setup("pippa-local fehlt in models.json (Installer-Schritt „models.json“)")
+        }
+        return (roots, agent, model)
+    }
+
+    /// Pippa's support folder as the installer sees it (fake HOME in measurement runs), e.g. for `llama-slots`.
+    static var installSupport: URL {
+        (try? installTarget(ProcessInfo.processInfo.environment))?.roots.support ?? Pippa.supportDirectory
+    }
+
+    static func launcher(_ env: [String: String]) async throws -> PippaPiLaunch.Launcher {
+        let (roots, _, model) = try installTarget(env)
+        let spec: PiLaunchSpec = try await Task.detached {
+            let installer = PiInstaller(roots: roots)
+            if let spec = installer.launchSpec(modelID: model) { return spec }
+            let result = installer.installPi()
+            guard let spec = installer.launchSpec(modelID: model) else { throw Failure.setup(result.message) }
+            return spec
+        }.value
+        return PippaPiLaunch.Launcher(executable: spec.executable, launcherArguments: spec.launcherArguments,
+                                      piArguments: spec.piArguments, environment: spec.environment)
+    }
+
+    /// The llama-server for `pippa-local`, created anew if needed (not yet started). The plan (port, key,
+    /// model file) is read by `PiLocalServer` off the main thread.
+    private func localModelServer() async throws -> LlamaServer {
+        let target = try Self.installTarget(ProcessInfo.processInfo.environment)
+        let support = Pippa.supportDirectory
+        let plan: PiLocalServer.Plan
+        do {
+            plan = try await Task.detached {
+                try PiLocalServer.plan(roots: target.roots, agentDirectory: target.agent, modelID: target.model, legacySupport: support)
+            }.value
+        } catch let failure as PiLocalServer.Failure { throw Failure.setup(failure.localizedDescription) }
+        if let localServer, localPlan == plan { return localServer }
+        Self.publishLaunchFile(plan, support: target.roots.support)
+        if let old = localServer { await old.stop() }
+        let server = PiLocalServer.server(plan, logDirectory: support)
+        localServer = server; localPlan = plan
+        DiagnosticsLog.shared.event("pi-llama-plan", ["modell": plan.modelID, "quelle": plan.source, "port": String(plan.port),
+                                                     "leerlauf-s": String(Int(plan.idleSeconds))])
+        return server
+    }
+
+    /// Launch file for Pippa's terminal extension (`pi` in the terminal then starts the same server if the app does
+    /// not run it). Off the main thread (`--help` of the program); errors cost only terminal convenience.
+    nonisolated static func publishLaunchFile(_ plan: PiLocalServer.Plan, support: URL) {
+        Task.detached(priority: .utility) {
+            do {
+                if try PiLocalServer.publishLaunchFile(plan, support: support) {
+                    DiagnosticsLog.shared.event("pi-terminal-startdatei", ["modell": plan.modelID, "port": String(plan.port)])
+                }
+            } catch {
+                DiagnosticsLog.shared.event("pi-terminal-startdatei-fehler", ["grund": error.localizedDescription])
+            }
+        }
+    }
+
+    /// After setup (and at every app start with setup done): keep the launch file current, even if no
+    /// message has come in Pippa yet. Pippa.app may have been moved; the file then names the new location.
+    static func refreshLaunchFile() {
+        let env = ProcessInfo.processInfo.environment
+        guard ownsLocalServer, let target = try? installTarget(env) else { return }
+        let support = Pippa.supportDirectory
+        Task.detached(priority: .utility) {
+            guard let plan = try? PiLocalServer.plan(roots: target.roots, agentDirectory: target.agent, modelID: target.model, legacySupport: support)
+            else { return }
+            publishLaunchFile(plan, support: target.roots.support)
+        }
+    }
+
+    /// Holds the server for an answer (starts it if needed and waits for `/health`). If it has to load first,
+    /// "Mache mich bereit …" shows in the thought line. `nil`: the app runs no server (`PIPPA_PI_OWN_LLAMA=0`).
+    private func modelLease(onWork: WorkEventHandler?) async throws -> (server: LlamaServer, lease: LlamaServer.AgentLease)? {
+        guard Self.ownsLocalServer else { return nil }
+        let server = try await localModelServer()
+        if await !server.isWarm { onWork?(.phase(.gettingReady)) }
+        return (server, try await server.acquireAgentLease())
+    }
+
+    /// LocalEngine (sort classification, invoices, deadlines, letter suggestions) no longer gets its own llama-server,
+    /// but this one. State and loading belong to setup (PiSetupController), not LocalEngine.
+    func shareServer(with engine: any PippaEngine) {
+        guard let local = engine as? LocalEngine else { return }
+        let shared = LocalEngine.SharedModelServer(server: { try await PiRPCChat.serverForLocalEngine() },
+                                                   status: { await PiRPCChat.statusForLocalEngine() })
+        Task { await local.useSharedServer(shared) }
+    }
+
+    static func serverForLocalEngine() async throws -> LlamaServer {
+        guard isLive, ownsLocalServer else { throw Failure.setup("kein eigener llama-server (PIPPA_PI_OWN_LLAMA=0)") }
+        return try await shared.localModelServer()
+    }
+
+    /// State of setup in LocalEngine's terms (pill, "Knowledge" line, `canRunModelWork`).
+    static func statusForLocalEngine() -> ModelStatus {
+        if DevEnvironment.value("PIPPA_MODEL_FILE") != nil { return .ready }
+        switch PiSetupController.shared?.state {
+        case .ready?: return .ready
+        case .preparing?: return .loading
+        case .askDownload?, nil: return .notInstalled
+        case .downloading(let progress, let remaining)?: return .downloading(progress: progress, remaining: remaining)
+        case .failed(let problem)?: return .failed(reason: problem.message)
+        }
+    }
+
+    /// For measurements (recording `pirpc`): whether the server runs, which process, how long the last start took.
+    func localServerStatus() async -> (pid: Int32?, lastStart: Double?, idle: Double?) {
+        guard let localServer else { return (nil, nil, localPlan?.idleSeconds) }
+        return (await localServer.processID, await localServer.lastStartSeconds, localPlan?.idleSeconds)
+    }
+
+    /// This app's llama-server (if created), so that quitting the app can stop it without the MainActor
+    /// (AppDelegate; otherwise its guard process ends it as soon as the app is gone).
+    var ownedServer: LlamaServer? { localServer }
+
+    /// Conversation deleted: if Pi currently runs with one of these sessions, end it first (otherwise Pi would rewrite the file),
+    /// then move the session files to the trash. `keys`: Pippa's ids (`uuid`, `uuid:revision`).
+    func forget(_ keys: [String]) async {
+        if let sessionKey, keys.contains(sessionKey) {
+            await client?.shutdown()
+            client = nil; self.sessionKey = nil
+        }
+        // The saved prompt cache (llama-slots) may contain exactly this conversation.
+        await localServer?.discardSavedSlot()
+        let support = Self.installSupport
+        await Task.detached { PiLocalServer.discardSavedSlots(support: support) }.value
+        Self.trashSessions(keys)
+    }
+
+    /// Without a running Pi (switch off): only the files. Never delete permanently; `PIPPA_TRASH_DIR` for tests only.
+    static func trashSessions(_ keys: [String]) {
+        let fake = ProcessInfo.processInfo.environment["PIPPA_TRASH_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+        PiSessionFiles.trash(ids: keys.map(PippaPiLaunch.piSessionID), in: sessionDirectory) { url in
+            if let fake {
+                try FileManager.default.createDirectory(at: fake, withIntermediateDirectories: true)
+                try FileManager.default.moveItem(at: url, to: fake.appendingPathComponent(url.lastPathComponent))
+            } else {
+                try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+            }
+        }
+    }
+
+    /// Like `PippaEngine.chat`: returns the answer after the last recorded message. Stopped throws
+    /// `AnswerFailure.stopped`, so ConversationController leaves the partial answer in place as usual.
+    /// The receipt ("Was passiert ist") arises on the side from the events and afterwards lies in `takeActions()`.
+    /// `onReset` (letter draft): if set, only the text after the last tool call counts; what Pi wrote before
+    /// ("Ich lese den Brief …") disappears again, so the draft is only the draft.
+    func chat(_ text: String, taskID: String, onWork: WorkEventHandler?, onDelta: @escaping @Sendable (String) -> Void,
+              onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil) async throws -> String {
+        lastActions = nil
+        _ = PippaMCPService.readNotes.take()   // read receipts belong to the answer that triggered them
+        // First the model, then Pi: Pi starts only if the server responds.
+        // If the own online service works, no local model is needed.
+        let held = Self.onlineConnection == nil ? try await modelLease(onWork: onWork) : nil
+        defer { if let held { Task { await held.server.releaseAgentLease(held.lease) } } }
+        let client = try await ready(session: taskID)
+        var segment = ""
+        var lastStop = ""
+        var lastError: String?
+        var receipt = PiTurnReceipt()
+        lastSelectedMail = nil
+        defer {
+            let reads = PippaMCPService.readNotes.take()
+            // Did this answer read the selected mail? (offer "Als Entwurf in Mail", PiRPCChat+Shown.)
+            lastSelectedMail = reads.last { $0.tool == "mail_selected" && $0.read }?.mail
+            lastActions = Self.actions(receipt, reads: reads)
+        }
+        await endLocalTurn()
+        var toolArguments: [String: String] = [:]
+        do {
+        for try await event in try await client.prompt(text) {
+            receipt.observe(event)
+            switch event {
+            case .textDelta(let delta):
+                segment += delta
+                onDelta(delta)
+            case .toolStarted(let id, let name, let arguments):
+                if name == "read" { toolArguments[id] = arguments }
+                onWork?(.toolStarted(name: name, source: nil))
+            case .toolEnded(let id, let name, let isError, let result):
+                // What Pi read with `read`, for this answer's source check (PiReadLedger).
+                if name == "read", !isError, let arguments = toolArguments.removeValue(forKey: id) {
+                    await PippaMCPTurns.shared.active?.notePiRead(arguments: arguments, result: result)
+                }
+                onWork?(.toolEnded(name: name))
+            case .userMessage:
+                onSteered(segment)
+                segment = ""
+            case .assistantEnded(_, let reason, let error):
+                lastStop = reason; lastError = error
+                if reason == "toolUse", let onReset {
+                    segment = ""; onReset("")
+                } else if reason == "toolUse", !segment.isEmpty, !segment.hasSuffix("\n") {
+                    // Text before a tool call stays part of the answer; a paragraph separates it from the rest.
+                    segment += "\n\n"; onDelta("\n\n")
+                }
+            case .notice, .guardOutcome, .settled:
+                break
+            }
+        }
+        } catch { await endLocalTurn(); throw error }
+        await endLocalTurn()
+        if lastStop == "aborted" { throw AnswerFailure.stopped(partial: segment) }
+        if lastStop == "error" { throw Failure.model(lastError ?? "unbekannt") }
+        return segment.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// "Auf diesem Mac" on the online card: Pi works for the rest of this answer with `pippa-local` (RPC
+    /// `set_model`), the local server is held. The broker then reports a temporary error to Pi; Pi
+    /// retries on its own and thereby reaches the AI on this Mac. After the answer back to `pippa-online`.
+    func switchTurnToLocal(onWork: WorkEventHandler?) async -> Bool {
+        if switchedToLocal { return true }
+        guard let client, let target = try? Self.installTarget(ProcessInfo.processInfo.environment) else { return false }
+        do {
+            if Self.ownsLocalServer {
+                let server = try await localModelServer()
+                if await !server.isWarm { onWork?(.phase(.gettingReady)) }
+                turnLocal = (server, try await server.acquireAgentLease())
+            }
+            _ = try await client.command(["type": "set_model", "provider": PiInstaller.providerKey, "modelId": target.model])
+            switchedToLocal = true
+            DiagnosticsLog.shared.event("online-auf-diesem-mac", ["modell": target.model])
+            return true
+        } catch {
+            await endLocalTurn()
+            DiagnosticsLog.shared.event("online-auf-diesem-mac-fehler", ["fehler": String(describing: error)])
+            return false
+        }
+    }
+
+    private var turnLocal: (server: LlamaServer, lease: LlamaServer.AgentLease)?
+    private var switchedToLocal = false
+
+    /// After an answer with "Auf diesem Mac": release the server, Pi back to the enabled online service.
+    private func endLocalTurn() async {
+        if let held = turnLocal { turnLocal = nil; await held.server.releaseAgentLease(held.lease) }
+        guard switchedToLocal else { return }
+        switchedToLocal = false
+        if let client, let connection = Self.onlineConnection {
+            do { _ = try await client.command(["type": "set_model", "provider": PiOnlineProvider.providerKey, "modelId": connection.modelID]) }
+            catch { await client.shutdown(); self.client = nil; sessionKey = nil; launchKey = nil }
+        }
+    }
+
+    /// The receipt of the last answer, once. `nil` if no tool wanted to change anything.
+    func takeActions() -> ActionReceipt? {
+        defer { lastActions = nil }
+        return lastActions
+    }
+
+    /// PiRPC (without PippaCore) → history. Events only, no model text. Read lines get their text
+    /// from the notes of Pippa's MCP server, one per tool in call order; if one is missing, "Etwas gelesen" appears.
+    static func actions(_ receipt: PiTurnReceipt, reads: [PippaMCPReadNote] = []) -> ActionReceipt? {
+        var pending = reads
+        let items = receipt.records.map { record -> ActionReceipt.Item in
+            if record.action == "read" {
+                let note = pending.firstIndex { $0.tool == record.name }.map { pending.remove(at: $0) }
+                return ActionReceipt.Item(action: "read", outcome: note.map { $0.read ? "done" : "failed" } ?? record.outcome.rawValue,
+                                          name: note?.line)
+            }
+            return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName,
+                                      undoEntry: record.undoEntry, restorable: record.restorable, reason: record.reason)
+        }
+        return items.isEmpty ? nil : ActionReceipt(items: items)
+    }
+
+    func steer(_ text: String) async -> Bool {
+        guard let client else { return false }
+        return (try? await client.steer(text)) ?? false
+    }
+
+    func cancel() async {
+        try? await client?.abort()
+    }
+
+    /// Only for recording `PIPPA_SNAPSHOT_ONLY=pirpc`: receives the open prompt window (for a screenshot) and
+    /// answers in the person's place (button code). `nil`: the person answers.
+    static var answerForSnapshot: ((NSWindow, PiUIRequest) -> NSApplication.ModalResponse)?
+
+    /// Guard question as Pippa prompt. `confirm` and short `select` as buttons, `input`/`editor` with text field.
+    private static func ask(_ request: PiUIRequest) async -> PiUIResponse {
+        let alert = NSAlert()
+        if answerForSnapshot != nil {
+            // Runs in the prompt's modal mode; an ordinary task would only run after it closes.
+            nonisolated(unsafe) let shown = alert
+            let timer = Timer(timeInterval: 1.5, repeats: false) { _ in
+                MainActor.assumeIsolated {
+                    if let answer = answerForSnapshot { NSApp.stopModal(withCode: answer(shown.window, request)) }
+                }
+            }
+            RunLoop.main.add(timer, forMode: .modalPanel)
+        }
+        // Pi's `select` has no text, only title and answers: the guard writes "Frage⏎⏎Satz⏎⏎Zusatz" into the title.
+        var title = request.title, message = request.message
+        if request.method == "select", message.isEmpty, let cut = title.range(of: "\n\n") {
+            message = String(title[cut.upperBound...]); title = String(title[..<cut.lowerBound])
+        }
+        alert.messageText = title.isEmpty ? T("May Pippa do this?", table: "App") : title
+        // First paragraph: the everyday sentence. What follows (command, path) appears smaller below.
+        let parts = message.components(separatedBy: "\n\n")
+        alert.informativeText = parts.first ?? message
+        if parts.count > 1 {
+            let detail = NSTextField(wrappingLabelWithString: parts.dropFirst().joined(separator: "\n\n"))
+            detail.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+            detail.textColor = .secondaryLabelColor
+            detail.frame.size.width = 320
+            detail.sizeToFit()
+            alert.accessoryView = detail
+        }
+        switch request.method {
+        case "confirm":
+            alert.addButton(withTitle: T("Allow", table: "App"))
+            alert.addButton(withTitle: T("Don’t Allow", table: "App"))
+            return .confirmed(alert.runModal() == .alertFirstButtonReturn)
+        case "select" where !request.options.isEmpty && request.options.count <= 3:
+            for option in request.options { alert.addButton(withTitle: option) }
+            let index = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+            return request.options.indices.contains(index) ? .value(request.options[index]) : .cancelled
+        case "select":
+            let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 320, height: 26))
+            popup.addItems(withTitles: request.options)
+            alert.accessoryView = popup
+            alert.addButton(withTitle: T("OK", table: "App")); alert.addButton(withTitle: T("Cancel", table: "App"))
+            guard alert.runModal() == .alertFirstButtonReturn, let title = popup.titleOfSelectedItem else { return .cancelled }
+            return .value(title)
+        default:
+            let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+            field.placeholderString = request.placeholder
+            field.stringValue = request.prefill ?? ""
+            alert.accessoryView = field
+            alert.addButton(withTitle: T("OK", table: "App")); alert.addButton(withTitle: T("Cancel", table: "App"))
+            return alert.runModal() == .alertFirstButtonReturn ? .value(field.stringValue) : .cancelled
+        }
+    }
+}

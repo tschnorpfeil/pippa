@@ -1,0 +1,10 @@
+/*
+  Lookup.strings (en): English (development language)
+  Module PippaCore, looked up with L("…", table: "Lookup"): Check online — notes under web facts and source tiles.
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+"I couldn’t confirm this on the pages I found." = "I couldn’t confirm this on the pages I found.";
+"Some of these pages are more than a year old. Please check." = "Some of these pages are more than a year old. Please check.";
+"The sources don’t quite agree. Please check." = "The sources don’t quite agree. Please check.";
+"as of %@" = "as of %@";
+"checked %@" = "checked %@";

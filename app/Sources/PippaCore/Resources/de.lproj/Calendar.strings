@@ -1,0 +1,37 @@
+/*
+  Calendar.strings (de): German (full translation)
+  Module PippaCore, looked up with L("…", table: "Calendar"): reading the calendar (FLOW-10) — answers, periods, access.
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+"%@ in %@" = "%@ in %@";
+"%@ to %@" = "%@ bis %@";
+"%@ until the end of the day" = "%@ bis Tagesende";
+"%@ – %@" = "%@ – %@";
+"(No title)" = "(Ohne Titel)";
+"All day" = "Ganztägig";
+"Appointments: %lld" = "Termine: %lld";
+"Calendars: %lld" = "Kalender: %lld";
+"Cancelled or declined: %lld" = "Abgesagt oder abgelehnt: %lld";
+"I couldn’t read your calendar just now. That doesn’t mean it’s empty. Please try again." = "Ich konnte deinen Kalender gerade nicht lesen. Das heißt nicht, dass er leer ist. Versuch es bitte noch einmal.";
+"I didn’t find a calendar on this Mac that I can read." = "Auf diesem Mac habe ich keinen Kalender gefunden, den ich lesen kann.";
+"I’m not allowed to read your calendar, so I haven’t looked at any appointments. You can allow it in System Settings under Privacy & Security → Calendars." = "Ich darf deinen Kalender nicht lesen und habe mir deshalb keine Termine angesehen. Erlauben kannst du es in den Systemeinstellungen unter Datenschutz & Sicherheit → Kalender.";
+"Last week" = "Letzte Woche";
+"Next week" = "Nächste Woche";
+"Nothing in your calendar for this period." = "In diesem Zeitraum steht nichts in deinem Kalender.";
+"Showing the first %lld of %lld appointments. Ask about a shorter period for the rest." = "Ich zeige die ersten %1$lld von %2$lld Terminen. Frag nach einem kürzeren Zeitraum für den Rest.";
+"Source: Calendar on this Mac · %@ · read at %@" = "Quelle: Kalender auf diesem Mac · %1$@ · gelesen um %2$@";
+"This week, from now" = "Diese Woche, ab jetzt";
+"To answer this, I need to read your calendar on this Mac – only the period you ask about, and only when you ask." = "Dafür muss ich deinen Kalender auf diesem Mac lesen – nur den Zeitraum, nach dem du fragst, und nur, wenn du fragst.";
+"Today, %@" = "Heute, %@";
+"Tomorrow, %@" = "Morgen, %@";
+"Until %@" = "Bis %@";
+"Weekend" = "Wochenende";
+"Your appointments" = "Deine Termine";
+"all day long" = "den ganzen Tag";
+"cancelled" = "abgesagt";
+"declined" = "abgelehnt";
+"from %@" = "ab %@";
+"no calendars" = "keine Kalender";
+"since %@" = "seit %@";
+"tentative" = "vorläufig";
+"until %@" = "bis %@";

@@ -1,0 +1,43 @@
+/*
+  Letter.strings (de): German (full translation)
+  Module PippaCore, looked up with L("…", table: "Letter"): the first line of a letter or mail and its actions (R2).
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+
+"Looking at the mail from %@" = "Ich schaue mir die Mail von %@ an";
+"Looking at the mail …" = "Ich schaue mir die Mail an …";
+"%@ to pay by %@" = "%@ zu zahlen bis %@";
+"%@ to pay" = "%@ zu zahlen";
+"Payment due by %@" = "Zahlung fällig bis %@";
+"Payment due" = "Zahlung fällig";
+"Objection possible until %@" = "Einspruch möglich bis %@";
+"Objection possible" = "Einspruch möglich";
+"Cancel by %@" = "Kündigen bis %@";
+"Cancellation possible" = "Kündigung möglich";
+"Appointment on %@" = "Termin am %@";
+"Appointment" = "Termin";
+"Deadline: %@" = "Frist: %@";
+"There’s a deadline" = "Es gibt eine Frist";
+"%@ mentioned" = "Betrag: %@";
+"%@ wrote about “%@”" = "%@ schreibt über „%@“";
+"%@ wrote to you" = "%@ schreibt dir";
+"About “%@”" = "Es geht um „%@“";
+"I found no date and no amount in it." = "Ich finde darin kein Datum und keinen Betrag.";
+"Explain" = "Erklären";
+"Reading the letter …" = "Ich lese den Brief …";
+"Please explain this letter in plain words." = "Bitte erklär mir diesen Brief in einfachen Worten.";
+"Reply" = "Antworten";
+"Writing the reply …" = "Ich schreibe die Antwort …";
+"Please write a short, polite reply to this mail." = "Bitte schreib eine kurze, freundliche Antwort auf diese Mail.";
+"Object" = "Einspruch";
+"Writing the objection …" = "Ich schreibe den Einspruch …";
+"Please write an objection to this letter." = "Bitte schreib einen Einspruch gegen diesen Brief.";
+"Cancel" = "Kündigen";
+"Writing the cancellation …" = "Ich schreibe die Kündigung …";
+"Please write a cancellation for this contract." = "Bitte schreib eine Kündigung für diesen Vertrag.";
+"Summarise" = "Zusammenfassen";
+"Summarising …" = "Ich fasse zusammen …";
+"Please summarise this in a few sentences." = "Bitte fass das in wenigen Sätzen zusammen.";
+"Add the date" = "Datum eintragen";
+"Looking for the date …" = "Ich suche das Datum …";
+"Please add the date from this letter." = "Bitte trag das Datum aus diesem Brief ein.";

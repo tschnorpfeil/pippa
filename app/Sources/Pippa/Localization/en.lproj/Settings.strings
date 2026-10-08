@@ -1,0 +1,159 @@
+/*
+  Settings.strings (en): English (development language, fallback)
+  Module Pippa, looked up with T("…", table: "Settings").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+"Service" = "Service";
+"OpenAI-compatible" = "OpenAI-compatible";
+"Server address" = "Server address";
+"Address of your server" = "Address of your server";
+"Model ID" = "Model ID";
+"API key" = "API key";
+"Test and Save" = "Test and Save";
+"Saved · leave empty to keep it" = "Saved · leave empty to keep it";
+"Enter API key" = "Enter API key";
+"Key saved in your macOS Keychain" = "Key saved in your macOS Keychain";
+"Key will be saved in your macOS Keychain" = "Key will be saved in your macOS Keychain";
+"Model ID from your OpenAI account" = "Model ID from your OpenAI account";
+"Model ID from your Anthropic account" = "Model ID from your Anthropic account";
+"Model ID on your server" = "Model ID on your server";
+"Please enter a valid server address." = "Please enter a valid server address.";
+"This online connection needs an API key." = "This online connection needs an API key.";
+"Connection tested and saved." = "Connection tested and saved.";
+"Connection and key removed. Pippa works on this Mac again." = "Connection and key removed. Pippa works on this Mac again.";
+"Call Pippa" = "Call Pippa";
+"Open at login" = "Open at login";
+"That didn’t work just now. Is Pippa in your Applications folder?" = "That didn’t work just now. Is Pippa in your Applications folder?";
+"Pippa’s knowledge" = "Pippa’s knowledge";
+"Load Now" = "Load Now";
+"Cancel" = "Cancel";
+"Try Again" = "Try Again";
+"Allow Pippa to…" = "Allow Pippa to…";
+"Add deadlines to Reminders and Calendar" = "Add deadlines to Reminders and Calendar";
+"Read the selected mail" = "Read the selected mail";
+"Before anything is sent to %@, Pippa asks you. The internet is also used for downloads and updates." = "Before anything is sent to %@, Pippa asks you. The internet is also used for downloads and updates.";
+"Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve." = "Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve.";
+"%@ (Default)" = "%@ (Default)";
+"allowed" = "allowed";
+"Open System Settings" = "Open System Settings";
+"asks the first time" = "asks the first time";
+"Hello, I’m" = "Hello, I’m";
+"I tidy up your files, read your invoices and tell you what your letters say." = "I tidy up your files, read your invoices and tell you what your letters say.";
+"Runs on your Mac" = "Runs on your Mac";
+"Asks before anything leaves your Mac" = "Asks before anything leaves your Mac";
+"File changes can be undone" = "File changes can be undone";
+"You’ll see everything first. Or drag a different folder here." = "You’ll see everything first. Or drag a different folder here.";
+"Choose Folder…" = "Choose Folder…";
+"Tidy Up Downloads" = "Tidy Up Downloads";
+"No account, nothing online without your OK" = "No account, nothing online without your OK";
+"Free" = "Free";
+"Pippa’s knowledge isn’t here yet" = "Pippa’s knowledge isn’t here yet";
+"Pippa is loading her knowledge" = "Pippa is loading her knowledge";
+"%lld%%" = "%lld%%";
+"Loading" = "Loading";
+"%@ is remembered" = "%@ is remembered";
+"You can pick up here later." = "You can pick up here later.";
+"ready" = "ready";
+"Hide" = "Hide";
+"Load once, then everything runs on your Mac" = "Load once, then everything runs on your Mac";
+"Estimating time…" = "Estimating time…";
+"Pippa loads her knowledge once: %@." = "Pippa loads her knowledge once: %@.";
+"With a fast connection, this takes %@. After that, everything runs on your Mac." = "With a fast connection, this takes %@. After that, everything runs on your Mac.";
+"Pippa loads her knowledge once. After that, everything runs on your Mac." = "Pippa loads her knowledge once. After that, everything runs on your Mac.";
+"Later" = "Later";
+"Not everything is available yet" = "Not everything is available yet";
+"You can still look at an overview of your files." = "You can still look at an overview of your files.";
+"Quit Pippa" = "Quit Pippa";
+"Look at Files…" = "Look at Files…";
+"Change date (%@)" = "Change date (%@)";
+"Deadlines" = "Deadlines";
+"Found one deadline." = "Found one deadline.";
+"Found %lld deadlines." = "Found %lld deadlines.";
+"Close" = "Close";
+"Date missing" = "Date missing";
+"calculated, please check" = "calculated, please check";
+"“%@”" = "“%@”";
+"Add…" = "Add…";
+"Add Deadline" = "Add Deadline";
+"Reminder" = "Reminder";
+"Calendar" = "Calendar";
+"please check" = "please check";
+"There’s no date in the text. Choose one yourself." = "There’s no date in the text. Choose one yourself.";
+"No Thanks" = "No Thanks";
+"Add" = "Add";
+"I calculated this date." = "I calculated this date.";
+"Title" = "Title";
+"%@ at 9:00" = "%@ at 9:00";
+"Reminders" = "Reminders";
+"all-\nday" = "all-\nday";
+"Alert: %@ at 9:00" = "Alert: %@ at 9:00";
+"I’m not allowed into your calendar yet." = "I’m not allowed into your calendar yet.";
+"I’m not allowed into your reminders yet." = "I’m not allowed into your reminders yet.";
+"I’m not allowed into Mail yet." = "I’m not allowed into Mail yet.";
+"To add the deadline to your reminders, I need your permission. Your Mac will ask you in a moment." = "To add the deadline to your reminders, I need your permission. Your Mac will ask you in a moment.";
+"To add the deadline to your calendar, I need your permission. Your Mac will ask you in a moment." = "To add the deadline to your calendar, I need your permission. Your Mac will ask you in a moment.";
+"To read the selected mail, I need your permission. Your Mac will ask you in a moment. I read it; I send nothing without asking you." = "To read the selected mail, I need your permission. Your Mac will ask you in a moment. I read it; I send nothing without asking you.";
+"Just a quick question." = "Just a quick question.";
+"No problem. If you like, you can allow it in System Settings under Privacy & Security." = "No problem. If you like, you can allow it in System Settings under Privacy & Security.";
+"Allow…" = "Allow…";
+"Drop photos or a document on me." = "Drop photos or a document on me.";
+"I can make one PDF from your photos, right here on your Mac." = "I can make one PDF from your photos, right here on your Mac.";
+"Choose Files…" = "Choose Files…";
+"Get Started" = "Get Started";
+"What Pippa knows" = "What Pippa knows";
+"Learned actions" = "Learned actions";
+"Forget" = "Forget";
+"Learned actions forgotten." = "Learned actions forgotten.";
+"I couldn’t forget the learned actions. Please try again." = "I couldn’t forget the learned actions. Please try again.";
+"I couldn’t read the learned actions. Please open Settings again." = "I couldn’t read the learned actions. Please open Settings again.";
+"I can’t access the learned actions right now." = "I can’t access the learned actions right now.";
+
+// Existing models on this Mac
+
+/* R4: Einrichtung ohne technische Fragen (Views/PiSetupViews.swift, App/PiSetupController.swift). Beispiele wie die Website (site/index.html, site/en/index.html). */
+"Pippa is getting ready" = "Pippa is getting ready";
+"I’m taking over my AI from %@, without extra space …" = "I’m taking over my AI from %@, without extra space …";
+"I’m setting myself up …" = "I’m setting myself up …";
+"Pippa is loading her AI" = "Pippa is loading her AI";
+"I’m loading my AI …" = "I’m loading my AI …";
+"Hi, I’m Pippa" = "Hi, I’m Pippa";
+"Load" = "Load";
+"Details" = "Details";
+"Hide Details" = "Hide Details";
+"Details shown" = "Details shown";
+"Details hidden" = "Details hidden";
+"I’m ready" = "I’m ready";
+"I’m using the AI that was already in %@, without extra space." = "I’m using the AI that was already in %@, without extra space.";
+"Try it: your Downloads folder" = "Try it: your Downloads folder";
+"I’ll suggest some order first. Nothing moves until you say so, and Undo puts everything back." = "I’ll suggest some order first. Nothing moves until you say so, and Undo puts everything back.";
+"Try It" = "Try It";
+"What I can do for you" = "What I can do for you";
+"Previous Example" = "Previous Example";
+"Next Example" = "Next Example";
+"%1$lld of %2$lld" = "%1$lld of %2$lld";
+"A letter from your landlord." = "A letter from your landlord.";
+"I tell you in plain words what it says, what you need to do and by when, and show you the passage it comes from." = "I tell you in plain words what it says, what you need to do and by when, and show you the passage it comes from.";
+"An email that needs an answer." = "An email that needs an answer.";
+"If someone suggests a time, I check your calendar and draft the reply. You send it yourself." = "If someone suggests a time, I check your calendar and draft the reply. You send it yourself.";
+"Three photos, one PDF." = "Three photos, one PDF.";
+"Drag your phone photos onto me and I make one PDF from them. That works without the internet." = "Drag your phone photos onto me and I make one PDF from them. That works without the internet.";
+"The overflowing Downloads folder." = "The overflowing Downloads folder.";
+"I sort invoices, photos and installers into folders. If something isn’t right, Undo puts it back." = "I sort invoices, photos and installers into folders. If something isn’t right, Undo puts it back.";
+"Pippa needs a Mac with Apple silicon (M1 or later)." = "Pippa needs a Mac with Apple silicon (M1 or later).";
+"Try again" = "Try Again";
+
+/* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
+"Pippa asks you before every request to your online service and shows what goes along. Your key stays in your macOS Keychain." = "Pippa asks you before every request to your online service and shows what goes along. Your key stays in your macOS Keychain.";
+
+/* Vereinfachte Einstellungen (docs/settings-simplification.md) */
+"Online service" = "Online service";
+"Use my own online AI" = "Use my own online AI";
+"Off: everything stays on this Mac. On: Pippa may use your own OpenAI or Anthropic account, and asks you before every request." = "Off: everything stays on this Mac. On: Pippa may use your own OpenAI or Anthropic account, and asks you before every request.";
+"Remove" = "Remove";
+"Saving first sends one short test message. No files and nothing from your conversations." = "Saving first sends one short test message. No files and nothing from your conversations.";
+"Version %@" = "Version %@";
+"I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay." = "I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay.";

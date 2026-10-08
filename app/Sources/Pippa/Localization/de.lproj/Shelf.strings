@@ -1,0 +1,19 @@
+/*
+  Shelf.strings (de): German (full translation)
+  Module Pippa, looked up with T("…", table: "Shelf").
+  The things lying on Pippa at rest (Shell/TrayStackView.swift) and taking them along (Shell/TakeDrag.swift).
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+"%@, ready" = "%@, fertig";
+"%1$@, from %2$@" = "%1$@, aus %2$@";
+"Click to see what I can do with it. Drag it to where you need it." = "Klick, dann zeige ich dir, was ich damit machen kann. Zieh es dorthin, wo du es brauchst.";
+"Save…" = "Speichern …";
+"Ready" = "Fertig";
+"from %@" = "aus %@";
+
+"Remove %@" = "%@ von Pippa nehmen";
+
+"Show Attachments" = "Anhänge anzeigen";

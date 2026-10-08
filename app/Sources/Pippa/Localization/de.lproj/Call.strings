@@ -1,0 +1,38 @@
+/*
+  Call.strings (de): German (full translation)
+  Module Pippa, looked up with T("…", table: "Call"): the Call in Mail and the letter line (R2).
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+
+"Ask about this mail" = "Frag mich zu dieser Mail";
+"Check online" = "Online prüfen";
+"Checking sources online …" = "Ich prüfe online nach …";
+"Continue" = "Weiter";
+"Copy" = "Kopieren";
+"Done" = "Fertig";
+"Draft" = "Entwurf";
+"Edit" = "Bearbeiten";
+"I can read this mail but not its attachment %@; drop it on me." = "Diese Mail kann ich lesen, ihren Anhang %@ aber nicht. Leg ihn mir einfach ab.";
+"I check the search question for personal details before looking it up." = "Ich prüfe die Suchanfrage vor dem Nachschlagen auf persönliche Angaben.";
+"I worked this date out myself. Please check it in the mail." = "Dieses Datum habe ich selbst ausgerechnet. Bitte prüf es in der Mail.";
+"In a new mail to the sender" = "In einer neuen Mail an den Absender";
+"In your reply in Mail" = "In deiner Antwort in Mail";
+"Insert" = "Einfügen";
+"I’m not allowed to read Mail. You can change that in System Settings." = "Ich darf Mail nicht lesen. Das kannst du in den Systemeinstellungen ändern.";
+"Search online for: %@?" = "Online suchen nach: %@?";
+"Mail" = "Mail";
+"Mail is not open." = "Mail ist nicht geöffnet.";
+"Nothing is selected in Mail." = "In Mail ist nichts ausgewählt.";
+"Nothing is sent. You send it yourself in Mail." = "Es wird nichts gesendet. Du sendest selbst in Mail.";
+"Open Settings" = "Einstellungen öffnen";
+"Open the source: %@" = "Quelle öffnen: %@";
+"Puts the draft into a reply in Mail (⌘Return)" = "Setzt den Entwurf in eine Antwort in Mail (⌘Return)";
+"Stop" = "Stoppen";
+"The draft is ready." = "Der Entwurf ist fertig.";
+"To look this up, I would search for this. Nothing else goes along." = "Zum Nachschlagen würde ich danach suchen. Sonst geht nichts mit.";
+"To read the mail you selected, your Mac will ask whether I may." = "Damit ich die ausgewählte Mail lesen kann, fragt dein Mac gleich, ob ich darf.";
+"please check" = "bitte prüfen";
+"Insert Again" = "Erneut einfügen";
+"Looking for the original in Mail (%lld of %lld) …" = "Suche die ursprüngliche Mail (%lld von %lld) …";
+"Copy Again" = "Erneut kopieren";
+"Your reply is open in Mail. If your text is missing there, it’s on the clipboard: click into the reply and press ⌘V." = "Deine Antwort ist in Mail offen. Fehlt dein Text dort, liegt er in der Zwischenablage: Klick in die Antwort und drück ⌘V.";

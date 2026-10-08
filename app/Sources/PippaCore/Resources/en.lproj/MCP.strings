@@ -1,0 +1,50 @@
+/*
+  MCP.strings (en): English (development language)
+  Module PippaCore, looked up with L("…", table: "MCP"): Pippa's MCP server for Pi (wave 2c) — sentences for the person
+  when a reader could not read (no permission, app not open, error). The model passes them on.
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+"No email is selected in Mail. Select one and ask again." = "No email is selected in Mail. Select one and ask again.";
+"No table is open in Excel. Open it, select the cells and ask again." = "No table is open in Excel. Open it, select the cells and ask again.";
+"Open %@ first. Then ask again." = "Open %@ first. Then ask again.";
+"Pippa couldn’t read %@ just now. Please try again." = "Pippa couldn’t read %@ just now. Please try again.";
+"Pippa isn’t allowed to read %@ yet. Ask again and click “Allow” when your Mac asks." = "Pippa isn’t allowed to read %@ yet. Ask again and click “Allow” when your Mac asks.";
+"Pippa may not read %@. To change that, open System Settings → Privacy & Security → Automation and turn it on under Pippa." = "Pippa may not read %@. To change that, open System Settings → Privacy & Security → Automation and turn it on under Pippa.";
+"Pippa may not read your calendar. To change that, open System Settings → Privacy & Security → Calendars and turn on Pippa." = "Pippa may not read your calendar. To change that, open System Settings → Privacy & Security → Calendars and turn on Pippa.";
+"Pippa may not read your reminders. To change that, open System Settings → Privacy & Security → Reminders and turn on Pippa." = "Pippa may not read your reminders. To change that, open System Settings → Privacy & Security → Reminders and turn on Pippa.";
+/* Welle 2d: Lesequittung und Pippas Satz vor der ersten Systemabfrage. */
+"Not read: %@" = "Not read: %@";
+"Read Calendar: %@" = "Read Calendar: %@";
+"Read Reminders: open ones" = "Read Reminders: open ones";
+"Read Reminders: due today" = "Read Reminders: due today";
+"Read Reminders: due in the next %lld days" = "Read Reminders: due in the next %lld days";
+"Read Mail: “%@”" = "Read Mail: “%@”";
+"Searched Mail for “%@”: %lld found" = "Searched Mail for “%@”: %lld found";
+"Read Excel: active sheet" = "Read Excel: active sheet";
+"today" = "today";
+"tomorrow" = "tomorrow";
+"rest of this week" = "rest of this week";
+"next week" = "next week";
+"the weekend" = "the weekend";
+"next %lld days" = "next %lld days";
+"%@ to %@" = "%@ to %@";
+"To answer this, I need to read your reminders on this Mac – only when you ask, and I don’t change anything." = "To answer this, I need to read your reminders on this Mac – only when you ask, and I don’t change anything.";
+"To answer this, I need to read Mail on this Mac – only when you ask, and I never send anything." = "To answer this, I need to read Mail on this Mac – only when you ask, and I never send anything.";
+"To answer this, I need to read the open table in Excel – only when you ask, and I don’t change it." = "To answer this, I need to read the open table in Excel – only when you ask, and I don’t change it.";
+"“%@”" = "“%@”";
+"Pippa can’t add to %@ right now." = "Pippa can’t add to %@ right now.";
+"Pippa couldn’t check your calendar, so nothing was added." = "Pippa couldn’t check your calendar, so nothing was added.";
+"%@ (due %@)" = "%@ (due %@)";
+"reply" = "reply";
+"Pippa can’t reply to this email in its thread. Copy the text and reply in Mail yourself." = "Pippa can’t reply to this email in its thread. Copy the text and reply in Mail yourself.";
+"Pippa isn’t sure whether a reply opened in Mail. Please look in Mail before trying again. Nothing was sent." = "Pippa isn’t sure whether a reply opened in Mail. Please look in Mail before trying again. Nothing was sent.";
+"Pippa couldn’t find the original email in Mail, so no reply was created." = "Pippa couldn’t find the original email in Mail, so no reply was created.";
+"Mail has several emails with the same identity, so Pippa created no reply." = "Mail has several emails with the same identity, so Pippa created no reply.";
+"Mail didn’t answer in time while Pippa looked for the original email. Nothing was created; try again in a moment." = "Mail didn’t answer in time while Pippa looked for the original email. Nothing was created; try again in a moment.";
+"Mail didn’t create the reply. Nothing is in Mail; try again in a moment." = "Mail didn’t create the reply. Nothing is in Mail; try again in a moment.";
+"To do this, I need access to your calendar on this Mac – I only add what you ask for, and you can undo it." = "To do this, I need access to your calendar on this Mac – I only add what you ask for, and you can undo it.";
+"To do this, I need access to your reminders on this Mac – I only add what you ask for, and you can undo it." = "To do this, I need access to your reminders on this Mac – I only add what you ask for, and you can undo it.";
+"To do this, I need access to Mail on this Mac – I only create drafts and never send anything." = "To do this, I need access to Mail on this Mac – I only create drafts and never send anything.";
+"Pippa may not add to your calendar. To change that, open System Settings → Privacy & Security → Calendars and allow full access for Pippa." = "Pippa may not add to your calendar. To change that, open System Settings → Privacy & Security → Calendars and allow full access for Pippa.";
+"Pippa may not add reminders. To change that, open System Settings → Privacy & Security → Reminders and allow full access for Pippa." = "Pippa may not add reminders. To change that, open System Settings → Privacy & Security → Reminders and allow full access for Pippa.";
+"Pippa couldn’t add to %@ just now. Nothing was changed." = "Pippa couldn’t add to %@ just now. Nothing was changed.";

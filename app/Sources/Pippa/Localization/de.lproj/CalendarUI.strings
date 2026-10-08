@@ -1,0 +1,8 @@
+/*
+  CalendarUI.strings (de): German (full translation)
+  Module Pippa, looked up with T("…", table: "CalendarUI"): reading the calendar in the conversation (FLOW-10).
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+"Allow Calendar Access" = "Kalender freigeben";
+"Open System Settings" = "Systemeinstellungen öffnen";
+"Your Mac will ask you once. Then Pippa reads the period you asked about." = "Dein Mac fragt dich einmal. Danach liest Pippa den Zeitraum, nach dem du gefragt hast.";

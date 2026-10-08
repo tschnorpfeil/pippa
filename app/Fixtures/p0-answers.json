@@ -1,0 +1,277 @@
+[
+  {
+    "id": "date-direction",
+    "purpose": "Bekannte FM-Regression: Richtung der Datumsabweichung",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Vergleiche die Dokumente: Welche Abweichung muss ich klären, und welches Dokument nennt den späteren Termin?",
+        "sources": [
+          {
+            "path": "Vertrag.txt",
+            "text": "Vertrag\n§ 4 Installation: Die Installation findet am 14.10.2026 um 09:00 Uhr statt.\n",
+            "readability": "readable UTF-8"
+          },
+          {
+            "path": "Bestaetigung.txt",
+            "text": "Bestätigung\nAbsatz 2: Wir bestätigen die Installation am 15.10.2026 um 09:00 Uhr.\n",
+            "readability": "readable UTF-8"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Vertrag: 14.10.2026 09:00; Bestätigung: 15.10.2026 09:00.",
+      "Bestätigung nennt einen Tag später; Vertrag einen Tag früher. Keine umgekehrte Richtung.",
+      "Datum mit beiden Quellen belegen und Klärung des gültigen Termins empfehlen."
+    ]
+  },
+  {
+    "id": "equal-facts",
+    "purpose": "Keine erfundene Abweichung bei identischen Fakten",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Vergleiche die Termine: Gibt es eine Abweichung?",
+        "sources": [
+          {
+            "path": "Vertrag.txt",
+            "text": "Vertrag\n§ 4 Installation: Die Installation findet am 14.10.2026 um 09:00 Uhr statt.\n",
+            "readability": "readable UTF-8"
+          },
+          {
+            "path": "Bestaetigung.txt",
+            "text": "Bestätigung\nAbsatz 2: Wir bestätigen die Installation am 14.10.2026 um 09:00 Uhr.\n",
+            "readability": "readable UTF-8"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Beide nennen 14.10.2026 09:00; im gelesenen Termin keine Abweichung.",
+      "Keine globale Behauptung über weitere, nicht vorliegende Vertragsbedingungen."
+    ]
+  },
+  {
+    "id": "missing-source",
+    "purpose": "Explizite Enthaltung bei fehlender angehängter Datei",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Vergleiche die Dokumente: Gibt es einen Terminwiderspruch?",
+        "sources": [
+          {
+            "path": "Vertrag.txt",
+            "text": "Vertrag\n§ 4 Installation: Die Installation findet am 14.10.2026 um 09:00 Uhr statt.\n",
+            "readability": "readable UTF-8"
+          },
+          {
+            "path": "Bestaetigung.txt",
+            "text": null,
+            "readability": "missing file; must not be created"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Nur Vertragsdatum bekannt.",
+      "Bestätigung ist nicht verfügbar/ungelesen; Widerspruch kann nicht entschieden werden.",
+      "Keinen Bestätigungstermin erfinden."
+    ]
+  },
+  {
+    "id": "unreadable-source",
+    "purpose": "Leere Datei ohne lesbaren Inhalt",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Vergleiche die Dokumente: Gibt es einen Terminwiderspruch?",
+        "sources": [
+          {
+            "path": "Vertrag.txt",
+            "text": "Vertrag\n§ 4 Installation: Die Installation findet am 14.10.2026 um 09:00 Uhr statt.\n",
+            "readability": "readable UTF-8"
+          },
+          {
+            "path": "Bestaetigung.txt",
+            "text": "",
+            "readability": "empty file; no readable text"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Bestätigung enthält keinen lesbaren Text; Widerspruch unentscheidbar.",
+      "Nicht behaupten, die Bestätigung enthalte keinen Termin; ungelesen und fehlende Angabe unterscheiden."
+    ]
+  },
+  {
+    "id": "topic-change",
+    "purpose": "Strategie → unabhängiger Report bei neuer Sitzung auf demselben Engine",
+    "turns": [
+      {
+        "topic": "strategy",
+        "question": "Was ist das?",
+        "sources": [
+          {
+            "path": "Strategie.txt",
+            "text": "Strategie Nordstern\nWir planen die Expansion nach Spanien 2027. Vertrieb soll drei neue Standorte eröffnen.\n",
+            "readability": "readable UTF-8"
+          }
+        ]
+      },
+      {
+        "topic": "report",
+        "question": "Was ist das?",
+        "sources": [
+          {
+            "path": "Report.txt",
+            "text": "Underdog-Report\nBericht über die lokale Amateur-Basketballliga. Der Verein Hafenfüchse gewann trotz kleinem Budget das Finale mit 72:68.\n",
+            "readability": "readable UTF-8"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Erste Antwort beschreibt die Expansionsstrategie.",
+      "Zweite Antwort beschreibt den Basketball-/Underdog-Bericht.",
+      "Keine Spanien-Expansion oder Strategie-Fakten im zweiten Thema."
+    ]
+  },
+  {
+    "id": "same-basename",
+    "purpose": "Zwei verschiedene Quellen mit identischem Dateinamen",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Vergleiche beide Quellen. Welche Termine stehen darin, und wo liegt die Abweichung?",
+        "sources": [
+          {
+            "path": "vertrag/Termin.txt",
+            "text": "Vertrag\n§ 4 Installation: Die Installation findet am 14.10.2026 um 09:00 Uhr statt.\n",
+            "readability": "readable UTF-8"
+          },
+          {
+            "path": "bestaetigung/Termin.txt",
+            "text": "Bestätigung\nAbsatz 2: Wir bestätigen die Installation am 15.10.2026 um 09:00 Uhr.\n",
+            "readability": "readable UTF-8"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Beide angehängten Inhalte berücksichtigen, trotz identischem Basename.",
+      "14.10. im Vertrag und 15.10. in der Bestätigung korrekt zuordnen.",
+      "Belege über Rollen/Abschnitt/Inhalt eindeutig; keine erfundenen Pfadbelege."
+    ]
+  },
+  {
+    "id": "amount-negation",
+    "purpose": "Betragsrichtung, Netto/Brutto und Negation erhalten",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Vergleiche Angebot und Bestätigung. Welche Abweichungen muss ich klären?",
+        "sources": [
+          {
+            "path": "Angebot.txt",
+            "text": "Angebot\nAbsatz 3: Gesamtpreis 1.250,00 Euro netto. Die Lieferung ist im Preis enthalten.\n",
+            "readability": "readable UTF-8"
+          },
+          {
+            "path": "Bestaetigung.txt",
+            "text": "Auftragsbestätigung\nAbsatz 3: Gesamtpreis 1.520,00 Euro netto. Die Lieferung ist nicht im Preis enthalten.\n",
+            "readability": "readable UTF-8"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Bestätigung ist 270,00 Euro netto teurer, kein umgekehrter Vergleich.",
+      "Lieferung: Angebot enthalten, Bestätigung nicht enthalten.",
+      "Keine Bruttobeträge oder Höhe der Lieferkosten erfinden; Preis und Lieferkosten klären."
+    ]
+  },
+  {
+    "id": "partial-source-hidden-fact",
+    "purpose": "Gekürzte Quelle: ungelesener Termin darf nicht als fehlend gelten",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Vergleiche die Liefertermine: Gibt es eine Abweichung?",
+        "sources": [
+          {
+            "path": "Angebot.txt",
+            "text": "Angebot\nLiefertermin: 08.12.2026 um 10 Uhr.\n",
+            "readability": "readable UTF-8"
+          },
+          {
+            "path": "Bestaetigung.txt",
+            "text": "Bestätigung\nDie Angaben zur Lieferung folgen nach den allgemeinen Bedingungen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nAllgemeine Bedingungen: Verpackung und Lagerung werden gesondert besprochen.\n\nLiefertermin: 09.12.2026 um 10 Uhr.\n",
+            "readability": "UTF-8 longer than snapshot cap; delivery date is beyond readable excerpt"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Angebot: 08.12.2026 um 10 Uhr belegt.",
+      "Bestätigung nur teilweise gelesen; ihr Liefertermin liegt außerhalb des gelesenen Teils und ist unbekannt.",
+      "Vergleich offen; weder keine Abweichung noch kein Liefertermin behaupten, kein Datum der Bestätigung erfinden."
+    ]
+  },
+  {
+    "id": "negated-unknown-source",
+    "purpose": "Explizite Negation in lesbarer Quelle ersetzt fehlenden Gegenbeleg nicht",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Vergleiche die Lieferung in beiden Dokumenten: Sind die Bedingungen gleich?",
+        "sources": [
+          {
+            "path": "Angebot.txt",
+            "text": "Angebot\nDie Lieferung ist nicht im Preis enthalten. Lieferkosten werden separat vereinbart.\n",
+            "readability": "readable UTF-8"
+          },
+          {
+            "path": "Bestaetigung.txt",
+            "text": null,
+            "readability": "missing file; must not be created"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Nur für das Angebot belegt: Lieferung nicht enthalten, Kosten separat vereinbart.",
+      "Bedingungen der Bestätigung unbekannt; Gleichheit und Unterschied bleiben unentscheidbar.",
+      "Keine Kosten oder Lieferbedingung der Bestätigung erfinden."
+    ]
+  },
+  {
+    "id": "letter-invoice-pages",
+    "purpose": "Mehrseitiges Schreiben + Zahlungsübersicht: Betrag auf Seite 1, Abbuchungstermin auf Seite 3 hinter Textbausteinen",
+    "turns": [
+      {
+        "topic": "current",
+        "question": "Passt die Zahlungsübersicht zum Schreiben der Stadtwerke? Was muss ich klären?",
+        "sources": [
+          {
+            "path": "Schreiben_Abschlag.txt",
+            "text": "Stadtwerke Beispielstadt GmbH · Kundenservice · Am Wasserturm 1 · 12345 Beispielstadt\n\nKundennummer 400-1187-22\nVertragskonto 7781 0034\nBeispielstadt, 02.10.2026\n\nSeite 1 von 3\n\nIhr Stromvertrag „Beispielstrom Basis“: neuer monatlicher Abschlag\n\nGuten Tag,\n\nwir passen die Abschläge für Ihren Stromvertrag an Ihren tatsächlichen Verbrauch an. Grundlage ist Ihre letzte Jahresverbrauchsabrechnung mit einem Verbrauch von 2.140 kWh.\n\nAb dem 01.11.2026 beträgt Ihr monatlicher Abschlag 84,00 Euro brutto. Der bisherige Abschlag betrug 79,00 Euro brutto.\n\nIhr Arbeitspreis und Ihr Grundpreis bleiben unverändert. Die Änderung betrifft ausschließlich die Höhe der monatlichen Abschlagszahlung.\n\n\nSeite 2 von 3\n\nHinweise zur Zusammensetzung des Strompreises: Der Strompreis setzt sich aus den Kosten für Beschaffung und Vertrieb, den Netzentgelten einschließlich der Entgelte für Messstellenbetrieb, der Konzessionsabgabe, der Stromsteuer sowie der Umsatzsteuer zusammen. Die Netzentgelte werden vom örtlichen Netzbetreiber festgelegt und von der Regulierungsbehörde geprüft.\n\nHinweise zur Verbrauchsermittlung: Ihr Zählerstand wird einmal jährlich durch den Messstellenbetreiber abgelesen oder von Ihnen selbst übermittelt. Liegt kein Zählerstand vor, kann der Verbrauch nach den anerkannten Regeln der Technik rechnerisch ermittelt werden. Sie können uns Zwischenstände jederzeit im Kundenportal mitteilen.\n\nInformationen zur Streitbeilegung: Bei Fragen oder Beschwerden wenden Sie sich bitte zunächst an unseren Kundenservice. Wird einer Beschwerde nicht abgeholfen, können Sie die Schlichtungsstelle Energie anrufen. Das Recht der Beteiligten, die Gerichte anzurufen, bleibt unberührt.\n\nDatenschutzhinweise: Wir verarbeiten Ihre personenbezogenen Daten zur Durchführung des Vertrags. Weitere Informationen zu Zweck, Rechtsgrundlage, Speicherdauer und Ihren Rechten finden Sie in unseren Datenschutzhinweisen im Kundenportal oder erhalten Sie auf Anfrage in Papierform.\n\nHinweise zu Energieeffizienz: Informationen über Maßnahmen zur Verbesserung der Energieeffizienz und Vergleichswerte zum Stromverbrauch typischer Haushalte finden Sie bei den Verbraucherzentralen und im Kundenportal unter dem Punkt Energiesparen.\n\nStromkennzeichnung: Der von uns gelieferte Strom stammt zu 61 Prozent aus erneuerbaren Energien mit Herkunftsnachweisen, zu 22 Prozent aus Erdgas, zu 11 Prozent aus Kohle und zu 6 Prozent aus sonstigen fossilen Energieträgern. Angaben zu Umweltauswirkungen wie Kohlendioxid-Emissionen und radioaktivem Abfall finden Sie auf unserer Internetseite.\n\nHinweise zum Lieferantenwechsel: Ein Wechsel des Stromlieferanten ist für Sie unentgeltlich und muss innerhalb von drei Wochen nach Zugang der Kündigung beim neuen Lieferanten möglich sein. Der Messstellenbetreiber bleibt davon unberührt.\n\nHinweise zur Grundversorgung: Neben Sonderverträgen bieten wir die Grundversorgung nach den gesetzlichen Bestimmungen an. Die Allgemeinen Preise der Grundversorgung veröffentlichen wir auf unserer Internetseite und in der Tagespresse.\n\nHinweise zu Wartungsdiensten: Wartungsdienste und deren Entgelte sind nicht Bestandteil dieses Vertrags. Informationen zu Störungen im Stromnetz erhalten Sie rund um die Uhr beim örtlichen Netzbetreiber unter der auf Ihrer Jahresabrechnung angegebenen Störungsnummer.\n\nHinweise zu Preisänderungen: Über Änderungen der Preise informieren wir Sie spätestens einen Monat vor dem geplanten Wirksamwerden in Textform. Sie haben in diesem Fall das Recht, den Vertrag ohne Einhaltung einer Frist zum Zeitpunkt des Wirksamwerdens der Änderung zu kündigen.\n\nHinweise zum Kundenportal: Im Kundenportal können Sie Ihre Abschläge einsehen, Zählerstände melden, Ihre Bankverbindung ändern und Ihre Rechnungen als PDF herunterladen. Die Registrierung erfolgt mit Ihrer Kundennummer und Ihrem Vertragskonto.\n\nSeite 3 von 3\n\nZahlung und Abbuchung\n\nSie haben uns ein SEPA-Lastschriftmandat erteilt. Der erste Abschlag in der neuen Höhe wird am 15.11.2026 von Ihrem Konto abgebucht. Alle weiteren Abschläge werden jeweils zum 15. eines Monats abgebucht.\n\nInformationen zur Streitbeilegung: Bei Fragen oder Beschwerden wenden Sie sich bitte zunächst an unseren Kundenservice. Wird einer Beschwerde nicht abgeholfen, können Sie die Schlichtungsstelle Energie anrufen. Das Recht der Beteiligten, die Gerichte anzurufen, bleibt unberührt.\n\nDatenschutzhinweise: Wir verarbeiten Ihre personenbezogenen Daten zur Durchführung des Vertrags. Weitere Informationen zu Zweck, Rechtsgrundlage, Speicherdauer und Ihren Rechten finden Sie in unseren Datenschutzhinweisen im Kundenportal oder erhalten Sie auf Anfrage in Papierform.\n\nHinweise zu Energieeffizienz: Informationen über Maßnahmen zur Verbesserung der Energieeffizienz und Vergleichswerte zum Stromverbrauch typischer Haushalte finden Sie bei den Verbraucherzentralen und im Kundenportal unter dem Punkt Energiesparen.\n\nStromkennzeichnung: Der von uns gelieferte Strom stammt zu 61 Prozent aus erneuerbaren Energien mit Herkunftsnachweisen, zu 22 Prozent aus Erdgas, zu 11 Prozent aus Kohle und zu 6 Prozent aus sonstigen fossilen Energieträgern. Angaben zu Umweltauswirkungen wie Kohlendioxid-Emissionen und radioaktivem Abfall finden Sie auf unserer Internetseite.\n\nHinweise zum Lieferantenwechsel: Ein Wechsel des Stromlieferanten ist für Sie unentgeltlich und muss innerhalb von drei Wochen nach Zugang der Kündigung beim neuen Lieferanten möglich sein. Der Messstellenbetreiber bleibt davon unberührt.\n\nHinweise zur Grundversorgung: Neben Sonderverträgen bieten wir die Grundversorgung nach den gesetzlichen Bestimmungen an. Die Allgemeinen Preise der Grundversorgung veröffentlichen wir auf unserer Internetseite und in der Tagespresse.\n\nHinweise zu Wartungsdiensten: Wartungsdienste und deren Entgelte sind nicht Bestandteil dieses Vertrags. Informationen zu Störungen im Stromnetz erhalten Sie rund um die Uhr beim örtlichen Netzbetreiber unter der auf Ihrer Jahresabrechnung angegebenen Störungsnummer.\n\nHinweise zu Preisänderungen: Über Änderungen der Preise informieren wir Sie spätestens einen Monat vor dem geplanten Wirksamwerden in Textform. Sie haben in diesem Fall das Recht, den Vertrag ohne Einhaltung einer Frist zum Zeitpunkt des Wirksamwerdens der Änderung zu kündigen.\n\nHinweise zum Kundenportal: Im Kundenportal können Sie Ihre Abschläge einsehen, Zählerstände melden, Ihre Bankverbindung ändern und Ihre Rechnungen als PDF herunterladen. Die Registrierung erfolgt mit Ihrer Kundennummer und Ihrem Vertragskonto.\n\nHinweise zur Zusammensetzung des Strompreises: Der Strompreis setzt sich aus den Kosten für Beschaffung und Vertrieb, den Netzentgelten einschließlich der Entgelte für Messstellenbetrieb, der Konzessionsabgabe, der Stromsteuer sowie der Umsatzsteuer zusammen. Die Netzentgelte werden vom örtlichen Netzbetreiber festgelegt und von der Regulierungsbehörde geprüft.\n\nHinweise zur Verbrauchsermittlung: Ihr Zählerstand wird einmal jährlich durch den Messstellenbetreiber abgelesen oder von Ihnen selbst übermittelt. Liegt kein Zählerstand vor, kann der Verbrauch nach den anerkannten Regeln der Technik rechnerisch ermittelt werden. Sie können uns Zwischenstände jederzeit im Kundenportal mitteilen.\n\nWenn Sie mit der Anpassung nicht einverstanden sind, können Sie uns bis zum 31.10.2026 einen abweichenden Abschlag vorschlagen.\n\nFreundliche Grüße\nIhr Kundenservice der Stadtwerke Beispielstadt\n",
+            "readability": "readable UTF-8, drei Seiten"
+          },
+          {
+            "path": "Zahlungsuebersicht_November.txt",
+            "text": "Stadtwerke Beispielstadt GmbH\nAbschlagsplan / Zahlungsübersicht November 2026\n\nKundennummer 400-1187-22\nVertragskonto 7781 0034\nDatum: 20.10.2026\n\nAbschlag Strom November 2026: 94,00 Euro brutto\nAbbuchung per SEPA-Lastschrift am 15.11.2026.\n\nBitte sorgen Sie für ausreichende Deckung Ihres Kontos.\n",
+            "readability": "readable UTF-8"
+          }
+        ]
+      }
+    ],
+    "expectations": [
+      "Schreiben: ab 01.11.2026 Abschlag 84,00 Euro brutto (Seite 1); Zahlungsübersicht: 94,00 Euro brutto für November 2026.",
+      "Zahlungsübersicht ist 10,00 Euro höher als das Schreiben; keine umgekehrte Richtung, nicht mit dem bisherigen Abschlag 79,00 Euro verwechseln.",
+      "Abbuchung 15.11.2026 steht in beiden Quellen (Schreiben Seite 3); falls nicht gelesen, nicht als fehlend oder abweichend behaupten.",
+      "Keine erfundenen Netto-Beträge oder Gründe; Klärung des Abschlags bei den Stadtwerken empfehlen."
+    ]
+  }
+]

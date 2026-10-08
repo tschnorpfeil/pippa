@@ -1,0 +1,38 @@
+# Publishes site/ to GitHub Pages (heypippa.app).
+# Runs only on changes to the website or by hand.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'scripts/check-site*.cjs', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Launch check
+        run: |
+          node scripts/check-site.cjs
+          node scripts/check-site-launch.cjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

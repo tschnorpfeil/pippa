@@ -1,0 +1,283 @@
+/*
+  Views.strings (de): German (full translation)
+  Module Pippa, looked up with T("…", table: "Views").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+/* Sheets.swift */
+"Here" = "Hier";
+"Organize %@" = "%@ ordnen";
+"%lld files get a place · %lld new folders · nothing is deleted" = "%lld Dateien bekommen einen Platz · %lld neue Ordner · nichts wird gelöscht";
+"Only moved and renamed · nothing deleted" = "Nur verschoben und umbenannt · nichts gelöscht";
+"I’m still reading 1 file more closely. You can organize the rest now." = "1 Datei lese ich noch genauer. Den Rest kannst du schon ordnen.";
+"I’m still reading %lld files more closely. You can organize the rest now." = "%lld Dateien lese ich noch genauer. Den Rest kannst du schon ordnen.";
+"Newest files first. You can organize the other %lld afterward." = "Erst die neuesten Dateien. Die übrigen %lld kannst du danach ordnen.";
+"I’ll organize %@ more closely %@. Until then, it stays where it is." = "%@ ordne ich genauer, %@. Bis dahin bleibt sie, wo sie ist.";
+"I’ll organize %@ more closely %@. Until then, they stay where they are." = "%@ ordne ich genauer, %@. Bis dahin bleiben sie, wo sie sind.";
+"%lld of %lld selected" = "%lld von %lld ausgewählt";
+"All" = "Alle";
+"Select All Files" = "Alle Dateien auswählen";
+"None" = "Keine";
+"Select No Files" = "Keine Datei auswählen";
+"All in %@" = "Alle in %@";
+"NEW" = "NEU";
+"%lld of %lld" = "%lld von %lld";
+"and %lld more following the same pattern" = "und %lld weitere nach demselben Muster";
+"Include %@" = "%@ übernehmen";
+"unsure" = "unsicher";
+"was: %@" = "war: %@";
+"Stays where it is" = "Bleibt, wo es ist";
+"%lld files go into %lld folders" = "%lld Dateien kommen in %lld Ordner";
+"Now" = "Jetzt";
+"%lld loose files" = "%lld lose Dateien";
+"%lld loose files → %lld folders" = "%lld lose Dateien → %lld Ordner";
+"%lld · by year" = "%lld · nach Jahr";
+"Invoices from %@" = "Rechnungen aus %@";
+"Needs you: " = "Braucht dich: ";
+"A new file; your invoices stay untouched" = "Neue Datei, deine Rechnungen bleiben unberührt";
+"1 invoice" = "1 Rechnung";
+"%lld invoices" = "%lld Rechnungen";
+"%@ · %lld needs you" = "%@ · %lld braucht dich";
+"%@ · %lld need you" = "%@ · %lld brauchen dich";
+"in %lld of %@" = "in %lld von %@";
+"in %@" = "in %@";
+"About %@ %@" = "Etwa %@ %@";
+"I’m not sure about %@. Please take a quick look." = "Bei %@ bin ich mir nicht sicher. Schau bitte kurz drauf.";
+"I can’t read the amount clearly. Please take a quick look." = "Den Betrag kann ich nicht sicher lesen. Schau bitte kurz drauf.";
+"Plus %lld more." = "Dazu %lld weitere.";
+"Unknown sender" = "Unbekannter Absender";
+"Date unknown" = "Datum unbekannt";
+"Source: “%@”" = "Belegstelle: „%@“";
+"Please Check" = "Bitte prüfen";
+"and %lld more rows" = "und %lld weitere Zeilen";
+"Total" = "Summe";
+"Spreadsheet Preview" = "Vorschau der Tabelle";
+"new, in %@" = "neu, in %@";
+"Hide Reasons" = "Gründe ausblenden";
+"Why This Way?" = "Warum so?";
+"Not Now" = "Lieber nicht";
+"Organize %lld Files" = "%lld Dateien ordnen";
+"Other Apps" = "Andere Programme";
+"Format" = "Format";
+"Create Spreadsheet" = "Tabelle anlegen";
+
+/* ConversationWorkspace.swift */
+"Pippa is thinking…" = "Pippa denkt nach …";
+"Jump to Latest" = "Zum Ende";
+"Drop here · I’ll add it next" = "Ablegen · kommt gleich dazu";
+"Add to Conversation" = "Zum Gespräch hinzufügen";
+"Selected Text" = "Ausgewählter Text";
+"What should I do with this? Tell me, or pick a suggestion:" = "Was soll ich damit machen? Schreib es mir – oder nimm einen Vorschlag:";
+"Organize" = "Ordnen";
+"Undo" = "Rückgängig";
+"Your Conversation" = "Dein Gespräch";
+"Delete This Conversation…" = "Dieses Gespräch löschen …";
+"Conversation History" = "Gesprächsverlauf";
+"New Conversation" = "Neues Gespräch";
+"Resize" = "Größe ändern";
+"What would you like to do?" = "Was möchtest du erledigen?";
+"Drop files or folders here…" = "Dateien oder Ordner hier ablegen …";
+"Or click to choose documents, letters, or spreadsheets." = "Oder klicken, um Dokumente, Briefe oder Tabellen auszuwählen.";
+"Drop or choose files or folders" = "Dateien oder Ordner hier ablegen oder auswählen";
+"New Topic" = "Neues Thema";
+"Previous Conversation…" = "Voriges Gespräch …";
+"New topic. Previous conversation in history." = "Neues Thema. Voriges Gespräch im Verlauf.";
+"Note: %@" = "Hinweis: %@";
+"You" = "Du";
+"Note" = "Hinweis";
+"%@ (stopped)" = "%@ (angehalten)";
+"Pippa will read this after the current step" = "Pippa liest das nach diesem Schritt mit";
+"Up next" = "Kommt gleich dran";
+"Don’t Send" = "Nicht mehr senden";
+"Don’t send this waiting message" = "Vorgemerkte Nachricht nicht mehr senden";
+"You, waiting: %@. %@" = "Du, vorgemerkt: %@. %@";
+"Stopped" = "Angehalten";
+"Copied" = "Kopiert";
+"Copy" = "Kopieren";
+"Copy Draft" = "Entwurf kopieren";
+"Just a draft · nothing sent" = "Nur ein Entwurf · nichts gesendet";
+"Preview · Nothing changed yet" = "Vorschau · Noch nichts geändert";
+"Read only · Nothing changed" = "Nur gelesen · Nichts geändert";
+"Just reading · Nothing will change" = "Ich lese nur · Nichts wird geändert";
+"Ask about this preview…" = "Frag zu dieser Vorschau …";
+"Ask about this text…" = "Frag zu diesem Text …";
+"What should I do with this…" = "Was soll ich damit machen …";
+"Ask Pippa…" = "Frag Pippa …";
+"Remove Waiting Attachments" = "Wartende Anhänge entfernen";
+"Ask About This" = "Frage dazu";
+"Add Files" = "Dateien hinzufügen";
+"Stop Answering" = "Antwort anhalten";
+"Send When Ready" = "Nachricht vormerken";
+"Send Message" = "Nachricht senden";
+"Send when ready · up next" = "Vormerken, kommt gleich dran";
+
+/* ShellViews.swift */
+"Pippa is reading…" = "Pippa liest …";
+"Close" = "Schließen";
+"Let Go" = "Loslassen";
+"Drop Here" = "Hier ablegen";
+"Let go to drop" = "Loslassen zum Ablegen";
+"Remove Attachment" = "Anhang entfernen";
+"Attached: %@" = "Angehängt: %@";
+"Stop" = "Stoppen";
+"Almost ready · %lld%%" = "Gleich bereit · %lld %%";
+"Almost ready" = "Gleich bereit";
+"Organize by Type and Month" = "Nach Art und Monat ordnen";
+"Invoices as a Spreadsheet" = "Rechnungen als Tabelle";
+"Find Something Inside…" = "Etwas darin finden …";
+"Add Deadline" = "Frist eintragen";
+"Add Deadlines" = "Fristen eintragen";
+"Give files clear names and put them in place" = "Sinnvoll benennen und einsortieren";
+"One row per invoice: date, sender, amount" = "Eine Zeile pro Rechnung: Datum, Absender, Betrag";
+"To Reminders or Calendar" = "In Erinnerungen oder den Kalender";
+"Nothing changed yet" = "Noch nichts geändert";
+"%@ over %@" = "%@ aus %@";
+"What does this email want from me?" = "Was will die Mail von mir?";
+"A Link" = "Ein Link";
+"Some Text" = "Ein Text";
+"What does this letter want?" = "Was will der Brief?";
+"no later than" = "bis spätestens";
+"please check" = "bitte prüfen";
+"Add to Calendar" = "In den Kalender";
+"I read it and can draft a reply; you send it" = "Ich lese sie und entwerfe auf Wunsch eine Antwort; abschicken tust du";
+"Runs on your Mac" = "Rechnet auf deinem Mac";
+"Nothing sent" = "Nichts gesendet";
+"Read only" = "Nur gelesen";
+"Email" = "Mail";
+"That didn’t work." = "Das hat nicht geklappt.";
+"Part of it is already done. One click puts everything back the way it was." = "Ein Teil ist schon erledigt. Mit einem Klick ist alles wieder wie vorher.";
+"Nothing was changed. Your files are just as they were." = "Nichts wurde geändert. Deine Dateien sind, wie sie waren.";
+"What happened?" = "Was war los?";
+"Report a Problem…" = "Problem melden …";
+"Try Again" = "Nochmal versuchen";
+"and %lld more" = "und %lld weitere";
+"Choose Folder…" = "Ordner wählen …";
+"Show in Finder" = "Im Finder zeigen";
+"%lld months" = "%lld Monaten";
+"%lld years" = "%lld Jahren";
+"%lld½ years" = "%lld½ Jahren";
+
+/* Theme.swift */
+"Undo with one click" = "Mit einem Klick rückgängig";
+"%@, open" = "%@, öffnen";
+"Page" = "Seite";
+"January" = "Januar";
+"February" = "Februar";
+"March" = "März";
+"April" = "April";
+"May" = "Mai";
+"June" = "Juni";
+"July" = "Juli";
+"August" = "August";
+"September" = "September";
+"October" = "Oktober";
+"November" = "November";
+"December" = "Dezember";
+"JAN" = "JAN";
+"FEB" = "FEB";
+"MAR" = "MÄR";
+"APR" = "APR";
+"MAY" = "MAI";
+"JUN" = "JUN";
+"JUL" = "JUL";
+"AUG" = "AUG";
+"SEP" = "SEP";
+"OCT" = "OKT";
+"NOV" = "NOV";
+"DEC" = "DEZ";
+"Sunday" = "Sonntag";
+"Monday" = "Montag";
+"Tuesday" = "Dienstag";
+"Wednesday" = "Mittwoch";
+"Thursday" = "Donnerstag";
+"Friday" = "Freitag";
+"Saturday" = "Samstag";
+"Sun" = "So";
+"Mon" = "Mo";
+"Tue" = "Di";
+"Wed" = "Mi";
+"Thu" = "Do";
+"Fri" = "Fr";
+"Sat" = "Sa";
+"%1$@, %2$@ %3$lld" = "%1$@, %3$lld. %2$@";
+"%1$@., %2$@" = "%1$@., %2$@";
+"%1$@., %2$@. %3$lld" = "%1$@., %3$lld. %2$@.";
+"today" = "heute";
+"tomorrow" = "morgen";
+"in %lld days" = "in %lld Tagen";
+"yesterday" = "gestern";
+"%lld days ago" = "vor %lld Tagen";
+"on" = "an";
+"off" = "aus";
+"mixed" = "teilweise";
+"Progress" = "Fortschritt";
+"%@ (⌘ Return)" = "%@ (⌘ Enter)";
+
+"New topic. Previous conversation under Recent Conversations." = "Neues Thema. Voriges Gespräch unter „Letzte Gespräche“.";
+
+"Preparing your answer…" = "Ich bereite die Antwort vor…";
+
+"To (optional)" = "An (optional)";
+"Subject (optional)" = "Betreff (optional)";
+"Draft text" = "Entwurfstext";
+"Opened in Mail · not sent" = "In Mail geöffnet · nicht gesendet";
+"Draft discarded" = "Entwurf verworfen";
+"Check Mail before continuing. The draft may already be open; nothing was sent." = "Bitte zuerst Mail prüfen. Der Entwurf ist möglicherweise schon geöffnet; nichts wurde gesendet.";
+"The draft could not be saved. Keep your text here and try again." = "Der Entwurf konnte nicht gespeichert werden. Den Text hier behalten und erneut versuchen.";
+"Opening in Mail…" = "Wird in Mail geöffnet …";
+"Open in Mail" = "In Mail öffnen";
+"Discard Draft" = "Verwerfen";
+
+"Draft" = "Entwurf";
+"Recipient and subject must each be one line." = "An und Betreff müssen jeweils in einer Zeile stehen.";
+"Enter one email address, or leave To empty." = "Eine E-Mail-Adresse eingeben oder An leer lassen.";
+
+"View Draft" = "Entwurf ansehen";
+
+"To" = "An";
+
+"Subject" = "Betreff";
+
+"Add recipient (optional)" = "Empfänger hinzufügen (optional)";
+
+"Add subject (optional)" = "Betreff hinzufügen (optional)";
+
+"Handoff simulated · Mail was not opened" = "Übergabe simuliert · Mail wurde nicht geöffnet";
+
+"Test handoff could not be confirmed · Mail was not opened" = "Testübergabe konnte nicht bestätigt werden · Mail wurde nicht geöffnet";
+
+"Test draft · does not open Mail" = "Testentwurf · öffnet Mail nicht";
+
+"Testing handoff…" = "Übergabe wird getestet…";
+
+"Test Handoff" = "Übergabe testen";
+
+"These are available for future answers. Earlier messages keep their attachments." = "Diese Quellen sind für weitere Antworten verfügbar. Frühere Nachrichten behalten ihre Anhänge.";
+
+"Stop using %@" = "%@ nicht weiter verwenden";
+
+"Stop using selected text" = "Ausgewählten Text nicht weiter verwenden";
+
+"For future answers" = "Für weitere Antworten";
+
+"Earlier messages keep their attachments. Original files stay where they are." = "Frühere Nachrichten behalten ihre Anhänge. Originaldateien bleiben unverändert.";
+
+"Open Conversation" = "Verlauf öffnen";
+
+"Continue this conversation…" = "Frage zu diesem Thema …";
+
+"%lld sources" = "%lld Quellen";
+
+"Start a new conversation" = "Ein neues Gespräch beginnen";
+
+"1 source" = "1 Quelle";
+"Back to Draft" = "Zurück zum Entwurf";
+"Looking for the original in Mail (%lld of %lld) …" = "Suche die ursprüngliche Mail (%lld von %lld) …";
+"Open draft" = "Entwurf öffnen";
+"Save as draft in Mail" = "Als Entwurf in Mail";
+"Copy text" = "Text kopieren";
+"Undo All" = "Alles rückgängig";
+"Undoes every change above, the last one first." = "Macht alle Änderungen darüber rückgängig, die letzte zuerst.";

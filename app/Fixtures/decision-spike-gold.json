@@ -1,0 +1,598 @@
+{
+ "_hinweis": "Goldlabels für den Entscheidungs-Spike. Vor dem ersten Lauf geschrieben und separat committet; nach Ansicht der Ergebnisse nicht geändert. 'auch' = ebenfalls vertretbare Labels bei mehrdeutigen Äußerungen (nur für die nachsichtige Wertung).",
+ "labels": {
+  "ordnen": "Dateien oder Ordner aufräumen, umbenennen, sortieren, verschieben.",
+  "rechnungen": "Rechnungen und Belege finden, auflisten, zusammenrechnen, Ausgabenübersicht.",
+  "fristen": "Fristen, Termine und Kündigungsmöglichkeiten über mehrere Dokumente sammeln: was wird bald fällig.",
+  "texthilfe": "Einen Text schreiben, umformulieren, kürzen, zusammenfassen, korrigieren oder einen Brief entwerfen.",
+  "erinnerung": "Eine Erinnerung oder einen Kalendereintrag anlegen.",
+  "frage": "Eine konkrete Frage zum Inhalt eines bestimmten eigenen Dokuments beantworten.",
+  "sonstiges": "Nichts davon: Smalltalk, Allgemeinwissen, Dinge außerhalb der eigenen Dateien."
+ },
+ "intents": [
+  {
+   "text": "kannst du mal meinen Download-Ordner aufräumen",
+   "label": "ordnen"
+  },
+  {
+   "text": "die ganzen Scans heißen IMG_irgendwas, benenn die mal vernünftig",
+   "label": "ordnen"
+  },
+  {
+   "text": "sortier die Fotos nach Jahr",
+   "label": "ordnen"
+  },
+  {
+   "text": "mach Ordnung in meinem Schreibtisch-Ordner, das ist ein einziges Chaos",
+   "label": "ordnen"
+  },
+  {
+   "text": "verschieb alle PDFs von der Hausverwaltung in einen eigenen Ordner",
+   "label": "ordnen"
+  },
+  {
+   "text": "ordner",
+   "label": "ordnen"
+  },
+  {
+   "text": "wie viel hab ich im August für Rechnungen ausgegeben?",
+   "label": "rechnungen"
+  },
+  {
+   "text": "zeig mir alle rechnungen die noch offen sind",
+   "label": "rechnungen"
+  },
+  {
+   "text": "Summe aller Arztrechnungen dieses Jahr bitte",
+   "label": "rechnungen"
+  },
+  {
+   "text": "ich brauch ne liste von allen belegen für die steuer",
+   "label": "rechnungen"
+  },
+  {
+   "text": "hab ich die telekom rechnung schon bezahlt",
+   "label": "rechnungen",
+   "auch": [
+    "frage"
+   ]
+  },
+  {
+   "text": "rechnugen vom zahnartz zusammenrechnen",
+   "label": "rechnungen"
+  },
+  {
+   "text": "steuer 2025 vorbereiten",
+   "label": "rechnungen",
+   "auch": [
+    "ordnen"
+   ]
+  },
+  {
+   "text": "was steht demnächst an, fristen und so",
+   "label": "fristen"
+  },
+  {
+   "text": "welche Verträge kann ich bald kündigen?",
+   "label": "fristen"
+  },
+  {
+   "text": "gibts irgendwas was ich bis ende des monats erledigen muss",
+   "label": "fristen"
+  },
+  {
+   "text": "Zeig mir alle Deadlines aus meinen Dokumenten",
+   "label": "fristen"
+  },
+  {
+   "text": "verpass ich gerade irgendeine Frist??",
+   "label": "fristen"
+  },
+  {
+   "text": "bis wann muss ich die nebenkostennachzahlung überweisen",
+   "label": "frage",
+   "auch": [
+    "fristen"
+   ]
+  },
+  {
+   "text": "kannst du den Brief an die Hausverwaltung freundlicher formulieren",
+   "label": "texthilfe"
+  },
+  {
+   "text": "fass mir den Mietvertrag kurz zusammen",
+   "label": "texthilfe",
+   "auch": [
+    "frage"
+   ]
+  },
+  {
+   "text": "schreib mir eine kündigung für meinen handyvertrag",
+   "label": "texthilfe"
+  },
+  {
+   "text": "mach aus dem text stichpunkte",
+   "label": "texthilfe"
+  },
+  {
+   "text": "korrigier mal die rechtschreibung hier: ich hab gestern den termin vergesen",
+   "label": "texthilfe"
+  },
+  {
+   "text": "Formulier eine Mail an den Zahnarzt, dass ich den Termin absagen muss",
+   "label": "texthilfe"
+  },
+  {
+   "text": "kündige meinen handyvertrag",
+   "label": "texthilfe",
+   "auch": [
+    "fristen"
+   ]
+  },
+  {
+   "text": "erinner mich morgen um 9 an die Nebenkosten",
+   "label": "erinnerung"
+  },
+  {
+   "text": "trag mir den Zahnarzttermin in den Kalender ein",
+   "label": "erinnerung"
+  },
+  {
+   "text": "sag mir am 1. Februar Bescheid wegen Handyvertrag kündigen",
+   "label": "erinnerung"
+  },
+  {
+   "text": "nicht vergessen: kuchen fürs sommerfest bis 5.9.",
+   "label": "erinnerung"
+  },
+  {
+   "text": "remind me to pay the rent",
+   "label": "erinnerung"
+  },
+  {
+   "text": "wie hoch ist meine kaution",
+   "label": "frage"
+  },
+  {
+   "text": "darf ich laut mietvertrag eine katze halten?",
+   "label": "frage"
+  },
+  {
+   "text": "was kostet mein handytarif im monat",
+   "label": "frage"
+  },
+  {
+   "text": "wann ist mein nächster zahnarzttermin",
+   "label": "frage",
+   "auch": [
+    "fristen"
+   ]
+  },
+  {
+   "text": "wie viel strom hab ich im juli verbraucht",
+   "label": "frage"
+  },
+  {
+   "text": "was steht in dem brief von der hausverwaltung",
+   "label": "frage",
+   "auch": [
+    "texthilfe"
+   ]
+  },
+  {
+   "text": "wie wird das wetter morgen",
+   "label": "sonstiges"
+  },
+  {
+   "text": "erzähl mir einen witz",
+   "label": "sonstiges"
+  },
+  {
+   "text": "hallo pippa",
+   "label": "sonstiges"
+  },
+  {
+   "text": "bestell mir eine pizza",
+   "label": "sonstiges"
+  },
+  {
+   "text": "was ist die hauptstadt von frankreich",
+   "label": "sonstiges"
+  }
+ ],
+ "_ranking_hinweis": "doc = Schlüssel des Corpus-Dokuments, needle = Textstelle, die genau im Gold-Abschnitt steht (Abschnitt wird über needle gefunden, unabhängig von der Zerlegung).",
+ "ranking": [
+  {
+   "q": "Wie hoch ist die Kaution?",
+   "doc": "lease",
+   "needle": "§ 4 Kaution",
+   "answer": [
+    "2.460",
+    "2460",
+    "drei Monatsmieten"
+   ]
+  },
+  {
+   "q": "Darf ich eine Katze halten?",
+   "doc": "lease",
+   "needle": "§ 6 Tierhaltung",
+   "answer": [
+    "Zustimmung"
+   ]
+  },
+  {
+   "q": "Mit welcher Frist kann ich die Wohnung kündigen?",
+   "doc": "lease",
+   "needle": "§ 9 Kündigung",
+   "answer": [
+    "drei Monate",
+    "3 Monate"
+   ]
+  },
+  {
+   "q": "Wie groß ist die Wohnung?",
+   "doc": "lease",
+   "needle": "74 Quadratmeter",
+   "answer": [
+    "74"
+   ]
+  },
+  {
+   "q": "Seit wann wohne ich in der Lindenstraße?",
+   "doc": "lease",
+   "needle": "01.04.2021",
+   "answer": [
+    "01.04.2021",
+    "1.4.2021",
+    "1. April 2021",
+    "April 2021"
+   ]
+  },
+  {
+   "q": "Wie viele Schlüssel habe ich bekommen?",
+   "doc": "lease",
+   "needle": "§ 10 Schlüssel",
+   "answer": [
+    "Haustür",
+    "fünf Schlüssel",
+    "5 Schlüssel"
+   ]
+  },
+  {
+   "q": "Wer muss Schönheitsreparaturen machen?",
+   "doc": "lease",
+   "needle": "§ 5 Schönheitsreparaturen",
+   "answer": [
+    "keine",
+    "Vermieterin"
+   ]
+  },
+  {
+   "q": "Wie hoch ist die Grundmiete?",
+   "doc": "lease",
+   "needle": "820,00",
+   "answer": [
+    "820"
+   ]
+  },
+  {
+   "q": "Wie viel muss ich bei den Nebenkosten nachzahlen?",
+   "doc": "hausverwaltung",
+   "needle": "312,48 € bis zum",
+   "answer": [
+    "312,48",
+    "312.48"
+   ]
+  },
+  {
+   "q": "Wie viel muss ich ab Januar 2027 vorauszahlen?",
+   "doc": "hausverwaltung",
+   "needle": "215,00 €",
+   "answer": [
+    "215"
+   ]
+  },
+  {
+   "q": "Wann wird der Strom abgebucht?",
+   "doc": "stadtwerke",
+   "needle": "26.08.2026",
+   "answer": [
+    "26.08.2026",
+    "26.8.2026",
+    "26. August"
+   ]
+  },
+  {
+   "q": "Wie viele kWh habe ich im Juli verbraucht?",
+   "doc": "stadtwerke",
+   "needle": "214 kWh",
+   "answer": [
+    "214"
+   ]
+  },
+  {
+   "q": "Wann endet die Mindestlaufzeit beim Handy?",
+   "doc": "mobilfunk",
+   "needle": "28.02.2027",
+   "answer": [
+    "28.02.2027",
+    "28.2.2027",
+    "28. Februar 2027"
+   ]
+  },
+  {
+   "q": "Wie kündige ich den Mobilfunkvertrag?",
+   "doc": "mobilfunk",
+   "needle": "Der Vertrag kann mit einer Frist von einem Monat",
+   "answer": [
+    "einen Monat",
+    "einem Monat",
+    "1 Monat"
+   ]
+  },
+  {
+   "q": "Was kostet der Handytarif monatlich?",
+   "doc": "mobilfunk",
+   "needle": "29,99",
+   "answer": [
+    "29,99",
+    "29.99"
+   ]
+  },
+  {
+   "q": "Wann ist der Kontrolltermin beim Zahnarzt?",
+   "doc": "mail",
+   "needle": "15.10.2026",
+   "answer": [
+    "15.10.",
+    "15. Oktober"
+   ]
+  },
+  {
+   "q": "Bis wann kann ich den Zahnarzttermin absagen?",
+   "doc": "mail",
+   "needle": "13.10.2026",
+   "answer": [
+    "13.10.",
+    "13. Oktober"
+   ]
+  },
+  {
+   "q": "Was hat die Krone gekostet?",
+   "doc": "zahnarzt",
+   "needle": "1.012,73",
+   "answer": [
+    "1.012,73",
+    "1012,73",
+    "1.012.73"
+   ]
+  },
+  {
+   "q": "Wie lange habe ich Zeit, die Zahnarztrechnung zu bezahlen?",
+   "doc": "zahnarzt",
+   "needle": "innerhalb von 30 Tagen",
+   "answer": [
+    "30 Tage",
+    "dreißig Tage"
+   ]
+  },
+  {
+   "q": "Wann ist das Sommerfest?",
+   "doc": "flyer",
+   "needle": "12. September 2026",
+   "answer": [
+    "12. September",
+    "12.09.",
+    "12.9."
+   ]
+  },
+  {
+   "q": "Was habe ich in der Apotheke gekauft?",
+   "doc": "kassenbon",
+   "needle": "Ibuprofen",
+   "answer": [
+    "Ibuprofen",
+    "Bepanthen",
+    "Sonnencreme"
+   ]
+  },
+  {
+   "q": "Unter welcher Nummer erreiche ich die Telekom bei Fragen?",
+   "doc": "telekom",
+   "needle": "0800 33 01000",
+   "answer": [
+    "0800 33 01000",
+    "08003301000"
+   ]
+  }
+ ],
+ "passages": {
+  "kaution": "§ 4 Kaution\nDie Mieterin leistet eine Mietsicherheit in Höhe von drei Monatsmieten, also 2.460,00 €. Die Kaution kann in drei gleichen monatlichen Teilzahlungen erbracht werden.",
+  "nebenkosten": "Gesamtkosten Ihrer Wohnung 2.592,48 €\nabzüglich Ihrer Vorauszahlungen (12 × 190,00 €) 2.280,00 €\nNachzahlung 312,48 €\n\nBitte überweisen Sie die Nachzahlung in Höhe von 312,48 € bis zum 31.10.2026 auf unser Konto bei der Sparkasse Memmingen-Lindau-Mindelheim.\nAb dem 01.01.2027 beträgt Ihre monatliche Vorauszahlung 215,00 €.\n\nEinwände gegen diese Abrechnung können Sie innerhalb von zwölf Monaten nach Zugang erheben.",
+  "tiere": "§ 6 Tierhaltung\nKleintiere sind erlaubt. Für Hunde und Katzen ist die vorherige schriftliche Zustimmung der Vermieterin nötig.",
+  "mobilfunk": "Tarif: GigaMobil S, 15 GB Datenvolumen, Allnet-Flat\nMonatlicher Grundpreis: 29,99 €\nEinmaliger Bereitstellungspreis: 39,99 €\nVertragsbeginn: 01.03.2025\nMindestvertragslaufzeit: 24 Monate. Die Mindestvertragslaufzeit endet am 28.02.2027.\nKündigung: Der Vertrag kann mit einer Frist von einem Monat zum Ende der Mindestvertragslaufzeit gekündigt werden. Danach verlängert er sich auf unbestimmte Zeit und ist jederzeit mit einer Frist von einem Monat kündbar.",
+  "strom": "Rechnungsdatum: 12.08.2026\nAbrechnungszeitraum: 01.07.2026 – 31.07.2026\nArbeitspreis 214 kWh × 0,2890 € 61,85 €\nGrundpreis Juli 8,91 €\nNettobetrag 70,76 €\nzzgl. 19 % MwSt. 13,44 €\nGesamtbetrag 84,20 €\nDer Gesamtbetrag wird am 26.08.2026 von Ihrem Konto abgebucht.",
+  "termin": "hiermit bestätigen wir Ihren Kontrolltermin am 15.10.2026 um 10:30 Uhr.\nBitte bringen Sie Ihre Versichertenkarte mit. Falls Sie den Termin nicht wahrnehmen können, sagen Sie bitte bis 13.10.2026 ab.",
+  "kuendigung": "§ 9 Kündigung\nDas Mietverhältnis kann von der Mieterin schriftlich mit einer Kündigungsfrist von drei Monaten zum Monatsende gekündigt werden. Für die Vermieterin gelten die gesetzlichen Fristen nach § 573c BGB.\nDie Kündigung muss spätestens am dritten Werktag eines Kalendermonats zugehen.",
+  "zahnarzt": "Liquidation nach GOZ – Rechnung Nr. 2026/0712\nBehandlungszeitraum 02.06.2026 bis 15.07.2026\nGOZ 2210 Vollkrone (Tangentialpräparation) 1 x 1.012,73 €\nGOZ 2197 Adhäsive Befestigung 1 x 16,82 €\nMaterial- und Laborkosten (§ 9 GOZ) 205,01 €\nRechnungsbetrag 1.234,56 €\nBitte überweisen Sie den Betrag innerhalb von 30 Tagen nach Erhalt dieser Rechnung."
+ },
+ "claims": [
+  {
+   "p": "kaution",
+   "claim": "Die Kaution beträgt 2.460 €.",
+   "supported": true
+  },
+  {
+   "p": "kaution",
+   "claim": "Die Kaution beträgt 2.640 €.",
+   "supported": false,
+   "art": "Zahlendreher"
+  },
+  {
+   "p": "kaution",
+   "claim": "Die Kaution muss auf einmal gezahlt werden.",
+   "supported": false,
+   "art": "Widerspruch"
+  },
+  {
+   "p": "kaution",
+   "claim": "Die Kaution entspricht drei Monatsmieten.",
+   "supported": true
+  },
+  {
+   "p": "nebenkosten",
+   "claim": "Die Nachzahlung von 312,48 € ist bis zum 31.10.2026 fällig.",
+   "supported": true
+  },
+  {
+   "p": "nebenkosten",
+   "claim": "Die Nachzahlung ist bis zum 30.10.2026 fällig.",
+   "supported": false,
+   "art": "falsches Datum"
+  },
+  {
+   "p": "nebenkosten",
+   "claim": "Die Nachzahlung beträgt 2.280,00 €.",
+   "supported": false,
+   "art": "Zahl aus anderem Kontext"
+  },
+  {
+   "p": "nebenkosten",
+   "claim": "Ab 2027 steigt die monatliche Vorauszahlung auf 215,00 €.",
+   "supported": true
+  },
+  {
+   "p": "nebenkosten",
+   "claim": "Die monatliche Vorauszahlung beträgt ab 2027 190,00 €.",
+   "supported": false,
+   "art": "Zahl aus anderem Kontext"
+  },
+  {
+   "p": "nebenkosten",
+   "claim": "Gegen die Abrechnung kann man innerhalb von zwölf Monaten Einwände erheben.",
+   "supported": true
+  },
+  {
+   "p": "nebenkosten",
+   "claim": "Gegen die Abrechnung kann man nur innerhalb von zwei Wochen Einwände erheben.",
+   "supported": false,
+   "art": "falsche Frist"
+  },
+  {
+   "p": "tiere",
+   "claim": "Für eine Katze braucht die Mieterin die schriftliche Zustimmung der Vermieterin.",
+   "supported": true
+  },
+  {
+   "p": "tiere",
+   "claim": "Katzen sind ohne Zustimmung erlaubt.",
+   "supported": false,
+   "art": "Verneinung"
+  },
+  {
+   "p": "tiere",
+   "claim": "Kleintiere sind erlaubt.",
+   "supported": true
+  },
+  {
+   "p": "tiere",
+   "claim": "Hunde sind verboten.",
+   "supported": false,
+   "art": "Überdehnung"
+  },
+  {
+   "p": "mobilfunk",
+   "claim": "Der Vertrag läuft mindestens bis zum 28.02.2027.",
+   "supported": true
+  },
+  {
+   "p": "mobilfunk",
+   "claim": "Der monatliche Grundpreis beträgt 39,99 €.",
+   "supported": false,
+   "art": "Zahl aus anderem Kontext"
+  },
+  {
+   "p": "mobilfunk",
+   "claim": "Der Vertrag kann jederzeit fristlos gekündigt werden.",
+   "supported": false,
+   "art": "Widerspruch"
+  },
+  {
+   "p": "mobilfunk",
+   "claim": "Nach der Mindestlaufzeit ist der Vertrag mit einer Frist von einem Monat kündbar.",
+   "supported": true
+  },
+  {
+   "p": "strom",
+   "claim": "Der Gesamtbetrag von 84,20 € wird am 26.08.2026 abgebucht.",
+   "supported": true
+  },
+  {
+   "p": "strom",
+   "claim": "Der Gesamtbetrag wird am 12.08.2026 abgebucht.",
+   "supported": false,
+   "art": "Datum aus anderem Kontext"
+  },
+  {
+   "p": "strom",
+   "claim": "Auf die Rechnung kommen 19 % Mehrwertsteuer.",
+   "supported": true
+  },
+  {
+   "p": "strom",
+   "claim": "Der Nettobetrag beträgt 84,20 €.",
+   "supported": false,
+   "art": "Zahl aus anderem Kontext"
+  },
+  {
+   "p": "termin",
+   "claim": "Der Kontrolltermin ist am 15.10.2026 um 10:30 Uhr.",
+   "supported": true
+  },
+  {
+   "p": "termin",
+   "claim": "Der Termin muss bis zum 15.10.2026 abgesagt werden.",
+   "supported": false,
+   "art": "Datum aus anderem Kontext"
+  },
+  {
+   "p": "termin",
+   "claim": "Die Versichertenkarte soll mitgebracht werden.",
+   "supported": true
+  },
+  {
+   "p": "kuendigung",
+   "claim": "Die Mieterin kann mit drei Monaten Frist zum Monatsende kündigen.",
+   "supported": true
+  },
+  {
+   "p": "kuendigung",
+   "claim": "Die Mieterin kann auch mündlich kündigen.",
+   "supported": false,
+   "art": "Widerspruch"
+  },
+  {
+   "p": "kuendigung",
+   "claim": "Für die Vermieterin gilt ebenfalls eine Frist von drei Monaten.",
+   "supported": false,
+   "art": "nicht belegt"
+  },
+  {
+   "p": "zahnarzt",
+   "claim": "Die Rechnung ist innerhalb von 30 Tagen nach Erhalt zu bezahlen.",
+   "supported": true
+  },
+  {
+   "p": "zahnarzt",
+   "claim": "Die Material- und Laborkosten betragen 1.012,73 €.",
+   "supported": false,
+   "art": "Zahl aus anderem Kontext"
+  },
+  {
+   "p": "zahnarzt",
+   "claim": "Die Behandlung endete am 15.07.2026.",
+   "supported": true
+  }
+ ],
+ "_antwort_hinweis": "answer = Goldantworten für End-to-End (nachgetragen nach dem Hinweis, Kontextsparen als Hauptziel zu messen, aber VOR dem ersten Lauf). Eine Antwort gilt als richtig, wenn sie nach Kleinschreibung und Entfernen aller Leerzeichen eine der Varianten enthält."
+}

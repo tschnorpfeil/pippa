@@ -1,0 +1,50 @@
+/*
+  MCP.strings (de): German (full translation)
+  Module PippaCore, looked up with L("…", table: "MCP"): Pippa's MCP server for Pi (wave 2c) — sentences for the person
+  when a reader could not read (no permission, app not open, error). The model passes them on.
+  Key = the English text itself. Format: "English key" = "Translation";
+*/
+"No email is selected in Mail. Select one and ask again." = "In Mail ist keine Mail ausgewählt. Wähl eine aus und frag dann nochmal.";
+"No table is open in Excel. Open it, select the cells and ask again." = "In Excel ist keine Tabelle offen. Öffne sie, wähl die Zellen aus und frag dann nochmal.";
+"Open %@ first. Then ask again." = "Öffne zuerst %@. Dann frag nochmal.";
+"Pippa couldn’t read %@ just now. Please try again." = "Pippa konnte %@ gerade nicht lesen. Versuch es bitte nochmal.";
+"Pippa isn’t allowed to read %@ yet. Ask again and click “Allow” when your Mac asks." = "Pippa darf %@ noch nicht lesen. Frag nochmal und klick auf „Erlauben“, wenn dein Mac fragt.";
+"Pippa may not read %@. To change that, open System Settings → Privacy & Security → Automation and turn it on under Pippa." = "Pippa darf %@ nicht lesen. Das änderst du in den Systemeinstellungen unter Datenschutz & Sicherheit → Automation: dort bei Pippa einschalten.";
+"Pippa may not read your calendar. To change that, open System Settings → Privacy & Security → Calendars and turn on Pippa." = "Pippa darf deinen Kalender nicht lesen. Das änderst du in den Systemeinstellungen unter Datenschutz & Sicherheit → Kalender: dort Pippa einschalten.";
+"Pippa may not read your reminders. To change that, open System Settings → Privacy & Security → Reminders and turn on Pippa." = "Pippa darf deine Erinnerungen nicht lesen. Das änderst du in den Systemeinstellungen unter Datenschutz & Sicherheit → Erinnerungen: dort Pippa einschalten.";
+/* Welle 2d: Lesequittung und Pippas Satz vor der ersten Systemabfrage. */
+"Not read: %@" = "Nicht gelesen: %@";
+"Read Calendar: %@" = "Kalender gelesen: %@";
+"Read Reminders: open ones" = "Erinnerungen gelesen: offene";
+"Read Reminders: due today" = "Erinnerungen gelesen: heute fällig";
+"Read Reminders: due in the next %lld days" = "Erinnerungen gelesen: fällig in den nächsten %lld Tagen";
+"Read Mail: “%@”" = "Mail gelesen: „%@“";
+"Searched Mail for “%@”: %lld found" = "Mail durchsucht nach „%@“: %lld gefunden";
+"Read Excel: active sheet" = "Excel gelesen: aktives Blatt";
+"today" = "heute";
+"tomorrow" = "morgen";
+"rest of this week" = "Rest dieser Woche";
+"next week" = "nächste Woche";
+"the weekend" = "Wochenende";
+"next %lld days" = "nächste %lld Tage";
+"%@ to %@" = "%@ bis %@";
+"To answer this, I need to read your reminders on this Mac – only when you ask, and I don’t change anything." = "Dafür muss ich deine Erinnerungen auf diesem Mac lesen – nur, wenn du fragst, und ich ändere nichts daran.";
+"To answer this, I need to read Mail on this Mac – only when you ask, and I never send anything." = "Dafür muss ich Mail auf diesem Mac lesen – nur, wenn du fragst, und ich verschicke nie etwas.";
+"To answer this, I need to read the open table in Excel – only when you ask, and I don’t change it." = "Dafür muss ich die offene Tabelle in Excel lesen – nur, wenn du fragst, und ich ändere sie nicht.";
+"“%@”" = "„%@“";
+"Pippa can’t add to %@ right now." = "Pippa kann gerade nichts in %@ eintragen.";
+"Pippa couldn’t check your calendar, so nothing was added." = "Pippa konnte deinen Kalender nicht prüfen und hat deshalb nichts eingetragen.";
+"%@ (due %@)" = "%@ (fällig %@)";
+"reply" = "Antwort";
+"Pippa can’t reply to this email in its thread. Copy the text and reply in Mail yourself." = "Auf diese Mail kann Pippa nicht im Verlauf antworten. Kopiere den Text und antworte selbst in Mail.";
+"Pippa isn’t sure whether a reply opened in Mail. Please look in Mail before trying again. Nothing was sent." = "Pippa weiß nicht sicher, ob sich in Mail eine Antwort geöffnet hat. Sieh bitte in Mail nach, bevor du es nochmal versuchst. Gesendet wurde nichts.";
+"Pippa couldn’t find the original email in Mail, so no reply was created." = "Pippa hat die ursprüngliche Mail in Mail nicht gefunden und deshalb keine Antwort angelegt.";
+"Mail has several emails with the same identity, so Pippa created no reply." = "In Mail gibt es mehrere Mails mit derselben Kennung, deshalb hat Pippa keine Antwort angelegt.";
+"Mail didn’t answer in time while Pippa looked for the original email. Nothing was created; try again in a moment." = "Mail hat bei der Suche nach der ursprünglichen Mail nicht rechtzeitig geantwortet. Es wurde nichts angelegt; versuch es gleich noch einmal.";
+"Mail didn’t create the reply. Nothing is in Mail; try again in a moment." = "Mail hat die Antwort nicht angelegt. In Mail ist nichts; versuch es gleich noch einmal.";
+"To do this, I need access to your calendar on this Mac – I only add what you ask for, and you can undo it." = "Dafür brauche ich Zugriff auf deinen Kalender auf diesem Mac – ich trage nur ein, worum du bittest, und du kannst es rückgängig machen.";
+"To do this, I need access to your reminders on this Mac – I only add what you ask for, and you can undo it." = "Dafür brauche ich Zugriff auf deine Erinnerungen auf diesem Mac – ich lege nur an, worum du bittest, und du kannst es rückgängig machen.";
+"To do this, I need access to Mail on this Mac – I only create drafts and never send anything." = "Dafür brauche ich Zugriff auf Mail auf diesem Mac – ich lege nur Entwürfe an und verschicke nie etwas.";
+"Pippa may not add to your calendar. To change that, open System Settings → Privacy & Security → Calendars and allow full access for Pippa." = "Pippa darf nichts in deinen Kalender eintragen. Um das zu ändern, öffne Systemeinstellungen → Datenschutz & Sicherheit → Kalender und erlaube Pippa vollen Zugriff.";
+"Pippa may not add reminders. To change that, open System Settings → Privacy & Security → Reminders and allow full access for Pippa." = "Pippa darf keine Erinnerungen anlegen. Um das zu ändern, öffne Systemeinstellungen → Datenschutz & Sicherheit → Erinnerungen und erlaube Pippa vollen Zugriff.";
+"Pippa couldn’t add to %@ just now. Nothing was changed." = "Pippa konnte gerade nichts in %@ eintragen. Es wurde nichts geändert.";

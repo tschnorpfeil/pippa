@@ -1,0 +1,26 @@
+/*
+  Line.strings (en): English (development language, fallback)
+  Module Pippa, looked up with T("…", table: "Line").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/
+
+/* LineViews.swift */
+"What should I do with these?" = "What should I do with these?";
+"Stop" = "Stop";
+"%@ · %lld of %lld pages" = "%@ · %lld of %lld pages";
+"Drag it where you need it" = "Drag it where you need it";
+"Drag it where you need it, or save it." = "Drag it where you need it, or save it.";
+"Undo" = "Undo";
+"Save…" = "Save…";
+"I skipped %@." = "I skipped %@.";
+"Password" = "Password";
+"Continue" = "Continue";
+"Ready: %@. Drag it where you need it, or save it." = "Ready: %@. Drag it where you need it, or save it.";
+"Take it off Pippa. The file stays where it is." = "Take it off Pippa. The file stays where it is.";
+"Take %@ off Pippa" = "Take %@ off Pippa";
+"%@, from %@" = "%@, from %@";
+
+"More" = "More";

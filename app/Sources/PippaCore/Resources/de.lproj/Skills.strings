@@ -1,0 +1,8 @@
+/*
+  Skills.strings (de): German (full translation)
+  Module PippaCore, looked up with L("…", table: "Skills").
+  Key = the English text itself. Format: "English key" = "Translation";
+  Placeholders %@ / %d / %lld; positional %1$@ / %2$@ when German needs another order.
+  Every key must exist in en.lproj and de.lproj. Check: python3 scripts/check-strings.py
+  Convention: docs/development.md, section "Localization".
+*/

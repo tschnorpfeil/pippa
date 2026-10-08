@@ -1,0 +1,37 @@
+import Foundation
+import PippaCore
+
+/// Values between host and model (ToolBridgeTypes.swift): ChatContext defaults, proposals and
+/// citations from JSON, inserting into Mail only with permission and without sending.
+func runAgentBridgeChecks() async {
+    check("Agent bridge: ChatContext without arguments shows nothing and allows no online lookup") {
+        let plain = ChatContext()
+        let selected = ChatContext(files: [], selectedText: "x", workflowSummary: "")
+        return plain.files.isEmpty && plain.web == nil && plain.onWork == nil && plain.maximumFileCount == 20
+            && selected.maximumFileCount == 19
+    }
+    check("Agent bridge: values from the model decode from JSON (proposals, citations)") {
+        let actions = try JSONDecoder().decode([AgentActionProposal].self, from: Data(#"[{"id":"object","instruction":"Widerspruch schreiben","reason":"Frist"}]"#.utf8))
+        let citations = try JSONDecoder().decode([WebCitation].self, from: Data(#"[{"sourceID":"w1","quote":"Ein Monat","statement":"Ein Monat."}]"#.utf8))
+        return actions == [AgentActionProposal(id: "object", instruction: "Widerspruch schreiben", reason: "Frist")]
+            && citations == [WebCitation(sourceID: "w1", quote: "Ein Monat", statement: "Ein Monat.")]
+            && LookupReply.Status.needsPerson.rawValue == "needs_person" && LookupReply.Status(rawValue: "refused") == .refused
+    }
+    await checkAsync("Agent bridge: inserting creates only an unsent reply window, and only with permission for Mail") {
+        let draft = MailDraft(messageID: "bridge@example.invalid", to: "a@b.de", toName: nil, subject: "x", body: "y")
+        let granted = DemoIntegrations(granted: true)
+        let engine = LocalEngine(baseDirectory: dir("bridge-insert"), modelEnabled: false, integrations: granted)
+        let result = try await engine.insertMailReply(draft)
+        guard result == .reply, granted.insertedDrafts == [draft] else { return false }
+        let closed = DemoIntegrations()
+        let without = LocalEngine(baseDirectory: dir("bridge-insert-denied"), modelEnabled: false, integrations: closed)
+        var refused = false
+        do { _ = try await without.insertMailReply(draft) } catch PippaError.accessDenied { refused = true }
+        let stub = StubEngine(delay: 0, integrations: DemoIntegrations(granted: true))
+        let stubResult = try await stub.insertMailReply(draft)
+        // Without a model: keeping warm starts nothing.
+        await engine.keepWarmAfterCall()
+        return refused && closed.insertedDrafts.isEmpty && stubResult == .reply && stub.integrations.insertedDrafts.count == 1
+            && LlamaServer.afterCallSeconds == 1200
+    }
+}
