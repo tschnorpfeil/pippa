@@ -45,7 +45,7 @@ llama-start)
     *) model="$cache/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf"; alias=gemma-4-12b ;;
   esac
   [ -f "$support/llama-key" ] || { echo "run first: $0 setup"; exit 2; }
-  LLAMA_API_KEY=$(cat -- "$support/llama-key") nohup "$cache/llama-b11146/llama-server" -m "$model" --jinja --host 127.0.0.1 --port "$port" \
+  LLAMA_API_KEY=$(cat -- "$support/llama-key") nohup "$cache/llama-b11503/llama-server" -m "$model" --jinja --host 127.0.0.1 --port "$port" \
     -ngl 999 -c 16384 --parallel 1 --no-webui --reasoning off --cache-type-k q8_0 --cache-type-v q8_0 \
     --alias "$alias" >"$logs/llama-server.log" 2>&1 &
   echo $! >"$logs/llama-server.pid"
@@ -103,7 +103,7 @@ r7)
   export PI_CODING_AGENT_DIR="$agent" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
   export PIPPA_UNDO_DIR="$undo" PIPPA_SPIKE_WORK="$work" PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools"
   export PIPPA_SPIKE_SESSIONS="$sessions" PIPPA_TRASH_DIR="$trash" PIPPA_R7_LOGS="$logs/r7"
-  export PIPPA_LLAMA_SERVER="$cache/llama-b11146/llama-server"
+  export PIPPA_LLAMA_SERVER="$cache/llama-b11503/llama-server"
   case "$PIPPA_PI_MODEL" in
     qwen*) export PIPPA_MODEL_FILE="$cache/models/Qwen3.5-4B-Q4_K_M.gguf" ;;
     *) export PIPPA_MODEL_FILE="$cache/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf" ;;
@@ -114,7 +114,7 @@ r7)
 r10)
   # Own fake HOME; starts at most one llama-server and stops it itself.
   shift
-  export PIPPA_PI_PAYLOAD="$payload" PIPPA_LLAMA_SERVER="$cache/llama-b11146/llama-server"
+  export PIPPA_PI_PAYLOAD="$payload" PIPPA_LLAMA_SERVER="$cache/llama-b11503/llama-server"
   export R10_HOME="$root/.build/r10-home" PIPPA_LOG_DIR="$root/.build/r10-logs"
   export PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
   (cd "$root" && "$root/app/.build/debug/PiRPCR10Spike" "${1:-all}") 2>&1 | tee "$logs/r10-${1:-all}.log"
@@ -138,7 +138,7 @@ app)
   export PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools" PIPPA_PI_RPC=1 PIPPA_DEMO=1
   # The app starts the llama-server for pippa-local itself (fixed port + key from the fake HOME).
   # Binary and model from the cache are only read. If one is already running (llama-start), set PIPPA_PI_OWN_LLAMA=0.
-  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11146/llama-server}"
+  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11503/llama-server}"
   export PIPPA_MODEL_FILE="${PIPPA_MODEL_FILE:-$cache/models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf}"
   [ "${2:-}" = wave2d ] && export PIPPA_PIRPC_SCENARIO=wave2d
   shot="$root/.build/spike-app-$(date +%Y%m%d-%H%M%S)"
