@@ -15,6 +15,9 @@ export const BUILTIN_PARAMETERS: Record<string, Record<string, string>> = {
 	bash: { command: "", timeout: "Seconds." },
 	edit: { path: "", edits: "Replacements, each matched against the original file; they must not overlap.", oldText: "Exact text, unique in the file.", newText: "" },
 	write: { path: "", content: "" },
+	grep: { pattern: "", path: "Folder or file.", glob: "e.g. '*.pdf'.", ignoreCase: "", literal: "Pattern is plain text.", context: "Lines around each match.", limit: "" },
+	find: { pattern: "", path: "Folder.", limit: "" },
+	ls: { path: "", limit: "" },
 };
 
 /** The provider request with `BUILTIN_PARAMETERS` applied; `undefined` = nothing to change (keep Pi's payload). */

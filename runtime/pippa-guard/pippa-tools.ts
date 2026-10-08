@@ -32,12 +32,15 @@ type ExtensionAPI = any;
 
 const LIST_LIMIT = 200;
 
-/** Short versions for Pi's built-in tools (Pi 1.0.4: read 303, bash 270, edit 330, write 141 characters). */
+/** Short versions for Pi's built-in tools (Pi 1.1.0: read 303, bash 270, edit 330, write 141, grep 229, find 196, ls 186 characters). */
 export const BUILTIN_DESCRIPTIONS: Record<string, string> = {
 	read: "Read a text file or image; long files with offset/limit.",
 	write: "Create or overwrite a file.",
 	edit: "Replace exact, unique text passages in a file.",
 	bash: "Run a shell command in the working folder.",
+	grep: "Search file contents for text or a regex; lines with path and number.",
+	find: "Find files by glob pattern, e.g. '**/*.pdf'.",
+	ls: "List a folder's entries; folders end in '/'.",
 };
 
 /** The Mac's trash via /usr/bin/trash (macOS 15+, FileManager.trashItem; no Finder automation, no system prompt).
