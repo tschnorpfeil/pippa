@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import PiRPC
 import PippaCore
 
 /// UI history and running answer. The agent history stays with the Pi core;
@@ -20,6 +21,11 @@ final class ConversationController: ObservableObject {
     /// Pi wants to look something up online; the card shows exactly what would go out and waits for the click.
     @Published private(set) var webAsk: WebAccessAsk?
     private var webAskReply: CheckedContinuation<Bool, Never>?
+    /// The guard asks before Pi changes something; the card waits in the conversation instead of a window.
+    @Published private(set) var guardAsk: GuardAsk?
+    private var guardAskReply: CheckedContinuation<PiUIResponse, Never>?
+    /// Brings the conversation into view when a card needs the person (set by AppModel).
+    var onNeedsPerson: (() -> Void)?
     private var webGate: WebAccessGate?
     /// One lookup process for all conversations (exits by itself after two minutes idle).
     private let webFetcher = WebFetcher()
@@ -191,6 +197,7 @@ final class ConversationController: ObservableObject {
             var scoped: [URL] = []
             defer {
                 self?.endWebAccess()
+                self?.endGuardAsk()
                 workSink.finish(); phases.cancel()
                 self?.thought.end(request: requestID)
                 scoped.forEach { $0.stopAccessingSecurityScopedResource() }
@@ -345,6 +352,7 @@ final class ConversationController: ObservableObject {
         guard isRunning else { return }
         stopRequested = true
         endWebAccess()
+        endGuardAsk()
         if let request = requestID { thought.stop(request: request); announcePhase() }
         if let chat = runningChat { Task { await chat.cancel() } }
         let running = request
@@ -369,6 +377,40 @@ final class ConversationController: ObservableObject {
         let reply = webAskReply
         webAskReply = nil
         reply?.resume(returning: approved)
+    }
+
+    /// A guard question during the running answer: card, VoiceOver, conversation in view, then wait. `nil` when no
+    /// answer is running (the caller asks with a prompt window instead) or the question has no buttons.
+    func awaitGuardAsk(_ request: PiUIRequest) async -> PiUIResponse? {
+        guard isRunning, !stopRequested, let ask = GuardAsk(request) else { return nil }
+        guardAskReply?.resume(returning: .cancelled)
+        guardAsk = ask
+        onNeedsPerson?()
+        NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: ask.title + " " + ask.sentence,
+                                        .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        return await withCheckedContinuation { continuation in guardAskReply = continuation }
+    }
+
+    #if DEBUG
+    /// Dev snapshot only: the card as during a running answer.
+    func showGuardAskForSnapshot(_ ask: GuardAsk) { isRunning = true; guardAsk = ask }
+    #endif
+
+    func answerGuardAsk(_ id: UUID, _ response: PiUIResponse) {
+        guard guardAsk?.id == id else { return }
+        guardAsk = nil
+        let reply = guardAskReply
+        guardAskReply = nil
+        reply?.resume(returning: response)
+    }
+
+    /// Answer over or stopped: an open question counts as not allowed.
+    private func endGuardAsk() {
+        guardAsk = nil
+        let reply = guardAskReply
+        guardAskReply = nil
+        reply?.resume(returning: .cancelled)
     }
 
     /// Answer over or stopped: an open card counts as "Not now", and the gate lets nothing more out.

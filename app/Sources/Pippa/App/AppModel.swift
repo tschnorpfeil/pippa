@@ -137,6 +137,12 @@ final class AppModel: ObservableObject {
         conversationChanges = conversations.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark(); self?.schedulePendingDrops() }
         }
+        // Guard questions come as a card in the conversation; with only the pill showing, the conversation opens.
+        PiRPCChat.approvalPresenter = { [weak self] request in await self?.conversations.awaitGuardAsk(request) }
+        conversations.onNeedsPerson = { [weak self] in
+            guard let self, !self.isExpanded else { return }
+            self.openConversationFromPill()
+        }
         tray.model = self
         trayChanges = tray.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark() }

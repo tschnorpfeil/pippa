@@ -244,3 +244,7 @@
 "Your previous conversations are unchanged. Pippa will ask again next time she starts." = "Deine bisherigen Gespräche sind unverändert. Pippa fragt beim nächsten Start noch einmal.";
 "Undo All" = "Alles rückgängig";
 "I can’t find the folder “%@” on this Mac." = "Den Ordner „%@“ finde ich auf diesem Mac nicht.";
+"Allow for This Task" = "Für diese Aufgabe erlauben";
+"Details" = "Details";
+"Show details" = "Details zeigen";
+"Hide details" = "Details ausblenden";

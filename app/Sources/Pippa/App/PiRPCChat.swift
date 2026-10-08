@@ -4,7 +4,8 @@ import PippaCore
 
 /// The **conversation path in every
 /// build**: free text and capabilities in the conversation go to the real Pi (`pi --mode rpc`) instead of the own core.
-/// Questions from the Pippa guard (runtime/pippa-guard) appear as a simple Pippa prompt (NSAlert). The old
+/// Questions from the Pippa guard (runtime/pippa-guard) appear as a card in the conversation (`approvalPresenter`,
+/// GuardAskCard); only without a running conversation (letters) as a simple Pippa prompt (NSAlert). The old
 /// own core no longer exists; only debug recordings use a stand-in (`ConversationChat`).
 ///
 /// Launch as in `PippaPiLaunch.configuration`: the **pinned release with Pippa's Node** (`PiInstaller.launchSpec`, never
@@ -443,8 +444,14 @@ final class PiRPCChat {
     /// answers in the person's place (button code). `nil`: the person answers.
     static var answerForSnapshot: ((NSWindow, PiUIRequest) -> NSApplication.ModalResponse)?
 
-    /// Guard question as Pippa prompt. `confirm` and short `select` as buttons, `input`/`editor` with text field.
+    /// Shows a guard question in the running conversation and waits for the click. `nil`: no conversation is
+    /// running (e.g. a letter flow), then the prompt window below asks.
+    static var approvalPresenter: (@MainActor (PiUIRequest) async -> PiUIResponse?)?
+
+    /// Guard question: as a card in the conversation if one is running, otherwise as Pippa prompt. `confirm` and
+    /// short `select` as buttons, `input`/`editor` with text field.
     private static func ask(_ request: PiUIRequest) async -> PiUIResponse {
+        if answerForSnapshot == nil, let presenter = approvalPresenter, let answer = await presenter(request) { return answer }
         let alert = NSAlert()
         if answerForSnapshot != nil {
             // Runs in the prompt's modal mode; an ordinary task would only run after it closes.

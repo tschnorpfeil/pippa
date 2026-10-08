@@ -83,6 +83,12 @@ public struct PiUIRequest: Sendable, Equatable {
     public let placeholder: String?
     public let prefill: String?
     public let timeout: Int?
+
+    public init(id: String, method: String, title: String, message: String, options: [String] = [],
+                placeholder: String? = nil, prefill: String? = nil, timeout: Int? = nil) {
+        self.id = id; self.method = method; self.title = title; self.message = message; self.options = options
+        self.placeholder = placeholder; self.prefill = prefill; self.timeout = timeout
+    }
 }
 
 public enum PiUIResponse: Sendable, Equatable {
