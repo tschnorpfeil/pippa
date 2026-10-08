@@ -23,20 +23,32 @@ Pippa.app (Swift, SwiftUI)
 | Guard extension | `runtime/pippa-guard` | Pi extension: asks before risky tool calls, backs up files, writes receipts; also Pippa's small file tools and the MCP registration |
 | Terminal autostart | `runtime/pippa-local-server` | Pi extension for the *terminal* `pi`: starts Pippa's llama-server when provider `pippa-local` is used |
 | Web fetcher | `runtime/pippa-web` | Own Node process for web search and page reading |
-| Abilities | `runtime/pippa-skills` | 16 short Markdown instruction files (`SKILL.md`), bundled with the app |
+| Abilities | `runtime/pippa-skills` | 14 Pi skills (`SKILL.md`), bundled with the app and loaded with `--skill` |
 
 **Conversation path.** Pippa starts `pi --mode rpc` with Pippa's Node and the pinned Pi release (`PippaPiLaunch`,
 `PiRPCClient`). Flags: `--extension` for the guard, the file tools and the MCP registration; `--no-context-files` (an
 `AGENTS.md` in a user folder could otherwise inject instructions); `--no-approve` (project-local `.pi/` settings are
 ignored); `--session-dir` in Pippa's support folder and `--session-id` per conversation; `--system-prompt` with Pippa's
-own short prompt; `--provider/--model` from the installer. The agent directory is the shared `~/.pi/agent`, so the
-person's own Pi extensions stay active; the guard loads first and asks regardless of what they do.
+own short prompt; `--tools` with a fixed list (Pi's `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`, Pippa's file
+tools and `mcp__pippa__*`, so the person's `defaultTools` change nothing); `--no-skills --skill <bundle>/pippa-skills`
+(only Pippa's skills, a same-named personal skill would otherwise win); `--provider/--model` from the installer. The
+agent directory is the shared `~/.pi/agent`, so the person's own Pi extensions stay active; the guard loads first and
+asks regardless of what they do. `fd` and `rg` for `find` and `grep` ship next to Pippa's Node in `Contents/Helpers`
+(pinned in `app/Packaging/search-tools.json`), which is first in Pi's `PATH`, so Pi never downloads them.
+
+**Thinking and compaction.** Pi steers both. models.json gives each `pippa-local` model `reasoning`, a `thinkingLevelMap`
+and the template switch (`chat-template` with `reasoning_effort` for K2, `qwen-chat-template` for Qwen); Pi's llama-server
+no longer starts with `--reasoning off`. Pippa merges into Pi's `settings.json` a startup level per model
+(`modelThinkingLevels`, from the catalog's `thinking`, never over the person's own) and `compaction.modelOverrides`
+(`reserveTokens` = min(answer limit, context/4), `keepRecentTokens` = 3/8 of the context), so a 16k model compacts above
+12k instead of before every prompt (`PiModelTuning`).
 
 **Guard (`runtime/pippa-guard`).**
 
 - `pippa-guard.ts` handles every `tool_call`. Read-only tools from Pi or Pippa run freely. Others are classified in
   `policy.ts`; the preset (`PIPPA_GUARD_POLICY`) decides what asks. `undo-first` (default) runs Pippa's file tools and
-  look-only commands without a question but with a backup, and asks for sending, network, deleting, unknown commands
+  look-only commands (`ls`, `cat`, `grep`, `rg`, `fd`, `mdfind`, `mdls`, … without `-exec`/`-x`/`--pre`/`-live`)
+  without a question but with a backup, and asks for sending, network, deleting, unknown commands
   and foreign tools, with a third answer "allow for this task". `ask-all` asks for every change.
 - Backups are APFS clones in the undo folder (`PIPPA_UNDO_DIR`; the app uses `<Application Support>/Pippa/pi-undo`, the
   guard alone falls back to `$TMPDIR/pippa-undo`), each entry with a `manifest.json`. Entries are pruned after 7 days or
@@ -85,8 +97,20 @@ searches DuckDuckGo HTML and reads pages through the pinned `pi-web-access` (bun
 `src/generated`, not committed), keeps the search order, extracts an "as of" date and writes nothing to stderr. Only
 the app starts it (`WebFetcher.swift`).
 
-**Abilities (`runtime/pippa-skills`).** One folder per ability with a `SKILL.md`. Pippa loads them itself
-(`PippaSkill`); Pi's own skill loader never sees them. `PIPPA_SKILLS_DIR` overrides the folder for development.
+**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`), all `disable-model-invocation: true`, so
+none costs prompt space. Pi loads them with `--skill`; a button sends `/skill:<name> <message>` (`PiSkillTurn`) and Pi
+puts the instructions in front. Swift reads the headers only for buttons and suggestions (`PippaSkill`).
+`PIPPA_SKILLS_DIR` overrides the folder for development. Invoices (`rechnung-auslesen`: Pi writes `Rechnungen.csv`),
+deadlines (`fristen-erkennen`: Pi adds them with `calendar_add`) and "Check online" on a letter (`online-pruefen`) are
+Pi conversations; the code's deadline patterns still fill the deadline cards without a model.
+
+**Own online service.** Switching it on in Settings is the consent. models.json gets `pippa-online` with the service's
+own address and `apiKey: "$PIPPA_ONLINE_KEY"`; Pippa reads the key from the Keychain and puts it only into its own Pi's
+environment (`PiOnlineProvider`). Pi in the terminal has no key and stops before any request.
+
+**Apple's on-device model.** `AppleQuickModel` for short decisions: document suggestions, the letter's first line, and
+classifying unclear documents while tidying (`TidyClassifier`, ~3 s instead of ~26 s per file on a local 12B model).
+Only when it is missing does tidying fall back to a direct structured call on the local server (`LocalModelJSON`).
 
 ## Requirements
 
