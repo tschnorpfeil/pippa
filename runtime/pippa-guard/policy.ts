@@ -107,6 +107,9 @@ export function mkdirTargets(command: string): { parents: boolean; paths: string
  * words (German, shown to the person). `undefined` as soon as any part could be something else.
  */
 export function lookOnly(command: string): string | undefined {
+	// Discarding output or merging stderr writes nothing: `find ~ -name "*.md" 2>/dev/null | head -50` is the usual
+	// way models search, and it must not ask.
+	command = command.replace(/\s*(?:[12&]?>>?)\s*\/dev\/null(?=$|[\s|;&)])/g, " ").replace(/\s*2>&1(?=$|[\s|;&)])/g, " ");
 	if (/[>`]|\$\(|<\(|(^|\s)-(delete|exec|execdir|ok|fprint\w*)\b/.test(command)) return undefined;
 	const words: Record<string, string> = {
 		ls: "Dateien auflisten", find: "Dateien suchen", cat: "Dateien lesen", head: "Dateien lesen", tail: "Dateien lesen",

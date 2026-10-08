@@ -200,7 +200,8 @@ test("classification: file tools, look, delete, network, send, other commands, f
 		look: [["bash", { command: "ls -la | wc -l" }], ["bash", { command: "cat Brief.md" }], ["bash", { command: "grep -r Miete ." }],
 			["bash", { command: "mdfind -onlyin ~/Documents 'Mietvertrag'" }], ["bash", { command: "mdfind -name Rechnung | head -20" }],
 			["bash", { command: "fd -e pdf . ~/Documents" }], ["bash", { command: "rg -il nebenkosten ~/Documents" }], ["bash", { command: "mdls -name kMDItemContentCreationDate a.pdf" }],
-			["bash", { command: "ls -lax" }]],
+			["bash", { command: "ls -lax" }], ["bash", { command: "find /Users/remi -type f -name \"*.md\" 2>/dev/null | head -50" }],
+			["bash", { command: "grep -ril nullkalkulation ~/Documents 2>&1 | head" }], ["bash", { command: "ls x >/dev/null && echo ja" }]],
 		delete: [["bash", { command: "rm Brief.md" }], ["bash", { command: "rm -rf Archiv" }], ["bash", { command: "find . -name '*.tmp' -delete" }],
 			["bash", { command: "cd x && unlink a" }], ["bash", { command: "find . -exec rm {} \\;" }]],
 		network: [["bash", { command: "curl https://example.com" }], ["bash", { command: "wget x" }], ["bash", { command: "python3 skript.py" }],
@@ -210,7 +211,8 @@ test("classification: file tools, look, delete, network, send, other commands, f
 			["bash", { command: "mkdir \"Neuer Ordner\"" }], ["bash", { command: "mkdir -m 700 Geheim" }], ["bash", { command: "mkdir $HOME/x" }],
 			["bash", { command: "mkdir a && touch a/b" }], ["bash", { command: "mkdir *.x" }], ["bash", { command: "mkdir" }], ["bash", { command: "mkdir -- -p" }],
 			["bash", { command: "fd -e tmp -x gzip" }], ["bash", { command: "fd . -X trash" }], ["bash", { command: "fd -HX ls" }], ["bash", { command: "fd --exec-batch zip a.zip" }],
-			["bash", { command: "rg --pre ./skript x" }], ["bash", { command: "mdfind -live Rechnung" }]],
+			["bash", { command: "rg --pre ./skript x" }], ["bash", { command: "mdfind -live Rechnung" }],
+			["bash", { command: "find . 2>/dev/null > liste.txt" }], ["bash", { command: "ls > /dev/null.txt" }], ["bash", { command: "ls 2>fehler.log" }]],
 		tool: [["save_note", {}], ["mcp__notes__create", {}]],
 	};
 	for (const [category, calls] of Object.entries(cases)) {
