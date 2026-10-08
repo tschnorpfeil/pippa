@@ -13,7 +13,14 @@ dem Branch **`claude/happy-ride-ilnibc`** (Basis `1c9ad8b` auf `main`). Lies zue
 3. `git log --oneline 1c9ad8b..claude/happy-ride-ilnibc` und die Commit-Texte (sie begründen jede Änderung)
 4. `docs/development.md` (beschreibt schon den neuen Stand)
 
-**Wichtig:** Der Swift-Teil wurde **nie gebaut**. Geprüft wurde er nur mit einem Syntax-Parser (tree-sitter) und einer
+**CI-Stand (macos-26, Xcode 26.6, Lauf 37812738506):** `swift build` aller Targets grün. PippaChecks: 3 rot, alle ohne
+Bezug zum Umbau: „Default model is pinned“ (erwartet, K2 nicht gepinnt) und zwei OCR-Checks („large heading and fine
+print …“ in `ToolChecks.swift`, „accurate recognition reads amount, date and umlaut“ in `OCRChecks.swift`), auch im
+Neustart rot. OCR-Code und -Checks hat der Umbau nicht angefasst; ein CI-Lauf auf `main` zum Vergleich existiert nicht.
+Lokal auf dem Mac prüfen, ob sie auf `main` ebenfalls rot sind (vermutlich Vision-Änderung im neuen macOS/Xcode).
+Die Node-Tests im CI liefen wegen des Abbruchs nicht; lokal laufen lassen.
+
+**Vorher:** Der Swift-Teil wurde in der Cloud-Session **nie gebaut**. Geprüft wurde er nur mit einem Syntax-Parser (tree-sitter) und einer
 gezielten Durchsicht auf Compile-Fehler (ohne Fund). Node-, Guard-, Web-, Autostart-, String-, Site- und Release-Gates
 waren unter Linux grün; der Guard-Test „backup is an APFS clone“ läuft nur auf macOS sinnvoll.
 
