@@ -1,0 +1,1804 @@
+[
+  {
+    "id": "tax",
+    "prompt": "Such alle Unterlagen für Steuer 2025.",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Documents/f.pdf",
+      "Library/Mobile Documents/com~apple~CloudDocs/d.pdf",
+      "Library/CloudStorage/TestDrive/e.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/tool-choice-home/work/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": false,
+    "ok": false,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich suche deine Steuerunterlagen für 2025.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "1RzJ5n4xBjKFjgaAZGOcH3T6C1i2Jbgj",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/.build/tool-choice-home/work/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.719,
+    "usage": [
+      {
+        "input": 511,
+        "output": 56,
+        "cacheRead": 2164,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2731,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "document",
+    "prompt": "Wo ist mein Dokument zur Kaution?",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Desktop/b.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "TBVjze2xHK2VcdEyGFsgiCHT0rRgMh2r",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.437,
+    "usage": [
+      {
+        "input": 20,
+        "output": 47,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2719,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "pdf",
+    "prompt": "Finde das PDF zur Hausratversicherung.",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Library/Mobile Documents/com~apple~CloudDocs/d.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/tool-choice-home/work"
+        }
+      }
+    ],
+    "choiceCorrect": false,
+    "ok": false,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "kNpv0gQiPZ0y4WG2WX5KNAGLf6eUuEyC",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/.build/tool-choice-home/work"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.095,
+    "usage": [
+      {
+        "input": 22,
+        "output": 39,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2713,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "invoice",
+    "prompt": "Such die Rechnung vom Zahnarzt aus 2023.",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Documents/a.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/tool-choice-home/work/skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "xsGjBjjUsoeLRn266X3jvUw527Zs1Uog",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/.build/tool-choice-home/work/skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.556,
+    "usage": [
+      {
+        "input": 25,
+        "output": 49,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2726,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "info",
+    "prompt": "Ich suche Info zu meiner Nebenkostenabrechnung 2024.",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Downloads/c.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/tool-choice-home/work"
+        }
+      }
+    ],
+    "choiceCorrect": false,
+    "ok": false,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "60AaWTlaKpXgihzksATkJOSt30pUNJmZ",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/.build/tool-choice-home/work"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.09,
+    "usage": [
+      {
+        "input": 28,
+        "output": 39,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2719,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "where",
+    "prompt": "Wo ist der Mietvertrag?",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Desktop/b.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/tool-choice-home/work/skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich suche nach deinem Mietvertrag. Lass mich in deinen Dokumenten schauen.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "VFF8BV2jwdWqx1jvycPQiDgoOemRD3bP",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/.build/tool-choice-home/work/skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.259,
+    "usage": [
+      {
+        "input": 18,
+        "output": 65,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2735,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "list",
+    "prompt": "Was liegt auf meinem Schreibtisch?",
+    "tools": [
+      "list_folder",
+      "ls"
+    ],
+    "choices": [
+      {
+        "name": "list_folder",
+        "args": {
+          "path": "~/Desktop"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich schaue auf deinem Schreibtisch nach.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "28XMkcZfziJMECZsTXwtIjP8t4ikzfQb",
+          "name": "list_folder",
+          "arguments": {
+            "path": "~/Desktop"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 1.907,
+    "usage": [
+      {
+        "input": 19,
+        "output": 36,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2707,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "tidy",
+    "prompt": "Sortiere meine Downloads in passende Unterordner.",
+    "tools": [
+      "list_folder",
+      "ls"
+    ],
+    "choices": [
+      {
+        "name": "list_folder",
+        "args": {
+          "path": "~/Downloads"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich schau mir zuerst an, was sich in deinen Downloads befindet.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "SIZY8OqYyLXIL8pijgQOC5VC4rKTuXfV",
+          "name": "list_folder",
+          "arguments": {
+            "path": "~/Downloads"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.185,
+    "usage": [
+      {
+        "input": 22,
+        "output": 41,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2715,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "rename",
+    "prompt": "Benenne ~/Documents/brief.pdf in Mietvertrag.pdf um.",
+    "tools": [
+      "rename_or_move"
+    ],
+    "choices": [
+      {
+        "name": "rename_or_move",
+        "args": {
+          "from": "~/Documents/brief.pdf",
+          "to": "~/Documents/Mietvertrag.pdf"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "AE6PUgGKGTFdajIjH961p6Lz6KMbXjcE",
+          "name": "rename_or_move",
+          "arguments": {
+            "from": "~/Documents/brief.pdf",
+            "to": "~/Documents/Mietvertrag.pdf"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.556,
+    "usage": [
+      {
+        "input": 25,
+        "output": 49,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2726,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "trash",
+    "prompt": "Lege ~/Downloads/kopie.pdf in den Papierkorb.",
+    "tools": [
+      "move_to_trash"
+    ],
+    "choices": [
+      {
+        "name": "move_to_trash",
+        "args": {
+          "path": "~/Downloads/kopie.pdf"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "K6PlkyweeaUKvxnSxXo29W9R8cZ3Nafx",
+          "name": "move_to_trash",
+          "arguments": {
+            "path": "~/Downloads/kopie.pdf"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 1.815,
+    "usage": [
+      {
+        "input": 25,
+        "output": 33,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2710,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "readpdf",
+    "prompt": "Erkläre mir ~/Documents/brief.pdf einfach.",
+    "tools": [
+      "mcp__pippa__read_document"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<home>/Documents/brief.pdf"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich lese dir das Dokument einfach aus und erkläre es dir:\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "DvgAfK2lxVBsarwbskRhkSX4oN0TJD00",
+          "name": "mcp__pippa__read_document",
+          "arguments": {
+            "path": "<home>/Documents/brief.pdf"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.741,
+    "usage": [
+      {
+        "input": 23,
+        "output": 53,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2728,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "readtxt",
+    "prompt": "Fasse ~/Documents/notiz.txt zusammen.",
+    "tools": [
+      "read"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "~/Documents/notiz.txt"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich lese die Notiz für dich.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "HTA6Sm9XsjcDmljtmMaDoh5qFyIPkS6k",
+          "name": "read",
+          "arguments": {
+            "path": "~/Documents/notiz.txt"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 1.999,
+    "usage": [
+      {
+        "input": 21,
+        "output": 37,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2710,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "calendar",
+    "prompt": "Welche Termine habe ich morgen?",
+    "tools": [
+      "mcp__pippa__calendar_read"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__calendar_read",
+        "args": {
+          "period": "tomorrow"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich schaue mir deinen Kalender für morgen an.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "wVqkGYK7fukVrX1QHSaveWgKTlvLdIlC",
+          "name": "mcp__pippa__calendar_read",
+          "arguments": {
+            "period": "tomorrow"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.306,
+    "usage": [
+      {
+        "input": 19,
+        "output": 45,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2716,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "reminders",
+    "prompt": "Was muss ich heute noch erledigen? Schau in meine Erinnerungen.",
+    "tools": [
+      "mcp__pippa__reminders_read"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__reminders_read",
+        "args": {
+          "days": 1
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich schaue jetzt in deine offenen Erinnerungen, um zu sehen, was du heute noch erledigen musst.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "3F3mRz6mZ60zZVJqipPvHPl9B819nYcd",
+          "name": "mcp__pippa__reminders_read",
+          "arguments": {
+            "days": 1
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.913,
+    "usage": [
+      {
+        "input": 26,
+        "output": 57,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2735,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "mail",
+    "prompt": "Fasse die gerade in Mail ausgewählte Nachricht zusammen.",
+    "tools": [
+      "mcp__pippa__mail_selected"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__mail_selected",
+        "args": {}
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "har7u9mk9MH0f3UYPSwEUimquchTtMNY",
+          "name": "mcp__pippa__mail_selected",
+          "arguments": {}
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 1.273,
+    "usage": [
+      {
+        "input": 23,
+        "output": 21,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2696,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "mailsearch",
+    "prompt": "Suche Mails von der Hausverwaltung.",
+    "tools": [
+      "mcp__pippa__mail_search"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__mail_search",
+        "args": {
+          "query": "Hausverwaltung"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich suche nach Mails von der Hausverwaltung.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "a2ccLWytMqSjw1ejTjtBhAOchPAF6x8N",
+          "name": "mcp__pippa__mail_search",
+          "arguments": {
+            "query": "Hausverwaltung"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.317,
+    "usage": [
+      {
+        "input": 21,
+        "output": 44,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2717,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "excel",
+    "prompt": "Prüfe die markierten Zellen in Excel.",
+    "tools": [
+      "mcp__pippa__excel_selection"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__excel_selection",
+        "args": {}
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich lese die aktuell markierten Zellen in Excel für dich.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "YrDaOmrQsLpIDIFfsYqXwBIlwSxhIfJv",
+          "name": "mcp__pippa__excel_selection",
+          "arguments": {}
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 1.921,
+    "usage": [
+      {
+        "input": 23,
+        "output": 35,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2710,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "event",
+    "prompt": "Trage Zahnarzt am 12. Oktober 2026 um 10 Uhr für 30 Minuten ein.",
+    "tools": [
+      "mcp__pippa__calendar_add"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__calendar_add",
+        "args": {
+          "title": "Zahnarzt",
+          "date": "2026-10-12",
+          "time": "10:00",
+          "minutes": 30
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich trage den Termin für dich ein.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "tIK8tYZxXMywHSMpB6b8cCKVmEfe3dNC",
+          "name": "mcp__pippa__calendar_add",
+          "arguments": {
+            "title": "Zahnarzt",
+            "date": "2026-10-12",
+            "time": "10:00",
+            "minutes": 30
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 4.676,
+    "usage": [
+      {
+        "input": 39,
+        "output": 92,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2783,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "remind",
+    "prompt": "Erinnere mich morgen um 9 Uhr an die Mülltonne.",
+    "tools": [
+      "mcp__pippa__reminder_add"
+    ],
+    "choices": [],
+    "choiceCorrect": false,
+    "ok": false,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich richte dir eine Erinnerung für morgen um 9 Uhr ein: \"Mülltonne\"."
+        }
+      ]
+    ],
+    "seconds": 1.28,
+    "usage": [
+      {
+        "input": 28,
+        "output": 21,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2701,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "draft",
+    "prompt": "Erstelle einen Mail-Entwurf an test@example.invalid, Betreff Danke, Text Vielen Dank.",
+    "tools": [
+      "mcp__pippa__mail_draft"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__mail_draft",
+        "args": {
+          "body": "Vielen Dank.",
+          "subject": "Danke",
+          "to": "test@example.invalid"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "0c4umtP7ig0TRHBKJylLwt0n6rk0Fo1t",
+          "name": "mcp__pippa__mail_draft",
+          "arguments": {
+            "body": "Vielen Dank.",
+            "subject": "Danke",
+            "to": "test@example.invalid"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.216,
+    "usage": [
+      {
+        "input": 32,
+        "output": 63,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2747,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "weather",
+    "prompt": "Wie wird das Wetter morgen in Berlin?",
+    "tools": [
+      "mcp__pippa__web_search"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__web_search",
+        "args": {
+          "query": "Wetter morgen Berlin"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich suche nach dem Wetter morgen in Berlin.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "p8eh8ibRhPtJiuki3BDywyJszlPCymKD",
+          "name": "mcp__pippa__web_search",
+          "arguments": {
+            "query": "Wetter morgen Berlin"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.51,
+    "usage": [
+      {
+        "input": 20,
+        "output": 45,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2717,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "website",
+    "prompt": "Lies https://example.invalid/info und fasse die Seite zusammen.",
+    "tools": [
+      "mcp__pippa__read_web_page"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__read_web_page",
+        "args": {
+          "url": "https://example.invalid/info"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich lese die Seite für dich.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "r5uda7Cp7pWYUpzpeowRXOJ32PyQ63cx",
+          "name": "mcp__pippa__read_web_page",
+          "arguments": {
+            "url": "https://example.invalid/info"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.471,
+    "usage": [
+      {
+        "input": 25,
+        "output": 45,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2722,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "write",
+    "prompt": "Speichere den Text Hallo in ~/Documents/gruss.txt.",
+    "tools": [
+      "write"
+    ],
+    "choices": [
+      {
+        "name": "write",
+        "args": {
+          "path": "~/Documents/gruss.txt",
+          "content": "Hallo"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "toolCall",
+          "id": "jYhlUWMLxNjkfU5PCaryaxuflBWAWGxF",
+          "name": "write",
+          "arguments": {
+            "path": "~/Documents/gruss.txt",
+            "content": "Hallo"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.228,
+    "usage": [
+      {
+        "input": 25,
+        "output": 41,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2718,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "edit",
+    "prompt": "Ersetze in ~/Documents/notiz.txt das Wort Montag durch Dienstag.",
+    "tools": [
+      "read",
+      "edit"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<home>/Documents/notiz.txt"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Ich lese die Datei zuerst, um sicherzustellen, dass der Text genau so ist, wie du sagst.\n\n"
+        },
+        {
+          "type": "toolCall",
+          "id": "1ZPDKkSJNYoqKoQxHrZxojKViCTgcRg3",
+          "name": "read",
+          "arguments": {
+            "path": "<home>/Documents/notiz.txt"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.805,
+    "usage": [
+      {
+        "input": 27,
+        "output": 53,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2732,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "answer",
+    "prompt": "Erkläre mir kurz, was eine Kaution ist.",
+    "tools": [],
+    "choices": [],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "text",
+          "text": "Eine Kaution ist ein Betrag Geld, den jemand vorab hinterlegt, um Schäden oder Kosten zu decken. Zum Beispiel bei einer Wohnungsmiete: Der Mieter zahlt die Kaution an den Vermieter. Wenn alles gut läuft und keine Schäden entstehen, bekommt der Mieter das Geld zurück. Bei Schäden wird es dafür verwendet."
+        }
+      ]
+    ],
+    "seconds": 3.408,
+    "usage": [
+      {
+        "input": 24,
+        "output": 66,
+        "cacheRead": 2652,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2742,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  }
+]

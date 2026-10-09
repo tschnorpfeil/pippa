@@ -1,0 +1,81 @@
+R7 latency · model qwen3.5-9b-q4 · load 3.50 3.01 2.91
+Warm-up (server start + "Sag nur: Hallo."), load 3.50 3.01 2.91
+  < Hallo.
+  = Warm-up: first word 8499 ms (lease 2735, Pi start 257, request→word 5507), total 8587 ms, tools [], tokens in 2522 + cache 0, out 45, load 3.26 2.97 2.90
+  Case b: short enough to send inline: yes, 1056 characters
+  Case k: short enough to send inline: yes, 610 characters
+  Case n: short enough to send inline: yes, 288 characters
+
+## Round 1 · case b · short texts ON
+  < Du musst noch 312,00 € an das Finanzamt zahlen. Die Frist ist der 06.11.2026. ⏎  ⏎ Der Betrag ist in dem Bescheid für 2025 über Einkommensteuer festgelegt.
+  = R7LAT b on r1: first word 4678 ms (lease 0, Pi start 172, request→word 4505), total 7074 ms, tools [], tokens in 480 + cache 2506, out 137, load 3.48 3.02 2.92
+
+## Round 1 · case b · short texts OFF
+  < Ich lese das Dokument, um die Antwort zu finden. ⏎  ⏎ Das Finanzamt schreibt: ⏎  ⏎ Sie müssen noch **312,00 €** zahlen. Bitte überweisen Sie den Betrag bis zum **06.11.2026**. ⏎  ⏎ Der Betrag wird auf das Konto des Finanzamts Musterstadt überwiesen (IBAN: DE00 0000 0000 0000 0000 00). Geben Sie bei der Überweisung Ihre Steuernummer 123/456/78901 an.
+  = R7LAT b off r1: first word 2393 ms (lease 1, Pi start 187, request→word 2204), total 13938 ms, tools ["mcp__pippa__read_document"], tokens in 556 + cache 5228, out 278, load 3.31 3.01 2.91
+
+## Round 1 · case k · short texts OFF
+  < Die Krankenkasse möchte eine Schulbescheinigung für das Schuljahr 2026/2027. Damit kann die Familienversicherung Ihres Sohnes über den 18. Geburtstag hinaus fortgesetzt werden. ⏎  ⏎ Bitte senden Sie die Bescheinigung bis zum 31.10.2026. Die Krankenkasse kann sie gern über das Online-Postfach erhalten. ⏎  ⏎ Wenn die Bescheinigung bis dahin nicht vorliegt, endet die Familienversicherung am 30.11.202
+  = R7LAT k off r1: first word 8925 ms (lease 2, Pi start 116, request→word 8806), total 13809 ms, tools ["mcp__pippa__read_document"], tokens in 412 + cache 5217, out 288, load 3.00 2.96 2.89
+
+## Round 1 · case k · short texts ON
+  < Die Krankenkasse möchte eine Schulbescheinigung für Ihr Kind für das Schuljahr 2026/2027. Damit kann die Familienversicherung nach dem 18. Geburtstag des Sohnes weiterlaufen. ⏎  ⏎ Bitte senden Sie die Bescheinigung bis zum 31.10.2027 zu. Kommt sie nicht rechtzeitig an, endet die Familienversicherung zum 30.11.2027.
+  Review: valueNotInSources("31.10.2027"); valueNotInSources("30.11.2027")
+  = R7LAT k on r1: first word 7504 ms (lease 1, Pi start 110, request→word 7392), total 11401 ms, tools [], tokens in 336 + cache 2506, out 250, load 2.76 2.91 2.88
+
+## Round 1 · case n · short texts ON
+  < Der Nachbar hat dir ein Paket heute Vormittag für dich angenommen. Es kommt vom Versandhaus Beispiel und ist ziemlich schwer. ⏎  ⏎ Er möchte wissen, wann du es abholen kannst. Er ist: ⏎ - morgen bis 13 Uhr zu Hause ⏎ - ab Donnerstag wieder nachmittags ⏎  ⏎ Er schreibt dir, damit du ihn anrufen oder antworten kannst, wann es passt.
+  = R7LAT n on r1: first word 18530 ms (lease 1, Pi start 100, request→word 18428), total 21634 ms, tools ["read"], tokens in 289 + cache 5511, out 500, load 2.01 2.72 2.81
+
+## Round 1 · case n · short texts OFF
+  < Der Nachbar, Frau Beispiel, hat heute Vormittag ein schweres Paket von Versandhaus Beispiel angenommen. Sie möchte wissen, wann Sie es abholen können. ⏎  ⏎ Sie ist morgen bis 13 Uhr zu Hause und ab Donnerstag wieder nachmittags.
+  = R7LAT n off r1: first word 8756 ms (lease 2, Pi start 128, request→word 8625), total 10878 ms, tools ["read"], tokens in 187 + cache 5187, out 248, load 1.78 2.65 2.78
+
+## Round 2 · case b · short texts OFF
+  < Du musst noch 312,00 € zahlen. Überweise den Betrag bis zum 06.11.2026. ⏎  ⏎ Gib in der Überweisung die Steuernummer 123/456/78901 an und verweise auf das Konto des Finanzamts Musterstadt, IBAN DE00 0000 0000 0000 0000 00. ⏎  ⏎ Gegen den Bescheid kannst du innerhalb eines Monats nach Bekanntgabe Einspruch einlegen – das hält die Zahlung aber nicht auf.
+  = R7LAT b off r2: first word 11520 ms (lease 2, Pi start 118, request→word 11399), total 16697 ms, tools ["mcp__pippa__read_document"], tokens in 556 + cache 5260, out 377, load 1.84 2.61 2.77
+
+## Round 2 · case b · short texts ON
+  < Laut dem Brief vom Finanzamt müssen Sie noch 312,00 € zahlen. ⏎  ⏎ Den Betrag müssen Sie bis zum 06.11.2026 auf das Konto des Finanzamts überweisen.
+  = R7LAT b on r2: first word 3987 ms (lease 1, Pi start 114, request→word 3871), total 6047 ms, tools [], tokens in 480 + cache 2506, out 123, load 1.69 2.57 2.75
+
+## Round 2 · case k · short texts ON
+  < Die Krankenkasse braucht von dir eine Schulbescheinigung für das Schuljahr 2026/2027. ⏎  ⏎ Das musst du bis zum 31.10.2027 schicken, am besten über das Online-Postfach. ⏎  ⏎ Wenn die Bescheinigung nicht bis dahin da ist, endet die Familienversicherung deines Sohnes zum 30.11.2026. ⏎  ⏎ Kann ich dir helfen, die Bescheinigung zu finden oder zu senden?
+  Review: valueNotInSources("31.10.2027")
+  = R7LAT k on r2: first word 7543 ms (lease 0, Pi start 99, request→word 7443), total 11889 ms, tools [], tokens in 336 + cache 2506, out 263, load 2.06 2.61 2.76
+
+## Round 2 · case k · short texts OFF
+  < Ich lese das PDF, um zu sehen, was die Krankenkasse von dir will. ⏎  ⏎ Die Krankenkasse möchte eine Schulbescheinigung für das Schuljahr 2026/2027.  ⏎  ⏎ Sie braucht sie, damit die Familienversicherung deines Sohnes über den 18. Geburtstag hinaus weiterläuft. Bitte sende die Bescheinigung bis zum 31.10.2026 – am besten über das Online-Postfach. ⏎  ⏎ Wenn sie bis dahin nicht da ist, endet die Famil
+  = R7LAT k off r2: first word 4683 ms (lease 1, Pi start 134, request→word 4547), total 17515 ms, tools ["mcp__pippa__read_document"], tokens in 412 + cache 5299, out 407, load 2.05 2.58 2.75
+
+## Round 2 · case n · short texts OFF
+  < Der Nachbar will, dass du das Paket abholst. Er hat es heute Vormittag angenommen und fragt, wann es dir passt. Er ist morgen bis 13 Uhr zu Hause, ab Donnerstag nachmittags.
+  = R7LAT n off r2: first word 6914 ms (lease 2, Pi start 120, request→word 6791), total 8913 ms, tools ["read"], tokens in 187 + cache 5188, out 201, load 1.81 2.51 2.72
+
+## Round 2 · case n · short texts ON
+  < Hallo, ⏎  ⏎ Dein Nachbar Frau Beispiel (2. OG) hat heute Vormittag ein Paket für dich angenommen. Es ist vom Versandhaus Beispiel und ziemlich schwer. ⏎  ⏎ Sie möchte wissen, wann du es abholen möchtest: ⏎ - Morgen bis 13 Uhr ⏎ - Oder ab Donnerstag nachmittags ⏎  ⏎ Sag einfach, was dir besser passt.
+  = R7LAT n on r2: first word 4698 ms (lease 1, Pi start 109, request→word 4587), total 7740 ms, tools [], tokens in 198 + cache 2506, out 165, load 1.77 2.48 2.71
+
+## Round 3 · case b · short texts ON
+  < Sie müssen noch 312,00 € zahlen. Bitte überweisen Sie den Betrag bis zum 06.11.2026.
+  = R7LAT b on r3: first word 3067 ms (lease 1, Pi start 117, request→word 2948), total 4411 ms, tools [], tokens in 480 + cache 2506, out 85, load 2.03 2.52 2.72
+
+## Round 3 · case b · short texts OFF
+  < Ich habe den Brief gelesen. ⏎  ⏎ Sie müssen noch **312,00 €** zahlen. Der Betrag ist bis zum **06.11.2026** fällig. ⏎  ⏎ Die Überweisung ist an das Konto des Finanzamts Musterstadt zu richten, mit Angabe der Steuernummer 123/456/78901.
+  = R7LAT b off r3: first word 7398 ms (lease 1, Pi start 118, request→word 7278), total 10898 ms, tools ["mcp__pippa__read_document"], tokens in 556 + cache 5213, out 227, load 2.43 2.58 2.74
+
+## Round 3 · case k · short texts OFF
+  < Die Gesundheitskasse Beispiel möchte von dir eine Schulbescheinigung für deinen Sohn. ⏎  ⏎ Dafür braucht sie: ⏎ - Eine Bescheinigung für das Schuljahr 2026/2027 ⏎ - Bis zum 31.10.2026 (am besten über das Online-Postfach) ⏎  ⏎ Wenn die Bescheinigung bis dahin nicht da ist, endet die Familienversicherung zum 30.11.2026.
+  = R7LAT k off r3: first word 8783 ms (lease 1, Pi start 116, request→word 8665), total 13217 ms, tools ["mcp__pippa__read_document"], tokens in 412 + cache 5232, out 267, load 2.62 2.61 2.75
+
+## Round 3 · case k · short texts ON
+  < Die Krankenkasse möchte eine Schulbescheinigung für Ihr Schuljahr 2026/2027. ⏎  ⏎ Das ist wichtig, damit die Familienversicherung Ihres Sohnes über den 18. Geburtstag hinaus fortgesetzt werden kann. ⏎  ⏎ Bitte senden Sie die Bescheinigung bis zum 31.10.2026, am besten über das Online-Postfach. ⏎  ⏎ Wenn die Bescheinigung nicht bis dahin kommt, endet die Familienversicherung zum 30.11.2026.
+  = R7LAT k on r3: first word 8637 ms (lease 1, Pi start 119, request→word 8515), total 13578 ms, tools [], tokens in 336 + cache 2506, out 282, load 2.51 2.58 2.73
+
+## Round 3 · case n · short texts ON
+  < Der Nachbar hat heute Vormittag ein Paket angenommen und möchte wissen, wann du es abholen kannst. Er ist morgen bis 13 Uhr zu Hause und ab Donnerstag wieder nachmittags. ⏎  ⏎ Soll ich dir sagen, wann ich das Paket abholen kann?
+  = R7LAT n on r3: first word 8820 ms (lease 1, Pi start 112, request→word 8706), total 11184 ms, tools [], tokens in 198 + cache 2506, out 240, load 2.20 2.52 2.71
+
+## Round 3 · case n · short texts OFF
+  < Die Nachbarin Frau Beispiel hat ein Paket für dich angenommen. Das Paket kommt vom Versandhaus Beispiel und ist ziemlich schwer. ⏎  ⏎ Sie fragt, wann du es abholen möchtest. Sie ist: ⏎ - morgen bis 13 Uhr zu Hause ⏎ - ab Donnerstag wieder nachmittags ⏎  ⏎ Möchtest du, dass ich dir einen Termin vorschlage?
+  = R7LAT n off r3: first word 6895 ms (lease 2, Pi start 120, request→word 6772), total 9983 ms, tools ["read"], tokens in 187 + cache 5187, out 215, load 2.02 2.47 2.69
