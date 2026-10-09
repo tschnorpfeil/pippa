@@ -133,7 +133,7 @@ func runR2Checks() async {
             && isFolder.json["status"] as? String == "is_folder" && protected.json["status"] as? String == "protected"
             && extra.json["status"] as? String == "invalid_arguments"
     }
-    await checkAsync("read_document: small-model habits work (quoted path, escaped spaces, from_page as text); no permission is named") {
+    await checkAsync("read_document: small-model habits work (quoted path, escaped spaces, from_page as text, miscopied name); no permission is named") {
         let t = tools(PippaMCPTurns())
         let spaced = base.appendingPathComponent("Brief vom Amt.pdf")
         try? FileManager.default.removeItem(at: spaced)
@@ -147,7 +147,13 @@ func runR2Checks() async {
         try? FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: closed.path)
         let denied = await call(t, "read_document", ["path": closed.path])
         try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: closed.path)
-        return !quoted.isError && !escaped.isError && !page.isError
+        // A miscopied long name ("DWG" → "DNG", seen with Qwen) gets the one close match back.
+        let drawing = base.appendingPathComponent("A12-E-715-50-EA-DWG-1009-Underground Cable Duct.rev.7.pdf")
+        try? FileManager.default.removeItem(at: drawing)
+        try? FileManager.default.copyItem(at: letter, to: drawing)
+        let miscopied = await call(t, "read_document", ["path": base.appendingPathComponent("A12-E-715-50-EA-DNG-1009-Underground Cable Duct.rev.7.pdf").path])
+        let suggested = (miscopied.json["error"] as? String)?.contains("Did you mean \(drawing.path)?") == true
+        return !quoted.isError && !escaped.isError && !page.isError && miscopied.json["status"] as? String == "not_found" && suggested
             && ((page.json["data"] as? [String: Any])?["text"] as? String)?.hasPrefix("[S. 2]") == true
             && denied.isError && denied.json["status"] as? String == "no_access"
     }
