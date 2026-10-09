@@ -1,0 +1,784 @@
+{
+ "variants": {
+  "A": {
+   "model": "k2-horizon-7b",
+   "thinking": "medium",
+   "agenticRuns": 30,
+   "success": {
+    "yes": 16,
+    "partial": 13,
+    "no": 1
+   },
+   "perTask": {
+    "multi-rechnungen": [
+     "yes",
+     "yes",
+     "yes"
+    ],
+    "vergleich": [
+     "yes",
+     "yes",
+     "yes"
+    ],
+    "zusammenfassen": [
+     "partial",
+     "partial",
+     "partial"
+    ],
+    "ordner-ueberblick": [
+     "partial",
+     "yes",
+     "partial"
+    ],
+    "web-recherche": [
+     "yes",
+     "yes",
+     "yes"
+    ],
+    "web-plus-datei": [
+     "partial",
+     "partial",
+     "partial"
+    ],
+    "mail-antwort": [
+     "partial",
+     "partial",
+     "no"
+    ],
+    "termin": [
+     "yes",
+     "yes",
+     "yes"
+    ],
+    "en-multi": [
+     "yes",
+     "yes",
+     "partial"
+    ],
+    "en-summary": [
+     "partial",
+     "partial",
+     "yes"
+    ]
+   },
+   "loopsOrAborts": [
+    "A-r3-mail-antwort: token limit after 24 tool calls"
+   ],
+   "httpErrors": [],
+   "invented": [
+    "A-r1-zusammenfassen",
+    "A-r1-ordner-ueberblick",
+    "A-r1-web-plus-datei",
+    "A-r1-en-summary",
+    "A-r2-zusammenfassen",
+    "A-r2-mail-antwort",
+    "A-r3-zusammenfassen",
+    "A-r3-ordner-ueberblick"
+   ],
+   "toolCalls": {
+    "median": 2,
+    "range": [
+     1,
+     24
+    ],
+    "n": 30
+   },
+   "firstWordCold": {
+    "median": 12.371,
+    "range": [
+     4.879,
+     48.076
+    ],
+    "n": 3
+   },
+   "firstWordWarm": {
+    "median": 31.287,
+    "range": [
+     3.68,
+     93.534
+    ],
+    "n": 26
+   },
+   "totalCold": {
+    "median": 47.199,
+    "range": [
+     42.257,
+     56.046
+    ],
+    "n": 3
+   },
+   "totalWarm": {
+    "median": 48.8,
+    "range": [
+     13.435,
+     419.701
+    ],
+    "n": 27
+   },
+   "total": {
+    "median": 47.9995,
+    "range": [
+     13.435,
+     419.701
+    ],
+    "n": 30
+   },
+   "serverLoad": {
+    "median": 1.783,
+    "range": [
+     1.515,
+     2.018
+    ],
+    "n": 3
+   },
+   "serverPeakRSSMB": {
+    "median": 9284,
+    "range": [
+     8671,
+     10156
+    ],
+    "n": 3
+   },
+   "serverFootprintMB": {
+    "median": 4824,
+    "range": [
+     4481,
+     5745
+    ],
+    "n": 3
+   },
+   "piPeakRSSMB": {
+    "median": 135,
+    "range": [
+     103,
+     137
+    ],
+    "n": 30
+   },
+   "search6": [
+    6,
+    6,
+    6
+   ],
+   "searchSeconds": {
+    "median": 7.855499999999999,
+    "range": [
+     5.995,
+     10.749
+    ],
+    "n": 18
+   },
+   "choice25": [
+    25,
+    25,
+    25
+   ],
+   "choiceFails": [],
+   "r7FirstWord": {
+    "median": 13.751999999999999,
+    "range": [
+     5.779,
+     20.439
+    ],
+    "n": 18
+   },
+   "r7Total": {
+    "median": 18.9405,
+    "range": [
+     7.707,
+     28.386
+    ],
+    "n": 18
+   },
+   "r7Runs": 18,
+   "germanBlind": {
+    "scores": [
+     3,
+     4,
+     3,
+     3,
+     3,
+     2,
+     2,
+     3,
+     2,
+     3,
+     2,
+     2,
+     2,
+     3,
+     2,
+     3,
+     4,
+     2,
+     2,
+     5,
+     1,
+     5,
+     4,
+     4,
+     5,
+     4,
+     1,
+     4,
+     1,
+     3
+    ],
+    "german": [
+     3,
+     4,
+     3,
+     3,
+     3,
+     2,
+     2,
+     3,
+     2,
+     3,
+     2,
+     2,
+     2,
+     3,
+     2,
+     3,
+     4,
+     2,
+     2,
+     5,
+     1,
+     5,
+     4,
+     4
+    ],
+    "mean": 2.9,
+    "n": 30,
+    "germanMean": 2.875,
+    "germanN": 24
+   }
+  },
+  "B": {
+   "model": "qwen3.5-9b-q4",
+   "thinking": "medium",
+   "agenticRuns": 30,
+   "success": {
+    "yes": 17,
+    "partial": 12,
+    "no": 1
+   },
+   "perTask": {
+    "multi-rechnungen": [
+     "yes",
+     "yes",
+     "yes"
+    ],
+    "vergleich": [
+     "yes",
+     "yes",
+     "yes"
+    ],
+    "zusammenfassen": [
+     "partial",
+     "yes",
+     "partial"
+    ],
+    "ordner-ueberblick": [
+     "yes",
+     "partial",
+     "yes"
+    ],
+    "web-recherche": [
+     "yes",
+     "yes",
+     "yes"
+    ],
+    "web-plus-datei": [
+     "no",
+     "partial",
+     "partial"
+    ],
+    "mail-antwort": [
+     "yes",
+     "partial",
+     "yes"
+    ],
+    "termin": [
+     "yes",
+     "partial",
+     "yes"
+    ],
+    "en-multi": [
+     "partial",
+     "yes",
+     "partial"
+    ],
+    "en-summary": [
+     "partial",
+     "partial",
+     "partial"
+    ]
+   },
+   "loopsOrAborts": [],
+   "httpErrors": [],
+   "invented": [
+    "B-r2-ordner-ueberblick",
+    "B-r3-termin"
+   ],
+   "toolCalls": {
+    "median": 2,
+    "range": [
+     0,
+     8
+    ],
+    "n": 30
+   },
+   "firstWordCold": {
+    "median": 16.99,
+    "range": [
+     14.81,
+     42.272
+    ],
+    "n": 3
+   },
+   "firstWordWarm": {
+    "median": 13.376,
+    "range": [
+     2.109,
+     44.884
+    ],
+    "n": 27
+   },
+   "totalCold": {
+    "median": 48.027,
+    "range": [
+     46.548,
+     49.428
+    ],
+    "n": 3
+   },
+   "totalWarm": {
+    "median": 22.714,
+    "range": [
+     8.042,
+     74.824
+    ],
+    "n": 27
+   },
+   "total": {
+    "median": 27.7545,
+    "range": [
+     8.042,
+     74.824
+    ],
+    "n": 30
+   },
+   "serverLoad": {
+    "median": 1.767,
+    "range": [
+     1.517,
+     2.014
+    ],
+    "n": 3
+   },
+   "serverPeakRSSMB": {
+    "median": 7988,
+    "range": [
+     7586,
+     9005
+    ],
+    "n": 3
+   },
+   "serverFootprintMB": {
+    "median": 3217,
+    "range": [
+     2492,
+     3597
+    ],
+    "n": 3
+   },
+   "piPeakRSSMB": {
+    "median": 135,
+    "range": [
+     122,
+     137
+    ],
+    "n": 30
+   },
+   "search6": [
+    6,
+    6,
+    6
+   ],
+   "searchSeconds": {
+    "median": 11.899000000000001,
+    "range": [
+     8.928,
+     21.241
+    ],
+    "n": 18
+   },
+   "choice25": [
+    25,
+    25,
+    25
+   ],
+   "choiceFails": [],
+   "r7FirstWord": {
+    "median": 7.451,
+    "range": [
+     2.393,
+     18.53
+    ],
+    "n": 18
+   },
+   "r7Total": {
+    "median": 11.2925,
+    "range": [
+     4.411,
+     21.634
+    ],
+    "n": 18
+   },
+   "r7Runs": 18,
+   "germanBlind": {
+    "scores": [
+     5,
+     5,
+     4,
+     4,
+     3,
+     4,
+     2,
+     3,
+     3,
+     4,
+     2,
+     3,
+     3,
+     2,
+     3,
+     4,
+     5,
+     4,
+     5,
+     5,
+     5,
+     4,
+     5,
+     5,
+     1,
+     4,
+     2,
+     1,
+     1,
+     2
+    ],
+    "german": [
+     5,
+     5,
+     4,
+     4,
+     3,
+     4,
+     2,
+     3,
+     3,
+     4,
+     2,
+     3,
+     3,
+     2,
+     3,
+     4,
+     5,
+     4,
+     5,
+     5,
+     5,
+     4,
+     5,
+     5
+    ],
+    "mean": 3.433333333333333,
+    "n": 30,
+    "germanMean": 3.8333333333333335,
+    "germanN": 24
+   }
+  },
+  "C": {
+   "model": "qwen3.5-9b-q4",
+   "thinking": "off",
+   "agenticRuns": 30,
+   "success": {
+    "yes": 9,
+    "partial": 8,
+    "no": 13
+   },
+   "perTask": {
+    "multi-rechnungen": [
+     "yes",
+     "yes",
+     "yes"
+    ],
+    "vergleich": [
+     "no",
+     "no",
+     "no"
+    ],
+    "zusammenfassen": [
+     "partial",
+     "yes",
+     "yes"
+    ],
+    "ordner-ueberblick": [
+     "yes",
+     "partial",
+     "yes"
+    ],
+    "web-recherche": [
+     "no",
+     "no",
+     "partial"
+    ],
+    "web-plus-datei": [
+     "no",
+     "no",
+     "partial"
+    ],
+    "mail-antwort": [
+     "yes",
+     "no",
+     "no"
+    ],
+    "termin": [
+     "no",
+     "yes",
+     "no"
+    ],
+    "en-multi": [
+     "partial",
+     "no",
+     "no"
+    ],
+    "en-summary": [
+     "partial",
+     "partial",
+     "partial"
+    ]
+   },
+   "loopsOrAborts": [],
+   "httpErrors": [],
+   "invented": [
+    "C-r1-web-recherche",
+    "C-r2-web-recherche"
+   ],
+   "toolCalls": {
+    "median": 1,
+    "range": [
+     0,
+     21
+    ],
+    "n": 30
+   },
+   "firstWordCold": {
+    "median": 6.53,
+    "range": [
+     3.905,
+     6.712
+    ],
+    "n": 3
+   },
+   "firstWordWarm": {
+    "median": 0.454,
+    "range": [
+     0.348,
+     6.331
+    ],
+    "n": 27
+   },
+   "totalCold": {
+    "median": 34.288,
+    "range": [
+     33.393,
+     42.007
+    ],
+    "n": 3
+   },
+   "totalWarm": {
+    "median": 14.686,
+    "range": [
+     1.99,
+     83.933
+    ],
+    "n": 27
+   },
+   "total": {
+    "median": 15.4275,
+    "range": [
+     1.99,
+     83.933
+    ],
+    "n": 30
+   },
+   "serverLoad": {
+    "median": 0.756,
+    "range": [
+     0.754,
+     0.758
+    ],
+    "n": 3
+   },
+   "serverPeakRSSMB": {
+    "median": 9527,
+    "range": [
+     7763,
+     9606
+    ],
+    "n": 3
+   },
+   "serverFootprintMB": {
+    "median": 4148,
+    "range": [
+     1190,
+     4190
+    ],
+    "n": 3
+   },
+   "piPeakRSSMB": {
+    "median": 135,
+    "range": [
+     134,
+     137
+    ],
+    "n": 30
+   },
+   "search6": [
+    6,
+    6,
+    5
+   ],
+   "searchSeconds": {
+    "median": 6.7010000000000005,
+    "range": [
+     2.402,
+     11.022
+    ],
+    "n": 18
+   },
+   "choice25": [
+    21,
+    22,
+    21
+   ],
+   "choiceFails": [
+    "r1 tax: read",
+    "r1 pdf: read",
+    "r1 info: read",
+    "r1 where: read",
+    "r2 pdf: read",
+    "r2 info: read",
+    "r2 website: answer",
+    "r3 tax: read",
+    "r3 pdf: read",
+    "r3 info: read",
+    "r3 remind: answer"
+   ],
+   "r7FirstWord": {
+    "median": 0.6585000000000001,
+    "range": [
+     0.498,
+     3.802
+    ],
+    "n": 18
+   },
+   "r7Total": {
+    "median": 5.2255,
+    "range": [
+     2.367,
+     9.302
+    ],
+    "n": 18
+   },
+   "r7Runs": 18,
+   "germanBlind": {
+    "scores": [
+     5,
+     5,
+     5,
+     3,
+     4,
+     5,
+     3,
+     3,
+     5,
+     4,
+     4,
+     4,
+     5,
+     3,
+     5,
+     4,
+     3,
+     3,
+     3,
+     4,
+     4,
+     2,
+     1,
+     4,
+     3,
+     4,
+     1,
+     1,
+     1,
+     2
+    ],
+    "german": [
+     5,
+     5,
+     5,
+     3,
+     4,
+     5,
+     3,
+     3,
+     5,
+     4,
+     4,
+     4,
+     5,
+     3,
+     5,
+     4,
+     3,
+     3,
+     3,
+     4,
+     4,
+     2,
+     1,
+     4
+    ],
+    "mean": 3.433333333333333,
+    "n": 30,
+    "germanMean": 3.7916666666666665,
+    "germanN": 24
+   }
+  }
+ },
+ "decision": {
+  "B": {
+   "successAtLeastK2MinusOne": true,
+   "noNewLoops": true,
+   "germanBlindAtLeastK2": true,
+   "totalTimeWithin20Percent": true,
+   "qwenBecomesDefault": true
+  },
+  "C": {
+   "successAtLeastK2MinusOne": false,
+   "noNewLoops": true,
+   "germanBlindAtLeastK2": true,
+   "totalTimeWithin20Percent": true,
+   "qwenBecomesDefault": false
+  }
+ }
+}

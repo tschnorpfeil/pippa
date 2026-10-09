@@ -497,10 +497,10 @@ check("Model: 8 GB → qwen3.5-4b-q4, also with \"More thorough\" saved (no choi
     pick(8)?.model.key == "qwen3.5-4b-q4" && pick(8, .thorough)?.model.key == "qwen3.5-4b-q4"
         && !ModelSelector.offersThorough(physicalMemory: 8 * GB)
 }
-check("Model: 16 GB → k2-horizon-7b, ctx 16384, ctx-checkpoints 4, cache-ram 0; no \"More thorough\"") {
+check("Model: 16 GB → qwen3.5-9b-q4, ctx 16384, ctx-checkpoints 4, cache-ram 0; no \"More thorough\"") {
     let c = pick(16)
-    return c?.model.key == "k2-horizon-7b" && c?.ctx == 16384 && c?.extra["ctx-checkpoints"] == "4" && c?.extra["cache-ram"] == "0"
-        && pick(16, .thorough)?.model.key == "k2-horizon-7b" && !ModelSelector.offersThorough(physicalMemory: 16 * GB)
+    return c?.model.key == "qwen3.5-9b-q4" && c?.ctx == 16384 && c?.extra["ctx-checkpoints"] == "4" && c?.extra["cache-ram"] == "0"
+        && pick(16, .thorough)?.model.key == "qwen3.5-9b-q4" && !ModelSelector.offersThorough(physicalMemory: 16 * GB)
         && (c?.model.memGiB ?? 99) <= ModelSelector.budgetGiB(physicalMemory: 16 * GB)
 }
 check("Model: K2 Horizon 7B does not fit 8 GB; low thinking via the template, XML tool calls") {
@@ -508,21 +508,21 @@ check("Model: K2 Horizon 7B does not fit 8 GB; low thinking via the template, XM
     return (k2?.memGiB ?? 0) > ModelSelector.budgetGiB(physicalMemory: 8 * GB)
         && k2?.extra?["chat-template-kwargs"]?.description == #"{"reasoning_effort":"low","tool_call_format":"xml"}"#
 }
-check("Model: 24 GB → k2-horizon-7b, ctx 32768; \"More thorough\" → qwen3.6-35b-a3b-iq3 within the memory budget") {
+check("Model: 24 GB → qwen3.5-9b-q4, ctx 32768; \"More thorough\" → qwen3.6-35b-a3b-iq3 within the memory budget") {
     let c = pick(24), t = pick(24, .thorough)
-    return c?.model.key == "k2-horizon-7b" && c?.ctx == 32768 && ModelSelector.offersThorough(physicalMemory: 24 * GB)
+    return c?.model.key == "qwen3.5-9b-q4" && c?.ctx == 32768 && ModelSelector.offersThorough(physicalMemory: 24 * GB)
         && t?.model.key == "qwen3.6-35b-a3b-iq3" && t?.ctx == 32768
         && (t?.model.memGiB ?? 99) <= ModelSelector.budgetGiB(physicalMemory: 24 * GB)
 }
-check("Model: 32 and 64 GB → k2-horizon-7b; \"More thorough\" → qwen3.6-35b-a3b-iq3") {
+check("Model: 32 and 64 GB → qwen3.5-9b-q4; \"More thorough\" → qwen3.6-35b-a3b-iq3") {
     [32, 64].allSatisfy { gb in
-        pick(UInt64(gb))?.model.key == "k2-horizon-7b" && pick(UInt64(gb), .thorough)?.model.key == "qwen3.6-35b-a3b-iq3"
+        pick(UInt64(gb))?.model.key == "qwen3.5-9b-q4" && pick(UInt64(gb), .thorough)?.model.key == "qwen3.6-35b-a3b-iq3"
             && ModelSelector.offersThorough(physicalMemory: UInt64(gb) * GB)
     }
 }
 check("Model: an unpinned table model is unavailable (never a download without a SHA256)") {
     var catalog = tableCatalog
-    if let index = catalog.models.firstIndex(where: { $0.key == "k2-horizon-7b" }) { catalog.models[index].pinned = nil }
+    if let index = catalog.models.firstIndex(where: { $0.key == "qwen3.5-9b-q4" }) { catalog.models[index].pinned = nil }
     if case .failure(.modelUnavailable) = ModelSelector.choose(physicalMemory: 16 * GB, appleSilicon: true, catalog: catalog) { return true }
     return false
 }
@@ -532,10 +532,10 @@ check("Model: Intel → not supported") {
 }
 check("Model: table only; `named` only for measurements and models.json (both table rows keep their settings)") {
     let auto = pick(16)
-    let same = ModelSelector.named("k2-horizon-7b", physicalMemory: 16 * GB, catalog: tableCatalog)
+    let same = ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 * GB, catalog: tableCatalog)
     let thorough = ModelSelector.named("qwen3.6-35b-a3b-iq3", physicalMemory: 24 * GB, catalog: tableCatalog)
-    let other = ModelSelector.named("qwen3.5-9b-q4", physicalMemory: 16 * GB, catalog: tableCatalog)
-    return same == auto && thorough == pick(24, .thorough) && other?.model.key == "qwen3.5-9b-q4" && other?.ctx == 16384
+    let other = ModelSelector.named("k2-horizon-7b", physicalMemory: 16 * GB, catalog: tableCatalog)
+    return same == auto && thorough == pick(24, .thorough) && other?.model.key == "k2-horizon-7b" && other?.ctx == 16384
         && other?.extra["cache-ram"] == "0"
         && ModelSelector.named("gibt-es-nicht", physicalMemory: 16 * GB) == nil
 }
@@ -567,12 +567,12 @@ await checkAsync("Model: old stock (24 GB, Qwen3.6 35B Q3) is no longer adopted 
     try PippaSettings().save(to: base)
     let engine = LocalEngine(baseDirectory: base, physicalMemory: 24 * GB, integrations: DemoIntegrations())
     defer { Task { await engine.shutdown() } }
-    let size = await engine.modelDownloadSize      // K2 Horizon 7B missing: the one download question
+    let size = await engine.modelDownloadSize      // Qwen3.5 9B missing: the one download question
     let kept = fm.fileExists(atPath: url.path) && fm.fileExists(atPath: url.appendingPathExtension("ok").path)
     let settings = String(decoding: (try? Data(contentsOf: base.appendingPathComponent("settings.json"))) ?? Data(), as: UTF8.self)
     try? fm.removeItem(at: url)
     // Without a pin there is no size (and no download at all); "Default model is pinned" reports that on its own.
-    let pinned = ModelCatalog.bundled().model("k2-horizon-7b")?.pinned != nil
+    let pinned = ModelCatalog.bundled().model("qwen3.5-9b-q4")?.pinned != nil
     return (size != nil || !pinned) && kept && !settings.contains("qwen3.6")
 }
 await checkAsync("Existing models: LM Studio, Ollama, Hugging Face detected, adopted without network, source stays") {
@@ -690,11 +690,14 @@ check("Server arguments: local only, key only in the environment, jinja, catalog
     let c = pick(16)!
     let args = LlamaServer.arguments(choice: c, model: URL(fileURLWithPath: "/m.gguf"), port: 9000, supported: nil)
     let s = args.joined(separator: " ")
+    let k2Choice = ModelSelector.named("k2-horizon-7b", physicalMemory: 16 * GB, catalog: tableCatalog)!
+    let k2 = LlamaServer.arguments(choice: k2Choice, model: URL(fileURLWithPath: "/k2.gguf"), port: 9000, supported: nil).joined(separator: " ")
     let env = LlamaServer.environment(apiKey: "geheim-k", base: ["PATH": "/usr/bin"])
     return s.contains("--host 127.0.0.1") && !s.contains("--api-key") && !s.contains("geheim-k")
         && env["LLAMA_API_KEY"] == "geheim-k" && env["PATH"] == "/usr/bin" && s.contains("--jinja") && s.contains("--ctx-size 16384")
-        && s.contains("--ctx-checkpoints 4") && s.contains("--cache-ram 0") && s.contains("--top-k 0") && s.contains("--no-webui")
-        && s.contains("--reasoning off") && s.contains(#"--chat-template-kwargs {"reasoning_effort":"low","tool_call_format":"xml"}"#)
+        && s.contains("--ctx-checkpoints 4") && s.contains("--cache-ram 0") && s.contains("--top-k 20") && s.contains("--no-webui")
+        && s.contains("--reasoning off") && !s.contains("--chat-template-kwargs")
+        && k2.contains("--top-k 0") && k2.contains(#"--chat-template-kwargs {"reasoning_effort":"low","tool_call_format":"xml"}"#)
 }
 
 // MARK: - Reading

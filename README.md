@@ -102,7 +102,7 @@ Worth knowing: like Pi, Pippa just does the job instead of asking before every s
 | Memory | Model Pippa picks | Download |
 |---|---|---|
 | 8 GB | Qwen3.5 4B | about 2.7 GB |
-| 16 GB or more (recommended) | K2 Horizon 7B | about 5.6 GB |
+| 16 GB or more (recommended) | Qwen3.5 9B | about 5.7 GB |
 | 24 GB or more, *More thorough* in Settings | Qwen3.6 35B-A3B | about 13.7 GB |
 
 If a matching model is already on your Mac (LM Studio, Ollama, Hugging Face cache), Pippa reuses it and leaves the original untouched.
@@ -154,7 +154,7 @@ Pippa stands on the shoulders of:
 - [Node.js](https://nodejs.org) (MIT and others), which runs Pi
 - [Sparkle](https://sparkle-project.org) (MIT), for updates
 - [Bagel Fat One](https://fonts.google.com/specimen/Bagel+Fat+One) and [Gochi Hand](https://fonts.google.com/specimen/Gochi+Hand) (SIL Open Font License 1.1)
-- the open models [K2 Horizon](https://huggingface.co/IFM/K2-Horizon-7B) by MBZUAI and IFM (Apache 2.0) and [Qwen](https://huggingface.co/Qwen) (Apache 2.0), downloaded from Hugging Face on your Mac and not part of this repository
+- the open models [Qwen](https://huggingface.co/Qwen) (Apache 2.0) and, for developers, [K2 Horizon](https://huggingface.co/IFM/K2-Horizon-7B) by MBZUAI and IFM (Apache 2.0), downloaded from Hugging Face on your Mac and not part of this repository
 
 Licence texts and the full list of bundled components: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
