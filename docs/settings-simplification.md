@@ -58,10 +58,13 @@ ignored and disappear the next time Pippa writes the file. Everyone gets the mod
 is missing but the model in Pi's `models.json` (`pippa-local`) is a pinned catalog model, verified in the model folder,
 setup is ready with that one (`PiSetupFlow.fallback`) and offers the new one in Settings and in the menu bar ("Load
 Pippa's Knowledge Now (5.7 GB)"). After the download, `models.json` and the terminal launch file name the new model;
-the old file stays on disk. If that model is
+the old file stays on disk until the new model has answered once. Then a model the table no longer hands out
+(`SupersededModels.keys`, today K2 Horizon 7B) is deleted silently from Pippa's own model folder (owner decision
+2026-10-09): never the active model, never a table model, never when a developer model (`PIPPA_PI_MODEL`) answered,
+never in a shared `~/models`; an adopted hardlink or clone leaves the LM Studio/Ollama original untouched. If that model is
 missing, the normal single download question appears, unless the model already sits in LM Studio, Ollama, Hugging
-Face and so on (then it is adopted without a download, as before). No code path deletes model files: an earlier choice
-stays on disk untouched. The never-called `ModelDownloader.removeOtherModels` was deleted as well.
+Face and so on (then it is adopted without a download, as before). No other code path deletes model files: an earlier
+choice, such as the standard model next to "Gründlicher", stays on disk untouched. The never-called `ModelDownloader.removeOtherModels` was deleted as well.
 
 **`adoptInstalled` removed.** It kept 24 GB Macs on an already downloaded Qwen3.6 35B Q3 after the table moved them to
 Gemma 4 12B. It only ever ran in the removed legacy chat path. The Pi path chooses by memory or the saved `piModel`
