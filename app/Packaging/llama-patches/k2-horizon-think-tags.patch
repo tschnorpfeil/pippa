@@ -5,6 +5,7 @@ reasoning_effort (</ifm|think_faster> for low, </ifm|think_fast> for medium). K2
 <ifm|think>...</ifm|think> after tool results, so the tool calls that follow end up in reasoning_content and
 Pi's turn ends empty. With this patch every effort's end tag closes the reasoning block.
 Measured: official low 24/30 OK, medium 0/20; patched low 19/20 with zero leaks.
+Same change as the regression-tested version on llama.cpp master (scratch branch, not submitted).
 
 Goes away once upstream accepts it (see docs/rebuild/llama-cpp-k2-pr.md); then delete this file and the
 "patches" entry in llama-release.json.
@@ -14,23 +15,17 @@ Applied by scripts/build-app.sh with `patch -p1`.
 diff --git a/common/parsers/k2-horizon.cpp b/common/parsers/k2-horizon.cpp
 --- a/common/parsers/k2-horizon.cpp
 +++ b/common/parsers/k2-horizon.cpp
-@@ -46,11 +46,18 @@
+@@ -46,7 +46,13 @@ common_chat_params common_chat_params_init_k2_horizon(const common_chat_template
      const std::string ARG_VAL_END   = "</ifm|arg_value>";
-
+ 
      data.thinking_start_tag = THINK_START;
-+    // The model does not always close with the tag the template opened: after tool results it often writes
-+    // <ifm|think>...</ifm|think> even for medium/low effort. Accept every effort's end tag.
++    // The model may close with another effort's tag (often </ifm|think> after tool results), keep THINK_END first for the reasoning budget
      data.thinking_end_tags  = { THINK_END };
-+    for (const char * tag : { "</ifm|think>", "</ifm|think_fast>", "</ifm|think_faster>" }) {
++    for (const std::string tag : { "</ifm|think>", "</ifm|think_fast>", "</ifm|think_faster>" }) {
 +        if (tag != THINK_END) {
 +            data.thinking_end_tags.push_back(tag);
 +        }
 +    }
-
+ 
      data.preserved_tokens = data.thinking_end_tags;
      data.preserved_tokens.insert(data.preserved_tokens.end(), {
--        THINK_START, SECTION_START, SECTION_END, CALL_START, CALL_END,
-+        "<ifm|think>", "<ifm|think_fast>", "<ifm|think_faster>", SECTION_START, SECTION_END, CALL_START, CALL_END,
-         ARG_KEY, ARG_KEY_END, ARG_TYPE, ARG_TYPE_END, ARG_VAL, ARG_VAL_END,
-     });
-

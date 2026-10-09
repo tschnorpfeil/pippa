@@ -12,7 +12,7 @@
     "patches": [
       {
         "file": "llama-patches/k2-horizon-think-tags.patch",
-        "sha256": "70c216cb5bfe6296d54ad966dc9dc8617970f1f7af74790e9eef11c97d8ee3a3"
+        "sha256": "5ffb0b7faacb4a6dc0fe8834ce481d7409d2116200e7bf82c17f26dd9f365394"
       }
     ],
     "cmake": [
