@@ -102,6 +102,7 @@ public enum WorkStepPhrase {
             case "calendar_add": return Described(text: l("Adding a calendar entry"), result: .none)
             case "mail_search": return Described(text: l("Searching your mail"), result: .none)
             case "mail_selected": return Described(text: l("Reading the selected mail"), result: .none)
+            case "remember": return Described(text: l("Remembering that"), result: .none)
             case "mail_draft": return Described(text: l("Writing a mail draft"), result: .none)
             case "reminders_read": return Described(text: l("Looking at your reminders"), result: .none)
             case "reminder_add": return Described(text: l("Adding a reminder"), result: .none)
