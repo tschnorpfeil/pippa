@@ -112,3 +112,22 @@ test('loop stop preserves the search truncation flag with exactly 200 returned f
   assert.equal(stop.files.length,files.length);assert.equal(stop.truncated,truncated);
  }
 });
+
+test("today's date goes in front of each new message, a skill command stays first, steering stays as typed", async () => {
+	const { todayLine, withToday } = await import("./pippa-assist.ts");
+	const day = new Date(2026, 9, 9, 23, 30);
+	assert.equal(todayLine(day, "de"), "Heute ist Freitag, 9. Oktober 2026.");
+	assert.equal(todayLine(day, "en"), "Today is Friday, 9 October 2026.");
+	assert.equal(todayLine(day), "Heute ist Freitag, 9. Oktober 2026.", "German without a language");
+	const line = "Heute ist Freitag, 9. Oktober 2026.";
+	assert.equal(withToday("Wie wird das Wetter morgen?", line), `${line}\nWie wird das Wetter morgen?`);
+	assert.equal(withToday("/skill:fristen-erkennen Welche Fristen?\nmehr", line), `/skill:fristen-erkennen ${line}\nWelche Fristen?\nmehr`);
+	assert.equal(withToday("/skill:stichpunkte", line), `/skill:stichpunkte ${line}`);
+	assert.equal(withToday("/andere Vorlage", line), "/andere Vorlage");
+	const handlers = {};
+	assist({ on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
+	const sent = await handlers.input({ type: "input", text: "Hallo", source: "rpc" });
+	assert.equal(sent.action, "transform");
+	assert.match(sent.text, /^Heute ist \S+, \d+\. \S+ \d{4}\.\nHallo$/);
+	assert.deepEqual(await handlers.input({ type: "input", text: "Stopp", source: "rpc", streamingBehavior: "steer" }), { action: "continue" });
+});
