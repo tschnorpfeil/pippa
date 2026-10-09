@@ -237,7 +237,7 @@
 
 "Stop using selected text" = "Ausgewählten Text nicht weiter verwenden";
 
-"For future answers" = "Für weitere Antworten";
+"Files in use (%lld)" = "Verwendete Dateien (%lld)";
 
 "Earlier messages keep their attachments. Original files stay where they are." = "Frühere Nachrichten behalten ihre Anhänge. Originaldateien bleiben unverändert.";
 

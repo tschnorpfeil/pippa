@@ -249,7 +249,8 @@ struct ConversationWorkspace: View {
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Label(T("For future answers", table: "Views"), systemImage: "paperclip")
+                    Label(T("Files in use (%lld)", table: "Views",
+                            used.count + (chat.current?.context?.selectedText != nil ? 1 : 0)), systemImage: "paperclip")
                     Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
                 }
                 .font(Fonts.hint).foregroundStyle(Theme.ink2)
