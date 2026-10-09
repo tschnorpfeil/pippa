@@ -36,6 +36,8 @@ Weiter auf dem Mac: `docs/rebuild/MAC-HANDOFF.md`.
 - [x] Prompt: eigene Dateien zuerst mit Spotlight, find/grep nur mit Pfad (`30f6a02`).
 - [x] Werkzeug-Schritte in der „Denkt nach“-Zeile und in der Quittung (`4f4ca97`).
 - [x] K2-Denkstufe nach dem Patch: high bleibt (gepatcht high 20/20, Median 6,6 s; low 18/20, 9,6 s).
+- [x] 2026-10-09 auf Wunsch des Owners: K2-Standard ist jetzt medium (gepatcht, Notiz lesen: medium 19/20, high 9/10,
+      Mac unter Fremdlast). Anlass: kalte Ein-Satz-Frage über Pi dauerte 91 s, davon 66 s Nachdenken auf high.
 - [ ] Restliche Texte aus dem Audit (KI/Wissen-Begriff, Einstellungen „API-Schlüssel“, Skill-Labels, englische Meldungen der Terminal-Erweiterung).
 - [ ] Phase 3/4: Szenarien mit K2 + Apple FM in der echten App, UI-Rundgang.
 - [x] Schleifenbremse im Guard, `read` auf Dokumente → `read_document`, Mail-Hinweis nur auf Wunsch (`4cfbcc8`, `a31e0fa`, `1892c0f`).
