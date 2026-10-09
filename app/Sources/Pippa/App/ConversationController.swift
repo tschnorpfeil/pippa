@@ -16,6 +16,10 @@ final class ConversationController: ObservableObject {
     @Published private(set) var thought = ThoughtLine()
     /// Receipts opened to show what was read (view state only, not saved).
     @Published private(set) var expandedReceipts: Set<UUID> = []
+    /// An answer ended on its own (`true`: it failed); not called when Stop was pressed. Set by AppModel for the pill.
+    var onAnswerFinished: ((Bool) -> Void)?
+    /// The failed answer's note and the question it answered, for "Try again" on that note (cleared by the next send).
+    @Published private(set) var failed: (notice: UUID, question: String)?
     private var lastAnnouncedKind: String?
     private var lastAnnouncement: Date?
     private var store: ConversationStore?
@@ -156,6 +160,7 @@ final class ConversationController: ObservableObject {
         let chat = chat ?? PiRPCChat.conversation
         guard !isRunning, let id = current?.id, store != nil else { return }
         error = nil
+        failed = nil
         append(.user, text, capturingAttachments: true)
         guard error == nil else { return }
         let context = current?.context
@@ -242,6 +247,7 @@ final class ConversationController: ObservableObject {
                                 subject: replySource.map { MailDraft(messageID: $0.messageID, to: nil, toName: nil, subject: $0.subject, body: "").replySubject } ?? "",
                                 body: answer, replySource: replySource, requiresOriginalReply: !mailFiles.isEmpty) : nil, work: work, actions: actions)
                 self.streamingText = ""
+                self.onAnswerFinished?(false)
                 // VoiceOver: announce the finished answer once (not every streamed piece).
                 NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
                                      userInfo: [.announcement: "Pippa: " + answer, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
@@ -263,6 +269,8 @@ final class ConversationController: ObservableObject {
                 } else {
                     self.error = PiRPCChat.userText(for: error, context: "gespraech")
                     self.append(.system, PiRPCChat.userText(for: error, context: "antwort"), notice: true, actions: actions)
+                    if let notice = self.current?.messages.last?.id { self.failed = (notice, text) }
+                    self.onAnswerFinished?(true)
                 }
                 self.streamingText = ""
             }

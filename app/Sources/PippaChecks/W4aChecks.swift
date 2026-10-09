@@ -3,7 +3,7 @@ import PippaCore
 
 // What stays in the product no longer depends on the old conversation core. Letter suggestions and "Check online"
 // run as fixed flows with structured calls (LetterModel, LocalModelJSON), skills live in runtime/pippa-skills,
-// Pippa's fetcher process in runtime/pippa-web.
+// web access is the Pi package pi-web-access in runtime/pippa-web.
 // Runs with PIPPA_W4A_CHECKS=1 and in the full run. No model, no Pi, no network.
 func runW4aChecks() async {
     print("\n— Without the old conversation core —")
@@ -28,7 +28,7 @@ func runW4aChecks() async {
             && manifest.contains("\"pi-web-access\": \"0.38.0\"")
             && PiConversationDefault.bundledWeb(bundle: URL(fileURLWithPath: "/A/Pippa.app")).path == "/A/Pippa.app/Contents/Resources/pippa-web/index.ts"
     }
-    check("Cleanup: build-app.sh bundles fetcher, skills and payload, but no old runtime any more") {
+    check("Cleanup: build-app.sh bundles web access, skills and payload, but no old runtime any more") {
         let build = read("scripts/build-app.sh"), verify = read("scripts/verify-app.sh")
         return build.contains("scripts/bundle-web.sh") && build.contains("runtime/pippa-skills\" \"$APP/Contents/Resources/pippa-skills\"")
             && !build.contains("bundle-pi-runtime") && !build.contains("pi-runtime") && !build.contains("LEGACY")
@@ -36,6 +36,9 @@ func runW4aChecks() async {
             && verify.contains("expected_skills") && verify.contains("runtime/pippa-web/package-lock.json")
             && read("app/Sources/Pippa/App/BundleVerification.swift").contains("pi-payload/release")
             && !read("app/Sources/Pippa/App/BundleVerification.swift").contains("\"Contents/Resources/pi-runtime\"")
+            // The release probe checks only what bundle-web.sh ships (the removed fetcher made every release fail).
+            && !read("app/Sources/Pippa/App/BundleVerification.swift").contains("fetcher.mjs")
+            && read("app/Sources/Pippa/App/BundleVerification.swift").contains("node_modules/pi-web-access/dist/index.js")
     }
     // What stays does not name the old core (types in AnswerTypes/ToolBridgeTypes, comparison in GermanText).
     check("Cleanup: remaining parts without PiRuntimeClient, ContextSelection, LocalEngine.chat and pi-runtime") {

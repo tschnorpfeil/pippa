@@ -74,7 +74,7 @@ When a user installs a new Pippa (Sparkle) that bundles a newer Pi, the installe
   terminal. If that does not report the pin, the old `current-version` is restored.
 - **A Pi the user manages** is never changed: their own managed install (`pi` installer), a `pi update` to any
   version, including a newer one, or a `pi` from npm/Homebrew/Nix. Pippa does not downgrade the terminal and does not
-  use the user's newer Pi for its own sessions: the guard and tools are tested against the pinned release, which runs
+  use the user's newer Pi for its own sessions: Pippa's extensions are tested against the pinned release, which runs
   side by side. Both share `~/.pi/agent` (settings, `models.json`, the user's extensions); Pippa only writes its
   `pippa-local` provider into `models.json`.
 - **Node** for the terminal (`~/.local/share/pi-node/current`) follows a new bundled Node only if Pippa created
