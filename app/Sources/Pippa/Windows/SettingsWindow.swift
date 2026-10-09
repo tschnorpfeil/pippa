@@ -198,6 +198,7 @@ struct SettingsView: View {
                     accessRow(T("Read the selected mail", table: "Settings"), [.mail])
                 }
                 SettingsGroup(title: T("Online AI", table: "Settings")) {
+                    ChatGPTSubscriptionSettings(model: model)
                     ModelConnectionSettings(model: model)
                 }
                 learningGroup

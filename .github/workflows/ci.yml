@@ -64,6 +64,9 @@ jobs:
       - name: Pi extension tests (runtime/pippa-tools)
         run: node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
+      - name: ChatGPT sign-in helper tests (runtime/pippa-auth)
+        run: node --test runtime/pippa-auth/pi-auth.test.mjs 2>&1 | tail -n 200
+        shell: bash -o pipefail {0}
       - name: Terminal autostart tests (runtime/pippa-local-server)
         run: node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}

@@ -197,6 +197,7 @@ swift run --package-path app PippaChecks                                # native
 python3 scripts/check-strings.py                                        # every UI text in en and de
 python3 scripts/check-default-models.py                                 # every model in ModelSelector's table is pinned
 node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs   # Pippa's Pi extensions
+node --test runtime/pippa-auth/*.test.mjs                               # ChatGPT sign-in helper (no network)
 (cd runtime/pippa-web && npm ci --ignore-scripts && npm test)           # web access (loads pi-web-access in the real Pi)
 node --test runtime/pippa-local-server/test/autostart.test.mjs          # terminal autostart with a fake llama-server
 node scripts/check-site.cjs                                             # website drag behaviour
