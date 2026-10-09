@@ -134,7 +134,9 @@ final class PiRPCChat {
         let env = ProcessInfo.processInfo.environment
         // Local model or own online service (only via Pippa's broker). If the path changes, Pi restarts.
         let route = try await launchRoute(env)
-        if let client, sessionKey == key, launchKey == route.key, await client.isRunning { return client }
+        // Still "answering" here means the last answer was abandoned without Pi settling (stop timed out): start afresh
+        // (the session is on disk) instead of refusing every further message as busy until the app restarts.
+        if let client, sessionKey == key, launchKey == route.key, await client.isRunning, await client.isAnswering == false { return client }
         if let old = client { await old.shutdown(); client = nil }
         let extensions = URL(fileURLWithPath: Self.extensionsPath(env), isDirectory: true)
         guard FileManager.default.fileExists(atPath: extensions.appendingPathComponent("pippa-tools.ts").path) else {

@@ -10,8 +10,7 @@ enum BundleVerification {
         progress("start")
         DisplayFont.register()
         let bundle = Bundle.main.bundleURL
-        // Checks what the Pi RPC path needs (install payload, Pippa's fetcher, capabilities), no longer
-        // the old runtime `pi-runtime`.
+        // Checks what the Pi RPC path needs: install payload, skills, llama-server, Node, Pi and the web access package.
         let release = bundle.appendingPathComponent("Contents/Resources/pi-payload/release")
         let web = bundle.appendingPathComponent("Contents/Resources/pippa-web")
         let piManifest = try JSONSerialization.jsonObject(with: Data(contentsOf: release.appendingPathComponent("package.json"))) as? [String: Any]
@@ -27,24 +26,23 @@ enum BundleVerification {
         progress("llama_ok")
         let native = release.appendingPathComponent("node_modules/@earendil-works/pi-tui/native/darwin/prebuilds/darwin-arm64/darwin-platform.node")
         let js = """
-        const fetcher=await import(process.argv[1]);
-        if(typeof fetcher.createFetcher!=='function'||typeof fetcher.serve!=='function')throw Error('fetcher exports missing');
-        await import(process.argv[2]);
         const {createRequire}=await import('node:module');
-        createRequire(import.meta.url)(process.argv[3]);
-        const esbuild=await import(process.argv[4]);
+        createRequire(import.meta.url)(process.argv[1]);
+        const esbuild=await import(process.argv[2]);
         const result=await esbuild.transform('const x:number=1',{loader:'ts'});
         if(!result.code.includes('const x = 1'))throw Error('esbuild failed');
-        if(process.version!==process.argv[5])throw Error('Node version mismatch');
+        if(process.version!==process.argv[3])throw Error('Node version mismatch');
         console.log('pippa_node_ok',process.version);
         """
-        // pi-web-access reads its settings folder on import: an empty one, never ~/.pi.
+        // pi-web-access loads only inside Pi (it imports Pi's own packages); here: Pippa's settings file and the package are there.
+        for path in ["index.ts", "node_modules/pi-web-access/dist/index.js"] where !FileManager.default.fileExists(atPath: web.appendingPathComponent(path).path) {
+            throw Failure.web(path)
+        }
+        // Node and Pi get an empty HOME, never the person's ~/.pi.
         let empty = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-probe-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: empty) }
-        let node = try child(bundle, "node", ["--input-type=module", "-e", js,
-            web.appendingPathComponent("src/fetcher.mjs").absoluteString, web.appendingPathComponent("src/generated/extract.mjs").absoluteString,
-            native.path, release.appendingPathComponent("node_modules/esbuild/lib/main.js").absoluteString, version],
+        let node = try child(bundle, "node", ["--input-type=module", "-e", js, native.path, release.appendingPathComponent("node_modules/esbuild/lib/main.js").absoluteString, version],
             environment: ["PI_CODING_AGENT_DIR": empty.path, "HOME": empty.path])
         guard node.contains("pippa_node_ok") else { throw Failure.nodeVersion }
         let pi = try child(bundle, "node", [release.appendingPathComponent("node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js").path, "--version"],
@@ -77,5 +75,5 @@ enum BundleVerification {
         return String(decoding: data, as: UTF8.self)
     }
 
-    enum Failure: Error { case missingSkills, nodeVersion, piVersion, llama, child(String, Int32) }
+    enum Failure: Error { case missingSkills, nodeVersion, piVersion, llama, web(String), child(String, Int32) }
 }

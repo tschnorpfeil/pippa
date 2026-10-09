@@ -1,5 +1,5 @@
 // Only the bundled, read-only Spotlight script with literal topic/year arguments.
-// An arbitrary node command remains a network/unknown command and asks as before.
+// pippa-assist.ts turns its results into the found-files list; any other node command is not a file search.
 import { fileURLToPath } from 'node:url';
 const script = fileURLToPath(new URL('../pippa-skills/dateien-finden/scripts/search.mjs', import.meta.url));
 export function isFileSearch(command: string): boolean {
