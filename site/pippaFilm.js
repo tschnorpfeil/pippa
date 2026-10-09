@@ -11,7 +11,7 @@
     de: {
       menu: ['Finder', 'Ablage', 'Bearbeiten', 'Darstellung'], clock: 'Do. 18:12',
       brief: 'Brief Hausverwaltung.pdf', fotos: 'IMG_4821 und 2 weitere',
-      hello: 'Leg was auf mich!', drop: 'Hier ablegen', release: 'Loslassen', what: 'Was soll ich damit machen?', done: 'Fertig', undo: 'Rückgängig',
+      hello: 'Leg was auf mich!', drop: 'Hier ablegen', release: 'Loslassen', what: 'Was soll ich damit machen?', done: 'Fertig',
       B: {
         chip: 'Brief · 2 Seiten', verbs: ['Was muss ich tun?', 'Frist eintragen', 'Antwort schreiben'], ask: 'Oder frag etwas zum Brief …',
         steps: [['Liest den Brief · Seite 1 von 2', .5], ['Liest den Brief · Seite 2 von 2', 1], ['Prüft Beträge und Daten', null]],
@@ -38,7 +38,7 @@
     en: {
       menu: ['Finder', 'File', 'Edit', 'View'], clock: 'Thu 6:12 PM',
       brief: 'Letter from landlord.pdf', fotos: 'IMG_4821 and 2 more',
-      hello: 'Drop something on me!', drop: 'Drop here', release: 'Let go', what: 'What should I do with it?', done: 'Done', undo: 'Undo',
+      hello: 'Drop something on me!', drop: 'Drop here', release: 'Let go', what: 'What should I do with it?', done: 'Done',
       B: {
         chip: 'Letter · 2 pages', verbs: ['What do I need to do?', 'Add the deadline', 'Write a reply'], ask: 'Or ask something about the letter …',
         steps: [['Reading the letter · page 1 of 2', .5], ['Reading the letter · page 2 of 2', 1], ['Checking amounts and dates', null]],
@@ -155,7 +155,7 @@
     for (const [t, f] of steps) { show(lab('<span class="shim">' + t + '</span>' + (f != null ? ring(f) : ''))); await sleep(1250); }
   }
   const finished = label => { face('offen'); pulse(); show(lab(S.done + ' <small>· ' + label + '</small>', 'ok')); };
-  const receipt = t => '<div class="fdone"><span class="ck"></span><span>' + t + '</span><u>' + S.undo + '</u></div>';
+  const receipt = t => '<div class="fdone"><span class="ck"></span><span>' + t + '</span></div>';
 
   /* Zeiger */
   let cx = 0, cy = 0;
