@@ -79,6 +79,9 @@ Gebaut wird auf dem Mac erst nach der Abnahme der Web-Recherche (Owner 09.10.). 
 | 8 | Sprechblase und Haptik für drei Momente | **erster Schritt in diesem Branch:** „Deine Antwort ist da“ steht handgeschrieben (Gochi Hand, gebündelt) in der Pille; Sprechblase und Haptik offen |
 | – | Leerer Zustand: Beispiele als Karten mit Symbol (5.2) | **Entwurf in diesem Branch** |
 
+Fehler im offenen Gespräch (Klicktest 09.10.): Die Notiz zeigt jetzt dasselbe rote „!“ wie die Pille und „Erneut versuchen“,
+das dieselbe Frage noch einmal stellt.
+
 Fixplan Phase 1: in diesem Branch 1.1 (Grund sichtbar, „Problem melden“ hinter Details), 1.3 (kein ⌘↵ im Knopf), 1.4 („vorher: …“ in normaler Schrift). Offen: 1.2, 1.5–1.9.
 
 ## Was dieser Branch ändert
@@ -109,8 +112,6 @@ große Schrift.
 
 Offen:
 
-- **Fehler im offenen Gespräch:** Dort steht nur eine leise ⓘ-Zeile („Die Antwort ist gerade nicht durchgekommen …“)
-  ohne „Erneut versuchen“, während die Pille „Hat nicht geklappt“ sagt. Gefunden im Klicktest 09.10.
 - **Guard-Frage bei geschlossenem Fenster:** Heute öffnet sich das Gespräch dafür von selbst (`onNeedsPerson`).
   Regel 3 spräche für „Kurz eine Frage“ in der Pille und Warten. Nicht geändert, weil Pi solange blockiert ist;
   nach dem ersten echten Test entscheiden.

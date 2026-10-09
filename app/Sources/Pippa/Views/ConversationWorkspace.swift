@@ -383,14 +383,24 @@ struct ConversationWorkspace: View {
                 .accessibilityLabel(T("New topic. Previous conversation under Recent Conversations.", table: "Views"))
             } else {
                 // Something the person needs to know: legible, with an icon, not a gray side note.
+                let retry = chat.failed.flatMap { $0.notice == message.id ? $0.question : nil }
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Image(systemName: "info.circle").foregroundStyle(Theme.accent)
+                    // A failed answer looks like the pill's "That didn't work" (same sign, same red), not like a hint.
+                    Image(systemName: retry == nil ? "info.circle" : "exclamationmark.circle")
+                        .foregroundStyle(retry == nil ? Theme.accent : Theme.bad)
                     VStack(alignment: .leading, spacing: 8) {
                         Text(message.text).font(Fonts.body).foregroundStyle(Theme.ink).lineSpacing(3)
                             .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                             .accessibilityLabel(T("Note: %@", table: "Views", message.text))
                         if !message.attachments.isEmpty {
                             DocumentAttachmentStrip(files: message.attachments, disabled: false)
+                        }
+                        if let retry {
+                            Button { model.route(retry) } label: {
+                                Label(T("Try Again", table: "Views"), systemImage: "arrow.clockwise")
+                            }
+                            .pippa(.tinted).disabled(model.isActiveWork)
+                            .accessibilityHint(T("Asks the same question again", table: "Views"))
                         }
                         receiptUndo(message)
                     }
