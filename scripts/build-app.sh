@@ -267,9 +267,20 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 # --- Signing -----------------------------------------------------------------
 # Quarantine and other extended attributes upset codesign ("detritus").
 xattr -cr "$APP"
+# Apple's timestamp service fails now and then ("The timestamp service is not available"); two release runs on
+# 2026-10-09 died on it while a direct codesign --timestamp a minute later worked. Retry only that error.
+sign_retry() {
+  local attempt err
+  for attempt in 1 2 3 4; do
+    if err="$("$@" 2>&1)"; then [[ -n "$err" ]] && printf '%s\n' "$err"; return 0; fi
+    printf '%s\n' "$err" >&2
+    [[ "$err" == *"timestamp service is not available"* && $attempt -lt 4 ]] || return 1
+    sleep $(( attempt * 5 ))
+  done
+}
 if [[ -n "$IDENTITY" ]]; then
   say "Signing with \"${IDENTITY}\""
-  SIGN=(codesign --force --options runtime --timestamp --sign "$IDENTITY")
+  SIGN=(sign_retry codesign --force --options runtime --timestamp --sign "$IDENTITY")
 else
   say "Signing ad hoc"
   SIGN=(codesign --force --timestamp=none --sign -)
