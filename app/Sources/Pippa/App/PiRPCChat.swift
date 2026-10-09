@@ -487,7 +487,26 @@ final class PiRPCChat {
             }
             throw Failure.model(lastError ?? "unbekannt")
         }
+        if held != nil, let plan = localPlan { Self.removeSupersededModels(after: plan) }
         return segment.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// After the first local answer with the table's model in this app run: delete models it replaced (SupersededModels),
+    /// only from Pippa's own model folder. Off the main thread; errors only cost disk space.
+    private static var supersededChecked = false
+    private static func removeSupersededModels(after plan: PiLocalServer.Plan) {
+        guard !supersededChecked, plan.source == "installer",
+              let roots = try? installTarget(ProcessInfo.processInfo.environment).roots else { return }
+        supersededChecked = true
+        let folder = plan.modelFile.deletingLastPathComponent()
+        guard folder.standardizedFileURL.path == roots.pippaModels.standardizedFileURL.path else { return }
+        let modelID = plan.modelID
+        Task.detached(priority: .utility) {
+            let removed = SupersededModels.remove(activeModelID: modelID, folder: folder)
+            if !removed.isEmpty {
+                DiagnosticsLog.shared.event("altes-modell-entfernt", ["modell": modelID, "dateien": removed.map(\.lastPathComponent).joined(separator: ",")])
+            }
+        }
     }
 
     private var searchFiles: [URL] = []
