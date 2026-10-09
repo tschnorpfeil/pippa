@@ -47,6 +47,7 @@ func runOCRChecks() async {
     check("OCR: accurate recognition reads amount, date and umlaut (default path, also macOS 15)") {
         guard let image else { return false }
         let page = DocumentOCR.recognize(image, engine: .accurate)
+        print("    recognized (\(page.engine)): \(page.text.replacingOccurrences(of: "\n", with: " | "))")
         return page.engine == .accurate && page.text.contains("23,45") && page.text.contains("06.11.2026") && page.text.contains("Fällig")
     }
     check("OCR: document recognition from macOS 26, else fallback to the classic one, same words") {
