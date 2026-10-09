@@ -1,0 +1,1690 @@
+[
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "multi-rechnungen",
+  "lang": "de",
+  "prompt": "Such alle Rechnungen aus 2024 und sag mir, was ich insgesamt bezahlt habe.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "amountsFound": 5,
+   "sourced": 5,
+   "sumCorrect": true,
+   "decoyAmount": false
+  },
+  "toolCalls": 7,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 22376
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 22376
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 22377
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 22377
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    },
+    "at": 22377
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 2.696,
+  "firstWordSeconds": 12.371,
+  "totalSeconds": 42.257,
+  "modelRequests": [
+   {
+    "at": 160,
+    "status": 200
+   },
+   {
+    "at": 6066,
+    "status": 200
+   },
+   {
+    "at": 10478,
+    "status": 200
+   },
+   {
+    "at": 22380,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 1890,
+    "output": 79,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1969,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 483,
+    "output": 89,
+    "cacheRead": 1888,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2460,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 433,
+    "output": 272,
+    "cacheRead": 2369,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3074,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 1128,
+    "output": 424,
+    "cacheRead": 2800,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4352,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Die Suche fand 5 Rechnungen aus 2024, und ich habe alle gelesen. Hier die Übersicht:\n\n| Rechnung | Datum | Betrag |\n|---|---|---|\n| Bürostuhl (kaufbeleg.pdf) | 21.09.2024 | 249,00 EUR |\n| Elektro Steckdose (scan_0412.pdf) | 12.04.2024 | 142,80 EUR |\n| Streichen Flur/Wohnzimmer (handwerker.pdf) | 28.02.2024 | 310,00 EUR |\n| Zahnreinigung (invoice_7731.pdf) | 03.07.2024 | 95,00 EUR |\n| Fahrrad-Jahresinspektion (r-2024-11.pdf) | 05.11.2024 | 68,50 EUR |\n\nInsgesamt: **865,30 EUR** aus 2024.",
+  "thinkingChars": 938,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+      "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf",
+      "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+      "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+     ]
+    }
+   },
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "5sBVZB79BfLLQt5twEM9Sa3SwAKszANd",
+     "tool": "bash",
+     "outcome": "done",
+     "action": "command",
+     "undo": "<repo>/dist/model-compare-home/undo/2026-10-09T20-40-36-115Z-5sBVZB79BfLLQt5twEM9Sa3S",
+     "restorable": false,
+     "category": "look",
+     "asked": false
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "vergleich",
+  "lang": "de",
+  "prompt": "Vergleich meinen Mietvertrag mit der Nebenkostenabrechnung 2024: passt die Vorauszahlung?",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "readLease": true,
+   "readBill": true,
+   "monthly": true,
+   "yearly": true,
+   "nachzahlung": true
+  },
+  "toolCalls": 7,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Nebenkostenabrechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Mietvertrag\" --year 2024"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Mietvertrag\""
+    }
+   },
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Wohnung/mv_scan.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+    },
+    "at": 29389
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Wohnung/mv_scan.pdf"
+    },
+    "at": 29389
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.397,
+  "firstWordSeconds": 85.439,
+  "totalSeconds": 100.866,
+  "modelRequests": [
+   {
+    "at": 158,
+    "status": 200
+   },
+   {
+    "at": 4856,
+    "status": 200
+   },
+   {
+    "at": 12734,
+    "status": 200
+   },
+   {
+    "at": 20740,
+    "status": 200
+   },
+   {
+    "at": 29396,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 26,
+    "output": 112,
+    "cacheRead": 1866,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2004,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 516,
+    "output": 171,
+    "cacheRead": 1890,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2577,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 533,
+    "output": 170,
+    "cacheRead": 2404,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3107,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 412,
+    "output": 178,
+    "cacheRead": 2935,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3525,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 792,
+    "output": 1433,
+    "cacheRead": 3345,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5570,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 137,
+  "finalAnswer": "Die Vorauszahlung passt. Hier die Rechenkette:\n\n**Mietvertrag (§ 3):**\n- Vorauszahlung Betriebskosten: 180,00 €/Monat\n- Vorauszahlung Heiz- und Warmwasser: 70,00 €/Monat\n- Summe: 250,00 €/Monat\n\n**Nebenkostenabrechnung 2024:**\n- Gezahlt: 12 × 250,00 = 3.000,00 €\n- Ist: 2.310,00 (Betriebskosten) + 960,00 (Heiz/Warmwasser) = 3.270,00 €\n- Differenz: 3.270,00 − 3.000,00 = 270,00 € Nachzahlung\n\n**Ergebnis:** Passt. Die monatliche Summe aus dem Mietvertrag (180 + 70 = 250 €) entspricht der Abrechnung, die 3.000 € Vorauszahlungen erkennt. Die 270 € Nachzahlung ergibt sich sauber aus der Differenz.\n\nEine Sache fällt mir auf: Die Abrechnung empfiehlt, die monatliche Vorauszahlung ab 01.08.2025 auf 275,00 € anzuheben. Im Mietvertrag steht für 2024 die Summe 180 + 70 = 250 €/Monat. Ob das Anheben von 25 €/Monat in einem neuen Vertrag vereinbart ist, steht nicht in diesen beiden Unterlagen.",
+  "thinkingChars": 4848,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": []
+    }
+   },
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "4sekbN7SdhDZc8cUdgSXg9cgPDx43ATv",
+     "tool": "bash",
+     "outcome": "done",
+     "action": "command",
+     "undo": "<repo>/dist/model-compare-home/undo/2026-10-09T20-41-20-615Z-4sekbN7SdhDZc8cUdgSXg9cg",
+     "restorable": false,
+     "category": "look",
+     "asked": false
+    }
+   },
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+     ]
+    }
+   },
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "PBVjwk25k98MwvXt8VTGBzF5t3NCP1qx",
+     "tool": "bash",
+     "outcome": "done",
+     "action": "command",
+     "undo": "<repo>/dist/model-compare-home/undo/2026-10-09T20-41-20-614Z-PBVjwk25k98MwvXt8VTGBzF5",
+     "restorable": false,
+     "category": "look",
+     "asked": false
+    }
+   },
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Wohnung/mv_scan.pdf"
+     ]
+    }
+   },
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "EqTeVzmsmKtBvmAsplNdff70uwxc1EbZ",
+     "tool": "bash",
+     "outcome": "done",
+     "action": "command",
+     "undo": "<repo>/dist/model-compare-home/undo/2026-10-09T20-41-28-647Z-EqTeVzmsmKtBvmAsplNdff70",
+     "restorable": false,
+     "category": "look",
+     "asked": false
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "zusammenfassen",
+  "lang": "de",
+  "prompt": "[Gezeigt – Pippa hat das nicht gelesen; lies selbst, was du für die Antwort brauchst]\nNeu gezeigt:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 Seiten, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – lesen mit mcp__pippa__read_document\n\nFass mir diesen Brief kurz zusammen und sag, was ich tun muss.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 4141
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.472,
+  "firstWordSeconds": 26.139,
+  "totalSeconds": 38.426,
+  "modelRequests": [
+   {
+    "at": 182,
+    "status": 200
+   },
+   {
+    "at": 4143,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 99,
+    "output": 89,
+    "cacheRead": 1866,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2054,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 599,
+    "output": 669,
+    "cacheRead": 1963,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3231,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Der Brief ist eine Ankündigung der Hausverwaltung Beispiel GmbH. Kurz zusammengefasst:\n\n**Was geplant ist:** In Ihrer Wohnung werden alle Fenster gegen dreifach verglaste Fenster ausgetauscht. Die Arbeiten finden vom 12. bis 16. Januar 2027 statt, für Ihre Wohnung am **13.01.2027 zwischen 8 und 16 Uhr** durch die Firma Glasbau Beispiel.\n\n**Was Sie tun müssen:**\n1. Den **Rückmeldebogen bis spätestens 20.11.2026 ausgefüllt zurücksenden** – dort sagen Sie, ob Sie am 13.01.2027 selbst zu Hause sind oder wer die Wohnung öffnet.\n2. Am Tag der Arbeiten die Fensterbänke räumen und ca. einen Meter vor den Fenstern frei halten. Möbel müssen nicht abgebaut werden, die Böden werden abgedeckt.\n3. **Option:** Sie können außerordentlich kündigen – bis Ende Oktober 2026 (Monat nach Zugang des Briefs vom 02.10.2026), zum Ablauf des übernächsten Monats.\n\n**Zu beachten:** Die Grundmiete steigt ab 01.04.2027 um **38,50 EUR** monatlich. Bei Fragen: Herr Kurz, 01234 567890.",
+  "thinkingChars": 1574,
+  "receipts": [],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "ordner-ueberblick",
+  "lang": "de",
+  "prompt": "Was liegt alles zum Thema Versicherung bei mir? Kurzer Überblick.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "hits": 5,
+   "falseHits": []
+  },
+  "toolCalls": 2,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Versicherung\""
+    }
+   }
+  ],
+  "mcp": [],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.414,
+  "firstWordSeconds": 10.245,
+  "totalSeconds": 16.099,
+  "modelRequests": [
+   {
+    "at": 193,
+    "status": 200
+   },
+   {
+    "at": 3778,
+    "status": 200
+   },
+   {
+    "at": 7413,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 19,
+    "output": 79,
+    "cacheRead": 1866,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1964,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 483,
+    "output": 61,
+    "cacheRead": 1883,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2427,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 406,
+    "output": 167,
+    "cacheRead": 2364,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2937,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Die Suche hat 5 Dateien zum Thema Versicherung gefunden:\n\n- `hausrat_police.pdf` – Documents/Versicherungen/\n- `phv.pdf` – Documents/Versicherungen/\n- `kfz_beitrag_2026.pdf` – Downloads/\n- `rs_2025.pdf` – CloudStorage/TestDrive/\n- `zzv.pdf` – iCloud Drive, Versicherung/\n\nHinweis: Die Suche durchsucht nur indexierte Inhalte. Nicht geladene Cloud-Dateien oder Scans ohne erkennbaren Text können fehlen – nicht behauptet, dass sie nicht existieren.",
+  "thinkingChars": 432,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf",
+      "<repo>/dist/model-compare-home/Documents/Versicherungen/phv.pdf",
+      "<repo>/dist/model-compare-home/Downloads/kfz_beitrag_2026.pdf",
+      "<repo>/dist/model-compare-home/Library/CloudStorage/TestDrive/rs_2025.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Versicherung/zzv.pdf"
+     ]
+    }
+   },
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "J7Bk0BaltRtGEQppTlrfR6OK55BtjPun",
+     "tool": "bash",
+     "outcome": "done",
+     "action": "command",
+     "undo": "<repo>/dist/model-compare-home/undo/2026-10-09T20-43-34-606Z-J7Bk0BaltRtGEQppTlrfR6OK",
+     "restorable": false,
+     "category": "look",
+     "asked": false
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "web-recherche",
+  "lang": "de",
+  "prompt": "Was kostet ein neuer Personalausweis und wie beantrage ich ihn?",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "approvalCard": true,
+   "fee": true,
+   "under24": true,
+   "how": true,
+   "source": true
+  },
+  "toolCalls": 2,
+  "tools": [
+   {
+    "name": "mcp__pippa__web_search",
+    "args": {
+     "query": "Personalausweis Preis Antrag Bundesamt für Bürgerliches Recht"
+    }
+   },
+   {
+    "name": "mcp__pippa__web_search",
+    "args": {
+     "query": "Personalausweis beantragen Kosten 2024 Online Antrag"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "web_search",
+    "args": {
+     "query": "Personalausweis Preis Antrag Bundesamt für Bürgerliches Recht"
+    },
+    "at": 6175
+   },
+   {
+    "name": "web_search",
+    "args": {
+     "query": "Personalausweis beantragen Kosten 2024 Online Antrag"
+    },
+    "at": 6175
+   }
+  ],
+  "approvals": [
+   {
+    "tool": "web_search",
+    "query": "Personalausweis Preis Antrag Bundesamt für Bürgerliches Recht",
+    "answer": "allow"
+   },
+   {
+    "tool": "web_search",
+    "query": "Personalausweis beantragen Kosten 2024 Online Antrag",
+    "answer": "allow"
+   }
+  ],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.41,
+  "firstWordSeconds": 36.435,
+  "totalSeconds": 49.78,
+  "modelRequests": [
+   {
+    "at": 186,
+    "status": 200
+   },
+   {
+    "at": 6178,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 19,
+    "output": 125,
+    "cacheRead": 1867,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2011,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 859,
+    "output": 646,
+    "cacheRead": 1884,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3389,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Der Personalausweis kostet **37,00 Euro** für Antragstellende ab 24 Jahren und **22,80 Euro** für unter 24-Jährige. Das Passfoto kann zusätzlich im Bürgeramt für **6,00 Euro** erstellt werden.\n\nSo beantragest du ihn:\n- **Termin persönlich** bei der Personalausweisbehörde deines Wohnorts, meist im Bürgeramt. Viele Bürgerämter vergeben Termine online oder per Telefon.\n- **Mitbringen:** deinen bisherigen Ausweis oder Reisepass, ein aktuelles biometrisches Passfoto und gegebenenfalls deine Geburtsurkunde.\n- **Abholung:** persönlich mit dem alten Ausweis.\n- **Wartezeit:** in der Regel drei bis vier Wochen.\n\nQuellen:\n- https://www.buergerservice.example/personalausweis-beantragen\n- https://www.stadt-musterstadt.example/buergeramt/personalausweis",
+  "thinkingChars": 2191,
+  "receipts": [],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "web-plus-datei",
+  "lang": "de",
+  "prompt": "Meine Hausratversicherung: ist die Kündigungsfrist noch drin? Schau auch nach, wie man kündigt.",
+  "autoGrade": "partial",
+  "autoNotes": {
+   "readPolicy": true,
+   "approvalCard": false,
+   "deadline": true,
+   "how": true,
+   "number": true,
+   "saysMissedOr2027": false
+  },
+  "toolCalls": 5,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "list_folder",
+    "args": {
+     "path": "~/Downloads"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Hausratversicherung\" --year 2026"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Versicherung\""
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+    },
+    "at": 24401
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 1.03,
+  "firstWordSeconds": 40.9,
+  "totalSeconds": 49.004,
+  "modelRequests": [
+   {
+    "at": 665,
+    "status": 200
+   },
+   {
+    "at": 8535,
+    "status": 200
+   },
+   {
+    "at": 13901,
+    "status": 200
+   },
+   {
+    "at": 19101,
+    "status": 200
+   },
+   {
+    "at": 24407,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 32,
+    "output": 144,
+    "cacheRead": 1866,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2042,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 711,
+    "output": 72,
+    "cacheRead": 1896,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2679,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 240,
+    "output": 89,
+    "cacheRead": 2605,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2934,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 434,
+    "output": 87,
+    "cacheRead": 2843,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3364,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 382,
+    "output": 450,
+    "cacheRead": 3275,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4107,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 109,
+  "finalAnswer": "Ja, die Kündigungsfrist steht noch drin. Dein Vertrag mit der Beispiel Versicherung AG (Policennr. HR-4471-0815) sagt:\n\n- **Kündigungsfrist: drei Monate** – die Kündigung muss spätestens drei Monate vor dem Vertragsende bei der Versicherung eingehen, also bis zum **31.08.** jedes Jahres (Dein Vertrag läuft zum 30.11.).\n- **Wie du kündigst:** Textform – also Brief, Fax oder E-Mail an **kuendigung@beispiel-versicherung.example**. Eine Kündigung per Handy oder Gespräch reicht nicht, die muss schriftlich sein.\n\nFür dieses Jahr heißt das: Du musst die Kündigung bis zum 31.08.2026 bei der Versicherung haben.",
+  "thinkingChars": 2021,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": []
+    }
+   },
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "ynsQ9oGj8IpwGuMVDoTGMTLYqC0QJk9z",
+     "tool": "bash",
+     "outcome": "done",
+     "action": "command",
+     "undo": "<repo>/dist/model-compare-home/undo/2026-10-09T20-44-46-857Z-ynsQ9oGj8IpwGuMVDoTGMTLY",
+     "restorable": false,
+     "category": "look",
+     "asked": false
+    }
+   },
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf",
+      "<repo>/dist/model-compare-home/Documents/Versicherungen/phv.pdf",
+      "<repo>/dist/model-compare-home/Downloads/kfz_beitrag_2026.pdf",
+      "<repo>/dist/model-compare-home/Library/CloudStorage/TestDrive/rs_2025.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Versicherung/zzv.pdf"
+     ]
+    }
+   },
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "1ns7DuhvppUW9e5YACbPwHtBnuUQSvFJ",
+     "tool": "bash",
+     "outcome": "done",
+     "action": "command",
+     "undo": "<repo>/dist/model-compare-home/undo/2026-10-09T20-44-52-037Z-1ns7DuhvppUW9e5YACbPwHtB",
+     "restorable": false,
+     "category": "look",
+     "asked": false
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "mail-antwort",
+  "lang": "de",
+  "prompt": "Antworte auf die ausgewählte Mail: Der Zählerstand ist 1.234,5 Kubikmeter, heute abgelesen. Kurz und freundlich, als Entwurf.",
+  "autoGrade": "partial",
+  "autoNotes": {
+   "drafts": 1,
+   "reading": true,
+   "replyTo": false,
+   "claimsSent": false,
+   "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Anfrage. Der aktuelle Zählerstand des Wasserzählers (Zähler-Nr. 4471) beträgt 1.234,5 Kubikmeter und wurde heute am 07.10.2026 abgelesen.\n\nMit freundlichen Grüßen\nFrau Beispiel"
+  },
+  "toolCalls": 2,
+  "tools": [
+   {
+    "name": "mcp__pippa__mail_selected",
+    "args": {}
+   },
+   {
+    "name": "mcp__pippa__mail_draft",
+    "args": {
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Anfrage. Der aktuelle Zählerstand des Wasserzählers (Zähler-Nr. 4471) beträgt 1.234,5 Kubikmeter und wurde heute am 07.10.2026 abgelesen.\n\nMit freundlichen Grüßen\nFrau Beispiel",
+     "subject": "Antwort: Ablesung Wasserzähler",
+     "to": "service@hausverwaltung-beispiel.example"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "mail_selected",
+    "args": {},
+    "at": 4405
+   },
+   {
+    "name": "mail_draft",
+    "args": {
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Anfrage. Der aktuelle Zählerstand des Wasserzählers (Zähler-Nr. 4471) beträgt 1.234,5 Kubikmeter und wurde heute am 07.10.2026 abgelesen.\n\nMit freundlichen Grüßen\nFrau Beispiel",
+     "subject": "Antwort: Ablesung Wasserzähler",
+     "to": "service@hausverwaltung-beispiel.example"
+    },
+    "at": 53253
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.621,
+  "firstWordSeconds": 55.78,
+  "totalSeconds": 56.962,
+  "modelRequests": [
+   {
+    "at": 293,
+    "status": 200
+   },
+   {
+    "at": 4409,
+    "status": 200
+   },
+   {
+    "at": 53263,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 44,
+    "output": 82,
+    "cacheRead": 1866,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1992,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 266,
+    "output": 1071,
+    "cacheRead": 1908,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3245,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 1141,
+    "output": 44,
+    "cacheRead": 2172,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3357,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 103,
+  "finalAnswer": "Die Antwort wurde als Entwurf in Mail gespeichert (Betreff \"Re: Ablesung Wasserzähler\"), nicht gesendet.",
+  "thinkingChars": 4035,
+  "receipts": [
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "J8WPUYRNPILiPPErZvJ3xk1yiRNY4OEl",
+     "tool": "mcp__pippa__mail_draft",
+     "outcome": "done",
+     "action": "mailDraft",
+     "name": "Antwort: Ablesung Wasserzähler",
+     "restorable": false,
+     "category": "appEntry",
+     "asked": false
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "termin",
+  "lang": "de",
+  "prompt": "[Gezeigt – Pippa hat das nicht gelesen; lies selbst, was du für die Antwort brauchst]\nNeu gezeigt:\n1. PDF „Buergeramt_Abholung.pdf“, 1 Seite, 14 KB – <repo>/dist/model-compare-home/Downloads/Buergeramt_Abholung.pdf – lesen mit mcp__pippa__read_document\n\nTrag mir die Frist aus diesem Brief als Erinnerung ein.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "entries": [
+    {
+     "tool": "reminder_add",
+     "date": "2026-11-27",
+     "title": "Reisepass-Abholung Frist"
+    }
+   ]
+  },
+  "toolCalls": 2,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Buergeramt_Abholung.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__reminder_add",
+    "args": {
+     "title": "Reisepass-Abholung Frist",
+     "notes": "Reisepass abholung bis 27.11.2026 im Bürgeramt, alte Papiere mitbringen",
+     "date": "2026-11-27"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Buergeramt_Abholung.pdf"
+    },
+    "at": 3511
+   },
+   {
+    "name": "reminder_add",
+    "args": {
+     "title": "Reisepass-Abholung Frist",
+     "notes": "Reisepass abholung bis 27.11.2026 im Bürgeramt, alte Papiere mitbringen",
+     "date": "2026-11-27"
+    },
+    "at": 10831
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.486,
+  "firstWordSeconds": 12.275,
+  "totalSeconds": 13.435,
+  "modelRequests": [
+   {
+    "at": 251,
+    "status": 200
+   },
+   {
+    "at": 3516,
+    "status": 200
+   },
+   {
+    "at": 10836,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 103,
+    "output": 71,
+    "cacheRead": 1866,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2040,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 346,
+    "output": 154,
+    "cacheRead": 1967,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2467,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 226,
+    "output": 53,
+    "cacheRead": 2311,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2590,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Die Erinnerung „Reisepass-Abholung Frist“ ist eingetragen, fällig am 27.11.2026.",
+  "thinkingChars": 468,
+  "receipts": [
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "q4cyfaEAXZc8aRoDxWZlyiCtvlGwu29H",
+     "tool": "mcp__pippa__reminder_add",
+     "outcome": "done",
+     "action": "reminderAdd",
+     "name": "Reisepass-Abholung Frist",
+     "restorable": false,
+     "category": "appEntry",
+     "asked": false
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "amountsFound": 5,
+   "sourced": 5,
+   "sumCorrect": true,
+   "decoyAmount": false
+  },
+  "toolCalls": 7,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 25854
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 25855
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 25855
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    },
+    "at": 25855
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 25855
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 1.041,
+  "firstWordSeconds": 51.169,
+  "totalSeconds": 70.71,
+  "modelRequests": [
+   {
+    "at": 158,
+    "status": 200
+   },
+   {
+    "at": 4273,
+    "status": 200
+   },
+   {
+    "at": 9430,
+    "status": 200
+   },
+   {
+    "at": 25863,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 538,
+    "output": 81,
+    "cacheRead": 1291,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1910,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 485,
+    "output": 104,
+    "cacheRead": 1827,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2416,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 448,
+    "output": 374,
+    "cacheRead": 2310,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3132,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 1230,
+    "output": 515,
+    "cacheRead": 2756,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4501,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "I found 5 invoices from 2024, and your total paid is **865,30 EUR**.\n\nHere they are:\n\n| Invoice | Date | Amount |\n|---|---|---|\n| Elektro Blitz GmbH (Nr. 2024-118) | 12.04.2024 | 142,80 EUR |\n| Malerbetrieb Farbe & Söhne (Nr. 0228) | 28.02.2024 | 310,00 EUR |\n| Zahnarztpraxis Dr. Muster | 03.07.2024 | 95,00 EUR |\n| Fahrradladen Speiche (2024/311) | 05.11.2024 | 68,50 EUR |\n| Möbelhaus Beispiel | 21.09.2024 | 249,00 EUR |\n\nSource files are in your Documents/Rechnungen, Downloads, and the iCloud Belege folder. Note: one file (kaufbeleg.pdf) was already paid in cash, so the 865,30 EUR is the sum of all invoice amounts from 2024, not just the ones still open.",
+  "thinkingChars": 1594,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+      "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf",
+      "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+      "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+     ]
+    }
+   },
+   {
+    "type": "pippa-receipt",
+    "data": {
+     "v": 1,
+     "toolCallId": "x8gkvtNYTpcXszrIgHb77shZ1NP9ld2f",
+     "tool": "bash",
+     "outcome": "done",
+     "action": "command",
+     "undo": "<repo>/dist/model-compare-home/undo/2026-10-09T20-46-41-992Z-x8gkvtNYTpcXszrIgHb77shZ",
+     "restorable": false,
+     "category": "look",
+     "asked": false
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 4262
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.834,
+  "firstWordSeconds": 6.846,
+  "totalSeconds": 18.284,
+  "modelRequests": [
+   {
+    "at": 391,
+    "status": 200
+   },
+   {
+    "at": 4269,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 96,
+    "output": 55,
+    "cacheRead": 1805,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1956,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 565,
+    "output": 281,
+    "cacheRead": 1899,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2745,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 106,
+  "finalAnswer": "Die Briefe von der Hausverwaltung „Beispiel GmbH\" kündigt an, dass in Ihrer Wohnung alle Fenster am **13.01.2027** (12.–16.01.2027) gegen neue dreifach verglaste Fenster ausgetauscht werden. Die Firma ist Glasbau Beispiel.\n\n**Was Sie tun müssen:**\n1. **Rückmeldebogen bis spätestens 20.11.2026** an die Hausverwaltung zurücksenden. Darauf steht, ob Sie am 13.01.2027 selbst zu Hause sind oder wer die Wohnung öffnet.\n2. **Fensterbänke räumen** und etwa einen Meter vor den Fenstern frei halten.\n3. Möbel müssen nicht abgebaut werden; die Firma schneidet den Boden ab.\n\n**Wichtig für Ihre Miete:** Die Grundmiete steigt ab **01.04.2027** um **38,50 EUR** pro Monat. Sie haben ein Sonderkündigungsrecht: Sie können bis zum Ablauf des Monats nach Zugang dieser Mitteilung außerordentlich zum Ablauf des übernächsten Monats kündigen.\n\nFragen: Herrn Kurz unter 01234 567890.",
+  "thinkingChars": 193,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]
