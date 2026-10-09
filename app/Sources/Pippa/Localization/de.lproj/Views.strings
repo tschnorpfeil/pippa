@@ -28,7 +28,7 @@
 "and %lld more following the same pattern" = "und %lld weitere nach demselben Muster";
 "Include %@" = "%@ übernehmen";
 "unsure" = "unsicher";
-"was: %@" = "war: %@";
+"was: %@" = "vorher: %@";
 "Stays where it is" = "Bleibt, wo es ist";
 "%lld files go into %lld folders" = "%lld Dateien kommen in %lld Ordner";
 "Now" = "Jetzt";
@@ -263,3 +263,4 @@
 "Where is my rental agreement?" = "Wo ist mein Mietvertrag?";
 "Remind me tomorrow morning to take out the paper recycling" = "Erinnere mich morgen früh ans Altpapier";
 "Puts this sentence into the input field" = "Schreibt diesen Satz ins Eingabefeld";
+"Asks the same question again" = "Stellt dieselbe Frage noch einmal";

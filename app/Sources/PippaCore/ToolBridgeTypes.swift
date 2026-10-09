@@ -1,42 +1,5 @@
 import Foundation
 
-// Shared values between host (Swift) and model: online
-// lookup in conversation (WebAccessGate, Pi tools via PippaMCP), reading the calendar (MCP).
-// The network is never the model's, always the host's (Lookup/LookupHost.swift, WebAccessGate.swift).
-
-public struct LookupRequest: Sendable, Equatable {
-    /// `lookup`: a plain query (default). `search`/`page`: `web_search`/`read_web_page` in conversation (FLOW-7,
-    /// WebAccessGate); for `page` the address is in `query`.
-    public enum Kind: String, Sendable { case lookup, search, page }
-    public var query: String
-    public var why: String
-    public var kind: Kind
-    public init(query: String, why: String, kind: Kind = .lookup) {
-        self.query = query; self.why = why; self.kind = kind
-    }
-}
-
-public struct LookupPassage: Sendable, Equatable {
-    public var id: String          // "w1" … unique within one prompt
-    public var site: String        // host without "www."
-    public var title: String
-    public var url: String
-    public var asOf: String?       // "yyyy-mm-dd" or nil
-    public var text: String        // excerpt, ≤ 1200 chars
-    public init(id: String, site: String, title: String, url: String, asOf: String?, text: String) {
-        self.id = id; self.site = site; self.title = title; self.url = url; self.asOf = asOf; self.text = text
-    }
-}
-
-public struct LookupReply: Sendable, Equatable {
-    public enum Status: String, Sendable { case done, needsPerson = "needs_person", refused, failed }
-    public var status: Status
-    public var passages: [LookupPassage]
-    public init(status: Status, passages: [LookupPassage]) {
-        self.status = status; self.passages = passages
-    }
-}
-
 // FLOW-10 "Read calendar": Pi asks via Pippa's MCP tool for a kind of period; the host (Swift) computes it,
 // reads EventKit itself and returns finished days and times formatted in code (PippaMCPTools).
 // The agent never gets access to EventKit and never asks for permissions itself.

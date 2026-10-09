@@ -56,8 +56,8 @@ func runWorkStepChecks() {
         expect(de("mcp__pippa__calendar_read", "{}"), "Schaue in deinen Kalender")
             && expect(de("mcp__pippa__mail_search", #"{"query":"x"}"#), "Suche in deinen Mails")
             && expect(de("mcp__pippa__reminders_read", "{}"), "Schaue in deine Erinnerungen")
-            && expect(de("mcp__pippa__web_search", #"{"query": "Wetter Hamburg"}"#), "Suche online nach „Wetter Hamburg“")
-            && expect(de("mcp__pippa__web_search", "{}"), "Suche online")
+            && expect(de("web_search", #"{"query": "Wetter Hamburg"}"#), "Suche online nach „Wetter Hamburg“")
+            && expect(de("web_search", "{}"), "Suche online")
             && expect(de("mcp__pippa__list_context", "{}"), "Sehe deine Unterlagen durch")
             && de("mcp__pippa__propose_actions", "{}") == nil
             && de("mcp__pippa__record_quote", "{}") == nil
@@ -140,7 +140,7 @@ func runWorkStepChecks() {
             ("read", #"{"path":"/Users/anna/A.md"}"#), ("read", "{}"), ("edit", "{}"), ("write", "{}"), ("ls", "{}"), ("find", "{}"), ("grep", "{}"),
             ("mcp__pippa__calendar_read", "{}"), ("mcp__pippa__calendar_add", "{}"), ("mcp__pippa__mail_search", "{}"), ("mcp__pippa__mail_selected", "{}"),
             ("mcp__pippa__mail_draft", "{}"), ("mcp__pippa__reminders_read", "{}"), ("mcp__pippa__reminder_add", "{}"), ("mcp__pippa__read_document", "{}"),
-            ("mcp__pippa__read_document", #"{"name":"A.pdf"}"#), ("mcp__pippa__list_context", "{}"), ("mcp__pippa__web_search", "{}"), ("mcp__pippa__read_web_page", "{}"),
+            ("mcp__pippa__read_document", #"{"name":"A.pdf"}"#), ("mcp__pippa__list_context", "{}"), ("web_search", "{}"), ("fetch_content", "{}"),
         ]
         let commands = ["ls", "ls ~", "ls ~/Desktop", "ls ~/Documents", "ls ~/Downloads", "ls ~/Pictures", "ls /Volumes/Stick", "ls /Users/anna/x", "find ~ -name '*.md'",
                         "find ~ -type d", "find ~ -iname 'x*'", "find ~ -type d -name 'x'", "mdfind a", "mdfind", "mdfind -onlyin ~ a", "grep a ~", "grep a", "grep '\\.' ~",

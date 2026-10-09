@@ -124,14 +124,15 @@ public enum WorkPhase: Sendable, Equatable {
     /// Maps a Pi tool name to what the person sees. `nil`: bookkeeping tools (proposing actions, recording quotes)
     /// and unknown tools leave the current phase as it is rather than guessing.
     public static func tool(_ name: String, source: String?) -> WorkPhase? {
-        // Pippa's MCP server on the Pi RPC path is called `mcp__pippa__<tool>` by Pi (read_document, web_search ...).
+        // Pippa's MCP server on the Pi RPC path is called `mcp__pippa__<tool>` by Pi (read_document ...); the web tools
+        // come from pi-web-access (web_search, fetch_content, get_search_content).
         var lowered = name.lowercased()
         if lowered.hasPrefix("mcp__pippa__") { lowered.removeFirst("mcp__pippa__".count) }
         switch lowered {
         case "list_context", "list_plan_files": return .lookingThrough(name: nil)
         case "read_context", "read_document": return .lookingThrough(name: source)
         case "propose_plan": return .preparingPreview
-        case "propose_lookup", "web_search", "read_web_page": return .lookingUpOnline
+        case "propose_lookup", "web_search", "read_web_page", "fetch_content", "get_search_content": return .lookingUpOnline
         case "read_calendar": return .checkingCalendar
         default:
             if lowered.contains("calendar") || lowered.contains("kalender") { return .checkingCalendar }

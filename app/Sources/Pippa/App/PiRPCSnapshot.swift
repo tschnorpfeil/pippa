@@ -4,8 +4,8 @@ import PippaCore
 #if DEBUG
 /// The real Pippa window against the real Pi (`pi --mode rpc`) and a real local
 /// model. `PIPPA_DEMO=1 PIPPA_PI_RPC=1 PIPPA_SNAPSHOT=<fresh folder> PIPPA_SNAPSHOT_ONLY=pirpc` plus the environment from
-/// `scripts/pi-rpc-spike.sh` (PIPPA_PI_GUARD, PIPPA_PI_WORKDIR, PI_CODING_AGENT_DIR, PIPPA_UNDO_DIR).
-/// Question with streaming, stop, create a file (prompt photographed, declined once, allowed once). Report `pirpc.txt`.
+/// `scripts/pi-rpc-spike.sh` (PIPPA_PI_EXTENSIONS, PIPPA_PI_WORKDIR, PI_CODING_AGENT_DIR).
+/// Question with streaming, stop, create a file (no question: Pi runs its tools). Report `pirpc.txt`.
 @MainActor enum PiRPCSnapshot {
     static func run(model: AppModel, shell: ShellController, directory: URL) async {
         var lines: [String] = []
@@ -90,19 +90,19 @@ import PippaCore
         try? await Task.sleep(for: .milliseconds(400)); snap("gestoppt")
 
         let target = URL(fileURLWithPath: work).appendingPathComponent("Einkauf.txt")
-        for (round, allow) in [(1, false), (2, true)] {
-            note("Schreibwunsch \(round): \(allow ? "erlauben" : "ablehnen"); Datei vorher da: \(FileManager.default.fileExists(atPath: target.path))")
-            PiRPCChat.answerForSnapshot = { window, request in
-                _ = capture(window, to: directory.appendingPathComponent("pirpc-abfrage-\(round).png"))
-                note("Abfrage gezeigt: \(request.title) | \(request.message.replacingOccurrences(of: "\n", with: " ⏎ "))")
-                return allow ? .alertFirstButtonReturn : .alertSecondButtonReturn
-            }
-            model.route("leg eine Datei Einkauf.txt mit Milch und Brot an")
-            await waitForAnswer(streamingShot: nil)
-            try? await Task.sleep(for: .milliseconds(400)); snap("schreiben-\(allow ? "erlaubt" : "abgelehnt")")
-            let content = (try? String(contentsOf: target, encoding: .utf8))?.replacingOccurrences(of: "\n", with: " ⏎ ")
-            note("Datei danach: \(content ?? "nicht vorhanden")")
+        note("Schreibwunsch; Datei vorher da: \(FileManager.default.fileExists(atPath: target.path))")
+        var asked = false
+        PiRPCChat.answerForSnapshot = { window, request in
+            asked = true
+            _ = capture(window, to: directory.appendingPathComponent("pirpc-abfrage.png"))
+            note("FAIL: unerwartete Abfrage: \(request.title) | \(request.message.replacingOccurrences(of: "\n", with: " ⏎ "))")
+            return .alertFirstButtonReturn
         }
+        model.route("leg eine Datei Einkauf.txt mit Milch und Brot an")
+        await waitForAnswer(streamingShot: nil)
+        try? await Task.sleep(for: .milliseconds(400)); snap("schreiben")
+        let content = (try? String(contentsOf: target, encoding: .utf8))?.replacingOccurrences(of: "\n", with: " ⏎ ")
+        note("Datei danach: \(content ?? "nicht vorhanden") · gefragt: \(asked)")
         PiRPCChat.answerForSnapshot = nil
         finish()
     }
@@ -121,7 +121,7 @@ import PippaCore
     }
 
     /// First question loads the model (thought line "bereit machen", Pi only after /health), create a folder
-    /// (mkdir without question, receipt, undo), read mail (read receipt, substitute mail from PIPPA_DEMO), idle until
+    /// (mkdir without question, receipt), read mail (read receipt, substitute mail from PIPPA_DEMO), idle until
     /// unload (memory before/after), next question reloads (cold start measured).
     private static func wave2d(model: AppModel, work: URL, note: @escaping (String) -> Void, snap: (String) -> Void) async {
         guard PiRPCChat.isLive else { return }
@@ -151,7 +151,7 @@ import PippaCore
             if let last = new.last { note("Antwort: \(last.text.prefix(200).replacingOccurrences(of: "\n", with: " ⏎ "))") }
             if let error = model.conversations.error { note("Fehler: \(error)") }
             let items = new.compactMap(\.actions).flatMap(\.items)
-            for line in new.compactMap(\.actions).flatMap({ $0.lines }) { note("Quittung: \(line.text)\(line.item.canUndo ? " [Rückgängig]" : "")") }
+            for line in new.compactMap(\.actions).flatMap({ $0.lines }) { note("Quittung: \(line.text)") }
             return items
         }
         PiRPCChat.answerForSnapshot = { _, request in
@@ -171,14 +171,8 @@ import PippaCore
         try? FileManager.default.removeItem(at: folder)   // own test folder under .build/spike-work
         let created = await ask("Leg im Arbeitsordner einen neuen, leeren Ordner Belege-2d an.")
         note("Ordner danach da: \(FileManager.default.fileExists(atPath: folder.path))")
-        if let item = created.first(where: { $0.canUndo && $0.action == "createFolder" }) {
-            model.conversations.undoAction(item)
-            try? await Task.sleep(for: .seconds(1.5))
-            let undone = model.conversations.current?.messages.last?.actions?.lines.map(\.text).joined(separator: "; ") ?? "–"
-            note("Rückgängig: \(undone); Ordner danach da: \(FileManager.default.fileExists(atPath: folder.path))")
-        } else {
-            note("kein rückgängig machbarer createFolder-Eintrag (Aktionen: \(created.map { "\($0.action)/\($0.outcome)" }.joined(separator: ", ")))")
-        }
+        note("Aktionen: \(created.map { "\($0.action)/\($0.outcome)" }.joined(separator: ", "))")
+        try? FileManager.default.removeItem(at: folder)
         snap("w2d-ordner")
 
         _ = await ask("Welche Mail habe ich gerade in Mail ausgewählt? Nenn mir nur kurz den Betreff.")

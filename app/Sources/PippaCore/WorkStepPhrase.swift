@@ -114,7 +114,7 @@ public enum WorkStepPhrase {
             case "web_search":
                 if let query = args.string("query").flatMap(cleanTerm) { return Described(text: l("Searching online for %@", quote(query)), result: .none) }
                 return Described(text: l("Searching online"), result: .none)
-            case "read_web_page": return Described(text: l("Reading a web page"), result: .none)
+            case "read_web_page", "fetch_content", "get_search_content": return Described(text: l("Reading a web page"), result: .none)
             default:
                 // Bookkeeping (proposing actions or lookups, recording quotes) is not a step the person needs.
                 if name.hasPrefix("propose_") || name.hasPrefix("record_") { return nil }

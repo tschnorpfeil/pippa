@@ -129,7 +129,7 @@ public enum MailDraftOfferRule {
         guard let r = result.receipt else {
             return ActionReceipt.Item(action: "mailDraft", outcome: "failed", name: L("reply", table: "MCP"), reason: "invalid")
         }
-        return ActionReceipt.Item(action: r.action, outcome: r.outcome, name: r.name, restorable: false, reason: r.reason)
+        return ActionReceipt.Item(action: r.action, outcome: r.outcome, name: r.name, reason: r.reason)
     }
 
     /// The shown mail of an answer: the intended one first, otherwise the first .eml/.emlx with a message ID.

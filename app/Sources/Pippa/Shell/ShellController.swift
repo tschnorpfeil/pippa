@@ -416,8 +416,9 @@ final class ShellController: NSObject {
     private var pillCache: (key: String, width: CGFloat, slot: CGRect?)?
 
     private func pillMeasure() -> (width: CGFloat, slot: CGRect?) {
-        let label = model.busy ? "Pippa liest …" : "Pippa"
-        let key = "\(label)|\(model.busy)|\(model.parked != nil)|\(model.coldStartPillLabel ?? "")"
+        // The living pill grows with its words (PillStatus); the width is measured once per label and tone.
+        let status = model.pillStatus
+        let key = "\(status.label)|\(status.tone.rawValue)|\(status.hand)|\(status.progress != nil)|\(model.parked != nil)"
         if let c = pillCache, c.key == key { return (c.width, c.slot) }
         let m = measure(width: nil)
         let w = ceil(m.size.width)

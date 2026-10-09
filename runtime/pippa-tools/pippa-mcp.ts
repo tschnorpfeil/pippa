@@ -1,7 +1,7 @@
 /**
- * Registers Pippa's MCP server for this one Pi session. Only Pippa loads this file, next to the guard and file tools:
+ * Registers Pippa's MCP server for this one Pi session. Only Pippa loads this file, next to its file tools:
  *
- *   pi --mode rpc --extension …/pippa-guard.ts --extension …/pippa-tools.ts --extension …/pippa-mcp.ts
+ *   pi --mode rpc --extension …/pippa-tools.ts --extension …/pippa-mcp.ts
  *
  * The app serves MCP itself on 127.0.0.1 (Calendar, Reminders, Mail, Excel read; TCC asks for "Pippa") and passes
  * address and key only in the environment of this Pi process:
@@ -18,11 +18,11 @@ type ExtensionAPI = any;
 export const SERVER_NAME = "pippa";
 
 /** Read-only tools of the server (app/Sources/PippaCore/MCP/PippaMCPTools.swift, PippaMCPTurn.swift). None changes
- * anything on the Mac; `web_search` and `read_web_page` go online after the person clicks (self-asking.ts). */
-export const TOOLS = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "read_document", "web_search", "read_web_page"];
+ * anything on the Mac. Web search is not here: it is the Pi package pi-web-access (runtime/pippa-web). */
+export const TOOLS = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "read_document"];
 
 /** PippaMCPWrite.swift: change something on the Mac but never leave it (no sending, no invitation). Events and
- * reminders can be undone, the mail draft stays unsent in Mail. Kind `appEntry` (policy.ts). */
+ * reminders can be undone, the mail draft stays unsent in Mail. */
 export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft"];
 
 /** Entry as in `mcp.json`, or `undefined` if the environment does not fit (then no server, no error). */
@@ -42,9 +42,9 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		url: parsed.toString(),
 		headers: { Authorization: `Bearer ${token}` },
 		exposure,
-		description: "Pippa: read Calendar, Reminders, Mail, Excel and documents on this Mac; add events and reminders, unsent Mail drafts; look things up online after the person agrees.",
-		// Online lookup waits for the person's click (card in the conversation), and text recognition on many pages
-		// takes a while: 5 minutes instead of 1. The app's server keeps the connection open accordingly (PippaMCPServer).
+		description: "Pippa: read Calendar, Reminders, Mail, Excel and documents on this Mac; add events and reminders, unsent Mail drafts.",
+		// Text recognition on many pages takes a while: 5 minutes instead of 1. The app's server keeps the connection
+		// open accordingly (PippaMCPServer).
 		timeout: 300,
 	};
 }

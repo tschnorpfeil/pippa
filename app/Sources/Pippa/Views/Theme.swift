@@ -46,6 +46,9 @@ enum Theme {
     static let need = dynamic(light: hex(0x8A4600), dark: hex(0xFFB340))
     static let needTint = dynamic(light: hex(0xFF9F0A, 0.17), dark: hex(0xFF9F0A, 0.12))
     static let needDot = dynamic(light: hex(0xE08600), dark: hex(0xFFB340))
+    // Same red as the figure's sad face (MarkPalette.destructive), so face and sign match.
+    static let bad = dynamic(light: hex(0xC4001D), dark: hex(0xF89DA4))
+    static let badTint = dynamic(light: hex(0xC4001D, 0.10), dark: hex(0xF89DA4, 0.14))
     // Calm chat surfaces. Color marks interaction, not the whole work area.
     static let chatTint = dyn(hex(0xF7F8FB, 0.98), hex(0x191D25, 0.98))
     static let chatCard = dynamic(light: hex(0xFFFFFF), dark: hex(0x232833))
@@ -128,6 +131,32 @@ enum DisplayFont {
         if CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) || NSFont(name: name, size: 12) != nil {
             available = NSFont(name: name, size: 12) != nil
         }
+    }
+}
+
+/// Gochi Hand from Resources/Fonts (bundled, OFL), the handwriting of the website's speech bubbles. Only for the
+/// pill's small happy moments ("Deine Antwort ist da"), never for running text; if missing, SF Rounded.
+@MainActor
+enum HandFont {
+    static let name = "GochiHand-Regular"
+    private(set) static var available = false
+    private static var tried = false
+
+    static func register() {
+        guard !tried else { return }
+        tried = true
+        guard let url = Bundle.module.url(forResource: "GochiHand-Regular", withExtension: "ttf", subdirectory: "Fonts") else { return }
+        var error: Unmanaged<CFError>?
+        if CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) || NSFont(name: name, size: 12) != nil {
+            available = NSFont(name: name, size: 12) != nil
+        }
+    }
+
+    /// Handwriting reads smaller than SF at the same size, hence a bit larger than the pill's 15 pt.
+    static func font(size: CGFloat = 19) -> Font {
+        register()
+        return available ? .custom(name, size: CGFloat(TextScale.scaled(Double(size), by: TextScaleStore.current)))
+            : .scaled(size: size - 4, weight: .semibold, design: .rounded)
     }
 }
 
@@ -1117,12 +1146,9 @@ struct ApprovalLabel: View {
     var title: String
     var icon: String
     var body: some View {
-        HStack(spacing: 10) {
-            Label(title, systemImage: icon)
-            Text("⌘↵").font(.scaled(size: 12, weight: .medium))
-                .opacity(0.8).accessibilityHidden(true)
-        }
-        .help(T("%@ (⌘ Return)", table: "Views", title))
+        // No key symbols in the button itself (UI-FIXPLAN 1.3); the shortcut stays in the tooltip.
+        Label(title, systemImage: icon)
+            .help(T("%@ (⌘ Return)", table: "Views", title))
     }
 }
 

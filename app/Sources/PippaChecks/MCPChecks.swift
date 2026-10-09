@@ -84,9 +84,8 @@ func runMCPChecks() async {
         let list = (await rpc(s.tools, "tools/list"))?["result"] as? [String: Any]
         let all = list?["tools"] as? [[String: Any]] ?? []
         let names = all.compactMap { $0["name"] as? String }
-        // web_search/read_web_page change nothing but go to the network (checked separately in R2Checks).
         // calendar_add/reminder_add/mail_draft change something on the Mac (checked separately in R3Checks).
-        let tools = all.filter { !(["web_search", "read_web_page"] + PippaMCPWriteTools.names).contains($0["name"] as? String ?? "") }
+        let tools = all.filter { !PippaMCPWriteTools.names.contains($0["name"] as? String ?? "") }
         let hintsOK = tools.allSatisfy { tool in
             let a = tool["annotations"] as? [String: Any] ?? [:]
             return a["readOnlyHint"] as? Bool == true && a["destructiveHint"] as? Bool == false && a["openWorldHint"] as? Bool == false

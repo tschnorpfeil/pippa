@@ -3,7 +3,7 @@ import PiRPC
 import PippaCore
 
 // R3 end-to-end probe: appointment, reminder, mail draft via Pippa's MCP server with real Pi and
-// a real local model. Launched as in the app (PippaPiLaunch.configuration + guard + file tools + Pippa's
+// a real local model. Launched as in the app (PippaPiLaunch.configuration + Pippa's extensions + Pippa's
 // MCP server in this process). **Stand-in integrations only** (`DemoIntegrations`): invented appointments, drafts and
 // entries live only in this process's memory; real Mail, real Calendar and real Reminders are never touched.
 //
@@ -13,10 +13,10 @@ import PippaCore
 //
 // h: warm-up ("Sag nur: Hallo.")
 // f: mail proposes Thursday 9 am, calendar free → "Antworte auf die Mail und trag den Termin ein, wenn Donnerstag
-//    9 Uhr frei ist". Expected: read calendar, draft, create appointment; then native undo (PiUndo).
+//    9 Uhr frei ist". Expected: read calendar, draft, create appointment.
 // b: same request, but Thursday 9 am is busy → no appointment, the reply draft says so.
 // a: "after OK": "Passt mir Donnerstag 9 Uhr? Schreib eine Antwort." → draft, but **no** appointment; question in the text.
-// r: "Erinnere mich morgen um 18 Uhr an den Müll." → reminder_add, undo.
+// r: "Erinnere mich morgen um 18 Uhr an den Müll." → reminder_add.
 
 setvbuf(stdout, nil, _IOLBF, 0)
 let env = ProcessInfo.processInfo.environment
@@ -25,9 +25,9 @@ let clock = ContinuousClock()
 func ms(_ d: Duration) -> Int { Int(d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000) }
 func oneLine(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ⏎ ") }
 
-guard let home = env["PIPPA_PI_HOME"], let payload = PiPayload.locate(environment: env), let guardPath = env["PIPPA_PI_GUARD"],
-      let work = env["PIPPA_SPIKE_WORK"], let agent = env["PI_CODING_AGENT_DIR"], let undoPath = env["PIPPA_UNDO_DIR"] else {
-    print("First run: scripts/pi-rpc-spike.sh setup (PIPPA_PI_HOME, PIPPA_PI_PAYLOAD, PIPPA_PI_GUARD, PIPPA_SPIKE_WORK, PI_CODING_AGENT_DIR, PIPPA_UNDO_DIR)"); exit(2)
+guard let home = env["PIPPA_PI_HOME"], let payload = PiPayload.locate(environment: env), let extensions = env["PIPPA_PI_EXTENSIONS"],
+      let work = env["PIPPA_SPIKE_WORK"], let agent = env["PI_CODING_AGENT_DIR"] else {
+    print("First run: scripts/pi-rpc-spike.sh setup (PIPPA_PI_HOME, PIPPA_PI_PAYLOAD, PIPPA_PI_EXTENSIONS, PIPPA_SPIKE_WORK, PI_CODING_AGENT_DIR)"); exit(2)
 }
 let calendar = Calendar.autoupdatingCurrent
 let now = Date()
@@ -80,15 +80,19 @@ let roots = PiInstallRoots(home: homeURL, payload: payload, searchPath: [homeURL
 let model = env["PIPPA_PI_MODEL"] ?? "k2-horizon-7b"
 guard let spec = PiInstaller(roots: roots).launchSpec(modelID: model) else { print("Pi missing in the fake HOME (setup)"); exit(2) }
 let launcher = PippaPiLaunch.Launcher(executable: spec.executable, launcherArguments: spec.launcherArguments, piArguments: spec.piArguments, environment: spec.environment)
-let guardDir = URL(fileURLWithPath: guardPath).deletingLastPathComponent()
+let toolsDir = URL(fileURLWithPath: extensions, isDirectory: true)
 let workDir = URL(fileURLWithPath: work, isDirectory: true)
-let undoRoot = URL(fileURLWithPath: undoPath, isDirectory: true)
-try FileManager.default.createDirectory(at: undoRoot, withIntermediateDirectories: true)
-let paths = PippaPiLaunch.Paths(guardExtension: URL(fileURLWithPath: guardPath), toolsExtension: guardDir.appendingPathComponent("pippa-tools.ts"),
+let paths = PippaPiLaunch.Paths(extensionsDirectory: toolsDir, webExtension: nil,
                                 sessionDirectory: URL(fileURLWithPath: env["PIPPA_SPIKE_SESSIONS"] ?? work + "-sessions", isDirectory: true))
-var piEnv = ["PI_CODING_AGENT_DIR": agent, "PIPPA_UNDO_DIR": undoRoot.path, "PIPPA_TRASH_DIR": env["PIPPA_TRASH_DIR"] ?? work + "-trash"]
-if let policy = env["PIPPA_GUARD_POLICY"] { piEnv["PIPPA_GUARD_POLICY"] = policy }
-print("Pi \(model) · Thursday = \(dayLabel) · undo folder \(undoRoot.path) · guard \(env["PIPPA_GUARD_POLICY"] ?? "undo-first")")
+let piEnv = ["PI_CODING_AGENT_DIR": agent, "PIPPA_TRASH_DIR": env["PIPPA_TRASH_DIR"] ?? work + "-trash"]
+print("Pi \(model) · Thursday = \(dayLabel)")
+
+final class Notes: @unchecked Sendable {
+    private let lock = NSLock()
+    private var notes: [PippaMCPWriteReceipt] = []
+    func append(_ note: PippaMCPWriteReceipt) { lock.withLock { notes.append(note) } }
+    var all: [PippaMCPWriteReceipt] { lock.withLock { notes } }
+}
 
 var summary: [String] = []
 for c in cases where which == "all" || which.contains(c.id) {
@@ -99,12 +103,13 @@ for c in cases where which == "all" || which.contains(c.id) {
     var host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo, now: now),
                             askForAccess: false)
     host.writer = demo
-    host.undoRoot = undoRoot
+    let writes = Notes()
+    host.onWrite = { writes.append($0) }
     let server = try PippaMCPServer(host: host)
     try await server.start()
     let prompt = PiShownContext.prompt(.init(question: c.question, files: c.files, newFiles: c.files, language: "de"))
     let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: workDir, paths: paths, sessionID: nil, language: "de",
-                                                    environment: piEnv, mcp: (.init(url: server.url, token: server.token), guardDir.appendingPathComponent("pippa-mcp.ts")))
+                                                    environment: piEnv, mcp: (.init(url: server.url, token: server.token), toolsDir.appendingPathComponent("pippa-mcp.ts")))
     let client = PiRPCClient(configuration: configuration)
     nonisolated(unsafe) var asked: [String] = []
     await client.setUIHandler { request in
@@ -122,7 +127,6 @@ for c in cases where which == "all" || which.contains(c.id) {
         case .textDelta(let d): if first == nil { first = t }; text += d
         case .toolStarted(_, let name, let arguments): tools.append(name.replacingOccurrences(of: "mcp__pippa__", with: "")); print("    [\(t) ms] TOOL \(name) \(oneLine(String(arguments.prefix(400))))")
         case .toolEnded(_, let name, let isError, let result): print("    [\(t) ms] DONE \(name)\(isError ? " ERROR" : "") \(oneLine(String(result.prefix(300))))")
-        case .guardOutcome(let g): print("    [\(t) ms] RECEIPT (guard) \(g.action) \(g.outcome) \(g.name ?? "") undo=\(g.undo != nil) restorable=\(g.restorable ?? false)\(g.reason.map { " reason=\($0)" } ?? "") asked=\(g.asked ?? false)")
         case .assistantEnded(_, let reason, let error): if reason != "toolUse" { print("    [\(t) ms] End (\(reason))\(error.map { " \($0)" } ?? "")") }
         default: break
         }
@@ -131,14 +135,15 @@ for c in cases where which == "all" || which.contains(c.id) {
     let stats = (try? await client.command(["type": "get_session_stats"])).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
     await client.shutdown()
     let tokens = stats?["tokens"] as? [String: Any]
-    // Like PiRPCChat.actions: lines only from events and guard entries; read lines without text here.
-    let items = receipt.records.map { r in
-        ActionReceipt.Item(action: r.action, outcome: r.outcome.rawValue, name: r.name, toName: r.toName, undoEntry: r.undoEntry,
-                           restorable: r.restorable, reason: r.reason)
-    }.filter { $0.action != "read" }
+    // Like PiRPCChat.actions: lines from events, write lines from the server's own receipts; read lines left out here.
+    var pending = writes.all
+    let items = receipt.records.filter { $0.action != "read" }.map { r -> ActionReceipt.Item in
+        if r.action == "write", !pending.isEmpty { return pending.removeFirst().item }
+        return ActionReceipt.Item(action: r.action, outcome: r.outcome.rawValue, name: r.name, toName: r.toName)
+    }
     print("  < \(oneLine(text))")
-    print("  = Tools \(tools), guard questions \(asked.count)\(asked.isEmpty ? "" : " \(asked)")")
-    for item in items { print("  = Receipt: \(item.line(language: "de"))\(item.canUndo ? " [Undo]" : "")\(item.canOpenMailDraft ? " [Open draft]" : "")") }
+    print("  = Tools \(tools), questions \(asked.count)\(asked.isEmpty ? "" : " \(asked)")")
+    for item in items { print("  = Receipt: \(item.line(language: "de"))\(item.canOpenMailDraft ? " [Open draft]" : "")") }
     // Follow-up "Save as draft in Mail" (like PiRPCChat.takeShownActions): line and offer from code; click like the button.
     let rule = MailDraftOfferRule.evaluate(answer: text, mailSource: MailDraftOfferRule.shownMail(files: c.files, focused: []), items: items)
     if let line = rule.line { print("  = Receipt: \(line.line(language: "de"))\(rule.offer == nil ? "" : " [As draft in Mail]")") }
@@ -153,17 +158,8 @@ for c in cases where which == "all" || which.contains(c.id) {
         .events.filter { e in !c.events.contains { $0.id == e.id } }
     for e in entries { print("  = New appointment in the stand-in calendar: \(e.title) \(e.start) – \(e.end)") }
     print("  = Entries created: \(demo.createdCount)")
-    // Undo like the button in the app (ConversationController.undoAction → PiUndo.restoreCreated).
-    var undone = ""
-    for item in items where item.canUndo {
-        let entry = URL(fileURLWithPath: item.undoEntry!, isDirectory: true)
-        let result = await PiUndo.restoreCreated(entry, root: undoRoot) { try await demo.remove($0) }
-        let line = PiUndo.receipt(for: item, result).line(language: "de")
-        undone += "\(line); "
-        print("  = Undo: \(line) → entries afterwards \(demo.createdCount), button still there: \(item.canUndo)")
-    }
     print("  = first word \(first ?? -1) ms, total \(total) ms, tokens in \(tokens?["input"] ?? "?") + cache \(tokens?["cacheRead"] ?? "?"), out \(tokens?["output"] ?? "?")")
-    summary.append("(\(c.id)) \(tools) · receipt \(items.map { $0.line(language: "de") }) · drafts \(drafts.count) · undo \(undone.isEmpty ? "-" : undone)")
+    summary.append("(\(c.id)) \(tools) · receipt \(items.map { $0.line(language: "de") }) · drafts \(drafts.count)")
     server.stop()
 }
 print("\n## Summary")

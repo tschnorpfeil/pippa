@@ -280,8 +280,9 @@ struct SortSheet: View {
                         .foregroundStyle(row.unsure ? Theme.need : Theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if let old = row.old {
+                    // Plain grey words, no typewriter font (UI-FIXPLAN 1.4).
                     Text(T("was: %@", table: "Views", old))
-                        .font(Fonts.mono(11.5))
+                        .font(.scaled(size: 11.5))
                         .foregroundStyle(Theme.ink3)
                         .lineLimit(1).truncationMode(.middle)
                 }
