@@ -597,6 +597,11 @@ final class AppModel: ObservableObject {
         case .compact:
             show(.resume, recordResult: false)
             composerFocus += 1
+        case .fresh:
+            // A new topic without a button or notice; the previous conversation stays in the history.
+            newConversation()
+            openInput()
+            recordConversationActivity(at: now)
         }
     }
 
@@ -710,14 +715,13 @@ final class AppModel: ObservableObject {
         guard !isActiveWork else { return }
         if startsFresh, case .files = payload, let current = conversations.current,
            ConversationContext.startsNewConversation(messages: current.messages) {
-            // Start visibly anew, with a way back; the previous conversation stays in the history.
+            // New things after a used conversation are a new topic. Quietly: the previous conversation stays in the history,
+            // and Pi's new session gets a short handover from it (pippa-context.ts).
             stashFileWork()
             conversations.newConversation()
             guard conversations.current?.id != current.id else { return }
             query = ""
             _ = conversations.takeAllQueued()
-            conversations.append(.system, T("I started a new conversation for this. You’ll find the previous one in the history.", table: "App"),
-                                 notice: true, previousConversation: current.id)
         }
         resetFileWork()
         taskLog.dropPending()

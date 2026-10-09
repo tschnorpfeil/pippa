@@ -19,7 +19,9 @@ public enum LocalModelJSON {
     public static func maxTokens(contextWindow: Int) -> Int { min(4096, max(256, contextWindow / 4)) }
 
     /// The request as a JSON object (visible for checks without a server).
-    public static func body(modelID: String, system: String, user: String, schema: String, name: String, contextWindow: Int) throws -> [String: Any] {
+    /// `maxTokens`: a tighter limit for small answers (classifying while tidying: a few fields), otherwise `maxTokens(contextWindow:)`.
+    public static func body(modelID: String, system: String, user: String, schema: String, name: String, contextWindow: Int,
+                            maxTokens limit: Int? = nil) throws -> [String: Any] {
         guard let schemaObject = try? JSONSerialization.jsonObject(with: Data(schema.utf8)) as? [String: Any],
               name.range(of: "^[A-Za-z0-9_-]{1,64}$", options: .regularExpression) != nil else { throw Failure.invalidResponse }
         guard !system.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !user.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -32,7 +34,7 @@ public enum LocalModelJSON {
             "messages": [["role": "system", "content": system + "\nReturn only JSON matching this schema: " + schema],
                          ["role": "user", "content": user]],
             "temperature": 0.1,
-            "max_tokens": maxTokens(contextWindow: contextWindow),
+            "max_tokens": limit.map { min($0, maxTokens(contextWindow: contextWindow)) } ?? maxTokens(contextWindow: contextWindow),
             "stream": false,
             "chat_template_kwargs": ["enable_thinking": false],
             "response_format": ["type": "json_schema", "json_schema": ["name": name, "strict": true, "schema": schemaObject]],
@@ -41,8 +43,9 @@ public enum LocalModelJSON {
 
     /// The response text (JSON). Throws on cancellation (`CancellationError`), server error or truncated response.
     public static func request(_ lease: LlamaServer.AgentLease, system: String, user: String, schema: String, name: String,
-                               timeout: TimeInterval = 300, session: URLSession = .shared) async throws -> Data {
-        let body = try body(modelID: lease.modelID, system: system, user: user, schema: schema, name: name, contextWindow: lease.contextWindow)
+                               maxTokens limit: Int? = nil, timeout: TimeInterval = 300, session: URLSession = .shared) async throws -> Data {
+        let body = try body(modelID: lease.modelID, system: system, user: user, schema: schema, name: name, contextWindow: lease.contextWindow,
+                            maxTokens: limit)
         var request = URLRequest(url: lease.endpoint.appendingPathComponent("chat/completions"), timeoutInterval: timeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

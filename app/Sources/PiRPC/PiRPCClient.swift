@@ -114,6 +114,8 @@ public actor PiRPCClient {
     private var nextID = 0
     /// How many user messages have arrived in the current run: the first is the prompt itself, each further one delivered later.
     private var userMessagesInRun = 0
+    /// A summary runs between answers (pippa-context.ts compacts while the person reads). Pi refuses a prompt meanwhile.
+    private var compacting = false
 
     struct Response: Sendable { let success: Bool; let error: String?; let data: Data? }
 
@@ -220,7 +222,16 @@ public actor PiRPCClient {
         events = continuation
         userMessagesInRun = 0
         do {
-            let response = try await send(["type": "prompt", "message": text])
+            // The person comes first: stop a quiet summary (Pi keeps the conversation as it was) and ask right away.
+            // Also when the summary started just before the prompt reached Pi (`Self.isCompactionBusy`).
+            if compacting { try await abort() }
+            var response: Response
+            do {
+                response = try await send(["type": "prompt", "message": text])
+            } catch let error as PiRPCError where Self.isCompactionBusy(error) {
+                try await abort()
+                response = try await send(["type": "prompt", "message": text])
+            }
             if Self.disposition(response) == "handled" { finish(nil) }
         } catch {
             finish(error)
@@ -248,6 +259,12 @@ public actor PiRPCClient {
     /// Arbitrary command, for trial runs (`get_state`, `get_session_stats`, …). Returns `data` as JSON.
     public func command(_ payload: [String: any Sendable]) async throws -> Data? {
         try await send(payload).data
+    }
+
+    /// Pi's answer to a prompt while a summary runs (Pi 1.1: "Cannot submit a prompt while compaction is in progress").
+    static func isCompactionBusy(_ error: PiRPCError) -> Bool {
+        guard case .commandFailed(let command, let message) = error else { return false }
+        return command == "prompt" && message.localizedCaseInsensitiveContains("compaction is in progress")
     }
 
     private static func disposition(_ response: Response) -> String? {
@@ -332,6 +349,10 @@ public actor PiRPCClient {
                let json = try? JSONSerialization.data(withJSONObject: data) {
                 events?.yield(.notice(String(decoding: json, as: UTF8.self), kind: kind))
             }
+        case "compaction_start":
+            compacting = true
+        case "compaction_end":
+            compacting = false
         case "agent_settled":
             events?.yield(.settled)
             finish(nil)

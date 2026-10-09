@@ -8,9 +8,14 @@ import PippaCore
             ConversationReopenPolicy.destination(lastActivity: last, now: last.addingTimeInterval($0)) == .conversation
         }
     }
-    check("Reopen: exactly ten minutes and later chooses compact presentation") {
-        [600.0, 600.001, 86_400].allSatisfy {
+    check("Reopen: from ten minutes to under three hours chooses compact presentation") {
+        [600.0, 600.001, 10_799.999].allSatisfy {
             ConversationReopenPolicy.destination(lastActivity: last, now: last.addingTimeInterval($0)) == .compact
+        }
+    }
+    check("Reopen: three hours and later starts a new topic by itself") {
+        [10_800.0, 86_400, 30 * 86_400].allSatisfy {
+            ConversationReopenPolicy.destination(lastActivity: last, now: last.addingTimeInterval($0)) == .fresh
         }
     }
     check("Reopen: active work and unreviewed actions stay visible at every age") {

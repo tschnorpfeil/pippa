@@ -127,8 +127,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let piServer = PiRPCChat.shared.ownedServer
         Task.detached {
             await withTaskGroup(of: Void.self) { group in
-                group.addTask { await engine.shutdown(); await piServer?.stop() }
-                group.addTask { try? await Task.sleep(for: .seconds(3)) }
+                group.addTask { await engine.shutdown(); await piServer?.stopSavingConversation() }
+                // Saving the prompt cache of a 16k conversation takes about a second; a slow disk must not hold the quit.
+                group.addTask { try? await Task.sleep(for: .seconds(5)) }
                 await group.next()
                 group.cancelAll()
             }

@@ -26,6 +26,13 @@ public actor LocalEngine: PippaEngine {
     /// the same model, and a second server never runs. State and download then belong to setup.
     private var shared: SharedModelServer?
     private var structuredBusy = false
+    /// Slot 0 of the shared llama-server is Pi's conversation cache. A direct model call saves it first and puts it back
+    /// afterwards, during a tidy round only once its model stage ends (`holdSlot`), so the next answer does not read the
+    /// whole conversation again and an idle unload does not save the tidy prompt instead. `slotSaveTried`: save at most
+    /// once per round; a second save would store the tidy prompt over the conversation.
+    private var parkedSlot: LlamaServer?
+    private var holdSlot = false
+    private var slotSaveTried = false
     private var inferenceWorkBusy = false
 
     /// One model job at a time. Callers reset the state via `defer`.
@@ -382,8 +389,15 @@ public actor LocalEngine: PippaEngine {
         // Directly to llama-server (LocalModelJSON).
         structuredBusy = true
         defer { structuredBusy = false }
+        if !slotSaveTried {
+            slotSaveTried = true
+            if await server.saveConversationSlot() { parkedSlot = server }
+        }
         do {
-            let data = try await LocalModelJSON.request(lease, system: Prompts.system(task), user: user, schema: schema, name: name)
+            // Classifying fills a few fields; a quarter of the context would let a runaway answer hold the slot for long.
+            let data = try await LocalModelJSON.request(lease, system: Prompts.system(task), user: user, schema: schema, name: name,
+                                                        maxTokens: task == .classify ? 300 : nil)
+            if !holdSlot { await unparkSlot() }
             #if DEBUG
             if let path = ProcessInfo.processInfo.environment["PIPPA_ANALYSIS_TRACE_DIR"] {
                 let directory = URL(fileURLWithPath: path)
@@ -395,6 +409,7 @@ public actor LocalEngine: PippaEngine {
             await server.releaseAgentLease(lease)
             return Self.decodeModelJSON(T.self, from: data)
         } catch {
+            if !holdSlot { await unparkSlot() }
             await server.releaseAgentLease(lease)
             let code = (error as? LocalModelJSON.Failure).map { String(describing: $0).components(separatedBy: "(").first ?? "json" } ?? "modell"
             DiagnosticsLog.shared.event("analyse-fehler", ["code": code])
@@ -405,6 +420,13 @@ public actor LocalEngine: PippaEngine {
             if Task.isCancelled { throw CancellationError() }
             return nil
         }
+    }
+
+    private func unparkSlot() async {
+        slotSaveTried = false
+        guard let server = parkedSlot else { return }
+        parkedSlot = nil
+        await server.restoreConversationSlot()
     }
 
     /// Read the JSON of the model answer; tolerates text before or after the object (e.g. truncated fences).
@@ -661,20 +683,29 @@ public actor LocalEngine: PippaEngine {
         // If none is there (still loading, waking up, not answering), Pippa doesn't guess: the document stays put and goes
         // to `later`, for one round, once the model is ready. Small, text-rich files first, so the progress moves visibly.
         unclear = TidyClassifier.readingOrder(unclear)
-        for (i, url) in unclear.enumerated() {
-            try Task.checkCancellation()
-            guard canClassify else {
-                later += unclear.dropFirst(i)
-                publish(pending: [])
-                break
+        // One save and one restore of Pi's cache for the whole stage, not one per file.
+        holdSlot = true
+        defer { holdSlot = false }
+        do {
+            for (i, url) in unclear.enumerated() {
+                try Task.checkCancellation()
+                guard canClassify else {
+                    later += unclear.dropFirst(i)
+                    publish(pending: [])
+                    break
+                }
+                step(i, of: unclear.count, url)
+                let insight = try await insight(for: url, model: true)
+                if let why = insight.skipReason { skipped.append((url, why)) }
+                else if insight.fromModel { insights.append(insight) }
+                else { later.append(url) }
+                publish(pending: Array(unclear.dropFirst(i + 1)))
             }
-            step(i, of: unclear.count, url)
-            let insight = try await insight(for: url, model: true)
-            if let why = insight.skipReason { skipped.append((url, why)) }
-            else if insight.fromModel { insights.append(insight) }
-            else { later.append(url) }
-            publish(pending: Array(unclear.dropFirst(i + 1)))
+        } catch {
+            await unparkSlot()
+            throw error
         }
+        await unparkSlot()
         return plan
     }
 

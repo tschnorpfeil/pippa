@@ -61,6 +61,17 @@ Pippa replaces its own earlier default "high" in `settings.json` with the new on
   `pippa-search-result`; only these verified paths enable local links in the saved answer. `read` on a PDF, Word,
   image, mail or spreadsheet is sent to `mcp__pippa__read_document` (`documentForRead`), because Pi's `read` returns
   raw bytes.
+- `pippa-memory.ts` is "Was Pippa über dich weiß": one fact per line in `memory.md` in Pippa's support folder
+  (`PIPPA_MEMORY_FILE`). The lines go into the system prompt as their own `<memory>` section, read once per session so
+  the prompt cache stays warm. The `remember` tool adds or forgets a fact; it refuses account, card, ID, tax and phone
+  numbers and passwords, keeps at most 30 lines and never makes a model call of its own.
+- `pippa-context.ts` keeps the context small without the person waiting: after an answer, once the person has been quiet
+  for 20 s and the context is at least 60 % full, it starts Pi's own compaction with everyday instructions (names,
+  dates, amounts, file paths, what is open). Pi's threshold stays as the net. A question during that summary aborts it
+  first (`PiRPCClient.prompt`). A new session gets a short `<earlier>` section from the session used last within
+  12 hours (its last summary, or the last question and answer), so a new topic still knows "the letter from earlier".
+  Pippa starts a new topic by itself after three hours without input or when new things are given to a used
+  conversation (`ConversationReopenPolicy`, `AppModel.attach`); the person never presses "New topic".
 - `pippa-mcp.ts` registers Pippa's MCP server for this Pi session from `PIPPA_MCP_URL` and `PIPPA_MCP_TOKEN` (loopback
   only, new key per app start, removed from `process.env` afterwards).
 - The "what happened" line under an answer comes from Pi's own tool events (`PiTurnReceipt`: what was called with which
@@ -162,7 +173,7 @@ scripts/make-dmg.sh       # dist/Pippa.dmg
 PATH or `PIPPA_CMAKE`), bundles Node and web access (`bundle-web.sh`: pi-web-access from its lockfile), the Pi install
 payload (`bundle-pi-payload.sh`), the abilities and Pippa's extensions, removes Sparkle's XPC services and signs
 everything from the inside out. Of `runtime/pippa-tools` only the sources Pi loads are copied (`pippa-tools.ts`,
-`pippa-assist.ts`, `pippa-mcp.ts` and their imports), without tests.
+`pippa-assist.ts`, `pippa-memory.ts`, `pippa-context.ts`, `pippa-mcp.ts` and their imports), without tests.
 
 | Variable | Effect |
 |---|---|
