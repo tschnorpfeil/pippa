@@ -127,6 +127,18 @@ func runLookupChecks() async {
 
     check("LookupHost: UI language is de or en") { ["de", "en"].contains(LookupHost.uiLanguage) }
 
+    check("Fetch process answers: each failure code keeps its reason; only no_results is an empty list; log has numbers only") {
+        func code(_ c: String) -> WebFetchError? {
+            do { _ = try WebFetcher.read(replyLine: "{\"id\":\"1\",\"ok\":false,\"code\":\"\(c)\"}"); return nil } catch { return error as? WebFetchError }
+        }
+        let empty = (try? WebFetcher.read(replyLine: "{\"id\":\"1\",\"ok\":false,\"code\":\"no_results\"}"))?.isEmpty == true
+        let fields = WebFetcher.logFields(replyLine: "{\"id\":\"1\",\"ok\":false,\"code\":\"blocked\",\"diag\":{\"layer\":\"search\",\"provider\":\"duckduckgo\",\"status\":202,\"ms\":40,\"results\":0,\"pages\":0}}")
+        return empty && code("blocked") == .blocked && code("timeout") == .timedOut && code("protocol") == .protocolError
+            && code("unreadable") == .unreadable && code("failed") == .failed && code("whatever") == .failed
+            && fields == ["id": "00000000", "art": "lookup", "ergebnis": "blocked", "ms": "40", "schicht": "search", "anbieter": "duckduckgo",
+                          "http": "202", "treffer": "0", "seiten": "0"]
+    }
+
     // MARK: Fetch process (only with PIPPA_NODE_BINARY and PIPPA_WEB_RUNTIME=runtime/pippa-web, no network: invalid queries never search)
 
     if WebFetcher.isAvailable {

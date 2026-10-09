@@ -32,6 +32,8 @@ guard="$root/runtime/pippa-guard/pippa-guard.ts"
 tools="$root/runtime/pippa-guard/pippa-tools.ts"
 cache="$HOME/Library/Caches/pippa-live"
 mkdir -p "$logs"
+# Pippa's diagnostics log stays with the probe, never in the real ~/Library/Logs/Pippa (DiagnosticsLog).
+export PIPPA_LOG_DIR="${PIPPA_LOG_DIR:-$logs/pippa}"
 # Port from Pippa's settings.json in the fake HOME (PiInstaller.stablePort), otherwise 18080.
 port=$(sed -n -e 's/.*"llamaPort":\([0-9]*\).*/\1/p' -- "$support/settings.json" 2>/dev/null || true)
 port="${PIPPA_SPIKE_PORT:-${port:-18080}}"

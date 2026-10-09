@@ -233,7 +233,7 @@ public extension ActionReceipt.Item {
         switch record.outcome {
         case .done: return .init(action: action, outcome: "done", name: record.ask?.shown, reason: record.found == 0 ? "nothingFound" : nil)
         case .declined: return .init(action: action, outcome: "declined", name: record.ask?.shown)
-        case .failed: return .init(action: action, outcome: "failed", name: record.ask?.shown)
+        case .failed: return .init(action: action, outcome: "failed", name: record.ask?.shown, reason: record.reason)
         case .notAllowed: return .init(action: action, outcome: "blocked", name: nil, reason: "notAllowed")
         }
     }

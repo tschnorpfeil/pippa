@@ -32,8 +32,10 @@ public struct LookupReply: Sendable, Equatable {
     public enum Status: String, Sendable { case done, needsPerson = "needs_person", refused, failed }
     public var status: Status
     public var passages: [LookupPassage]
-    public init(status: Status, passages: [LookupPassage]) {
-        self.status = status; self.passages = passages
+    /// Why `failed` (WebFetchError.reason: "blocked", "timeout", "protocol", "unreadable", …); nil otherwise.
+    public var reason: String?
+    public init(status: Status, passages: [LookupPassage], reason: String? = nil) {
+        self.status = status; self.passages = passages; self.reason = reason
     }
 }
 

@@ -259,6 +259,10 @@ public struct PippaMCPTurnTools: Sendable {
         "again": "The person already said not now for this message. Do not call web_search or read_web_page again. Answer now: say in one sentence that you did not look it up online.",
         "needs_person": "Not looked up yet. Say in one sentence that you could not look it up yet.",
         "failed": "The lookup did not work this time. Say so in one sentence; do not invent current facts.",
+        // Reasons of a failed lookup (WebFetchError.reason). "blocked" is not "nothing found".
+        "blocked": "The search service blocked this request for now; that does not mean nothing exists. Do not search again in this message and do not guess web addresses. Say in one sentence that the online search is blocked right now and the person can try again later; do not invent current facts.",
+        "timeout": "The lookup took too long and was stopped. Say so in one sentence; do not invent current facts.",
+        "unreadable": "Search hits came back, but no page could be read. Say so in one sentence; do not invent current facts or web addresses.",
         "empty": "Nothing usable was found. Say so in one sentence; do not invent current facts.",
         "done": "Answer from these pages only for current facts. Name each source with its link (url). If the pages do not say it, say so. To read one page in full, use read_web_page with its exact url.",
     ]
@@ -288,11 +292,18 @@ public struct PippaMCPTurnTools: Sendable {
             return PippaMCPToolResult(text: PippaMCPTools.json(["untrusted": true, "status": "refused", "sources": [Any](),
                                                                 "next": Self.webNext["again"]!]), isError: false)
         }
+        // After a block in this message, no further search goes out (and no new card): the service said no just now.
+        if kind == .search, await gate.records.contains(where: { $0.reason == "blocked" }) {
+            return PippaMCPToolResult(text: PippaMCPTools.json(["untrusted": true, "status": "failed", "reason": "blocked", "sources": [Any](),
+                                                                "next": Self.webNext["blocked"]!]), isError: false)
+        }
         let reply = await gate.handle(LookupRequest(query: text, why: "", kind: kind))
         let status = reply.status.rawValue
         guard reply.status == .done else {
-            return PippaMCPToolResult(text: PippaMCPTools.json(["untrusted": true, "status": status, "sources": [Any](), "next": Self.webNext[status] ?? Self.webNext["failed"]!]),
-                                      isError: false)
+            var result: [String: Any] = ["untrusted": true, "status": status, "sources": [Any](),
+                                         "next": reply.reason.flatMap { Self.webNext[$0] } ?? Self.webNext[status] ?? Self.webNext["failed"]!]
+            if let reason = reply.reason { result["reason"] = reason }
+            return PippaMCPToolResult(text: PippaMCPTools.json(result), isError: false)
         }
         guard !reply.passages.isEmpty else {
             return PippaMCPToolResult(text: PippaMCPTools.json(["untrusted": true, "status": status, "sources": [Any](), "next": Self.webNext["empty"]!]), isError: false)

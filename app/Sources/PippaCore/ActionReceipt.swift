@@ -63,7 +63,12 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
             default:
                 let base = page ? L("Not read online: %@", table: "Thought", language: language, what)
                                 : L("Not looked up online: “%@”", table: "Thought", language: language, what)
-                return L("%@ (didn’t work)", table: "Thought", language: language, base)
+                return switch reason {
+                case "blocked": L("%@ (the search service is blocking requests right now)", table: "Thought", language: language, base)
+                case "timeout": L("%@ (took too long)", table: "Thought", language: language, base)
+                case "unreadable": L("%@ (the page couldn’t be read)", table: "Thought", language: language, base)
+                default: L("%@ (didn’t work)", table: "Thought", language: language, base)
+                }
             }
         }
 

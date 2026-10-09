@@ -1,20 +1,26 @@
 // Pippa's own fetch process for "look up online" and "check online". Only the app starts it (WebFetcher.swift), never
 // Pi: the model only proposes a search query or page; the app checks it in code (QueryGuard, WebAccessGate), asks the
-// person and sends it here. This process searches (pi-web-access, DuckDuckGo HTML) and reads pages (pi-web-access
-// extract).
+// person and sends it here. This process searches (DuckDuckGo HTML, own small request below) and reads pages
+// (pi-web-access extract).
 //
 // Protocol (JSON lines over stdio):
 //   in   {"id":"1","type":"lookup","query":"Einspruchsfrist Steuerbescheid","language":"de","maxPages":3}
 //        {"id":"2","type":"page","url":"https://…","language":"de"}   (one page the host already allowed)
 //        {"type":"shutdown"}
 //   out  {"id":"1","ok":true,"sources":[{"url","site","title","asOf":"yyyy-mm-dd"|null,"text"}]}
-//        {"id":"1","ok":false,"code":"no_results"|"failed"|"invalid_request"|"busy"}
+//        {"id":"1","ok":false,"code":"no_results"|"blocked"|"timeout"|"protocol"|"unreadable"|"failed"|"invalid_request"|"busy"}
+//   Both may carry "diag":{"layer":"search"|"page","provider":"duckduckgo","status":200|null,"ms","results","pages"}:
+//   numbers and codes only, never the query or page text (WebFetcher.swift logs it).
+//
+// Codes: no_results = the provider answered and found nothing; blocked = the provider refused us (bot check, 403, 429);
+// timeout = no answer in time; protocol = an answer we cannot read (changed page, other HTTP error); unreadable = hits
+// or the page exist, but no page text could be read.
 //
 // Rules: nothing on stderr (no query, no page content); one request at a time; at most 25 s.
 // Own package (runtime/pippa-web, in the bundle at Contents/Resources/pippa-web); reads no files except what
 // pi-web-access itself needs.
-// The search provider is DuckDuckGo HTML via pi-web-access; replaceable via `search` in createFetcher.
-// Latency budget: search 10 s, each page 10 s in parallel, 25 s overall.
+// The search provider is DuckDuckGo HTML (searchDuckDuckGo); replaceable via `search` in createFetcher.
+// Latency budget: search 10 s (one more try only after a search timeout), each page 10 s in parallel, 25 s overall.
 import { createInterface } from 'node:readline';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -23,6 +29,62 @@ import { pathToFileURL } from 'node:url';
 
 export const limits = Object.freeze({ queryMin: 2, queryMax: 200, maxPages: 3, numResults: 8, searchMs: 10_000, pageMs: 10_000,
   deadlineMs: 25_000, textMax: 40_000, minContent: 200 });
+
+export const duckDuckGoURL = 'https://html.duckduckgo.com/html/';
+
+/** A search failure with one of the codes above; `status` is the HTTP status when there was one. */
+export class SearchError extends Error {
+  constructor(code, status = null) { super(code); this.code = code; this.status = status; }
+}
+
+function resultURL(href) {
+  try {
+    const link = new URL(href, duckDuckGoURL);
+    const url = new URL(link.searchParams.get('uddg') ?? link.href);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+  } catch { return null; }
+}
+
+/**
+ * Reads one DuckDuckGo HTML answer. Hits → { results }; otherwise throws SearchError. DuckDuckGo answers its bot check
+ * with HTTP 202 and an "anomaly" page; pi-web-access 0.37.0 took that for an empty result ("no parseable results").
+ */
+export async function readDuckDuckGo(status, html) {
+  if (status === 403 || status === 429) throw new SearchError('blocked', status);
+  if (status < 200 || status > 299) throw new SearchError('protocol', status);
+  const { parseHTML } = await import('linkedom');
+  const { document } = parseHTML(String(html ?? ''));
+  if (status === 202 || document.querySelector('.anomaly-modal__box, form#challenge-form')) throw new SearchError('blocked', status);
+  const results = [];
+  for (const container of document.querySelectorAll('.result')) {
+    if (container.classList.contains('result--ad')) continue;
+    const anchor = container.querySelector('.result__a');
+    const title = anchor?.textContent?.trim() ?? '';
+    const url = resultURL(anchor?.getAttribute('href')?.trim() ?? '');
+    if (!title || !url) continue;
+    results.push({ title, url, snippet: container.querySelector('.result__snippet')?.textContent?.trim() ?? '' });
+  }
+  if (results.length > 0) return { results, status };
+  if (document.querySelector('.no-results__message, .no-results')) throw new SearchError('no_results', status);
+  throw new SearchError('protocol', status);
+}
+
+/** DuckDuckGo HTML search, one request. `fetchImpl` only for tests. */
+export async function searchDuckDuckGo(query, { numResults = limits.numResults, signal, fetchImpl = fetch } = {}) {
+  const url = new URL(duckDuckGoURL);
+  url.searchParams.set('q', query);
+  let response, html;
+  try {
+    response = await fetchImpl(url, { headers: { Accept: 'text/html', 'User-Agent': 'Mozilla/5.0 (compatible; Pippa; +https://github.com/tschnorpfeil/pippa)' }, signal, redirect: 'error' });
+    html = await response.text();
+  } catch (error) {
+    throw new SearchError(signal?.aborted ? 'timeout' : 'protocol');
+  }
+  const read = await readDuckDuckGo(response.status, html);
+  return { results: read.results.slice(0, numResults), status: read.status };
+}
+
+const searchCodes = new Set(['no_results', 'blocked', 'timeout', 'protocol']);
 
 /** Hostname without "www.", lower-cased. */
 export function siteOf(url) {
@@ -117,10 +179,12 @@ function validQuery(query) {
 }
 
 /**
- * `search(query, { numResults, signal })` → { results: [{ title, url, snippet }] } (pi-web-access SearchResponse)
+ * `search(query, { numResults, signal })` → { results: [{ title, url, snippet }], status? }; failures throw SearchError
+ *   (any other error counts as `protocol`, or `timeout` when the signal ended it).
  * `extract(url, signal, options)` → { url, title, content, error } (pi-web-access ExtractedContent)
  */
-export function createFetcher({ search, extract, now = () => new Date(), deadlineMs = limits.deadlineMs } = {}) {
+export function createFetcher({ search, extract, now = () => new Date(), deadlineMs = limits.deadlineMs, searchMs = limits.searchMs,
+  provider = 'duckduckgo' } = {}) {
   let running = false;
   async function readPage(candidate, signal) {
     let page;
@@ -150,29 +214,44 @@ export function createFetcher({ search, extract, now = () => new Date(), deadlin
     const maxPages = Math.min(requested, limits.maxPages);
     if (running) return { ok: false, code: 'busy' };
     running = true;
+    const started = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), deadlineMs);
+    const diag = { layer: 'search', provider, status: null, ms: 0, results: 0, pages: 0 };
+    const finish = result => { diag.ms = Date.now() - started; return { ...result, diag }; };
     try {
       let response;
-      try {
-        response = await search(query, { numResults: limits.numResults, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(limits.searchMs)]) });
-      } catch (error) {
-        // DuckDuckGo reports "no parseable results" when it simply found nothing.
-        const message = error instanceof Error ? error.message : String(error);
-        return { ok: false, code: /no parseable results/i.test(message) ? 'no_results' : 'failed' };
+      // At most two tries, and the second only after a search timeout with enough time left: no loop, no other provider.
+      for (let attempt = 1; ; attempt++) {
+        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(searchMs)]);
+        try {
+          response = await search(query, { numResults: limits.numResults, signal });
+          break;
+        } catch (error) {
+          const code = searchCodes.has(error?.code) ? error.code : (signal.aborted ? 'timeout' : 'protocol');
+          diag.status = Number.isInteger(error?.status) ? error.status : null;
+          const timeLeft = deadlineMs - (Date.now() - started);
+          if (code === 'timeout' && attempt === 1 && !controller.signal.aborted && timeLeft > searchMs + limits.pageMs) continue;
+          return finish({ ok: false, code });
+        }
       }
+      diag.status = Number.isInteger(response?.status) ? response.status : null;
       const ranked = rankSources(response?.results);
-      if (ranked.length === 0) return { ok: false, code: 'no_results' };
+      diag.results = ranked.length;
+      if (ranked.length === 0) return finish({ ok: false, code: 'no_results' });
+      diag.layer = 'page';
       const sources = [];
       // At most two rounds: if none of the first pages can be read, the next ones follow.
       for (let start = 0; start < ranked.length && start < maxPages * 2 && sources.length === 0 && !controller.signal.aborted; start += maxPages) {
         const pages = await Promise.all(ranked.slice(start, start + maxPages).map(candidate => readPage(candidate, controller.signal)));
         for (const page of pages) if (page) sources.push(page);
       }
-      if (sources.length > 0) return { ok: true, sources };
-      return { ok: false, code: controller.signal.aborted ? 'failed' : 'no_results' };
+      diag.pages = sources.length;
+      if (sources.length > 0) return finish({ ok: true, sources });
+      // Hits, but no page text: not "nothing found".
+      return finish({ ok: false, code: controller.signal.aborted ? 'timeout' : 'unreadable' });
     } catch {
-      return { ok: false, code: 'failed' };
+      return finish({ ok: false, code: 'failed' });
     } finally {
       clearTimeout(timer);
       running = false;
@@ -185,13 +264,17 @@ export function createFetcher({ search, extract, now = () => new Date(), deadlin
     if (!isWebURL(url) || url.length > 2000 || /[\r\n]/.test(url) || (language !== 'de' && language !== 'en')) return { ok: false, code: 'invalid_request' };
     if (running) return { ok: false, code: 'busy' };
     running = true;
+    const started = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), deadlineMs);
+    const diag = { layer: 'page', provider: null, status: null, ms: 0, results: 0, pages: 0 };
+    const finish = result => { diag.ms = Date.now() - started; return { ...result, diag }; };
     try {
       const read = await readPage({ url, title: '' }, controller.signal);
-      return read ? { ok: true, sources: [read] } : { ok: false, code: controller.signal.aborted ? 'failed' : 'no_results' };
+      diag.pages = read ? 1 : 0;
+      return finish(read ? { ok: true, sources: [read] } : { ok: false, code: controller.signal.aborted ? 'timeout' : 'unreadable' });
     } catch {
-      return { ok: false, code: 'failed' };
+      return finish({ ok: false, code: 'failed' });
     } finally {
       clearTimeout(timer);
       running = false;
@@ -239,8 +322,8 @@ function startFromCommandLine() {
     process.env.PI_CODING_AGENT_DIR = process.env.PIPPA_FETCHER_CONFIG_DIR;
   }
   // Load only afterwards: pi-web-access reads the folder at import.
-  Promise.all([import('./generated/extract.mjs'), import('./generated/duckduckgo.mjs')]).then(async ([{ extractContent }, { searchWithDuckDuckGo }]) => {
-    const fetcher = createFetcher({ search: (query, options) => searchWithDuckDuckGo(query, options), extract: extractContent });
+  import('./generated/extract.mjs').then(async ({ extractContent }) => {
+    const fetcher = createFetcher({ search: searchDuckDuckGo, extract: extractContent });
     await serve(process.stdin, process.stdout, fetcher);
     process.exit(0);
   }, () => process.exit(1));

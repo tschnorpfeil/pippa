@@ -190,6 +190,39 @@ func runR2Checks() async {
             && again.json["status"] as? String == "refused" && records.count == 1 && cards == 1
             && fetched.value == 0 && line == "Nicht online nachgesehen: „Wetter morgen Köln“ (du hast abgelehnt)"
     }
+    await checkAsync("web_search: a blocked search says so (not \"nothing found\"), and no further search or card in that message") {
+        let fetched = LockedBox(0)
+        let asked = LockedBox(0)
+        let gate = WebAccessGate(fetcher: FailingFetcher(error: .blocked, count: fetched), language: "de") { _ in asked.mutate { $0 += 1 }; return true }
+        let turns = PippaMCPTurns()
+        turns.begin(PippaMCPTurn(web: gate))
+        let r = await call(tools(turns), "web_search", ["query": "Wetter morgen Köln"])
+        let again = await call(tools(turns), "web_search", ["query": "Wettervorhersage Köln"])
+        let records = await gate.records
+        let de = records.map(ActionReceipt.Item.web).first?.line(language: "de")
+        let en = records.map(ActionReceipt.Item.web).first?.line(language: "en")
+        return !r.isError && r.json["status"] as? String == "failed" && r.json["reason"] as? String == "blocked"
+            && (r.json["next"] as? String)?.contains("blocked") == true && (r.json["sources"] as? [Any])?.isEmpty == true
+            && again.json["reason"] as? String == "blocked" && fetched.value == 1 && asked.value == 1 && records.count == 1
+            && de == "Nicht online nachgesehen: „Wetter morgen Köln“ (der Suchdienst blockiert gerade Anfragen)"
+            && en == "Not looked up online: “Wetter morgen Köln” (the search service is blocking requests right now)"
+    }
+    await checkAsync("web_search: timeout and unreadable pages keep their reason; protocol errors stay \"didn't work\"") {
+        var lines: [String] = []
+        var reasons: [String] = []
+        for error in [WebFetchError.timedOut, .unreadable, .protocolError] {
+            let gate = WebAccessGate(fetcher: FailingFetcher(error: error, count: LockedBox(0)), language: "de") { _ in true }
+            let turns = PippaMCPTurns()
+            turns.begin(PippaMCPTurn(web: gate))
+            let r = await call(tools(turns), "web_search", ["query": "Wetter morgen Köln"])
+            reasons.append(r.json["reason"] as? String ?? "")
+            lines.append(await gate.records.map(ActionReceipt.Item.web).first?.line(language: "de") ?? "")
+        }
+        return reasons == ["timeout", "unreadable", "protocol"]
+            && lines == ["Nicht online nachgesehen: „Wetter morgen Köln“ (hat zu lange gedauert)",
+                         "Nicht online nachgesehen: „Wetter morgen Köln“ (die Seite ließ sich nicht lesen)",
+                         "Nicht online nachgesehen: „Wetter morgen Köln“ (hat nicht geklappt)"]
+    }
     await checkAsync("read_web_page: only addresses from this message's search; invented → not allowed, nothing goes out; at most 4 per message") {
         let fetched = LockedBox(0)
         let asked = LockedBox(0)
@@ -263,6 +296,12 @@ private struct R2Fetcher: WebFetching {
         copy.url = url
         return copy
     }
+}
+
+private struct FailingFetcher: WebFetching {
+    let error: WebFetchError
+    let count: LockedBox<Int>
+    func lookup(_ query: String, language: String) async throws -> [WebSource] { count.mutate { $0 += 1 }; throw error }
 }
 
 /// A "scan": text as an image in a PDF without a text layer.

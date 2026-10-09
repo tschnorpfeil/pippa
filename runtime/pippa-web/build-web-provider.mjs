@@ -6,9 +6,9 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 
 // Bundled from the pinned pi-web-access, only for the own fetch process src/fetcher.mjs (search and read pages).
 // Pippa's Pi extensions (runtime/pippa-guard) import nothing from it; test/fetcher.test.mjs checks that.
-// The search provider is DuckDuckGo HTML; replaceable via `search` in createFetcher.
+// Only page extraction comes from here; the DuckDuckGo search is fetcher.mjs's own (searchDuckDuckGo), because
+// pi-web-access 0.37.0 reports DuckDuckGo's bot check (HTTP 202) as an empty result.
 const bundles = [
-  { source: 'node_modules/pi-web-access/duckduckgo.ts', name: 'duckduckgo' },
   { source: 'node_modules/pi-web-access/extract.ts', name: 'extract' },
 ];
 

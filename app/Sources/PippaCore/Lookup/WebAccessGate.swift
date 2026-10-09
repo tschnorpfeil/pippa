@@ -43,6 +43,8 @@ public struct WebAccessRecord: Sendable, Equatable {
     public var ask: WebAccessAsk?
     public var outcome: Outcome
     public var found: Int
+    /// Why `failed` (WebFetchError.reason); nil otherwise.
+    public var reason: String? = nil
 }
 
 public actor WebAccessGate {
@@ -110,9 +112,10 @@ public actor WebAccessGate {
                 found = try await fetcher.page(url, language: language).map { [$0] } ?? []
             }
         } catch {
-            DiagnosticsLog.shared.event("online-nachsehen", ["ergebnis": "fehler", "art": ask.kind.rawValue])
-            records.append(WebAccessRecord(kind: ask.kind, ask: ask, outcome: .failed, found: 0))
-            return LookupReply(status: .failed, passages: [])
+            let reason = (error as? WebFetchError)?.reason ?? (error is CancellationError ? "stopped" : "failed")
+            DiagnosticsLog.shared.event("online-nachsehen", ["ergebnis": "fehler", "art": ask.kind.rawValue, "grund": reason])
+            records.append(WebAccessRecord(kind: ask.kind, ask: ask, outcome: .failed, found: 0, reason: reason))
+            return LookupReply(status: .failed, passages: [], reason: reason)
         }
         guard !cancelled else {
             records.append(WebAccessRecord(kind: ask.kind, ask: ask, outcome: .failed, found: 0))

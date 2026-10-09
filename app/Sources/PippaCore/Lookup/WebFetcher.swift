@@ -19,8 +19,29 @@ public enum WebFetchError: Error, Sendable, Equatable {
     case invalidRequest
     case timedOut
     case stopped
+    /// The search service refused the request (bot check, HTTP 403/429). Not "nothing found".
+    case blocked
+    /// The search service answered with something unreadable (changed page, other HTTP error).
+    case protocolError
+    /// Hits or the page exist, but no text could be read from them.
+    case unreadable
     /// Process ended or answer unusable.
     case failed
+
+    /// Short reason for the tool result, the receipt and the log ("blocked", "timeout", …).
+    public var reason: String {
+        switch self {
+        case .unavailable: "unavailable"
+        case .busy: "busy"
+        case .invalidRequest: "invalid"
+        case .timedOut: "timeout"
+        case .stopped: "stopped"
+        case .blocked: "blocked"
+        case .protocolError: "protocol"
+        case .unreadable: "unreadable"
+        case .failed: "failed"
+        }
+    }
 }
 
 /// The own fetch process (runtime/pippa-web/src/fetcher.mjs, pi-web-access; in the bundle Contents/Resources/pippa-web).
@@ -85,6 +106,7 @@ public actor WebFetcher: WebFetching {
 
     private func send(_ payload: [String: Any]) async throws -> FetcherReply {
         let id = UUID().uuidString
+        let started = ContinuousClock.now
         var command = payload; command["id"] = id
         var data = try JSONSerialization.data(withJSONObject: command)
         data.append(10)
@@ -96,7 +118,38 @@ public actor WebFetcher: WebFetching {
         } onCancel: {
             Task { await self.cancel(id: id) }
         }
+        Self.log(reply, id: id, kind: payload["type"] as? String ?? "?", elapsed: ContinuousClock.now - started)
         return reply
+    }
+
+    /// One line per fetch: request id, layer, provider, HTTP status, duration, hit and page count, code. Never the query or
+    /// page text (fetcher.mjs sends only numbers and codes in `diag`).
+    static func log(_ reply: FetcherReply, id: String, kind: String, elapsed: Duration) {
+        DiagnosticsLog.shared.event("web-abruf", logFields(reply, id: id, kind: kind, elapsed: elapsed))
+    }
+
+    static func logFields(_ reply: FetcherReply, id: String, kind: String, elapsed: Duration) -> [String: String] {
+        var fields = ["id": String(id.prefix(8)), "art": kind, "ergebnis": reply.ok ? "ok" : (reply.code ?? "?"),
+                      "ms": String(elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000)]
+        if let diag = reply.diag {
+            fields["schicht"] = diag.layer
+            if let provider = diag.provider { fields["anbieter"] = provider }
+            if let status = diag.status { fields["http"] = String(status) }
+            fields["treffer"] = String(diag.results)
+            fields["seiten"] = String(diag.pages)
+        }
+        return fields
+    }
+
+    /// For checks: one answer line of the fetch process as the actor reads it (sources or WebFetchError), and its log line.
+    public static func read(replyLine: String) throws -> [WebSource] {
+        guard let reply = FetcherReply.parse(Data(replyLine.utf8)) else { throw WebFetchError.failed }
+        return try sources(from: reply)
+    }
+
+    public static func logFields(replyLine: String, kind: String = "lookup") -> [String: String] {
+        guard let reply = FetcherReply.parse(Data(replyLine.utf8)) else { return [:] }
+        return logFields(reply, id: "00000000-check", kind: kind, elapsed: .milliseconds(40))
     }
 
     /// Ends the process. The next fetch starts it again.
@@ -236,6 +289,10 @@ public actor WebFetcher: WebFetching {
             case "no_results": return []
             case "busy": throw WebFetchError.busy
             case "invalid_request": throw WebFetchError.invalidRequest
+            case "blocked": throw WebFetchError.blocked
+            case "timeout": throw WebFetchError.timedOut
+            case "protocol": throw WebFetchError.protocolError
+            case "unreadable": throw WebFetchError.unreadable
             default: throw WebFetchError.failed
             }
         }
@@ -268,10 +325,19 @@ struct FetcherReply: Sendable {
         var asOf: String?
         var text: String
     }
+    /// Numbers and codes only (fetcher.mjs `diag`), for the log.
+    struct Diag: Sendable {
+        var layer: String
+        var provider: String?
+        var status: Int?
+        var results: Int
+        var pages: Int
+    }
     var id: String?
     var ok: Bool
     var code: String?
     var sources: [Source]
+    var diag: Diag? = nil
 
     static func parse(_ line: Data) -> FetcherReply? {
         guard let value = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { return nil }
@@ -284,7 +350,11 @@ struct FetcherReply: Sendable {
             let asOf = item["asOf"] as? String
             return Source(url: url, site: site, title: title, asOf: asOf, text: text)
         }
-        return FetcherReply(id: value["id"] as? String, ok: ok, code: value["code"] as? String, sources: sources)
+        let diag = (value["diag"] as? [String: Any]).map { d in
+            Diag(layer: String((d["layer"] as? String ?? "?").prefix(16)), provider: (d["provider"] as? String).map { String($0.prefix(32)) },
+                 status: d["status"] as? Int, results: d["results"] as? Int ?? 0, pages: d["pages"] as? Int ?? 0)
+        }
+        return FetcherReply(id: value["id"] as? String, ok: ok, code: value["code"] as? String, sources: sources, diag: diag)
     }
 }
 

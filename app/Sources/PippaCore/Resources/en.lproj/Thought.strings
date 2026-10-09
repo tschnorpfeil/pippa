@@ -96,6 +96,9 @@
 "Read online: %@" = "Read online: %@";
 "Looked up online: “%@”" = "Looked up online: “%@”";
 "%@ (nothing found)" = "%@ (nothing found)";
+"%@ (the search service is blocking requests right now)" = "%@ (the search service is blocking requests right now)";
+"%@ (took too long)" = "%@ (took too long)";
+"%@ (the page couldn’t be read)" = "%@ (the page couldn’t be read)";
 "Not read online: %@" = "Not read online: %@";
 "Not looked up online: “%@”" = "Not looked up online: “%@”";
 

@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PassThrough } from 'node:stream';
 import { createInterface } from 'node:readline';
-import { asOfDate, createFetcher, plainText, rankSources, serve } from '../src/fetcher.mjs';
+import { asOfDate, createFetcher, plainText, rankSources, readDuckDuckGo, searchDuckDuckGo, SearchError, serve } from '../src/fetcher.mjs';
 
 // Contract of src/fetcher.mjs (WebFetcher.swift): no internet, against a local server and the real extract from pi-web-access.
 const here = dirname(fileURLToPath(import.meta.url));
@@ -96,15 +96,87 @@ test('createFetcher keeps the search order and reports no source flags', async (
   assert.equal(one.sources[0].url, `${base}/other`);
 });
 
-test('pages that cannot be read are skipped; nothing readable → no_results', async () => {
+const codeOf = result => ({ ok: result.ok, code: result.code });
+
+test('pages that cannot be read are skipped; hits without readable text → unreadable, no hits → no_results', async () => {
   const fetcher = createFetcher({ search: async () => ({ results: [{ title: 'Weg', url: `${base}/missing` }] }), extract: extractContent });
-  assert.deepEqual(await fetcher.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' }), { ok: false, code: 'no_results' });
+  const unreadable = await fetcher.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' });
+  assert.deepEqual(codeOf(unreadable), { ok: false, code: 'unreadable' });
+  assert.equal(unreadable.diag.results, 1);
+  assert.equal(unreadable.diag.pages, 0);
   const empty = createFetcher({ search: async () => ({ results: [] }), extract: extractContent });
-  assert.deepEqual(await empty.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' }), { ok: false, code: 'no_results' });
-  const noParse = createFetcher({ search: async () => { throw new Error('DuckDuckGo returned no parseable results (invalid response)'); }, extract: extractContent });
-  assert.deepEqual(await noParse.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' }), { ok: false, code: 'no_results' });
-  const broken = createFetcher({ search: async () => { throw new Error('DuckDuckGo search error 503'); }, extract: extractContent });
-  assert.deepEqual(await broken.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' }), { ok: false, code: 'failed' });
+  assert.deepEqual(codeOf(await empty.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' })), { ok: false, code: 'no_results' });
+});
+
+test('search failures keep their reason; anything unknown is protocol, never no_results', async () => {
+  for (const [thrown, code] of [
+    [new SearchError('blocked', 202), 'blocked'],
+    [new SearchError('no_results', 200), 'no_results'],
+    [new SearchError('protocol', 503), 'protocol'],
+    [new Error('DuckDuckGo returned no parseable results (invalid response)'), 'protocol'],
+  ]) {
+    let calls = 0;
+    const fetcher = createFetcher({ search: async () => { calls++; throw thrown; }, extract: extractContent });
+    const result = await fetcher.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' });
+    assert.deepEqual(codeOf(result), { ok: false, code }, thrown.message);
+    assert.equal(calls, 1, 'no second try except after a timeout');
+    assert.equal(result.diag.provider, 'duckduckgo');
+    assert.equal(result.diag.status, thrown.status ?? null);
+  }
+});
+
+test('a search timeout is tried once more, then reported as timeout; never a third time', async () => {
+  let calls = 0;
+  const hang = (query, { signal }) => { calls++; return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')))); };
+  const fetcher = createFetcher({ search: hang, extract: extractContent, searchMs: 50, deadlineMs: 20_050 });
+  assert.deepEqual(codeOf(await fetcher.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' })), { ok: false, code: 'timeout' });
+  assert.equal(calls, 2);
+  let second = 0;
+  const recovers = createFetcher({ search: async (query, { signal }) => second++ === 0 ? hang(query, { signal }) : { results: [{ title: 'Amtlich', url: `${base}/official` }] },
+    extract: extractContent, searchMs: 50, deadlineMs: 20_050 });
+  const result = await recovers.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' });
+  assert.equal(result.ok, true);
+});
+
+const fixture = name => readFile(join(here, 'fixtures/duckduckgo', name), 'utf8');
+
+test('DuckDuckGo answers (real pages saved on 9 Oct 2026): hits, nothing found, bot check', async () => {
+  const hits = await readDuckDuckGo(200, await fixture('results.html'));
+  assert.ok(hits.results.length >= 8);
+  assert.ok(hits.results.every(result => /^https?:\/\//.test(result.url) && !result.url.includes('duckduckgo.com/l/')));
+  await assert.rejects(readDuckDuckGo(200, await fixture('no-results.html')), { code: 'no_results' });
+  await assert.rejects(readDuckDuckGo(202, await fixture('challenge-202.html')), { code: 'blocked', status: 202 });
+  // The bot check page counts as blocked even with status 200.
+  await assert.rejects(readDuckDuckGo(200, await fixture('challenge-202.html')), { code: 'blocked' });
+  await assert.rejects(readDuckDuckGo(429, ''), { code: 'blocked', status: 429 });
+  await assert.rejects(readDuckDuckGo(403, ''), { code: 'blocked', status: 403 });
+  await assert.rejects(readDuckDuckGo(500, ''), { code: 'protocol', status: 500 });
+  await assert.rejects(readDuckDuckGo(200, '<html><body><div class="changed">?</div></body></html>'), { code: 'protocol' });
+});
+
+test('searchDuckDuckGo: one GET to DuckDuckGo with the query, no redirects followed; network errors are not "nothing found"', async () => {
+  const seen = [];
+  const html = await fixture('results.html');
+  const ok = await searchDuckDuckGo('Einspruchsfrist Steuerbescheid', { numResults: 3, fetchImpl: async (url, init) => {
+    seen.push({ url: String(url), init }); return new Response(html, { status: 200 });
+  } });
+  assert.equal(ok.results.length, 3);
+  assert.equal(seen.length, 1);
+  assert.equal(new URL(seen[0].url).origin, 'https://html.duckduckgo.com');
+  assert.equal(new URL(seen[0].url).searchParams.get('q'), 'Einspruchsfrist Steuerbescheid');
+  assert.equal(seen[0].init.redirect, 'error');
+  await assert.rejects(searchDuckDuckGo('x y', { fetchImpl: async () => { throw new TypeError('fetch failed'); } }), { code: 'protocol' });
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(searchDuckDuckGo('x y', { signal: controller.signal, fetchImpl: async () => { throw new DOMException('aborted', 'AbortError'); } }), { code: 'timeout' });
+});
+
+test('diagnostics carry numbers and codes only, never the query or page text', async () => {
+  const fetcher = createFetcher({ search: fakeSearch([]), extract: extractContent });
+  const result = await fetcher.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' });
+  assert.deepEqual(Object.keys(result.diag).sort(), ['layer', 'ms', 'pages', 'provider', 'results', 'status']);
+  assert.doesNotMatch(JSON.stringify(result.diag), /Einspruch/);
+  assert.equal(result.diag.results, 2);
+  assert.ok(result.diag.pages >= 1);
 });
 
 test('invalid requests are refused before any search', async () => {
@@ -131,7 +203,7 @@ test('one lookup at a time; the deadline ends a hanging search', async () => {
   }), extract: extractContent, deadlineMs: 300 });
   const first = fetcher.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' });
   assert.deepEqual(await fetcher.lookup({ query: 'Einspruchsfrist Steuerbescheid', language: 'de' }), { ok: false, code: 'busy' });
-  assert.deepEqual(await first, { ok: false, code: 'failed' });
+  assert.deepEqual(codeOf(await first), { ok: false, code: 'timeout' });
   void release;
 });
 
@@ -232,4 +304,12 @@ test('fetcher page: reads exactly the given http(s) page, rejects others', async
     assert.deepEqual(await fetcher.page({ url, language: 'de' }), { ok: false, code: 'invalid_request' });
   }
   assert.deepEqual(urls, ['https://wetter.example/a']);
+});
+
+test('fetcher page: a page without readable text is unreadable, not "nothing found"', async () => {
+  const fetcher = createFetcher({ search: async () => { throw new Error('no search for a page'); },
+    extract: async url => ({ url, title: 'Leer', content: 'kurz' }) });
+  const result = await fetcher.page({ url: 'https://wetter.example/leer', language: 'de' });
+  assert.deepEqual(codeOf(result), { ok: false, code: 'unreadable' });
+  assert.equal(result.diag.layer, 'page');
 });
