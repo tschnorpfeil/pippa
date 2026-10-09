@@ -82,14 +82,22 @@ enum DropReader {
                                         completion: @escaping @MainActor (Result?) -> Void) {
         let queue = OperationQueue()
         queue.qualityOfService = .userInitiated
-        let collector = PromiseCollector(expected: receivers.count)
+        let reader = promiseReader(PromiseCollector(expected: receivers.count), completion: completion)
         for receiver in receivers {
-            receiver.receivePromisedFiles(atDestination: folder, options: [:], operationQueue: queue) { url, error in
-                collector.add(error == nil ? url : nil) { urls in
-                    DispatchQueue.main.async {
-                        MainActor.assumeIsolated {
-                            completion(urls.isEmpty ? nil : Result(payload: .files(urls), items: urls))
-                        }
+            receiver.receivePromisedFiles(atDestination: folder, options: [:], operationQueue: queue, reader: reader)
+        }
+    }
+
+    /// AppKit calls the reader on `queue`, not on the main thread. Built outside the main actor: a closure
+    /// written inside a `@MainActor` function is main-actor isolated, and Swift 6 traps when it runs on the queue
+    /// (crash when a mail was dropped from Apple Mail).
+    private nonisolated static func promiseReader(_ collector: PromiseCollector,
+                                                  completion: @escaping @MainActor (Result?) -> Void) -> @Sendable (URL, Error?) -> Void {
+        { url, error in
+            collector.add(error == nil ? url : nil) { urls in
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        completion(urls.isEmpty ? nil : Result(payload: .files(urls), items: urls))
                     }
                 }
             }
