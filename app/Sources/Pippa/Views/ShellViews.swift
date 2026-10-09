@@ -139,9 +139,9 @@ struct PillContent: View {
     var body: some View {
         HStack(spacing: 8) {
             MarkSlot(size: 28)
-            // A finished answer is written by hand, like the speech bubbles on the website: Pippa's small happy moment.
+            // Pippa's small happy moments are written by hand, like the speech bubbles on the website.
             ShimmerText(text: status.label, active: status.tone == .working, color: ink,
-                        font: status.tone == .done ? HandFont.font() : nil)
+                        font: status.hand ? HandFont.font() : nil)
                 .contentTransition(.opacity)
             if let symbol {
                 Image(systemName: symbol)

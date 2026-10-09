@@ -76,7 +76,7 @@ Gebaut wird auf dem Mac erst nach der Abnahme der Web-Recherche (Owner 09.10.). 
 | 5 | Freigabe mit zwei Knöpfen (2.4) | **Entwurf in diesem Branch:** „Nicht erlauben“ / „Erlauben“ + Schalter „Bei dieser Aufgabe nicht mehr fragen“; nur die App-Karte, der Guard bleibt unverändert |
 | 6 | Ergebnis als Ding ziehen | offen, klein |
 | 7 | Hilfe beim Kopieren | offen; Owner 09.10.: beim ersten Mal fragen, danach in den Einstellungen abschaltbar |
-| 8 | Sprechblase und Haptik für drei Momente | **erster Schritt in diesem Branch:** „Deine Antwort ist da“ steht handgeschrieben (Gochi Hand, gebündelt) in der Pille; Sprechblase und Haptik offen |
+| 8 | Sprechblase und Haptik für drei Momente | **Entwurf in diesem Branch:** handgeschrieben in der Pille (Gochi Hand): „Deine Antwort ist da“ bleibt bis zum Ansehen, „Fertig!“ nach dem Aufräumen und „Wieder wie vorher.“ nach Rückgängig für 2,6 s, „Leg was auf mich!“ nach der Einrichtung bis zum ersten Ablegen oder Fragen. Dazu ein leichter Tipp aufs Trackpad. Nie während der Arbeit, nie zwei auf einmal |
 | – | Leerer Zustand: Beispiele als Karten mit Symbol (5.2) | **Entwurf in diesem Branch** |
 
 Fehler im offenen Gespräch (Klicktest 09.10.): Die Notiz zeigt jetzt dasselbe rote „!“ wie die Pille und „Erneut versuchen“,

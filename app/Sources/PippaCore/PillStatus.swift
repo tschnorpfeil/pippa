@@ -12,6 +12,16 @@ public enum PillOutcome: Sendable, Equatable {
     case failed
 }
 
+/// Pippa's small handwritten moments (UX rule 6): only these three, never while she works.
+public enum PillMoment: Sendable, Equatable {
+    /// A file task is finished (a short moment).
+    case finished
+    /// Undo put everything back (a short moment).
+    case undone
+    /// Right after setup, until the first thing is dropped or asked: the invitation.
+    case invite
+}
+
 /// The pill's mood; the app maps it to colour and the figure's state.
 public enum PillTone: String, Sendable, Equatable {
     /// Nothing going on: just "Pippa".
@@ -29,11 +39,14 @@ public struct PillStatus: Sendable, Equatable {
     public var label: String
     /// Measured progress 0…1 for the thin bar; `nil` means no bar (never an invented percentage).
     public var progress: Double?
+    /// Written by hand, like the speech bubbles on the website: only for Pippa's happy moments.
+    public var hand: Bool
 
-    public init(tone: PillTone, label: String, progress: Double? = nil) {
+    public init(tone: PillTone, label: String, progress: Double? = nil, hand: Bool = false) {
         self.tone = tone
         self.label = label
         self.progress = progress
+        self.hand = hand
     }
 
     /// Longest file name the pill shows before shortening with "…" (the pill stays below ~260 pt).
@@ -47,8 +60,9 @@ public struct PillStatus: Sendable, Equatable {
     ///   - step: the running Pi step in everyday words (`ThoughtLine.currentStep`).
     ///   - outcome: a finished answer the person has not seen yet.
     ///   - busy: a file task (tidying, reading) runs without a conversation phase.
+    ///   - moment: a handwritten moment; a short one wins over an old outcome, the invitation only shows when nothing else does.
     public static func make(phase: WorkPhase?, step: String? = nil, outcome: PillOutcome? = nil, busy: Bool = false,
-                            language: String? = nil) -> PillStatus {
+                            moment: PillMoment? = nil, language: String? = nil) -> PillStatus {
         if let phase {
             if phase == .waitingForPerson {
                 return PillStatus(tone: .needsYou, label: L("Quick question", table: "Thought", language: language))
@@ -59,10 +73,19 @@ public struct PillStatus: Sendable, Equatable {
             return PillStatus(tone: .working, label: label(for: phase, step: step, language: language), progress: progress(for: phase))
         }
         if busy { return PillStatus(tone: .working, label: L("Working on it…", table: "Thought", language: language)) }
+        switch moment {
+        case .finished: return PillStatus(tone: .done, label: L("Done!", table: "Thought", language: language), hand: true)
+        case .undone: return PillStatus(tone: .done, label: L("Back as it was.", table: "Thought", language: language), hand: true)
+        case .invite, nil: break
+        }
         switch outcome {
-        case .answered: return PillStatus(tone: .done, label: L("Your answer is ready", table: "Thought", language: language))
+        case .answered: return PillStatus(tone: .done, label: L("Your answer is ready", table: "Thought", language: language), hand: true)
         case .failed: return PillStatus(tone: .failed, label: L("That didn’t work", table: "Thought", language: language))
-        case nil: return PillStatus(tone: .rest, label: "Pippa")
+        case nil:
+            if moment == .invite {
+                return PillStatus(tone: .rest, label: L("Drop something on me!", table: "Thought", language: language), hand: true)
+            }
+            return PillStatus(tone: .rest, label: "Pippa")
         }
     }
 
