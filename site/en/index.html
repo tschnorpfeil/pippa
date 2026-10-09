@@ -155,13 +155,13 @@ background:radial-gradient(ellipse 46% 52% at var(--spot,50% 62%),rgba(255,255,2
 @media (min-width:900px){.top{grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:var(--s6);align-items:center}}
 @media (min-width:900px) and (max-width:1099px){.top{grid-template-columns:minmax(0,4fr) minmax(0,6fr)}}
 .hero{container-type:inline-size}
-.dh{font:400 clamp(44px,19cqi,104px)/.94 var(--fd);letter-spacing:-.01em;margin:var(--s5) 0 0 -.03em;color:var(--ink)}
-.dh .hp{margin-right:.06em}
-@media (min-width:900px){.dh{margin-top:0}}
+h1{font:400 clamp(44px,19cqi,104px)/.94 var(--fd);letter-spacing:-.01em;margin:var(--s5) 0 0 -.03em;color:var(--ink)}
+h1 .hp{margin-right:.06em}
+@media (min-width:900px){h1{margin-top:0}}
 @media (max-width:899px){
 .top{display:flex;flex-direction:column;gap:0}
 .hero{display:contents}
-.dh{order:1;font-size:clamp(44px,17.4vw,104px)}.voice{order:2;margin-top:24px}.ctas{order:3;margin-top:28px}.req{order:4}.mnote{order:5}.playground{order:6;margin-top:28px;width:100%}
+h1{order:1;font-size:clamp(44px,17.4vw,104px)}.voice{order:2;margin-top:24px}.ctas{order:3;margin-top:28px}.req{order:4}.mnote{order:5}.playground{order:6;margin-top:28px;width:100%}
 .q{font-size:18px}
 }
 .w{display:inline-block}
@@ -323,8 +323,8 @@ table{border-collapse:collapse;width:100%;font-size:var(--t-xs);font-variant-num
 @media (max-width:699px){.slots .slt{min-height:182px}}.slots .tagh{font-size:16px;white-space:normal}.slots .stk{width:22px;height:26px}
 }
 .slt{border:1.5px dashed rgba(16,37,26,.2);background:rgba(255,255,255,.06);border-radius:16px;min-height:150px;padding:var(--s3);position:relative;display:flex;flex-direction:column;transition:background-color .4s,border-color .4s,box-shadow .4s}
-@media (min-width:900px) and (max-height:940px){.slots .slt{min-height:150px}.dh{font-size:clamp(44px,16cqi,92px)}.voice{margin-top:22px}.ctas{margin-top:24px}}
-@media (min-width:900px) and (max-height:820px){.stage{aspect-ratio:16/10}.shelf{margin-top:var(--s4)}.slots .slt{min-height:150px}.dh{font-size:clamp(44px,14cqi,80px)}.def{margin-top:10px}}
+@media (min-width:900px) and (max-height:940px){.slots .slt{min-height:150px}h1{font-size:clamp(44px,16cqi,92px)}.voice{margin-top:22px}.ctas{margin-top:24px}}
+@media (min-width:900px) and (max-height:820px){.stage{aspect-ratio:16/10}.shelf{margin-top:var(--s4)}.slots .slt{min-height:150px}h1{font-size:clamp(44px,14cqi,80px)}.def{margin-top:10px}}
 .slt .sl{font:22px/1 var(--fh);color:var(--ink)}
 .slt.full{background:rgba(255,255,255,.8);border-color:transparent;box-shadow:0 8px 20px -14px rgba(16,37,26,.6)}
 .sc{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:var(--s2);font-size:13px}
@@ -414,7 +414,7 @@ footer .row{display:flex;gap:var(--s2);align-items:center;font:400 18px/1 var(--
 @media(min-width:900px){
 .desk{padding-top:24px;padding-bottom:40px}
 .top{grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:48px}
-.dh{font-size:clamp(64px,16cqi,92px)}
+h1{font-size:clamp(64px,16cqi,92px)}
 .stage{margin-top:14px;aspect-ratio:7/5;min-height:400px}
 .scatter .obj{font-size:calc(var(--u)*1.28)}
 .o-mail{--x:1%;--y:3%}.o-steuer{--x:66%;--y:1%}.o-zug{--x:4%;--y:53%}.o-k{--x:72%;--y:46%}.o-ordner{--x:30%;--y:64%}
@@ -430,7 +430,7 @@ footer .row{display:flex;gap:var(--s2);align-items:center;font:400 18px/1 var(--
 }
 @media(max-width:599px){
 .desk{padding-top:4px;padding-bottom:28px}
-.dh{font-size:clamp(44px,14.5vw,80px);max-width:7.2em}
+h1{font-size:clamp(44px,14.5vw,80px);max-width:7.2em}
 .voice{margin-top:22px}.q{font-size:17px;line-height:1.4}.def{font-size:16px;margin-top:12px;max-width:32em}
 .ctas{gap:12px 18px;margin-top:24px}.cta{font-size:15px;min-height:48px;padding:0 19px}
 .req,.mnote{font-size:13px;max-width:32em}
@@ -464,7 +464,7 @@ footer .row{display:flex;gap:var(--s2);align-items:center;font:400 18px/1 var(--
 .obj.lift .grip{opacity:.5}
 @media(max-width:899px){
 .hero-trust{order:3;margin-top:20px}.ctas{order:4}.req{order:5}.mnote{order:6}.playground{order:7}
-.dh{font-size:clamp(44px,14vw,96px)}
+h1{font-size:clamp(44px,14vw,96px)}
 }
 @media(max-width:599px){
 .hero-trust{margin-top:18px}
@@ -583,7 +583,6 @@ footer .wrap{max-width:1120px}
 .band .steps{width:auto}
 }
 </style>
-<link rel="stylesheet" href="../film.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -597,41 +596,22 @@ footer .wrap{max-width:1120px}
 </header>
 
 <main id="main">
-<section class="opener lino" id="top" aria-labelledby="h1">
-  <div class="wrap">
-    <div class="opener-copy">
-      <h1 id="h1">Just drop it on&nbsp;<span class="hp">Pippa</span>.</h1>
-      <p class="opener-sub">Pippa lives as a small pill at the edge of your screen. Drop a letter, photos or an email on her, and she tells you what to do next.</p>
-      <div class="ctas">
-        <a class="btn cta dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Get Pippa free</a>
-        <a class="btn2" href="#demo">Try it yourself</a>
-      </div>
-      <p class="req">Free, no account. For Macs with Apple silicon and macOS&nbsp;15 or later · <a href="#mac">Will it run on my Mac?</a></p>
-      <p class="mnote" hidden>Pippa runs on the Mac. Send yourself the link. <span class="fb" aria-live="polite"></span></p>
-    </div>
-    <div class="film-wrap">
-      <figure class="film" role="img" aria-label="Short film: a Mac screen with Pippa as a small pill at the right edge. A letter is dragged onto the pill. It turns into a card with three suggestions, shows how far along it is while reading, and answers: pay 84.20 euros by October 31, with the passage in the letter as proof. Then it turns three photos into a PDF and translates copied text."><div class="film-view"></div></figure>
-      <div class="film-bar">
-        <div role="group" aria-label="Scenes in the film" style="display:contents"><button type="button" data-scene="0" aria-current="true">Understand a letter</button><button type="button" data-scene="1" aria-current="false">Photos to PDF</button><button type="button" data-scene="2" aria-current="false">When you copy</button></div>
-        <button class="film-pause" type="button" aria-pressed="false">Pause</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="desk lino" aria-labelledby="h-desk">
+<section class="desk lino" id="top" aria-labelledby="h1">
   <div class="wrap">
     <div class="top">
       <div class="hero">
-        <h2 class="dh" id="h-desk"><span class="w">Your</span> <span class="w"><span class="hp">turn</span>.</span></h2>
-        <p class="voice" id="voice"><span class="q"><span class="hang">“Hand it over, I’ll take a look.”</span></span><span class="def">Five things are lying on the desk. Drop one on Pippa and see what she makes of it.</span></p>
+        <h1 id="h1"><span class="w">Just</span> <span class="w">drop&nbsp;it</span> <span class="w">on&nbsp;<span class="hp">Pippa</span>.</span></h1>
+        <p class="voice" id="voice"><span class="q"><span class="hang">“Hand it over, I’ll take a look.”</span></span><span class="def">Answer emails. Find cancellation deadlines. Gather your documents. Tidy up Downloads.</span></p>
+        <p class="hero-trust">Your files stay on your Mac. Pippa only saves emails as drafts.</p>
         <div class="ctas">
           <a class="btn cta dl" id="cta" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Get Pippa free</a>
         </div>
+        <p class="req">Free. For Macs with Apple silicon and macOS&nbsp;15 or later · <a href="#mac">Will it run on my Mac?</a></p>
         <p class="mnote" hidden>Pippa runs on the Mac. Send yourself the link. <span class="fb" aria-live="polite"></span></p>
       </div>
 
-      <div class="playground" id="demo">
+      <div class="playground" id="demo" aria-labelledby="h-demo">
+        <div class="demo-head"><h2 id="h-demo">Try Pippa.</h2><span class="demo-label">Demo</span></div>
         <p class="demo-help"><span class="drag-hint">Drag onto Pippa. Clicking works too.</span><span class="tap-hint">Tap to open. Drag by the handle.</span></p>
       <div class="stage" id="stage">
         <div class="shell" id="ds" data-mode="pill" role="region" aria-label="Pippa">
@@ -715,7 +695,6 @@ footer .wrap{max-width:1120px}
 <noscript><p class="wrap nojs">The demo needs JavaScript to try it out. Pippa itself runs as an app on your Mac.</p></noscript>
 <script src="../pippaDrag.js"></script>
 <script src="../pippaMark.js"></script>
-<script src="../pippaFilm.js"></script>
 <script>
 (()=>{
 'use strict';
@@ -727,7 +706,7 @@ const wait=(ms,keep)=>new Promise(r=>setTimeout(r,RM&&!keep?0:ms));
 const mk=(c,s,st)=>window.PippaMark?new PippaMark(c,{size:s,state:st||'ruht',alive:true,idleSpeed:1.35,idleAmplitude:1.25}):null;
 $$('canvas[data-mark]').forEach(c=>mk(c,+c.dataset.mark,c.dataset.state));
 const ds=$('#ds'),din=$('#din'),live=$('#live'),cta=$('#cta'),stage=$('#stage'),scatter=$('#scatter'),desk=$('.desk');
-const h1=$('#h-desk'),voice=$('#voice'),finEl=$('#finale'),frow=$('#frow'),slotsEl=$('#slots'),again=$('#again');
+const h1=$('#h1'),voice=$('#voice'),finEl=$('#finale'),frow=$('#frow'),slotsEl=$('#slots'),again=$('#again');
 const mkc=$('.mk',ds),dm=mk(mkc,44);
 const set=s=>dm&&dm.setState(s),pulse=()=>dm&&dm.pulse();
 const say=t=>{live.textContent='';setTimeout(()=>{live.textContent=t},40)};
@@ -738,7 +717,7 @@ const ORDER=['mail','vertrag','steuer','zug','ordner'];
 let tidy=false;
 
 /* Überschrift: Wort für Wort */
-const HEAD=[['Your','<span class="hp">turn</span>.'],['All','<span class="hp">sorted</span>.']];
+const HEAD=[['Just','drop&nbsp;it','on&nbsp;<span class="hp">Pippa</span>.'],['All','<span class="hp">sorted</span>.']];
 const VOICE=[voice.innerHTML,'<span class="q"><span>That was the demo.</span><span>Now your files.</span></span>'];
 const head=i=>{voice.getAnimations().forEach(a=>a.cancel());h1.innerHTML=HEAD[i].map(w=>'<span class="w">'+w+'</span>').join(' ');voice.innerHTML=VOICE[i]};
 function wordsOut(){
@@ -826,7 +805,7 @@ const picks=$$('[data-demo]');
 function selection(k){picks.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.demo===k)))}
 function release(){if(cur){const o=obj(cur);o&&o.classList.remove('lent')}cur=null}
 function drop(){if(blob){URL.revokeObjectURL(blob);blob=''}}
-async function run(k,src,t){
+async function run(k,src,t,auto){
 if(tidy)return false;
 cancelDrag();
 if(Object.keys(done).length===ORDER.length)return finale();
@@ -842,7 +821,7 @@ await wait(2000+Math.random()*1500,true);if(t!==T)return false;
 ds.classList.remove('working');set('offen');pulse();
 morph('card',card(c.h,c.b,done[k]?B('leave','Done',1):B('leave','Leave it')+B('apply',c.a,1)));
 say(($('.ct',din).innerText+'. '+$('.facts,.ans,.draft,.hits,.note',din).innerText).replace(/\s*\n+\s*/g,' '));
-seen();
+if(!auto)seen();
 if(kb){const f=$('[data-a=apply]',din)||$('[data-a=leave]',din);f.focus({preventScroll:true})}
 return true;
 }
@@ -895,7 +874,7 @@ await wordsOut();if(t!==T)return;
 const sl=$$('.slt',slotsEl);
 ds.style.transition='none';
 await flip([ds,...sl,cta],()=>{
-tidy=true;desk.classList.add('tidy');finEl.hidden=false;sl.forEach(s=>frow.appendChild(s));
+tidy=true;$('#h-demo').textContent='All tried.';desk.classList.add('tidy');finEl.hidden=false;sl.forEach(s=>frow.appendChild(s));
 head(1);cta.classList.add('moment');place(0,0);
 },45);
 ds.style.transition='';
@@ -908,7 +887,7 @@ if(viaKb)cta.focus();
 }
 async function chaos(){
 cancelDrag();
-const resetKeyboard=document.activeElement===again;const t=++T;hideBub();kb=false;release();drop();selection(null);
+const resetKeyboard=document.activeElement===again;const t=++T;hideBub();kb=false;release();drop();selection(null);$('#h-demo').textContent='Try Pippa.';
 say('Back on the desk. Drag a file onto Pippa or pick an example.');
 await wordsOut();if(t!==T)return;
 const sl=$$('.slt',frow);
@@ -998,6 +977,8 @@ if(ok){let l=first?['Hi! I’m Pippa.','👋']:LINES[Math.random()*LINES.length|
 if(!(RM&&once))setTimeout(tick,first&&!ok?1500:7000+Math.random()*2000);
 }
 setTimeout(()=>tick(true),1500);
+/* Wer nur schaut, sieht Pippa einmal von selbst arbeiten. */
+setTimeout(()=>{if(!touched&&!D&&!tidy&&!cur&&pv&&!document.hidden&&$('[data-a=ask]',din)){bubble('Let me show you.',1800,'🙂');setTimeout(()=>{if(!touched&&!D&&!cur)run('vertrag',true,undefined,true)},RM?0:1400)}},6200);
 
 /* Drag: pointer follows directly; only gravity and the pickup pose ease out. */
 const dragMath=window.PippaDrag;
