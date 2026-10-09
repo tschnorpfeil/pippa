@@ -42,8 +42,8 @@
 "Mail has several emails with the same identity, so Pippa created no reply." = "Mail has several emails with the same identity, so Pippa created no reply.";
 "Mail didn’t answer in time while Pippa looked for the original email. Nothing was created; try again in a moment." = "Mail didn’t answer in time while Pippa looked for the original email. Nothing was created; try again in a moment.";
 "Mail didn’t create the reply. Nothing is in Mail; try again in a moment." = "Mail didn’t create the reply. Nothing is in Mail; try again in a moment.";
-"To do this, I need access to your calendar on this Mac – I only add what you ask for, and you can undo it." = "To do this, I need access to your calendar on this Mac – I only add what you ask for, and you can undo it.";
-"To do this, I need access to your reminders on this Mac – I only add what you ask for, and you can undo it." = "To do this, I need access to your reminders on this Mac – I only add what you ask for, and you can undo it.";
+"To do this, I need access to your calendar on this Mac – I only add what you ask for." = "To do this, I need access to your calendar on this Mac – I only add what you ask for.";
+"To do this, I need access to your reminders on this Mac – I only add what you ask for." = "To do this, I need access to your reminders on this Mac – I only add what you ask for.";
 "To do this, I need access to Mail on this Mac – I only create drafts and never send anything." = "To do this, I need access to Mail on this Mac – I only create drafts and never send anything.";
 "Pippa may not add to your calendar. To change that, open System Settings → Privacy & Security → Calendars and allow full access for Pippa." = "Pippa may not add to your calendar. To change that, open System Settings → Privacy & Security → Calendars and allow full access for Pippa.";
 "Pippa may not add reminders. To change that, open System Settings → Privacy & Security → Reminders and allow full access for Pippa." = "Pippa may not add reminders. To change that, open System Settings → Privacy & Security → Reminders and allow full access for Pippa.";

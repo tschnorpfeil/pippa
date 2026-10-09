@@ -4,12 +4,11 @@ import PippaCore
 
 /// The **conversation path in every
 /// build**: free text and capabilities in the conversation go to the real Pi (`pi --mode rpc`) instead of the own core.
-/// Questions from the Pippa guard (runtime/pippa-guard) appear as a card in the conversation (`approvalPresenter`,
-/// GuardAskCard); only without a running conversation (letters) as a simple Pippa prompt (NSAlert). The old
-/// own core no longer exists; only debug recordings use a stand-in (`ConversationChat`).
+/// Pi runs its tools without asking. Should an extension still ask (`extension_ui_request`), a simple Pippa prompt
+/// (NSAlert) shows the question. The old own core no longer exists; only debug recordings use a stand-in (`ConversationChat`).
 ///
 /// Launch as in `PippaPiLaunch.configuration`: the **pinned release with Pippa's Node** (`PiInstaller.launchSpec`, never
-/// `~/.local/bin/pi`), `--provider pippa-local`, shared `~/.pi/agent`, guard + Pippa's file tools, no
+/// `~/.local/bin/pi`), `--provider pippa-local`, shared `~/.pi/agent`, Pippa's extensions and web access, no
 /// `AGENTS.md`, no project trust, Pippa's system prompt, Pi's version check before launch. If the
 /// installer step "Pi" is missing, it runs at the first conversation (idempotent; only creates what is missing).
 ///
@@ -25,13 +24,12 @@ import PippaCore
 /// (lease); after `llamaIdleMinutes` (default 10) without a request the model is unloaded and reloaded
 /// at the next answer. `PIPPA_PI_OWN_LLAMA=0`: the app starts none (server already running, e.g. `pi-rpc-spike.sh llama-start`).
 ///
-/// Environment (all optional; without it the app bundle or Pippa's support folder applies): `PIPPA_PI_GUARD` (path to the
-/// guard, otherwise Contents/Resources/pippa-guard, in a debug run without a bundle runtime/pippa-guard in the repo),
+/// Environment (all optional; without it the app bundle or Pippa's support folder applies): `PIPPA_PI_EXTENSIONS`
+/// (folder with Pippa's Pi extensions, otherwise Contents/Resources/pippa-tools, in a debug run without a bundle
+/// runtime/pippa-tools in the repo), `PIPPA_PI_WEB` (pippa-web/index.ts, the same way; empty: no web access),
 /// `PIPPA_PI_WORKDIR` (working directory of new sessions, otherwise `<Support>/pi-work`),
-/// `PIPPA_PI_PAYLOAD` (install payload; in the finished app from the bundle), optional `PIPPA_PI_TOOLS` (otherwise
-/// pippa-tools.ts next to the guard), `PIPPA_PI_MODEL` (otherwise the first model of `pippa-local` in models.json),
-/// `PIPPA_UNDO_DIR` (otherwise `<Support>/pi-undo`), `PIPPA_GUARD_POLICY` (`undo-first` default, `ask-all`;
-/// runtime/pippa-guard/policy.ts). Tests only: `PIPPA_PI_HOME` (fake HOME under .build for
+/// `PIPPA_PI_PAYLOAD` (install payload; in the finished app from the bundle), `PIPPA_PI_MODEL` (otherwise the first
+/// model of `pippa-local` in models.json). Tests only: `PIPPA_PI_HOME` (fake HOME under .build for
 /// installer and Pi, so ~/.pi and ~/.local stay untouched) and `PI_CODING_AGENT_DIR` (isolated agent folder,
 /// passed through; Pippa never sets it itself).
 @MainActor
@@ -53,10 +51,16 @@ final class PiRPCChat {
     enum Failure: LocalizedError {
         case setup(String)
         case model(String)
+        /// ChatGPT subscription (PiSubscriptionAuth): signed out or expired, or the subscription's limit is reached.
+        case subscription(PiSubscriptionAuth.Problem)
         var errorDescription: String? {
             switch self {
             case .setup: T("I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”.", table: "App")
             case .model: T("The answer didn’t come through just now. Please try again in a moment.", table: "App")
+            case .subscription(.signedOut):
+                T("Your ChatGPT sign-in has run out. Sign in again in Pippa’s settings, or switch back to the AI on this Mac.", table: "App")
+            case .subscription(.limit):
+                T("Your ChatGPT subscription has reached its limit for now. Try again later, or switch back to the AI on this Mac.", table: "App")
             }
         }
         /// For the log only (DiagnosticsLog), never in the UI; own technical texts, no content.
@@ -64,6 +68,7 @@ final class PiRPCChat {
             switch self {
             case .setup(let what): "setup: " + what
             case .model: "model"   // Pi's error text may contain content: not into the log
+            case .subscription(let problem): "subscription: " + problem.rawValue
             }
         }
     }
@@ -75,16 +80,29 @@ final class PiRPCChat {
         return failure.localizedDescription
     }
 
-    /// Guard and Pippa's extensions: environment, otherwise the app bundle, in a debug run without a bundle the repo.
-    static func guardPath(_ env: [String: String]) -> String? {
-        if let path = env["PIPPA_PI_GUARD"], !path.isEmpty { return path }
+    /// Pippa's Pi extensions (folder): environment, otherwise the app bundle, in a debug run without a bundle the repo.
+    static func extensionsPath(_ env: [String: String]) -> String {
+        if let path = env["PIPPA_PI_EXTENSIONS"], !path.isEmpty { return path }
+        if let repo = repoRuntime { return repo.appendingPathComponent("pippa-tools", isDirectory: true).path }
+        return PiConversationDefault.bundledExtensions(bundle: Bundle.main.bundleURL).path
+    }
+
+    /// Web access (pippa-web/index.ts), found like the extensions; `PIPPA_PI_WEB` empty: none.
+    static func webPath(_ env: [String: String]) -> String? {
+        if let path = env["PIPPA_PI_WEB"] { return path.isEmpty ? nil : path }
+        if let repo = repoRuntime { return repo.appendingPathComponent("pippa-web/index.ts").path }
+        return PiConversationDefault.bundledWeb(bundle: Bundle.main.bundleURL).path
+    }
+
+    /// `runtime/` in the repo for a debug run without an app bundle, otherwise `nil`.
+    private static var repoRuntime: URL? {
         #if DEBUG
         if Bundle.main.bundleURL.pathExtension != "app" {
             return URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("runtime/pippa-guard/pippa-guard.ts").path
+                .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("runtime", isDirectory: true)
         }
         #endif
-        return PiConversationDefault.bundledGuard(bundle: Bundle.main.bundleURL).path
+        return nil
     }
 
     /// For the everyday step wording (WorkStepPhrase): the person's home folder.
@@ -112,40 +130,35 @@ final class PiRPCChat {
 
     static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
 
-    /// Pippa's undo folder for guard entries; "Rückgängig" touches only entries in it (PiUndo).
-    static var undoRoot: URL {
-        ProcessInfo.processInfo.environment["PIPPA_UNDO_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
-            ?? Pippa.supportDirectory.appendingPathComponent("pi-undo", isDirectory: true)
-    }
-
     private func ready(session key: String) async throws -> PiRPCClient {
         let env = ProcessInfo.processInfo.environment
         // Local model or own online service (only via Pippa's broker). If the path changes, Pi restarts.
         let route = try await launchRoute(env)
         if let client, sessionKey == key, launchKey == route.key, await client.isRunning { return client }
         if let old = client { await old.shutdown(); client = nil }
-        guard let guardPath = Self.guardPath(env), FileManager.default.fileExists(atPath: guardPath) else {
-            // Without the guard Pi would write and run commands without asking.
-            throw Failure.setup("Wächter fehlt (PIPPA_PI_GUARD oder Contents/Resources/pippa-guard)")
+        let extensions = URL(fileURLWithPath: Self.extensionsPath(env), isDirectory: true)
+        guard FileManager.default.fileExists(atPath: extensions.appendingPathComponent("pippa-tools.ts").path) else {
+            throw Failure.setup("Pippas Pi-Erweiterungen fehlen (PIPPA_PI_EXTENSIONS oder Contents/Resources/pippa-tools)")
         }
         let work = try Self.workingDirectory(env)
-        let tools = env["PIPPA_PI_TOOLS"] ?? URL(fileURLWithPath: guardPath).deletingLastPathComponent().appendingPathComponent("pippa-tools.ts").path
         try FileManager.default.createDirectory(at: Self.sessionDirectory, withIntermediateDirectories: true)
-        var extra = ["PIPPA_UNDO_DIR": Self.undoRoot.path]
+        // pi-web-access reads Pippa's settings from here, never from the person's ~/.pi (runtime/pippa-web/index.ts).
+        var extra = ["PIPPA_WEB_DIR": Pippa.supportDirectory.appendingPathComponent("pi-web", isDirectory: true).path]
         if let online = route.online { extra[PiOnlineProvider.keyVariable] = online.key }
         // Test scripts only (scripts/pi-rpc-spike.sh app): own Pi folder instead of ~/.pi, test trash under .build.
-        for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR", "PIPPA_GUARD_POLICY"] { if let value = env[key] { extra[key] = value } }
-        let paths = PippaPiLaunch.Paths(guardExtension: URL(fileURLWithPath: guardPath),
-                                        toolsExtension: FileManager.default.fileExists(atPath: tools) ? URL(fileURLWithPath: tools) : nil,
+        for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR"] { if let value = env[key] { extra[key] = value } }
+        let web = Self.webPath(env).flatMap { FileManager.default.fileExists(atPath: $0) ? URL(fileURLWithPath: $0) : nil }
+        let paths = PippaPiLaunch.Paths(extensionsDirectory: extensions, webExtension: web,
                                         sessionDirectory: Self.sessionDirectory, skillsDirectory: PippaSkill.bundledDirectory())
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         var launcher = try await Self.launcher(env)
         if let online = route.online { launcher.piArguments = PiOnlineProvider.launchArguments(online.connection) }
+        if let model = route.subscriptionModel { launcher.piArguments = ["--provider", PiSubscriptionAuth.provider, "--model", model] }
         // Existing session: Pi starts in its working directory, otherwise it would not find the id (see above).
         let cwd = PiSessionFiles.pinnedWorkingDirectory(id: PippaPiLaunch.piSessionID(key), in: Self.sessionDirectory)
             ?? work
         // Pippa's MCP server (calendar, reminders, mail, read Excel), see PippaMCPService.
-        let mcp = await PippaMCPService.endpoint(guardPath: guardPath)
+        let mcp = await PippaMCPService.endpoint(extensions: extensions)
         let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: key,
                                                         language: language, environment: extra, mcp: mcp)
         let fresh = PiRPCClient(configuration: configuration)
@@ -161,6 +174,8 @@ final class PiRPCChat {
     struct LaunchRoute {
         var key: String
         var online: (connection: ModelConnection, key: String)?
+        /// ChatGPT subscription through Pi's own sign-in: `--provider openai --model <id>`, nothing written anywhere.
+        var subscriptionModel: String? = nil
     }
 
     /// If an own online service is connected and on, Pi works with `pippa-online` (Pi's own provider, straight to the
@@ -169,6 +184,10 @@ final class PiRPCChat {
     private func launchRoute(_ env: [String: String]) async throws -> LaunchRoute {
         let target = try Self.installTarget(env)
         let modelsJSON = target.agent.appendingPathComponent("models.json")
+        if let model = Self.subscriptionModel {
+            _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
+            return LaunchRoute(key: "chatgpt|" + model, online: nil, subscriptionModel: model)
+        }
         guard let connection = Self.onlineConnection else {
             _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
             return LaunchRoute(key: "local|" + target.model, online: nil)
@@ -178,6 +197,20 @@ final class PiRPCChat {
         let routeKey = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
                         connection.modelID, String(connection.contextWindow), String(key.hashValue)].joined(separator: "|")
         return LaunchRoute(key: routeKey, online: (connection, key))
+    }
+
+    /// Pi refuses a prompt before any request when the subscription sign-in is gone ("No API key found for openai"):
+    /// that is a sign-in problem for the person, not a general failure.
+    private func subscriptionChecked<T>(_ body: () async throws -> T) async throws -> T {
+        do { return try await body() } catch PiRPCError.commandFailed(_, let message) where launchKey?.hasPrefix("chatgpt|") == true {
+            if let problem = PiSubscriptionAuth.problem(in: message) { throw Failure.subscription(problem) }
+            throw Failure.model(message)
+        }
+    }
+
+    /// The ChatGPT model when the person switched the subscription on (`nil`: not on).
+    static var subscriptionModel: String? {
+        InferenceSettings.load(from: AppModel.inferenceSettingsDirectory).subscriptionModel
     }
 
     /// The enabled own service according to the saved settings (`nil`: Pippa works on this Mac).
@@ -358,10 +391,12 @@ final class PiRPCChat {
               onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil) async throws -> String {
         lastActions = nil
         searchFiles = []
-        _ = PippaMCPService.readNotes.take()   // read receipts belong to the answer that triggered them
+        // Read and write receipts belong to the answer that triggered them.
+        _ = PippaMCPService.readNotes.take()
+        _ = PippaMCPService.writeNotes.take()
         // First the model, then Pi: Pi starts only if the server responds.
         // If the own online service works, no local model is needed.
-        let held = Self.onlineConnection == nil ? try await modelLease(onWork: onWork) : nil
+        let held = Self.onlineConnection == nil && Self.subscriptionModel == nil ? try await modelLease(onWork: onWork) : nil
         defer { if let held { Task { await held.server.releaseAgentLease(held.lease) } } }
         let client = try await ready(session: taskID)
         var segment = ""
@@ -374,11 +409,11 @@ final class PiRPCChat {
             let reads = PippaMCPService.readNotes.take()
             // Did this answer read the selected mail? (offer "Als Entwurf in Mail", PiRPCChat+Shown.)
             lastSelectedMail = reads.last { $0.tool == "mail_selected" && $0.read }?.mail
-            lastActions = Self.actions(receipt, reads: reads)
+            lastActions = Self.actions(receipt, reads: reads, writes: PippaMCPService.writeNotes.take())
         }
         var toolArguments: [String: String] = [:]
         do {
-        for try await event in try await client.prompt(text) {
+        for try await event in try await subscriptionChecked({ try await client.prompt(text) }) {
             receipt.observe(event)
             switch event {
             case .textDelta(let delta):
@@ -436,7 +471,7 @@ final class PiRPCChat {
                     }
                     loopStop = reason
                 }
-            case .guardOutcome, .settled:
+            case .settled:
                 break
             }
         }
@@ -445,7 +480,13 @@ final class PiRPCChat {
             throw AnswerFailure.stopped(partial: segment.trimmingCharacters(in: .whitespacesAndNewlines) + (segment.isEmpty ? "" : "\n\n") + loopStop)
         }
         if lastStop == "aborted" { throw AnswerFailure.stopped(partial: segment) }
-        if lastStop == "error" { throw Failure.model(lastError ?? "unbekannt") }
+        if lastStop == "error" {
+            // Through the subscription: say what is wrong (sign-in, limit); never switch to another service by itself.
+            if launchKey?.hasPrefix("chatgpt|") == true, let problem = PiSubscriptionAuth.problem(in: lastError ?? "") {
+                throw Failure.subscription(problem)
+            }
+            throw Failure.model(lastError ?? "unbekannt")
+        }
         return segment.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -461,21 +502,30 @@ final class PiRPCChat {
         return lastActions
     }
 
-    /// PiRPC (without PippaCore) → history. Events only, no model text. Read lines get their text
-    /// from the notes of Pippa's MCP server, one per tool in call order; if one is missing, "Etwas gelesen" appears.
-    static func actions(_ receipt: PiTurnReceipt, reads: [PippaMCPReadNote] = []) -> ActionReceipt? {
-        var pending = reads
+    /// PiRPC (without PippaCore) → history. Events only, no model text. Read and write lines get their text from the
+    /// notes of Pippa's MCP server, one per tool in call order; a read without note shows "Etwas gelesen", a write without
+    /// note "Benutzt: …" (what happened is then known only to Pi).
+    static func actions(_ receipt: PiTurnReceipt, reads: [PippaMCPReadNote] = [], writes: [PippaMCPWriteReceipt] = []) -> ActionReceipt? {
+        var pendingReads = reads
+        var pendingWrites = writes
         let items = receipt.records.map { record -> ActionReceipt.Item in
             if record.action == "read" {
-                let note = pending.firstIndex { $0.tool == record.name }.map { pending.remove(at: $0) }
+                let note = pendingReads.firstIndex { $0.tool == record.name }.map { pendingReads.remove(at: $0) }
                 return ActionReceipt.Item(action: "read", outcome: note.map { $0.read ? "done" : "failed" } ?? record.outcome.rawValue,
                                           name: note?.line)
             }
-            return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName,
-                                      undoEntry: record.undoEntry, restorable: record.restorable, reason: record.reason)
+            if record.action == "write" {
+                let action = Self.writeActions[record.name ?? ""]
+                if let index = pendingWrites.firstIndex(where: { $0.action == action }) { return pendingWrites.remove(at: index).item }
+                return ActionReceipt.Item(action: "tool", outcome: record.outcome.rawValue, name: record.name)
+            }
+            return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName)
         }
         return items.isEmpty ? nil : ActionReceipt(items: items)
     }
+
+    /// Pippa's write tools → the action of their receipt (PippaMCPWriteReceipt).
+    static let writeActions = ["calendar_add": "calendarAdd", "reminder_add": "reminderAdd", "mail_draft": "mailDraft"]
 
     func steer(_ text: String) async -> Bool {
         guard let client else { return false }
@@ -490,14 +540,9 @@ final class PiRPCChat {
     /// answers in the person's place (button code). `nil`: the person answers.
     static var answerForSnapshot: ((NSWindow, PiUIRequest) -> NSApplication.ModalResponse)?
 
-    /// Shows a guard question in the running conversation and waits for the click. `nil`: no conversation is
-    /// running (e.g. a letter flow), then the prompt window below asks.
-    static var approvalPresenter: (@MainActor (PiUIRequest) async -> PiUIResponse?)?
-
-    /// Guard question: as a card in the conversation if one is running, otherwise as Pippa prompt. `confirm` and
+    /// A question of an extension (Pippa's own ask none): a Pippa prompt, so Pi never waits forever. `confirm` and
     /// short `select` as buttons, `input`/`editor` with text field.
     private static func ask(_ request: PiUIRequest) async -> PiUIResponse {
-        if answerForSnapshot == nil, let presenter = approvalPresenter, let answer = await presenter(request) { return answer }
         let alert = NSAlert()
         if answerForSnapshot != nil {
             // Runs in the prompt's modal mode; an ordinary task would only run after it closes.
@@ -509,7 +554,7 @@ final class PiRPCChat {
             }
             RunLoop.main.add(timer, forMode: .modalPanel)
         }
-        // Pi's `select` has no text, only title and answers: the guard writes "Frage⏎⏎Satz⏎⏎Zusatz" into the title.
+        // Pi's `select` has no text, only title and answers: "Frage⏎⏎Satz⏎⏎Zusatz" may come in the title.
         var title = request.title, message = request.message
         if request.method == "select", message.isEmpty, let cut = title.range(of: "\n\n") {
             message = String(title[cut.upperBound...]); title = String(title[..<cut.lowerBound])

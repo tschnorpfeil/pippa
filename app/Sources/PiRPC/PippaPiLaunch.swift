@@ -5,8 +5,8 @@ import Foundation
 ///
 /// - Shared agent directory: `~/.pi/agent` as in the terminal. **No** `PI_CODING_AGENT_DIR` is set here;
 ///   only test scripts set one so ~/.pi stays untouched.
-/// - `--extension` guard and Pippa's file tools. The person's own extensions stay active ("don't trim");
-///   Pi composes the `tool_call` handlers, the guard asks anyway.
+/// - `--extension` Pippa's file tools, its helps for small models and its web access (pi-web-access). Pi runs every
+///   tool without asking, as in the terminal. The person's own extensions stay active ("don't trim").
 /// - `--no-context-files`: `AGENTS.md`/`CLAUDE.md` in user folders (and their parent folders) are an injection path.
 /// - `--no-approve`: project-local `.pi/` settings and resources are ignored (cli.md "Prompts and process"),
 ///   the counterpart of `defaultProjectTrust: "never"`, without touching the person's settings.
@@ -15,16 +15,17 @@ import Foundation
 /// - `--tools`: a fixed list (`tools`); `--no-skills --skill <bundle>`: only Pippa's skills.
 public enum PippaPiLaunch {
     public struct Paths: Sendable {
-        /// runtime/pippa-guard/pippa-guard.ts
-        public var guardExtension: URL
-        /// runtime/pippa-guard/pippa-tools.ts (list_folder, rename_or_move, move_to_trash)
-        public var toolsExtension: URL?
+        /// runtime/pippa-tools: pippa-tools.ts (list_folder, rename_or_move, move_files, move_to_trash),
+        /// pippa-assist.ts (document reader instead of raw bytes, loop brake, search results), pippa-mcp.ts
+        public var extensionsDirectory: URL
+        /// runtime/pippa-web/index.ts (pi-web-access with Pippa's settings); `nil`: Pi has no web access.
+        public var webExtension: URL?
         /// Folder for Pi's session files, e.g. ~/Library/Application Support/Pippa/pi-sessions
         public var sessionDirectory: URL
         /// Pippa's skills (runtime/pippa-skills -> Contents/Resources/pippa-skills), loaded with `--skill`.
         public var skillsDirectory: URL?
-        public init(guardExtension: URL, toolsExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil) {
-            self.guardExtension = guardExtension; self.toolsExtension = toolsExtension; self.sessionDirectory = sessionDirectory
+        public init(extensionsDirectory: URL, webExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil) {
+            self.extensionsDirectory = extensionsDirectory; self.webExtension = webExtension; self.sessionDirectory = sessionDirectory
             self.skillsDirectory = skillsDirectory
         }
     }
@@ -47,8 +48,8 @@ public enum PippaPiLaunch {
     /// Without this environment Pi never starts: no network at startup, no telemetry, no version check at pi.dev.
     public static let offlineEnvironment = ["PI_OFFLINE": "1", "PI_SKIP_VERSION_CHECK": "1", "PI_TELEMETRY": "0"]
 
-    /// The one place that builds Pi's command line (app and probe program): installer launcher, guard and
-    /// file tools, Pippa's options, session per conversation. `environment` is added last (undo folder,
+    /// The one place that builds Pi's command line (app and probe program): installer launcher, Pippa's
+    /// extensions, Pippa's options, session per conversation. `environment` is added last (undo folder,
     /// test switches); the offline switches cannot be overridden.
     /// `mcp`: the app's Pippa MCP server, attached via `addMCP` (extension after guard and tools).
     public static func configuration(launcher: Launcher, workingDirectory: URL, paths: Paths, sessionID: String?, language: String,
@@ -64,11 +65,10 @@ public enum PippaPiLaunch {
         return configuration
     }
 
-    /// Extensions in load order. Pi loads `--extension`s before the person's extensions; the guard is thus the
-    /// first `tool_call` handler (Pi has no "allow", a later handler can only block; arguments
-    /// are frozen by the guard, see pippa-guard.ts).
+    /// Extensions in load order (Pi loads `--extension`s before the person's extensions).
     public static func extensions(_ paths: Paths) -> [URL] {
-        [paths.guardExtension] + (paths.toolsExtension.map { [$0] } ?? [])
+        ["pippa-tools.ts", "pippa-assist.ts"].map { paths.extensionsDirectory.appendingPathComponent($0) }
+            + (paths.webExtension.map { [$0] } ?? [])
     }
 
     /// Pi options except `--mode rpc` and `--extension` (set by PiRPCClient). `sessionID`: `nil` = do not
@@ -86,10 +86,12 @@ public enum PippaPiLaunch {
     }
 
     /// The tools Pi declares to the model, named explicitly so the person's `defaultTools` cannot widen or narrow
-    /// them (cli.md "Tools"). Pi's read/bash/edit/write tools,
-    /// Pippa's file tools (pippa-tools.ts) and Pippa's MCP server. Names Pi does not know are ignored.
+    /// them (cli.md "Tools"). Pi's read/bash/edit/write tools, Pippa's file tools (pippa-tools.ts), the web
+    /// (pi-web-access: search, read a page, read more of a stored page) and Pippa's MCP server. Names Pi does not
+    /// know are ignored.
     public static let tools = ["read", "bash", "edit", "write",
-                               "list_folder", "rename_or_move", "move_files", "move_to_trash", "mcp__pippa__*"]
+                               "list_folder", "rename_or_move", "move_files", "move_to_trash",
+                               "web_search", "fetch_content", "get_search_content", "mcp__pippa__*"]
 
     /// Pi allows only letters, digits, `.`, `_`, `-` in session IDs, and a letter or digit at start and end
     /// (cli.md "Sessions"). Pippa's ID is `<conversation UUID>` or `<conversation UUID>:<revision UUID>`.
@@ -102,7 +104,7 @@ public enum PippaPiLaunch {
 
     /// Pippa's system prompt for Pi, per app language. Deliberately short and without date or counter: every change costs
     /// the local model a cold prompt evaluation. Tone from PippaCore/Resources/persona.md. What happened is told by
-    /// Pippa itself (receipt from events); the prompt only demands honesty, it is no safeguard.
+    /// Pippa itself (receipt from events); the prompt only demands honesty.
     public static func systemPrompt(language: String) -> String {
         language.hasPrefix("de") ? german : english
     }
@@ -117,10 +119,10 @@ public enum PippaPiLaunch {
     Was die Person zeigt, steht mit Pfad in ihrer Nachricht; lies es selbst, PDF, Scan, Bild, Word und Mail mit mcp__pippa__read_document.
     Alltagsordner liegen im Benutzerordner, nie im Arbeitsordner: Downloads = ~/Downloads, Dokumente = ~/Documents, Schreibtisch = ~/Desktop.
     Eigene Dateien finden: Lade dateien-finden mit read und nutze sein Skript. Dafür nie web_search.
-    Für Aktuelles (Wetter, Öffnungszeiten, Nachrichten) ruf mcp__pippa__web_search auf; nenne die Quellen mit Link.
-    Soll etwas geändert, eingetragen oder nachgesehen werden, ruf das passende Werkzeug gleich auf; wo nötig, fragt Pippa selbst. Frag nie im Text, ob du darfst, und schreib keinen Plan aus.
+    Für Aktuelles (Wetter, Öffnungszeiten, Nachrichten) ruf web_search auf; nenne die Quellen mit Link. Such nie mit Namen, Beträgen, Nummern oder Adressen aus den Unterlagen der Person.
+    Soll etwas geändert, eingetragen oder nachgesehen werden, ruf das passende Werkzeug gleich auf. Frag nie im Text, ob du darfst, und schreib keinen Plan aus. Lösche nie endgültig; nimm move_to_trash.
     Aufräumen oder Sortieren: list_folder, dann ein einziger move_files-Aufruf, danach kurz sagen, was wohin kam.
-    Wurde ein Werkzeug abgelehnt oder ist es fehlgeschlagen, ist nichts passiert; sag das in einem Satz. Behaupte nie, etwas sei erledigt, wenn das Werkzeug es nicht bestätigt hat.
+    Ist ein Werkzeug fehlgeschlagen, ist nichts passiert; sag das in einem Satz. Behaupte nie, etwas sei erledigt, wenn das Werkzeug es nicht bestätigt hat.
     Verschicke nie Mail; Antworten sind Entwürfe.
     """
 
@@ -131,10 +133,10 @@ public enum PippaPiLaunch {
     What the person shows you is listed with its path in their message; read it yourself, PDF, scan, image, Word and email with mcp__pippa__read_document.
     Everyday folders are in the home folder, never in the working folder: Downloads = ~/Downloads, Documents = ~/Documents, Desktop = ~/Desktop.
     Find personal files: read the dateien-finden skill and use its script. Never web_search for that.
-    For current facts (weather, opening hours, news) call mcp__pippa__web_search and name the sources with their link.
-    When something should be changed, added or looked up, call the matching tool right away; where needed, Pippa asks the person itself. Never ask for permission in your text and don't write out a plan.
+    For current facts (weather, opening hours, news) call web_search and name the sources with their link. Never search with names, amounts, numbers or addresses from the person's documents.
+    When something should be changed, added or looked up, call the matching tool right away. Never ask for permission in your text and don't write out a plan. Never delete for good; use move_to_trash.
     Tidying or sorting: list_folder, then one move_files call, then say briefly what went where.
-    If a tool was declined or failed, nothing happened; say so in one sentence. Never claim something is done unless the tool confirmed it.
+    If a tool failed, nothing happened; say so in one sentence. Never claim something is done unless the tool confirmed it.
     Never send mail; replies are drafts.
     """
 }

@@ -1,0 +1,242 @@
+<!doctype html>
+<html data-theme="light"><head><meta charset="utf-8"><title>Pippa README pictures</title>
+<style>
+@font-face{font-family:"Bagel Fat One";src:url(../../../site/fonts/bagel-fat-one.ttf)}
+@font-face{font-family:"Gochi Hand";src:url(../../../site/fonts/gochi-hand.ttf)}
+:root{
+  --page:#f4f6f2; --paper:#ffffff; --ink:#10251a; --ink-2:#22402f; --ink-3:#56645b;
+  --lino:#86ad94; --blue:#005bcd; --blue-fill:#005bcd; --blue-tint:rgba(0,91,205,.10);
+  --ok:#0d712c; --ok-tint:rgba(13,113,44,.11); --need:#8a4600; --need-dot:#e08600;
+  --err:#c4001d; --err-tint:rgba(196,0,29,.09);
+  --sep:rgba(16,37,26,.12); --fill:rgba(16,37,26,.05); --fill-2:rgba(16,37,26,.09);
+  --glass:rgba(249,250,248,.90); --wall-a:#cfe0d4; --wall-b:#e9efe6; --wall-c:#b7cfc0; --win:#ffffff; --menubar:rgba(255,255,255,.55);
+  --note:#fff0a6; --note-ink:#10251a;
+  --shadow:0 0 0 .5px rgba(16,37,26,.14),0 1px 1px rgba(16,37,26,.10),0 18px 44px -16px rgba(16,37,26,.55);
+  --pippa-ink:var(--blue); --pippa-ink-offen:var(--ok); --pippa-ink-fehler:var(--err);
+  --f:Inter,"Helvetica Neue",Arial,sans-serif;
+  --fr:Inter,"Helvetica Neue",Arial,sans-serif;
+  --fh:"Gochi Hand",cursive;
+  --spring:cubic-bezier(.16,1,.3,1);
+}
+:root[data-theme="dark"]{
+  --page:#121714; --paper:#232833; --ink:#edf1f7; --ink-2:#cfe3d6; --ink-3:#a3b0a8;
+  --blue:#80b8ff; --blue-fill:#1f6fe0; --blue-tint:rgba(128,184,255,.14);
+  --ok:#45d97f; --ok-tint:rgba(69,217,127,.14); --need:#ffb340; --need-dot:#ffb340;
+  --err:#ff7a7a; --err-tint:rgba(255,122,122,.12);
+  --sep:rgba(237,241,247,.13); --fill:rgba(237,241,247,.06); --fill-2:rgba(237,241,247,.10);
+  --glass:rgba(30,35,32,.92); --wall-a:#1d2a22; --wall-b:#141b17; --wall-c:#26382d; --win:#1b202a; --menubar:rgba(20,26,22,.6);
+  --note:#5a4d12; --note-ink:#fff6cf;
+  --shadow:0 0 0 .5px rgba(0,0,0,.5),0 18px 44px -16px rgba(0,0,0,.8);
+  color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent}
+body{color:var(--ink);font:15px/1.5 var(--f)}
+.stage{position:relative;width:960px;height:540px;overflow:hidden;
+  background:radial-gradient(120% 90% at 85% 10%,var(--wall-c),transparent 60%),linear-gradient(160deg,var(--wall-a),var(--wall-b))}
+.menubar{position:absolute;inset:0 0 auto 0;height:26px;background:var(--menubar);display:flex;align-items:center;gap:16px;padding:0 14px;font:600 12.5px/1 var(--f);color:var(--ink)}
+.menubar span{font-weight:400}
+.menubar .r{margin-left:auto;display:flex;gap:12px;align-items:center}
+.menubar canvas{width:16px;height:16px}
+.icons{position:absolute;left:18px;top:50px;display:grid;gap:18px;z-index:2}
+.ico{width:104px;display:grid;justify-items:center;gap:6px;font:500 11.5px/1.25 var(--f);text-align:center;color:var(--ink)}
+.ico .lbl{background:var(--fill-2);padding:1px 6px;border-radius:5px}
+.ico.lifted{opacity:.35}
+.doc{width:44px;height:56px;border-radius:4px;background:var(--paper);box-shadow:0 0 0 .5px var(--sep),0 4px 10px -4px rgba(0,0,0,.35);position:relative;overflow:hidden;display:block}
+.doc::before{content:"";position:absolute;inset:12px 8px auto 8px;height:22px;background:repeating-linear-gradient(var(--fill-2) 0 2px,transparent 2px 6px)}
+.doc::after{content:"PDF";position:absolute;bottom:4px;left:6px;font:700 8px/1 var(--f);color:#fff;background:#d23c2f;padding:2px 3px;border-radius:2px}
+.photos{width:56px;height:52px;position:relative;display:block}
+.photos i{position:absolute;width:40px;height:44px;border-radius:3px;border:3px solid var(--paper);box-shadow:0 3px 8px -3px rgba(0,0,0,.4)}
+.photos i:nth-child(1){left:0;top:4px;transform:rotate(-8deg);background:linear-gradient(#e9d9b6,#cdb98e)}
+.photos i:nth-child(2){left:8px;top:2px;transform:rotate(3deg);background:linear-gradient(#dfe7ef,#b7c6d6)}
+.photos i:nth-child(3){left:15px;top:6px;transform:rotate(10deg);background:linear-gradient(#f2efe7,#d8d1c0)}
+.mailwin{position:absolute;left:160px;top:62px;width:380px;background:var(--win);border-radius:10px;box-shadow:var(--shadow);font:13px/1.45 var(--f);overflow:hidden;z-index:1}
+.mailwin .bar{height:28px;display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--fill)}
+.mailwin .bar i{width:10px;height:10px;border-radius:50%;background:var(--fill-2)}
+.mailwin .bar b{margin-left:8px;font:600 12px/1 var(--f);color:var(--ink-3)}
+.mailwin .body{padding:12px 14px 14px;display:grid;gap:8px}
+.mailwin .from{color:var(--ink-3);font-size:12px}
+.mailwin p{margin:0}
+.mailwin .sel{background:var(--blue-tint);border-radius:3px}
+
+.ghost{position:absolute;z-index:9;pointer-events:none;transition:transform .9s var(--spring),opacity .25s;filter:drop-shadow(0 10px 14px rgba(0,0,0,.3))}
+.cursor{position:absolute;z-index:10;width:22px;height:28px;left:0;top:0;transition:transform .8s var(--spring);pointer-events:none}
+.cursor.press svg{transform:scale(.85);transform-origin:3px 3px}
+
+.pill{position:absolute;right:22px;top:200px;z-index:5;background:var(--glass);backdrop-filter:blur(22px) saturate(1.4);
+  border-radius:22px;box-shadow:var(--shadow);width:96px;height:44px;overflow:hidden;
+  transition:width .42s var(--spring),height .42s var(--spring),border-radius .42s var(--spring),box-shadow .3s,top .42s var(--spring)}
+.pill.card{border-radius:18px;top:70px}
+.pill.target .pc::after{content:"";position:absolute;inset:5px;border:1.5px dashed var(--blue);border-radius:18px;opacity:.6}
+.pill.hot{box-shadow:0 0 0 3.5px var(--blue-fill),var(--shadow);height:52px}
+.pill.err{box-shadow:0 0 0 1.5px var(--err),var(--shadow)}
+.pill .mk{position:absolute;left:8px;top:8px;width:28px;height:28px;transition:left .42s var(--spring),top .42s var(--spring)}
+.pill.card .mk{left:14px;top:14px}
+.pill.hot .mk{top:12px}
+.pc{position:absolute;left:0;top:0;padding:0 18px 0 44px;height:100%;display:flex;align-items:center;animation:in .32s .06s both}
+.pill.card .pc,.measure.card .pc{display:block;padding:14px 16px 16px 52px;height:auto}
+@keyframes in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.measure{position:absolute;left:-9999px;top:0;visibility:hidden;width:max-content}
+.measure .pc{position:static;animation:none}
+.lab{font:600 15px/1 var(--fr);white-space:nowrap;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.lab small{font:500 13px/1 var(--fr);color:var(--ink-3)}
+.shim{background:linear-gradient(90deg,var(--ink) 0 35%,var(--blue) 50%,var(--ink) 65% 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sh 1.8s linear infinite}
+@keyframes sh{from{background-position:100% 0}to{background-position:0 0}}
+.ring{width:18px;height:18px;transform:rotate(-90deg);flex:none}
+.ring circle{fill:none;stroke-width:2.6}
+.ring .t{stroke:var(--fill-2)}
+.ring .p{stroke:var(--blue);stroke-linecap:round}
+.lab.ok{color:var(--ok)} .lab.err{color:var(--err)}
+.card-h{font:700 16.5px/1.3 var(--fr);margin:3px 0 6px;max-width:30ch;letter-spacing:-.01em;padding-right:22px}
+.card-p{margin:0 0 10px;color:var(--ink-2);font-size:14px;line-height:1.5;max-width:36ch}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:5px 10px 5px 6px;border-radius:9px;background:var(--fill);font:500 13px/1.2 var(--f);margin-bottom:10px}
+.chip .mini{width:18px;height:23px;border-radius:2px;background:var(--paper);box-shadow:0 0 0 .5px var(--sep);flex:none}
+.chip .minis{display:flex}
+.chip .minis i{width:16px;height:20px;border-radius:2px;border:2px solid var(--paper);margin-right:-6px;background:linear-gradient(#e9d9b6,#cdb98e)}
+.chip .minis i:nth-child(2){background:linear-gradient(#dfe7ef,#b7c6d6)} .chip .minis i:nth-child(3){background:linear-gradient(#f2efe7,#d8d1c0);margin-right:4px}
+.verbs{display:grid;gap:6px;margin-bottom:10px}
+.btn{font:600 14px/1.2 var(--fr);border:0;border-radius:10px;padding:9px 13px;text-align:left;background:var(--fill);color:var(--ink);transition:background .15s,transform .1s}
+.btn.pri{background:var(--blue-fill);color:#fff}
+.btn.press{transform:scale(.97);filter:brightness(1.1)}
+.verbs .btn{display:flex;justify-content:space-between;gap:12px}
+.verbs .btn::after{content:"›";opacity:.5}
+.row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px}
+.ask{width:100%;border:1px solid var(--sep);background:var(--paper);color:var(--ink-3);border-radius:10px;padding:8px 11px;font:14px/1.3 var(--f)}
+.beleg{display:inline-flex;align-items:center;gap:4px;font:600 12.5px/1 var(--f);color:var(--blue);background:var(--blue-tint);border:0;border-radius:6px;padding:3px 7px;vertical-align:1px}
+.quote{border-left:3px solid var(--lino);background:var(--fill);border-radius:0 8px 8px 0;padding:8px 10px;font:13.5px/1.45 Georgia,"Liberation Serif",serif;color:var(--ink-2);margin:0 0 10px;max-width:38ch}
+.quote mark{background:var(--note);color:var(--note-ink);border-radius:2px;padding:0 1px}
+.out{border:1px solid var(--sep);background:var(--paper);border-radius:10px;padding:8px 11px;font:14px/1.4 var(--f);margin:0 0 10px;color:var(--ink-2)}
+.file{display:flex;align-items:center;gap:10px;padding:9px;border-radius:12px;background:var(--fill);margin-bottom:8px;max-width:300px}
+.file .doc{width:34px;height:44px;flex:none}
+.file b{display:block;font:600 14px/1.25 var(--fr)} .file small{color:var(--ink-3);font-size:12.5px}
+.hint{font:13px/1.4 var(--f);color:var(--ink-3);margin:0 0 10px;max-width:36ch}
+.close{position:absolute;right:10px;top:10px;width:24px;height:24px;border-radius:50%;border:0;background:var(--fill);color:var(--ink-3);font:600 14px/1 var(--f)}
+.bubble{position:absolute;z-index:6;right:24px;font:400 22px/1.1 var(--fh);background:var(--note);color:var(--note-ink);padding:9px 14px;border-radius:20px 20px 6px 20px;transform:rotate(-2deg);box-shadow:0 6px 16px -8px rgba(0,0,0,.4);opacity:0;transition:opacity .3s,transform .4s var(--spring)}
+.bubble.on{opacity:1;transform:rotate(-2deg) translateY(-4px)}
+.bare .stage{background:none}.bare .menubar,.bare .icons,.bare .mailwin{display:none}
+</style></head><body>
+<div class="stage" id="stage">
+  <div class="menubar"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><div class="r"><canvas id="menuMark" width="16" height="16"></canvas><span>Thu 9 Oct 18:12</span></div></div>
+  <div class="icons">
+    <div class="ico" id="icoBrief"><span class="doc"></span><span class="lbl">Letter from landlord.pdf</span></div>
+    <div class="ico" id="icoFotos"><span class="photos"><i></i><i></i><i></i></span><span class="lbl">IMG_4821 and 2 more</span></div>
+  </div>
+  <div class="mailwin">
+    <div class="bar"><i></i><i></i><i></i><b>Mail</b></div>
+    <div class="body">
+      <div class="from">From: Lisa Moreau · Subject: Notre visite en novembre</div>
+      <p><span class="sel">Coucou ! On aimerait venir chez vous du 14 au 17 novembre. Ça vous irait ? On apporte les vélos et on s'occupe du dîner samedi.</span></p>
+    </div>
+  </div>
+  <div class="bubble" id="bubble"></div>
+  <div class="pill" id="pill"><canvas class="mk" id="pillMark" width="28" height="28"></canvas><div class="pc" id="pc"></div></div>
+  <div class="measure" id="measure"></div>
+  <div class="cursor" id="cursor"><svg width="22" height="28" viewBox="0 0 22 28"><path d="M2 2 L2 22 L7.5 17 L11 25 L14.5 23.5 L11 15.8 L18 15.8 Z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+</div>
+<script src="../../../site/pippaMark.js"></script>
+<script>
+const qs = new URLSearchParams(location.search);
+const Z = +(qs.get('z') || 1);
+if (Z !== 1) document.getElementById('stage').style.cssText = `transform:scale(${Z});transform-origin:0 0`;
+if (qs.get('bare')) document.documentElement.classList.add('bare');
+if (qs.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+const $ = s => document.querySelector(s);
+const pill = $('#pill'), pc = $('#pc'), measure = $('#measure'), bubble = $('#bubble'), stage = $('#stage'), cursor = $('#cursor');
+const pillMark = new PippaMark($('#pillMark'), { size: 28, state: 'ruht', alive: true });
+new PippaMark($('#menuMark'), { size: 16, alive: false });
+const face = s => pillMark.setState(s);
+const ring = f => `<svg class="ring" viewBox="0 0 20 20"><circle class="t" cx="10" cy="10" r="8"/><circle class="p" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="${(50.27 * (1 - f)).toFixed(2)}"/></svg>`;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function show(html, opts) {
+  opts = opts || {};
+  const card = !!opts.card;
+  pill.className = 'pill' + (card ? ' card' : '') + (opts.cls ? ' ' + opts.cls : '');
+  measure.className = 'measure' + (card ? ' card' : '');
+  measure.innerHTML = `<div class="pc" style="${card ? 'width:' + (opts.w || 380) + 'px' : ''}">${html}${card ? '<button class="close">×</button>' : ''}</div>`;
+  const r = measure.firstElementChild.getBoundingClientRect();
+  const w = Math.ceil(r.width / Z);
+  pill.style.width = w + 'px';
+  pill.style.height = (card ? Math.ceil(r.height / Z) : (pill.classList.contains('hot') ? 52 : 44)) + 'px';
+  pc.style.width = card ? w + 'px' : '';
+  pc.innerHTML = measure.firstElementChild.innerHTML;
+  pc.style.animation = 'none'; void pc.offsetWidth; pc.style.animation = '';
+  measure.innerHTML = '';
+}
+function say(text, top) { bubble.textContent = text; bubble.style.top = (top ?? (pill.offsetTop - 52)) + 'px'; bubble.classList.add('on'); }
+function hush() { bubble.classList.remove('on'); }
+function center(el) { const a = el.getBoundingClientRect(), s = stage.getBoundingClientRect(); return [(a.left - s.left + a.width / 2) / Z, (a.top - s.top + a.height / 2) / Z]; }
+async function moveTo(el, dx = 0, dy = 0, ms = 800) { const [x, y] = typeof el === 'string' ? center($(el)) : el; cursor.style.transitionDuration = ms + 'ms'; cursor.style.transform = `translate(${x + dx - 2}px,${y + dy - 2}px)`; await sleep(ms); }
+async function click(el) { cursor.classList.add('press'); if (el) el.classList.add('press'); await sleep(160); cursor.classList.remove('press'); if (el) el.classList.remove('press'); }
+
+const S = {
+  idle(t) { face('ruht'); show(`<span class="lab">${t || 'Pippa'}</span>`); },
+  target() { show('<span class="lab">Drop it here</span>', { cls: 'target' }); },
+  hot() { show('<span class="lab" style="color:var(--blue);font-size:16.5px">Let go</span>', { cls: 'hot' }); },
+  offerBrief() { face('ruht'); show(`<div class="chip"><span class="mini"></span>Letter from landlord · 2 pages</div>
+    <div class="card-h">What should I do with it?</div>
+    <div class="verbs"><button class="btn pri" id="v1">What do I need to do?</button><button class="btn">Add the deadline</button><button class="btn">Write a reply</button></div>
+    <div class="ask">Or ask something about the letter …</div>`, { card: true }); },
+  work(t, f) { face('arbeitet'); show(`<span class="lab"><span class="shim">${t}</span>${f != null ? ring(f) : ''}</span>`); },
+  done(t) { face('offen'); pillMark.pulse(); show(`<span class="lab ok">Done <small>· ${t}</small></span>`); },
+  resultBrief(q) { face('offen'); show(`<div class="card-h">You need to pay €84.20 by 31 October.</div>
+    <p class="card-p">Your landlord is settling the 2025 service charges. Pay to the account given in the letter. <button class="beleg" id="beleg">Letter, p. 1</button></p>
+    ${q ? '<blockquote class="quote">“Please transfer the outstanding amount of <mark>€84.20</mark> by <mark>31.10.2026</mark> to the account below.”</blockquote>' : ''}
+    <div class="row"><button class="btn">Write a reply</button><button class="btn pri">Add a reminder</button></div>
+    <div style="height:10px"></div><div class="ask">Ask a follow-up …</div>`, { card: true }); },
+  offerFotos() { face('ruht'); show(`<div class="chip"><span class="minis"><i></i><i></i><i></i></span>3 photos</div>
+    <div class="card-h">What should I do with them?</div>
+    <div class="verbs"><button class="btn pri">Make one PDF</button><button class="btn">Make smaller</button><button class="btn">Get the text out</button></div>`, { card: true }); },
+  resultFotos() { face('offen'); show(`<div class="card-h">Your PDF is ready.</div>
+    <div class="file"><span class="doc"></span><span><b>Rental agreement.pdf</b><small>3 pages · 1.2 MB · searchable text</small></span></div>
+    <p class="hint">Drag it straight into Mail or a folder. Your photos stay as they were.</p>
+    <div class="row"><button class="btn">Rename</button><button class="btn pri">Show in Finder</button></div>`, { card: true }); },
+  peek() { face('ruht'); show(`<span class="lab">Translate? <button class="btn pri" style="padding:5px 10px;font-size:13px">Yes</button><button class="btn" style="padding:5px 9px;font-size:13px">×</button></span>`); },
+  resultCopy() { face('offen'); show(`<div class="card-h">In English:</div>
+    <div class="out">Hi! We'd love to stay with you from 14 to 17 November. Would that work? We'll bring the bikes and take care of dinner on Saturday.</div>
+    <div class="row"><button class="btn">Note 14–17 Nov</button><button class="btn pri">Copy</button></div>`, { card: true }); },
+  failed() { face('fehler'); show(`<span class="lab err">Didn't work <small>· no internet</small></span>`, { cls: 'err' }); },
+  resultError() { face('fehler'); show(`<div class="card-h">I can't get online right now.</div>
+    <p class="card-p">Your question is saved. Without the internet I can still tell you what the letter says, but I can't look anything up.</p>
+    <div class="row"><button class="btn">Answer offline</button><button class="btn pri">Try again</button></div>`, { card: true }); },
+};
+
+async function demo() {
+  const start = [880, 470];
+  await moveTo(start, 0, 0, 10);
+  S.idle(); await sleep(500);
+  say('Drop something on me!'); await sleep(1500);
+  await moveTo('#icoBrief .doc', 4, 6, 900);
+  await click();
+  hush();
+  // lift a copy of the letter and carry it to the pill
+  const ico = $('#icoBrief .doc'), g = ico.cloneNode(true); g.classList.add('ghost');
+  const [ix, iy] = center(ico); g.style.left = (ix - 22) + 'px'; g.style.top = (iy - 28) + 'px';
+  stage.appendChild(g); $('#icoBrief').classList.add('lifted');
+  S.target(); await sleep(250);
+  const [px, py] = center(pill);
+  const dx = px - ix - 10, dy = py - iy;
+  g.style.transitionDuration = '1100ms'; g.style.transform = `translate(${dx}px,${dy}px) rotate(-6deg)`;
+  await moveTo([px - 10, py], 4, 6, 1100);
+  S.hot(); await sleep(600);
+  g.style.opacity = 0; $('#icoBrief').classList.remove('lifted');
+  pillMark.pulse(); S.offerBrief(); await sleep(400); g.remove();
+  await moveTo([700, 470], 0, 0, 600);
+  await sleep(700);
+  await moveTo('#v1', 30, 4, 700); await click($('#v1')); await sleep(120);
+  S.work('Reading the letter · page 1 of 2', .5);
+  await moveTo([880, 470], 0, 0, 900); await sleep(500);
+  S.work('Reading the letter · page 2 of 2', 1); await sleep(1400);
+  S.work('Checking amounts and dates', null); await sleep(1700);
+  S.done('pay by 31 Oct'); await sleep(1800);
+  await moveTo('#pill', 10, 4, 700); await click();
+  S.resultBrief(false); await sleep(1500);
+  await moveTo('#beleg', 6, 4, 700); await click($('#beleg'));
+  S.resultBrief(true); await sleep(400);
+  await moveTo([900, 500], 0, 0, 900);
+  await sleep(2600);
+  window.demoDone = true;
+}
+window.S = S; window.demo = demo; window.say = say; window.hush = hush; window.pillMark = pillMark;
+if (qs.get('mode') !== 'static') { document.fonts.ready.then(() => setTimeout(demo, 300)); } else { cursor.style.display = 'none'; S.idle(); }
+</script>
+</body></html>

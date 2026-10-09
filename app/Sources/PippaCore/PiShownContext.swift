@@ -206,35 +206,15 @@ public enum PiShownContext {
 }
 
 /// Pippa's source check on the finished answer on the RPC path, as in the old path (LocalEngine.chat): reading uses
-/// the same reader (`LocalEngine.snapshots`, text recognition from the same session cache as `read_document`), plus
-/// the web pages fetched in this message. Values that appear in no source read get "please check";
+/// the same reader (`LocalEngine.snapshots`, text recognition from the same session cache as `read_document`).
+/// Values that appear in no source read get "please check";
 /// judgments about unread parts are dropped. Nothing is added.
 public enum PiAnswerReview {
-    /// Web pages come before the files (SourceFidelity counts the last `fileCount` entries as files).
     /// `reads` (what Pi read in this answer) replaces Pippa's own read state for every shown file that was read; `files` are the shown files in the order of the last `fileCount` entries.
     public static func review(answer: String, question: String, snapshots: [DocumentSnapshot], fileCount: Int,
-                              webPages: [WebSource], reads: PiReadLedger? = nil, files: [URL] = []) -> SourceFidelity.Review? {
-        guard fileCount > 0 || !webPages.isEmpty else { return nil }
+                              reads: PiReadLedger? = nil, files: [URL] = []) -> SourceFidelity.Review? {
+        guard fileCount > 0 else { return nil }
         let snapshots = reads.map { files.count == fileCount ? $0.adjusting(snapshots, files: files) : snapshots } ?? snapshots
-        let web = webPages.prefix(12).map { page in
-            DocumentSnapshot(name: page.site.isEmpty ? page.url.host ?? page.url.absoluteString : page.site,
-                                             text: String(page.text.prefix(40_000)), readStatus: .readable)
-        }
-        let leading = snapshots.count - fileCount
-        let all = Array(snapshots.prefix(leading)) + web + Array(snapshots.suffix(fileCount))
-        return SourceFidelity.review(answer: answer, question: question, snapshots: all, fileCount: fileCount)
-    }
-}
-
-public extension ActionReceipt.Item {
-    /// One receipt line per online request (WebAccessGate.records): exactly the shown text and what became of it.
-    static func web(_ record: WebAccessRecord) -> ActionReceipt.Item {
-        let action = record.kind == .page ? "webPage" : "webSearch"
-        switch record.outcome {
-        case .done: return .init(action: action, outcome: "done", name: record.ask?.shown, reason: record.found == 0 ? "nothingFound" : nil)
-        case .declined: return .init(action: action, outcome: "declined", name: record.ask?.shown)
-        case .failed: return .init(action: action, outcome: "failed", name: record.ask?.shown)
-        case .notAllowed: return .init(action: action, outcome: "blocked", name: nil, reason: "notAllowed")
-        }
+        return SourceFidelity.review(answer: answer, question: question, snapshots: snapshots, fileCount: fileCount)
     }
 }

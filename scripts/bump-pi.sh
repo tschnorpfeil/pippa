@@ -8,10 +8,9 @@
 # Pins it updates:
 #   app/Packaging/pi-release/{metadata.json,package.json,package-lock.json}   the official release files the app
 #       installs into ~/.pi/agent/install/releases/<v> (from pi.dev's installer API, the same files `pi update` uses)
-# Not a Pi pin: runtime/pippa-web (Pippa's web fetcher) depends on pi-web-access + typebox only, no
-#   @earendil-works package (checked below); it is tested as a gate but not bumped.
+#   runtime/pippa-web/package{,-lock}.json   its test-only dev dependency on Pi (the test loads pi-web-access in that Pi)
 # Gates (all against a fake HOME under .build/):
-#   runtime/pippa-web npm test, runtime/pippa-guard node tests (incl. bypass.test.mjs with real Pi),
+#   runtime/pippa-web npm test (pi-web-access in the new Pi), runtime/pippa-tools node tests,
 #   runtime/pippa-local-server node tests (incl. real-pi.test.mjs: `pi -p` starts the server through the extension),
 #   scripts/pi-rpc-smoke.mjs (the app's exact flags in RPC mode, scripted stand-in model), PippaChecks with
 #   PIPPA_SETUP_CHECKS=1 and PIPPA_MCP_CHECKS=1 against the new payload.
@@ -55,9 +54,8 @@ for (const p of meta.packages) {
 console.log(`   release files ok: ${meta.packages.length} @earendil-works packages, integrity matches npm, commit ${meta.sourceCommit.slice(0, 12)}`);
 JS
 cp "$work/metadata.json" "$work/package.json" "$work/package-lock.json" "$release_dir/"
-if grep -q '"node_modules/@earendil-works/' "$root/runtime/pippa-web/package-lock.json"; then
-  echo "runtime/pippa-web now locks an @earendil-works package; pin it to Pi $new by hand." >&2; exit 1
-fi
+# pippa-web tests pi-web-access inside the Pi the app ships: same version as a dev dependency.
+(cd "$root/runtime/pippa-web" && npm install --save-dev --save-exact --package-lock-only --ignore-scripts --no-fund --no-audit --loglevel=error "@earendil-works/pi-coding-agent@$new")
 # The license list names the shipped version.
 sed -i '' "s#earendil-works/pi) [0-9][0-9.]*#earendil-works/pi) $new#" "$root/THIRD_PARTY_NOTICES.md"
 
@@ -84,11 +82,8 @@ if [[ $gates == 1 ]]; then
   echo "== Gates"
   failed=()
   (cd "$root/runtime/pippa-web" && npm ci --ignore-scripts --no-fund --no-audit --loglevel=error && npm test >"$root/.build/bump-web-test.log" 2>&1) || failed+=("runtime/pippa-web npm test (.build/bump-web-test.log)")
-  for t in guard mcp app-entry self-asking bypass; do
-    log="$root/.build/bump-guard-$t.log"
-    PIPPA_PI_PAYLOAD="$payload" node --experimental-strip-types --test "$root/runtime/pippa-guard/$t.test.mjs" >"$log" 2>&1 || failed+=("guard $t (.build/bump-guard-$t.log)")
-    grep -q '^ℹ skipped 0' "$log" || failed+=("guard $t skipped tests")
-  done
+  log="$root/.build/bump-tools.log"
+  node --experimental-strip-types --test "$root"/runtime/pippa-tools/*.test.mjs >"$log" 2>&1 || failed+=("pippa-tools (.build/bump-tools.log)")
   log="$root/.build/bump-local-server.log"
   PIPPA_PI_PAYLOAD="$payload" node --experimental-strip-types --test "$root"/runtime/pippa-local-server/test/*.test.mjs >"$log" 2>&1 || failed+=("pippa-local-server (.build/bump-local-server.log)")
   grep -q '^ℹ skipped 0' "$log" || failed+=("pippa-local-server skipped tests")

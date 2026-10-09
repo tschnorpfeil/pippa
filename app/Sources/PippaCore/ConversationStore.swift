@@ -25,7 +25,7 @@ public struct ConversationMessage: Codable, Sendable, Identifiable, Equatable {
     public var calendar: ConversationCalendarRead?
     /// Thought Line receipt under an answer: what was read and how long it took. Missing in older histories.
     public var work: WorkReceipt?
-    /// What tools actually did during this answer (from tool events and the Pippa guard, never from the model's text).
+    /// What tools actually did during this answer (from tool events and Pippa's own results, never from the model's text).
     /// Missing in older histories and on the old path.
     public var actions: ActionReceipt?
     public init(id: UUID = UUID(), role: Role, text: String, timestamp: Date = Date(), attachments: [URL] = [], modelLabel: String? = nil,

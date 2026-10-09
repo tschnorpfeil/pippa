@@ -224,13 +224,9 @@ struct WorkReceiptView: View {
 /// reading receipt: if the answer text contradicts it ("The file was created"), the eye should stay on this line.
 struct ActionReceiptView: View {
     var receipt: ActionReceipt
-    /// "Undo" per row that can be rolled back (guard entry, not yet rolled back). `nil`: no button.
-    var onUndo: ((ActionReceipt.Item) -> Void)? = nil
-    /// "Undo all": one button under the list, from two rollbackable rows on (`offersUndoAll`).
-    var onUndoAll: (() -> Void)? = nil
-    var undoDisabled = false
-    /// "Open draft" on a mail draft (instead of Undo: Pippa does not delete a draft; see
-    /// docs/development.md). `nil`: no button.
+    /// Buttons are off while an answer runs.
+    var disabled = false
+    /// "Open draft" on a mail draft (Pippa does not delete a draft; see docs/development.md). `nil`: no button.
     var onOpenMailDraft: (() -> Void)? = nil
     /// "As draft in Mail" on the row "No draft in Mail yet", as long as the offer is available.
     var onSaveMailOffer: (() -> Void)? = nil
@@ -251,12 +247,7 @@ struct ActionReceiptView: View {
                         .foregroundStyle(Theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
-                    if let onUndo, entry.item.canUndo {
-                        Spacer(minLength: 6)
-                        Button { onUndo(entry.item) } label: { Label(T("Undo", table: "Views"), systemImage: "arrow.uturn.backward") }
-                            .pippa(.tinted).controlSize(.small).disabled(undoDisabled)
-                            .accessibilityHint(entry.text)
-                    } else if let onOpenMailDraft, entry.item.canOpenMailDraft {
+                    if let onOpenMailDraft, entry.item.canOpenMailDraft {
                         Spacer(minLength: 6)
                         Button { onOpenMailDraft() } label: { Label(T("Open draft", table: "Views"), systemImage: "envelope") }
                             .pippa(.tinted).controlSize(.small)
@@ -265,7 +256,7 @@ struct ActionReceiptView: View {
                               let offer = receipt.mailOffer, offer.canSave {
                         Spacer(minLength: 6)
                         Button { onSaveMailOffer() } label: { Label(T("Save as draft in Mail", table: "Views"), systemImage: "envelope.badge") }
-                            .pippa(.tinted).controlSize(.small).disabled(undoDisabled)
+                            .pippa(.tinted).controlSize(.small).disabled(disabled)
                             .accessibilityHint(entry.text)
                     } else if let onCopyMailOffer, entry.item.action == "mailDraft", entry.item.outcome == "notYet",
                               receipt.mailOffer?.canCopy == true {
@@ -277,21 +268,12 @@ struct ActionReceiptView: View {
                     }
                 }
             }
-            if let onUndoAll, receipt.offersUndoAll {
-                HStack {
-                    Spacer(minLength: 0)
-                    Button { onUndoAll() } label: { Label(T("Undo All", table: "Views"), systemImage: "arrow.uturn.backward.circle") }
-                        .pippa(.tinted).controlSize(.small).disabled(undoDisabled)
-                        .accessibilityHint(T("Undoes every change above, the last one first.", table: "Views"))
-                }
-                .padding(.top, 2)
-            }
         }
         .padding(.horizontal, 11).padding(.vertical, 8)
         .frame(maxWidth: 520, alignment: .leading)
         .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 10))
         .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
-        .accessibilityElement(children: onUndo == nil ? .combine : .contain)
+        .accessibilityElement(children: onOpenMailDraft == nil && onSaveMailOffer == nil && onCopyMailOffer == nil ? .combine : .contain)
         .accessibilityLabel(T("What happened", table: "ThoughtUI"))
         .accessibilityValue(receipt.lines.map(\.text).joined(separator: ". "))
     }

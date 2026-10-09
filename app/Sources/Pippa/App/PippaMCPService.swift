@@ -7,26 +7,27 @@ import PippaCore
 /// system prompt (calendar, reminders, automation for Mail/Excel) names Pippa.
 ///
 /// With `PIPPA_DEMO=1` only invented data (never real apps). `PIPPA_PI_MCP`: path to the extension, otherwise `pippa-mcp.ts`
-/// next to the guard. If the extension is missing or the server does not start, Pi continues without these tools.
+/// in Pippa's extensions folder. If the extension is missing or the server does not start, Pi continues without these tools.
 @MainActor
 enum PippaMCPService {
     private static var server: PippaMCPServer?
 
     /// What Pippa's readers read in this app run, in order; PiRPCChat collects it per answer.
-    nonisolated static let readNotes = ReadNotes()
+    nonisolated static let readNotes = Notes<PippaMCPReadNote>()
+    /// What Pippa's write tools did (event, reminder, mail draft), in order; PiRPCChat collects it per answer.
+    nonisolated static let writeNotes = Notes<PippaMCPWriteReceipt>()
 
-    final class ReadNotes: @unchecked Sendable {
+    final class Notes<Note: Sendable>: @unchecked Sendable {
         private let lock = NSLock()
-        private var notes: [PippaMCPReadNote] = []
-        func append(_ note: PippaMCPReadNote) { lock.withLock { notes.append(note) } }
-        func take() -> [PippaMCPReadNote] { lock.withLock { defer { notes = [] }; return notes } }
+        private var notes: [Note] = []
+        func append(_ note: Note) { lock.withLock { notes.append(note) } }
+        func take() -> [Note] { lock.withLock { defer { notes = [] }; return notes } }
     }
 
     /// Only entry point from `PiRPCChat`: starts the server if needed; address, key and extension for
     /// `PippaPiLaunch.configuration(…, mcp:)`, which turns them into `addMCP`. `nil`: Pi runs without these tools.
-    static func endpoint(guardPath: String) async -> (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL)? {
-        let file = DevEnvironment.value("PIPPA_PI_MCP")
-            ?? URL(fileURLWithPath: guardPath).deletingLastPathComponent().appendingPathComponent("pippa-mcp.ts").path
+    static func endpoint(extensions: URL) async -> (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL)? {
+        let file = DevEnvironment.value("PIPPA_PI_MCP") ?? extensions.appendingPathComponent("pippa-mcp.ts").path
         guard FileManager.default.fileExists(atPath: file), let running = await started() else { return nil }
         return (.init(url: running.url, token: running.token), URL(fileURLWithPath: file))
     }
@@ -46,24 +47,17 @@ enum PippaMCPService {
     /// Recordings and checks only: answers in the person's place (sentence is recorded). `nil`: the person answers.
     static var explainForSnapshot: ((NSAlert, String) -> Bool)?
 
-    /// The server's integrations. "Rückgängig" removes with the same integration that created (with
-    /// PIPPA_DEMO=1 a substitute appointment lives only in this substitute's memory).
+    /// The server's integrations (with PIPPA_DEMO=1 a substitute appointment lives only in this substitute's memory).
     private static var host: PippaMCPHost?
 
     private static var currentHost: PippaMCPHost {
         if let host { return host }
         var fresh: PippaMCPHost = DevEnvironment.value("PIPPA_DEMO") == "1" ? .demo() : .system()
         fresh.onRead = { note in readNotes.append(note) }
+        fresh.onWrite = { note in writeNotes.append(note) }
         fresh.explainAccess = { subject, sentence in await explain(subject, sentence) }
-        // Undo entries for appointments and reminders next to the guard's (same folder, same cleanup).
-        fresh.undoRoot = PiRPCChat.undoRoot
         host = fresh
         return fresh
-    }
-
-    /// Remove an appointment or reminder created by Pippa (only if unchanged; `AppIntegrations.remove`).
-    static func remove(_ item: CreatedItem) async throws -> RemoveResult {
-        try await currentHost.integrations.remove(item)
     }
 
     /// "Als Entwurf in Mail" creates the draft the same way as Pi's `mail_draft` (same rights,

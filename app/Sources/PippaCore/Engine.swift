@@ -167,9 +167,6 @@ public struct ChatContext: Sendable {
     public var selectedText: String
     /// Native overview/proposal/receipt supplied by the UI, not a new agent action.
     public var workflowSummary: String
-    /// Non-`nil`: Pi may look things up online (`web_search`, `read_web_page`). Each request goes out only after a
-    /// click by the person (WebAccessGate).
-    public var web: WebAccessGate?
     /// Thought Line (ThoughtLine.swift): real phases of this answer, in order. `nil`: nobody listens.
     public var onWork: WorkEventHandler?
     public init(files: [URL] = [], focusedFiles: [URL] = [], selectedText: String = "", workflowSummary: String = "") {

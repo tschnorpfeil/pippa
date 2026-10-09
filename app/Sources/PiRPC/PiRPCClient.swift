@@ -38,10 +38,10 @@ public struct PiRPCConfiguration: Sendable {
     public var executable: URL
     /// Pi's working directory: write/edit/bash create relative paths there.
     public var workingDirectory: URL
-    /// Additional environment (e.g. PI_CODING_AGENT_DIR, PIPPA_UNDO_DIR). PATH gets Homebrew added because `pi` is a
+    /// Additional environment (e.g. PI_CODING_AGENT_DIR, PIPPA_WEB_DIR). PATH gets Homebrew added because `pi` is a
     /// Node script and an app launched from Finder only knows /usr/bin:/bin.
     public var environment: [String: String]
-    /// Loaded with `--extension` (the Pippa guard).
+    /// Loaded with `--extension` (Pippa's tools, helps and web access).
     public var extensions: [URL]
     /// Further Pi options, e.g. `--no-session`, `--tools read,write`, `--append-system-prompt …`.
     public var arguments: [String]
@@ -58,7 +58,7 @@ public struct PiRPCConfiguration: Sendable {
 public enum PiRPCEvent: Sendable, Equatable {
     /// A piece of response text.
     case textDelta(String)
-    /// Pi calls a tool (arrives before the guard's confirmation request). `arguments`: JSON, truncated.
+    /// Pi calls a tool. `arguments`: JSON, truncated.
     case toolStarted(id: String, name: String, arguments: String)
     case toolEnded(id: String, name: String, isError: Bool, result: String)
     /// Pi picked up another message from the person (delivered via `steer` or `followUp`).
@@ -67,8 +67,6 @@ public enum PiRPCEvent: Sendable, Equatable {
     case assistantEnded(text: String, stopReason: String, error: String?)
     /// `ctx.ui.notify` of an extension.
     case notice(String, kind: String)
-    /// `pippa-receipt` entry of the Pippa guard (rejected, blocked, done, failed); basis of the receipt.
-    case guardOutcome(PiGuardOutcome)
     /// Pi does not continue on its own (`agent_settled`). The stream ends afterwards.
     case settled
 }
@@ -333,14 +331,7 @@ public actor PiRPCClient {
                let kind = entry["customType"] as? String, ["pippa-loop-stop", "pippa-search-result"].contains(kind), let data = entry["data"],
                let json = try? JSONSerialization.data(withJSONObject: data) {
                 events?.yield(.notice(String(decoding: json, as: UTF8.self), kind: kind))
-                return
             }
-            // Only Pippa's own receipt entries; other extensions write their own state there.
-            guard let entry = record["entry"] as? [String: Any], entry["type"] as? String == "custom",
-                  entry["customType"] as? String == PiGuardOutcome.entryType, let data = entry["data"],
-                  let json = try? JSONSerialization.data(withJSONObject: data),
-                  let outcome = try? JSONDecoder().decode(PiGuardOutcome.self, from: json) else { return }
-            events?.yield(.guardOutcome(outcome))
         case "agent_settled":
             events?.yield(.settled)
             finish(nil)

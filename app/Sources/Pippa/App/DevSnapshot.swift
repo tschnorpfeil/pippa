@@ -145,12 +145,6 @@ enum DevSnapshot {
                 return
             }
 
-            if only == "guardask" {
-                await GuardAskSnapshot.run(model: model, shell: shell, directory: dir)
-                NSApp.terminate(nil)
-                return
-            }
-
             if only == "pillstatus" {
                 await PillStatusSnapshot.run(model: model, shell: shell, directory: dir)
                 NSApp.terminate(nil)

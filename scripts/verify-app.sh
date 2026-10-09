@@ -91,12 +91,13 @@ ok "Info.plist + en/de: texts for Calendar, Reminders, Apple Events, Desktop, Do
 # fd and rg for Pi's find and grep (next to Node, first in Pi's PATH).
 for tool in fd rg; do [[ -x "$APP/Contents/Helpers/$tool" ]] || fail "bundled $tool missing"; done
 WEB="$APP/Contents/Resources/pippa-web"
-for path in src/fetcher.mjs src/generated/extract.mjs src/generated/duckduckgo.mjs package-lock.json; do
-  [[ -f "$WEB/$path" ]] || fail "pippa-web/$path missing (web fetcher)"
+for path in index.ts package-lock.json node_modules/pi-web-access/dist/index.js; do
+  [[ -f "$WEB/$path" ]] || fail "pippa-web/$path missing (web access)"
 done
-cmp -s "$ROOT/runtime/pippa-web/package-lock.json" "$WEB/package-lock.json" || fail "bundled web fetcher lockfile differs from this checkout; rebuild the app"
-[[ ! -e "$WEB/node_modules/esbuild" ]] || fail "pippa-web ships its dev dependency esbuild"
-ok "web fetcher in Contents/Resources/pippa-web, lockfile matches this checkout"
+cmp -s "$ROOT/runtime/pippa-web/package-lock.json" "$WEB/package-lock.json" || fail "bundled web access lockfile differs from this checkout; rebuild the app"
+cmp -s "$ROOT/runtime/pippa-web/index.ts" "$WEB/index.ts" || fail "bundled web access settings differ from this checkout; rebuild the app"
+[[ ! -e "$WEB/node_modules/@earendil-works/pi-coding-agent" ]] || fail "pippa-web ships its test-only Pi (dev dependency)"
+ok "web access (pi-web-access) in Contents/Resources/pippa-web, same as this checkout"
 # Pippa's abilities: exactly the folders of runtime/pippa-skills, each with its SKILL.md.
 expected_skills="$(find "$ROOT/runtime/pippa-skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')"
 found_skills="$(find "$APP/Contents/Resources/pippa-skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -106,11 +107,12 @@ diff -rq "$ROOT/runtime/pippa-skills" "$APP/Contents/Resources/pippa-skills" -x 
 ok "Pippa's abilities: $found_skills in Contents/Resources/pippa-skills, same as runtime/pippa-skills"
 # The old conversation core is gone and must not come along from an old build.
 [[ ! -e "$APP/Contents/Resources/pi-runtime" ]] || fail "old conversation core (Contents/Resources/pi-runtime) still in the bundle"
-# The Pi RPC path starts Pi only with Pippa's guard from the bundle.
-for f in pippa-guard.ts pippa-tools.ts pippa-mcp.ts files.ts policy.ts self-asking.ts budget.ts; do
-  [[ -f "$APP/Contents/Resources/pippa-guard/$f" ]] || fail "pippa-guard/$f missing (Pi conversation guard)"
+# The Pi RPC path starts Pi with Pippa's extensions from the bundle.
+for f in pippa-tools.ts pippa-assist.ts pippa-mcp.ts files.ts budget.ts search-command.ts; do
+  cmp -s "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f" || fail "pippa-tools/$f missing or stale (Pi extensions)"
 done
-ok "Pippa's guard for Pi in Contents/Resources/pippa-guard"
+[[ ! -e "$APP/Contents/Resources/pippa-guard" ]] || fail "old guard (Contents/Resources/pippa-guard) still in the bundle"
+ok "Pippa's Pi extensions in Contents/Resources/pippa-tools"
 expect_entitlements "$APP/Contents/Helpers/node" "Helpers/node" "com.apple.security.cs.allow-jit com.apple.security.cs.disable-library-validation"
 expect_entitlements "$APP/Contents/Helpers/llama-server" "Helpers/llama-server" "-"
 expect_entitlements "$APP/Contents/Helpers/fd" "Helpers/fd" "-"

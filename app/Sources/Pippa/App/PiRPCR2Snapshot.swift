@@ -5,8 +5,7 @@ import PippaCore
 /// The real Pippa window against the real Pi and a real local model, with what
 /// the person shows. `PIPPA_SNAPSHOT_ONLY=pirpc-r2` plus the environment from `scripts/pi-rpc-spike.sh app` and
 /// `PIPPA_R2_CORPUS` (synthetic corpus, scripts/quality/make-ctxsug-corpus.swift). Letter shown → question about
-/// amount and deadline; folder shown → "Was ist da drin?"; weather question → card "Online nachsehen" photographed, then
-/// "Nachsehen" clicked (real fetch process). Report `pirpc-r2.txt`.
+/// amount and deadline; folder shown → "Was ist da drin?"; weather question → pi-web-access looks it up (network, no card). Report `pirpc-r2.txt`.
 @MainActor enum PiRPCR2Snapshot {
     static func run(model: AppModel, shell: ShellController, directory: URL) async {
         var lines: [String] = []
@@ -31,18 +30,12 @@ import PippaCore
             if let actions = last?.actions { note("Was passiert ist: \(actions.lines.map(\.text))") }
             if let error = model.conversations.error { note("Fehler: \(error)") }
         }
-        /// Waits for the end; reports the first word. `onCard`: a web card is open (once).
-        func wait(onCard: ((WebAccessAsk) -> Void)? = nil) async {
+        /// Waits for the end; reports the first word.
+        func wait() async {
             let t0 = Date()
             var first: Double?
-            var cardSeen = false
             while model.conversations.isRunning, Date().timeIntervalSince(t0) < 400 {
                 if first == nil, !model.conversations.streamingText.isEmpty { first = Date().timeIntervalSince(t0) }
-                if !cardSeen, let ask = model.conversations.webAsk {
-                    cardSeen = true
-                    note("Karte nach \(String(format: "%.1f", Date().timeIntervalSince(t0))) s: „\(ask.shown)“ (Warnung: \(ask.warns))")
-                    onCard?(ask)
-                }
                 try? await Task.sleep(for: .milliseconds(50))
             }
             note("erstes Wort nach \(first.map { String(format: "%.1f s", $0) } ?? "–"), fertig nach \(String(format: "%.1f", Date().timeIntervalSince(t0))) s")
@@ -65,12 +58,9 @@ import PippaCore
 
         model.newConversation()
         try? await Task.sleep(for: .milliseconds(400))
-        note("Frage: Wetter morgen in Köln (Karte, dann „Nachsehen“)")
+        note("Frage: Wetter morgen in Köln (pi-web-access)")
         model.route("Wie wird das Wetter morgen in Köln?")
-        await wait(onCard: { ask in
-            snap("karte")
-            model.conversations.answerWebAsk(ask.id, approved: true)
-        })
+        await wait()
         try? await Task.sleep(for: .milliseconds(500)); snap("web")
         report()
         finish()

@@ -4,8 +4,8 @@ import PippaCore
 #if DEBUG
 /// Receipt "Was passiert ist" (ActionReceipt) in the real conversation window, without Pi and without a model:
 /// `PIPPA_DEMO=1 PIPPA_SNAPSHOT=<fresh folder> PIPPA_SNAPSHOT_ONLY=pireceipt` (optional `PIPPA_APPEARANCE=dark`).
-/// The first answer text claims success after a No (as a local model did in the trial run); the receipt
-/// below says "Nicht angelegt … (du hast abgelehnt)". Report `pireceipt.txt`, image `pireceipt.png`.
+/// The first answer text claims success after a failed call (as a local model did in a trial run); the receipt
+/// below says "Nicht angelegt … (hat nicht geklappt)". Report `pireceipt.txt`, image `pireceipt.png`.
 @MainActor enum PiReceiptSnapshot {
     static func run(model: AppModel, shell: ShellController, directory: URL) async {
         var lines: [String] = []
@@ -16,12 +16,12 @@ import PippaCore
         model.newConversation()
         try? await Task.sleep(for: .milliseconds(400))
         let chat = model.conversations
-        let declined = ActionReceipt(items: [.init(action: "create", outcome: "declined", name: "Einkauf.txt")])
-        let done = ActionReceipt(items: [.init(action: "create", outcome: "done", name: "Einkauf.txt", undoEntry: "/undo/1", restorable: true)])
+        let declined = ActionReceipt(items: [.init(action: "create", outcome: "failed", name: "Einkauf.txt")])
+        let done = ActionReceipt(items: [.init(action: "create", outcome: "done", name: "Einkauf.txt")])
         let tidy = ActionReceipt(items: [
-            .init(action: "rename", outcome: "done", name: "Scan 3.pdf", toName: "Mietvertrag.pdf", undoEntry: "/undo/2", restorable: true),
+            .init(action: "rename", outcome: "done", name: "Scan 3.pdf", toName: "Mietvertrag.pdf"),
             .init(action: "move", outcome: "failed", name: "Notiz.txt", toName: "Archiv"),
-            .init(action: "trash", outcome: "done", name: "Kopie von Liste.txt", undoEntry: "/undo/3", restorable: true),
+            .init(action: "trash", outcome: "done", name: "Kopie von Liste.txt"),
             .init(action: "command", outcome: "done"),
         ])
         chat.append(.user, "leg eine Datei Einkauf.txt mit Milch und Brot an")
@@ -37,7 +37,7 @@ import PippaCore
         for receipt in stored { for line in receipt.lines { lines.append("     \(line.text)") } }
         for receipt in stored { for line in receipt.lines(language: "de") { lines.append("  de \(line.text)") } }
         let first = declined.lines.first?.text ?? ""
-        verify(first.contains("Einkauf.txt") && first != done.lines.first?.text, "Abgelehnt und erledigt sehen verschieden aus: \(first)")
+        verify(first.contains("Einkauf.txt") && first != done.lines.first?.text, "Fehlgeschlagen und erledigt sehen verschieden aus: \(first)")
         try? await Task.sleep(for: .milliseconds(900))
         verify(capture(shell.panel, to: directory.appendingPathComponent("pireceipt.png")), "Bild pireceipt.png")
         let heading = failures == 0 ? "PASS: pireceipt" : "FAIL: pireceipt (\(failures))"

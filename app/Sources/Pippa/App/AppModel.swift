@@ -150,17 +150,11 @@ final class AppModel: ObservableObject {
         conversationChanges = conversations.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark(); self?.schedulePendingDrops() }
         }
-        // Guard questions come as a card in the conversation; with only the pill showing, the conversation opens.
-        PiRPCChat.approvalPresenter = { [weak self] request in await self?.conversations.awaitGuardAsk(request) }
         conversations.onAnswerFinished = { [weak self] failed in
             guard let self, !self.isExpanded else { return }
             self.pillOutcome = failed ? .failed : .answered
             self.shell?.pulseMark()
             if !failed { Self.tap() }
-        }
-        conversations.onNeedsPerson = { [weak self] in
-            guard let self, !self.isExpanded else { return }
-            self.openConversationFromPill()
         }
         tray.model = self
         trayChanges = tray.objectWillChange.sink { [weak self] _ in
@@ -1342,7 +1336,7 @@ final class AppModel: ObservableObject {
     }
 
     /// Invoices as a table: Pi reads them and writes `Rechnungen.csv` next to them (skill `rechnung-auslesen`, Pi's
-    /// `write` with the guard's undo copy). Nothing goes through a fixed JSON flow any more.
+    /// `write`). Nothing goes through a fixed JSON flow any more.
     func startInvoices() {
         guard let ctx = context, !ctx.items.isEmpty else { return askForContext() }
         guard let skill = PippaSkill.bundled.first(where: { $0.name == "rechnung-auslesen" }) else { return }

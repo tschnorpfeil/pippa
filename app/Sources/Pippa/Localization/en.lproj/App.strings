@@ -255,6 +255,6 @@
 "Found so far (%lld):" = "Found so far (%lld):";
 "The search returned no file locations before it stopped. Files may still exist." = "The search returned no file locations before it stopped. Files may still exist.";
 "More file locations were found; only the first 200 are shown." = "More file locations were found; only the first 200 are shown.";
-
-/* Guard card (GuardAskCard.swift): switch instead of a third button. */
-"Don’t ask again for this task" = "Don’t ask again for this task";
+"Your ChatGPT sign-in has run out. Sign in again in Pippa’s settings, or switch back to the AI on this Mac." = "Your ChatGPT sign-in has run out. Sign in again in Pippa’s settings, or switch back to the AI on this Mac.";
+"Your ChatGPT subscription has reached its limit for now. Try again later, or switch back to the AI on this Mac." = "Your ChatGPT subscription has reached its limit for now. Try again later, or switch back to the AI on this Mac.";
+"Online · ChatGPT" = "Online · ChatGPT";

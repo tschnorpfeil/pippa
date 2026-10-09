@@ -46,8 +46,6 @@ struct ConversationWorkspace: View {
                             if !chat.streamingText.isEmpty { AssistantAnswerView(text: chat.streamingText) }
                             // Real phases only; steps aside while answer text streams, returns for a tool after text.
                             ThoughtLineView(thought: chat.thought).id("thought")
-                            if let ask = chat.webAsk { WebAccessCard(ask: ask) { chat.answerWebAsk(ask.id, approved: $0) }.id("web-ask") }
-                            if let ask = chat.guardAsk { GuardAskCard(ask: ask) { chat.answerGuardAsk(ask.id, $0) }.id("guard-ask") }
                         }
                         ForEach(chat.queued) { entry in queuedView(entry) }
                         if !showsCard { card }
@@ -78,8 +76,6 @@ struct ConversationWorkspace: View {
                     follow(reader)
                 }
                 .onChange(of: chat.streamingText) { _, _ in follow(reader) }
-                .onChange(of: chat.webAsk?.id) { _, _ in follow(reader) }
-                .onChange(of: chat.guardAsk?.id) { _, _ in follow(reader) }
                 .onChange(of: chat.queued.count) { _, _ in follow(reader) }
                 // Opening the receipt of the latest answer keeps its details in view.
                 .onChange(of: chat.expandedReceipts) { _, _ in follow(reader) }
@@ -515,8 +511,7 @@ struct ConversationWorkspace: View {
                         .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
                 }
                 if let actions = message.actions {
-                    ActionReceiptView(receipt: actions, onUndo: { chat.undoAction($0) }, onUndoAll: { chat.undoAll(actions) },
-                                      undoDisabled: chat.isRunning || chat.isUndoing,
+                    ActionReceiptView(receipt: actions, disabled: chat.isRunning,
                                       onOpenMailDraft: { chat.openMailDraft() }, onSaveMailOffer: { chat.saveMailOffer(messageID: message.id) },
                                       onCopyMailOffer: { chat.copyMailOffer(messageID: message.id) })
                 }
