@@ -74,7 +74,7 @@ Gebaut wird auf dem Mac erst nach der Abnahme der Web-Recherche (Owner 09.10.). 
 | 4 | Ergebnis-Karte mit Beleg (Phase 4) | offen |
 | 5 | Freigabe mit zwei Knöpfen (2.4) | offen, Owner-Frage im Fixplan |
 | 6 | Ergebnis als Ding ziehen | offen, klein |
-| 7 | Hilfe beim Kopieren | offen, Owner-Entscheidung nötig |
+| 7 | Hilfe beim Kopieren | offen; Owner 09.10.: beim ersten Mal fragen, danach in den Einstellungen abschaltbar |
 | 8 | Sprechblase und Haptik für drei Momente | offen, klein; Gochi Hand liegt in `site/fonts` |
 | – | Leerer Zustand: Beispiele als Karten mit Symbol (5.2) | **Entwurf in diesem Branch** |
 
@@ -102,7 +102,6 @@ große Schrift.
 ## Offene Entscheidungen
 
 - **Ergebnis in der Pille:** bleibt stehen, bis angesehen (so umgesetzt), oder nach 10 Minuten zurück zu „Pippa“?
-- **Hilfe beim Kopieren:** beim ersten Mal fragen, danach abschaltbar (Vorschlag), oder gar nicht?
 - **Guard-Frage bei geschlossenem Fenster:** Heute öffnet sich das Gespräch dafür von selbst (`onNeedsPerson`).
   Regel 3 spräche für „Kurz eine Frage“ in der Pille und Warten. Nicht geändert, weil Pi solange blockiert ist;
   nach dem ersten echten Test entscheiden.
