@@ -171,14 +171,14 @@
   "id": "weather",
   "prompt": "Wie wird das Wetter morgen in Berlin?",
   "tools": [
-   "mcp__pippa__web_search"
+   "web_search"
   ]
  },
  {
   "id": "website",
   "prompt": "Lies https://example.invalid/info und fasse die Seite zusammen.",
   "tools": [
-   "mcp__pippa__read_web_page"
+   "fetch_content"
   ]
  },
  {

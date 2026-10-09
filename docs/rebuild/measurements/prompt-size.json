@@ -1,0 +1,24 @@
+{
+  "measurement": "First request Pi 1.1.0 sends (openai-completions), captured from a fake server with the question Hallo. Tokens with the Qwen3 tokenizer (@lenml/tokenizer-qwen3), system text and each tool declaration as JSON; chat-template wrapping not counted.",
+  "pi": {
+    "setup": "pi --mode rpc, default prompt, default tools read/bash/edit/write",
+    "system": { "total": 805, "preamble": 33, "tools": 76, "rules": 178, "docs": 455, "cwd": 63 },
+    "toolDeclarations": 603,
+    "total": 1408
+  },
+  "pippaBefore": {
+    "setup": "PippaPiLaunch arguments on main 05d684a, German prompt, 20 tools",
+    "system": { "total": 686, "prompt": 446, "skills": 176, "cwd": 64 },
+    "toolDeclarations": 2786,
+    "webToolDeclarations": { "web_search": 591, "fetch_content": 534, "get_search_content": 354 },
+    "total": 3472
+  },
+  "pippaAfter": {
+    "setup": "same, runtime/pippa-web leanDeclarations",
+    "system": { "total": 686, "prompt": 446, "skills": 176, "cwd": 64 },
+    "toolDeclarations": 1540,
+    "webToolDeclarations": { "web_search": 92, "fetch_content": 55, "get_search_content": 86 },
+    "total": 2226
+  },
+  "note": "cwd counts a long test path; on the Mac it is shorter. MCP declarations hand-copied from the Swift toolList (9 tools)."
+}

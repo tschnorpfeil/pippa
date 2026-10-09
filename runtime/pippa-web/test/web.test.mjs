@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const { SETTINGS, repairQueries, writeSettings } = await import("../index.ts");
+const { DECLARATIONS, SETTINGS, leanDeclarations, repairQueries, writeSettings } = await import("../index.ts");
 const here = fileURLToPath(new URL(".", import.meta.url));
 const extension = join(here, "..", "index.ts");
 
@@ -41,6 +41,23 @@ test("a broken queries string from a small model is repaired or blocked (pi-web-
 	assert.equal(repairQueries(input).input, input, "well-formed input stays as it is");
 });
 
+test("the model sees short web declarations; other tools, other payloads and a second pass stay as they are", () => {
+	const long = { type: "object", properties: { query: { type: "string", description: "long" }, proxy: { type: "string" } } };
+	const other = { type: "function", function: { name: "read", description: "r", parameters: { type: "object", properties: {} } } };
+	const payload = { model: "m", tools: [{ type: "function", function: { name: "web_search", description: "long", parameters: long } }, other] };
+	const out = leanDeclarations(payload);
+	assert.equal(out.tools[0].function.description, DECLARATIONS.web_search.description);
+	assert.deepEqual(Object.keys(out.tools[0].function.parameters.properties), ["query", "queries", "recencyFilter"]);
+	assert.equal(out.tools[1], other, "other tools unchanged");
+	assert.equal(payload.tools[0].function.parameters, long, "input not mutated");
+	assert.equal(leanDeclarations(out), undefined, "already short: nothing to change");
+	const responses = leanDeclarations({ tools: [{ type: "function", name: "fetch_content", description: "long", parameters: long }] });
+	assert.equal(responses.tools[0].parameters, DECLARATIONS.fetch_content.parameters);
+	const anthropic = leanDeclarations({ tools: [{ name: "get_search_content", description: "long", input_schema: long }] });
+	assert.equal(anthropic.tools[0].input_schema, DECLARATIONS.get_search_content.parameters);
+	assert.equal(leanDeclarations({ messages: [] }), undefined);
+});
+
 /** Starts the real Pi with index.ts and a probe extension that reports what Pi sees at session start. */
 async function realPi() {
 	const home = mkdtempSync(join(tmpdir(), "pippa-web-home-"));
@@ -50,6 +67,7 @@ async function realPi() {
 export default function (pi: any) {
 	pi.on("session_start", () => writeFileSync(${JSON.stringify(out)}, JSON.stringify({
 		tools: pi.getAllTools().map((tool: any) => tool.name),
+		schemas: Object.fromEntries(pi.getAllTools().map((tool: any) => [tool.name, tool.parameters])),
 		xdg: process.env.XDG_CONFIG_HOME ?? null,
 	})));
 	pi.on("tool_call", () => {});
@@ -82,4 +100,20 @@ test("the real Pi loads it: only search, read page and stored content; settings 
 	assert.equal(probe.xdg, null, "bash commands must not inherit Pippa's config folder");
 	assert.ok(existsSync(join(home, "pippa-web", "pi", "web-search.json")));
 	assert.ok(!existsSync(join(home, ".pi", "agent", "web-search.json")), "the person's Pi settings stay untouched");
+});
+
+test("every short declaration is a part of what pi-web-access really accepts", async () => {
+	const { probe } = await realPi();
+	for (const [name, lean] of Object.entries(DECLARATIONS)) {
+		const real = probe.schemas[name];
+		assert.ok(real, `${name} is registered`);
+		for (const [key, property] of Object.entries(lean.parameters.properties)) {
+			const accepted = real.properties[key];
+			assert.ok(accepted, `${name}.${key} exists in pi-web-access`);
+			const types = [accepted, ...(accepted.anyOf ?? [])].map((x) => x.type);
+			assert.ok(types.includes(property.type), `${name}.${key}: ${property.type}`);
+			for (const value of property.enum ?? []) assert.ok(accepted.enum.includes(value), `${name}.${key}: ${value}`);
+		}
+		assert.deepEqual(lean.parameters.required ?? [], real.required ?? [], `${name}: same required parameters`);
+	}
 });
