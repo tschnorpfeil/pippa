@@ -40,8 +40,8 @@ shortest thinking the template offers) for speed, and llama.cpp puts the thought
 writes the pin from Hugging Face; `scripts/check-default-models.py` (called by `scripts/build-app.sh`) and the PippaChecks
 check "Default model is pinned" fail while one is missing. An unpinned table model also makes setup fail on that Mac.
 
-**Pippa's knowledge (24 GB and up).** One picker in Settings: "Standard (fast, 5.6 GB)" / "More thorough (13.7 GB)",
-German "Standard (schnell, 5,6 GB)" / "Gründlicher (13,7 GB)". The size in the label is the consent: choosing a
+**Pippa's knowledge (24 GB and up).** One picker in Settings: "Standard (fast, 5.7 GB)" / "More thorough (13.7 GB)",
+German "Standard (schnell, 5,7 GB)" / "Gründlicher (13,7 GB)". The size in the label is the consent: choosing a
 knowledge that is not on the Mac yet loads it right away with the usual progress, while the current one keeps answering
 (`PiSetupController.choose`, `PippaSettings.modelPreference`). "Cancel" stops the download and goes back to the previous
 choice. Switching to a knowledge that is already there is instant (models.json names it; Pi and llama-server follow on
@@ -54,10 +54,10 @@ measurements (`PIPPA_PI_MODEL`, PippaLive, probes) and for the model already wri
 **Migration.** `settings.json` files with `modelOverride`, `automaticChosen` or `piModel` still load; those keys are
 ignored and disappear the next time Pippa writes the file. Everyone gets the model from the table.
 
-**When the table changes (e.g. Gemma 4 12B → K2 Horizon 7B in 1.0).** A working setup keeps working: if the table's model
+**When the table changes (e.g. K2 Horizon 7B → Qwen3.5 9B).** A working setup keeps working: if the table's model
 is missing but the model in Pi's `models.json` (`pippa-local`) is a pinned catalog model, verified in the model folder,
 setup is ready with that one (`PiSetupFlow.fallback`) and offers the new one in Settings and in the menu bar ("Load
-Pippa's Knowledge Now (5.6 GB)"). After the download, `models.json` and the terminal launch file name the new model;
+Pippa's Knowledge Now (5.7 GB)"). After the download, `models.json` and the terminal launch file name the new model;
 the old file stays on disk. If that model is
 missing, the normal single download question appears, unless the model already sits in LM Studio, Ollama, Hugging
 Face and so on (then it is adopted without a download, as before). No code path deletes model files: an earlier choice

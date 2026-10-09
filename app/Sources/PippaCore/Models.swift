@@ -75,7 +75,7 @@ public struct ModelChoice: Sendable, Hashable {
 /// The one model setting in Pippa's settings ("Pippas Wissen"), only on Macs with 24 GB or more
 /// (`ModelSelector.offersThorough`). Plain words in the UI, never model names or quantizations.
 public enum ModelPreference: String, Codable, Sendable, CaseIterable {
-    /// The table's default (K2 Horizon 7B from 16 GB on).
+    /// The table's default (Qwen3.5 9B from 16 GB on).
     case standard
     /// The larger model (Qwen3.6 35B-A3B IQ3), 24 GB and up.
     case thorough
