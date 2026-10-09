@@ -22,10 +22,16 @@ One table, `ModelSelector.table(tier:preference:)` in `app/Sources/PippaCore/Mod
 | Memory | Standard | More thorough (Settings) | Context |
 |---|---|---|---|
 | 8 GB | Qwen3.5 4B Q4 | – | 16K |
-| 16 GB | K2 Horizon 7B Q4_K_M | – | 16K |
-| 24 GB and up | K2 Horizon 7B Q4_K_M | Qwen3.6 35B-A3B IQ3 | 32K |
+| 16 GB | Qwen3.5 9B Q4_K_M | – | 16K |
+| 24 GB and up | Qwen3.5 9B Q4_K_M | Qwen3.6 35B-A3B IQ3 | 32K |
 
-K2 Horizon 7B (8.5 GiB) does not fit the 8 GB budget (4.8 GiB, `ModelSelector.budgetGiB`). It needs llama.cpp b11503 or
+Qwen3.5 9B replaced K2 Horizon 7B as the standard after a side-by-side test with Pi (same prompt, skills, guard and
+server; 30 agentic dialogues per model, file search, tool choice, latency): 17 vs. 16 tasks fully done, 2 vs. 8 runs
+with invented facts, no loop vs. one, median 28 s vs. 48 s per task, German rated better blind
+(`docs/rebuild/measurements/model-compare/`). One model family for all three rows
+means one template and one tool-call parser. K2 stays in the catalog for measurements (`PIPPA_PI_MODEL`).
+
+Qwen3.5 9B (7 GiB) and K2 Horizon 7B (8.5 GiB) do not fit the 8 GB budget (4.8 GiB, `ModelSelector.budgetGiB`). K2 needs llama.cpp b11503 or
 later (K2 support, PR #29535). Its template always opens a thinking block and has no `enable_thinking`, so
 `--reasoning off` cannot switch thinking off; the catalog passes `reasoning_effort: "low"` (`<ifm|think_faster>`, the
 shortest thinking the template offers) for speed, and llama.cpp puts the thoughts into `reasoning_content`, not the answer.

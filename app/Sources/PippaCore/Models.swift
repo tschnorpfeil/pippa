@@ -106,8 +106,9 @@ public enum ModelSelector {
     }
 
     /// The one table of which model a Mac gets (docs/settings-simplification.md). A change is one line here.
-    /// - 8 GB → Qwen3.5 4B (K2 Horizon 7B needs 8.5 GiB, the 8 GB budget is 4.8 GiB).
-    /// - 16 GB and up → K2 Horizon 7B (5.6 GB download): the default for every Mac that fits it.
+    /// - 8 GB → Qwen3.5 4B (the 9B needs 7 GiB, the 8 GB budget is 4.8 GiB).
+    /// - 16 GB and up → Qwen3.5 9B (5.7 GB download): the default for every Mac that fits it. It replaced K2 Horizon 7B
+    ///   after a side-by-side test with Pi (docs/rebuild/measurements/model-compare): as reliable, fewer invented facts, ~40 % faster.
     /// - 24 GB and up, "Gründlicher" in settings → Qwen3.6 35B-A3B IQ3 (13.7 GB download, 14.5 GiB of an 18 GiB budget).
     ///   Not the default: the download is too large for first launch.
     /// `preference` counts only where `offersThorough` holds; below, `.thorough` falls back to the standard row.
@@ -116,9 +117,9 @@ public enum ModelSelector {
         // table:begin
         switch (tier, preference) {
         case (8, _): ("qwen3.5-4b-q4", 16384, [:])
-        case (16, _): ("k2-horizon-7b", 16384, ["ctx-checkpoints": "4", "cache-ram": "0"])
+        case (16, _): ("qwen3.5-9b-q4", 16384, ["ctx-checkpoints": "4", "cache-ram": "0"])
         case (_, .thorough): ("qwen3.6-35b-a3b-iq3", 32768, [:])
-        default: ("k2-horizon-7b", 32768, [:])
+        default: ("qwen3.5-9b-q4", 32768, [:])
         }
         // table:end
     }
