@@ -167,3 +167,16 @@
 "Normal" = "Normal";
 "Large" = "Large";
 "Extra large" = "Extra large";
+"Use ChatGPT for conversations?" = "Use ChatGPT for conversations?";
+"Use ChatGPT" = "Use ChatGPT";
+"Your conversation and everything Pippa reads for it will be sent to OpenAI. You can switch back to the AI on this Mac at any time." = "Your conversation and everything Pippa reads for it will be sent to OpenAI. You can switch back to the AI on this Mac at any time.";
+"ChatGPT (your subscription)" = "ChatGPT (your subscription)";
+"Sign in with ChatGPT" = "Sign in with ChatGPT";
+"Sign in in your browser. Pippa waits here." = "Sign in in your browser. Pippa waits here.";
+"Sign Out" = "Sign Out";
+"On · conversations go to OpenAI (%@)." = "On · conversations go to OpenAI (%@).";
+"Signed in. Off: Pippa uses the AI on this Mac." = "Signed in. Off: Pippa uses the AI on this Mac.";
+"Uses your ChatGPT subscription instead of the AI on this Mac. You sign in in your browser." = "Uses your ChatGPT subscription instead of the AI on this Mac. You sign in in your browser.";
+"This sign-in isn’t a ChatGPT subscription." = "This sign-in isn’t a ChatGPT subscription.";
+"Another sign-in is still open. Close it and try again." = "Another sign-in is still open. Close it and try again.";
+"The sign-in didn’t work just now. Please try again." = "The sign-in didn’t work just now. Please try again.";

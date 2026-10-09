@@ -53,10 +53,16 @@ final class PiRPCChat {
     enum Failure: LocalizedError {
         case setup(String)
         case model(String)
+        /// ChatGPT subscription (PiSubscriptionAuth): signed out or expired, or the subscription's limit is reached.
+        case subscription(PiSubscriptionAuth.Problem)
         var errorDescription: String? {
             switch self {
             case .setup: T("I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”.", table: "App")
             case .model: T("The answer didn’t come through just now. Please try again in a moment.", table: "App")
+            case .subscription(.signedOut):
+                T("Your ChatGPT sign-in has run out. Sign in again in Pippa’s settings, or switch back to the AI on this Mac.", table: "App")
+            case .subscription(.limit):
+                T("Your ChatGPT subscription has reached its limit for now. Try again later, or switch back to the AI on this Mac.", table: "App")
             }
         }
         /// For the log only (DiagnosticsLog), never in the UI; own technical texts, no content.
@@ -64,6 +70,7 @@ final class PiRPCChat {
             switch self {
             case .setup(let what): "setup: " + what
             case .model: "model"   // Pi's error text may contain content: not into the log
+            case .subscription(let problem): "subscription: " + problem.rawValue
             }
         }
     }
@@ -141,6 +148,7 @@ final class PiRPCChat {
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         var launcher = try await Self.launcher(env)
         if let online = route.online { launcher.piArguments = PiOnlineProvider.launchArguments(online.connection) }
+        if let model = route.subscriptionModel { launcher.piArguments = ["--provider", PiSubscriptionAuth.provider, "--model", model] }
         // Existing session: Pi starts in its working directory, otherwise it would not find the id (see above).
         let cwd = PiSessionFiles.pinnedWorkingDirectory(id: PippaPiLaunch.piSessionID(key), in: Self.sessionDirectory)
             ?? work
@@ -161,6 +169,8 @@ final class PiRPCChat {
     struct LaunchRoute {
         var key: String
         var online: (connection: ModelConnection, key: String)?
+        /// ChatGPT subscription through Pi's own sign-in: `--provider openai --model <id>`, nothing written anywhere.
+        var subscriptionModel: String? = nil
     }
 
     /// If an own online service is connected and on, Pi works with `pippa-online` (Pi's own provider, straight to the
@@ -169,6 +179,10 @@ final class PiRPCChat {
     private func launchRoute(_ env: [String: String]) async throws -> LaunchRoute {
         let target = try Self.installTarget(env)
         let modelsJSON = target.agent.appendingPathComponent("models.json")
+        if let model = Self.subscriptionModel {
+            _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
+            return LaunchRoute(key: "chatgpt|" + model, online: nil, subscriptionModel: model)
+        }
         guard let connection = Self.onlineConnection else {
             _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
             return LaunchRoute(key: "local|" + target.model, online: nil)
@@ -178,6 +192,11 @@ final class PiRPCChat {
         let routeKey = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
                         connection.modelID, String(connection.contextWindow), String(key.hashValue)].joined(separator: "|")
         return LaunchRoute(key: routeKey, online: (connection, key))
+    }
+
+    /// The ChatGPT model when the person switched the subscription on (`nil`: not on).
+    static var subscriptionModel: String? {
+        InferenceSettings.load(from: AppModel.inferenceSettingsDirectory).subscriptionModel
     }
 
     /// The enabled own service according to the saved settings (`nil`: Pippa works on this Mac).
@@ -445,7 +464,13 @@ final class PiRPCChat {
             throw AnswerFailure.stopped(partial: segment.trimmingCharacters(in: .whitespacesAndNewlines) + (segment.isEmpty ? "" : "\n\n") + loopStop)
         }
         if lastStop == "aborted" { throw AnswerFailure.stopped(partial: segment) }
-        if lastStop == "error" { throw Failure.model(lastError ?? "unbekannt") }
+        if lastStop == "error" {
+            // Through the subscription: say what is wrong (sign-in, limit); never switch to another service by itself.
+            if launchKey?.hasPrefix("chatgpt|") == true, let problem = PiSubscriptionAuth.problem(in: lastError ?? "") {
+                throw Failure.subscription(problem)
+            }
+            throw Failure.model(lastError ?? "unbekannt")
+        }
         return segment.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
