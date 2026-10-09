@@ -47,8 +47,15 @@ func runOCRChecks() async {
     check("OCR: accurate recognition reads amount, date and umlaut (default path, also macOS 15)") {
         guard let image else { return false }
         let page = DocumentOCR.recognize(image, engine: .accurate)
-        print("    recognized (\(page.engine)): \(page.text.replacingOccurrences(of: "\n", with: " | "))")
-        return page.engine == .accurate && page.text.contains("23,45") && page.text.contains("06.11.2026") && page.text.contains("Fällig")
+        return page.engine == .accurate && ocrContains(page.text, ["23,45", "06.11.2026", "Fällig"])
+    }
+    check("OCR check tolerance: strict on a real Mac; on the CI VM only a space before a dot and missing umlauts") {
+        let ci = ["GITHUB_ACTIONS": "true"]
+        return ocrContains("Fällig 06.11.2026", ["Fällig", "06.11.2026"], environment: [:])
+            && !ocrContains("Fallig 06.11 .2026", ["Fällig", "06.11.2026"], environment: [:])
+            && ocrContains("Fallig 06.11 .2026", ["Fällig", "06.11.2026"], environment: ci)
+            && !ocrContains("Fallig 06.12.2026", ["Fällig", "06.11.2026"], environment: ci)
+            && !ocrContains("Summe 23 45", ["23,45"], environment: ci)
     }
     check("OCR: document recognition from macOS 26, else fallback to the classic one, same words") {
         guard let image else { return false }
@@ -117,3 +124,24 @@ func runOCRChecks() async {
         }
     }
 }
+
+/// Recognized text contains every expected word. Strict on a real Mac. On GitHub's virtual Macs (no Apple Neural Engine
+/// scaler, "IOServiceMatching failed for AppleM2ScalerParavirtDriver") Vision reads the same image slightly differently
+/// since the runner update of 9 Oct 2026, measured on unchanged main: "06.11 .2026" and "Fallig". There, and only there, a
+/// space before a dot and missing diacritics are tolerated; digits and words must still be there. The text is printed
+/// when it does not match, so a real regression stays visible.
+func ocrContains(_ text: String, _ expected: [String], environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+    if expected.allSatisfy(text.contains) { return true }
+    guard environment["GITHUB_ACTIONS"] == "true" else {
+        print("    recognized: \(text.replacingOccurrences(of: "\n", with: " | "))")
+        return false
+    }
+    func loose(_ s: String) -> String {
+        s.replacingOccurrences(of: #"\s+\."#, with: ".", options: .regularExpression)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+    }
+    let ok = expected.allSatisfy { loose(text).contains(loose($0)) }
+    print("    recognized on the virtual CI Mac (\(ok ? "accepted with its known quirks" : "does not match")): \(text.replacingOccurrences(of: "\n", with: " | "))")
+    return ok
+}
+
