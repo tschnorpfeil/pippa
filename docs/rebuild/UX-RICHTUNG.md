@@ -88,7 +88,7 @@ Fixplan Phase 1: in diesem Branch 1.1 (Grund sichtbar, „Problem melden“ hint
   „Kurz eine Frage“, „Deine Antwort ist da“, „Hat nicht geklappt“. Dateinamen ohne Endung, ab 22 Zeichen mit „…“.
   Pis eigene Schritte („Suche in deinen Dokumenten nach …“) ab 34 Zeichen gekürzt.
 - `AppModel.pillOutcome`: Endet eine Antwort, während nur die Pille zu sehen ist, bleibt „Deine Antwort ist da“
-  (grün, Häkchen, Figur lächelt) oder „Hat nicht geklappt“ (bernstein, Ausrufezeichen, Figur traurig) stehen, bis das
+  (grün, Häkchen, Figur lächelt) oder „Hat nicht geklappt“ (rot wie das Gesicht der Figur, Ausrufezeichen, Figur traurig) stehen, bis das
   Gespräch geöffnet wird. Ein Klick öffnet dann immer das ganze Gespräch, nicht die kompakte Form.
 - `PillContent`: Ton als leichte Tönung, Rand und Zeichen, nie nur Farbe. Balken nur bei Zählbarem. Schimmer nur beim
   Arbeiten, aus bei „Bewegung reduzieren“.
@@ -109,7 +109,8 @@ große Schrift.
 
 Offen:
 
-
+- **Fehler im offenen Gespräch:** Dort steht nur eine leise ⓘ-Zeile („Die Antwort ist gerade nicht durchgekommen …“)
+  ohne „Erneut versuchen“, während die Pille „Hat nicht geklappt“ sagt. Gefunden im Klicktest 09.10.
 - **Guard-Frage bei geschlossenem Fenster:** Heute öffnet sich das Gespräch dafür von selbst (`onNeedsPerson`).
   Regel 3 spräche für „Kurz eine Frage“ in der Pille und Warten. Nicht geändert, weil Pi solange blockiert ist;
   nach dem ersten echten Test entscheiden.

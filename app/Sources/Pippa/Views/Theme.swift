@@ -46,6 +46,9 @@ enum Theme {
     static let need = dynamic(light: hex(0x8A4600), dark: hex(0xFFB340))
     static let needTint = dynamic(light: hex(0xFF9F0A, 0.17), dark: hex(0xFF9F0A, 0.12))
     static let needDot = dynamic(light: hex(0xE08600), dark: hex(0xFFB340))
+    // Same red as the figure's sad face (MarkPalette.destructive), so face and sign match.
+    static let bad = dynamic(light: hex(0xC4001D), dark: hex(0xF89DA4))
+    static let badTint = dynamic(light: hex(0xC4001D, 0.10), dark: hex(0xF89DA4, 0.14))
     // Calm chat surfaces. Color marks interaction, not the whole work area.
     static let chatTint = dyn(hex(0xF7F8FB, 0.98), hex(0x191D25, 0.98))
     static let chatCard = dynamic(light: hex(0xFFFFFF), dark: hex(0x232833))

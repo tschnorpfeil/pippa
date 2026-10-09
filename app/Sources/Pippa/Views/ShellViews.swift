@@ -185,14 +185,14 @@ struct PillContent: View {
         switch status.tone {
         case .rest, .working, .needsYou: Theme.accent
         case .done: Theme.ok
-        case .failed: Theme.need
+        case .failed: Theme.bad
         }
     }
 
     private var wash: Color {
         switch status.tone {
         case .done: Theme.okTint
-        case .failed: Theme.needTint
+        case .failed: Theme.badTint
         default: Theme.accentTint
         }
     }
