@@ -94,6 +94,16 @@ public final class SearchIndex: @unchecked Sendable {
         }
     }
 
+    /// All sections in insertion order (for building a second, semantic index over the same sections).
+    public func passages() throws -> [Passage] {
+        try lock.withLock {
+            try db.query("SELECT rowid, text, file, page FROM passages ORDER BY rowid", []).compactMap { r in
+                guard let id = r[0].int, let text = r[1].string, let file = r[2].string else { return nil }
+                return Passage(id: Int(id), file: URL(fileURLWithPath: file), page: r[3].int.map { Int($0) }, text: text)
+            }
+        }
+    }
+
     public var count: Int {
         lock.withLock { Int((try? db.query("SELECT COUNT(*) FROM passages").first?.first?.int) ?? 0) }
     }

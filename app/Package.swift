@@ -27,6 +27,8 @@ let package = Package(
         .executableTarget(name: "PippaUpdateProbe", dependencies: [.product(name: "Sparkle", package: "Sparkle")]),
         // Development only: all flows against a real model (runs only with PIPPA_LIVE=1, see Sources/PippaLive).
         .executableTarget(name: "PippaLive", dependencies: ["PippaCore"]),
+        // Measurement only: FTS vs embedding vs hybrid on app/Fixtures/search-eval (scripts/search-eval.sh).
+        .executableTarget(name: "PippaSearchEval", dependencies: ["PippaCore"]),
         // Pi's RPC client (`pi --mode rpc`), used by the app and the probe programs.
         .target(name: "PiRPC"),
         // Probe: installer with a wrong HOME, llama-server, Pi via PiLaunchSpec.

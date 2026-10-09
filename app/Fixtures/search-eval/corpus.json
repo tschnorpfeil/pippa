@@ -1,0 +1,603 @@
+{
+ "note": "SYNTHETIC TEST MATERIAL for the hybrid search measurement (PippaSearchEval). Invented people, companies, numbers and addresses; no real documents.",
+ "documents": [
+  {
+   "name": "Mietvertrag Wohnung Lindenstrasse.txt",
+   "pages": [
+    "Mietvertrag über Wohnraum\nVermieterin: Hausverwaltung Musterbau GmbH, Beispielweg 3, 12345 Musterstadt\nMieter: Alex Testmann\nMietobjekt: Lindenstraße 12, 2. OG links, 3 Zimmer, ca. 74 m²\n\n§ 3 Miete\nDie monatliche Grundmiete beträgt 820,00 Euro. Hinzu kommt eine Vorauszahlung auf die Betriebskosten von 190,00 Euro monatlich. Die Miete ist bis zum dritten Werktag eines Monats im Voraus auf das Konto der Vermieterin zu zahlen.\n\n§ 5 Mietsicherheit\nDer Mieter leistet eine Sicherheit in Höhe von drei Nettokaltmieten, also 2.460,00 Euro. Die Sicherheit kann in drei gleichen monatlichen Teilzahlungen erbracht werden. Die Vermieterin legt den Betrag getrennt von ihrem Vermögen bei einem Kreditinstitut zu dem für Spareinlagen mit dreimonatiger Kündigungsfrist üblichen Zinssatz an.",
+    "§ 8 Kündigung\nDas Mietverhältnis kann vom Mieter mit einer Frist von drei Monaten zum Monatsende gekündigt werden. Die Kündigung muss schriftlich erfolgen. Für die Rechtzeitigkeit kommt es auf den Zugang des Schreibens bei der Vermieterin an.\n\n§ 11 Haustiere\nDie Haltung von Kleintieren wie Ziervögeln oder Zierfischen ist ohne Zustimmung erlaubt. Für Hunde und Katzen ist die vorherige Zustimmung der Vermieterin einzuholen, die nur aus wichtigem Grund verweigert werden darf.\n\n§ 14 Schönheitsreparaturen\nBeim Auszug ist die Wohnung besenrein zu übergeben. Dübellöcher sind fachgerecht zu verschließen."
+   ]
+  },
+  {
+   "name": "Nebenkostenabrechnung 2025.txt",
+   "pages": [
+    "Betriebskostenabrechnung für den Zeitraum 01.01.2025 bis 31.12.2025\nObjekt: Lindenstraße 12, Wohnung 2. OG links\nAbrechnungsnummer: BK-2025-0417\n\nGesamtkosten Ihrer Wohnung: 2.592,40 Euro\nGeleistete Vorauszahlungen: 2.280,00 Euro\nNachzahlung: 312,40 Euro\n\nDer Nachzahlungsbetrag ist innerhalb von 30 Tagen nach Zugang dieser Abrechnung zu überweisen. Einwendungen gegen die Abrechnung sind spätestens bis zum Ablauf des zwölften Monats nach Zugang mitzuteilen.\n\nKostenarten: Heizung und Warmwasser 1.204,10 Euro, Wasser und Abwasser 388,20 Euro, Müllabfuhr 214,00 Euro, Hauswart 296,50 Euro, Gebäudeversicherung 489,60 Euro."
+   ]
+  },
+  {
+   "name": "Steuerbescheid 2024 Finanzamt.txt",
+   "pages": [
+    "Finanzamt Musterstadt\nSteuernummer 123/456/78901\nBescheid für 2024 über Einkommensteuer und Solidaritätszuschlag\n\nDie Einkommensteuer wird festgesetzt auf 4.871,00 Euro. Abzüglich der einbehaltenen Lohnsteuer ergibt sich eine Erstattung von 643,00 Euro, die auf Ihr Konto überwiesen wird.\n\nRechtsbehelfsbelehrung\nDieser Bescheid kann mit dem Einspruch angefochten werden. Der Einspruch ist beim Finanzamt Musterstadt schriftlich einzureichen oder zur Niederschrift zu erklären. Die Frist für die Einlegung des Einspruchs beträgt einen Monat. Sie beginnt mit Ablauf des Tages, an dem Ihnen dieser Bescheid bekannt gegeben worden ist."
+   ]
+  },
+  {
+   "name": "Hausratversicherung Police.txt",
+   "pages": [
+    "Versicherungsschein Hausratversicherung\nVersicherungsnummer HR-88-2093-7\nVersicherungsnehmer: Alex Testmann\nVersicherungsort: Lindenstraße 12, Musterstadt\nVersicherungssumme: 48.000 Euro\nJahresbeitrag: 96,30 Euro\n\nVersicherte Gefahren: Brand, Blitzschlag, Explosion, Einbruchdiebstahl, Raub, Vandalismus nach einem Einbruch, Leitungswasser, Sturm und Hagel.\n\nFahrraddiebstahl ist bis 1.000 Euro mitversichert, wenn das Fahrrad mit einem eigenständigen Schloss gesichert war.\n\nIm Schadenfall ist der Schaden unverzüglich zu melden, spätestens innerhalb einer Woche. Bei Einbruch ist zusätzlich unverzüglich die Polizei zu verständigen und eine Liste der abhandengekommenen Sachen einzureichen."
+   ]
+  },
+  {
+   "name": "Zahnarzt Rechnung Maerz.txt",
+   "pages": [
+    "Zahnarztpraxis Dr. Beispiel\nRechnung Nr. ZA-2026-0312 vom 18.03.2026\nPatient: Alex Testmann\n\nProfessionelle Zahnreinigung 98,00 Euro\nFüllung Zahn 36, Kunststoff, zweiflächig 142,50 Euro\nRöntgenaufnahme 23,80 Euro\nGesamtbetrag: 264,30 Euro\n\nBitte überweisen Sie den Betrag bis zum 17.04.2026 unter Angabe der Rechnungsnummer. Die Kosten für die professionelle Zahnreinigung werden von gesetzlichen Krankenkassen in der Regel nicht übernommen."
+   ]
+  },
+  {
+   "name": "Stromvertrag Stadtwerke.txt",
+   "pages": [
+    "Stadtwerke Musterstadt – Ihr Stromliefervertrag\nKundennummer 7740021\nTarif: Musterstrom Öko 12\nArbeitspreis: 32,9 Cent pro kWh\nGrundpreis: 13,50 Euro pro Monat\nMonatlicher Abschlag: 68,00 Euro\n\nVertragslaufzeit: 12 Monate ab Lieferbeginn am 01.06.2025. Danach verlängert sich der Vertrag auf unbestimmte Zeit und kann jederzeit mit einer Frist von einem Monat gekündigt werden.\n\nPreisgarantie: Der Arbeitspreis ist bis zum 31.05.2026 garantiert, ausgenommen Steuern und Abgaben.\n\nZählernummer: 1ESY1160-4471"
+   ]
+  },
+  {
+   "name": "Arbeitsvertrag Beispiel AG.txt",
+   "pages": [
+    "Arbeitsvertrag zwischen der Beispiel AG und Alex Testmann\n\n§ 2 Tätigkeit\nDer Arbeitnehmer wird als Sachbearbeiter im Einkauf eingestellt.\n\n§ 4 Vergütung\nDas monatliche Bruttogehalt beträgt 3.850 Euro. Es wird jeweils zum Monatsende gezahlt. Zusätzlich wird im November ein Weihnachtsgeld in Höhe eines halben Monatsgehalts gezahlt.\n\n§ 5 Arbeitszeit\nDie regelmäßige wöchentliche Arbeitszeit beträgt 39 Stunden. Mobiles Arbeiten ist an bis zu zwei Tagen pro Woche nach Absprache möglich.",
+    "§ 7 Urlaub\nDer Arbeitnehmer hat Anspruch auf 30 Arbeitstage Erholungsurlaub im Kalenderjahr. Nicht genommener Urlaub verfällt am 31. März des Folgejahres, sofern er nicht aus betrieblichen Gründen übertragen wurde.\n\n§ 9 Probezeit und Kündigung\nDie ersten sechs Monate gelten als Probezeit. Während der Probezeit kann das Arbeitsverhältnis mit einer Frist von zwei Wochen gekündigt werden. Danach gelten die gesetzlichen Kündigungsfristen.\n\n§ 11 Krankheit\nEine Arbeitsunfähigkeit ist unverzüglich mitzuteilen. Ab dem dritten Kalendertag ist eine ärztliche Bescheinigung vorzulegen."
+   ]
+  },
+  {
+   "name": "Kfz Versicherung Mitteilung.txt",
+   "pages": [
+    "Ihre Kfz-Versicherung – Beitragsmitteilung 2026\nVertragsnummer KF-5521-0093\nFahrzeug: Kleinwagen, amtliches Kennzeichen MU-AT 482\n\nSchadenfreiheitsklasse Haftpflicht: SF 7\nSchadenfreiheitsklasse Vollkasko: SF 5\nNeuer Jahresbeitrag ab 01.01.2026: 612,40 Euro\n\nSie können den Vertrag zum Ende des Versicherungsjahres mit einer Frist von einem Monat kündigen. Wegen der Beitragserhöhung steht Ihnen zusätzlich ein Sonderkündigungsrecht innerhalb eines Monats nach Zugang dieser Mitteilung zu."
+   ]
+  },
+  {
+   "name": "Lease agreement Berlin apartment.txt",
+   "pages": [
+    "Residential lease agreement\nLandlord: Example Property Ltd.\nTenant: Sam Sample\nPremises: Flat 4, Example Street 9, Berlin\n\n1. Rent. The monthly rent is EUR 1,150, payable in advance on the first business day of each month.\n\n2. Deposit. The tenant shall pay a security deposit of EUR 3,450, equal to three months' rent. The deposit will be returned within six months after the end of the tenancy, less any justified claims.\n\n3. Notice. Either party may terminate this agreement by giving three months' written notice.\n\n4. Pets. Keeping a dog or cat requires the landlord's prior written consent."
+   ]
+  },
+  {
+   "name": "Laptop warranty card.txt",
+   "pages": [
+    "Warranty certificate\nProduct: Example Notebook 14, serial number EXN14-77310-QK\nDate of purchase: 2025-11-02\n\nThe manufacturer warrants this product against defects in materials and workmanship for a period of 24 months from the date of purchase. The warranty does not cover accidental damage, liquid damage or normal wear of the battery.\n\nTo make a claim, contact support with your serial number and proof of purchase. Repairs are carried out at an authorised service centre; shipping within the EU is free of charge."
+   ]
+  },
+  {
+   "name": "Flight booking confirmation.txt",
+   "pages": [
+    "Booking confirmation\nBooking reference: QX7P2L\nPassenger: Sam Sample\nFlight EX 4411, Berlin (BER) to Lisbon (LIS), 14 June 2026, departs 07:25, arrives 10:05 local time\nReturn flight EX 4412, Lisbon (LIS) to Berlin (BER), 21 June 2026, departs 18:40\n\nBaggage: one cabin bag up to 8 kg is included. Checked baggage was not booked and can be added online for a fee.\n\nCancellation: this fare is non-refundable. Taxes and fees can be reclaimed if the flight is not used."
+   ]
+  },
+  {
+   "name": "Kindergarten Elternbrief.txt",
+   "pages": [
+    "Kita Sonnenschein – Elternbrief Oktober\n\nLiebe Eltern,\nam Freitag, dem 23. Oktober, feiern wir unser Herbstfest von 15 bis 18 Uhr im Garten der Kita. Bitte bringen Sie, wenn möglich, einen Kuchen oder eine Salatschüssel für das Buffet mit.\n\nVom 21. bis 30. Dezember bleibt die Kita wegen der Weihnachtsferien geschlossen. Eine Notbetreuung ist nicht vorgesehen.\n\nDer Elternbeitrag für das Mittagessen erhöht sich ab Januar auf 4,20 Euro pro Tag."
+   ]
+  },
+  {
+   "name": "Fitnessstudio Vertrag.txt",
+   "pages": [
+    "Mitgliedsvertrag Studio Fitwerk\nMitgliedsnummer FW-30218\nBeitrag: 34,90 Euro monatlich, Lastschrift zum Monatsersten\nMindestlaufzeit: 12 Monate ab 01.02.2026\n\nNach Ablauf der Mindestlaufzeit verlängert sich die Mitgliedschaft auf unbestimmte Zeit und ist monatlich kündbar. Eine Kündigung ist in Textform, zum Beispiel per E-Mail, möglich.\n\nBei längerer Krankheit kann die Mitgliedschaft gegen Vorlage eines Attests ruhen; die Laufzeit verlängert sich entsprechend."
+   ]
+  },
+  {
+   "name": "Rezept Gemuesesuppe.txt",
+   "pages": [
+    "Gemüsesuppe für vier Personen\nZutaten: zwei Möhren, ein Stück Sellerie, eine Stange Lauch, drei Kartoffeln, eine Zwiebel, ein Liter Gemüsebrühe, Salz, Pfeffer, Petersilie.\n\nZubereitung: Gemüse schälen und würfeln, Zwiebel in etwas Öl glasig dünsten, das übrige Gemüse kurz mitdünsten und mit der Brühe ablöschen. Etwa 25 Minuten köcheln lassen, abschmecken und mit gehackter Petersilie servieren."
+   ]
+  },
+  {
+   "name": "Stellplatz Mietvertrag Tiefgarage.txt",
+   "pages": [
+    "Mietvertrag über einen Tiefgaragenstellplatz Nr. 17, Lindenstraße 12.\nDie monatliche Miete beträgt 65,00 Euro. Als Kaution sind 150,00 Euro zu hinterlegen.\nDer Vertrag kann von beiden Seiten mit einer Frist von einem Monat gekündigt werden. Das Abstellen von Anhängern ist nicht gestattet."
+   ]
+  },
+  {
+   "name": "Nebenkostenabrechnung 2024.txt",
+   "pages": [
+    "Betriebskostenabrechnung für den Zeitraum 01.01.2024 bis 31.12.2024\nObjekt: Lindenstraße 12\nAbrechnungsnummer: BK-2024-0388\nGesamtkosten Ihrer Wohnung: 2.140,90 Euro\nGeleistete Vorauszahlungen: 2.280,00 Euro\nGuthaben: 139,10 Euro\nDas Guthaben wird mit der nächsten Mietzahlung verrechnet."
+   ]
+  },
+  {
+   "name": "Steuerbescheid 2023 Finanzamt.txt",
+   "pages": [
+    "Finanzamt Musterstadt\nBescheid für 2023 über Einkommensteuer\nDie Einkommensteuer wird festgesetzt auf 4.402,00 Euro. Es ergibt sich eine Nachzahlung von 211,00 Euro, fällig am 15.08.2024.\nGegen diesen Bescheid wurde kein Einspruch eingelegt; er ist bestandskräftig."
+   ]
+  },
+  {
+   "name": "Haftpflichtversicherung Police.txt",
+   "pages": [
+    "Versicherungsschein Privathaftpflicht\nVersicherungsnummer PH-21-0071-3\nDeckungssumme: 10 Mio. Euro pauschal\nJahresbeitrag: 71,40 Euro\nMitversichert sind Schäden an gemieteten Wohnräumen sowie der Verlust fremder Schlüssel bis 20.000 Euro. Schäden am eigenen Eigentum, etwa am eigenen Fahrrad oder Laptop, sind nicht versichert."
+   ]
+  },
+  {
+   "name": "Augenarzt Rechnung.txt",
+   "pages": [
+    "Augenarztpraxis Dr. Muster\nRechnung Nr. AU-2026-0044 vom 02.02.2026\nVorsorgeuntersuchung Augeninnendruck 25,00 Euro\nGesamtbetrag: 25,00 Euro\nDie Messung des Augeninnendrucks ist eine Selbstzahlerleistung."
+   ]
+  },
+  {
+   "name": "Gasvertrag Stadtwerke.txt",
+   "pages": [
+    "Stadtwerke Musterstadt – Ihr Gasliefervertrag\nKundennummer 7740021\nArbeitspreis: 11,2 Cent pro kWh\nGrundpreis: 14,90 Euro pro Monat\nMonatlicher Abschlag: 95,00 Euro\nDer Vertrag kann mit einer Frist von einem Monat gekündigt werden."
+   ]
+  },
+  {
+   "name": "Handyvertrag.txt",
+   "pages": [
+    "Mobilfunkvertrag Tarif Smart 20\nRufnummer 0170 0000000 (Testnummer)\nMonatlicher Grundpreis: 19,99 Euro\nMindestvertragslaufzeit 24 Monate; danach monatlich kündbar. Die Kündigung ist auch online über das Kundenportal möglich."
+   ]
+  },
+  {
+   "name": "Bahnticket Buchung.txt",
+   "pages": [
+    "Ihre Fahrkarte\nAuftragsnummer 482910377\nMusterstadt Hbf nach Berlin Hbf, 12.06.2026, Abfahrt 06:12, Ankunft 10:48\nSparpreis, Zugbindung. Bei Verspätung über 60 Minuten erhalten Sie 25 Prozent des Fahrpreises zurück."
+   ]
+  },
+  {
+   "name": "Car rental voucher.txt",
+   "pages": [
+    "Rental voucher\nPick-up: Lisbon Airport, 14 June 2026, 11:00\nReturn: Lisbon Airport, 21 June 2026, 16:00\nThe deposit of EUR 900 is blocked on your credit card and released within 14 days after return. Accidental damage is covered with an excess of EUR 1,200."
+   ]
+  },
+  {
+   "name": "Schulbrief Klassenfahrt.txt",
+   "pages": [
+    "Grundschule am Park – Elternbrief\nDie Klassenfahrt der 4b findet vom 4. bis 6. Mai statt. Bitte bringen Sie bis zum 15. März 120 Euro Fahrtkosten mit. In den Osterferien vom 30. März bis 10. April bleibt die Schule geschlossen."
+   ]
+  },
+  {
+   "name": "Sportverein Satzung.txt",
+   "pages": [
+    "Satzung des TSV Musterstadt\n§ 6 Austritt\nDer Austritt aus dem Verein ist schriftlich gegenüber dem Vorstand zu erklären und nur zum Ende eines Kalenderjahres mit einer Frist von sechs Wochen möglich.\n§ 7 Beiträge\nDer Jahresbeitrag für Erwachsene beträgt 96 Euro."
+   ]
+  },
+  {
+   "name": "Arbeitszeugnis.txt",
+   "pages": [
+    "Zwischenzeugnis\nHerr Alex Testmann ist seit dem 01.04.2023 als Sachbearbeiter im Einkauf bei uns tätig. Er erledigt seine Aufgaben stets zu unserer vollsten Zufriedenheit. Sein Verhalten gegenüber Vorgesetzten und Kollegen ist stets einwandfrei."
+   ]
+  },
+  {
+   "name": "Rechnung Malerbetrieb.txt",
+   "pages": [
+    "Malerbetrieb Beispiel & Söhne\nRechnung Nr. R-2026-0100\nLeistung vom 01.01.2026\nArbeitszeit 2 Stunden à 48,00 Euro\nMaterial 12,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Elektro.txt",
+   "pages": [
+    "Elektro Beispiel & Söhne\nRechnung Nr. R-2026-0107\nLeistung vom 02.02.2026\nArbeitszeit 3 Stunden à 51,00 Euro\nMaterial 21,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Sanitär.txt",
+   "pages": [
+    "Sanitär Beispiel & Söhne\nRechnung Nr. R-2026-0114\nLeistung vom 03.03.2026\nArbeitszeit 4 Stunden à 54,00 Euro\nMaterial 30,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Gartenbau.txt",
+   "pages": [
+    "Gartenbau Beispiel & Söhne\nRechnung Nr. R-2026-0121\nLeistung vom 04.04.2026\nArbeitszeit 5 Stunden à 57,00 Euro\nMaterial 39,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Schlüsseldienst.txt",
+   "pages": [
+    "Schlüsseldienst Beispiel & Söhne\nRechnung Nr. R-2026-0128\nLeistung vom 05.05.2026\nArbeitszeit 6 Stunden à 60,00 Euro\nMaterial 48,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Umzugsfirma.txt",
+   "pages": [
+    "Umzugsfirma Beispiel & Söhne\nRechnung Nr. R-2026-0135\nLeistung vom 06.06.2026\nArbeitszeit 2 Stunden à 63,00 Euro\nMaterial 57,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Fahrradladen.txt",
+   "pages": [
+    "Fahrradladen Beispiel & Söhne\nRechnung Nr. R-2026-0142\nLeistung vom 07.07.2026\nArbeitszeit 3 Stunden à 66,00 Euro\nMaterial 66,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Optiker.txt",
+   "pages": [
+    "Optiker Beispiel & Söhne\nRechnung Nr. R-2026-0149\nLeistung vom 08.08.2026\nArbeitszeit 4 Stunden à 69,00 Euro\nMaterial 75,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Tierarzt.txt",
+   "pages": [
+    "Tierarzt Beispiel & Söhne\nRechnung Nr. R-2026-0156\nLeistung vom 09.09.2026\nArbeitszeit 5 Stunden à 72,00 Euro\nMaterial 84,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Rechnung Physiotherapie.txt",
+   "pages": [
+    "Physiotherapie Beispiel & Söhne\nRechnung Nr. R-2026-0163\nLeistung vom 10.01.2026\nArbeitszeit 6 Stunden à 75,00 Euro\nMaterial 93,50 Euro\nZahlbar innerhalb von 14 Tagen ohne Abzug. Bei Zahlungsverzug berechnen wir Verzugszinsen."
+   ]
+  },
+  {
+   "name": "Newsletter Bank.txt",
+   "pages": [
+    "Newsletter Bank\nSehr geehrte Kundin, sehr geehrter Kunde,\nwir informieren Sie über Änderungen ab dem 1. Januar 2026. Die Bedingungen und Preise finden Sie in der Anlage. Bei Fragen erreichen Sie uns werktags von 8 bis 18 Uhr. Eine Kündigung ist gemäß den Allgemeinen Geschäftsbedingungen möglich. Dieses Schreiben wurde maschinell erstellt und ist ohne Unterschrift gültig."
+   ]
+  },
+  {
+   "name": "Newsletter Krankenkasse.txt",
+   "pages": [
+    "Newsletter Krankenkasse\nSehr geehrte Kundin, sehr geehrter Kunde,\nwir informieren Sie über Änderungen ab dem 1. März 2026. Die Bedingungen und Preise finden Sie in der Anlage. Bei Fragen erreichen Sie uns werktags von 8 bis 18 Uhr. Eine Kündigung ist gemäß den Allgemeinen Geschäftsbedingungen möglich. Dieses Schreiben wurde maschinell erstellt und ist ohne Unterschrift gültig."
+   ]
+  },
+  {
+   "name": "Mitteilung Rundfunkbeitrag.txt",
+   "pages": [
+    "Mitteilung Rundfunkbeitrag\nSehr geehrte Kundin, sehr geehrter Kunde,\nwir informieren Sie über Änderungen ab dem 1. Juli 2026. Die Bedingungen und Preise finden Sie in der Anlage. Bei Fragen erreichen Sie uns werktags von 8 bis 18 Uhr. Eine Kündigung ist gemäß den Allgemeinen Geschäftsbedingungen möglich. Dieses Schreiben wurde maschinell erstellt und ist ohne Unterschrift gültig."
+   ]
+  },
+  {
+   "name": "Information Wasserversorger.txt",
+   "pages": [
+    "Information Wasserversorger\nSehr geehrte Kundin, sehr geehrter Kunde,\nwir informieren Sie über Änderungen ab dem 1. Oktober 2026. Die Bedingungen und Preise finden Sie in der Anlage. Bei Fragen erreichen Sie uns werktags von 8 bis 18 Uhr. Eine Kündigung ist gemäß den Allgemeinen Geschäftsbedingungen möglich. Dieses Schreiben wurde maschinell erstellt und ist ohne Unterschrift gültig."
+   ]
+  },
+  {
+   "name": "Hinweis Hausverwaltung Treppenhaus.txt",
+   "pages": [
+    "Hinweis Hausverwaltung Treppenhaus\nSehr geehrte Kundin, sehr geehrter Kunde,\nwir informieren Sie über Änderungen ab dem 1. Januar 2026. Die Bedingungen und Preise finden Sie in der Anlage. Bei Fragen erreichen Sie uns werktags von 8 bis 18 Uhr. Eine Kündigung ist gemäß den Allgemeinen Geschäftsbedingungen möglich. Dieses Schreiben wurde maschinell erstellt und ist ohne Unterschrift gültig."
+   ]
+  },
+  {
+   "name": "Rundschreiben Eigentümerversammlung.txt",
+   "pages": [
+    "Rundschreiben Eigentümerversammlung\nSehr geehrte Kundin, sehr geehrter Kunde,\nwir informieren Sie über Änderungen ab dem 1. März 2026. Die Bedingungen und Preise finden Sie in der Anlage. Bei Fragen erreichen Sie uns werktags von 8 bis 18 Uhr. Eine Kündigung ist gemäß den Allgemeinen Geschäftsbedingungen möglich. Dieses Schreiben wurde maschinell erstellt und ist ohne Unterschrift gültig."
+   ]
+  },
+  {
+   "name": "Schreiben Bürgeramt Personalausweis.txt",
+   "pages": [
+    "Schreiben Bürgeramt Personalausweis\nSehr geehrte Kundin, sehr geehrter Kunde,\nwir informieren Sie über Änderungen ab dem 1. Juli 2026. Die Bedingungen und Preise finden Sie in der Anlage. Bei Fragen erreichen Sie uns werktags von 8 bis 18 Uhr. Eine Kündigung ist gemäß den Allgemeinen Geschäftsbedingungen möglich. Dieses Schreiben wurde maschinell erstellt und ist ohne Unterschrift gültig."
+   ]
+  },
+  {
+   "name": "Info Müllabfuhr Termine.txt",
+   "pages": [
+    "Info Müllabfuhr Termine\nSehr geehrte Kundin, sehr geehrter Kunde,\nwir informieren Sie über Änderungen ab dem 1. Oktober 2026. Die Bedingungen und Preise finden Sie in der Anlage. Bei Fragen erreichen Sie uns werktags von 8 bis 18 Uhr. Eine Kündigung ist gemäß den Allgemeinen Geschäftsbedingungen möglich. Dieses Schreiben wurde maschinell erstellt und ist ohne Unterschrift gültig."
+   ]
+  },
+  {
+   "name": "Gym membership terms.txt",
+   "pages": [
+    "Gym membership terms\nThank you for your order. Your reference number is REF-5300. The total amount of EUR 20.00 will be charged to your card. You may cancel at any time with one month's notice in writing or online. Terms and conditions apply; see our website for details."
+   ]
+  },
+  {
+   "name": "Streaming subscription.txt",
+   "pages": [
+    "Streaming subscription\nThank you for your order. Your reference number is REF-5313. The total amount of EUR 37.00 will be charged to your card. You may cancel at any time with one month's notice in writing or online. Terms and conditions apply; see our website for details."
+   ]
+  },
+  {
+   "name": "Hotel reservation Porto.txt",
+   "pages": [
+    "Hotel reservation Porto\nThank you for your order. Your reference number is REF-5326. The total amount of EUR 54.00 will be charged to your card. You may cancel at any time with one month's notice in writing or online. Terms and conditions apply; see our website for details."
+   ]
+  },
+  {
+   "name": "Bike shop invoice.txt",
+   "pages": [
+    "Bike shop invoice\nThank you for your order. Your reference number is REF-5339. The total amount of EUR 71.00 will be charged to your card. You may cancel at any time with one month's notice in writing or online. Terms and conditions apply; see our website for details."
+   ]
+  },
+  {
+   "name": "Insurance newsletter.txt",
+   "pages": [
+    "Insurance newsletter\nThank you for your order. Your reference number is REF-5352. The total amount of EUR 88.00 will be charged to your card. You may cancel at any time with one month's notice in writing or online. Terms and conditions apply; see our website for details."
+   ]
+  },
+  {
+   "name": "Phone contract summary.txt",
+   "pages": [
+    "Phone contract summary\nThank you for your order. Your reference number is REF-5365. The total amount of EUR 105.00 will be charged to your card. You may cancel at any time with one month's notice in writing or online. Terms and conditions apply; see our website for details."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "q": "Wie hoch ist die Kaution für meine Wohnung?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Mietvertrag Wohnung Lindenstrasse.txt",
+     "contains": "2.460,00 Euro"
+    }
+   ]
+  },
+  {
+   "q": "Darf ich in der Wohnung einen Hund halten?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Mietvertrag Wohnung Lindenstrasse.txt",
+     "contains": "Für Hunde und Katzen"
+    }
+   ]
+  },
+  {
+   "q": "Wie lange vorher muss ich meine Wohnung kündigen?",
+   "kind": "keyword",
+   "expect": [
+    {
+     "doc": "Mietvertrag Wohnung Lindenstrasse.txt",
+     "contains": "drei Monaten zum Monatsende"
+    }
+   ]
+  },
+  {
+   "q": "Wie viel muss ich bei den Nebenkosten nachzahlen?",
+   "kind": "keyword",
+   "expect": [
+    {
+     "doc": "Nebenkostenabrechnung 2025.txt",
+     "contains": "312,40 Euro"
+    }
+   ]
+  },
+  {
+   "q": "BK-2025-0417",
+   "kind": "exact",
+   "expect": [
+    {
+     "doc": "Nebenkostenabrechnung 2025.txt",
+     "contains": "BK-2025-0417"
+    }
+   ]
+  },
+  {
+   "q": "Bis wann kann ich gegen den Steuerbescheid vorgehen?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Steuerbescheid 2024 Finanzamt.txt",
+     "contains": "beträgt einen Monat"
+    }
+   ]
+  },
+  {
+   "q": "Bekomme ich Geld vom Finanzamt zurück?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Steuerbescheid 2024 Finanzamt.txt",
+     "contains": "Erstattung von 643,00 Euro"
+    }
+   ]
+  },
+  {
+   "q": "123/456/78901",
+   "kind": "exact",
+   "expect": [
+    {
+     "doc": "Steuerbescheid 2024 Finanzamt.txt",
+     "contains": "123/456/78901"
+    }
+   ]
+  },
+  {
+   "q": "Ist mein Fahrrad versichert, wenn es geklaut wird?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Hausratversicherung Police.txt",
+     "contains": "Fahrraddiebstahl"
+    }
+   ]
+  },
+  {
+   "q": "Was muss ich nach einem Einbruch tun?",
+   "kind": "keyword",
+   "expect": [
+    {
+     "doc": "Hausratversicherung Police.txt",
+     "contains": "Polizei zu verständigen"
+    }
+   ]
+  },
+  {
+   "q": "Was hat die Zahnreinigung gekostet?",
+   "kind": "keyword",
+   "expect": [
+    {
+     "doc": "Zahnarzt Rechnung Maerz.txt",
+     "contains": "98,00 Euro"
+    }
+   ]
+  },
+  {
+   "q": "ZA-2026-0312",
+   "kind": "exact",
+   "expect": [
+    {
+     "doc": "Zahnarzt Rechnung Maerz.txt",
+     "contains": "ZA-2026-0312"
+    }
+   ]
+  },
+  {
+   "q": "Wie teuer ist eine Kilowattstunde Strom bei mir?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Stromvertrag Stadtwerke.txt",
+     "contains": "32,9 Cent pro kWh"
+    }
+   ]
+  },
+  {
+   "q": "1ESY1160-4471",
+   "kind": "exact",
+   "expect": [
+    {
+     "doc": "Stromvertrag Stadtwerke.txt",
+     "contains": "1ESY1160-4471"
+    }
+   ]
+  },
+  {
+   "q": "Wie viele freie Tage habe ich im Jahr?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Arbeitsvertrag Beispiel AG.txt",
+     "contains": "30 Arbeitstage Erholungsurlaub"
+    }
+   ]
+  },
+  {
+   "q": "Was verdiene ich brutto im Monat?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Arbeitsvertrag Beispiel AG.txt",
+     "contains": "3.850 Euro"
+    }
+   ]
+  },
+  {
+   "q": "Ab wann brauche ich eine Krankschreibung?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Arbeitsvertrag Beispiel AG.txt",
+     "contains": "ärztliche Bescheinigung"
+    }
+   ]
+  },
+  {
+   "q": "Kann ich die Autoversicherung wegen der Preiserhöhung kündigen?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Kfz Versicherung Mitteilung.txt",
+     "contains": "Sonderkündigungsrecht"
+    }
+   ]
+  },
+  {
+   "q": "MU-AT 482",
+   "kind": "exact",
+   "expect": [
+    {
+     "doc": "Kfz Versicherung Mitteilung.txt",
+     "contains": "MU-AT 482"
+    }
+   ]
+  },
+  {
+   "q": "How much is the deposit for the Berlin flat?",
+   "kind": "keyword",
+   "expect": [
+    {
+     "doc": "Lease agreement Berlin apartment.txt",
+     "contains": "EUR 3,450"
+    }
+   ]
+  },
+  {
+   "q": "When do I get my security deposit back?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Lease agreement Berlin apartment.txt",
+     "contains": "returned within six months"
+    }
+   ]
+  },
+  {
+   "q": "Does the warranty cover a broken laptop screen after I dropped it?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Laptop warranty card.txt",
+     "contains": "accidental damage"
+    }
+   ]
+  },
+  {
+   "q": "EXN14-77310-QK",
+   "kind": "exact",
+   "expect": [
+    {
+     "doc": "Laptop warranty card.txt",
+     "contains": "EXN14-77310-QK"
+    }
+   ]
+  },
+  {
+   "q": "What time does my plane to Portugal leave?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Flight booking confirmation.txt",
+     "contains": "departs 07:25"
+    }
+   ]
+  },
+  {
+   "q": "Wann ist die Kita über die Feiertage zu?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Kindergarten Elternbrief.txt",
+     "contains": "21. bis 30. Dezember"
+    }
+   ]
+  },
+  {
+   "q": "Was soll ich zum Herbstfest mitbringen?",
+   "kind": "keyword",
+   "expect": [
+    {
+     "doc": "Kindergarten Elternbrief.txt",
+     "contains": "Kuchen oder eine Salatschüssel"
+    }
+   ]
+  },
+  {
+   "q": "Kann ich das Fitnessstudio per Mail kündigen?",
+   "kind": "synonym",
+   "expect": [
+    {
+     "doc": "Fitnessstudio Vertrag.txt",
+     "contains": "per E-Mail"
+    }
+   ]
+  },
+  {
+   "q": "What is the notice period for my apartment?",
+   "kind": "crosslang",
+   "expect": [
+    {
+     "doc": "Mietvertrag Wohnung Lindenstrasse.txt",
+     "contains": "drei Monaten zum Monatsende"
+    },
+    {
+     "doc": "Lease agreement Berlin apartment.txt",
+     "contains": "three months' written notice"
+    }
+   ]
+  },
+  {
+   "q": "Wie hoch ist meine Rente laut Rentenbescheid?",
+   "kind": "none",
+   "expect": []
+  },
+  {
+   "q": "Welche PIN hat meine Bankkarte?",
+   "kind": "none",
+   "expect": []
+  }
+ ]
+}
