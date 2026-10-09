@@ -8,12 +8,14 @@
 //    task id, or a touched lock file (the app and the extension touch it per request) counts as use. After
 //    `idleSeconds` without use it stops the server (SIGTERM, then SIGKILL) and removes the lock.
 // 4. Server gone for any reason: remove the lock (only if it is still ours) and exit.
+// 5. Started from Pippa's own Pi (`PIPPA_APP_PID`, set by the app for its Pi): the model restarted mid-answer after a
+//    crash. The app adopts it, but it must not outlive the app: once that process is gone, stop the server.
 //
 // Test knobs: PIPPA_LLAMA_POLL_MS (default 5000), PIPPA_LLAMA_IDLE_SECONDS (overrides the config).
 import { spawn } from "node:child_process";
 import { mkdirSync, openSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
-import { createLock, health, loadConfig, lockTouchedAt, readKey, removeLockIf, slots, sleep, writeLock } from "./common.mjs";
+import { createLock, health, isAlive, loadConfig, lockTouchedAt, readKey, removeLockIf, slots, sleep, writeLock } from "./common.mjs";
 
 const [configFile, lockFile] = process.argv.slice(2);
 if (!configFile || !lockFile) {
@@ -25,6 +27,10 @@ const config = loadConfig(configFile);
 const key = readKey(config);
 const pollMs = Number(process.env.PIPPA_LLAMA_POLL_MS) || 5000;
 const idleMs = (Number(process.env.PIPPA_LLAMA_IDLE_SECONDS) || config.idleSeconds) * 1000;
+
+const appPid = Number(process.env.PIPPA_APP_PID) || 0;
+const appGone = () => appPid > 0 && !isAlive(appPid);
+if (appGone()) process.exit(0);
 
 const lock = { owner: "pi", holder: process.pid, pid: null, port: config.port, startedAt: new Date().toISOString() };
 if (!createLock(lockFile, lock)) process.exit(0);
@@ -86,13 +92,17 @@ child.on("exit", (code, signal) => {
 for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => stopServer(signal));
 
 // Wait until the model is loaded; the idle clock starts only then.
-while ((await health(config.port, key)) !== 200) await sleep(Math.min(pollMs, 250));
+while ((await health(config.port, key)) !== 200) {
+	if (appGone()) await stopServer("Pippa quit");
+	await sleep(Math.min(pollMs, 250));
+}
 
 let lastUse = Date.now();
 let fingerprint;
 for (;;) {
 	await sleep(pollMs);
 	if (stopping) break;
+	if (appGone()) await stopServer("Pippa quit");
 	const touched = lockTouchedAt(lockFile);
 	if (touched > lastUse) lastUse = touched;
 	const current = await slots(config.port, key);
