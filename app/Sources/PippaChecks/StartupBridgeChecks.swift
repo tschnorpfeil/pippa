@@ -43,9 +43,9 @@ func runStartupBridgeChecks() {
             && StartupBridge.opening("[") == .undecided
             && StartupBridge.opening("[[WA") == .undecided
             && StartupBridge.opening("[[WAIT]]") == .deferred
-            && StartupBridge.opening(" WAIT") == .deferred
-            && StartupBridge.opening("W") == .undecided
-            && StartupBridge.opening("Wa") == .undecided
+            && StartupBridge.opening(" [[WAIT]] ") == .deferred
+            && StartupBridge.opening("Wait, the egg needs seven minutes.") == .answer
+            && StartupBridge.opening("WAIT") == .answer
             && StartupBridge.opening("Was") == .answer
             && StartupBridge.opening("Ein weiches Ei") == .answer
             && StartupBridge.cleaned("Gern! [[WAIT]]") == "Gern!"
@@ -71,6 +71,7 @@ func runStartupBridgeChecks() {
             && handover.contains("Zehn Minuten.") && handover.hasSuffix("Such mir ein Rezept in meinen Dokumenten")
             && StartupBridge.handover("Hallo", history: [], language: "de") == "Hallo"
             && trimmed.contains("Frage 199") && !trimmed.contains("Frage 0\n") && trimmed.count < 2600
+            && StartupBridge.handover("Neu", history: many, language: "de").count < 2200
     }
 
     check("App location: Applications counts as installed; disk image, Downloads copy and elsewhere do not") {
@@ -83,5 +84,15 @@ func runStartupBridgeChecks() {
             && AppLocation.place(of: URL(fileURLWithPath: "/Users/anna/Downloads/Pippa.app"), home: home) == .elsewhere
             && AppLocation.destination(appName: "Pippa.app", systemApplicationsWritable: true, home: home).path == "/Applications/Pippa.app"
             && AppLocation.destination(appName: "Pippa.app", systemApplicationsWritable: false, home: home).path == "/Users/anna/Applications/Pippa.app"
+    }
+
+    check("App location: never trash a newer or unreadable Pippa in Applications, only an older one") {
+        AppLocation.install(existing: .none, moving: "120") == .copy
+            && AppLocation.install(existing: .some("119"), moving: "120") == .replaceOlder
+            && AppLocation.install(existing: .some("9"), moving: "10") == .replaceOlder
+            && AppLocation.install(existing: .some("120"), moving: "120") == .openExisting
+            && AppLocation.install(existing: .some("121"), moving: "120") == .openExisting
+            && AppLocation.install(existing: .some(nil), moving: "120") == .openExisting
+            && AppLocation.install(existing: .some("120"), moving: nil) == .openExisting
     }
 }

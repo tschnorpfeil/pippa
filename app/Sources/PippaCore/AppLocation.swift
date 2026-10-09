@@ -33,4 +33,21 @@ public enum AppLocation {
                                                 : home.appendingPathComponent("Applications", isDirectory: true)
         return folder.appendingPathComponent(appName, isDirectory: true)
     }
+
+    public enum Install: Equatable, Sendable {
+        /// Nothing there yet: copy.
+        case copy
+        /// An older Pippa there: to the Trash, then copy.
+        case replaceOlder
+        /// The same or a newer Pippa (or one whose version cannot be read) is there: leave it and open that one.
+        case openExisting
+    }
+
+    /// What to do at the destination. `existing`: CFBundleVersion of the Pippa already there, `nil` if none is there;
+    /// an unreadable version counts as not older (never trash what cannot be compared).
+    public static func install(existing: String??, moving new: String?) -> Install {
+        guard let existing else { return .copy }
+        guard let existing, let new, !existing.isEmpty, !new.isEmpty else { return .openExisting }
+        return existing.compare(new, options: .numeric) == .orderedAscending ? .replaceOlder : .openExisting
+    }
 }

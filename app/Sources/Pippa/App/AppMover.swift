@@ -48,9 +48,18 @@ enum AppMover {
                                                   systemApplicationsWritable: fm.isWritableFile(atPath: "/Applications"), home: home)
         do {
             try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-            // An older Pippa there goes to the Trash (nothing of hers lives in the app itself).
-            if fm.fileExists(atPath: destination.path) { try fm.trashItem(at: destination, resultingItemURL: nil) }
-            try fm.copyItem(at: source, to: destination)
+            let existing: String?? = fm.fileExists(atPath: destination.path) ? .some(Self.build(of: destination)) : .none
+            switch AppLocation.install(existing: existing, moving: Self.build(of: source)) {
+            case .copy:
+                try fm.copyItem(at: source, to: destination)
+            case .replaceOlder:
+                // Nothing of hers lives in the app itself: an older copy can go to the Trash.
+                try fm.trashItem(at: destination, resultingItemURL: nil)
+                try fm.copyItem(at: source, to: destination)
+            case .openExisting:
+                // The same or a newer Pippa is already installed: start that one, change nothing there.
+                break
+            }
         } catch {
             DiagnosticsLog.shared.event("app-verschieben", ["ergebnis": "fehler", "details": "\(error)"])
             let failed = NSAlert()
@@ -59,13 +68,18 @@ enum AppMover {
             failed.runModal()
             return false
         }
-        // The copy in Downloads is no longer needed; a disk image is ejected after the restart instead.
+        // The original in Downloads (behind App Translocation) is no longer needed; a disk image is ejected after the
+        // restart instead. Anywhere else the running copy stays where it is (never trash the bundle that is running).
         var volume = ""
         if case .volume(let url) = place { volume = url.path }
-        else if source != bundle || place == .elsewhere { try? fm.trashItem(at: source, resultingItemURL: nil) }
+        else if place == .translocated, source != bundle { try? fm.trashItem(at: source, resultingItemURL: nil) }
         DiagnosticsLog.shared.event("app-verschieben", ["ergebnis": "verschoben", "ziel": destination.deletingLastPathComponent().path])
         relaunch(destination, eject: volume)
         return true
+    }
+
+    private static func build(of app: URL) -> String? {
+        Bundle(url: app)?.object(forInfoDictionaryKey: "CFBundleVersion") as? String
     }
 
     /// Waits until this process has ended, then opens the moved Pippa and ejects the disk image (if any).

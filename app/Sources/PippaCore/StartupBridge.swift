@@ -25,7 +25,7 @@ public enum StartupBridge {
     public static let selectionLimit = 1500
     public static let questionLimit = 1500
     static let historyLimit = 2000
-    static let handoverLimit = 6000
+    static let handoverLimit = 1800
     public static let maximumTokens = 500
     /// What the system model answers when the message needs Pippa's full AI.
     public static let waitToken = "[[WAIT]]"
@@ -134,8 +134,9 @@ public enum StartupBridge {
     public static func opening(_ text: String) -> Opening {
         let head = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if head.isEmpty { return .undecided }
-        if head.hasPrefix(waitToken) || head.uppercased().hasPrefix("WAIT") { return .deferred }
-        if waitToken.hasPrefix(head) || "WAIT".hasPrefix(head.uppercased()) { return .undecided }
+        // Only the exact token: a real answer may well begin with "Wait …".
+        if head.hasPrefix(waitToken) { return .deferred }
+        if waitToken.hasPrefix(head) { return .undecided }
         return .answer
     }
 
