@@ -7,6 +7,7 @@
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir, rm, chmod, symlink } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { VARIANTS, modelsJson, piSettings } from './variants.mjs';
 import { TASKS, WEB } from './tasks.mjs';
@@ -128,8 +129,11 @@ try {
    PIPPA_MCP_URL: `http://127.0.0.1:${mcp.address().port}/mcp`, PIPPA_MCP_TOKEN: 'a'.repeat(64) };
   const child = spawn(join(payload, 'bin/node'), [join(payload, 'release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'),
    '--mode', 'rpc', '--no-session', '--no-context-files', '--no-approve', '--no-skills', '--skill', skills,
-   '--extension', join(root, 'runtime/pippa-guard/pippa-guard.ts'), '--extension', join(root, 'runtime/pippa-guard/pippa-tools.ts'),
-   '--extension', join(root, 'runtime/pippa-guard/pippa-mcp.ts'), '--extension', join(root, 'scripts/quality/model-compare/agentic-isolation.ts'),
+   // Extensions as PippaPiLaunch.extensions loads them; before the guard removal: guard + tools + MCP.
+   ...(existsSync(join(root, 'runtime/pippa-guard')) ? ['--extension', join(root, 'runtime/pippa-guard/pippa-guard.ts'), '--extension', join(root, 'runtime/pippa-guard/pippa-tools.ts'),
+    '--extension', join(root, 'runtime/pippa-guard/pippa-mcp.ts')] : ['--extension', join(root, 'runtime/pippa-tools/pippa-tools.ts'),
+    '--extension', join(root, 'runtime/pippa-tools/pippa-assist.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-mcp.ts')]),
+   '--extension', join(root, 'scripts/quality/model-compare/agentic-isolation.ts'),
    '--tools', tools, '--system-prompt', prompts[task.lang], '--provider', 'pippa-local', '--model', variant.key, '--thinking', variant.thinking],
    { cwd: work, env, stdio: ['pipe', 'pipe', 'pipe'] });
   const sampler = setInterval(() => { piPeak = Math.max(piPeak, rssMB(child.pid)); }, 1000);
