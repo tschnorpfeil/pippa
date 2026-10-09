@@ -249,6 +249,9 @@ mkdir -p "$APP/Contents/Resources/pippa-guard"
 for f in pippa-guard.ts pippa-tools.ts pippa-mcp.ts files.ts policy.ts self-asking.ts budget.ts search-command.ts; do
   cp "$ROOT/runtime/pippa-guard/$f" "$APP/Contents/Resources/pippa-guard/$f"
 done
+# ChatGPT sign-in through Pi's own sign-in (PiSubscriptionAuth.swift); tests stay out.
+mkdir -p "$APP/Contents/Resources/pippa-auth"
+cp "$ROOT/runtime/pippa-auth/pi-auth.mjs" "$APP/Contents/Resources/pippa-auth/pi-auth.mjs"
 
 # --- App icon ----------------------------------------------------------------
 say "App icon"

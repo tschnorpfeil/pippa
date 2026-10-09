@@ -26,6 +26,7 @@ extension AppModel {
 
     /// For the menu: where Pippa is currently working, according to Settings.
     var inferenceSummary: String {
+        if inferenceSettings.subscriptionModel != nil { return T("Online · ChatGPT", table: "App") }
         guard hasConfiguredInference, let connection = inferenceSettings.connection else { return T("Runs on this Mac", table: "App") }
         if connection.isLocal { return T("On this Mac · Connected AI", table: "App") }
         return T("Online · %@", table: "App", connection.destination)

@@ -74,8 +74,11 @@ public struct ModelConnection: Codable, Sendable, Equatable, Identifiable {
 public struct InferenceSettings: Codable, Sendable, Equatable {
     public var policy: InferencePolicy
     public var connection: ModelConnection?
-    public init(policy: InferencePolicy = .localOnly, connection: ModelConnection? = nil) {
-        self.policy = policy; self.connection = connection
+    /// ChatGPT subscription switched on (PiSubscriptionAuth): the model Pi uses with `--provider openai`. `nil` = off.
+    /// Takes precedence over `connection` for Pippa's Pi; local stays the default.
+    public var subscriptionModel: String?
+    public init(policy: InferencePolicy = .localOnly, connection: ModelConnection? = nil, subscriptionModel: String? = nil) {
+        self.policy = policy; self.connection = connection; self.subscriptionModel = subscriptionModel
     }
     public static func load(from base: URL = Pippa.supportDirectory) -> Self {
         guard let data = try? Data(contentsOf: base.appendingPathComponent("inference-settings.json")),

@@ -255,3 +255,6 @@
 "Found so far (%lld):" = "Bisher gefunden (%lld):";
 "The search returned no file locations before it stopped. Files may still exist." = "Bis zum Abbruch hat die Suche keine Fundorte geliefert. Die Dateien können trotzdem vorhanden sein.";
 "More file locations were found; only the first 200 are shown." = "Es gab weitere Fundorte; hier stehen nur die ersten 200.";
+"Your ChatGPT sign-in has run out. Sign in again in Pippa’s settings, or switch back to the AI on this Mac." = "Deine ChatGPT-Anmeldung ist abgelaufen. Melde dich in Pippas Einstellungen neu an oder wechsle zurück zur KI auf diesem Mac.";
+"Your ChatGPT subscription has reached its limit for now. Try again later, or switch back to the AI on this Mac." = "Dein ChatGPT-Abo hat gerade sein Limit erreicht. Versuche es später noch einmal oder wechsle zurück zur KI auf diesem Mac.";
+"Online · ChatGPT" = "Online · ChatGPT";

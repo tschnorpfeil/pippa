@@ -167,3 +167,16 @@
 "Normal" = "Normal";
 "Large" = "Groß";
 "Extra large" = "Sehr groß";
+"Use ChatGPT for conversations?" = "ChatGPT für Gespräche verwenden?";
+"Use ChatGPT" = "ChatGPT verwenden";
+"Your conversation and everything Pippa reads for it will be sent to OpenAI. You can switch back to the AI on this Mac at any time." = "Deine Unterhaltung und alles, was Pippa dafür liest, wird an OpenAI geschickt. Du kannst jederzeit zur KI auf diesem Mac zurückwechseln.";
+"ChatGPT (your subscription)" = "ChatGPT (dein Abo)";
+"Sign in with ChatGPT" = "Mit ChatGPT anmelden";
+"Sign in in your browser. Pippa waits here." = "Melde dich im Browser an. Pippa wartet hier.";
+"Sign Out" = "Abmelden";
+"On · conversations go to OpenAI (%@)." = "An · Gespräche gehen an OpenAI (%@).";
+"Signed in. Off: Pippa uses the AI on this Mac." = "Angemeldet. Aus: Pippa nutzt die KI auf diesem Mac.";
+"Uses your ChatGPT subscription instead of the AI on this Mac. You sign in in your browser." = "Nutzt dein ChatGPT-Abo statt der KI auf diesem Mac. Die Anmeldung läuft in deinem Browser.";
+"This sign-in isn’t a ChatGPT subscription." = "Diese Anmeldung ist kein ChatGPT-Abo.";
+"Another sign-in is still open. Close it and try again." = "Eine andere Anmeldung ist noch offen. Schließe sie und versuche es noch einmal.";
+"The sign-in didn’t work just now. Please try again." = "Die Anmeldung hat gerade nicht geklappt. Bitte versuche es noch einmal.";
