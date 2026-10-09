@@ -107,6 +107,10 @@ große Schrift.
 
 ## Entscheidungen
 
+- Owner 09.10. (Thread „Pippa entschlacken“): Der Guard fällt ganz weg, damit auch Freigabe-Karte und Rückgängig.
+  Die Zwei-Knopf-Freigabe (Schritt 5) und der Moment „Wieder wie vorher.“ sind damit hinfällig; das Entfernen übernimmt
+  „Pippa entschlacken“. Dieser Branch bleibt bei Pille, Gespräch, Fehlerkarte und Charme-Momenten.
+
 - Owner 09.10.: Ergebnis bleibt in der Pille stehen, bis es angesehen wird. Freigabe-Karte mit zwei Knöpfen und
   Schalter wie empfohlen. Hilfe beim Kopieren: beim ersten Mal fragen.
 
