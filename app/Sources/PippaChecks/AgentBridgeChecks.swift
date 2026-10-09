@@ -7,11 +7,8 @@ func runAgentBridgeChecks() async {
     check("Agent bridge: ChatContext without arguments shows nothing and allows no online lookup") {
         let plain = ChatContext()
         let selected = ChatContext(files: [], selectedText: "x", workflowSummary: "")
-        return plain.files.isEmpty && plain.web == nil && plain.onWork == nil && plain.maximumFileCount == 20
+        return plain.files.isEmpty && plain.onWork == nil && plain.maximumFileCount == 20
             && selected.maximumFileCount == 19
-    }
-    check("Agent bridge: lookup status values keep their wire names") {
-        LookupReply.Status.needsPerson.rawValue == "needs_person" && LookupReply.Status(rawValue: "refused") == .refused
     }
     await checkAsync("Agent bridge: inserting creates only an unsent reply window, and only with permission for Mail") {
         let draft = MailDraft(messageID: "bridge@example.invalid", to: "a@b.de", toName: nil, subject: "x", body: "y")

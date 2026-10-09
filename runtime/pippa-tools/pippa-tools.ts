@@ -1,18 +1,18 @@
 /**
  * Pippa's narrow file tools for the real Pi (bash stays available but is not the default
- * path). Loaded next to the guard:
+ * path). Loaded by Pippa:
  *
- *   pi --mode rpc --extension runtime/pippa-guard/pippa-guard.ts --extension runtime/pippa-guard/pippa-tools.ts
+ *   pi --mode rpc --extension runtime/pippa-tools/pippa-tools.ts --extension runtime/pippa-tools/pippa-assist.ts …
  *
  * - `list_folder`: look at a folder, read-only (no question).
  * - `rename_or_move`: rename or move one file or folder. Never overwrites.
  * - `move_files`: sort many files into (new) subfolders in one call, e.g. tidying a folder, grouped by target
- *   (`groups: [{into: "Bilder", files: [...]}]`). Never overwrites; one undo entry for the whole batch. One call instead of one model
+ *   (`groups: [{into: "Bilder", files: [...]}]`). Never overwrites. One call instead of one model
  *   turn per file (r7: 16 turns, 211 s for 15 files).
  * - `move_to_trash`: to the trash, never permanently delete.
  *
- * Question, undo entry and receipt are the guard's job (pippa-guard.ts), not this file's: all changing tools take the
- * same path. Paths always go to programs as a single argument, never into script text.
+ * Pi runs these tools without asking (as all its tools). They never overwrite and never delete for good; paths always
+ * go to programs as a single argument, never into script text.
  *
  * Two hooks keep what the model reads small (budget.ts): shorter parameter texts of Pi's built-in tools in every
  * provider request, and a cap on each tool result from the model's context window.

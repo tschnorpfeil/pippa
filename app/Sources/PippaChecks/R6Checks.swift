@@ -22,10 +22,12 @@ func runR6Checks() async {
             && PiConversationDefault.usesPiRPC(environment: [:], debug: true)
             && !PiConversationDefault.usesPiRPC(environment: ["PIPPA_PI_RPC": "0"], debug: true)
     }
-    check("R6: working folder and guard without environment") {
+    check("R6: working folder, extensions and web access without environment") {
         let support = URL(fileURLWithPath: "/S/Pippa", isDirectory: true)
+        let app = URL(fileURLWithPath: "/A/Pippa.app")
         return PiConversationDefault.workingDirectory(support: support).path == "/S/Pippa/pi-work"
-            && PiConversationDefault.bundledGuard(bundle: URL(fileURLWithPath: "/A/Pippa.app")).path == "/A/Pippa.app/Contents/Resources/pippa-guard/pippa-guard.ts"
+            && PiConversationDefault.bundledExtensions(bundle: app).path == "/A/Pippa.app/Contents/Resources/pippa-tools"
+            && PiConversationDefault.bundledWeb(bundle: app).path == "/A/Pippa.app/Contents/Resources/pippa-web/index.ts"
     }
 
     // Setup decides, not "onboarded": not ready → no Pi start, but a sentence or setup.

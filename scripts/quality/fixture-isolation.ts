@@ -1,6 +1,6 @@
 // Loaded BEFORE any tool can execute in the live search evaluation.
-import { isFileSearch } from '../../runtime/pippa-guard/search-command.ts';
-import { classifyCommand } from '../../runtime/pippa-guard/policy.ts';
+import { isFileSearch } from '../../runtime/pippa-tools/search-command.ts';
+import { classifyCommand } from './command-kind.ts';
 import { resolve } from 'node:path';
 export default function(pi: any) {
  pi.on('tool_call', (event: any, ctx: any) => {

@@ -19,18 +19,18 @@ func runW4aChecks() async {
             && PippaSkill.bundledDirectory().standardizedFileURL == PippaSkill.repositoryDirectory.standardizedFileURL
             && PippaSkill.bundled.count == 15
     }
-    check("Cleanup: fetcher process lives in runtime/pippa-web with its own lockfile, no longer in runtime/pi") {
+    check("Cleanup: web access is the Pi package pi-web-access in runtime/pippa-web, no own fetch process") {
         let manifest = read("runtime/pippa-web/package.json")
-        return fm.fileExists(atPath: repo.appendingPathComponent("runtime/pippa-web/src/fetcher.mjs").path)
+        return fm.fileExists(atPath: repo.appendingPathComponent("runtime/pippa-web/index.ts").path)
             && fm.fileExists(atPath: repo.appendingPathComponent("runtime/pippa-web/package-lock.json").path)
-            && !fm.fileExists(atPath: repo.appendingPathComponent("runtime/pi/src/fetcher.mjs").path)
-            && manifest.contains("\"pi-web-access\": \"0.37.0\"") && !manifest.contains("pi-coding-agent")
-            && !read("runtime/pippa-web/package-lock.json").contains("node_modules/@earendil-works/pi-coding-agent")
-            && read("app/Sources/PippaCore/Lookup/WebFetcher.swift").contains("Contents/Resources/pippa-web")
+            && !fm.fileExists(atPath: repo.appendingPathComponent("runtime/pippa-web/src/fetcher.mjs").path)
+            && !fm.fileExists(atPath: repo.appendingPathComponent("app/Sources/PippaCore/Lookup").path)
+            && manifest.contains("\"pi-web-access\": \"0.38.0\"")
+            && PiConversationDefault.bundledWeb(bundle: URL(fileURLWithPath: "/A/Pippa.app")).path == "/A/Pippa.app/Contents/Resources/pippa-web/index.ts"
     }
     check("Cleanup: build-app.sh bundles fetcher, skills and payload, but no old runtime any more") {
         let build = read("scripts/build-app.sh"), verify = read("scripts/verify-app.sh")
-        return build.contains("scripts/bundle-web-fetcher.sh") && build.contains("runtime/pippa-skills\" \"$APP/Contents/Resources/pippa-skills\"")
+        return build.contains("scripts/bundle-web.sh") && build.contains("runtime/pippa-skills\" \"$APP/Contents/Resources/pippa-skills\"")
             && !build.contains("bundle-pi-runtime") && !build.contains("pi-runtime") && !build.contains("LEGACY")
             && verify.contains("[[ ! -e \"$APP/Contents/Resources/pi-runtime\" ]]") && verify.contains("Contents/Resources/pippa-skills")
             && verify.contains("expected_skills") && verify.contains("runtime/pippa-web/package-lock.json")
@@ -41,7 +41,7 @@ func runW4aChecks() async {
     check("Cleanup: remaining parts without PiRuntimeClient, ContextSelection, LocalEngine.chat and pi-runtime") {
         let kept = ["app/Sources/PippaCore/LocalModelJSON.swift", "app/Sources/PippaCore/Skills.swift",
                     "app/Sources/PippaCore/SourceFidelity.swift", "app/Sources/PippaCore/PiShownContext.swift", "app/Sources/PippaCore/PiReadLedger.swift",
-                    "app/Sources/PippaCore/Lookup/WebFetcher.swift", "app/Sources/PippaCore/Lookup/LookupHost.swift", "app/Sources/PippaCore/AnswerTypes.swift",
+                    "app/Sources/PippaCore/AnswerTypes.swift",
                     "app/Sources/PippaCore/ToolBridgeTypes.swift", "app/Sources/Pippa/App/BundleVerification.swift", "app/Sources/Pippa/App/PiRPCChat.swift",
                     "app/Sources/Pippa/App/PiRPCChat+Shown.swift"]
         let bad = kept.filter { path in

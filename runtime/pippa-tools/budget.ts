@@ -1,7 +1,7 @@
 /**
  * What the local model gets to read, kept small (pippa-tools.ts registers both hooks). Every token of the fixed prefix
  * is evaluated again after each cold start, and a single tool result must not fill a 16k window.
- * No Pi imports, so the guard tests can load this file without a Pi payload.
+ * No Pi imports, so the tests can load this file without a Pi payload.
  */
 
 /**

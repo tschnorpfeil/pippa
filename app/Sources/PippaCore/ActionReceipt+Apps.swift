@@ -1,13 +1,13 @@
 import Foundation
 
 // Receipt lines for event, reminder and mail draft via Pippa's MCP server. The
-// name ("Do., 8. Okt., 09:00 – Zahnarzt", "„Re: Termin“") is built by the server from its own result; the guard
-// passes it through (`pippa-receipt`). Mail: exact states (created, opened, unclear), never "sent".
+// name ("Do., 8. Okt., 09:00 – Zahnarzt", "„Re: Termin“") is built by the server from its own result and reaches
+// the receipt through the app (`PippaMCPService.writeNotes`). Mail: exact states (created, opened, unclear), never "sent".
 extension ActionReceipt.Item {
     /// Actions of the writing MCP tools.
     public static let appActions: Set<String> = ["calendarAdd", "reminderAdd", "mailDraft"]
 
-    /// "Open draft" instead of "Undo": a mail draft that is in Mail or may be.
+    /// "Open draft": a mail draft that is in Mail or may be.
     public var canOpenMailDraft: Bool { action == "mailDraft" && (outcome == "done" || outcome == "unclear") }
 
     func appLine(language: String?) -> String {
@@ -35,10 +35,8 @@ extension ActionReceipt.Item {
         let calendar = action == "calendarAdd"
         switch outcome {
         case "done":
-            let base = calendar ? L("Added to Calendar: %@", table: "Thought", language: language, what)
-                                : L("Reminder added: %@", table: "Thought", language: language, what)
-            if undoPruned { return L("%@ · can no longer be undone (undo copy cleared after a while)", table: "Thought", language: language, base) }
-            return restorable ? L("%@ · can be undone", table: "Thought", language: language, base) : L("%@ · can’t be undone", table: "Thought", language: language, base)
+            return calendar ? L("Added to Calendar: %@", table: "Thought", language: language, what)
+                            : L("Reminder added: %@", table: "Thought", language: language, what)
         case "declined", "blocked", "failed":
             let base = calendar ? L("Not added to Calendar: %@", table: "Thought", language: language, what)
                                 : L("Reminder not added: %@", table: "Thought", language: language, what)
@@ -49,12 +47,9 @@ extension ActionReceipt.Item {
         }
     }
 
-    /// As with files: declined, blocked without asking, failed.
+    /// As with files: declined (the person's own "no" on the Mac's question), failed.
     private func suffix(_ base: String, language: String?) -> String {
-        switch outcome {
-        case "declined": L("%@ (you said no)", table: "Thought", language: language, base)
-        case "blocked": L("%@ (needs your OK, couldn’t ask)", table: "Thought", language: language, base)
-        default: L("%@ (didn’t work)", table: "Thought", language: language, base)
-        }
+        outcome == "declined" ? L("%@ (you said no)", table: "Thought", language: language, base)
+                              : L("%@ (didn’t work)", table: "Thought", language: language, base)
     }
 }

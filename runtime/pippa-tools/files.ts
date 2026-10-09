@@ -1,9 +1,5 @@
-/**
- * Shared file helpers for the Pippa guard (pippa-guard.ts) and Pippa's narrow file tools (pippa-tools.ts).
- * Both must compute the same paths: the guard asks and backs up, the tool executes.
- */
-import { execFile } from "node:child_process";
-import { copyFile, stat } from "node:fs/promises";
+/** File helpers for Pippa's narrow file tools (pippa-tools.ts). */
+import { stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 
@@ -32,12 +28,6 @@ export async function isFolder(path: string): Promise<boolean> {
 	}
 }
 
-/** German phrase for the person, e.g. "die Datei „Notizen.txt“ im Ordner „Test“": folder name instead of a long path; the path goes in the detail line. */
-export function fileWords(path: string, folder = false): string {
-	const parent = basename(dirname(path)) || dirname(path);
-	return `${folder ? "den Ordner" : "die Datei"} „${basename(path)}“ im Ordner „${parent}“`;
-}
-
 /**
  * Target of "rename or move": if `to` is an existing folder, `from` ends up inside it (like Finder and mv); otherwise
  * `to` is the new name or path. A relative `to` without a folder part stays in the folder of `from`
@@ -53,20 +43,6 @@ export async function moveTarget(from: string, rawTo: unknown, cwd: string): Pro
 	return to;
 }
 
-/**
- * Copy as an APFS clone (takes no space until one side changes). Node 22-25 does not clone on macOS even with
- * `COPYFILE_FICLONE` (measured: different blocks; `COPYFILE_FICLONE_FORCE` -> ENOSYS), hence `/bin/cp -c`
- * (clonefile). If that fails (other volume, no APFS), an ordinary copy. `dest` must not exist yet.
- */
-export async function cloneFile(source: string, dest: string): Promise<"clone" | "copy"> {
-	const cloned = await new Promise<boolean>((done) => {
-		execFile("/bin/cp", ["-c", "--", source, dest], { timeout: 60_000 }, (error) => done(!error));
-	});
-	if (cloned) return "clone";
-	await copyFile(source, dest);
-	return "copy";
-}
-
 /** One planned item of `move_files`: `from` → `to` (target folder `into`), or why it cannot move. */
 export interface PlannedMove {
 	name: string;
@@ -77,7 +53,7 @@ export interface PlannedMove {
 }
 
 /**
- * Plan of `move_files` (pippa-tools.ts), computed the same way by the guard (question, undo manifest) and the tool.
+ * Plan of `move_files` (pippa-tools.ts).
  * `rawGroups` groups the files by target, `[{ into: "Bilder", files: ["a.jpg", "b.png"] }, { into: "PDFs/2026", files: [...] }]`,
  * so every target name is written once (fewer output tokens than one `{name, into}` object per file). A list of typed
  * objects rather than a map `{"Bilder": [...]}`: some chat templates drop `additionalProperties`, so the model saw
@@ -86,7 +62,7 @@ export interface PlannedMove {
  * error (other places: rename_or_move). A name is a file or folder in `folder`.
  * Never overwrites: an existing target, a missing source or a second item with the same target gets an `error`.
  * `created`: target folders (and folders in between) that do not exist yet and will be created; `folders`: the topmost
- * of those (undo moves them to the trash while empty), like a plain `mkdir -p` (pippa-guard.ts `plannedFolders`).
+ * of those, like a plain `mkdir -p`.
  */
 export async function planMoves(rawFolder: unknown, rawGroups: unknown, cwd: string): Promise<{ folder: string; items: PlannedMove[]; folders: string[]; created: string[] }> {
 	const folder = resolvePath(rawFolder || ".", cwd);

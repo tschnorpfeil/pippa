@@ -16,19 +16,6 @@ final class ConversationController: ObservableObject {
     @Published private(set) var thought = ThoughtLine()
     /// Receipts opened to show what was read (view state only, not saved).
     @Published private(set) var expandedReceipts: Set<UUID> = []
-    /// An undo (one line or "Undo all") is running: the buttons are off meanwhile.
-    @Published private(set) var isUndoing = false
-    /// Pi wants to look something up online; the card shows exactly what would go out and waits for the click.
-    @Published private(set) var webAsk: WebAccessAsk?
-    private var webAskReply: CheckedContinuation<Bool, Never>?
-    /// The guard asks before Pi changes something; the card waits in the conversation instead of a window.
-    @Published private(set) var guardAsk: GuardAsk?
-    private var guardAskReply: CheckedContinuation<PiUIResponse, Never>?
-    /// Brings the conversation into view when a card needs the person (set by AppModel).
-    var onNeedsPerson: (() -> Void)?
-    private var webGate: WebAccessGate?
-    /// One lookup process for all conversations (exits by itself after two minutes idle).
-    private let webFetcher = WebFetcher()
     private var lastAnnouncedKind: String?
     private var lastAnnouncement: Date?
     private var store: ConversationStore?
@@ -196,8 +183,6 @@ final class ConversationController: ObservableObject {
         request = Task { [weak self] in
             var scoped: [URL] = []
             defer {
-                self?.endWebAccess()
-                self?.endGuardAsk()
                 workSink.finish(); phases.cancel()
                 self?.thought.end(request: requestID)
                 scoped.forEach { $0.stopAccessingSecurityScopedResource() }
@@ -224,20 +209,6 @@ final class ConversationController: ObservableObject {
             let replySource: MailReplySource? = replyCandidates.count == 1 ? MailReplySource.capture(from: replyCandidates[0]) : nil
             var chatContext = ChatContext(files: urls, focusedFiles: context?.focusedFiles ?? [], selectedText: context?.selectedText ?? "", workflowSummary: workflowSummary)
             chatContext.onWork = { event in workSink.yield(event) }
-            // Pi may look things up online, also with skills (Pi always has `web_search`; the card is the boundary,
-            // not the button). Each single query only after the click on the card.
-            if let self {
-                // A shown link (selected text) counts as typed by the person.
-                let typed = text + "\n" + (context?.selectedText ?? "")
-                let gate = WebAccessGate(fetcher: self.webFetcher, typed: typed) { [weak self] ask in
-                    workSink.yield(.phase(.waitingForPerson))
-                    let approved = await self?.awaitWebAsk(ask, request: requestID) ?? false
-                    if approved { workSink.yield(.phase(.lookingUpOnline)) }
-                    return approved
-                }
-                self.webGate = gate
-                chatContext.web = gate
-            }
             do {
                 // The real Pi via `pi --mode rpc` (PiRPCChat), a stand-in in debug captures (ConversationChat).
                 let onDelta: @Sendable (String) -> Void = { [weak self] delta in
@@ -263,7 +234,7 @@ final class ConversationController: ObservableObject {
                 // the text accepted before Stop, never a completed draft or plan.
                 if self.stopRequested || Task.isCancelled { throw CancellationError() }
                 let work = self.thought.finish(request: requestID, at: Date())
-                // "What happened" from tool events and guard, never from the answer text.
+                // "What happened" from tool events and Pippa's own results, never from the answer text.
                 let actions = chat.takeShownActions()
                 self.append(.assistant, answer, attachments: chat.takeSearchFiles(), modelLabel: modelLabel, draft: skill?.writesDraft == true,
                             mailDraft: skill?.name == "antwort-schreiben" ? ConversationMailDraft(
@@ -352,106 +323,10 @@ final class ConversationController: ObservableObject {
     func stop() {
         guard isRunning else { return }
         stopRequested = true
-        endWebAccess()
-        endGuardAsk()
         if let request = requestID { thought.stop(request: request); announcePhase() }
         if let chat = runningChat { Task { await chat.cancel() } }
         let running = request
         Task { try? await Task.sleep(for: .seconds(5)); running?.cancel() }
-    }
-
-    /// Shows the card and waits for the person. Only for the running answer; otherwise immediately "Not now".
-    private func awaitWebAsk(_ ask: WebAccessAsk, request: UUID) async -> Bool {
-        guard isRunning, !stopRequested, requestID == request else { return false }
-        webAskReply?.resume(returning: false)
-        webAsk = ask
-        NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
-                             userInfo: [.announcement: T("Look it up online:", table: "App") + " " + ask.shown,
-                                        .priority: NSAccessibilityPriorityLevel.high.rawValue])
-        return await withCheckedContinuation { continuation in webAskReply = continuation }
-    }
-
-    /// "Look it up" or "Not now" on the card. Applies to exactly this one query.
-    func answerWebAsk(_ id: UUID, approved: Bool) {
-        guard webAsk?.id == id else { return }
-        webAsk = nil
-        let reply = webAskReply
-        webAskReply = nil
-        reply?.resume(returning: approved)
-    }
-
-    /// A guard question during the running answer: card, VoiceOver, conversation in view, then wait. `nil` when no
-    /// answer is running (the caller asks with a prompt window instead) or the question has no buttons.
-    func awaitGuardAsk(_ request: PiUIRequest) async -> PiUIResponse? {
-        guard isRunning, !stopRequested, let ask = GuardAsk(request) else { return nil }
-        guardAskReply?.resume(returning: .cancelled)
-        guardAsk = ask
-        onNeedsPerson?()
-        NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
-                             userInfo: [.announcement: ask.title + " " + ask.sentence,
-                                        .priority: NSAccessibilityPriorityLevel.high.rawValue])
-        return await withCheckedContinuation { continuation in guardAskReply = continuation }
-    }
-
-    #if DEBUG
-    /// Dev snapshot only: the card as during a running answer.
-    func showGuardAskForSnapshot(_ ask: GuardAsk) { isRunning = true; guardAsk = ask }
-    #endif
-
-    func answerGuardAsk(_ id: UUID, _ response: PiUIResponse) {
-        guard guardAsk?.id == id else { return }
-        guardAsk = nil
-        let reply = guardAskReply
-        guardAskReply = nil
-        reply?.resume(returning: response)
-    }
-
-    /// Answer over or stopped: an open question counts as not allowed.
-    private func endGuardAsk() {
-        guardAsk = nil
-        let reply = guardAskReply
-        guardAskReply = nil
-        reply?.resume(returning: .cancelled)
-    }
-
-    /// Answer over or stopped: an open card counts as "Not now", and the gate lets nothing more out.
-    private func endWebAccess() {
-        webAsk = nil
-        let reply = webAskReply
-        webAskReply = nil
-        reply?.resume(returning: false)
-        if let gate = webGate { Task { await gate.cancel() } }
-        webGate = nil
-    }
-
-    /// "Undo" on a receipt line from the Pi path: replay the guard entry natively (PiUndo, same
-    /// rules as restore.mjs); the result appears as a new receipt line in the history, never as model text.
-    func undoAction(_ item: ActionReceipt.Item) {
-        guard !isRunning, !isUndoing, item.canUndo else { return }
-        isUndoing = true
-        let root = PiRPCChat.undoRoot
-        Task { [weak self] in
-            // Event or reminder via Pippa's MCP server; removes only what is unchanged since it was created.
-            let line = await PiUndo.undo(item, root: root) { created in try await PippaMCPService.remove(created) }
-            DiagnosticsLog.shared.event("pi-rueckgaengig", ["status": line.outcome])
-            self?.isUndoing = false
-            self?.append(.system, T("Undo", table: "App"), actions: ActionReceipt(items: [line]))
-        }
-    }
-
-    /// "Undo all" under an answer with at least two replayable lines: all from bottom to top,
-    /// one result line per step in one message (what didn't work is noted).
-    func undoAll(_ receipt: ActionReceipt) {
-        guard !isRunning, !isUndoing, receipt.offersUndoAll else { return }
-        isUndoing = true
-        let root = PiRPCChat.undoRoot
-        Task { [weak self] in
-            let lines = await PiUndo.undoAll(receipt, root: root) { created in try await PippaMCPService.remove(created) }
-            DiagnosticsLog.shared.event("pi-alles-rueckgaengig", ["zeilen": String(lines.count),
-                                                                 "fehler": String(lines.filter { $0.outcome != "done" }.count)])
-            self?.isUndoing = false
-            self?.append(.system, T("Undo All", table: "App"), actions: ActionReceipt(items: lines))
-        }
     }
 
     /// "Open draft" on a mail draft from the Pi path: bring Mail to the front (the reply window is open there,

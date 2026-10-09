@@ -4,7 +4,7 @@ import PippaCore
 #if DEBUG
 /// One real pass through the default path in the real window, in a fake HOME
 /// (scripts/pi-setup-ui.sh r6). Setup with an adopted model (no question) → question about a shown PDF →
-/// capabilities button ("Einfach erklären") → look up online (card, "Nicht jetzt": no network) → add an appointment
+/// capabilities button ("Einfach erklären") → look up online (pi-web-access, goes to the network) → add an appointment
 /// (`calendar_add` via Pippa's MCP server with a substitute calendar, PIPPA_DEMO=1). Finally: how many llama-servers are running.
 /// Report `r6.txt`, images `r6-*.png`.
 @MainActor enum PiR6Snapshot {
@@ -51,18 +51,12 @@ import PippaCore
         verify(source != nil, "KI übernommen aus \(source ?? "–") nach \(String(format: "%.1f", Date().timeIntervalSince(t0))) s")
         await snap("setup")
 
-        func wait(onCard: ((WebAccessAsk) -> Void)? = nil) async -> (first: Double?, total: Double) {
+        func wait() async -> (first: Double?, total: Double) {
             let a0 = Date()
             var first: Double?
-            var card = false
             try? await Task.sleep(for: .milliseconds(200))
             while model.conversations.isRunning, Date().timeIntervalSince(a0) < 600 {
                 if first == nil, !model.conversations.streamingText.isEmpty { first = Date().timeIntervalSince(a0) }
-                if !card, let ask = model.conversations.webAsk {
-                    card = true
-                    note("Karte „Online nachsehen“: „\(ask.shown)“")
-                    onCard?(ask)
-                }
                 try? await Task.sleep(for: .milliseconds(50))
             }
             let total = Date().timeIntervalSince(a0)
@@ -110,23 +104,16 @@ import PippaCore
             verify(false, "Fähigkeit brief-verstehen fehlt")
         }
 
-        // 4. Look up online: card appears, "Nicht jetzt" (no real fetch).
+        // 4. Look up online: pi-web-access searches without a card; the receipt names what went out.
         model.newConversation()
         try? await Task.sleep(for: .milliseconds(400))
         note("Frage: Wie wird das Wetter morgen in Köln? Schau bitte online nach.")
-        var sawCard = false
         model.route("Wie wird das Wetter morgen in Köln? Schau bitte online nach.")
-        _ = await wait(onCard: { ask in
-            sawCard = true
-            Task { @MainActor in
-                await snap("karte")
-                model.conversations.answerWebAsk(ask.id, approved: false)
-            }
-        })
+        _ = await wait()
         report()
-        verify(sawCard, "Karte „Online nachsehen“ erschienen")
         let webLines = last()?.actions?.items.filter { $0.action == "webSearch" || $0.action == "webPage" } ?? []
-        verify(sawCard ? webLines.contains { $0.outcome == "declined" } : false, "Quittung: nicht online nachgesehen (abgelehnt)")
+        verify(webLines.contains { $0.action == "webSearch" && $0.name != nil }, "Quittung: online nachgesehen, mit der Suchanfrage")
+        await snap("online")
 
         // 5. Add an appointment via Pippa's MCP server (substitute calendar).
         model.newConversation()
