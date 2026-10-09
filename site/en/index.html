@@ -7,14 +7,14 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="robots" content="index, follow, max-image-preview:large">
-<title>Pippa – Answer emails, find deadlines, merge PDFs, tidy folders</title>
-<meta name="description" content="Just drop it on Pippa: answer emails, find cancellation deadlines, merge PDFs, tidy up Downloads. Anything Pippa changes, you can undo. Free for the Mac, and the AI runs on your Mac.">
+<title>Pippa – Answer emails, find deadlines, gather documents, tidy folders</title>
+<meta name="description" content="Just drop it on Pippa: answer emails, find cancellation deadlines, gather your documents, tidy up Downloads. Anything Pippa changes, you can undo. Free for the Mac, and the AI runs on your Mac.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="de_DE">
 <meta property="og:site_name" content="Pippa">
-<meta property="og:title" content="Pippa – Answer emails, find deadlines, merge PDFs, tidy folders">
-<meta property="og:description" content="Just drop it on Pippa: answer emails, find cancellation deadlines, merge PDFs, tidy up Downloads. Anything Pippa changes, you can undo. Free for the Mac, and the AI runs on your Mac.">
+<meta property="og:title" content="Pippa – Answer emails, find deadlines, gather documents, tidy folders">
+<meta property="og:description" content="Just drop it on Pippa: answer emails, find cancellation deadlines, gather your documents, tidy up Downloads. Anything Pippa changes, you can undo. Free for the Mac, and the AI runs on your Mac.">
 <meta property="og:image" content="https://heypippa.app/og-en.jpg">
 <meta property="og:image:alt" content="“Just drop it on Pippa.” Next to it, a service charge statement from Berger Property Management and Pippa with the line “Landlord: pay €146.20 by 6 Nov.”">
 <meta property="og:image:secure_url" content="https://heypippa.app/og-en.jpg">
@@ -22,8 +22,8 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Pippa – Answer emails, find deadlines, merge PDFs, tidy folders">
-<meta name="twitter:description" content="Just drop it on Pippa: answer emails, find cancellation deadlines, merge PDFs, tidy up Downloads. Anything Pippa changes, you can undo. Free for the Mac, and the AI runs on your Mac.">
+<meta name="twitter:title" content="Pippa – Answer emails, find deadlines, gather documents, tidy folders">
+<meta name="twitter:description" content="Just drop it on Pippa: answer emails, find cancellation deadlines, gather your documents, tidy up Downloads. Anything Pippa changes, you can undo. Free for the Mac, and the AI runs on your Mac.">
 <meta name="twitter:image" content="https://heypippa.app/og-en.jpg">
 <meta name="twitter:image:alt" content="“Just drop it on Pippa.” Next to it, a service charge statement from Berger Property Management and Pippa with the line “Landlord: pay €146.20 by 6 Nov.”">
 <meta name="theme-color" content="#86ad94">
@@ -55,7 +55,7 @@
       "name": "Pippa",
       "url": "https://heypippa.app/en/",
       "inLanguage": "en",
-      "description": "Just drop it on Pippa: answer emails, find cancellation deadlines, merge PDFs, tidy up Downloads. Anything Pippa changes, you can undo. Free for the Mac, and the AI runs on your Mac.",
+      "description": "Just drop it on Pippa: answer emails, find cancellation deadlines, gather your documents, tidy up Downloads. Anything Pippa changes, you can undo. Free for the Mac, and the AI runs on your Mac.",
       "operatingSystem": "macOS 15 or later",
       "applicationCategory": "ProductivityApplication",
       "processorRequirements": "Apple silicon (M1 or later)",
@@ -188,20 +188,20 @@ h1{order:1;font-size:clamp(44px,17.4vw,104px)}.voice{order:2;margin-top:24px}.ct
 .stage{position:relative;width:100%;aspect-ratio:1/1.05;border-radius:28px;background:radial-gradient(ellipse 70% 60% at 50% 45%,rgba(255,255,255,.16),transparent 70%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
 .scatter{--u:3.43px;position:absolute;inset:0}
 .scatter .obj{position:absolute;left:var(--x);top:var(--y);display:block;font-size:calc(var(--u)*1.55);touch-action:none}
-.o-mail{--x:2%;--y:4%}.o-photos{--x:62%;--y:3%}.o-bon{--x:2%;--y:60%}.o-k{--x:68%;--y:61%}.o-xls{--x:25%;--y:68%}
+.o-mail{--x:2%;--y:4%}.o-steuer{--x:62%;--y:3%}.o-sms{--x:2%;--y:55%}.o-k{--x:68%;--y:61%}.o-ordner{--x:30%;--y:71%}
 @media (min-width:600px) and (max-width:899px){
 .stage{aspect-ratio:4/3}.scatter .obj{font-size:calc(var(--u)*1.3)}
-.o-mail{--x:2%;--y:3%}.o-photos{--x:70%;--y:2%}.o-bon{--x:6%;--y:52%}.o-k{--x:72%;--y:45%}.o-xls{--x:36%;--y:64%}
+.o-mail{--x:2%;--y:3%}.o-steuer{--x:70%;--y:2%}.o-sms{--x:6%;--y:52%}.o-k{--x:72%;--y:45%}.o-ordner{--x:36%;--y:64%}
 }
 @media (min-width:900px){
 .stage{aspect-ratio:7/6;min-height:500px;border-radius:0;background:none;box-shadow:none}
 .scatter .obj{font-size:calc(var(--u)*1.36)}
-.o-mail{--x:0%;--y:2%}.o-photos{--x:64%;--y:0%}.o-bon{--x:2%;--y:52%}.o-k{--x:69%;--y:47%}.o-xls{--x:30%;--y:64%}
+.o-mail{--x:0%;--y:2%}.o-steuer{--x:64%;--y:0%}.o-sms{--x:2%;--y:52%}.o-k{--x:69%;--y:47%}.o-ordner{--x:30%;--y:64%}
 }
 @media (min-width:900px) and (max-height:940px){
 .stage{min-height:420px;aspect-ratio:7/5}
 .scatter .obj{font-size:calc(var(--u)*1.2)}
-.o-mail{--x:0%;--y:1%}.o-photos{--x:68%;--y:0%}.o-bon{--x:3%;--y:52%}.o-k{--x:73%;--y:47%}.o-xls{--x:30%;--y:65%}
+.o-mail{--x:0%;--y:1%}.o-steuer{--x:68%;--y:0%}.o-sms{--x:3%;--y:52%}.o-k{--x:73%;--y:47%}.o-ordner{--x:30%;--y:65%}
 }
 .obj{border:0;background:none;padding:0;cursor:grab;position:relative;text-align:left;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
 transform:translate(var(--dx,0px),calc(var(--dy,0px) + var(--h,0px))) rotate(var(--r,0deg));transition:transform .18s var(--out),opacity .18s;border-radius:6px}
@@ -222,31 +222,26 @@ transform:translate(var(--dx,0px),calc(var(--dy,0px) + var(--h,0px))) rotate(var
 .o-k{padding-right:1em}
 .o-k .paper{width:17em;min-height:21em}
 .sticky{position:absolute;right:-.2em;bottom:1.6em;width:max-content;min-width:4.6em;white-space:nowrap;padding:.9em .8em 1.4em;background:var(--note);font:2.1em/1.05 var(--fh);color:#4a3b00;transform:rotate(9deg);box-shadow:0 1px 1px rgba(0,0,0,.12),0 10px 14px -8px rgba(0,0,0,.35)}
-.fan{display:block;position:relative;width:21em;height:16em}
-.fan .ph{position:absolute;width:7.6em;height:9em;border:.5em solid #fff;border-bottom-width:1.6em;box-shadow:var(--pap)}
-.fan .ph:nth-child(1){left:1em;top:4em;transform:rotate(-16deg)}.fan .ph:nth-child(2){left:4em;top:2em;transform:rotate(-7deg)}
-.fan .ph:nth-child(3){left:7em;top:1em;transform:rotate(2deg)}.fan .ph:nth-child(4){left:10em;top:2em;transform:rotate(10deg)}
-.fan .ph:nth-child(5){left:12.4em;top:4.4em;transform:rotate(19deg)}.fan .ph:nth-child(6){left:5.5em;top:5.6em;transform:rotate(-2deg)}
-.ph{display:inline-block;flex:none}
-.t1{background:linear-gradient(#9fd2f2 0 46%,#2f7f88 46% 58%,#1f5f86 58%)}
-.t2{background:linear-gradient(170deg,#ffd29a,#f08a5d 52%,#3c5f86 52%)}
-.t3{background:linear-gradient(#cfe9fb 0 40%,#8aa6b8 40% 50%,#5b9a4b 50%)}
-.t4{background:linear-gradient(#2c6fd6 0 16%,transparent 16%),repeating-linear-gradient(#fff 0 .35em,#dcdce2 .35em .45em)}
-.t5{background:radial-gradient(circle at 30% 35%,#ffe7a3 0 18%,transparent 19%),linear-gradient(#f6c36c,#d9663d 60%,#7a3f4c)}
-.t6{background:linear-gradient(#1d1d1f 0 14%,transparent 14%),repeating-linear-gradient(#2b2b30 0 .45em,#55555c .45em .55em)}
 
-.bon{display:block;width:11em;padding:1.4em 1.1em 2.4em;font:1.05em/1.55 var(--mono);color:#444;text-align:center;
-background-color:#fbfbf7;background-image:linear-gradient(118deg,transparent 30%,rgba(0,0,0,.07) 31%,transparent 42%),linear-gradient(62deg,transparent 52%,rgba(0,0,0,.06) 53%,transparent 64%),linear-gradient(175deg,rgba(0,0,0,.05),transparent 40%);
--webkit-mask:linear-gradient(#000 0 0) top/100% calc(100% - .6em) no-repeat,radial-gradient(circle .55em at 50% 100%,transparent 96%,#000) bottom/1.1em .6em repeat-x;
-mask:linear-gradient(#000 0 0) top/100% calc(100% - .6em) no-repeat,radial-gradient(circle .55em at 50% 100%,transparent 96%,#000) bottom/1.1em .6em repeat-x}
-.bon b{display:block;font-size:1.3em;letter-spacing:.12em;color:#ad4900}
-.bon u{display:block;height:.4em;background:#ddd;margin:.7em 0;text-decoration:none}.bon u.s{width:60%;margin-left:auto}
-.bon em{font-style:normal;font-weight:700;display:block;border-top:1px dashed #999;padding-top:.4em}
-.xls{display:block;position:relative;width:23em;height:15.5em;background:repeating-linear-gradient(90deg,transparent 0 6.4em,#d6e4da 6.4em calc(6.4em + 1px)),repeating-linear-gradient(transparent 0 1.9em,#d6e4da 1.9em calc(1.9em + 1px)),#fff;
-box-shadow:var(--pap);padding-top:2.2em;font:1.05em/1.82 var(--mono);color:#333}
-.xls b{position:absolute;left:0;right:0;top:0;height:1.9em;background:#1f7a45;color:#fff;font:600 1em/1.9em var(--f);padding-left:.8em}
-.xls i{display:block;font-style:normal;padding-left:.6em;white-space:pre}
-.xls::after{content:"";position:absolute;right:-1.6em;bottom:-2em;width:9em;height:9em;border-radius:50%;background:radial-gradient(circle,transparent 55%,rgba(121,74,30,.32) 57%,rgba(121,74,30,.14) 63%,transparent 67%)}
+.zettel{display:block;width:6.6em;padding:.75em .7em 1.1em;background:var(--note);font:2.25em/1.08 var(--fh);color:#4a3b00;box-shadow:var(--pap);border-radius:2px}
+.zettel small{display:block;font:600 .38em/1.3 var(--f);color:#7a6420;margin-top:.7em;letter-spacing:.01em}
+.sms{display:block;width:15.5em;background:#1d1d1f;border-radius:2.2em;padding:1.5em 1em 2.2em;box-shadow:var(--pap)}
+.sms b{display:block;text-align:center;font:600 .95em/1.3 var(--f);color:#a1a1a6;margin-bottom:.8em}
+.sms i{display:block;background:#3a3a3c;color:#f5f5f7;border-radius:1.1em 1.1em 1.1em .3em;padding:.8em 1em;font:normal 1.05em/1.42 var(--f)}
+.sms u{color:#6cb4ff;text-decoration:underline}
+.dlw{display:block;position:relative;width:22em;height:14.5em;background:#fbfbf9;border-radius:.6em;box-shadow:var(--pap);overflow:hidden}
+.dlw b{display:block;height:2.2em;background:#e9e9e6;font:600 1em/2.2em var(--f);color:#3a3a3c;padding-left:4.6em;position:relative}
+.dlw b::before{content:"";position:absolute;left:1em;top:.75em;width:.7em;height:.7em;border-radius:50%;background:#ff5f57;box-shadow:1em 0 #febc2e,2em 0 #28c840}
+.dlw i{position:absolute;width:4.4em;font:normal .8em/1.2 var(--f);color:#56565b;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlw i::before{content:"";display:block;width:2.6em;height:3.1em;margin:0 auto .35em;background:#fff;border:1px solid #d8d8d4;border-radius:.2em;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.dlw i.p::before{background:linear-gradient(170deg,#ffd29a,#f08a5d 52%,#3c5f86 52%);border-color:#fff}
+.dlw i.r::before{background:linear-gradient(#c62f2f 0 22%,#fff 22%)}
+.dlw i.w::before{background:linear-gradient(#2c6fd6 0 22%,#fff 22%)}
+.dlw i:nth-of-type(1){left:1em;top:3.2em;transform:rotate(-6deg)}.dlw i:nth-of-type(2){left:6.2em;top:3.6em;transform:rotate(4deg)}
+.dlw i:nth-of-type(3){left:11.6em;top:3em;transform:rotate(-2deg)}.dlw i:nth-of-type(4){left:17em;top:3.8em;transform:rotate(7deg)}
+.dlw i:nth-of-type(5){left:2.6em;top:9.6em;transform:rotate(5deg)}.dlw i:nth-of-type(6){left:8.4em;top:10em;transform:rotate(-8deg)}
+.dlw i:nth-of-type(7){left:14em;top:9.4em;transform:rotate(3deg)}.dlw i:nth-of-type(8){left:19.6em;top:10.2em;transform:rotate(-4deg)}
+.dlw em{position:absolute;right:.7em;top:.45em;font:600 .85em/1.4 var(--f);font-style:normal;background:#c62f2f;color:#fff;border-radius:99px;padding:0 .6em}
 
 /* Pippa: Pille, die zur Karte wird */
 .shell{--obj:0 0 0 .5px rgba(16,37,26,.10),0 1px 1px rgba(16,37,26,.10),0 4px 10px -3px rgba(16,37,26,.20),0 18px 34px -14px rgba(16,37,26,.50),inset 0 1px 0 #fff;
@@ -294,11 +289,13 @@ body.grabbing,body.grabbing *{cursor:grabbing!important}
 .src cite{display:block;font-style:normal;color:var(--grey);font-size:13px;margin-bottom:3px}
 mark{background:rgba(0,91,205,.15);color:inherit;border-radius:3px;padding:0 2px;animation:glow 1.4s .6s 2}
 @keyframes glow{40%{background:rgba(0,91,205,.32);box-shadow:0 0 0 3px rgba(0,91,205,.18)}}
-.ren{list-style:none;margin:0;padding:0;display:grid;gap:var(--s2)}
-.ren li{display:grid;grid-template-columns:auto 1fr;gap:0 var(--s3);align-items:center;background:var(--fill);border-radius:12px;padding:10px var(--s3);font-size:var(--t-sm)}
-.ren .th{grid-row:span 2;display:flex}
-.ren .ph{width:22px;height:26px;border:2px solid #fff;margin-right:-8px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.ren small{color:var(--grey)}
+.draft{background:var(--fill);border-radius:12px;padding:var(--s3) var(--s4);font-size:var(--t-sm);line-height:1.5}
+.draft p{margin:0 0 .55em}.draft p:last-child{margin:0}
+.hits{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.hits li{display:grid;grid-template-columns:1fr auto;gap:0 var(--s3);background:var(--fill);border-radius:10px;padding:8px var(--s3);font-size:var(--t-sm)}
+.hits b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hits small{color:var(--grey);white-space:nowrap}
+.hits li.more{background:none;padding:2px var(--s3);color:var(--grey);font-size:var(--t-xs)}
 table{border-collapse:collapse;width:100%;font-size:var(--t-xs);font-variant-numeric:tabular-nums}
 .acts{display:flex;gap:var(--s2);justify-content:flex-end;margin-top:var(--s4);flex-wrap:wrap}
 .ownimg{display:block;width:100%;max-height:180px;object-fit:cover;border-radius:12px;margin-bottom:var(--s3)}
@@ -419,7 +416,7 @@ footer .row{display:flex;gap:var(--s2);align-items:center;font:400 18px/1 var(--
 h1{font-size:clamp(64px,16cqi,92px)}
 .stage{margin-top:14px;aspect-ratio:7/5;min-height:400px}
 .scatter .obj{font-size:calc(var(--u)*1.28)}
-.o-mail{--x:1%;--y:3%}.o-photos{--x:66%;--y:1%}.o-bon{--x:4%;--y:53%}.o-k{--x:72%;--y:46%}.o-xls{--x:30%;--y:64%}
+.o-mail{--x:1%;--y:3%}.o-steuer{--x:66%;--y:1%}.o-sms{--x:4%;--y:53%}.o-k{--x:72%;--y:46%}.o-ordner{--x:30%;--y:64%}
 .shelf{margin-top:32px}
 .slots .slt{min-height:138px}
 .tidy .stage{min-height:440px;padding:96px 0 48px;gap:24px}
@@ -438,7 +435,7 @@ h1{font-size:clamp(44px,14.5vw,80px);max-width:7.2em}
 .req,.mnote{font-size:13px;max-width:32em}
 .demo-head h2{font-size:25px}.demo-help{font-size:14px}
 .stage{margin-top:16px;aspect-ratio:1/1.12;border-radius:20px}
-.o-mail{--x:3%;--y:5%}.o-photos{--x:63%;--y:5%}.o-bon{--x:5%;--y:62%}.o-k{--x:66%;--y:61%}.o-xls{--x:28%;--y:75%}
+.o-mail{--x:3%;--y:5%}.o-steuer{--x:63%;--y:5%}.o-sms{--x:5%;--y:62%}.o-k{--x:66%;--y:61%}.o-ordner{--x:28%;--y:75%}
 .scatter .obj{font-size:calc(var(--u)*1.45)}
 .demo-picks{gap:6px;margin-top:16px}.demo-picks button{font-size:12px;padding-inline:11px}
 .shead h2{font-size:27px}.shead h2 span{margin-left:8px;font-size:13px}.shead .btn2{width:auto;margin-left:auto;font-size:13px;padding-inline:13px}
@@ -603,7 +600,7 @@ footer .wrap{max-width:1120px}
     <div class="top">
       <div class="hero">
         <h1 id="h1"><span class="w">Just</span> <span class="w">drop&nbsp;it</span> <span class="w">on&nbsp;<span class="hp">Pippa</span>.</span></h1>
-        <p class="voice" id="voice"><span class="q"><span class="hang">“Hand it over, I’ll take a look.”</span></span><span class="def">Answer emails. Find cancellation deadlines. Merge PDFs. Tidy up Downloads.</span></p>
+        <p class="voice" id="voice"><span class="q"><span class="hang">“Hand it over, I’ll take a look.”</span></span><span class="def">Answer emails. Find cancellation deadlines. Gather your documents. Tidy up Downloads.</span></p>
         <p class="hero-trust">Your files stay on your Mac. Anything Pippa changes, you can undo.</p>
         <div class="ctas">
           <a class="btn cta dl" id="cta" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Get Pippa free</a>
@@ -626,19 +623,19 @@ footer .wrap{max-width:1120px}
           
         </div>
         <div class="scatter" id="scatter" role="group" aria-label="Things on the desk. Drag them onto Pippa or tap them.">
-          <button class="obj o-mail" type="button" data-k="mail" style="--r:-4deg" aria-label="Email from the property managers"><span class="paper" aria-hidden="true"><b>Berger Property Management</b><i>Subject: Utility bill 2025</i><i>Dear Ms Weber,</i><u></u><u></u><u class="s"></u></span></button>
-          <button class="obj o-photos" type="button" data-k="photos" style="--r:3deg" aria-label="6 photos of contract pages"><span class="fan" aria-hidden="true"><i class="ph t1"></i><i class="ph t4"></i><i class="ph t2"></i><i class="ph t6"></i><i class="ph t3"></i><i class="ph t5"></i></span></button>
-          <button class="obj o-bon" type="button" data-k="bon" style="--r:-11deg" aria-label="Crumpled receipt"><span class="bon" aria-hidden="true"><b>MILLER HARDWARE</b><u></u><u class="s"></u><u></u><u class="s"></u><em>TOTAL 212.37</em></span></button>
+          <button class="obj o-mail" type="button" data-k="mail" style="--r:-4deg" aria-label="Email from the property managers: appointment for the water meter"><span class="paper" aria-hidden="true"><b>Berger Property Management</b><i>Subject: Water meter reading</i><i>Hi Ms Weber, would Thursday 16 Oct, between 9 and 12, work for you?</i><u></u><u class="s"></u></span></button>
           <button class="obj o-k" type="button" data-k="vertrag" style="--r:6deg" aria-label="Phone contract with a sticky note: cancel?"><span class="paper" aria-hidden="true"><b>Mobile contract</b><i>Plan Unlimited M</i><u></u><u></u><u class="s"></u><u></u><u class="s"></u></span><span class="sticky" aria-hidden="true">Cancel??</span></button>
-          <button class="obj o-xls" type="button" data-k="xls" style="--r:2deg" aria-label="Printed household budget"><span class="xls" aria-hidden="true"><b>Budget.xlsx</b><i>12 Mar  Grocery    23.40</i><i>14 Mar  Fuel       61,20</i><i>15 Mar  Pharmacy   12.99</i><i>16 Mar  Bakery      4.80</i><i>Total   =SUM(C2:C4)</i></span></button>
+          <button class="obj o-steuer" type="button" data-k="steuer" style="--r:3deg" aria-label="Note: everything for the 2025 tax return?"><span class="zettel" aria-hidden="true">Everything for my 2025 taxes?<small>Payslips, donations, repairs … where was all that?</small></span></button>
+          <button class="obj o-sms" type="button" data-k="sms" style="--r:-7deg" aria-label="Text message: your parcel is waiting, customs fee 1.99 euros"><span class="sms" aria-hidden="true"><b>Text · Unknown</b><i>Your parcel is waiting. Please pay the €1.99 customs fee: <u>parcel-customs-help.info</u></i></span></button>
+          <button class="obj o-ordner" type="button" data-k="ordner" style="--r:2deg" aria-label="Full Downloads folder: 47 loose files"><span class="dlw" aria-hidden="true"><b>Downloads</b><em>47</em><i class="p">IMG_4821.jpg</i><i class="r">Invoice (3).pdf</i><i>scan0001.pdf</i><i class="w">Untitled.docx</i><i class="p">IMG_4822.jpg</i><i class="r">Contract_final_v2.pdf</i><i class="r">Invoice (4).pdf</i><i class="p">Screenshot.png</i></span></button>
         </div>
       </div>
       <div class="demo-picks" role="group" aria-label="Pick an example">
-        <button type="button" data-demo="mail" aria-pressed="false">Read an email</button>
-        <button type="button" data-demo="photos" aria-pressed="false">Make one PDF</button>
-        <button type="button" data-demo="bon" aria-pressed="false">Read a receipt</button>
+        <button type="button" data-demo="mail" aria-pressed="false">Answer an email</button>
         <button type="button" data-demo="vertrag" aria-pressed="false">Find a deadline</button>
-        <button type="button" data-demo="xls" aria-pressed="false">Check a total</button>
+        <button type="button" data-demo="steuer" aria-pressed="false">Gather documents</button>
+        <button type="button" data-demo="sms" aria-pressed="false">Check online</button>
+        <button type="button" data-demo="ordner" aria-pressed="false">Tidy Downloads</button>
       </div>
       <p class="demo-note">Sample files · prepared answers</p>
       </div>
@@ -650,11 +647,11 @@ footer .wrap{max-width:1120px}
       </div>
       <div class="demo-progress" role="progressbar" aria-label="Demo progress" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span></span></div>
       <div class="slots" id="slots">
-        <div class="slt" data-k="photos"><p class="sl">PDF</p><p class="slot-hint">From photos, offline</p><div class="sc"></div></div>
-        <div class="slt" data-k="mail"><p class="sl">Filed</p><p class="slot-hint">Email and source</p><div class="sc"></div></div>
-        <div class="slt" data-k="bon"><p class="sl">Receipts</p><p class="slot-hint">Amount and date</p><div class="sc"></div></div>
+        <div class="slt" data-k="mail"><p class="sl">Reply</p><p class="slot-hint">Draft, nothing sent</p><div class="sc"></div></div>
         <div class="slt" data-k="vertrag"><p class="sl">Deadlines</p><p class="slot-hint">Notice period in view</p><div class="sc"></div></div>
-        <div class="slt" data-k="xls"><p class="sl">Budget</p><p class="slot-hint">Total checked</p><div class="sc"></div></div>
+        <div class="slt" data-k="steuer"><p class="sl">Documents</p><p class="slot-hint">All on one topic</p><div class="sc"></div></div>
+        <div class="slt" data-k="sms"><p class="sl">Online</p><p class="slot-hint">Real or scam?</p><div class="sc"></div></div>
+        <div class="slt" data-k="ordner"><p class="sl">Tidy</p><p class="slot-hint">With undo</p><div class="sc"></div></div>
       </div>
     </div>
   </div>
@@ -666,6 +663,7 @@ footer .wrap{max-width:1120px}
     <h2 id="h-faq">Questions</h2>
     <details><summary>What does Pippa cost?</summary><p>Nothing. No account, no ads. The source code is open (MIT licence).</p></details>
     <details id="mac"><summary>Will Pippa run on my Mac?</summary><p>On any Mac with Apple silicon (M1 or later) and macOS 15 or later. To check, open the Apple menu and choose “About This Mac”.</p></details>
+    <details><summary>Can Pippa do things without AI?</summary><p>Yes, and even offline: merge and shrink PDFs, turn photos into a PDF, make the text in scans searchable.</p></details>
     <details><summary>Who sees my data?</summary><p>Only your Mac. The AI runs on your Mac and there is no Pippa server. Only what you approve goes online. More in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p></details>
     <details><summary>Can Pippa break anything?</summary><p>Whatever Pippa changes in your files, you undo with one click. Before she sends anything, goes online or deletes for good, she asks you. Emails are only saved as drafts.</p></details>
     <details><summary>What’s inside?</summary><p>An open AI model on your Mac and <a href="https://github.com/earendil-works/pi">Pi</a>, an open coding agent (MIT licence). Pippa is notarised by Apple.</p></details>
@@ -714,7 +712,7 @@ const say=t=>{live.textContent='';setTimeout(()=>{live.textContent=t},40)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const obj=k=>$('.obj[data-k="'+k+'"]'),slot=k=>$('.slt[data-k="'+k+'"]');
 const wide=()=>innerWidth>=900;
-const ORDER=['mail','photos','bon','vertrag','xls'];
+const ORDER=['mail','vertrag','steuer','sms','ordner'];
 let tidy=false;
 
 /* Überschrift: Wort für Wort */
@@ -784,21 +782,21 @@ return done_(e.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'n
 
 /* Was Pippa versteht */
 const C={
-mail:{w:'Having a quick read …',h:'<p class="ct">Utility bill 2025</p><p class="cs">Email from Berger Property Management</p>',
-b:'<dl class="facts"><dt>Balance due</dt><dd>€146.20</dd><dt>What to do?</dt><dd>Transfer it</dd><dt>By when?</dt><dd>31 Oct 2026</dd></dl><div class="src"><cite>Source · paragraph 2</cite>“… this leaves a <mark>balance due of €146.20</mark>. Please transfer the amount <mark>by 31 Oct 2026</mark>.”</div>',
-a:'Add to Reminders',d:'Reminder added for 31 Oct.',s:'<span class="stk"></span><span class="tagh">by 31 Oct</span>'},
-photos:{w:'Putting the pages together …',h:'<p class="ct">6 photos, one PDF</p><p class="cs">Preview · in this order</p>',
-b:'<ul class="ren"><li><span class="th"><i class="ph t1"></i><i class="ph t2"></i><i class="ph t3"></i><i class="ph t4"></i></span><b>Lease.pdf</b><small>6 pages · the text stays searchable</small></li></ul><p class="note">Works without the internet. Your photos don’t end up on a stranger’s website.</p>',
-a:'Make one PDF',d:'Lease.pdf, 6 pages.',s:'<span class="fold">PDF <em>6 p.</em></span>'},
-bon:{w:'Deciphering …',h:'<p class="ct">Receipt from Miller Hardware</p><p class="cs">Crumpled, but readable.</p>',
-b:'<dl class="facts"><dt>From</dt><dd>Miller Hardware</dd><dt>Date</dt><dd>26 Sep 2026</dd><dt>Total</dt><dd>€212.37</dd></dl>',
-a:'Save as PDF',d:'Receipt saved as a PDF.',s:'<span class="rc">26 Sep · Miller Hardware<b>€212.37</b></span>'},
+mail:{w:'Reading it and checking your calendar …',h:'<p class="ct">Reply to Berger Property Management</p><p class="cs">Draft · I won’t send anything</p>',
+b:'<div class="draft"><p>Hi Mr Berger,</p><p>Thursday 16 Oct works for me. I’ll be home from 9.</p><p>Best wishes<br>Anna Weber</p></div><p class="note">Your calendar is free on the morning of 16 Oct.</p>',
+a:'Open in Mail',d:'The draft is in Mail. You send it.',s:'<span class="stk"></span><span class="tagh">Draft</span>'},
 vertrag:{q:'When can I cancel?',w:'Finding the clause …',h:'<p class="ct">Mobile contract</p><p class="cs">You asked: When can I cancel?</p>',
 b:'<p class="ans">The contract runs until 30 Nov 2027. You can cancel until 30 Aug 2027 (please double-check).</p><div class="src"><cite>Mobile_contract.pdf · page 2</cite>“The minimum term ends on <mark>30 Nov 2027</mark>. Notice of cancellation must be received <mark>three months before the end of the term</mark>.”</div>',
 a:'Remember deadline',d:'Reminder set for 16 Aug 2027.',s:'<span class="tagh">by 30 Aug 2027</span>'},
-xls:{w:'Adding it up …',h:'<p class="ct">Budget.xlsx</p><p class="cs">Here’s what I noticed:</p>',
-b:'<dl class="facts"><dt>C6</dt><dd>The total leaves out one row: the bakery.</dd><dt>C3</dt><dd>“61,20” is stored as text and missing from the total.</dd></dl><p class="note">Pippa doesn’t change the file. You fix it yourself.</p>',
-a:'Keep the tips',d:'The tips stay in your history.',s:'<span>2 mistakes found</span>'}
+steuer:{q:'Find everything for my 2025 taxes.',w:'Searching your Mac …',h:'<p class="ct">7 documents for your 2025 taxes</p><p class="cs">Found in Downloads, Documents and Mail</p>',
+b:'<ul class="hits"><li><b>Payslip summary 2025</b><small>Documents</small></li><li><b>Donation receipt, food bank</b><small>Downloads</small></li><li><b>Invoice, boiler service</b><small>Mail</small></li><li><b>Pension statement 2025</b><small>Documents</small></li><li class="more">and 3 more</li></ul><p class="note">I haven’t moved anything.</p>',
+a:'Copy into a folder',d:'Folder “Taxes 2025” with 7 copies. The originals stay where they are.',s:'<span class="fold">Taxes 2025 <em>7</em></span>'},
+sms:{q:'Is this text real?',w:'Checking online …',h:'<p class="ct">This is very likely a scam</p><p class="cs">You asked: Is this text real?</p>',
+b:'<p class="ans">Don’t tap the link and don’t pay. Parcel services don’t ask for customs fees through a link in a text.</p><div class="src"><cite>Checked online · 3 sources, including consumer advice centres</cite>Several current warnings about exactly this trick: a small amount, an unfamiliar address, time pressure.</div><p class="note">Only the address from the text went online, nothing about you.</p>',
+a:'Good to know',d:'Don’t pay, delete the text.',s:'<span class="tagh">Scam!</span>'},
+ordner:{w:'Looking at 47 files …',h:'<p class="ct">Tidy up Downloads</p><p class="cs">Preview · nothing changed yet</p>',
+b:'<dl class="facts"><dt>Invoices</dt><dd>12 files</dd><dt>Photos</dt><dd>14, by year</dd><dt>Contracts</dt><dd>5 files</dd><dt>Left alone</dt><dd>16, I’m not sure about them</dd></dl><p class="note">Nothing gets deleted. One click undoes everything.</p>',
+a:'Tidy 31 files',d:'31 files in 3 folders. You can undo any time.',s:'<span class="fold">3 folders <em>31</em></span>'}
 };
 
 let T=0,cur=null,kb=false,done={},blob='',touched=false;
@@ -821,7 +819,7 @@ ds.classList.add('working');set('arbeitet');morph('pill',pill(c.w,'',RM?'':'shim
 await wait(2000+Math.random()*1500,true);if(t!==T)return false;
 ds.classList.remove('working');set('offen');pulse();
 morph('card',card(c.h,c.b,done[k]?B('leave','Done',1):B('leave','Leave it')+B('apply',c.a,1)));
-say(($('.ct',din).innerText+'. '+$('.facts,.ans,.ren,.note',din).innerText).replace(/\s*\n+\s*/g,' '));
+say(($('.ct',din).innerText+'. '+$('.facts,.ans,.draft,.hits,.note',din).innerText).replace(/\s*\n+\s*/g,' '));
 seen();
 if(kb){const f=$('[data-a=apply]',din)||$('[data-a=leave]',din);f.focus({preventScroll:true})}
 return true;
@@ -960,7 +958,7 @@ bub.getAnimations().forEach(a=>a.cancel());bubEmote.getAnimations().forEach(a=>a
 if(!RM)bub.animate([{opacity,transform:from},{opacity:0,transform:'translateY(4px) rotate(-3deg) scale(.96)'}],{duration:150,easing:'ease-out'});
 }
 const LINES=[['So, what have you got?','👀'],['What’s on the list?','🙂'],['Hand it over. I’ll take a look.','👀'],['One file at a time.','🙂']];let lastL='',pv=true,once=false,nb=0;
-const HINTS={mail:['Mail from the property managers?','📬'],photos:['Make a PDF of these?','👀'],bon:['Crumpled works too.','🧾'],vertrag:['I’ll find the notice period.','🤔'],xls:['Does the total add up?','🧮']};
+const HINTS={mail:['Shall I reply?','📬'],vertrag:['I’ll find the notice period.','🤔'],steuer:['I’ll gather it all.','🔎'],sms:['Real or scam?','🧐'],ordner:['I tidy, you decide.','🧹']};
 let hintTimer=0;
 $$('.obj').forEach(o=>{
   o.addEventListener('pointerenter',e=>{
