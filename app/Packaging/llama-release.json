@@ -1,5 +1,5 @@
 {
-  "about": "llama.cpp build Pippa bundles. scripts/build-app.sh builds llama-server from the pinned source tarball (\"bundled\") plus the patches in app/Packaging/llama-patches. Bump by editing this file and app/Sources/PippaCore/Resources/llama-release.json (tag, release, source hash, patches) after testing. \"assets\" are the upstream binary release, no longer bundled; scripts/live-test.sh still uses the macOS arm64 asset.",
+  "about": "llama.cpp build Pippa bundles. scripts/build-app.sh builds llama-server from the pinned source tarball (\"bundled\") plus the patches in app/Packaging/llama-patches. Bump by editing this file (tag, release, source hash, patches) after testing. \"assets\" are the upstream binary release, no longer bundled; scripts/live-test.sh still uses the macOS arm64 asset.",
   "tag": "b11503",
   "release": "after v0.6.0 (first builds with K2 Horizon support, PR #29535)",
   "tested": "2026-10-08: llama-server --help of the macOS arm64 asset has every flag Pippa passes; K2 Horizon 7B still to be run on a Mac (Hugging Face was unreachable)",

@@ -89,16 +89,21 @@ extension AppModel {
 
     /// Call in Mail: the local model stays loaded for a while afterwards, the letter takes over.
     private func callMail() {
-        let engine = self.engine
-        Task { await engine.keepWarmAfterCall() }
+        keepModelWarm()
         sheet.end()
         letter.callMail()
     }
 
     /// Call in Excel: as in Mail, the model stays loaded for a while afterwards (for *Explain this table*).
     private func callExcel() {
-        let engine = self.engine
-        Task { await engine.keepWarmAfterCall() }
+        keepModelWarm()
         sheet.callExcel()
+    }
+
+    /// Pi's llama-server (the one the app runs) stays loaded longer after a call. Starts nothing. LocalEngine's own
+    /// `keepWarmAfterCall` reached no server since it shares Pi's.
+    private func keepModelWarm() {
+        let server = PiRPCChat.shared.ownedServer
+        Task { await server?.keepWarm(for: LlamaServer.afterCallSeconds) }
     }
 }

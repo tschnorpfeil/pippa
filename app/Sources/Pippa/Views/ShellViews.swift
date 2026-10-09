@@ -275,34 +275,6 @@ struct TargetContent: View {
 
 // MARK: - 2 Eingabe
 
-/// Attachment chip in the field: 28 high, symbol in accent, × to remove.
-struct ScopeChip: View {
-    var name: String
-    var icon: String
-    var clear: () -> Void
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon).font(.scaled(size: 12, weight: .medium)).foregroundStyle(Theme.accent)
-            Text(name).lineLimit(1).truncationMode(.middle).frame(maxWidth: 150, alignment: .leading).fixedSize()
-            Button(action: clear) {
-                Image(systemName: "xmark").font(.scaled(size: 7.5, weight: .heavy)).foregroundStyle(Theme.ink3)
-                    .frame(width: 16, height: 16).background(Circle().fill(Theme.fill2))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(T("Remove Attachment", table: "Views"))
-        }
-        .font(.scaled(size: 12.5, weight: .medium))
-        .foregroundStyle(Theme.ink)
-        .padding(.leading, 9)
-        .padding(.trailing, 6)
-        .frame(height: 28)
-        .background(Capsule().fill(Theme.accentTint))
-        .fixedSize()
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(T("Attached: %@", table: "Views", name))
-    }
-}
-
 // MARK: - 3 Arbeiten
 
 struct WorkingContent: View {
