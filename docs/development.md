@@ -254,6 +254,11 @@ text report and quits (for example `settings`, `scans`, `calendar`, `ctxsug`, `t
 `PIPPA_REDUCE_MOTION=1`. The bare debug executable shows English strings; run it from a bundle with
 `app/Packaging/Info.plist` to see German. These fixtures check state and layout, not model quality.
 
+**Clicking through the real app.** Pippa is a menu bar app (accessory), which UI automation tools that only list
+regular apps cannot reach. `PIPPA_REGULAR_APP=1` makes it a regular app with a Dock icon. For a clean first start
+without touching your own data, point Foundation at a fake home (`HOME` alone is ignored):
+`open --env PIPPA_REGULAR_APP=1 --env CFFIXED_USER_HOME=$PWD/.build/fakehome --env HOME=$PWD/.build/fakehome dist/Pippa.app`.
+
 ## Localization
 
 English is the development language and the fallback; German is a full translation, chosen by the system language.

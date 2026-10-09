@@ -14,5 +14,7 @@ if CommandLine.arguments.dropFirst().contains("--probe-legacy-container") {
 LegacyMigrationPrompt.runIfNeeded()
 let delegate = AppDelegate()
 app.delegate = delegate
-app.setActivationPolicy(.accessory)
+// PIPPA_REGULAR_APP=1 (developers only): a regular app with a Dock icon, so UI automation that only sees regular
+// apps can click through it.
+app.setActivationPolicy(ProcessInfo.processInfo.environment["PIPPA_REGULAR_APP"] == "1" ? .regular : .accessory)
 app.run()
