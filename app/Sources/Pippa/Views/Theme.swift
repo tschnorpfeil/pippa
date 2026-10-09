@@ -1143,12 +1143,9 @@ struct ApprovalLabel: View {
     var title: String
     var icon: String
     var body: some View {
-        HStack(spacing: 10) {
-            Label(title, systemImage: icon)
-            Text("⌘↵").font(.scaled(size: 12, weight: .medium))
-                .opacity(0.8).accessibilityHidden(true)
-        }
-        .help(T("%@ (⌘ Return)", table: "Views", title))
+        // No key symbols in the button itself (UI-FIXPLAN 1.3); the shortcut stays in the tooltip.
+        Label(title, systemImage: icon)
+            .help(T("%@ (⌘ Return)", table: "Views", title))
     }
 }
 

@@ -255,3 +255,6 @@
 "Found so far (%lld):" = "Bisher gefunden (%lld):";
 "The search returned no file locations before it stopped. Files may still exist." = "Bis zum Abbruch hat die Suche keine Fundorte geliefert. Die Dateien können trotzdem vorhanden sein.";
 "More file locations were found; only the first 200 are shown." = "Es gab weitere Fundorte; hier stehen nur die ersten 200.";
+
+/* Guard card (GuardAskCard.swift): switch instead of a third button. */
+"Don’t ask again for this task" = "Bei dieser Aufgabe nicht mehr fragen";

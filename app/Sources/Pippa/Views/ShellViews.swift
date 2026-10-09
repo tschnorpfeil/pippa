@@ -668,6 +668,8 @@ struct ErrorContent: View {
     @ObservedObject var model: AppModel
     var message: String
     private let openState = State(initialValue: false)
+    /// The message comes from AppModel: same key from the same table ("App"); the bare default says nothing new.
+    private var hasReason: Bool { !message.isEmpty && message != T("Nothing was changed.", table: "App") }
 
     var body: some View {
         let partial = model.partialReceipt
@@ -675,32 +677,34 @@ struct ErrorContent: View {
             PanelHead(title: model.lastWorkTitle.isEmpty ? "Pippa" : model.lastWorkTitle, meta: nil, onClose: { model.collapse() })
             VStack(alignment: .leading, spacing: 8) {
                 ResultTitle(text: T("That didn’t work.", table: "Views"))
+                // The reason first, in one sentence, not behind a disclosure (UI-FIXPLAN 1.1).
+                if hasReason {
+                    Text(message).font(Fonts.lead).foregroundStyle(Theme.ink)
+                        .fixedSize(horizontal: false, vertical: true).stagger(1)
+                }
                 Lead(text: partial != nil ? T("Part of it is already done. One click puts everything back the way it was.", table: "Views")
                                           : T("Nothing was changed. Your files are just as they were.", table: "Views")).stagger(1)
-                // The message comes from AppModel: same key from the same table ("App").
-                if message != T("Nothing was changed.", table: "App") {
-                    Button {
-                        openState.wrappedValue.toggle()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: openState.wrappedValue ? "chevron.down" : "chevron.right").font(.scaled(size: 10, weight: .bold))
-                            Text(T("What happened?", table: "Views"))
-                        }
-                        .font(.scaled(size: 12.5, weight: .medium))
-                        .foregroundStyle(Theme.ink2)
+                // Reporting is for when it keeps happening: behind "Details", not next to the way forward.
+                Button {
+                    openState.wrappedValue.toggle()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: openState.wrappedValue ? "chevron.down" : "chevron.right").font(.scaled(size: 10, weight: .bold))
+                        Text(T("Details", table: "App"))
                     }
-                    .buttonStyle(.plain)
-                    .padding(.top, 6)
-                    if openState.wrappedValue {
-                        Text(message).font(.scaled(size: 13)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
-                    }
+                    .font(.scaled(size: 12.5, weight: .medium))
+                    .foregroundStyle(Theme.ink2)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 6)
+                if openState.wrappedValue {
+                    Button(T("Report a Problem…", table: "Views")) { ProblemReport.open() }.pippa(.quiet)
                 }
             }
             .padding(.horizontal, 24)
             .padding(.top, 14)
             ActionBar {
                 Button(T("Close", table: "Views")) { model.collapse() }.pippa(.quiet)
-                Button(T("Report a Problem…", table: "Views")) { ProblemReport.open() }.pippa(.quiet)
                 if let partial {
                     Button { model.undo(partial) } label: { Label(T("Undo", table: "Views"), systemImage: "arrow.uturn.backward") }
                         .pippa(.tinted)

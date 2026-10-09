@@ -45,6 +45,14 @@ struct GuardAskCard: View {
     // @State is not available without Xcode (macro plugin): storage by hand.
     private let detailState = State(initialValue: false)
     private var showsDetail: Bool { detailState.wrappedValue }
+    /// "Don't ask again for this task" (off by default: asking stays the safe answer).
+    private let taskState = State(initialValue: false)
+    private var offersTask: Bool { ask.options.contains(Self.allowForTask) && ask.options.contains(Self.allow) && ask.options.contains(Self.deny) }
+
+    /// The guard's answers (runtime/pippa-guard/pippa-guard.ts ALLOW, ALLOW_FOR_TASK, DENY).
+    static let allow = "Erlauben"
+    static let allowForTask = "Für diese Aufgabe erlauben"
+    static let deny = "Nicht erlauben"
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || MarkHub.shared.reduced }
 
@@ -55,11 +63,25 @@ struct GuardAskCard: View {
             Text(ask.sentence)
                 .font(Fonts.body).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
+            // Two buttons, the important one on the right (UI-FIXPLAN 2.4). "For this task" is a switch, not a
+            // third button: Allow sends the guard's own answer for it when the switch is on.
+            if offersTask {
+                Toggle(T("Don’t ask again for this task", table: "App"), isOn: Binding(
+                    get: { taskState.wrappedValue }, set: { taskState.wrappedValue = $0 }))
+                    .toggleStyle(.switch).controlSize(.mini)
+                    .font(Fonts.hint).foregroundStyle(Theme.ink2)
+            }
             HStack(spacing: 8) {
+                Spacer(minLength: 0)
                 if ask.isConfirm {
-                    Button(T("Allow", table: "App")) { decide(.confirmed(true)) }.pippa(.primary).keyboardShortcut(.defaultAction)
                     Button(T("Don’t Allow", table: "App")) { decide(.confirmed(false)) }.pippa(.quiet)
+                    Button(T("Allow", table: "App")) { decide(.confirmed(true)) }.pippa(.primary).keyboardShortcut(.defaultAction)
+                } else if let allow = ask.options.first(where: { $0 == Self.allow }), let deny = ask.options.first(where: { $0 == Self.deny }) {
+                    Button(Self.label(deny)) { decide(.value(deny)) }.pippa(.quiet)
+                    Button(Self.label(allow)) { decide(.value(offersTask && taskState.wrappedValue ? Self.allowForTask : allow)) }
+                        .pippa(.primary).keyboardShortcut(.defaultAction)
                 } else {
+                    // Unknown answers from a future guard: as they come, first one as default.
                     ForEach(Array(ask.options.enumerated()), id: \.offset) { index, option in
                         if index == 0 {
                             Button(Self.label(option)) { decide(.value(option)) }.pippa(.primary).keyboardShortcut(.defaultAction)
@@ -68,11 +90,6 @@ struct GuardAskCard: View {
                         }
                     }
                 }
-            }
-            if ask.options.contains("Für diese Aufgabe erlauben") {
-                Text(T("“Allow for This Task” means I won’t ask again for this kind of step until the answer is done.", table: "App"))
-                    .font(Fonts.hint).foregroundStyle(Theme.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             if !ask.detail.isEmpty {
                 Button {

@@ -73,13 +73,13 @@ Gebaut wird auf dem Mac erst nach der Abnahme der Web-Recherche (Owner 09.10.). 
 | 2 | Drei Ausgänge, Ergebnis bleibt stehen (3.3) | **Entwurf in diesem Branch** für Antworten im Gespräch; Aufgaben-Quittungen (3.5) fehlen noch |
 | 3 | Verben direkt an der Pille nach dem Ablegen (5.1) | **gibt es schon:** Dateien auf der Pille öffnen die Zeile (`ShellMode.line`) mit bis zu drei Aktionen aus `ThingActions.offered` (Rolle des Dokuments, gelernte Gewohnheiten). Offen: im echten Klicktest prüfen, ob die drei die richtigen sind |
 | 4 | Ergebnis-Karte mit Beleg (Phase 4) | offen |
-| 5 | Freigabe mit zwei Knöpfen (2.4) | offen, Owner-Frage im Fixplan |
+| 5 | Freigabe mit zwei Knöpfen (2.4) | **Entwurf in diesem Branch:** „Nicht erlauben“ / „Erlauben“ + Schalter „Bei dieser Aufgabe nicht mehr fragen“; nur die App-Karte, der Guard bleibt unverändert |
 | 6 | Ergebnis als Ding ziehen | offen, klein |
 | 7 | Hilfe beim Kopieren | offen; Owner 09.10.: beim ersten Mal fragen, danach in den Einstellungen abschaltbar |
 | 8 | Sprechblase und Haptik für drei Momente | **erster Schritt in diesem Branch:** „Deine Antwort ist da“ steht handgeschrieben (Gochi Hand, gebündelt) in der Pille; Sprechblase und Haptik offen |
 | – | Leerer Zustand: Beispiele als Karten mit Symbol (5.2) | **Entwurf in diesem Branch** |
 
-Fixplan Phase 1 (Fehlerkarte mit Grund, Willkommen, Kürzel aus Knöpfen) bleibt parallel sinnvoll und ist klein.
+Fixplan Phase 1: in diesem Branch 1.1 (Grund sichtbar, „Problem melden“ hinter Details), 1.3 (kein ⌘↵ im Knopf), 1.4 („vorher: …“ in normaler Schrift). Offen: 1.2, 1.5–1.9.
 
 ## Was dieser Branch ändert
 
@@ -102,9 +102,14 @@ Fixplan Phase 1 (Fehlerkarte mit Grund, Willkommen, Kürzel aus Knöpfen) bleibt
 `PIPPA_REGULAR_APP=1` eine Frage stellen, Fenster schließen, Pille beobachten, hell/dunkel, „Bewegung reduzieren“,
 große Schrift.
 
-## Offene Entscheidungen
+## Entscheidungen
 
-- **Ergebnis in der Pille:** bleibt stehen, bis angesehen (so umgesetzt), oder nach 10 Minuten zurück zu „Pippa“?
+- Owner 09.10.: Ergebnis bleibt in der Pille stehen, bis es angesehen wird. Freigabe-Karte mit zwei Knöpfen und
+  Schalter wie empfohlen. Hilfe beim Kopieren: beim ersten Mal fragen.
+
+Offen:
+
+
 - **Guard-Frage bei geschlossenem Fenster:** Heute öffnet sich das Gespräch dafür von selbst (`onNeedsPerson`).
   Regel 3 spräche für „Kurz eine Frage“ in der Pille und Warten. Nicht geändert, weil Pi solange blockiert ist;
   nach dem ersten echten Test entscheiden.

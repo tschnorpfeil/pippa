@@ -28,7 +28,7 @@
 "and %lld more following the same pattern" = "und %lld weitere nach demselben Muster";
 "Include %@" = "%@ übernehmen";
 "unsure" = "unsicher";
-"was: %@" = "war: %@";
+"was: %@" = "vorher: %@";
 "Stays where it is" = "Bleibt, wo es ist";
 "%lld files go into %lld folders" = "%lld Dateien kommen in %lld Ordner";
 "Now" = "Jetzt";
