@@ -107,6 +107,7 @@ extension ShellController {
             return
         }
         updateMouseIgnoring()
+        panel.releaseEditorDrops()
         // If Pippa is dragging an item out itself, that is not a drop on Pippa.
         guard model.pillVisible, stageVisible, canDrop, !isDraggingPill, !takingOut else {
             if dragAnnounced {

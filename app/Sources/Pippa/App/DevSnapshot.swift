@@ -347,6 +347,49 @@ enum DevSnapshot {
                 try? report.joined(separator: "\n").write(to: dir.appendingPathComponent("dragtarget.txt"), atomically: true, encoding: .utf8)
             }
 
+            if only == "dropchain" {
+                // Which view would AppKit hand a drag to? Hit test, then walk up to the first view
+                // registered for drag types (AppKit's destination lookup). Every point of the open
+                // conversation must end at a view that forwards to the shell.
+                model.newConversation()
+                model.conversations.append(.user, "Vorheriges Thema")
+                model.conversations.append(.assistant, "Dieses Thema bleibt im Verlauf.")
+                try? await Task.sleep(for: .milliseconds(900))
+                await snap("dropchain-01-open")
+                var lines: [String] = ["mode=\(model.mode.key) firstResponder=\(shell.panel.firstResponder.map { String(describing: type(of: $0)) } ?? "nil")"]
+                // The drag poll runs every 80 ms while the button is down, before the drag reaches the panel.
+                shell.updateDragPresence(pressed: true, changeCount: shell.dragBaseline, hasSupportedType: true)
+                var failures: [String] = []
+                if !model.mode.isConversation { failures.append("Conversation did not open") }
+                if let editor = shell.panel.firstResponder as? NSTextView, !editor.registeredDraggedTypes.isEmpty { failures.append("Input editor still takes drops itself") }
+                if let root = shell.panel.contentView {
+                    let rect = shell.shellScreenRect.offsetBy(dx: -shell.panel.frame.minX, dy: -shell.panel.frame.minY)
+                    var counts: [String: Int] = [:]
+                    for ix in 1..<12 { for iy in 1..<12 {
+                        let p = NSPoint(x: rect.minX + rect.width * CGFloat(ix) / 12, y: rect.minY + rect.height * CGFloat(iy) / 12)
+                        var view = root.hitTest(p)
+                        while let v = view, v.registeredDraggedTypes.isEmpty { view = v.superview }
+                        let name = view.map { String(describing: type(of: $0)) } ?? "nil"
+                        counts[name, default: 0] += 1
+                        let forwards = view is ShellDropView || view is ShellHostingView<ShellHostRoot>
+                        if !forwards { failures.append("Point \(Int(p.x)),\(Int(p.y)) ends at \(name)") }
+                    } }
+                    if let editor = shell.panel.firstResponder as? NSView {
+                        let mid = editor.convert(NSPoint(x: editor.bounds.midX, y: editor.bounds.midY), to: nil)
+                        var view = root.hitTest(mid)
+                        while let v = view, v.registeredDraggedTypes.isEmpty { view = v.superview }
+                        let name = view.map { String(describing: type(of: $0)) } ?? "nil"
+                        lines.append("input: \(name)")
+                        if !(view is ShellHostingView<ShellHostRoot>) { failures.append("Drop on the input ends at \(name)") }
+                    }
+                    lines.append("destinations: " + counts.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))
+                }
+                lines += failures.isEmpty ? ["PASS: every sampled point of the open conversation forwards drops to the shell."] : failures.prefix(12).map { "FAIL: \($0)" }
+                try? lines.joined(separator: "\n").write(to: dir.appendingPathComponent("dropchain.txt"), atomically: true, encoding: .utf8)
+                NSApp.terminate(nil)
+                return
+            }
+
             if only == "attachments" {
                 NSApp.activate()
                 var failures: [String] = []
