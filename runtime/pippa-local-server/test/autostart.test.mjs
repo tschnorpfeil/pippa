@@ -4,6 +4,7 @@
 //   node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { createServer as createHTTPServer } from "node:http";
 import { join } from "node:path";
@@ -184,6 +185,29 @@ test("idle: the terminal's server unloads after idleSeconds without use; a busy 
 		assert.equal(await common.health(port, "k".repeat(64)), 0, "server stopped");
 	} finally {
 		delete process.env.FAKE_LLAMA_BUSY;
+		await stopAll();
+	}
+});
+
+test("started from Pippa's own Pi (after a model crash): the server stops once Pippa is gone", async () => {
+	const port = await freePort();
+	const config = writeConfig(port);
+	// "Pippa": a process that lives until killed.
+	const app = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+	process.env.PIPPA_APP_PID = String(app.pid);
+	try {
+		assert.equal(await ensureServer(config, { configFile: join(support, "pippa-local-server.json"), lockFile }), "started");
+		const lock = common.readLock(lockFile);
+		await sleep(400);
+		assert.equal(await common.health(port, "k".repeat(64)), 200, "runs while Pippa runs");
+		app.kill("SIGKILL");
+		let gone = false;
+		for (let i = 0; i < 50 && !gone; i++) { await sleep(100); gone = !existsSync(lockFile) && !common.isAlive(lock.pid); }
+		assert.ok(gone, "server and lock gone after Pippa quit");
+		assert.equal(await common.health(port, "k".repeat(64)), 0);
+	} finally {
+		delete process.env.PIPPA_APP_PID;
+		app.kill("SIGKILL");
 		await stopAll();
 	}
 });

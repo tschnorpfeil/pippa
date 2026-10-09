@@ -44,6 +44,13 @@ final class AppModel: ObservableObject {
     /// The system prompt (e.g. Calendar) is open: a click on it does not collapse the conversation.
     var awaitingSystemPrompt = false
     @Published private(set) var parked: ShellMode? { didSet { updateMark() } }
+    /// An answer finished while only the pill was showing: the pill says so until the conversation is opened.
+    @Published private(set) var pillOutcome: PillOutcome? { didSet { updateMark() } }
+    /// Pippa's short handwritten moment in the pill ("Fertig!", "Wieder wie vorher."); clears itself (`say`).
+    @Published private(set) var pillMoment: PillMoment? { didSet { updateMark() } }
+    private var pillMomentTask: Task<Void, Never>?
+    /// "Leg was auf mich!" right after setup, until the first thing is dropped or asked.
+    @Published private(set) var pillInvites = UserDefaults.standard.bool(forKey: "pill.invite")
     @Published private(set) var lastJob: String?
     @Published private(set) var lastReceipt: JobReceipt?
     @Published private(set) var modelStatus: ModelStatus = .loading
@@ -143,6 +150,12 @@ final class AppModel: ObservableObject {
         conversationChanges = conversations.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark(); self?.schedulePendingDrops() }
         }
+        conversations.onAnswerFinished = { [weak self] failed in
+            guard let self, !self.isExpanded else { return }
+            self.pillOutcome = failed ? .failed : .answered
+            self.shell?.pulseMark()
+            if !failed { Self.tap() }
+        }
         tray.model = self
         trayChanges = tray.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark() }
@@ -178,8 +191,44 @@ final class AppModel: ObservableObject {
         case .working: return .arbeitet
         default: break
         }
-        if parked != nil || toastShowing { return .offen }
+        if pillOutcome == .failed { return .fehler }
+        if parked != nil || toastShowing || pillOutcome == .answered || pillMoment == .finished || pillMoment == .undone { return .offen }
         return .ruht
+    }
+
+    /// What the collapsed pill says: the real phase of the running answer, or how the last one ended (PillStatus.swift).
+    var pillStatus: PillStatus {
+        let thought = conversations.thought
+        return PillStatus.make(phase: conversations.isRunning ? thought.phase : nil, step: thought.currentStep,
+                               outcome: pillOutcome, busy: busy || tray.isWorking || letter.isWorking,
+                               moment: pillMoment ?? (pillInvites ? .invite : nil))
+    }
+
+    /// One of Pippa's small moments (UX rule 6): shown by the collapsed pill, never two at once, gone after a moment.
+    /// Opening anything else ends it (`show`).
+    func say(_ moment: PillMoment) {
+        guard moment != .invite, pillMoment == nil else { return }
+        pillMoment = moment
+        shell?.pulseMark()
+        Self.tap()
+        pillMomentTask?.cancel()
+        pillMomentTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2.6))
+            guard !Task.isCancelled else { return }
+            self?.pillMoment = nil
+        }
+    }
+
+    /// A light tap on the trackpad for a happy ending (only felt with a finger on a Force Touch trackpad).
+    private static func tap() {
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+    }
+
+    /// Setup is done; the very first time, the pill invites ("Leg was auf mich!").
+    private func finishOnboarding() {
+        let defaults = UserDefaults.standard
+        if !defaults.bool(forKey: "onboarded") { defaults.set(true, forKey: "pill.invite"); pillInvites = true }
+        defaults.set(true, forKey: "onboarded")
     }
 
     private func updateMark() {
@@ -496,6 +545,14 @@ final class AppModel: ObservableObject {
             if !(self.mode.isConversation && mode.isConversation) { shell?.modeWillChange() }
         }
         if mode.isConversation, let id = conversations.current?.id { conversationPresentations[id] = mode }
+        // Seen: the conversation (or its compact form) is on screen now.
+        if mode.isConversation || mode.key == "resume" { pillOutcome = nil }
+        // The first thing dropped or asked ends the invitation for good.
+        if pillInvites, !["pill", "target", "onboarding"].contains(mode.key) {
+            pillInvites = false
+            UserDefaults.standard.set(false, forKey: "pill.invite")
+        }
+        if mode.key != "pill" { pillMoment = nil }
         // Someone is about to ask: load the knowledge now if it is not in memory (PiRPCChat+ColdStart).
         if mode.isConversation || mode.key == "resume" { PiRPCChat.shared.preloadIfCold() }
         self.mode = mode                // The transition is done by the shell (Core Animation), not SwiftUI
@@ -525,7 +582,7 @@ final class AppModel: ObservableObject {
 
     func openConversationFromPill(now: Date = Date()) {
         guard hasResumableConversation, let current = conversations.current else { return openInput() }
-        let requiresAttention = isActiveWork || tray.isWorking
+        let requiresAttention = isActiveWork || tray.isWorking || pillOutcome != nil
             || parked?.requiresReviewOnReopen == true || taskCard?.requiresReviewOnReopen == true
             || conversationPresentations[current.id]?.requiresReviewOnReopen == true
             || current.messages.contains { message in
@@ -576,7 +633,7 @@ final class AppModel: ObservableObject {
             if sheet.isActive { sheet.lineClosed() } else if letter.isActive { letter.lineClosed() } else { tray.lineClosed() }
         }
         if mode.isResult { parked = mode }
-        if case .onboarding = mode { UserDefaults.standard.set(true, forKey: "onboarded") }
+        if case .onboarding = mode { finishOnboarding() }
         show(.pill)
     }
 
@@ -636,7 +693,7 @@ final class AppModel: ObservableObject {
             // Existing sessions keep their draft; their isActive rule yields to the newly given things.
             if !letter.hasSession { letter.end() }
             if !sheet.hasSession { sheet.end() }
-            if case .onboarding = mode { UserDefaults.standard.set(true, forKey: "onboarded") }
+            if case .onboarding = mode { finishOnboarding() }
             tray.add(items, origin: nil)
             openLine()
             return
@@ -1098,7 +1155,7 @@ final class AppModel: ObservableObject {
     /// (without an overview before). Nothing changes until approve. `folder` only for developer recordings.
     func tidyDownloads(folder: URL? = nil) {
         guard !isActiveWork, let downloads = folder ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else { return }
-        UserDefaults.standard.set(true, forKey: "onboarded")
+        finishOnboarding()
         resetFileWork()
         let name = downloads.lastPathComponent
         context = WorkContext(name: name, items: [downloads], payload: .files([downloads]))
@@ -1205,13 +1262,16 @@ final class AppModel: ObservableObject {
 
     /// "Tidy now": the leftover documents in a new preview.
     func sortLaterNow() {
-        guard let later = sortLater else { return }
-        guard !isActiveWork else {
-            toasts?.show(title: T("I’m still working", table: "App"), detail: T("Click again once I’m done.", table: "App"), buttons: [], log: false)
-            return
-        }
+        guard let later = sortLater, !refuseWhileWorking() else { return }
         sortLater = nil
         proposeSort(items: later.files.filter { FileManager.default.fileExists(atPath: $0.path) }, scope: later.scope, limit: nil)
+    }
+
+    /// A tidy round started from a toast waits until running work is done: both share the one local model slot.
+    private func refuseWhileWorking() -> Bool {
+        guard isActiveWork else { return false }
+        toasts?.show(title: T("I’m still working", table: "App"), detail: T("Click again once I’m done.", table: "App"), buttons: [], log: false)
+        return true
     }
 
     /// An interim state of the preview: show the preview at the first, then only refresh.
@@ -1324,6 +1384,7 @@ final class AppModel: ObservableObject {
             self.lastReceipt = nil
             self.refreshJobs()
             self.toasts?.show(title: T("Everything is back as it was", table: "App"), detail: receipt.undoDetail ?? T("The files are back where they were.", table: "App"), buttons: [])
+            self.say(.undone)
         }
     }
 
@@ -1332,6 +1393,7 @@ final class AppModel: ObservableObject {
         lastJob = receipt.summary
         lastReceipt = receipt
         refreshJobs()
+        say(.finished)
     }
 
     /// Receipt after tidying: "In 4 folders · 1 stays", "Show" opens the list (or Finder).
@@ -1349,7 +1411,8 @@ final class AppModel: ObservableObject {
                 ? T("Tidy 1 More File", table: "App")
                 : T("Tidy %lld More", table: "App", more.count)
             buttons.append(.init(title: moreTitle, primary: false) { [weak self] in
-                self?.proposeSort(items: more, scope: scope, limit: nil)
+                guard let self, !self.refuseWhileWorking() else { return }
+                self.proposeSort(items: more, scope: scope, limit: nil)
             })
         }
         var detail = receipt.detail

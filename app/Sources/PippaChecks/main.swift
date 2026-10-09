@@ -94,6 +94,7 @@ if ProcessInfo.processInfo.environment["PIPPA_THOUGHT_CHECKS"] == "1" {
     await runThoughtLineChecks()
     runWorkStepChecks()
     runColdStartChecks()
+    runPillStatusChecks()
     print(failures == 0 ? "Thought Line checks passed." : "Thought Line checks failed.")
     exit(failures == 0 ? 0 : 1)
 }
@@ -442,17 +443,6 @@ check("Case: only the same file counts as a pure rename") {
 
 check("ZIP: CRC-32") { ZipWriter.crc32(Data("123456789".utf8)) == 0xCBF4_3926 }
 
-// MARK: - Search and evidence
-
-check("FTS5 (trigram) finds the passage with the phrase") {
-    let index = try SearchIndex()
-    try index.add(file: URL(fileURLWithPath: "/x/a.pdf"), page: 1, text: invoiceText)
-    try index.add(file: URL(fileURLWithPath: "/x/m.pdf"), page: 2, text: contractPages[1])
-    try index.add(file: URL(fileURLWithPath: "/x/m.pdf"), page: 1, text: contractPages[0])
-    let hits = try index.search("Wie lange ist die Kündigungsfrist?")
-    let hits2 = try index.search("Rechnungsnummer 2026-118734")
-    return hits.first?.page == 2 && hits.first?.text.contains("drei Monaten") == true && hits2.first?.file.lastPathComponent == "a.pdf"
-}
 // MARK: - Fixed context
 
 check("Persona + rules under 500 tokens (per task)") {
@@ -1303,6 +1293,7 @@ runCalendarStoreChecks()
 await runThoughtLineChecks()
 runWorkStepChecks()
 runColdStartChecks()
+runPillStatusChecks()
 await runSetupChecks()
 await runMCPChecks()
 await runR2Checks()

@@ -105,29 +105,3 @@ final class TrayThumbnails: ObservableObject {
         }
     }
 }
-
-/// Small thumbnail for SwiftUI (line with the items): paper edge, image or icon.
-struct TrayThumbnail: View {
-    var item: TrayItem
-    var size: CGSize = CGSize(width: 28, height: 36)
-    @ObservedObject private var thumbnails = TrayThumbnails.shared
-
-    init(item: TrayItem, size: CGSize = CGSize(width: 28, height: 36)) {
-        self.item = item
-        self.size = size
-    }
-
-    var body: some View {
-        // A finished image counts `revision` up; @ObservedObject then redraws.
-        Image(nsImage: thumbnails.image(for: item, size: TrayThumbnails.cardSize))
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: size.width - 2, height: size.height - 2)
-            .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
-            .padding(1)
-            .background(RoundedRectangle(cornerRadius: 3, style: .continuous).fill(Color.white))
-            .shadow(color: Color.black.opacity(0.18), radius: 1.5, x: 0, y: 0.5)
-            .frame(width: size.width, height: size.height)
-            .accessibilityHidden(true)
-    }
-}

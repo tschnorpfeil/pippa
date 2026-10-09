@@ -1,0 +1,1771 @@
+[
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 2,
+  "task": "zusammenfassen",
+  "lang": "de",
+  "prompt": "[Gezeigt – Pippa hat das nicht gelesen; lies selbst, was du für die Antwort brauchst]\nNeu gezeigt:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 Seiten, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – lesen mit mcp__pippa__read_document\n\nFass mir diesen Brief kurz zusammen und sag, was ich tun muss.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": false,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 8014
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 4.07,
+  "firstWordSeconds": 15.382,
+  "totalSeconds": 29.959,
+  "modelRequests": [
+   {
+    "at": 190,
+    "status": 200
+   },
+   {
+    "at": 8022,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 2628,
+    "output": 95,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2723,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 558,
+    "output": 506,
+    "cacheRead": 2722,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3786,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 125,
+  "finalAnswer": "Hier ist die Kurzfassung des Briefes:\n\n**Was passiert?**\nDie Hausverwaltung tauscht in Ihrer Wohnung die alten Fenster gegen neue, dreifach verglaste Fenster. Die Firma Glasbau Beispiel führt die Arbeiten aus.\n\n**Wann?**\nVom 12. bis 16. Januar 2027. Für Ihre Wohnung ist der 13. Januar 2027 vorgesehen, zwischen 8 und 16 Uhr.\n\n**Was Sie tun müssen:**\n1. **Rückmeldebogen ausfüllen und bis 20. November 2026 zurücksenden** – darauf geben Sie an, ob Sie am 13. Januar 2027 zu Hause sind oder wer die Wohnung öffnet.\n2. **Am Tag der Arbeiten (13. Januar 2027) Fensterbänke frei räumen** und etwa einen Meter vor den Fenstern freihalten. Möbel müssen nicht abgebaut werden – die Firma deckt die Böden ab.\n\n**Was ändert sich danach?**\nAb 1. April 2027 erhöht sich Ihre Grundmiete um 38,50 Euro. Die Betriebskostenvorauszahlung bleibt gleich.\n\n**Ihr Recht:**\nSie können die Wohnung kündigen, wenn Sie die Arbeiten nicht aushalten. Bis zum Ablauf des Monats, in dem Sie den Brief erhalten haben, können Sie außerordentlich zum Ablauf des übernächsten Monats kündigen.\n\nBei Fragen können Sie Herrn Kurz unter 01234 567890 erreichen.\n\nSoll ich den Rückmeldebogen für Sie ausfüllen?",
+  "thinkingChars": 685,
+  "receipts": [],
+  "diagnostics": ""
+ },
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 2,
+  "task": "mail-antwort",
+  "lang": "de",
+  "prompt": "Antworte auf die ausgewählte Mail: Der Zählerstand ist 1.234,5 Kubikmeter, heute abgelesen. Kurz und freundlich, als Entwurf.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "drafts": 1,
+   "reading": true,
+   "replyTo": true,
+   "claimsSent": false,
+   "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Nachricht.\n\nDer aktuelle Zählerstand beträgt 1.234,5 Kubikmeter. Dieser wurde heute abgelesen.\n\nMit freundlichen Grüßen"
+  },
+  "toolCalls": 2,
+  "tools": [
+   {
+    "name": "mcp__pippa__mail_selected",
+    "args": {}
+   },
+   {
+    "name": "mcp__pippa__mail_draft",
+    "args": {
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Nachricht.\n\nDer aktuelle Zählerstand beträgt 1.234,5 Kubikmeter. Dieser wurde heute abgelesen.\n\nMit freundlichen Grüßen",
+     "reply_to": "selected",
+     "subject": "Ablesung Wasserzähler"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "mail_selected",
+    "args": {},
+    "at": 3410
+   },
+   {
+    "name": "mail_draft",
+    "args": {
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Nachricht.\n\nDer aktuelle Zählerstand beträgt 1.234,5 Kubikmeter. Dieser wurde heute abgelesen.\n\nMit freundlichen Grüßen",
+     "reply_to": "selected",
+     "subject": "Ablesung Wasserzähler"
+    },
+    "at": 10977
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.376,
+  "firstWordSeconds": 12.426,
+  "totalSeconds": 13.23,
+  "modelRequests": [
+   {
+    "at": 175,
+    "status": 200
+   },
+   {
+    "at": 3416,
+    "status": 200
+   },
+   {
+    "at": 10983,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 49,
+    "output": 75,
+    "cacheRead": 2518,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2642,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 205,
+    "output": 178,
+    "cacheRead": 2641,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3024,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 74,
+    "output": 51,
+    "cacheRead": 3023,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3148,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Die Antwort ist als Entwurf in Mail gespeichert. Du kannst sie dort prüfen und dann absenden.",
+  "thinkingChars": 586,
+  "receipts": [],
+  "diagnostics": ""
+ },
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 2,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.",
+  "autoGrade": "partial",
+  "autoNotes": {
+   "amountsFound": 4,
+   "sourced": 4,
+   "sumCorrect": false,
+   "decoyAmount": false
+  },
+  "toolCalls": 48,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year \"2024\""
+    }
+   },
+   {
+    "name": "list_folder",
+    "args": {
+     "path": "<home>/Downloads"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <home>/Downloads/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find <home> -name \"*Rechnung*\" -o -name \"*Invoice*\" 2>/dev/null | head -20"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Downloads/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Documents/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Documents/Rechnungen/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Desktop/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Documents/Haushalt/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Documents/Versicherungen/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Documents/Wohnung/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<home>/Downloads/abrechnung_hv.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<home>/Downloads/abrechnung_hv.pdf"
+    }
+   },
+   {
+    "name": "list_folder",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/work"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find <home> -type f -name \"*.pdf\" 2>/dev/null | head -30"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "pwd && ls -la"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Downloads/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<home>/Downloads/abrechnung_hv.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<home>/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Documents/Rechnungen/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "cat ~/Downloads/invoice_7731.pdf | strings | head -50"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year \"2024\""
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find <home> -name \"*.pdf\" -type f 2>/dev/null | grep -i rechnung"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "echo \"test\""
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls ~/Documents/Rechnungen/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "strings ~/Documents/Rechnungen/scan_0399.pdf | head -100"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "cat ~/Documents/Rechnungen/scan_0399.pdf | head -c 500"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <home>/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Downloads/abrechnung_hv.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Downloads/kfz_beitrag_2026.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Downloads/Buergeramt_Abholung.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Downloads/angebot_kueche.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Downloads/beleg_feb.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Documents/Rechnungen/scan_0399.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Documents/Haushalt/garantie_waschmaschine.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Documents/Versicherungen/hausrat_police.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Documents/Versicherungen/phv.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Documents/Wohnung/mv_scan.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Documents/Wohnung/nk2023.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "~/Desktop/scan_kk.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<home>/Downloads/abrechnung_hv.pdf"
+    },
+    "at": 71863
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<home>/Downloads/abrechnung_hv.pdf"
+    },
+    "at": 78708
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<home>/Downloads/invoice_7731.pdf"
+    },
+    "at": 128953
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Downloads/abrechnung_hv.pdf"
+    },
+    "at": 183032
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Downloads/invoice_7731.pdf"
+    },
+    "at": 188830
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Downloads/handwerker.pdf"
+    },
+    "at": 193198
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Downloads/kfz_beitrag_2026.pdf"
+    },
+    "at": 197901
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 201512
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Downloads/Buergeramt_Abholung.pdf"
+    },
+    "at": 205459
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Downloads/angebot_kueche.pdf"
+    },
+    "at": 209086
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Downloads/beleg_feb.pdf"
+    },
+    "at": 213151
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Documents/Rechnungen/scan_0399.pdf"
+    },
+    "at": 217363
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 221210
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Documents/Haushalt/garantie_waschmaschine.pdf"
+    },
+    "at": 226001
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 229481
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Documents/Versicherungen/hausrat_police.pdf"
+    },
+    "at": 234278
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Documents/Versicherungen/phv.pdf"
+    },
+    "at": 241616
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Documents/Wohnung/mv_scan.pdf"
+    },
+    "at": 245190
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Documents/Wohnung/nk2023.pdf"
+    },
+    "at": 249542
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "~/Desktop/scan_kk.pdf"
+    },
+    "at": 252943
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 3.589,
+  "firstWordSeconds": 290.356,
+  "totalSeconds": 299.92,
+  "modelRequests": [
+   {
+    "at": 151,
+    "status": 200
+   },
+   {
+    "at": 8432,
+    "status": 200
+   },
+   {
+    "at": 14670,
+    "status": 200
+   },
+   {
+    "at": 17794,
+    "status": 200
+   },
+   {
+    "at": 24327,
+    "status": 200
+   },
+   {
+    "at": 29860,
+    "status": 200
+   },
+   {
+    "at": 33989,
+    "status": 200
+   },
+   {
+    "at": 37425,
+    "status": 200
+   },
+   {
+    "at": 41454,
+    "status": 200
+   },
+   {
+    "at": 44544,
+    "status": 200
+   },
+   {
+    "at": 47086,
+    "status": 200
+   },
+   {
+    "at": 49917,
+    "status": 200
+   },
+   {
+    "at": 52333,
+    "status": 200
+   },
+   {
+    "at": 54507,
+    "status": 200
+   },
+   {
+    "at": 71869,
+    "status": 200
+   },
+   {
+    "at": 78711,
+    "status": 200
+   },
+   {
+    "at": 82498,
+    "status": 200
+   },
+   {
+    "at": 86283,
+    "status": 200
+   },
+   {
+    "at": 92828,
+    "status": 200
+   },
+   {
+    "at": 99207,
+    "status": 200
+   },
+   {
+    "at": 112055,
+    "status": 200
+   },
+   {
+    "at": 116127,
+    "status": 200
+   },
+   {
+    "at": 128959,
+    "status": 200
+   },
+   {
+    "at": 135867,
+    "status": 200
+   },
+   {
+    "at": 144183,
+    "status": 200
+   },
+   {
+    "at": 151223,
+    "status": 200
+   },
+   {
+    "at": 156530,
+    "status": 200
+   },
+   {
+    "at": 159333,
+    "status": 200
+   },
+   {
+    "at": 162594,
+    "status": 200
+   },
+   {
+    "at": 166118,
+    "status": 200
+   },
+   {
+    "at": 169617,
+    "status": 200
+   },
+   {
+    "at": 175092,
+    "status": 200
+   },
+   {
+    "at": 183034,
+    "status": 200
+   },
+   {
+    "at": 188836,
+    "status": 200
+   },
+   {
+    "at": 193199,
+    "status": 200
+   },
+   {
+    "at": 197903,
+    "status": 200
+   },
+   {
+    "at": 201514,
+    "status": 200
+   },
+   {
+    "at": 205461,
+    "status": 200
+   },
+   {
+    "at": 209087,
+    "status": 200
+   },
+   {
+    "at": 213153,
+    "status": 200
+   },
+   {
+    "at": 217368,
+    "status": 200
+   },
+   {
+    "at": 221211,
+    "status": 200
+   },
+   {
+    "at": 226003,
+    "status": 200
+   },
+   {
+    "at": 229484,
+    "status": 200
+   },
+   {
+    "at": 234280,
+    "status": 200
+   },
+   {
+    "at": 241622,
+    "status": 200
+   },
+   {
+    "at": 245192,
+    "status": 200
+   },
+   {
+    "at": 249549,
+    "status": 200
+   },
+   {
+    "at": 252944,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 2489,
+    "output": 119,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2608,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 413,
+    "output": 135,
+    "cacheRead": 2607,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3155,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 73,
+    "cacheRead": 3154,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3257,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 154,
+    "cacheRead": 3256,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3440,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 129,
+    "cacheRead": 3439,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3598,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 96,
+    "cacheRead": 3597,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3723,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 393,
+    "output": 68,
+    "cacheRead": 3722,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4183,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 381,
+    "output": 86,
+    "cacheRead": 4182,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4649,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 202,
+    "output": 66,
+    "cacheRead": 4648,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4916,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 156,
+    "output": 54,
+    "cacheRead": 4915,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5125,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 115,
+    "output": 64,
+    "cacheRead": 5124,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5303,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 150,
+    "output": 51,
+    "cacheRead": 5302,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5503,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 151,
+    "output": 45,
+    "cacheRead": 5502,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5698,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 151,
+    "output": 408,
+    "cacheRead": 5697,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 6256,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 45,
+    "output": 159,
+    "cacheRead": 6255,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 6459,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 45,
+    "output": 86,
+    "cacheRead": 6458,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 6589,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 35,
+    "output": 86,
+    "cacheRead": 6588,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 6709,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 151,
+    "cacheRead": 6708,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 6889,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 147,
+    "cacheRead": 6888,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 7065,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 307,
+    "cacheRead": 7064,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 7401,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 381,
+    "output": 85,
+    "cacheRead": 7400,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 7866,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 71,
+    "output": 298,
+    "cacheRead": 7865,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 8234,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 45,
+    "output": 157,
+    "cacheRead": 8233,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 8435,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 156,
+    "output": 186,
+    "cacheRead": 8434,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 8776,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 160,
+    "cacheRead": 8775,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 8965,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 121,
+    "cacheRead": 8964,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 9115,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 62,
+    "cacheRead": 9114,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 9206,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 17,
+    "output": 75,
+    "cacheRead": 9205,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 9297,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 31,
+    "output": 80,
+    "cacheRead": 9296,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 9407,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 79,
+    "cacheRead": 9406,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 9515,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 376,
+    "output": 117,
+    "cacheRead": 9514,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 10007,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 184,
+    "cacheRead": 10006,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 10220,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 355,
+    "output": 122,
+    "cacheRead": 10219,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 10696,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 192,
+    "output": 94,
+    "cacheRead": 10695,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 10981,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 305,
+    "output": 98,
+    "cacheRead": 10883,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 11286,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 200,
+    "output": 76,
+    "cacheRead": 11285,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 11561,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 558,
+    "output": 70,
+    "cacheRead": 11560,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 12188,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 298,
+    "output": 71,
+    "cacheRead": 12187,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 12556,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 174,
+    "output": 86,
+    "cacheRead": 12555,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 12815,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 180,
+    "output": 88,
+    "cacheRead": 12814,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 13082,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 181,
+    "output": 80,
+    "cacheRead": 13081,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 13342,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 251,
+    "output": 101,
+    "cacheRead": 13341,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 13693,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 153,
+    "output": 72,
+    "cacheRead": 13692,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 13917,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 180,
+    "output": 102,
+    "cacheRead": 13916,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 14198,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 315,
+    "output": 153,
+    "cacheRead": 14197,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 14665,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 164,
+    "output": 73,
+    "cacheRead": 14664,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 14901,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 352,
+    "output": 84,
+    "cacheRead": 14900,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 15336,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 197,
+    "output": 68,
+    "cacheRead": 15335,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 15600,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 171,
+    "output": 1041,
+    "cacheRead": 15599,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 16811,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Ich habe alle deine Dateien durchgesehen. Hier sind die Rechnungen von 2024:\n\n1. **Nebenkostenabrechnung** (abrechnung_hv.pdf): 270,00 EUR Nachzahlung\n2. **Zahnarztrechnung** (invoice_7731.pdf): 95,00 EUR\n3. **Handwerkerrechnung** (handwerker.pdf): 310,00 EUR\n4. **Elektro-Rechnung** (scan_0412.pdf): 142,80 EUR\n5. **Kaufbeleg** (kaufbeleg.pdf): 249,00 EUR\n\n**Gesamtsumme: 1.066,80 EUR**\n\nAndere Dateien waren Angebote (nicht Rechnungen), Rechnungen von anderen Jahren (2023, 2025, 2026) oder keine Belege (Verträge, Bescheinigungen).",
+  "thinkingChars": 16223,
+  "receipts": [],
+  "diagnostics": ""
+ },
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 2,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 5369
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 1.333,
+  "firstWordSeconds": 21.104,
+  "totalSeconds": 34.743,
+  "modelRequests": [
+   {
+    "at": 177,
+    "status": 200
+   },
+   {
+    "at": 5374,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 593,
+    "output": 99,
+    "cacheRead": 1973,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2665,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 558,
+    "output": 685,
+    "cacheRead": 2664,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3907,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Ich habe den Brief gelesen. Hier die Kurzversion:\n\nDie Hausverwaltung kündigt an, dass alle Fenster in Ihrer Wohnung gegen neue, dreifach verglaste Fenster ausgetauscht werden. Die Arbeiten laufen vom 12. bis 16. Januar 2027. Für Ihre Wohnung ist der 13. Januar 2027 zwischen 8 und 16 Uhr vorgesehen. Die Firma Glasbau Beispiel führt die Arbeiten aus.\n\n**Was Sie tun müssen:**\n1. **Rückmeldebogen ausfüllen und bis 20.11.2026 zurücksenden** – darauf angeben, ob Sie am 13.01.2027 zu Hause sind oder wer die Wohnung öffnet.\n2. **Am Tag der Arbeiten Fensterbänke freiräumen** und etwa einen Meter vor den Fenstern frei halten. Möbel müssen nicht abgebaut werden, Böden werden abgedeckt.\n\n**Folgen für die Miete:**\nNach Abschluss steigt Ihre Grundmiete ab 01.04.2027 um 38,50 EUR monatlich. Die Betriebskostenvorauszahlung bleibt gleich.\n\n**Ihr Recht:**\nSie können bis zum Ablauf des Monats, der auf den Zugang dieses Briefs folgt, außerordentlich kündigen – zum Ende des übernächsten Monats.\n\nBei Fragen: Herr Kurz unter 01234 567890.\n\nMöchten Sie, dass ich Ihnen den Rückmeldebogen ausfülle?",
+  "thinkingChars": 1376,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]

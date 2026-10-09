@@ -28,7 +28,7 @@
 "and %lld more following the same pattern" = "and %lld more following the same pattern";
 "Include %@" = "Include %@";
 "unsure" = "unsure";
-"was: %@" = "was: %@";
+"was: %@" = "before: %@";
 "Stays where it is" = "Stays where it is";
 "%lld files go into %lld folders" = "%lld files go into %lld folders";
 "Now" = "Now";
@@ -263,3 +263,4 @@
 "Where is my rental agreement?" = "Where is my rental agreement?";
 "Remind me tomorrow morning to take out the paper recycling" = "Remind me tomorrow morning to take out the paper recycling";
 "Puts this sentence into the input field" = "Puts this sentence into the input field";
+"Asks the same question again" = "Asks the same question again";
