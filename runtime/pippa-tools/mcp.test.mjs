@@ -1,12 +1,11 @@
 // Tests the registration of Pippa's MCP server (pippa-mcp.ts) without Pi and without network: a stand-in `pi` accepts
 // `registerMcpServer`.
 //
-//   node --experimental-strip-types --test runtime/pippa-guard/mcp.test.mjs
+//   node --experimental-strip-types --test runtime/pippa-tools/mcp.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 const { default: register, serverConfig, SERVER_NAME, TOOLS, WRITE_TOOLS } = await import("./pippa-mcp.ts");
-const { APP_ENTRIES } = await import("./self-asking.ts");
 
 const token = "ab".repeat(32);
 
@@ -50,12 +49,11 @@ test("codemode only on explicit request (measuring)", () => {
 });
 
 test("tool names as in the Swift server, none writes or sends", () => {
-	assert.deepEqual(TOOLS, ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "read_document", "web_search", "read_web_page"]);
+	assert.deepEqual(TOOLS, ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "read_document"]);
 	assert.ok(TOOLS.every((name) => !/send|write|add|delete|create|draft/.test(name)));
 });
 
-test("writing tools as in the Swift server, none sends or deletes; the guard knows exactly these", () => {
+test("writing tools as in the Swift server, none sends or deletes", () => {
 	assert.deepEqual(WRITE_TOOLS, ["calendar_add", "reminder_add", "mail_draft"]);
 	assert.ok(WRITE_TOOLS.every((name) => !/send|delete|remove|invite/.test(name)));
-	assert.deepEqual(Object.keys(APP_ENTRIES).sort(), [...WRITE_TOOLS].sort());
 });

@@ -4,7 +4,7 @@ import Foundation
 /// Pi launch. Deliberately its own file and function, separate from the rest of the launch (`PippaPiLaunch.swift`).
 ///
 /// The server runs in the app itself on 127.0.0.1 (PippaCore/MCP/PippaMCPServer.swift). The extension
-/// `runtime/pippa-guard/pippa-mcp.ts` registers it via `pi.registerMcpServer`, so only for this session: no entry
+/// `runtime/pippa-tools/pippa-mcp.ts` registers it via `pi.registerMcpServer`, so only for this session: no entry
 /// in `~/.pi/agent/mcp.json`, the terminal Pi does not see it.
 extension PippaPiLaunch {
     public struct MCPEndpoint: Sendable, Equatable {

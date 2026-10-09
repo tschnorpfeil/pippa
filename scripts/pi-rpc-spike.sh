@@ -1,7 +1,7 @@
 #!/bin/sh
 # Probe: Pippa driving the real Pi over `pi --mode rpc`.
 # Everything stays in the repo under .build/: a fake HOME (.build/spike-home) with the pinned Pi from the payload
-# (PIPPA_PI_PAYLOAD, default .build/pi-payload) and Pi's config folder, work folder, undo folder, sessions, a test
+# (PIPPA_PI_PAYLOAD, default .build/pi-payload) and Pi's config folder, work folder, sessions, a test
 # trash (PIPPA_TRASH_DIR, so nothing reaches the real Trash) and logs.
 # The model files under ~/Library/Caches/pippa-live are only read. ~/.pi and ~/.local stay untouched.
 #
@@ -13,7 +13,7 @@
 #   scripts/pi-rpc-spike.sh env                        print the environment for probe runs (eval "$(... env)")
 #   scripts/pi-rpc-spike.sh app [manual|wave2d]        Pippa window with PIPPA_PI_RPC=1 (scripted snapshot "pirpc",
 #                                                      the wave2d snapshot, or drive it yourself); the app starts llama-server itself
-#   scripts/pi-rpc-spike.sh r2 [hbsomiwWn|all]         shown items, read_document, look up online (PiRPCR2Spike, run swift build first)
+#   scripts/pi-rpc-spike.sh r2 [hbsomiW|all]           shown items, read_document, look up online (PiRPCR2Spike, run swift build first)
 #   scripts/pi-rpc-spike.sh r3 [hfbar|all]             calendar, reminder, mail draft (PiRPCR3Spike, stand-in connections)
 #   scripts/pi-rpc-spike.sh r7 latency|cold|slot|ans1|sort  acceptance run (PiRPCR2Spike r7, server as in the app)
 set -eu
@@ -25,11 +25,10 @@ agent="$home/.pi/agent"
 support="$home/Library/Application Support/Pippa"
 payload="${PIPPA_PI_PAYLOAD:-$root/.build/pi-payload}"
 work="$root/.build/spike-work"
-undo="$root/.build/spike-undo"
 sessions="$root/.build/spike-sessions"
 trash="$root/.build/spike-trash"
-guard="$root/runtime/pippa-guard/pippa-guard.ts"
-tools="$root/runtime/pippa-guard/pippa-tools.ts"
+tools="$root/runtime/pippa-tools"
+web="$root/runtime/pippa-web/index.ts"
 cache="$HOME/Library/Caches/pippa-live"
 mkdir -p "$logs"
 # Port from Pippa's settings.json in the fake HOME (PiInstaller.stablePort), otherwise 18080.
@@ -60,7 +59,7 @@ llama-stop)
   fi
   ;;
 setup)
-  mkdir -p "$work" "$undo" "$sessions" "$trash"
+  mkdir -p "$work" "$sessions" "$trash"
   # Like the app: detect installer steps, install Pi, write models.json in the fake HOME (PiSetupSpike --install-only).
   PIPPA_PI_PAYLOAD="$payload" "$root/app/.build/debug/PiSetupSpike" --install-only "$home" k2-horizon-7b qwen3.5-4b-q4
   # No project resources, quiet start; the model comes via --provider/--model from PiInstaller.launchSpec.
@@ -79,22 +78,20 @@ env)
   echo "export PI_OFFLINE=1"
   echo "export PI_SKIP_VERSION_CHECK=1"
   echo "export PI_TELEMETRY=0"
-  echo "export PIPPA_UNDO_DIR='$undo'"
   echo "export PIPPA_SPIKE_WORK='$work'"
-  echo "export PIPPA_PI_GUARD='$guard'"
-  echo "export PIPPA_PI_TOOLS='$tools'"
+  echo "export PIPPA_PI_EXTENSIONS='$tools'"
+  echo "export PIPPA_PI_WEB='$web'"
   echo "export PIPPA_SPIKE_SESSIONS='$sessions'"
   echo "export PIPPA_TRASH_DIR='$trash'"
   ;;
 r2)
   # Corpus: .build/quality/ctxsug-corpus (swift scripts/quality/make-ctxsug-corpus.swift).
-  # Fetch process (case W): Pippa's Node + runtime/pippa-web (npm ci + npm test builds src/generated).
+  # Web (case W): runtime/pippa-web with its node_modules (npm ci there first); goes to the network.
   shift
   export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-k2-horizon-7b}"
   export PI_CODING_AGENT_DIR="$agent" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
-  export PIPPA_UNDO_DIR="$undo" PIPPA_SPIKE_WORK="$work" PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools"
+  export PIPPA_SPIKE_WORK="$work" PIPPA_PI_EXTENSIONS="$tools" PIPPA_PI_WEB="$web"
   export PIPPA_SPIKE_SESSIONS="$sessions" PIPPA_TRASH_DIR="$trash" PIPPA_SPIKE_PORT="$port"
-  export PIPPA_NODE_BINARY="$payload/bin/node" PIPPA_WEB_RUNTIME="${PIPPA_WEB_RUNTIME:-$root/runtime/pippa-web}"
   (cd "$root" && "$root/app/.build/debug/PiRPCR2Spike" rpc "${1:-all}" -AppleLanguages "(de)") 2>&1 | tee "$logs/r2-${1:-all}.log"
   ;;
 r7)
@@ -103,7 +100,7 @@ r7)
   shift
   export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-k2-horizon-7b}"
   export PI_CODING_AGENT_DIR="$agent" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
-  export PIPPA_UNDO_DIR="$undo" PIPPA_SPIKE_WORK="$work" PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools"
+  export PIPPA_SPIKE_WORK="$work" PIPPA_PI_EXTENSIONS="$tools"
   export PIPPA_SPIKE_SESSIONS="$sessions" PIPPA_TRASH_DIR="$trash" PIPPA_R7_LOGS="$logs/r7"
   export PIPPA_LLAMA_SERVER="$( [ -x "$root/dist/Pippa.app/Contents/Helpers/llama-server" ] && echo "$root/dist/Pippa.app/Contents/Helpers/llama-server" || echo "$cache/llama-b11503/llama-server")"
   case "$PIPPA_PI_MODEL" in
@@ -118,7 +115,7 @@ r3)
   shift
   export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-k2-horizon-7b}"
   export PI_CODING_AGENT_DIR="$agent" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
-  export PIPPA_UNDO_DIR="$undo" PIPPA_SPIKE_WORK="$work" PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools"
+  export PIPPA_SPIKE_WORK="$work" PIPPA_PI_EXTENSIONS="$tools"
   export PIPPA_SPIKE_SESSIONS="$sessions" PIPPA_TRASH_DIR="$trash" PIPPA_SPIKE_PORT="$port"
   (cd "$root" && "$root/app/.build/debug/PiRPCR3Spike" "${1:-all}" -AppleLanguages "(de)") 2>&1 | tee "$logs/r3-${PIPPA_PI_MODEL}-${1:-all}.log"
   ;;
@@ -128,8 +125,8 @@ app)
   # PI_CODING_AGENT_DIR only here, so ~/.pi stays untouched; the app itself never sets it (PippaPiLaunch).
   # Sessions end up in the snapshot's support folder (PIPPA_SNAPSHOT/support/pi-sessions).
   export PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-k2-horizon-7b}"
-  export PI_CODING_AGENT_DIR="$agent" PIPPA_UNDO_DIR="$undo" PIPPA_PI_WORKDIR="$work" PIPPA_TRASH_DIR="$trash"
-  export PIPPA_PI_GUARD="$guard" PIPPA_PI_TOOLS="$tools" PIPPA_PI_RPC=1 PIPPA_DEMO=1
+  export PI_CODING_AGENT_DIR="$agent" PIPPA_PI_WORKDIR="$work" PIPPA_TRASH_DIR="$trash"
+  export PIPPA_PI_EXTENSIONS="$tools" PIPPA_PI_WEB="$web" PIPPA_PI_RPC=1 PIPPA_DEMO=1
   # The app starts the llama-server for pippa-local itself (fixed port + key from the fake HOME).
   # Binary and model from the cache are only read. If one is already running (llama-start), set PIPPA_PI_OWN_LLAMA=0.
   export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$( [ -x "$root/dist/Pippa.app/Contents/Helpers/llama-server" ] && echo "$root/dist/Pippa.app/Contents/Helpers/llama-server" || echo "$cache/llama-b11503/llama-server")}"
@@ -141,10 +138,9 @@ app)
     export PIPPA_SNAPSHOT="$shot"
     "$root/app/.build/debug/Pippa"
   else
-    # PIPPA_APP_SCENARIO=pirpc-r2 (shown items, look up online; corpus .build/quality/ctxsug-corpus, real fetch).
+    # PIPPA_APP_SCENARIO=pirpc-r2 (shown items, look up online; corpus .build/quality/ctxsug-corpus, network).
     scenario="${PIPPA_APP_SCENARIO:-pirpc}"
     export PIPPA_SNAPSHOT="$shot" PIPPA_SNAPSHOT_ONLY="$scenario" PIPPA_R2_CORPUS="$root/.build/quality/ctxsug-corpus"
-    export PIPPA_NODE_BINARY="$payload/bin/node" PIPPA_WEB_RUNTIME="${PIPPA_WEB_RUNTIME:-$root/runtime/pippa-web}"
     "$root/app/.build/debug/Pippa" >"$logs/app.log" 2>&1
     echo "Report: $shot/$scenario.txt"
   fi

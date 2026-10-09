@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 // Headless RPC smoke for a Pi payload, used by scripts/bump-pi.sh. Starts the real Pi the way the app does
-// (Pippa's Node + release cli.js, `--mode rpc`, guard and tool extensions, the app's flags and environment) against a
+// (Pippa's Node + release cli.js, `--mode rpc`, Pippa's extensions, the app's flags and environment) against a
 // FAKE HOME under .build/ and a scripted OpenAI-compatible stand-in on 127.0.0.1. No real model, no network, ~/.pi
 // is never read or written.
 //
 //   node scripts/pi-rpc-smoke.mjs <payload dir from bundle-pi-payload.sh --with-node> [expected version]
 //
 // Checks: `--version`; models.json provider with a `!command` API key (as PiInstaller writes it); get_state;
-// a guarded `write` that asks over extension_ui_request and is allowed; the guard's receipt via appendEntry
-// (entry_appended); agent_settled; the session file under --session-dir with --session-id; an abort that still
+// a `write` that runs without any question (Pi has no approvals; Pippa adds none); agent_settled; the session file under --session-dir with --session-id; an abort that still
 // ends in agent_settled. Exit code 0 only if every check passed.
 import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -45,7 +44,7 @@ const check = (name, ok, detail = "") => {
 const env = {
 	HOME: home, PATH: `${join(payload, "bin")}:/usr/bin:/bin:/usr/sbin:/sbin`,
 	PI_TELEMETRY: "0", PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1",
-	PIPPA_UNDO_DIR: join(home, "undo"), PIPPA_TRASH_DIR: join(home, "trash"), PIPPA_GUARD_POLICY: "ask-all",
+	PIPPA_TRASH_DIR: join(home, "trash"), PIPPA_WEB_DIR: join(home, "Library/Application Support/Pippa/pi-web"),
 };
 
 // 1. --version
@@ -89,8 +88,10 @@ await writeFile(join(agent, "models.json"), JSON.stringify({ providers: { "pippa
 	models: [{ id: "smoke", name: "Smoke", contextWindow: 16384, maxTokens: 1024 }] } } }, null, 2));
 
 // 3. Pi in RPC mode with the app's arguments (PippaPiLaunch.configuration + PiInstaller.launchSpec).
-const guard = join(repo, "runtime/pippa-guard");
-const child = spawn(node, [cli, "--mode", "rpc", "--extension", join(guard, "pippa-guard.ts"), "--extension", join(guard, "pippa-tools.ts"),
+// runtime/pippa-web needs its node_modules (bump-pi.sh runs `npm ci` there first).
+const tools = join(repo, "runtime/pippa-tools");
+const child = spawn(node, [cli, "--mode", "rpc", "--extension", join(tools, "pippa-tools.ts"), "--extension", join(tools, "pippa-assist.ts"),
+	"--extension", join(repo, "runtime/pippa-web/index.ts"),
 	"--provider", "pippa-local", "--model", "smoke", "--no-context-files", "--no-approve", "--system-prompt", "You are a smoke test.",
 	"--session-dir", sessions, "--session-id", "smoke-1"], { cwd: work, env, stdio: ["pipe", "pipe", "pipe"] });
 let stderr = "";
@@ -105,11 +106,6 @@ child.stdout.on("data", (data) => {
 		const line = buffer.slice(0, n); buffer = buffer.slice(n + 1);
 		let event; try { event = JSON.parse(line); } catch { check("stdout is JSONL only", false, line.slice(0, 80)); continue; }
 		events.push(event);
-		if (event.type === "extension_ui_request" && event.method === "confirm") {
-			child.stdin.write(`${JSON.stringify({ type: "extension_ui_response", id: event.id, confirmed: true })}\n`);
-		} else if (event.type === "extension_ui_request" && event.method === "select") {
-			child.stdin.write(`${JSON.stringify({ type: "extension_ui_response", id: event.id, value: event.options[0] })}\n`);
-		}
 		for (const w of [...waiters]) if (w.match(event)) { waiters.splice(waiters.indexOf(w), 1); w.resolve(event); }
 	}
 });
@@ -130,10 +126,9 @@ try {
 	const settled = await waitFor((e) => e.type === "agent_settled");
 	check("agent_settled", true, `aborted=${JSON.stringify(settled.aborted)}`);
 	const asked = events.some((e) => e.type === "extension_ui_request" && (e.method === "confirm" || e.method === "select"));
-	check("guard asked over extension_ui_request (tool_call)", asked);
+	check("no question before the write (YOLO)", !asked);
 	const end = events.find((e) => e.type === "tool_execution_end" && e.toolName === "write");
 	check("write ran", Boolean(end && !end.isError && existsSync(join(work, "hello.txt")) && readFileSync(join(work, "hello.txt"), "utf8") === "Hallo\n"));
-	check("guard receipt via appendEntry", events.some((e) => e.type === "entry_appended" && e.entry?.customType === "pippa-receipt"));
 	check("API key from !command", auth.length > 0 && auth.every((a) => a === "Bearer smoke-key"), auth[0]);
 	const files = readdirSync(sessions, { recursive: true }).map(String).filter((f) => f.endsWith(".jsonl"));
 	check("session file in --session-dir with --session-id", files.some((f) => f.includes("smoke-1")), files.join(", "));

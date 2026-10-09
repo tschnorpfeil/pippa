@@ -48,9 +48,15 @@ public enum PiConversationDefault {
         }
     }
 
-    /// Guard and Pippa's Pi extensions in the app bundle (scripts/build-app.sh: Contents/Resources/pippa-guard).
-    public static func bundledGuard(bundle: URL) -> URL {
-        bundle.appendingPathComponent("Contents/Resources/pippa-guard/pippa-guard.ts")
+    /// Pippa's Pi extensions in the app bundle (scripts/build-app.sh: Contents/Resources/pippa-tools): file tools,
+    /// helps for small models, the MCP connection.
+    public static func bundledExtensions(bundle: URL) -> URL {
+        bundle.appendingPathComponent("Contents/Resources/pippa-tools", isDirectory: true)
+    }
+
+    /// Web access for Pi in the app bundle (scripts/bundle-web.sh: Contents/Resources/pippa-web, pi-web-access).
+    public static func bundledWeb(bundle: URL) -> URL {
+        bundle.appendingPathComponent("Contents/Resources/pippa-web/index.ts")
     }
 }
 

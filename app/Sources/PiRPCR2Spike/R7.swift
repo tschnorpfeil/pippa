@@ -13,7 +13,7 @@ import PiRPC
 // cold              one "app start": server off, slot cache off, first question (case b) up to the first word
 // slot [runs]       idle unload with and without slot save/restore, alternating
 // ans1 off|on       ANS-1 fixtures over the Pi path, JSONL under .build/quality/r7/
-// sort              "Räum meine Downloads auf" on an invented folder, questions, receipts, undo
+// sort              "Räum meine Downloads auf" on an invented folder, questions, receipts
 
 struct R7Answer {
     var text = ""
@@ -44,7 +44,7 @@ final class R7 {
     let launcher: PippaPiLaunch.Launcher
     let paths: PippaPiLaunch.Paths
     let workDir: URL
-    let guardDir: URL
+    let toolsDir: URL
     let piEnv: [String: String]
     let roots: PiInstallRoots
     let agent: URL
@@ -53,7 +53,7 @@ final class R7 {
     var server: LlamaServer?
 
     init() async throws {
-        guard let home = env["PIPPA_PI_HOME"], let payload = PiPayload.locate(environment: env), let guardPath = env["PIPPA_PI_GUARD"],
+        guard let home = env["PIPPA_PI_HOME"], let payload = PiPayload.locate(environment: env), let extensions = env["PIPPA_PI_EXTENSIONS"],
               let work = env["PIPPA_SPIKE_WORK"], let agentPath = env["PI_CODING_AGENT_DIR"] else {
             print("First run: scripts/pi-rpc-spike.sh setup"); exit(2)
         }
@@ -63,11 +63,11 @@ final class R7 {
         model = env["PIPPA_PI_MODEL"] ?? "k2-horizon-7b"
         guard let spec = PiInstaller(roots: roots).launchSpec(modelID: model) else { print("Pi missing in the fake HOME (setup)"); exit(2) }
         launcher = PippaPiLaunch.Launcher(executable: spec.executable, launcherArguments: spec.launcherArguments, piArguments: spec.piArguments, environment: spec.environment)
-        guardDir = URL(fileURLWithPath: guardPath).deletingLastPathComponent()
+        toolsDir = URL(fileURLWithPath: extensions, isDirectory: true)
         workDir = URL(fileURLWithPath: work, isDirectory: true)
-        paths = PippaPiLaunch.Paths(guardExtension: URL(fileURLWithPath: guardPath), toolsExtension: guardDir.appendingPathComponent("pippa-tools.ts"),
+        paths = PippaPiLaunch.Paths(extensionsDirectory: toolsDir, webExtension: nil,
                                     sessionDirectory: URL(fileURLWithPath: env["PIPPA_SPIKE_SESSIONS"] ?? work + "-sessions", isDirectory: true))
-        piEnv = ["PI_CODING_AGENT_DIR": agentPath, "PIPPA_UNDO_DIR": env["PIPPA_UNDO_DIR"] ?? work + "-undo", "PIPPA_TRASH_DIR": env["PIPPA_TRASH_DIR"] ?? work + "-trash"]
+        piEnv = ["PI_CODING_AGENT_DIR": agentPath, "PIPPA_TRASH_DIR": env["PIPPA_TRASH_DIR"] ?? work + "-trash"]
         var host = PippaMCPHost.demo()
         host.askForAccess = false
         mcp = try PippaMCPServer(host: host)
@@ -87,7 +87,7 @@ final class R7 {
 
     func newClient(uiHandler: @escaping PiUIHandler) async throws -> PiRPCClient {
         let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: workDir, paths: paths, sessionID: nil, language: "de",
-                                                        environment: piEnv, mcp: (.init(url: mcp.url, token: mcp.token), guardDir.appendingPathComponent("pippa-mcp.ts")))
+                                                        environment: piEnv, mcp: (.init(url: mcp.url, token: mcp.token), toolsDir.appendingPathComponent("pippa-mcp.ts")))
         let client = PiRPCClient(configuration: configuration)
         await client.setUIHandler(uiHandler)
         try await client.start()
@@ -116,7 +116,7 @@ final class R7 {
         let client: PiRPCClient
         if let given { client = given } else { client = try await newClient(uiHandler: uiHandler ?? Self.approveAll(asked)) }
         a.piStartMS = ms(clock.now - t1)
-        let turn = PippaMCPTurn(web: nil, onWork: nil)
+        let turn = PippaMCPTurn(onWork: nil)
         PippaMCPTurns.shared.begin(turn)
         defer { PippaMCPTurns.shared.end(turn) }
         let t2 = clock.now
@@ -155,10 +155,10 @@ final class R7 {
             let reads: PiReadLedger? = env["R7_OWN_SNAPSHOT"] == "1" ? nil : await turn.ledger
             a.piRead = reads?.paths.map { "\(URL(fileURLWithPath: $0).lastPathComponent):\(reads?.readCompletely($0) == true ? "complete" : "partial")" } ?? []
             // Comparison: what the review (Pippa's own read state) would have made of the same answer.
-            let own = PiAnswerReview.review(answer: a.text, question: question, snapshots: snapshots, fileCount: files.count, webPages: [])
+            let own = PiAnswerReview.review(answer: a.text, question: question, snapshots: snapshots, fileCount: files.count)
             a.ownSnapshotFindings = own?.findings.map { String(describing: $0) } ?? []
             a.ownSnapshotReviewed = own?.text ?? a.text
-            if let r = PiAnswerReview.review(answer: a.text, question: question, snapshots: snapshots, fileCount: files.count, webPages: [],
+            if let r = PiAnswerReview.review(answer: a.text, question: question, snapshots: snapshots, fileCount: files.count,
                                              reads: reads, files: files) {
                 a.reviewed = r.text
                 a.findings = r.findings.map { String(describing: $0) }
@@ -378,7 +378,7 @@ final class R7 {
         server = try makeServer(slots: true)
         let questions = Box<[String]>([])
         let homePath = home.standardizedFileURL.path
-        // Guard questions: yes only if every path in the question lies in the fake HOME (the run must touch nothing else).
+        // Extension questions (Pippa's ask none): yes only if every path in the question lies in the fake HOME (the run must touch nothing else).
         let handler: PiUIHandler = { request in
             let text = request.title + " | " + request.message
             questions.set { $0.append(oneLine(text)) }
@@ -409,19 +409,9 @@ final class R7 {
         print("\nAfter (\(after.count)):\n" + after.map { "  " + $0 }.joined(separator: "\n"))
         let records = turns.flatMap(\.receipt)
         print("\nReceipt (\(records.count) lines):")
-        for r in records { print("  \(r.action) \(r.outcome.rawValue) \(r.name ?? "") → \(r.toName ?? "")\(r.restorable ? " · undoable" : "")\(r.asked ? " · asked" : "")") }
-        print("Questions: guard \(questions.get.count) \(questions.get), in text \(textQuestions)")
-        // Undo: every line from bottom to top, like clicks on "Undo".
-        let undoRoot = URL(fileURLWithPath: piEnv["PIPPA_UNDO_DIR"]!, isDirectory: true)
-        var undone = 0, failed: [String] = []
-        for r in records.reversed() where r.outcome == .done && r.restorable {
-            guard let entry = r.undoEntry else { continue }
-            let result = PiUndo.restore(URL(fileURLWithPath: entry, isDirectory: true), root: undoRoot)
-            if result.status == .restored { undone += 1 } else { failed.append("\(r.name ?? "?"): \(result.status.rawValue) \(result.failures.map(\.reason))") }
-        }
-        let restored = tree(downloads)
-        print("\nAfter undo (\(restored.count)), \(undone) restored, errors \(failed):\n" + restored.map { "  " + $0 }.joined(separator: "\n"))
-        print("R7SORT same as before: \(Set(restored) == Set(before))")
+        for r in records { print("  \(r.action) \(r.outcome.rawValue) \(r.name ?? "") → \(r.toName ?? "")") }
+        print("Questions: extensions \(questions.get.count) \(questions.get), in text \(textQuestions)")
+        print("R7SORT nothing lost: \(Set(after.map { ($0 as NSString).lastPathComponent }).isSuperset(of: before.map { ($0 as NSString).lastPathComponent }))")
         await server?.stop()
     }
 

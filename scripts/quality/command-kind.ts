@@ -1,19 +1,8 @@
 /**
- * When the Pippa guard asks and how long undo copies are kept: one place, two presets.
- * Chosen via `PIPPA_GUARD_POLICY` (`undo-first`, default, or `ask-all`).
- *
- * - `undo-first`: Pippa's file tools (write, edit, rename_or_move, move_files, move_to_trash), a plain `mkdir` (`mkdirTargets`)
- *   and Pippa's calendar/reminder/mail-draft tools (`appEntry`) run without a question, with backup or undo entry and
- *   receipt; it asks for sending, network, permanent deleting, unknown commands and foreign tools. The question has a
- *   third answer "allow for this task" (the same category until the end of the answer).
- * - `ask-all`: every change and every command gets a yes/no question.
- *
- * Receipts and backups are the same in both. The classification is deliberately coarse and cautious: when in doubt
- * "command" (ask). Safety comes from the question, not from guessing.
+ * Rough kind of a shell command, for the live search evaluation's fixture isolation only (fixture-isolation.ts).
+ * Taken from the former guard's policy.ts; the app itself no longer classifies commands (Pi runs them as they come).
  */
-import { isFileSearch } from "./search-command.ts";
-import { readdir, readFile, rm, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { isFileSearch } from "../../runtime/pippa-tools/search-command.ts";
 
 /**
  * Kind of a call. There is no `read` here: the guard checks read-only tools from a trusted source beforehand.
@@ -24,39 +13,6 @@ import { join } from "node:path";
  */
 export type Category = "fileChange" | "appEntry" | "look" | "command" | "delete" | "network" | "send" | "tool";
 export type Rule = "allow" | "ask";
-
-export interface Policy {
-	name: string;
-	rules: Record<Category, Rule>;
-	/** Third answer "allow for this task" (applies to the same category until the current answer ends). */
-	allowForTask: boolean;
-	/** Undo entries: at most this old ... */
-	keepDays: number;
-	/** ... and at most this large together (file sizes; the copies are APFS clones and take no space until the
-	 * original changes, but the full size is counted so the limit also holds without cloning). */
-	keepBytes: number;
-}
-
-const retention = { keepDays: 7, keepBytes: 500 * 1024 * 1024 };
-
-export const POLICIES: Record<string, Policy> = {
-	"undo-first": {
-		name: "undo-first",
-		rules: { fileChange: "allow", appEntry: "allow", look: "allow", command: "ask", delete: "ask", network: "ask", send: "ask", tool: "ask" },
-		allowForTask: true,
-		...retention,
-	},
-	"ask-all": {
-		name: "ask-all",
-		rules: { fileChange: "ask", appEntry: "ask", look: "ask", command: "ask", delete: "ask", network: "ask", send: "ask", tool: "ask" },
-		allowForTask: false,
-		...retention,
-	},
-};
-
-export function currentPolicy(name = process.env.PIPPA_GUARD_POLICY): Policy {
-	return POLICIES[name ?? ""] ?? POLICIES["undo-first"];
-}
 
 /** Pippa's file tools: changes with a real backup or way back. */
 const FILE_TOOLS = new Set(["write", "edit", "rename_or_move", "move_files", "move_to_trash"]);
@@ -185,35 +141,4 @@ async function size(path: string): Promise<number> {
 	let total = 0;
 	for (const name of await readdir(path).catch(() => [] as string[])) total += await size(join(path, name));
 	return total;
-}
-
-/**
- * Remove old undo entries: older than `keepDays` or, oldest first, until all together are below `keepBytes`. Only
- * folders with a manifest.json (Pippa's own entries). Returns the removed names. Pippa then shows "undo no longer
- * possible" on the receipt instead of a button.
- */
-export async function pruneUndo(root: string, policy: Policy, now = Date.now()): Promise<string[]> {
-	const entries: { name: string; created: number; bytes: number }[] = [];
-	for (const name of await readdir(root).catch(() => [] as string[])) {
-		const dir = join(root, name);
-		let created: number;
-		try {
-			const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
-			created = Date.parse(manifest.createdAt) || (await stat(dir)).mtimeMs;
-		} catch {
-			continue;
-		}
-		entries.push({ name, created, bytes: await size(dir) });
-	}
-	entries.sort((a, b) => a.created - b.created);
-	let total = entries.reduce((sum, e) => sum + e.bytes, 0);
-	const removed: string[] = [];
-	for (const entry of entries) {
-		const tooOld = now - entry.created > policy.keepDays * 86_400_000;
-		if (!tooOld && total <= policy.keepBytes) continue;
-		await rm(join(root, entry.name), { recursive: true, force: true });
-		total -= entry.bytes;
-		removed.push(entry.name);
-	}
-	return removed;
 }

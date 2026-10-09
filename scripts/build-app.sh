@@ -226,9 +226,9 @@ cp "$ROOT/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/THIRD_PARTY_NOTICES.m
 echo "    Helpers: llama-server $LLAMA_TAG (patched, static, $(du -h "$APP/Contents/Helpers/llama-server" | cut -f1 | tr -d ' '))"
 
 # Pi is bundled by default. Customers never need a separate Node/npm install.
-say "Node, web fetcher, Pi install payload, abilities"
-# Node (Contents/Helpers/node) and Pippa's own web fetcher (Contents/Resources/pippa-web).
-"$ROOT/scripts/bundle-web-fetcher.sh" "$APP"
+say "Node, web access, Pi install payload, abilities"
+# Node (Contents/Helpers/node) and Pippa's web access for Pi (Contents/Resources/pippa-web: pi-web-access).
+"$ROOT/scripts/bundle-web.sh" "$APP"
 # Install payload for Pi's standard location (PiInstaller): pinned release in layout releases-v1 plus npm.
 # Node itself comes from Contents/Helpers/node, not duplicated.
 "$ROOT/scripts/bundle-pi-payload.sh" "$APP/Contents/Resources/pi-payload"
@@ -243,11 +243,11 @@ done
 cp -R "$ROOT/runtime/pippa-skills" "$APP/Contents/Resources/pippa-skills"
 find "$APP/Contents/Resources/pippa-skills" -name '.DS_Store' -delete
 echo "    Resources: pippa-skills ($(find "$APP/Contents/Resources/pippa-skills" -name SKILL.md | wc -l | tr -d ' ') abilities)"
-# Pippa's guard and Pi extensions (tools, MCP connection) for the Pi RPC path.
-# Only the sources Pi loads; tests and restore.mjs (the app does undo itself, PiUndo) stay out.
-mkdir -p "$APP/Contents/Resources/pippa-guard"
-for f in pippa-guard.ts pippa-tools.ts pippa-mcp.ts files.ts policy.ts self-asking.ts budget.ts search-command.ts; do
-  cp "$ROOT/runtime/pippa-guard/$f" "$APP/Contents/Resources/pippa-guard/$f"
+# Pippa's Pi extensions (file tools, helps for small models, MCP connection) for the Pi RPC path.
+# Only the sources Pi loads; tests stay out.
+mkdir -p "$APP/Contents/Resources/pippa-tools"
+for f in pippa-tools.ts pippa-assist.ts pippa-mcp.ts files.ts budget.ts search-command.ts; do
+  cp "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f"
 done
 
 # --- App icon ----------------------------------------------------------------

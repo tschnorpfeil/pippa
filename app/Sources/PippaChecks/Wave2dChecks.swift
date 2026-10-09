@@ -2,7 +2,7 @@ import Foundation
 import PippaCore
 
 // The llama-server for `pippa-local` belongs to the app (fixed port, key file, model from the installer folder),
-// unloading when idle, plain mkdir with undo, read receipts, and Pippa's sentence before the first system prompt
+// unloading when idle, receipt lines for file changes, read receipts, and Pippa's sentence before the first system prompt
 // when reading. Stand-ins only: a small Python program plays llama-server (no model), `DemoIntegrations`/`DemoSheetReader`
 // play Calendar, Mail and Excel.
 // Runs with PIPPA_SETUP_CHECKS=1 and in the full run (via runPiPivotChecks).
@@ -195,73 +195,17 @@ func runWave2dChecks() async {
 
     await runTerminalAutostartChecks(binary: binary, argsLog: argsLog)
 
-    // MARK: 3. mkdir with undo (Swift like restore.mjs)
+    // MARK: 3. Receipt lines for file changes (Pi runs them without asking; nothing to undo)
 
-    /// A mkdir entry as written by the guard (`mkdir -p Belege/2026 Leer`).
-    func mkdirFixture(_ name: String) throws -> (root: URL, work: URL, entry: URL) {
-        let base = dir(name)
-        let work = base.appendingPathComponent("work", isDirectory: true), root = base.appendingPathComponent("undo", isDirectory: true)
-        let entry = root.appendingPathComponent("1-mkdir", isDirectory: true)
-        for folder in ["Belege/2026", "Leer", "Voll"] { try fm.createDirectory(at: work.appendingPathComponent(folder), withIntermediateDirectories: true) }
-        try fm.createDirectory(at: entry, withIntermediateDirectories: true)
-        write("", work.appendingPathComponent("Belege/.DS_Store"))
-        write("Brief\n", work.appendingPathComponent("Voll/Brief.txt"))
-        let p = { (s: String) in work.appendingPathComponent(s).path }
-        let manifest: [String: Any] = ["version": 1, "tool": "bash", "command": "mkdir -p Belege/2026 Leer Voll", "restorable": true,
-                                       "folders": [p("Belege"), p("Leer"), p("Voll"), p("Weg")],
-                                       "created": [p("Belege"), p("Belege/2026"), p("Leer"), p("Voll"), p("Weg")]]
-        try JSONSerialization.data(withJSONObject: manifest).write(to: entry.appendingPathComponent("manifest.json"))
-        return (root, work, entry)
-    }
-
-    check("Undo mkdir (native): new empty folders to the trash, folder with content stays (partial result), lines in words") {
-        let f = try mkdirFixture("w2d-mkdir")
-        let trash = f.root.deletingLastPathComponent().appendingPathComponent("trash", isDirectory: true)
-        let result = PiUndo.restore(f.entry, root: f.root) { url in
-            try fm.createDirectory(at: trash, withIntermediateDirectories: true)
-            try fm.moveItem(at: url, to: trash.appendingPathComponent(url.lastPathComponent)); return nil
-        }
-        let left = try fm.contentsOfDirectory(atPath: f.work.path).sorted()
-        let item = ActionReceipt.Item(action: "createFolder", outcome: "done", name: "Belege", undoEntry: f.entry.path, restorable: true)
-        let existed = ActionReceipt.Item(action: "createFolder", outcome: "done", name: "Belege", restorable: false)
-        let declined = ActionReceipt.Item(action: "createFolder", outcome: "declined", name: "Neu")
-        let done = ActionReceipt.Item(action: PiUndo.receipt(for: item, result).action, outcome: "done", name: "Belege")
-        return result.status == .partial && result.failures.map(\.reason) == ["notEmpty"] && left == ["Voll"]
-            && (try? fm.contentsOfDirectory(atPath: trash.path).sorted()) == ["Belege", "Leer"]
-            && item.line(language: "de") == "Ordner angelegt: Belege · rückgängig machbar" && item.canUndo
-            && existed.line(language: "de") == "Ordner war schon da: Belege" && !existed.canUndo
-            && declined.line(language: "de") == "Ordner nicht angelegt: Neu (du hast abgelehnt)"
-            && done.line(language: "de") == "Rückgängig: Belege in den Papierkorb gelegt"
-            && PiUndo.receipt(for: item, result).line(language: "de") == "Nicht rückgängig gemacht: Belege (im Ordner liegt inzwischen etwas)"
-    }
-
-    let node = [ProcessInfo.processInfo.environment["PIPPA_PI_PAYLOAD"].map { $0 + "/bin/node" }, "/opt/homebrew/bin/node", "/usr/local/bin/node"]
-        .compactMap { $0 }.first { fm.isExecutableFile(atPath: $0) }
-    if let node {
-        check("Undo mkdir: Swift and restore.mjs leave the same folders behind") {
-            let a = try mkdirFixture("w2d-mkdir-swift"), b = try mkdirFixture("w2d-mkdir-node")
-            let trashB = b.root.deletingLastPathComponent().appendingPathComponent("trash", isDirectory: true)
-            _ = PiUndo.restore(a.entry, root: a.root) { url in
-                let trash = a.root.deletingLastPathComponent().appendingPathComponent("trash", isDirectory: true)
-                try fm.createDirectory(at: trash, withIntermediateDirectories: true)
-                try fm.moveItem(at: url, to: trash.appendingPathComponent(url.lastPathComponent)); return nil
-            }
-            let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent().appendingPathComponent("runtime/pippa-guard/restore.mjs").path
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: node)
-            process.arguments = [script, b.entry.path]
-            process.environment = ["PATH": "/usr/bin:/bin", "PIPPA_TRASH_DIR": trashB.path]
-            process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
-            try process.run(); process.waitUntilExit()
-            func tree(_ url: URL) -> [String] {
-                let prefix = url.standardizedFileURL.resolvingSymlinksInPath().path + "/"
-                return ((fm.enumerator(at: url, includingPropertiesForKeys: nil)?.allObjects as? [URL]) ?? [])
-                    .map { $0.standardizedFileURL.resolvingSymlinksInPath().path.replacingOccurrences(of: prefix, with: "") }.sorted()
-            }
-            return process.terminationStatus == 1 && tree(a.work) == tree(b.work) && tree(a.work) == ["Voll", "Voll/Brief.txt"]
-                && !PiUndo.isRestored(a.entry) && !PiUndo.isRestored(b.entry)
-        }
+    check("Receipt lines: folder, move, trash and failure in words, without any undo promise") {
+        let folder = ActionReceipt.Item(action: "createFolder", outcome: "done", name: "Belege")
+        let failed = ActionReceipt.Item(action: "createFolder", outcome: "failed", name: "Neu")
+        let moved = ActionReceipt.Item(action: "move", outcome: "done", name: "Downloads", toName: "Bilder, PDFs")
+        let trashed = ActionReceipt.Item(action: "trash", outcome: "done", name: "Kopie.txt")
+        return folder.line(language: "de") == "Ordner angelegt: Belege"
+            && failed.line(language: "de") == "Ordner nicht angelegt: Neu (hat nicht geklappt)"
+            && moved.line(language: "de") == "Verschoben: Downloads → Bilder, PDFs"
+            && trashed.line(language: "de") == "In den Papierkorb gelegt: Kopie.txt · du kannst es aus dem Papierkorb zurücklegen"
     }
 
     // MARK: 4./5. Read receipts and Pippa's sentence before the system prompt (stand-in readers only)
@@ -312,10 +256,10 @@ func runWave2dChecks() async {
             L("Not read: %@", table: "MCP", Integration.calendar.appName), L("Not read: %@", table: "MCP", Integration.reminders.appName),
         ]
         if lines != expected { print("   ", lines) }
-        let item = ActionReceipt.Item(action: "read", outcome: "done", name: lines[0], restorable: false)
+        let item = ActionReceipt.Item(action: "read", outcome: "done", name: lines[0])
         let de = ActionReceipt.Item(action: "read", outcome: "done", name: nil).line(language: "de")
         return ok.allSatisfy { $0 } && !denied && !bad && lines == expected && notes.all.map(\.read) == [true, true, true, true, true, true, true, false, false]
-            && item.line == lines[0] && !item.canUndo && de == "Etwas gelesen"
+            && item.line == lines[0] && de == "Etwas gelesen"
     }
 
     await checkAsync("Before the first system prompt when reading: Pippa's sentence first (Mac has not asked yet), then the Mac asks; 'Später' → nothing asked, nothing read") {

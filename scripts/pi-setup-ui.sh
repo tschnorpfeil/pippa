@@ -8,8 +8,8 @@
 #                                                        ~/Library/Caches/pippa-live, read only), Pippa adopts it
 #                                                        without asking, sets up Pi silently and answers a question.
 #   scripts/pi-setup-ui.sh r6                            like e2e, then a question about a shown PDF, the abilities
-#                                                        button, the "look up online" card ("Not now"), an event via
-#                                                        a stand-in calendar. Guard, work folder and undo folder
+#                                                        button, a look-up online (pi-web-access, network), an event
+#                                                        via a stand-in calendar. Extensions and work folder
 #                                                        without environment (default).
 #                                                        Corpus: swift scripts/quality/make-ctxsug-corpus.swift .build/quality/ctxsug-corpus
 #   scripts/pi-setup-ui.sh r7b                           "Tidy my Downloads" natively (preview, one undo) in
@@ -58,8 +58,8 @@ e2e)
   before=$(stat -f '%z %m %i' "$model")
   cp -c "$model" "$lms/"
   export PIPPA_PI_RPC=1 PIPPA_DEMO=1 PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL=qwen3.5-4b-q4
-  export PI_CODING_AGENT_DIR="$home/.pi/agent" PIPPA_UNDO_DIR="$home/undo" PIPPA_PI_WORKDIR="$home/work" PIPPA_TRASH_DIR="$home/trash"
-  export PIPPA_PI_GUARD="$root/runtime/pippa-guard/pippa-guard.ts" PIPPA_PI_TOOLS="$root/runtime/pippa-guard/pippa-tools.ts"
+  export PI_CODING_AGENT_DIR="$home/.pi/agent" PIPPA_PI_WORKDIR="$home/work" PIPPA_TRASH_DIR="$home/trash"
+  export PIPPA_PI_EXTENSIONS="$root/runtime/pippa-tools" PIPPA_PI_WEB="$root/runtime/pippa-web/index.ts"
   # Binary from the cache (read only); the model comes from the installer's models folder, not from PIPPA_MODEL_FILE.
   export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11503/llama-server}"
   unset PIPPA_MODEL_FILE || true
@@ -90,7 +90,7 @@ r6)
   # Pi path: explicit in debug snapshots (PIPPA_PI_RPC=1); in release builds it is on without the switch.
   export PIPPA_PI_RPC=1 PIPPA_DEMO=1 PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-qwen3.5-4b-q4}"
   export PI_CODING_AGENT_DIR="$home/.pi/agent" PIPPA_TRASH_DIR="$home/trash"
-  unset PIPPA_PI_GUARD PIPPA_PI_TOOLS PIPPA_PI_WORKDIR PIPPA_UNDO_DIR PIPPA_MODEL_FILE || true
+  unset PIPPA_PI_EXTENSIONS PIPPA_PI_WEB PIPPA_PI_WORKDIR PIPPA_MODEL_FILE || true
   export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11503/llama-server}"
   export PIPPA_R2_CORPUS="$root/.build/quality/ctxsug-corpus"
   export PIPPA_SNAPSHOT="$shot" PIPPA_SNAPSHOT_ONLY=r6 PIPPA_LOG_DIR="$shot/logs"
@@ -134,7 +134,7 @@ LIST
   head -c 2048 /dev/zero >"$dl/Pippa-Installer.dmg"
   export PIPPA_PI_RPC=1 PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$home/no-payload"
   export PI_CODING_AGENT_DIR="$home/.pi/agent" PIPPA_TRASH_DIR="$home/trash"
-  unset PIPPA_PI_GUARD PIPPA_PI_TOOLS PIPPA_PI_WORKDIR PIPPA_UNDO_DIR PIPPA_MODEL_FILE PIPPA_DEMO || true
+  unset PIPPA_PI_EXTENSIONS PIPPA_PI_WEB PIPPA_PI_WORKDIR PIPPA_MODEL_FILE PIPPA_DEMO || true
   export PIPPA_SNAPSHOT="$shot" PIPPA_SNAPSHOT_ONLY=r7b PIPPA_LOG_DIR="$shot/logs"
   (cd "$root" && "$bin/Pippa" -AppleLanguages "(de)" -AppleLocale de_DE >"$shot/app.log" 2>&1) || true
   cat "$shot/r7b.txt"

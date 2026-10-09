@@ -57,12 +57,12 @@ jobs:
           PIPPA_OCR_FAST: '1'
         run: swift run --package-path app PippaChecks 2>&1
         shell: bash -o pipefail {0}
-      - name: Fetch process tests (runtime/pippa-web)
+      - name: Web access tests (runtime/pippa-web, pi-web-access in the real Pi)
         working-directory: runtime/pippa-web
         run: npm ci --ignore-scripts && npm test 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
-      - name: Guard tests (runtime/pippa-guard)
-        run: node --experimental-strip-types --test runtime/pippa-guard/guard.test.mjs runtime/pippa-guard/mcp.test.mjs runtime/pippa-guard/self-asking.test.mjs runtime/pippa-guard/app-entry.test.mjs 2>&1 | tail -n 200
+      - name: Pi extension tests (runtime/pippa-tools)
+        run: node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
       - name: Terminal autostart tests (runtime/pippa-local-server)
         run: node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200

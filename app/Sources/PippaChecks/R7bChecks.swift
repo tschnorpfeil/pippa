@@ -2,7 +2,6 @@ import Foundation
 import PippaCore
 
 // - Tidying in conversation is native (TidyIntent): routing table with counterexamples.
-// - "Undo all" for an answer with at least two restorable lines (PiUndo.undoAll).
 // - Source review against what Pi read (PiReadLedger), not against Pippa's truncated reading state.
 // (Short texts on by default: R6Checks.) Runs with PIPPA_R7B_CHECKS=1 and in the full run.
 
@@ -143,38 +142,6 @@ func runR7bChecks() async {
             && C.prompt(name: "a.txt", doc: DocumentText(url: URL(fileURLWithPath: "/tmp/a.txt"), pages: [String(repeating: "x", count: 9000)], isPaged: false, usedOCR: false, headers: [:])).count < 1600
     }
 
-    // MARK: Undo all
-
-    await checkAsync("R7b: \"Undo all\" restores all lines bottom to top (new folder last), one result line per step") {
-        let base = dir("r7b-undo-all")
-        let (receipt, root, work, trash) = try tidyFixture(base)
-        let before = receipt.offersUndoAll && receipt.undoAllItems.map(\.name) == ["b.pdf", "a.pdf", "Rechnungen"]
-        let lines = await PiUndo.undoAll(receipt, root: root, trash: trash) { _ in .gone }
-        let tree = try fm.contentsOfDirectory(atPath: work.path).sorted()
-        let again = ActionReceipt(items: receipt.items)
-        return before && lines.map(\.outcome) == ["done", "done", "done"]
-            && lines.map { $0.line(language: "de") } == ["Wiederhergestellt: b.pdf", "Wiederhergestellt: a.pdf", "Rückgängig: Rechnungen in den Papierkorb gelegt"]
-            && tree == ["a.pdf", "b.pdf"] && !again.offersUndoAll && again.undoAllItems.isEmpty
-    }
-    await checkAsync("R7b: \"Undo all\" reports what failed and still does the rest") {
-        let base = dir("r7b-undo-all-gone")
-        let (receipt, root, work, trash) = try tidyFixture(base)
-        try fm.removeItem(at: work.appendingPathComponent("Rechnungen/b.pdf"))   // the person has deleted b.pdf in the meantime
-        let lines = await PiUndo.undoAll(receipt, root: root, trash: trash) { _ in .gone }
-        let tree = try fm.contentsOfDirectory(atPath: work.path).sorted()
-        return lines.map { $0.line(language: "de") } == ["Nicht rückgängig gemacht: b.pdf (nicht mehr da)", "Wiederhergestellt: a.pdf",
-                                                        "Rückgängig: Rechnungen in den Papierkorb gelegt"]
-            && tree == ["a.pdf"]
-    }
-    check("R7b: \"Undo all\" only from two restorable lines; reading, looking and declined do not count") {
-        let (full, _, _, _) = try tidyFixture(dir("r7b-undo-all-one"))
-        let move = full.items[2]
-        let one = ActionReceipt(items: [.init(action: "look", outcome: "done", name: "Downloads"), move,
-                                        .init(action: "move", outcome: "declined", name: "c", toName: "d"),
-                                        .init(action: "read", outcome: "done", name: "Gelesen: a.pdf", undoEntry: move.undoEntry, restorable: true)])
-        return move.canUndo && !one.offersUndoAll && one.undoAllItems.count == 1 && full.offersUndoAll
-    }
-
     // MARK: Source review against what Pi actually read
 
     let ans = dir("r7b-ans1-long")
@@ -196,11 +163,11 @@ func runR7bChecks() async {
         files.count == 2 && longText.count > 30_000 && snapshots.last?.readStatus == .partial && !(snapshots.last?.text.contains("09.12.2026") ?? true)
     }
     check("R7b: Pi read the long file completely with `read` → no \"only read part\", no marker, answer stays") {
-        let old = PiAnswerReview.review(answer: answer, question: question, snapshots: snapshots, fileCount: 2, webPages: [])
+        let old = PiAnswerReview.review(answer: answer, question: question, snapshots: snapshots, fileCount: 2)
         var ledger = PiReadLedger()
         ledger.notePiRead(arguments: json(["path": files[1].path]), result: longText)
         ledger.notePiRead(arguments: json(["path": files[0].path]), result: (try? String(contentsOf: files[0], encoding: .utf8)) ?? "")
-        let new = PiAnswerReview.review(answer: answer, question: question, snapshots: snapshots, fileCount: 2, webPages: [], reads: ledger, files: files)
+        let new = PiAnswerReview.review(answer: answer, question: question, snapshots: snapshots, fileCount: 2, reads: ledger, files: files)
         let oldSaysPart = old?.changed == true && (old?.text.contains("Teil") == true || old?.text.contains("prüfen") == true || old?.text != answer)
         return oldSaysPart && ledger.readCompletely(files[1].path) == true && new?.changed == false && new?.text == answer
     }
@@ -221,7 +188,7 @@ func runR7bChecks() async {
         let pdf = ans.appendingPathComponent("Vertrag.pdf")
         makePDF((1...14).map { $0 == 14 ? "Seite 14\nKündigungsfrist bis 31.03.2027." : "Seite \($0)\nAllgemeines." }, at: pdf)
         let tools = PippaMCPTurnTools(turns: PippaMCPTurns.shared)
-        let first = PippaMCPTurn(web: nil)
+        let first = PippaMCPTurn()
         PippaMCPTurns.shared.begin(first)
         _ = await tools.call("read_document", ["path": pdf.path])
         let half = await first.ledger
@@ -230,7 +197,7 @@ func runR7bChecks() async {
         PippaMCPTurns.shared.end(first)
         let own = (try? await LocalEngine.snapshots(for: ChatContext(files: [pdf]))) ?? []
         let review = PiAnswerReview.review(answer: "Die Kündigungsfrist läuft bis 31.03.2027.", question: "Bis wann kann ich kündigen?",
-                                           snapshots: own, fileCount: 1, webPages: [], reads: whole, files: [pdf])
+                                           snapshots: own, fileCount: 1, reads: whole, files: [pdf])
         return half.readCompletely(pdf.path) == false && whole.readCompletely(pdf.path) == true
             && whole.adjusting(own, files: [pdf]).last?.text.contains("[S. 14]") == true && review?.changed == false
     }
@@ -243,41 +210,4 @@ func runR7bChecks() async {
 
 private func json(_ value: [String: Any]) -> String {
     String(decoding: (try? JSONSerialization.data(withJSONObject: value)) ?? Data(), as: UTF8.self)
-}
-
-/// Pi has tidied up: created folder "Rechnungen", moved a.pdf and b.pdf into it (three guard
-/// entries), plus one read line. Trash only in the check folder.
-private func tidyFixture(_ base: URL) throws -> (ActionReceipt, URL, URL, @Sendable (URL) throws -> URL?) {
-    let work = base.appendingPathComponent("Downloads", isDirectory: true)
-    let root = base.appendingPathComponent("undo", isDirectory: true)
-    let trashDir = base.appendingPathComponent("trash", isDirectory: true)
-    let folder = work.appendingPathComponent("Rechnungen", isDirectory: true)
-    try fm.createDirectory(at: folder, withIntermediateDirectories: true)
-    try fm.createDirectory(at: trashDir, withIntermediateDirectories: true)
-    write("a\n", folder.appendingPathComponent("a.pdf"))
-    write("b\n", folder.appendingPathComponent("b.pdf"))
-    func entry(_ name: String, _ manifest: [String: Any]) throws -> String {
-        let dir = root.appendingPathComponent(name, isDirectory: true)
-        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        try JSONSerialization.data(withJSONObject: manifest.merging(["version": 1]) { $1 }).write(to: dir.appendingPathComponent("manifest.json"))
-        return dir.path
-    }
-    let mkdir = try entry("1-mkdir", ["tool": "bash", "restorable": true, "folders": [folder.path], "created": [folder.path]])
-    func move(_ n: String, _ file: String) throws -> String {
-        try entry(n, ["tool": "rename_or_move", "restorable": true,
-                      "moves": [["from": work.appendingPathComponent(file).path, "to": folder.appendingPathComponent(file).path]]])
-    }
-    let a = try move("2-move", "a.pdf"), b = try move("3-move", "b.pdf")
-    let receipt = ActionReceipt(items: [
-        .init(action: "look", outcome: "done", name: "Downloads"),
-        .init(action: "createFolder", outcome: "done", name: "Rechnungen", undoEntry: mkdir, restorable: true),
-        .init(action: "move", outcome: "done", name: "a.pdf", toName: "Rechnungen", undoEntry: a, restorable: true),
-        .init(action: "move", outcome: "done", name: "b.pdf", toName: "Rechnungen", undoEntry: b, restorable: true),
-    ])
-    let trash: @Sendable (URL) throws -> URL? = { url in
-        let target = trashDir.appendingPathComponent(url.lastPathComponent)
-        try FileManager.default.moveItem(at: url, to: target)
-        return target
-    }
-    return (receipt, root, work, trash)
 }

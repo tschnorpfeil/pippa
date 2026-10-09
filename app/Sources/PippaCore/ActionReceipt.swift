@@ -1,8 +1,7 @@
 import Foundation
 
-/// "What happened" under an answer: one line per mutating tool call, built from tool events
-/// and the entries of the Pippa guard, never from the model text.
-/// If the answer contradicts the receipt ("Die Datei wurde erstellt" after a no), the receipt wins.
+/// "What happened" under an answer: one line per mutating tool call, built from Pi's tool events and Pippa's own
+/// results, never from the model text. If the answer contradicts the receipt, the receipt wins.
 ///
 /// Action and result are stored as text, not as an enum, in the history: a later value should not make
 /// the history unreadable for older Pippas.
@@ -10,9 +9,9 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
     public struct Item: Codable, Sendable, Equatable {
         /// create, createFolder (plain mkdir), overwrite, change, rename, move, trash, delete, look, command, tool;
         /// read (Pippa's MCP reader: `name` is then the finished line); online (own online service:
-        /// `name` is the service); after "undo": restore, setAside
-        /// (a file created by Pi or a new folder set aside); calendar/reminder/mail (ActionReceipt+Apps.swift):
-        /// calendarAdd, reminderAdd, mailDraft (`name` finished from the server) and after "undo" remove
+        /// `name` is the service); webSearch, webPage (pi-web-access); calendar/reminder/mail (ActionReceipt+Apps.swift):
+        /// calendarAdd, reminderAdd, mailDraft (`name` finished from the server). Older histories may hold restore,
+        /// setAside and remove (lines of the former undo), shown as they were.
         public var action: String
         /// done, declined, blocked, failed, unclear
         public var outcome: String
@@ -20,27 +19,11 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
         public var name: String?
         /// New name (rename) or target folder (move).
         public var toName: String?
-        /// Undo entry of the guard (folder with manifest.json).
-        public var undoEntry: String?
-        public var restorable: Bool
-        /// For `blocked`: "noUI" or "noUndo"; for failed restore/setAside: "gone", "occupied", "notEmpty",
-        /// "already", "notRestorable", "error".
+        /// Why it did not happen or how it happened, e.g. "busy" (calendar), "nothingFound" (web), "reply" (mail).
         public var reason: String?
 
-        /// Does the line show "undo"? Done, undoable, with entry, not yet restored.
-        public var canUndo: Bool {
-            outcome == "done" && restorable && undoEntry != nil && !["restore", "setAside", "remove", "look", "read", "mailDraft", "online"].contains(action)
-                && !PiUndo.isRestored(URL(fileURLWithPath: undoEntry!, isDirectory: true)) && !undoPruned
-        }
-
-        /// The guard cleaned up the backup (7 days / 500 MB): no button anymore, a sentence instead.
-        public var undoPruned: Bool {
-            outcome == "done" && restorable && undoEntry.map { PiUndo.isPruned(URL(fileURLWithPath: $0, isDirectory: true)) } == true
-        }
-        public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, undoEntry: String? = nil,
-                    restorable: Bool = false, reason: String? = nil) {
-            self.action = action; self.outcome = outcome; self.name = name; self.toName = toName
-            self.undoEntry = undoEntry; self.restorable = restorable; self.reason = reason
+        public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, reason: String? = nil) {
+            self.action = action; self.outcome = outcome; self.name = name; self.toName = toName; self.reason = reason
         }
 
         public var happened: Bool { outcome == "done" }
@@ -68,14 +51,14 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
         }
 
         /// A short line in the system language: "Nicht angelegt: Einkauf.txt (du hast abgelehnt)",
-        /// "Angelegt: Einkauf.txt · rückgängig machbar". `language` only for recordings and checks ("de", "en").
+        /// "Angelegt: Einkauf.txt". `language` only for recordings and checks ("de", "en").
         public var line: String { line(language: nil) }
 
         public func line(language: String?) -> String {
             let what = name ?? "?"
-            // Read (Pippa's MCP reader): neutral line, already fully worded (PippaMCPReadNote), never with undo.
+            // Read (Pippa's MCP reader): neutral line, already fully worded (PippaMCPReadNote).
             if action == "read" { return name ?? L("Read something", table: "Thought", language: language) }
-            // Restored via "Rückgängig" (PiUndo): own line, without "rückgängig machbar".
+            // Lines of the former undo in older histories.
             if action == "restore" || action == "setAside" || action == "remove" {
                 guard outcome == "done" else {
                     let base = L("Not undone: %@", table: "Thought", language: language, what)
@@ -97,9 +80,9 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
             }
             // Event, reminder, mail draft via Pippa's MCP server (ActionReceipt+Apps.swift).
             if Self.appActions.contains(action) { return appLine(language: language) }
-            // Look up online on the Pi RPC path (WebAccessGate.records): exactly the text that went out. Never undoable.
+            // Look up online on the Pi RPC path (pi-web-access, PiTurnReceipt): exactly what went out.
             if action == "webSearch" || action == "webPage" { return webLine(language: language) }
-            // Request to the own online service via Pippa's broker (`name`: the service). Never undoable.
+            // Request to the own online service via Pippa's broker (`name`: the service).
             if action == "online" {
                 return switch outcome {
                 case "done": L("Asked online: %@", table: "Thought", language: language, what)
@@ -113,8 +96,7 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
             case "done":
                 base = switch action {
                 case "create": L("Created: %@", table: "Thought", language: language, what)
-                case "createFolder": restorable ? L("Folder created: %@", table: "Thought", language: language, what)
-                                                : L("Folder already there: %@", table: "Thought", language: language, what)
+                case "createFolder": L("Folder created: %@", table: "Thought", language: language, what)
                 case "overwrite": L("Overwritten: %@", table: "Thought", language: language, what)
                 case "rename": L("Renamed: %@ → %@", table: "Thought", language: language, what, toName ?? "?")
                 case "move": L("Moved: %@ → %@", table: "Thought", language: language, what, toName ?? "?")
@@ -145,17 +127,10 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
             }
             switch outcome {
             case "declined": return L("%@ (you said no)", table: "Thought", language: language, base)
-            case "blocked": return reason == "noUndo" ? L("%@ (no undo copy possible)", table: "Thought", language: language, base)
-                                                      : L("%@ (needs your OK, couldn’t ask)", table: "Thought", language: language, base)
-            case "failed": return L("%@ (didn’t work)", table: "Thought", language: language, base)
+            case "blocked", "failed": return L("%@ (didn’t work)", table: "Thought", language: language, base)
             default:
-                if action == "look" || (action == "createFolder" && !restorable) { return base }
-                // Something in the Trash can always be put back from there, even when Pippa's own undo has expired.
-                if action == "trash", undoPruned || !restorable {
-                    return L("%@ · you can put it back from the Trash", table: "Thought", language: language, base)
-                }
-                if undoPruned { return L("%@ · can no longer be undone (undo copy cleared after a while)", table: "Thought", language: language, base) }
-                return restorable ? L("%@ · can be undone", table: "Thought", language: language, base) : L("%@ · can’t be undone", table: "Thought", language: language, base)
+                // Something in the Trash can be put back from there.
+                return action == "trash" ? L("%@ · you can put it back from the Trash", table: "Thought", language: language, base) : base
             }
         }
     }
@@ -165,11 +140,7 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
     public var mailOffer: MailDraftOffer?
     public init(items: [Item], mailOffer: MailDraftOffer? = nil) { self.items = items; self.mailOffer = mailOffer }
 
-    /// Lines without direct repetition (the same declined attempt twice → one line).
-    /// Lines for "Alles rückgängig", in restore order (bottom to top).
-    public var undoAllItems: [Item] { items.filter(\.canUndo).reversed() }
-    /// "Alles rückgängig" appears from two restorable lines (with one, its own button suffices).
-    public var offersUndoAll: Bool { items.lazy.filter(\.canUndo).prefix(2).count == 2 }
+    /// Lines without direct repetition (the same failed attempt twice → one line).
 
     public var lines: [(item: Item, text: String)] { lines(language: nil) }
 
