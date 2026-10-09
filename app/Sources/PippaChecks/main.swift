@@ -700,11 +700,14 @@ check("Server arguments: local only, key only in the environment, jinja, catalog
     let c = pick(16)!
     let args = LlamaServer.arguments(choice: c, model: URL(fileURLWithPath: "/m.gguf"), port: 9000, supported: nil)
     let s = args.joined(separator: " ")
+    let k2Choice = ModelSelector.named("k2-horizon-7b", physicalMemory: 16 * GB, catalog: tableCatalog)!
+    let k2 = LlamaServer.arguments(choice: k2Choice, model: URL(fileURLWithPath: "/k2.gguf"), port: 9000, supported: nil).joined(separator: " ")
     let env = LlamaServer.environment(apiKey: "geheim-k", base: ["PATH": "/usr/bin"])
     return s.contains("--host 127.0.0.1") && !s.contains("--api-key") && !s.contains("geheim-k")
         && env["LLAMA_API_KEY"] == "geheim-k" && env["PATH"] == "/usr/bin" && s.contains("--jinja") && s.contains("--ctx-size 16384")
-        && s.contains("--ctx-checkpoints 4") && s.contains("--cache-ram 0") && s.contains("--top-k 0") && s.contains("--no-webui")
-        && s.contains("--reasoning off") && s.contains(#"--chat-template-kwargs {"reasoning_effort":"low","tool_call_format":"xml"}"#)
+        && s.contains("--ctx-checkpoints 4") && s.contains("--cache-ram 0") && s.contains("--top-k 20") && s.contains("--no-webui")
+        && s.contains("--reasoning off") && !s.contains("--chat-template-kwargs")
+        && k2.contains("--top-k 0") && k2.contains(#"--chat-template-kwargs {"reasoning_effort":"low","tool_call_format":"xml"}"#)
 }
 
 // MARK: - Reading
