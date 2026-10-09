@@ -131,6 +131,32 @@ enum DisplayFont {
     }
 }
 
+/// Gochi Hand from Resources/Fonts (bundled, OFL), the handwriting of the website's speech bubbles. Only for the
+/// pill's small happy moments ("Deine Antwort ist da"), never for running text; if missing, SF Rounded.
+@MainActor
+enum HandFont {
+    static let name = "GochiHand-Regular"
+    private(set) static var available = false
+    private static var tried = false
+
+    static func register() {
+        guard !tried else { return }
+        tried = true
+        guard let url = Bundle.module.url(forResource: "GochiHand-Regular", withExtension: "ttf", subdirectory: "Fonts") else { return }
+        var error: Unmanaged<CFError>?
+        if CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) || NSFont(name: name, size: 12) != nil {
+            available = NSFont(name: name, size: 12) != nil
+        }
+    }
+
+    /// Handwriting reads smaller than SF at the same size, hence a bit larger than the pill's 15 pt.
+    static func font(size: CGFloat = 19) -> Font {
+        register()
+        return available ? .custom(name, size: CGFloat(TextScale.scaled(Double(size), by: TextScaleStore.current)))
+            : .scaled(size: size - 4, weight: .semibold, design: .rounded)
+    }
+}
+
 // MARK: - Shape, motion of the shell
 
 /// Shape and motion of the shell. Everything that makes the shell look the way it does comes from here.

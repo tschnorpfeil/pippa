@@ -9,8 +9,9 @@ Nicht in der echten App geklickt: Diese Bewertung stützt sich auf Code und Snap
 1. **Die Website ist liebenswerter als die App.** heypippa.app hat handgeschriebene Sprechblasen, Bagel Fat One,
    Linoleumgrün und eine Figur, die lächelt; in der App kommt davon fast nur die Figur an, der Rest ist Systemblau,
    graue Etiketten und eine Linkliste.
-2. **Die Pille verspricht mehr, als sie heute hält.** Fast alles Wichtige passiert in einem 760 pt breiten
-   Gesprächsfenster, also genau dort, wo jede Chat-App auch ist. Die Pille selbst sagt „Pippa“ oder „Pippa liest …“
+2. **Die Pille verspricht mehr, als sie heute hält.** Dateien auf der Pille öffnen zwar schon eine Zeile mit drei
+   Aktionen, aber Fragen und Antworten passieren in einem 760 pt breiten Gesprächsfenster, also genau dort, wo jede
+   Chat-App auch ist. Die Pille selbst sagt „Pippa“ oder „Pippa liest …“
    und vergisst, dass eine Antwort fertig ist, sobald das Fenster zu ist.
 3. **Warten ist das größte Gefühlsproblem.** Kalt 91 s, warm ~9,5 s: Wer nicht sieht, was passiert, hält Pippa für
    kaputt. Die Denkzeile im Gespräch ist gut und ehrlich, aber nur sichtbar, solange das Fenster offen ist.
@@ -20,7 +21,7 @@ Nicht in der echten App geklickt: Diese Bewertung stützt sich auf Code und Snap
 | Bereich | Note | Warum |
 |---|---:|---|
 | Figur (Mark) | 9 | Eigenständig, vier Zustände, ruhig im Leerlauf, „Bewegung reduzieren“ beachtet. Das Beste an Pippa. |
-| Ablegen auf die Pille | 7 | „Hier ablegen“/„Loslassen“ ist klar. Danach fehlt das Angebot: man landet im leeren Eingabefeld. |
+| Ablegen auf die Pille | 8 | „Hier ablegen“/„Loslassen“ ist klar, danach die Zeile mit bis zu drei Aktionen. Ob es die richtigen sind, ist ungeprüft. |
 | Pille während der Arbeit | 4 | Nur Kaltstart und `busy` werden genannt, sonst „Pippa“. Kein Fortschritt, kein Ergebnis-Zustand. |
 | Ergebnis | 6 | Quittungen mit Rückgängig sind stark. Antworten sind Fließtext; Frist und Betrag stehen irgendwo darin. |
 | Fehler | 4 | „That didn’t work“ ohne Grund und ohne passenden nächsten Schritt (Fixplan 1.1). |
@@ -70,12 +71,12 @@ Gebaut wird auf dem Mac erst nach der Abnahme der Web-Recherche (Owner 09.10.). 
 |---|---|---|
 | 1 | Pille spiegelt die echte Arbeit (Fixplan 3.1, 3.2) | **Entwurf in diesem Branch** (`PillStatus`), ungebaut |
 | 2 | Drei Ausgänge, Ergebnis bleibt stehen (3.3) | **Entwurf in diesem Branch** für Antworten im Gespräch; Aufgaben-Quittungen (3.5) fehlen noch |
-| 3 | Verben direkt an der Pille nach dem Ablegen (5.1) | offen; `ctxsug` und die Zeile (`ShellMode.line`) sind die Bausteine |
+| 3 | Verben direkt an der Pille nach dem Ablegen (5.1) | **gibt es schon:** Dateien auf der Pille öffnen die Zeile (`ShellMode.line`) mit bis zu drei Aktionen aus `ThingActions.offered` (Rolle des Dokuments, gelernte Gewohnheiten). Offen: im echten Klicktest prüfen, ob die drei die richtigen sind |
 | 4 | Ergebnis-Karte mit Beleg (Phase 4) | offen |
 | 5 | Freigabe mit zwei Knöpfen (2.4) | offen, Owner-Frage im Fixplan |
 | 6 | Ergebnis als Ding ziehen | offen, klein |
 | 7 | Hilfe beim Kopieren | offen; Owner 09.10.: beim ersten Mal fragen, danach in den Einstellungen abschaltbar |
-| 8 | Sprechblase und Haptik für drei Momente | offen, klein; Gochi Hand liegt in `site/fonts` |
+| 8 | Sprechblase und Haptik für drei Momente | **erster Schritt in diesem Branch:** „Deine Antwort ist da“ steht handgeschrieben (Gochi Hand, gebündelt) in der Pille; Sprechblase und Haptik offen |
 | – | Leerer Zustand: Beispiele als Karten mit Symbol (5.2) | **Entwurf in diesem Branch** |
 
 Fixplan Phase 1 (Fehlerkarte mit Grund, Willkommen, Kürzel aus Knöpfen) bleibt parallel sinnvoll und ist klein.
@@ -91,6 +92,8 @@ Fixplan Phase 1 (Fehlerkarte mit Grund, Willkommen, Kürzel aus Knöpfen) bleibt
   Gespräch geöffnet wird. Ein Klick öffnet dann immer das ganze Gespräch, nicht die kompakte Form.
 - `PillContent`: Ton als leichte Tönung, Rand und Zeichen, nie nur Farbe. Balken nur bei Zählbarem. Schimmer nur beim
   Arbeiten, aus bei „Bewegung reduzieren“.
+- „Deine Antwort ist da“ in Gochi Hand, der Handschrift der Website (`HandFont` in `Theme.swift`, Schrift mit
+  Lizenz in `Resources/Fonts`, Eintrag in `THIRD_PARTY_NOTICES.md`).
 - Leeres Gespräch: vier Beispiele als Karten mit Symbol im 2×2-Raster statt blauer Linkliste.
 - `PillStatusChecks`: Kurzformen in beiden Sprachen, Längen, keine Technikwörter, Vorrang (Frage > Arbeit > Ausgang).
 
