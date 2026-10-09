@@ -194,6 +194,15 @@ final class PiRPCChat {
         return LaunchRoute(key: routeKey, online: (connection, key))
     }
 
+    /// Pi refuses a prompt before any request when the subscription sign-in is gone ("No API key found for openai"):
+    /// that is a sign-in problem for the person, not a general failure.
+    private func subscriptionChecked<T>(_ body: () async throws -> T) async throws -> T {
+        do { return try await body() } catch PiRPCError.commandFailed(_, let message) where launchKey?.hasPrefix("chatgpt|") == true {
+            if let problem = PiSubscriptionAuth.problem(in: message) { throw Failure.subscription(problem) }
+            throw Failure.model(message)
+        }
+    }
+
     /// The ChatGPT model when the person switched the subscription on (`nil`: not on).
     static var subscriptionModel: String? {
         InferenceSettings.load(from: AppModel.inferenceSettingsDirectory).subscriptionModel
@@ -380,7 +389,7 @@ final class PiRPCChat {
         _ = PippaMCPService.readNotes.take()   // read receipts belong to the answer that triggered them
         // First the model, then Pi: Pi starts only if the server responds.
         // If the own online service works, no local model is needed.
-        let held = Self.onlineConnection == nil ? try await modelLease(onWork: onWork) : nil
+        let held = Self.onlineConnection == nil && Self.subscriptionModel == nil ? try await modelLease(onWork: onWork) : nil
         defer { if let held { Task { await held.server.releaseAgentLease(held.lease) } } }
         let client = try await ready(session: taskID)
         var segment = ""
@@ -397,7 +406,7 @@ final class PiRPCChat {
         }
         var toolArguments: [String: String] = [:]
         do {
-        for try await event in try await client.prompt(text) {
+        for try await event in try await subscriptionChecked({ try await client.prompt(text) }) {
             receipt.observe(event)
             switch event {
             case .textDelta(let delta):

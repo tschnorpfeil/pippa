@@ -10,6 +10,7 @@
 // stdout is the protocol (JSON lines), stderr stays empty. SIGTERM or a closed stdin cancels a running sign-in.
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 
 export const provider = 'openai';
 
@@ -55,9 +56,11 @@ async function main() {
   const write = value => process.stdout.write(JSON.stringify(value) + '\n');
   const [release, command] = process.argv.slice(2);
   const base = join(release ?? '', 'node_modules/@earendil-works/pi-coding-agent/dist');
-  let runtime, defaults;
+  let runtime, defaults, settings;
   try {
-    const { ModelRuntime } = await import(pathToFileURL(join(base, 'index.js')).href);
+    const { ModelRuntime, SettingsManager } = await import(pathToFileURL(join(base, 'index.js')).href);
+    // Pi's installation ID (sent to OpenAI as the agent host), created on first use exactly as Pi's own /login does.
+    settings = SettingsManager.create(homedir());
     ({ defaultModelPerProvider: defaults } = await import(pathToFileURL(join(base, 'core/model-resolver.js')).href));
     runtime = await ModelRuntime.create();
   } catch {
@@ -73,7 +76,7 @@ async function main() {
   process.stdin.resume();
   const timer = setTimeout(stop, 10 * 60_000);
   try {
-    await runtime.login(provider, 'oauth', interaction(write, controller.signal));
+    await runtime.login(provider, 'oauth', interaction(write, controller.signal), { getDeviceId: () => settings.getOrCreateDeviceId() });
     write({ event: 'done', ...status(runtime, defaults) });
   } catch (error) {
     const text = String(error?.message ?? error);

@@ -51,6 +51,7 @@ func runSubscriptionChecks() async {
     check("Subscription errors: expired sign-in and limit are recognized, anything else stays a general error") {
         PiSubscriptionAuth.problem(in: "401 Unauthorized: token expired") == .signedOut
             && PiSubscriptionAuth.problem(in: "invalid_grant: refresh token revoked") == .signedOut
+            && PiSubscriptionAuth.problem(in: "No API key found for openai.\n\nUse /login to log into a provider") == .signedOut
             && PiSubscriptionAuth.problem(in: "429 Too Many Requests: usage limit reached") == .limit
             && PiSubscriptionAuth.problem(in: "socket hang up") == nil
     }

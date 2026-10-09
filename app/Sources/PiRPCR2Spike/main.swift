@@ -91,7 +91,10 @@ func runRPC() async throws {
     let roots = PiInstallRoots(home: homeURL, payload: payload, searchPath: [homeURL.appendingPathComponent(".local/bin")])
     let model = env["PIPPA_PI_MODEL"] ?? "k2-horizon-7b"
     guard let spec = PiInstaller(roots: roots).launchSpec(modelID: model) else { print("Pi missing in the fake HOME (setup)"); exit(2) }
-    let launcher = PippaPiLaunch.Launcher(executable: spec.executable, launcherArguments: spec.launcherArguments, piArguments: spec.piArguments, environment: spec.environment)
+    // PIPPA_SPIKE_SUBSCRIPTION=<model>: the ChatGPT subscription as in the app (PiRPCChat.launchRoute), signed in through
+    // runtime/pippa-auth into this fake Pi folder.
+    let piArguments = env["PIPPA_SPIKE_SUBSCRIPTION"].map { ["--provider", PiSubscriptionAuth.provider, "--model", $0] } ?? spec.piArguments
+    let launcher = PippaPiLaunch.Launcher(executable: spec.executable, launcherArguments: spec.launcherArguments, piArguments: piArguments, environment: spec.environment)
     let guardDir = URL(fileURLWithPath: guardPath).deletingLastPathComponent()
     let workDir = URL(fileURLWithPath: work, isDirectory: true)
     let paths = PippaPiLaunch.Paths(guardExtension: URL(fileURLWithPath: guardPath), toolsExtension: guardDir.appendingPathComponent("pippa-tools.ts"),
@@ -150,6 +153,10 @@ func runRPC() async throws {
             }
         }
         let total = ms(clock.now - t0)
+        if let state = (try? await client.command(["type": "get_state"])).flatMap({ try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }),
+           let m = state["model"] as? [String: Any] {
+            print("  = model \(m["provider"] as? String ?? "?")/\(m["id"] as? String ?? "?")")
+        }
         let stats = (try? await client.command(["type": "get_session_stats"])).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         await client.shutdown()
         let tokens = stats?["tokens"] as? [String: Any]
