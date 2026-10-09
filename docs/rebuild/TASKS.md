@@ -59,3 +59,12 @@ Weiter auf dem Mac: `docs/rebuild/MAC-HANDOFF.md`.
 ## UI/UX (09.10.2026)
 
 - [ ] Fixplan in `docs/rebuild/UI-FIXPLAN.md` (Phasen 1–5: kleine Fehler, Struktur, lebendige Pille, Belege im Text, Aufgaben zum Antippen).
+
+## Owner-Funde 09.10. vormittags (echte App)
+
+- [x] KI-Download im Pi-Weg: „bereitet das Laden vor …“ ewig, „Jetzt laden“ ohne Wirkung, offline keine Meldung (`5242632`).
+- [x] Favicon weiß mit Ring (`c76b6fb`).
+- [ ] Drag-and-drop auf Pippa klappt nicht, wenn das Fenster offen ist.
+- [ ] Kaltstart-Fortschritt („Mache mich bereit … 14 s“) auf 10/10: echter Anteil, klare Schritte.
+- [ ] „Such alle Unterlagen für Steuer 2025“: Pippa fragt nach Websuche, findet lokal nichts und fragt zurück. Ziel: wie die
+      Website-Demo (Inhaltssuche, mehrere Ordner, Liste mit Fundstellen).
