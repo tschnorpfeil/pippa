@@ -283,7 +283,7 @@ func runR3Checks() async {
         let notes = R3Box<[PippaMCPReadNote]>([])
         let host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo, now: now),
                                 askForAccess: false, now: { now }, calendar: berlin, onRead: { note in notes.set { $0.append(note) } })
-        let r = await call(Setup(tools: PippaMCPTools(host: host), demo: demo, host: host), "mail_selected", [:])
+        let r = await call(Setup(tools: PippaMCPTools(host: host), demo: demo, host: host, writes: R3Box([])), "mail_selected", [:])
         let data = r.json["data"] as? [String: Any] ?? [:]
         return data["messageID"] as? String == "demo-nebenkosten-2025@berger-hv.de"
             && notes.get.first?.mail?.messageID == "demo-nebenkosten-2025@berger-hv.de" && notes.get.first?.mail?.subject == "Nebenkostenabrechnung 2025"
