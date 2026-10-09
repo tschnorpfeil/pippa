@@ -10,7 +10,40 @@ extension AppModel {
 
     /// Asks before the first load: model is missing and the person has not agreed yet.
     var needsDownloadConsent: Bool {
-        !alwaysUsesConnection && !mayPrepareWithoutAsking
+        if let setup = PiSetupController.shared {
+            if alwaysUsesConnection { return false }
+            if case .askDownload = setup.state { return true }
+            return false
+        }
+        return !alwaysUsesConnection && !mayPrepareWithoutAsking
+    }
+
+    /// Pi path: setup stopped with an error that "Try Again" can fix.
+    var piSetupFailed: Bool {
+        if case .failed(let problem)? = PiSetupController.shared?.state { return problem.canRetry }
+        return false
+    }
+
+    /// Pi path (default): Pippa's AI is loaded and set up for Pi. The old engine's `modelReady` says nothing there.
+    var aiLoaded: Bool { PiSetupController.shared?.isReady ?? modelReady }
+
+    /// Pi path: what the setup is doing, in the same words as the old path. `nil` = not the Pi path.
+    private var piSetupText: String?? {
+        guard let setup = PiSetupController.shared else { return nil }
+        if alwaysUsesConnection { return .some(nil) }
+        switch setup.state {
+        case .ready: return .some(nil)
+        case .askDownload(let bytes): return T("Pippa’s AI isn’t loaded yet (%@)", table: "App", ModelDownloadSize.gigabytes(bytes))
+        case .preparing(let source):
+            if let source { return T("Pippa’s AI is already in %@ and is being adopted", table: "App", source) }
+            return T("Pippa is getting ready to load…", table: "App")
+        case .downloading(let progress, let remaining):
+            if setup.stalled { return Self.offlineText }
+            var s = T("Pippa is loading her AI · %lld %%", table: "App", Int((progress * 100).rounded()))
+            if let r = remaining, r > 0 { s += " · \(Self.remainingText(r))" }
+            return s
+        case .failed(let problem): return problem.message
+        }
     }
 
     /// The one rule for whether Pippa may prepare without asking: consent given, model already present, or everything lies
@@ -56,6 +89,10 @@ extension AppModel {
     }
 
     var isDownloading: Bool {
+        if let setup = PiSetupController.shared {
+            if case .downloading = setup.state { return true }
+            return false
+        }
         if case .downloading = modelStatus { return true }
         return false
     }
@@ -63,6 +100,7 @@ extension AppModel {
     nonisolated static var offlineText: String { T("I can’t get online right now. I’ll keep trying.", table: "App") }
 
     var learningText: String? {
+        if let pi = piSetupText { return pi }
         if alwaysUsesConnection { return nil }
         if downloadStalled, modelStatus != .ready { return Self.offlineText }
         if let note = downloadNote, modelStatus != .ready { return note }
@@ -92,6 +130,10 @@ extension AppModel {
     }
 
     var progressValue: Double? {
+        if let setup = PiSetupController.shared {
+            if case .downloading(let p, _) = setup.state { return p }
+            return nil
+        }
         if case .downloading(let p, _) = modelStatus { return p }
         return nil
     }

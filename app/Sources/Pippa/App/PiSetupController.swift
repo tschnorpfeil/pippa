@@ -51,6 +51,15 @@ final class PiSetupController: ObservableObject {
     /// "Laden" was already said: do not ask again after "Nochmal versuchen".
     private var downloadChosen = false
     private var lastProgressAt = Date.distantPast
+    /// No new bytes for 30 s, or no network, while loading. The downloader keeps retrying by itself; the views say so
+    /// in one calm sentence with "Try Again" instead of a progress bar that silently stands still.
+    @Published private(set) var stalled = false
+    private var stallWatch = DownloadStallWatch(limit: 30)
+    private var stallTask: Task<Void, Never>?
+    /// Latest progress as reported (before the display throttle), so slow but moving downloads never count as stuck.
+    private var rawProgress = 0.0
+    /// The running "Laden": a restart ("Try Again") ignores the result of the attempt it replaced.
+    private var loadID: UUID?
 
     init(flow: PiSetupFlow?, state: PiSetupState = .preparing(adoptingFrom: nil)) {
         self.flow = flow
@@ -113,11 +122,16 @@ final class PiSetupController: ObservableObject {
         downloadChosen = true
         showsDetails = false
         state = .downloading(progress: 0, remaining: nil)
+        let id = UUID()
+        loadID = id
+        watchStall()
         task = Task { [weak self] in
             let result = await flow.download { progress, remaining in
                 Task { @MainActor in self?.progress(progress, remaining) }
             }
-            self?.finish(result)
+            guard let self, self.loadID == id else { return }
+            self.loadID = nil
+            self.finish(result)
         }
     }
 
@@ -126,6 +140,47 @@ final class PiSetupController: ObservableObject {
 
     /// "Nochmal versuchen": from scratch (idempotent); if "Laden" was already said, continues without a question.
     func retry() { begin() }
+
+    /// "Try Again" while a download hangs: stop the attempt and start a fresh one right away. It continues where the
+    /// previous one stopped (the part file stays).
+    func retryDownload() {
+        if case .downloading = state {
+            task?.cancel()
+            task = nil
+            loadID = nil
+            load()
+        } else if case .downloading? = update {
+            stopUpdate()
+            loadUpdate()
+        }
+    }
+
+    private func watchStall() {
+        stallTask?.cancel()
+        stallWatch = DownloadStallWatch(limit: 30)
+        rawProgress = 0
+        stalled = false
+        stallTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard let self, !Task.isCancelled else { return }
+                let loading: Bool
+                if case .downloading = self.state { loading = true }
+                else if case .downloading? = self.update { loading = true }
+                else { loading = false }
+                guard loading else {
+                    if self.stalled { self.stalled = false }
+                    return
+                }
+                let now = self.stallWatch.update(progress: self.rawProgress) || !NetworkWatch.shared.online
+                if now != self.stalled {
+                    self.stalled = now
+                    self.model?.downloadStallChanged()
+                    if now { self.model?.downloadStalledNotice() }
+                }
+            }
+        }
+    }
 
     /// "Probier's aus": a real first step, tidy Downloads with a preview (changes only after approval,
     /// "Rückgängig" restores everything).
@@ -138,6 +193,7 @@ final class PiSetupController: ObservableObject {
 
     private func progress(_ value: Double, _ remaining: TimeInterval?) {
         guard case .downloading(let shown, _) = state else { return }
+        rawProgress = value
         // Calm: at most twice per second, and only on a visible change.
         guard value >= 1 || (abs(value - shown) >= 0.002 && Date().timeIntervalSince(lastProgressAt) >= 0.5) else { return }
         lastProgressAt = Date()
@@ -146,6 +202,8 @@ final class PiSetupController: ObservableObject {
 
     private func finish(_ result: PiSetupState) {
         task = nil
+        stallTask?.cancel()
+        if stalled { stalled = false; model?.downloadStallChanged() }
         let wantsUpdate = loadsUpdate
         loadsUpdate = false
         if case .askDownload = result, downloadChosen { return load() }
@@ -204,6 +262,7 @@ extension PiSetupController {
         let id = UUID()
         updateID = id
         update = .downloading(progress: 0, remaining: nil)
+        watchStall()
         DiagnosticsLog.shared.event("wissen-laden", ["modell": flow.model.key])
         updateTask = Task { [weak self] in
             let result = await flow.download { progress, remaining in
@@ -221,6 +280,8 @@ extension PiSetupController {
     }
 
     private func stopUpdate() {
+        stallTask?.cancel()
+        if stalled { stalled = false; model?.downloadStallChanged() }
         updateTask?.cancel()
         updateTask = nil
         updateID = nil
@@ -228,6 +289,7 @@ extension PiSetupController {
 
     private func updateProgress(_ value: Double, _ remaining: TimeInterval?, id: UUID) {
         guard updateID == id, case .downloading(let shown, _) = update else { return }
+        rawProgress = value
         guard value >= 1 || abs(value - shown) >= 0.002 else { return }
         update = .downloading(progress: value, remaining: remaining)
     }
@@ -236,6 +298,8 @@ extension PiSetupController {
         guard updateID == id else { return }
         updateTask = nil
         updateID = nil
+        stallTask?.cancel()
+        if stalled { stalled = false; model?.downloadStallChanged() }
         switch result {
         case .ready:
             switchedFrom = nil

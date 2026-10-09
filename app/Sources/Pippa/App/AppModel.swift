@@ -23,7 +23,13 @@ final class AppModel: ObservableObject {
     private var conversationActivity: [UUID: Date] = [:]
     private var conversationPresentations: [UUID: ShellMode] = [:]
 
-    @Published private(set) var mode: ShellMode = .pill { didSet { updateMark() } }
+    @Published private(set) var mode: ShellMode = .pill {
+        didSet {
+            // The offline note is for the folded pill; an open window (welcome, conversation) says it itself.
+            if mode.isExpanded { dismissOfflineNotice() }
+            updateMark()
+        }
+    }
     @Published private(set) var context: WorkContext?
     /// The last file/text task stays reachable for follow-ups.
     @Published private(set) var taskCard: ShellMode?
@@ -162,6 +168,8 @@ final class AppModel: ObservableObject {
     var markState: MarkState {
         if busy || mailDraftOpening || conversations.isRunning || tray.isWorking || letter.isWorking { return .arbeitet }
         if case .message(_, _, true) = mode { return .fehler }
+        // Loading the AI is stuck (offline, server silent): a problem, not a green "done" or "needs you".
+        if downloadStalled, !aiLoaded { return .fehler }
         switch mode {
         // The visible task owns the mark. A parked result must not turn a fresh
         // question into a green completion/attention signal.
@@ -184,6 +192,19 @@ final class AppModel: ObservableObject {
         MarkHub.shared.set(markState)
     }
 
+    /// The Pi setup's stuck flag changed (it lives there, not here).
+    func downloadStallChanged() {
+        if !downloadStalled { dismissOfflineNotice() }
+        updateMark()
+    }
+
+    private var offlineNoticeShown = false
+    private func dismissOfflineNotice() {
+        guard offlineNoticeShown else { return }
+        offlineNoticeShown = false
+        toasts?.dismiss()
+    }
+
     var spokenState: String { "Pippa, \(markState.spoken)" }
 
     // MARK: Model
@@ -196,13 +217,17 @@ final class AppModel: ObservableObject {
     @Published private(set) var downloadAllowed = UserDefaults.standard.bool(forKey: AppModel.downloadAllowedKey)
     static let downloadAllowedKey = "model.download.allowed"
     /// No progress for 30 s while loading, or the last attempt failed because of the network.
-    @Published private(set) var downloadStalled = false
+    @Published private var legacyDownloadStalled = false { didSet { downloadStallChanged() } }
+    /// Stuck download, on either path: Pi setup (default) or the old engine.
+    var downloadStalled: Bool { PiSetupController.shared.map { $0.stalled } ?? legacyDownloadStalled }
     private var stallWatch = DownloadStallWatch(limit: 30)
 
     /// "Load now": remember consent and load.
     func startModelDownload() {
         UserDefaults.standard.set(true, forKey: Self.downloadAllowedKey)
         downloadAllowed = true
+        // Pi path (default): the setup loads the model; the old engine below would not start at all.
+        if let setup = PiSetupController.shared { return setup.load() }
         downloadNote = nil
         setStalled(false)
         prepareWithRetry()
@@ -226,6 +251,10 @@ final class AppModel: ObservableObject {
 
     /// "Try again": end the running attempt and restart immediately (continues where it left off).
     func retryDownloadNow() {
+        if let setup = PiSetupController.shared {
+            if case .downloading = setup.state { return setup.retryDownload() }
+            return setup.retry()
+        }
         guard mayPrepareWithoutAsking else { return startModelDownload() }
         prepareTask?.cancel()
         setStalled(false)
@@ -278,9 +307,16 @@ final class AppModel: ObservableObject {
 
     private func setStalled(_ stalled: Bool) {
         stalledAt = stalled ? (stalledAt ?? lastProgress) : nil
-        guard stalled != downloadStalled else { return }
-        downloadStalled = stalled
-        guard stalled, !mode.isExpanded else { return }
+        guard stalled != legacyDownloadStalled else { return }
+        legacyDownloadStalled = stalled
+        if stalled { downloadStalledNotice() }
+    }
+
+    /// The download just got stuck (either path): with Pippa folded to the pill, one calm note with "Try Again".
+    /// Open, the welcome, the settings and the footer say it themselves.
+    func downloadStalledNotice() {
+        guard !mode.isExpanded else { return }
+        offlineNoticeShown = true
         toasts?.show(title: T("I can’t get online right now", table: "App"),
                      detail: T("I’ll keep trying. Loading picks up where it left off.", table: "App"),
                      buttons: [.init(title: T("Try Again", table: "App"), primary: true) { [weak self] in self?.retryDownloadNow() }], log: false)

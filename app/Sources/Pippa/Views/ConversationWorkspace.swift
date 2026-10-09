@@ -646,7 +646,7 @@ struct KnowledgeStatus: View {
                     Text(text).font(Fonts.hint.monospacedDigit()).foregroundStyle(Theme.ink3).lineLimit(1)
                 }
             }
-        } else if model.needsDownloadConsent || model.downloadStalled {
+        } else if model.needsDownloadConsent || model.downloadStalled || model.piSetupFailed {
             HStack(spacing: 10) {
                 if showsText, let text = model.learningText {
                     Text(text).font(Fonts.hint).foregroundStyle(Theme.ink3).lineLimit(2)
