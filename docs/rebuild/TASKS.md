@@ -55,3 +55,7 @@ Weiter auf dem Mac: `docs/rebuild/MAC-HANDOFF.md`.
 - [ ] Echte Klicks in der App (Erststart, Drag-and-drop, ⌘V, Rechtedialoge) – nur Snapshots und Spikes gelaufen.
       09.10.: Pippa ist `accessory`, Computer-Use sieht sie nicht → `PIPPA_REGULAR_APP=1` + `CFFIXED_USER_HOME` (development.md).
       Erststart-Karte erscheint korrekt („Darf ich jetzt meine KI laden? 5,6 GB“); Klicks selbst noch nicht gelaufen.
+
+## UI/UX (09.10.2026)
+
+- [ ] Fixplan in `docs/rebuild/UI-FIXPLAN.md` (Phasen 1–5: kleine Fehler, Struktur, lebendige Pille, Belege im Text, Aufgaben zum Antippen).
