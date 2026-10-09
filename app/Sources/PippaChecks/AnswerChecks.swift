@@ -61,4 +61,16 @@ import PippaCore
             && AnswerDocument(long).blocks.count == 2000
             && AnswerDocument.inline(image).runs.allSatisfy { $0.link == nil }
     }
+    check("Answer: 2/2 verified file links work; 5/5 unverified or foreign destinations stay inactive") {
+        let file = URL(fileURLWithPath: "/fake/Documents/Mietvertrag.pdf")
+        let text = "[Vertrag](file:///fake/Documents/Mietvertrag.pdf)"
+        let relative = "[Vertrag](/fake/Documents/Mietvertrag.pdf)"
+        let unknown = [URL(fileURLWithPath: "/fake/Documents/other.pdf"), URL(string: "file://evil.example/fake/Documents/Mietvertrag.pdf")!,
+                       URL(string: "file:///fake/Documents/Mietvertrag.pdf?x=1")!, URL(string: "file:///fake/Documents/Mietvertrag.pdf#x")!, URL(string: "javascript:alert(1)")!]
+        return [text, relative].allSatisfy { source in
+            AnswerDocument.inline(source, files: [file]).runs.contains { $0.link == file }
+                && AnswerDocument.inline(source).runs.allSatisfy { $0.link == nil }
+        } && unknown.allSatisfy { !AnswerDocument.safeLink($0, files: [file]) }
+    }
+
 }

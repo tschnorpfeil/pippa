@@ -246,7 +246,7 @@ echo "    Resources: pippa-skills ($(find "$APP/Contents/Resources/pippa-skills"
 # Pippa's guard and Pi extensions (tools, MCP connection) for the Pi RPC path.
 # Only the sources Pi loads; tests and restore.mjs (the app does undo itself, PiUndo) stay out.
 mkdir -p "$APP/Contents/Resources/pippa-guard"
-for f in pippa-guard.ts pippa-tools.ts pippa-mcp.ts files.ts policy.ts self-asking.ts budget.ts; do
+for f in pippa-guard.ts pippa-tools.ts pippa-mcp.ts files.ts policy.ts self-asking.ts budget.ts search-command.ts; do
   cp "$ROOT/runtime/pippa-guard/$f" "$APP/Contents/Resources/pippa-guard/$f"
 done
 

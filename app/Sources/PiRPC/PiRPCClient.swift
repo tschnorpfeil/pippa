@@ -329,6 +329,12 @@ public actor PiRPCClient {
             events?.yield(.toolEnded(id: record["toolCallId"] as? String ?? "", name: name,
                                      isError: record["isError"] as? Bool == true, result: String(result.prefix(limit))))
         case "entry_appended":
+            if let entry = record["entry"] as? [String: Any], entry["type"] as? String == "custom",
+               let kind = entry["customType"] as? String, ["pippa-loop-stop", "pippa-search-result"].contains(kind), let data = entry["data"],
+               let json = try? JSONSerialization.data(withJSONObject: data) {
+                events?.yield(.notice(String(decoding: json, as: UTF8.self), kind: kind))
+                return
+            }
             // Only Pippa's own receipt entries; other extensions write their own state there.
             guard let entry = record["entry"] as? [String: Any], entry["type"] as? String == "custom",
                   entry["customType"] as? String == PiGuardOutcome.entryType, let data = entry["data"],

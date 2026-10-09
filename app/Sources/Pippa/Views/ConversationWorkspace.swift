@@ -461,7 +461,7 @@ struct ConversationWorkspace: View {
                 if message.role == .assistant, let draft = message.mailDraft {
                     MailDraftCard(model: model, chat: chat, messageID: message.id, draft: draft)
                 } else if message.role == .assistant {
-                    AssistantAnswerView(text: message.text)
+                    AssistantAnswerView(text: message.text, files: message.attachments)
                         .contextMenu {
                             Button(T("Copy", table: "Views")) {
                                 NSPasteboard.general.clearContents()

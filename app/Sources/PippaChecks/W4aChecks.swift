@@ -13,11 +13,11 @@ func runW4aChecks() async {
 
     // MARK: Locations
 
-    check("Cleanup: skills live in runtime/pippa-skills (14), runtime/pi/skills no longer exists") {
+    check("Cleanup: skills live in runtime/pippa-skills (15), runtime/pi/skills no longer exists") {
         let folders = ((try? fm.contentsOfDirectory(atPath: repo.appendingPathComponent("runtime/pippa-skills").path)) ?? []).filter { !$0.hasPrefix(".") }
-        return folders.count == 14 && !fm.fileExists(atPath: repo.appendingPathComponent("runtime/pi/skills").path)
+        return folders.count == 15 && !fm.fileExists(atPath: repo.appendingPathComponent("runtime/pi/skills").path)
             && PippaSkill.bundledDirectory().standardizedFileURL == PippaSkill.repositoryDirectory.standardizedFileURL
-            && PippaSkill.bundled.count == 14
+            && PippaSkill.bundled.count == 15
     }
     check("Cleanup: fetcher process lives in runtime/pippa-web with its own lockfile, no longer in runtime/pi") {
         let manifest = read("runtime/pippa-web/package.json")

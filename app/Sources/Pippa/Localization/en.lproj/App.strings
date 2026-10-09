@@ -250,3 +250,8 @@
 "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done.";
 "Tidy preview: 1 file" = "Tidy preview: 1 file";
 "Tidy preview: %lld files" = "Tidy preview: %lld files";
+
+"I stopped because the same action kept repeating. The task is incomplete." = "I stopped because the same action kept repeating. The task is incomplete.";
+"Found so far (%lld):" = "Found so far (%lld):";
+"The search returned no file locations before it stopped. Files may still exist." = "The search returned no file locations before it stopped. Files may still exist.";
+"More file locations were found; only the first 200 are shown." = "More file locations were found; only the first 200 are shown.";

@@ -35,9 +35,9 @@ const LIST_LIMIT = 200;
 /** Short versions for Pi's built-in tools (Pi 1.1.0: read 303, bash 270, edit 330, write 141, grep 229, find 196, ls 186 characters). */
 export const BUILTIN_DESCRIPTIONS: Record<string, string> = {
 	read: "Read a text file or image; long files with offset/limit.",
-	write: "Create or overwrite a file.",
+	write: "Save text to a file; create or overwrite.",
 	edit: "Replace exact, unique text passages in a file.",
-	bash: "Run a shell command in the working folder.",
+	bash: "Run a command when no dedicated tool fits; save text with write.",
 	grep: "Search file contents for text or a regex; lines with path and number.",
 	find: "Find files by glob pattern, e.g. '**/*.pdf'.",
 	ls: "List a folder's entries; folders end in '/'.",
@@ -81,15 +81,17 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "list_folder",
 		label: "Ordner ansehen",
-		description: "List a folder's files and subfolders.",
+		description: "List a folder for listing or sorting. For content search, read the dateien-finden skill first.",
 		parameters: Type.Object({
 			path: Type.Optional(Type.String({ description: "Exact path as given; default: working folder." })),
 		}),
 		annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-		// Applies while list_folder is active (always): shorter descriptions of the built-in tools.
+		// Applies while list_folder is active: short descriptions through Pi's existing loadout hook.
 		prepareLoadout: (loadout: any) => ({
 			descriptions: Object.fromEntries(
-				Object.entries(BUILTIN_DESCRIPTIONS).filter(([name]) => loadout?.declared?.some((tool: any) => tool.name === name)),
+				Object.entries({...BUILTIN_DESCRIPTIONS,
+                    mcp__pippa__excel_selection: "Read the current selection in open Excel; no file path needed. Values and formulas.",
+                }).filter(([name]) => loadout?.declared?.some((tool: any) => tool.name === name)),
 			),
 		}),
 		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
@@ -115,7 +117,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "rename_or_move",
 		label: "Umbenennen oder verschieben",
-		description: "Rename or move one file or folder. Never overwrites.",
+		description: "Rename/move the supplied path without a preliminary check; validates source and target, never overwrites.",
 		parameters: Type.Object({
 			from: Type.String(),
 			to: Type.String({ description: "New name or target folder." }),
@@ -179,7 +181,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "move_to_trash",
 		label: "In den Papierkorb",
-		description: "Move a file or folder to the Trash. Use instead of bash rm.",
+		description: "Move a given path directly to Trash; checks existence. Use instead of bash rm.",
 		parameters: Type.Object({
 			path: Type.String(),
 		}),

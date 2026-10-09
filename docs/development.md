@@ -23,17 +23,17 @@ Pippa.app (Swift, SwiftUI)
 | Guard extension | `runtime/pippa-guard` | Pi extension: asks before risky tool calls, backs up files, writes receipts; also Pippa's small file tools and the MCP registration |
 | Terminal autostart | `runtime/pippa-local-server` | Pi extension for the *terminal* `pi`: starts Pippa's llama-server when provider `pippa-local` is used |
 | Web fetcher | `runtime/pippa-web` | Own Node process for web search and page reading |
-| Abilities | `runtime/pippa-skills` | 14 Pi skills (`SKILL.md`), bundled with the app and loaded with `--skill` |
+| Abilities | `runtime/pippa-skills` | 15 Pi skills (`SKILL.md`), bundled with the app and loaded with `--skill` |
 
 **Conversation path.** Pippa starts `pi --mode rpc` with Pippa's Node and the pinned Pi release (`PippaPiLaunch`,
 `PiRPCClient`). Flags: `--extension` for the guard, the file tools and the MCP registration; `--no-context-files` (an
 `AGENTS.md` in a user folder could otherwise inject instructions); `--no-approve` (project-local `.pi/` settings are
 ignored); `--session-dir` in Pippa's support folder and `--session-id` per conversation; `--system-prompt` with Pippa's
-own short prompt; `--tools` with a fixed list (Pi's `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`, Pippa's file
+own short prompt; `--tools` with a fixed list (Pi's `read`, `bash`, `edit`, `write`, Pippa's file
 tools and `mcp__pippa__*`, so the person's `defaultTools` change nothing); `--no-skills --skill <bundle>/pippa-skills`
 (only Pippa's skills, a same-named personal skill would otherwise win); `--provider/--model` from the installer. The
 agent directory is the shared `~/.pi/agent`, so the person's own Pi extensions stay active; the guard loads first and
-asks regardless of what they do. `fd` and `rg` for `find` and `grep` ship next to Pippa's Node in `Contents/Helpers`
+asks regardless of what they do. `fd` and `rg` remain available through `bash` next to Pippa's Node in `Contents/Helpers`
 (pinned in `app/Packaging/search-tools.json`), which is first in Pi's `PATH`, so Pi never downloads them.
 
 **Thinking and compaction.** Pi steers both. models.json gives each `pippa-local` model `reasoning`, a `thinkingLevelMap`
@@ -64,7 +64,7 @@ Pippa replaces its own earlier default "high" in `settings.json` with the new on
   `textutil -stdout` count as looking.
 - Small local models loop. Per answer the guard stops an identical call that failed twice, an identical change that
   already worked once (no duplicate reminders), and any identical call after four runs; after three stops it ends the
-  answer (`loopBrake`). `read` on a PDF, Word, image, mail or spreadsheet is sent to `mcp__pippa__read_document`
+  answer (`loopBrake`). A durable `pippa-loop-stop` entry supplies the reason and actual partial file locations to the app; the answer is marked incomplete. The exact bundled search script emits `pippa-search-result`; only these verified paths enable local links in the saved answer. `read` on a PDF, Word, image, mail or spreadsheet is sent to `mcp__pippa__read_document`
   (`documentForRead`), because Pi's `read` returns raw bytes.
 - Questions reach the app as a card in the running conversation (`GuardAskCard`); the exact command is only under
   "Details".
@@ -111,8 +111,11 @@ searches DuckDuckGo HTML and reads pages through the pinned `pi-web-access` (bun
 `src/generated`, not committed), keeps the search order, extracts an "as of" date and writes nothing to stderr. Only
 the app starts it (`WebFetcher.swift`).
 
-**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`), all `disable-model-invocation: true`, so
-none costs prompt space. Pi loads them with `--skill`; a button sends `/skill:<name> <message>` (`PiSkillTurn`) and Pi
+**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). The 14 action skills use
+`disable-model-invocation: true` and cost no prompt space. `dateien-finden` is advertised automatically: Pi reads its
+instructions and invokes its Spotlight script once, searching content (including an optional year) in Documents,
+Desktop, Downloads, iCloud Drive and CloudStorage. It uses the existing macOS index, so unloaded cloud files and
+unindexed content can be missing; an empty result never proves absence. Pi loads them with `--skill`; a button sends `/skill:<name> <message>` (`PiSkillTurn`) and Pi
 puts the instructions in front. Swift reads the headers only for buttons and suggestions (`PippaSkill`).
 `PIPPA_SKILLS_DIR` overrides the folder for development. Invoices (`rechnung-auslesen`: Pi writes `Rechnungen.csv`),
 deadlines (`fristen-erkennen`: Pi adds them with `calendar_add`) and "Check online" on a letter (`online-pruefen`) are

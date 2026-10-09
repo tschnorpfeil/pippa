@@ -1,0 +1,204 @@
+[
+ {
+  "id": "tax",
+  "prompt": "Such alle Unterlagen für Steuer 2025.",
+  "tools": [
+   "bash",
+   "read"
+  ],
+  "expectedFiles": [
+   "Documents/f.pdf",
+   "Library/Mobile Documents/com~apple~CloudDocs/d.pdf",
+   "Library/CloudStorage/TestDrive/e.pdf"
+  ]
+ },
+ {
+  "id": "document",
+  "prompt": "Wo ist mein Dokument zur Kaution?",
+  "tools": [
+   "bash",
+   "read"
+  ],
+  "expectedFiles": [
+   "Desktop/b.pdf"
+  ]
+ },
+ {
+  "id": "pdf",
+  "prompt": "Finde das PDF zur Hausratversicherung.",
+  "tools": [
+   "bash",
+   "read"
+  ],
+  "expectedFiles": [
+   "Library/Mobile Documents/com~apple~CloudDocs/d.pdf"
+  ]
+ },
+ {
+  "id": "invoice",
+  "prompt": "Such die Rechnung vom Zahnarzt aus 2023.",
+  "tools": [
+   "bash",
+   "read"
+  ],
+  "expectedFiles": [
+   "Documents/a.pdf"
+  ]
+ },
+ {
+  "id": "info",
+  "prompt": "Ich suche Info zu meiner Nebenkostenabrechnung 2024.",
+  "tools": [
+   "bash",
+   "read"
+  ],
+  "expectedFiles": [
+   "Downloads/c.pdf"
+  ]
+ },
+ {
+  "id": "where",
+  "prompt": "Wo ist der Mietvertrag?",
+  "tools": [
+   "bash",
+   "read"
+  ],
+  "expectedFiles": [
+   "Desktop/b.pdf"
+  ]
+ },
+ {
+  "id": "list",
+  "prompt": "Was liegt auf meinem Schreibtisch?",
+  "tools": [
+   "list_folder",
+   "ls"
+  ]
+ },
+ {
+  "id": "tidy",
+  "prompt": "Sortiere meine Downloads in passende Unterordner.",
+  "tools": [
+   "list_folder",
+   "ls"
+  ]
+ },
+ {
+  "id": "rename",
+  "prompt": "Benenne ~/Documents/brief.pdf in Mietvertrag.pdf um.",
+  "tools": [
+   "rename_or_move"
+  ]
+ },
+ {
+  "id": "trash",
+  "prompt": "Lege ~/Downloads/kopie.pdf in den Papierkorb.",
+  "tools": [
+   "move_to_trash"
+  ]
+ },
+ {
+  "id": "readpdf",
+  "prompt": "Erkläre mir ~/Documents/brief.pdf einfach.",
+  "tools": [
+   "mcp__pippa__read_document"
+  ]
+ },
+ {
+  "id": "readtxt",
+  "prompt": "Fasse ~/Documents/notiz.txt zusammen.",
+  "tools": [
+   "read"
+  ]
+ },
+ {
+  "id": "calendar",
+  "prompt": "Welche Termine habe ich morgen?",
+  "tools": [
+   "mcp__pippa__calendar_read"
+  ]
+ },
+ {
+  "id": "reminders",
+  "prompt": "Was muss ich heute noch erledigen? Schau in meine Erinnerungen.",
+  "tools": [
+   "mcp__pippa__reminders_read"
+  ]
+ },
+ {
+  "id": "mail",
+  "prompt": "Fasse die gerade in Mail ausgewählte Nachricht zusammen.",
+  "tools": [
+   "mcp__pippa__mail_selected"
+  ]
+ },
+ {
+  "id": "mailsearch",
+  "prompt": "Suche Mails von der Hausverwaltung.",
+  "tools": [
+   "mcp__pippa__mail_search"
+  ]
+ },
+ {
+  "id": "excel",
+  "prompt": "Prüfe die markierten Zellen in Excel.",
+  "tools": [
+   "mcp__pippa__excel_selection"
+  ]
+ },
+ {
+  "id": "event",
+  "prompt": "Trage Zahnarzt am 12. Oktober 2026 um 10 Uhr für 30 Minuten ein.",
+  "tools": [
+   "mcp__pippa__calendar_add"
+  ]
+ },
+ {
+  "id": "remind",
+  "prompt": "Erinnere mich morgen um 9 Uhr an die Mülltonne.",
+  "tools": [
+   "mcp__pippa__reminder_add"
+  ]
+ },
+ {
+  "id": "draft",
+  "prompt": "Erstelle einen Mail-Entwurf an test@example.invalid, Betreff Danke, Text Vielen Dank.",
+  "tools": [
+   "mcp__pippa__mail_draft"
+  ]
+ },
+ {
+  "id": "weather",
+  "prompt": "Wie wird das Wetter morgen in Berlin?",
+  "tools": [
+   "mcp__pippa__web_search"
+  ]
+ },
+ {
+  "id": "website",
+  "prompt": "Lies https://example.invalid/info und fasse die Seite zusammen.",
+  "tools": [
+   "mcp__pippa__read_web_page"
+  ]
+ },
+ {
+  "id": "write",
+  "prompt": "Speichere den Text Hallo in ~/Documents/gruss.txt.",
+  "tools": [
+   "write"
+  ]
+ },
+ {
+  "id": "edit",
+  "prompt": "Ersetze in ~/Documents/notiz.txt das Wort Montag durch Dienstag.",
+  "tools": [
+   "read",
+   "edit"
+  ]
+ },
+ {
+  "id": "answer",
+  "prompt": "Erkläre mir kurz, was eine Kaution ist.",
+  "tools": []
+ }
+]

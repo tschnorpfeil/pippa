@@ -1,0 +1,50 @@
+{
+  "passed": 8,
+  "results": [
+    {
+      "query": "Steuer",
+      "year": "2025",
+      "milliseconds": 150,
+      "files": 3
+    },
+    {
+      "query": "Kaution",
+      "milliseconds": 107,
+      "files": 1
+    },
+    {
+      "query": "Hausratversicherung",
+      "milliseconds": 115,
+      "files": 1
+    },
+    {
+      "query": "Zahnarzt",
+      "year": "2023",
+      "milliseconds": 117,
+      "files": 1
+    },
+    {
+      "query": "Nebenkostenabrechnung",
+      "year": "2024",
+      "milliseconds": 141,
+      "files": 1
+    },
+    {
+      "query": "Mietvertrag",
+      "milliseconds": 121,
+      "files": 1
+    },
+    {
+      "query": "Zahnarzt",
+      "year": "2024",
+      "milliseconds": 122,
+      "files": 1
+    },
+    {
+      "query": "Zahnarzt",
+      "year": "2022",
+      "milliseconds": 132,
+      "files": 0
+    }
+  ]
+}

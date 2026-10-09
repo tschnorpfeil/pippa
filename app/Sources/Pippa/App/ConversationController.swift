@@ -265,7 +265,7 @@ final class ConversationController: ObservableObject {
                 let work = self.thought.finish(request: requestID, at: Date())
                 // "What happened" from tool events and guard, never from the answer text.
                 let actions = chat.takeShownActions()
-                self.append(.assistant, answer, modelLabel: modelLabel, draft: skill?.writesDraft == true,
+                self.append(.assistant, answer, attachments: chat.takeSearchFiles(), modelLabel: modelLabel, draft: skill?.writesDraft == true,
                             mailDraft: skill?.name == "antwort-schreiben" ? ConversationMailDraft(
                                 to: replySource.flatMap { MailAddress.parse($0.replyTo ?? "").address } ?? "",
                                 subject: replySource.map { MailDraft(messageID: $0.messageID, to: nil, toName: nil, subject: $0.subject, body: "").replySubject } ?? "",
@@ -279,6 +279,7 @@ final class ConversationController: ObservableObject {
                 var partial: String?
                 // Also when stopped or failed: what tools did until then is shown with it.
                 let actions = chat.takeShownActions()
+                let found = chat.takeSearchFiles()
                 if case AnswerFailure.stopped(let text) = error { partial = text }
                 else if self.stopRequested || Task.isCancelled { partial = self.streamingText }
                 if let partial {
@@ -286,7 +287,7 @@ final class ConversationController: ObservableObject {
                     if partial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         self.append(.system, T("Answer stopped. You can pick up from here.", table: "App"), actions: actions)
                     } else {
-                        self.append(.assistant, partial, modelLabel: modelLabel, stopped: true, actions: actions)
+                        self.append(.assistant, partial, attachments: found, modelLabel: modelLabel, stopped: true, actions: actions)
                     }
                 } else {
                     self.error = PiRPCChat.userText(for: error, context: "gespraech")

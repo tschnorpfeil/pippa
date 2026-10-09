@@ -512,3 +512,78 @@ test("read on a document is sent to read_document; text files and other tools pa
 	assert.equal(documentForRead("read", { path: "notizen.md" }), undefined);
 	assert.equal(documentForRead("mcp__pippa__read_document", { path: "a.pdf" }), undefined);
 });
+
+test('bundled Spotlight script looks only; shell injection and other scripts still ask', async () => {
+ const script = fileURLToPath(new URL('../pippa-skills/dateien-finden/scripts/search.mjs', import.meta.url));
+ assert.equal(classifyCommand(`node "${script}" --query "Zahnarzt" --year 2023`), 'look');
+ for (const cmd of [
+  `node /tmp/search.mjs --query Steuer`,
+  `node "${script}" --query "$(touch x)"`,
+  `node "${script}" --query Steuer; touch x`,
+  `node "${script}" --query Steuer --year 2023 --eval evil`,
+  `node "${script}" --query Steuer > x`,
+  `node "${script}" --query Steuer\nrm x`,
+ ]) assert.notEqual(classifyCommand(cmd), 'look', cmd);
+ const g=load({policy:'undo-first',hasUI:false});
+ assert.equal((await g.call('bash',{command:`node "${script}" --query "Steuer" --year 2025`})).result,undefined);
+ assert.equal(g.asked.length,0);
+});
+
+test('loop stop is distinct from manual Stop and preserves actual search locations', async () => {
+ const handlers={},entries=[];let aborted=0;
+ process.env.PIPPA_GUARD_POLICY='undo-first';
+ guard({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+ const ctx={cwd:root,hasUI:false,abort:()=>aborted++};
+ await handlers.agent_start({});
+ const input={command:'mdfind -onlyin ~/Documents Kaution'};
+ for(let i=0;i<7;i++){
+  const event={toolName:'bash',input,toolCallId:'search'+i};
+  const block=await handlers.tool_call(event,ctx);
+  if(!block)await handlers.tool_result({...event,isError:false,content:[{type:'text',text:'/fake/Documents/beleg.pdf\n'}]},ctx);
+ }
+ const stops=entries.filter(x=>x.type==='pippa-loop-stop');
+ assert.equal(aborted,1);assert.equal(stops.length,1);
+ assert.deepEqual(stops[0].data.files,['/fake/Documents/beleg.pdf']);
+ assert.equal(stops[0].data.searched,true);
+ await handlers.agent_start({});
+ for(let i=0;i<7;i++){
+  const event={toolName:'bash',input,toolCallId:'empty'+i};
+  const block=await handlers.tool_call(event,ctx);
+  if(!block)await handlers.tool_result({...event,isError:false,content:[{type:'text',text:''}]},ctx);
+ }
+ assert.deepEqual(entries.filter(x=>x.type==='pippa-loop-stop').at(-1).data.files,[]);
+});
+
+test('verified search results are signalled only for the bundled script, not model-written JSON', async () => {
+ const handlers={},entries=[];
+ process.env.PIPPA_GUARD_POLICY='undo-first';
+ guard({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+ const ctx={cwd:root,hasUI:false};
+ const script=fileURLToPath(new URL('../pippa-skills/dateien-finden/scripts/search.mjs',import.meta.url));
+ const result={isError:false,content:[{type:'text',text:JSON.stringify({files:[{path:'/fake/Documents/beleg.pdf'}]})}]};
+ await handlers.tool_call({toolName:'bash',toolCallId:'real',input:{command:`node "${script}" --query Kaution`}},ctx);
+ await handlers.tool_result({...result,toolName:'bash',toolCallId:'real'},ctx);
+ await handlers.tool_call({toolName:'bash',toolCallId:'fake',input:{command:'echo result'}},ctx);
+ await handlers.tool_result({...result,toolName:'bash',toolCallId:'fake'},ctx);
+ const found=entries.filter(e=>e.type==='pippa-search-result');
+ assert.equal(found.length,1);assert.deepEqual(found[0].data.files,['/fake/Documents/beleg.pdf']);
+});
+
+test('loop stop preserves the search truncation flag with exactly 200 returned files', async () => {
+ const handlers={},entries=[];
+ process.env.PIPPA_GUARD_POLICY='undo-first';
+ guard({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+ const ctx={cwd:root,hasUI:false,abort:()=>{}};
+ const script=fileURLToPath(new URL('../pippa-skills/dateien-finden/scripts/search.mjs',import.meta.url));
+ const input={command:`node "${script}" --query Steuer`};
+ for(const truncated of [true,false]){
+  await handlers.agent_start({});
+  const files=truncated?Array.from({length:200},(_,i)=>({path:`/fake/Documents/${i}.pdf`})) : [];
+  for(let i=0;i<7;i++){
+   const event={toolName:'bash',input,toolCallId:`cap-${truncated}-${i}`};
+   if(!await handlers.tool_call(event,ctx))await handlers.tool_result({...event,isError:false,content:[{type:'text',text:JSON.stringify({files,truncated})}]},ctx);
+  }
+  const stop=entries.filter(x=>x.type==='pippa-loop-stop').at(-1).data;
+  assert.equal(stop.files.length,files.length);assert.equal(stop.truncated,truncated);
+ }
+});

@@ -1,0 +1,16 @@
+{
+  "before": {
+    "tools": 22,
+    "withoutTools": 448,
+    "withTools": 1884,
+    "toolDeclarationTokens": 1436
+  },
+  "final": {
+    "tools": 19,
+    "withoutTools": 577,
+    "withTools": 1864,
+    "toolDeclarationTokens": 1287
+  },
+  "measurement": "Actual K2 apply-template/tokenize, initial system + identical user text Hallo, add_special=false.",
+  "workspace": "Final on /Users/ts/Developer/pippa main; baseline c3c7c1c initially measured in af04."
+}

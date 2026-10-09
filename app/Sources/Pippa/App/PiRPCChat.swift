@@ -357,6 +357,7 @@ final class PiRPCChat {
     func chat(_ text: String, taskID: String, onWork: WorkEventHandler?, onDelta: @escaping @Sendable (String) -> Void,
               onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil) async throws -> String {
         lastActions = nil
+        searchFiles = []
         _ = PippaMCPService.readNotes.take()   // read receipts belong to the answer that triggered them
         // First the model, then Pi: Pi starts only if the server responds.
         // If the own online service works, no local model is needed.
@@ -366,6 +367,7 @@ final class PiRPCChat {
         var segment = ""
         var lastStop = ""
         var lastError: String?
+        var loopStop: String?
         var receipt = PiTurnReceipt()
         lastSelectedMail = nil
         defer {
@@ -407,14 +409,50 @@ final class PiRPCChat {
                     // Text before a tool call stays part of the answer; a paragraph separates it from the rest.
                     segment += "\n\n"; onDelta("\n\n")
                 }
-            case .notice, .guardOutcome, .settled:
+            case .notice(let text, let kind):
+                if kind == "pippa-search-result", let data = text.data(using: .utf8),
+                   let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    for path in (record["files"] as? [String] ?? []) where path.hasPrefix("/") {
+                        let url = URL(fileURLWithPath: path)
+                        if !searchFiles.contains(url), searchFiles.count < 200 { searchFiles.append(url) }
+                    }
+                }
+                if kind == "pippa-loop-stop", let data = text.data(using: .utf8),
+                   let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let files = (record["files"] as? [String] ?? []).filter { $0.hasPrefix("/") }
+                    var reason = T("I stopped because the same action kept repeating. The task is incomplete.", table: "App")
+                    if !files.isEmpty {
+                        reason += "\n\n" + T("Found so far (%lld):", table: "App", files.count)
+                        for path in files {
+                            let name = URL(fileURLWithPath: path).lastPathComponent.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
+                            let target = URL(fileURLWithPath: path).absoluteString
+                            reason += searchFiles.contains(URL(fileURLWithPath: path)) ? "\n- [\(name)](\(target))" : "\n- \(name)"
+                        }
+                    } else if record["searched"] as? Bool == true {
+                        reason += "\n" + T("The search returned no file locations before it stopped. Files may still exist.", table: "App")
+                    }
+                    if record["truncated"] as? Bool == true {
+                        reason += "\n" + T("More file locations were found; only the first 200 are shown.", table: "App")
+                    }
+                    loopStop = reason
+                }
+            case .guardOutcome, .settled:
                 break
             }
         }
         }
+        if let loopStop {
+            throw AnswerFailure.stopped(partial: segment.trimmingCharacters(in: .whitespacesAndNewlines) + (segment.isEmpty ? "" : "\n\n") + loopStop)
+        }
         if lastStop == "aborted" { throw AnswerFailure.stopped(partial: segment) }
         if lastStop == "error" { throw Failure.model(lastError ?? "unbekannt") }
         return segment.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var searchFiles: [URL] = []
+    func takeSearchFiles() -> [URL] {
+        defer { searchFiles = [] }
+        return searchFiles
     }
 
     /// The receipt of the last answer, once. `nil` if no tool wanted to change anything.
