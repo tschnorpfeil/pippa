@@ -133,6 +133,24 @@ func runR2Checks() async {
             && isFolder.json["status"] as? String == "is_folder" && protected.json["status"] as? String == "protected"
             && extra.json["status"] as? String == "invalid_arguments"
     }
+    await checkAsync("read_document: small-model habits work (quoted path, escaped spaces, from_page as text); no permission is named") {
+        let t = tools(PippaMCPTurns())
+        let spaced = base.appendingPathComponent("Brief vom Amt.pdf")
+        try? FileManager.default.removeItem(at: spaced)
+        try? FileManager.default.copyItem(at: letter, to: spaced)
+        let quoted = await call(t, "read_document", ["path": "\"\(spaced.path)\""])
+        let escaped = await call(t, "read_document", ["path": spaced.path.replacingOccurrences(of: " ", with: "\\ ")])
+        let page = await call(t, "read_document", ["path": letter.path, "from_page": "2"])
+        let closed = base.appendingPathComponent("gesperrt.pdf")
+        try? FileManager.default.removeItem(at: closed)
+        try? FileManager.default.copyItem(at: letter, to: closed)
+        try? FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: closed.path)
+        let denied = await call(t, "read_document", ["path": closed.path])
+        try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: closed.path)
+        return !quoted.isError && !escaped.isError && !page.isError
+            && ((page.json["data"] as? [String: Any])?["text"] as? String)?.hasPrefix("[S. 2]") == true
+            && denied.isError && denied.json["status"] as? String == "no_access"
+    }
     await checkAsync("read_document: scan without text layer → text recognition, amount readable, marked as recognised") {
         let scan = base.appendingPathComponent("scan.pdf")
         renderedScan("Stadtwerke Musterstadt\nAbschlag Oktober\nBetrag: 84,20 EUR\nFällig am 15.10.2026", at: scan)

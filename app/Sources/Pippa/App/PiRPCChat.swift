@@ -145,7 +145,10 @@ final class PiRPCChat {
         let work = try Self.workingDirectory(env)
         try FileManager.default.createDirectory(at: Self.sessionDirectory, withIntermediateDirectories: true)
         // pi-web-access reads Pippa's settings from here, never from the person's ~/.pi (runtime/pippa-web/index.ts).
-        var extra = ["PIPPA_WEB_DIR": Pippa.supportDirectory.appendingPathComponent("pi-web", isDirectory: true).path]
+        var extra = ["PIPPA_WEB_DIR": Pippa.supportDirectory.appendingPathComponent("pi-web", isDirectory: true).path,
+                     // If the model crashes mid-answer, the terminal extension restarts it for this Pi; this ties that
+                     // server to the app so it never outlives Pippa (runtime/pippa-local-server/supervisor.mjs).
+                     "PIPPA_APP_PID": String(getpid())]
         if let online = route.online { extra[PiOnlineProvider.keyVariable] = online.key }
         // Test scripts only (scripts/pi-rpc-spike.sh app): own Pi folder instead of ~/.pi, test trash under .build.
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR"] { if let value = env[key] { extra[key] = value } }
