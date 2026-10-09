@@ -148,8 +148,7 @@ func runToolChecks() async {
         let output = try await OneAnswerTools.run(.asPDF, inputs: [input])
         guard let file = output.files.first, let document = PDFDocument(url: file) else { return false }
         let recognized = (document.string ?? "").components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
-        return document.pageCount == 1 && recognized.contains("Mietvertrag") && recognized.contains("Müller Straße")
-            && recognized.contains("312,50") && recognized.contains("06.11.2026")
+        return document.pageCount == 1 && ocrContains(recognized, ["Mietvertrag", "Müller Straße", "312,50", "06.11.2026"])
             && ToolFixtures.identity(input).sha == original.sha
             && original.fingerprint?.matches(FileFingerprint.of(input)) == true
     }
