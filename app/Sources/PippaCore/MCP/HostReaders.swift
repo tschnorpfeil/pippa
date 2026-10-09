@@ -169,7 +169,7 @@ enum MailSearchScript {
     """
 
     static func search(_ query: String, limit: Int) async throws -> HostFetch<MailHeader> {
-        try await MainActor.run { () throws -> HostFetch<MailHeader> in
+        try await AppleEvents.perform { () throws -> HostFetch<MailHeader> in
             let reply = try AppleEvents.call(source, handler: "searchInbox",
                                              [NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(int32: Int32(limit))], app: .mail)
             let parts = AppleEvents.items(reply)

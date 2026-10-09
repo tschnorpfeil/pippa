@@ -227,17 +227,26 @@ enum AppleEvents {
 
     /// Calls a handler of an AppleScript with parameters. Texts go in as parameters,
     /// never into the script text, so nothing can be injected.
-    @MainActor
+    /// Only inside `perform`.
     static func call(_ source: String, handler: String, _ args: [NSAppleEventDescriptor] = [], app: Integration) throws -> NSAppleEventDescriptor {
         try call(source, handler: handler, args, appName: app.appName)
     }
 
-    /// Compiled once per source text (the Mail reply search calls the same script once per mailbox).
-    /// Handlers keep no state between calls: every value they use comes in as a parameter.
-    @MainActor private static var compiled: [String: NSAppleScript] = [:]
+    /// AppleScript runs on its own serial queue, not the main thread: a slow Mail or Excel (up to 20 s) never freezes
+    /// the pill. NSAppleScript is not thread-safe, so every script and the compiled cache stay on this one queue.
+    private static let queue = DispatchQueue(label: "app.pippa.applescript", qos: .userInitiated)
 
-    /// As above; `appName` only for the error message (no permission, app not open).
-    @MainActor
+    static func perform<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async { continuation.resume(with: Result { try body() }) }
+        }
+    }
+
+    /// Compiled once per source text (the Mail reply search calls the same script once per mailbox).
+    /// Handlers keep no state between calls: every value they use comes in as a parameter. Only touched on `queue`.
+    nonisolated(unsafe) private static var compiled: [String: NSAppleScript] = [:]
+
+    /// As above; `appName` only for the error message (no permission, app not open). Only inside `perform`.
     static func call(_ source: String, handler: String, _ args: [NSAppleEventDescriptor] = [], appName: String) throws -> NSAppleEventDescriptor {
         var error: NSDictionary?
         let script: NSAppleScript
@@ -322,7 +331,7 @@ enum MailScript {
     """
 
     static func selected() async throws -> MailMessage? {
-        try await MainActor.run { () throws -> MailMessage? in
+        try await AppleEvents.perform { () throws -> MailMessage? in
             let r = try AppleEvents.call(source, handler: "selectedMessage", app: .mail)
             let parts = AppleEvents.items(r)
             guard parts.count >= 5 else { return nil }
@@ -639,9 +648,9 @@ enum MailReplyScript {
         return .newMessage
     }
 
-    /// One short step on the main actor (NSAppleScript), then the UI gets the main thread back.
+    /// One short step on the AppleScript queue.
     private static func run(_ handler: String, _ args: [ScriptArgument]) async throws -> [ScriptValue] {
-        let result = try await MainActor.run {
+        let result = try await AppleEvents.perform {
             ScriptValue(try AppleEvents.call(source, handler: handler, args.map(\.descriptor), app: .mail))
         }.items
         await Task.yield()
@@ -656,7 +665,7 @@ enum MailReplyScript {
     }
 }
 
-/// Handler parameters as plain values, so they can cross to the main actor.
+/// Handler parameters as plain values, so they can cross to the AppleScript queue.
 enum ScriptArgument: Sendable {
     case text(String), number(Int32), texts([String])
 
@@ -672,7 +681,7 @@ enum ScriptArgument: Sendable {
     }
 }
 
-/// A script result as plain values (lists, texts, integers), read on the main actor.
+/// A script result as plain values (lists, texts, integers), read on the AppleScript queue.
 indirect enum ScriptValue: Sendable {
     case text(String), number(Int), flag(Bool), list([ScriptValue]), other
 
