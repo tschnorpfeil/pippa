@@ -399,6 +399,7 @@ final class AppModel: ObservableObject {
         refreshJobs()
         // Pi path (default): set up silently; the only question (download) is in Welcome.
         PiSetupController.shared?.attach(to: self)
+        StartupBridgeChat.shared.connect(self)
         // Sorting, invoices, deadlines and letter suggestions use the one llama-server of the Pi path.
         if PiRPCChat.isLive { PiRPCChat.shared.shareServer(with: engine) }
         tray.load()
@@ -1490,45 +1491,46 @@ final class AppModel: ObservableObject {
             return
         }
         // Free text and skills go to the real Pi (PiRPCChat); model choice and approvals are handled by the Pi path itself.
-        if piSetupHolds(q, queued: queued, skill: skill) { return }
+        // While Pippa's AI is still loading (and for the first message after), the start bridge answers or waits for Pi.
+        let bridged = usesStartupBridge
+        if !bridged, piSetupHolds(q, queued: queued) { return }
         if query.trimmingCharacters(in: .whitespacesAndNewlines) == q { query = "" }
         // What is shown (files, folder, mail, table, text) and Pippa's working state go along (PiRPCChat+Shown.swift).
-        conversations.send(q, workflowSummary: workflowSummary, modelLabel: piModelLabel, skill: skill)
+        conversations.send(q, chat: bridged ? StartupBridgeChat.shared as any ConversationChat : nil, workflowSummary: workflowSummary,
+                           modelLabel: piModelLabel, skill: skill)
         composerFocus += 1
     }
 
-    /// If setup is not finished, Pi does not start. Instead of a technical error, a calm sentence in the
-    /// conversation; for the download question or an error, the setup itself ("Load" or "Try again").
-    /// The message stays in the field. While Pippa is only still loading, she sends it herself as soon as she is
-    /// ready, so nobody has to ask twice. `true`: held back.
-    private func piSetupHolds(_ text: String, queued: Bool, skill: PippaSkill?) -> Bool {
+    /// The first minutes (StartupBridge.swift): while setup still runs or loads, a plain question gets a short answer from
+    /// Apple Intelligence and everything else waits in the conversation for Pi; the first message after that hands the
+    /// quick answers over to Pi.
+    private var usesStartupBridge: Bool {
+        guard PiRPCChat.isLive else { return false }
+        switch piSetupGate {
+        case .wait: return true
+        case .open: return conversations.current.map { StartupBridgeChat.shared.hasPending(conversation: $0.id) } ?? false
+        case .showSetup: return false
+        }
+    }
+
+    /// A message of the start bridge waits for Pi: one calm sentence in the conversation.
+    func startupBridgeWaits() {
+        let line = T("I’m almost ready. I’ll answer as soon as I am.", table: "App")
+        if conversations.current?.messages.last?.text != line { conversations.append(.system, line, notice: true) }
+    }
+
+    /// While a message waited, setup came to the download question or an error: show it.
+    func startupBridgeNeedsSetup() { show(.onboarding) }
+
+    /// If setup needs the person (download question or an error), Pi does not start. Instead of a technical error, a calm
+    /// sentence in the conversation and the setup itself ("Load" or "Try again"). The message stays in the field.
+    /// `true`: held back.
+    private func piSetupHolds(_ text: String, queued: Bool) -> Bool {
         guard let line = piSetupBlockedReason else { return false }
         if conversations.current?.messages.last?.text != line { conversations.append(.system, line, notice: true) }
         if queued { restoreQueued([text]) }
-        switch piSetupGate {
-        case .showSetup: show(.onboarding)
-        case .wait where !queued: sendWhenReady(text, skill: skill)
-        default: break
-        }
+        if case .showSetup = piSetupGate { show(.onboarding) }
         return true
-    }
-
-    private var heldUntilReady: Task<Void, Never>?
-
-    /// Sends the held message once setup opens (at most ten minutes); a setup question or error ends the wait.
-    private func sendWhenReady(_ text: String, skill: PippaSkill?) {
-        heldUntilReady?.cancel()
-        heldUntilReady = Task { [weak self] in
-            for _ in 0..<1200 {
-                try? await Task.sleep(for: .milliseconds(500))
-                guard !Task.isCancelled, let self else { return }
-                switch self.piSetupGate {
-                case .wait: continue
-                case .showSetup: self.heldUntilReady = nil; return
-                case .open: self.heldUntilReady = nil; self.route(text, skill: skill); return
-                }
-            }
-        }
     }
 
     var piSetupGate: PiConversationDefault.SetupGate {
