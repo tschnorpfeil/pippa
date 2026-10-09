@@ -33,13 +33,13 @@ public enum PippaError: LocalizedError, Sendable, Equatable {
         case .undoIncomplete(let restored, let conflicts, let list):
             Self.undoText(restored: restored, conflicts: conflicts, first: list.first)
         case .unsupportedHardware(let why): why
-        case .modelUnavailable: L("I need my knowledge for this, and it hasn’t loaded yet.", table: "Core")
+        case .modelUnavailable: L("I need my AI for this, and it hasn’t loaded yet.", table: "Core")
         case .modelFailed: L("That didn’t work. Nothing was changed. Please try again.", table: "Core")
         case .downloadFailed: L("The download isn’t working right now. I’ll try again shortly.", table: "Core")
         case .checksumMismatch: L("The download arrived damaged. I’ll download it again.", table: "Core")
         case .serverMissing: L("Part of the app is missing. Please reinstall Pippa.", table: "Core")
         case .notEnoughSpace(let bytes):
-            L("Your Mac doesn’t have enough free space. I need %@ more for my knowledge. Once you free up some space, I’ll pick up where I left off.", table: "Core", ModelDownloadSize.gigabytes(bytes))
+            L("Your Mac doesn’t have enough free space. I need %@ more for my AI. Once you free up some space, I’ll pick up where I left off.", table: "Core", ModelDownloadSize.gigabytes(bytes))
         case .writeFailed(let why): why.isEmpty ? L("I couldn’t create anything.", table: "Core") : L("I couldn’t create anything. %@", table: "Core", why)
         case .nothingToExport: L("There’s nothing for the table.", table: "Core")
         case .accessDenied(let app): L("I don’t have access to %@ yet. You can allow it in System Settings.", table: "Core", app)

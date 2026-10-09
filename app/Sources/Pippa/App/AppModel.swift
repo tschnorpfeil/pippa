@@ -1028,13 +1028,13 @@ final class AppModel: ObservableObject {
             } else {
                 detail = T("Invoices work once it has loaded. Tidying, overviews and deadlines work right now.", table: "App")
             }
-            show(.notice(title: T("I need my knowledge for this", table: "App"), detail: detail,
+            show(.notice(title: T("I need my AI for this", table: "App"), detail: detail,
                          buttons: [.init(title: T("Load Now", table: "App"), primary: true) { [weak self] in self?.startModelDownload(); self?.collapse() },
                                    .init(title: T("Later", table: "App"), primary: false) { [weak self] in self?.collapse() }]), recordResult: false)
             return true
         }
         let status = unsupportedReason ?? learningText ?? T("Pippa is just waking up.", table: "App")
-        let body = status + "\n" + T("Invoices work once my knowledge has loaded. Tidying, overviews and deadlines work right now.", table: "App")
+        let body = status + "\n" + T("Invoices work once my AI has loaded. Tidying, overviews and deadlines work right now.", table: "App")
         show(.message(title: T("Not ready yet", table: "App"), body: body, isError: false))
         return true
     }
@@ -1127,8 +1127,8 @@ final class AppModel: ObservableObject {
     /// How Pippa says "later": without consent to load "once my knowledge is loaded", otherwise "awake".
     /// If no model fits this Mac, it only works with an own connection.
     var laterPhrase: String {
-        if unsupportedReason != nil { return T("once online help is connected (Settings → Advanced)", table: "App") }
-        if needsDownloadConsent { return T("once my knowledge has loaded", table: "App") }
+        if unsupportedReason != nil { return T("once an online AI is connected (Settings → Advanced)", table: "App") }
+        if needsDownloadConsent { return T("once my AI has loaded", table: "App") }
         return T("once I’m fully awake", table: "App")
     }
 
@@ -1152,8 +1152,8 @@ final class AppModel: ObservableObject {
         }
         buttons.append(.init(title: T("OK", table: "App"), primary: buttons.isEmpty) { [weak self] in self?.collapse() })
         let detail = count == 1
-            ? T("Without my knowledge I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then.", table: "App")
-            : T("Without my knowledge I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then.", table: "App")
+            ? T("Without my AI I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then.", table: "App")
+            : T("Without my AI I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then.", table: "App")
         show(.notice(title: T("I’ll sort %@ more carefully %@", table: "App", Self.laterCount(count), laterPhrase),
                      detail: detail,
                      buttons: buttons))
@@ -1513,8 +1513,8 @@ final class AppModel: ObservableObject {
     /// Where the answer is produced, in the wording of Settings: the own online service or this Mac.
     var piModelLabel: String {
         guard let connection = PiRPCChat.onlineConnection else { return Self.localStatus }
-        if connection.isLocal { return T("On this Mac · Connected service", table: "App") }
-        let name = connection.provider == .compatible ? T("Connected service", table: "App") : connection.provider.displayName
+        if connection.isLocal { return T("On this Mac · Connected AI", table: "App") }
+        let name = connection.provider == .compatible ? T("Connected AI", table: "App") : connection.provider.displayName
         return T("Online · %@", table: "App", name)
     }
 

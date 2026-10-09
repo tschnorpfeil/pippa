@@ -7,7 +7,7 @@
   Convention: docs/development.md, section "Localization".
 */
 
-"Service" = "Service";
+"Provider" = "Provider";
 "OpenAI-compatible" = "OpenAI-compatible";
 "Server address" = "Server address";
 "Address of your server" = "Address of your server";
@@ -28,7 +28,7 @@
 "Call Pippa" = "Call Pippa";
 "Open at login" = "Open at login";
 "That didn’t work just now. Is Pippa in your Applications folder?" = "That didn’t work just now. Is Pippa in your Applications folder?";
-"Pippa’s knowledge" = "Pippa’s knowledge";
+"Pippa’s AI" = "Pippa’s AI";
 "Load Now" = "Load Now";
 "Cancel" = "Cancel";
 "Try Again" = "Try Again";
@@ -51,8 +51,7 @@
 "Tidy Up Downloads" = "Tidy Up Downloads";
 "No account, nothing online without your OK" = "No account, nothing online without your OK";
 "Free" = "Free";
-"Pippa’s knowledge isn’t here yet" = "Pippa’s knowledge isn’t here yet";
-"Pippa is loading her knowledge" = "Pippa is loading her knowledge";
+"Pippa’s AI isn’t here yet" = "Pippa’s AI isn’t here yet";
 "%lld%%" = "%lld%%";
 "Loading" = "Loading";
 "%@ is remembered" = "%@ is remembered";
@@ -61,9 +60,9 @@
 "Hide" = "Hide";
 "Load once, then everything runs on your Mac" = "Load once, then everything runs on your Mac";
 "Estimating time…" = "Estimating time…";
-"Pippa loads her knowledge once: %@." = "Pippa loads her knowledge once: %@.";
+"Pippa loads her AI once: %@." = "Pippa loads her AI once: %@.";
 "With a fast connection, this takes %@. After that, everything runs on your Mac." = "With a fast connection, this takes %@. After that, everything runs on your Mac.";
-"Pippa loads her knowledge once. After that, everything runs on your Mac." = "Pippa loads her knowledge once. After that, everything runs on your Mac.";
+"Pippa loads her AI once. After that, everything runs on your Mac." = "Pippa loads her AI once. After that, everything runs on your Mac.";
 "Later" = "Later";
 "Not everything is available yet" = "Not everything is available yet";
 "You can still look at an overview of your files." = "You can still look at an overview of your files.";
@@ -147,10 +146,10 @@
 "Try again" = "Try Again";
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
-"Your conversations and what you show Pippa go to your online service. Your key stays in your macOS Keychain." = "Your conversations and what you show Pippa go to your online service. Your key stays in your macOS Keychain.";
+"Your conversations and what you show Pippa go to your online AI. Your key stays in your macOS Keychain." = "Your conversations and what you show Pippa go to your online AI. Your key stays in your macOS Keychain.";
 
 /* Vereinfachte Einstellungen (docs/settings-simplification.md) */
-"Online service" = "Online service";
+"Online AI" = "Online AI";
 "Use my own online AI" = "Use my own online AI";
 "Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there." = "Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there.";
 "Remove" = "Remove";
@@ -159,7 +158,7 @@
 "I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay." = "I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay.";
 "Standard (fast, %@)" = "Standard (fast, %@)";
 "More thorough (%@)" = "More thorough (%@)";
-"New knowledge is ready to load. Until then, Pippa keeps working with what she has." = "New knowledge is ready to load. Until then, Pippa keeps working with what she has.";
+"A new AI is ready to load. Until then, Pippa keeps working with the one she has." = "A new AI is ready to load. Until then, Pippa keeps working with the one she has.";
 "Keep Loading in the Background" = "Keep Loading in the Background";
 
 /* Text size */

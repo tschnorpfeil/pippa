@@ -26,10 +26,10 @@ public enum InferenceError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidConnection(let reason): reason
-        case .missingCredential: L("Please add an API key for this service.", table: "Core")
+        case .missingCredential: L("Please add an API key for this online AI.", table: "Core")
         case .busy: L("I’m still busy with something else. Please try again in a moment.", table: "Core")
         case .credentialStorage: L("The API key couldn’t be saved to or read from the keychain.", table: "Core")
-        case .invalidResponse: L("Your connected service didn’t give a valid answer for this task.", table: "Core")
+        case .invalidResponse: L("Your connected AI didn’t give a valid answer for this task.", table: "Core")
         case .onlineDeclined(let service): L("I didn’t ask %@. Nothing left your Mac.", table: "Core", service)
         }
     }
@@ -87,7 +87,7 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
     public func save(to base: URL = Pippa.supportDirectory) throws {
         if let connection { try connection.validated() }
         guard policy == .localOnly || connection != nil else {
-            throw InferenceError.invalidConnection(L("Please connect a service first.", table: "Core"))
+            throw InferenceError.invalidConnection(L("Please connect an online AI first.", table: "Core"))
         }
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         try JSONEncoder().encode(self).write(to: base.appendingPathComponent("inference-settings.json"), options: .atomic)

@@ -127,8 +127,8 @@ struct LearningContent: View {
     }
 
     private var heading: String {
-        if model.needsDownloadConsent { return T("Pippa’s knowledge isn’t here yet", table: "Settings") }
-        return T("Pippa is loading her knowledge", table: "Settings")
+        if model.needsDownloadConsent { return T("Pippa’s AI isn’t here yet", table: "Settings") }
+        return T("Pippa is loading her AI", table: "Settings")
     }
 
     private var remaining: String {
@@ -145,12 +145,12 @@ struct DownloadConsent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let size = model.downloadSize {
-                Text(T("Pippa loads her knowledge once: %@.", table: "Settings", ModelDownloadSize.gigabytes(size.remaining)))
+                Text(T("Pippa loads her AI once: %@.", table: "Settings", ModelDownloadSize.gigabytes(size.remaining)))
                     .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
                 Text(T("With a fast connection, this takes %@. After that, everything runs on your Mac.", table: "Settings", ModelDownloadSize.durationText(size.remaining)))
                     .font(Fonts.body).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
             } else {
-                Text(T("Pippa loads her knowledge once. After that, everything runs on your Mac.", table: "Settings"))
+                Text(T("Pippa loads her AI once. After that, everything runs on your Mac.", table: "Settings"))
                     .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
             }
             Text(model.capabilityText)

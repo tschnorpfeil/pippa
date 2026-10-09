@@ -639,7 +639,7 @@ struct KnowledgeStatus: View {
         if let progress = model.progressValue, !model.downloadStalled {
             HStack(spacing: 10) {
                 ThinProgress(value: progress, height: 4).frame(width: 96)
-                    .accessibilityLabel(T("Pippa is loading her knowledge", table: "Settings"))
+                    .accessibilityLabel(T("Pippa is loading her AI", table: "Settings"))
                     .accessibilityValue(T("%lld%%", table: "Settings", Int((progress * 100).rounded())))
                 if showsText, let text = model.learningText {
                     Text(text).font(Fonts.hint.monospacedDigit()).foregroundStyle(Theme.ink3).lineLimit(1)
@@ -652,7 +652,7 @@ struct KnowledgeStatus: View {
                 }
                 if model.needsDownloadConsent {
                     Button(T("Load Now", table: "Settings")) { model.startModelDownload() }.pippa(.tinted)
-                        .help(T("Pippa loads her knowledge once. After that, everything runs on your Mac.", table: "Settings"))
+                        .help(T("Pippa loads her AI once. After that, everything runs on your Mac.", table: "Settings"))
                 } else {
                     Button(T("Try Again", table: "Settings")) { model.retryDownloadNow() }.pippa(.quiet)
                 }

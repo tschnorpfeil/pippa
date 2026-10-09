@@ -27,8 +27,8 @@
 "Look at Selected Mail" = "Ausgewählte Mail ansehen";
 "Hide Pippa" = "Pippa ausblenden";
 "Pippa menu" = "Pippa-Menü";
-"Load Pippa’s Knowledge Now (%@)" = "Pippas Wissen jetzt laden (%@)";
-"Load Pippa’s Knowledge Now" = "Pippas Wissen jetzt laden";
+"Load Pippa’s AI Now (%@)" = "Pippas KI jetzt laden (%@)";
+"Load Pippa’s AI Now" = "Pippas KI jetzt laden";
 "Try Loading Again" = "Laden erneut versuchen";
 "Show Result" = "Ergebnis zeigen";
 "nothing yet" = "noch nichts";
@@ -45,17 +45,17 @@
 "What did you do?\n\n\nWhat happened?\n\n\n(Please attach the file “pippa.log” from the Finder window here.)" = "Was hast du gemacht?\n\n\nWas ist passiert?\n\n\n(Bitte die Datei „pippa.log“ aus dem Finder-Fenster hier anhängen.)";
 "Pippa was updated" = "Pippa wurde aktualisiert";
 "Now on version %@. Your conversations and settings are all still here." = "Jetzt Version %@. Deine Gespräche und Einstellungen sind alle noch da.";
-"I need my knowledge to answer." = "Zum Antworten brauche ich mein Wissen.";
+"I need my AI to answer." = "Zum Antworten brauche ich meine KI.";
 "It’s loading right now, %@." = "Es lädt gerade, %@.";
 "It’s loading right now." = "Es lädt gerade.";
 "You can load it in Settings." = "Du kannst es in den Einstellungen laden.";
 "I’m just waking up." = "Ich werde gerade wach.";
-"Ready now: tidying up, overviews and deadlines. Once my knowledge has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully." = "Schon jetzt: Ordnen, Übersichten und Fristen. Nach dem Laden kommen Rechnungen und große Dokumente dazu, und unklare Unterlagen ordne ich dann genauer.";
+"Ready now: tidying up, overviews and deadlines. Once my AI has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully." = "Schon jetzt: Ordnen, Übersichten und Fristen. Nach dem Laden kommen Rechnungen und große Dokumente dazu, und unklare Unterlagen ordne ich dann genauer.";
 "I can’t get online right now. I’ll keep trying." = "Ich komme gerade nicht ins Internet – ich versuche es weiter.";
-"Pippa is loading her knowledge · %lld %%" = "Pippa lädt ihr Wissen · %lld %%";
+"Pippa is loading her AI · %lld %%" = "Pippa lädt ihre KI · %lld %%";
 "Pippa is getting ready to load…" = "Pippa bereitet das Laden vor …";
-"Pippa’s knowledge isn’t loaded yet (%@)" = "Pippas Wissen ist noch nicht geladen (%@)";
-"Pippa’s knowledge isn’t loaded yet" = "Pippas Wissen ist noch nicht geladen";
+"Pippa’s AI isn’t loaded yet (%@)" = "Pippas KI ist noch nicht geladen (%@)";
+"Pippa’s AI isn’t loaded yet" = "Pippas KI ist noch nicht geladen";
 "Pippa is waking up…" = "Pippa wird wach …";
 "almost done" = "gleich fertig";
 "about %lld min left" = "noch etwa %lld Min.";
@@ -73,9 +73,9 @@
 "Only reading. I won’t send anything." = "Nur lesen. Ich schicke nichts.";
 "No mail selected" = "Keine Mail ausgewählt";
 "Select a message in Mail, then try again." = "Wähl in Mail eine Mail aus. Dann nochmal.";
-"On this Mac · Connected service" = "Auf diesem Mac · Verbundenes Modell";
+"On this Mac · Connected AI" = "Auf diesem Mac · Verbundene KI";
 "Locally on this Mac" = "Lokal auf diesem Mac";
-"Connected service" = "Verbundener Dienst";
+"Connected AI" = "Verbundene KI";
 "Online · %@" = "Online · %@";
 "Runs on this Mac" = "Läuft auf diesem Mac";
 "Later" = "Später";
@@ -130,9 +130,9 @@
 "Add Entry" = "Eintragen";
 "Invoices work once it has loaded (%@). Tidying, overviews and deadlines work right now." = "Rechnungen gehen, sobald es geladen ist (%@). Ordnen, Übersichten und Fristen gehen schon jetzt.";
 "Invoices work once it has loaded. Tidying, overviews and deadlines work right now." = "Rechnungen gehen, sobald es geladen ist. Ordnen, Übersichten und Fristen gehen schon jetzt.";
-"I need my knowledge for this" = "Dafür brauche ich mein Wissen";
+"I need my AI for this" = "Dafür brauche ich meine KI";
 "Pippa is just waking up." = "Pippa wird gerade wach.";
-"Invoices work once my knowledge has loaded. Tidying, overviews and deadlines work right now." = "Rechnungen gehen, sobald mein Wissen geladen ist. Ordnen, Übersichten und Fristen gehen schon jetzt.";
+"Invoices work once my AI has loaded. Tidying, overviews and deadlines work right now." = "Rechnungen gehen, sobald meine KI geladen ist. Ordnen, Übersichten und Fristen gehen schon jetzt.";
 "Not ready yet" = "Noch nicht bereit";
 "Tidy Here" = "Hier ordnen";
 "Your files are in different places. Which folder should I tidy? Anything outside it stays where it is." = "Deine Dateien liegen an verschiedenen Orten. In welchem Ordner soll ich ordnen? Was nicht darin liegt, bleibt, wo es ist.";
@@ -140,15 +140,15 @@
 "Nothing is changed yet." = "Es wird noch nichts geändert.";
 "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”." = "In „%@“ habe ich keine losen Dateien gefunden. Hat dein Mac nach einer Erlaubnis gefragt und du hast abgelehnt? Dann kannst du sie in den Systemeinstellungen unter „Datenschutz & Sicherheit“ → „Dateien und Ordner“ geben.";
 "Nothing to tidy here" = "Hier gibt es nichts zu ordnen";
-"once online help is connected (Settings → Advanced)" = "sobald ein Sprachmodell verbunden ist (Einstellungen → Erweitert)";
-"once my knowledge has loaded" = "sobald mein Wissen geladen ist";
+"once an online AI is connected (Settings → Advanced)" = "sobald eine Online-KI verbunden ist (Einstellungen → Erweitert)";
+"once my AI has loaded" = "sobald meine KI geladen ist";
 "once I’m fully awake" = "sobald ich ganz wach bin";
 "1 document" = "1 Unterlage";
 "%lld documents" = "%lld Unterlagen";
 "I’ll sort %@ more carefully %@" = "%@ ordne ich genauer, %@";
 "OK" = "Gut";
-"Without my knowledge I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then." = "Ohne mein Wissen kann ich sie nicht sicher einordnen. Ich rate nicht: Sie bleibt, wo sie ist, und ich frage dich dann nochmal.";
-"Without my knowledge I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then." = "Ohne mein Wissen kann ich sie nicht sicher einordnen. Ich rate nicht: Sie bleiben, wo sie sind, und ich frage dich dann nochmal.";
+"Without my AI I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then." = "Ohne meine KI kann ich sie nicht sicher einordnen. Ich rate nicht: Sie bleibt, wo sie ist, und ich frage dich dann nochmal.";
+"Without my AI I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then." = "Ohne meine KI kann ich sie nicht sicher einordnen. Ich rate nicht: Sie bleiben, wo sie sind, und ich frage dich dann nochmal.";
 "I’m fully awake now" = "Ich bin jetzt ganz wach";
 "I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first." = "%1$@ aus „%2$@“ kann ich jetzt genauer einordnen. Du siehst vorher alles.";
 "Tidy Now" = "Jetzt ordnen";
@@ -196,8 +196,8 @@
 "Recent Conversations" = "Letzte Gespräche";
 
 "another app" = "einem anderen Programm";
-"Pippa is adopting her knowledge from %@ · %lld %%" = "Pippa übernimmt ihr Wissen aus %@ · %lld %%";
-"Pippa’s knowledge is already in %@ and is being adopted" = "Pippas Wissen liegt schon in %@ und wird übernommen";
+"Pippa is adopting her AI from %@ · %lld %%" = "Pippa übernimmt ihre KI aus %@ · %lld %%";
+"Pippa’s AI is already in %@ and is being adopted" = "Pippas KI liegt schon in %@ und wird übernommen";
 
 "Reply could not be opened" = "Antwort konnte nicht geöffnet werden";
 

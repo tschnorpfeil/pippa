@@ -78,7 +78,7 @@ private struct KnowledgeRow: View {
 
     var body: some View {
         if setup.isReady, setup.offersThorough || setup.update != nil {
-            SettingsRow(title: T("Pippa’s knowledge", table: "Settings"), detail: detail) {
+            SettingsRow(title: T("Pippa’s AI", table: "Settings"), detail: detail) {
                 VStack(alignment: .trailing, spacing: 6) {
                     if setup.offersThorough {
                         Picker("", selection: Binding(get: { setup.preference }, set: { setup.choose($0) })) {
@@ -91,7 +91,7 @@ private struct KnowledgeRow: View {
                     }
                     switch setup.update {
                     case .offer(let bytes)?:
-                        Button(T("Load Pippa’s Knowledge Now (%@)", table: "App", ModelDownloadSize.gigabytes(bytes))) { setup.loadUpdate() }
+                        Button(T("Load Pippa’s AI Now (%@)", table: "App", ModelDownloadSize.gigabytes(bytes))) { setup.loadUpdate() }
                             .pippa(.secondary)
                     case .downloading?:
                         Button(T("Cancel", table: "Settings")) { setup.cancelUpdate() }.pippa(.quiet)
@@ -112,9 +112,9 @@ private struct KnowledgeRow: View {
     private var detail: String? {
         switch setup.update {
         case .offer?:
-            return T("New knowledge is ready to load. Until then, Pippa keeps working with what she has.", table: "Settings")
+            return T("A new AI is ready to load. Until then, Pippa keeps working with the one she has.", table: "Settings")
         case .downloading(let progress, let remaining)?:
-            var text = T("Pippa is loading her knowledge · %lld %%", table: "App", Int((progress * 100).rounded()))
+            var text = T("Pippa is loading her AI · %lld %%", table: "App", Int((progress * 100).rounded()))
             if let remaining, remaining > 0 { text += " · " + AppModel.remainingText(remaining) }
             return text
         case .failed(let reason)?:
@@ -178,7 +178,7 @@ struct SettingsView: View {
                         TextSizeControl()
                     }
                     if !model.alwaysUsesConnection && !model.modelReady && model.unsupportedReason == nil {
-                        SettingsRow(title: T("Pippa’s knowledge", table: "Settings"), detail: model.learningText ?? model.capabilityText) {
+                        SettingsRow(title: T("Pippa’s AI", table: "Settings"), detail: model.learningText ?? model.capabilityText) {
                             if model.needsDownloadConsent {
                                 Button(T("Load Now", table: "Settings")) { model.startModelDownload() }.pippa(.secondary)
                             } else if model.isDownloading {
@@ -196,7 +196,7 @@ struct SettingsView: View {
                     accessRow(T("Add deadlines to Reminders and Calendar", table: "Settings"), [.reminders, .calendar], divider: false)
                     accessRow(T("Read the selected mail", table: "Settings"), [.mail])
                 }
-                SettingsGroup(title: T("Online service", table: "Settings")) {
+                SettingsGroup(title: T("Online AI", table: "Settings")) {
                     ModelConnectionSettings(model: model)
                 }
                 learningGroup

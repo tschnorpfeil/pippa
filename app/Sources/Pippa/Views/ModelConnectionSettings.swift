@@ -49,8 +49,8 @@ struct ModelConnectionSettings: View {
 
     @ViewBuilder private var form: some View {
         VStack(alignment: .leading, spacing: 12) {
-            field(T("Service", table: "Settings")) {
-                Picker(T("Service", table: "Settings"), selection: providerState.projectedValue) {
+            field(T("Provider", table: "Settings")) {
+                Picker(T("Provider", table: "Settings"), selection: providerState.projectedValue) {
                     Text(verbatim: "OpenAI").tag(ModelProvider.openAI)
                     Text(verbatim: "Anthropic").tag(ModelProvider.anthropic)
                     // A custom server stays visible only for already stored connections; creating a new one is no longer possible.
@@ -123,7 +123,7 @@ struct ModelConnectionSettings: View {
         if model.inferenceSettings.policy == .localOnly {
             return T("Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there.", table: "Settings")
         }
-        return T("Your conversations and what you show Pippa go to your online service. Your key stays in your macOS Keychain.", table: "Settings")
+        return T("Your conversations and what you show Pippa go to your online AI. Your key stays in your macOS Keychain.", table: "Settings")
     }
 
     private func loadDraft() {

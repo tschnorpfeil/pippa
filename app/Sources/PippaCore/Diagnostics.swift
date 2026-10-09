@@ -127,8 +127,8 @@ public extension AnswerFailureCode {
     var fallbackText: String {
         switch self {
         case .providerUnreachable: L("The answer didn’t come through just now. Please try again in a moment.", table: "Core")
-        case .providerRejected: L("The request was turned down. Please check the service and address under Settings › Advanced.", table: "Core")
-        case .authFailed: L("The service you chose didn’t let me in. Please check the key under Settings › Advanced.", table: "Core")
+        case .providerRejected: L("The request was turned down. Please check the online AI and address under Settings › Advanced.", table: "Core")
+        case .authFailed: L("The online AI you chose didn’t let me in. Please check the key under Settings › Advanced.", table: "Core")
         }
     }
 }

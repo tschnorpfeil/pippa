@@ -56,16 +56,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if model.needsDownloadConsent {
             let title: String
             if let size = model.downloadSize {
-                title = T("Load Pippa’s Knowledge Now (%@)", table: "App", ModelDownloadSize.gigabytes(size.remaining))
+                title = T("Load Pippa’s AI Now (%@)", table: "App", ModelDownloadSize.gigabytes(size.remaining))
             } else {
-                title = T("Load Pippa’s Knowledge Now", table: "App")
+                title = T("Load Pippa’s AI Now", table: "App")
             }
             menu.addItem(MenuAction.item(title) { [weak self] in self?.model.startModelDownload() })
         } else if model.downloadStalled {
             menu.addItem(MenuAction.item(T("Try Loading Again", table: "App")) { [weak self] in self?.model.retryDownloadNow() })
         } else if case .offer(let bytes)? = PiSetupController.shared?.update {
             // New knowledge after an update; the previous one keeps working until it is loaded.
-            menu.addItem(MenuAction.item(T("Load Pippa’s Knowledge Now (%@)", table: "App", ModelDownloadSize.gigabytes(bytes))) {
+            menu.addItem(MenuAction.item(T("Load Pippa’s AI Now (%@)", table: "App", ModelDownloadSize.gigabytes(bytes))) {
                 PiSetupController.shared?.loadUpdate()
             })
         }

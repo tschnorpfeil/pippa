@@ -27,8 +27,8 @@
 "Look at Selected Mail" = "Look at Selected Mail";
 "Hide Pippa" = "Hide Pippa";
 "Pippa menu" = "Pippa menu";
-"Load Pippa’s Knowledge Now (%@)" = "Load Pippa’s Knowledge Now (%@)";
-"Load Pippa’s Knowledge Now" = "Load Pippa’s Knowledge Now";
+"Load Pippa’s AI Now (%@)" = "Load Pippa’s AI Now (%@)";
+"Load Pippa’s AI Now" = "Load Pippa’s AI Now";
 "Try Loading Again" = "Try Loading Again";
 "Show Result" = "Show Result";
 "nothing yet" = "nothing yet";
@@ -45,17 +45,17 @@
 "What did you do?\n\n\nWhat happened?\n\n\n(Please attach the file “pippa.log” from the Finder window here.)" = "What did you do?\n\n\nWhat happened?\n\n\n(Please attach the file “pippa.log” from the Finder window here.)";
 "Pippa was updated" = "Pippa was updated";
 "Now on version %@. Your conversations and settings are all still here." = "Now on version %@. Your conversations and settings are all still here.";
-"I need my knowledge to answer." = "I need my knowledge to answer.";
+"I need my AI to answer." = "I need my AI to answer.";
 "It’s loading right now, %@." = "It’s loading right now, %@.";
 "It’s loading right now." = "It’s loading right now.";
 "You can load it in Settings." = "You can load it in Settings.";
 "I’m just waking up." = "I’m just waking up.";
-"Ready now: tidying up, overviews and deadlines. Once my knowledge has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully." = "Ready now: tidying up, overviews and deadlines. Once my knowledge has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully.";
+"Ready now: tidying up, overviews and deadlines. Once my AI has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully." = "Ready now: tidying up, overviews and deadlines. Once my AI has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully.";
 "I can’t get online right now. I’ll keep trying." = "I can’t get online right now. I’ll keep trying.";
-"Pippa is loading her knowledge · %lld %%" = "Pippa is loading her knowledge · %lld %%";
+"Pippa is loading her AI · %lld %%" = "Pippa is loading her AI · %lld %%";
 "Pippa is getting ready to load…" = "Pippa is getting ready to load…";
-"Pippa’s knowledge isn’t loaded yet (%@)" = "Pippa’s knowledge isn’t loaded yet (%@)";
-"Pippa’s knowledge isn’t loaded yet" = "Pippa’s knowledge isn’t loaded yet";
+"Pippa’s AI isn’t loaded yet (%@)" = "Pippa’s AI isn’t loaded yet (%@)";
+"Pippa’s AI isn’t loaded yet" = "Pippa’s AI isn’t loaded yet";
 "Pippa is waking up…" = "Pippa is waking up…";
 "almost done" = "almost done";
 "about %lld min left" = "about %lld min left";
@@ -73,9 +73,9 @@
 "Only reading. I won’t send anything." = "Only reading. I won’t send anything.";
 "No mail selected" = "No mail selected";
 "Select a message in Mail, then try again." = "Select a message in Mail, then try again.";
-"On this Mac · Connected service" = "On this Mac · Connected service";
+"On this Mac · Connected AI" = "On this Mac · Connected AI";
 "Locally on this Mac" = "Locally on this Mac";
-"Connected service" = "Connected service";
+"Connected AI" = "Connected AI";
 "Online · %@" = "Online · %@";
 "Runs on this Mac" = "Runs on this Mac";
 "Later" = "Later";
@@ -130,9 +130,9 @@
 "Add Entry" = "Add Entry";
 "Invoices work once it has loaded (%@). Tidying, overviews and deadlines work right now." = "Invoices work once it has loaded (%@). Tidying, overviews and deadlines work right now.";
 "Invoices work once it has loaded. Tidying, overviews and deadlines work right now." = "Invoices work once it has loaded. Tidying, overviews and deadlines work right now.";
-"I need my knowledge for this" = "I need my knowledge for this";
+"I need my AI for this" = "I need my AI for this";
 "Pippa is just waking up." = "Pippa is just waking up.";
-"Invoices work once my knowledge has loaded. Tidying, overviews and deadlines work right now." = "Invoices work once my knowledge has loaded. Tidying, overviews and deadlines work right now.";
+"Invoices work once my AI has loaded. Tidying, overviews and deadlines work right now." = "Invoices work once my AI has loaded. Tidying, overviews and deadlines work right now.";
 "Not ready yet" = "Not ready yet";
 "Tidy Here" = "Tidy Here";
 "Your files are in different places. Which folder should I tidy? Anything outside it stays where it is." = "Your files are in different places. Which folder should I tidy? Anything outside it stays where it is.";
@@ -140,15 +140,15 @@
 "Nothing is changed yet." = "Nothing is changed yet.";
 "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”." = "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”.";
 "Nothing to tidy here" = "Nothing to tidy here";
-"once online help is connected (Settings → Advanced)" = "once online help is connected (Settings → Advanced)";
-"once my knowledge has loaded" = "once my knowledge has loaded";
+"once an online AI is connected (Settings → Advanced)" = "once an online AI is connected (Settings → Advanced)";
+"once my AI has loaded" = "once my AI has loaded";
 "once I’m fully awake" = "once I’m fully awake";
 "1 document" = "1 document";
 "%lld documents" = "%lld documents";
 "I’ll sort %@ more carefully %@" = "I’ll sort %@ more carefully %@";
 "OK" = "OK";
-"Without my knowledge I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then." = "Without my knowledge I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then.";
-"Without my knowledge I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then." = "Without my knowledge I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then.";
+"Without my AI I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then." = "Without my AI I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then.";
+"Without my AI I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then." = "Without my AI I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then.";
 "I’m fully awake now" = "I’m fully awake now";
 "I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first." = "I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first.";
 "Tidy Now" = "Tidy Now";
@@ -196,8 +196,8 @@
 "Recent Conversations" = "Recent Conversations";
 
 "another app" = "another app";
-"Pippa is adopting her knowledge from %@ · %lld %%" = "Pippa is adopting her knowledge from %@ · %lld %%";
-"Pippa’s knowledge is already in %@ and is being adopted" = "Pippa’s knowledge is already in %@ and is being adopted";
+"Pippa is adopting her AI from %@ · %lld %%" = "Pippa is adopting her AI from %@ · %lld %%";
+"Pippa’s AI is already in %@ and is being adopted" = "Pippa’s AI is already in %@ and is being adopted";
 
 "Reply could not be opened" = "Reply could not be opened";
 
