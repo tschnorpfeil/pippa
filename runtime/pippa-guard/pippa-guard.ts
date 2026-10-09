@@ -43,6 +43,7 @@
  * with the person's permissions.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { isFileSearch } from "./search-command.ts";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { cloneFile, exists, fileWords, folderLabel, isFolder, moveTarget, planMoves, resolvePath } from "./files.ts";
@@ -227,6 +228,17 @@ export function loopBrake(counts: Map<string, LoopCount>, keys: Map<string, stri
 	return undefined;
 }
 
+/** File locations from a successful search, never inferred from the model's prose. */
+export function searchFiles(content: any[]): string[] {
+ const text = (content ?? []).filter(p => p?.type === "text").map(p => String(p.text ?? "")).join("\n");
+ try {
+  const result = JSON.parse(text);
+  return Array.isArray(result.files) ? result.files.map((f: any) => f?.path).filter((p: any) => typeof p === "string" && p.startsWith("/")) : [];
+ } catch {
+  return text.split(/[\n\0]/).filter(p => p.startsWith("/") && !/[\r\t]/.test(p));
+ }
+}
+
 function declineReason(tool: string, style = "v3"): string {
 	const v1 = `The user declined this action ('${tool}'). Nothing was changed. Do not retry the same action; tell the user briefly in German that you did not do it, and ask what they would like instead.`;
 	if (style === "v1") return v1;
@@ -336,7 +348,12 @@ export default function (pi: ExtensionAPI) {
 	const callCounts = new Map<string, LoopCount>();
 	const callKeys = new Map<string, string>();
 	let loopStops = 0;
-	const resetLoops = () => { callCounts.clear(); callKeys.clear(); loopStops = 0; };
+	const searchCalls = new Set<string>();
+    const scriptCalls = new Set<string>();
+	const foundFiles = new Set<string>();
+	let searched = false;
+    let searchTruncated = false;
+	const resetLoops = () => { callCounts.clear(); callKeys.clear(); loopStops = 0; searchCalls.clear(); scriptCalls.clear(); foundFiles.clear(); searched = false; searchTruncated = false; };
 	pi.on("agent_start", async () => { allowedForTask.clear(); resetLoops(); });
 	pi.on("agent_end", async () => { allowedForTask.clear(); resetLoops(); await prune(); });
 
@@ -356,10 +373,18 @@ export default function (pi: ExtensionAPI) {
 		if (document) return { block: true, reason: document };
 		const loop = loopBrake(callCounts, callKeys, event.toolCallId, tool, event.input, !looksOnly);
 		if (loop) {
-			if (++loopStops >= 3) ctx.abort?.();
+			if (++loopStops === 3) {
+                // A durable signal for the app, before abort: ordinary Stop is a different event.
+                pi.appendEntry("pippa-loop-stop", {v: 1, tool, searched, files: [...foundFiles].slice(0, 200), truncated: searchTruncated || foundFiles.size > 200});
+                ctx.abort?.();
+            }
 			return { block: true, reason: loop };
 		}
-		if (readsOnly(tool, info)) return undefined;
+		if (tool === "bash" && trustedSource(info?.sourceInfo) && isFileSearch(String(event.input?.command ?? ""))) scriptCalls.add(event.toolCallId);
+        if (tool === "bash" && (/(^|\s)mdfind\b/.test(String(event.input?.command ?? "")) || /scripts\/search\.mjs/.test(String(event.input?.command ?? "")))) {
+            searchCalls.add(event.toolCallId); searched = true;
+        }
+        if (readsOnly(tool, info)) return undefined;
 		// Online lookup via Pippa's server: kind "network"; Pippa asks the one question per request itself (self-asking.ts).
 		if (asksItself(tool, info, TRUSTED_MCP, trustedSource)) return undefined;
 		// Calendar, reminder, mail draft via Pippa's server (kind "appEntry", receipt from the server).
@@ -536,7 +561,18 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_result", async (event: any, ctx: any) => {
-		const key = callKeys.get(event.toolCallId);
+		if (scriptCalls.delete(event.toolCallId)) {
+            pi.appendEntry("pippa-search-result", {v: 1, files: searchFiles(event.content).slice(0, 200)});
+        }
+        if (searchCalls.delete(event.toolCallId)) {
+            // Failed/time-limited searches may still return useful partial locations.
+            for (const path of searchFiles(event.content)) if (foundFiles.size < 201) foundFiles.add(path);
+            try {
+                const text = (event.content ?? []).filter((p: any) => p?.type === "text").map((p: any) => p.text).join("\n");
+                searchTruncated ||= JSON.parse(text).truncated === true;
+            } catch { /* Plain mdfind results have no structured truncation flag. */ }
+        }
+        const key = callKeys.get(event.toolCallId);
 		callKeys.delete(event.toolCallId);
 		const count = key ? callCounts.get(key) : undefined;
 		if (count) { if (event.isError) count.failures++; else count.successes++; }

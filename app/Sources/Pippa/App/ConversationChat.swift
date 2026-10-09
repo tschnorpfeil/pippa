@@ -16,7 +16,12 @@ protocol ConversationChat: AnyObject {
     /// Conversation deleted: remove the history of these identifiers (`uuid`, `uuid:revision`).
     func forget(_ keys: [String]) async
     /// What tools did in the last answer, once; `nil` if nothing.
+    func takeSearchFiles() -> [URL]
     func takeShownActions() -> ActionReceipt?
+}
+
+extension ConversationChat {
+    func takeSearchFiles() -> [URL] { [] }
 }
 
 extension PiRPCChat: ConversationChat {

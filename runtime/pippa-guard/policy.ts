@@ -11,6 +11,7 @@
  * Receipts and backups are the same in both. The classification is deliberately coarse and cautious: when in doubt
  * "command" (ask). Safety comes from the question, not from guessing.
  */
+import { isFileSearch } from "./search-command.ts";
 import { readdir, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -71,6 +72,7 @@ export function classify(tool: string, input: any): Category {
  * is "command". Scripting languages (python, node, osascript ...) count as network: what they do is not in the command.
  */
 export function classifyCommand(command: string): Category {
+	if (isFileSearch(command)) return "look";
 	// Creating folders is reversible (empty folders go to the trash): like Pippa's file tools.
 	if (mkdirTargets(command)) return "fileChange";
 	const c = ` ${command} `;

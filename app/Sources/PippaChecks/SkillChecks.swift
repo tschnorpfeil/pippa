@@ -13,19 +13,19 @@ func runSkillChecks() {
     check("Skills: Swift finds every shipped folder from the SKILL.md header, nothing is kept twice") {
         skills.map(\.name) == shipped
             && Set(shipped) == ["text-kuerzen", "stichpunkte", "dokument-einordnen", "rechnung-auslesen", "frage-belegen", "fristen-erkennen", "antwort-schreiben", "brief-verstehen", "dokument-gestalten", "tabelle-pruefen", "text-verbessern", "zusammenfassen",
-                                  "online-pruefen", "termin-aus-mail"]
+                                  "online-pruefen", "termin-aus-mail", "dateien-finden"]
     }
     // Two skills act through Pi's tools on purpose: the invoice table (write, with the guard's undo copy) and deadlines
     // (calendar_add, the guard asks). All others change nothing.
     let acting: Set<String> = ["rechnung-auslesen", "fristen-erkennen"]
-    check("Skills: SKILL.md follows Pi's header rules (name like folder, lowercase with hyphens, description), explicit invocation only, short, no tool names, changes nothing unless meant to") {
+    check("Skills: SKILL.md follows Pi's header rules (name like folder, lowercase with hyphens, description), explicit invocation except file discovery, short, no tool names, changes nothing unless meant to") {
         var bad: [String] = []
         for name in shipped {
             let parts = read(name).components(separatedBy: "---\n")
             guard parts.count >= 3, parts[0].isEmpty else { bad.append(name); continue }
             let head = parts[1], body = parts.dropFirst(2).joined(separator: "---\n")
             let ok = head.contains("name: \(name)\n") && PippaSkill.isValid(name: name) && head.contains("description: ")
-                && head.contains("disable-model-invocation: true\n")
+                && (name == "dateien-finden" ? !head.contains("disable-model-invocation: true\n") : head.contains("disable-model-invocation: true\n"))
                 && body.count <= 1300 && !body.contains("list_context") && !body.contains("read_context") && !body.contains("http")
                 && (acting.contains(name) || body.contains("Du änderst keine Datei"))
             if !ok { bad.append(name) }

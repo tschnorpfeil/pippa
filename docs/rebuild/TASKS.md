@@ -68,5 +68,18 @@ Weiter auf dem Mac: `docs/rebuild/MAC-HANDOFF.md`.
 - [x] Favicon weiß mit Ring (`c76b6fb`).
 - [ ] Drag-and-drop auf Pippa klappt nicht, wenn das Fenster offen ist.
 - [ ] Kaltstart-Fortschritt („Mache mich bereit … 14 s“) auf 10/10: echter Anteil, klare Schritte.
-- [ ] „Such alle Unterlagen für Steuer 2025“: Pippa fragt nach Websuche, findet lokal nichts und fragt zurück. Ziel: wie die
-      Website-Demo (Inhaltssuche, mehrere Ordner, Liste mit Fundstellen).
+- [x] „Such alle Unterlagen für Steuer 2025“: automatischer Pi-Spotlight-Skill, Inhalt/Jahr über fünf Orte. Fake-HOME: 3 erwartete Steuerfunde; sechs Formulierungen mit K2 3/6 → 6/6. [Messbericht](TOOL-SEARCH-RESULTS.md).
+
+## Werkzeugwahl / Dateisuche, 09.10.2026
+
+- [x] Pi-Bestand recherchiert: 22 statt geschätzter 25 Werkzeuge; 14 explizite Skills kosten 0 Prompttoken. Kein neuer Suchindex/Router.
+- [x] `ls`/`find`/`grep` als Deklarationen entfernt; `bash` bleibt für bekannte Textpfade. 19 Werkzeuge, ein neuer automatischer Spotlight-Skill.
+- [x] Inhalts-/Jahressuche über fünf Alltagsorte in einem `mdfind`: direkter Fake-HOME-Test 8/8, falsches Jahr und fehlende Orte geprüft.
+- [x] Schleifenabbruch mit ehrlichem Teilstand; echter Pi: vier Ausführungen, drei Blockierungen, ein Abbruchsignal/ein erhaltener Fund. Geprüfte Dateilinks 0/2 → 2/2.
+- [x] Kurze Alltagsrangliste: [ALLTAG-REVIEW.md](ALLTAG-REVIEW.md), keine Umsetzung des Reviews.
+- [x] K2-Vergleiche und lokaler Commit auf main: Werkzeugwahl 23/25 → 25/25, Dateisuche 3/6 → 6/6; vollständiger Dialog mit Dateilink 1/1: [Arbeitsliste](TOOL-SEARCH-TASKS.md), [Messbericht](TOOL-SEARCH-RESULTS.md).
+
+Offene Punkte aus der vorherigen Session, weiterhin nicht erledigt:
+- [ ] Kaltstart: Vorladen erst 400 ms nach dem ersten getippten Zeichen. Eingelesenen KV-Slot auch beim Beenden sichern. Schrittanzeige nur mit echten Signalen. Vorliegender Kaltlauf: 15 s Laden, 25 s Einlesen, 66 s Denken auf high; kein neuer Lauf hier.
+- [ ] Statuszeile: „Bereite die Antwort vor“ überlappt mit der Schrittanzeige.
+- [ ] K2-Faktenverlust messen: Kontext 32768, Zusammenfassung ab 28672 Token bisher ungemessen.

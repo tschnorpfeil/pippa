@@ -102,13 +102,22 @@ public struct AnswerDocument: Equatable, Sendable {
         return value.count >= 3 && value.allSatisfy { $0 == "-" }
     }
 
-    public static func safeLink(_ url: URL) -> Bool {
+    public static func localFile(_ url: URL, files: [URL]) -> URL? {
+        guard (url.isFileURL || (url.scheme == nil && url.path.hasPrefix("/"))),
+              url.host == nil || url.host == "" || url.host == "localhost",
+              url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else { return nil }
+        let candidate = URL(fileURLWithPath: url.path).standardizedFileURL
+        return files.first { $0.isFileURL && $0.standardizedFileURL == candidate }
+    }
+
+    public static func safeLink(_ url: URL, files: [URL] = []) -> Bool {
+        if localFile(url, files: files) != nil { return true }
         guard let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
               let host = url.host, !host.isEmpty, url.user == nil, url.password == nil else { return false }
         return true
     }
 
-    public static func inline(_ source: String) -> AttributedString {
+    public static func inline(_ source: String, files: [URL] = []) -> AttributedString {
         // Images are never fetched or presented as trusted visual evidence.
         if source.contains("![") { return AttributedString(source) }
         var value = (try? AttributedString(markdown: source, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source)
@@ -120,7 +129,9 @@ public struct AnswerDocument: Equatable, Sendable {
             } else { links.append((run.range, url)) }
         }
         for (range, url) in links.reversed() {
-            if safeLink(url) {
+            if let file = localFile(url, files: files) {
+                value[range].link = file
+            } else if safeLink(url) {
                 let label = String(value[range].characters)
                 if let host = url.host, !label.localizedCaseInsensitiveContains(host) {
                     value.insert(AttributedString(" (\(host))"), at: range.upperBound)

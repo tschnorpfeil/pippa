@@ -101,13 +101,14 @@ async function run(name, { userExtensions = {}, script, answer = true, files = {
 	const child = spawn(node, [cli, "--mode", "rpc", "--extension", join(here, "pippa-guard.ts"), "--extension", join(here, "pippa-tools.ts"), ...mcpArgs,
 		"--no-context-files", "--no-approve", "--no-session", "--provider", "fake", "--model", "fake"], {
 		cwd: work,
-		env: { HOME: base, PATH: `${join(node, "..")}:/usr/bin:/bin`, PI_CODING_AGENT_DIR: agent, PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1",
+		env: { HOME: base, CFFIXED_USER_HOME: base, PATH: `${join(node, "..")}:/usr/bin:/bin`, PI_CODING_AGENT_DIR: agent, PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1",
 			PI_TELEMETRY: "0", PIPPA_UNDO_DIR: join(base, "undo"), PIPPA_TRASH_DIR: join(base, "trash"), PIPPA_GUARD_POLICY: policy,
 			...(pippaMCP ? { PIPPA_MCP_URL: pippaMCP, PIPPA_MCP_TOKEN: "ab".repeat(32) } : {}) },
 		stdio: ["pipe", "pipe", "pipe"],
 	});
 	const asked = [];
 	const receipts = [];
+	const loopStops = [];
 	const toolEnds = [];
 	const errors = [];
 	let stderr = "";
@@ -131,7 +132,9 @@ async function run(name, { userExtensions = {}, script, answer = true, files = {
 					child.stdin.write(`${JSON.stringify({ type: "extension_ui_response", id: event.id, value })}\n`);
 				} else if (event.type === "entry_appended" && event.entry?.customType === "pippa-receipt") {
 					receipts.push(event.entry.data);
-				} else if (event.type === "tool_execution_end") {
+				} else if (event.type === "entry_appended" && event.entry?.customType === "pippa-loop-stop") {
+                    loopStops.push(event.entry.data);
+                } else if (event.type === "tool_execution_end") {
 					toolEnds.push({ name: event.toolName, isError: event.isError, text: (event.result?.content ?? []).map((c) => c.text ?? "").join(" ") });
 				} else if (event.type === "extension_error") {
 					errors.push(event);
@@ -151,7 +154,7 @@ async function run(name, { userExtensions = {}, script, answer = true, files = {
 	const present = (file) => existsSync(join(work, file));
 	const read = (file) => readFile(join(work, file), "utf8").catch(() => undefined);
 	const undoEntries = await readdir(join(base, "undo")).catch(() => []);
-	return { asked, receipts, toolEnds, errors, present, read, work, undoEntries, requests: model.requests };
+	return { asked, receipts, loopStops, toolEnds, errors, present, read, work, undoEntries, requests: model.requests };
 }
 
 const write = (path, content = "x") => ({ tool: "write", args: { path, content } });
@@ -318,4 +321,16 @@ test("MCP: Pippa's server (pippa-mcp.ts) reads without a question; a foreign ser
 	} finally {
 		await ours.close(); await foreign.close();
 	}
+});
+
+
+test("real Pi: repeated search stops once and RPC carries the actual partial file locations", {skip}, async()=>{
+ const call={tool:"bash",args:{command:"mdfind Kaution"}};
+ // Override the built-in bash only in this fixture: a fixed result, no Spotlight query/user data.
+ const fixture=`export default function(pi){pi.registerTool({name:"bash",label:"Fixture",description:"Fixture",parameters:{type:"object",properties:{command:{type:"string"}},required:["command"]},execute:async()=>({content:[{type:"text",text:"/fake/Documents/beleg.pdf\\n"}],details:{}})});}`;
+ const r=await run("loop-locations",{policy:"undo-first",userExtensions:{"fixture.ts":fixture},script:[...Array(7).fill(call),done]});
+ assert.equal(r.loopStops.length,1);
+ assert.equal(r.loopStops[0].searched,true);
+ assert.deepEqual(r.loopStops[0].files,["/fake/Documents/beleg.pdf"]);
+ assert.equal(r.toolEnds.filter(t=>!t.isError).length,4);
 });

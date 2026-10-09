@@ -4,6 +4,7 @@ import PippaCore
 /// Native, selectable answer content. No HTML, image loading, or model-defined styling.
 struct AssistantAnswerView: View {
     let text: String
+    var files: [URL] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -18,11 +19,11 @@ struct AssistantAnswerView: View {
         .textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading)
         .environment(\.openURL, OpenURLAction { url in
-            AnswerDocument.safeLink(url) ? .systemAction : .discarded
+            AnswerDocument.safeLink(url, files: files) ? .systemAction : .discarded
         })
     }
 
-    private func inline(_ source: String) -> Text { Text(AnswerDocument.inline(source)) }
+    private func inline(_ source: String) -> Text { Text(AnswerDocument.inline(source, files: files)) }
 
     @ViewBuilder private func blockView(_ block: AnswerDocument.Block) -> some View {
         switch block {

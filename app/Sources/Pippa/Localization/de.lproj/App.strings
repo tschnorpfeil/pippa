@@ -250,3 +250,8 @@
 "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "„Für diese Aufgabe erlauben“ heißt: Bis die Antwort fertig ist, frage ich bei dieser Art Schritt nicht mehr.";
 "Tidy preview: 1 file" = "Vorschau zum Ordnen: 1 Datei";
 "Tidy preview: %lld files" = "Vorschau zum Ordnen: %lld Dateien";
+
+"I stopped because the same action kept repeating. The task is incomplete." = "Ich habe angehalten, weil sich dieselbe Aktion wiederholt hat. Die Aufgabe ist nicht vollständig erledigt.";
+"Found so far (%lld):" = "Bisher gefunden (%lld):";
+"The search returned no file locations before it stopped. Files may still exist." = "Bis zum Abbruch hat die Suche keine Fundorte geliefert. Die Dateien können trotzdem vorhanden sein.";
+"More file locations were found; only the first 200 are shown." = "Es gab weitere Fundorte; hier stehen nur die ersten 200.";

@@ -1,0 +1,14 @@
+{
+  "label": "after-dialogue-links",
+  "workspace": "/Users/ts/Developer/pippa (main)",
+  "criterion": "Full dialogue completes, one discovery call, expected locations/names; links additionally required in after-dialogue-links.",
+  "model": "K2 Horizon 7B Q4_K_M",
+  "thinking": "medium",
+  "temperature": 0.6,
+  "pi": "1.1.0 (abe508e)",
+  "passed": 1,
+  "total": 1,
+  "cases": [
+    {"id":"invoice","prompt":"Such die Rechnung vom Zahnarzt aus 2023.","tools":["bash","read"],"expectedFiles":["Documents/a.pdf"],"choices":[{"name":"read","args":{"path":"$REPO/runtime/pippa-skills/dateien-finden/SKILL.md"}},{"name":"bash","args":{"command":"node \"$REPO/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Zahnarzt\" --year 2023"}},{"name":"mcp__pippa__read_document","args":{"path":"$FAKE_HOME/Documents/a.pdf"}}],"choiceCorrect":true,"retrieved":["$FAKE_HOME/Documents/a.pdf"],"ok":true,"timedOut":false,"completed":true,"loopStopped":false,"searchCalls":1,"finalAnswer":"Die Rechnung ist gefunden:\n\n**[a.pdf](file://$FAKE_HOME/Documents/a.pdf)**\n\nInhalt: Zahnarzt Rechnung vom 18.03.2023, Betrag 87,40 EUR.","linkedFiles":["$FAKE_HOME/Documents/a.pdf"],"entries":[{"type":"entry_appended","entry":{"type":"custom","customType":"pippa-search-result","data":{"v":1,"files":["$FAKE_HOME/Documents/a.pdf"]},"id":"52bacdc3","parentId":"a7cca177","timestamp":"2026-10-09T13:22:21.156Z"}},{"type":"entry_appended","entry":{"type":"custom","customType":"pippa-receipt","data":{"v":1,"toolCallId":"IeVgczx2LULcEAhWb8iRPMofwgrYuV8m","tool":"bash","outcome":"done","action":"command","undo":"$FAKE_HOME/undo/2026-10-09T13-22-20-882Z-IeVgczx2LULcEAhWb8iRPMof","restorable":false,"category":"look","asked":false},"id":"c8715799","parentId":"52bacdc3","timestamp":"2026-10-09T13:22:21.157Z"}}],"seconds":75.491,"usage":[{"input":2,"output":71,"cacheRead":1872,"cacheWrite":0,"reasoning":0,"totalTokens":1945,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},{"input":475,"output":148,"cacheRead":1872,"cacheWrite":0,"reasoning":0,"totalTokens":2495,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},{"input":311,"output":73,"cacheRead":2345,"cacheWrite":0,"reasoning":0,"totalTokens":2729,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},{"input":121,"output":91,"cacheRead":2654,"cacheWrite":0,"reasoning":0,"totalTokens":2866,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}}],"errors":[]}
+  ]
+}
