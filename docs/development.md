@@ -38,10 +38,12 @@ asks regardless of what they do. `fd` and `rg` for `find` and `grep` ship next t
 
 **Thinking and compaction.** Pi steers both. models.json gives each `pippa-local` model `reasoning`, a `thinkingLevelMap`
 and the template switch (`chat-template` with `reasoning_effort` for K2, `qwen-chat-template` for Qwen); Pi's llama-server
-no longer starts with `--reasoning off`. K2 always thinks at "high" for now: llama.cpp b11503's K2 parser only accepts
-the think tag of the requested effort, and after tool results K2 often writes the "high" tag, so with low or medium the
-tool call ends up as thinking text and the turn ends empty (Pi 1.1.0, read a file and answer: low 24/30, medium 0/20,
-high 30/30, about 9 s instead of 3 s). Pippa merges into Pi's `settings.json` a startup level per model
+no longer starts with `--reasoning off`. K2 thinks at "medium" by default. The official b11503 K2 parser only accepted
+the think tag of the requested effort, and after tool results K2 often writes the "high" tag, so with medium the tool
+call ended up as thinking text (Pi 1.1.0: medium 0/20, high 30/30). The bundled llama-server carries the think-tag patch;
+with it (2026-10-09, read a note and answer, Mac busy with other work): medium 19/20, median 10–16 s; high 9/10,
+median 13 s; simple questions about the same (medium 9.5 s, high 8.7 s median). Pi's low/off still map to "high".
+Pippa replaces its own earlier default "high" in `settings.json` with the new one; any other level stays. Pippa merges into Pi's `settings.json` a startup level per model
 (`modelThinkingLevels`, from the catalog's `thinking`, never over the person's own) and `compaction.modelOverrides`
 (`reserveTokens` = min(answer limit, context/4), `keepRecentTokens` = 3/8 of the context), so a 16k model compacts above
 12k instead of before every prompt (`PiModelTuning`).

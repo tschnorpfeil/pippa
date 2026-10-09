@@ -53,6 +53,30 @@ import PippaCore
             finish(); return
         }
 
+        // Cold start timeline: every visible phase change from the question until the first words.
+        if ProcessInfo.processInfo.environment["PIPPA_PIRPC_SCENARIO"] == "coldstart" {
+            model.newConversation()
+            try? await Task.sleep(for: .milliseconds(300))
+            let t0 = Date()
+            note("Frage (kalt): Hauptstadt")
+            model.route("Was ist die Hauptstadt von Frankreich? Antworte in einem Satz.")
+            var last = ""
+            var shotAt = 0
+            while Date().timeIntervalSince(t0) < 240 {
+                let line = model.conversations.thought
+                let phase = line.phase.map { "\($0)" } ?? "-"
+                let state = "\(phase) | \(line.isVisible ? (line.phase?.title ?? "") : "(unsichtbar)") \(line.currentStep ?? "")"
+                if state != last { note(String(format: "+%5.2f s  ", Date().timeIntervalSince(t0)) + state); last = state }
+                let secs = Int(Date().timeIntervalSince(t0))
+                if secs >= shotAt, line.isVisible { snap(String(format: "kalt-%03ds", secs)); shotAt = secs + 4 }
+                if !model.conversations.streamingText.isEmpty || !model.conversations.isRunning { break }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            note(String(format: "erster Text nach %.2f s", Date().timeIntervalSince(t0)))
+            while model.conversations.isRunning, Date().timeIntervalSince(t0) < 240 { try? await Task.sleep(for: .milliseconds(100)) }
+            finish(); return
+        }
+
         model.newConversation()
         try? await Task.sleep(for: .milliseconds(500))
         note("Frage 1: Hauptstadt")

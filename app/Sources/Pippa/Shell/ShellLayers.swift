@@ -10,6 +10,13 @@ final class ShellPanel: NSPanel {
     override var canBecomeMain: Bool { false }
     var onCancel: (() -> Void)?
     override func cancelOperation(_ sender: Any?) { onCancel?() }
+
+    /// SwiftUI's input editor would take every drop and insert a file's path as text. Without its
+    /// own registration the drag falls through to the shell, which attaches it. SwiftUI registers
+    /// the editor again on its own updates, so this runs while a drag is under way.
+    func releaseEditorDrops() {
+        if let editor = firstResponder as? NSTextView, editor.isFieldEditor, !editor.registeredDraggedTypes.isEmpty { editor.unregisterDraggedTypes() }
+    }
 }
 
 // MARK: - Stage
@@ -108,6 +115,17 @@ final class TintView: NSView {
 
 /// Accepts dropped files and passes them on to the shell (shape and pill).
 class ShellDropView: NSView {
+    weak var controller: ShellController?
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { controller?.draggingEntered() ?? [] }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { controller?.canDrop == true ? .copy : [] }
+    override func draggingExited(_ sender: NSDraggingInfo?) { controller?.draggingExited() }
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { controller?.canDrop == true }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool { controller?.performDrop(sender.draggingPasteboard) ?? false }
+}
+
+/// SwiftUI content of the shape. AppKit hands a drag to the deepest registered view under the
+/// pointer, so the hosting view must forward drops itself; the clip behind it never sees them.
+final class ShellHostingView<Content: View>: NSHostingView<Content> {
     weak var controller: ShellController?
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { controller?.draggingEntered() ?? [] }
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { controller?.canDrop == true ? .copy : [] }

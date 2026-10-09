@@ -34,6 +34,10 @@ import PippaCore
 
         if only == "setup-e2e" {
             await endToEnd(model: model, note: note, verify: verify, snap: snap)
+        } else if only == "setup-offline" {
+            await offline(model: model, note: note, verify: verify, snap: snap)
+        } else if only == "setup-download" {
+            await download(model: model, note: note, verify: verify, snap: snap)
         } else {
             let fixtures: [(String, PiSetupState, Int, Bool)] = [
                 ("setup-welcome", .askDownload(bytes: 6_716_356_800), 0, false),
@@ -62,6 +66,88 @@ import PippaCore
         let heading = failures == 0 ? "PASS: \(only)" : "FAIL: \(only) (\(failures))"
         try? ([heading] + lines).joined(separator: "\n").appending("\n")
             .write(to: directory.appendingPathComponent("setup.txt"), atomically: true, encoding: .utf8)
+    }
+
+    /// Download that gets nowhere (`PIPPA_HF_ENDPOINT` pointing at a dead address, fake HOME without a model): the welcome,
+    /// the settings line and the footer must say so within ~30 s, with "Try Again", instead of standing still silently.
+    private static func offline(model: AppModel, note: (String) -> Void, verify: (Bool, String) -> Void,
+                                snap: (String, Double) async -> Void) async {
+        guard let setup = PiSetupController.shared, PiRPCChat.isLive else {
+            verify(false, "braucht PIPPA_PI_RPC=1, PIPPA_PI_HOME=<leeres Fake-HOME> und PIPPA_HF_ENDPOINT=<tote Adresse>")
+            return
+        }
+        model.show(.onboarding)
+        let t0 = Date()
+        while Date().timeIntervalSince(t0) < 120 {
+            if case .askDownload = setup.state { break }
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        guard case .askDownload = setup.state else { return verify(false, "keine Download-Frage: \(setup.state)") }
+        model.startModelDownload()
+        model.collapse()   // "Keep loading in the background": the person no longer looks at the welcome
+        let t1 = Date()
+        while Date().timeIntervalSince(t1) < 60, !setup.stalled { try? await Task.sleep(for: .milliseconds(250)) }
+        let after = Date().timeIntervalSince(t1)
+        note(String(format: "Hängen erkannt nach %.1f s (Zustand: %@)", after, String(describing: setup.state)))
+        verify(setup.stalled && after <= 35, "Hängen spätestens nach 35 s erkannt")
+        verify(model.learningText == AppModel.offlineText, "Statuszeile (Einstellungen, Fußzeile): \(model.learningText ?? "–")")
+        verify(model.downloadStalled, "Einstellungen und Menü bieten „Nochmal versuchen“")
+        verify(model.toasts?.currentPanel != nil || model.mode.isExpanded, "zugeklappt: Meldung mit „Nochmal versuchen“")
+        verify(model.markState == .fehler, "Zeichen zeigt ein Problem, kein grünes Lächeln (\(model.markState))")
+        model.show(.onboarding)
+        try? await Task.sleep(for: .milliseconds(600))
+        verify(model.toasts?.currentPanel == nil, "Fenster wieder offen: Meldung verschwindet, nichts überlappt")
+        await snap("setup-offline-01-welcome", 0.9)
+        model.retryDownloadNow()
+        try? await Task.sleep(for: .seconds(1))
+        verify(!setup.stalled, "„Nochmal versuchen“ startet neu")
+        if case .downloading = setup.state { verify(true, "lädt wieder") } else { verify(false, "nach Neustart: \(setup.state)") }
+        while Date().timeIntervalSince(t1) < 120, !setup.stalled { try? await Task.sleep(for: .milliseconds(250)) }
+        verify(setup.stalled, "nach Neustart wieder als hängend erkannt")
+    }
+
+    /// Real first download in a fake HOME without a model: question, "Laden", progress, ready. Logs progress every 15 s.
+    private static func download(model: AppModel, note: (String) -> Void, verify: (Bool, String) -> Void,
+                                 snap: (String, Double) async -> Void) async {
+        guard let setup = PiSetupController.shared, PiRPCChat.isLive else {
+            verify(false, "braucht PIPPA_PI_RPC=1 und PIPPA_PI_HOME=<leeres Fake-HOME>")
+            return
+        }
+        model.show(.onboarding)
+        let t0 = Date()
+        while Date().timeIntervalSince(t0) < 120 {
+            if case .askDownload = setup.state { break }
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        guard case .askDownload(let bytes) = setup.state else { return verify(false, "keine Download-Frage: \(setup.state)") }
+        note("Frage: \(ModelDownloadSize.gigabytes(bytes))")
+        await snap("setup-download-01-question", 0.6)
+        model.startModelDownload()
+        let t1 = Date()
+        var lastLog = Date.distantPast, shotTaken = false, stalls = 0, wasStalled = false
+        while Date().timeIntervalSince(t1) < 3600 {
+            if setup.stalled != wasStalled { wasStalled = setup.stalled; if wasStalled { stalls += 1; note("hängt (Netz?)") } else { note("läuft wieder") } }
+            if case .downloading(let p, let r) = setup.state {
+                if Date().timeIntervalSince(lastLog) >= 15 {
+                    lastLog = Date()
+                    let el = Date().timeIntervalSince(t1)
+                    note(String(format: "%.1f %% nach %.0f s, %.1f MB/s, Rest %@", p * 100, el, Double(bytes) * p / el / 1e6,
+                                r.map { String(format: "%.0f s", $0) } ?? "–"))
+                }
+                if p > 0.02, !shotTaken { shotTaken = true; await snap("setup-download-02-progress", 0.3) }
+                try? await Task.sleep(for: .milliseconds(500))
+                continue
+            }
+            if case .preparing = setup.state { try? await Task.sleep(for: .milliseconds(200)); continue }
+            break
+        }
+        let total = Date().timeIntervalSince(t1)
+        note(String(format: "Ende nach %.0f s (%.1f MB/s im Schnitt), Hänger: %d, Zustand: %@", total, Double(bytes) / total / 1e6, stalls,
+                    String(describing: setup.state)))
+        if case .ready = setup.state { verify(true, "KI geladen und bereit") } else { verify(false, "nicht bereit: \(setup.state)") }
+        verify(model.learningText == nil, "keine Statuszeile mehr (\(model.learningText ?? "–"))")
+        model.show(.onboarding)
+        await snap("setup-download-03-ready", 0.9)
     }
 
     /// Real flow in a fake HOME: set up quietly (adopt without a question), then an answer via the real Pi.

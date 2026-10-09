@@ -15,7 +15,7 @@ final class ShellController: NSObject {
     private let inner = InnerView()
     private let effect = NSVisualEffectView()
     private let tint = TintView()
-    private let hosting: NSHostingView<ShellHostRoot>
+    private let hosting: ShellHostingView<ShellHostRoot>
     let mark = MarkNSView(size: 36)
     private let interaction: PillInteractionView
     /// Items lying on Pippa: cards behind the pill (at rest only).
@@ -66,7 +66,7 @@ final class ShellController: NSObject {
         self.model = model
         panel = ShellPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
                            styleMask: [.borderless], backing: .buffered, defer: false)
-        hosting = NSHostingView(rootView: ShellHostRoot(model: model, reveal: reveal))
+        hosting = ShellHostingView(rootView: ShellHostRoot(model: model, reveal: reveal))
         interaction = PillInteractionView()
         super.init()
 
@@ -120,6 +120,8 @@ final class ShellController: NSObject {
         inner.addSubview(tint)
 
         hosting.sizingOptions = []
+        hosting.controller = self
+        hosting.registerForDraggedTypes(DropReader.types)
         hosting.wantsLayer = true
         inner.addSubview(hosting)
 

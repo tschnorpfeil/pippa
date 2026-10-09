@@ -247,7 +247,11 @@ func runSetupChecks() async {
         let overrides = (doc?["compaction"] as? [String: Any])?["modelOverrides"] as? [String: [String: Int]]
         let levels = doc?["modelThinkingLevels"] as? [String: String]
         let k2 = overrides?["pippa-local/k2-horizon-7b"], qwen = overrides?["pippa-local/qwen3.5-4b-q4"]
-        // Provider entry: K2 thinks via reasoning_effort (every level means "high", see PiReasoningStyle), Qwen via enable_thinking.
+        // Pippa's old default "high" moves to the new default; a level the person chose stays.
+        let k2Only = [PiProviderModel(id: "k2-horizon-7b", name: "K2", contextWindow: 32768)]
+        let migrated = PiModelTuning.merge(into: ["modelThinkingLevels": ["pippa-local/k2-horizon-7b": "high"]], models: k2Only)["modelThinkingLevels"] as? [String: String]
+        let kept = PiModelTuning.merge(into: ["modelThinkingLevels": ["pippa-local/k2-horizon-7b": "low"]], models: k2Only)["modelThinkingLevels"] as? [String: String]
+        // Provider entry: K2 thinks via reasoning_effort (medium as asked, the rest "high", see PiReasoningStyle), Qwen via enable_thinking.
         let entry = PiInstaller.providerEntry(models: models, port: 1, keyFile: r.llamaKeyFile)
         let listed = entry["models"] as? [[String: Any]] ?? []
         let k2Compat = listed.first?["compat"] as? [String: Any]
@@ -257,7 +261,9 @@ func runSetupChecks() async {
         return wrote && doc?["theme"] as? String == "dark"
             && k2?["reserveTokens"] == 4096 && k2?["keepRecentTokens"] == 6144
             && qwen?["reserveTokens"] == 4096 && qwen?["keepRecentTokens"] == 12288
-            && levels?["pippa-local/k2-horizon-7b"] == "high" && levels?["pippa-local/qwen3.5-4b-q4"] == "medium"
+            && levels?["pippa-local/k2-horizon-7b"] == "medium" && levels?["pippa-local/qwen3.5-4b-q4"] == "medium"
+            && migrated?["pippa-local/k2-horizon-7b"] == "medium" && kept?["pippa-local/k2-horizon-7b"] == "low"
+            && (listed.first?["thinkingLevelMap"] as? [String: Any])?["medium"] as? String == "medium"
             && listed.first?["reasoning"] as? Bool == true && k2Compat?["thinkingFormat"] as? String == "chat-template"
             && (k2Kwargs?["reasoning_effort"] as? [String: String])?["$var"] == "thinking.effort"
             && (listed.first?["thinkingLevelMap"] as? [String: Any])?["off"] as? String == "high"

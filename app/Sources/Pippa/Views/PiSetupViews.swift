@@ -20,8 +20,10 @@ struct PiSetupContent: View {
                             ?? T("I’m setting myself up …", table: "Settings"),
                         pattern: source == nil ? .sequence : .sweep, progress: nil, remaining: nil)
             case .downloading(let progress, let remaining):
-                waiting(title: T("Pippa is loading her AI", table: "Settings"), line: T("I’m loading my AI …", table: "Settings"),
-                        pattern: .fill, progress: progress, remaining: remaining)
+                // Stuck (no new data for 30 s or offline): say so instead of a bar that silently stands still.
+                waiting(title: T("Pippa is loading her AI", table: "Settings"),
+                        line: setup.stalled ? AppModel.offlineText : T("I’m loading my AI …", table: "Settings"),
+                        pattern: .fill, progress: progress, remaining: setup.stalled ? nil : remaining)
             case .failed(let problem):
                 failed(problem)
             case .ready(let source):
@@ -76,6 +78,9 @@ struct PiSetupContent: View {
                 .stagger(3)
             ActionBar {
                 Button(T("Keep Loading in the Background", table: "Settings")) { setup.later() }.pippa(.quiet)
+                if setup.stalled {
+                    Button(T("Try Again", table: "Settings")) { setup.retryDownload() }.pippa(.primary)
+                }
             }
         }
     }

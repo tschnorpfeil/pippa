@@ -177,14 +177,15 @@ struct SettingsView: View {
                     SettingsRow(title: T("Text size", table: "Settings"), detail: T("Makes all text in Pippa larger.", table: "Settings")) {
                         TextSizeControl()
                     }
-                    if !model.alwaysUsesConnection && !model.modelReady && model.unsupportedReason == nil {
+                    if !model.alwaysUsesConnection && !model.aiLoaded && model.unsupportedReason == nil {
                         SettingsRow(title: T("Pippa’s AI", table: "Settings"), detail: model.learningText ?? model.capabilityText) {
                             if model.needsDownloadConsent {
                                 Button(T("Load Now", table: "Settings")) { model.startModelDownload() }.pippa(.secondary)
-                            } else if model.isDownloading {
-                                Button(T("Cancel", table: "Settings")) { model.cancelModelDownload() }.pippa(.quiet)
-                            } else if model.downloadStalled {
+                            } else if model.downloadStalled || model.piSetupFailed {
                                 Button(T("Try Again", table: "Settings")) { model.retryDownloadNow() }.pippa(.quiet)
+                            } else if model.isDownloading, PiSetupController.shared == nil {
+                                // Pi path: loading goes on in the background; there is nothing to cancel here.
+                                Button(T("Cancel", table: "Settings")) { model.cancelModelDownload() }.pippa(.quiet)
                             }
                         }
                     }
