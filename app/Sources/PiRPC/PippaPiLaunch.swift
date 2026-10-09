@@ -56,8 +56,6 @@ public enum PippaPiLaunch {
                                      environment: [String: String] = [:],
                                      mcp: (endpoint: MCPEndpoint, extension: URL)? = nil) -> PiRPCConfiguration {
         var env = launcher.environment.merging(environment) { $1 }
-        // pippa-assist.ts writes today's date into each message in this language (the system prompt has none).
-        env["PIPPA_LANGUAGE"] = language
         env.merge(offlineEnvironment) { $1 }
         var configuration = PiRPCConfiguration(executable: launcher.executable, workingDirectory: workingDirectory, environment: env,
                                                extensions: extensions(paths),
