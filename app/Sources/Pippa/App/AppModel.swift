@@ -44,6 +44,8 @@ final class AppModel: ObservableObject {
     /// The system prompt (e.g. Calendar) is open: a click on it does not collapse the conversation.
     var awaitingSystemPrompt = false
     @Published private(set) var parked: ShellMode? { didSet { updateMark() } }
+    /// An answer finished while only the pill was showing: the pill says so until the conversation is opened.
+    @Published private(set) var pillOutcome: PillOutcome? { didSet { updateMark() } }
     @Published private(set) var lastJob: String?
     @Published private(set) var lastReceipt: JobReceipt?
     @Published private(set) var modelStatus: ModelStatus = .loading
@@ -145,6 +147,11 @@ final class AppModel: ObservableObject {
         }
         // Guard questions come as a card in the conversation; with only the pill showing, the conversation opens.
         PiRPCChat.approvalPresenter = { [weak self] request in await self?.conversations.awaitGuardAsk(request) }
+        conversations.onAnswerFinished = { [weak self] failed in
+            guard let self, !self.isExpanded else { return }
+            self.pillOutcome = failed ? .failed : .answered
+            self.shell?.pulseMark()
+        }
         conversations.onNeedsPerson = { [weak self] in
             guard let self, !self.isExpanded else { return }
             self.openConversationFromPill()
@@ -184,8 +191,16 @@ final class AppModel: ObservableObject {
         case .working: return .arbeitet
         default: break
         }
-        if parked != nil || toastShowing { return .offen }
+        if pillOutcome == .failed { return .fehler }
+        if parked != nil || toastShowing || pillOutcome == .answered { return .offen }
         return .ruht
+    }
+
+    /// What the collapsed pill says: the real phase of the running answer, or how the last one ended (PillStatus.swift).
+    var pillStatus: PillStatus {
+        let thought = conversations.thought
+        return PillStatus.make(phase: conversations.isRunning ? thought.phase : nil, step: thought.currentStep,
+                               outcome: pillOutcome, busy: busy || tray.isWorking || letter.isWorking)
     }
 
     private func updateMark() {
@@ -502,6 +517,8 @@ final class AppModel: ObservableObject {
             if !(self.mode.isConversation && mode.isConversation) { shell?.modeWillChange() }
         }
         if mode.isConversation, let id = conversations.current?.id { conversationPresentations[id] = mode }
+        // Seen: the conversation (or its compact form) is on screen now.
+        if mode.isConversation || mode.key == "resume" { pillOutcome = nil }
         // Someone is about to ask: load the knowledge now if it is not in memory (PiRPCChat+ColdStart).
         if mode.isConversation || mode.key == "resume" { PiRPCChat.shared.preloadIfCold() }
         self.mode = mode                // The transition is done by the shell (Core Animation), not SwiftUI
@@ -531,7 +548,7 @@ final class AppModel: ObservableObject {
 
     func openConversationFromPill(now: Date = Date()) {
         guard hasResumableConversation, let current = conversations.current else { return openInput() }
-        let requiresAttention = isActiveWork || tray.isWorking
+        let requiresAttention = isActiveWork || tray.isWorking || pillOutcome != nil
             || parked?.requiresReviewOnReopen == true || taskCard?.requiresReviewOnReopen == true
             || conversationPresentations[current.id]?.requiresReviewOnReopen == true
             || current.messages.contains { message in

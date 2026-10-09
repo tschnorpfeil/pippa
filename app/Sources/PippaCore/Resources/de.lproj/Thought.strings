@@ -181,3 +181,15 @@
 "didn’t work" = "hat nicht geklappt";
 "in the file %@" = "in der Datei %@";
 "%@ · you can put it back from the Trash" = "%@ · du kannst es aus dem Papierkorb zurücklegen";
+
+/* Living pill (PillStatus.swift): short form of the line, shown on the collapsed pill. */
+"Quick question" = "Kurz eine Frage";
+"Your answer is ready" = "Deine Antwort ist da";
+"That didn’t work" = "Hat nicht geklappt";
+"Reading the scan · page %lld/%lld" = "Lese den Scan · Seite %lld/%lld";
+"Reading the scan…" = "Lese den Scan …";
+"Looking in %@" = "Schaue in %@";
+"Summarizing…" = "Fasse zusammen …";
+"Double-checking…" = "Prüfe nochmal …";
+"Writing…" = "Schreibe …";
+"Thinking…" = "Denke nach …";

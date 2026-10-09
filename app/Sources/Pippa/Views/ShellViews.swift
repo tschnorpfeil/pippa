@@ -54,10 +54,9 @@ struct WorkflowContentView: View {
     @ViewBuilder private var content: some View {
         switch mode {
         case .pill:
-            // Cold start of an answer in the background: say so in the pill, with the measured progress (ColdStart.swift).
-            let wake = model.coldStartPhase
-            PillContent(label: model.coldStartPillLabel ?? (model.busy ? T("Pippa is reading…", table: "Views") : "Pippa"),
-                        working: model.busy || wake != nil, progress: wake.flatMap(ColdStart.pillProgress))
+            // The living pill: the real phase of the answer (cold start with measured progress included), or how the
+            // last answer ended while nobody was looking (PillStatus.swift).
+            PillContent(status: model.pillStatus)
         case .target(let hot):
             TargetContent(hot: hot)
         case .input:
@@ -134,34 +133,82 @@ struct NoticeContent: View {
 // MARK: - 1 Pille
 
 struct PillContent: View {
-    var label: String
-    var working: Bool
-    /// Cold start: how far the knowledge has loaded, as a thin bar along the bottom.
-    var progress: Double? = nil
+    var status: PillStatus
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     var body: some View {
         HStack(spacing: 8) {
             MarkSlot(size: 28)
-            ShimmerText(text: label, active: working)
+            ShimmerText(text: status.label, active: status.tone == .working, color: ink)
+                .contentTransition(.opacity)
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.scaled(size: 12, weight: .bold))
+                    .foregroundStyle(tint)
+                    .transition(.scale.combined(with: .opacity))
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.leading, 10)
-        .padding(.trailing, 20)
+        .padding(.trailing, symbol == nil ? 20 : 16)
         .frame(height: ShellTokens.pillHeight)
         .fixedSize()
+        .background {
+            // Done, a question, a problem: a soft wash of the tone, so the pill reads at a glance from across the screen.
+            if status.tone != .rest && status.tone != .working {
+                Capsule().fill(wash).allowsHitTesting(false)
+            }
+        }
         .overlay(alignment: .bottom) {
-            if let progress {
-                WakeBar(progress: progress, reduceMotion: systemReduceMotion || MarkHub.shared.reduced, height: 2)
+            if let progress = status.progress {
+                WakeBar(progress: progress, reduceMotion: reduceMotion, height: 2)
                     .padding(.horizontal, 22).padding(.bottom, 5)
+                    .accessibilityHidden(true)
             }
         }
         .overlay {
-            if working {
+            if status.tone != .rest {
                 Capsule()
-                    .strokeBorder(Theme.accent.opacity(0.45), lineWidth: 1)
-                    .shadow(color: Theme.accentFill.opacity(0.6), radius: 8)
+                    .strokeBorder(tint.opacity(status.tone == .working ? 0.45 : 0.6), lineWidth: 1)
+                    .shadow(color: (status.tone == .working ? Theme.accentFill : tint).opacity(0.6), radius: 8)
                     .allowsHitTesting(false)
             }
+        }
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8), value: status)
+    }
+
+    private var reduceMotion: Bool { systemReduceMotion || MarkHub.shared.reduced }
+
+    private var tint: Color {
+        switch status.tone {
+        case .rest, .working, .needsYou: Theme.accent
+        case .done: Theme.ok
+        case .failed: Theme.need
+        }
+    }
+
+    private var wash: Color {
+        switch status.tone {
+        case .done: Theme.okTint
+        case .failed: Theme.needTint
+        default: Theme.accentTint
+        }
+    }
+
+    private var ink: Color {
+        switch status.tone {
+        case .needsYou: Theme.accent
+        default: Theme.ink
+        }
+    }
+
+    /// A small sign after the words, so the state does not depend on colour alone.
+    private var symbol: String? {
+        switch status.tone {
+        case .rest, .working: nil
+        case .needsYou: "questionmark"
+        case .done: "checkmark"
+        case .failed: "exclamationmark"
         }
     }
 }
@@ -170,13 +217,14 @@ struct PillContent: View {
 struct ShimmerText: View {
     var text: String
     var active: Bool
+    var color: Color = Theme.ink
     private let phaseState = State<CGFloat>(initialValue: -1)
     private var phase: CGFloat { get { phaseState.wrappedValue } nonmutating set { phaseState.wrappedValue = newValue } }
 
     var body: some View {
         let label = Text(text).font(.scaled(size: 15, weight: .semibold, design: .rounded))
         label
-            .foregroundStyle(Theme.ink)
+            .foregroundStyle(color)
             .lineLimit(1)
             .overlay {
                 if active && !MarkHub.shared.reduced {

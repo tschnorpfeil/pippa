@@ -181,3 +181,15 @@
 "didn’t work" = "didn’t work";
 "in the file %@" = "in the file %@";
 "%@ · you can put it back from the Trash" = "%@ · you can put it back from the Trash";
+
+/* Living pill (PillStatus.swift): short form of the line, shown on the collapsed pill. */
+"Quick question" = "Quick question";
+"Your answer is ready" = "Your answer is ready";
+"That didn’t work" = "That didn’t work";
+"Reading the scan · page %lld/%lld" = "Reading the scan · page %lld/%lld";
+"Reading the scan…" = "Reading the scan…";
+"Looking in %@" = "Looking in %@";
+"Summarizing…" = "Summarizing…";
+"Double-checking…" = "Double-checking…";
+"Writing…" = "Writing…";
+"Thinking…" = "Thinking…";

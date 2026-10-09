@@ -26,6 +26,8 @@ final class ConversationController: ObservableObject {
     private var guardAskReply: CheckedContinuation<PiUIResponse, Never>?
     /// Brings the conversation into view when a card needs the person (set by AppModel).
     var onNeedsPerson: (() -> Void)?
+    /// An answer ended on its own (`true`: it failed); not called when Stop was pressed. Set by AppModel for the pill.
+    var onAnswerFinished: ((Bool) -> Void)?
     private var webGate: WebAccessGate?
     /// One lookup process for all conversations (exits by itself after two minutes idle).
     private let webFetcher = WebFetcher()
@@ -271,6 +273,7 @@ final class ConversationController: ObservableObject {
                                 subject: replySource.map { MailDraft(messageID: $0.messageID, to: nil, toName: nil, subject: $0.subject, body: "").replySubject } ?? "",
                                 body: answer, replySource: replySource, requiresOriginalReply: !mailFiles.isEmpty) : nil, work: work, actions: actions)
                 self.streamingText = ""
+                self.onAnswerFinished?(false)
                 // VoiceOver: announce the finished answer once (not every streamed piece).
                 NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
                                      userInfo: [.announcement: "Pippa: " + answer, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
@@ -292,6 +295,7 @@ final class ConversationController: ObservableObject {
                 } else {
                     self.error = PiRPCChat.userText(for: error, context: "gespraech")
                     self.append(.system, PiRPCChat.userText(for: error, context: "antwort"), notice: true, actions: actions)
+                    self.onAnswerFinished?(true)
                 }
                 self.streamingText = ""
             }

@@ -278,9 +278,13 @@ struct ConversationWorkspace: View {
     }
 
     /// Everyday starters for the empty conversation (keys in Views.strings).
-    static var examples: [String] {
-        [T("Tidy up my Downloads folder", table: "Views"), T("What’s on my calendar tomorrow?", table: "Views"),
-         T("Where is my rental agreement?", table: "Views"), T("Remind me tomorrow morning to take out the paper recycling", table: "Views")]
+    /// Shown as cards with a picture each (UI-FIXPLAN 5.2): easier to hit and to scan than a list of links.
+    struct Example: Hashable { let text: String; let symbol: String }
+    static var examples: [Example] {
+        [Example(text: T("Where is my rental agreement?", table: "Views"), symbol: "magnifyingglass"),
+         Example(text: T("What’s on my calendar tomorrow?", table: "Views"), symbol: "calendar"),
+         Example(text: T("Tidy up my Downloads folder", table: "Views"), symbol: "folder"),
+         Example(text: T("Remind me tomorrow morning to take out the paper recycling", table: "Views"), symbol: "bell")]
     }
 
     private var welcome: some View {
@@ -320,13 +324,30 @@ struct ConversationWorkspace: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(T("For example:", table: "Views"))
                     .font(Fonts.hint).foregroundStyle(Theme.ink2)
-                ForEach(Self.examples, id: \.self) { example in
-                    Button { model.suggest(example) } label: {
-                        Label(example, systemImage: "text.bubble")
-                            .font(Fonts.body).foregroundStyle(Theme.accent)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ForEach(Self.examples, id: \.self) { example in
+                        Button { model.suggest(example.text) } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: example.symbol)
+                                    .font(.scaled(size: 15, weight: .medium))
+                                    .foregroundStyle(Theme.accent)
+                                    .frame(width: 20)
+                                Text(example.text)
+                                    .font(Fonts.body).foregroundStyle(Theme.ink)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
+                            .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.chatBorder, lineWidth: 1) }
+                            .contentShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(example.text)
+                        .accessibilityHint(T("Puts this sentence into the input field", table: "Views"))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityHint(T("Puts this sentence into the input field", table: "Views"))
                 }
             }
         }.padding(.vertical, 14)
