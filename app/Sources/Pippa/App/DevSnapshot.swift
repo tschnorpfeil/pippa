@@ -7,7 +7,7 @@ import SwiftUI
 /// sample engine, photographs the real window (with alpha, via `screencapture -l`)
 /// and saves one PNG per form, plus frame sequences of every morph (in slow motion) and a
 /// check of the corners (`corners.txt`). `PIPPA_APPEARANCE=dark|light` forces the appearance.
-/// `PIPPA_SNAPSHOT_ONLY=morph|states|workspace|chat|natural|keyboard|byom|settings|firstrun|welcome|setup-*` restricts the run. Exits afterwards.
+/// `PIPPA_SNAPSHOT_ONLY=morph|states|pillstatus|workspace|chat|natural|keyboard|byom|settings|firstrun|welcome|setup-*` restricts the run. Exits afterwards.
 /// `setup-*`: setup without technical questions (PiSetupSnapshot).
 /// `firstrun` and `welcome` need `PIPPA_DEMO_MODEL=missing` (sample engine without knowledge, as on first launch);
 /// `welcome` additionally without consent to download (`-model.download.allowed NO` as an argument), best with `PIPPA_SNAPSHOT_HEIGHT=700`.
@@ -141,6 +141,12 @@ enum DevSnapshot {
                 await grabSettings("settings-01-local")
                 try? model.saveInferenceSettings(.init(policy: .ask, connection: ModelConnection(provider: .openAI, modelID: "gpt-example")))
                 await grabSettings("settings-02-online")
+                NSApp.terminate(nil)
+                return
+            }
+
+            if only == "pillstatus" {
+                await PillStatusSnapshot.run(model: model, shell: shell, directory: dir)
                 NSApp.terminate(nil)
                 return
             }

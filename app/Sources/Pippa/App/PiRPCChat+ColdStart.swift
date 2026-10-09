@@ -39,13 +39,3 @@ extension PiRPCChat {
         }
     }
 }
-
-extension AppModel {
-    /// The answer under way is waiting for a cold start (`.wakingUp` / `.warmingUp`): the pill says so.
-    var coldStartPhase: WorkPhase? {
-        guard let phase = conversations.thought.phase, ColdStart.pillLabel(phase) != nil else { return nil }
-        return phase
-    }
-
-    var coldStartPillLabel: String? { coldStartPhase.flatMap { ColdStart.pillLabel($0) } }
-}
