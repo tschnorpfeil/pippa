@@ -61,16 +61,18 @@ Pippa.app (Swift, SwiftUI)
  ├─ the pill, drag and drop, receipts, settings, setup
  ├─ starts ─► llama-server (llama.cpp)      local model, 127.0.0.1 only
  ├─ starts ─► pi --mode rpc                 the agent, one process per active conversation
- │             ├─ --extension pippa-guard   asks, keeps undo copies, writes receipts
+ │             ├─ --extension pippa-tools   file tools, helps for small models
+ │             ├─ --extension pippa-web     web search and pages (pi-web-access)
  │             └─ MCP client ─────────────► Pippa's MCP server (inside the app, 127.0.0.1)
- │                                          mail, calendar, reminders, Excel, documents, web
+ │                                          mail, calendar, reminders, Excel, documents
 ```
 
 - **Pippa app** (`app/Sources/Pippa`, `app/Sources/PippaCore`): the native interface, model download and selection, the installer that sets up Pi, and the features that need no model at all (scans, sheet totals).
 - **Pi over RPC** (`app/Sources/PiRPC`): Pippa talks to the real Pi through `pi --mode rpc` (JSON lines over stdin and stdout), with Pippa's own short system prompt, `--no-context-files` (an `AGENTS.md` in a user folder could otherwise inject instructions) and one Pi session per Pippa conversation.
-- **Guard extension** (`runtime/pippa-guard`): a Pi extension loaded before any of your own on every start. It sees each tool call, asks where needed, clones files before changing them, and writes receipts that the app turns into the "what happened" line with *Undo*. It also adds four small file tools (`list_folder`, `rename_or_move`, `move_files`, `move_to_trash`) so everyday tasks do not need the shell.
-- **MCP server** (`app/Sources/PippaCore/MCP`): the app itself serves the Model Context Protocol on 127.0.0.1 with a per-launch key, registered for Pippa's Pi sessions only (nothing is written to your own Pi configuration). Its tools read the selected mail, search mail, read calendar and reminders, read the Excel selection, read documents (with text recognition for scans), create a mail draft, add an appointment or reminder, and search and read the web. Because the app does the reading, macOS asks for permission in Pippa's name.
-- **Abilities and web fetcher**: Pippa's 15 abilities are Pi skills in [`runtime/pippa-skills`](runtime/pippa-skills), bundled and loaded into Pi with `--skill` (your own Pi skills are not mixed in). File discovery loads automatically; the other 14 skills are explicit actions. Web search and page reading run in Pippa's own fetcher process [`runtime/pippa-web`](runtime/pippa-web) (pi-web-access, own lockfile), started by the app only after your approval.
+- **Pi runs as in the terminal** ("YOLO"): every tool runs without a question, and Pippa adds no approvals and no undo of its own. The "what happened" line under an answer comes from Pi's tool events, never from the model's text.
+- **Pippa's extensions** (`runtime/pippa-tools`): four small file tools (`list_folder`, `rename_or_move`, `move_files`, `move_to_trash`) so everyday tasks do not need the shell, helps that keep a small local model on track (documents go to Pippa's reader instead of raw bytes, a loop brake), and the registration of Pippa's MCP server. None of it decides what Pi may do.
+- **MCP server** (`app/Sources/PippaCore/MCP`): the app itself serves the Model Context Protocol on 127.0.0.1 with a per-launch key, registered for Pippa's Pi sessions only (nothing is written to your own Pi configuration). Its tools read the selected mail, search mail, read calendar and reminders, read the Excel selection, read documents (with text recognition for scans), create a mail draft, and add an appointment or reminder. Because the app does the reading, macOS asks for permission in Pippa's name.
+- **Abilities and web access**: Pippa's 15 abilities are Pi skills in [`runtime/pippa-skills`](runtime/pippa-skills), bundled and loaded into Pi with `--skill` (your own Pi skills are not mixed in). File discovery loads automatically; the other 14 skills are explicit actions. Web search and page reading come from the Pi package [pi-web-access](https://github.com/nicobailon/pi-web-access), loaded through [`runtime/pippa-web`](runtime/pippa-web) with Pippa's settings: Exa, then DuckDuckGo, no API key, never an automatic switch to a paid or signed-in provider, and kept apart from your own `~/.pi` web settings.
 - **llama-server** (`app/Packaging/llama-release.json`): a pinned llama.cpp release (source checksum-verified, plus a small K2 Horizon patch in `app/Packaging/llama-patches`), built by `scripts/build-app.sh` and bundled in the app. It listens on 127.0.0.1 only and unloads the model when idle.
 
 ## Building from source
@@ -88,8 +90,8 @@ Checks that need no model:
 ```sh
 swift run --package-path app PippaChecks                                 # native checks
 python3 scripts/check-strings.py                                         # every UI text in English and German
-node --experimental-strip-types --test runtime/pippa-guard/*.test.mjs    # guard extension (Node 22.6 or later)
-(cd runtime/pippa-web && npm ci --ignore-scripts && npm test)            # web fetcher
+node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs    # Pippa's Pi extensions (Node 22.6 or later)
+(cd runtime/pippa-web && npm ci --ignore-scripts && npm test)            # web access (pi-web-access in the real Pi)
 ```
 
 An ad-hoc signed build runs on your own Mac. For distribution, set `PIPPA_SIGN_IDENTITY` to a Developer ID Application identity and `PIPPA_NOTARY_PROFILE` to a `notarytool` keychain profile; `scripts/release.sh` then prepares the signed, notarized DMG and its appcast locally. More detail, including environment variables and where Pippa stores data: [docs/development.md](docs/development.md).
@@ -103,9 +105,9 @@ An ad-hoc signed build runs on your own Mac. For distribution, set `PIPPA_SIGN_I
 | `app/Sources/PiRPC` | client for `pi --mode rpc` |
 | `app/Sources/PippaChecks` | checks without a model (`swift run PippaChecks`; no XCTest needed) |
 | `app/Packaging` | Info.plist, entitlements, pinned llama.cpp, Node and Pi releases |
-| `runtime/pippa-guard` | the guard extension and Pippa's file tools for Pi |
+| `runtime/pippa-tools` | Pippa's file tools, helps for small models and the MCP registration for Pi |
 | `runtime/pippa-skills` | Pippa's 15 abilities (Pi skills) |
-| `runtime/pippa-web` | Pippa's web fetcher process (search, read pages) |
+| `runtime/pippa-web` | pi-web-access with Pippa's settings (search, read pages) |
 | `scripts/` | build, verify, DMG, release and check scripts |
 
 ## Credits

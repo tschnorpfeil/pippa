@@ -18,14 +18,15 @@ The script:
 2. Builds the payload into `.build/pi-payload-<v>` (what `build-app.sh` puts into `Contents/Resources/pi-payload`), and
    the old pin's payload from `git HEAD` if it is not there yet.
 3. Runs the gates, all against a fake HOME under `.build/`, no real model, no network except the downloads above:
-   - `runtime/pippa-web` `npm test` (Pippa's web fetcher; it locks no Pi package, the script checks that)
-   - `runtime/pippa-guard/*.test.mjs` (including `bypass.test.mjs` against the real Pi)
+   - `runtime/pippa-web` `npm test` (pi-web-access loaded in the new Pi; the script moves that folder's test-only dev
+     dependency on Pi to the new version)
+   - `runtime/pippa-tools/*.test.mjs` (Pippa's file tools, helps and MCP registration)
    - `runtime/pippa-local-server/test/*.test.mjs` (including `real-pi.test.mjs`: `pi -p` with `pippa-local` starts the
      server through the extension; it uses `before_provider_request` and `session_before_compact`)
-   - `scripts/pi-rpc-smoke.mjs`: the real Pi in RPC mode with exactly the app's flags (`--extension` guard and tools,
-     `--no-context-files`, `--no-approve`, `--system-prompt`, `--session-dir`, `--session-id`, `--provider/--model`),
-     the app's environment, a `models.json` provider with a `!command` key, a guarded `write` answered over
-     `extension_ui_request`, the guard's receipt via `appendEntry`, `agent_settled`, and an abort
+   - `scripts/pi-rpc-smoke.mjs`: the real Pi in RPC mode with exactly the app's flags (`--extension` tools, helps and
+     web access, `--no-context-files`, `--no-approve`, `--system-prompt`, `--session-dir`, `--session-id`,
+     `--provider/--model`), the app's environment, a `models.json` provider with a `!command` key, a `write` that runs
+     without any question, `agent_settled`, and an abort
    - `PippaChecks` with `PIPPA_SETUP_CHECKS=1` and `PIPPA_MCP_CHECKS=1`, including installing the old payload and then
      the new one in a fake HOME (what an app update does on a user's Mac)
 4. Prints Pi's CHANGELOG sections between the old and new version.
