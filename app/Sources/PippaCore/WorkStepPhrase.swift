@@ -106,6 +106,7 @@ public enum WorkStepPhrase {
             case "reminders_read": return Described(text: l("Looking at your reminders"), result: .none)
             case "reminder_add": return Described(text: l("Adding a reminder"), result: .none)
             case "list_context", "list_plan_files": return Described(text: l("Going through your documents"), result: .none)
+            case "search_documents": return Described(text: l("Searching your documents"), result: .none)
             case "read_context", "read_document":
                 if let file = args.string("name") ?? args.string("path") ?? args.string("file"), let shown = lastName(file) {
                     return Described(text: l("Reading %@", shown), result: .none)

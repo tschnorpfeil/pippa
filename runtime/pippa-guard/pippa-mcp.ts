@@ -19,7 +19,7 @@ export const SERVER_NAME = "pippa";
 
 /** Read-only tools of the server (app/Sources/PippaCore/MCP/PippaMCPTools.swift, PippaMCPTurn.swift). None changes
  * anything on the Mac; `web_search` and `read_web_page` go online after the person clicks (self-asking.ts). */
-export const TOOLS = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "read_document", "web_search", "read_web_page"];
+export const TOOLS = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "read_document", "search_documents", "web_search", "read_web_page"];
 
 /** PippaMCPWrite.swift: change something on the Mac but never leave it (no sending, no invitation). Events and
  * reminders can be undone, the mail draft stays unsent in Mail. Kind `appEntry` (policy.ts). */

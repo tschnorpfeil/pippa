@@ -167,3 +167,8 @@
 "Normal" = "Normal";
 "Large" = "Groß";
 "Extra large" = "Sehr groß";
+"Better document search" = "Bessere Dokumentensuche";
+"Also finds passages that use other words, and German passages for English questions. Loads once (%@); after that everything stays on this Mac." = "Findet auch Stellen mit anderen Worten und deutsche Stellen bei englischen Fragen. Wird einmal geladen (%@); danach bleibt alles auf diesem Mac.";
+"Loading · %lld %%" = "Wird geladen · %lld %%";
+"On. Pippa searches the documents you show her with it, on this Mac." = "An. Pippa durchsucht damit die Dokumente, die du ihr zeigst, auf diesem Mac.";
+"Loading didn’t work. Pippa still searches your documents by their words." = "Laden hat nicht geklappt. Pippa durchsucht deine Dokumente weiter nach ihren Wörtern.";

@@ -42,7 +42,7 @@ func runR2Checks() async {
         let tsv = lines.first { $0.contains("Nebenkosten.tsv") } ?? ""
         let img = lines.first { $0.contains("foto.jpg") } ?? ""
         return pdf.contains("2 Seiten") && pdf.contains(letter.path) && pdf.hasSuffix("mcp__pippa__read_document")
-            && dirLine.contains("Ordner") && dirLine.contains("2 Einträge") && dirLine.hasSuffix("list_folder")
+            && dirLine.contains("Ordner") && dirLine.contains("2 Einträge") && dirLine.contains("list_folder") && dirLine.hasSuffix("mcp__pippa__search_documents")
             && mailLine.contains("Einladung Sommerfest") && mailLine.hasSuffix("mcp__pippa__read_document")
             && tsv.hasSuffix("read") && img.contains("Bild") && img.hasSuffix("mcp__pippa__read_document")
             && lines.last == "Bis wann muss ich zahlen?" && !prompt.contains("1.234,56")
@@ -220,7 +220,7 @@ func runR2Checks() async {
         return doc["readOnlyHint"] as? Bool == true && doc["openWorldHint"] as? Bool == false
             && [web, page].allSatisfy { $0["readOnlyHint"] as? Bool == true && $0["destructiveHint"] as? Bool == false && $0["openWorldHint"] as? Bool == true }
             // Three writing tools on top (own size check in R3Checks).
-            && list.count == 11 && bytes < 5400
+            && list.count == 12 && bytes < 5400
     }
     check("Work line: Pippa's MCP tools show the same phases as the old path") {
         WorkPhase.tool("mcp__pippa__web_search", source: nil) == .lookingUpOnline && WorkPhase.tool("mcp__pippa__read_web_page", source: nil) == .lookingUpOnline

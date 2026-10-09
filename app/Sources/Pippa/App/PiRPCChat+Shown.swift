@@ -28,7 +28,7 @@ extension PiRPCChat {
     func answer(_ text: String, taskID: String, context: ChatContext, newFiles: [URL], skill: PippaSkill? = nil, draftOnly: Bool = false,
                 onDelta: @escaping @Sendable (String) -> Void, onSteered: @escaping @Sendable (String) -> Void,
                 onReset: (@Sendable (String) -> Void)? = nil) async throws -> ShownAnswer {
-        let turn = PippaMCPTurn(web: context.web, onWork: context.onWork)
+        let turn = PippaMCPTurn(web: context.web, shown: context.files, onWork: context.onWork)
         PippaMCPTurns.shared.begin(turn)
         Self.pendingWeb = nil
         Self.pendingMail = nil

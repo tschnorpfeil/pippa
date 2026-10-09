@@ -167,3 +167,8 @@
 "Normal" = "Normal";
 "Large" = "Large";
 "Extra large" = "Extra large";
+"Better document search" = "Better document search";
+"Also finds passages that use other words, and German passages for English questions. Loads once (%@); after that everything stays on this Mac." = "Also finds passages that use other words, and German passages for English questions. Loads once (%@); after that everything stays on this Mac.";
+"Loading · %lld %%" = "Loading · %lld %%";
+"On. Pippa searches the documents you show her with it, on this Mac." = "On. Pippa searches the documents you show her with it, on this Mac.";
+"Loading didn’t work. Pippa still searches your documents by their words." = "Loading didn’t work. Pippa still searches your documents by their words.";

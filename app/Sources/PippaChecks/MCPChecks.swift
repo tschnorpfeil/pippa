@@ -79,7 +79,7 @@ func runMCPChecks() async {
             && (unknown?["error"] as? [String: Any])?["code"] as? Int == -32601
             && (broken?["error"] as? [String: Any])?["code"] as? Int == -32700 && batch?.count == 1
     }
-    await checkAsync("MCP: five readers (+ read_document), all read-only (readOnly, non-destructive, closed world), schema as object") {
+    await checkAsync("MCP: five readers (+ read_document, search_documents), all read-only (readOnly, non-destructive, closed world), schema as object") {
         let s = setup()
         let list = (await rpc(s.tools, "tools/list"))?["result"] as? [String: Any]
         let all = list?["tools"] as? [[String: Any]] ?? []
@@ -94,7 +94,7 @@ func runMCPChecks() async {
         }
         // Keep the tool list small: with direct approval it goes into every request.
         let bytes = (try? JSONSerialization.data(withJSONObject: tools))?.count ?? .max
-        return names == PippaMCPTools.toolNames && hintsOK && bytes < 3500 && tools.count == 6
+        return names == PippaMCPTools.toolNames && hintsOK && bytes < 3500 && tools.count == 7
     }
     await checkAsync("MCP: unknown tool is a protocol error, unknown arguments a tool error") {
         let s = setup()

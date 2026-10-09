@@ -9,7 +9,7 @@ bin="${PIPPA_LLAMA_SERVER:-$root/dist/Pippa.app/Contents/Helpers/llama-server}"
 port="${PIPPA_EMBED_PORT:-53600}"
 [ -f "$model" ] || { echo "model missing: $model"; exit 2; }
 mkdir -p "$root/.build/spike-logs"
-"$bin" -m "$model" --embedding --host 127.0.0.1 --port "$port" -ngl 999 -c 8192 -b 8192 -ub 8192 --no-webui \
+"$bin" -m "$model" --embedding --host 127.0.0.1 --port "$port" -ngl 999 -c 2048 -b 2048 -ub 2048 --parallel 1 --no-webui \
   >"$root/.build/spike-logs/embed.log" 2>&1 &
 server=$!
 trap 'kill $server 2>/dev/null || true' EXIT

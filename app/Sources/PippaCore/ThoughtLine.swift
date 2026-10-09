@@ -128,7 +128,7 @@ public enum WorkPhase: Sendable, Equatable {
         var lowered = name.lowercased()
         if lowered.hasPrefix("mcp__pippa__") { lowered.removeFirst("mcp__pippa__".count) }
         switch lowered {
-        case "list_context", "list_plan_files": return .lookingThrough(name: nil)
+        case "list_context", "list_plan_files", "search_documents": return .lookingThrough(name: nil)
         case "read_context", "read_document": return .lookingThrough(name: source)
         case "propose_plan": return .preparingPreview
         case "propose_lookup", "web_search", "read_web_page": return .lookingUpOnline

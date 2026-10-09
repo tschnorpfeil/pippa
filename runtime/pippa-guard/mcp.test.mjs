@@ -50,7 +50,7 @@ test("codemode only on explicit request (measuring)", () => {
 });
 
 test("tool names as in the Swift server, none writes or sends", () => {
-	assert.deepEqual(TOOLS, ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "read_document", "web_search", "read_web_page"]);
+	assert.deepEqual(TOOLS, ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "read_document", "search_documents", "web_search", "read_web_page"]);
 	assert.ok(TOOLS.every((name) => !/send|write|add|delete|create|draft/.test(name)));
 });
 

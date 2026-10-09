@@ -30,6 +30,7 @@ let mode = args.first ?? "rpc"
 let which = args.dropFirst().first ?? "all"
 let repo = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
 let corpus = URL(fileURLWithPath: env["R2_CORPUS"] ?? repo.appendingPathComponent(".build/quality/ctxsug-corpus").path, isDirectory: true)
+let searchDocs = URL(fileURLWithPath: env["R2_SEARCH_DOCS"] ?? repo.appendingPathComponent(".build/quality/search-eval-docs").path, isDirectory: true)
 let clock = ContinuousClock()
 func ms(_ d: Duration) -> Int { Int(d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000) }
 func oneLine(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ⏎ ") }
@@ -53,6 +54,10 @@ let cases: [Case] = [
     Case(id: "w", title: "Online (stand-in fetch)", files: [], question: "Wie wird das Wetter morgen in Köln?", web: .stub),
     Case(id: "W", title: "Online (real fetch)", files: [], question: "Wie wird das Wetter morgen in Köln?", web: .real),
     Case(id: "n", title: "Online, \"Not now\"", files: [], question: "Wie wird das Wetter morgen in Köln?", web: .declined),
+    // d/D: folder with the synthetic search corpus (app/Fixtures/search-eval, written to .build/quality/search-eval-docs by
+    // scripts/pi-rpc-spike.sh); D with "Kaution" (a word the lease does not use: Mietsicherheit).
+    Case(id: "d", title: "Search a folder (exact number)", files: [searchDocs], question: "In welchem Dokument steht die Zählernummer 1ESY1160-4471?"),
+    Case(id: "D", title: "Search a folder (other words)", files: [searchDocs], question: "Wie hoch ist die Kaution für meine Wohnung in der Lindenstraße?"),
 ]
 
 /// Invented weather page for w/n (no network).
@@ -72,9 +77,10 @@ final class Box<T>: @unchecked Sendable {
 }
 
 /// What Pippa reads for the review and what the review changes (like PiRPCChat+Shown / LocalEngine).
-func review(_ answer: String, _ c: Case, pages: [WebSource]) async -> (text: String, findings: [String]) {
+func review(_ answer: String, _ c: Case, pages: [WebSource], reads: PiReadLedger? = nil) async -> (text: String, findings: [String]) {
     let snapshots = (try? await LocalEngine.snapshots(for: ChatContext(files: c.files))) ?? []
-    guard let r = PiAnswerReview.review(answer: answer, question: c.question, snapshots: snapshots, fileCount: c.files.count, webPages: pages) else {
+    guard let r = PiAnswerReview.review(answer: answer, question: c.question, snapshots: snapshots, fileCount: c.files.count, webPages: pages,
+                                        reads: reads, files: c.files) else {
         return (answer, [])
     }
     return (r.text, r.findings.map { String(describing: $0) })
@@ -117,7 +123,7 @@ func runRPC() async throws {
         case .declined: gate = WebAccessGate(fetcher: StubFetcher(), language: "de", typed: c.question) { ask in cards.set { $0.append(ask.shown) }; return false }
         }
         let events = Box<[String]>([])
-        let turn = PippaMCPTurn(web: gate, onWork: { event in if case .sources(let list) = event { events.set { $0 += list.map { "\($0.name) \($0.status.rawValue) S.\($0.pagesRead ?? 0)/\($0.pageCount ?? 0) OCR \($0.recognizedText)" } } } })
+        let turn = PippaMCPTurn(web: gate, shown: c.files, onWork: { event in if case .sources(let list) = event { events.set { $0 += list.map { "\($0.name) \($0.status.rawValue) S.\($0.pagesRead ?? 0)/\($0.pageCount ?? 0) OCR \($0.recognizedText)" } } } })
         PippaMCPTurns.shared.begin(turn)
         defer { PippaMCPTurns.shared.end(turn) }
         // PIPPA_INLINE_SHORT_TEXT=1 measures "send short texts inline" (setting piInlineShortText).
@@ -155,7 +161,7 @@ func runRPC() async throws {
         let tokens = stats?["tokens"] as? [String: Any]
         let pages = await gate?.pages ?? []
         let reviewStart = clock.now
-        let checked = await review(text.trimmingCharacters(in: .whitespacesAndNewlines), c, pages: pages)
+        let checked = await review(text.trimmingCharacters(in: .whitespacesAndNewlines), c, pages: pages, reads: await turn.ledger)
         let reviewMS = ms(clock.now - reviewStart)
         let web = await gate?.records ?? []
         let ownTools = Set(PippaMCPTurnTools.names.map { "mcp__pippa__" + $0 })

@@ -135,7 +135,19 @@ public struct PiReadLedger: Sendable, Equatable {
         var result = snapshots
         let first = snapshots.count - shown.count
         for (index, url) in shown.enumerated() {
-            guard let file = files[Self.key(url.path)] else { continue }
+            guard let file = files[Self.key(url.path)] else {
+                // A shown folder: what Pi read inside it (read_document, search_documents hits) counts as partly read
+                // source for this folder, not as "only the names".
+                let base = Self.key(url.path) + "/"
+                let inside = files.filter { $0.key.hasPrefix(base) }.sorted { $0.key < $1.key }
+                let text = inside.map { entry in
+                    "[\((entry.key as NSString).lastPathComponent)]\n" + entry.value.chunks.sorted { $0.order < $1.order }.map(\.text).joined(separator: "\n")
+                }.joined(separator: "\n\n")
+                guard !inside.isEmpty, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+                let old = result[first + index]
+                result[first + index] = .init(name: old.name, text: text, truncated: true, focused: old.focused, readStatus: .partial)
+                continue
+            }
             let text = file.chunks.sorted { $0.order < $1.order }.map(\.text).joined(separator: "\n")
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
             let old = result[first + index]

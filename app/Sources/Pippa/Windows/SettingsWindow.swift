@@ -133,6 +133,8 @@ struct SettingsView: View {
     private let loginError = State<String?>(initialValue: nil)
     private let hotkeyTaken = State(initialValue: HotkeyCenter.shared.mainTaken)
     private let accessState = State<[Integration: IntegrationAccess]>(initialValue: [:])
+    private let documentSearchState = StateObject(wrappedValue: DocumentSearchModel())
+    private var documentSearch: DocumentSearchModel { documentSearchState.wrappedValue }
 
     private let learnedState = State(initialValue: 0)
     private let learningErrorState = State<String?>(initialValue: nil)
@@ -192,6 +194,7 @@ struct SettingsView: View {
                     if let setup = PiSetupController.shared, !model.alwaysUsesConnection {
                         KnowledgeRow(model: model, setup: setup)
                     }
+                    DocumentSearchRow(search: documentSearch)
                 }
                 SettingsGroup(title: T("Allow Pippa to…", table: "Settings")) {
                     accessRow(T("Add deadlines to Reminders and Calendar", table: "Settings"), [.reminders, .calendar], divider: false)

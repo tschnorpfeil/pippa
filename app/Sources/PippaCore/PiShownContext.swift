@@ -141,8 +141,8 @@ public enum PiShownContext {
         }
         if isFolder.boolValue {
             let count = (try? FileManager.default.contentsOfDirectory(atPath: path).filter { !$0.hasPrefix(".") }.count) ?? 0
-            return german ? "Ordner „\(name)“, \(count) Einträge – \(path) – ansehen mit list_folder"
-                          : "Folder “\(name)”, \(count) items – \(path) – look with list_folder"
+            return german ? "Ordner „\(name)“, \(count) Einträge – \(path) – ansehen mit list_folder, Inhalte suchen mit mcp__pippa__search_documents"
+                          : "Folder “\(name)”, \(count) items – \(path) – look with list_folder, search contents with mcp__pippa__search_documents"
         }
         let size = ByteCountFormatter.string(fromByteCount: Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0), countStyle: .file)
         func line(_ kind: String, _ extra: String = "", tool: String) -> String {
