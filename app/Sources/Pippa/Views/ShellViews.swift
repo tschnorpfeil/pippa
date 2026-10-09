@@ -54,10 +54,9 @@ struct WorkflowContentView: View {
     @ViewBuilder private var content: some View {
         switch mode {
         case .pill:
-            // Cold start of an answer in the background: say so in the pill, with the measured progress (ColdStart.swift).
-            let wake = model.coldStartPhase
-            PillContent(label: model.coldStartPillLabel ?? (model.busy ? T("Pippa is reading…", table: "Views") : "Pippa"),
-                        working: model.busy || wake != nil, progress: wake.flatMap(ColdStart.pillProgress))
+            // The living pill: the real phase of the answer (cold start with measured progress included), or how the
+            // last answer ended while nobody was looking (PillStatus.swift).
+            PillContent(status: model.pillStatus)
         case .target(let hot):
             TargetContent(hot: hot)
         case .input:
@@ -134,34 +133,84 @@ struct NoticeContent: View {
 // MARK: - 1 Pille
 
 struct PillContent: View {
-    var label: String
-    var working: Bool
-    /// Cold start: how far the knowledge has loaded, as a thin bar along the bottom.
-    var progress: Double? = nil
+    var status: PillStatus
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     var body: some View {
         HStack(spacing: 8) {
             MarkSlot(size: 28)
-            ShimmerText(text: label, active: working)
+            // Pippa's small happy moments are written by hand, like the speech bubbles on the website.
+            ShimmerText(text: status.label, active: status.tone == .working, color: ink,
+                        font: status.hand ? HandFont.font() : nil)
+                .contentTransition(.opacity)
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.scaled(size: 12, weight: .bold))
+                    .foregroundStyle(tint)
+                    .transition(.scale.combined(with: .opacity))
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.leading, 10)
-        .padding(.trailing, 20)
+        .padding(.trailing, symbol == nil ? 20 : 16)
         .frame(height: ShellTokens.pillHeight)
         .fixedSize()
+        .background {
+            // Done, a question, a problem: a soft wash of the tone, so the pill reads at a glance from across the screen.
+            if status.tone != .rest && status.tone != .working {
+                Capsule().fill(wash).allowsHitTesting(false)
+            }
+        }
         .overlay(alignment: .bottom) {
-            if let progress {
-                WakeBar(progress: progress, reduceMotion: systemReduceMotion || MarkHub.shared.reduced, height: 2)
+            if let progress = status.progress {
+                WakeBar(progress: progress, reduceMotion: reduceMotion, height: 2)
                     .padding(.horizontal, 22).padding(.bottom, 5)
+                    .accessibilityHidden(true)
             }
         }
         .overlay {
-            if working {
+            if status.tone != .rest {
                 Capsule()
-                    .strokeBorder(Theme.accent.opacity(0.45), lineWidth: 1)
-                    .shadow(color: Theme.accentFill.opacity(0.6), radius: 8)
+                    .strokeBorder(tint.opacity(status.tone == .working ? 0.45 : 0.6), lineWidth: 1)
+                    .shadow(color: (status.tone == .working ? Theme.accentFill : tint).opacity(0.6), radius: 8)
                     .allowsHitTesting(false)
             }
+        }
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8), value: status)
+    }
+
+    private var reduceMotion: Bool { systemReduceMotion || MarkHub.shared.reduced }
+
+    private var tint: Color {
+        switch status.tone {
+        case .rest, .working, .needsYou: Theme.accent
+        case .done: Theme.ok
+        case .failed: Theme.bad
+        }
+    }
+
+    private var wash: Color {
+        switch status.tone {
+        case .done: Theme.okTint
+        case .failed: Theme.badTint
+        default: Theme.accentTint
+        }
+    }
+
+    private var ink: Color {
+        switch status.tone {
+        case .needsYou: Theme.accent
+        default: Theme.ink
+        }
+    }
+
+    /// A small sign after the words, so the state does not depend on colour alone.
+    private var symbol: String? {
+        switch status.tone {
+        case .rest, .working: nil
+        case .needsYou: "questionmark"
+        case .done: "checkmark"
+        case .failed: "exclamationmark"
         }
     }
 }
@@ -170,13 +219,16 @@ struct PillContent: View {
 struct ShimmerText: View {
     var text: String
     var active: Bool
+    var color: Color = Theme.ink
+    /// `nil`: the pill's usual rounded semibold.
+    var font: Font? = nil
     private let phaseState = State<CGFloat>(initialValue: -1)
     private var phase: CGFloat { get { phaseState.wrappedValue } nonmutating set { phaseState.wrappedValue = newValue } }
 
     var body: some View {
-        let label = Text(text).font(.scaled(size: 15, weight: .semibold, design: .rounded))
+        let label = Text(text).font(font ?? .scaled(size: 15, weight: .semibold, design: .rounded))
         label
-            .foregroundStyle(Theme.ink)
+            .foregroundStyle(color)
             .lineLimit(1)
             .overlay {
                 if active && !MarkHub.shared.reduced {
@@ -616,6 +668,8 @@ struct ErrorContent: View {
     @ObservedObject var model: AppModel
     var message: String
     private let openState = State(initialValue: false)
+    /// The message comes from AppModel: same key from the same table ("App"); the bare default says nothing new.
+    private var hasReason: Bool { !message.isEmpty && message != T("Nothing was changed.", table: "App") }
 
     var body: some View {
         let partial = model.partialReceipt
@@ -623,32 +677,34 @@ struct ErrorContent: View {
             PanelHead(title: model.lastWorkTitle.isEmpty ? "Pippa" : model.lastWorkTitle, meta: nil, onClose: { model.collapse() })
             VStack(alignment: .leading, spacing: 8) {
                 ResultTitle(text: T("That didn’t work.", table: "Views"))
+                // The reason first, in one sentence, not behind a disclosure (UI-FIXPLAN 1.1).
+                if hasReason {
+                    Text(message).font(Fonts.lead).foregroundStyle(Theme.ink)
+                        .fixedSize(horizontal: false, vertical: true).stagger(1)
+                }
                 Lead(text: partial != nil ? T("Part of it is already done. One click puts everything back the way it was.", table: "Views")
                                           : T("Nothing was changed. Your files are just as they were.", table: "Views")).stagger(1)
-                // The message comes from AppModel: same key from the same table ("App").
-                if message != T("Nothing was changed.", table: "App") {
-                    Button {
-                        openState.wrappedValue.toggle()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: openState.wrappedValue ? "chevron.down" : "chevron.right").font(.scaled(size: 10, weight: .bold))
-                            Text(T("What happened?", table: "Views"))
-                        }
-                        .font(.scaled(size: 12.5, weight: .medium))
-                        .foregroundStyle(Theme.ink2)
+                // Reporting is for when it keeps happening: behind "Details", not next to the way forward.
+                Button {
+                    openState.wrappedValue.toggle()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: openState.wrappedValue ? "chevron.down" : "chevron.right").font(.scaled(size: 10, weight: .bold))
+                        Text(T("Details", table: "App"))
                     }
-                    .buttonStyle(.plain)
-                    .padding(.top, 6)
-                    if openState.wrappedValue {
-                        Text(message).font(.scaled(size: 13)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
-                    }
+                    .font(.scaled(size: 12.5, weight: .medium))
+                    .foregroundStyle(Theme.ink2)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 6)
+                if openState.wrappedValue {
+                    Button(T("Report a Problem…", table: "Views")) { ProblemReport.open() }.pippa(.quiet)
                 }
             }
             .padding(.horizontal, 24)
             .padding(.top, 14)
             ActionBar {
                 Button(T("Close", table: "Views")) { model.collapse() }.pippa(.quiet)
-                Button(T("Report a Problem…", table: "Views")) { ProblemReport.open() }.pippa(.quiet)
                 if let partial {
                     Button { model.undo(partial) } label: { Label(T("Undo", table: "Views"), systemImage: "arrow.uturn.backward") }
                         .pippa(.tinted)
