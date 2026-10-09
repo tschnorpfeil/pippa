@@ -108,6 +108,7 @@ ein llama-server, messen nur bei Last < 10. Nichts in `~/.pi`, `~/.local`, `~/mo
   nutzen, während K2 lädt“ nicht mehr; sie müssen erst K2 laden (5,6 GB). Die Terminal-Erweiterung sagt dann „Öffne
   Pippa“. Gemma-Datei bleibt auf der Platte (Modelle nie löschen). Akzeptieren oder einen reinen Migrationseintrag
   behalten?
+  → Owner 09.10.: entfällt, es gibt noch keine Nutzer von 1.0.
 
 ## Harte Regeln (aus HANDOFF.md, gelten weiter)
 

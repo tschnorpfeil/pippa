@@ -121,3 +121,11 @@ final class ToolProgressLog: @unchecked Sendable {
     func add(_ progress: ToolProgress) { lock.withLock { items.append(progress) } }
     var all: [ToolProgress] { lock.withLock { items } }
 }
+
+/// Removes a throwaway defaults suite and the empty plist that `removePersistentDomain` leaves in ~/Library/Preferences.
+func dropDefaultsSuite(_ defaults: UserDefaults, _ name: String) {
+    defaults.removePersistentDomain(forName: name)
+    let plist = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Preferences/\(name).plist")
+    try? FileManager.default.removeItem(at: plist)
+}

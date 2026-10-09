@@ -33,7 +33,7 @@ func runLegacyMigrationChecks() {
         let (migration, _) = fixture("offer")
         guard case .offer(let items) = migration.evaluate(), items == ["Conversations", "journal.sqlite", "settings.json"] else { return false }
         let (defaults, name) = suite()
-        defer { defaults.removePersistentDomain(forName: name) }
+        defer { dropDefaultsSuite(defaults, name) }
         defaults.set("cmd-space", forKey: "hotkey") // already set: stays
         let outcome = try migration.run(items: items, defaults: defaults, domain: name)
         let copied = try String(contentsOf: migration.destination.appendingPathComponent("Conversations/history.json"), encoding: .utf8)

@@ -15,7 +15,7 @@ func runTextScaleChecks() async {
     check("TextScale: default without stored value is normal; stored step is read back") {
         let name = "textscale-check-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
-        defer { defaults.removePersistentDomain(forName: name) }
+        defer { dropDefaultsSuite(defaults, name) }
         let fresh = TextScale.load(defaults)
         defaults.set(1.36, forKey: TextScale.key)
         let big = TextScale.load(defaults)

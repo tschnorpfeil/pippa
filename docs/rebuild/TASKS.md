@@ -46,6 +46,8 @@ Weiter auf dem Mac: `docs/rebuild/MAC-HANDOFF.md`.
 - [x] Nachtrag 09.10. früh: Freigabe-Karte/Kontrast/Vorschauzeile (`77ad89b`), Speicherplatz-Fehler + „Im Hintergrund weiterladen“ (`7aa17ba`),
       Beispiele im leeren Gespräch (`c7bcac5`), Papierkorb-Quittung (`b15b005`), K2 Temperatur 0.6 (`efae00c`), Schriftgröße (`a51a5d8`).
 - [x] r7 latency Endstand (K2 gepatcht, high, 0.6): 18/18 mit Antwort, erstes Wort Median ~12 s, gesamt ~16 s; Kaltstart 11,7 s.
-- [ ] UI-Rundgang offen: KI/Wissen/Modell einheitlich (Owner-Wahl), Einstellungen „Gemerkte Aktionen“ und Online-Dienst-Begriffe,
+- [x] Owner 09.10.: durchgehend „KI“ / “AI” (`ae28782`). Gemma-1.0-Frage entfällt: es gibt noch keine Nutzer.
+- [x] llama.cpp upstream (09.10. geprüft): kein Issue/PR zu den K2-Denk-Tags, Parser auf master unverändert → Patch bleibt.
+- [ ] UI-Rundgang offen: Einstellungen „Gemerkte Aktionen“,
       „Für weitere Antworten“ → „Verwendete Dateien (n)“, Mail-Karte „Ich sende nichts“, Workspace-Szene `workspace-02-overview` (schon auf main rot).
 - [ ] Echte Klicks in der App (Erststart, Drag-and-drop, ⌘V, Rechtedialoge) – nur Snapshots und Spikes gelaufen.
