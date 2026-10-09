@@ -186,20 +186,20 @@ h1{order:1;font-size:clamp(44px,17.4vw,104px)}.voice{order:2;margin-top:24px}.ct
 .stage{position:relative;width:100%;aspect-ratio:1/1.05;border-radius:28px;background:radial-gradient(ellipse 70% 60% at 50% 45%,rgba(255,255,255,.16),transparent 70%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
 .scatter{--u:3.43px;position:absolute;inset:0}
 .scatter .obj{position:absolute;left:var(--x);top:var(--y);display:block;font-size:calc(var(--u)*1.55);touch-action:none}
-.o-mail{--x:2%;--y:4%}.o-steuer{--x:62%;--y:3%}.o-sms{--x:2%;--y:55%}.o-k{--x:68%;--y:61%}.o-ordner{--x:30%;--y:71%}
+.o-mail{--x:2%;--y:4%}.o-steuer{--x:62%;--y:3%}.o-zug{--x:2%;--y:50%}.o-k{--x:68%;--y:61%}.o-ordner{--x:30%;--y:71%}
 @media (min-width:600px) and (max-width:899px){
 .stage{aspect-ratio:4/3}.scatter .obj{font-size:calc(var(--u)*1.3)}
-.o-mail{--x:2%;--y:3%}.o-steuer{--x:70%;--y:2%}.o-sms{--x:6%;--y:52%}.o-k{--x:72%;--y:45%}.o-ordner{--x:36%;--y:64%}
+.o-mail{--x:2%;--y:3%}.o-steuer{--x:70%;--y:2%}.o-zug{--x:6%;--y:52%}.o-k{--x:72%;--y:45%}.o-ordner{--x:36%;--y:64%}
 }
 @media (min-width:900px){
 .stage{aspect-ratio:7/6;min-height:500px;border-radius:0;background:none;box-shadow:none}
 .scatter .obj{font-size:calc(var(--u)*1.36)}
-.o-mail{--x:0%;--y:2%}.o-steuer{--x:64%;--y:0%}.o-sms{--x:2%;--y:52%}.o-k{--x:69%;--y:47%}.o-ordner{--x:30%;--y:64%}
+.o-mail{--x:0%;--y:2%}.o-steuer{--x:64%;--y:0%}.o-zug{--x:2%;--y:52%}.o-k{--x:69%;--y:47%}.o-ordner{--x:30%;--y:64%}
 }
 @media (min-width:900px) and (max-height:940px){
 .stage{min-height:420px;aspect-ratio:7/5}
 .scatter .obj{font-size:calc(var(--u)*1.2)}
-.o-mail{--x:0%;--y:1%}.o-steuer{--x:68%;--y:0%}.o-sms{--x:3%;--y:52%}.o-k{--x:73%;--y:47%}.o-ordner{--x:30%;--y:65%}
+.o-mail{--x:0%;--y:1%}.o-steuer{--x:68%;--y:0%}.o-zug{--x:3%;--y:52%}.o-k{--x:73%;--y:47%}.o-ordner{--x:30%;--y:65%}
 }
 .obj{border:0;background:none;padding:0;cursor:grab;position:relative;text-align:left;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
 transform:translate(var(--dx,0px),calc(var(--dy,0px) + var(--h,0px))) rotate(var(--r,0deg));transition:transform .18s var(--out),opacity .18s;border-radius:6px}
@@ -223,10 +223,11 @@ transform:translate(var(--dx,0px),calc(var(--dy,0px) + var(--h,0px))) rotate(var
 
 .zettel{display:block;width:6.6em;padding:.75em .7em 1.1em;background:var(--note);font:2.25em/1.08 var(--fh);color:#4a3b00;box-shadow:var(--pap);border-radius:2px}
 .zettel small{display:block;font:600 .38em/1.3 var(--f);color:#7a6420;margin-top:.7em;letter-spacing:.01em}
-.sms{display:block;width:15.5em;background:#1d1d1f;border-radius:2.2em;padding:1.5em 1em 2.2em;box-shadow:var(--pap)}
-.sms b{display:block;text-align:center;font:600 .95em/1.3 var(--f);color:#a1a1a6;margin-bottom:.8em}
-.sms i{display:block;background:#3a3a3c;color:#f5f5f7;border-radius:1.1em 1.1em 1.1em .3em;padding:.8em 1em;font:normal 1.05em/1.42 var(--f)}
-.sms u{color:#6cb4ff;text-decoration:underline}
+.ticket{display:block;width:17em;background:#fff;border-radius:.5em;box-shadow:var(--pap);padding:1.1em 1.2em 1.4em 1.4em;border-left:.6em solid #c62f2f;font:normal 1.05em/1.45 var(--f);color:#56565b}
+.ticket b{display:block;font:700 1.2em/1.25 var(--f);color:#1d1d1f;margin-bottom:.4em}
+.ticket i{display:block;font-style:normal}
+.ticket em{display:block;font-style:normal;font-weight:700;color:#1d1d1f;margin-top:.5em}
+.ticket strong{display:inline-block;margin-top:.6em;padding:.15em .5em;border:2px solid #c62f2f;border-radius:.3em;color:#c62f2f;font:700 1em/1.3 var(--f);transform:rotate(-3deg)}
 .dlw{display:block;position:relative;width:22em;height:14.5em;background:#fbfbf9;border-radius:.6em;box-shadow:var(--pap);overflow:hidden}
 .dlw b{display:block;height:2.2em;background:#e9e9e6;font:600 1em/2.2em var(--f);color:#3a3a3c;padding-left:4.6em;position:relative}
 .dlw b::before{content:"";position:absolute;left:1em;top:.75em;width:.7em;height:.7em;border-radius:50%;background:#ff5f57;box-shadow:1em 0 #febc2e,2em 0 #28c840}
@@ -414,7 +415,7 @@ footer .row{display:flex;gap:var(--s2);align-items:center;font:400 18px/1 var(--
 h1{font-size:clamp(64px,16cqi,92px)}
 .stage{margin-top:14px;aspect-ratio:7/5;min-height:400px}
 .scatter .obj{font-size:calc(var(--u)*1.28)}
-.o-mail{--x:1%;--y:3%}.o-steuer{--x:66%;--y:1%}.o-sms{--x:4%;--y:53%}.o-k{--x:72%;--y:46%}.o-ordner{--x:30%;--y:64%}
+.o-mail{--x:1%;--y:3%}.o-steuer{--x:66%;--y:1%}.o-zug{--x:4%;--y:53%}.o-k{--x:72%;--y:46%}.o-ordner{--x:30%;--y:64%}
 .shelf{margin-top:32px}
 .slots .slt{min-height:138px}
 .tidy .stage{min-height:440px;padding:96px 0 48px;gap:24px}
@@ -433,7 +434,7 @@ h1{font-size:clamp(44px,14.5vw,80px);max-width:7.2em}
 .req,.mnote{font-size:13px;max-width:32em}
 .demo-head h2{font-size:25px}.demo-help{font-size:14px}
 .stage{margin-top:16px;aspect-ratio:1/1.12;border-radius:20px}
-.o-mail{--x:3%;--y:5%}.o-steuer{--x:63%;--y:5%}.o-sms{--x:5%;--y:62%}.o-k{--x:66%;--y:61%}.o-ordner{--x:28%;--y:75%}
+.o-mail{--x:3%;--y:5%}.o-steuer{--x:63%;--y:5%}.o-zug{--x:5%;--y:62%}.o-k{--x:66%;--y:61%}.o-ordner{--x:28%;--y:75%}
 .scatter .obj{font-size:calc(var(--u)*1.45)}
 .demo-picks{gap:6px;margin-top:16px}.demo-picks button{font-size:12px;padding-inline:11px}
 .shead h2{font-size:27px}.shead h2 span{margin-left:8px;font-size:13px}.shead .btn2{width:auto;margin-left:auto;font-size:13px;padding-inline:13px}
@@ -624,7 +625,7 @@ footer .wrap{max-width:1120px}
           <button class="obj o-mail" type="button" data-k="mail" style="--r:-4deg" aria-label="Mail der Hausverwaltung: Termin für den Wasserzähler"><span class="paper" aria-hidden="true"><b>Hausverwaltung Berger</b><i>Betreff: Ablesung Wasserzähler</i><i>Hallo Frau Weber, passt Ihnen Donnerstag, 16.10., zwischen 9 und 12 Uhr?</i><u></u><u class="s"></u></span></button>
           <button class="obj o-k" type="button" data-k="vertrag" style="--r:6deg" aria-label="Handyvertrag mit Klebezettel: Kündigung?"><span class="paper" aria-hidden="true"><b>Mobilfunkvertrag</b><i>Tarif Allnet M</i><u></u><u></u><u class="s"></u><u></u><u class="s"></u></span><span class="sticky" aria-hidden="true">Kündigung??</span></button>
           <button class="obj o-steuer" type="button" data-k="steuer" style="--r:3deg" aria-label="Zettel: Alles für die Steuer 2025?"><span class="zettel" aria-hidden="true">Alles für die Steuer 2025?<small>Lohnzettel, Spenden, Handwerker … wo war das alles?</small></span></button>
-          <button class="obj o-sms" type="button" data-k="sms" style="--r:-7deg" aria-label="SMS: Ihr Paket wartet, Zollgebühr 1,99 Euro"><span class="sms" aria-hidden="true"><b>SMS · Unbekannt</b><i>Ihr Paket wartet. Bitte Zollgebühr von 1,99 € zahlen: <u>pakethilfe-zoll.info</u></i></span></button>
+          <button class="obj o-zug" type="button" data-k="zug" style="--r:-5deg" aria-label="Zugfahrkarte Hamburg nach München, 89,90 Euro, Zettel: über 2 Stunden zu spät"><span class="ticket" aria-hidden="true"><b>Hamburg Hbf → München Hbf</b><i>Fr., 3. Oktober · ab 8:02</i><i>1 Erwachsener · 2. Klasse</i><em>89,90 €</em><strong>+2:10 Std. verspätet</strong></span></button>
           <button class="obj o-ordner" type="button" data-k="ordner" style="--r:2deg" aria-label="Volle Downloads: 47 lose Dateien"><span class="dlw" aria-hidden="true"><b>Downloads</b><em>47</em><i class="p">IMG_4821.jpg</i><i class="r">Rechnung (3).pdf</i><i>scan0001.pdf</i><i class="w">Unbenannt.docx</i><i class="p">IMG_4822.jpg</i><i class="r">Vertrag_final_v2.pdf</i><i class="r">Rechnung (4).pdf</i><i class="p">Bildschirmfoto.png</i></span></button>
         </div>
       </div>
@@ -632,7 +633,7 @@ footer .wrap{max-width:1120px}
         <button type="button" data-demo="mail" aria-pressed="false">Mail beantworten</button>
         <button type="button" data-demo="vertrag" aria-pressed="false">Frist finden</button>
         <button type="button" data-demo="steuer" aria-pressed="false">Unterlagen finden</button>
-        <button type="button" data-demo="sms" aria-pressed="false">Online nachsehen</button>
+        <button type="button" data-demo="zug" aria-pressed="false">Online nachsehen</button>
         <button type="button" data-demo="ordner" aria-pressed="false">Downloads ordnen</button>
       </div>
       <p class="demo-note">Beispieldateien · vorbereitete Antworten</p>
@@ -648,7 +649,7 @@ footer .wrap{max-width:1120px}
         <div class="slt" data-k="mail"><p class="sl">Antwort</p><p class="slot-hint">Entwurf, nichts verschickt</p><div class="sc"></div></div>
         <div class="slt" data-k="vertrag"><p class="sl">Fristen</p><p class="slot-hint">Kündigung im Blick</p><div class="sc"></div></div>
         <div class="slt" data-k="steuer"><p class="sl">Unterlagen</p><p class="slot-hint">Alles zu einem Thema</p><div class="sc"></div></div>
-        <div class="slt" data-k="sms"><p class="sl">Online</p><p class="slot-hint">Echt oder Betrug?</p><div class="sc"></div></div>
+        <div class="slt" data-k="zug"><p class="sl">Online</p><p class="slot-hint">Regeln nachgesehen</p><div class="sc"></div></div>
         <div class="slt" data-k="ordner"><p class="sl">Ordnung</p><p class="slot-hint">Mit Rückgängig</p><div class="sc"></div></div>
       </div>
     </div>
@@ -710,7 +711,7 @@ const say=t=>{live.textContent='';setTimeout(()=>{live.textContent=t},40)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const obj=k=>$('.obj[data-k="'+k+'"]'),slot=k=>$('.slt[data-k="'+k+'"]');
 const wide=()=>innerWidth>=900;
-const ORDER=['mail','vertrag','steuer','sms','ordner'];
+const ORDER=['mail','vertrag','steuer','zug','ordner'];
 let tidy=false;
 
 /* Überschrift: Wort für Wort */
@@ -789,9 +790,9 @@ a:'Frist merken',d:'Erinnerung am 16.08.27.',s:'<span class="tagh">bis 30.08.27<
 steuer:{q:'Such alles für die Steuer 2025.',w:'Ich suche auf deinem Mac …',h:'<p class="ct">7 Unterlagen für die Steuer 2025</p><p class="cs">Gefunden in Downloads, Dokumente und Mail</p>',
 b:'<ul class="hits"><li><b>Lohnsteuerbescheinigung 2025</b><small>Dokumente</small></li><li><b>Spendenquittung Tafel</b><small>Downloads</small></li><li><b>Rechnung Heizungswartung</b><small>Mail</small></li><li><b>Riester-Bescheinigung 2025</b><small>Dokumente</small></li><li class="more">und 3 weitere</li></ul><p class="note">Ich habe nichts verschoben.</p>',
 a:'In einen Ordner kopieren',d:'Ordner „Steuer 2025“ mit 7 Kopien. Die Originale bleiben, wo sie sind.',s:'<span class="fold">Steuer 2025 <em>7</em></span>'},
-sms:{q:'Ist die SMS echt?',w:'Ich schaue online nach …',h:'<p class="ct">Das ist sehr wahrscheinlich Betrug</p><p class="cs">Du hast gefragt: Ist die SMS echt?</p>',
-b:'<p class="ans">Nicht auf den Link tippen und nichts bezahlen. Paketdienste verlangen Zollgebühren nicht per SMS-Link.</p><div class="src"><cite>Online nachgesehen · 3 Quellen, u. a. Verbraucherzentrale</cite>Mehrere aktuelle Warnungen vor genau dieser Masche: kleiner Betrag, fremde Adresse, Zeitdruck.</div><p class="note">Ins Internet ging nur die Adresse aus der SMS, nichts über dich.</p>',
-a:'Gut zu wissen',d:'Nicht zahlen, SMS löschen.',s:'<span class="tagh">Betrug!</span>'},
+zug:{q:'Bekomme ich Geld zurück?',w:'Ich schaue online nach den Regeln …',h:'<p class="ct">Dir stehen 44,95 € zu</p><p class="cs">Du hast gefragt: Bekomme ich Geld zurück?</p>',
+b:'<p class="ans">Ab 120 Minuten Verspätung gibt es die Hälfte des Fahrpreises zurück. Deine Fahrkarte kostete 89,90 €.</p><div class="src"><cite>Online nachgesehen · Fahrgastrechte, 2 Quellen</cite>Ab 60 Minuten Verspätung 25 %, ab 120 Minuten 50 % des Fahrpreises.</div><p class="note">Ins Internet ging nur die Frage nach den Regeln, nicht deine Fahrkarte.</p>',
+a:'Antrag vorbereiten',d:'Die Angaben für den Antrag liegen bereit. Abschicken tust du.',s:'<span class="tagh">44,95 € zurück</span>'},
 ordner:{w:'Ich schaue mir 47 Dateien an …',h:'<p class="ct">Downloads ordnen</p><p class="cs">Vorschau · noch nichts geändert</p>',
 b:'<dl class="facts"><dt>Rechnungen</dt><dd>12 Dateien</dd><dt>Fotos</dt><dd>14, nach Jahr</dd><dt>Verträge</dt><dd>5 Dateien</dd><dt>Bleibt liegen</dt><dd>16, da bin ich unsicher</dd></dl><p class="note">Nichts wird gelöscht. Ein Klick macht alles rückgängig.</p>',
 a:'31 Dateien ordnen',d:'31 Dateien in 3 Ordnern. Rückgängig geht jederzeit.',s:'<span class="fold">3 Ordner <em>31</em></span>'}
@@ -956,7 +957,7 @@ bub.getAnimations().forEach(a=>a.cancel());bubEmote.getAnimations().forEach(a=>a
 if(!RM)bub.animate([{opacity,transform:from},{opacity:0,transform:'translateY(4px) rotate(-3deg) scale(.96)'}],{duration:150,easing:'ease-out'});
 }
 const LINES=[['Na, was hast du da?','👀'],['Was liegt an?','🙂'],['Gib her. Ich schau rein.','👀'],['Eine Datei nach der anderen.','🙂']];let lastL='',pv=true,once=false,nb=0;
-const HINTS={mail:['Soll ich antworten?','📬'],vertrag:['Ich such die Kündigungsfrist.','🤔'],steuer:['Ich such alles zusammen.','🔎'],sms:['Echt oder Betrug?','🧐'],ordner:['Ich räum auf, du entscheidest.','🧹']};
+const HINTS={mail:['Soll ich antworten?','📬'],vertrag:['Ich such die Kündigungsfrist.','🤔'],steuer:['Ich such alles zusammen.','🔎'],zug:['Ich schau nach, was dir zusteht.','🚆'],ordner:['Ich räum auf, du entscheidest.','🧹']};
 let hintTimer=0;
 $$('.obj').forEach(o=>{
   o.addEventListener('pointerenter',e=>{

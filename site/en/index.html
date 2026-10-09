@@ -188,20 +188,20 @@ h1{order:1;font-size:clamp(44px,17.4vw,104px)}.voice{order:2;margin-top:24px}.ct
 .stage{position:relative;width:100%;aspect-ratio:1/1.05;border-radius:28px;background:radial-gradient(ellipse 70% 60% at 50% 45%,rgba(255,255,255,.16),transparent 70%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
 .scatter{--u:3.43px;position:absolute;inset:0}
 .scatter .obj{position:absolute;left:var(--x);top:var(--y);display:block;font-size:calc(var(--u)*1.55);touch-action:none}
-.o-mail{--x:2%;--y:4%}.o-steuer{--x:62%;--y:3%}.o-sms{--x:2%;--y:55%}.o-k{--x:68%;--y:61%}.o-ordner{--x:30%;--y:71%}
+.o-mail{--x:2%;--y:4%}.o-steuer{--x:62%;--y:3%}.o-zug{--x:2%;--y:50%}.o-k{--x:68%;--y:61%}.o-ordner{--x:30%;--y:71%}
 @media (min-width:600px) and (max-width:899px){
 .stage{aspect-ratio:4/3}.scatter .obj{font-size:calc(var(--u)*1.3)}
-.o-mail{--x:2%;--y:3%}.o-steuer{--x:70%;--y:2%}.o-sms{--x:6%;--y:52%}.o-k{--x:72%;--y:45%}.o-ordner{--x:36%;--y:64%}
+.o-mail{--x:2%;--y:3%}.o-steuer{--x:70%;--y:2%}.o-zug{--x:6%;--y:52%}.o-k{--x:72%;--y:45%}.o-ordner{--x:36%;--y:64%}
 }
 @media (min-width:900px){
 .stage{aspect-ratio:7/6;min-height:500px;border-radius:0;background:none;box-shadow:none}
 .scatter .obj{font-size:calc(var(--u)*1.36)}
-.o-mail{--x:0%;--y:2%}.o-steuer{--x:64%;--y:0%}.o-sms{--x:2%;--y:52%}.o-k{--x:69%;--y:47%}.o-ordner{--x:30%;--y:64%}
+.o-mail{--x:0%;--y:2%}.o-steuer{--x:64%;--y:0%}.o-zug{--x:2%;--y:52%}.o-k{--x:69%;--y:47%}.o-ordner{--x:30%;--y:64%}
 }
 @media (min-width:900px) and (max-height:940px){
 .stage{min-height:420px;aspect-ratio:7/5}
 .scatter .obj{font-size:calc(var(--u)*1.2)}
-.o-mail{--x:0%;--y:1%}.o-steuer{--x:68%;--y:0%}.o-sms{--x:3%;--y:52%}.o-k{--x:73%;--y:47%}.o-ordner{--x:30%;--y:65%}
+.o-mail{--x:0%;--y:1%}.o-steuer{--x:68%;--y:0%}.o-zug{--x:3%;--y:52%}.o-k{--x:73%;--y:47%}.o-ordner{--x:30%;--y:65%}
 }
 .obj{border:0;background:none;padding:0;cursor:grab;position:relative;text-align:left;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
 transform:translate(var(--dx,0px),calc(var(--dy,0px) + var(--h,0px))) rotate(var(--r,0deg));transition:transform .18s var(--out),opacity .18s;border-radius:6px}
@@ -225,10 +225,11 @@ transform:translate(var(--dx,0px),calc(var(--dy,0px) + var(--h,0px))) rotate(var
 
 .zettel{display:block;width:6.6em;padding:.75em .7em 1.1em;background:var(--note);font:2.25em/1.08 var(--fh);color:#4a3b00;box-shadow:var(--pap);border-radius:2px}
 .zettel small{display:block;font:600 .38em/1.3 var(--f);color:#7a6420;margin-top:.7em;letter-spacing:.01em}
-.sms{display:block;width:15.5em;background:#1d1d1f;border-radius:2.2em;padding:1.5em 1em 2.2em;box-shadow:var(--pap)}
-.sms b{display:block;text-align:center;font:600 .95em/1.3 var(--f);color:#a1a1a6;margin-bottom:.8em}
-.sms i{display:block;background:#3a3a3c;color:#f5f5f7;border-radius:1.1em 1.1em 1.1em .3em;padding:.8em 1em;font:normal 1.05em/1.42 var(--f)}
-.sms u{color:#6cb4ff;text-decoration:underline}
+.ticket{display:block;width:17em;background:#fff;border-radius:.5em;box-shadow:var(--pap);padding:1.1em 1.2em 1.4em 1.4em;border-left:.6em solid #c62f2f;font:normal 1.05em/1.45 var(--f);color:#56565b}
+.ticket b{display:block;font:700 1.2em/1.25 var(--f);color:#1d1d1f;margin-bottom:.4em}
+.ticket i{display:block;font-style:normal}
+.ticket em{display:block;font-style:normal;font-weight:700;color:#1d1d1f;margin-top:.5em}
+.ticket strong{display:inline-block;margin-top:.6em;padding:.15em .5em;border:2px solid #c62f2f;border-radius:.3em;color:#c62f2f;font:700 1em/1.3 var(--f);transform:rotate(-3deg)}
 .dlw{display:block;position:relative;width:22em;height:14.5em;background:#fbfbf9;border-radius:.6em;box-shadow:var(--pap);overflow:hidden}
 .dlw b{display:block;height:2.2em;background:#e9e9e6;font:600 1em/2.2em var(--f);color:#3a3a3c;padding-left:4.6em;position:relative}
 .dlw b::before{content:"";position:absolute;left:1em;top:.75em;width:.7em;height:.7em;border-radius:50%;background:#ff5f57;box-shadow:1em 0 #febc2e,2em 0 #28c840}
@@ -416,7 +417,7 @@ footer .row{display:flex;gap:var(--s2);align-items:center;font:400 18px/1 var(--
 h1{font-size:clamp(64px,16cqi,92px)}
 .stage{margin-top:14px;aspect-ratio:7/5;min-height:400px}
 .scatter .obj{font-size:calc(var(--u)*1.28)}
-.o-mail{--x:1%;--y:3%}.o-steuer{--x:66%;--y:1%}.o-sms{--x:4%;--y:53%}.o-k{--x:72%;--y:46%}.o-ordner{--x:30%;--y:64%}
+.o-mail{--x:1%;--y:3%}.o-steuer{--x:66%;--y:1%}.o-zug{--x:4%;--y:53%}.o-k{--x:72%;--y:46%}.o-ordner{--x:30%;--y:64%}
 .shelf{margin-top:32px}
 .slots .slt{min-height:138px}
 .tidy .stage{min-height:440px;padding:96px 0 48px;gap:24px}
@@ -435,7 +436,7 @@ h1{font-size:clamp(44px,14.5vw,80px);max-width:7.2em}
 .req,.mnote{font-size:13px;max-width:32em}
 .demo-head h2{font-size:25px}.demo-help{font-size:14px}
 .stage{margin-top:16px;aspect-ratio:1/1.12;border-radius:20px}
-.o-mail{--x:3%;--y:5%}.o-steuer{--x:63%;--y:5%}.o-sms{--x:5%;--y:62%}.o-k{--x:66%;--y:61%}.o-ordner{--x:28%;--y:75%}
+.o-mail{--x:3%;--y:5%}.o-steuer{--x:63%;--y:5%}.o-zug{--x:5%;--y:62%}.o-k{--x:66%;--y:61%}.o-ordner{--x:28%;--y:75%}
 .scatter .obj{font-size:calc(var(--u)*1.45)}
 .demo-picks{gap:6px;margin-top:16px}.demo-picks button{font-size:12px;padding-inline:11px}
 .shead h2{font-size:27px}.shead h2 span{margin-left:8px;font-size:13px}.shead .btn2{width:auto;margin-left:auto;font-size:13px;padding-inline:13px}
@@ -626,7 +627,7 @@ footer .wrap{max-width:1120px}
           <button class="obj o-mail" type="button" data-k="mail" style="--r:-4deg" aria-label="Email from the property managers: appointment for the water meter"><span class="paper" aria-hidden="true"><b>Berger Property Management</b><i>Subject: Water meter reading</i><i>Hi Ms Weber, would Thursday 16 Oct, between 9 and 12, work for you?</i><u></u><u class="s"></u></span></button>
           <button class="obj o-k" type="button" data-k="vertrag" style="--r:6deg" aria-label="Phone contract with a sticky note: cancel?"><span class="paper" aria-hidden="true"><b>Mobile contract</b><i>Plan Unlimited M</i><u></u><u></u><u class="s"></u><u></u><u class="s"></u></span><span class="sticky" aria-hidden="true">Cancel??</span></button>
           <button class="obj o-steuer" type="button" data-k="steuer" style="--r:3deg" aria-label="Note: everything for the 2025 tax return?"><span class="zettel" aria-hidden="true">Everything for my 2025 taxes?<small>Payslips, donations, repairs … where was all that?</small></span></button>
-          <button class="obj o-sms" type="button" data-k="sms" style="--r:-7deg" aria-label="Text message: your parcel is waiting, customs fee 1.99 euros"><span class="sms" aria-hidden="true"><b>Text · Unknown</b><i>Your parcel is waiting. Please pay the €1.99 customs fee: <u>parcel-customs-help.info</u></i></span></button>
+          <button class="obj o-zug" type="button" data-k="zug" style="--r:-5deg" aria-label="Train ticket Hamburg to Munich, 89.90 euros, note: over 2 hours late"><span class="ticket" aria-hidden="true"><b>Hamburg Hbf → München Hbf</b><i>Fri 3 October · dep. 8:02</i><i>1 adult · 2nd class</i><em>€89.90</em><strong>+2:10 h late</strong></span></button>
           <button class="obj o-ordner" type="button" data-k="ordner" style="--r:2deg" aria-label="Full Downloads folder: 47 loose files"><span class="dlw" aria-hidden="true"><b>Downloads</b><em>47</em><i class="p">IMG_4821.jpg</i><i class="r">Invoice (3).pdf</i><i>scan0001.pdf</i><i class="w">Untitled.docx</i><i class="p">IMG_4822.jpg</i><i class="r">Contract_final_v2.pdf</i><i class="r">Invoice (4).pdf</i><i class="p">Screenshot.png</i></span></button>
         </div>
       </div>
@@ -634,7 +635,7 @@ footer .wrap{max-width:1120px}
         <button type="button" data-demo="mail" aria-pressed="false">Answer an email</button>
         <button type="button" data-demo="vertrag" aria-pressed="false">Find a deadline</button>
         <button type="button" data-demo="steuer" aria-pressed="false">Gather documents</button>
-        <button type="button" data-demo="sms" aria-pressed="false">Check online</button>
+        <button type="button" data-demo="zug" aria-pressed="false">Check online</button>
         <button type="button" data-demo="ordner" aria-pressed="false">Tidy Downloads</button>
       </div>
       <p class="demo-note">Sample files · prepared answers</p>
@@ -650,7 +651,7 @@ footer .wrap{max-width:1120px}
         <div class="slt" data-k="mail"><p class="sl">Reply</p><p class="slot-hint">Draft, nothing sent</p><div class="sc"></div></div>
         <div class="slt" data-k="vertrag"><p class="sl">Deadlines</p><p class="slot-hint">Notice period in view</p><div class="sc"></div></div>
         <div class="slt" data-k="steuer"><p class="sl">Documents</p><p class="slot-hint">All on one topic</p><div class="sc"></div></div>
-        <div class="slt" data-k="sms"><p class="sl">Online</p><p class="slot-hint">Real or scam?</p><div class="sc"></div></div>
+        <div class="slt" data-k="zug"><p class="sl">Online</p><p class="slot-hint">Rules looked up</p><div class="sc"></div></div>
         <div class="slt" data-k="ordner"><p class="sl">Tidy</p><p class="slot-hint">With undo</p><div class="sc"></div></div>
       </div>
     </div>
@@ -712,7 +713,7 @@ const say=t=>{live.textContent='';setTimeout(()=>{live.textContent=t},40)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const obj=k=>$('.obj[data-k="'+k+'"]'),slot=k=>$('.slt[data-k="'+k+'"]');
 const wide=()=>innerWidth>=900;
-const ORDER=['mail','vertrag','steuer','sms','ordner'];
+const ORDER=['mail','vertrag','steuer','zug','ordner'];
 let tidy=false;
 
 /* Überschrift: Wort für Wort */
@@ -791,9 +792,9 @@ a:'Remember deadline',d:'Reminder set for 16 Aug 2027.',s:'<span class="tagh">by
 steuer:{q:'Find everything for my 2025 taxes.',w:'Searching your Mac …',h:'<p class="ct">7 documents for your 2025 taxes</p><p class="cs">Found in Downloads, Documents and Mail</p>',
 b:'<ul class="hits"><li><b>Payslip summary 2025</b><small>Documents</small></li><li><b>Donation receipt, food bank</b><small>Downloads</small></li><li><b>Invoice, boiler service</b><small>Mail</small></li><li><b>Pension statement 2025</b><small>Documents</small></li><li class="more">and 3 more</li></ul><p class="note">I haven’t moved anything.</p>',
 a:'Copy into a folder',d:'Folder “Taxes 2025” with 7 copies. The originals stay where they are.',s:'<span class="fold">Taxes 2025 <em>7</em></span>'},
-sms:{q:'Is this text real?',w:'Checking online …',h:'<p class="ct">This is very likely a scam</p><p class="cs">You asked: Is this text real?</p>',
-b:'<p class="ans">Don’t tap the link and don’t pay. Parcel services don’t ask for customs fees through a link in a text.</p><div class="src"><cite>Checked online · 3 sources, including consumer advice centres</cite>Several current warnings about exactly this trick: a small amount, an unfamiliar address, time pressure.</div><p class="note">Only the address from the text went online, nothing about you.</p>',
-a:'Good to know',d:'Don’t pay, delete the text.',s:'<span class="tagh">Scam!</span>'},
+zug:{q:'Do I get money back?',w:'Looking up the rules online …',h:'<p class="ct">You’re owed €44.95</p><p class="cs">You asked: Do I get money back?</p>',
+b:'<p class="ans">From 120 minutes late you get half the fare back. Your ticket cost €89.90.</p><div class="src"><cite>Checked online · passenger rights, 2 sources</cite>From 60 minutes late 25 %, from 120 minutes 50 % of the fare.</div><p class="note">Only the question about the rules went online, not your ticket.</p>',
+a:'Prepare the claim',d:'The details for the claim are ready. You send it.',s:'<span class="tagh">€44.95 back</span>'},
 ordner:{w:'Looking at 47 files …',h:'<p class="ct">Tidy up Downloads</p><p class="cs">Preview · nothing changed yet</p>',
 b:'<dl class="facts"><dt>Invoices</dt><dd>12 files</dd><dt>Photos</dt><dd>14, by year</dd><dt>Contracts</dt><dd>5 files</dd><dt>Left alone</dt><dd>16, I’m not sure about them</dd></dl><p class="note">Nothing gets deleted. One click undoes everything.</p>',
 a:'Tidy 31 files',d:'31 files in 3 folders. You can undo any time.',s:'<span class="fold">3 folders <em>31</em></span>'}
@@ -958,7 +959,7 @@ bub.getAnimations().forEach(a=>a.cancel());bubEmote.getAnimations().forEach(a=>a
 if(!RM)bub.animate([{opacity,transform:from},{opacity:0,transform:'translateY(4px) rotate(-3deg) scale(.96)'}],{duration:150,easing:'ease-out'});
 }
 const LINES=[['So, what have you got?','👀'],['What’s on the list?','🙂'],['Hand it over. I’ll take a look.','👀'],['One file at a time.','🙂']];let lastL='',pv=true,once=false,nb=0;
-const HINTS={mail:['Shall I reply?','📬'],vertrag:['I’ll find the notice period.','🤔'],steuer:['I’ll gather it all.','🔎'],sms:['Real or scam?','🧐'],ordner:['I tidy, you decide.','🧹']};
+const HINTS={mail:['Shall I reply?','📬'],vertrag:['I’ll find the notice period.','🤔'],steuer:['I’ll gather it all.','🔎'],zug:['I’ll check what you’re owed.','🚆'],ordner:['I tidy, you decide.','🧹']};
 let hintTimer=0;
 $$('.obj').forEach(o=>{
   o.addEventListener('pointerenter',e=>{
