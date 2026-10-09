@@ -95,6 +95,7 @@ final class PiSetupController: ObservableObject {
     }
 
     var isReady: Bool { if case .ready = state { true } else { false } }
+    var asksDownload: Bool { if case .askDownload = state { true } else { false } }
 
     /// At app start: pass changes on to the shell (size), then set up quietly.
     func attach(to model: AppModel) {
