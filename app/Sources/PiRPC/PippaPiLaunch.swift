@@ -54,9 +54,9 @@ public enum PippaPiLaunch {
     public static let offlineEnvironment = ["PI_OFFLINE": "1", "PI_SKIP_VERSION_CHECK": "1", "PI_TELEMETRY": "0"]
 
     /// The one place that builds Pi's command line (app and probe program): installer launcher, Pippa's
-    /// extensions, Pippa's options, session per conversation. `environment` is added last (undo folder,
-    /// test switches); the offline switches cannot be overridden.
-    /// `mcp`: the app's Pippa MCP server, attached via `addMCP` (extension after guard and tools).
+    /// extensions, Pippa's options, session per conversation. `environment` is added last (test
+    /// switches); the offline switches cannot be overridden.
+    /// `mcp`: the app's Pippa MCP server, attached via `addMCP` (extension after Pippa's tools).
     public static func configuration(launcher: Launcher, workingDirectory: URL, paths: Paths, sessionID: String?, language: String,
                                      environment: [String: String] = [:],
                                      mcp: (endpoint: MCPEndpoint, extension: URL)? = nil) -> PiRPCConfiguration {

@@ -12,11 +12,11 @@ func runSkillChecks() {
 
     check("Skills: Swift finds every shipped folder from the SKILL.md header, nothing is kept twice") {
         skills.map(\.name) == shipped
-            && Set(shipped) == ["text-kuerzen", "stichpunkte", "dokument-einordnen", "rechnung-auslesen", "frage-belegen", "fristen-erkennen", "antwort-schreiben", "brief-verstehen", "dokument-gestalten", "tabelle-pruefen", "text-verbessern", "zusammenfassen",
+            && Set(shipped) == ["text-kuerzen", "dokument-einordnen", "rechnung-auslesen", "fristen-erkennen", "antwort-schreiben", "brief-verstehen", "tabelle-pruefen", "text-verbessern", "zusammenfassen",
                                   "online-pruefen", "termin-aus-mail"]
     }
-    // Two skills act through Pi's tools on purpose: the invoice table (write, with the guard's undo copy) and deadlines
-    // (calendar_add, the guard asks). All others change nothing.
+    // Two skills act through Pi's tools on purpose: the invoice table (write; pippa-assist keeps the old version) and
+    // deadlines (calendar_add). All others change nothing.
     let acting: Set<String> = ["rechnung-auslesen", "fristen-erkennen"]
     check("Skills: SKILL.md follows Pi's header rules (name like folder, lowercase with hyphens, description), explicit invocation only, short, no tool names, changes nothing unless meant to") {
         var bad: [String] = []
@@ -73,9 +73,9 @@ func runSkillChecks() {
         return answer.contains("keine Rechtsberatung") && answer.contains("Frist") && answer.contains("Kündigung")
             && skills.filter(\.writesDraft).allSatisfy { read($0.name).contains("Du verschickst nichts") }
     }
-    check("Skills: sheet check knows error kinds and German function names, document design speaks Word menu language") {
-        let sheet = read("tabelle-pruefen"), doc = read("dokument-gestalten")
-        return sheet.contains("#BEZUG!") && sheet.contains("$") && sheet.contains("SUMME") && doc.contains("Formatvorlagen") && doc.contains("Start")
+    check("Skills: sheet check knows error kinds and German function names") {
+        let sheet = read("tabelle-pruefen")
+        return sheet.contains("#BEZUG!") && sheet.contains("$") && sheet.contains("SUMME")
     }
     check("Skills: few suggestions per place, every skill with a button reachable somewhere, folders, links and slides without buttons") {
         let all = Set(PippaSkill.Place.allCases.flatMap { PippaSkill.suggestions(for: $0, in: skills) }.map(\.name))

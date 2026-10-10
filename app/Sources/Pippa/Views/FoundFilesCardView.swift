@@ -30,9 +30,7 @@ struct FoundFilesCardView: View {
                 .font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
                 .padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 11)
         }
-        .frame(maxWidth: 520, alignment: .leading)
-        .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 12))
-        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
+        .resultCard()
         .accessibilityElement(children: .contain)
         }
     }
