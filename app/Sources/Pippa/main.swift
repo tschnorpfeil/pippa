@@ -1,5 +1,8 @@
 import AppKit
 
+// Pi, llama-server and Node are children on pipes: if one dies just before a write, the write fails instead of
+// SIGPIPE ending Pippa.
+signal(SIGPIPE, SIG_IGN)
 // Pippa lives in the menu bar and as a pill, without a Dock icon.
 let app = NSApplication.shared
 if CommandLine.arguments.dropFirst().contains("--verify-runtime") {

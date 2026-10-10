@@ -112,3 +112,21 @@ test('loop stop preserves the search truncation flag with exactly 200 returned f
   assert.equal(stop.files.length,files.length);assert.equal(stop.truncated,truncated);
  }
 });
+
+test("today's date goes in front of each new message, a skill command stays first, steering stays as typed", async () => {
+	const { todayLine, withToday } = await import("./pippa-assist.ts");
+	const day = new Date(2026, 9, 9, 23, 30);
+	assert.equal(todayLine(day), "[2026-10-09, Friday]");
+	assert.equal(todayLine(new Date(2026, 0, 4)), "[2026-01-04, Sunday]");
+	const line = "[2026-10-09, Friday]";
+	assert.equal(withToday("Wie wird das Wetter morgen?", line), `${line}\nWie wird das Wetter morgen?`);
+	assert.equal(withToday("/skill:fristen-erkennen Welche Fristen?\nmehr", line), `/skill:fristen-erkennen ${line}\nWelche Fristen?\nmehr`);
+	assert.equal(withToday("/skill:stichpunkte", line), `/skill:stichpunkte ${line}`);
+	assert.equal(withToday("/andere Vorlage", line), "/andere Vorlage");
+	const handlers = {};
+	assist({ on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
+	const sent = await handlers.input({ type: "input", text: "Hallo", source: "rpc" });
+	assert.equal(sent.action, "transform");
+	assert.match(sent.text, /^\[\d{4}-\d\d-\d\d, \w+day\]\nHallo$/);
+	assert.deepEqual(await handlers.input({ type: "input", text: "Stopp", source: "rpc", streamingBehavior: "steer" }), { action: "continue" });
+});

@@ -80,7 +80,7 @@ public final class PiSetupFlow: @unchecked Sendable {
     public var activeModelKey: String? { lock.withLock { active } }
 
     /// The model Pippa used so far, kept while `model` still has to be downloaded (e.g. the previous model after the table moved
-    /// to K2 Horizon 7B, or the standard model while "Gründlicher" loads): the first `pippa-local` model in models.json that
+    /// to Qwen3.5 9B, or the standard model while "Gründlicher" loads): the first `pippa-local` model in models.json that
     /// is a pinned catalog model, verified in the model folder. Its context stays as listed there. Nothing is deleted.
     func fallback() -> (model: CatalogModel, provider: PiProviderModel)? {
         guard let folder = installer.state.modelsFolder else { return nil }

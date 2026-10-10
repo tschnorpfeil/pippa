@@ -12,6 +12,9 @@
  *   answer ends (session entry `pippa-loop-stop`, so Pippa can tell it apart from the person's Stop).
  * - File search results: the bundled Spotlight script's results become a session entry `pippa-search-result`, so
  *   Pippa shows the files found from the tool's output, never from the model's prose.
+ * - Today's date: each new message starts with "[2026-10-09, Friday]". The system prompt has no date so it stays the
+ *   same (prompt cache); without one K2 searched the weather for a wrong "tomorrow". The line is saved with the
+ *   message, so earlier turns never change. ISO date, no sentence: the answer follows the question's language.
  */
 import { isFileSearch } from "./search-command.ts";
 
@@ -69,6 +72,21 @@ export function searchFiles(content: any[]): string[] {
 	}
 }
 
+/** "[2026-10-09, Friday]": today in the Mac's time zone, in no particular language. */
+export function todayLine(now: Date): string {
+	const pad = (n: number) => String(n).padStart(2, "0");
+	const weekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
+	return `[${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}, ${weekday}]`;
+}
+
+/** The message with today's date in front; a skill button (`/skill:name text`) keeps its command first. */
+export function withToday(text: string, line: string): string {
+	if (!text.startsWith("/")) return `${line}\n${text}`;
+	if (!text.startsWith("/skill:")) return text;
+	const space = text.indexOf(" ");
+	return space === -1 ? `${text} ${line}` : `${text.slice(0, space)} ${line}\n${text.slice(space + 1)}`;
+}
+
 /** Pi's own tool (not one a foreign extension registered under the same name). */
 function builtin(pi: ExtensionAPI, tool: string): boolean {
 	const source = pi.getAllTools?.().find((t: any) => t.name === tool)?.sourceInfo;
@@ -85,6 +103,11 @@ export default function (pi: ExtensionAPI) {
 	let searched = false;
 	let truncated = false;
 	const reset = () => { counts.clear(); keys.clear(); stops = 0; searchCalls.clear(); scriptCalls.clear(); found.clear(); searched = false; truncated = false; };
+	// Only a new message; a message sent while Pi is still working (steering) is shown back as typed.
+	pi.on("input", async (event: any) => {
+		if (event?.streamingBehavior || typeof event?.text !== "string") return { action: "continue" };
+		return { action: "transform", text: withToday(event.text, todayLine(new Date())) };
+	});
 	pi.on("agent_start", async () => reset());
 	pi.on("agent_end", async () => reset());
 

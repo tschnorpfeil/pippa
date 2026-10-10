@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 // Pippa drives the real Pi via `pi --mode rpc`. Protocol: JSONL on stdin/stdout,
 // see the Pi docs rpc.md, rpc-commands.md, rpc-extension-ui.md.
@@ -139,6 +140,18 @@ public actor PiRPCClient {
         return try checkVersion(output: String(decoding: data, as: UTF8.self))
     }
 
+    /// `checkVersion` once per installed Pi: Pi restarts with every conversation switch, and each `--version` is
+    /// another Node cold start. A reinstall at the same path keeps the pinned version (PiInstaller).
+    private static let checkedVersions = Mutex<[String: String]>([:])
+    static func checkedVersion(_ configuration: PiRPCConfiguration) throws -> String {
+        let key = ([configuration.executable.path] + configuration.launcherArguments).joined(separator: "\u{0}")
+        if let known = checkedVersions.withLock({ $0[key] }), FileManager.default.isExecutableFile(atPath: configuration.executable.path) { return known }
+        let found = try checkVersion(executable: configuration.executable, launcherArguments: configuration.launcherArguments,
+                                     environment: configuration.environment)
+        checkedVersions.withLock { $0[key] = found }
+        return found
+    }
+
     /// Only the check, for tests with made-up output.
     public static func checkVersion(output: String) throws -> String {
         let pattern = try! NSRegularExpression(pattern: #"\b(\d+)\.(\d+)\.(\d+)\b"#)
@@ -164,8 +177,7 @@ public actor PiRPCClient {
     /// Check the version and start Pi. Calling it repeatedly is harmless.
     public func start() async throws {
         if process?.isRunning == true { return }
-        version = try Self.checkVersion(executable: configuration.executable, launcherArguments: configuration.launcherArguments,
-                                        environment: configuration.environment)
+        version = try Self.checkedVersion(configuration)
         let child = Process(), input = Pipe(), output = Pipe(), errors = Pipe()
         child.executableURL = configuration.executable
         child.arguments = configuration.launcherArguments + ["--mode", "rpc"] + configuration.extensions.flatMap { ["--extension", $0.path] } + configuration.arguments

@@ -101,7 +101,8 @@ existing installs are updated is described in [Updating Pi](updating-pi.md).
 a request to provider `pippa-local` (`before_provider_request`, and `session_before_compact`) it checks `/health` and,
 if nothing answers, starts llama-server through a detached supervisor with the same settings and idle time as the app
 (config `pippa-local-server.json` in Pippa's support folder). One lock file (`llama-server-pi.lock`) keeps app and
-terminal from ever running two servers.
+terminal from ever running two servers. Pippa's own Pi loads it too, so a model that crashed mid-answer comes back;
+that server stops once Pippa quits (`PIPPA_APP_PID`).
 
 **Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). The 14 action skills use
 `disable-model-invocation: true` and cost no prompt space. `dateien-finden` is advertised automatically: Pi reads its

@@ -1,0 +1,534 @@
+[
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 1,
+  "task": "zusammenfassen",
+  "lang": "de",
+  "prompt": "[Gezeigt – Pippa hat das nicht gelesen; lies selbst, was du für die Antwort brauchst]\nNeu gezeigt:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 Seiten, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – lesen mit mcp__pippa__read_document\n\nFass mir diesen Brief kurz zusammen und sag, was ich tun muss.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": false,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 8366
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 3.946,
+  "firstWordSeconds": 10.705,
+  "totalSeconds": 21.322,
+  "modelRequests": [
+   {
+    "at": 180,
+    "status": 200
+   },
+   {
+    "at": 8373,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 2628,
+    "output": 106,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2734,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 558,
+    "output": 281,
+    "cacheRead": 2733,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3572,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 134,
+  "finalAnswer": "Der Brief von der Hausverwaltung Example GmbH kündet an, dass deine Fenster am 13. Januar 2027 zwischen 8 und 16 Uhr gegen neue, dreifach verglaste Fenster getauscht werden. Die Firma Glasbau Beispiel führt die Arbeit aus.\n\n**Was du tun musst:**\n1. Fülle den beiliegenden Rückmeldebogen aus und sende ihn bis zum 20. November 2026 zurück. Gib dort an, ob du am 13. Januar 2027 zu Hause bist oder wer die Wohnung öffnet.\n2. Am Tag der Arbeiten räume die Fensterbänke frei und halte etwa einen Meter vor den Fenstern frei. Möbel müssen nicht abgebaut werden.\n\n**Wichtig:**\nAb dem 1. April 2027 erhöht sich deine Grundmiete um 38,50 EUR. Du hast ein Sonderkündigungsrecht: Du kannst bis zum Ablauf des Monats, der auf den Zugang dieses Briefs folgt, außerordentlich kündigen.\n\nBei Fragen kannst du Herrn Kurz unter 01234 567890 anrufen.",
+  "thinkingChars": 326,
+  "receipts": [],
+  "diagnostics": ""
+ },
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 1,
+  "task": "mail-antwort",
+  "lang": "de",
+  "prompt": "Antworte auf die ausgewählte Mail: Der Zählerstand ist 1.234,5 Kubikmeter, heute abgelesen. Kurz und freundlich, als Entwurf.",
+  "autoGrade": "partial",
+  "autoNotes": {
+   "drafts": 1,
+   "reading": true,
+   "replyTo": false,
+   "claimsSent": false,
+   "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Nachricht.\n\nDer aktuelle Zählerstand des Wasserzählers beträgt 1.234,5 Kubikmeter. Die Ablesung wurde heute durchgeführt.\n\nMit freundlichen Grüßen"
+  },
+  "toolCalls": 2,
+  "tools": [
+   {
+    "name": "mcp__pippa__mail_selected",
+    "args": {}
+   },
+   {
+    "name": "mcp__pippa__mail_draft",
+    "args": {
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Nachricht.\n\nDer aktuelle Zählerstand des Wasserzählers beträgt 1.234,5 Kubikmeter. Die Ablesung wurde heute durchgeführt.\n\nMit freundlichen Grüßen",
+     "reply_to": "Sehr geehrte Frau Beispiel,\n\nfür die Nebenkostenabrechnung 2026 benötigen wir Ihren aktuellen Zählerstand des Wasserzählers (Zähler-Nr. 4471) in Ihrer Wohnung. Bitte teilen Sie uns den Stand bis zum 31.10.2026 per Antwort auf diese Mail mit.\n\nMit freundlichen Grüßen\nIhre Hausverwaltung Beispiel GmbH",
+     "subject": "Ablesung Wasserzähler"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "mail_selected",
+    "args": {},
+    "at": 3533
+   },
+   {
+    "name": "mail_draft",
+    "args": {
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Nachricht.\n\nDer aktuelle Zählerstand des Wasserzählers beträgt 1.234,5 Kubikmeter. Die Ablesung wurde heute durchgeführt.\n\nMit freundlichen Grüßen",
+     "reply_to": "Sehr geehrte Frau Beispiel,\n\nfür die Nebenkostenabrechnung 2026 benötigen wir Ihren aktuellen Zählerstand des Wasserzählers (Zähler-Nr. 4471) in Ihrer Wohnung. Bitte teilen Sie uns den Stand bis zum 31.10.2026 per Antwort auf diese Mail mit.\n\nMit freundlichen Grüßen\nIhre Hausverwaltung Beispiel GmbH",
+     "subject": "Ablesung Wasserzähler"
+    },
+    "at": 17086
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.387,
+  "firstWordSeconds": 18.484,
+  "totalSeconds": 19.406,
+  "modelRequests": [
+   {
+    "at": 173,
+    "status": 200
+   },
+   {
+    "at": 3539,
+    "status": 200
+   },
+   {
+    "at": 17092,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 49,
+    "output": 73,
+    "cacheRead": 2518,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2640,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 205,
+    "output": 300,
+    "cacheRead": 2639,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3144,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 74,
+    "output": 48,
+    "cacheRead": 3143,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3265,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Die Antwort auf die Mail zur Wasserzähler-Ablesung wurde als Entwurf in Mail gespeichert.",
+  "thinkingChars": 633,
+  "receipts": [],
+  "diagnostics": ""
+ },
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 1,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "amountsFound": 5,
+   "sourced": 5,
+   "sumCorrect": true,
+   "decoyAmount": false
+  },
+  "toolCalls": 7,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 30461
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 30461
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 30462
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 30462
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    },
+    "at": 30462
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 3.865,
+  "firstWordSeconds": 16.702,
+  "totalSeconds": 48.252,
+  "modelRequests": [
+   {
+    "at": 174,
+    "status": 200
+   },
+   {
+    "at": 8443,
+    "status": 200
+   },
+   {
+    "at": 14232,
+    "status": 200
+   },
+   {
+    "at": 30470,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 2489,
+    "output": 107,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2596,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 413,
+    "output": 116,
+    "cacheRead": 2595,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3124,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 390,
+    "output": 363,
+    "cacheRead": 3123,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3876,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 968,
+    "output": 377,
+    "cacheRead": 3875,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5220,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Ich habe alle 5 Rechnungen von 2024 durchgesehen. Hier sind die Beträge:\n\n- Möbelhaus Beispiel: 249,00 EUR (Bürostuhl)\n- Elektro Blitz GmbH: 142,80 EUR (Steckdose im Bad)\n- Malerbetrieb Farbe & Söhne: 310,00 EUR (Streichen Flur und Wohnzimmer)\n- Zahnarztpraxis Dr. Muster: 95,00 EUR (Zahnreinigung)\n- Fahrradladen Speiche: 68,50 EUR (Jahresinspektion)\n\n**Gesamtsumme: 865,30 EUR**",
+  "thinkingChars": 939,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+      "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf",
+      "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+      "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+     ]
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 1,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": false,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 4593
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.44,
+  "firstWordSeconds": 18.85,
+  "totalSeconds": 30.715,
+  "modelRequests": [
+   {
+    "at": 163,
+    "status": 200
+   },
+   {
+    "at": 4600,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 107,
+    "output": 98,
+    "cacheRead": 2459,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2664,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 558,
+    "output": 572,
+    "cacheRead": 2663,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3793,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Das ist eine Ankündigung der Hausverwaltung für Fenstertausch in Ihrer Wohnung.\n\n**Was passiert:**\nAlle Fenster werden gegen neue, dreifach verglaste Fenster ausgetauscht. Die Arbeiten laufen vom 12. bis 16. Januar 2027, für Sie am 13. Januar 2027 zwischen 8 und 16 Uhr. Firma Glasbau Beispiel führt die Arbeiten aus.\n\n**Was Sie tun müssen:**\n1. Den beiliegenden Rückmeldebogen bis spätestens 20. November 2026 ausgefüllt zurücksenden – darauf geben Sie an, ob Sie am 13. Januar 2027 selbst zu Hause sind oder wer die Wohnung öffnet.\n2. Am Tag der Arbeiten (13. Januar) die Fensterbänke frei räumen und etwa einen Meter vor den Fenstern freihalten. Möbel müssen nicht abgebaut werden.\n\n**Zusatz:**\nAb 1. April 2027 erhöht sich Ihre Grundmiete um 38,50 EUR. Sie können bis zum Ablauf des nächsten Monats außerordentlich kündigen. Bei Fragen hilft Herr Kurz unter 01234 567890.",
+  "thinkingChars": 1205,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]

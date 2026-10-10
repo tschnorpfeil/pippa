@@ -22,10 +22,16 @@ One table, `ModelSelector.table(tier:preference:)` in `app/Sources/PippaCore/Mod
 | Memory | Standard | More thorough (Settings) | Context |
 |---|---|---|---|
 | 8 GB | Qwen3.5 4B Q4 | – | 16K |
-| 16 GB | K2 Horizon 7B Q4_K_M | – | 16K |
-| 24 GB and up | K2 Horizon 7B Q4_K_M | Qwen3.6 35B-A3B IQ3 | 32K |
+| 16 GB | Qwen3.5 9B Q4_K_M | – | 16K |
+| 24 GB and up | Qwen3.5 9B Q4_K_M | Qwen3.6 35B-A3B IQ3 | 32K |
 
-K2 Horizon 7B (8.5 GiB) does not fit the 8 GB budget (4.8 GiB, `ModelSelector.budgetGiB`). It needs llama.cpp b11503 or
+Qwen3.5 9B replaced K2 Horizon 7B as the standard after a side-by-side test with Pi (same prompt, skills, guard and
+server; 30 agentic dialogues per model, file search, tool choice, latency): 17 vs. 16 tasks fully done, 2 vs. 8 runs
+with invented facts, no loop vs. one, median 28 s vs. 48 s per task, German rated better blind
+(`docs/rebuild/measurements/model-compare/`). One model family for all three rows
+means one template and one tool-call parser. K2 stays in the catalog for measurements (`PIPPA_PI_MODEL`).
+
+Qwen3.5 9B (7 GiB) and K2 Horizon 7B (8.5 GiB) do not fit the 8 GB budget (4.8 GiB, `ModelSelector.budgetGiB`). K2 needs llama.cpp b11503 or
 later (K2 support, PR #29535). Its template always opens a thinking block and has no `enable_thinking`, so
 `--reasoning off` cannot switch thinking off; the catalog passes `reasoning_effort: "low"` (`<ifm|think_faster>`, the
 shortest thinking the template offers) for speed, and llama.cpp puts the thoughts into `reasoning_content`, not the answer.
@@ -34,8 +40,8 @@ shortest thinking the template offers) for speed, and llama.cpp puts the thought
 writes the pin from Hugging Face; `scripts/check-default-models.py` (called by `scripts/build-app.sh`) and the PippaChecks
 check "Default model is pinned" fail while one is missing. An unpinned table model also makes setup fail on that Mac.
 
-**Pippa's knowledge (24 GB and up).** One picker in Settings: "Standard (fast, 5.6 GB)" / "More thorough (13.7 GB)",
-German "Standard (schnell, 5,6 GB)" / "Gründlicher (13,7 GB)". The size in the label is the consent: choosing a
+**Pippa's knowledge (24 GB and up).** One picker in Settings: "Standard (fast, 5.7 GB)" / "More thorough (13.7 GB)",
+German "Standard (schnell, 5,7 GB)" / "Gründlicher (13,7 GB)". The size in the label is the consent: choosing a
 knowledge that is not on the Mac yet loads it right away with the usual progress, while the current one keeps answering
 (`PiSetupController.choose`, `PippaSettings.modelPreference`). "Cancel" stops the download and goes back to the previous
 choice. Switching to a knowledge that is already there is instant (models.json names it; Pi and llama-server follow on
@@ -48,14 +54,17 @@ measurements (`PIPPA_PI_MODEL`, PippaLive, probes) and for the model already wri
 **Migration.** `settings.json` files with `modelOverride`, `automaticChosen` or `piModel` still load; those keys are
 ignored and disappear the next time Pippa writes the file. Everyone gets the model from the table.
 
-**When the table changes (e.g. Gemma 4 12B → K2 Horizon 7B in 1.0).** A working setup keeps working: if the table's model
+**When the table changes (e.g. K2 Horizon 7B → Qwen3.5 9B).** A working setup keeps working: if the table's model
 is missing but the model in Pi's `models.json` (`pippa-local`) is a pinned catalog model, verified in the model folder,
 setup is ready with that one (`PiSetupFlow.fallback`) and offers the new one in Settings and in the menu bar ("Load
-Pippa's Knowledge Now (5.6 GB)"). After the download, `models.json` and the terminal launch file name the new model;
-the old file stays on disk. If that model is
+Pippa's Knowledge Now (5.7 GB)"). After the download, `models.json` and the terminal launch file name the new model;
+the old file stays on disk until the new model has answered once. Then a model the table no longer hands out
+(`SupersededModels.keys`, today K2 Horizon 7B) is deleted silently from Pippa's own model folder (owner decision
+2026-10-09): never the active model, never a table model, never when a developer model (`PIPPA_PI_MODEL`) answered,
+never in a shared `~/models`; an adopted hardlink or clone leaves the LM Studio/Ollama original untouched. If that model is
 missing, the normal single download question appears, unless the model already sits in LM Studio, Ollama, Hugging
-Face and so on (then it is adopted without a download, as before). No code path deletes model files: an earlier choice
-stays on disk untouched. The never-called `ModelDownloader.removeOtherModels` was deleted as well.
+Face and so on (then it is adopted without a download, as before). No other code path deletes model files: an earlier
+choice, such as the standard model next to "Gründlicher", stays on disk untouched. The never-called `ModelDownloader.removeOtherModels` was deleted as well.
 
 **`adoptInstalled` removed.** It kept 24 GB Macs on an already downloaded Qwen3.6 35B Q3 after the table moved them to
 Gemma 4 12B. It only ever ran in the removed legacy chat path. The Pi path chooses by memory or the saved `piModel`

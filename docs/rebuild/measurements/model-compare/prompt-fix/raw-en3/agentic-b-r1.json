@@ -1,0 +1,1554 @@
+[
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 1,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.\n\nAnswer in English.",
+  "autoGrade": "partial",
+  "autoNotes": {
+   "amountsFound": 4,
+   "sourced": 4,
+   "sumCorrect": false,
+   "decoyAmount": false
+  },
+  "toolCalls": 48,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year \"2024\""
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find ~/Documents ~/Downloads ~/Desktop -type f \\( -iname \"*rechnung*\" -o -iname \"*invoice*\" \\) 2>/dev/null"
+    }
+   },
+   {
+    "name": "list_folder",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/work"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la ~/Documents 2>/dev/null | head -20"
+    }
+   },
+   {
+    "name": "list_folder",
+    "args": {
+     "path": "<home>/Documents/Rechnungen"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <home>/Documents/Rechnungen"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find <home>/Documents -name \"*.pdf\" -o -name \"*.doc\" -o -name \"*.txt\" 2>&1 | head -50"
+    }
+   },
+   {
+    "name": "list_folder",
+    "args": {
+     "path": "<home>/Documents/Rechnungen"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls ~/Documents/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls ~/Documents/Rechnungen/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls ~/Downloads/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls ~/Desktop/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<home>/Documents/Rechnungen/scan_0399.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<home>/Documents/Rechnungen/scan_0399.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<home>/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "read",
+    "args": {
+     "path": "<home>/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<home>/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year \"2024\""
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find ~ -name \"*rechnung*\" -type f 2>/dev/null | head -20"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find ~ -name \"*rechnung*\" -o -name \"*invoice*\" -o -name \"*beleg*\" -o -name \"*abrechnung*\" 2>/dev/null | head -30"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find ~ -type f \\( -name \"*.pdf\" -o -name \"*.doc\" -o -name \"*.txt\" \\) -exec grep -l \"2024\" {} \\; 2>/dev/null | head -20"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/beleg_feb.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "find ~ -type f \\( -name \"*.pdf\" -o -name \"*.doc\" -o -name \"*.txt\" -o -name \"*.odt\" \\) 2>/dev/null | head -50"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/dist/model-compare-home/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/dist/model-compare-home/Documents/"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/dist/model-compare-home/Documents/Rechnungen/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0399.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/dist/model-compare-home/Downloads/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Buergeramt_Abholung.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/angebot_kueche.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/kfz_beitrag_2026.pdf"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/dist/model-compare-home/Documents/Haushalt/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/garantie_waschmaschine.pdf"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/dist/model-compare-home/Documents/Wohnung/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Wohnung/mv_scan.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Wohnung/nk2023.pdf"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/dist/model-compare-home/Documents/Versicherungen/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/phv.pdf"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "ls -la <repo>/dist/model-compare-home/Desktop/"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Desktop/scan_kk.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<home>/Documents/Rechnungen/scan_0399.pdf"
+    },
+    "at": 59809
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<home>/Documents/Rechnungen/scan_0399.pdf"
+    },
+    "at": 63447
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<home>/Downloads/invoice_7731.pdf"
+    },
+    "at": 66207
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<home>/Downloads/invoice_7731.pdf"
+    },
+    "at": 73069
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 96223
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+    },
+    "at": 100459
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/beleg_feb.pdf"
+    },
+    "at": 105937
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 109985
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0399.pdf"
+    },
+    "at": 129101
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 133273
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 142405
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Buergeramt_Abholung.pdf"
+    },
+    "at": 147151
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/angebot_kueche.pdf"
+    },
+    "at": 151289
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 155183
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/kfz_beitrag_2026.pdf"
+    },
+    "at": 159978
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/garantie_waschmaschine.pdf"
+    },
+    "at": 167935
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Wohnung/mv_scan.pdf"
+    },
+    "at": 174748
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Wohnung/nk2023.pdf"
+    },
+    "at": 179032
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+    },
+    "at": 186200
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/phv.pdf"
+    },
+    "at": 190360
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Desktop/scan_kk.pdf"
+    },
+    "at": 197380
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 3.856,
+  "firstWordSeconds": 221.619,
+  "totalSeconds": 232.044,
+  "modelRequests": [
+   {
+    "at": 162,
+    "status": 200
+   },
+   {
+    "at": 7876,
+    "status": 200
+   },
+   {
+    "at": 13954,
+    "status": 200
+   },
+   {
+    "at": 19478,
+    "status": 200
+   },
+   {
+    "at": 23779,
+    "status": 200
+   },
+   {
+    "at": 26638,
+    "status": 200
+   },
+   {
+    "at": 29254,
+    "status": 200
+   },
+   {
+    "at": 32102,
+    "status": 200
+   },
+   {
+    "at": 38423,
+    "status": 200
+   },
+   {
+    "at": 44884,
+    "status": 200
+   },
+   {
+    "at": 48237,
+    "status": 200
+   },
+   {
+    "at": 50698,
+    "status": 200
+   },
+   {
+    "at": 53290,
+    "status": 200
+   },
+   {
+    "at": 56276,
+    "status": 200
+   },
+   {
+    "at": 59810,
+    "status": 200
+   },
+   {
+    "at": 63449,
+    "status": 200
+   },
+   {
+    "at": 66208,
+    "status": 200
+   },
+   {
+    "at": 69091,
+    "status": 200
+   },
+   {
+    "at": 73070,
+    "status": 200
+   },
+   {
+    "at": 78094,
+    "status": 200
+   },
+   {
+    "at": 82219,
+    "status": 200
+   },
+   {
+    "at": 87439,
+    "status": 200
+   },
+   {
+    "at": 92081,
+    "status": 200
+   },
+   {
+    "at": 96225,
+    "status": 200
+   },
+   {
+    "at": 100461,
+    "status": 200
+   },
+   {
+    "at": 105938,
+    "status": 200
+   },
+   {
+    "at": 109986,
+    "status": 200
+   },
+   {
+    "at": 115671,
+    "status": 200
+   },
+   {
+    "at": 118984,
+    "status": 200
+   },
+   {
+    "at": 122283,
+    "status": 200
+   },
+   {
+    "at": 125407,
+    "status": 200
+   },
+   {
+    "at": 129103,
+    "status": 200
+   },
+   {
+    "at": 133275,
+    "status": 200
+   },
+   {
+    "at": 137544,
+    "status": 200
+   },
+   {
+    "at": 142407,
+    "status": 200
+   },
+   {
+    "at": 147152,
+    "status": 200
+   },
+   {
+    "at": 151291,
+    "status": 200
+   },
+   {
+    "at": 155185,
+    "status": 200
+   },
+   {
+    "at": 159980,
+    "status": 200
+   },
+   {
+    "at": 163891,
+    "status": 200
+   },
+   {
+    "at": 167937,
+    "status": 200
+   },
+   {
+    "at": 171605,
+    "status": 200
+   },
+   {
+    "at": 174750,
+    "status": 200
+   },
+   {
+    "at": 179033,
+    "status": 200
+   },
+   {
+    "at": 182852,
+    "status": 200
+   },
+   {
+    "at": 186202,
+    "status": 200
+   },
+   {
+    "at": 190362,
+    "status": 200
+   },
+   {
+    "at": 194402,
+    "status": 200
+   },
+   {
+    "at": 197382,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 2502,
+    "output": 100,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2602,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 413,
+    "output": 132,
+    "cacheRead": 2601,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3146,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 129,
+    "cacheRead": 3145,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3304,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 100,
+    "cacheRead": 3303,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3433,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 35,
+    "output": 65,
+    "cacheRead": 3432,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3532,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 202,
+    "output": 55,
+    "cacheRead": 3531,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3788,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 65,
+    "cacheRead": 3787,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3882,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 147,
+    "cacheRead": 3881,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4058,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 152,
+    "cacheRead": 4057,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4239,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 77,
+    "cacheRead": 4238,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4345,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 31,
+    "output": 55,
+    "cacheRead": 4344,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4430,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 31,
+    "output": 58,
+    "cacheRead": 4429,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4518,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 72,
+    "output": 67,
+    "cacheRead": 4517,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4656,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 20,
+    "output": 82,
+    "cacheRead": 4655,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4757,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 45,
+    "output": 83,
+    "cacheRead": 4756,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4884,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 45,
+    "output": 62,
+    "cacheRead": 4883,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4990,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 45,
+    "output": 65,
+    "cacheRead": 4989,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5099,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 63,
+    "output": 91,
+    "cacheRead": 5098,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5252,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 45,
+    "output": 116,
+    "cacheRead": 5251,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5412,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 94,
+    "cacheRead": 5411,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5535,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 39,
+    "output": 120,
+    "cacheRead": 5534,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5693,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 115,
+    "output": 105,
+    "cacheRead": 5692,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5912,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 94,
+    "cacheRead": 5911,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 6035,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 192,
+    "output": 92,
+    "cacheRead": 6034,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 6318,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 355,
+    "output": 116,
+    "cacheRead": 6317,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 6788,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 180,
+    "output": 87,
+    "cacheRead": 6787,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 7054,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 180,
+    "output": 125,
+    "cacheRead": 7053,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 7358,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 30,
+    "output": 73,
+    "cacheRead": 7357,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 7460,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 393,
+    "output": 60,
+    "cacheRead": 7459,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 7912,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 202,
+    "output": 64,
+    "cacheRead": 7911,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 8177,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 156,
+    "output": 78,
+    "cacheRead": 8176,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 8410,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 181,
+    "output": 89,
+    "cacheRead": 8409,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 8679,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 251,
+    "output": 90,
+    "cacheRead": 8678,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 9019,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 381,
+    "output": 99,
+    "cacheRead": 9018,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 9498,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 661,
+    "output": 83,
+    "cacheRead": 9395,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 10139,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 298,
+    "output": 82,
+    "cacheRead": 10138,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 10518,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 174,
+    "output": 81,
+    "cacheRead": 10517,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 10772,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 206,
+    "output": 100,
+    "cacheRead": 10771,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 11077,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 200,
+    "output": 80,
+    "cacheRead": 11076,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 11356,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 150,
+    "output": 84,
+    "cacheRead": 11355,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 11589,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 153,
+    "output": 75,
+    "cacheRead": 11588,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 11816,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 151,
+    "output": 63,
+    "cacheRead": 11815,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 12029,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 352,
+    "output": 83,
+    "cacheRead": 12028,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 12463,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 197,
+    "output": 77,
+    "cacheRead": 12462,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 12736,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 151,
+    "output": 67,
+    "cacheRead": 12735,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 12953,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 315,
+    "output": 80,
+    "cacheRead": 12952,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 13347,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 164,
+    "output": 82,
+    "cacheRead": 13346,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 13592,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 115,
+    "output": 61,
+    "cacheRead": 13591,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 13767,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 171,
+    "output": 764,
+    "cacheRead": 13766,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 14701,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 134,
+  "finalAnswer": "I found all your invoices from 2024. Here's what I found:\n\n| Date | Description | Amount |\n|------|-------------|--------|\n| 03.07.2024 | Zahnarztpraxis (Professionelle Zahnreinigung) | 95,00 EUR |\n| 12.04.2024 | Elektro Blitz GmbH (Austausch defekte Steckdose) | 142,80 EUR |\n| 28.02.2024 | Malerbetrieb Farbe & Söhne (Streichen Flur und Wohnzimmer) | 310,00 EUR |\n| 21.09.2024 | Möbelhaus Beispiel (Bürostuhl) | 249,00 EUR |\n| 2024 | Hausverwaltung Beispiel GmbH (Nebenkostenabrechnung) | 3.270,00 EUR |\n\n**Total paid in 2024: 4.066,80 EUR**",
+  "thinkingChars": 7896,
+  "receipts": [],
+  "diagnostics": ""
+ },
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 1,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.\n\nAnswer in English.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 5131
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 1.33,
+  "firstWordSeconds": 14.996,
+  "totalSeconds": 25.15,
+  "modelRequests": [
+   {
+    "at": 152,
+    "status": 200
+   },
+   {
+    "at": 5134,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 593,
+    "output": 92,
+    "cacheRead": 1986,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2671,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 558,
+    "output": 454,
+    "cacheRead": 2670,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3682,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "This letter from your property management announces window replacement work in your apartment.\n\n**What you need to do:**\n1. Fill out and return the attached feedback form by **20.11.2026**\n2. On the form, indicate whether you'll be home on **13.01.2027** or who will open the door for the workers\n3. On the work day, clear the window sills and keep about one meter in front of the windows free\n4. No need to move furniture; the company will cover the floors\n\nThe work will take place from **12.01.2027 to 16.01.2027**, with your apartment scheduled for **13.01.2027 between 8 and 16 hours**.\n\nAfter completion, your monthly base rent will increase by **38,50 EUR starting 01.04.2027**. You have a special right to terminate your lease if needed.\n\nFor questions, contact Herr Kurz at 01234 567890.",
+  "thinkingChars": 888,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]

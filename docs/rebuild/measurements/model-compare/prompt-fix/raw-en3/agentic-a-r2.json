@@ -1,0 +1,310 @@
+[
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.\n\nAnswer in English.",
+  "autoGrade": "partial",
+  "autoNotes": {
+   "amountsFound": 5,
+   "sourced": 4,
+   "sumCorrect": false,
+   "decoyAmount": false
+  },
+  "toolCalls": 7,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 23539
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 23539
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 23539
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 23539
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    },
+    "at": 23539
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 2.645,
+  "firstWordSeconds": 4.373,
+  "totalSeconds": 59.843,
+  "modelRequests": [
+   {
+    "at": 169,
+    "status": 200
+   },
+   {
+    "at": 6873,
+    "status": 200
+   },
+   {
+    "at": 11778,
+    "status": 200
+   },
+   {
+    "at": 23542,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 1766,
+    "output": 97,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1863,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 501,
+    "output": 96,
+    "cacheRead": 1764,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2361,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 440,
+    "output": 257,
+    "cacheRead": 2263,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2960,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 1113,
+    "output": 775,
+    "cacheRead": 2701,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4589,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "I found 5 invoices from 2024. Here they are:\n\n| Invoice | Date | Total amount | Payment status |\n|---|---|---|---|\n| Electro Blitz GmbH (Nr. 2024-118) | 12.04.2024 | 142,80 EUR | not marked as paid |\n| Malerbetrieb Farbe & Söhne (Nr. 0228) | 28.02.2024 | 310,00 EUR | not marked as paid |\n| Zahnarztpraxis Dr. Muster | 03.07.2024 | 95,00 EUR | not marked as paid |\n| Fahrradladen Speiche (2024/311) | 05.11.2024 | 68,50 EUR | not marked as paid |\n| Möbelhaus Beispiel (kaufbeleg) | 21.09.2024 | 249,00 EUR | **paid in cash** (\"bar bezahlt\") |\n\n**Total you actually paid: 249,00 EUR** — only the office chair invoice from 21.09.2024 is marked as paid. The other four invoices (total 656,30 EUR) are not marked as paid, so I can't confirm whether you paid them; the documents only show \"to be paid\" or \"please transfer.\"\n\nNote: the search only covers indexed files — unindexed cloud files or scans without readable text may be missing.",
+  "thinkingChars": 2000,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+      "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf",
+      "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+      "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+     ]
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 2,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.\n\nAnswer in English.",
+  "autoGrade": "partial",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": false,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 3421
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.426,
+  "firstWordSeconds": 36.635,
+  "totalSeconds": 49.642,
+  "modelRequests": [
+   {
+    "at": 153,
+    "status": 200
+   },
+   {
+    "at": 3423,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 100,
+    "output": 72,
+    "cacheRead": 1738,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1910,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 582,
+    "output": 1046,
+    "cacheRead": 1836,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3464,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 136,
+  "finalAnswer": "Here's the letter from your housing office (Hausverwaltung Beispiel GmbH), dated 02.10.2026:\n\n**What it says**\n- Your windows will be replaced with triple-glazed ones on **13.01.2027, 8–16:00** (work window 12–16.01.2027).\n- You must return the enclosed **reply slip by 20.11.2026** stating whether you'll be home that day or who will let the workers in.\n- Clear your window sills and leave about 1 m in front of the windows. No furniture removal needed; the company covers the floors.\n- Your rent rises by **38.50 €/month from 01.04.2027**; the operating-cost advance stays the same.\n- You have a special termination right: extraordinary termination until **31.11.2026**, with notice given until **31.12.2026**.\n- Contact: Herr Kurz, 01234 567890.\n\n**What you need to do**\n1. Fill in and send back the reply slip by 20.11.2026.\n2. Prepare the apartment before the work day (clear sills, 1 m clearance).\n3. Plan for the rent increase starting 01.04.2027.\n4. If you want to terminate, do it by 31.11.2026 — notice must reach them by 31.12.2026.",
+  "thinkingChars": 3180,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]
