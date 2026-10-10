@@ -10,6 +10,9 @@
  *   200 times, added the same reminder four times). Per answer an identical call that already failed twice, an
  *   identical change that already worked once, or any identical call run four times is stopped; after three stops the
  *   answer ends (session entry `pippa-loop-stop`, so Pippa can tell it apart from the person's Stop).
+ * - Call budget: a model can also wander without repeating itself (Qwen3.5 9B listed every folder and read all 21 PDFs
+ *   when the search came back empty: 48 calls, 4 minutes, a wrong total). After `MAX_CALLS` tool calls in one answer
+ *   every further call is stopped with the request to answer now; the measured tasks needed at most 14.
  * - File search results: the bundled Spotlight script's results become a session entry `pippa-search-result`, so
  *   Pippa shows the files found from the tool's output, never from the model's prose.
  * - Today's date: each new message starts with "[2026-10-09, Friday]". The system prompt has no date so it stays the
@@ -33,6 +36,15 @@ export function documentForRead(tool: string, input: any): string | undefined {
 	const path = String(input?.path ?? input?.file_path ?? "");
 	if (!DOCUMENT_TYPES.test(path)) return undefined;
 	return `Not read: '${path.split("/").pop()}' is a document (PDF, Word, image, mail or spreadsheet); read gives raw bytes. Call mcp__pippa__read_document with the same path instead.`;
+}
+
+/** Tool calls per answer before Pi is told to answer with what it has (docs/rebuild/measurements/model-compare). */
+export const MAX_CALLS = 20;
+
+/** Over budget: the reason Pi gets instead of the call. */
+export function overBudget(calls: number): string | undefined {
+	if (calls <= MAX_CALLS) return undefined;
+	return `Stopped: you already used ${MAX_CALLS} tool calls for this answer. Do not call any more tools. Answer the user now with what you found, and say in one short sentence what you could not check.`;
 }
 
 export interface LoopCount { runs: number; failures: number; successes: number }
@@ -97,12 +109,13 @@ export default function (pi: ExtensionAPI) {
 	const counts = new Map<string, LoopCount>();
 	const keys = new Map<string, string>();
 	let stops = 0;
+	let calls = 0;
 	const searchCalls = new Set<string>();
 	const scriptCalls = new Set<string>();
 	const found = new Set<string>();
 	let searched = false;
 	let truncated = false;
-	const reset = () => { counts.clear(); keys.clear(); stops = 0; searchCalls.clear(); scriptCalls.clear(); found.clear(); searched = false; truncated = false; };
+	const reset = () => { counts.clear(); keys.clear(); stops = 0; calls = 0; searchCalls.clear(); scriptCalls.clear(); found.clear(); searched = false; truncated = false; };
 	// Only a new message; a message sent while Pi is still working (steering) is shown back as typed.
 	pi.on("input", async (event: any) => {
 		if (event?.streamingBehavior || typeof event?.text !== "string") return { action: "continue" };
@@ -115,7 +128,7 @@ export default function (pi: ExtensionAPI) {
 		const tool: string = event.toolName;
 		const document = documentForRead(tool, event.input);
 		if (document) return { block: true, reason: document };
-		const loop = loopBrake(counts, keys, event.toolCallId, tool, event.input, CHANGES.has(tool));
+		const loop = overBudget(++calls) ?? loopBrake(counts, keys, event.toolCallId, tool, event.input, CHANGES.has(tool));
 		if (loop) {
 			if (++stops === 3) {
 				pi.appendEntry("pippa-loop-stop", { v: 1, tool, searched, files: [...found].slice(0, 200), truncated: truncated || found.size > 200 });
