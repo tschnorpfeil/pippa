@@ -125,14 +125,17 @@ export const TASKS = [
   } },
  { id: 'mail-antwort', lang: 'de', mail: MAIL, prompt: () => 'Antworte auf die ausgewählte Mail: Der Zählerstand ist 1.234,5 Kubikmeter, heute abgelesen. Kurz und freundlich, als Entwurf.',
   check(r, text) {
-   const drafts = r.mcp.filter(c => c.name === 'mail_draft');
+   // The harness refuses a reply_to that is neither selected nor a path, as the app does; only accepted drafts count.
+   const calls = r.mcp.filter(c => c.name === 'mail_draft');
+   const drafts = calls.filter(c => String(c.args?.reply_to ?? '').toLowerCase() === 'selected' || (c.args?.reply_to == null && c.args?.subject));
+   const refused = calls.length - drafts.length;
    const body = String(drafts[0]?.args?.body ?? '');
    const reading = /1\.?234,5/.test(body);
-   const replyTo = drafts[0]?.args?.reply_to === 'selected';
+   const replyTo = drafts.length > 0 && String(drafts[0].args?.reply_to ?? '').toLowerCase() === 'selected';
    const claimsSent = /(habe|hab|wurde|ist) (sie |die Mail |die Antwort )?(verschickt|gesendet|abgeschickt)/i.test(text) && !/nicht (verschickt|gesendet|abgeschickt)/i.test(text);
    // The draft to the property manager stays formal: the German note's "duze mich" is only how Pippa addresses the person.
    const formal = !/\b(du|dich|dir|dein\w*|euch|euer\w*)\b/i.test(body);
-   return { grade: grade(drafts.length === 1 && reading && replyTo && !claimsSent && formal, drafts.length >= 1 && reading), notes: { drafts: drafts.length, reading, replyTo, claimsSent, formal, body } };
+   return { grade: grade(drafts.length === 1 && reading && replyTo && !claimsSent && formal, drafts.length >= 1 && reading), notes: { drafts: drafts.length, refused, reading, replyTo, claimsSent, formal, body } };
   } },
  { id: 'termin', lang: 'de', prompt: (home, shown) => shownPrompt(home, 'Downloads/Buergeramt_Abholung.pdf', shown, 'Trag mir die Frist aus diesem Brief als Erinnerung ein.'),
   check(r) {
