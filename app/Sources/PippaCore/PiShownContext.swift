@@ -16,10 +16,21 @@ public enum PiShownContext {
     /// Selected text up to this length goes into the message; longer text is provided as a file.
     public static let inlineTextLimit = 4000
     public static let maxListed = 20
-    /// Added after an English question: Qwen3.5 otherwise answers in the language of German documents (1 of 6 English
-    /// with any system prompt line, docs/rebuild/measurements/model-compare/prompt-fix). Per message, so the system
-    /// prompt and its cache stay the same; German questions get nothing.
+    /// Added after a question in the question's language: Qwen3.5 otherwise answers in the language of the documents
+    /// (1 of 6 English with any system prompt line, docs/rebuild/measurements/model-compare/prompt-fix) or of its English
+    /// tool texts (a German question about Photos got an English answer, 2026-10-10). Per message, so the system prompt
+    /// and its cache stay the same.
     public static let englishNote = "Answer in English."
+    public static let germanNote = "Antworte auf Deutsch."
+
+    /// The note for the question's language; none when it is too short to tell (then the system prompt decides).
+    public static func languageNote(_ question: String) -> String {
+        switch SourceFidelity.language(question: question, answer: "") {
+        case "en"?: return "\n\n" + englishNote
+        case "de"?: return "\n\n" + germanNote
+        default: return ""
+        }
+    }
 
     public struct Input: Sendable {
         public var question: String
@@ -44,12 +55,11 @@ public enum PiShownContext {
         }
     }
 
-    /// The message to Pi. Without anything shown it is exactly the question (no frame, no extra cost), plus
-    /// `englishNote` when the question is English.
+    /// The message to Pi. Without anything shown it is exactly the question (no frame), plus the `languageNote`.
     /// `textFile`: where selected text over the limit is written (default: Pippa's clipboard folder).
     public static func prompt(_ input: Input, textFile: (String) -> URL? = PiShownContext.writeSelectedText) -> String {
         let german = input.language.hasPrefix("de")
-        let note = SourceFidelity.language(question: input.question, answer: "") == "en" ? "\n\n" + englishNote : ""
+        let note = languageNote(input.question)
         let question = input.question.trimmingCharacters(in: .whitespacesAndNewlines) + note
         let text = input.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
         let summary = input.workflowSummary.trimmingCharacters(in: .whitespacesAndNewlines)
