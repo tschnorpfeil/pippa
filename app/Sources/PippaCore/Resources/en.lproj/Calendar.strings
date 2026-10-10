@@ -36,3 +36,7 @@
 "tentative" = "tentative";
 "until %@" = "until %@";
 "Calendar on this Mac · read at %@" = "Calendar on this Mac · read at %@";
+"And tomorrow?" = "And tomorrow?";
+"And this week?" = "And this week?";
+"And next week?" = "And next week?";
+"And the weekend?" = "And the weekend?";

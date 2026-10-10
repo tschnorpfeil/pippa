@@ -551,6 +551,9 @@ struct ConversationWorkspace: View {
                         .background(message.role == .user ? Theme.chatUser : .clear, in: RoundedRectangle(cornerRadius: 16))
                         .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
                 }
+                if message.role == .assistant, message.mailDraft == nil, message.calendar == nil, !message.attachments.isEmpty {
+                    FoundFilesCardView(files: message.attachments, answer: message.text)
+                }
                 if message.role == .assistant, let cards = message.actions?.cards {
                     ResultCardsView(cards: cards)
                 }
@@ -588,6 +591,18 @@ struct ConversationWorkspace: View {
             case .denied:
                 Button { model.openCalendarPrivacySettings() } label: { Label(T("Open System Settings", table: "CalendarUI"), systemImage: "gear") }
                     .pippa(.tinted)
+            case .read where chat.current?.messages.last?.id == message.id:
+                // Follow-ups only on the newest answer: a tap asks them like a typed message.
+                let followUps = CalendarConversation.followUps(for: read, now: Date(), calendar: .autoupdatingCurrent)
+                if !followUps.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(followUps, id: \.self) { question in
+                            Button(question) { model.route(question) }
+                                .pippa(.quiet).controlSize(.small).disabled(model.isActiveWork)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
             default:
                 EmptyView()
             }

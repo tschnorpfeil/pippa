@@ -364,6 +364,7 @@ struct ActionReceiptView: View {
 
     private static func icon(_ item: ActionReceipt.Item) -> String {
         if item.action == "read" { return item.happened ? "eye" : "eye.slash" }
+        if item.action == "remember", item.happened { return "bookmark" }
         return switch item.outcome {
         case "done": "checkmark.circle"
         case "declined", "blocked": "hand.raised"

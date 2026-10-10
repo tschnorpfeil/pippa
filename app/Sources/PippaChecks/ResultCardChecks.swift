@@ -119,4 +119,40 @@ func runResultCardChecks() async {
             && (try? JSONEncoder().encode(ActionReceipt(items: [], cards: [.web(card)])))
                 .flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }?.cards == [.web(card)]
     }
+    check("Memory line: what Pippa kept or let go, never the text of something it refused to keep") {
+        func de(_ outcome: String, _ add: String?, _ forget: String?, _ reason: String? = nil) -> String {
+            ActionReceipt.Item(action: "remember", outcome: outcome, name: add, toName: forget, reason: reason).line(language: "de")
+        }
+        return de("done", "Meine Ärztin heißt Dr. Wolf", nil) == "Gemerkt: „Meine Ärztin heißt Dr. Wolf“"
+            && de("done", "Ärztin: Dr. Lang", "Dr. Wolf") == "Gemerkt: „Ärztin: Dr. Lang“ (statt „Dr. Wolf“)"
+            && de("done", nil, "Dr. Wolf") == "Vergessen: „Dr. Wolf“"
+            && de("done", nil, "Dr. Wolf", "nothingMatched") == "Nichts zu vergessen für „Dr. Wolf“"
+            && de("done", nil, "*") == "Alles vergessen, was Pippa über dich wusste"
+            && de("failed", "IBAN DE89 3704 0044 0532 0130 00", nil) == "Nicht gemerkt"
+    }
+    check("Calendar follow-up buttons: from the period read, and each one is answered by the calendar itself (de, en)") {
+        let now = berlin.date(from: DateComponents(year: 2026, month: 10, day: 7, hour: 14, minute: 32))!
+        func read(_ kind: CalendarRange.Kind, day: Int) -> ConversationCalendarRead {
+            let start = berlin.date(from: DateComponents(year: 2026, month: 10, day: day))!
+            return ConversationCalendarRead(state: .read, question: "x", range: CalendarRange(kind: kind, start: start, end: start.addingTimeInterval(86_400)))
+        }
+        var ok = true
+        for language in ["de", "en"] {
+            let today = CalendarConversation.followUps(for: read(.day, day: 7), now: now, calendar: berlin, language: language)
+            let week = CalendarConversation.followUps(for: read(.restOfWeek, day: 7), now: now, calendar: berlin, language: language)
+            let all = today + week + CalendarConversation.followUps(for: read(.weekend, day: 10), now: now, calendar: berlin, language: language)
+            ok = ok && today.count == 2 && week.count == 2
+                && all.allSatisfy { CalendarIntent.parse($0, now: now, calendar: berlin, recentCalendarTurn: true) != nil }
+        }
+        var denied = read(.day, day: 7); denied.state = .denied
+        return ok && CalendarConversation.followUps(for: read(.lastWeek, day: 1), now: now, calendar: berlin).isEmpty
+            && CalendarConversation.followUps(for: denied, now: now, calendar: berlin).isEmpty
+            && CalendarConversation.followUps(for: read(.day, day: 7), now: now, calendar: berlin, language: "de") == ["Und morgen?", "Und diese Woche?"]
+    }
+    check("Files card: files the answer names first, folders and missing files left out") {
+        let a = URL(fileURLWithPath: "/Users/x/Documents/Mietvertrag.pdf"), b = URL(fileURLWithPath: "/Users/x/Bilder/Urlaub.jpg")
+        let gone = URL(fileURLWithPath: "/Users/x/weg.txt"), folder = URL(fileURLWithPath: "/Users/x/Documents", isDirectory: true)
+        let order = FoundFiles.ordered([a, folder, gone, b], answer: "Das Bild ist [Urlaub.jpg](\(b.absoluteString)).") { $0 != gone }
+        return order == [b, a] && FoundFiles.ordered([], answer: "") == []
+    }
 }

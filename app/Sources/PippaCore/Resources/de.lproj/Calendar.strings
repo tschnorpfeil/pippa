@@ -36,3 +36,7 @@
 "tentative" = "vorläufig";
 "until %@" = "bis %@";
 "Calendar on this Mac · read at %@" = "Kalender auf diesem Mac · gelesen um %@";
+"And tomorrow?" = "Und morgen?";
+"And this week?" = "Und diese Woche?";
+"And next week?" = "Und nächste Woche?";
+"And the weekend?" = "Und am Wochenende?";

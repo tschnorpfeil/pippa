@@ -206,3 +206,12 @@
 "Remembering that" = "Merke mir das";
 "Loading my AI · %lld%%" = "Lade meine KI · %lld %%";
 "Searching your photos" = "Suche in deinen Fotos";
+"Remembered: “%@” (instead of “%@”)" = "Gemerkt: „%@“ (statt „%@“)";
+"Remembered: “%@”" = "Gemerkt: „%@“";
+"Forgot everything Pippa knew about you" = "Alles vergessen, was Pippa über dich wusste";
+"Nothing to forget for “%@”" = "Nichts zu vergessen für „%@“";
+"Forgot: “%@”" = "Vergessen: „%@“";
+"Nothing remembered" = "Nichts gemerkt";
+"Not remembered" = "Nicht gemerkt";
+"Not forgotten" = "Nicht vergessen";
+"Unclear whether Pippa remembered it" = "Unklar, ob Pippa es sich gemerkt hat";
