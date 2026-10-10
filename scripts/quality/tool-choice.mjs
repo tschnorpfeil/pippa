@@ -42,7 +42,12 @@ const proxy = createServer(async(req,res)=> {
  }catch(e){res.writeHead(500).end(String(e));}
 });
 await new Promise(ok=>proxy.listen(0,'127.0.0.1',ok));
-await writeFile(join(home,'.pi/agent/models.json'),JSON.stringify({providers:{'pippa-local':{baseUrl:`http://127.0.0.1:${proxy.address().port}/v1`,api:'openai-completions',apiKey:'fake',models:[{id:'k2-horizon-7b',name:'K2',reasoning:true,contextWindow:32768,maxTokens:4096,thinkingLevelMap:{medium:'medium'},compat:{supportsDeveloperRole:false,supportsReasoningEffort:true}}]}}}));
+// PIPPA_MC_VARIANT (A/B/C, model-compare/variants.mjs): models.json, model and thinking level as Pippa writes them.
+const mc = process.env.PIPPA_MC_VARIANT ? (await import('./model-compare/variants.mjs')).VARIANTS[process.env.PIPPA_MC_VARIANT] : undefined;
+if (process.env.PIPPA_MC_VARIANT && !mc) throw Error('unknown PIPPA_MC_VARIANT');
+const modelID = mc?.key ?? 'k2-horizon-7b', thinking = mc?.thinking ?? 'medium';
+await writeFile(join(home,'.pi/agent/models.json'),JSON.stringify(mc ? (await import('./model-compare/variants.mjs')).modelsJson(mc,`http://127.0.0.1:${proxy.address().port}/v1`) : {providers:{'pippa-local':{baseUrl:`http://127.0.0.1:${proxy.address().port}/v1`,api:'openai-completions',apiKey:'fake',models:[{id:'k2-horizon-7b',name:'K2',reasoning:true,contextWindow:32768,maxTokens:4096,thinkingLevelMap:{medium:'medium'},compat:{supportsDeveloperRole:false,supportsReasoningEffort:true}}]}}}));
+if (mc) await writeFile(join(home,'.pi/agent/settings.json'),JSON.stringify((await import('./model-compare/variants.mjs')).piSettings(mc)));
 const extension=join(home,'block.ts');
 await writeFile(extension,`export default function(pi:any){pi.on('tool_call',()=>({block:true,reason:'Measurement only. No tool may execute.'}));}`);
 if(flow){
@@ -57,13 +62,15 @@ const launch=await readFile(join(base,'app/Sources/PiRPC/PippaPiLaunch.swift'),'
 const prompt=launch.match(/static let german = """\n([\s\S]*?)\n    """/)[1].replace(/^    /gm,'');
 const tools=launch.match(/public static let tools = \[([\s\S]*?)\]/)[1].match(/"[^"]+"/g).map(x=>JSON.parse(x)).join(',');
 const cases=JSON.parse(await readFile(join(root,'scripts/quality/tool-choice.json'))).filter(x=>!ids.length||ids.includes(x.id));
+// As in the app: pi-web-access through Pippa's settings (needs npm ci in runtime/pippa-web). PIPPA_WEB_EXTENSION: another checkout's index.ts for a before run.
+const web=process.env.PIPPA_WEB_EXTENSION??join(root,'runtime/pippa-web/index.ts');
 const results=[];
 try {
  for(const item of cases){
   requests=0;captured=undefined;
   const events=[];let err='';const start=Date.now();
-  const env={HOME:home,CFFIXED_USER_HOME:home,PI_CODING_AGENT_DIR:join(home,'.pi/agent'),PI_OFFLINE:'1',PI_TELEMETRY:'0',PI_SKIP_VERSION_CHECK:'1',PATH:flow?join(home,'bin')+':/Applications/Pippa.app/Contents/Helpers:/usr/bin:/bin:/usr/sbin:/sbin':'/usr/bin:/bin:/usr/sbin:/sbin',PIPPA_FIXTURE_SKILLS:join(base,'runtime/pippa-skills'),PIPPA_TRASH_DIR:join(home,'trash'),PIPPA_MCP_URL:`http://127.0.0.1:${mcp.address().port}/mcp`,PIPPA_MCP_TOKEN:'a'.repeat(64)};
-  const child=spawn(join(payload,'bin/node'),[join(payload,'release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'),'--mode','rpc','--no-session','--no-context-files','--no-approve','--no-skills','--skill',join(base,'runtime/pippa-skills'),'--extension',join(base,'runtime/pippa-tools/pippa-tools.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-mcp.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-assist.ts'),'--extension',flow?join(root,'scripts/quality/fixture-isolation.ts'):extension,'--tools',tools,'--system-prompt',prompt,'--provider','pippa-local','--model','k2-horizon-7b','--thinking','medium'],{cwd:join(home,'work'),env,stdio:['pipe','pipe','pipe']});
+  const env={HOME:home,CFFIXED_USER_HOME:home,PI_CODING_AGENT_DIR:join(home,'.pi/agent'),PI_OFFLINE:'1',PI_TELEMETRY:'0',PI_SKIP_VERSION_CHECK:'1',PATH:flow?join(home,'bin')+':/Applications/Pippa.app/Contents/Helpers:/usr/bin:/bin:/usr/sbin:/sbin':'/usr/bin:/bin:/usr/sbin:/sbin',PIPPA_FIXTURE_SKILLS:join(base,'runtime/pippa-skills'),PIPPA_TRASH_DIR:join(home,'trash'),PIPPA_WEB_DIR:join(home,'web'),PIPPA_MCP_URL:`http://127.0.0.1:${mcp.address().port}/mcp`,PIPPA_MCP_TOKEN:'a'.repeat(64)};
+  const child=spawn(join(payload,'bin/node'),[join(payload,'release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'),'--mode','rpc','--no-session','--no-context-files','--no-approve','--no-skills','--skill',join(base,'runtime/pippa-skills'),'--extension',join(base,'runtime/pippa-tools/pippa-tools.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-mcp.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-assist.ts'),'--extension',web,'--extension',flow?join(root,'scripts/quality/fixture-isolation.ts'):extension,'--tools',tools,'--system-prompt',prompt,'--provider','pippa-local','--model',modelID,'--thinking',thinking],{cwd:join(home,'work'),env,stdio:['pipe','pipe','pipe']});
   child.stderr.on('data',d=>err+=d);let buffer='';let timedOut=false;
   await new Promise((ok,fail)=>{
    const timer=setTimeout(()=>{child.kill();fail(Error('timeout '+item.id+' '+err.slice(-500)));},dialogue ? 300000 : 180000);

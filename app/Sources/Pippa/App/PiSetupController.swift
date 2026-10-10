@@ -13,9 +13,10 @@ import SwiftUI
 /// test runs), `PIPPA_PI_MODEL` (otherwise by memory like LocalEngine).
 ///
 /// New knowledge while the old one keeps working (`update`): after an app update whose table names a different model
-/// (e.g. the 1.0 move to K2 Horizon 7B), or after "Gründlicher" in settings, setup stays `.ready` with the previous model and
-/// offers the download ("Pippas Wissen jetzt laden (5,6 GB)"). After loading, models.json names the new model; Pi and the
-/// llama-server follow on the next request. The previous model's file stays on disk.
+/// (e.g. the move from K2 Horizon 7B to Qwen3.5 9B), or after "Gründlicher" in settings, setup stays `.ready` with the previous model and
+/// offers the download ("Pippas Wissen jetzt laden (5,7 GB)"). After loading, models.json names the new model; Pi and the
+/// llama-server follow on the next request. The previous model's file stays on disk; a superseded one (`SupersededModels`)
+/// is deleted after the new model has answered once.
 @MainActor
 final class PiSetupController: ObservableObject {
     /// Loading new knowledge beside a working one.
@@ -226,7 +227,7 @@ final class PiSetupController: ObservableObject {
 // MARK: Knowledge switch ("Pippas Wissen" in settings) and new knowledge beside the working one
 
 extension PiSetupController {
-    /// Download size of the knowledge for `preference` on this Mac (for the plain labels "Standard (schnell, 5,6 GB)").
+    /// Download size of the knowledge for `preference` on this Mac (for the plain labels "Standard (schnell, 5,7 GB)").
     func downloadBytes(_ preference: ModelPreference) -> Int64? {
         guard let model = PiSetupFlow.choice(override: nil, preference: preference)?.model else { return nil }
         return model.pinned?.files.reduce(Int64(0)) { $0 + $1.size } ?? model.approxBytes
@@ -256,7 +257,7 @@ extension PiSetupController {
         }
     }
 
-    /// "Pippas Wissen jetzt laden (5,6 GB)": loads the new knowledge beside the working one (resumable).
+    /// "Pippas Wissen jetzt laden (5,7 GB)": loads the new knowledge beside the working one (resumable).
     func loadUpdate() {
         guard let flow, updateTask == nil, flow.pendingDownload != nil else { return }
         let id = UUID()

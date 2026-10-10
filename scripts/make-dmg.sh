@@ -7,7 +7,9 @@
 #
 # Environment:
 #   PIPPA_NOTARY_PROFILE  Keychain profile for `xcrun notarytool` (see docs/development.md)
-#   PIPPA_DMG_LAYOUT=0    skip the Finder layout via AppleScript
+#   PIPPA_DMG_LAYOUT      Finder layout via AppleScript: unset = only if this Terminal may already
+#                         control Finder (never shows the macOS question), 1 = try and let macOS ask,
+#                         0 = skip
 #   PIPPA_REQUIRE_DISTRIBUTION=1  signing and notarization mandatory
 set -euo pipefail
 
@@ -117,8 +119,27 @@ timeout_osascript() {
   wait "$pid"
 }
 
-if [[ "${PIPPA_DMG_LAYOUT:-1}" == 0 ]]; then
+# Asks macOS whether the calling program may already send Apple Events to Finder, without showing the
+# Automation question (askUserIfNeeded: false). Exit 0 only for "allowed".
+finder_allowed() {
+  cat >"$WORK/finder-allowed.swift" <<'SWIFT'
+import Carbon
+var target = AEAddressDesc()
+let id = "com.apple.finder"
+guard id.withCString({ AECreateDesc(typeApplicationBundleID, $0, strlen($0), &target) }) == noErr else { exit(2) }
+let status = AEDeterminePermissionToAutomateTarget(&target, typeWildCard, typeWildCard, false)
+AEDisposeDesc(&target)
+exit(status == noErr ? 0 : 1)
+SWIFT
+  swift "$WORK/finder-allowed.swift" >/dev/null 2>&1
+}
+
+LAYOUT="${PIPPA_DMG_LAYOUT:-auto}"
+if [[ "$LAYOUT" == 0 ]]; then
   warn "Finder layout skipped (PIPPA_DMG_LAYOUT=0)"
+elif [[ "$LAYOUT" == auto ]] && ! finder_allowed; then
+  warn "Finder layout skipped: this Terminal may not control Finder yet, and the build does not ask.
+         For the arranged window run once with PIPPA_DMG_LAYOUT=1 and allow it in the macOS question."
 elif layout_finder; then
   echo "    Finder window arranged"
 else

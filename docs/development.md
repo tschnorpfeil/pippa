@@ -112,7 +112,8 @@ existing installs are updated is described in [Updating Pi](updating-pi.md).
 a request to provider `pippa-local` (`before_provider_request`, and `session_before_compact`) it checks `/health` and,
 if nothing answers, starts llama-server through a detached supervisor with the same settings and idle time as the app
 (config `pippa-local-server.json` in Pippa's support folder). One lock file (`llama-server-pi.lock`) keeps app and
-terminal from ever running two servers.
+terminal from ever running two servers. Pippa's own Pi loads it too, so a model that crashed mid-answer comes back;
+that server stops once Pippa quits (`PIPPA_APP_PID`).
 
 **Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). The 14 action skills use
 `disable-model-invocation: true` and cost no prompt space. `dateien-finden` is advertised automatically: Pi reads its
@@ -181,7 +182,7 @@ everything from the inside out. Of `runtime/pippa-tools` only the sources Pi loa
 | `PIPPA_NOTARY_PROFILE` | Keychain profile for `xcrun notarytool`; without it `make-dmg.sh` does not notarize |
 | `PIPPA_SKIP_BUILD=1` | Package the existing release build |
 | `PIPPA_CACHE` | Download cache (default `~/Library/Caches/pippa-build`) |
-| `PIPPA_DMG_LAYOUT=0` | Skip the Finder window layout in the DMG (for example over SSH) |
+| `PIPPA_DMG_LAYOUT` | Finder window layout in the DMG. Unset: only when the Terminal may already control Finder, so a build never stops at the macOS Automation question. `1`: try and let macOS ask (once, to grant it). `0`: skip (for example over SSH) |
 | `PIPPA_REQUIRE_DISTRIBUTION=1` | Developer ID, notarization and Gatekeeper become mandatory (`release.sh` sets it) |
 
 `verify-app.sh` takes `--verify-runtime` (the default) or `--no-runtime`. The runtime probe reads resources, abilities

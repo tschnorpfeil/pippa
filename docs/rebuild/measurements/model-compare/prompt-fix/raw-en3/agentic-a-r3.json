@@ -1,0 +1,393 @@
+[
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 3,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.\n\nAnswer in English.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "amountsFound": 5,
+   "sourced": 5,
+   "sumCorrect": true,
+   "decoyAmount": false
+  },
+  "toolCalls": 13,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"invoice\" --year 2024"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 39584
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 39584
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 39585
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 39585
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    },
+    "at": 39585
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 2.629,
+  "firstWordSeconds": 13.126,
+  "totalSeconds": 85.638,
+  "modelRequests": [
+   {
+    "at": 171,
+    "status": 200
+   },
+   {
+    "at": 5827,
+    "status": 200
+   },
+   {
+    "at": 11250,
+    "status": 200
+   },
+   {
+    "at": 16264,
+    "status": 200
+   },
+   {
+    "at": 27761,
+    "status": 200
+   },
+   {
+    "at": 39587,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 1766,
+    "output": 77,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1843,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 481,
+    "output": 107,
+    "cacheRead": 1764,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2352,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 273,
+    "output": 103,
+    "cacheRead": 2243,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2619,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 447,
+    "output": 246,
+    "cacheRead": 2514,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3207,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 494,
+    "output": 247,
+    "cacheRead": 2959,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3700,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 1103,
+    "output": 950,
+    "cacheRead": 3451,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5504,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 134,
+  "finalAnswer": "I found 5 invoices from 2024. Here they are with their amounts:\n\n- **Elektro Blitz GmbH** (invoice 2024-118, 12.04.2024) — 142,80 EUR\n- **Malerbetrieb Farbe & Söhne** (invoice 0228, 28.02.2024) — 310,00 EUR\n- **Zahnarztpraxis Dr. Muster** (03.07.2024) — 95,00 EUR\n- **Fahrradladen Speiche** (2024/311, 05.11.2024) — 68,50 EUR\n- **Möbelhaus Beispiel** (21.09.2024) — 249,00 EUR, marked \"bar bezahlt\" (paid in cash)\n\n**Total of all 2024 invoices: 865,30 EUR.**\n\nOne honest caveat: only the 21.09.2024 furniture invoice explicitly states it was paid (in cash). The other four only show the billed amounts, not proof of payment, so I can't confirm from these documents that those were actually paid.",
+  "thinkingChars": 3208,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": []
+    }
+   },
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+      "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf",
+      "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+      "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+     ]
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 3,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.\n\nAnswer in English.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 3567
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.442,
+  "firstWordSeconds": 6.357,
+  "totalSeconds": 17.167,
+  "modelRequests": [
+   {
+    "at": 157,
+    "status": 200
+   },
+   {
+    "at": 3569,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 100,
+    "output": 74,
+    "cacheRead": 1738,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1912,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 584,
+    "output": 287,
+    "cacheRead": 1836,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2707,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Here is the letter from the Hausverwaltung (property management company) about window replacement in your flat:\n\n**What it says:**\n- Your windows will be replaced with new triple-glazed units.\n- The work runs 12–16 January 2027; your flat is scheduled for 13 January, between 8 and 4 pm.\n- The work is done by the company Glasbau Beispiel.\n- After completion, your monthly base rent rises by €38.50 from 1 April 2027. Service charge stays the same.\n- You have a special termination right: you can terminate exceptionally until the end of the month following this notice, with an end date two months after that.\n\n**What you need to do:**\n1. Fill in and return the attached reply slip (Rückmeldebogen) by **20 November 2026**. It asks whether you'll be home on 13 January or who will let the workers in.\n2. Clear your window sills and keep about one meter in front of the windows free on the work day.\n3. You don't need to move furniture; the company covers the floor.\n\nQuestions go to Herr Kurz at 01234 567890.",
+  "thinkingChars": 312,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]

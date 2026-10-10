@@ -1266,13 +1266,16 @@ final class AppModel: ObservableObject {
 
     /// "Tidy now": the leftover documents in a new preview.
     func sortLaterNow() {
-        guard let later = sortLater else { return }
-        guard !isActiveWork else {
-            toasts?.show(title: T("I’m still working", table: "App"), detail: T("Click again once I’m done.", table: "App"), buttons: [], log: false)
-            return
-        }
+        guard let later = sortLater, !refuseWhileWorking() else { return }
         sortLater = nil
         proposeSort(items: later.files.filter { FileManager.default.fileExists(atPath: $0.path) }, scope: later.scope, limit: nil)
+    }
+
+    /// A tidy round started from a toast waits until running work is done: both share the one local model slot.
+    private func refuseWhileWorking() -> Bool {
+        guard isActiveWork else { return false }
+        toasts?.show(title: T("I’m still working", table: "App"), detail: T("Click again once I’m done.", table: "App"), buttons: [], log: false)
+        return true
     }
 
     /// An interim state of the preview: show the preview at the first, then only refresh.
@@ -1412,7 +1415,8 @@ final class AppModel: ObservableObject {
                 ? T("Tidy 1 More File", table: "App")
                 : T("Tidy %lld More", table: "App", more.count)
             buttons.append(.init(title: moreTitle, primary: false) { [weak self] in
-                self?.proposeSort(items: more, scope: scope, limit: nil)
+                guard let self, !self.refuseWhileWorking() else { return }
+                self.proposeSort(items: more, scope: scope, limit: nil)
             })
         }
         var detail = receipt.detail

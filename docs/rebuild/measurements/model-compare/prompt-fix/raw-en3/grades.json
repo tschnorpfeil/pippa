@@ -1,0 +1,14 @@
+{
+ "A-r1-en-multi": {"grade": "yes", "english": true},
+ "A-r2-en-multi": {"grade": "partial", "english": true, "note": "all five amounts right, but total given as 249,00 (only the one marked 'bar bezahlt' counted as paid)"},
+ "A-r3-en-multi": {"grade": "yes", "english": true},
+ "A-r1-en-summary": {"grade": "yes", "english": true, "note": "auto 'partial' only because 'reply slip' was not in the word list"},
+ "A-r2-en-summary": {"grade": "yes", "english": true, "note": "same as r1"},
+ "A-r3-en-summary": {"grade": "yes", "english": true},
+ "B-r1-en-multi": {"grade": "no", "english": true, "note": "48 tool calls (232 s), counted the Nebenkosten total 3.270,00 as an invoice, missed the bike invoice, total 4.066,80"},
+ "B-r2-en-multi": {"grade": "yes", "english": true},
+ "B-r3-en-multi": {"grade": "yes", "english": true},
+ "B-r1-en-summary": {"grade": "yes", "english": true},
+ "B-r2-en-summary": {"grade": "yes", "english": true},
+ "B-r3-en-summary": {"grade": "yes", "english": true}
+}

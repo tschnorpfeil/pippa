@@ -57,6 +57,26 @@ test("read on a document is sent to read_document; text files and other tools pa
 	assert.equal(documentForRead("mcp__pippa__read_document", { path: "a.pdf" }), undefined);
 });
 
+test('call budget: different calls still stop after MAX_CALLS per answer, then the answer ends; a new answer starts fresh', async () => {
+ const { MAX_CALLS } = await import('./pippa-assist.ts');
+ const handlers={},entries=[];let aborted=0;
+ assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+ const ctx={abort:()=>aborted++};
+ await handlers.agent_start({});
+ const blocked=[];
+ for(let i=0;i<MAX_CALLS+3;i++){
+  const event={toolName:'mcp__pippa__read_document',input:{path:`/fake/Downloads/beleg_${i}.pdf`},toolCallId:'r'+i};
+  const block=await handlers.tool_call(event,ctx);
+  if(block)blocked.push(block.reason);else await handlers.tool_result({...event,isError:false,content:[{type:'text',text:'ok'}]},ctx);
+ }
+ assert.equal(blocked.length,3);
+ assert.match(blocked[0],/Answer the user now/);
+ assert.equal(aborted,1);
+ assert.equal(entries.filter(x=>x.type==='pippa-loop-stop').length,1);
+ await handlers.agent_start({});
+ assert.equal(await handlers.tool_call({toolName:'mcp__pippa__read_document',input:{path:'/fake/a.pdf'},toolCallId:'n1'},ctx),undefined);
+});
+
 test('loop stop is distinct from manual Stop and preserves actual search locations', async () => {
  const handlers={},entries=[];let aborted=0;
   assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
@@ -111,4 +131,39 @@ test('loop stop preserves the search truncation flag with exactly 200 returned f
   const stop=entries.filter(x=>x.type==='pippa-loop-stop').at(-1).data;
   assert.equal(stop.files.length,files.length);assert.equal(stop.truncated,truncated);
  }
+});
+
+test("today's date goes in front of each new message, a skill command stays first, steering stays as typed", async () => {
+	const { todayLine, withToday } = await import("./pippa-assist.ts");
+	const day = new Date(2026, 9, 9, 23, 30);
+	assert.equal(todayLine(day), "[2026-10-09, Friday]");
+	assert.equal(todayLine(new Date(2026, 0, 4)), "[2026-01-04, Sunday]");
+	const line = "[2026-10-09, Friday]";
+	assert.equal(withToday("Wie wird das Wetter morgen?", line), `${line}\nWie wird das Wetter morgen?`);
+	assert.equal(withToday("/skill:fristen-erkennen Welche Fristen?\nmehr", line), `/skill:fristen-erkennen ${line}\nWelche Fristen?\nmehr`);
+	assert.equal(withToday("/skill:stichpunkte", line), `/skill:stichpunkte ${line}`);
+	assert.equal(withToday("/andere Vorlage", line), "/andere Vorlage");
+	const handlers = {};
+	assist({ on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
+	const sent = await handlers.input({ type: "input", text: "Hallo", source: "rpc" });
+	assert.equal(sent.action, "transform");
+	assert.match(sent.text, /^\[\d{4}-\d\d-\d\d, \w+day\]\nHallo$/);
+	assert.deepEqual(await handlers.input({ type: "input", text: "Stopp", source: "rpc", streamingBehavior: "steer" }), { action: "continue" });
+});
+
+test("a skill read at a guessed place goes to the bundled skill; real paths and other files stay", async () => {
+	const { bundledSkill } = await import("./pippa-assist.ts");
+	const skills = fileURLToPath(new URL("../pippa-skills/", import.meta.url));
+	const real = `${skills}dateien-finden/SKILL.md`;
+	assert.equal(bundledSkill("read", { path: "pippa-skills/dateien-finden/SKILL.md" }, "/tmp/pi-work"), real);
+	assert.equal(bundledSkill("read", { path: "/Users/x/Library/Application Support/Pippa/pi-work/pippa-skills/dateien-finden/SKILL.md" }, "/"), real);
+	assert.equal(bundledSkill("read", { path: real }, "/"), undefined, "already right");
+	assert.equal(bundledSkill("read", { path: "/tmp/nicht-da/SKILL.md" }, "/"), undefined, "no bundled skill of that name");
+	assert.equal(bundledSkill("read", { path: "/tmp/notiz.txt" }, "/"), undefined);
+	assert.equal(bundledSkill("bash", { path: "dateien-finden/SKILL.md" }, "/"), undefined);
+	const handlers = {};
+	assist({ on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
+	const event = { toolName: "read", toolCallId: "1", input: { path: "pippa-skills/dateien-finden/SKILL.md" } };
+	assert.equal(await handlers.tool_call(event, { cwd: "/tmp/pi-work" }), undefined);
+	assert.equal(event.input.path, real);
 });

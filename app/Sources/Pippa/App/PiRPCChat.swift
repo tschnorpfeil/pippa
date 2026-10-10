@@ -134,7 +134,9 @@ final class PiRPCChat {
         let env = ProcessInfo.processInfo.environment
         // Local model or own online service (only via Pippa's broker). If the path changes, Pi restarts.
         let route = try await launchRoute(env)
-        if let client, sessionKey == key, launchKey == route.key, await client.isRunning { return client }
+        // Still "answering" here means the last answer was abandoned without Pi settling (stop timed out): start afresh
+        // (the session is on disk) instead of refusing every further message as busy until the app restarts.
+        if let client, sessionKey == key, launchKey == route.key, await client.isRunning, await client.isAnswering == false { return client }
         if let old = client { await old.shutdown(); client = nil }
         let extensions = URL(fileURLWithPath: Self.extensionsPath(env), isDirectory: true)
         guard FileManager.default.fileExists(atPath: extensions.appendingPathComponent("pippa-tools.ts").path) else {
@@ -143,7 +145,10 @@ final class PiRPCChat {
         let work = try Self.workingDirectory(env)
         try FileManager.default.createDirectory(at: Self.sessionDirectory, withIntermediateDirectories: true)
         // pi-web-access reads Pippa's settings from here, never from the person's ~/.pi (runtime/pippa-web/index.ts).
-        var extra = ["PIPPA_WEB_DIR": Pippa.supportDirectory.appendingPathComponent("pi-web", isDirectory: true).path]
+        var extra = ["PIPPA_WEB_DIR": Pippa.supportDirectory.appendingPathComponent("pi-web", isDirectory: true).path,
+                     // If the model crashes mid-answer, the terminal extension restarts it for this Pi; this ties that
+                     // server to the app so it never outlives Pippa (runtime/pippa-local-server/supervisor.mjs).
+                     "PIPPA_APP_PID": String(getpid())]
         if let online = route.online { extra[PiOnlineProvider.keyVariable] = online.key }
         // Test scripts only (scripts/pi-rpc-spike.sh app): own Pi folder instead of ~/.pi, test trash under .build.
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR"] { if let value = env[key] { extra[key] = value } }
@@ -488,7 +493,26 @@ final class PiRPCChat {
             }
             throw Failure.model(lastError ?? "unbekannt")
         }
+        if held != nil, let plan = localPlan { Self.removeSupersededModels(after: plan) }
         return segment.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// After the first local answer with the table's model in this app run: delete models it replaced (SupersededModels),
+    /// only from Pippa's own model folder. Off the main thread; errors only cost disk space.
+    private static var supersededChecked = false
+    private static func removeSupersededModels(after plan: PiLocalServer.Plan) {
+        guard !supersededChecked, plan.source == "installer",
+              let roots = try? installTarget(ProcessInfo.processInfo.environment).roots else { return }
+        supersededChecked = true
+        let folder = plan.modelFile.deletingLastPathComponent()
+        guard folder.standardizedFileURL.path == roots.pippaModels.standardizedFileURL.path else { return }
+        let modelID = plan.modelID
+        Task.detached(priority: .utility) {
+            let removed = SupersededModels.remove(activeModelID: modelID, folder: folder)
+            if !removed.isEmpty {
+                DiagnosticsLog.shared.event("altes-modell-entfernt", ["modell": modelID, "dateien": removed.map(\.lastPathComponent).joined(separator: ",")])
+            }
+        }
     }
 
     private var searchFiles: [URL] = []
