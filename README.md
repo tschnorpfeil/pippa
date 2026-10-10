@@ -32,6 +32,7 @@ Most AI apps start with an empty text box and expect you to know what to ask. Pi
 - **The answer comes first.** One sentence that says what to do, the passage it came from, and a button for the next step.
 - **Results are things.** A finished PDF sits in the pill and can be dragged straight into Mail. A reply waits in Mail as a draft.
 - **It stays until you look.** Close the window, come back later: the result is still in the pill.
+- **She remembers what matters.** Tell her where you live or who your landlord is, and she keeps it for next time. "Forget that" is enough to remove it. New topics start by themselves, with a short note of what came before.
 
 <p align="center">
   <picture>
@@ -111,7 +112,9 @@ If a matching model is already on your Mac (LM Studio, Ollama, Hugging Face cach
 
 1. Download [Pippa.dmg](https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg).
 2. Drag Pippa into Applications and open her.
-3. Answer one question: may she download her AI now? Everything else sets itself up.
+3. Answer one question: may she download her AI now? Everything else sets itself up. If you opened her from the disk image or Downloads, she offers once to move herself to Applications.
+
+While the AI downloads, Apple Intelligence on your Mac already answers simple questions, if it is turned on. Anything that needs your files, Mail or the web waits in the conversation and goes out by itself as soon as Pippa's AI is ready.
 
 Pi lands in its standard place (`~/.pi/agent`, plus `~/.local/bin/pi` if you have no Pi yet), so the same Pi and the same local model also work from Terminal. An existing Pi install is left alone. Updates arrive automatically.
 
