@@ -39,6 +39,8 @@ final class PillAuraState: ObservableObject {
     @Published private(set) var pill: CGRect = .zero
     @Published private(set) var mark: CGRect = .zero
     @Published private(set) var working = false
+    /// Mouse on the pill.
+    @Published private(set) var hovered = false
     @Published private(set) var thought: AuraThought?
     /// Too little room above the pill (it sits near the top of the screen): the bubble hangs below it.
     @Published private(set) var below = false
@@ -53,6 +55,10 @@ final class PillAuraState: ObservableObject {
     private var slowTask: Task<Void, Never>?
     private var answerStart: Date?
     private var slowSaid = false
+
+    func setHovered(_ on: Bool) {
+        if hovered != on { hovered = on }
+    }
 
     func update(pill: CGRect, mark: CGRect, below: Bool, working: Bool, step: StepBubble?, startedAt: Date?, slowText: String) {
         if self.pill != pill { self.pill = pill }
@@ -116,16 +122,20 @@ struct PillAura: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            WanderingGlow(reduceMotion: reduceMotion, running: state.working)
+            // Hover at rest: the same light, standing still and at half strength. While working it only brightens a little.
+            WanderingGlow(reduceMotion: reduceMotion || (state.hovered && !state.working), running: state.working,
+                          lift: state.hovered && state.working ? 0.12 : 0)
                 .frame(width: state.pill.width + 12, height: state.pill.height + 10)
                 .offset(x: state.pill.minX - 6, y: state.pill.minY - 5)
-                .opacity(state.working ? 1 : 0)
-                .animation(.easeInOut(duration: 0.9), value: state.working)
+                .opacity(glow)
+                .animation(state.hovered ? .easeOut(duration: 0.3) : .easeInOut(duration: state.working ? 0.9 : 0.6), value: glow)
             thoughtSpot
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .allowsHitTesting(false)
     }
+
+    private var glow: Double { state.working ? 1 : state.hovered ? 0.5 : 0 }
 
     /// The bubble's corner sits just above (or below) Pippa's mark; the dots lead from the mark to it.
     private var thoughtSpot: some View {
@@ -150,6 +160,8 @@ struct PillAura: View {
 struct WanderingGlow: View {
     var reduceMotion: Bool
     var running: Bool
+    /// Extra brightness while the mouse is on the working pill.
+    var lift = 0.0
     private static let cycle = 7.0
     private static let breath = 4.2
     private static let violet = Color(red: 132 / 255, green: 110 / 255, blue: 255 / 255)
@@ -160,7 +172,7 @@ struct WanderingGlow: View {
             let a = 2 * Double.pi * t / Self.cycle
             let first = reduceMotion ? UnitPoint(x: 0.3, y: 0.5) : UnitPoint(x: 0.5 + 0.38 * sin(a), y: 0.5 + 0.3 * sin(1.7 * a))
             let second = reduceMotion ? UnitPoint(x: 0.75, y: 0.5) : UnitPoint(x: 0.5 - 0.38 * sin(a), y: 0.5 - 0.3 * sin(1.7 * a + 0.8))
-            let intensity = reduceMotion ? 0.88 : 0.875 + 0.125 * cos(2 * Double.pi * t / Self.breath)
+            let intensity = (reduceMotion ? 0.88 : 0.875 + 0.125 * cos(2 * Double.pi * t / Self.breath)) + lift
             GeometryReader { geo in
                 let reach = max(geo.size.width, geo.size.height) * 0.55
                 ZStack {
