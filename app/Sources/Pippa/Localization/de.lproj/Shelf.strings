@@ -13,6 +13,8 @@
 "Save…" = "Speichern …";
 "Ready" = "Fertig";
 "from %@" = "aus %@";
+"Folder" = "Ordner";
+"Folder from %@" = "Ordner aus %@";
 
 "Remove %@" = "%@ von Pippa nehmen";
 
