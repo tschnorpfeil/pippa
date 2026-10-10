@@ -40,6 +40,12 @@ struct ResumeConversationContent: View {
             .padding(.top, 10)
             .padding(.bottom, 4)
 
+            if let front = model.frontApp {
+                FrontAppChip(app: front) { model.dismissFrontApp() }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+            }
+
             HStack(spacing: 10) {
                 MarkSlot(size: 28)
                 TextField(T("Continue this conversation…", table: "Views"), text: $model.query)

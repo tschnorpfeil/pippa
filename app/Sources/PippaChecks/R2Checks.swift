@@ -196,7 +196,7 @@ func runR2Checks() async {
         return doc["readOnlyHint"] as? Bool == true && doc["openWorldHint"] as? Bool == false
             && !names.contains("web_search") && !names.contains("read_web_page")
             // Three writing tools on top (own size check in R3Checks).
-            && list.count == 10 && bytes < 5400
+            && list.count == 11 && bytes < 5400
     }
     // The other share (prompt, Pi's, Pippa's and the web tools) is runtime/pippa-tools/real-pi-budget.test.mjs, 6,400
     // characters; both together about 3,000 tokens, prefilled cold on every new conversation.

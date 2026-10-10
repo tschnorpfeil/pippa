@@ -266,3 +266,9 @@
 "Open in Photos" = "In Fotos öffnen";
 "Open in Reminders" = "In Erinnerungen öffnen";
 "overdue" = "überfällig";
+
+/* Chip above the input: the app Pippa was called from (FrontAppChip.swift) */
+"Leave out %@. Pippa then knows nothing about it." = "%@ weglassen. Pippa weiß dann nichts davon.";
+"Leave out %@" = "%@ weglassen";
+"Pippa knows you came from here. She reads what’s open only if you ask about it." = "Pippa weiß, dass du von hier kommst. Was offen ist, liest sie nur, wenn du danach fragst.";
+"Pippa knows: %@" = "Pippa weiß: %@";

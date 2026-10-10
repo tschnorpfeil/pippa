@@ -59,3 +59,10 @@
 "Reminders · due in the next %lld days" = "Reminders · due in the next %lld days";
 "Reminders on this Mac" = "Reminders on this Mac";
 "Reminders on this Mac · %lld of %lld" = "Reminders on this Mac · %lld of %lld";
+
+/* App in front (front_read) */
+"the app in front" = "the app in front";
+"Read %@: “%@”" = "Read %1$@: “%2$@”";
+"To answer this, I need to read what’s open in %@ – only when you ask, and I don’t change anything." = "To answer this, I need to read what’s open in %@ – only when you ask, and I don’t change anything.";
+"I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again." = "I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again.";
+"I can’t read anything from %@. Copy the text you mean or drop the file on me, then ask again." = "I can’t read anything from %@. Copy the text you mean or drop the file on me, then ask again.";

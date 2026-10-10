@@ -1024,7 +1024,8 @@ await checkAsync("Script for reading mail compiles (nothing is sent)") {
     // Excel is missing from the result when Excel isn't installed (CI); its script is then not compiled.
     return result["Mail"] == true && result["MailReply"] == true && result["MailSearch"] == true && (result["Excel"] ?? true)
         && result["PhotosSearch"] == true && result["PhotosShow"] == true
-        && Set(result.keys).isSubset(of: ["Mail", "MailReply", "MailSearch", "Excel", "PhotosSearch", "PhotosShow"])
+        && result["Safari"] == true && result["FrontDocument"] == true && (result["Chrome"] ?? true)
+        && Set(result.keys).isSubset(of: ["Mail", "MailReply", "MailSearch", "Excel", "PhotosSearch", "PhotosShow", "Safari", "Chrome", "FrontDocument"])
 }
 
 
