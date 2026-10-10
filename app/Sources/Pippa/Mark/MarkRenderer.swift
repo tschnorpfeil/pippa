@@ -69,6 +69,14 @@ final class MarkRenderer {
     private var tubes: [(edges: [Edge], alpha: Double)] = []
 
     var state: MarkState { didSet { if state != oldValue { idleLife = Self.idleLifeSeconds } } }
+    /// Mouse on the pill: at rest the rings take one small breath, outer ring first, and hold it until the mouse leaves.
+    var hovered = false { didSet { if hovered != oldValue { hoverClock = 0; idleLife = Self.idleLifeSeconds } } }
+    /// Same order and offset per ring as the waking breath in the conversation, so both move to one rhythm.
+    static let inhaleScale = 0.12
+    static let inhaleStagger = 0.22
+    private var hoverClock = 10.0
+    private var inhale = [Spring(value: 0), Spring(value: 0), Spring(value: 0)]
+    private var inhaleTarget = [0.0, 0.0, 0.0]
     var palette: MarkPalette
     var reduced: Bool
     /// Glow only at display sizes above 32 pt.
@@ -132,6 +140,15 @@ final class MarkRenderer {
         glowClock = living ? idle : elapsed
         let targetInk = current == .fehler ? palette.destructive : current == .offen ? palette.success : palette.primary
         var moving = kick.advance(to: 0, seconds: seconds, reduced: snapping, attenuation: attenuation, frequency: morph)
+        hoverClock += seconds
+        let breathing = hovered && current == .ruht && !reduced
+        for strand in 0..<3 {
+            // Each ring follows a little after the one outside it, in and out alike.
+            if snapping || hoverClock >= Double(strand) * Self.inhaleStagger { inhaleTarget[strand] = breathing ? 1 : 0 }
+            moving = inhale[strand].advance(to: inhaleTarget[strand], seconds: seconds, reduced: snapping,
+                                            frequency: breathing ? 9 : 6) || moving
+        }
+        if inhaleTarget[2] != (breathing ? 1 : 0) { moving = true }
         for i in 0..<3 {
             moving = color[i].advance(to: targetInk[i], seconds: seconds, reduced: snapping, attenuation: attenuation, frequency: morph) || moving
         }
@@ -143,6 +160,7 @@ final class MarkRenderer {
             let pose = orientation.pose
             moving = orientation.moving || moving
             let radius = s * (MarkConst.kreisRadius - Double(strand) * MarkConst.strangAbstand) * (1 + 0.04 * max(0, kick.value)) * breath
+                * (1 + Self.inhaleScale * inhale[strand].value)
             var edges: [Edge] = []
             edges.reserveCapacity(segments)
             for (index, point) in geometry[strand].enumerated() {

@@ -629,6 +629,7 @@ final class ShellController: NSObject {
         stageVisible = wantVisible
         interaction.isHidden = expanded
         interaction.mode = model.mode.shape
+        if model.mode.key != "pill" { mark.setHovered(false); auraState.setHovered(false) }
         effect.material = !model.mode.isConversation && model.mode.shape == .sheet ? ShellTokens.sheetMaterial : ShellTokens.material
         if expanded {
             panel.allowsKey = DevSnapshot.directory == nil || DevSnapshot.testsKeyboard
@@ -962,9 +963,12 @@ final class ShellController: NSObject {
         return r.offsetBy(dx: panel.frame.minX, dy: panel.frame.minY)
     }
 
-    /// Mouse on the pill: the cards fan out after a short dwell.
+    /// Mouse on the pill: the rings take a breath, a still glow comes up, and the cards fan out after a short dwell.
     func pillHover(_ on: Bool) {
-        stack.setPillHover(on && model.mode.key == "pill")
+        let hovered = on && model.mode.key == "pill"
+        mark.setHovered(hovered)
+        auraState.setHovered(hovered)
+        stack.setPillHover(hovered)
     }
 
     /// Cards only at rest, with the pill visible; the line shows its own.

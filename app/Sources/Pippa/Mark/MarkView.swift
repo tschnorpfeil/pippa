@@ -105,6 +105,12 @@ final class MarkNSView: NSView {
         wake()
     }
 
+    func setHovered(_ on: Bool) {
+        guard renderer.hovered != on else { return }
+        renderer.hovered = on
+        wake()
+    }
+
     func reducedChanged(_ reduced: Bool) {
         renderer.reduced = reduced
         wake()

@@ -39,10 +39,7 @@ final class PillInteractionView: ShellDropView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        if mode == .pill {
-            controller?.pulseMark()
-            controller?.pillHover(true)
-        }
+        if mode == .pill { controller?.pillHover(true) }
     }
 
     override func mouseExited(with event: NSEvent) {
