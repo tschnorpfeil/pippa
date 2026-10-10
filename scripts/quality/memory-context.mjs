@@ -73,7 +73,7 @@ function startPi(id) {
 		PIPPA_MEMORY_FILE: memoryFile, PIPPA_TRASH_DIR: join(out, "trash") };
 	const child = spawn(node, [cli, "--mode", "rpc", ...ext("pippa-tools.ts"), ...ext("pippa-assist.ts"), ...ext("pippa-memory.ts"), ...ext("pippa-context.ts"),
 		"--provider", "pippa-local", "--model", KEY, "--no-context-files", "--no-approve", "--no-skills",
-		"--tools", "read,bash,edit,write,list_folder,rename_or_move,move_files,move_to_trash,remember", "--system-prompt", prompt,
+		"--tools", "read,bash,edit,write,search_files,list_folder,move_files,move_to_trash,remember", "--system-prompt", prompt,
 		"--session-dir", sessions, "--session-id", id], { cwd: work, env, stdio: ["pipe", "pipe", "pipe"] });
 	const raw = createWriteStream(join(out, `events-${id}.jsonl`));
 	child.stderr.pipe(createWriteStream(join(out, `pi-${id}.stderr`)));

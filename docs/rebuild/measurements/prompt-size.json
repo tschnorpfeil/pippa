@@ -45,6 +45,17 @@
     },
     "total": 2226
   },
+  "pippaSearchTool": {
+    "setup": "search_files tool instead of the dateien-finden skill, rename_or_move merged into move_files, no get_search_content: 19 tools, no skills section",
+    "system": {
+      "total": 509,
+      "prompt": 445,
+      "cwd": 64
+    },
+    "toolDeclarations": 1487,
+    "total": 1996,
+    "note": "plus one model round less per file search: the skill's SKILL.md no longer has to be read first"
+  },
   "note": "cwd counts a long test path; on the Mac it is shorter. MCP declarations hand-copied from the Swift toolList (9 tools).",
   "macQwen": {
     "setup": "Mac, Qwen3.5-9B Q4 with thinking (model-compare variant B), patched llama-server b11503, ctx 32768. ALT = f3ba779 with this branch's tool-choice test files, NEU = 4da815a. Real chat template via token-prefix.mjs.",

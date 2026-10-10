@@ -30,9 +30,9 @@ test("move_files plan: grouped by subfolder, new folders, per-item errors, never
 		["b.jpg", "plan/Bilder/2026/b.jpg", undefined],
 		["fehlt.doc", "plan/Texte/fehlt.doc", "not found"],
 		["PDFs", "plan/PDFs/innen/PDFs", "cannot move a folder into itself"],
-		["d.txt", "plan-abs/d.txt", "target must be a subfolder of folder; use rename_or_move for other places"],
-		["d.txt", "~/Irgendwo/d.txt", "target must be a subfolder of folder; use rename_or_move for other places"],
-		["d.txt", "daneben/d.txt", "target must be a subfolder of folder; use rename_or_move for other places"],
+		["d.txt", "plan-abs/d.txt", "target must be a subfolder of folder; for other places use from and to"],
+		["d.txt", "~/Irgendwo/d.txt", "target must be a subfolder of folder; for other places use from and to"],
+		["d.txt", "daneben/d.txt", "target must be a subfolder of folder; for other places use from and to"],
 		["d.txt", "plan/Einzeln/d.txt", undefined],
 	]);
 	assert.deepEqual(plan.folders, [join(dir, "Bilder"), join(dir, "Einzeln")]);
@@ -82,4 +82,20 @@ test("parameter texts of Pi's built-in tools get shorter in the request; schema,
 	assert.equal(anthropic.tools[0].input_schema.properties.path.description, undefined);
 	assert.equal(shortenParameters({ messages: [] }), undefined);
 	assert.equal(shortenParameters(out), undefined, "already short: nothing to change");
+});
+
+test("move_files with from/to: rename or move one item, never overwriting", async () => {
+	const { moveOne } = await import("./files.ts");
+	const { existsSync, mkdirSync, writeFileSync } = await import("node:fs");
+	const dir = await mkdtemp(join(root, "move-"));
+	writeFileSync(join(dir, "brief.pdf"), "x");
+	writeFileSync(join(dir, "da.pdf"), "y");
+	mkdirSync(join(dir, "Ablage"));
+	await moveOne("brief.pdf", "Mietvertrag.pdf", dir);
+	assert.ok(existsSync(join(dir, "Mietvertrag.pdf")));
+	await moveOne(join(dir, "Mietvertrag.pdf"), join(dir, "Ablage"), dir);
+	assert.ok(existsSync(join(dir, "Ablage", "Mietvertrag.pdf")));
+	writeFileSync(join(dir, "Mietvertrag.pdf"), "z");
+	await assert.rejects(moveOne("Mietvertrag.pdf", "Ablage", dir), /already exists/);
+	await assert.rejects(moveOne("fehlt.pdf", "neu.pdf", dir), /Not found/);
 });
