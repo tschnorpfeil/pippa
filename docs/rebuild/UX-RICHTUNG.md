@@ -85,6 +85,10 @@ das dieselbe Frage noch einmal stellt.
 Pille im Hintergrund (Owner 10.10.): Läuft irgendetwas, auch das Laden der KI, kreist das Zeichen und der Rand der
 Pille atmet langsam (nur Deckkraft, 1,6 s). Mit „Bewegung reduzieren“ steht der Rand still und leuchtet.
 
+Denkanzeige (Owner 10.10.: nachvollziehbar, aber nicht technisch): Jeder Schritt hat ein kleines Bild dafür, was er
+anfasst (Datei, Suche, Mail, Kalender, online, Mac), und was nicht geklappt hat, ist markiert. „4 frühere Schritte“
+öffnet beim Arbeiten alle Schritte. Gedanken des Modells zeigt Pippa weiterhin nicht, nur was wirklich passiert ist.
+
 Fixplan Phase 1: in diesem Branch 1.1 (Grund sichtbar, „Problem melden“ hinter Details), 1.3 (kein ⌘↵ im Knopf), 1.4 („vorher: …“ in normaler Schrift). Offen: 1.2, 1.5–1.9.
 
 ## Was dieser Branch ändert
