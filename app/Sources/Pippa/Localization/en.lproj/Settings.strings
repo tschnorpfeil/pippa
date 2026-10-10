@@ -64,6 +64,7 @@
 "With a fast connection, this takes %@. After that, everything runs on your Mac." = "With a fast connection, this takes %@. After that, everything runs on your Mac.";
 "Pippa loads her AI once. After that, everything runs on your Mac." = "Pippa loads her AI once. After that, everything runs on your Mac.";
 "Later" = "Later";
+"Tidying up and overviews already work without it. You can load it any time." = "Tidying up and overviews already work without it. You can load it any time.";
 "Not everything is available yet" = "Not everything is available yet";
 "You can still look at an overview of your files." = "You can still look at an overview of your files.";
 "Quit Pippa" = "Quit Pippa";

@@ -137,8 +137,15 @@ final class PiSetupController: ObservableObject {
         }
     }
 
+    /// "Später" was chosen: opening Pippa leads to the conversation from now on (until the next start). Clicking away
+    /// is no answer, the question comes back.
+    private(set) var deferred = false
+
     /// "Später" and "Ausblenden": back to the pill. A running download continues.
-    func later() { model?.collapse() }
+    func later() {
+        if asksDownload { deferred = true }
+        model?.collapse()
+    }
 
     /// "Nochmal versuchen": from scratch (idempotent); if "Laden" was already said, continues without a question.
     func retry() { begin() }

@@ -16,7 +16,7 @@ extension AppModel {
     /// Why sending is not possible right now. Calendar questions and tidying also work without loaded knowledge: they need
     /// no model (when tidying, unclear items are then left in place).
     func sendBlockedReason(for text: String) -> String? {
-        guard let reason = chatBlockedReason else { return nil }
+        guard let reason = chatBlockedReason, !startupBridgeAnswers else { return nil }
         let q = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return calendarIntent(for: q) == nil && tidyIntent(for: q) == nil ? reason : nil
     }
