@@ -19,6 +19,11 @@
  * Model input repair (pi-web-access #542): a small model sometimes sends `queries` as a JSON string with a missing
  * quote. pi-web-access then searches for the broken text literally. `repairQueries` turns it into a list, or blocks
  * the call with a reason the model understands.
+ *
+ * Short declarations (`DECLARATIONS`): pi-web-access declares every option it knows (proxies, video frames, Gemini,
+ * browser cookies, curator), ~1,500 tokens, more than all of Pippa's other tools together. Most are switched off in
+ * `SETTINGS` anyway. `leanDeclarations` sends the model only what Pippa uses; pi-web-access still accepts its full
+ * input, so nothing about running a call changes.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -47,6 +52,51 @@ export const SETTINGS = {
 	githubPrIssue: { enabled: false },
 	allowBrowserCookies: false,
 };
+
+const text = { type: "string" };
+const texts = { type: "array", items: text };
+
+/** What the model sees of the web tools: one description and the parameters Pippa uses. */
+export const DECLARATIONS: Record<string, { description: string; parameters: Record<string, unknown> }> = {
+	web_search: {
+		description: "Search the web; results with links. More of a result: get_search_content with its responseId.",
+		parameters: { type: "object", properties: {
+			query: text,
+			queries: { ...texts, description: "Up to three different searches at once." },
+			recencyFilter: { type: "string", enum: ["day", "week", "month", "year"] },
+		} },
+	},
+	fetch_content: {
+		description: "Read a web page as text; urls for several at once.",
+		parameters: { type: "object", properties: { url: text, urls: texts } },
+	},
+	get_search_content: {
+		description: "Read more of a result stored by web_search or fetch_content.",
+		parameters: { type: "object", required: ["responseId"], properties: {
+			responseId: text,
+			url: text,
+			offset: { type: "integer", description: "Character to continue from." },
+			findText: { ...text, description: "Return only passages with this text." },
+		} },
+	},
+};
+
+/** The provider request with `DECLARATIONS` for the web tools; `undefined` = nothing to change (keep Pi's payload). */
+export function leanDeclarations(payload: any): any {
+	if (!payload || !Array.isArray(payload.tools)) return undefined;
+	let changed = false;
+	const tools = payload.tools.map((tool: any) => {
+		// OpenAI chat completions: {type, function: {name, parameters}}; Responses API: {name, parameters}; Anthropic: {name, input_schema}.
+		const fn = tool?.function ?? tool;
+		const lean = DECLARATIONS[fn?.name];
+		const key = fn?.parameters ? "parameters" : fn?.input_schema ? "input_schema" : undefined;
+		if (!lean || !key || (fn.description === lean.description && fn[key] === lean.parameters)) return tool;
+		changed = true;
+		const next = { ...fn, description: lean.description, [key]: lean.parameters };
+		return tool?.function ? { ...tool, function: next } : next;
+	});
+	return changed ? { ...payload, tools } : undefined;
+}
 
 /** Pippa's folder for `web-search.json` and the page cache. */
 export function settingsDirectory(env: Record<string, string | undefined>): string {
@@ -94,6 +144,7 @@ export default async function (pi: ExtensionAPI) {
 		if (saved === undefined) delete process.env.XDG_CONFIG_HOME;
 		else process.env.XDG_CONFIG_HOME = saved;
 	}
+	pi.on("before_provider_request", (event: any) => leanDeclarations(event?.payload));
 	pi.on("tool_call", async (event: any) => {
 		if (event.toolName !== "web_search" || !event.input) return;
 		const repaired = repairQueries(event.input);

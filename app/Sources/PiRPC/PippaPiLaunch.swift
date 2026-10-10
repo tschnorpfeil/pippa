@@ -103,7 +103,7 @@ public enum PippaPiLaunch {
     }
 
     /// Pippa's system prompt for Pi, per app language. Deliberately short and without date or counter: every change costs
-    /// the local model a cold prompt evaluation. Tone from PippaCore/Resources/persona.md. What happened is told by
+    /// the local model a cold prompt evaluation. Today's date comes with each message instead (pippa-assist.ts). Tone from PippaCore/Resources/persona.md. What happened is told by
     /// Pippa itself (receipt from events); the prompt only demands honesty.
     public static func systemPrompt(language: String) -> String {
         language.hasPrefix("de") ? german : english
