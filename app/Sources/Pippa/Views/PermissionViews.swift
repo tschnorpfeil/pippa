@@ -313,12 +313,10 @@ struct PermissionsOnboardingPage: View {
         return text
     }
 
-    /// All rows if they fit, otherwise what the panel has room for (heading and buttons take about 190 pt).
+    /// All rows if they fit, otherwise what the panel has room for (heading, subtitle and "Continue" take about 230 pt).
     static func listHeight(rows: Int) -> CGFloat {
         let wanted = CGFloat(max(rows, 1)) * 58 + 92
-        let screen = (NSScreen.main?.visibleFrame.height ?? 800) - 2 * max(ShellTokens.screenInset, 20)
-        let room = min(DevSnapshot.workspaceSize.height, screen) - 190
-        return max(150, min(wanted, room))
+        return max(140, min(wanted, ShellController.panelRoom - 230))
     }
 
     /// After "Load" (or with the AI already here), as long as the page has not been finished once.
