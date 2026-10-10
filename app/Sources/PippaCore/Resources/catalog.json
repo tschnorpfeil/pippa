@@ -271,7 +271,7 @@
     {
       "key": "k2-horizon-7b",
       "label": "K2 Horizon 7B",
-      "description": "Pippa's default from 16 GB: compact model from MBZUAI/IFM (needs llama.cpp b11503 or later)",
+      "description": "Compact model from MBZUAI/IFM, Pippa's default until the Qwen3.5 9B switch (needs llama.cpp b11503 or later)",
       "repo": "IFM/K2-Horizon-7B-GGUF",
       "quant": "Q4_K_M",
       "approxBytes": 5592217984,
@@ -305,7 +305,7 @@
     {
       "key": "qwen3.5-9b-q4",
       "label": "Qwen3.5 9B (Q4)",
-      "description": "Compact and fast, for little memory",
+      "description": "Pippa's default from 16 GB: compact, fast, good German and tool calls",
       "repo": "unsloth/Qwen3.5-9B-GGUF",
       "quant": "Q4_K_M",
       "approxBytes": 5680522464,

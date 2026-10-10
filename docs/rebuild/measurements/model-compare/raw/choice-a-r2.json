@@ -1,0 +1,1910 @@
+[
+  {
+    "id": "tax",
+    "prompt": "Such alle Unterlagen für Steuer 2025.",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Documents/f.pdf",
+      "Library/Mobile Documents/com~apple~CloudDocs/d.pdf",
+      "Library/CloudStorage/TestDrive/e.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants me to find all documents for \"Steuer 2025\" (tax 2025). According to my instructions, I should first read the dateien-finden skill before searching. Let me do that.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "mI6hJgChdS0OtK408MW5QxzAaYVVraWM",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.949,
+    "usage": [
+      {
+        "input": 30,
+        "output": 84,
+        "cacheRead": 1852,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1966,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "document",
+    "prompt": "Wo ist mein Dokument zur Kaution?",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Desktop/b.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "Der Benutzer fragt nach einem Dokument zur Kaution. Ich soll die dateien-finden-Skill verwenden, um nach dem Dokument zu suchen. Zuerst lese ich die Skill-Datei.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "A2ZZdLrdJZrVkiaTWmQvf7Xrspftlrxb",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.644,
+    "usage": [
+      {
+        "input": 14,
+        "output": 79,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1959,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "pdf",
+    "prompt": "Finde das PDF zur Hausratversicherung.",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Library/Mobile Documents/com~apple~CloudDocs/d.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "Der Nutzer möchte ein PDF zur Hausratversicherung finden. Ich sollte das dateien-finden-Skill lesen, bevor ich suche.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "text",
+          "text": "Ich lade zuerst die Anleitung zum Finden von Dateien."
+        },
+        {
+          "type": "toolCall",
+          "id": "5U472zcCJqstnaqcvU15eBfprGSpoha9",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.546,
+    "usage": [
+      {
+        "input": 15,
+        "output": 77,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1958,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "invoice",
+    "prompt": "Such die Rechnung vom Zahnarzt aus 2023.",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Documents/a.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants me to find a dentist invoice from 2023. I should use the dateien-finden skill first, which is designed for locating unknown personal documents by content/year.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "jhe09uhsiGSfUctm0pxBcou5xQFlxPhw",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.557,
+    "usage": [
+      {
+        "input": 17,
+        "output": 76,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1959,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "info",
+    "prompt": "Ich suche Info zu meiner Nebenkostenabrechnung 2024.",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Downloads/c.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "Der Nutzer sucht Info zu seiner Nebenkostenabrechnung 2024. Ich sollte den dateien-finden Skill lesen, da das sich um die Suche nach persönlichen Dokumenten handelt. Laut Anleitung: \"Eigene Dateien finden: Lade dateien-finden mit read und nutze sein Skript. Dafür nie web_search.\"\n\nIch lade das Skill zuerst.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "nDR2St7XPxUnAFKBH7AH4Qgc5934Gsp8",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 5.084,
+    "usage": [
+      {
+        "input": 19,
+        "output": 112,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1997,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "where",
+    "prompt": "Wo ist der Mietvertrag?",
+    "tools": [
+      "bash",
+      "read"
+    ],
+    "expectedFiles": [
+      "Desktop/b.pdf"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "Der Nutzer fragt nach dem Mietvertrag. Ich sollte zuerst das Skill dateien-finden lesen, da es genau für das Auffinden von Unterlagen gilt.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "YQVQrXm8OP8r9bLvidJoVSxXAYKTaYJW",
+          "name": "read",
+          "arguments": {
+            "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.29,
+    "usage": [
+      {
+        "input": 12,
+        "output": 71,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1949,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "list",
+    "prompt": "Was liegt auf meinem Schreibtisch?",
+    "tools": [
+      "list_folder",
+      "ls"
+    ],
+    "choices": [
+      {
+        "name": "list_folder",
+        "args": {
+          "path": "~/Desktop"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user asks \"What's on my desk?\" — in German, so I should respond in German. They want to know what's in their Desktop folder. The Desktop is ~/Desktop, which in this environment is likely <home>/Desktop or similar. Let me list the folder.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "SvD6IUIVBcA2erG5xbrtMiy8MhCmiSCC",
+          "name": "list_folder",
+          "arguments": {
+            "path": "~/Desktop"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.414,
+    "usage": [
+      {
+        "input": 14,
+        "output": 79,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1959,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "tidy",
+    "prompt": "Sortiere meine Downloads in passende Unterordner.",
+    "tools": [
+      "list_folder",
+      "ls"
+    ],
+    "choices": [
+      {
+        "name": "list_folder",
+        "args": {
+          "path": "~/Downloads"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants me to sort their Downloads into appropriate subfolders. Let me first look at the Downloads folder to see what's there, then use move_files with appropriate groups.\n\nThe skill dateien-finden is for locating unknown personal documents - but this is a sorting task, not a search task. The instructions say move_files is for sorting files into subfolders. Let me first list the folder to see what's there.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "hF6YFLrIX5pc1YSSVGzwoVKuuWICUVyv",
+          "name": "list_folder",
+          "arguments": {
+            "path": "~/Downloads"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 4.701,
+    "usage": [
+      {
+        "input": 16,
+        "output": 105,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1987,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "rename",
+    "prompt": "Benenne ~/Documents/brief.pdf in Mietvertrag.pdf um.",
+    "tools": [
+      "rename_or_move"
+    ],
+    "choices": [
+      {
+        "name": "rename_or_move",
+        "args": {
+          "from": "~/Documents/brief.pdf",
+          "to": "~/Documents/Mietvertrag.pdf"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants to rename ~/Documents/brief.pdf to Mietvertrag.pdf. Let me do that with rename_or_move. First maybe check the file exists. I can just call rename_or_move directly.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "s9o7TocHvzEdihd3G98obXRqjbp1toOi",
+          "name": "rename_or_move",
+          "arguments": {
+            "from": "~/Documents/brief.pdf",
+            "to": "~/Documents/Mietvertrag.pdf"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 3.541,
+    "usage": [
+      {
+        "input": 19,
+        "output": 77,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1962,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "trash",
+    "prompt": "Lege ~/Downloads/kopie.pdf in den Papierkorb.",
+    "tools": [
+      "move_to_trash"
+    ],
+    "choices": [
+      {
+        "name": "move_to_trash",
+        "args": {
+          "path": "~/Downloads/kopie.pdf"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants me to move ~/Downloads/kopie.pdf to the trash. Let me check if it exists first, then move it to trash.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "3trMUIxLiSs0ZLR8Ra3iDSWyhaihlMU6",
+          "name": "move_to_trash",
+          "arguments": {
+            "path": "~/Downloads/kopie.pdf"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.593,
+    "usage": [
+      {
+        "input": 19,
+        "output": 54,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1939,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "readpdf",
+    "prompt": "Erkläre mir ~/Documents/brief.pdf einfach.",
+    "tools": [
+      "mcp__pippa__read_document"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "~/Documents/brief.pdf"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user asks to explain ~/Documents/brief.pdf simply. I need to read the document first. Let me use mcp__pippa__read_document on that path.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "PDDlbdmmOmM0PhCy0OtOrqgF5sYsGlG3",
+          "name": "mcp__pippa__read_document",
+          "arguments": {
+            "path": "~/Documents/brief.pdf"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.951,
+    "usage": [
+      {
+        "input": 17,
+        "output": 64,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1947,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "readtxt",
+    "prompt": "Fasse ~/Documents/notiz.txt zusammen.",
+    "tools": [
+      "read"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "~/Documents/notiz.txt"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants me to summarize ~/Documents/notiz.txt. Let me read the file first.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "2S2XGIouUyLuHI8tptj9azIEcJT1WbrS",
+          "name": "read",
+          "arguments": {
+            "path": "~/Documents/notiz.txt"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.009,
+    "usage": [
+      {
+        "input": 15,
+        "output": 41,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1922,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "calendar",
+    "prompt": "Welche Termine habe ich morgen?",
+    "tools": [
+      "mcp__pippa__calendar_read"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__calendar_read",
+        "args": {
+          "period": "tomorrow"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "Der Nutzer fragt nach den Terminen für morgen. Ich sollte das Kalender-Werkzeug nutzen, um die Termine für morgen anzuzeigen.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "kk3HW6uI19GZaAyJSAzNfEseQx6XBFR6",
+          "name": "mcp__pippa__calendar_read",
+          "arguments": {
+            "period": "tomorrow"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.621,
+    "usage": [
+      {
+        "input": 12,
+        "output": 55,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1933,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "reminders",
+    "prompt": "Was muss ich heute noch erledigen? Schau in meine Erinnerungen.",
+    "tools": [
+      "mcp__pippa__reminders_read"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__reminders_read",
+        "args": {
+          "days": 1
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants to know what reminders they have today. I'll read the reminders with days=0 (today) or just read open reminders. Let me call the reminders_read tool with days parameter. The tool says \"days: only those due within that many days (1 = today)\". So days=1 would show today's reminders. Or days=0 might show all open. Let me use days=1 to be safe, or maybe just call without days to get open reminders. I'll call with days=1.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "dp9bsCAhlxaDe5xgJou5EIcJF0nHUNrp",
+          "name": "mcp__pippa__reminders_read",
+          "arguments": {
+            "days": 1
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 5.797,
+    "usage": [
+      {
+        "input": 21,
+        "output": 132,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2019,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "mail",
+    "prompt": "Fasse die gerade in Mail ausgewählte Nachricht zusammen.",
+    "tools": [
+      "mcp__pippa__mail_selected"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__mail_selected",
+        "args": {}
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants me to summarize the email currently selected in Mail. Let me read the selected email.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "BsDQbbYaMBaVfEKurm7PwcTgFvyEEs2I",
+          "name": "mcp__pippa__mail_selected",
+          "arguments": {}
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 1.847,
+    "usage": [
+      {
+        "input": 17,
+        "output": 37,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1920,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "mailsearch",
+    "prompt": "Suche Mails von der Hausverwaltung.",
+    "tools": [
+      "mcp__pippa__mail_search"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__mail_search",
+        "args": {
+          "query": "Hausverwaltung"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants to find emails from the property manager (Hausverwaltung). I should search the mail inbox for relevant emails. Let me search for \"Hausverwaltung\" in the mail.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "z18MYYfc41YEpZFdPH5FNSSX78gDejZk",
+          "name": "mcp__pippa__mail_search",
+          "arguments": {
+            "query": "Hausverwaltung"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.93,
+    "usage": [
+      {
+        "input": 15,
+        "output": 62,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1943,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "excel",
+    "prompt": "Prüfe die markierten Zellen in Excel.",
+    "tools": [
+      "mcp__pippa__excel_selection"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__excel_selection",
+        "args": {}
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user says \"Prüfe die markierten Zellen in Excel.\" (Check the marked cells in Excel). I should read the current selection in Excel using mcp__pippa__excel_selection.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "Erjbhkw7bORaRM8LaNxCAdged1cEPbmo",
+          "name": "mcp__pippa__excel_selection",
+          "arguments": {}
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.831,
+    "usage": [
+      {
+        "input": 17,
+        "output": 58,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1941,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "event",
+    "prompt": "Trage Zahnarzt am 12. Oktober 2026 um 10 Uhr für 30 Minuten ein.",
+    "tools": [
+      "mcp__pippa__calendar_add"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__calendar_add",
+        "args": {
+          "date": "2026-10-12",
+          "title": "Zahnarzt",
+          "time": "10:00"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "Der Benutzer möchte einen Kalendereintrag erstellen: Zahnarzt am 12. Oktober 2026 um 10 Uhr für 30 Minuten. Ich soll das direkt mit dem Kalenderwerkzeug erledigen.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "o69RjIAqq9Ra9xaTkh66XXbdzQwqiwyt",
+          "name": "mcp__pippa__calendar_add",
+          "arguments": {
+            "date": "2026-10-12",
+            "title": "Zahnarzt",
+            "time": "10:00"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 4.425,
+    "usage": [
+      {
+        "input": 28,
+        "output": 91,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1985,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "remind",
+    "prompt": "Erinnere mich morgen um 9 Uhr an die Mülltonne.",
+    "tools": [
+      "mcp__pippa__reminder_add"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__reminder_add",
+        "args": {
+          "title": "Mülltonne abhaken",
+          "date": "tomorrow",
+          "time": "9:00"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants a reminder for tomorrow at 9 AM about the trash bin (Mülltonne). I need to use the reminder_add tool. The date should be tomorrow - I don't know today's date, but I can use \"tomorrow\" as the date parameter. Time 9:00.\n\nLet me call reminder_add with date \"tomorrow\" and time \"9:00\".",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "EQkroBz65aazpgdNGuPoF5wE2Xs9WX4L",
+          "name": "mcp__pippa__reminder_add",
+          "arguments": {
+            "title": "Mülltonne abhaken",
+            "date": "tomorrow",
+            "time": "9:00"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 6.174,
+    "usage": [
+      {
+        "input": 21,
+        "output": 130,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2017,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "draft",
+    "prompt": "Erstelle einen Mail-Entwurf an test@example.invalid, Betreff Danke, Text Vielen Dank.",
+    "tools": [
+      "mcp__pippa__mail_draft"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__mail_draft",
+        "args": {
+          "body": "Vielen Dank.",
+          "subject": "Danke",
+          "to": "test@example.invalid"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants me to create a mail draft to test@example.invalid with subject \"Danke\" and body \"Vielen Dank.\"\n\nI should use the mail_draft tool. The reply_to is not needed since this is a new email.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "BmFfKtdD3TbvTaSSjJxAHtWhVIj6K889",
+          "name": "mcp__pippa__mail_draft",
+          "arguments": {
+            "body": "Vielen Dank.",
+            "subject": "Danke",
+            "to": "test@example.invalid"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 4.575,
+    "usage": [
+      {
+        "input": 27,
+        "output": 96,
+        "cacheRead": 1867,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1990,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "weather",
+    "prompt": "Wie wird das Wetter morgen in Berlin?",
+    "tools": [
+      "mcp__pippa__web_search"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__web_search",
+        "args": {
+          "query": "Wetter Berlin morgen"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user asks about the weather tomorrow in Berlin. I should use web_search for current facts.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "W3h0vgwTJQxhh5lB6en5ABnlT1PYLG69",
+          "name": "mcp__pippa__web_search",
+          "arguments": {
+            "query": "Wetter Berlin morgen"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.363,
+    "usage": [
+      {
+        "input": 14,
+        "output": 47,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1927,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "website",
+    "prompt": "Lies https://example.invalid/info und fasse die Seite zusammen.",
+    "tools": [
+      "mcp__pippa__read_web_page"
+    ],
+    "choices": [
+      {
+        "name": "mcp__pippa__read_web_page",
+        "args": {
+          "url": "https://example.invalid/info"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user asks me to read https://example.invalid/info and summarize the page. The URL is example.invalid which is a reserved/invalid domain. I should try to read the web page, but this will likely fail. Let me try.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "sGJ87gT3osfko1lbrRx8CmVBlsyfgP5I",
+          "name": "mcp__pippa__read_web_page",
+          "arguments": {
+            "url": "https://example.invalid/info"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 4.025,
+    "usage": [
+      {
+        "input": 20,
+        "output": 81,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1967,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "write",
+    "prompt": "Speichere den Text Hallo in ~/Documents/gruss.txt.",
+    "tools": [
+      "write"
+    ],
+    "choices": [
+      {
+        "name": "write",
+        "args": {
+          "path": "~/Documents/gruss.txt",
+          "content": "Hallo"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants me to save the text \"Hallo\" to ~/Documents/gruss.txt. Let me use the write tool.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "lYTUGbxHmocmDDOW2S7nAT7Qws4g9oYa",
+          "name": "write",
+          "arguments": {
+            "path": "~/Documents/gruss.txt",
+            "content": "Hallo"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.788,
+    "usage": [
+      {
+        "input": 19,
+        "output": 55,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1940,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "edit",
+    "prompt": "Ersetze in ~/Documents/notiz.txt das Wort Montag durch Dienstag.",
+    "tools": [
+      "read",
+      "edit"
+    ],
+    "choices": [
+      {
+        "name": "read",
+        "args": {
+          "path": "~/Documents/notiz.txt"
+        }
+      }
+    ],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "The user wants to replace \"Montag\" with \"Dienstag\" in ~/Documents/notiz.txt. Let me read the file first.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "toolCall",
+          "id": "c0X1nN44O5OpPWOmi3ivNHuggIBOV6mp",
+          "name": "read",
+          "arguments": {
+            "path": "~/Documents/notiz.txt"
+          }
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Messung beendet."
+        }
+      ]
+    ],
+    "seconds": 2.645,
+    "usage": [
+      {
+        "input": 21,
+        "output": 51,
+        "cacheRead": 1866,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1938,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "answer",
+    "prompt": "Erkläre mir kurz, was eine Kaution ist.",
+    "tools": [],
+    "choices": [],
+    "choiceCorrect": true,
+    "ok": true,
+    "timedOut": false,
+    "discoveryOnly": false,
+    "diagnostics": "",
+    "answers": [
+      [
+        {
+          "type": "thinking",
+          "thinking": "1.  **Analyze the User's Request:**\n    *   The user wants a short explanation of what a \"Kaution\" (deposit) is.\n    *   Language: German.\n    *   Tone: Calm, friendly, simple words (\"du\", \"du\"), no filler sentences, no emojis, no jargon.\n    *   Length: Short (\"kurz\").\n\n2.  **Define \"Kaution\":**\n    *   A deposit (Kaution) is a sum of money paid upfront to secure a rental agreement (Mietvertrag), for example for an apartment (Wohnung) or a car (Kfz-Kaution).\n    *   It serves as security for the landlord (Vermieter) in case the tenant (Mieter) breaks the lease (Kündigung) or damages the property (Schaden).\n    *   It is not part of the rent (Miete) itself; it is returned (zurückbehalten/zurückgewährt) when the lease is fulfilled and the property is in the same condition as at move-in (Abschlag).\n    *   Sometimes it's a percentage of the rent (e.g., 2 months' rent).\n\n3.  **Draft the Explanation (German):**\n    *   Keep it short and simple.\n    *   *Draft 1:* Eine Kaution ist eine Summe Geld, die du vor der Miete für eine Wohnung oder ein Auto zahlst. Sie dient als Sicherheit für den Vermieter. Wenn du den Mietvertrag einhältst und das Objekt unbeschädigt zurückgibst, bekommst du das Geld am Ende zurück. Ist der Vertrag gekündigt oder es entstanden Schäden, kann der Vermieter von der Kaution einfordern.\n    *   *Review against constraints:* \"keine Füllsätze\" (no filler sentences) - it's a bit choppy. Let's make it flow better while staying short.\n    *   *Draft 2:* Eine Kaution ist eine Summe Geld, die du vor der Miete für eine Wohnung oder ein Auto zahlst. Sie schützt den Vermieter, falls du den Mietvertrag nicht einhältst oder Schäden verursachst. Wenn alles in Ordnung ist, bekommst du das Geld am Ende zurück. Meist entspricht sie etwa zwei Monaten Miete.\n    *   *Check:* Simple words? Yes. Short? Yes. Accurate? Yes.\n\n4.  **Final Polish:**\n    *   Ensure it sounds like a helpful assistant (Pippa) answering a non-technical person.\n    *   The draft looks good. Let's go with Draft 2, perhaps slightly tightened.\n\n    *Final version:*\n    Eine Kaution ist eine Summe Geld, die du vor der Miete für eine Wohnung oder ein Auto zahlst. Sie dient als Sicherheit für den Vermieter: Wenn du den Mietvertrag einhältst und das Objekt unbeschädigt zurückgibst, bekommst du das Geld am Ende wieder zurück. Meist entspricht sie etwa zwei Monaten Miete.",
+          "thinkingSignature": "reasoning_content"
+        },
+        {
+          "type": "text",
+          "text": "Eine Kaution ist eine Summe Geld, die du vor der Miete für eine Wohnung oder ein Auto zahlst. Sie dient als Sicherheit für den Vermieter: Wenn du den Mietvertrag einhältst und das Objekt unbeschädigt zurückgibst, bekommst du das Geld am Ende wieder zurück. Meist entspricht sie etwa zwei Monaten Miete."
+        }
+      ]
+    ],
+    "seconds": 33.759,
+    "usage": [
+      {
+        "input": 17,
+        "output": 701,
+        "cacheRead": 1867,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2585,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "errors": []
+  }
+]

@@ -32,6 +32,13 @@ func runR2Checks() async {
     check("Shown: without shown items the message is exactly the question") {
         PiShownContext.prompt(.init(question: "Wie spät ist es?")) == "Wie spät ist es?"
     }
+    check("Shown: an English question gets the English note, a German one nothing") {
+        let english = PiShownContext.prompt(.init(question: "Find all my invoices from 2024 and tell me the total."))
+        let german = PiShownContext.prompt(.init(question: "Such alle Rechnungen aus 2024 und sag mir die Summe."))
+        let shown = PiShownContext.prompt(.init(question: "Summarize this letter briefly.", files: [URL(fileURLWithPath: "/tmp/brief.pdf")], language: "de"))
+        return english.hasSuffix("\n\n" + PiShownContext.englishNote) && german == "Such alle Rechnungen aus 2024 und sag mir die Summe."
+            && shown.hasSuffix("Summarize this letter briefly.\n\n" + PiShownContext.englishNote)
+    }
     check("Shown: path and tool per kind (PDF → read_document, folder → list_folder, mail with subject, table → read), question last") {
         let files = [letter, folder, mail, table, photo]
         let prompt = PiShownContext.prompt(.init(question: "Bis wann muss ich zahlen?", files: files, newFiles: files, language: "de"))
@@ -132,6 +139,30 @@ func runR2Checks() async {
             && relative.json["status"] as? String == "invalid_arguments" && missing.json["status"] as? String == "not_found"
             && isFolder.json["status"] as? String == "is_folder" && protected.json["status"] as? String == "protected"
             && extra.json["status"] as? String == "invalid_arguments"
+    }
+    await checkAsync("read_document: small-model habits work (quoted path, escaped spaces, from_page as text, miscopied name); no permission is named") {
+        let t = tools(PippaMCPTurns())
+        let spaced = base.appendingPathComponent("Brief vom Amt.pdf")
+        try? FileManager.default.removeItem(at: spaced)
+        try? FileManager.default.copyItem(at: letter, to: spaced)
+        let quoted = await call(t, "read_document", ["path": "\"\(spaced.path)\""])
+        let escaped = await call(t, "read_document", ["path": spaced.path.replacingOccurrences(of: " ", with: "\\ ")])
+        let page = await call(t, "read_document", ["path": letter.path, "from_page": "2"])
+        let closed = base.appendingPathComponent("gesperrt.pdf")
+        try? FileManager.default.removeItem(at: closed)
+        try? FileManager.default.copyItem(at: letter, to: closed)
+        try? FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: closed.path)
+        let denied = await call(t, "read_document", ["path": closed.path])
+        try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: closed.path)
+        // A miscopied long name ("DWG" → "DNG", seen with Qwen) gets the one close match back.
+        let drawing = base.appendingPathComponent("A12-E-715-50-EA-DWG-1009-Underground Cable Duct.rev.7.pdf")
+        try? FileManager.default.removeItem(at: drawing)
+        try? FileManager.default.copyItem(at: letter, to: drawing)
+        let miscopied = await call(t, "read_document", ["path": base.appendingPathComponent("A12-E-715-50-EA-DNG-1009-Underground Cable Duct.rev.7.pdf").path])
+        let suggested = (miscopied.json["error"] as? String)?.contains("Did you mean \(drawing.path)?") == true
+        return !quoted.isError && !escaped.isError && !page.isError && miscopied.json["status"] as? String == "not_found" && suggested
+            && ((page.json["data"] as? [String: Any])?["text"] as? String)?.hasPrefix("[S. 2]") == true
+            && denied.isError && denied.json["status"] as? String == "no_access"
     }
     await checkAsync("read_document: scan without text layer → text recognition, amount readable, marked as recognised") {
         let scan = base.appendingPathComponent("scan.pdf")

@@ -1,0 +1,32 @@
+{
+ "variant": "B",
+ "round": 3,
+ "model": "qwen3.5-9b-q4",
+ "thinking": "medium",
+ "serverArgs": [
+  "-m",
+  "<models>/Qwen3.5-9B-Q4_K_M.gguf",
+  "--host",
+  "127.0.0.1",
+  "--port",
+  "18431",
+  "--jinja",
+  "--ctx-size",
+  "32768",
+  "--parallel",
+  "1",
+  "--alias",
+  "qwen3.5-9b-q4",
+  "--no-webui",
+  "--cache-type-k",
+  "q8_0",
+  "--cache-type-v",
+  "q8_0"
+ ],
+ "loadSeconds": 1.263,
+ "startedAt": "2026-10-10T07:16:01.855Z",
+ "loadAvgStart": 1.13,
+ "peakRSSMB": 7285,
+ "footprintEndMB": 1858,
+ "endedAt": "2026-10-10T07:17:27.414Z"
+}

@@ -1,0 +1,310 @@
+[
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 1,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "amountsFound": 5,
+   "sourced": 5,
+   "sumCorrect": true,
+   "decoyAmount": false
+  },
+  "toolCalls": 7,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 31498
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 31499
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 31500
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 31500
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    },
+    "at": 31500
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 3.859,
+  "firstWordSeconds": 43.075,
+  "totalSeconds": 49.764,
+  "modelRequests": [
+   {
+    "at": 170,
+    "status": 200
+   },
+   {
+    "at": 8342,
+    "status": 200
+   },
+   {
+    "at": 14345,
+    "status": 200
+   },
+   {
+    "at": 31508,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 2482,
+    "output": 106,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2588,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 413,
+    "output": 121,
+    "cacheRead": 2587,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3121,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 390,
+    "output": 385,
+    "cacheRead": 3120,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3895,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 968,
+    "output": 386,
+    "cacheRead": 3894,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 5248,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Ich habe 5 Rechnungen aus 2024 gefunden und die Beträge berechnet.\n\n**Rechnungen:**\n- Möbelhaus Beispiel: 249,00 EUR (Bürostuhl)\n- Elektro Blitz GmbH: 142,80 EUR (Steckdose im Bad)\n- Malerbetrieb Farbe & Söhne: 310,00 EUR (Flur und Wohnzimmer gestrichen)\n- Zahnarztpraxis Dr. Muster: 95,00 EUR (Zahnreinigung)\n- Fahrradladen Speiche: 68,50 EUR (Fahrradinspektion)\n\n**Gesamt: 865,30 EUR**",
+  "thinkingChars": 1037,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+      "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf",
+      "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+      "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+     ]
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "B",
+  "model": "qwen3.5-9b-q4",
+  "thinking": "medium",
+  "round": 1,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 4581
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.454,
+  "firstWordSeconds": 17.153,
+  "totalSeconds": 30.011,
+  "modelRequests": [
+   {
+    "at": 170,
+    "status": 200
+   },
+   {
+    "at": 4584,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 107,
+    "output": 100,
+    "cacheRead": 2452,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2659,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 558,
+    "output": 571,
+    "cacheRead": 2658,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3787,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 136,
+  "finalAnswer": "Dieser Brief ist eine Ankündigung der Hausverwaltung für Modernisierungsmaßnahmen in Ihrer Wohnung.\n\n**Was passiert:**\nAlle Fenster werden gegen neue, dreifach verglaste Fenster ausgetauscht. Die Arbeiten laufen vom 12.01.2027 bis 16.01.2027. Bei Ihnen ist der 13.01.2027 zwischen 8 und 16 Uhr vorgesehen.\n\n**Was Sie tun müssen:**\n1. Den beiliegenden Rückmeldebogen bis spätestens 20.11.2026 ausgefüllt zurücksenden – darin geben Sie an, ob Sie am 13.01.2027 selbst zu Hause sind oder wer die Wohnung öffnet.\n2. Am Tag der Arbeiten (13.01.2027) die Fensterbänke freiräumen und etwa einen Meter vor den Fenstern frei halten.\n3. Möbel müssen nicht abgebaut werden; die Firma deckt die Böden ab.\n\n**Weitere Infos:**\n- Nach Abschluss der Arbeiten steigt Ihre Grundmiete ab 01.04.2027 um 38,50 EUR.\n- Sie können bis zum Ablauf des nächsten Monats außerordentlich kündigen.\n- Fragen? Herr Kurz unter 01234 567890.",
+  "thinkingChars": 1118,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]

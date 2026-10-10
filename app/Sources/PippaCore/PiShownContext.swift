@@ -16,6 +16,10 @@ public enum PiShownContext {
     /// Selected text up to this length goes into the message; longer text is provided as a file.
     public static let inlineTextLimit = 4000
     public static let maxListed = 20
+    /// Added after an English question: Qwen3.5 otherwise answers in the language of German documents (1 of 6 English
+    /// with any system prompt line, docs/rebuild/measurements/model-compare/prompt-fix). Per message, so the system
+    /// prompt and its cache stay the same; German questions get nothing.
+    public static let englishNote = "Answer in English."
 
     public struct Input: Sendable {
         public var question: String
@@ -40,14 +44,16 @@ public enum PiShownContext {
         }
     }
 
-    /// The message to Pi. Without anything shown it is exactly the question (no frame, no extra cost).
+    /// The message to Pi. Without anything shown it is exactly the question (no frame, no extra cost), plus
+    /// `englishNote` when the question is English.
     /// `textFile`: where selected text over the limit is written (default: Pippa's clipboard folder).
     public static func prompt(_ input: Input, textFile: (String) -> URL? = PiShownContext.writeSelectedText) -> String {
         let german = input.language.hasPrefix("de")
-        let question = input.question.trimmingCharacters(in: .whitespacesAndNewlines)
+        let note = SourceFidelity.language(question: input.question, answer: "") == "en" ? "\n\n" + englishNote : ""
+        let question = input.question.trimmingCharacters(in: .whitespacesAndNewlines) + note
         let text = input.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
         let summary = input.workflowSummary.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !input.files.isEmpty || !text.isEmpty || !summary.isEmpty else { return input.question }
+        guard !input.files.isEmpty || !text.isEmpty || !summary.isEmpty else { return input.question + note }
 
         func key(_ url: URL) -> String { url.standardizedFileURL.path }
         let new = Set(input.newFiles.map(key))

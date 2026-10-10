@@ -213,7 +213,11 @@ public actor LlamaServer {
 
     private func startIfNeeded() async throws {
         installPressureWatch()
-        if state == .ready, let process, process.isRunning, await health() == 200 { return }
+        // A running answer holds a lease: a slow /health (swapping, a long prompt) is no reason to kill it mid-answer.
+        if state == .ready, let process, process.isRunning {
+            if inFlight > 0 { return }
+            if await health() == 200 { return }
+        }
         if state == .ready, let adoptedPID, PiServerLock.isAlive(adoptedPID), await health() == 200 { touchLock(); return }
         stop()
         state = .starting

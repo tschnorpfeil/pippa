@@ -1,0 +1,122 @@
+{
+ "A-r1-zusammenfassen": {
+  "grade": "partial",
+  "invented": true,
+  "note": "Sonderkündigung: invented \"bis Ende Oktober 2026 ... zum 31.12.2026\""
+ },
+ "A-r2-zusammenfassen": {
+  "grade": "yes",
+  "invented": false,
+  "note": "Sie"
+ },
+ "A-r3-zusammenfassen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r1-zusammenfassen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r2-zusammenfassen": {
+  "grade": "partial",
+  "invented": false,
+  "note": "Sonderkündigung misstated; Sie"
+ },
+ "B-r3-zusammenfassen": {
+  "grade": "partial",
+  "invented": true,
+  "note": "Sonderkündigung misstated; invented \"Fensterbänke vorher nicht abdecken\""
+ },
+ "A-r1-mail-antwort": {
+  "grade": "partial",
+  "invented": false,
+  "note": "no reply_to"
+ },
+ "A-r2-mail-antwort": {
+  "grade": "partial",
+  "invented": true,
+  "note": "\"abgelesen am 07.10.2026\" (mail date, not today)"
+ },
+ "A-r3-mail-antwort": {
+  "grade": "partial",
+  "invented": false,
+  "note": "reply_to = sender address instead of selected"
+ },
+ "B-r1-mail-antwort": {
+  "grade": "partial",
+  "invented": false,
+  "note": "reply_to = mail body"
+ },
+ "B-r2-mail-antwort": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r3-mail-antwort": {
+  "grade": "partial",
+  "invented": false,
+  "note": "reply_to = mail body; \"ungefundene Mail\""
+ },
+ "A-r1-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "A-r2-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "A-r3-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "B-r1-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "B-r2-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "B-r3-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "A-r1-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "correct, but answered in German"
+ },
+ "A-r2-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "correct, but answered in German"
+ },
+ "A-r3-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "correct, but answered in German"
+ },
+ "B-r1-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "correct, but answered in German"
+ },
+ "B-r2-en-multi": {
+  "grade": "no",
+  "invented": false,
+  "note": "German, 48 tool calls (read every file, 300 s), counted the Nachzahlung, missed the bike invoice, wrong total"
+ },
+ "B-r3-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "correct, but answered in German"
+ }
+}

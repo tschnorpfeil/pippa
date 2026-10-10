@@ -1,0 +1,452 @@
+{
+ "A-r1-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r2-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r3-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r1-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r2-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r3-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r1-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r2-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r3-multi-rechnungen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r1-vergleich": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r1-vergleich": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r1-vergleich": {
+  "grade": "no",
+  "invented": false,
+  "note": "did not find/read both documents, asked for the path"
+ },
+ "A-r2-vergleich": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r2-vergleich": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r2-vergleich": {
+  "grade": "no",
+  "invented": false,
+  "note": "did not find/read both documents, asked for the path"
+ },
+ "A-r3-vergleich": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r3-vergleich": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r3-vergleich": {
+  "grade": "no",
+  "invented": false,
+  "note": "did not find/read both documents, asked for the path"
+ },
+ "A-r1-zusammenfassen": {
+  "grade": "partial",
+  "invented": true,
+  "note": "Sonderkündigung: invented date \"bis Ende Dezember 2026\""
+ },
+ "A-r2-zusammenfassen": {
+  "grade": "partial",
+  "invented": true,
+  "note": "Sonderkündigung: invented date \"bis Ende Oktober 2026\""
+ },
+ "A-r3-zusammenfassen": {
+  "grade": "partial",
+  "invented": true,
+  "note": "Sonderkündigung \"etwa Ende Dezember 2026\"; claims the form is on the last PDF page"
+ },
+ "B-r1-zusammenfassen": {
+  "grade": "partial",
+  "invented": false,
+  "note": "Sonderkündigung misstated (month of receipt instead of following month)"
+ },
+ "B-r2-zusammenfassen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r3-zusammenfassen": {
+  "grade": "partial",
+  "invented": false,
+  "note": "Sonderkündigung misstated (month of receipt)"
+ },
+ "C-r1-zusammenfassen": {
+  "grade": "partial",
+  "invented": false,
+  "note": "Sonderkündigung misstated (month of receipt)"
+ },
+ "C-r2-zusammenfassen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r3-zusammenfassen": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r1-ordner-ueberblick": {
+  "grade": "partial",
+  "invented": true,
+  "note": "5/6 found; invented \"Gesamt monatlich ca. 178,90 EUR\""
+ },
+ "A-r2-ordner-ueberblick": {
+  "grade": "yes",
+  "invented": false,
+  "note": "5/6 found"
+ },
+ "A-r3-ordner-ueberblick": {
+  "grade": "partial",
+  "invented": true,
+  "note": "5/6 found; invented \"Personenschaden-Fahrtenversicherung\" and that cloud files cannot be read"
+ },
+ "B-r1-ordner-ueberblick": {
+  "grade": "yes",
+  "invented": false,
+  "note": "5/6 found"
+ },
+ "B-r2-ordner-ueberblick": {
+  "grade": "partial",
+  "invented": true,
+  "note": "5/6 found; invented types: rs = \"Unfallversicherung\", zzv = \"Zahntauschversicherung\""
+ },
+ "B-r3-ordner-ueberblick": {
+  "grade": "yes",
+  "invented": false,
+  "note": "5/6 found"
+ },
+ "C-r1-ordner-ueberblick": {
+  "grade": "yes",
+  "invented": false,
+  "note": "5/6 found"
+ },
+ "C-r2-ordner-ueberblick": {
+  "grade": "partial",
+  "invented": false,
+  "note": "3/6 named, 14 tool calls"
+ },
+ "C-r3-ordner-ueberblick": {
+  "grade": "yes",
+  "invented": false,
+  "note": "5/6 found"
+ },
+ "A-r1-web-recherche": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r1-web-recherche": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r2-web-recherche": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r2-web-recherche": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r3-web-recherche": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r3-web-recherche": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r1-web-recherche": {
+  "grade": "no",
+  "invented": true,
+  "note": "no web search; invented fee 42,50 EUR"
+ },
+ "C-r2-web-recherche": {
+  "grade": "no",
+  "invented": true,
+  "note": "no web search; invented fee 50 EUR, refund claim and a URL, claims it searched"
+ },
+ "C-r3-web-recherche": {
+  "grade": "partial",
+  "invented": false,
+  "note": "searched, facts right, no source named"
+ },
+ "A-r1-web-plus-datei": {
+  "grade": "partial",
+  "invented": true,
+  "note": "no web search; deadline right but invented year \"31. August 2024 / 30. November 2024\""
+ },
+ "A-r2-web-plus-datei": {
+  "grade": "partial",
+  "invented": false,
+  "note": "no web search; deadline and how-to from the policy"
+ },
+ "A-r3-web-plus-datei": {
+  "grade": "partial",
+  "invented": false,
+  "note": "no web search; deadline and how-to from the policy"
+ },
+ "B-r1-web-plus-datei": {
+  "grade": "no",
+  "invented": false,
+  "note": "no tool call, asked where the document is"
+ },
+ "B-r2-web-plus-datei": {
+  "grade": "partial",
+  "invented": false,
+  "note": "no web search; deadline and how-to from the policy"
+ },
+ "B-r3-web-plus-datei": {
+  "grade": "partial",
+  "invented": false,
+  "note": "no web search; deadline and how-to from the policy"
+ },
+ "C-r1-web-plus-datei": {
+  "grade": "no",
+  "invented": false,
+  "note": "search via invented commands failed, asked for the path"
+ },
+ "C-r2-web-plus-datei": {
+  "grade": "no",
+  "invented": false,
+  "note": "no tool call, asked for the path"
+ },
+ "C-r3-web-plus-datei": {
+  "grade": "partial",
+  "invented": false,
+  "note": "no web search; deadline and how-to from the policy"
+ },
+ "A-r1-mail-antwort": {
+  "grade": "partial",
+  "invented": false,
+  "note": "draft without reply_to (would be a new mail), salutation addressed to the user herself"
+ },
+ "A-r2-mail-antwort": {
+  "grade": "partial",
+  "invented": true,
+  "note": "draft without reply_to; writes \"heute am 07.10.2026\" (mail date as reading date)"
+ },
+ "A-r3-mail-antwort": {
+  "grade": "no",
+  "invented": false,
+  "note": "runaway: 24 tool calls searching the file system for the mail, stopped by token limit after 420 s, no draft"
+ },
+ "B-r1-mail-antwort": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r2-mail-antwort": {
+  "grade": "partial",
+  "invented": false,
+  "note": "reply_to set to the whole mail JSON instead of \"selected\""
+ },
+ "B-r3-mail-antwort": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r1-mail-antwort": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "C-r2-mail-antwort": {
+  "grade": "no",
+  "invented": false,
+  "note": "no mail_draft, only text"
+ },
+ "C-r3-mail-antwort": {
+  "grade": "no",
+  "invented": false,
+  "note": "no mail_draft, only text"
+ },
+ "A-r1-termin": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r2-termin": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r3-termin": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r1-termin": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r2-termin": {
+  "grade": "partial",
+  "invented": false,
+  "note": "date \"27.11.2026\" instead of YYYY-MM-DD (the real tool rejects it)"
+ },
+ "B-r3-termin": {
+  "grade": "yes",
+  "invented": true,
+  "note": "answer claims 10:00, no time was set"
+ },
+ "C-r1-termin": {
+  "grade": "no",
+  "invented": false,
+  "note": "read the letter, announced the entry, did not call the tool"
+ },
+ "C-r2-termin": {
+  "grade": "yes",
+  "invented": false,
+  "note": "answer ends with Chinese words"
+ },
+ "C-r3-termin": {
+  "grade": "no",
+  "invented": false,
+  "note": "asked when instead of adding"
+ },
+ "A-r1-en-multi": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r2-en-multi": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "A-r3-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "correct, but answered in German"
+ },
+ "B-r1-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "correct, but answered in German"
+ },
+ "B-r2-en-multi": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r3-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "correct, but answered in German"
+ },
+ "C-r1-en-multi": {
+  "grade": "partial",
+  "invented": false,
+  "note": "21 tool calls, counted the Nebenkosten Nachzahlung as an invoice, wrong total 1.135,30"
+ },
+ "C-r2-en-multi": {
+  "grade": "no",
+  "invented": false,
+  "note": "2 of 5 invoices plus the Nachzahlung, wrong total"
+ },
+ "C-r3-en-multi": {
+  "grade": "no",
+  "invented": false,
+  "note": "German, 4 of 5 plus the Nachzahlung, wrong total"
+ },
+ "A-r1-en-summary": {
+  "grade": "partial",
+  "invented": true,
+  "note": "Sonderkündigung: invented \"by 30.12.2026\""
+ },
+ "A-r2-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "A-r3-en-summary": {
+  "grade": "yes",
+  "invented": false,
+  "note": ""
+ },
+ "B-r1-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "C-r1-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "B-r2-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "C-r2-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "B-r3-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ },
+ "C-r3-en-summary": {
+  "grade": "partial",
+  "invented": false,
+  "note": "answered in German"
+ }
+}
