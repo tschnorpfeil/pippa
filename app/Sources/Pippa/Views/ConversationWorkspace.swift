@@ -490,6 +490,8 @@ struct ConversationWorkspace: View {
                 }
                 if message.role == .assistant, let draft = message.mailDraft {
                     MailDraftCard(model: model, chat: chat, messageID: message.id, draft: draft)
+                } else if message.role == .assistant, let card = message.calendar?.card {
+                    CalendarCardView(card: card, text: message.text)
                 } else if message.role == .assistant {
                     AssistantAnswerView(text: message.text, files: message.attachments).equatable()
                         .contextMenu {

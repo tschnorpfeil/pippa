@@ -51,6 +51,20 @@ jobs:
           grep -E "error:" build.log | sed -E 's/^ +//' | sort -u | head -n 120
           exit $status
         shell: bash {0}
+      - name: TEMP calendar card snapshots
+        continue-on-error: true
+        run: |
+          mkdir -p snaps
+          for a in dark light; do
+            PIPPA_DEMO=1 PIPPA_APPEARANCE=$a PIPPA_SNAPSHOT=$PWD/snaps/$a PIPPA_SNAPSHOT_ONLY=calendar perl -e "alarm 240; exec @ARGV" app/.build/debug/Pippa -AppleLanguages "(de)" -AppleLocale de_DE > snaps/$a.log 2>&1 || true
+            grep -i "fail\|✗" snaps/$a.log | head -10
+          done
+          find snaps -name '*.png' | sort
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: calendar-card-snaps
+          path: snaps/**
       - name: PippaChecks
         timeout-minutes: 15
         env:
