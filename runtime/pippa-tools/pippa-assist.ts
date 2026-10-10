@@ -15,10 +15,16 @@
  *   every further call is stopped with the request to answer now; the measured tasks needed at most 14.
  * - File search results: the bundled Spotlight script's results become a session entry `pippa-search-result`, so
  *   Pippa shows the files found from the tool's output, never from the model's prose.
+ * - Skill path: `read` on `<name>/SKILL.md` at a guessed place (seen: the working folder) that does not exist is sent to
+ *   Pippa's bundled skill of that name, so a small model does not lose a step to "file not found".
  * - Today's date: each new message starts with "[2026-10-09, Friday]". The system prompt has no date so it stays the
  *   same (prompt cache); without one K2 searched the weather for a wrong "tomorrow". The line is saved with the
  *   message, so earlier turns never change. ISO date, no sentence: the answer follows the question's language.
  */
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { isFileSearch } from "./search-command.ts";
 
 type ExtensionAPI = any;
@@ -99,6 +105,20 @@ export function withToday(text: string, line: string): string {
 	return space === -1 ? `${text} ${line}` : `${text.slice(0, space)} ${line}\n${text.slice(space + 1)}`;
 }
 
+/** Pippa's bundled skills, next to this file (runtime/pippa-tools -> runtime/pippa-skills, as in the app bundle). */
+const SKILLS = fileURLToPath(new URL("../pippa-skills/", import.meta.url));
+
+/** `read` of a `<name>/SKILL.md` that does not exist where the model looked: the bundled skill's path, otherwise `undefined`. */
+export function bundledSkill(tool: string, input: any, cwd: string, skills = SKILLS): string | undefined {
+	if (tool !== "read") return undefined;
+	const path = String(input?.path ?? "");
+	const name = path.match(/(?:^|\/)([a-z0-9-]+)\/SKILL\.md$/)?.[1];
+	if (!name) return undefined;
+	const given = path.startsWith("~/") ? join(homedir(), path.slice(2)) : isAbsolute(path) ? path : resolve(cwd, path);
+	const bundled = join(skills, name, "SKILL.md");
+	return given !== bundled && !existsSync(given) && existsSync(bundled) ? bundled : undefined;
+}
+
 /** Pi's own tool (not one a foreign extension registered under the same name). */
 function builtin(pi: ExtensionAPI, tool: string): boolean {
 	const source = pi.getAllTools?.().find((t: any) => t.name === tool)?.sourceInfo;
@@ -126,6 +146,8 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("tool_call", async (event: any, ctx: any) => {
 		const tool: string = event.toolName;
+		const skill = bundledSkill(tool, event.input, ctx?.cwd ?? process.cwd());
+		if (skill) event.input.path = skill;
 		const document = documentForRead(tool, event.input);
 		if (document) return { block: true, reason: document };
 		const loop = overBudget(++calls) ?? loopBrake(counts, keys, event.toolCallId, tool, event.input, CHANGES.has(tool));
