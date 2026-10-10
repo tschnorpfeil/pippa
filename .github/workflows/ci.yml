@@ -51,6 +51,22 @@ jobs:
           grep -E "error:" build.log | sed -E 's/^ +//' | sort -u | head -n 120
           exit $status
         shell: bash {0}
+      - name: TEMP thought line and pill snapshots
+        continue-on-error: true
+        run: |
+          mkdir -p snaps
+          for a in dark light; do
+            for o in thoughtline pillstatus; do
+              PIPPA_DEMO=1 PIPPA_APPEARANCE=$a PIPPA_SNAPSHOT=$PWD/snaps/$a-$o PIPPA_SNAPSHOT_ONLY=$o timeout 300 app/.build/debug/Pippa -AppleLanguages "(de)" || true
+            done
+          done
+          find snaps -type f | sort
+          cat snaps/*/thoughtline.txt 2>/dev/null | head -80
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: thought-snaps
+          path: snaps/**
       - name: PippaChecks
         timeout-minutes: 15
         env:
