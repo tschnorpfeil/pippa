@@ -197,3 +197,16 @@ test("context: summaries without thinking; the level comes back after the summar
 	await pi.emit("session_compact", {}, {});
 	assert.equal(level, "off", "a level the person set to off stays off");
 });
+
+test("context: a handover puts the summary's facts first and leaves out preferences and empty sections", () => {
+	const summary = "## Goal\nBrief der Stadtwerke verstehen\n\n## Constraints & Preferences\n- User prefers detailed explanations\n\n"
+		+ "## Progress\n### Done\n- [x] Nebenkosten erklärt\n\n## Key Decisions\n- (none)\n\n## Critical Context\n- Nachzahlung 84,20 € bis 31.10., Frau Schmitz\n";
+	const ordered = context.handoverSummary(summary);
+	assert.match(ordered, /^## Critical Context\n- Nachzahlung 84,20 € bis 31\.10\., Frau Schmitz\n## Goal\nBrief/);
+	assert.doesNotMatch(ordered, /prefers|Key Decisions/);
+	assert.equal(context.handoverSummary("Plain summary."), "Plain summary.");
+	const long = summary.replace("## Progress", "## Progress\n" + "- [x] erledigt\n".repeat(200));
+	const handover = context.handoverFrom(JSON.stringify({ type: "compaction", summary: long }));
+	assert.match(handover, /84,20 € bis 31\.10\./, "the facts survive the shortening");
+	assert.match(context.EVERYDAY_SUMMARY, /language of the conversation/);
+});
