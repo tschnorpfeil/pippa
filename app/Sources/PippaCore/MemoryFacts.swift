@@ -29,7 +29,8 @@ public enum MemoryFacts {
         }
         let temp = file.deletingLastPathComponent().appendingPathComponent(".\(file.lastPathComponent).\(ProcessInfo.processInfo.processIdentifier).tmp")
         try Data(kept.joined(separator: "\n").utf8).write(to: temp)
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temp.path)
-        _ = try FileManager.default.replaceItemAt(file, withItemAt: temp)
+        let replaced = try FileManager.default.replaceItemAt(file, withItemAt: temp) ?? file
+        // replaceItemAt can carry over the old file's permissions.
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: replaced.path)
     }
 }
