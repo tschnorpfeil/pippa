@@ -9,6 +9,9 @@
  *   (`ctx.compact`) starts after an answer, once the person has been quiet for `IDLE_MS` and the context is at least
  *   `SOFT_SHARE` full, with everyday instructions instead of Pi's coding format. Pi's threshold stays as the net. If the
  *   person asks something meanwhile, Pippa stops the summary first (PiRPCClient.prompt), so nothing is lost.
+ * - Summaries without thinking: Pi summarizes at the conversation's thinking level, and Qwen's thinking can use up the
+ *   summary's token cap (0.8 × reserveTokens, 3,276 at 16k) before the summary is written ("generation hit the token
+ *   cap"). The level goes to `off` for the summary only and back right after, or at the latest before the next answer.
  * - Handover between topics: a new session (Pippa starts one by itself for a new topic) gets a short `<earlier>`
  *   section from the session the person used last, if that was within `HANDOVER_HOURS`: its last summary, or the last
  *   question and answer, shortened. Read from Pi's session files, no model call; fixed for the session (prompt cache).
@@ -107,9 +110,25 @@ export default function (pi: ExtensionAPI) {
 
 	let earlier: string | undefined;
 	let decided = false;
-	pi.on("session_start", async () => { decided = false; earlier = undefined; });
+	// The thinking level to put back after a summary (also after a failed or stopped one, before the next answer).
+	let restore: string | undefined;
+	const putBack = () => {
+		if (restore === undefined) return;
+		try { pi.setThinkingLevel(restore); } catch { /* stale after a session switch */ }
+		restore = undefined;
+	};
+	pi.on("session_before_compact", async () => {
+		try {
+			const level = pi.getThinkingLevel();
+			if (level && level !== "off") { restore = restore ?? level; pi.setThinkingLevel("off"); }
+		} catch { /* no thinking control: summarize as is */ }
+	});
+	pi.on("session_compact", async () => putBack());
+
+	pi.on("session_start", async () => { decided = false; earlier = undefined; restore = undefined; });
 	pi.on("before_agent_start", async (event: any, ctx: any) => {
 		cancel();
+		putBack();
 		if (!decided) {
 			decided = true;
 			const manager = ctx?.sessionManager;
@@ -139,5 +158,5 @@ export default function (pi: ExtensionAPI) {
 		}, idle);
 		timer.unref?.();
 	});
-	pi.on("session_shutdown", async () => cancel());
+	pi.on("session_shutdown", async () => { cancel(); putBack(); });
 }

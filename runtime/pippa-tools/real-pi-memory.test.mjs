@@ -59,8 +59,11 @@ test("real Pi: memory section and remember, quiet summary, handover, prompt duri
 	await new Promise((done) => server.once("listening", done));
 	const { port } = server.address();
 	writeFileSync(join(agent, "models.json"), JSON.stringify({ providers: { "pippa-local": { baseUrl: `http://127.0.0.1:${port}/v1`, api: "openai-completions",
-		apiKey: "x", models: [{ id: "m", name: "M", contextWindow: 16384, maxTokens: 4096 }] } } }));
-	writeFileSync(join(agent, "settings.json"), JSON.stringify({ compaction: { modelOverrides: { "pippa-local/m": { reserveTokens: 4096, keepRecentTokens: 6144 } } } }));
+		apiKey: "x", models: [{ id: "m", name: "M", contextWindow: 16384, maxTokens: 4096, reasoning: true,
+			thinkingLevelMap: { off: "off", minimal: null, low: null, medium: "medium", high: null, xhigh: null, max: null },
+			compat: { thinkingFormat: "qwen-chat-template" } }] } } }));
+	writeFileSync(join(agent, "settings.json"), JSON.stringify({ compaction: { modelOverrides: { "pippa-local/m": { reserveTokens: 4096, keepRecentTokens: 6144 } } },
+		modelThinkingLevels: { "pippa-local/m": "medium" } }));
 	const memoryFile = join(root, "memory.md");
 	writeFileSync(memoryFile, "- Prefers short answers\n");
 
@@ -101,7 +104,14 @@ test("real Pi: memory section and remember, quiet summary, handover, prompt duri
 		const end = await one.until((e) => e.type === "compaction_end");
 		assert.equal(end.reason, "manual");
 		assert.ok(end.result?.summary?.includes("SUMMARY"), JSON.stringify(end));
+		await one.ask("danach", 4);
 		await one.stop();
+		// Qwen thinks for answers, not for the summary (its thinking used up the summary's token cap).
+		const thinking = (r) => r.chat_template_kwargs?.enable_thinking;
+		const summaryAt = requests.findIndex((r) => JSON.stringify(r.messages).includes("everyday helper conversation"));
+		assert.equal(thinking(requests[summaryAt]), false, "summary without thinking");
+		assert.equal(thinking(requests[summaryAt - 1]), true, "answers with thinking");
+		assert.equal(thinking(requests.at(-1)), true, "thinking back after the summary");
 		const first = requests[0];
 		assert.ok(JSON.stringify(first.messages[0]).includes("Prefers short answers"), "memory section in the system prompt");
 		assert.ok((first.tools ?? []).some((t) => t.function?.name === "remember"));

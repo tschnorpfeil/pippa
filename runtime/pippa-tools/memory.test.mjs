@@ -177,3 +177,23 @@ test("extension without PIPPA_MEMORY_FILE (trial runs): facts stay in the proces
 	await pi.emit("before_agent_start", event, {});
 	assert.match(event.systemPromptOptions.sections.memory, /Lives in Köln/);
 });
+
+test("context: summaries without thinking; the level comes back after the summary or before the next answer", async () => {
+	const pi = standIn();
+	let level = "medium";
+	pi.getThinkingLevel = () => level;
+	pi.setThinkingLevel = (next) => { level = next; };
+	context.default(pi);
+	await pi.emit("session_before_compact", {}, {});
+	assert.equal(level, "off");
+	await pi.emit("session_compact", {}, {});
+	assert.equal(level, "medium");
+	await pi.emit("session_before_compact", {}, {});
+	assert.equal(level, "off", "a stopped or failed summary sends no session_compact");
+	await pi.emit("before_agent_start", { systemPromptOptions: { sections: {} } }, {});
+	assert.equal(level, "medium");
+	level = "off";
+	await pi.emit("session_before_compact", {}, {});
+	await pi.emit("session_compact", {}, {});
+	assert.equal(level, "off", "a level the person set to off stays off");
+});
