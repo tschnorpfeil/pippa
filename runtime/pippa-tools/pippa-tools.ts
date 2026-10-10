@@ -86,7 +86,7 @@ export default function (pi: ExtensionAPI) {
 		description: "Find the person's own documents by their content (Spotlight): Documents, Desktop, Downloads, iCloud Drive.",
 		parameters: Type.Object({
 			query: Type.String({ description: "1-3 topic words from the question, e.g. Zahnarzt; without Rechnung, Dokument, PDF, Unterlagen." }),
-			year: Type.Optional(Type.String({ description: "Only when the person names a year." })),
+			year: Type.Optional(Type.String({ description: "Only when the person names a year; never guess one." })),
 		}),
 		annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 		async execute(_id: string, params: any) {

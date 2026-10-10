@@ -75,6 +75,10 @@ const MAIL = {
 
 // Like PiShownContext.englishNote: Pippa adds it after an English question (PIPPA_EN_NOTE=0 measures without it).
 const EN_NOTE = process.env.PIPPA_EN_NOTE === '0' ? '' : '\n\nAnswer in English.';
+// Like PiShownContext.germanNote after a German question (PIPPA_DE_NOTE=0 measures without it); added in taskPrompt.
+const DE_NOTE = process.env.PIPPA_DE_NOTE === '0' ? '' : '\n\nAntworte auf Deutsch, mit du.';
+/** The message Pippa sends for a task: German tasks get the German note, English ones carry theirs in the prompt. */
+export const taskPrompt = (task, home, shown) => task.prompt(home, shown) + (task.lang === 'de' ? DE_NOTE : '');
 
 export function shownPrompt(home, rel, shown, question, german = true) {
  const path = P(home, rel), name = rel.split('/').at(-1);
