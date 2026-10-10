@@ -51,14 +51,6 @@ jobs:
           grep -E "error:" build.log | sed -E 's/^ +//' | sort -u | head -n 120
           exit $status
         shell: bash {0}
-      - name: TEMP permissions snapshots
-        continue-on-error: true
-        run: |
-          mkdir -p snaps
-          for a in dark light; do
-            PIPPA_DEMO=1 PIPPA_APPEARANCE=$a PIPPA_SNAPSHOT=$PWD/snaps/$a PIPPA_SNAPSHOT_ONLY=permissions app/.build/debug/Pippa -AppleLanguages "(de)" > snaps/$a.log 2>&1 &
-            pid=$!; ( sleep 180; kill $pid ) >/dev/null 2>&1 & wait $pid; echo "$a exit $?"; tail -n 15 snaps/$a.log
-          done
       - name: PippaChecks
         timeout-minutes: 15
         env:
@@ -83,17 +75,6 @@ jobs:
       - name: Terminal autostart tests (runtime/pippa-local-server)
         run: node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
-
-      - name: TEMP print permission snapshots
-        if: always()
-        continue-on-error: true
-        run: |
-          cat snaps/dark/permissions.txt
-          for f in snaps/dark/permissions-01-onboarding.png snaps/light/permissions-03-allowed.png; do
-            [ -f "$f" ] || continue
-            sips -Z 760 -s format jpeg -s formatOptions 50 "$f" --out /tmp/s.jpg >/dev/null
-            echo "B64BEGIN $(echo $f | tr '/' '_')"; base64 -i /tmp/s.jpg | fold -w 8000; echo "B64END"
-          done
 
   app:
     if: github.event_name == 'workflow_dispatch' && inputs.app
