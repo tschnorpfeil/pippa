@@ -187,19 +187,26 @@ func runThoughtLineChecks() async {
         return texts.allSatisfy { text in !banned.contains { text.lowercased().contains($0) } } && kinds.count == phases.count
     }
 
-    check("Thought Line: the running step is the line itself, and no \"…\" next to the seconds") {
+    check("Thought Line: no words while waiting, steps as merged bubbles, one calm sentence after ten seconds") {
         var line = ThoughtLine()
         let request = UUID()
         line.begin(request, at: at(0))
-        let start = line.words(showingElapsed: false)
-        let waiting = line.words(showingElapsed: true)
-        line.apply(.toolStarted(name: "bash", source: nil, step: "Suche in deinen Mails"), request: request, at: at(1))
-        let step = line.words(showingElapsed: false)
-        let stepTimed = line.words(showingElapsed: true)
-        return start?.title == L("Answering…", table: "Thought") && start?.detail == nil
-            && waiting.map { !$0.title.hasSuffix("…") && L("Answering…", table: "Thought").hasPrefix($0.title) } == true
-            && line.phase == .working && step?.title == L("%@…", table: "Thought", "Suche in deinen Mails") && step?.detail == nil
-            && stepTimed?.title == "Suche in deinen Mails" && stepTimed?.detail == nil
+        let quietAtStart = line.phaseNote == nil && line.bubbles.isEmpty && !line.isSlow(at: at(9.9))
+        line.apply(.phase(.reading(name: "Mietvertrag.pdf", index: 1, count: 1)), request: request, at: at(0.5))
+        let reading = line.phaseNote?.title == WorkPhase.reading(name: "Mietvertrag.pdf", index: 1, count: 1).title
+        line.apply(.toolStarted(name: "bash", source: nil, step: "Suche in deinen Mails", kind: .mail), request: request, at: at(1))
+        let running = line.bubbles == [StepBubble(id: 0, text: "Suche in deinen Mails", kind: .mail, running: true)] && line.phaseNote == nil
+        line.apply(.toolEnded(name: "bash", outcome: "3 Treffer"), request: request, at: at(2))
+        for second in 3...6 {
+            line.apply(.toolStarted(name: "bash", source: nil, step: "Arbeite an deinem Mac", kind: .mac), request: request, at: at(Double(second)))
+            line.apply(.toolEnded(name: "bash"), request: request, at: at(Double(second) + 0.5))
+        }
+        let merged = line.bubbles == [StepBubble(id: 0, text: "Suche in deinen Mails", kind: .mail, outcome: "3 Treffer"),
+                                      StepBubble(id: 1, text: "Arbeite an deinem Mac", kind: .mac, count: 4)]
+        let waiting = line.phase == .waitingForAnswer(continuing: false) && line.phaseNote == nil
+        let slow = line.isSlow(at: at(10)) && !L("Taking a little longer, I’m on it.", table: "Thought").isEmpty
+        line.textArrived(request: request)
+        return quietAtStart && reading && running && merged && waiting && slow && !line.isSlow(at: at(11))
     }
 
     check("Thought Line: receipt honestly names partial, no and names-only reading") {

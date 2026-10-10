@@ -1,9 +1,11 @@
 import PippaCore
 import SwiftUI
 
-/// One quiet line while an answer is on its way: what she is actually doing, in plain words, the elapsed time
-/// after two seconds. A small dot matrix (not the ring, which the window header already shows) carries the only
-/// motion, one calm pattern per kind of activity; with Reduce Motion it stands still and the text changes in place. The line steps aside as soon as answer text arrives.
+/// While an answer is on its way: no generic status text and no seconds. Pippa's dot matrix breathes; each real step
+/// appears as a small chip (a picture of what it touches, everyday words) and turns into what came of it. Identical
+/// steps in a row count up instead of repeating. Words appear only for something real the host does (reading a file,
+/// waking up, a question) and, after ten seconds, one calm sentence that it takes a little longer.
+/// With Reduce Motion chips appear without moving and the matrix stands still. Steps aside as soon as answer text arrives.
 struct ThoughtLineView: View {
     var thought: ThoughtLine
     /// Where no Stop is in reach (compact surfaces), the line carries one.
@@ -14,17 +16,16 @@ struct ThoughtLineView: View {
 
     private var reduceMotion: Bool { systemReduceMotion || MarkHub.shared.reduced }
     private var showsAll: Bool { showsAllState.wrappedValue != nil && showsAllState.wrappedValue == thought.startedAt }
+    /// How many chips stay in view; older ones fold into one count.
+    static let visibleChips = 4
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let phase = thought.phase, thought.isVisible {
-                HStack(spacing: 10) {
+                HStack(alignment: .top, spacing: 10) {
                     DotMatrixView(pattern: DotPattern(phase), reduceMotion: reduceMotion)
-                    ZStack(alignment: .leading) {
-                        // A new kind of activity fades in; page numbers and seconds change in place.
-                        words(phase).id(phase.kind).transition(reduceMotion ? .identity : .opacity)
-                    }
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: phase.kind)
+                        .accessibilityHidden(true)
+                    content(phase)
                     Spacer(minLength: 0)
                     if let onStop {
                         Button(T("Stop", table: "ThoughtUI"), action: onStop)
@@ -34,88 +35,102 @@ struct ThoughtLineView: View {
                 }
                 .accessibilityElement(children: .contain)
                 .transition(reduceMotion ? .identity : .opacity)
-                let recent = showsAll ? (shown: thought.doneSteps, hidden: 0) : thought.recentSteps
-                if !recent.shown.isEmpty {
-                    StepList(steps: recent.shown, hidden: recent.hidden, reduceMotion: reduceMotion,
-                             onShowAll: { showsAllState.wrappedValue = thought.startedAt })
-                        .padding(.leading, 30).padding(.top, 5)
-                        .transition(reduceMotion ? .identity : .opacity)
-                }
-                if case .wakingUp(let progress?) = phase {
-                    WakeBar(progress: progress, reduceMotion: reduceMotion)
-                        .padding(.leading, 30).padding(.top, 6)
-                        .frame(maxWidth: 360, alignment: .leading)
-                }
             }
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: thought.isVisible)
     }
 
-    private func words(_ phase: WorkPhase) -> some View {
-        TimelineView(.periodic(from: thought.startedAt ?? Date(), by: 1)) { context in
-            let elapsed = thought.showsElapsed(at: context.date) ? WorkReceipt.duration(thought.elapsedSeconds(at: context.date)) : nil
-            let words = thought.words(showingElapsed: elapsed != nil) ?? (title: phase.title, detail: nil)
-            HStack(spacing: 6) {
-                Text(words.title).foregroundStyle(Theme.ink2)
-                    .lineLimit(1).truncationMode(.middle)
-                    .layoutPriority(1)
-                if let detail = words.detail {
-                    Text(detail).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle)
+    private func content(_ phase: WorkPhase) -> some View {
+        let bubbles = thought.bubbles
+        let hidden = showsAll ? 0 : max(0, bubbles.count - Self.visibleChips)
+        return VStack(alignment: .leading, spacing: 6) {
+            if let note = thought.phaseNote {
+                HStack(spacing: 6) {
+                    Text(note.title).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+                    if let detail = note.detail {
+                        Text(detail).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle)
+                    }
                 }
-                if let elapsed {
-                    Text(elapsed).foregroundStyle(Theme.ink3).monospacedDigit().fixedSize()
+                .font(Fonts.hint)
+                .id(phase.kind)
+                .transition(reduceMotion ? .identity : .opacity)
+                .accessibilityElement(children: .combine)
+            }
+            if hidden > 0 {
+                let count = hidden == 1 ? T("1 earlier step", table: "ThoughtUI") : T("%lld earlier steps", table: "ThoughtUI", hidden)
+                Button { showsAllState.wrappedValue = thought.startedAt } label: {
+                    HStack(spacing: 4) {
+                        Text(count)
+                        Image(systemName: "chevron.down").font(.scaled(size: 8.5, weight: .semibold))
+                    }
+                    .font(Fonts.hint).foregroundStyle(Theme.ink3).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(T("Show All Steps", table: "ThoughtUI"))
+                .accessibilityHint(T("Show All Steps", table: "ThoughtUI"))
+            }
+            ForEach(bubbles.suffix(bubbles.count - hidden)) { bubble in
+                StepChip(bubble: bubble, reduceMotion: reduceMotion)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
+            }
+            if case .wakingUp(let progress?) = phase {
+                WakeBar(progress: progress, reduceMotion: reduceMotion)
+                    .frame(maxWidth: 360, alignment: .leading)
+            }
+            TimelineView(.periodic(from: thought.startedAt ?? Date(), by: 1)) { context in
+                if thought.isSlow(at: context.date) {
+                    Text(ThoughtLine.slowNote)
+                        .font(.scaled(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.ink2)
+                        .transition(.opacity)
                 }
             }
-            .font(Fonts.hint)
-            // VoiceOver reads the phase when it lands here; changes are announced politely by the controller.
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(["Pippa", words.title, words.detail].compactMap { $0 }.joined(separator: ", "))
-            .accessibilityValue(elapsed ?? "")
         }
+        .frame(maxWidth: 520, alignment: .leading)
+        .padding(.top, 1)
+        .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85), value: bubbles)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: phase.kind)
     }
 }
 
-/// What Pippa has just done, quietly under the line: the last few steps in everyday words, each with a small picture
-/// of what it touched and the result when known. A step that appears fades in; with Reduce Motion nothing animates.
-/// Older steps collapse into one count, which opens them all.
-struct StepList: View {
-    var steps: [WorkStep]
-    var hidden = 0
+/// One step while Pippa works: a small picture, the everyday words, a count for repeated steps, and once done what came
+/// of it with a check. A step that did not work is marked, so a gap is never mistaken for "nothing there".
+struct StepChip: View {
+    var bubble: StepBubble
     var reduceMotion: Bool
-    var onShowAll: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if hidden > 0 {
-                let count = hidden == 1 ? T("1 earlier step", table: "ThoughtUI") : T("%lld earlier steps", table: "ThoughtUI", hidden)
-                if let onShowAll {
-                    Button(action: onShowAll) {
-                        HStack(spacing: 4) {
-                            Text(count)
-                            Image(systemName: "chevron.down").font(.scaled(size: 8.5, weight: .semibold))
-                        }
-                        .font(Fonts.hint).foregroundStyle(Theme.ink3).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help(T("Show All Steps", table: "ThoughtUI"))
-                    .accessibilityLabel(count)
-                    .accessibilityHint(T("Show All Steps", table: "ThoughtUI"))
-                } else {
-                    Text(count).font(Fonts.hint).foregroundStyle(Theme.ink3)
+        HStack(spacing: 7) {
+            Image(systemName: bubble.failed ? "exclamationmark.circle" : StepRow.symbol(bubble.kind))
+                .font(.scaled(size: 11.5, weight: .semibold))
+                .foregroundStyle(bubble.failed ? Theme.need : bubble.running ? Theme.accent : Theme.ok)
+                .frame(width: 15)
+            Text(bubble.text).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+                .foregroundStyle(bubble.running ? Theme.ink : Theme.ink2)
+            if bubble.count > 1 {
+                Text(verbatim: "×\(bubble.count)")
+                    .font(.scaled(size: 11, weight: .bold, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 6).padding(.vertical, 1)
+                    .background(Theme.accentTint, in: Capsule())
+                    .contentTransition(reduceMotion ? .identity : .numericText())
+            }
+            if !bubble.running {
+                if let outcome = bubble.outcome {
+                    Text(outcome).foregroundStyle(bubble.failed ? Theme.need : Theme.ink3).lineLimit(1).fixedSize()
+                }
+                if !bubble.failed {
+                    Image(systemName: "checkmark").font(.scaled(size: 10, weight: .bold)).foregroundStyle(Theme.ok)
                 }
             }
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(Array(steps.enumerated()), id: \.offset) { _, step in
-                    StepRow(step: step)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(T("What I did", table: "ThoughtUI"))
-            .accessibilityValue(steps.map(\.line).joined(separator: ". "))
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: steps)
-        .frame(maxWidth: 520, alignment: .leading)
-        .accessibilityElement(children: .contain)
+        .font(.scaled(size: 13, weight: .semibold, design: .rounded))
+        .padding(.leading, 8).padding(.trailing, 11).padding(.vertical, 5)
+        .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(bubble.spoken)
+        .accessibilityValue(bubble.running ? T("Running", table: "ThoughtUI") : bubble.failed ? T("Didn’t work", table: "ThoughtUI") : T("Done", table: "ThoughtUI"))
     }
 }
 
@@ -139,7 +154,7 @@ struct StepRow: View {
         .font(Fonts.hint)
     }
 
-    private static func symbol(_ kind: WorkStep.Kind?) -> String {
+    static func symbol(_ kind: WorkStep.Kind?) -> String {
         switch kind {
         case .file: "doc.text"
         case .change: "pencil"
@@ -192,6 +207,10 @@ struct WorkReceiptView: View {
                 else { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { toggle() } }
             } label: {
                 HStack(spacing: 5) {
+                    // What Pippa touched, at a glance: one small picture per kind of thing.
+                    ForEach(Self.symbols(receipt), id: \.self) { symbol in
+                        Image(systemName: symbol).font(.scaled(size: 10, weight: .semibold)).foregroundStyle(Theme.accent)
+                    }
                     Text(receipt.summary).lineLimit(1).truncationMode(.middle)
                     Image(systemName: "chevron.down")
                         .font(.scaled(size: 8.5, weight: .semibold))
@@ -254,6 +273,17 @@ struct WorkReceiptView: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// One picture per kind of thing the answer touched, in the order it happened (at most five).
+    static func symbols(_ receipt: WorkReceipt) -> [String] {
+        var result: [String] = []
+        func add(_ symbol: String) { if !result.contains(symbol) { result.append(symbol) } }
+        if !receipt.sources.isEmpty { add(StepRow.symbol(.file)) }
+        for step in receipt.steps ?? [] where step.kind != nil { add(StepRow.symbol(step.kind)) }
+        if receipt.lookedUpOnline { add(StepRow.symbol(.online)) }
+        if receipt.checkedCalendar { add(StepRow.symbol(.calendar)) }
+        return Array(result.prefix(5))
     }
 
     /// Unread and partly read sources are marked, so a gap is never mistaken for "nothing there".
