@@ -1,0 +1,310 @@
+[
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 3,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "amountsFound": 5,
+   "sourced": 5,
+   "sumCorrect": true,
+   "decoyAmount": false
+  },
+  "toolCalls": 7,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 28914
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 28914
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 28914
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 28914
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    },
+    "at": 28914
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 2.664,
+  "firstWordSeconds": 47.64,
+  "totalSeconds": 59.002,
+  "modelRequests": [
+   {
+    "at": 173,
+    "status": 200
+   },
+   {
+    "at": 6127,
+    "status": 200
+   },
+   {
+    "at": 13855,
+    "status": 200
+   },
+   {
+    "at": 28917,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 1752,
+    "output": 79,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1831,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 483,
+    "output": 160,
+    "cacheRead": 1750,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2393,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 504,
+    "output": 327,
+    "cacheRead": 2231,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 3062,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 1183,
+    "output": 612,
+    "cacheRead": 2733,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4528,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Du hast 5 Rechnungen aus dem Jahr 2024 gefunden (Rechnungssuche):\n\n| Rechnung | Datum | Betrag |\n|---|---|---|\n| kaufbeleg.pdf (Möbelhaus Beispiel) | 21.09.2024 | 249,00 € |\n| scan_0412.pdf (Elektro Blitz GmbH) | 12.04.2024 | 142,80 € |\n| handwerker.pdf (Malerbetrieb Farbe & Söhne) | 28.02.2024 | 310,00 € |\n| invoice_7731.pdf (Zahnarztpraxis Dr. Muster) | 03.07.2024 | 95,00 € |\n| r-2024-11.pdf (Fahrradladen Speiche) | 05.11.2024 | 68,50 € |\n\n**Gesamtbetrag 2024: 865,30 €**\n\nHinweis: Die Suchergebnisse umfassen nur indexierte Dateien; nicht geladene Cloud-Dateien oder Scans ohne erkannten Text können fehlen. Alle 5 Rechnungen sind 2024-Dokumente, also alle mitgezählt.",
+  "thinkingChars": 1978,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+      "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf",
+      "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+      "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+     ]
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 3,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": true,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 2651
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.431,
+  "firstWordSeconds": 3.659,
+  "totalSeconds": 17.353,
+  "modelRequests": [
+   {
+    "at": 158,
+    "status": 200
+   },
+   {
+    "at": 2654,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 96,
+    "output": 53,
+    "cacheRead": 1728,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1877,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 563,
+    "output": 300,
+    "cacheRead": 1822,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2685,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "Der Brief ist eine Ankündigung von Modernisierungsarbeiten an Ihrer Wohnung:\n\n**Was passiert:**\n- Alle Fenster werden gegen neue, dreifach verglaste Fenster ausgetauscht.\n- Die Arbeiten finden vom 12.01.2027 bis 16.01.2027 statt; in Ihrer Wohnung am 13.01.2027, zwischen 8 und 16 Uhr.\n- Die Firma Glasbau Beispiel führt die Arbeiten.\n\n**Was Sie tun müssen:**\n- Den beiliegenden Rückmeldebogen bis spätestens **20.11.2026** ausgefüllt zurücksenden. Darauf steht, ob Sie am 13.01.2027 selbst zu Hause sind oder wer die Wohnung öffnet.\n- Am Tag der Arbeiten die Fensterbänke frei räumen und etwa einen Meter vor den Fenstern frei halten. Möbel müssen nicht abgebaut werden; Böden werden abgedeckt.\n\n**Was es mit der Miete zu tun hat:**\n- Nach Abschluss der Arbeiten erhöht sich Ihre monatliche Grundmiete ab 01.04.2027 um **38,50 EUR**. Die Betriebskosten-Vorauszahlung bleibt unverändert.\n- Sie haben ein Sonderkündigungsrecht: Bis zum Ablauf des Monats, der auf den Zugang dieser Mitteilung folgt, können Sie außerordentlich bis zum Ablauf des übernächsten Monats kündigen.\n\nBei Fragen: Herr Kurz, 01234 567890.",
+  "thinkingChars": 26,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]
