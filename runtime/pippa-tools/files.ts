@@ -1,5 +1,5 @@
 /** File helpers for Pippa's narrow file tools (pippa-tools.ts). */
-import { stat } from "node:fs/promises";
+import { rename, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 
@@ -59,7 +59,7 @@ export interface PlannedMove {
  * objects rather than a map `{"Bilder": [...]}`: some chat templates drop `additionalProperties`, so the model saw
  * an untyped object and wrote comma-separated strings (r7 sort). A map is still accepted. A target is a subfolder of
  * `folder`: relative (may be nested) or a path that lands inside `folder`; a target outside `folder` gets a per-item
- * error (other places: rename_or_move). A name is a file or folder in `folder`.
+ * error (other places: `from`/`to`). A name is a file or folder in `folder`.
  * Never overwrites: an existing target, a missing source or a second item with the same target gets an `error`.
  * `created`: target folders (and folders in between) that do not exist yet and will be created; `folders`: the topmost
  * of those, like a plain `mkdir -p`.
@@ -85,7 +85,7 @@ export async function planMoves(rawFolder: unknown, rawGroups: unknown, cwd: str
 			const item: PlannedMove = { name: name || "?", from, to, into };
 			items.push(item);
 			if (!name || !intoText) item.error = "needs a file name and a target folder";
-			else if (outside) item.error = "target must be a subfolder of folder; use rename_or_move for other places";
+			else if (outside) item.error = "target must be a subfolder of folder; for other places use from and to";
 			else if (!(await exists(from))) item.error = "not found";
 			else if (from === to) item.error = "already there";
 			else if (into === from || into.startsWith(`${from}/`)) item.error = "cannot move a folder into itself";
@@ -107,4 +107,15 @@ export function folderLabel(into: string, folder: string): string {
 	if (into.startsWith(`${folder}/`)) return `${into.slice(folder.length + 1)}/`;
 	const home = homedir();
 	return into === home || into.startsWith(`${home}/`) ? `~${into.slice(home.length)}/` : `${into}/`;
+}
+
+/** One file or folder renamed or moved (`move_files` with `from`, `to`); validates both, never overwrites. */
+export async function moveOne(rawFrom: string, rawTo: string, cwd: string) {
+	const from = resolvePath(rawFrom, cwd);
+	const to = await moveTarget(from, rawTo, cwd);
+	if (!(await exists(from))) throw new Error(`Not found: ${from}`);
+	if (await exists(to)) throw new Error(`Something named '${basename(to)}' already exists in ${dirname(to)}. Nothing was changed.`);
+	if (!(await exists(dirname(to)))) throw new Error(`The folder ${dirname(to)} does not exist. Nothing was changed.`);
+	await rename(from, to);
+	return { content: [{ type: "text", text: `Moved to ${to}.` }], details: { from, to } };
 }

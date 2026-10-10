@@ -1,6 +1,6 @@
 // Real Spotlight against generated PDFs only: content vs filename/year, all five scopes.
 import assert from 'node:assert/strict';
-import { search, predicate } from '../../runtime/pippa-skills/dateien-finden/scripts/search.mjs';
+import { search, predicate } from '../../runtime/pippa-tools/search.mjs';
 import { join } from 'node:path';
 const home=process.env.CFFIXED_USER_HOME;
 if (!home?.endsWith('/pippa/dist/tool-search-home')) throw Error('Generate the isolated search corpus first.');

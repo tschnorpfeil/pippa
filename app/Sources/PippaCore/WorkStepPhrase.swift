@@ -112,6 +112,9 @@ public enum WorkStepPhrase {
                     return Described(text: l("Reading %@", shown), result: .none)
                 }
                 return Described(text: l("Reading a document"), result: .none)
+            case "search_files":
+                if let query = args.string("query").flatMap(cleanTerm) { return Described(text: l("Searching Spotlight for %@", quote(query)), result: .none) }
+                return Described(text: l("Searching with Spotlight"), result: .none)
             case "web_search":
                 if let query = args.string("query").flatMap(cleanTerm) { return Described(text: l("Searching online for %@", quote(query)), result: .none) }
                 return Described(text: l("Searching online"), result: .none)

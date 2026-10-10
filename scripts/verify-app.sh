@@ -108,7 +108,7 @@ ok "Pippa's abilities: $found_skills in Contents/Resources/pippa-skills, same as
 # The old conversation core is gone and must not come along from an old build.
 [[ ! -e "$APP/Contents/Resources/pi-runtime" ]] || fail "old conversation core (Contents/Resources/pi-runtime) still in the bundle"
 # The Pi RPC path starts Pi with Pippa's extensions from the bundle.
-for f in pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-context.ts pippa-mcp.ts files.ts budget.ts search-command.ts; do
+for f in pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-context.ts pippa-mcp.ts files.ts budget.ts search.mjs; do
   cmp -s "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f" || fail "pippa-tools/$f missing or stale (Pi extensions)"
 done
 [[ ! -e "$APP/Contents/Resources/pippa-guard" ]] || fail "old guard (Contents/Resources/pippa-guard) still in the bundle"

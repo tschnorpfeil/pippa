@@ -4,11 +4,12 @@
  *
  *   pi --mode rpc --extension runtime/pippa-tools/pippa-tools.ts --extension runtime/pippa-tools/pippa-assist.ts …
  *
+ * - `search_files`: find the person's own documents by content with Spotlight's index (search.mjs), read-only. One
+ *   call instead of reading a skill and building a bash command (one model round less, and the step that failed).
  * - `list_folder`: look at a folder, read-only (no question).
- * - `rename_or_move`: rename or move one file or folder. Never overwrites.
- * - `move_files`: sort many files into (new) subfolders in one call, e.g. tidying a folder, grouped by target
- *   (`groups: [{into: "Bilder", files: [...]}]`). Never overwrites. One call instead of one model
- *   turn per file (r7: 16 turns, 211 s for 15 files).
+ * - `move_files`: rename or move one file or folder (`from`, `to`), or sort many files into (new) subfolders in one
+ *   call, grouped by target (`groups: [{into: "Bilder", files: [...]}]`). Never overwrites. One call instead of one
+ *   model turn per file (r7: 16 turns, 211 s for 15 files); one tool instead of two (fewer declaration tokens).
  * - `move_to_trash`: to the trash, never permanently delete.
  *
  * Pi runs these tools without asking (as all its tools). They never overwrite and never delete for good; paths always
@@ -26,7 +27,8 @@ import { mkdir, readdir, rename, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
 import { capResult, resultLimit, shortenParameters } from "./budget.ts";
-import { exists, folderLabel, moveTarget, planMoves, resolvePath } from "./files.ts";
+import { exists, folderLabel, moveOne, planMoves, resolvePath } from "./files.ts";
+import { search } from "./search.mjs";
 
 type ExtensionAPI = any;
 
@@ -79,9 +81,27 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerTool({
+		name: "search_files",
+		label: "Dateien suchen",
+		description: "Find the person's own documents by their content (Spotlight): Documents, Desktop, Downloads, iCloud Drive.",
+		parameters: Type.Object({
+			query: Type.String({ description: "1-3 topic words from the question, e.g. Zahnarzt; without Rechnung, Dokument, PDF, Unterlagen." }),
+			year: Type.Optional(Type.String({ description: "Only when the person names a year." })),
+		}),
+		annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+		async execute(_id: string, params: any) {
+			const result = await search(String(params?.query ?? ""), params?.year ? String(params.year) : undefined);
+			// How to pass the result on, only when there is one (the skill text used to cost every search a read).
+			const guide = "Name each file as [name](file:///path), never as code. Found is not read: for content use mcp__pippa__read_document. "
+				+ "No files: nothing indexed was found; never say the files do not exist. Do not repeat the same search.";
+			return { content: [{ type: "text", text: JSON.stringify({ ...result, guide }) }], details: { query: result.query, total: result.total } };
+		},
+	});
+
+	pi.registerTool({
 		name: "list_folder",
 		label: "Ordner ansehen",
-		description: "List a folder for listing or sorting. For content search, read the dateien-finden skill first.",
+		description: "List a folder for listing or sorting. To find documents by topic use search_files.",
 		parameters: Type.Object({
 			path: Type.Optional(Type.String({ description: "Exact path as given; default: working folder." })),
 		}),
@@ -115,39 +135,20 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerTool({
-		name: "rename_or_move",
-		label: "Umbenennen oder verschieben",
-		description: "Rename/move the supplied path without a preliminary check; validates source and target, never overwrites.",
-		parameters: Type.Object({
-			from: Type.String(),
-			to: Type.String({ description: "New name or target folder." }),
-		}),
-		annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-		executionMode: "sequential",
-		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
-			const cwd = ctx?.cwd ?? process.cwd();
-			const from = resolvePath(params.from, cwd);
-			const to = await moveTarget(from, params.to, cwd);
-			if (!(await exists(from))) throw new Error(`Not found: ${from}`);
-			if (await exists(to)) throw new Error(`Something named '${basename(to)}' already exists in ${dirname(to)}. Nothing was changed.`);
-			if (!(await exists(dirname(to)))) throw new Error(`The folder ${dirname(to)} does not exist. Nothing was changed.`);
-			await rename(from, to);
-			return { content: [{ type: "text", text: `Moved to ${to}.` }], details: { from, to } };
-		},
-	});
-
-	pi.registerTool({
 		name: "move_files",
 		label: "Dateien einsortieren",
-		description: "Sort many files of a folder into its subfolders in one call; missing ones are created. Never overwrites.",
+		description: "Rename or move one item: from, to (new name or folder). Sort many: folder, groups (subfolders, created if missing). Never overwrites.",
 		parameters: Type.Object({
-			folder: Type.String(),
+			from: Type.Optional(Type.String()),
+			to: Type.Optional(Type.String()),
+			folder: Type.Optional(Type.String()),
 			// Grouped by target: each subfolder name is written once (output tokens). Typed objects, not a map (files.ts planMoves).
-			groups: Type.Array(Type.Object({ into: Type.String(), files: Type.Array(Type.String()) })),
+			groups: Type.Optional(Type.Array(Type.Object({ into: Type.String(), files: Type.Array(Type.String()) }))),
 		}),
 		annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 		executionMode: "sequential",
 		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
+			if (params?.from && params?.to && !params?.groups) return moveOne(params.from, params.to, ctx?.cwd ?? process.cwd());
 			const plan = await planMoves(params?.folder, params?.groups, ctx?.cwd ?? process.cwd());
 			if (!(await exists(plan.folder))) throw new Error(`There is no folder at ${plan.folder}. Nothing was changed.`);
 			const moved: { from: string; to: string }[] = [];

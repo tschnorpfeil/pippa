@@ -53,8 +53,8 @@ test("the model sees short web declarations; other tools, other payloads and a s
 	assert.equal(leanDeclarations(out), undefined, "already short: nothing to change");
 	const responses = leanDeclarations({ tools: [{ type: "function", name: "fetch_content", description: "long", parameters: long }] });
 	assert.equal(responses.tools[0].parameters, DECLARATIONS.fetch_content.parameters);
-	const anthropic = leanDeclarations({ tools: [{ name: "get_search_content", description: "long", input_schema: long }] });
-	assert.equal(anthropic.tools[0].input_schema, DECLARATIONS.get_search_content.parameters);
+	const anthropic = leanDeclarations({ tools: [{ name: "fetch_content", description: "long", input_schema: long }] });
+	assert.equal(anthropic.tools[0].input_schema, DECLARATIONS.fetch_content.parameters);
 	assert.equal(leanDeclarations({ messages: [] }), undefined);
 });
 
@@ -93,10 +93,10 @@ export default function (pi: any) {
 	return { home, probe: JSON.parse(readFileSync(out, "utf8")) };
 }
 
-test("the real Pi loads it: only search, read page and stored content; settings outside ~/.pi; environment put back", async () => {
+test("the real Pi loads it: only search and read page; settings outside ~/.pi; environment put back", async () => {
 	const { home, probe } = await realPi();
 	const web = probe.tools.filter((name) => ["web_search", "fetch_content", "get_search_content", "source_check", "web_enable"].includes(name));
-	assert.deepEqual(web.sort(), ["fetch_content", "get_search_content", "web_search"]);
+	assert.deepEqual(web.sort(), ["fetch_content", "web_search"]);
 	assert.equal(probe.xdg, null, "bash commands must not inherit Pippa's config folder");
 	assert.ok(existsSync(join(home, "pippa-web", "pi", "web-search.json")));
 	assert.ok(!existsSync(join(home, ".pi", "agent", "web-search.json")), "the person's Pi settings stay untouched");

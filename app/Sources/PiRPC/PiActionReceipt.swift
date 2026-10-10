@@ -24,9 +24,8 @@ public struct PiActionRecord: Sendable, Equatable {
 
 /// Collects the events of one answer (one `prompt` up to `agent_settled`, including late-delivered messages).
 public struct PiTurnReceipt: Sendable {
-    /// Tools that only read: no receipt line. `get_search_content` reads what a search or page already brought
-    /// (pi-web-access keeps it on this Mac).
-    public static let readOnlyTools: Set<String> = ["read", "grep", "find", "ls", "list_folder", "get_search_content"]
+    /// Tools that only read: no receipt line.
+    public static let readOnlyTools: Set<String> = ["read", "grep", "find", "ls", "list_folder", "search_files"]
     /// Pippa's own housekeeping, no receipt line either: `remember` (pippa-memory.ts) changes no file of the person's;
     /// the answer itself says what Pippa will keep in mind.
     public static let quietTools: Set<String> = ["remember"]
@@ -86,8 +85,8 @@ public struct PiTurnReceipt: Sendable {
         let name = path.map { URL(fileURLWithPath: $0).lastPathComponent }
         switch tool {
         case "write", "edit": return ("change", name, nil)
-        case "rename_or_move": return ("move", name, (args?["to"] as? String).map { URL(fileURLWithPath: $0).lastPathComponent })
         case "move_files":
+            if let to = args?["to"] as? String, args?["groups"] == nil { return ("move", name, URL(fileURLWithPath: to).lastPathComponent) }
             let into = ((args?["groups"] as? [[String: Any]]) ?? []).compactMap { $0["into"] as? String }
             return ("move", (args?["folder"] as? String).map { URL(fileURLWithPath: $0).lastPathComponent },
                     into.isEmpty ? nil : into.joined(separator: ", "))
