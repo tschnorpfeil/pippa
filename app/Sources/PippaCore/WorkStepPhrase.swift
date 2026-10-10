@@ -385,14 +385,6 @@ public enum WorkStepPhrase {
             case "cp": return Described(text: l("Copying files"), result: .none)
             case "mkdir": return Described(text: l("Creating a folder"), result: .none)
             case "osascript": return appleScript(args.filter { $0.quoted || !$0.text.hasPrefix("-") }.map(\.text).joined(separator: "\n"))
-            case "open":
-                // `open -a Mail`: the app by name; `open file.pdf`: the file by its last name.
-                var all = args.makeIterator()
-                while let a = all.next() {
-                    if !a.quoted, a.text == "-a", let app = all.next().flatMap({ appName($0.text) }) { return Described(text: l("Opening %@", app), result: .none) }
-                }
-                if let file = positional.first.flatMap({ lastName($0.text) }) { return Described(text: l("Opening %@", file), result: .none) }
-                return nil
             default: return nil
             }
         }

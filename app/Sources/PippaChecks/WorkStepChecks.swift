@@ -232,8 +232,6 @@ func runWorkStepChecks() {
             && expect(bash(#"osascript -e 'tell application "Safari" to get URL of front document'"#), "Nutze Safari")
             && expect(bash(#"osascript -e 'tell application "Finder" to get selection'"#), "Arbeite an deinem Mac")
             && expect(bash(#"osascript -e 'display dialog "hi"'"#), "Arbeite an deinem Mac")
-            && expect(bash("open -a Preview ~/Desktop/Plan.pdf"), "Öffne Preview")
-            && expect(bash("open ~/Desktop/Plan.pdf"), "Öffne Plan.pdf")
             && expect(bash(#"osascript -e 'tell application "Mail" to count messages of inbox'"#, "en"), "Looking in your mail")
             && mailKind == .mail
     }
