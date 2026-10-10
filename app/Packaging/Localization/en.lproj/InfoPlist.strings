@@ -6,8 +6,11 @@
 "NSHumanReadableCopyright" = "© __YEAR__ Tobias Schnorpfeil.";
 "NSCalendarsFullAccessUsageDescription" = "When you ask, Pippa reads your appointments for the period you ask about, and adds deadlines from your letters to Calendar, which it can remove again.";
 "NSRemindersFullAccessUsageDescription" = "Pippa adds deadlines from your letters to Reminders when you ask, and can remove them again.";
-"NSAppleEventsUsageDescription" = "Pippa reads the email you selected in Mail and the table you’re looking at in Excel. Nothing is sent without your approval.";
+"NSAppleEventsUsageDescription" = "When you ask, Pippa reads the email you selected in Mail, the table you’re looking at in Excel, and searches your photos and notes. Nothing is sent without your approval.";
 "NSDesktopFolderUsageDescription" = "Pippa reads and tidies files on your Desktop when you ask her to. You can undo her changes.";
 "NSDocumentsFolderUsageDescription" = "Pippa reads and tidies files in your Documents folder when you ask her to. You can undo her changes.";
 "NSDownloadsFolderUsageDescription" = "Pippa reads and tidies files in your Downloads folder when you ask her to. You can undo her changes.";
+"NSRemovableVolumesUsageDescription" = "Pippa reads and tidies files on your USB sticks and external disks when you ask her to. You can undo her changes.";
+"NSFileProviderDomainUsageDescription" = "Pippa reads and tidies files in your iCloud Drive when you ask her to. You can undo her changes.";
+"NSContactsUsageDescription" = "When you ask, Pippa looks up addresses and phone numbers in your contacts. She doesn’t change them.";
 "File or Folder" = "File or Folder";

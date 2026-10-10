@@ -60,19 +60,26 @@
 	<!-- Texts of the system prompts (macOS asks only when the feature is used).
 	     Calendar and Reminders: add deadlines and remove them again (undo), hence full access.
 	     Apple Events: read the selected mail and the active Excel sheet; nothing is sent without approval.
-	     Folders (Desktop, Documents, Downloads): without the App Sandbox, macOS asks on first access. -->
+	     Folders (Desktop, Documents, Downloads), external drives and iCloud Drive: without the App Sandbox, macOS asks on
+	     first access. Contacts: read only. The "What Pippa may do" page (onboarding, Settings) asks each one on its own button. -->
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>When you ask, Pippa reads your appointments for the period you ask about, and adds deadlines from your letters to Calendar, which it can remove again.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Pippa adds deadlines from your letters to Reminders when you ask, and can remove them again.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Pippa reads the email you selected in Mail and the table you’re looking at in Excel. Nothing is sent without your approval.</string>
+	<string>When you ask, Pippa reads the email you selected in Mail, the table you’re looking at in Excel, and searches your photos and notes. Nothing is sent without your approval.</string>
 	<key>NSDesktopFolderUsageDescription</key>
 	<string>Pippa reads and tidies files on your Desktop when you ask her to. You can undo her changes.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>Pippa reads and tidies files in your Documents folder when you ask her to. You can undo her changes.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>Pippa reads and tidies files in your Downloads folder when you ask her to. You can undo her changes.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Pippa reads and tidies files on your USB sticks and external disks when you ask her to. You can undo her changes.</string>
+	<key>NSFileProviderDomainUsageDescription</key>
+	<string>Pippa reads and tidies files in your iCloud Drive when you ask her to. You can undo her changes.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>When you ask, Pippa looks up addresses and phone numbers in your contacts. She doesn’t change them.</string>
 
 	<!-- Automatic updates (Sparkle 2, see docs/development.md "Releasing").
 	     Check daily, download silently and install on the next quit; no "Check for updates automatically?"

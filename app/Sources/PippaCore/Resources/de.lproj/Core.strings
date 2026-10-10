@@ -202,3 +202,8 @@
 "1 in the Trash" = "1 im Papierkorb";
 "%lld in the Trash" = "%lld im Papierkorb";
 "It’s no longer in the Trash." = "Die Datei liegt nicht mehr im Papierkorb.";
+
+/* Was Pippa darf (MacPermissions.swift) */
+"Notes" = "Notizen";
+"Photos" = "Fotos";
+"When you connect a drive, your Mac asks the first time Pippa opens it." = "Wenn du ein Laufwerk ansteckst, fragt dein Mac, sobald Pippa es zum ersten Mal öffnet.";

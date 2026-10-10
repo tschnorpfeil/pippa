@@ -6,8 +6,11 @@
 "NSHumanReadableCopyright" = "© __YEAR__ Tobias Schnorpfeil.";
 "NSCalendarsFullAccessUsageDescription" = "Wenn du fragst, liest Pippa deine Termine für den Zeitraum, nach dem du fragst, und trägt Fristen aus deinen Briefen in den Kalender ein, die Pippa auch wieder entfernen kann.";
 "NSRemindersFullAccessUsageDescription" = "Pippa trägt Fristen aus deinen Briefen in Erinnerungen ein, wenn du es sagst, und kann sie wieder entfernen.";
-"NSAppleEventsUsageDescription" = "Pippa liest die Mail, die du in Mail ausgewählt hast, und die Tabelle, die du in Excel ansiehst. Ohne deine Freigabe wird nichts verschickt.";
+"NSAppleEventsUsageDescription" = "Wenn du fragst, liest Pippa die Mail, die du in Mail ausgewählt hast, und die Tabelle, die du in Excel ansiehst, und durchsucht deine Fotos und Notizen. Ohne deine Freigabe wird nichts verschickt.";
 "NSDesktopFolderUsageDescription" = "Pippa liest und ordnet Dateien auf deinem Schreibtisch, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
 "NSDocumentsFolderUsageDescription" = "Pippa liest und ordnet Dateien in deinem Ordner „Dokumente“, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
 "NSDownloadsFolderUsageDescription" = "Pippa liest und ordnet Dateien in deinem Ordner „Downloads“, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
+"NSRemovableVolumesUsageDescription" = "Pippa liest und ordnet Dateien auf deinen USB-Sticks und externen Festplatten, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
+"NSFileProviderDomainUsageDescription" = "Pippa liest und ordnet Dateien in deinem iCloud Drive, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
+"NSContactsUsageDescription" = "Wenn du fragst, sucht Pippa Adressen und Telefonnummern in deinen Kontakten. Sie ändert nichts daran.";
 "File or Folder" = "Datei oder Ordner";

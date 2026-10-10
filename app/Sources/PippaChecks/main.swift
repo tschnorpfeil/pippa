@@ -1306,6 +1306,7 @@ await runR7Checks()
 await runR7bChecks()
 await runW4aChecks()
 await runTextScaleChecks()
+await runPermissionChecks()
 runLegacyMigrationChecks()
 
 print(failures == 0 ? "All checks passed." : "\(failures) check(s) failed.")

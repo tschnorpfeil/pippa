@@ -9,6 +9,7 @@
     (NSAppleScript in its own process, no osascript) and to create unsent drafts in Mail.
   - personal-information.calendars: Hardened Runtime right for EventKit; covers Calendar AND Reminders (there is no
     separate right for Reminders). Without it macOS refuses silently, without a prompt.
+  - personal-information.addressbook: Hardened Runtime right for Contacts (read only, "What Pippa may do").
 
   Dropped with the sandbox (effective only inside it): app-sandbox, files.user-selected.read-write,
   files.bookmarks.app-scope, files.downloads.read-write, network.client, network.server,
@@ -24,6 +25,8 @@
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
 	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<key>com.apple.security.personal-information.addressbook</key>
 	<true/>
 </dict>
 </plist>

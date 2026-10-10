@@ -51,6 +51,25 @@ jobs:
           grep -E "error:" build.log | sed -E 's/^ +//' | sort -u | head -n 120
           exit $status
         shell: bash {0}
+      - name: TEMP permissions snapshots
+        continue-on-error: true
+        run: |
+          mkdir -p snaps
+          for a in dark light; do
+            PIPPA_DEMO=1 PIPPA_APPEARANCE=$a PIPPA_SNAPSHOT=$PWD/snaps/$a PIPPA_SNAPSHOT_ONLY=permissions app/.build/debug/Pippa -AppleLanguages "(de)" > snaps/$a.log 2>&1 &
+            pid=$!; ( sleep 180; kill $pid ) >/dev/null 2>&1 & wait $pid; echo "$a exit $?"; tail -n 15 snaps/$a.log
+          done
+          find snaps -type f | sort
+          cat snaps/*/permissions.txt 2>/dev/null
+          for f in $(find snaps -name 'permissions-0*.png' | sort); do
+            sips -Z 1000 -s format jpeg -s formatOptions 60 "$f" --out /tmp/s.jpg >/dev/null
+            echo "B64BEGIN $(echo $f | tr '/' '_')"; base64 -i /tmp/s.jpg | fold -w 8000; echo "B64END"
+          done
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: permission-snaps
+          path: snaps/**
       - name: PippaChecks
         timeout-minutes: 15
         env:
