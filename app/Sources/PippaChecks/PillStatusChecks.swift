@@ -25,21 +25,20 @@ func runPillStatusChecks() {
     }
 
     check("Living pill: a finished answer stays until seen, a running one wins, rest is just the name") {
-        PillStatus.make(phase: nil, outcome: .answered, language: "de") == PillStatus(tone: .done, label: "Deine Antwort ist da", hand: true)
+        PillStatus.make(phase: nil, outcome: .answered, language: "de") == PillStatus(tone: .done, label: "Deine Antwort ist da")
             && PillStatus.make(phase: nil, outcome: .failed, language: "en") == PillStatus(tone: .failed, label: "That didn’t work")
             && PillStatus.make(phase: .writing, outcome: .answered).tone == .working
             && PillStatus.make(phase: nil, outcome: .answered, busy: true).tone == .working
             && PillStatus.make(phase: nil) == PillStatus(tone: .rest, label: "Pippa")
     }
 
-    check("Living pill: handwritten moments are short, never while working, the invitation only when nothing else shows") {
-        PillStatus.make(phase: nil, moment: .finished, language: "de") == PillStatus(tone: .done, label: "Fertig!", hand: true)
-            && PillStatus.make(phase: nil, outcome: .failed, moment: .undone, language: "de") == PillStatus(tone: .done, label: "Wieder wie vorher.", hand: true)
-            && PillStatus.make(phase: nil, moment: .invite, language: "de") == PillStatus(tone: .rest, label: "Leg was auf mich!", hand: true)
+    check("Living pill: small moments are short, never while working, the invitation only when nothing else shows") {
+        PillStatus.make(phase: nil, moment: .finished, language: "de") == PillStatus(tone: .done, label: "Fertig!")
+            && PillStatus.make(phase: nil, outcome: .failed, moment: .undone, language: "de") == PillStatus(tone: .done, label: "Wieder wie vorher.")
+            && PillStatus.make(phase: nil, moment: .invite, language: "de") == PillStatus(tone: .rest, label: "Leg was auf mich!")
             && PillStatus.make(phase: nil, outcome: .answered, moment: .invite, language: "de").label == "Deine Antwort ist da"
             && PillStatus.make(phase: .writing, moment: .finished).tone == .working
             && PillStatus.make(phase: nil, busy: true, moment: .invite).tone == .working
-            && !PillStatus.make(phase: .writing).hand && !PillStatus.make(phase: nil, outcome: .failed).hand
     }
 
     check("Living pill: while the AI downloads it says so with a measured bar, over the invitation") {

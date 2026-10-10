@@ -155,7 +155,7 @@ Pippa is built on:
 - [pi-web-access](https://github.com/nicobailon/pi-web-access) by Nico Bailon (MIT), for web search and reading pages
 - [Node.js](https://nodejs.org) (MIT and others), which runs Pi
 - [Sparkle](https://sparkle-project.org) (MIT), for updates
-- [Bagel Fat One](https://fonts.google.com/specimen/Bagel+Fat+One) and [Gochi Hand](https://fonts.google.com/specimen/Gochi+Hand) (SIL Open Font License 1.1)
+- [Bagel Fat One](https://fonts.google.com/specimen/Bagel+Fat+One) (SIL Open Font License 1.1)
 - the open models [Qwen](https://huggingface.co/Qwen) (Apache 2.0) and, for developers, [K2 Horizon](https://huggingface.co/IFM/K2-Horizon-7B) by MBZUAI and IFM (Apache 2.0), downloaded from Hugging Face on your Mac and not part of this repository
 
 Licence texts and the full list of bundled components: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

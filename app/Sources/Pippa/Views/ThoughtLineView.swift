@@ -51,7 +51,7 @@ struct ThoughtLineView: View {
                         Text(detail).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle)
                     }
                 }
-                .font(Fonts.hint)
+                .font(Fonts.statusLine)
                 .id(phase.kind)
                 .transition(reduceMotion ? .identity : .opacity)
                 .accessibilityElement(children: .combine)

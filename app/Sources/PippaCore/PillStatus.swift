@@ -12,7 +12,7 @@ public enum PillOutcome: Sendable, Equatable {
     case failed
 }
 
-/// Pippa's small handwritten moments (UX rule 6): only these three, never while she works.
+/// Pippa's small moments (UX rule 6): only these three, never while she works.
 public enum PillMoment: Sendable, Equatable {
     /// A file task is finished (a short moment).
     case finished
@@ -39,14 +39,10 @@ public struct PillStatus: Sendable, Equatable {
     public var label: String
     /// Measured progress 0…1 for the thin bar; `nil` means no bar (never an invented percentage).
     public var progress: Double?
-    /// Written by hand, like the speech bubbles on the website: only for Pippa's happy moments.
-    public var hand: Bool
-
-    public init(tone: PillTone, label: String, progress: Double? = nil, hand: Bool = false) {
+    public init(tone: PillTone, label: String, progress: Double? = nil) {
         self.tone = tone
         self.label = label
         self.progress = progress
-        self.hand = hand
     }
 
     /// Longest file name the pill shows before shortening with "…" (the pill stays below ~260 pt).
@@ -61,7 +57,7 @@ public struct PillStatus: Sendable, Equatable {
     ///   - outcome: a finished answer the person has not seen yet.
     ///   - busy: a file task (tidying, reading) runs without a conversation phase.
     ///   - loading: measured progress 0…1 while Pippa's AI downloads (setup), `nil` when nothing loads.
-    ///   - moment: a handwritten moment; a short one wins over an old outcome, the invitation only shows when nothing else does.
+    ///   - moment: one of Pippa's small moments; a short one wins over an old outcome, the invitation only shows when nothing else does.
     public static func make(phase: WorkPhase?, step: String? = nil, outcome: PillOutcome? = nil, busy: Bool = false,
                             loading: Double? = nil, moment: PillMoment? = nil, language: String? = nil) -> PillStatus {
         if let phase {
@@ -81,16 +77,16 @@ public struct PillStatus: Sendable, Equatable {
                               progress: fraction)
         }
         switch moment {
-        case .finished: return PillStatus(tone: .done, label: L("Done!", table: "Thought", language: language), hand: true)
-        case .undone: return PillStatus(tone: .done, label: L("Back as it was.", table: "Thought", language: language), hand: true)
+        case .finished: return PillStatus(tone: .done, label: L("Done!", table: "Thought", language: language))
+        case .undone: return PillStatus(tone: .done, label: L("Back as it was.", table: "Thought", language: language))
         case .invite, nil: break
         }
         switch outcome {
-        case .answered: return PillStatus(tone: .done, label: L("Your answer is ready", table: "Thought", language: language), hand: true)
+        case .answered: return PillStatus(tone: .done, label: L("Your answer is ready", table: "Thought", language: language))
         case .failed: return PillStatus(tone: .failed, label: L("That didn’t work", table: "Thought", language: language))
         case nil:
             if moment == .invite {
-                return PillStatus(tone: .rest, label: L("Drop something on me!", table: "Thought", language: language), hand: true)
+                return PillStatus(tone: .rest, label: L("Drop something on me!", table: "Thought", language: language))
             }
             return PillStatus(tone: .rest, label: "Pippa")
         }

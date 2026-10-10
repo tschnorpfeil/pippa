@@ -109,6 +109,10 @@ enum Fonts {
     static var lead: Font { text(14.5) }
     static var hint: Font { text(12) }
     static var sill: Font { text(11.5, .medium) }
+    /// What Pippa is doing or has done: the pill's words and the thought line in the conversation. Rounded like the
+    /// headings, one family for every state, so "Bereite die Antwort vor" and "Deine Antwort ist da" look like one voice.
+    static var status: Font { rounded(15, .semibold) }
+    static var statusLine: Font { rounded(12.5, .medium) }
     /// Welcome: Bagel Fat One (bundled, OFL); if missing, SF Rounded Heavy.
     @MainActor static var display: Font {
         DisplayFont.register()
@@ -131,32 +135,6 @@ enum DisplayFont {
         if CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) || NSFont(name: name, size: 12) != nil {
             available = NSFont(name: name, size: 12) != nil
         }
-    }
-}
-
-/// Gochi Hand from Resources/Fonts (bundled, OFL), the handwriting of the website's speech bubbles. Only for the
-/// pill's small happy moments ("Deine Antwort ist da"), never for running text; if missing, SF Rounded.
-@MainActor
-enum HandFont {
-    static let name = "GochiHand-Regular"
-    private(set) static var available = false
-    private static var tried = false
-
-    static func register() {
-        guard !tried else { return }
-        tried = true
-        guard let url = Bundle.module.url(forResource: "GochiHand-Regular", withExtension: "ttf", subdirectory: "Fonts") else { return }
-        var error: Unmanaged<CFError>?
-        if CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) || NSFont(name: name, size: 12) != nil {
-            available = NSFont(name: name, size: 12) != nil
-        }
-    }
-
-    /// Handwriting reads smaller than SF at the same size, hence a bit larger than the pill's 15 pt.
-    static func font(size: CGFloat = 19) -> Font {
-        register()
-        return available ? .custom(name, size: CGFloat(TextScale.scaled(Double(size), by: TextScaleStore.current)))
-            : .scaled(size: size - 4, weight: .semibold, design: .rounded)
     }
 }
 

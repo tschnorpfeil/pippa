@@ -139,9 +139,8 @@ struct PillContent: View {
     var body: some View {
         HStack(spacing: 8) {
             MarkSlot(size: 28)
-            // Pippa's small happy moments are written by hand, like the speech bubbles on the website.
-            ShimmerText(text: status.label, active: status.tone == .working, color: ink,
-                        font: status.hand ? HandFont.font() : nil)
+            // One font for every state, so the pill does not change its handwriting between working and done.
+            ShimmerText(text: status.label, active: status.tone == .working, color: ink)
                 .contentTransition(.opacity)
             if let symbol {
                 Image(systemName: symbol)
@@ -221,13 +220,11 @@ struct ShimmerText: View {
     var text: String
     var active: Bool
     var color: Color = Theme.ink
-    /// `nil`: the pill's usual rounded semibold.
-    var font: Font? = nil
     private let phaseState = State<CGFloat>(initialValue: -1)
     private var phase: CGFloat { get { phaseState.wrappedValue } nonmutating set { phaseState.wrappedValue = newValue } }
 
     var body: some View {
-        let label = Text(text).font(font ?? .scaled(size: 15, weight: .semibold, design: .rounded))
+        let label = Text(text).font(Fonts.status)
         label
             .foregroundStyle(color)
             .lineLimit(1)
