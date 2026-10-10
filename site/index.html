@@ -67,6 +67,7 @@
 }
 </script>
 <script>
+document.documentElement.classList.add('js');
 /* Sprache: ein ausdrücklicher Klick auf den Umschalter gewinnt, sonst die Sprache des Browsers. Crawler bleiben auf der angeforderten Seite. */
 (function(){var me='de';try{if(/bot|crawl|spider|slurp|lighthouse|headless|preview/i.test(navigator.userAgent))return;var w;try{w=localStorage.getItem('pippa-lang')}catch(e){}
 if(w!=='de'&&w!=='en'){w='en';var l=navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||''];
@@ -79,13 +80,14 @@ document.addEventListener('click',function(e){var a=e.target.closest&&e.target.c
 @font-face{font-family:"Gochi Hand";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/gochi-hand.ttf") format("truetype")}
 :root{
 color-scheme:light;
---ink:#10251a;--ink-2:#3c4d43;--grey:#5f6b64;--page:#fbfbf8;--off:#f4f6f1;--paper:#fff;--lino:#86ad94;--lino-l:#dfeadf;
+--ink:#10251a;--ink-2:#3c4d43;--grey:#5f6b64;--page:#fbfbf8;--off:#f4f6f1;--paper:#fff;--lino:#86ad94;--lino-l:#dfeadf;--sky:#eaf1fc;
 --sep:rgba(16,37,26,.1);--fill:rgba(16,37,26,.05);--fill-2:rgba(16,37,26,.09);
---blue:#005bcd;--blue-d:#0049a6;--ok:#0d712c;--note:#ffe36e;
+--blue:#005bcd;--blue-d:#0049a6;--ok:#0d712c;--bad:#c4001d;
 --pippa-ink:#005bcd;--pippa-ink-offen:#0d712c;--pippa-ink-fehler:#c4001d;
 --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
 --fd:"Bagel Fat One",-apple-system,BlinkMacSystemFont,"Arial Black",sans-serif;
 --fh:"Gochi Hand","Marker Felt","Comic Sans MS",cursive;
+--spring:cubic-bezier(.25,1.45,.45,1);--ease:cubic-bezier(.2,.8,.2,1);
 --gut:max(16px,env(safe-area-inset-left));
 }
 @media (min-width:700px){:root{--gut:32px}}
@@ -95,23 +97,29 @@ body{margin:0;background:var(--page);color:var(--ink);font:17px/1.55 var(--f);-w
 p{margin:0;text-wrap:pretty}h1,h2,h3{margin:0;text-wrap:balance}
 a{color:var(--blue);text-underline-offset:.18em}
 img{display:block;max-width:100%;height:auto}
+button{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:8px}
 .wrap{max-width:1200px;margin:0 auto;padding:0 var(--gut)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .skip{position:absolute;left:16px;top:-80px;background:#fff;padding:12px 16px;border-radius:10px;z-index:99}.skip:focus{top:12px}
-kbd{font:600 .82em/1 var(--f);background:#fff;border:1px solid var(--sep);border-bottom-width:2px;border-radius:6px;padding:3px 6px;white-space:nowrap}
+kbd{font:600 .82em/1 var(--f);background:#fff;border:1px solid var(--sep);border-bottom-width:2px;border-radius:6px;padding:3px 6px;white-space:nowrap;display:inline-block}
 .hand{font:400 1.08em/1 var(--fh);color:var(--blue);letter-spacing:0}
-.label{font:700 12.5px/1 var(--f);letter-spacing:.14em;text-transform:uppercase;color:var(--grey);margin:0 0 18px}
 h2{font:400 clamp(34px,1.4rem + 3vw,60px)/1.02 var(--fd);letter-spacing:-.01em}
 .lead{color:var(--ink-2);max-width:34em;margin-top:18px;font-size:18px}
-.sec{padding:140px 0 0}
+.sec{padding:150px 0 0}
+.center{text-align:center}.center .lead{margin-inline:auto}
+.nw{white-space:nowrap}
+
+/* Bewegung beim Erscheinen */
+.js .rv{opacity:0;transform:translateY(22px);transition:opacity .7s var(--ease),transform .9s var(--spring);transition-delay:calc(var(--d,0) * 90ms)}
+.js .rv.in{opacity:1;transform:none}
 
 /* Knöpfe */
-.btn{display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 26px;border-radius:999px;background:var(--ink);color:#fff;font-weight:650;font-size:17px;text-decoration:none;
-box-shadow:-6px 4px 22px -6px rgba(134,173,148,.9),6px 6px 22px -8px rgba(0,91,205,.55);transition:transform .2s,background-color .2s}
-.btn:hover{transform:translateY(-1px);background:#1f3a2b}
-.btn2{display:inline-flex;align-items:center;min-height:52px;padding:0 24px;border-radius:999px;border:1px solid var(--sep);background:#fff;color:var(--ink);font-weight:600;text-decoration:none}
-.btn2:hover{background:var(--off)}
+.btn{display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 26px;border-radius:999px;background:var(--ink);color:#fff;font-weight:650;font-size:17px;text-decoration:none;transition:transform .35s var(--spring),background-color .2s}
+.btn:hover{transform:translateY(-2px) scale(1.02);background:#1f3a2b}.btn:active{transform:scale(.97)}
+.btn span{display:inline-block;transition:transform .35s var(--spring)}.btn:hover span{transform:translateX(4px)}
+.btn2{display:inline-flex;align-items:center;min-height:52px;padding:0 24px;border-radius:999px;border:1px solid var(--sep);background:#fff;color:var(--ink);font-weight:600;text-decoration:none;transition:transform .35s var(--spring),background-color .2s}
+.btn2:hover{background:var(--off);transform:translateY(-2px)}
 
 /* Kopfzeile */
 header{position:sticky;top:0;z-index:40;background:rgba(251,251,248,.88);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--sep)}
@@ -120,107 +128,145 @@ header .wrap{display:flex;align-items:center;gap:28px;height:64px}
 .brand canvas{--pippa-ink:var(--ink)}
 .nav{display:flex;gap:26px;margin:0 auto}.nav a{color:var(--ink-2);text-decoration:none;font-size:15px;font-weight:550}.nav a:hover{color:var(--ink)}
 .langsw{color:var(--ink-2);font-size:15px;font-weight:550;text-decoration:none}
-header .btn{min-height:40px;padding:0 18px;font-size:15px;box-shadow:none}
+header .btn{min-height:40px;padding:0 18px;font-size:15px}
 @media(max-width:860px){.nav{display:none}.langsw{margin-left:auto}header .wrap{gap:14px}}
 
-/* Hero */
-.hero{position:relative;text-align:center;padding:96px 0 0;overflow:hidden}
-.hero:before,.hero:after{content:"";position:absolute;top:-120px;width:620px;height:620px;border-radius:50%;filter:blur(70px);opacity:.55;z-index:-1}
-.hero:before{left:-220px;background:#cfe3d4}.hero:after{right:-240px;background:#d6e4fb}
-.badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--sep);background:#fff;border-radius:999px;padding:6px 14px;font-size:14px;color:var(--ink-2)}
-.badge i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
-h1{font:400 clamp(52px,3rem + 6vw,128px)/.95 var(--fd);letter-spacing:-.015em;margin-top:26px}
-.hp{display:inline-block;background:#fff;color:var(--blue);border-radius:999px;padding:.02em .32em .08em;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 20px 40px -18px rgba(16,37,26,.45);transform:rotate(-2deg)}
-.for{margin:30px auto 0;max-width:30em;font-size:clamp(19px,1rem + .6vw,24px);line-height:1.9;color:var(--ink-2)}
-.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--sep);background:#fff;border-radius:999px;padding:1px 12px 2px 10px;color:var(--ink);font-weight:550;line-height:1.5;white-space:nowrap}
-.chip svg{width:17px;height:17px;fill:none;stroke:var(--blue);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.local{margin-top:10px;font-weight:650;font-size:18px}
-.ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+/* Start: Dinge auf Pippa ziehen */
+.hero{position:relative;text-align:center;padding:84px 0 0;overflow:hidden}
+h1{font:400 clamp(50px,3rem + 6vw,124px)/.98 var(--fd);letter-spacing:-.015em}
+.hp{position:relative;display:inline-flex;align-items:center;gap:.14em;vertical-align:-.06em;background:#fff;color:var(--ink);border-radius:999px;padding:.08em .34em .1em .2em;
+box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 24px 44px -20px rgba(16,37,26,.45);transform:rotate(-2deg);transition:box-shadow .4s,transform .5s var(--spring)}
+.hp canvas{display:block;flex:none}
+.hp.hot{transform:rotate(-2deg) scale(1.06);box-shadow:0 0 0 3px rgba(0,91,205,.35),0 30px 60px -20px rgba(0,91,205,.55)}
+.hp.gulp{animation:gulp .55s var(--spring)}
+@keyframes gulp{0%{transform:rotate(-2deg) scale(1)}35%{transform:rotate(-2deg) scale(1.1,.9)}70%{transform:rotate(-2deg) scale(.97,1.04)}100%{transform:rotate(-2deg) scale(1)}}
+.say{min-height:2.6em;margin:22px auto 0;max-width:22em;font:400 clamp(24px,1rem + 1.2vw,34px)/1.15 var(--fh);color:var(--blue);transform:rotate(-1.5deg)}
+.say span{display:inline-block;animation:sayin .5s var(--spring)}
+@keyframes sayin{from{opacity:0;transform:translateY(8px) scale(.96)}}
+.things{list-style:none;margin:8px auto 0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:14px 16px;max-width:880px}
+.thing{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;display:inline-flex;align-items:center;gap:9px;border:0;background:#fff;border-radius:12px;padding:10px 16px 10px 12px;font-weight:600;font-size:16px;
+box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 10px 22px -14px rgba(16,37,26,.55);transform:rotate(var(--r,0deg));transition:transform .45s var(--spring),opacity .3s,box-shadow .3s}
+.thing:hover{transform:rotate(0deg) translateY(-3px)}
+.thing svg{width:22px;height:22px;flex:none}
+.thing.drag{cursor:grabbing;transition:none;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 26px 40px -16px rgba(16,37,26,.6);z-index:5;position:relative}
+.thing.fly{transition:transform .55s cubic-bezier(.5,0,.2,1),opacity .55s;opacity:0;pointer-events:none}
+.thing.gone{opacity:0;transform:scale(.6);pointer-events:none}
+.hint{margin-top:16px;font:400 22px/1 var(--fh);color:var(--grey);display:inline-flex;align-items:center;gap:8px}
+.hint svg{width:34px;height:30px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.local{margin-top:46px;font-weight:650;font-size:18px}
+.ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:22px}
 .req{margin-top:16px;font-size:14px;color:var(--grey)}.req a{color:var(--ink-2)}
+@media(max-width:600px){h1{font-size:clamp(38px,11.5vw,50px)}.hp{padding:.06em .26em .08em .14em}.say{font-size:22px}}
 
-/* Mac mit Kapiteln */
-.show{display:grid;grid-template-columns:260px minmax(0,1fr);gap:40px;align-items:center;margin-top:90px;text-align:left}
-.chapters{list-style:none;margin:0;padding:0 0 0 20px;border-left:1px solid var(--sep)}
-.chapters li{position:relative}
-.chapters button{all:unset;cursor:pointer;display:grid;grid-template-columns:30px 1fr;gap:2px 8px;padding:10px 0;width:100%;color:var(--grey)}
-.chapters button:focus-visible{outline:3px solid var(--ink);outline-offset:4px;border-radius:6px}
-.chapters .no{font-size:13px;padding-top:4px;font-variant-numeric:tabular-nums}
-.chapters b{font-size:19px;font-weight:600}
-.chapters p{grid-column:2;font-size:15px;color:var(--ink-2);display:none}
-.chapters .on button{color:var(--ink)}.chapters .on p{display:block}
-.chapters .on:before{content:"";position:absolute;left:-21px;top:8px;bottom:8px;width:2px;background:var(--ink)}
-.bar{grid-column:2;height:2px;background:var(--fill-2);margin-top:10px;display:none;overflow:hidden;border-radius:2px}.on .bar{display:block}
-.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--lino),var(--blue))}
-.pause{all:unset;cursor:pointer;margin:14px 0 0 20px;border:1px solid var(--sep);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--ink-2);background:#fff}
-.mac{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:16/12;background:
-radial-gradient(60% 55% at 15% 20%,#f6e7c9 0,transparent 70%),radial-gradient(50% 50% at 85% 25%,#d7e3fb 0,transparent 70%),
-radial-gradient(70% 60% at 50% 100%,#bcd7c3 0,transparent 75%),linear-gradient(160deg,#eaf1e8,#dbe8e0);box-shadow:0 0 0 .5px rgba(16,37,26,.18),0 40px 80px -40px rgba(16,37,26,.6)}
-.menubar{display:flex;gap:18px;align-items:center;height:30px;padding:0 16px;background:rgba(255,255,255,.55);backdrop-filter:blur(10px);font-size:13px;color:#1d2a22}
-.menubar b{font-weight:700}.menubar span:last-child{margin-left:auto}
-.screen{position:absolute;inset:30px 0 0}
-.nw{white-space:nowrap}.screen img{position:absolute;right:4%;bottom:13%;width:64%;border-radius:5.6%/6.1%;box-shadow:0 0 0 .5px rgba(16,37,26,.2),0 30px 60px -24px rgba(16,37,26,.55);opacity:0;transform:translateY(8px);transition:opacity .45s,transform .45s}
-.screen img.on{opacity:1;transform:none}
-.dockpill{position:absolute;right:5%;bottom:5%;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:7px 16px 7px 10px;font-weight:650;font-size:14px;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 10px 24px -10px rgba(16,37,26,.5)}
-.note{position:absolute;left:3%;top:10%;font:400 clamp(20px,1rem+1vw,30px)/1.1 var(--fh);color:var(--ink);transform:rotate(-4deg);max-width:9em}
-@media(max-width:900px){.show>*{min-width:0}.show{grid-template-columns:minmax(0,1fr);gap:28px;margin-top:56px}.chapters{display:flex;overflow-x:auto;border:0;padding:0;gap:6px}.chapters li{flex:none}.chapters button{display:block;padding:6px 14px;border:1px solid var(--sep);border-radius:999px;background:#fff}.chapters .no,.chapters p,.bar,.chapters .on:before{display:none!important}.chapters .on button{background:var(--ink);color:#fff}.pause{display:none}.screen img{width:94%;right:3%;bottom:12%}.note{display:none}.mac{aspect-ratio:1/1.08}}
+/* Vorführung */
+.asks{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:40px auto 0;max-width:980px}
+.ask{all:unset;cursor:pointer;position:relative;overflow:hidden;border-radius:999px;background:#fff;padding:9px 18px;font-size:15.5px;font-weight:550;color:var(--ink-2);box-shadow:0 0 0 1px var(--sep);transition:color .2s,transform .35s var(--spring)}
+.ask:hover{transform:translateY(-2px);color:var(--ink)}
+.ask:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.ask[aria-selected="true"]{color:#fff;background:var(--ink);box-shadow:none}
+.ask .fill{position:absolute;left:0;bottom:0;height:3px;width:0;background:#8fb6ff}
+.ask[aria-selected="true"] .fill{width:var(--p,0%)}
+.stage{position:relative;margin:36px auto 0;max-width:1060px;border-radius:32px;padding:56px 0 64px;
+background:radial-gradient(50% 60% at 18% 30%,#dfeadf 0,transparent 70%),radial-gradient(45% 55% at 85% 70%,#d9e6fb 0,transparent 70%),var(--off);overflow:hidden}
+.stage:before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(16,37,26,.13) 1px,transparent 1.4px);background-size:22px 22px;mask-image:radial-gradient(70% 70% at 50% 50%,#000 30%,transparent 100%);-webkit-mask-image:radial-gradient(70% 70% at 50% 50%,#000 30%,transparent 100%)}
+.win{position:relative;width:min(700px,86%);margin:0 auto;aspect-ratio:1000/921}
+.win img{position:absolute;inset:0;width:100%;height:100%;border-radius:5.6%/6.1%;box-shadow:0 0 0 .5px rgba(16,37,26,.18),0 40px 70px -34px rgba(16,37,26,.6);
+opacity:0;transform:translateY(18px) scale(.965);transform-origin:90% 100%;transition:opacity .35s,transform .7s var(--spring)}
+.win img.on{opacity:1;transform:none}
+.spill{position:absolute;right:max(4%,calc(50% - 400px));bottom:22px;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:7px 18px 7px 10px;font-weight:650;font-size:15px;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 14px 28px -12px rgba(16,37,26,.5);transition:box-shadow .4s}
+.spill.busy{box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 0 26px 2px rgba(80,110,255,.35)}
+.pause{all:unset;cursor:pointer;margin-top:18px;border:1px solid var(--sep);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--ink-2);background:#fff}
+.pause:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+@media(max-width:760px){.asks{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;margin-inline:calc(var(--gut) * -1);padding:4px var(--gut) 8px;scrollbar-width:none}.ask{flex:none}.stage{border-radius:24px;padding:28px 0 64px}.win{width:94%}.spill{right:4%;bottom:14px}}
 
-/* Figur */
-.moods{display:flex;flex-wrap:wrap;gap:24px 10px;justify-content:center;align-items:flex-end;margin-top:56px}
-.mood{display:grid;justify-items:center;gap:0;margin:0}
-.mood img{margin:-48px -50px -56px;width:auto;height:180px}
-.mood figcaption{position:relative;z-index:1;font:400 24px/1 var(--fh);color:var(--blue);transform:rotate(-3deg)}
-.center{text-align:center}.center .lead{margin-inline:auto}
+/* Pippa lebt */
+.live{display:grid;justify-items:center;margin-top:64px}
+.lpill{position:relative;display:flex;align-items:center;gap:12px;height:76px;padding:0 30px 0 18px;border-radius:999px;background:#fff;font-weight:650;font-size:24px;white-space:nowrap;overflow:hidden;
+box-shadow:0 0 0 1px rgba(16,37,26,.08),0 24px 48px -22px rgba(16,37,26,.45);transition:width .6s var(--spring),background-color .4s,box-shadow .5s}
+.lpill .lt{transition:opacity .2s}.lpill .lt.out{opacity:0}
+.lpill .lend{font-weight:800;opacity:0;transform:scale(.4);transition:opacity .3s,transform .5s var(--spring)}
+.lpill .lprog{position:absolute;left:84px;right:30px;bottom:14px;height:3px;border-radius:3px;background:rgba(0,91,205,.15);opacity:0;transition:opacity .3s}
+.lpill .lprog i{display:block;height:100%;width:0;border-radius:3px;background:var(--blue)}
+.lpill[data-s="arbeitet"]{box-shadow:0 0 0 1px rgba(16,37,26,.06),0 0 40px 4px rgba(80,110,255,.32)}
+.lpill[data-s="arbeitet"] .lprog{opacity:1}
+.lpill[data-s="arbeitet"] .lprog i{animation:prog 3.2s linear forwards}
+@keyframes prog{from{width:8%}to{width:72%}}
+.lpill[data-s="offen"]{background:#e6f1e7;box-shadow:0 0 0 1px rgba(13,113,44,.25),0 24px 48px -22px rgba(13,113,44,.45)}
+.lpill[data-s="offen"] .lend{opacity:1;transform:none;color:var(--ok)}
+.lpill[data-s="fehler"]{background:#f9e5e6;box-shadow:0 0 0 1px rgba(196,0,29,.25),0 24px 48px -22px rgba(196,0,29,.4)}
+.lpill[data-s="fehler"] .lend{opacity:1;transform:none;color:var(--bad)}
+.states{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 26px;margin-top:34px}
+.st{all:unset;cursor:pointer;font:400 25px/1.2 var(--fh);color:var(--grey);padding:2px 4px;transition:color .2s,transform .35s var(--spring)}
+.st:hover{transform:translateY(-2px)}
+.st:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+.st[aria-selected="true"]{color:var(--blue);transform:rotate(-3deg) scale(1.08)}
+@media(max-width:600px){.lpill{font-size:19px;height:62px;padding:0 22px 0 12px}.lpill .lprog{left:70px;right:22px;bottom:11px}.st{font-size:22px}}
 
 /* Karten */
 .cards{columns:3 300px;column-gap:24px;margin-top:56px}
-.cards img{break-inside:avoid;margin:0 0 24px;border-radius:16px;box-shadow:0 0 0 .5px rgba(16,37,26,.12),0 16px 32px -22px rgba(16,37,26,.5);background:#f6f7fa}
+.cards img{break-inside:avoid;margin:0 0 24px;border-radius:16px;box-shadow:0 0 0 .5px rgba(16,37,26,.12),0 16px 32px -22px rgba(16,37,26,.5);background:#f6f7fa;transition:transform .5s var(--spring),box-shadow .4s}
+.cards img:hover{transform:translateY(-4px) rotate(-.6deg);box-shadow:0 0 0 .5px rgba(16,37,26,.12),0 26px 44px -22px rgba(16,37,26,.55)}
 
 /* Einfügen */
 .split{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:64px;align-items:center}
 .split img{border-radius:24px}
+.keys{display:inline-flex;gap:6px;margin-top:22px}
+.keys kbd{font-size:20px;padding:10px 14px;border-bottom-width:3px;border-radius:10px}
+.js .keys.in kbd{animation:press 2.8s ease-in-out infinite}
+.js .keys.in kbd:nth-child(2){animation-delay:.12s}
+@keyframes press{0%,30%,100%{transform:none;border-bottom-width:3px}36%,44%{transform:translateY(2px);border-bottom-width:1px}}
 @media(max-width:900px){.split{grid-template-columns:1fr;gap:28px}}
 
-/* Dunkler Block */
-.dusk{height:300px;margin-top:140px;background:linear-gradient(var(--page),#e7efe6 25%,#9fbfa9 55%,#2c4a39 82%,#0f1d16)}
-.dark{background:#0f1d16;color:#eef3ef;padding:40px 0 120px}
-.dark .label{color:#98ab9f}.dark .lead{color:#b9c7bd}
-.dark h2 .hand{color:#9cc4ff}
-.grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:56px;border:1px solid rgba(238,243,239,.16);border-radius:22px;overflow:hidden}
-.grid6 div{padding:30px 28px;border-right:1px solid rgba(238,243,239,.16);border-bottom:1px solid rgba(238,243,239,.16)}
-.grid6 div:nth-child(3n){border-right:0}.grid6 div:nth-last-child(-n+3){border-bottom:0}
-.grid6 svg{width:22px;height:22px;fill:none;stroke:#cfe0d4;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.grid6 h3{font-size:20px;margin:22px 0 8px;font-weight:650}.grid6 p{color:#b9c7bd;font-size:15.5px}
-@media(max-width:900px){.grid6{grid-template-columns:1fr}.grid6 div{border-right:0!important;border-bottom:1px solid rgba(238,243,239,.16)!important}.grid6 div:last-child{border-bottom:0!important}}
-.dawn{height:220px;background:linear-gradient(#0f1d16,#2c4a39 25%,#9fbfa9 60%,var(--page))}
+/* Was Pippa darf */
+.trust{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:start;background:var(--sky);border-radius:36px;padding:72px 64px}
+.facts{list-style:none;margin:34px 0 0;padding:0;display:grid;gap:18px}
+.facts li{display:grid;grid-template-columns:28px 1fr;gap:2px 12px}
+.facts svg{width:22px;height:22px;margin-top:2px;fill:none;stroke:var(--blue);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;grid-row:span 2}
+.facts h3{font-size:18px;font-weight:650}.facts p{color:var(--ink-2);font-size:16px}
+.perm{margin:0;background:#fff;border-radius:22px;padding:26px 24px 10px;box-shadow:0 0 0 .5px rgba(16,37,26,.12),0 30px 60px -36px rgba(16,37,26,.5);position:sticky;top:96px}
+.perm .ph{font-weight:700;font-size:19px;margin-bottom:8px}
+.perm ul{list-style:none;margin:0;padding:0}
+.perm li{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--sep);font-size:14.5px}
+.perm li:first-child{border-top:0}
+.perm .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center}
+.perm .ic svg{width:19px;height:19px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.perm b{display:block;font-size:15px}.perm li span{color:var(--grey)}
+.perm .b{min-width:92px;text-align:center;border-radius:999px;padding:6px 12px;font-weight:650;font-size:13.5px;background:var(--blue);color:#fff;transition:background-color .3s,color .3s,transform .45s var(--spring)}
+.perm .b.ok{background:#e6f1e7;color:var(--ok)}
+.perm .b.tap{transform:scale(.9)}
+.trust h2{font-size:clamp(32px,1.2rem + 2.2vw,50px)}
+@media(max-width:900px){.trust{grid-template-columns:1fr;padding:44px 20px;gap:40px;border-radius:28px}.perm{position:static}}
 
 /* Fragen */
-.faq{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:64px}
+.faq{max-width:780px;margin:0 auto}
+.faq .list{margin-top:44px;text-align:left}
 details{border-bottom:1px solid var(--sep)}details:first-child{border-top:1px solid var(--sep)}
 summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:16px;padding:22px 0;font-weight:600;font-size:18px}
-summary::-webkit-details-marker{display:none}summary:after{content:"+";font-size:24px;line-height:1;color:var(--grey)}
-details[open] summary:after{content:"–"}
+summary::-webkit-details-marker{display:none}
+summary:after{content:"+";font-size:24px;line-height:1;color:var(--grey);transition:transform .4s var(--spring)}
+details[open] summary:after{transform:rotate(45deg)}
 details p{padding:0 0 22px;color:var(--ink-2);max-width:36em}
-@media(max-width:900px){.faq{grid-template-columns:1fr;gap:24px}}
 
-/* Finale */
-.home{margin-top:140px}
-.home .panel{position:relative;border-radius:32px;overflow:hidden;min-height:620px;display:grid;align-items:center;justify-items:end;padding:40px;background:
-radial-gradient(40% 50% at 25% 60%,#f7f1dc 0,transparent 70%),radial-gradient(60% 70% at 20% 100%,#9fc2a9 0,transparent 70%),linear-gradient(150deg,#cfe1d2,#86ad94)}
-.home .big{position:absolute;left:12%;top:50%;transform:translateY(-50%) rotate(-4deg);display:flex;align-items:center;gap:16px;background:#fff;border-radius:999px;padding:18px 40px 18px 22px;font:400 46px/1 var(--fd);color:var(--ink);box-shadow:0 30px 60px -24px rgba(16,37,26,.6)}
-.home .card{position:relative;background:#fff;border-radius:24px;padding:36px;max-width:440px;box-shadow:0 30px 70px -30px rgba(16,37,26,.6)}
-.home .card h2{font-size:clamp(34px,1.2rem+2.4vw,52px)}
-.home .btn{width:100%;justify-content:center;margin-top:24px}
-.steps{margin:20px 0 0;padding-left:1.3em;color:var(--ink-2);font-size:16px;display:grid;gap:4px}
-@media(max-width:900px){.home .panel{justify-items:stretch;padding:16px;min-height:0;padding-top:140px}.home .big{top:70px;left:50%;transform:translate(-50%,-50%) rotate(-4deg);font-size:30px;padding:12px 26px 12px 14px}.home .card{max-width:none;padding:26px}}
+/* Schluss */
+.end{padding-bottom:20px}
+.bigpill{display:inline-flex;align-items:center;gap:16px;background:#fff;border-radius:999px;padding:16px 40px 16px 20px;font:400 clamp(34px,1.2rem + 2.4vw,52px)/1 var(--fd);color:var(--ink);
+box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 30px 60px -26px rgba(16,37,26,.55);transform:rotate(-3deg);margin-bottom:40px;transition:transform .5s var(--spring)}
+.bigpill.yay{transform:rotate(2deg) scale(1.05)}
+.steps{list-style:none;counter-reset:s;margin:40px auto 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;max-width:900px;text-align:left}
+.steps li{counter-increment:s;background:#fff;border-radius:20px;padding:22px 22px 24px;box-shadow:0 0 0 1px var(--sep);color:var(--ink-2);font-size:16px}
+.steps li:before{content:counter(s);display:block;font:400 34px/1 var(--fd);color:var(--blue);margin-bottom:10px}
+.end .ctas{margin-top:40px}
+@media(max-width:760px){.steps{grid-template-columns:1fr}}
 
 /* Begleiter am Rand */
 .walker{position:fixed;left:0;bottom:14px;z-index:30;display:flex;align-items:center;gap:7px;background:#fff;border-radius:999px;padding:6px 14px 6px 8px;font-weight:650;font-size:14px;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 10px 24px -10px rgba(16,37,26,.5);transition:opacity .3s;pointer-events:none;will-change:transform}
-@media (prefers-reduced-motion:reduce){.walker{display:none}}
 
-footer{margin-top:120px;padding:40px 0 60px;border-top:1px solid var(--sep);font-size:14px;color:var(--grey)}
+footer{margin-top:140px;padding:40px 0 60px;border-top:1px solid var(--sep);font-size:14px;color:var(--grey)}
 footer .wrap{display:grid;gap:8px}footer .row{display:flex;align-items:center;gap:8px;font:400 20px/1 var(--fd);color:var(--ink)}
 footer canvas{--pippa-ink:var(--ink)}
 .draftbar{position:fixed;bottom:0;right:0;z-index:60;background:#ffe36e;font-size:12.5px;font-weight:650;padding:5px 12px;border-top-left-radius:10px}
+@media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.walker{display:none}}
 </style>
 </head>
 <body>
@@ -237,73 +283,77 @@ footer canvas{--pippa-ink:var(--ink)}
 <main id="main">
 <section class="hero" id="top" aria-labelledby="h1">
   <div class="wrap">
-    <span class="badge"><i></i>Kostenlos und quelloffen, für den Mac</span>
-    <h1 id="h1">Zieh’s einfach<br><span class="nw">auf <span class="hp">Pippa</span>.</span></h1>
-    <p class="for">Deine Hilfe für
-      <span class="chip"><svg viewBox="0 0 16 16"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3M6 8h4M6 10.5h4"/></svg>Briefe</span>,
-      <span class="chip"><svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="2"/><path d="m2 4 6 5 6-5"/></svg>Mails</span>,
-      <span class="chip"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>Termine</span>,
-      <span class="chip"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><circle cx="5.5" cy="6.5" r="1.3"/><path d="m2 12 4-4 3 3 2-2 3.5 3.5"/></svg>Fotos</span> und
-      <span class="chip"><svg viewBox="0 0 16 16"><path d="M1.5 4a1.5 1.5 0 0 1 1.5-1.5h3l1.5 1.5H13a1.5 1.5 0 0 1 1.5 1.5V12A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12z"/></svg>Ordner</span>.</p>
+    <h1 id="h1">Zieh’s einfach<br><span class="nw">auf <span class="hp" id="drop"><canvas id="heroMark" aria-hidden="true"></canvas>Pippa</span>.</span></h1>
+    <p class="say" id="say" aria-live="polite"><span>Gib her, ich schau rein.</span></p>
+    <ul class="things" aria-label="Probier es aus: tipp auf ein Ding, und Pippa schaut hinein">
+      <li><button class="thing" type="button" style="--r:-4deg" data-busy="Lese Mietvertrag.pdf …" data-done="Kündigen bis 31. Dezember."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6z" fill="#fff" stroke="#8a97a0" stroke-width="1.4"/><path d="M14 2v5h5" fill="none" stroke="#8a97a0" stroke-width="1.4"/><rect x="8" y="12" width="9" height="5" rx="1" fill="#e2483d"/></svg>Mietvertrag.pdf</button></li>
+      <li><button class="thing" type="button" style="--r:3deg" data-busy="Lese Rechnung Fahrradhelm.pdf …" data-done="79,90 Euro an Radhaus Lindner, vom 9. Oktober."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6z" fill="#fff" stroke="#8a97a0" stroke-width="1.4"/><path d="M14 2v5h5" fill="none" stroke="#8a97a0" stroke-width="1.4"/><rect x="8" y="12" width="9" height="5" rx="1" fill="#e2483d"/></svg>Rechnung Fahrradhelm.pdf</button></li>
+      <li><button class="thing" type="button" style="--r:-2deg" data-busy="Schaue mir das Foto an …" data-done="Soll ich ein PDF draus machen oder es kleiner machen?"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="18" rx="4" fill="#f3b33d"/><path d="m4 18 5-6 4 4 3-3 5 5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="8" r="2" fill="#fff"/></svg>Fahrrad.jpg</button></li>
+      <li><button class="thing" type="button" style="--r:4deg" data-busy="Schaue in Downloads …" data-done="Soll ich aufräumen? Ich zeig dir vorher, was ich vorhabe."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#5aa9f0"/><path d="M2 9h20" stroke="#3d8fdc" stroke-width="1.4"/></svg>Downloads</button></li>
+    </ul>
+    <p class="hint" aria-hidden="true"><svg viewBox="0 0 34 30"><path d="M4 26c10 0 20-6 24-20M22 9l6-3 2 7"/></svg>Zieh eins auf Pippa</p>
     <p class="local">Die KI läuft auf deinem Mac. Ohne Konto, ohne Abo.</p>
     <div class="ctas"><a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a><a class="btn2" href="#kann">So sieht sie aus</a></div>
-    <p class="req">Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer · <a href="#mac">Passt mein Mac?</a></p>
-
-    <div class="show" id="kann">
-      <div>
-        <ol class="chapters" id="chapters">
-          <li class="on"><button type="button" data-i="0"><span class="no">01</span><b>Briefe und Verträge</b><p>Was drinsteht, bis wann und was du tun musst. Mit der Stelle, woher sie es hat.</p><span class="bar"><i></i></span></button></li>
-          <li><button type="button" data-i="1"><span class="no">02</span><b>Mails</b><p>Findet Mails in Apple Mail. Antworten legt sie nur als Entwurf an.</p><span class="bar"><i></i></span></button></li>
-          <li><button type="button" data-i="2"><span class="no">03</span><b>Termine</b><p>Was heute ansteht. Die nächste Frage ist ein Klick.</p><span class="bar"><i></i></span></button></li>
-          <li><button type="button" data-i="3"><span class="no">04</span><b>Fotos</b><p>„Zeig mir meine Fotos vom Fahrrad“ reicht.</p><span class="bar"><i></i></span></button></li>
-          <li><button type="button" data-i="4"><span class="no">05</span><b>Erinnerungen</b><p>Was diese Woche noch fällig ist, und was schon drüber.</p><span class="bar"><i></i></span></button></li>
-          <li><button type="button" data-i="5"><span class="no">06</span><b>Nachschlagen</b><p>Wenn die Antwort nicht auf deinem Mac liegt. Mit den Seiten, die sie gelesen hat.</p><span class="bar"><i></i></span></button></li>
-        </ol>
-        <button class="pause" type="button" id="pause">Anhalten</button>
-      </div>
-      <figure class="mac" role="img" aria-label="Ein Mac-Bildschirm. Unten rechts sitzt Pippa als kleine Pille, darüber ist ihr Fenster offen und zeigt nacheinander echte Antworten: einen Mietvertrag, Mails, Termine, Fotos, Erinnerungen und eine Suche im Netz.">
-        <div class="menubar" aria-hidden="true"><b>Pippa</b><span>Ablage</span><span>Bearbeiten</span><span>Fenster</span><span>Di. 14. Okt. 16:05</span></div>
-        <div class="screen" id="screen">
-          <p class="note" aria-hidden="true">Gib her, ich schau rein.</p>
-          <img class="on" src="images/neu/s-brief.webp" width="1000" height="921" alt="">
-          <img src="images/neu/s-mail.webp" width="1000" height="921" alt="" loading="lazy">
-          <img src="images/neu/s-kalender.webp" width="1000" height="921" alt="" loading="lazy">
-          <img src="images/neu/s-fotos.webp" width="1000" height="921" alt="" loading="lazy">
-          <img src="images/neu/s-erinnerungen.webp" width="1000" height="921" alt="" loading="lazy">
-          <img src="images/neu/s-online.webp" width="1000" height="921" alt="" loading="lazy">
-          <span class="dockpill" aria-hidden="true"><canvas data-mark="20"></canvas>Pippa</span>
-        </div>
-      </figure>
-    </div>
+    <p class="req">Kostenlos und quelloffen. Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer · <a href="#mac">Passt mein Mac?</a></p>
   </div>
 </section>
 
-<section class="sec center" aria-labelledby="h-figur">
+<section class="sec center" id="kann" aria-labelledby="h-kann">
   <div class="wrap">
-    <p class="label">Immer da</p>
-    <h2 id="h-figur">Pippa sitzt am Rand.<br><span class="hand">Und sagt, was sie tut.</span></h2>
-    <p class="lead">Zieh etwas auf sie, klick sie an oder drück <kbd>⌃⌥ Leertaste</kbd>.</p>
-    <div class="moods">
-      <figure class="mood" role="img" aria-label="Pippa wartet: drei blaue Ringe und ihr Name."><img src="images/neu/pippa-ruht.webp" width="202" height="142" alt=""><figcaption>wartet</figcaption></figure>
-      <figure class="mood" role="img" aria-label="Pippa liest: Lese Mietvertrag, Seite 2 von 3."><img src="images/neu/pippa-liest.webp" width="317" height="142" alt=""><figcaption>liest gerade</figcaption></figure>
-      <figure class="mood" role="img" aria-label="Pippa ist fertig: grünes Lächeln, Deine Antwort ist da."><img src="images/neu/pippa-fertig.webp" width="322" height="142" alt=""><figcaption>fertig</figcaption></figure>
-      <figure class="mood" role="img" aria-label="Pippa meldet einen Fehler: Hat nicht geklappt."><img src="images/neu/pippa-fehler.webp" width="301" height="142" alt=""><figcaption>hat nicht geklappt</figcaption></figure>
+    <h2 id="h-kann" class="rv">Frag, wie du <span class="hand">redest.</span></h2>
+    <p class="lead rv" style="--d:1">Pippa schaut in deine Dateien, Mails, Termine, Fotos und Erinnerungen. Ins Netz geht sie nur, wenn die Antwort nicht auf deinem Mac liegt.</p>
+    <div class="asks rv" style="--d:2" role="tablist" aria-label="Beispiele" id="asks">
+      <button class="ask" type="button" role="tab" aria-selected="true">Bis wann muss ich kündigen?<i class="fill"></i></button>
+      <button class="ask" type="button" role="tab" aria-selected="false">Hat mir der Fahrradladen geschrieben?<i class="fill"></i></button>
+      <button class="ask" type="button" role="tab" aria-selected="false">Was steht heute an?<i class="fill"></i></button>
+      <button class="ask" type="button" role="tab" aria-selected="false">Zeig mir meine Fotos vom Fahrrad.<i class="fill"></i></button>
+      <button class="ask" type="button" role="tab" aria-selected="false">Was muss ich noch erledigen?<i class="fill"></i></button>
+      <button class="ask" type="button" role="tab" aria-selected="false">Was kostet eine Inspektion?<i class="fill"></i></button>
+      <button class="ask" type="button" role="tab" aria-selected="false">Wo ist die Rechnung für meinen Helm?<i class="fill"></i></button>
+    </div>
+    <div class="stage rv" style="--d:3">
+      <div class="win" id="win">
+        <img class="on" src="images/neu/s-brief.webp" width="1000" height="921" alt="Pippas Fenster. Frage mit angehängtem Mietvertrag: Bis wann muss ich kündigen, wenn ich Ende März ausziehe? Antwort: Bis 31. Dezember, mit der Stelle aus Paragraf 4. Darunter Gemerkt: Auszug Ende März.">
+        <img src="images/neu/s-mail.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Hat mir der Fahrradladen geschrieben? Antwort mit Mailkarte: drei Mails von Radhaus Lindner.">
+        <img src="images/neu/s-kalender.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Was steht heute in meinem Kalender? Kalenderkarte mit vier Terminen und den Knöpfen Und morgen? und Und diese Woche?">
+        <img src="images/neu/s-fotos.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Zeig mir meine Fotos vom Fahrrad. Fotokarte mit sechs Fahrradfotos.">
+        <img src="images/neu/s-erinnerungen.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Was muss ich noch erledigen? Vier offene Erinnerungen, Reifen aufpumpen war gestern fällig.">
+        <img src="images/neu/s-online.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Was kostet eine Fahrradinspektion in Köln? Antwort: meist 50 bis 90 Euro, darunter die vier Seiten, die Pippa nachgesehen hat.">
+        <img src="images/neu/s-dateien.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Wo ist die Rechnung für meinen Helm? Antwort: in deinen Downloads, dazu passende Dateien vom Mac.">
+      </div>
+      <span class="spill" id="spill" aria-hidden="true"><canvas id="stageMark"></canvas>Pippa</span>
+    </div>
+    <button class="pause" type="button" id="pause">Anhalten</button>
+  </div>
+</section>
+
+<section class="sec center" id="figur" aria-labelledby="h-figur">
+  <div class="wrap">
+    <h2 id="h-figur" class="rv">Pippa sitzt am Rand.<br><span class="hand">Und zeigt, was sie tut.</span></h2>
+    <p class="lead rv" style="--d:1">Zieh etwas auf sie, klick sie an oder drück <kbd>⌃⌥ Leertaste</kbd>.</p>
+    <div class="live rv" style="--d:2">
+      <div class="lpill" id="lpill" data-s="ruht" aria-hidden="true"><canvas id="liveMark"></canvas><span class="lt" id="lt">Pippa</span><span class="lend" id="lend"></span><span class="lprog"><i></i></span></div>
+      <div class="states" role="tablist" aria-label="Pippas Zustände" id="states">
+        <button class="st" type="button" role="tab" aria-selected="true" data-s="ruht" data-t="Pippa">wartet</button>
+        <button class="st" type="button" role="tab" aria-selected="false" data-s="arbeitet" data-t="Lese Mietvertrag · 2/3">liest gerade</button>
+        <button class="st" type="button" role="tab" aria-selected="false" data-s="offen" data-t="Deine Antwort ist da" data-e="✓">ist fertig</button>
+        <button class="st" type="button" role="tab" aria-selected="false" data-s="fehler" data-t="Hat nicht geklappt" data-e="!">hat’s nicht geschafft</button>
+      </div>
     </div>
   </div>
 </section>
 
 <section class="sec" aria-labelledby="h-karten">
   <div class="wrap">
-    <p class="label">Ergebnisse</p>
-    <h2 id="h-karten">Antworten, die du <span class="hand">anklicken</span> kannst.</h2>
-    <p class="lead">Termine, Mails, Fotos, Erinnerungen und Dateien kommen als Karte. Ein Klick öffnet sie in der passenden App.</p>
+    <h2 id="h-karten" class="rv">Antworten, die du <span class="hand">anklicken</span> kannst.</h2>
+    <p class="lead rv" style="--d:1">Termine, Mails, Fotos, Erinnerungen und Dateien kommen als Karte. Ein Klick öffnet sie in der passenden App.</p>
     <div class="cards">
-      <img src="images/neu/karte-kalender.webp" width="400" height="196" loading="lazy" decoding="async" alt="Kalenderkarte: Heute, Dienstag, 14. Oktober. Zahnarzt, Mittagessen mit Jonas, Fahrrad zur Inspektion und Geburtstag Oma Hilde. Darunter die Knöpfe Und morgen? und Und diese Woche?">
-      <img src="images/neu/karte-mail.webp" width="400" height="270" loading="lazy" decoding="async" alt="Mailkarte: drei Mails von Radhaus Lindner mit Betreff und Textanfang.">
-      <img src="images/neu/karte-fotos.webp" width="400" height="239" loading="lazy" decoding="async" alt="Fotokarte: Fahrrad in Fotos, sechs Fotos von Fahrrädern.">
-      <img src="images/neu/karte-erinnerungen.webp" width="400" height="211" loading="lazy" decoding="async" alt="Erinnerungskarte: vier offene Erinnerungen. Reifen aufpumpen war gestern fällig.">
-      <img src="images/neu/karte-online.webp" width="400" height="166" loading="lazy" decoding="async" alt="Karte Online nachgesehen: vier Seiten zu Fahrradinspektion Kosten Köln, zwei davon gelesen.">
-      <img src="images/neu/karte-dateien.webp" width="400" height="187" loading="lazy" decoding="async" alt="Karte Gefunden auf diesem Mac: Rechnung Fahrradhelm, Garantie Fahrrad, Mietvertrag und ein Foto der Rahmennummer, jeweils mit Ordner.">
+      <img class="rv" src="images/neu/karte-kalender.webp" width="400" height="196" loading="lazy" decoding="async" alt="Kalenderkarte: Heute, Dienstag, 14. Oktober. Zahnarzt, Mittagessen mit Jonas, Fahrrad zur Inspektion und Geburtstag Oma Hilde.">
+      <img class="rv" style="--d:1" src="images/neu/karte-mail.webp" width="400" height="270" loading="lazy" decoding="async" alt="Mailkarte: drei Mails von Radhaus Lindner mit Betreff und Textanfang.">
+      <img class="rv" style="--d:2" src="images/neu/karte-fotos.webp" width="400" height="239" loading="lazy" decoding="async" alt="Fotokarte: Fahrrad in Fotos, sechs Fotos von Fahrrädern.">
+      <img class="rv" style="--d:1" src="images/neu/karte-erinnerungen.webp" width="400" height="211" loading="lazy" decoding="async" alt="Erinnerungskarte: vier offene Erinnerungen. Reifen aufpumpen war gestern fällig.">
+      <img class="rv" style="--d:2" src="images/neu/karte-online.webp" width="400" height="166" loading="lazy" decoding="async" alt="Karte Online nachgesehen: vier Seiten zu Fahrradinspektion Kosten Köln, zwei davon gelesen.">
+      <img class="rv" style="--d:3" src="images/neu/karte-dateien.webp" width="400" height="187" loading="lazy" decoding="async" alt="Karte Gefunden auf diesem Mac: Rechnung Fahrradhelm, Garantie Fahrrad, Mietvertrag und ein Foto der Rahmennummer, jeweils mit Ordner.">
     </div>
   </div>
 </section>
@@ -311,36 +361,46 @@ footer canvas{--pippa-ink:var(--ink)}
 <section class="sec" aria-labelledby="h-paste">
   <div class="wrap split">
     <div>
-      <p class="label">Zwischenablage</p>
-      <h2 id="h-paste">Oder einfach <span class="hand">einfügen.</span></h2>
-      <p class="lead">Bildschirmfoto mit <kbd>⌃⇧⌘4</kbd> oder Dateien mit <kbd>⌘C</kbd> kopieren, Pippa öffnen, <kbd>⌘V</kbd>.</p>
+      <h2 id="h-paste" class="rv">Oder einfach <span class="hand">einfügen.</span></h2>
+      <p class="lead rv" style="--d:1">Bildschirmfoto oder Dateien kopieren, Pippa öffnen, einfügen.</p>
+      <p class="keys rv" style="--d:2" aria-label="Befehl V"><kbd>⌘</kbd><kbd>V</kbd></p>
     </div>
-    <picture><source media="(max-width:640px)" srcset="images/einfuegen-de-schmal.webp"><img src="images/einfuegen-de.webp" width="960" height="429" loading="lazy" decoding="async" alt="Zwei Karten in Pippa. Links ein eingefügtes Bildschirmfoto mit den Knöpfen Als PDF, Als JPG und Kleiner machen. Rechts drei eingefügte Fotos mit Ein PDF machen und Kleiner machen."></picture>
+    <picture class="rv" style="--d:1"><source media="(max-width:640px)" srcset="images/einfuegen-de-schmal.webp"><img src="images/einfuegen-de.webp" width="960" height="429" loading="lazy" decoding="async" alt="Zwei Karten in Pippa. Links ein eingefügtes Bildschirmfoto mit den Knöpfen Als PDF, Als JPG und Kleiner machen. Rechts drei eingefügte Fotos mit Ein PDF machen und Kleiner machen."></picture>
   </div>
 </section>
 
-<div class="dusk" aria-hidden="true"></div>
-<section class="dark" id="daten" aria-labelledby="h-daten">
+<section class="sec" id="daten" aria-labelledby="h-daten">
   <div class="wrap">
-    <p class="label">Deine Daten</p>
-    <h2 id="h-daten">Pippa arbeitet für dich.<br><span class="hand">Für niemanden sonst.</span></h2>
-    <p class="lead">Kein Konto, kein Pippa-Server, keine Werbung.</p>
-    <div class="grid6">
-      <div><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><h3>KI auf deinem Mac.</h3><p>Antworten kommen von einem offenen Modell, das auf deinem Mac läuft.</p></div>
-      <div><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg><h3>Mails nur als Entwurf.</h3><p>Pippa kann keine Mail verschicken. Das machst du.</p></div>
-      <div><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg><h3>Gedächtnis zum Nachlesen.</h3><p>Was sie sich merkt, steht in einer Textdatei auf deinem Mac. Passwörter und Kontonummern merkt sie sich nicht.</p></div>
-      <div><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><h3>Du bestimmst, was sie darf.</h3><p>Ein Knopf pro Recht, beim ersten Start und in den Einstellungen.</p></div>
-      <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg><h3>Online nur zum Nachschlagen.</h3><p>Unter der Antwort steht genau, was dabei rausging.</p></div>
-      <div><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><h3>Offener Quellcode.</h3><p>MIT-Lizenz. Jeder kann nachsehen, was Pippa tut.</p></div>
+    <div class="trust">
+      <div>
+        <h2 id="h-daten" class="rv">Pippa fragt, <span class="hand">bevor sie reinschaut.</span></h2>
+        <p class="lead rv" style="--d:1">Kein Konto, kein Pippa-Server, keine Werbung. Ein Knopf pro Recht, beim ersten Start und jederzeit in den Einstellungen.</p>
+        <ul class="facts">
+          <li class="rv"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>KI auf deinem Mac.</h3><p>Antworten kommen von einem offenen Modell, das auf deinem Mac läuft.</p></li>
+          <li class="rv" style="--d:1"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Mails nur als Entwurf.</h3><p>Pippa kann keine Mail verschicken. Das machst du.</p></li>
+          <li class="rv" style="--d:2"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Gedächtnis zum Nachlesen.</h3><p>Was sie sich merkt, steht in einer Textdatei auf deinem Mac. Passwörter und Kontonummern merkt sie sich nicht.</p></li>
+          <li class="rv" style="--d:3"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Online nur zum Nachschlagen.</h3><p>Unter der Antwort steht genau, was dabei rausging.</p></li>
+          <li class="rv" style="--d:4"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Offener Quellcode.</h3><p>MIT-Lizenz. Jeder kann nachsehen, was Pippa tut.</p></li>
+        </ul>
+      </div>
+      <figure class="perm rv" style="--d:2" id="perm" role="img" aria-label="Die Liste Was Pippa darf: Schreibtisch, Dokumente und Downloads, Kalender, Erinnerungen, Fotos und Mail, jeweils mit einem Satz, wofür Pippa es braucht, und einem Knopf Erlauben.">
+        <p class="ph">Was Pippa darf</p>
+        <ul>
+          <li><span class="ic" style="background:#1f7cf2"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><div><b>Schreibtisch, Dokumente und Downloads</b><span>Damit Pippa deine Dateien findet, liest und aufräumt, wenn du sie darum bittest.</span></div><span class="b">Erlauben</span></li>
+          <li><span class="ic" style="background:#f04a3e"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><div><b>Kalender</b><span>Damit Pippa deine Termine liest und Fristen einträgt.</span></div><span class="b">Erlauben</span></li>
+          <li><span class="ic" style="background:#f7902b"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></span><div><b>Erinnerungen</b><span>Damit Pippa Fristen als Erinnerung einträgt.</span></div><span class="b">Erlauben</span></li>
+          <li><span class="ic" style="background:#ec3f6c"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg></span><div><b>Fotos</b><span>Damit Pippa deine Fotos findet, wenn du fragst.</span></div><span class="b">Erlauben</span></li>
+          <li><span class="ic" style="background:#1f7cf2"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span><div><b>Mail</b><span>Damit Pippa die ausgewählte Mail liest und eine Antwort vorbereitet. Verschickt wird nichts.</span></div><span class="b">Erlauben</span></li>
+        </ul>
+      </figure>
     </div>
   </div>
 </section>
-<div class="dawn" aria-hidden="true"></div>
 
-<section class="sec" id="fragen" aria-labelledby="h-faq" style="padding-top:60px">
+<section class="sec center" id="fragen" aria-labelledby="h-faq">
   <div class="wrap faq">
-    <div><p class="label">Fragen</p><h2 id="h-faq">Noch <span class="hand">Fragen?</span></h2></div>
-    <div>
+    <h2 id="h-faq" class="rv">Noch <span class="hand">Fragen?</span></h2>
+    <div class="list">
       <details><summary>Was kostet Pippa?</summary><p>Nichts. Kein Konto, keine Werbung. Der Quellcode ist offen (MIT-Lizenz).</p></details>
       <details id="mac"><summary>Läuft Pippa auf meinem Mac?</summary><p>Auf jedem Mac mit Apple-Chip (M1 oder neuer) und macOS 15 oder neuer. Nachsehen kannst du im Apple-Menü unter „Über diesen Mac“.</p></details>
       <details><summary>Wer sieht meine Daten?</summary><p>Nur dein Mac. Die KI läuft auf deinem Mac, es gibt keinen Pippa-Server. Ins Netz geht Pippa nur, wenn sie etwas nachschlägt, und unter der Antwort steht genau, was dabei rausging. Mehr in der <a href="datenschutz.html">Datenschutzerklärung</a>.</p></details>
@@ -349,18 +409,13 @@ footer canvas{--pippa-ink:var(--ink)}
   </div>
 </section>
 
-<section class="home" aria-labelledby="h-home">
+<section class="sec center end" aria-labelledby="h-home">
   <div class="wrap">
-    <div class="panel">
-      <span class="big" aria-hidden="true"><canvas data-mark="44"></canvas>Pippa</span>
-      <div class="card">
-        <p class="label">Für deinen Mac</p>
-        <h2 id="h-home">Hol dir <span class="hand">Pippa.</span></h2>
-        <ol class="steps"><li>Öffne die geladene Datei und zieh Pippa in „Programme“.</li><li>Öffne Pippa.</li><li>Bevor Pippa ihre KI lädt, fragt sie dich und sagt dir, wie groß sie ist.</li></ol>
-        <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a>
-        <p class="req">Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer.</p>
-      </div>
-    </div>
+    <div class="bigpill rv" id="bigpill" aria-hidden="true"><canvas id="endMark"></canvas>Pippa</div>
+    <h2 id="h-home" class="rv" style="--d:1">Pippa wartet <span class="hand">schon.</span></h2>
+    <ol class="steps"><li class="rv" style="--d:2">Öffne die geladene Datei und zieh Pippa in „Programme“.</li><li class="rv" style="--d:3">Öffne Pippa.</li><li class="rv" style="--d:4">Bevor Pippa ihre KI lädt, fragt sie dich und sagt dir, wie groß sie ist.</li></ol>
+    <div class="ctas"><a class="btn dl" id="endBtn" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a></div>
+    <p class="req">Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer.</p>
   </div>
 </section>
 </main>
@@ -376,27 +431,123 @@ footer canvas{--pippa-ink:var(--ink)}
   </div>
 </footer>
 <script src="pippaMark.js"></script>
+<script src="pippaDrag.js"></script>
 <script>
 (()=>{
 'use strict';
+document.documentElement.classList.add('js');
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-$$('canvas[data-mark]').forEach(c=>window.PippaMark&&new PippaMark(c,{size:+c.dataset.mark,state:c.dataset.state||'ruht',alive:!RM}));
-/* Kapitel: wechseln von selbst, Klick springt, Anhalten hält an. */
-const items=$$('#chapters li'),shots=$$('#screen img'),pause=$('#pause'),DUR=5200;
-let i=0,t0=performance.now(),run=!RM;
-const show=n=>{i=n;t0=performance.now();items.forEach((li,k)=>li.classList.toggle('on',k===n));shots.forEach((s,k)=>s.classList.toggle('on',k===n));};
-items.forEach((li,k)=>li.querySelector('button').addEventListener('click',()=>show(k)));
+const mk=(c,size,o)=>window.PippaMark?new PippaMark(c,{size,state:'ruht',alive:!RM,...o}):{setState(){},pulse(){}};
+$$('canvas[data-mark]').forEach(c=>mk(c,+c.dataset.mark,{state:c.dataset.state||'ruht'}));
+const later=(f,ms)=>setTimeout(f,RM?0:ms);
+
+/* Erscheinen beim Scrollen */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{rootMargin:'0px 0px -8% 0px'});
+$$('.rv,.keys').forEach(el=>RM?el.classList.add('in'):io.observe(el));
+
+/* Start: Dinge auf Pippa ziehen. Tippen geht auch. */
+const drop=$('#drop'),say=$('#say'),h1=$('#h1');
+const heroMark=mk($('#heroMark'),Math.round(parseFloat(getComputedStyle(h1).fontSize)*.62),{idleAmplitude:1.25});
+let busy=false,auto=null,touched=false,timer=0;
+const speak=t=>{say.innerHTML='';const s=document.createElement('span');s.textContent=t;say.append(s)};
+const feed=(btn)=>{
+  if(busy)return;busy=true;
+  drop.classList.remove('hot');drop.classList.add('gulp');later(()=>drop.classList.remove('gulp'),600);
+  btn.classList.add('gone');heroMark.setState('arbeitet');speak(btn.dataset.busy);
+  clearTimeout(timer);
+  timer=setTimeout(()=>{heroMark.setState('offen');heroMark.pulse();speak(btn.dataset.done);
+    timer=setTimeout(()=>{heroMark.setState('ruht');btn.style.transform='';btn.classList.remove('gone','fly');busy=false},RM?1500:3400)},RM?300:1600);
+};
+const fly=btn=>{
+  if(busy)return;
+  const a=btn.getBoundingClientRect(),b=drop.getBoundingClientRect();
+  btn.classList.add('fly');
+  btn.style.transform=`translate(${b.left+b.width/2-a.left-a.width/2}px,${b.top+b.height/2-a.top-a.height/2}px) scale(.3) rotate(-12deg)`;
+  later(()=>feed(btn),520);
+};
+$$('.thing').forEach(btn=>{
+  let sx=0,sy=0,moved=false,id=null;
+  btn.addEventListener('pointerdown',e=>{if(busy||e.button>0)return;id=e.pointerId;sx=e.clientX;sy=e.clientY;moved=false;btn.setPointerCapture(id);stopAuto()});
+  btn.addEventListener('pointermove',e=>{
+    if(e.pointerId!==id)return;
+    const dx=e.clientX-sx,dy=e.clientY-sy;
+    if(!moved&&Math.hypot(dx,dy)<6)return;
+    moved=true;btn.classList.add('drag');
+    const r=btn.getBoundingClientRect(),t=drop.getBoundingClientRect();
+    const cx=r.left+r.width/2-(parseFloat(btn.dataset.ox)||0)+dx,cy=r.top+r.height/2-(parseFloat(btn.dataset.oy)||0)+dy;
+    const s=window.PippaDrag?PippaDrag.sample({centerX:cx,centerY:cy,pointerX:e.clientX,pointerY:e.clientY,width:r.width,height:r.height},t,{maxPull:RM?0:36}):{pullX:0,pullY:0,ready:false};
+    const x=dx+s.pullX,y=dy+s.pullY;btn.dataset.ox=x;btn.dataset.oy=y;btn.dataset.ready=s.ready?1:'';
+    btn.style.transform=`translate(${x}px,${y}px) rotate(${Math.max(-8,Math.min(8,dx/20))}deg)`;
+    drop.classList.toggle('hot',s.ready);
+  });
+  const end=e=>{
+    if(e.pointerId!==id)return;id=null;
+    if(!moved){fly(btn);return}
+    btn.classList.remove('drag');drop.classList.remove('hot');
+    const ready=btn.dataset.ready;btn.dataset.ox=btn.dataset.oy=0;
+    if(ready){btn.style.transform='scale(.3)';btn.classList.add('fly');later(()=>feed(btn),200)}
+    else btn.style.transform='';
+  };
+  btn.addEventListener('pointerup',end);btn.addEventListener('pointercancel',end);
+  btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();stopAuto();fly(btn)}});
+});
+/* Ohne Zutun zeigt Pippa es einmal selbst. */
+function stopAuto(){touched=true;clearTimeout(auto)}
+if(!RM)auto=setTimeout(()=>{if(!touched)fly($('.thing'))},2200);
+
+/* Vorführung: Fragen wechseln von selbst, Klick springt, Anhalten hält an. */
+const asks=$$('#asks .ask'),shots=$$('#win img'),pause=$('#pause'),spill=$('#spill'),DUR=5600;
+const stageMark=mk($('#stageMark'),22);
+let i=0,t0=performance.now(),run=!RM,seen=false,st=0;
+const show=n=>{i=n;t0=performance.now();
+  asks.forEach((b,k)=>{b.setAttribute('aria-selected',k===n);b.style.setProperty('--p','0%')});
+  shots.forEach((s,k)=>s.classList.toggle('on',k===n));
+  clearTimeout(st);stageMark.setState('arbeitet');spill.classList.add('busy');
+  st=setTimeout(()=>{stageMark.setState('offen');spill.classList.remove('busy');st=setTimeout(()=>stageMark.setState('ruht'),1500)},RM?0:900);
+};
+asks.forEach((b,k)=>b.addEventListener('click',()=>{show(k);if(innerWidth<760)b.scrollIntoView({block:'nearest',inline:'center',behavior:RM?'auto':'smooth'})}));
 pause.textContent=run?'Anhalten':'Abspielen';
-pause.addEventListener('click',()=>{run=!run;t0=performance.now()-(+(items[i].querySelector('.bar i').style.width.replace('%',''))||0)*DUR/100;pause.textContent=run?'Anhalten':'Abspielen'});
-const tick=now=>{if(run){const p=Math.min(1,(now-t0)/DUR);items[i].querySelector('.bar i').style.width=p*100+'%';if(p>=1)show((i+1)%items.length)}requestAnimationFrame(tick)};
+pause.addEventListener('click',()=>{run=!run;t0=performance.now()-(parseFloat(asks[i].style.getPropertyValue('--p'))||0)*DUR/100;pause.textContent=run?'Anhalten':'Abspielen'});
+new IntersectionObserver(es=>{seen=es[0].isIntersecting;if(seen)t0=performance.now()-(parseFloat(asks[i].style.getPropertyValue('--p'))||0)*DUR/100}).observe($('#win'));
+const tick=now=>{if(run&&seen){const p=Math.min(1,(now-t0)/DUR);asks[i].style.setProperty('--p',p*100+'%');if(p>=1)show((i+1)%asks.length)}requestAnimationFrame(tick)};
 requestAnimationFrame(tick);
+
+/* Pippa lebt: vier Zustände, wie in der App. */
+const lp=$('#lpill'),lt=$('#lt'),le=$('#lend'),sts=$$('#states .st');
+const liveMark=mk($('#liveMark'),innerWidth<600?40:50,{idleAmplitude:1.2});
+const meas=document.createElement('div');meas.className='lpill';meas.style.cssText='position:absolute;visibility:hidden;width:auto;left:-9999px';meas.setAttribute('aria-hidden','true');
+meas.innerHTML='<canvas style="width:'+(innerWidth<600?40:50)+'px;height:1px"></canvas><span class="lt"></span><span class="lend" style="opacity:1"></span>';document.body.append(meas);
+let si=0,sTimer=0,sAuto=!RM;
+const fit=(t,e)=>{meas.querySelector('.lt').textContent=t;meas.querySelector('.lend').textContent=e||'';lp.style.width=meas.offsetWidth+'px'};
+const setS=k=>{si=k;const b=sts[k];sts.forEach(x=>x.setAttribute('aria-selected',x===b));
+  lt.classList.add('out');
+  later(()=>{lt.textContent=b.dataset.t;le.textContent=b.dataset.e||'';fit(b.dataset.t,b.dataset.e);lp.dataset.s=b.dataset.s;liveMark.setState(b.dataset.s);lt.classList.remove('out');
+    const p=lp.querySelector('.lprog i');p.style.animation='none';p.offsetWidth;p.style.animation=''},180);
+};
+fit('Pippa');
+sts.forEach((b,k)=>b.addEventListener('click',()=>{sAuto=false;clearInterval(sTimer);setS(k)}));
+new IntersectionObserver(es=>{if(es[0].isIntersecting&&sAuto&&!sTimer)sTimer=setInterval(()=>setS((si+1)%sts.length),3400)}).observe(lp);
+lp.addEventListener('click',()=>liveMark.pulse());
+
+/* Rechte werden nacheinander erlaubt, sobald die Liste zu sehen ist. */
+const bs=$$('#perm .b');
+new IntersectionObserver((es,o)=>{if(!es[0].isIntersecting)return;o.disconnect();
+  bs.forEach((b,k)=>later(()=>{b.classList.add('tap');later(()=>{b.classList.remove('tap');b.classList.add('ok');b.textContent='✓ Erlaubt'},140)},600+k*520))},{threshold:.5}).observe($('#perm'));
+
+/* Schluss: Pippa freut sich, wenn du zum Laden zeigst. */
+const endMark=mk($('#endMark'),innerWidth<600?40:56,{idleAmplitude:1.3}),big=$('#bigpill'),eb=$('#endBtn');
+eb.addEventListener('pointerenter',()=>{endMark.setState('offen');big.classList.add('yay')});
+eb.addEventListener('pointerleave',()=>{endMark.setState('ruht');big.classList.remove('yay')});
+eb.addEventListener('focus',()=>{endMark.setState('offen');big.classList.add('yay')});
+eb.addEventListener('blur',()=>{endMark.setState('ruht');big.classList.remove('yay')});
+
 /* Pippa läuft beim Scrollen unten am Rand mit. */
 const w=$('#walker');
-const walk=()=>{const max=document.documentElement.scrollHeight-innerHeight,p=max>0?scrollY/max:0;w.style.transform='translateX('+Math.round(16+p*(innerWidth-w.offsetWidth-32))+'px)';w.style.opacity=scrollY>innerHeight*.8&&p<.92?1:0};
+const walk=()=>{const max=document.documentElement.scrollHeight-innerHeight,p=max>0?scrollY/max:0;w.style.transform='translateX('+Math.round(16+p*(innerWidth-w.offsetWidth-32))+'px)';w.style.opacity=scrollY>innerHeight*.8&&p<.9?1:0};
 addEventListener('scroll',walk,{passive:true});addEventListener('resize',walk);walk();
 })();
 </script>
-<div class="draftbar">Entwurf 2</div>
+<div class="draftbar">Entwurf 3</div>
 </body>
 </html>
