@@ -552,7 +552,12 @@ final class PiRPCChat {
             }
             return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName)
         }
-        return items.isEmpty ? nil : ActionReceipt(items: items, cards: reads.compactMap(\.card))
+        // Online sources after Pippa's own cards: from the web tools' arguments and results, never from the model.
+        let queries = receipt.records.filter { $0.action == "webSearch" && $0.outcome == .done }
+            .flatMap { ($0.name ?? "").components(separatedBy: " · ") }
+        let web = WebSourcesCard(queries: queries, pagesRead: receipt.webPagesRead, searchResults: receipt.webSearchResults,
+                                 now: Date(), calendar: .autoupdatingCurrent).map(ResultCard.web)
+        return items.isEmpty ? nil : ActionReceipt(items: items, cards: reads.compactMap(\.card) + (web.map { [$0] } ?? []))
     }
 
     /// Pippa's write tools → the action of their receipt (PippaMCPWriteReceipt).
