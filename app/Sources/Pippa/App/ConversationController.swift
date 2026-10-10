@@ -155,8 +155,9 @@ final class ConversationController: ObservableObject {
 
     /// `skill`: explicitly chosen skill; only `text` appears in the history, Pi gets the instructions.
     /// `chat`: who answers (default: `PiRPCChat.conversation`; debug captures pass a stand-in).
+    /// `frontApp`: the app of the chip above the input (only its name and title go along; FrontApp.swift).
     func send(_ text: String, chat: (any ConversationChat)? = nil, workflowSummary: String = "", modelLabel: String? = nil,
-              skill: PippaSkill? = nil) {
+              skill: PippaSkill? = nil, frontApp: FrontApp? = nil) {
         let chat = chat ?? PiRPCChat.conversation
         guard !isRunning, let id = current?.id, store != nil else { return }
         error = nil
@@ -214,6 +215,7 @@ final class ConversationController: ObservableObject {
             let replySource: MailReplySource? = replyCandidates.count == 1 ? MailReplySource.capture(from: replyCandidates[0]) : nil
             var chatContext = ChatContext(files: urls, focusedFiles: context?.focusedFiles ?? [], selectedText: context?.selectedText ?? "", workflowSummary: workflowSummary)
             chatContext.onWork = { event in workSink.yield(event) }
+            chatContext.frontApp = frontApp
             do {
                 // The real Pi via `pi --mode rpc` (PiRPCChat), a stand-in in debug captures (ConversationChat).
                 let onDelta: @Sendable (String) -> Void = { [weak self] delta in

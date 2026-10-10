@@ -3,7 +3,7 @@
  *
  *   pi --mode rpc --extension …/pippa-tools.ts --extension …/pippa-mcp.ts
  *
- * The app serves MCP itself on 127.0.0.1 (Calendar, Reminders, Mail, Excel, Photos read; TCC asks for "Pippa") and passes
+ * The app serves MCP itself on 127.0.0.1 (Calendar, Reminders, Mail, Excel, Photos, the app in front read; TCC asks for "Pippa") and passes
  * address and key only in the environment of this Pi process:
  * - `PIPPA_MCP_URL`   e.g. http://127.0.0.1:53124/mcp (only loopback is accepted)
  * - `PIPPA_MCP_TOKEN` 64 hex characters, new on every app start
@@ -19,7 +19,7 @@ export const SERVER_NAME = "pippa";
 
 /** Read-only tools of the server (app/Sources/PippaCore/MCP/PippaMCPTools.swift, PippaMCPTurn.swift). None changes
  * anything on the Mac. Web search is not here: it is the Pi package pi-web-access (runtime/pippa-web). */
-export const TOOLS = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "photos_search", "read_document"];
+export const TOOLS = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "photos_search", "front_read", "read_document"];
 
 /** PippaMCPWrite.swift: change something on the Mac but never leave it (no sending, no invitation). Events and
  * reminders can be undone, the mail draft stays unsent in Mail. */

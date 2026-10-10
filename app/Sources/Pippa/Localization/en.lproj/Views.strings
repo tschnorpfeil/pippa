@@ -270,3 +270,9 @@
 "read" = "read";
 "Open in browser" = "Open in browser";
 "“%@”" = "“%@”";
+
+/* Chip above the input: the app Pippa was called from (FrontAppChip.swift) */
+"Leave out %@. Pippa then knows nothing about it." = "Leave out %@. Pippa then knows nothing about it.";
+"Leave out %@" = "Leave out %@";
+"Pippa knows you came from here. She reads what’s open only if you ask about it." = "Pippa knows you came from here. She reads what’s open only if you ask about it.";
+"Pippa knows: %@" = "Pippa knows: %@";

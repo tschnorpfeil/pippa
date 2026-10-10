@@ -55,6 +55,7 @@ final class FrontmostTracker {
 extension AppModel {
     /// A call. `front`: the app that was in front at the call (`FrontmostTracker.capture()`, fetched before activating).
     func call(_ trigger: CallTrigger, front: NSRunningApplication?) {
+        if trigger != .menu { rememberFront(front) }
         let fromMail = front?.bundleIdentifier == Integration.mail.bundleIdentifier
         let fromExcel = front?.bundleIdentifier == ExcelScript.bundleIdentifier
         switch trigger {
@@ -77,6 +78,30 @@ extension AppModel {
             toggleInput()
         }
     }
+
+    /// The chip above the input: the app of this call (Finder and Pippa itself never), at once with its name, the window
+    /// title as soon as it is known without asking (FrontAppProbe). A call without an app in front keeps no old chip.
+    private func rememberFront(_ app: NSRunningApplication?) {
+        guard let app, app.activationPolicy == .regular, let bundle = app.bundleIdentifier, !FrontApp.ignoredBundles.contains(bundle),
+              bundle != Bundle.main.bundleIdentifier else {
+            frontApp = nil
+            return
+        }
+        let front = FrontApp(name: app.localizedName ?? bundle, bundleID: bundle, pid: app.processIdentifier)
+        // The same app again: keep the known title until the new one is there.
+        if frontApp?.pid != front.pid { frontApp = front }
+        Task { [weak self] in
+            let title = await FrontAppProbe.title(for: front)
+            guard let self, self.frontApp?.pid == front.pid else { return }
+            self.frontApp?.title = title
+        }
+    }
+
+    /// The × on the chip: from now on neither name nor content of that app goes along.
+    func dismissFrontApp() { frontApp = nil }
+
+    /// Is the chip on screen? Only then does the app go along with a message.
+    var frontAppShown: Bool { frontApp != nil && (mode.isConversation || mode.key == "resume") }
 
     /// Click on the pill as before: a pending result comes back; if something is on Pippa, the line; otherwise the input.
     func openPillDefault() {

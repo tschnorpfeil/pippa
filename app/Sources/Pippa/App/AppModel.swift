@@ -96,6 +96,8 @@ final class AppModel: ObservableObject {
         }
     }
     @Published var selection = 0
+    /// The app the person called Pippa from: chip above the input, label in Pi's message (AppModel+Call.swift).
+    @Published var frontApp: FrontApp?
     @Published var pillVisible: Bool {
         didSet { UserDefaults.standard.set(pillVisible, forKey: "pill.visible"); shell?.pillVisibilityChanged() }
     }
@@ -1547,6 +1549,8 @@ final class AppModel: ObservableObject {
     func route(_ text: String, queued: Bool = false, skill: PippaSkill? = nil) {
         let q = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
+        // Before the mode changes below: only what the person saw goes along.
+        let front = frontAppShown ? frontApp : nil
         recordConversationActivity()
         if isActiveWork {
             // Buttons are off during work; a skill is not queued as ordinary text.
@@ -1577,9 +1581,10 @@ final class AppModel: ObservableObject {
         let bridged = usesStartupBridge(q, skill: skill)
         if !bridged, piSetupHolds(q, queued: queued) { return }
         if query.trimmingCharacters(in: .whitespacesAndNewlines) == q { query = "" }
-        // What is shown (files, folder, mail, table, text) and Pippa's working state go along (PiRPCChat+Shown.swift).
+        // What is shown (files, folder, mail, table, text) and Pippa's working state go along (PiRPCChat+Shown.swift);
+        // the app in front only while its chip is visible.
         conversations.send(q, chat: bridged ? StartupBridgeChat.shared as any ConversationChat : nil, workflowSummary: workflowSummary,
-                           modelLabel: piModelLabel, skill: skill)
+                           modelLabel: piModelLabel, skill: skill, frontApp: front)
         composerFocus += 1
     }
 

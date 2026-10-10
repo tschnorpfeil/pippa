@@ -169,6 +169,8 @@ public struct ChatContext: Sendable {
     public var workflowSummary: String
     /// Thought Line (ThoughtLine.swift): real phases of this answer, in order. `nil`: nobody listens.
     public var onWork: WorkEventHandler?
+    /// The app the person called Pippa from, as the chip above the input shows it (FrontApp.swift). `nil`: no chip.
+    public var frontApp: FrontApp?
     public init(files: [URL] = [], focusedFiles: [URL] = [], selectedText: String = "", workflowSummary: String = "") {
         self.files = files; self.focusedFiles = focusedFiles; self.selectedText = selectedText; self.workflowSummary = workflowSummary
     }
