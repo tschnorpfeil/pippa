@@ -65,7 +65,7 @@ struct ThoughtLineView: View {
                     Text(elapsed).foregroundStyle(Theme.ink3).monospacedDigit().fixedSize()
                 }
             }
-            .font(Fonts.hint)
+            .font(Fonts.statusLine)
             // VoiceOver reads the phase when it lands here; changes are announced politely by the controller.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(["Pippa", phase.title, thought.currentStep ?? phase.detail].compactMap { $0 }.joined(separator: ", "))

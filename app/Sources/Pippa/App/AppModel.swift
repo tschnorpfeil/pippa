@@ -46,7 +46,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var parked: ShellMode? { didSet { updateMark() } }
     /// An answer finished while only the pill was showing: the pill says so until the conversation is opened.
     @Published private(set) var pillOutcome: PillOutcome? { didSet { updateMark() } }
-    /// Pippa's short handwritten moment in the pill ("Fertig!", "Wieder wie vorher."); clears itself (`say`).
+    /// Pippa's short moment in the pill ("Fertig!", "Wieder wie vorher."); clears itself (`say`).
     @Published private(set) var pillMoment: PillMoment? { didSet { updateMark() } }
     private var pillMomentTask: Task<Void, Never>?
     /// "Leg was auf mich!" right after setup, until the first thing is dropped or asked.
