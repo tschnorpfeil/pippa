@@ -93,6 +93,9 @@ body{color:var(--ink);font:15px/1.5 var(--f)}
 .chip .minis{display:flex}
 .chip .minis i{width:16px;height:20px;border-radius:2px;border:2px solid var(--paper);margin-right:-6px;background:linear-gradient(#e9d9b6,#cdb98e)}
 .chip .minis i:nth-child(2){background:linear-gradient(#dfe7ef,#b7c6d6)} .chip .minis i:nth-child(3){background:linear-gradient(#f2efe7,#d8d1c0);margin-right:4px}
+.chip .shot{width:30px;height:20px;border-radius:3px;flex:none;position:relative;overflow:hidden;background:var(--paper);box-shadow:0 0 0 .5px var(--sep),0 1px 2px rgba(0,0,0,.15)}
+.chip .shot::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:var(--fill-2)}
+.chip .shot::after{content:"";position:absolute;left:4px;right:9px;top:8px;height:8px;background:repeating-linear-gradient(var(--fill-2) 0 2px,transparent 2px 4px)}
 .verbs{display:grid;gap:6px;margin-bottom:10px}
 .btn{font:600 14px/1.2 var(--fr);border:0;border-radius:10px;padding:9px 13px;text-align:left;background:var(--fill);color:var(--ink);transition:background .15s,transform .1s}
 .btn.pri{background:var(--blue-fill);color:#fff}
@@ -191,6 +194,15 @@ const S = {
     <p class="hint">Drag it straight into Mail or a folder. Your photos stay as they were.</p>
     <div class="row"><button class="btn">Rename</button><button class="btn pri">Show in Finder</button></div>`, { card: true }); },
   peek() { face('ruht'); show(`<span class="lab">Translate? <button class="btn pri" style="padding:5px 10px;font-size:13px">Yes</button><button class="btn" style="padding:5px 9px;font-size:13px">×</button></span>`); },
+  // Pasted with ⌘V: a screenshot, or files copied in the Finder (same offers as a drop, from ThingActions).
+  pasteShot(de) { face('ruht'); show(`<div class="chip"><span class="shot"></span>${de ? 'Bild aus der Zwischenablage 16-42.png' : 'Clipboard image 16-42.png'}</div>
+    <div class="card-h">${de ? 'Was soll ich damit machen?' : 'What should I do with it?'}</div>
+    <div class="verbs"><button class="btn pri">${de ? 'Als PDF' : 'As PDF'}</button><button class="btn">${de ? 'Als JPG' : 'As JPG'}</button><button class="btn">${de ? 'Kleiner machen' : 'Make smaller'}</button></div>
+    <div class="ask">${de ? 'Oder frag etwas zum Bild …' : 'Or ask about the picture …'}</div>`, { card: true, w: de ? 420 : 380 }); },
+  pasteFiles(de) { face('ruht'); show(`<div class="chip"><span class="minis"><i></i><i></i><i></i></span>${de ? '3 Fotos' : '3 photos'}</div>
+    <div class="card-h">${de ? 'Was soll ich damit machen?' : 'What should I do with them?'}</div>
+    <div class="verbs"><button class="btn pri">${de ? 'Ein PDF machen' : 'Make one PDF'}</button><button class="btn">${de ? 'Kleiner machen' : 'Make smaller'}</button></div>
+    <div class="ask">${de ? 'Oder frag etwas zu den Fotos …' : 'Or ask about the photos …'}</div>`, { card: true }); },
   resultCopy() { face('offen'); show(`<div class="card-h">In English:</div>
     <div class="out">Hi! We'd love to stay with you from 14 to 17 November. Would that work? We'll bring the bikes and take care of dinner on Saturday.</div>
     <div class="row"><button class="btn">Note 14–17 Nov</button><button class="btn pri">Copy</button></div>`, { card: true }); },
