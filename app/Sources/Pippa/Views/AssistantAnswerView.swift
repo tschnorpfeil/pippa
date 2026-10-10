@@ -2,13 +2,28 @@ import SwiftUI
 import PippaCore
 
 /// Native, selectable answer content. No HTML, image loading, or model-defined styling.
-struct AssistantAnswerView: View {
+struct AssistantAnswerView: View, Equatable {
     let text: String
     var files: [URL] = []
+    /// Off for the streaming answer, whose text changes with every batch.
+    var cached = true
+
+    /// Parsed answers by text: a conversation re-renders while another answer streams, old answers are not parsed again.
+    private static let parsed: NSCache<NSString, Parsed> = { let c = NSCache<NSString, Parsed>(); c.countLimit = 200; return c }()
+    private final class Parsed { let document: AnswerDocument; init(_ d: AnswerDocument) { document = d } }
+
+    private var document: AnswerDocument {
+        guard cached else { return AnswerDocument(text) }
+        let key = text as NSString
+        if let hit = Self.parsed.object(forKey: key) { return hit.document }
+        let document = AnswerDocument(text)
+        Self.parsed.setObject(Parsed(document), forKey: key)
+        return document
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(AnswerDocument(text).blocks.enumerated()), id: \.offset) { _, block in
+            ForEach(Array(document.blocks.enumerated()), id: \.offset) { _, block in
                 blockView(block)
             }
         }

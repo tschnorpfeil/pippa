@@ -60,9 +60,10 @@ public struct PillStatus: Sendable, Equatable {
     ///   - step: the running Pi step in everyday words (`ThoughtLine.currentStep`).
     ///   - outcome: a finished answer the person has not seen yet.
     ///   - busy: a file task (tidying, reading) runs without a conversation phase.
+    ///   - loading: measured progress 0…1 while Pippa's AI downloads (setup), `nil` when nothing loads.
     ///   - moment: a handwritten moment; a short one wins over an old outcome, the invitation only shows when nothing else does.
     public static func make(phase: WorkPhase?, step: String? = nil, outcome: PillOutcome? = nil, busy: Bool = false,
-                            moment: PillMoment? = nil, language: String? = nil) -> PillStatus {
+                            loading: Double? = nil, moment: PillMoment? = nil, language: String? = nil) -> PillStatus {
         if let phase {
             if phase == .waitingForPerson {
                 return PillStatus(tone: .needsYou, label: L("Quick question", table: "Thought", language: language))
@@ -73,6 +74,10 @@ public struct PillStatus: Sendable, Equatable {
             return PillStatus(tone: .working, label: label(for: phase, step: step, language: language), progress: progress(for: phase))
         }
         if busy { return PillStatus(tone: .working, label: L("Working on it…", table: "Thought", language: language)) }
+        if let loading {
+            return PillStatus(tone: .working, label: L("Loading my AI…", table: "Thought", language: language),
+                              progress: min(max(loading, 0), 1))
+        }
         switch moment {
         case .finished: return PillStatus(tone: .done, label: L("Done!", table: "Thought", language: language), hand: true)
         case .undone: return PillStatus(tone: .done, label: L("Back as it was.", table: "Thought", language: language), hand: true)

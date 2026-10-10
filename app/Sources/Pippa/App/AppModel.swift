@@ -201,7 +201,7 @@ final class AppModel: ObservableObject {
         let thought = conversations.thought
         return PillStatus.make(phase: conversations.isRunning ? thought.phase : nil, step: thought.currentStep,
                                outcome: pillOutcome, busy: busy || tray.isWorking || letter.isWorking,
-                               moment: pillMoment ?? (pillInvites ? .invite : nil))
+                               loading: modelLoadProgress, moment: pillMoment ?? (pillInvites ? .invite : nil))
     }
 
     /// One of Pippa's small moments (UX rule 6): shown by the collapsed pill, never two at once, gone after a moment.
@@ -248,7 +248,22 @@ final class AppModel: ObservableObject {
         toasts?.dismiss()
     }
 
-    var spokenState: String { "Pippa, \(markState.spoken)" }
+    /// VoiceOver on the pill: what the pill says when it says more than the name (loading, working, an answer).
+    var spokenState: String {
+        let status = pillStatus
+        if status.tone != .rest { return "Pippa, \(status.label)" }
+        return "Pippa, \(markState.spoken)"
+    }
+
+    /// Download progress of Pippa's AI (setup or the old engine), for the pill.
+    var modelLoadProgress: Double? {
+        if let setup = PiSetupController.shared {
+            if case .downloading(let progress, _) = setup.state { return progress }
+            return nil
+        }
+        if case .downloading(let progress, _) = modelStatus { return progress }
+        return nil
+    }
 
     // MARK: Model
 

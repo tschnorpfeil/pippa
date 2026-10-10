@@ -67,7 +67,7 @@ final class ConversationController: ObservableObject {
             Task { await chat.forget(keys) }
             if current?.id == id {
                 current = try store.list(limit: 1).first.map { try store.select($0.id) } ?? store.create()
-                error = nil; streamingText = ""
+                error = nil; clearStream()
             }
             refresh()
         } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
@@ -75,13 +75,13 @@ final class ConversationController: ObservableObject {
 
     func newConversation() {
         guard !isRunning, let store else { return }
-        do { current = try store.create(); error = nil; streamingText = ""; refresh() }
+        do { current = try store.create(); error = nil; clearStream(); refresh() }
         catch { self.error = UserMessage.text(for: error, context: "gespraech") }
     }
 
     func select(_ id: UUID) {
         guard !isRunning, let store else { return }
-        do { current = try store.select(id); error = nil; streamingText = ""; refresh() }
+        do { current = try store.select(id); error = nil; clearStream(); refresh() }
         catch { self.error = UserMessage.text(for: error, context: "gespraech") }
     }
 
@@ -170,7 +170,7 @@ final class ConversationController: ObservableObject {
         isRunning = true
         stopRequested = false
         heldBack = false
-        streamingText = ""
+        clearStream()
         runningChat = chat
         let requestID = UUID()
         self.requestID = requestID
@@ -222,7 +222,7 @@ final class ConversationController: ObservableObject {
                         if !delta.isEmpty { workSink.yield(.phase(.writing)) }
                         Task { @MainActor [weak self] in
                             guard let self, self.isRunning, !self.stopRequested, self.current?.id == id, self.requestID == requestID else { return }
-                            self.streamingText += delta
+                            self.bufferDelta(delta, request: requestID)
                         }
                     }
                 let onSteered: @Sendable (String) -> Void = { [weak self] before in
@@ -246,7 +246,7 @@ final class ConversationController: ObservableObject {
                                 to: replySource.flatMap { MailAddress.parse($0.replyTo ?? "").address } ?? "",
                                 subject: replySource.map { MailDraft(messageID: $0.messageID, to: nil, toName: nil, subject: $0.subject, body: "").replySubject } ?? "",
                                 body: answer, replySource: replySource, requiresOriginalReply: !mailFiles.isEmpty) : nil, work: work, actions: actions)
-                self.streamingText = ""
+                self.clearStream()
                 self.onAnswerFinished?(false)
                 // VoiceOver: announce the finished answer once (not every streamed piece).
                 NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
@@ -258,7 +258,7 @@ final class ConversationController: ObservableObject {
                 let actions = chat.takeShownActions()
                 let found = chat.takeSearchFiles()
                 if case AnswerFailure.stopped(let text) = error { partial = text }
-                else if self.stopRequested || Task.isCancelled { partial = self.streamingText }
+                else if self.stopRequested || Task.isCancelled { self.flushDeltas(); partial = self.streamingText }
                 if let partial {
                     // Stopped is not an error: what was already written stays.
                     if partial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -272,10 +272,41 @@ final class ConversationController: ObservableObject {
                     if let notice = self.current?.messages.last?.id { self.failed = (notice, text) }
                     self.onAnswerFinished?(true)
                 }
-                self.streamingText = ""
+                self.clearStream()
             }
         }
         steerNext()
+    }
+
+    /// Streamed text is shown in small batches (~12 per second), not per token: every change re-renders the
+    /// conversation and re-measures the shell, which made long answers slow.
+    private var pendingDelta = ""
+    private var flushTask: Task<Void, Never>?
+
+    private func bufferDelta(_ delta: String, request: UUID) {
+        pendingDelta += delta
+        guard flushTask == nil else { return }
+        // The first piece shows at once, so the answer starts without delay.
+        if streamingText.isEmpty { flushDeltas(); return }
+        flushTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(80))
+            guard let self, self.requestID == request else { return }
+            self.flushTask = nil
+            self.flushDeltas()
+        }
+    }
+
+    private func clearStream() {
+        flushTask?.cancel(); flushTask = nil
+        pendingDelta = ""
+        streamingText = ""
+    }
+
+    private func flushDeltas() {
+        flushTask?.cancel(); flushTask = nil
+        guard !pendingDelta.isEmpty else { return }
+        streamingText += pendingDelta
+        pendingDelta = ""
     }
 
     /// Queues a message. If an answer is running, Pi gets it right after the current step.
@@ -323,7 +354,7 @@ final class ConversationController: ObservableObject {
         if let request = requestID { thought.steered(request: request) }
         if !answerSoFar.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { append(.assistant, answerSoFar, modelLabel: modelLabel) }
         if let i = queued.firstIndex(where: { $0.handedToPi || $0.id == steering }) { append(.user, queued.remove(at: i).text) }
-        streamingText = ""
+        clearStream()
     }
 
     /// Asks the core to stop; the answer then ends with the text written so far.

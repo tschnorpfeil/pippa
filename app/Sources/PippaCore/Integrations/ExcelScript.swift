@@ -64,7 +64,7 @@ public enum ExcelScript {
 
     /// Reads the active sheet. nil if no workbook is open or there is nothing to read.
     static func selected() async throws -> SheetSnapshot? {
-        try await MainActor.run { () throws -> SheetSnapshot? in
+        try await AppleEvents.perform { () throws -> SheetSnapshot? in
             let infoReply = try AppleEvents.call(source, handler: "sheetInfo", appName: appName)
             let info = AppleEvents.items(infoReply)
             guard info.count >= 4 else { return nil }
