@@ -51,7 +51,8 @@ Gemeinsam mit dem Prototyp formuliert; sie ergänzen die Leitregeln im Fixplan.
    Nachfragen geht darunter.
 5. **Ergebnisse sind Dinge.** Ein PDF zieht man aus der Pille in Mail, ein Entwurf liegt als Entwurf in Mail,
    eine Frist steht im Kalender, alles mit Rückgängig.
-6. **Charme in kleinen Dosen.** Die handgeschriebene Sprechblase der Website kommt für genau drei Momente in die App:
+6. **Charme in kleinen Dosen.** Die Sprechblasen-Sätze der Website kommen für genau drei Momente in die App (in der
+   Schrift der Pille, nicht handgeschrieben, damit die Pille ihre Schrift nicht wechselt):
    „Fertig!“, „Wieder wie vorher.“, „Leg was auf mich!“ beim allerersten Start. Nie während der Arbeit, nie zweimal
    hintereinander, aus bei „Bewegung reduzieren“.
 
@@ -76,7 +77,7 @@ Gebaut wird auf dem Mac erst nach der Abnahme der Web-Recherche (Owner 09.10.). 
 | 5 | Freigabe mit zwei Knöpfen (2.4) | **Entwurf in diesem Branch:** „Nicht erlauben“ / „Erlauben“ + Schalter „Bei dieser Aufgabe nicht mehr fragen“; nur die App-Karte, der Guard bleibt unverändert |
 | 6 | Ergebnis als Ding ziehen | offen, klein |
 | 7 | Hilfe beim Kopieren | offen; Owner 09.10.: beim ersten Mal fragen, danach in den Einstellungen abschaltbar |
-| 8 | Sprechblase und Haptik für drei Momente | **Entwurf in diesem Branch:** handgeschrieben in der Pille (Gochi Hand): „Deine Antwort ist da“ bleibt bis zum Ansehen, „Fertig!“ nach dem Aufräumen und „Wieder wie vorher.“ nach Rückgängig für 2,6 s, „Leg was auf mich!“ nach der Einrichtung bis zum ersten Ablegen oder Fragen. Dazu ein leichter Tipp aufs Trackpad. Nie während der Arbeit, nie zwei auf einmal |
+| 8 | Sprechblase und Haptik für drei Momente | **Entwurf in diesem Branch:** in der Pille (in ihrer normalen Schrift, die Handschrift ist seit 10.10. wieder raus): „Deine Antwort ist da“ bleibt bis zum Ansehen, „Fertig!“ nach dem Aufräumen und „Wieder wie vorher.“ nach Rückgängig für 2,6 s, „Leg was auf mich!“ nach der Einrichtung bis zum ersten Ablegen oder Fragen. Dazu ein leichter Tipp aufs Trackpad. Nie während der Arbeit, nie zwei auf einmal |
 | – | Leerer Zustand: Beispiele als Karten mit Symbol (5.2) | **Entwurf in diesem Branch** |
 
 Fehler im offenen Gespräch (Klicktest 09.10.): Die Notiz zeigt jetzt dasselbe rote „!“ wie die Pille und „Erneut versuchen“,
@@ -102,8 +103,9 @@ Fixplan Phase 1: in diesem Branch 1.1 (Grund sichtbar, „Problem melden“ hint
   Gespräch geöffnet wird. Ein Klick öffnet dann immer das ganze Gespräch, nicht die kompakte Form.
 - `PillContent`: Ton als leichte Tönung, Rand und Zeichen, nie nur Farbe. Balken nur bei Zählbarem. Schimmer nur beim
   Arbeiten, aus bei „Bewegung reduzieren“.
-- „Deine Antwort ist da“ in Gochi Hand, der Handschrift der Website (`HandFont` in `Theme.swift`, Schrift mit
-  Lizenz in `Resources/Fonts`, Eintrag in `THIRD_PARTY_NOTICES.md`).
+- Eine Schrift für alles, was Pippa gerade tut oder getan hat: `Fonts.status` (Pille) und `Fonts.statusLine`
+  (Denkzeile im Gespräch), beide SF Rounded. Die Handschrift (Gochi Hand) für „Deine Antwort ist da“ ist wieder
+  raus (10.10.): Die Pille wechselte damit je nach Zustand die Schrift, das las sich wie ein Fehler.
 - Leeres Gespräch: vier Beispiele als Karten mit Symbol im 2×2-Raster statt blauer Linkliste.
 - `PillStatusChecks`: Kurzformen in beiden Sprachen, Längen, keine Technikwörter, Vorrang (Frage > Arbeit > Ausgang).
 
