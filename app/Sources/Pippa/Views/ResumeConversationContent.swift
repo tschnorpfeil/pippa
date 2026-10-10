@@ -35,12 +35,6 @@ struct ResumeConversationContent: View {
                 .foregroundStyle(Theme.accent)
                 .help(T("Open Conversation", table: "Views"))
                 .accessibilityLabel(T("Open Conversation", table: "Views"))
-                Button(T("New Topic", table: "Views")) { model.newConversation() }
-                    .buttonStyle(.plain)
-                    .font(.scaled(size: 11.5))
-                    .foregroundStyle(Theme.ink2)
-                    .disabled(model.isActiveWork)
-                    .help(T("Start a new conversation", table: "Views"))
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)

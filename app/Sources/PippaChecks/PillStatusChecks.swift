@@ -42,6 +42,13 @@ func runPillStatusChecks() {
             && !PillStatus.make(phase: .writing).hand && !PillStatus.make(phase: nil, outcome: .failed).hand
     }
 
+    check("Living pill: while the AI downloads it says so with a measured bar, over the invitation") {
+        PillStatus.make(phase: nil, loading: 0.42, moment: .invite, language: "de")
+            == PillStatus(tone: .working, label: "Lade meine KI …", progress: 0.42)
+            && PillStatus.make(phase: .writing, loading: 0.5).label != "Lade meine KI …"
+            && PillStatus.make(phase: nil, loading: 1.7).progress == 1
+    }
+
     check("Living pill: names lose endings and get shortened, never a path or extension in view") {
         PillStatus.shortName("Mietvertrag.pdf") == "Mietvertrag"
             && PillStatus.shortName("Nebenkostenabrechnung_2024_final_v3.pdf").count == PillStatus.nameLimit
@@ -61,6 +68,7 @@ func runPillStatusChecks() {
             labels += phases.map { PillStatus.make(phase: $0, language: language).label }
             labels += [PillStatus.make(phase: nil, outcome: .answered, language: language).label,
                        PillStatus.make(phase: nil, outcome: .failed, language: language).label]
+            labels.append(PillStatus.make(phase: nil, loading: 0.3, language: language).label)
             labels += [PillMoment.finished, .undone, .invite].map { PillStatus.make(phase: nil, moment: $0, language: language).label }
         }
         return labels.allSatisfy { label in
