@@ -72,7 +72,8 @@ final class ResultPromiseWriter: NSObject, NSFilePromiseProviderDelegate, @unche
     nonisolated func operationQueue(for filePromiseProvider: NSFilePromiseProvider) -> OperationQueue { takeQueue }
 }
 
-/// A card that can be dragged away: paper edge with thumbnail. Click → `onClick`.
+/// A card that can be dragged away. A real preview lies on a sheet of paper; anything with only an icon
+/// (folders, apps, files Quick Look can't draw) stands free as its Finder icon, without paper. Click → `onClick`.
 /// Serves the cards at the pill (TrayStackView) and the result in the line (TakeHandle).
 class TakeSourceView: NSView {
     /// The item on the card.
@@ -81,10 +82,17 @@ class TakeSourceView: NSView {
     var onClick: (() -> Void)?
     /// true at the start, false at the end of a drag to the outside.
     var onDragState: ((Bool) -> Void)?
+    /// Under the mouse or focused: a deeper shadow (the lift itself is the stack's transform).
+    var lifted = false { didSet { if oldValue != lifted { applyLook() } } }
+    /// Keyboard focus: an accent ring around the real shape, rotating with it.
+    var showsFocusRing = false { didSet { if oldValue != showsFocusRing { applyLook() } } }
 
     /// Paper (rotated and sprung from outside); `picture` sits inside.
     let paper = CALayer()
     private let picture = CALayer()
+    private let ring = CAShapeLayer()
+    /// true while only the icon is shown (no paper).
+    private(set) var iconOnly = true
     private var downPoint: NSPoint?
     private var dragStarted = false
     private var thumbnailWatch: AnyCancellable?
@@ -93,19 +101,17 @@ class TakeSourceView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer?.masksToBounds = false
-        paper.backgroundColor = NSColor.white.cgColor
         paper.cornerRadius = 3
         paper.cornerCurve = .continuous
-        paper.borderWidth = 0.5
-        paper.borderColor = NSColor(white: 0, alpha: 0.08).cgColor
         paper.shadowColor = NSColor.black.cgColor
-        paper.shadowOpacity = 0.22
-        paper.shadowRadius = 2.5
         paper.shadowOffset = CGSize(width: 0, height: -1)
-        picture.masksToBounds = true
-        picture.cornerRadius = 1.5
-        picture.contentsGravity = .resizeAspectFill
+        picture.cornerCurve = .continuous
+        picture.shadowColor = NSColor.black.cgColor
         paper.addSublayer(picture)
+        ring.fillColor = nil
+        ring.lineWidth = 2.5
+        ring.isHidden = true
+        paper.addSublayer(ring)
         layer?.addSublayer(paper)
         placePaper()
         // Comes in the willSet of `revision` (main thread); the new image is already ready then.
@@ -122,29 +128,110 @@ class TakeSourceView: NSView {
         placePaper()
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyLook()
+    }
+
+    /// Where the icon stands when there is no paper: a square a little wider than the card, centred.
+    private var iconRect: CGRect {
+        let size = bounds.size
+        let side = min(size.width + 6, size.height)
+        return CGRect(x: (size.width - side) / 2, y: (size.height - side) / 2, width: side, height: side)
+    }
+
+    /// Top right corner of what is actually visible (sheet or opaque part of the icon), in own coordinates.
+    var visibleCorner: CGPoint {
+        guard iconOnly, let item else { return CGPoint(x: bounds.maxX, y: bounds.maxY) }
+        let unit = TrayThumbnails.shared.opaqueBounds(for: item)
+        let r = iconRect
+        return CGPoint(x: r.minX + unit.maxX * r.width, y: r.minY + unit.maxY * r.height)
+    }
+
     private func placePaper() {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         let size = bounds.size
         paper.bounds = CGRect(origin: .zero, size: size)
         paper.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        paper.shadowPath = CGPath(roundedRect: paper.bounds, cornerWidth: 3, cornerHeight: 3, transform: nil)
-        picture.frame = paper.bounds.insetBy(dx: 2, dy: 2)
+        layoutContent()
         CATransaction.commit()
     }
 
-    /// Set the thumbnail anew (a finished image fills the card, an icon sits fully inside).
+    private func layoutContent() {
+        if iconOnly {
+            picture.frame = iconRect
+            paper.shadowPath = nil
+        } else {
+            picture.frame = paper.bounds.insetBy(dx: 2, dy: 2)
+            paper.shadowPath = CGPath(roundedRect: paper.bounds, cornerWidth: 3, cornerHeight: 3, transform: nil)
+        }
+        let shape: CGRect
+        if iconOnly, let item {
+            let unit = TrayThumbnails.shared.opaqueBounds(for: item)
+            let r = iconRect
+            shape = CGRect(x: r.minX + unit.minX * r.width, y: r.minY + unit.minY * r.height,
+                           width: unit.width * r.width, height: unit.height * r.height)
+        } else {
+            shape = paper.bounds
+        }
+        let outline = shape.insetBy(dx: -3.5, dy: -3.5)
+        ring.path = CGPath(roundedRect: outline, cornerWidth: iconOnly ? 6 : 5, cornerHeight: iconOnly ? 6 : 5, transform: nil)
+    }
+
+    /// Colours and shadows for sheet or free icon, at rest or lifted (resolved for the current appearance).
+    private func applyLook() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            if iconOnly {
+                paper.backgroundColor = nil
+                paper.borderWidth = 0
+                paper.shadowOpacity = 0
+                picture.masksToBounds = false
+                picture.cornerRadius = 0
+                picture.shadowOpacity = lifted ? 0.28 : 0.22
+                picture.shadowRadius = lifted ? 3 : 1.5
+                picture.shadowOffset = CGSize(width: 0, height: lifted ? -3 : -1)
+            } else {
+                paper.backgroundColor = NSColor.white.cgColor
+                paper.borderWidth = 0.5
+                paper.borderColor = NSColor(white: 0, alpha: 0.09).cgColor
+                paper.shadowOpacity = lifted ? 0.3 : 0.22
+                paper.shadowRadius = lifted ? 5 : 2.5
+                paper.shadowOffset = CGSize(width: 0, height: lifted ? -4 : -1)
+                picture.masksToBounds = true
+                picture.cornerRadius = 1.5
+                picture.shadowOpacity = 0
+            }
+            ring.strokeColor = NSColor.keyboardFocusIndicatorColor.withAlphaComponent(1).cgColor
+        }
+        ring.isHidden = !showsFocusRing
+        CATransaction.commit()
+    }
+
+    /// Set the thumbnail anew. A finished preview goes on paper (fading in briefly); an icon stands free.
     func refreshImage() {
         guard let item else { return }
         let thumbs = TrayThumbnails.shared
         let image = thumbs.image(for: item)
         let real = thumbs.hasImage(for: item)
+        let becomesPaper = iconOnly && real && picture.contents != nil
+        if becomesPaper && !MarkHub.shared.reduced {
+            let fade = CATransition()
+            fade.type = .fade
+            fade.duration = 0.15
+            paper.add(fade, forKey: "paper")
+        }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        iconOnly = !real
         picture.contentsScale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
         picture.contentsGravity = real ? .resizeAspectFill : .resizeAspect
         picture.contents = image
+        layoutContent()
         CATransaction.commit()
+        applyLook()
     }
 
     // MARK: Mouse

@@ -28,15 +28,34 @@ final class TrayThumbnails: ObservableObject {
     private var images: [String: NSImage] = [:]
     private var pending: Set<String> = []
     private var icons: [String: NSImage] = [:]
+    private var opaque: [String: CGRect] = [:]
 
     private init() {}
 
     /// Image for the item: finished thumbnail, otherwise the Finder icon for now (and the request starts).
+    /// Folders and packages (apps) always show their icon: a picture of a folder icon is no preview.
     func image(for item: TrayItem, size: CGSize = TrayThumbnails.cardSize, scale: CGFloat? = nil) -> NSImage {
+        if Self.isFolder(item) { return placeholder(for: item) }
         let key = Self.key(for: item, size: size)
         if let image = images[key] { return image }
         request(item, key: key, size: size, scale: scale ?? Self.backingScale)
         return placeholder(for: item)
+    }
+
+    /// Part of the icon that isn't transparent, in unit coordinates (origin bottom left), for the remove button
+    /// to sit on the folder's real corner instead of its empty margin.
+    func opaqueBounds(for item: TrayItem) -> CGRect {
+        let id = item.id.uuidString
+        if let rect = opaque[id] { return rect }
+        let rect = Self.opaqueBounds(of: placeholder(for: item))
+        opaque[id] = rect
+        return rect
+    }
+
+    nonisolated static func isFolder(_ item: TrayItem) -> Bool {
+        if item.url.hasDirectoryPath { return true }
+        var directory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: item.url.path, isDirectory: &directory) && directory.boolValue
     }
 
     /// true if a real thumbnail already exists (not just the icon).
@@ -49,6 +68,7 @@ final class TrayThumbnails: ObservableObject {
         let ids = Set(items.map { $0.id.uuidString })
         images = images.filter { ids.contains(Self.itemID(ofKey: $0.key)) }
         icons = icons.filter { ids.contains($0.key) }
+        opaque = opaque.filter { ids.contains($0.key) }
     }
 
     // MARK: Internal
@@ -71,6 +91,29 @@ final class TrayThumbnails: ObservableObject {
         let icon = NSWorkspace.shared.icon(forFile: item.url.path)
         icons[id] = icon
         return icon
+    }
+
+    /// Alpha scan on a 32 × 32 rendering; the whole square if nothing can be read.
+    private static func opaqueBounds(of image: NSImage) -> CGRect {
+        let side = 32
+        guard let context = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side,
+                                      space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue),
+              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return CGRect(x: 0, y: 0, width: 1, height: 1) }
+        context.draw(cg, in: CGRect(x: 0, y: 0, width: side, height: side))
+        guard let data = context.data?.assumingMemoryBound(to: UInt8.self) else { return CGRect(x: 0, y: 0, width: 1, height: 1) }
+        var minX = side, minY = side, maxX = -1, maxY = -1
+        for row in 0..<side {
+            for column in 0..<side where data[row * side + column] > 40 {
+                // Row 0 of the bitmap is the top of the image.
+                let y = side - 1 - row
+                minX = min(minX, column); maxX = max(maxX, column)
+                minY = min(minY, y); maxY = max(maxY, y)
+            }
+        }
+        guard maxX >= minX, maxY >= minY else { return CGRect(x: 0, y: 0, width: 1, height: 1) }
+        let unit = CGFloat(side)
+        return CGRect(x: CGFloat(minX) / unit, y: CGFloat(minY) / unit,
+                      width: CGFloat(maxX - minX + 1) / unit, height: CGFloat(maxY - minY + 1) / unit)
     }
 
     private func request(_ item: TrayItem, key: String, size: CGSize, scale: CGFloat) {

@@ -43,7 +43,8 @@ struct TrayFanGeometry {
     /// Frame of the whole view (covers both layouts so it doesn't jump when fanning out).
     var box: CGRect
 
-    init(count: Int, pill: CGRect, room: CGRect, labelSize: CGSize) {
+    /// `focus`: index of the card the caption belongs to (the hovered one; the front one otherwise).
+    init(count: Int, pill: CGRect, room: CGRect, labelSize: CGSize, focus: Int = 0) {
         let n = max(0, min(count, TrayRules.peekCount, Self.restAngles.count))
         let w = Self.card.width, h = Self.card.height
         let needed = h + Self.gap + Self.captionGap + Self.labelMax.height + 4
@@ -75,8 +76,13 @@ struct TrayFanGeometry {
         let restCards = rest.reduce(CGRect.null) { $0.union($1.rect) }
         let lw = min(Self.labelMax.width, max(40, labelSize.width))
         let lh = min(Self.labelMax.height, max(18, labelSize.height))
-        var lx = fanCards.isNull ? pill.minX : fanCards.minX
+        let anchor = fan.indices.contains(focus) ? fan[focus].rect.minX : fanCards.minX
+        var lx = fanCards.isNull ? pill.minX : anchor
         lx = max(room.minX + 4, min(lx, room.maxX - 4 - lw))
+        // Reserved for the caption over any card: hovering along the row never changes the frame.
+        let roomX = fanCards.isNull ? lx : max(room.minX + 4, min(fanCards.minX, room.maxX - 4 - Self.labelMax.width))
+        let roomW = fanCards.isNull ? Self.labelMax.width
+            : min(room.maxX - 4, fanCards.maxX + Self.labelMax.width) - roomX
         let ly = above ? (fanCards.isNull ? pill.maxY : fanCards.maxY) + Self.captionGap
                        : (fanCards.isNull ? pill.minY : fanCards.minY) - Self.captionGap - lh
         label = CGRect(x: lx, y: ly, width: lw, height: lh)
@@ -94,8 +100,8 @@ struct TrayFanGeometry {
             : CGRect(x: fanCards.minX, y: above ? pill.maxY - 2 : fanCards.maxY, width: fanCards.width, height: Self.gap + 4)
         fanActive = fanCards.insetBy(dx: -16, dy: -16).union(label).union(bridge)
 
-        let labelRoom = CGRect(x: lx, y: above ? ly : ly + lh - Self.labelMax.height,
-                               width: Self.labelMax.width, height: Self.labelMax.height)
+        let labelRoom = CGRect(x: roomX, y: above ? ly : ly + lh - Self.labelMax.height,
+                               width: max(Self.labelMax.width, roomW), height: Self.labelMax.height)
         box = restCards.union(fanActive).union(labelRoom).insetBy(dx: -14, dy: -14).integral
         self.rest = rest
         self.fan = fan
@@ -127,7 +133,7 @@ final class TrayStackView: NSView {
     private var primed = false
     private var tracking: NSTrackingArea?
 
-    private let removeButton = NSButton()
+    private let removeButton = TrayRemoveButton()
 
     private let labelBox = NSVisualEffectView()
     private let nameLabel = NSTextField(labelWithString: "")
@@ -151,25 +157,16 @@ final class TrayStackView: NSView {
                                              (originLabel, CGFloat(11), NSFont.Weight.regular, NSColor.secondaryLabelColor)] {
             field.font = .systemFont(ofSize: size, weight: weight)
             field.textColor = color
-            field.lineBreakMode = .byTruncatingMiddle
+            // A long file name keeps its start and extension; "from Downloads" is never cut mid-word.
+            field.lineBreakMode = field === nameLabel ? .byTruncatingMiddle : .byTruncatingTail
             field.maximumNumberOfLines = 1
             field.setAccessibilityElement(false)
             labelBox.addSubview(field)
         }
         labelBox.setAccessibilityElement(false)
         addSubview(labelBox)
-        removeButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)?
-            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold))
-        removeButton.imagePosition = .imageOnly
-        removeButton.imageScaling = .scaleNone
-        removeButton.contentTintColor = .labelColor
-        removeButton.wantsLayer = true
-        removeButton.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-        removeButton.layer?.cornerRadius = 12
-        removeButton.layer?.borderWidth = 0.5
-        removeButton.layer?.borderColor = NSColor.separatorColor.cgColor
-        removeButton.bezelStyle = .circular
         removeButton.isBordered = false
+        removeButton.title = ""
         removeButton.target = self
         removeButton.action = #selector(removeHovered)
         removeButton.isHidden = true
@@ -323,7 +320,10 @@ final class TrayStackView: NSView {
                 self.hoveredID = card?.item?.id
                 self.setFanned(true)
                 self.relabel()
-            } else { self.scheduleFold() }
+            } else {
+                self.updateHighlight()
+                self.scheduleFold()
+            }
         }
         card.onNavigate = { [weak self, weak card] backwards in
             guard let self, let id = card?.item?.id else { return }
@@ -375,7 +375,7 @@ final class TrayStackView: NSView {
     private func relayout(animated: Bool, appearing: Bool) {
         let shownItem = items.first { $0.id == hoveredID } ?? items.first
         let labelSize = setLabel(for: shownItem)
-        let g = TrayFanGeometry(count: items.count, pill: pill, room: room, labelSize: labelSize)
+        let g = TrayFanGeometry(count: items.count, pill: pill, room: room, labelSize: labelSize, focus: focusIndex)
         geometry = g
         let box = g.box
         let slots = fanned ? g.fan : g.rest
@@ -434,6 +434,10 @@ final class TrayStackView: NSView {
         updateTrackingAreas()
     }
 
+    /// Hovered card: 8 % larger and 3 pt away from the pill (none with Reduce Motion).
+    private static let lift: CGFloat = 1.08
+    private var liftOffset: CGFloat { geometry?.above == false ? -3 : 3 }
+
     private static func rotation(_ degrees: CGFloat) -> CATransform3D {
         CATransform3DMakeRotation(degrees * .pi / 180, 0, 0, 1)
     }
@@ -451,6 +455,9 @@ final class TrayStackView: NSView {
 
     // MARK: Caption
 
+    /// Card the caption stands over: the hovered or focused one, otherwise the front one.
+    private var focusIndex: Int { items.firstIndex { $0.id == hoveredID } ?? 0 }
+
     /// Name and origin of the item under the mouse (otherwise the front one); returns the desired size.
     private func setLabel(for item: TrayItem?) -> CGSize {
         guard let item else { return .zero }
@@ -459,7 +466,7 @@ final class TrayStackView: NSView {
         originLabel.stringValue = Self.originLine(item)
         let wide = max(nameLabel.intrinsicContentSize.width, originLabel.intrinsicContentSize.width)
         let height: CGFloat = originLabel.stringValue.isEmpty ? 22 : 36
-        return CGSize(width: ceil(wide) + 18, height: height)
+        return CGSize(width: ceil(wide) + 22, height: height)
     }
 
     private func layoutLabel() {
@@ -475,11 +482,12 @@ final class TrayStackView: NSView {
         }
     }
 
-    /// "from Downloads", "Done" for results; nothing if the origin is unknown.
+    /// "from Downloads" ("Folder from Downloads" for a folder), "Ready" for results; nothing if the origin is unknown.
     private static func originLine(_ item: TrayItem) -> String {
         if item.role == .result { return T("Ready", table: "Shelf") }
-        guard let origin = item.origin, !origin.isEmpty else { return "" }
-        return T("from %@", table: "Shelf", origin)
+        let folder = TrayThumbnails.isFolder(item)
+        guard let origin = item.origin, !origin.isEmpty else { return folder ? T("Folder", table: "Shelf") : "" }
+        return folder ? T("Folder from %@", table: "Shelf", origin) : T("from %@", table: "Shelf", origin)
     }
 
     // MARK: Mouse
@@ -524,7 +532,7 @@ final class TrayStackView: NSView {
     /// Switch only the caption (running card springs stay untouched).
     private func relabel() {
         let shownItem = items.first { $0.id == hoveredID } ?? items.first
-        let g = TrayFanGeometry(count: items.count, pill: pill, room: room, labelSize: setLabel(for: shownItem))
+        let g = TrayFanGeometry(count: items.count, pill: pill, room: room, labelSize: setLabel(for: shownItem), focus: focusIndex)
         guard g.box == frame else {
             relayout(animated: !MarkHub.shared.reduced, appearing: false)
             return
@@ -559,11 +567,11 @@ final class TrayStackView: NSView {
             guard let card = cards[item.id], let pose = poses[item.id] else { continue }
             var transform = Self.rotation(pose.angle)
             let highlighted = fanned && !takingOut && hoveredID == item.id
-            card.paper.borderWidth = highlighted ? 1.5 : 0.5
-            card.paper.borderColor = highlighted ? NSColor.controlAccentColor.cgColor : NSColor(white: 0, alpha: 0.08).cgColor
+            card.lifted = highlighted
+            card.showsFocusRing = highlighted && (card as? TrayFocusCard)?.hasFocus == true
             if highlighted && !MarkHub.shared.reduced {
-                transform = CATransform3DScale(transform, 1.11, 1.11, 1)
-                transform = CATransform3DTranslate(transform, 0, geometry?.above == true ? 3 : -3, 0)
+                transform = CATransform3DConcat(CATransform3DScale(transform, Self.lift, Self.lift, 1),
+                                                CATransform3DMakeTranslation(0, liftOffset, 0))
             }
             card.paper.transform = transform
             card.toolTip = TakeSourceView.spokenName(item)
@@ -578,15 +586,31 @@ final class TrayStackView: NSView {
             }
             card.setAccessibilityCustomActions(existing + [remove])
         }
+        let wasHidden = removeButton.isHidden
         removeButton.isHidden = !fanned || takingOut || hoveredID == nil
         removeButton.isEnabled = controller?.model.isActiveWork != true && tray?.isWorking != true
         if let id = hoveredID, let card = cards[id], let item = items.first(where: { $0.id == id }) {
-            removeButton.frame = CGRect(x: card.frame.maxX - 10, y: card.frame.maxY - 10, width: 24, height: 24)
+            // Centre of the 24 pt target a little outside the visible top right corner, after lift and scale.
+            let corner = card.visibleCorner
+            let lifted = !MarkHub.shared.reduced
+            let scale = lifted ? Self.lift : 1
+            let dx = (corner.x - card.bounds.midX) * scale, dy = (corner.y - card.bounds.midY) * scale
+            let center = CGPoint(x: card.frame.midX + dx + 3, y: card.frame.midY + dy + 3 + (lifted ? liftOffset : 0))
+            removeButton.frame = CGRect(x: center.x - 12, y: center.y - 12, width: 24, height: 24)
             removeButton.setAccessibilityLabel(T("Remove %@", table: "Shelf", item.name))
             removeButton.toolTip = T("Remove %@", table: "Shelf", item.name)
             addSubview(removeButton, positioned: .above, relativeTo: nil)
         }
         CATransaction.commit()
+        if wasHidden && !removeButton.isHidden && !MarkHub.shared.reduced {
+            removeButton.alphaValue = 0
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.12
+                removeButton.animator().alphaValue = 1
+            }
+        } else if MarkHub.shared.reduced {
+            removeButton.alphaValue = 1
+        }
     }
 
     @objc private func removeHovered() {
@@ -614,15 +638,17 @@ private final class TrayFocusCard: TakeSourceView {
     var onFocus: ((Bool) -> Void)?
     var onRemove: (() -> Void)?
     var onNavigate: ((Bool) -> Void)?
+    /// Set before `onFocus` runs (the window only records the new first responder afterwards).
+    private(set) var hasFocus = false
     override var acceptsFirstResponder: Bool { true }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
-        if accepted { onFocus?(true) }
+        if accepted { hasFocus = true; onFocus?(true) }
         return accepted
     }
     override func resignFirstResponder() -> Bool {
         let accepted = super.resignFirstResponder()
-        if accepted { onFocus?(false) }
+        if accepted { hasFocus = false; onFocus?(false) }
         return accepted
     }
     override func keyDown(with event: NSEvent) {
@@ -634,5 +660,47 @@ private final class TrayFocusCard: TakeSourceView {
         case 51, 117: onRemove?()
         default: super.keyDown(with: event)
         }
+    }
+}
+
+/// Remove target: an 18 pt disc with a small cross, inside a 24 pt hit area.
+private final class TrayRemoveButton: NSButton {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.masksToBounds = false
+        imagePosition = .noImage
+        focusRingType = .none
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override var isFlipped: Bool { false }
+    override var intrinsicContentSize: NSSize { NSSize(width: 24, height: 24) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let disc = NSRect(x: bounds.midX - 9, y: bounds.midY - 9, width: 18, height: 18)
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(dark ? 0.4 : 0.22)
+        shadow.shadowBlurRadius = 3
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
+        shadow.set()
+        (dark ? NSColor(srgbRed: 0.23, green: 0.24, blue: 0.27, alpha: 1) : NSColor.white).setFill()
+        NSBezierPath(ovalIn: disc).fill()
+        NSGraphicsContext.restoreGraphicsState()
+        NSColor.separatorColor.setStroke()
+        let rim = NSBezierPath(ovalIn: disc.insetBy(dx: 0.25, dy: 0.25))
+        rim.lineWidth = 0.5
+        rim.stroke()
+        let cross = NSBezierPath()
+        let r: CGFloat = 3.25
+        cross.move(to: NSPoint(x: disc.midX - r, y: disc.midY - r)); cross.line(to: NSPoint(x: disc.midX + r, y: disc.midY + r))
+        cross.move(to: NSPoint(x: disc.midX + r, y: disc.midY - r)); cross.line(to: NSPoint(x: disc.midX - r, y: disc.midY + r))
+        cross.lineWidth = 1.7
+        cross.lineCapStyle = .round
+        (isEnabled ? NSColor.secondaryLabelColor : NSColor.tertiaryLabelColor).setStroke()
+        cross.stroke()
     }
 }
