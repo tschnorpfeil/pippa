@@ -59,3 +59,4 @@
 "Reminders · due in the next %lld days" = "Reminders · due in the next %lld days";
 "Reminders on this Mac" = "Reminders on this Mac";
 "Reminders on this Mac · %lld of %lld" = "Reminders on this Mac · %lld of %lld";
+"From the web · looked up at %@" = "From the web · looked up at %@";

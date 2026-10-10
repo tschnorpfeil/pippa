@@ -377,7 +377,8 @@ public actor PiRPCClient {
 
     public static let readResultLimit = 200_000
     public static let listingResultLimit = 20_000
-    static let listingTools: Set<String> = ["bash", "find", "grep", "ls"]
+    /// `web_search`: enough to find its result links for the sources card (PiTurnReceipt.webSources).
+    static let listingTools: Set<String> = ["bash", "find", "grep", "ls", "web_search"]
 
     private func uiRequest(_ record: [String: Any]) {
         guard let id = record["id"] as? String, let method = record["method"] as? String else { return }

@@ -33,6 +33,10 @@ public struct PiTurnReceipt: Sendable {
     private var order: [String] = []
     private var started: [String: (name: String, arguments: String)] = [:]
     private var ended: [String: Bool] = [:]
+    /// For the sources card (PippaCore `WebSourcesCard`), never from the model's text: addresses of pages Pi read
+    /// (`fetch_content`, from the call's arguments) and the results of searches (`web_search`, the tool's own output).
+    public private(set) var webPagesRead: [String] = []
+    public private(set) var webSearchResults: [String] = []
 
     public init() {}
 
@@ -41,9 +45,16 @@ public struct PiTurnReceipt: Sendable {
         case .toolStarted(let id, let name, let arguments):
             if started[id] == nil { order.append(id) }
             started[id] = (name, arguments)
-        case .toolEnded(let id, let name, let isError, _):
+        case .toolEnded(let id, let name, let isError, let result):
             if started[id] == nil { order.append(id); started[id] = (name, "") }
             ended[id] = isError
+            guard !isError else { break }
+            if name == "fetch_content" {
+                let args = (try? JSONSerialization.jsonObject(with: Data((started[id]?.arguments ?? "").utf8))) as? [String: Any]
+                webPagesRead += (args?["urls"] as? [String]) ?? (args?["url"] as? String).map { [$0] } ?? []
+            } else if name == "web_search" {
+                webSearchResults.append(result)
+            }
         default:
             break
         }
