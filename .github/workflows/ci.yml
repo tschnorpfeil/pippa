@@ -8,18 +8,7 @@ on:
     paths-ignore: ['docs/**', 'site/**', '**/*.md']
   workflow_dispatch:
     inputs:
-          - name: TEMP print permission snapshots
-        if: always()
-        continue-on-error: true
-        run: |
-          cat snaps/*/permissions.txt 2>/dev/null
-          for f in snaps/dark/permissions-01-onboarding.png snaps/light/permissions-03-allowed.png snaps/dark/permissions-05-settings.png; do
-            [ -f "$f" ] || continue
-            sips -Z 760 -s format jpeg -s formatOptions 50 "$f" --out /tmp/s.jpg >/dev/null
-            echo "B64BEGIN $(echo $f | tr '/' '_')"; base64 -i /tmp/s.jpg | fold -w 8000; echo "B64END"
-          done
-
-  app:
+      app:
         description: 'Build Pippa.app and upload it as an artifact'
         type: boolean
         default: true
@@ -101,6 +90,17 @@ jobs:
       - name: Terminal autostart tests (runtime/pippa-local-server)
         run: node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
+
+      - name: TEMP print permission snapshots
+        if: always()
+        continue-on-error: true
+        run: |
+          cat snaps/*/permissions.txt 2>/dev/null
+          for f in snaps/dark/permissions-01-onboarding.png snaps/light/permissions-03-allowed.png snaps/dark/permissions-05-settings.png; do
+            [ -f "$f" ] || continue
+            sips -Z 760 -s format jpeg -s formatOptions 50 "$f" --out /tmp/s.jpg >/dev/null
+            echo "B64BEGIN $(echo $f | tr '/' '_')"; base64 -i /tmp/s.jpg | fold -w 8000; echo "B64END"
+          done
 
   app:
     if: github.event_name == 'workflow_dispatch' && inputs.app

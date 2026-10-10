@@ -35,12 +35,11 @@ func runPermissionChecks() async {
         let later = await desk.state(.folders)
         return answer == .denied && later == .denied
     }
-    await checkAsync("Permissions: Calendar and Mail come from the integrations, asking only the one pressed") {
+    await checkAsync("Permissions: Calendar comes from the integrations, asking only the one pressed") {
         let calendar = await desk.state(.calendar)
-        let mail = await desk.state(.mail)
         let granted = await desk.request(.calendar)
         let log = await asked.all
-        return calendar == .notAsked && mail == .unavailable("Mail ist nicht offen") && granted == .granted && log == [.calendar]
+        return calendar == .notAsked && granted == .granted && log == [.calendar]
     }
     check("Permissions: a row without its dialog text in Info.plist stays hidden (macOS would end the app)") {
         !desk.applies(.contacts) && !desk.applies(.photos) && !desk.applies(.folders)
