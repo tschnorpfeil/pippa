@@ -66,6 +66,11 @@ extension PiRPCChat {
             DiagnosticsLog.shared.event("quellenpruefung", ["weg": "pi-rpc", "entfernt": String(review.findings.filter(\.removes).count),
                                                            "markiert": String(review.findings.filter { !$0.removes }.count)])
             return ShownAnswer(text: review.text, reviewed: true)
+        } catch PiRPCError.processExited(let status, let diagnostics) {
+            // Pi ended mid-answer: without its last stderr lines the cause cannot be found afterwards (0.2.0 logged only "code 4").
+            let excerpt = diagnostics.replacingOccurrences(of: Self.homePath, with: "~").trimmingCharacters(in: .whitespacesAndNewlines)
+            DiagnosticsLog.shared.event("pi-beendet", ["status": String(status), "stderr": String(excerpt.suffix(600))])
+            throw PiRPCError.processExited(status: status, diagnostics: diagnostics)
         }
     }
 

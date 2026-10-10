@@ -18,7 +18,7 @@ import Foundation
 ///   the session of a new topic. Without `memoryFile` (trial runs) nothing is kept beyond the process.
 public enum PippaPiLaunch {
     public struct Paths: Sendable {
-        /// runtime/pippa-tools: pippa-tools.ts (list_folder, rename_or_move, move_files, move_to_trash),
+        /// runtime/pippa-tools: pippa-tools.ts (search_files, list_folder, move_files, move_to_trash),
         /// pippa-assist.ts (document reader instead of raw bytes, loop brake, search results), pippa-mcp.ts
         public var extensionsDirectory: URL
         /// runtime/pippa-web/index.ts (pi-web-access with Pippa's settings); `nil`: Pi has no web access.
@@ -74,7 +74,7 @@ public enum PippaPiLaunch {
     /// Where pippa-memory.ts keeps the person's facts.
     public static let memoryVariable = "PIPPA_MEMORY_FILE"
 
-    /// Extensions in load order (Pi loads `--extension`s before the person's extensions).
+    /// Extensions in load order. Only these load: `arguments` passes `--no-extensions`, which keeps explicit `--extension`s.
     public static func extensions(_ paths: Paths) -> [URL] {
         ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-context.ts"].map { paths.extensionsDirectory.appendingPathComponent($0) }
             + (paths.webExtension.map { [$0] } ?? [])
@@ -83,7 +83,9 @@ public enum PippaPiLaunch {
     /// Pi options except `--mode rpc` and `--extension` (set by PiRPCClient). `sessionID`: `nil` = do not
     /// save a session (`--no-session`, trial runs only).
     public static func arguments(paths: Paths, sessionID: String?, language: String) -> [String] {
-        var args = ["--no-context-files", "--no-approve", "--tools", tools.joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
+        // Without the person's own Pi extensions and packages: one that registers a tool of the same name (pi-web-access's
+        // web_search) makes Pi exit at startup, and every message failed.
+        var args = ["--no-context-files", "--no-extensions", "--no-approve", "--tools", tools.joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
         // Only Pippa's skills, so a same-named skill of the person never replaces the one a button means (PiSkillTurn).
         if let skills = paths.skillsDirectory { args += ["--no-skills", "--skill", skills.path] }
         if let sessionID {
@@ -96,11 +98,11 @@ public enum PippaPiLaunch {
 
     /// The tools Pi declares to the model, named explicitly so the person's `defaultTools` cannot widen or narrow
     /// them (cli.md "Tools"). Pi's read/bash/edit/write tools, Pippa's file tools (pippa-tools.ts), the web
-    /// (pi-web-access: search, read a page, read more of a stored page), Pippa's memory (pippa-memory.ts) and Pippa's
+    /// (pi-web-access: search, read a page), Pippa's memory (pippa-memory.ts) and Pippa's
     /// MCP server. Names Pi does not know are ignored.
     public static let tools = ["read", "bash", "edit", "write",
-                               "list_folder", "rename_or_move", "move_files", "move_to_trash", "remember",
-                               "web_search", "fetch_content", "get_search_content", "mcp__pippa__*"]
+                               "search_files", "list_folder", "move_files", "move_to_trash", "remember",
+                               "web_search", "fetch_content", "mcp__pippa__*"]
 
     /// Pi allows only letters, digits, `.`, `_`, `-` in session IDs, and a letter or digit at start and end
     /// (cli.md "Sessions"). Pippa's ID is `<conversation UUID>` or `<conversation UUID>:<revision UUID>`.
@@ -127,7 +129,7 @@ public enum PippaPiLaunch {
     Halte Namen, Daten, Zahlen und Zitate genau. Rate nicht; was du nicht gelesen hast, weißt du nicht.
     Was die Person zeigt, steht mit Pfad in ihrer Nachricht; lies es selbst, PDF, Scan, Bild, Word und Mail mit mcp__pippa__read_document.
     Alltagsordner liegen im Benutzerordner, nie im Arbeitsordner: Downloads = ~/Downloads, Dokumente = ~/Documents, Schreibtisch = ~/Desktop.
-    Eigene Dateien finden: Lade dateien-finden mit read und nutze sein Skript. Dafür nie web_search.
+    Eigene Dateien finden: search_files, nie web_search.
     Für Aktuelles (Wetter, Öffnungszeiten, Nachrichten) ruf web_search auf; nenne die Quellen mit Link. Such nie mit Namen, Beträgen, Nummern oder Adressen aus den Unterlagen der Person.
     Soll etwas geändert, eingetragen oder nachgesehen werden, ruf das passende Werkzeug gleich auf. Frag nie im Text, ob du darfst, und schreib keinen Plan aus. Lösche nie endgültig; nimm move_to_trash.
     Aufräumen oder Sortieren: list_folder, dann ein einziger move_files-Aufruf, danach kurz sagen, was wohin kam.
@@ -141,7 +143,7 @@ public enum PippaPiLaunch {
     Keep names, dates, numbers and quotes exact. Don't guess; what you haven't read, you don't know.
     What the person shows you is listed with its path in their message; read it yourself, PDF, scan, image, Word and email with mcp__pippa__read_document.
     Everyday folders are in the home folder, never in the working folder: Downloads = ~/Downloads, Documents = ~/Documents, Desktop = ~/Desktop.
-    Find personal files: read the dateien-finden skill and use its script. Never web_search for that.
+    Find personal files: search_files, never web_search.
     For current facts (weather, opening hours, news) call web_search and name the sources with their link. Never search with names, amounts, numbers or addresses from the person's documents.
     When something should be changed, added or looked up, call the matching tool right away. Never ask for permission in your text and don't write out a plan. Never delete for good; use move_to_trash.
     Tidying or sorting: list_folder, then one move_files call, then say briefly what went where.

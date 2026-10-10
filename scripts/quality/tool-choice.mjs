@@ -77,7 +77,7 @@ try {
    child.on('error',fail);child.on('exit',code=>{if(code!==null&&code!==0){clearTimeout(timer);fail(Error(err));}});
    child.stdout.on('data',d=>{
     buffer+=d;let n;while((n=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,n);buffer=buffer.slice(n+1);let e;try{e=JSON.parse(line);}catch{continue;}events.push(e);
-     if(flow && !dialogue && e.type==='tool_execution_end' && e.toolCallId===events.find(x=>x.type==='tool_execution_start'&&['bash','find','grep','ls','list_folder'].includes(x.toolName))?.toolCallId){child.stdin.write(JSON.stringify({type:'abort'})+'\n');clearTimeout(timer);ok();}
+     if(flow && !dialogue && e.type==='tool_execution_end' && e.toolCallId===events.find(x=>x.type==='tool_execution_start'&&['search_files','bash','find','grep','ls','list_folder'].includes(x.toolName))?.toolCallId){child.stdin.write(JSON.stringify({type:'abort'})+'\n');clearTimeout(timer);ok();}
      if(e.type==='extension_ui_request' && ['select','confirm'].includes(e.method))child.stdin.write(JSON.stringify({type:'extension_ui_response',id:e.id,...(e.method==='confirm'?{confirmed:false}:{value:e.options.at(-1)})})+'\n');
      if(e.type==='extension_error'){clearTimeout(timer);child.kill();fail(Error(JSON.stringify(e)));}
      if(e.type==='agent_settled'){clearTimeout(timer);ok();}
@@ -92,10 +92,9 @@ try {
   });
   const choices=events.filter(x=>x.type==='tool_execution_start').map(x=>({name:x.toolName,args:x.args}));
   const first=choices[0]?.name;
-  const skillRead = first==='read' && String(choices[0]?.args?.path??'').endsWith('/dateien-finden/SKILL.md');
-  const ok=item.tools.length ? item.tools.includes(first) && (!['tax','document','pdf','invoice','info','where'].includes(item.id)||first!=='read'||skillRead) : choices.length===0&&events.some(x=>x.type==='message_end'&&x.message?.stopReason==='stop');
+  const ok=item.tools.length ? item.tools.includes(first) : choices.length===0&&events.some(x=>x.type==='message_end'&&x.message?.stopReason==='stop');
   const retrieved = new Set();
-  const primary=events.find(x=>x.type==='tool_execution_start'&&['bash','find','grep','ls','list_folder'].includes(x.toolName))?.toolCallId;
+  const primary=events.find(x=>x.type==='tool_execution_start'&&['search_files','bash','find','grep','ls','list_folder'].includes(x.toolName))?.toolCallId;
   if(flow)for(const event of events.filter(e=>e.type==='tool_execution_end'&&e.toolCallId===primary))for(const part of event.result?.content??[]){
    if(part.type!=='text')continue;
    try{for(const file of JSON.parse(part.text).files??[])if(typeof file.path==='string')retrieved.add(file.path);}catch{
@@ -105,7 +104,7 @@ try {
   const found=[...retrieved].sort();const expected=(item.expectedFiles??[]).map(p=>join(home,p)).sort();
   const finalAnswer = events.findLast(x=>x.type==='message_end'&&x.message?.role==='assistant')?.message?.content?.filter(p=>p.type==='text').map(p=>p.text).join('\n')??'';
   const loopStopped = events.some(x=>x.type==='entry_appended'&&x.entry?.customType==='pippa-loop-stop');
-  const searchCalls = choices.filter(x=>['bash','find','grep','ls','list_folder'].includes(x.name)).length;
+  const searchCalls = choices.filter(x=>['search_files','bash','find','grep','ls','list_folder'].includes(x.name)).length;
   const completed = events.some(x=>x.type==='agent_settled');
   const linkedFiles = [...finalAnswer.matchAll(/\[[^\]]+\]\((file:\/\/\/[^)]+)\)/g)].map(m=>decodeURIComponent(new URL(m[1]).pathname));
   const complete = flow ? JSON.stringify(found)===JSON.stringify(expected)&&expected.length>0 && (!dialogue || completed && !loopStopped && searchCalls===1 && expected.every(p=>linkedFiles.includes(p))) : ok;

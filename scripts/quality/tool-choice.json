@@ -3,8 +3,7 @@
   "id": "tax",
   "prompt": "Such alle Unterlagen für Steuer 2025.",
   "tools": [
-   "bash",
-   "read"
+   "search_files"
   ],
   "expectedFiles": [
    "Documents/f.pdf",
@@ -16,8 +15,7 @@
   "id": "document",
   "prompt": "Wo ist mein Dokument zur Kaution?",
   "tools": [
-   "bash",
-   "read"
+   "search_files"
   ],
   "expectedFiles": [
    "Desktop/b.pdf"
@@ -27,8 +25,7 @@
   "id": "pdf",
   "prompt": "Finde das PDF zur Hausratversicherung.",
   "tools": [
-   "bash",
-   "read"
+   "search_files"
   ],
   "expectedFiles": [
    "Library/Mobile Documents/com~apple~CloudDocs/d.pdf"
@@ -38,8 +35,7 @@
   "id": "invoice",
   "prompt": "Such die Rechnung vom Zahnarzt aus 2023.",
   "tools": [
-   "bash",
-   "read"
+   "search_files"
   ],
   "expectedFiles": [
    "Documents/a.pdf"
@@ -49,8 +45,7 @@
   "id": "info",
   "prompt": "Ich suche Info zu meiner Nebenkostenabrechnung 2024.",
   "tools": [
-   "bash",
-   "read"
+   "search_files"
   ],
   "expectedFiles": [
    "Downloads/c.pdf"
@@ -60,8 +55,7 @@
   "id": "where",
   "prompt": "Wo ist der Mietvertrag?",
   "tools": [
-   "bash",
-   "read"
+   "search_files"
   ],
   "expectedFiles": [
    "Desktop/b.pdf"
@@ -87,7 +81,7 @@
   "id": "rename",
   "prompt": "Benenne ~/Documents/brief.pdf in Mietvertrag.pdf um.",
   "tools": [
-   "rename_or_move"
+   "move_files"
   ]
  },
  {

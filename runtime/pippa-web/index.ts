@@ -12,7 +12,8 @@
  * The settings:
  * - Search only through Exa (no key needed), DuckDuckGo if Exa fails. `allowedProviders` makes every other provider
  *   fail even when the model names it, so a ChatGPT sign-in never turns into an OpenAI search.
- * - Only `web_search`, `fetch_content` (readable mode) and `get_search_content`; short page slices for small local
+ * - Only `web_search` and `fetch_content` (readable mode); no `get_search_content` (a small model rarely needs more than
+ *   the page slice, and it saves its declaration); short page slices for small local
  *   models; no curator, no summaries by another model, no browser cookies, no GitHub clones, no video.
  * - Page addresses are fetched from this Mac only (pi-web-access keeps hosted fetchers off by default).
  *
@@ -39,7 +40,7 @@ export const SETTINGS = {
 		webSearch: { enabled: true },
 		sourceCheck: { enabled: false },
 		fetchContent: { enabled: true },
-		getSearchContent: { enabled: true },
+		getSearchContent: { enabled: false },
 	},
 	toolActivation: "eager",
 	workflow: "none",
@@ -59,7 +60,7 @@ const texts = { type: "array", items: text };
 /** What the model sees of the web tools: one description and the parameters Pippa uses. */
 export const DECLARATIONS: Record<string, { description: string; parameters: Record<string, unknown> }> = {
 	web_search: {
-		description: "Search the web; results with links. More of a result: get_search_content with its responseId.",
+		description: "Search the web; results with links.",
 		parameters: { type: "object", properties: {
 			query: text,
 			queries: { ...texts, description: "Up to three different searches at once." },
@@ -69,15 +70,6 @@ export const DECLARATIONS: Record<string, { description: string; parameters: Rec
 	fetch_content: {
 		description: "Read a web page as text; urls for several at once.",
 		parameters: { type: "object", properties: { url: text, urls: texts } },
-	},
-	get_search_content: {
-		description: "Read more of a result stored by web_search or fetch_content.",
-		parameters: { type: "object", required: ["responseId"], properties: {
-			responseId: text,
-			url: text,
-			offset: { type: "integer", description: "Character to continue from." },
-			findText: { ...text, description: "Return only passages with this text." },
-		} },
 	},
 };
 

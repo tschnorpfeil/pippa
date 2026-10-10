@@ -4,25 +4,10 @@
 //   node --experimental-strip-types --test runtime/pippa-tools/assist.test.mjs
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 const { default: assist } = await import("./pippa-assist.ts");
-const { isFileSearch } = await import("./search-command.ts");
 const builtin = (name) => ({ name, sourceInfo: { path: `builtin:${name}`, source: "builtin" } });
 const tools = ["read", "write", "edit", "bash"].map(builtin);
-
-test("bundled Spotlight script is recognised exactly; shell injection and other scripts are not", () => {
-	const script = fileURLToPath(new URL("../pippa-skills/dateien-finden/scripts/search.mjs", import.meta.url));
-	assert.ok(isFileSearch(`node "${script}" --query "Zahnarzt" --year 2023`));
-	for (const cmd of [
-		`node /tmp/search.mjs --query Steuer`,
-		`node "${script}" --query "$(touch x)"`,
-		`node "${script}" --query Steuer; touch x`,
-		`node "${script}" --query Steuer --year 2023 --eval evil`,
-		`node "${script}" --query Steuer > x`,
-		`node "${script}" --query Steuer\nrm x`,
-	]) assert.ok(!isFileSearch(cmd), cmd);
-});
 
 test("loop brake: an identical call stops after two failures or four runs; other arguments still run", async () => {
 	const { loopBrake } = await import("./pippa-assist.ts");
@@ -101,14 +86,13 @@ test('loop stop is distinct from manual Stop and preserves actual search locatio
  assert.deepEqual(entries.filter(x=>x.type==='pippa-loop-stop').at(-1).data.files,[]);
 });
 
-test('verified search results are signalled only for the bundled script, not model-written JSON', async () => {
+test('verified search results are signalled only for search_files, not model-written JSON', async () => {
  const handlers={},entries=[];
   assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
  const ctx={};
- const script=fileURLToPath(new URL('../pippa-skills/dateien-finden/scripts/search.mjs',import.meta.url));
  const result={isError:false,content:[{type:'text',text:JSON.stringify({files:[{path:'/fake/Documents/beleg.pdf'}]})}]};
- await handlers.tool_call({toolName:'bash',toolCallId:'real',input:{command:`node "${script}" --query Kaution`}},ctx);
- await handlers.tool_result({...result,toolName:'bash',toolCallId:'real'},ctx);
+ await handlers.tool_call({toolName:'search_files',toolCallId:'real',input:{query:'Kaution'}},ctx);
+ await handlers.tool_result({...result,toolName:'search_files',toolCallId:'real'},ctx);
  await handlers.tool_call({toolName:'bash',toolCallId:'fake',input:{command:'echo result'}},ctx);
  await handlers.tool_result({...result,toolName:'bash',toolCallId:'fake'},ctx);
  const found=entries.filter(e=>e.type==='pippa-search-result');
@@ -119,13 +103,12 @@ test('loop stop preserves the search truncation flag with exactly 200 returned f
  const handlers={},entries=[];
   assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
  const ctx={abort:()=>{}};
- const script=fileURLToPath(new URL('../pippa-skills/dateien-finden/scripts/search.mjs',import.meta.url));
- const input={command:`node "${script}" --query Steuer`};
+ const input={query:'Steuer'};
  for(const truncated of [true,false]){
   await handlers.agent_start({});
   const files=truncated?Array.from({length:200},(_,i)=>({path:`/fake/Documents/${i}.pdf`})) : [];
   for(let i=0;i<7;i++){
-   const event={toolName:'bash',input,toolCallId:`cap-${truncated}-${i}`};
+   const event={toolName:'search_files',input,toolCallId:`cap-${truncated}-${i}`};
    if(!await handlers.tool_call(event,ctx))await handlers.tool_result({...event,isError:false,content:[{type:'text',text:JSON.stringify({files,truncated})}]},ctx);
   }
   const stop=entries.filter(x=>x.type==='pippa-loop-stop').at(-1).data;
@@ -149,21 +132,4 @@ test("today's date goes in front of each new message, a skill command stays firs
 	assert.equal(sent.action, "transform");
 	assert.match(sent.text, /^\[\d{4}-\d\d-\d\d, \w+day\]\nHallo$/);
 	assert.deepEqual(await handlers.input({ type: "input", text: "Stopp", source: "rpc", streamingBehavior: "steer" }), { action: "continue" });
-});
-
-test("a skill read at a guessed place goes to the bundled skill; real paths and other files stay", async () => {
-	const { bundledSkill } = await import("./pippa-assist.ts");
-	const skills = fileURLToPath(new URL("../pippa-skills/", import.meta.url));
-	const real = `${skills}dateien-finden/SKILL.md`;
-	assert.equal(bundledSkill("read", { path: "pippa-skills/dateien-finden/SKILL.md" }, "/tmp/pi-work"), real);
-	assert.equal(bundledSkill("read", { path: "/Users/x/Library/Application Support/Pippa/pi-work/pippa-skills/dateien-finden/SKILL.md" }, "/"), real);
-	assert.equal(bundledSkill("read", { path: real }, "/"), undefined, "already right");
-	assert.equal(bundledSkill("read", { path: "/tmp/nicht-da/SKILL.md" }, "/"), undefined, "no bundled skill of that name");
-	assert.equal(bundledSkill("read", { path: "/tmp/notiz.txt" }, "/"), undefined);
-	assert.equal(bundledSkill("bash", { path: "dateien-finden/SKILL.md" }, "/"), undefined);
-	const handlers = {};
-	assist({ on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
-	const event = { toolName: "read", toolCallId: "1", input: { path: "pippa-skills/dateien-finden/SKILL.md" } };
-	assert.equal(await handlers.tool_call(event, { cwd: "/tmp/pi-work" }), undefined);
-	assert.equal(event.input.path, real);
 });
