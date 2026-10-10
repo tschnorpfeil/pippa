@@ -249,6 +249,27 @@ public struct WorkReceipt: Codable, Sendable, Equatable {
     }
 }
 
+/// One step as the working view shows it (ThoughtLine.bubbles): a merged run of identical steps, running or done.
+public struct StepBubble: Sendable, Equatable, Identifiable {
+    /// Stable for the whole answer.
+    public var id: Int
+    public var text: String
+    public var kind: WorkStep.Kind?
+    /// What came of it ("3 Treffer"), once known.
+    public var outcome: String?
+    public var failed: Bool
+    /// How many identical steps in a row this stands for.
+    public var count: Int
+    public var running: Bool
+
+    public init(id: Int, text: String, kind: WorkStep.Kind? = nil, outcome: String? = nil, failed: Bool = false, count: Int = 1, running: Bool = false) {
+        self.id = id; self.text = text; self.kind = kind; self.outcome = outcome; self.failed = failed; self.count = count; self.running = running
+    }
+
+    /// For VoiceOver: "Suche in deinen Mails, 3 Treffer".
+    public var spoken: String { [text, outcome].compactMap { $0 }.joined(separator: ", ") }
+}
+
 /// State of the Thought Line for one answer at a time. Pure and deterministic: callers pass the request and the time.
 /// Events for another request, after Stop or after the end are dropped, so no stale phase survives a Stop or a switch.
 public struct ThoughtLine: Sendable, Equatable {
@@ -271,6 +292,8 @@ public struct ThoughtLine: Sendable, Equatable {
     /// Steps so far, oldest first (at most `maxSteps`); the open ones have no `finished` mark.
     public private(set) var steps: [WorkStep] = []
     private var finishedSteps = 0
+    /// Steps dropped from the front (beyond `maxSteps`), so bubble ids stay stable.
+    private var droppedSteps = 0
     private var stopped = false
 
     public init() {}
@@ -310,24 +333,49 @@ public struct ThoughtLine: Sendable, Equatable {
 
     public func showsElapsed(at now: Date) -> Bool { isVisible && elapsedSeconds(at: now) >= Self.elapsedThreshold }
 
-    /// The line's words: while Pi's own tools work, the running step itself ("Suche in deinen Mails …") instead of
-    /// the general "Working on it" plus the step; otherwise the phase with the step or detail beside it.
-    /// Once the seconds show, the trailing "…" goes: the counter already says it is still going.
-    public func words(showingElapsed: Bool) -> (title: String, detail: String?)? {
-        guard let phase, isVisible else { return nil }
-        var title = phase.title
-        var detail = currentStep ?? phase.detail
-        if phase == .working, let step = currentStep {
-            title = L("%@…", table: "Thought", step)
-            detail = nil
+    /// After this long Pippa says once, in her own words, that it takes a little longer (no seconds counter before).
+    public static let slowAfter: TimeInterval = 10
+
+    /// The steps as the chat and the pill show them, oldest first: identical steps in a row are merged into one
+    /// with a count ("Arbeite an deinem Mac" four times is one bubble ×4); the running one is marked.
+    public var bubbles: [StepBubble] {
+        let open = Set(openSteps.compactMap { $0 })
+        var result: [StepBubble] = []
+        for (index, step) in steps.enumerated() {
+            let running = open.contains(index)
+            // Same rule as WorkStep.merged (same words, same result); a repeat that is still running counts up at once.
+            if var last = result.last, last.text == step.text, last.kind == step.kind, !last.running,
+               running || (last.outcome == step.outcome && last.failed == (step.failed == true)) {
+                last.count += 1
+                last.outcome = step.outcome
+                last.failed = step.failed == true
+                last.running = running
+                result[result.count - 1] = last
+            } else {
+                result.append(StepBubble(id: droppedSteps + index, text: step.text, kind: step.kind, outcome: step.outcome,
+                                         failed: step.failed == true, count: 1, running: running))
+            }
         }
-        if showingElapsed { title = Self.withoutEllipsis(title) }
-        return (title, detail)
+        return result
     }
 
-    static func withoutEllipsis(_ text: String) -> String {
-        guard text.hasSuffix("…") else { return text }
-        return String(text.dropLast()).trimmingCharacters(in: .whitespaces)
+    /// Words only for something real the host does without a running step (reading a file, recognizing text, waking
+    /// up, condensing, a question, stopping). Starting, waiting for the first words and generic work say nothing:
+    /// Pippa's mark breathes instead.
+    public var phaseNote: (title: String, detail: String?)? {
+        guard let phase, isVisible, currentStep == nil else { return nil }
+        switch phase {
+        case .starting, .waitingForAnswer, .working, .writing: return nil
+        default: return (phase.title, phase.detail)
+        }
+    }
+
+    /// The one sentence for a long wait.
+    public static var slowNote: String { L("Taking a little longer, I’m on it.", table: "Thought") }
+
+    /// Long enough that a calm sentence helps ("Dauert etwas länger, ich bleib dran.").
+    public func isSlow(at now: Date) -> Bool {
+        isVisible && phase != .waitingForPerson && now.timeIntervalSince(startedAt ?? now) >= Self.slowAfter
     }
 
     public mutating func begin(_ request: UUID, at now: Date) {
@@ -372,7 +420,7 @@ public struct ThoughtLine: Sendable, Equatable {
             var stepIndex: Int?
             if let step, !step.isEmpty {
                 steps.append(WorkStep(text: step, kind: kind))
-                if steps.count > Self.maxSteps { steps.removeFirst(); openSteps = openSteps.map { $0.map { $0 - 1 }.flatMap { $0 >= 0 ? $0 : nil } } }
+                if steps.count > Self.maxSteps { steps.removeFirst(); droppedSteps += 1; openSteps = openSteps.map { $0.map { $0 - 1 }.flatMap { $0 >= 0 ? $0 : nil } } }
                 stepIndex = steps.count - 1
                 // Pi's own tools (no mapped phase) still move the line: "Working on it" with the step as detail.
                 if mapped == nil { mapped = .working }

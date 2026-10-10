@@ -1,7 +1,7 @@
 /* Thought Line: working status and receipt (ThoughtLine.swift). Plain verbs, no architecture words. */
+/* After ten seconds, once, instead of a seconds counter (ThoughtLine.isSlow). */
+"Taking a little longer, I’m on it." = "Dauert etwas länger, ich bleib dran.";
 "Answering…" = "Antwortet …";
-/* The running step as the line itself (ThoughtLine.words). */
-"%@…" = "%@ …";
 "Reading %@…" = "Lese %@ …";
 "%lld of %lld" = "%lld von %lld";
 "Recognizing text on page %lld of %lld…" = "Erkenne Text auf Seite %lld von %lld …";

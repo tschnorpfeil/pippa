@@ -13,3 +13,7 @@
 "1 earlier step" = "1 earlier step";
 "%lld earlier steps" = "%lld earlier steps";
 "Show All Steps" = "Show All Steps";
+/* State of one step chip while Pippa works (ThoughtLineView.StepChip), for VoiceOver. */
+"Running" = "Running";
+"Didn’t work" = "Didn’t work";
+"Done" = "Done";
