@@ -64,11 +64,13 @@ struct PiSetupContent: View {
                 Button(T("Load", table: "Settings")) { setup.load() }
                     .pippa(.primary, large: true)
                     .keyboardShortcut(.defaultAction)
+                    .accessibilityLabel(T("Load", table: "Settings"))
                 // Quiet way out (hotspot, no time): tidying, PDFs and text recognition work without the AI.
                 Button(T("Later", table: "Settings")) { setup.later() }
                     .buttonStyle(.plain)
                     .font(Fonts.hint)
                     .foregroundStyle(Theme.ink3)
+                    .accessibilityLabel(T("Later", table: "Settings"))
             }
             .padding(.top, 20)
             .padding(.bottom, 22)
