@@ -1,0 +1,310 @@
+[
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 1,
+  "task": "en-multi",
+  "lang": "en",
+  "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.\n\nAnswer in English.",
+  "autoGrade": "yes",
+  "autoNotes": {
+   "amountsFound": 5,
+   "sourced": 5,
+   "sumCorrect": true,
+   "decoyAmount": false
+  },
+  "toolCalls": 7,
+  "tools": [
+   {
+    "name": "read",
+    "args": {
+     "path": "<repo>/runtime/pippa-skills/dateien-finden/SKILL.md"
+    }
+   },
+   {
+    "name": "bash",
+    "args": {
+     "command": "node \"<repo>/runtime/pippa-skills/dateien-finden/scripts/search.mjs\" --query \"Rechnung\" --year 2024"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    }
+   },
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+    },
+    "at": 21991
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+    },
+    "at": 21991
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+    },
+    "at": 21991
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+    },
+    "at": 21991
+   },
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+    },
+    "at": 21991
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 2.642,
+  "firstWordSeconds": 11.864,
+  "totalSeconds": 66.013,
+  "modelRequests": [
+   {
+    "at": 202,
+    "status": 200
+   },
+   {
+    "at": 5031,
+    "status": 200
+   },
+   {
+    "at": 9814,
+    "status": 200
+   },
+   {
+    "at": 21994,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 1766,
+    "output": 57,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1823,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 461,
+    "output": 97,
+    "cacheRead": 1764,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2322,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 441,
+    "output": 275,
+    "cacheRead": 2223,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2939,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 1131,
+    "output": 975,
+    "cacheRead": 2662,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 4768,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 162,
+  "finalAnswer": "Here are your 2024 invoices and the total:\n\n| Invoice | Date | Amount |\n|---|---|---|\n| Furniture receipt (Bürostuhl, kaufbeleg.pdf) | 21.09.2024 | 249.00 EUR |\n| Electrician (Rechnung Nr. 2024-118, scan_0412.pdf) | 12.04.2024 | 142.80 EUR |\n| Painter (Rechnung Nr. 0228, handwerker.pdf) | 28.02.2024 | 310.00 EUR |\n| Dentist (invoice_7731.pdf) | 03.07.2024 | 95.00 EUR |\n| Bike shop (Rechnung 2024/311, r-2024-11.pdf) | 05.11.2024 | 68.50 EUR |\n\n**Total: 865.30 EUR**\n\nOne note: the furniture receipt explicitly says it was paid in cash (249.00 EUR). The other four invoices don't state a payment status, so the 865.30 EUR is the total of all five invoice amounts.",
+  "thinkingChars": 2961,
+  "receipts": [
+   {
+    "type": "pippa-search-result",
+    "data": {
+     "v": 1,
+     "files": [
+      "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+      "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf",
+      "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+      "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+      "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+     ]
+    }
+   }
+  ],
+  "diagnostics": ""
+ },
+ {
+  "variant": "A",
+  "model": "k2-horizon-7b",
+  "thinking": "medium",
+  "round": 1,
+  "task": "en-summary",
+  "lang": "en",
+  "prompt": "[Shown – Pippa has not read this; read what you need for the answer yourself]\nNewly shown:\n1. PDF „Brief_Hausverwaltung.pdf“, 3 pages, 17 KB – <repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf – read with mcp__pippa__read_document\n\nSummarize this letter briefly and tell me what I need to do.\n\nAnswer in English.",
+  "autoGrade": "partial",
+  "autoNotes": {
+   "read": true,
+   "deadline": true,
+   "form": false,
+   "windows": true,
+   "day": true,
+   "rent": true
+  },
+  "toolCalls": 1,
+  "tools": [
+   {
+    "name": "mcp__pippa__read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    }
+   }
+  ],
+  "mcp": [
+   {
+    "name": "read_document",
+    "args": {
+     "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+    },
+    "at": 3476
+   }
+  ],
+  "approvals": [],
+  "loopStopped": false,
+  "aborted": null,
+  "completed": true,
+  "firstTokenSeconds": 0.4,
+  "firstWordSeconds": 5.437,
+  "totalSeconds": 15.946,
+  "modelRequests": [
+   {
+    "at": 139,
+    "status": 200
+   },
+   {
+    "at": 3478,
+    "status": 200
+   }
+  ],
+  "httpErrors": [],
+  "usage": [
+   {
+    "input": 100,
+    "output": 76,
+    "cacheRead": 1738,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 1914,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   },
+   {
+    "input": 586,
+    "output": 276,
+    "cacheRead": 1836,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 2698,
+    "cost": {
+     "input": 0,
+     "output": 0,
+     "cacheRead": 0,
+     "cacheWrite": 0,
+     "total": 0
+    }
+   }
+  ],
+  "stopReasons": [
+   "toolUse",
+   "stop"
+  ],
+  "errors": [],
+  "piPeakRSSMB": 135,
+  "finalAnswer": "The letter is from your landlord (Hausverwaltung Beispiel GmbH). They are announcing window replacement work:\n\n- **Work dates:** 12–16 January 2027; your flat is scheduled for **13 January 2027, between 8 and 16:00**. The company doing the work is Glasbau Beispiel.\n- **What you must do:** Fill in and return the attached reply slip by **20 November 2026**, stating whether you will be home on 13 January or who will let the workers in. Also clear away window ledges and keep about a meter in front of the windows free. No need to move furniture; the floor will be covered.\n- **Rent effect:** Your monthly base rent increases by **€38.50 from 1 April 2027**. Operating cost advance stays the same.\n- **Your option:** You have a special termination right — you can terminate exceptionally by the end of the month following the date of this notice, with termination taking effect at the end of the next following month.\n- **Questions:** Contact Mr. Kurz at 01234 567890.\n\n**In short:** return the reply slip by 20 November 2026 and decide whether you'll be home on 13 January.",
+  "thinkingChars": 225,
+  "receipts": [],
+  "diagnostics": ""
+ }
+]

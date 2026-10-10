@@ -73,6 +73,9 @@ const MAIL = {
  body: 'Sehr geehrte Frau Beispiel,\n\nfür die Nebenkostenabrechnung 2026 benötigen wir Ihren aktuellen Zählerstand des Wasserzählers (Zähler-Nr. 4471) in Ihrer Wohnung. Bitte teilen Sie uns den Stand bis zum 31.10.2026 per Antwort auf diese Mail mit.\n\nMit freundlichen Grüßen\nIhre Hausverwaltung Beispiel GmbH',
 };
 
+// Like PiShownContext.englishNote: Pippa adds it after an English question (PIPPA_EN_NOTE=0 measures without it).
+const EN_NOTE = process.env.PIPPA_EN_NOTE === '0' ? '' : '\n\nAnswer in English.';
+
 export function shownPrompt(home, rel, shown, question, german = true) {
  const path = P(home, rel), name = rel.split('/').at(-1);
  const info = shown[path];
@@ -132,6 +135,6 @@ export const TASKS = [
    const anyRight = entries.some(e => /^2026-11-27$/.test(String(e.args?.date ?? '')));
    return { grade: grade(right, anyRight), notes: { entries: entries.map(e => ({ tool: e.name, date: e.args?.date, title: e.args?.title })) } };
   } },
- { id: 'en-multi', lang: 'en', prompt: () => 'Find all my invoices from 2024 and tell me how much I paid in total.', check: invoices },
- { id: 'en-summary', lang: 'en', prompt: (home, shown) => shownPrompt(home, LETTER, shown, 'Summarize this letter briefly and tell me what I need to do.', false), check: summary },
+ { id: 'en-multi', lang: 'en', prompt: () => 'Find all my invoices from 2024 and tell me how much I paid in total.' + EN_NOTE, check: invoices },
+ { id: 'en-summary', lang: 'en', prompt: (home, shown) => shownPrompt(home, LETTER, shown, 'Summarize this letter briefly and tell me what I need to do.' + EN_NOTE, false), check: summary },
 ];

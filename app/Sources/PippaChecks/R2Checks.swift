@@ -32,6 +32,13 @@ func runR2Checks() async {
     check("Shown: without shown items the message is exactly the question") {
         PiShownContext.prompt(.init(question: "Wie spät ist es?")) == "Wie spät ist es?"
     }
+    check("Shown: an English question gets the English note, a German one nothing") {
+        let english = PiShownContext.prompt(.init(question: "Find all my invoices from 2024 and tell me the total."))
+        let german = PiShownContext.prompt(.init(question: "Such alle Rechnungen aus 2024 und sag mir die Summe."))
+        let shown = PiShownContext.prompt(.init(question: "Summarize this letter briefly.", files: [URL(fileURLWithPath: "/tmp/brief.pdf")], language: "de"))
+        return english.hasSuffix("\n\n" + PiShownContext.englishNote) && german == "Such alle Rechnungen aus 2024 und sag mir die Summe."
+            && shown.hasSuffix("Summarize this letter briefly.\n\n" + PiShownContext.englishNote)
+    }
     check("Shown: path and tool per kind (PDF → read_document, folder → list_folder, mail with subject, table → read), question last") {
         let files = [letter, folder, mail, table, photo]
         let prompt = PiShownContext.prompt(.init(question: "Bis wann muss ich zahlen?", files: files, newFiles: files, language: "de"))
