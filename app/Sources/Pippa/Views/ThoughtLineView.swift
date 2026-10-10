@@ -1,11 +1,11 @@
 import PippaCore
 import SwiftUI
 
-/// While an answer is on its way: no generic status text and no seconds. Pippa's dot matrix breathes; each real step
+/// While an answer is on its way: no generic status text and no seconds. Pippa's rings take the shape of what she does (WorkShapeView); each real step
 /// appears as a small chip (a picture of what it touches, everyday words) and turns into what came of it. Identical
 /// steps in a row count up instead of repeating. Words appear only for something real the host does (reading a file,
 /// waking up, a question) and, after ten seconds, one calm sentence that it takes a little longer.
-/// With Reduce Motion chips appear without moving and the matrix stands still. Steps aside as soon as answer text arrives.
+/// With Reduce Motion chips appear without moving and the shape stands still. Steps aside as soon as answer text arrives.
 struct ThoughtLineView: View {
     var thought: ThoughtLine
     /// Where no Stop is in reach (compact surfaces), the line carries one.
@@ -23,8 +23,7 @@ struct ThoughtLineView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let phase = thought.phase, thought.isVisible {
                 HStack(alignment: .top, spacing: 10) {
-                    DotMatrixView(pattern: DotPattern(phase), reduceMotion: reduceMotion)
-                        .accessibilityHidden(true)
+                    WorkShapeView(shape: WorkShape(phase), reduceMotion: reduceMotion)
                     content(phase)
                     Spacer(minLength: 0)
                     if let onStop {

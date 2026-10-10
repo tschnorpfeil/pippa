@@ -87,7 +87,7 @@ public enum WorkPhase: Sendable, Equatable {
     /// Plain words, no architecture.
     public var title: String {
         switch self {
-        case .starting, .waitingForAnswer(continuing: false): L("Answering…", table: "Thought")
+        case .starting, .waitingForAnswer(continuing: false): L("Considering…", table: "Thought")
         case .reading(let name, _, _): L("Reading %@…", table: "Thought", name)
         case .recognizing(_, let page, let pages):
             pages > 1 ? L("Recognizing text on page %lld of %lld…", table: "Thought", page, pages) : L("Recognizing text…", table: "Thought")
