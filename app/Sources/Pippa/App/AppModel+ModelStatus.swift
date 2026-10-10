@@ -65,7 +65,8 @@ extension AppModel {
         if let reason = unsupportedReason { return reason }
         guard chatReadiness == .unavailable else { return nil }
         // While it loads, Apple Intelligence already answers simple questions (StartupBridgeChat): say that instead.
-        let bridged = PiRPCChat.isLive && StartupBridgeChat.systemModelAvailable
+        // Only then: before "Load" (or after "Later") nothing loads and the bridge does not answer.
+        let bridged = PiRPCChat.isLive && StartupBridgeChat.systemModelAvailable && piSetupGate == .wait
         var text = bridged ? T("I can already answer simple questions; for everything else my AI is still loading.", table: "App")
                            : T("I need my AI to answer.", table: "App")
         switch modelStatus {
