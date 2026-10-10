@@ -637,6 +637,10 @@ final class AppModel: ObservableObject {
     }
 
     func openInput() {
+        // The download question was only clicked away, not answered: it comes back instead of a chat that cannot answer.
+        if needsDownloadConsent, PiSetupController.shared?.deferred == false {
+            return show(.onboarding)
+        }
         selection = 0
         show(.input)
         composerFocus += 1
