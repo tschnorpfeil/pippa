@@ -150,3 +150,20 @@ test("today's date goes in front of each new message, a skill command stays firs
 	assert.match(sent.text, /^\[\d{4}-\d\d-\d\d, \w+day\]\nHallo$/);
 	assert.deepEqual(await handlers.input({ type: "input", text: "Stopp", source: "rpc", streamingBehavior: "steer" }), { action: "continue" });
 });
+
+test("a skill read at a guessed place goes to the bundled skill; real paths and other files stay", async () => {
+	const { bundledSkill } = await import("./pippa-assist.ts");
+	const skills = fileURLToPath(new URL("../pippa-skills/", import.meta.url));
+	const real = `${skills}dateien-finden/SKILL.md`;
+	assert.equal(bundledSkill("read", { path: "pippa-skills/dateien-finden/SKILL.md" }, "/tmp/pi-work"), real);
+	assert.equal(bundledSkill("read", { path: "/Users/x/Library/Application Support/Pippa/pi-work/pippa-skills/dateien-finden/SKILL.md" }, "/"), real);
+	assert.equal(bundledSkill("read", { path: real }, "/"), undefined, "already right");
+	assert.equal(bundledSkill("read", { path: "/tmp/nicht-da/SKILL.md" }, "/"), undefined, "no bundled skill of that name");
+	assert.equal(bundledSkill("read", { path: "/tmp/notiz.txt" }, "/"), undefined);
+	assert.equal(bundledSkill("bash", { path: "dateien-finden/SKILL.md" }, "/"), undefined);
+	const handlers = {};
+	assist({ on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
+	const event = { toolName: "read", toolCallId: "1", input: { path: "pippa-skills/dateien-finden/SKILL.md" } };
+	assert.equal(await handlers.tool_call(event, { cwd: "/tmp/pi-work" }), undefined);
+	assert.equal(event.input.path, real);
+});
