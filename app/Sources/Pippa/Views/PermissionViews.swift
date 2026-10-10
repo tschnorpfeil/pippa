@@ -20,6 +20,8 @@ final class PermissionsModel: ObservableObject {
 
     init(desk: any PermissionDesk) {
         self.desk = desk
+        // Known right away (no dialog, no waiting), so the page has its final height when the panel measures it.
+        rows = MacPermission.allCases.filter { desk.applies($0) }
         onboardingPending = DevSnapshot.directory == nil && !UserDefaults.standard.bool(forKey: Self.doneKey)
     }
 
