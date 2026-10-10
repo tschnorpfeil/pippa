@@ -10,12 +10,21 @@
  *   200 times, added the same reminder four times). Per answer an identical call that already failed twice, an
  *   identical change that already worked once, or any identical call run four times is stopped; after three stops the
  *   answer ends (session entry `pippa-loop-stop`, so Pippa can tell it apart from the person's Stop).
+ * - Call budget: a model can also wander without repeating itself (Qwen3.5 9B listed every folder and read all 21 PDFs
+ *   when the search came back empty: 48 calls, 4 minutes, a wrong total). After `MAX_CALLS` tool calls in one answer
+ *   every further call is stopped with the request to answer now; the measured tasks needed at most 14.
  * - File search results: the bundled Spotlight script's results become a session entry `pippa-search-result`, so
  *   Pippa shows the files found from the tool's output, never from the model's prose.
+ * - Skill path: `read` on `<name>/SKILL.md` at a guessed place (seen: the working folder) that does not exist is sent to
+ *   Pippa's bundled skill of that name, so a small model does not lose a step to "file not found".
  * - Today's date: each new message starts with "[2026-10-09, Friday]". The system prompt has no date so it stays the
  *   same (prompt cache); without one K2 searched the weather for a wrong "tomorrow". The line is saved with the
  *   message, so earlier turns never change. ISO date, no sentence: the answer follows the question's language.
  */
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { isFileSearch } from "./search-command.ts";
 
 type ExtensionAPI = any;
@@ -33,6 +42,15 @@ export function documentForRead(tool: string, input: any): string | undefined {
 	const path = String(input?.path ?? input?.file_path ?? "");
 	if (!DOCUMENT_TYPES.test(path)) return undefined;
 	return `Not read: '${path.split("/").pop()}' is a document (PDF, Word, image, mail or spreadsheet); read gives raw bytes. Call mcp__pippa__read_document with the same path instead.`;
+}
+
+/** Tool calls per answer before Pi is told to answer with what it has (docs/rebuild/measurements/model-compare). */
+export const MAX_CALLS = 20;
+
+/** Over budget: the reason Pi gets instead of the call. */
+export function overBudget(calls: number): string | undefined {
+	if (calls <= MAX_CALLS) return undefined;
+	return `Stopped: you already used ${MAX_CALLS} tool calls for this answer. Do not call any more tools. Answer the user now with what you found, and say in one short sentence what you could not check.`;
 }
 
 export interface LoopCount { runs: number; failures: number; successes: number }
@@ -87,6 +105,20 @@ export function withToday(text: string, line: string): string {
 	return space === -1 ? `${text} ${line}` : `${text.slice(0, space)} ${line}\n${text.slice(space + 1)}`;
 }
 
+/** Pippa's bundled skills, next to this file (runtime/pippa-tools -> runtime/pippa-skills, as in the app bundle). */
+const SKILLS = fileURLToPath(new URL("../pippa-skills/", import.meta.url));
+
+/** `read` of a `<name>/SKILL.md` that does not exist where the model looked: the bundled skill's path, otherwise `undefined`. */
+export function bundledSkill(tool: string, input: any, cwd: string, skills = SKILLS): string | undefined {
+	if (tool !== "read") return undefined;
+	const path = String(input?.path ?? "");
+	const name = path.match(/(?:^|\/)([a-z0-9-]+)\/SKILL\.md$/)?.[1];
+	if (!name) return undefined;
+	const given = path.startsWith("~/") ? join(homedir(), path.slice(2)) : isAbsolute(path) ? path : resolve(cwd, path);
+	const bundled = join(skills, name, "SKILL.md");
+	return given !== bundled && !existsSync(given) && existsSync(bundled) ? bundled : undefined;
+}
+
 /** Pi's own tool (not one a foreign extension registered under the same name). */
 function builtin(pi: ExtensionAPI, tool: string): boolean {
 	const source = pi.getAllTools?.().find((t: any) => t.name === tool)?.sourceInfo;
@@ -97,12 +129,13 @@ export default function (pi: ExtensionAPI) {
 	const counts = new Map<string, LoopCount>();
 	const keys = new Map<string, string>();
 	let stops = 0;
+	let calls = 0;
 	const searchCalls = new Set<string>();
 	const scriptCalls = new Set<string>();
 	const found = new Set<string>();
 	let searched = false;
 	let truncated = false;
-	const reset = () => { counts.clear(); keys.clear(); stops = 0; searchCalls.clear(); scriptCalls.clear(); found.clear(); searched = false; truncated = false; };
+	const reset = () => { counts.clear(); keys.clear(); stops = 0; calls = 0; searchCalls.clear(); scriptCalls.clear(); found.clear(); searched = false; truncated = false; };
 	// Only a new message; a message sent while Pi is still working (steering) is shown back as typed.
 	pi.on("input", async (event: any) => {
 		if (event?.streamingBehavior || typeof event?.text !== "string") return { action: "continue" };
@@ -113,9 +146,11 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("tool_call", async (event: any, ctx: any) => {
 		const tool: string = event.toolName;
+		const skill = bundledSkill(tool, event.input, ctx?.cwd ?? process.cwd());
+		if (skill) event.input.path = skill;
 		const document = documentForRead(tool, event.input);
 		if (document) return { block: true, reason: document };
-		const loop = loopBrake(counts, keys, event.toolCallId, tool, event.input, CHANGES.has(tool));
+		const loop = overBudget(++calls) ?? loopBrake(counts, keys, event.toolCallId, tool, event.input, CHANGES.has(tool));
 		if (loop) {
 			if (++stops === 3) {
 				pi.appendEntry("pippa-loop-stop", { v: 1, tool, searched, files: [...found].slice(0, 200), truncated: truncated || found.size > 200 });

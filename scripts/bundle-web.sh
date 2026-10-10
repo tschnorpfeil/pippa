@@ -35,6 +35,10 @@ mkdir -p "$STAGE"
 cp "$ROOT/runtime/pippa-web/package.json" "$ROOT/runtime/pippa-web/package-lock.json" "$ROOT/runtime/pippa-web/index.ts" "$STAGE/"
 # Only what Pi loads: no dev dependencies (the test-only Pi), no install scripts.
 (cd "$STAGE" && PATH="$NODE_DIR/bin:$PATH" npm_config_cache="$NPM_CACHE" "${NPM[@]}" ci --omit=dev --ignore-scripts --no-audit --no-fund)
+# The Pi packages are peers of pi-web-access, so npm installs them despite --omit=dev. The running Pi hands its own
+# copies to extensions (jiti aliases in Pi's extension loader), so they and their dangling .bin links go.
+rm -rf "$STAGE/node_modules/@earendil-works"
+find "$STAGE/node_modules/.bin" -type l ! -exec test -e {} \; -delete
 [[ ! -e "$STAGE/node_modules/@earendil-works/pi-coding-agent" ]] || { echo 'pippa-web ships its test-only Pi (dev dependency)' >&2; exit 1; }
 [[ -f "$STAGE/node_modules/pi-web-access/dist/index.js" ]] || { echo 'pi-web-access missing in pippa-web' >&2; exit 1; }
 mkdir -p "$APP/Contents/Helpers" "$APP/Contents/Resources"
