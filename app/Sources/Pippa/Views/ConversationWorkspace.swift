@@ -213,7 +213,7 @@ struct ConversationWorkspace: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Pippa").font(Fonts.head)
                 // Only a real topic: "New Conversation" says nothing (the empty chat shows that already).
-                if let title = chat.current?.title, title != L("New Conversation", table: "Core") {
+                if let title = chat.current?.title, title != ConversationStore.defaultTitle {
                     Text(title).font(Fonts.hint).foregroundStyle(Theme.ink3).lineLimit(1)
                 }
             }
