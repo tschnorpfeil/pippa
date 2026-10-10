@@ -343,7 +343,9 @@ public struct ThoughtLine: Sendable, Equatable {
         var result: [StepBubble] = []
         for (index, step) in steps.enumerated() {
             let running = open.contains(index)
-            if var last = result.last, last.text == step.text, last.kind == step.kind, !last.running {
+            // Same rule as WorkStep.merged (same words, same result); a repeat that is still running counts up at once.
+            if var last = result.last, last.text == step.text, last.kind == step.kind, !last.running,
+               running || (last.outcome == step.outcome && last.failed == (step.failed == true)) {
                 last.count += 1
                 last.outcome = step.outcome
                 last.failed = step.failed == true
