@@ -13,6 +13,9 @@ import Foundation
 /// - `--session-dir` in Pippa's support folder and `--session-id` per conversation (one Pi session per Pippa conversation).
 /// - `--system-prompt`: Pippa's own short prompt instead of "expert coding assistant"; fixed per language (prompt cache).
 /// - `--tools`: a fixed list (`tools`); `--no-skills --skill <bundle>`: only Pippa's skills.
+/// - Memory and context (pippa-memory.ts, pippa-context.ts): what Pippa knows about the person from `Paths.memoryFile`
+///   as its own prompt section, the `remember` tool, a quiet summary while the person reads, and a short handover into
+///   the session of a new topic. Without `memoryFile` (trial runs) nothing is kept beyond the process.
 public enum PippaPiLaunch {
     public struct Paths: Sendable {
         /// runtime/pippa-tools: pippa-tools.ts (list_folder, rename_or_move, move_files, move_to_trash),
@@ -24,9 +27,11 @@ public enum PippaPiLaunch {
         public var sessionDirectory: URL
         /// Pippa's skills (runtime/pippa-skills -> Contents/Resources/pippa-skills), loaded with `--skill`.
         public var skillsDirectory: URL?
-        public init(extensionsDirectory: URL, webExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil) {
+        /// "Was Pippa über dich weiß", e.g. ~/Library/Application Support/Pippa/memory.md; `nil`: kept only per process.
+        public var memoryFile: URL?
+        public init(extensionsDirectory: URL, webExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil, memoryFile: URL? = nil) {
             self.extensionsDirectory = extensionsDirectory; self.webExtension = webExtension; self.sessionDirectory = sessionDirectory
-            self.skillsDirectory = skillsDirectory
+            self.skillsDirectory = skillsDirectory; self.memoryFile = memoryFile
         }
     }
 
@@ -56,6 +61,7 @@ public enum PippaPiLaunch {
                                      environment: [String: String] = [:],
                                      mcp: (endpoint: MCPEndpoint, extension: URL)? = nil) -> PiRPCConfiguration {
         var env = launcher.environment.merging(environment) { $1 }
+        if let memory = paths.memoryFile { env[memoryVariable] = memory.path }
         env.merge(offlineEnvironment) { $1 }
         var configuration = PiRPCConfiguration(executable: launcher.executable, workingDirectory: workingDirectory, environment: env,
                                                extensions: extensions(paths),
@@ -65,9 +71,12 @@ public enum PippaPiLaunch {
         return configuration
     }
 
+    /// Where pippa-memory.ts keeps the person's facts.
+    public static let memoryVariable = "PIPPA_MEMORY_FILE"
+
     /// Extensions in load order (Pi loads `--extension`s before the person's extensions).
     public static func extensions(_ paths: Paths) -> [URL] {
-        ["pippa-tools.ts", "pippa-assist.ts"].map { paths.extensionsDirectory.appendingPathComponent($0) }
+        ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-context.ts"].map { paths.extensionsDirectory.appendingPathComponent($0) }
             + (paths.webExtension.map { [$0] } ?? [])
     }
 
@@ -87,10 +96,10 @@ public enum PippaPiLaunch {
 
     /// The tools Pi declares to the model, named explicitly so the person's `defaultTools` cannot widen or narrow
     /// them (cli.md "Tools"). Pi's read/bash/edit/write tools, Pippa's file tools (pippa-tools.ts), the web
-    /// (pi-web-access: search, read a page, read more of a stored page) and Pippa's MCP server. Names Pi does not
-    /// know are ignored.
+    /// (pi-web-access: search, read a page, read more of a stored page), Pippa's memory (pippa-memory.ts) and Pippa's
+    /// MCP server. Names Pi does not know are ignored.
     public static let tools = ["read", "bash", "edit", "write",
-                               "list_folder", "rename_or_move", "move_files", "move_to_trash",
+                               "list_folder", "rename_or_move", "move_files", "move_to_trash", "remember",
                                "web_search", "fetch_content", "get_search_content", "mcp__pippa__*"]
 
     /// Pi allows only letters, digits, `.`, `_`, `-` in session IDs, and a letter or digit at start and end

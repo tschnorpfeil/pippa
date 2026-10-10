@@ -24,6 +24,11 @@ public enum PiConversationDefault {
         support.appendingPathComponent("pi-work", isDirectory: true)
     }
 
+    /// "Was Pippa über dich weiß": one fact per line, written by Pi's `remember` tool (runtime/pippa-tools/pippa-memory.ts).
+    public static func memoryFile(support: URL) -> URL {
+        support.appendingPathComponent("memory.md")
+    }
+
     /// What a conversation shows while setup is not finished. Pi then does not start at all, instead of failing with
     /// a technical error.
     public enum SetupGate: Equatable, Sendable {

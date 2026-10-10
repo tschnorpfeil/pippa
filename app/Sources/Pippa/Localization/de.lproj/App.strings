@@ -93,7 +93,6 @@
 "Overview: %@" = "Übersicht: %@";
 "Found 1 deadline" = "1 Frist gefunden";
 "Found %lld deadlines" = "%lld Fristen gefunden";
-"I started a new conversation for this. You’ll find the previous one in the history." = "Dafür habe ich ein neues Gespräch angefangen. Das vorige findest du im Verlauf.";
 "Text" = "Text";
 "%lld files" = "%lld Dateien";
 "Link" = "Link";

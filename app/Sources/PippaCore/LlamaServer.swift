@@ -483,6 +483,21 @@ public actor LlamaServer {
         DiagnosticsLog.shared.event("llama-slot-geladen", ["status": String(status), "tokens": String(tokens), "dauer-ms": String(Int(seconds * 1000))])
     }
 
+    /// A direct model call (LocalEngine: classifying while tidying, letters, invoices) is about to use slot 0, which holds
+    /// Pi's conversation as prompt cache (`--parallel 1`). Save it first; `true`: saved, put it back with
+    /// `restoreConversationSlot()` afterwards. Without slot saving (old llama.cpp) nothing happens.
+    public func saveConversationSlot() async -> Bool {
+        guard slotsActive, state == .ready else { return false }
+        await saveSlot()
+        return lastSlotSave?.ok == true
+    }
+
+    /// Puts the conversation's prompt cache back into slot 0 after a direct model call.
+    public func restoreConversationSlot() async {
+        guard slotsActive, state == .ready else { return }
+        await restoreSlot()
+    }
+
     /// The saved slot is the last conversation as cache. If a conversation is deleted, it disappears with it
     /// (Pippa's own cache file; the running server keeps its memory until unloading).
     public func discardSavedSlot() {
@@ -514,10 +529,23 @@ public actor LlamaServer {
     }
 
     /// Never while starting (otherwise the start fails mid-load); on "warning" only without running work
-    /// (an agent lease counts), on "critical" always.
-    private func memoryPressure(critical: Bool) {
+    /// (an agent lease counts), after saving the conversation's prompt cache; on "critical" always and at once.
+    private func memoryPressure(critical: Bool) async {
         guard state != .starting else { return }
-        if critical || inFlight == 0 { stop() }
+        if critical { stop(); return }
+        guard inFlight == 0 else { return }
+        if slotsActive, state == .ready, adoptedPID == nil {
+            await saveSlot()
+            guard inFlight == 0, state == .ready else { return }
+        }
+        stop()
+    }
+
+    /// Quitting the app: save the conversation's prompt cache when nothing runs, then stop. The next start reads it back
+    /// (`restoreSlot`), so the first answer after a restart does not read the whole conversation again.
+    public func stopSavingConversation() async {
+        if slotsActive, state == .ready, inFlight == 0, adoptedPID == nil { await saveSlot() }
+        stop()
     }
 
     /// For development: every request with its response as a JSON line in PIPPA_MODEL_TRACE (recordings for checks).

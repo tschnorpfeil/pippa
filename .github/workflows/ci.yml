@@ -61,8 +61,13 @@ jobs:
         working-directory: runtime/pippa-web
         run: npm ci --ignore-scripts && npm test 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
-      - name: Pi extension tests (runtime/pippa-tools)
-        run: node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs 2>&1 | tail -n 200
+      - name: Pi extension tests (runtime/pippa-tools, memory and context also in the pinned Pi)
+        run: |
+          mkdir -p .build/pi-release
+          cp app/Packaging/pi-release/package.json app/Packaging/pi-release/package-lock.json .build/pi-release/
+          (cd .build/pi-release && npm ci --ignore-scripts --no-fund --no-audit --loglevel=error)
+          export PIPPA_PI_CLI="$PWD/.build/pi-release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"
+          node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
       - name: ChatGPT sign-in helper tests (runtime/pippa-auth)
         run: node --test runtime/pippa-auth/pi-auth.test.mjs 2>&1 | tail -n 200

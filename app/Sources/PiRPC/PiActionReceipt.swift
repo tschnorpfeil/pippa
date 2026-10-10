@@ -27,6 +27,9 @@ public struct PiTurnReceipt: Sendable {
     /// Tools that only read: no receipt line. `get_search_content` reads what a search or page already brought
     /// (pi-web-access keeps it on this Mac).
     public static let readOnlyTools: Set<String> = ["read", "grep", "find", "ls", "list_folder", "get_search_content"]
+    /// Pippa's own housekeeping, no receipt line either: `remember` (pippa-memory.ts) changes no file of the person's;
+    /// the answer itself says what Pippa will keep in mind.
+    public static let quietTools: Set<String> = ["remember"]
 
     private var order: [String] = []
     private var started: [String: (name: String, arguments: String)] = [:]
@@ -51,7 +54,7 @@ public struct PiTurnReceipt: Sendable {
     public var records: [PiActionRecord] {
         order.compactMap { id in
             let tool = started[id]?.name ?? ""
-            guard !Self.readOnlyTools.contains(tool) else { return nil }
+            guard !Self.readOnlyTools.contains(tool), !Self.quietTools.contains(tool) else { return nil }
             let outcome: PiActionRecord.Outcome = switch ended[id] {
             case .some(true): .failed
             case .some(false): .done
