@@ -18,12 +18,34 @@ public struct WorkStep: Codable, Sendable, Equatable {
     public var kind: Kind?
     /// The step did not work (file missing, no access, an error). Searches that found nothing did work.
     public var failed: Bool?
-    public init(text: String, outcome: String? = nil, kind: Kind? = nil, failed: Bool? = nil) {
-        self.text = text; self.outcome = outcome; self.kind = kind; self.failed = failed
+    /// How many identical steps in a row this one stands for (`nil`: just one). Only set by `merged`.
+    public var repeats: Int?
+    public init(text: String, outcome: String? = nil, kind: Kind? = nil, failed: Bool? = nil, repeats: Int? = nil) {
+        self.text = text; self.outcome = outcome; self.kind = kind; self.failed = failed; self.repeats = repeats
     }
 
     /// "Lese Brief.docx · nichts gefunden", for VoiceOver and receipts.
-    public var line: String { outcome.map { text + " · " + $0 } ?? text }
+    public var line: String {
+        let base = outcome.map { text + " · " + $0 } ?? text
+        guard let repeats, repeats > 1 else { return base }
+        return base + " · " + L("%lld times", table: "Thought", repeats)
+    }
+
+    /// Identical steps in a row (same words, same result) shown once with a count, so the list never says the same
+    /// thing four times. Order is kept; the same step after a different one stays its own row.
+    public static func merged(_ steps: [WorkStep]) -> [WorkStep] {
+        var result: [WorkStep] = []
+        for step in steps {
+            if var last = result.last, last.text == step.text, last.kind == step.kind, last.outcome == step.outcome,
+               (last.failed == true) == (step.failed == true) {
+                last.repeats = (last.repeats ?? 1) + (step.repeats ?? 1)
+                result[result.count - 1] = last
+            } else {
+                result.append(step)
+            }
+        }
+        return result
+    }
 }
 
 public enum WorkStepPhrase {
@@ -36,7 +58,7 @@ public enum WorkStepPhrase {
     /// The step for a tool that just started, with its kind; `nil` for bookkeeping tools that should not show up.
     public static func step(tool: String, arguments: String, home: String, cwd: String? = nil, language: String? = nil) -> WorkStep? {
         Describer(home: home, cwd: cwd, language: language).describe(tool: tool, arguments: arguments).map {
-            WorkStep(text: $0.text, kind: kind(tool: tool, result: $0.result))
+            WorkStep(text: $0.text, kind: $0.kind ?? kind(tool: tool, result: $0.result))
         }
     }
 
@@ -108,7 +130,11 @@ public enum WorkStepPhrase {
     }
 
     enum ResultKind { case none, file, matches, entries }
-    struct Described { var text: String; var result: ResultKind }
+    struct Described {
+        var text: String; var result: ResultKind
+        /// What the step touches when the command says so better than the tool does (AppleScript talking to Mail).
+        var kind: WorkStep.Kind? = nil
+    }
 
     // MARK: - Describer
 
@@ -286,6 +312,8 @@ public enum WorkStepPhrase {
             let generic = Described(text: l("Working on your Mac"), result: .none)
             // Substitution can hide anything: not interpreted.
             if command.contains("`") || command.contains("$(") || command.contains("<(") { return generic }
+            // A script handed to osascript on its own lines (`osascript <<EOF`) is read as a whole.
+            if command.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("osascript"), command.contains("\n") { return appleScript(command) ?? generic }
             var cwdNow = cwd
             for segment in Shell.segments(command) {
                 if segment.writesToFile { return generic }
@@ -357,8 +385,37 @@ public enum WorkStepPhrase {
             case "mv": return Described(text: l("Moving files"), result: .none)
             case "cp": return Described(text: l("Copying files"), result: .none)
             case "mkdir": return Described(text: l("Creating a folder"), result: .none)
+            case "osascript": return appleScript(args.filter { $0.quoted || !$0.text.hasPrefix("-") }.map(\.text).joined(separator: "\n"))
             default: return nil
             }
+        }
+
+        /// AppleScript is how Pi talks to Mail, Calendar, Notes and the rest: the app it addresses names the step.
+        /// The script itself is never shown; a script that names no app stays "Working on your Mac".
+        func appleScript(_ script: String) -> Described? {
+            guard let match = script.range(of: #"tell (application|app) "([^"]+)""#, options: [.regularExpression, .caseInsensitive]) else { return nil }
+            let quoted = script[match].split(separator: "\"")
+            guard quoted.count >= 2 else { return nil }
+            switch String(quoted[1]).lowercased() {
+            case "mail": return Described(text: l("Looking in your mail"), result: .none, kind: .mail)
+            case "calendar", "ical", "kalender": return Described(text: l("Looking in your calendar"), result: .none, kind: .calendar)
+            case "reminders", "erinnerungen": return Described(text: l("Looking at your reminders"), result: .none, kind: .reminder)
+            case "notes", "notizen": return Described(text: l("Looking in your notes"), result: .none)
+            case "contacts", "address book", "kontakte": return Described(text: l("Looking in your contacts"), result: .none)
+            case "finder", "system events": return nil
+            default:
+                guard let app = appName(String(quoted[1])) else { return nil }
+                return Described(text: l("Using %@", app), result: .none)
+            }
+        }
+
+        /// An app name as shown: letters, digits and spaces only, short; `nil` otherwise.
+        func appName(_ raw: String) -> String? {
+            var name = raw.trimmingCharacters(in: .whitespaces)
+            if name.hasSuffix(".app") { name.removeLast(4) }
+            name = (name as NSString).lastPathComponent
+            guard !name.isEmpty, name.count <= 24, name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == " " }) else { return nil }
+            return name
         }
 
         func findCommand(_ args: [Shell.Word]) -> Described? {

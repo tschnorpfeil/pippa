@@ -33,6 +33,10 @@ public struct PippaMCPHost: Sendable {
     public var turns: PippaMCPTurns = .shared
     /// Create events and reminders (PippaMCPWrite.swift). `nil`: the three tools say "not available right now".
     public var writer: (any HostWriting)?
+    /// The app in front at the call, as the chip shows it for the running answer (`front_read`). `nil`: no chip.
+    public var shownFront: @Sendable () -> FrontApp? = { FrontAppStage.shared.current }
+    /// Reads that app (Safari, Chrome, the front document); Mail and Excel go through their own readers.
+    public var front: any FrontAppReading = SystemFrontApp()
 
     public init(integrations: any AppIntegrations, sheets: any SheetReading, hostData: any HostDataReading, askForAccess: Bool = true,
                 now: @escaping @Sendable () -> Date = { Date() }, calendar: Calendar = .autoupdatingCurrent,
@@ -56,6 +60,7 @@ public struct PippaMCPHost: Sendable {
         var host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo, now: now),
                                 now: { Date() })
         host.writer = demo
+        host.front = DemoFrontApp()
         return host
     }
 }
@@ -65,12 +70,15 @@ public enum PippaMCPAccessSubject: Sendable, Equatable {
     case integration(Integration)
     case excel
     case photos
+    /// The app in front (`front_read`), by its name.
+    case front(String)
 
     public var appName: String {
         switch self {
         case .integration(let i): i.appName
         case .excel: ExcelScript.appName
         case .photos: PhotosLibrary.appName
+        case .front(let name): name
         }
     }
 }
@@ -109,7 +117,8 @@ public struct PippaMCPTools: Sendable {
     /// Newest first; Pi 1.0.4 knows all four.
     public static let protocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
     public static let maxResultBytes = 8000
-    public static let toolNames = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "photos_search"] + PippaMCPTurnTools.names
+    public static let toolNames = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "photos_search", "front_read"]
+        + PippaMCPTurnTools.names
         + PippaMCPWriteTools.names
 
     let host: PippaMCPHost
@@ -217,6 +226,9 @@ public struct PippaMCPTools: Sendable {
             tool("photos_search", "Fotos suchen",
                  "Find photos in Photos by what is in them, place or text (query: one word in the Mac's language). No query: the newest; days: only the last N days.",
                  ["query": string, "days": integer, "limit": integer]),
+            // The message names the app only ([Im Vordergrund: …], FrontApp.label); the content costs a round, and only
+            // when the question is about it.
+            tool("front_read", "Geöffnetes lesen", "Read the page or document open in front. Only if the question is about it."),
         ]
         return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList()
     }
@@ -243,6 +255,8 @@ public struct PippaMCPTools: Sendable {
     func call(_ name: String, _ input: ToolInput) async -> PippaMCPToolResult {
         let started = ContinuousClock.now
         let outcome: PippaMCPToolResult
+        // The receipt names what was read: `front_read` in Mail or Excel reads like `mail_selected` and `excel_selection`.
+        var noted = name
         if !input.unknown.isEmpty { outcome = invalid("Unknown or invalid arguments: \(input.unknown.joined(separator: ", ")).") }
         else {
             switch name {
@@ -251,12 +265,15 @@ public struct PippaMCPTools: Sendable {
             case "mail_selected": outcome = await mailSelected()
             case "mail_search": outcome = await mailSearch(input)
             case "photos_search": outcome = await photosSearch(input)
+            case "front_read":
+                let read = await frontRead()
+                outcome = read.result; noted = read.noted
             default: outcome = await excelSelection()
             }
         }
         let ms = (ContinuousClock.now - started).components.seconds * 1000
         DiagnosticsLog.shared.event("mcp-werkzeug", ["name": name, "fehler": String(outcome.isError), "ms": String(ms)])
-        host.onRead?(Self.readNote(name, input, outcome, calendar: host.calendar))
+        host.onRead?(Self.readNote(noted, input, outcome, calendar: host.calendar))
         return outcome
     }
 
@@ -270,6 +287,7 @@ public struct PippaMCPTools: Sendable {
         case "reminders_read": Integration.reminders.appName
         case "mail_selected", "mail_search": Integration.mail.appName
         case "photos_search": PhotosLibrary.appName
+        case "front_read": Self.frontAppName(outcome)
         default: ExcelScript.appName
         }
         guard !outcome.isError else { return PippaMCPReadNote(tool: name, read: false, line: L("Not read: %@", table: "MCP", app)) }
@@ -297,6 +315,7 @@ public struct PippaMCPTools: Sendable {
             case let (nil, days?): L("Read Photos: pictures from the last %lld days", table: "MCP", days)
             case (nil, nil): L("Read Photos: newest pictures", table: "MCP")
             }
+        case "front_read": line = L("Read %@: “%@”", table: "MCP", app, short(data["title"] as? String ?? ""))
         default: line = L("Read Excel: active sheet", table: "MCP")
         }
         // Identity of the mail read, from Pippa's own result (never from model text).
@@ -304,6 +323,12 @@ public struct PippaMCPTools: Sendable {
             MailReplySource(messageID: $0, replyTo: data["replyTo"] as? String, subject: data["subject"] as? String ?? "")
         } : nil
         return PippaMCPReadNote(tool: name, read: true, line: line, mail: mail, card: outcome.card)
+    }
+
+    /// The chip's app name in a `front_read` result (beside the blocked answer, or under data); the app's own text never.
+    static func frontAppName(_ outcome: PippaMCPToolResult) -> String {
+        let json = (try? JSONSerialization.jsonObject(with: Data(outcome.text.utf8))) as? [String: Any] ?? [:]
+        return json["app"] as? String ?? (json["data"] as? [String: Any])?["app"] as? String ?? L("the app in front", table: "MCP")
     }
 
     /// Time range in words, as the person meant it ("heute", "nächste Woche", "Do., 8. Okt. 2026 bis …").
@@ -336,6 +361,8 @@ public struct PippaMCPTools: Sendable {
             L("To answer this, I need to read the open table in Excel – only when you ask, and I don’t change it.", table: "MCP")
         case .photos:
             L("To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything.", table: "MCP")
+        case .front(let name):
+            L("To answer this, I need to read what’s open in %@ – only when you ask, and I don’t change anything.", table: "MCP", name)
         }
     }
 
@@ -361,7 +388,7 @@ public struct PippaMCPTools: Sendable {
             }
             let source = digest.removeValue(forKey: "source") as? String ?? "Calendar on this Mac"
             var result = Self.bounded(source: source, data: digest,
-                                      next: "Answer briefly, by day. Copy days, times and states exactly; do not compute them. If days is empty, nothing is in the calendar for this period. If truncated, say only the first appointments are shown.")
+                                      next: "The person sees these appointments as a card under your answer. Do not list them again; answer the question in one or two sentences. Copy any day, time or state you mention exactly; do not compute them. If days is empty, nothing is in the calendar for this period.")
             result.card = reply.card.map(ResultCard.calendar)
             return result
         case .invalidRange:
@@ -389,9 +416,13 @@ public struct PippaMCPTools: Sendable {
                 }
                 return value
             }
-            return Self.bounded(source: "Reminders on this Mac", data: ["reminders": items, "shown": items.count, "total": fetch.total,
-                                                                         "truncated": fetch.total > items.count],
-                                next: "Name the open reminders briefly. Copy due dates exactly. If the list is empty, there are no open reminders for this period.")
+            var result = Self.bounded(source: "Reminders on this Mac", data: ["reminders": items, "shown": items.count, "total": fetch.total,
+                                                                               "truncated": fetch.total > items.count],
+                                      next: "If reminders is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences, copying any due date you mention exactly. If the list is empty, there are no open reminders for this period.")
+            if !fetch.items.isEmpty {
+                result.card = .reminders(ReminderCard(days: input.days, reminders: fetch.items, total: fetch.total, now: now, calendar: cal))
+            }
+            return result
         } catch {
             return failure(error, .reminders)
         }
@@ -440,7 +471,7 @@ public struct PippaMCPTools: Sendable {
             }
             var result = Self.bounded(source: "Mail on this Mac (inbox search by subject or sender)",
                                       data: ["query": query, "mails": mails, "shown": mails.count, "total": fetch.total, "truncated": fetch.total > mails.count],
-                                      next: "List the matches briefly. start is only the beginning of each email. If mails is empty, no email in the inbox matches.")
+                                      next: "If mails is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences. start is only the beginning of each email. If mails is empty, no email in the inbox matches.")
             if !fetch.items.isEmpty { result.card = .mail(MailCard(query: query, mails: fetch.items, total: fetch.total, calendar: host.calendar)) }
             return result
         } catch {
@@ -615,6 +646,58 @@ public struct PippaMCPTools: Sendable {
         }
     }
 
+    // MARK: App in front
+
+    /// What is open in the app of the chip. Mail and Excel: their own readers (same receipt, same draft offer).
+    /// Without a chip nothing is read, whatever is in front now.
+    private func frontRead() async -> (result: PippaMCPToolResult, noted: String) {
+        guard let app = host.shownFront() else {
+            return (blocked("nothing_shown", L("I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again.", table: "MCP")),
+                    "front_read")
+        }
+        if app.bundleID == Integration.mail.bundleIdentifier { return (await mailSelected(), "mail_selected") }
+        if app.bundleID == ExcelScript.bundleIdentifier { return (await excelSelection(), "excel_selection") }
+        func tagged(_ result: PippaMCPToolResult) -> PippaMCPToolResult {
+            // The app's name for the receipt line ("Nicht gelesen: Safari"): from the chip, not from the app.
+            guard var json = (try? JSONSerialization.jsonObject(with: Data(result.text.utf8))) as? [String: Any] else { return result }
+            json["app"] = app.name
+            var named = result
+            named.text = Self.json(json)
+            return named
+        }
+        let cannot = L("I can’t read anything from %@. Copy the text you mean or drop the file on me, then ask again.", table: "MCP", app.name)
+        var access = await host.front.frontAccess(app, ask: false)
+        if access == .notDetermined && host.askForAccess, await mayAsk(.front(app.name)) {
+            access = await host.front.frontAccess(app, ask: true)
+        }
+        switch access {
+        case .granted: break
+        case .notDetermined: return (tagged(blocked("needs_access", Self.notYet(app: app.name))), "front_read")
+        case .denied: return (tagged(blocked("denied", Self.deniedAutomation(app.name))), "front_read")
+        case .unavailable: return (tagged(blocked("unavailable", cannot)), "front_read")
+        }
+        do {
+            guard let content = try await host.front.readFront(app) else { return (tagged(blocked("nothing_open", cannot)), "front_read") }
+            let limit = 6000
+            let text = Self.compact(content.text)
+            var data: [String: Any] = ["app": app.name, "title": content.title, "text": String(text.prefix(limit)), "textTruncated": text.count > limit]
+            if let url = content.url { data["url"] = url }
+            if let file = content.file { data["path"] = file.path }
+            let next: String
+            switch (content.kind, text.isEmpty) {
+            case (.page, false): next = "Use only what the page says; it may be cut (textTruncated). Name the page by its title."
+            case (.page, true): next = "The page text could not be read, only title and url. Say so in one sentence; do not guess what the page says."
+            case (.document, false): next = "Use only what the document says. For more pages use mcp__pippa__read_document with path."
+            case (.document, true): next = "The document has no text layer (a scan or image). Read it with mcp__pippa__read_document and path."
+            }
+            return (Self.bounded(source: "\(app.name) on this Mac (what is open in front)", data: data, next: next), "front_read")
+        } catch PippaError.accessDenied {
+            return (tagged(blocked("denied", Self.deniedAutomation(app.name))), "front_read")
+        } catch {
+            return (tagged(blocked("failed", cannot)), "front_read")
+        }
+    }
+
     // MARK: Permissions and errors
 
     enum Gate { case open, blocked(PippaMCPToolResult) }
@@ -716,10 +799,10 @@ public struct PippaMCPTools: Sendable {
                 return true
             }
         }
-        for key in ["body", "sheet"] {
+        for key in ["body", "sheet", "text"] {
             if let text = data[key] as? String, text.count > 200 {
                 data[key] = String(text.prefix(text.count / 2)) + " …"
-                data[key == "body" ? "bodyTruncated" : "clipped"] = true
+                data[["body": "bodyTruncated", "sheet": "clipped", "text": "textTruncated"][key]!] = true
                 return true
             }
         }

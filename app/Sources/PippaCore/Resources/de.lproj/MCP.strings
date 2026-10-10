@@ -54,6 +54,19 @@
 "To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything." = "Dafür muss ich in Fotos auf diesem Mac suchen und dir die Bilder hier zeigen – nur, wenn du fragst, und ich ändere nichts.";
 "Photos on this Mac · %lld found" = "Fotos auf diesem Mac · %lld gefunden";
 "Showing %lld of %lld. Search for “%@” in Photos to see all of them." = "%lld von %lld gezeigt. Such in Fotos nach „%@“, dann siehst du alle.";
+"Reminders · open" = "Erinnerungen · offen";
+"Reminders · due today" = "Erinnerungen · heute fällig";
+"Reminders · due in the next %lld days" = "Erinnerungen · fällig in den nächsten %lld Tagen";
+"Reminders on this Mac" = "Erinnerungen auf diesem Mac";
+"Reminders on this Mac · %lld of %lld" = "Erinnerungen auf diesem Mac · %lld von %lld";
+"From the web · looked up at %@" = "Aus dem Netz · nachgesehen um %@";
+
+/* App in front (front_read) */
+"the app in front" = "die App im Vordergrund";
+"Read %@: “%@”" = "%1$@ gelesen: „%2$@“";
+"To answer this, I need to read what’s open in %@ – only when you ask, and I don’t change anything." = "Dafür muss ich lesen, was in %@ offen ist – nur wenn du fragst, und ich ändere nichts.";
+"I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again." = "Ich sehe nicht, welche App du meinst. Kopier den Text oder zieh die Datei auf mich, dann frag noch einmal.";
+"I can’t read anything from %@. Copy the text you mean or drop the file on me, then ask again." = "Aus %@ kann ich nichts lesen. Kopier den Text oder zieh die Datei auf mich, dann frag noch einmal.";
 "Read Photos: pictures from today" = "Fotos gelesen: Bilder von heute";
 "Read Photos: pictures from the last %lld days" = "Fotos gelesen: Bilder der letzten %lld Tage";
 "Read Photos: newest pictures" = "Fotos gelesen: neueste Bilder";

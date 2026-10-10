@@ -590,6 +590,9 @@ struct ConversationWorkspace: View {
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let front = model.frontApp {
+                FrontAppChip(app: front) { model.dismissFrontApp() }
+            }
             composerAttachments
             if !model.pendingDrops.isEmpty {
                 HStack {

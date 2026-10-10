@@ -717,13 +717,14 @@ public enum IntegrationScripts {
     /// Name and text of all scripts, for `compileAll` and the check that none calls `send`.
     public static var sources: [(name: String, source: String)] {
         [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("Excel", ExcelScript.source),
-         ("PhotosSearch", PhotosSearchScript.source), ("PhotosShow", PhotosShowScript.source)]
+         ("PhotosSearch", PhotosSearchScript.source), ("PhotosShow", PhotosShowScript.source),
+         ("Safari", FrontAppScript.safari), ("Chrome", FrontAppScript.chrome), ("FrontDocument", FrontAppScript.documentSource)]
     }
 
     /// Scripts for apps that are not part of macOS. Their terms (`active workbook`, `used range` ...) exist only in the
     /// app's dictionary; without the app the script cannot be compiled (AppleScript then asks for the app).
-    /// CI has no Excel: there "Excel" is missing from the result of `compileAll` instead of being `false`.
-    public static let thirdPartyApps: [String: String] = ["Excel": ExcelScript.bundleIdentifier]
+    /// CI has no Excel: there "Excel" is missing from the result of `compileAll` instead of being `false`. Chrome likewise.
+    public static let thirdPartyApps: [String: String] = ["Excel": ExcelScript.bundleIdentifier, "Chrome": FrontApp.chrome]
 
     @MainActor
     public static func compileAll() -> [String: Bool] {
