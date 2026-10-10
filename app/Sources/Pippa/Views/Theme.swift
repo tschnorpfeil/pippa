@@ -578,7 +578,7 @@ extension View {
 }
 
 /// Close: 26 pt round, filled only on hover.
-/// Top right of a panel. Folding back into the pill shows arrows pointing inward, not an X:
+/// Top right of a panel. Folding back into the pill shows a chevron, not an X:
 /// an X reads as "quit", and nothing is lost here. Only something that really goes away (a toast) keeps the X.
 struct CloseButton: View {
     var action: () -> Void
@@ -587,7 +587,7 @@ struct CloseButton: View {
     private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
     var body: some View {
         Button(action: action) {
-            Image(systemName: collapses ? "arrow.down.right.and.arrow.up.left" : "xmark")
+            Image(systemName: collapses ? "chevron.down" : "xmark")
                 .font(.scaled(size: 11, weight: .semibold))
                 .foregroundStyle(hover ? Theme.ink2 : Theme.ink3)
                 .frame(width: 26, height: 26)
