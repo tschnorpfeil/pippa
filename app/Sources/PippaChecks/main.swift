@@ -526,6 +526,23 @@ check("Model: an unpinned table model is unavailable (never a download without a
     if case .failure(.modelUnavailable) = ModelSelector.choose(physicalMemory: 16 * GB, appleSilicon: true, catalog: catalog) { return true }
     return false
 }
+check("Model: superseded K2 goes after a table model answered; never the active one, never via a developer model") {
+    let folder = dir("superseded-models")
+    let catalog = ModelCatalog.bundled()
+    let k2 = ModelDownloader(directory: folder).localURL(catalog.model("k2-horizon-7b")!.pinned!.files[0])
+    let qwen = ModelDownloader(directory: folder).localURL(catalog.model("qwen3.5-9b-q4")!.pinned!.files[0])
+    func place() { for url in [k2, qwen] { write("x", url); write("sha", url.appendingPathExtension("ok")) } }
+    place()
+    let developer = SupersededModels.remove(activeModelID: "k2-horizon-7b", folder: folder, catalog: catalog)
+    let unknown = SupersededModels.remove(activeModelID: "qwen3-8b-q4", folder: folder, catalog: catalog)
+    let keptBoth = fm.fileExists(atPath: k2.path) && fm.fileExists(atPath: qwen.path)
+    let removed = SupersededModels.remove(activeModelID: "qwen3.5-9b-q4", folder: folder, catalog: catalog)
+    let again = SupersededModels.remove(activeModelID: "qwen3.5-9b-q4", folder: folder, catalog: catalog)
+    return developer.isEmpty && unknown.isEmpty && keptBoth && removed.count == 2
+        && !fm.fileExists(atPath: k2.path) && !fm.fileExists(atPath: k2.appendingPathExtension("ok").path)
+        && fm.fileExists(atPath: qwen.path) && fm.fileExists(atPath: qwen.appendingPathExtension("ok").path) && again.isEmpty
+        && !ModelSelector.tableKeys.contains(where: SupersededModels.keys.contains)
+}
 check("Model: Intel → not supported") {
     if case .failure(.unsupportedHardware) = ModelSelector.choose(physicalMemory: 32 * GB, appleSilicon: false) { return true }
     return false

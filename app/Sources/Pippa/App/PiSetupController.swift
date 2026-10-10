@@ -15,7 +15,8 @@ import SwiftUI
 /// New knowledge while the old one keeps working (`update`): after an app update whose table names a different model
 /// (e.g. the move from K2 Horizon 7B to Qwen3.5 9B), or after "Gründlicher" in settings, setup stays `.ready` with the previous model and
 /// offers the download ("Pippas Wissen jetzt laden (5,7 GB)"). After loading, models.json names the new model; Pi and the
-/// llama-server follow on the next request. The previous model's file stays on disk.
+/// llama-server follow on the next request. The previous model's file stays on disk; a superseded one (`SupersededModels`)
+/// is deleted after the new model has answered once.
 @MainActor
 final class PiSetupController: ObservableObject {
     /// Loading new knowledge beside a working one.
