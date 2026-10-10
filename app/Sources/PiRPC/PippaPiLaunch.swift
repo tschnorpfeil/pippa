@@ -74,7 +74,7 @@ public enum PippaPiLaunch {
     /// Where pippa-memory.ts keeps the person's facts.
     public static let memoryVariable = "PIPPA_MEMORY_FILE"
 
-    /// Extensions in load order (Pi loads `--extension`s before the person's extensions).
+    /// Extensions in load order. Only these load: `arguments` passes `--no-extensions`, which keeps explicit `--extension`s.
     public static func extensions(_ paths: Paths) -> [URL] {
         ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-context.ts"].map { paths.extensionsDirectory.appendingPathComponent($0) }
             + (paths.webExtension.map { [$0] } ?? [])
@@ -83,7 +83,9 @@ public enum PippaPiLaunch {
     /// Pi options except `--mode rpc` and `--extension` (set by PiRPCClient). `sessionID`: `nil` = do not
     /// save a session (`--no-session`, trial runs only).
     public static func arguments(paths: Paths, sessionID: String?, language: String) -> [String] {
-        var args = ["--no-context-files", "--no-approve", "--tools", tools.joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
+        // Without the person's own Pi extensions and packages: one that registers a tool of the same name (pi-web-access's
+        // web_search) makes Pi exit at startup, and every message failed.
+        var args = ["--no-context-files", "--no-extensions", "--no-approve", "--tools", tools.joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
         // Only Pippa's skills, so a same-named skill of the person never replaces the one a button means (PiSkillTurn).
         if let skills = paths.skillsDirectory { args += ["--no-skills", "--skill", skills.path] }
         if let sessionID {
