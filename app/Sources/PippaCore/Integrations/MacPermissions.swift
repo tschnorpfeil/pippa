@@ -12,6 +12,8 @@ public enum MacPermission: String, CaseIterable, Sendable, Identifiable {
     /// Desktop, Documents and Downloads: one row, one dialog per folder on first read.
     case folders
     case iCloudDrive
+    /// Cloud folders of other providers (~/Library/CloudStorage), each its own dialog "files managed by …".
+    case oneDrive, dropbox, googleDrive
     case externalDrives
     case calendar
     case reminders
@@ -28,7 +30,7 @@ public enum MacPermission: String, CaseIterable, Sendable, Identifiable {
 
     public var group: Group {
         switch self {
-        case .folders, .iCloudDrive, .externalDrives: .files
+        case .folders, .iCloudDrive, .oneDrive, .dropbox, .googleDrive, .externalDrives: .files
         default: .apps
         }
     }
@@ -37,7 +39,7 @@ public enum MacPermission: String, CaseIterable, Sendable, Identifiable {
     public var usageKey: String {
         switch self {
         case .folders: "NSDesktopFolderUsageDescription"
-        case .iCloudDrive: "NSFileProviderDomainUsageDescription"
+        case .iCloudDrive, .oneDrive, .dropbox, .googleDrive: "NSFileProviderDomainUsageDescription"
         case .externalDrives: "NSRemovableVolumesUsageDescription"
         case .calendar: "NSCalendarsFullAccessUsageDescription"
         case .reminders: "NSRemindersFullAccessUsageDescription"
@@ -50,7 +52,7 @@ public enum MacPermission: String, CaseIterable, Sendable, Identifiable {
     /// Area in System Settings → Privacy & Security, for a permission that was declined.
     public var settingsURL: URL {
         let anchor = switch self {
-        case .folders, .iCloudDrive: "Privacy_FilesAndFolders"
+        case .folders, .iCloudDrive, .oneDrive, .dropbox, .googleDrive: "Privacy_FilesAndFolders"
         case .externalDrives: "Privacy_RemovableVolume"
         case .calendar: "Privacy_Calendars"
         case .reminders: "Privacy_Reminders"
@@ -120,6 +122,24 @@ public final class SystemPermissions: PermissionDesk, @unchecked Sendable {
 
     var iCloudFolder: URL { home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs", isDirectory: true) }
 
+    /// The provider's folders in ~/Library/CloudStorage ("OneDrive-Persönlich", "Dropbox", "GoogleDrive-name@…"), one per
+    /// account; an old Dropbox in ~/Dropbox counts too.
+    func cloudFolders(_ permission: MacPermission) -> [URL] {
+        let prefix: String
+        switch permission {
+        case .oneDrive: prefix = "OneDrive"
+        case .dropbox: prefix = "Dropbox"
+        case .googleDrive: prefix = "GoogleDrive"
+        default: return []
+        }
+        let storage = home.appendingPathComponent("Library/CloudStorage", isDirectory: true)
+        var found = ((try? FileManager.default.contentsOfDirectory(at: storage, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.lastPathComponent.hasPrefix(prefix) }
+        let legacy = home.appendingPathComponent("Dropbox", isDirectory: true)
+        if permission == .dropbox, found.isEmpty, FileManager.default.fileExists(atPath: legacy.path) { found.append(legacy) }
+        return found.sorted { $0.path < $1.path }
+    }
+
     /// Mounted drives that are not part of this Mac (USB sticks, external disks, SD cards).
     var externalVolumes: [URL] {
         let keys: [URLResourceKey] = [.volumeIsInternalKey, .volumeIsRootFileSystemKey, .volumeIsLocalKey]
@@ -134,6 +154,7 @@ public final class SystemPermissions: PermissionDesk, @unchecked Sendable {
         guard Bundle.main.object(forInfoDictionaryKey: permission.usageKey) != nil else { return false }
         switch permission {
         case .iCloudDrive: return FileManager.default.fileExists(atPath: iCloudFolder.path)
+        case .oneDrive, .dropbox, .googleDrive: return !cloudFolders(permission).isEmpty
         case .excel: return AppleEvents.isInstalled(bundle: ExcelScript.bundleIdentifier)
         default: return true
         }
@@ -145,6 +166,8 @@ public final class SystemPermissions: PermissionDesk, @unchecked Sendable {
             return await folderState(standardFolders, remembered: "folders", ask: false)
         case .iCloudDrive:
             return await folderState([iCloudFolder], remembered: "icloud", ask: false)
+        case .oneDrive, .dropbox, .googleDrive:
+            return await folderState(cloudFolders(permission), remembered: permission.rawValue, ask: false)
         case .externalDrives:
             if let known = remembered("external") { return known }
             return externalVolumes.isEmpty
@@ -168,6 +191,8 @@ public final class SystemPermissions: PermissionDesk, @unchecked Sendable {
             result = await folderState(standardFolders, remembered: "folders", ask: true)
         case .iCloudDrive:
             result = await folderState([iCloudFolder], remembered: "icloud", ask: true)
+        case .oneDrive, .dropbox, .googleDrive:
+            result = await folderState(cloudFolders(permission), remembered: permission.rawValue, ask: true)
         case .externalDrives:
             guard let volume = externalVolumes.first else { return await state(permission) }
             result = await Self.read([volume])
@@ -302,7 +327,7 @@ public final class DemoPermissions: PermissionDesk, @unchecked Sendable {
 
     public init(_ states: [MacPermission: PermissionState]? = nil) {
         self.states = states ?? [
-            .folders: .granted, .iCloudDrive: .notAsked,
+            .folders: .granted, .iCloudDrive: .notAsked, .oneDrive: .notAsked, .dropbox: .granted,
             .externalDrives: .unavailable(L("When you connect a drive, your Mac asks the first time Pippa opens it.", table: "Core")),
             .calendar: .granted, .reminders: .notAsked, .contacts: .notAsked, .photos: .denied,
             .mail: .granted, .notes: .notAsked, .excel: .notAsked,

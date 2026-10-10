@@ -224,6 +224,7 @@
 "Your apps" = "Deine Apps";
 "Your Mac asks you once for each. You can change it later in System Settings." = "Dein Mac fragt dich bei jedem Punkt einmal. Ändern kannst du es später in den Systemeinstellungen.";
 "What Pippa may do" = "Was Pippa darf";
-"Your Mac asks you once for each. Allow only what you need; you can change it later in Settings." = "Dein Mac fragt dich bei jedem Punkt einmal. Erlaube nur, was du brauchst. Ändern kannst du es später in den Einstellungen.";
+"Your Mac asks you once for each. You can change it later in Settings." = "Dein Mac fragt dich bei jedem Punkt einmal. Ändern kannst du es später in den Einstellungen.";
 "Pippa keeps loading her AI meanwhile · %lld %%" = "Pippa lädt nebenbei weiter · %lld %%";
 "Continue" = "Weiter";
+"For the files you keep in %@." = "Für die Dateien, die du in %@ ablegst.";

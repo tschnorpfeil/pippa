@@ -79,7 +79,7 @@
 	<key>NSRemovableVolumesUsageDescription</key>
 	<string>Pippa reads and tidies files on your USB sticks and external disks when you ask her to. You can undo her changes.</string>
 	<key>NSFileProviderDomainUsageDescription</key>
-	<string>Pippa reads and tidies files in your iCloud Drive when you ask her to. You can undo her changes.</string>
+	<string>Pippa reads and tidies files in your cloud folders (iCloud Drive, OneDrive, Dropbox, Google Drive) when you ask her to. You can undo her changes.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>When you ask, Pippa looks up addresses and phone numbers in your contacts. She doesn’t change them.</string>
 

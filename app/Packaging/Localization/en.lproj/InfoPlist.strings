@@ -12,6 +12,6 @@
 "NSDocumentsFolderUsageDescription" = "Pippa reads and tidies files in your Documents folder when you ask her to. You can undo her changes.";
 "NSDownloadsFolderUsageDescription" = "Pippa reads and tidies files in your Downloads folder when you ask her to. You can undo her changes.";
 "NSRemovableVolumesUsageDescription" = "Pippa reads and tidies files on your USB sticks and external disks when you ask her to. You can undo her changes.";
-"NSFileProviderDomainUsageDescription" = "Pippa reads and tidies files in your iCloud Drive when you ask her to. You can undo her changes.";
+"NSFileProviderDomainUsageDescription" = "Pippa reads and tidies files in your cloud folders (iCloud Drive, OneDrive, Dropbox, Google Drive) when you ask her to. You can undo her changes.";
 "NSContactsUsageDescription" = "When you ask, Pippa looks up addresses and phone numbers in your contacts. She doesn’t change them.";
 "File or Folder" = "File or Folder";

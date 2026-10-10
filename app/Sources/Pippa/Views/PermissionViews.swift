@@ -83,6 +83,9 @@ extension MacPermission {
         switch self {
         case .folders: T("Desktop, Documents and Downloads", table: "Settings")
         case .iCloudDrive: T("iCloud Drive", table: "Settings")
+        case .oneDrive: "OneDrive"
+        case .dropbox: "Dropbox"
+        case .googleDrive: "Google Drive"
         case .externalDrives: T("External drives", table: "Settings")
         case .calendar: T("Calendar", table: "Settings")
         case .reminders: T("Reminders", table: "Settings")
@@ -99,6 +102,7 @@ extension MacPermission {
         switch self {
         case .folders: T("So Pippa can find, read and tidy your files when you ask.", table: "Settings")
         case .iCloudDrive: T("For the files you keep in iCloud.", table: "Settings")
+        case .oneDrive, .dropbox, .googleDrive: T("For the files you keep in %@.", table: "Settings", title)
         case .externalDrives: T("For USB sticks and external disks.", table: "Settings")
         case .calendar: T("So Pippa can read your appointments and add deadlines.", table: "Settings")
         case .reminders: T("So Pippa can add deadlines as reminders.", table: "Settings")
@@ -114,6 +118,7 @@ extension MacPermission {
         switch self {
         case .folders: "folder.fill"
         case .iCloudDrive: "icloud.fill"
+        case .oneDrive, .dropbox, .googleDrive: "cloud.fill"
         case .externalDrives: "externaldrive.fill"
         case .calendar: "calendar"
         case .reminders: "checklist"
@@ -129,6 +134,9 @@ extension MacPermission {
         switch self {
         case .folders: .blue
         case .iCloudDrive: .cyan
+        case .oneDrive: .blue
+        case .dropbox: .indigo
+        case .googleDrive: .green
         case .externalDrives: .gray
         case .calendar: .red
         case .reminders: .orange
@@ -254,32 +262,37 @@ struct PermissionsOnboardingPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            MarkSlot(size: 40).padding(.top, 26).padding(.bottom, 12)
-            Text(T("What Pippa may do", table: "Settings"))
-                .font(Fonts.resultL)
-                .foregroundStyle(Theme.ink)
-                .multilineTextAlignment(.center)
-                .accessibilityAddTraits(.isHeader)
-                .stagger(0)
-            Text(T("Your Mac asks you once for each. Allow only what you need; you can change it later in Settings.", table: "Settings"))
-                .font(Fonts.body)
-                .foregroundStyle(Theme.ink2)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 8)
-                .padding(.horizontal, 32)
-                .stagger(1)
-            if case .downloading(let progress, _) = setup.state {
-                Text(T("Pippa keeps loading her AI meanwhile · %lld %%", table: "Settings", Int((progress * 100).rounded())))
-                    .font(Fonts.hint)
-                    .foregroundStyle(Theme.ink3)
-                    .monospacedDigit()
-                    .padding(.top, 6)
+            HStack(spacing: 12) {
+                MarkSlot(size: 32)
+                Text(T("What Pippa may do", table: "Settings"))
+                    .font(Fonts.resultL)
+                    .foregroundStyle(Theme.ink)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 0)
             }
-            PermissionGroups(permissions: permissions)
-                .padding(.horizontal, 20)
-                .padding(.top, 18)
-                .stagger(2)
+            .padding(.top, 22)
+            .padding(.horizontal, 24)
+            .stagger(0)
+            Text(subtitle)
+                .font(Fonts.hint)
+                .foregroundStyle(Theme.ink2)
+                .monospacedDigit()
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 6)
+                .padding(.horizontal, 24)
+                .stagger(1)
+            // Only the rows scroll: the heading and "Continue" always stay in view, also on a small screen.
+            ScrollView(.vertical) {
+                PermissionGroups(permissions: permissions)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+            }
+            .scrollIndicators(.automatic)
+            .frame(height: Self.listHeight(rows: permissions.rows.count))
+            .overlay(alignment: .top) { Theme.hair.frame(height: 0.5) }
+            .overlay(alignment: .bottom) { Theme.hair.frame(height: 0.5) }
+            .stagger(2)
             ActionBar {
                 Button(T("Continue", table: "Settings")) { permissions.finishOnboarding() }
                     .pippa(.primary)
@@ -290,6 +303,22 @@ struct PermissionsOnboardingPage: View {
         .overlay(alignment: .topTrailing) {
             CloseButton { setup.later() }.padding(12)
         }
+    }
+
+    private var subtitle: String {
+        var text = T("Your Mac asks you once for each. You can change it later in Settings.", table: "Settings")
+        if case .downloading(let progress, _) = setup.state {
+            text += "\n" + T("Pippa keeps loading her AI meanwhile · %lld %%", table: "Settings", Int((progress * 100).rounded()))
+        }
+        return text
+    }
+
+    /// All rows if they fit, otherwise what the panel has room for (heading and buttons take about 190 pt).
+    static func listHeight(rows: Int) -> CGFloat {
+        let wanted = CGFloat(max(rows, 1)) * 58 + 92
+        let screen = (NSScreen.main?.visibleFrame.height ?? 800) - 2 * max(ShellTokens.screenInset, 20)
+        let room = min(DevSnapshot.workspaceSize.height, screen) - 190
+        return max(150, min(wanted, room))
     }
 
     /// After "Load" (or with the AI already here), as long as the page has not been finished once.
