@@ -50,3 +50,7 @@
 "Pippa couldn’t add to %@ just now. Nothing was changed." = "Pippa couldn’t add to %@ just now. Nothing was changed.";
 "Mail on this Mac" = "Mail on this Mac";
 "Mail on this Mac · %lld of %lld" = "Mail on this Mac · %lld of %lld";
+"Searched Photos for “%@”: %lld found" = "Searched Photos for “%@”: %lld found";
+"To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything." = "To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything.";
+"Photos on this Mac · %lld found" = "Photos on this Mac · %lld found";
+"Showing %lld of %lld. Search for “%@” in Photos to see all of them." = "Showing %lld of %lld. Search for “%@” in Photos to see all of them.";

@@ -6,6 +6,7 @@ import Foundation
 public enum ResultCard: Codable, Sendable, Equatable {
     case calendar(CalendarCard)
     case mail(MailCard)
+    case photos(PhotoCard)
 }
 
 /// Mails a search found: sender, subject, date, the start of the text; a click opens the mail in Mail.

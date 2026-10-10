@@ -262,3 +262,5 @@
 "Puts this sentence into the input field" = "Schreibt diesen Satz ins Eingabefeld";
 "Asks the same question again" = "Stellt dieselbe Frage noch einmal";
 "“%@” in Mail" = "„%@“ in Mail";
+"“%@” in Photos" = "„%@“ in Fotos";
+"Open in Photos" = "In Fotos öffnen";

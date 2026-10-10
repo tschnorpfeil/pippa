@@ -83,6 +83,8 @@ struct ResultCardsView: View {
                 case .calendar(let calendar): CalendarCardView(card: calendar, text: nil)
                 case .mail(let mail) where !mail.items.isEmpty: MailCardView(card: mail)
                 case .mail: EmptyView()
+                case .photos(let photos) where !photos.items.isEmpty: PhotoCardView(card: photos)
+                case .photos: EmptyView()
                 }
             }
         }

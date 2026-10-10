@@ -32,6 +32,18 @@ func runResultCardChecks() async {
         let old = try? JSONDecoder().decode(ActionReceipt.self, from: Data(#"{"items":[{"action":"tool","outcome":"done","name":"read"}]}"#.utf8))
         return round?.cards == [mail] && old != nil && old?.cards == nil && ActionReceipt(items: [], cards: []).cards == nil
     }
+    await checkAsync("Photos card: stored with the answer next to a mail card and read back the same (Codable)") {
+        let photos = try await PippaMCPHost.demo().hostData.searchPhotos("Fahrrad", limit: 12)
+        guard !photos.items.isEmpty else { return false }
+        let card = ResultCard.photos(PhotoCard(query: "Fahrrad", items: photos.items.map {
+            PhotoCard.Item(id: $0.id, date: $0.date, dateLabel: "x", label: $0.title.isEmpty ? $0.filename : $0.title)
+        }, total: photos.total, previews: false, footer: "Fotos auf diesem Mac · 2 gefunden", truncatedNote: nil))
+        let mail = ResultCard.mail(MailCard(query: "Berger", mails: [DemoHostData.sampleMails[0]], total: 1, calendar: berlin))
+        let receipt = ActionReceipt(items: [ActionReceipt.Item(action: "read", outcome: "done", name: "Fotos durchsucht")], cards: [card, mail])
+        let round = (try? JSONEncoder().encode(receipt)).flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }
+        guard case .photos(let back)? = round?.cards?.first else { return false }
+        return round?.cards == [card, mail] && back.items.map(\.id) == ["DEMO-0001/L0/001", "DEMO-0002/L0/001"] && back.items.first?.date != nil
+    }
     check("A card from a newer app (unknown kind) is dropped; the receipt and the other cards still open") {
         let mail = ResultCard.mail(MailCard(query: "Berger", mails: [DemoHostData.sampleMails[0]], total: 1, calendar: berlin))
         guard let data = try? JSONEncoder().encode(ActionReceipt(items: [ActionReceipt.Item(action: "tool", outcome: "done", name: "read")], cards: [mail])),
