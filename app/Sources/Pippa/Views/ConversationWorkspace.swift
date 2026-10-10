@@ -664,14 +664,20 @@ struct KnowledgeStatus: View {
 
     var body: some View {
         if let progress = model.progressValue, !model.downloadStalled {
+            // The one big wait of the first start: a bar across the width with the percent beside it, easy to see.
             HStack(spacing: 10) {
-                ThinProgress(value: progress, height: 4).frame(width: 96)
+                ThinProgress(value: progress, height: 6).frame(maxWidth: .infinity)
                     .accessibilityLabel(T("Pippa is loading her AI", table: "Settings"))
                     .accessibilityValue(T("%lld%%", table: "Settings", Int((progress * 100).rounded())))
                 if showsText, let text = model.learningText {
                     Text(text).font(Fonts.hint.monospacedDigit()).foregroundStyle(Theme.ink3).lineLimit(1)
+                } else {
+                    Text(T("%lld%%", table: "Settings", Int((progress * 100).rounded())))
+                        .font(Fonts.hint.monospacedDigit()).foregroundStyle(Theme.ink2)
+                        .accessibilityHidden(true)
                 }
             }
+            .padding(.top, 2)
         } else if model.needsDownloadConsent || model.downloadStalled || model.piSetupFailed {
             HStack(spacing: 10) {
                 if showsText, let text = model.learningText {
