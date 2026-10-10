@@ -12,14 +12,14 @@ func runPillStatusChecks() {
             && scan == PillStatus(tone: .working, label: "Lese den Scan · Seite 2/5", progress: 0.2)
             && single == PillStatus(tone: .working, label: "Reading Brief", progress: nil)
             && PillStatus.make(phase: .writing, language: "de").label == "Schreibe …"
-            && PillStatus.make(phase: .starting, language: "en").label == "Thinking…"
+            && PillStatus.make(phase: .starting, language: "en").label == "Pippa"
     }
 
-    check("Living pill: Pi's own step is shown shortened, a question needs the person, cold start keeps its bar") {
+    check("Living pill: a step stays in the thought bubble (the pill just says Pippa), a question needs the person, cold start keeps its bar") {
         let step = PillStatus.make(phase: .working, step: "Suche in deinen Dokumenten nach „Kaution 2019 Nebenkosten“", language: "de")
         let ask = PillStatus.make(phase: .waitingForPerson, outcome: .failed, language: "de")
         let cold = PillStatus.make(phase: .wakingUp(progress: 0.4), language: "de")
-        return step.tone == .working && step.label.count <= PillStatus.stepLimit && step.label.hasSuffix("…")
+        return step == PillStatus(tone: .working, label: "Pippa")
             && ask == PillStatus(tone: .needsYou, label: "Kurz eine Frage")
             && cold == PillStatus(tone: .working, label: "Pippa wird wach …", progress: 0.4)
     }

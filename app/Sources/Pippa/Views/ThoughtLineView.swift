@@ -93,20 +93,23 @@ struct ThoughtLineView: View {
     }
 }
 
-/// One step while Pippa works: a small picture, the everyday words, a count for repeated steps, and once done what came
-/// of it with a check. A step that did not work is marked, so a gap is never mistaken for "nothing there".
+/// One step while Pippa works, the same object as the thought bubble at the pill (PillAura.ThoughtBubble): a small
+/// picture, the everyday words, a count for repeated steps, and once done what came of it with a green check.
+/// A step that did not work is marked, so a gap is never mistaken for "nothing there".
 struct StepChip: View {
     var bubble: StepBubble
     var reduceMotion: Bool
 
+    private var found: Bool { !bubble.running && !bubble.failed }
+
     var body: some View {
         HStack(spacing: 7) {
-            Image(systemName: bubble.failed ? "exclamationmark.circle" : StepRow.symbol(bubble.kind))
-                .font(.scaled(size: 11.5, weight: .semibold))
-                .foregroundStyle(bubble.failed ? Theme.need : bubble.running ? Theme.accent : Theme.ok)
-                .frame(width: 15)
-            Text(bubble.text).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+            StepPicture(symbol: bubble.failed ? "exclamationmark" : StepRow.symbol(bubble.kind),
+                        color: StepPicture.color(bubble.kind, failed: bubble.failed), size: 20)
+            Text(bubble.outcome.map { bubble.text + " · " + $0 } ?? bubble.text)
+                .lineLimit(1).truncationMode(.middle).layoutPriority(1)
                 .foregroundStyle(bubble.running ? Theme.ink : Theme.ink2)
+                .contentTransition(reduceMotion ? .opacity : .interpolate)
             if bubble.count > 1 {
                 Text(verbatim: "×\(bubble.count)")
                     .font(.scaled(size: 11, weight: .bold, design: .rounded)).monospacedDigit()
@@ -115,19 +118,20 @@ struct StepChip: View {
                     .background(Theme.accentTint, in: Capsule())
                     .contentTransition(reduceMotion ? .identity : .numericText())
             }
-            if !bubble.running {
-                if let outcome = bubble.outcome {
-                    Text(outcome).foregroundStyle(bubble.failed ? Theme.need : Theme.ink3).lineLimit(1).fixedSize()
-                }
-                if !bubble.failed {
-                    Image(systemName: "checkmark").font(.scaled(size: 10, weight: .bold)).foregroundStyle(Theme.ok)
-                }
+            if found {
+                Image(systemName: "checkmark").font(.scaled(size: 10, weight: .heavy)).foregroundStyle(Theme.ok)
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.1).combined(with: .opacity))
             }
         }
         .font(.scaled(size: 13, weight: .semibold, design: .rounded))
-        .padding(.leading, 8).padding(.trailing, 11).padding(.vertical, 5)
-        .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
+        .padding(.leading, 5).padding(.trailing, 12).frame(minHeight: 30)
+        .background {
+            Capsule().fill(Theme.chatCard)
+            if found { Capsule().fill(Theme.okTint) }
+        }
+        .overlay { Capsule().strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
+        .shadow(color: Theme.shadowInk.opacity(0.06), radius: 4, y: 1)
+        .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: bubble)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(bubble.spoken)
         .accessibilityValue(bubble.running ? T("Running", table: "ThoughtUI") : bubble.failed ? T("Didn’t work", table: "ThoughtUI") : T("Done", table: "ThoughtUI"))
