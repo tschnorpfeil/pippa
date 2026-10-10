@@ -198,7 +198,8 @@ func runWorkStepChecks() {
         guard step("read", #"{"path":"~/Documents/Brief.docx"}"#) == .file, step("edit", #"{"path":"a.txt"}"#) == .change,
               step("bash", #"{"command":"find ~/Documents -name '*.pdf'"}"#) == .search, step("bash", #"{"command":"osascript -e x"}"#) == .mac,
               step("web_search", #"{"query":"Miete"}"#) == .online, step("mcp__pippa__mail_search", "{}") == .mail,
-              step("remember", "{}") == .memory, step("propose_actions", "{}") == nil else { return false }
+              step("remember", "{}") == .memory, step("mcp__pippa__search_files", #"{"query":"Miete"}"#) == .search,
+              step("move_files", "{}") == .change, step("propose_actions", "{}") == nil else { return false }
         let missing = WorkStepPhrase.ending(tool: "read", arguments: #"{"path":"x.pdf"}"#, isError: true, result: "ENOENT", home: home, language: "de")
         let nothing = WorkStepPhrase.ending(tool: "grep", arguments: #"{"pattern":"Miete"}"#, isError: true, result: "", home: home, language: "de")
         guard missing.failed, missing.outcome == "Datei nicht gefunden", !nothing.failed, nothing.outcome == "nichts gefunden" else { return false }

@@ -83,8 +83,8 @@ public enum WorkStepPhrase {
         if name.hasPrefix("mcp__pippa__") { name.removeFirst("mcp__pippa__".count) }
         switch name {
         case "read", "read_context", "read_document": return .file
-        case "edit", "write": return .change
-        case "ls", "find", "grep", "list_context", "list_plan_files": return .search
+        case "edit", "write", "move_files": return .change
+        case "ls", "find", "grep", "search_files", "list_context", "list_plan_files": return .search
         case "web_search", "read_web_page", "fetch_content", "get_search_content": return .online
         case "remember": return .memory
         case "bash":
