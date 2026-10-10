@@ -32,14 +32,11 @@ extension AppModel {
         guard !isActiveWork, let offer = message.calendar, offer.state == .needsAccess,
               CalendarConversation.pendingAccessOffer(in: conversations.current?.messages ?? [])?.id == message.id else { return }
         busy = true
-        awaitingSystemPrompt = true
         let engine = self.engine
         Task { [weak self] in
             let access = await engine.requestIntegrationAccess(.calendar)
             guard let self else { return }
             self.busy = false
-            // Releasing on "Allow" can arrive after the answer; only then let it collapse again, after a short delay.
-            Task { @MainActor [weak self] in try? await Task.sleep(for: .milliseconds(800)); self?.awaitingSystemPrompt = false }
             DiagnosticsLog.shared.event("kalender-freigabe", ["ergebnis": access == .granted ? "erlaubt" : "nicht-erlaubt"])
             switch access {
             case .granted:

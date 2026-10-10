@@ -41,8 +41,6 @@ final class AppModel: ObservableObject {
     }
     @Published private(set) var pendingDrops: [PendingDrop] = []
     @Published private(set) var composerFocus = 0
-    /// The system prompt (e.g. Calendar) is open: a click on it does not collapse the conversation.
-    var awaitingSystemPrompt = false
     @Published private(set) var parked: ShellMode? { didSet { updateMark() } }
     /// An answer finished while only the pill was showing: the pill says so until the conversation is opened.
     @Published private(set) var pillOutcome: PillOutcome? { didSet { updateMark() } }
