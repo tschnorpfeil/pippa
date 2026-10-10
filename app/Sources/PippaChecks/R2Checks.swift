@@ -29,14 +29,22 @@ func runR2Checks() async {
 
     // MARK: Shown items in the message
 
-    check("Shown: without shown items the message is exactly the question") {
-        PiShownContext.prompt(.init(question: "Wie spät ist es?")) == "Wie spät ist es?"
+    check("Shown: without shown items the message is the question and its language note; too short to tell: no note") {
+        PiShownContext.prompt(.init(question: "Wie spät ist es heute?")) == "Wie spät ist es heute?\n\n" + PiShownContext.germanNote
+            && PiShownContext.prompt(.init(question: "Hallo")) == "Hallo"
+            // Tobias, 2026-10-10: greetings were taken for English, and the model then kept answering in English.
+            && PiShownContext.languageNote("Hey Pippa :)") == "" && PiShownContext.languageNote("Hi Pippa") == ""
+            && PiShownContext.languageNote("Wie viel?") == ""
     }
-    check("Shown: an English question gets the English note, a German one nothing") {
+    check("Shown: the answer language follows the question (English note, German note), also in an English app and with shown files") {
         let english = PiShownContext.prompt(.init(question: "Find all my invoices from 2024 and tell me the total."))
         let german = PiShownContext.prompt(.init(question: "Such alle Rechnungen aus 2024 und sag mir die Summe."))
+        // Tobias, 2026-10-10: answered in English before the German note existed.
+        let photos = PiShownContext.prompt(.init(question: "Kannst du mir das neuste Bild aus meiner Fotos app zeigen bitte", language: "en"))
         let shown = PiShownContext.prompt(.init(question: "Summarize this letter briefly.", files: [URL(fileURLWithPath: "/tmp/brief.pdf")], language: "de"))
-        return english.hasSuffix("\n\n" + PiShownContext.englishNote) && german == "Such alle Rechnungen aus 2024 und sag mir die Summe."
+        return english.hasSuffix("\n\n" + PiShownContext.englishNote)
+            && german == "Such alle Rechnungen aus 2024 und sag mir die Summe.\n\n" + PiShownContext.germanNote
+            && photos == "Kannst du mir das neuste Bild aus meiner Fotos app zeigen bitte\n\n" + PiShownContext.germanNote
             && shown.hasSuffix("Summarize this letter briefly.\n\n" + PiShownContext.englishNote)
     }
     check("Shown: path and tool per kind (PDF → read_document, folder → list_folder, mail with subject, table → read), question last") {
@@ -52,7 +60,7 @@ func runR2Checks() async {
             && dirLine.contains("Ordner") && dirLine.contains("2 Einträge") && dirLine.hasSuffix("list_folder")
             && mailLine.contains("Einladung Sommerfest") && mailLine.hasSuffix("mcp__pippa__read_document")
             && tsv.hasSuffix("read") && img.contains("Bild") && img.hasSuffix("mcp__pippa__read_document")
-            && lines.last == "Bis wann muss ich zahlen?" && !prompt.contains("1.234,56")
+            && prompt.hasSuffix("\nBis wann muss ich zahlen?" + PiShownContext.languageNote("Bis wann muss ich zahlen?")) && !prompt.contains("1.234,56")
     }
     check("Shown: already shown → name and path only; several → \"gemeint\" marker on the focused one") {
         let prompt = PiShownContext.prompt(.init(question: "Und das andere?", files: [letter, mail], newFiles: [mail], focused: [mail], language: "de"))
