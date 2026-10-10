@@ -45,3 +45,20 @@ llama-server eines anderen Threads fertig war. Rohdaten: `raw-en2/`.
   Das lässt sich mit einer Zeile im System-Prompt nicht beheben.
 - Inhaltlich (Rubrik ohne Sprachabzug): 11/12 richtig; K2 r2 en-multi deutete „bezahlt“ als „nur eine Rechnung als
   bezahlt markiert“.
+
+## Englisch-Hinweis: „Answer in English.“ an der Frage (PR #19, 9803c01) — 10.10.2026
+
+Englische Fragen bekommen wie in Pippa (`PiShownContext.englishNote`) den Satz „Answer in English.“ angehängt
+(`tasks.mjs`, `EN_NOTE`). Prompt-Zeile wie bei der Gegenprobe. en-multi und en-summary, je 3× A und B abwechselnd,
+frischer Server je Block, keine Wartezeit. Rohdaten und Bewertung: `raw-en3/` (`grades.json`).
+
+| | K2 | Qwen |
+|---|---|---|
+| Englische Antwort (vorher ohne Hinweis: 3/6 bzw. 1/6) | **6/6** | **6/6** |
+| ja/teilweise/nein | 5/1/0 | 5/0/1 |
+
+- Der Hinweis löst das Sprachproblem bei beiden Modellen vollständig.
+- K2 r2 en-multi: alle Beträge richtig, aber als Summe nur die eine als „bar bezahlt“ markierte Rechnung (249,00).
+- **Qwen r1 en-multi:** wieder ein Ausreißer mit 48 Werkzeugaufrufen (232 s), liest jede Datei, zählt die Nebenkosten
+  (3.270,00) mit, falsche Summe. Schon zum zweiten Mal (prompt-fix r2 ebenso, 48 Aufrufe): bei Qwen und offener
+  Dateisuche greift Pippas Schleifenbremse nicht, weil jeder Aufruf eine andere Datei liest.
