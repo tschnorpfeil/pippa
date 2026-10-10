@@ -206,3 +206,12 @@
 "Remembering that" = "Remembering that";
 "Loading my AI · %lld%%" = "Loading my AI · %lld%%";
 "Searching your photos" = "Searching your photos";
+"Remembered: “%@” (instead of “%@”)" = "Remembered: “%@” (instead of “%@”)";
+"Remembered: “%@”" = "Remembered: “%@”";
+"Forgot everything Pippa knew about you" = "Forgot everything Pippa knew about you";
+"Nothing to forget for “%@”" = "Nothing to forget for “%@”";
+"Forgot: “%@”" = "Forgot: “%@”";
+"Nothing remembered" = "Nothing remembered";
+"Not remembered" = "Not remembered";
+"Not forgotten" = "Not forgotten";
+"Unclear whether Pippa remembered it" = "Unclear whether Pippa remembered it";

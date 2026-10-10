@@ -20,19 +20,23 @@ public struct PiActionRecord: Sendable, Equatable {
     public var outcome: Outcome
     public var name: String?
     public var toName: String?
+    /// `nothingMatched`: `remember` had nothing to forget (from the tool's own result).
+    public var reason: String? = nil
 }
 
 /// Collects the events of one answer (one `prompt` up to `agent_settled`, including late-delivered messages).
 public struct PiTurnReceipt: Sendable {
     /// Tools that only read: no receipt line.
     public static let readOnlyTools: Set<String> = ["read", "grep", "find", "ls", "list_folder", "search_files"]
-    /// Pippa's own housekeeping, no receipt line either: `remember` (pippa-memory.ts) changes no file of the person's;
-    /// the answer itself says what Pippa will keep in mind.
-    public static let quietTools: Set<String> = ["remember"]
+    /// Pippa's own housekeeping without a receipt line. `remember` (pippa-memory.ts) gets one: "Gemerkt: …" is how the
+    /// person sees what Pippa keeps about them, from the call's own arguments.
+    public static let quietTools: Set<String> = []
 
     private var order: [String] = []
     private var started: [String: (name: String, arguments: String)] = [:]
     private var ended: [String: Bool] = [:]
+    /// `remember` calls whose forget found nothing (the tool says so in its result, without an error).
+    private var forgotNothing: Set<String> = []
     /// For the sources card (PippaCore `WebSourcesCard`), never from the model's text: addresses of pages Pi read
     /// (`fetch_content`, from the call's arguments) and the results of searches (`web_search`, the tool's own output).
     public private(set) var webPagesRead: [String] = []
@@ -54,6 +58,8 @@ public struct PiTurnReceipt: Sendable {
                 webPagesRead += (args?["urls"] as? [String]) ?? (args?["url"] as? String).map { [$0] } ?? []
             } else if name == "web_search" {
                 webSearchResults.append(result)
+            } else if name == "remember", result.contains("Nothing matched to forget") {
+                forgotNothing.insert(id)
             }
         default:
             break
@@ -77,7 +83,8 @@ public struct PiTurnReceipt: Sendable {
                                       outcome: outcome, name: own, toName: nil)
             }
             let (action, name, toName) = Self.fallback(tool: tool, arguments: started[id]?.arguments ?? "")
-            return PiActionRecord(toolCallId: id, tool: tool, action: action, outcome: outcome, name: name, toName: toName)
+            return PiActionRecord(toolCallId: id, tool: tool, action: action, outcome: outcome, name: name, toName: toName,
+                                  reason: forgotNothing.contains(id) ? "nothingMatched" : nil)
         }
     }
 
@@ -103,6 +110,14 @@ public struct PiTurnReceipt: Sendable {
                     into.isEmpty ? nil : into.joined(separator: ", "))
         case "move_to_trash": return ("trash", name, nil)
         case "bash", "powershell": return ("command", nil, nil)
+        // Pippa's memory: what was kept (`add`) and what was let go (`forget`), one line each, shortened.
+        case "remember":
+            func short(_ key: String) -> String? {
+                guard let text = args?[key] as? String else { return nil }
+                let one = text.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+                return one.isEmpty ? nil : one.count > 120 ? String(one.prefix(119)) + "…" : one
+            }
+            return ("remember", short("add"), short("forget"))
         // pi-web-access: exactly what went out, from the call's own arguments (never from the model's text).
         case "web_search":
             let queries = (args?["queries"] as? [String]) ?? (args?["query"] as? String).map { [$0] } ?? []

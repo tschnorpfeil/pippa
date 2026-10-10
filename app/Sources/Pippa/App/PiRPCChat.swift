@@ -550,7 +550,8 @@ final class PiRPCChat {
                 if let index = pendingWrites.firstIndex(where: { $0.action == action }) { return pendingWrites.remove(at: index).item }
                 return ActionReceipt.Item(action: "tool", outcome: record.outcome.rawValue, name: record.name)
             }
-            return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName)
+            return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName,
+                                      reason: record.reason)
         }
         // Online sources after Pippa's own cards: from the web tools' arguments and results, never from the model.
         let queries = receipt.records.filter { $0.action == "webSearch" && $0.outcome == .done }

@@ -28,6 +28,30 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
 
         public var happened: Bool { outcome == "done" }
 
+        /// Pippa's memory (`remember`): `name` what was kept, `toName` what was let go ("*": everything).
+        func memoryLine(language: String?) -> String {
+            switch (outcome, name, toName) {
+            case ("done", let added?, let forgot?) where reason != "nothingMatched":
+                return L("Remembered: “%@” (instead of “%@”)", table: "Thought", language: language, added, forgot)
+            case ("done", let added?, _):
+                return L("Remembered: “%@”", table: "Thought", language: language, added)
+            case ("done", nil, "*"?) where reason != "nothingMatched":
+                return L("Forgot everything Pippa knew about you", table: "Thought", language: language)
+            case ("done", nil, let forgot?):
+                return reason == "nothingMatched" ? L("Nothing to forget for “%@”", table: "Thought", language: language, forgot)
+                    : L("Forgot: “%@”", table: "Thought", language: language, forgot)
+            case ("done", nil, nil):
+                return L("Nothing remembered", table: "Thought", language: language)
+            // Not kept is often something Pippa refuses to keep (account numbers, passwords): never repeat it here.
+            case ("failed", _?, _), ("blocked", _?, _):
+                return L("Not remembered", table: "Thought", language: language)
+            case ("failed", nil, _?), ("blocked", nil, _?):
+                return L("Not forgotten", table: "Thought", language: language)
+            default:
+                return L("Unclear whether Pippa remembered it", table: "Thought", language: language)
+            }
+        }
+
         /// "Online nachgesehen: „Wetter morgen Köln“" and the honest counterparts. `name` is the shown text.
         func webLine(language: String?) -> String {
             let page = action == "webPage"
@@ -80,6 +104,7 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
             }
             // Event, reminder, mail draft via Pippa's MCP server (ActionReceipt+Apps.swift).
             if Self.appActions.contains(action) { return appLine(language: language) }
+            if action == "remember" { return memoryLine(language: language) }
             // Look up online on the Pi RPC path (pi-web-access, PiTurnReceipt): exactly what went out.
             if action == "webSearch" || action == "webPage" { return webLine(language: language) }
             // Request to the own online service via Pippa's broker (`name`: the service).

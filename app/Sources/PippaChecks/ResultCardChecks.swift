@@ -119,4 +119,15 @@ func runResultCardChecks() async {
             && (try? JSONEncoder().encode(ActionReceipt(items: [], cards: [.web(card)])))
                 .flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }?.cards == [.web(card)]
     }
+    check("Memory line: what Pippa kept or let go, never the text of something it refused to keep") {
+        func de(_ outcome: String, _ add: String?, _ forget: String?, _ reason: String? = nil) -> String {
+            ActionReceipt.Item(action: "remember", outcome: outcome, name: add, toName: forget, reason: reason).line(language: "de")
+        }
+        return de("done", "Meine Ärztin heißt Dr. Wolf", nil) == "Gemerkt: „Meine Ärztin heißt Dr. Wolf“"
+            && de("done", "Ärztin: Dr. Lang", "Dr. Wolf") == "Gemerkt: „Ärztin: Dr. Lang“ (statt „Dr. Wolf“)"
+            && de("done", nil, "Dr. Wolf") == "Vergessen: „Dr. Wolf“"
+            && de("done", nil, "Dr. Wolf", "nothingMatched") == "Nichts zu vergessen für „Dr. Wolf“"
+            && de("done", nil, "*") == "Alles vergessen, was Pippa über dich wusste"
+            && de("failed", "IBAN DE89 3704 0044 0532 0130 00", nil) == "Nicht gemerkt"
+    }
 }
