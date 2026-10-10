@@ -139,7 +139,7 @@ func runWorkStepChecks() {
         let tools: [(String, String)] = [
             ("read", #"{"path":"/Users/anna/A.md"}"#), ("read", "{}"), ("edit", "{}"), ("write", "{}"), ("ls", "{}"), ("find", "{}"), ("grep", "{}"),
             ("mcp__pippa__calendar_read", "{}"), ("mcp__pippa__calendar_add", "{}"), ("mcp__pippa__mail_search", "{}"), ("mcp__pippa__mail_selected", "{}"),
-            ("mcp__pippa__mail_draft", "{}"), ("mcp__pippa__reminders_read", "{}"), ("mcp__pippa__reminder_add", "{}"), ("mcp__pippa__read_document", "{}"),
+            ("mcp__pippa__photos_search", "{}"), ("mcp__pippa__mail_draft", "{}"), ("mcp__pippa__reminders_read", "{}"), ("mcp__pippa__reminder_add", "{}"), ("mcp__pippa__read_document", "{}"),
             ("mcp__pippa__read_document", #"{"name":"A.pdf"}"#), ("mcp__pippa__list_context", "{}"), ("web_search", "{}"), ("fetch_content", "{}"),
         ]
         let commands = ["ls", "ls ~", "ls ~/Desktop", "ls ~/Documents", "ls ~/Downloads", "ls ~/Pictures", "ls /Volumes/Stick", "ls /Users/anna/x", "find ~ -name '*.md'",

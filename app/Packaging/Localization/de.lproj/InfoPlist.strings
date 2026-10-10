@@ -6,7 +6,8 @@
 "NSHumanReadableCopyright" = "© __YEAR__ Tobias Schnorpfeil.";
 "NSCalendarsFullAccessUsageDescription" = "Wenn du fragst, liest Pippa deine Termine für den Zeitraum, nach dem du fragst, und trägt Fristen aus deinen Briefen in den Kalender ein, die Pippa auch wieder entfernen kann.";
 "NSRemindersFullAccessUsageDescription" = "Pippa trägt Fristen aus deinen Briefen in Erinnerungen ein, wenn du es sagst, und kann sie wieder entfernen.";
-"NSAppleEventsUsageDescription" = "Pippa liest die Mail, die du in Mail ausgewählt hast, und die Tabelle, die du in Excel ansiehst. Ohne deine Freigabe wird nichts verschickt.";
+"NSAppleEventsUsageDescription" = "Pippa liest die Mail, die du in Mail ausgewählt hast, und die Tabelle, die du in Excel ansiehst, und sucht in Fotos nach den Bildern, nach denen du fragst. Ohne deine Freigabe wird nichts verschickt.";
+"NSPhotoLibraryUsageDescription" = "Wenn du nach Bildern fragst, zeigt Pippa dir die passenden Fotos aus deiner Mediathek. Sie ändert nichts und lädt nichts hoch.";
 "NSDesktopFolderUsageDescription" = "Pippa liest und ordnet Dateien auf deinem Schreibtisch, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
 "NSDocumentsFolderUsageDescription" = "Pippa liest und ordnet Dateien in deinem Ordner „Dokumente“, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
 "NSDownloadsFolderUsageDescription" = "Pippa liest und ordnet Dateien in deinem Ordner „Downloads“, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";

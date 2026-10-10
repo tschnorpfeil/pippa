@@ -5,10 +5,12 @@
   start Pi in the user's home folder). Only rights the Hardened Runtime itself requires are listed here.
 
   - automation.apple-events: the Hardened Runtime otherwise blocks Apple Events (macOS still asks per target app,
-    text: NSAppleEventsUsageDescription). Pippa uses it only to read the selected mail and the active sheet in Excel
-    (NSAppleScript in its own process, no osascript) and to create unsent drafts in Mail.
+    text: NSAppleEventsUsageDescription). Pippa uses it only to read the selected mail and the active sheet in Excel,
+    to search Photos (NSAppleScript in its own process, no osascript) and to create unsent drafts in Mail.
   - personal-information.calendars: Hardened Runtime right for EventKit; covers Calendar AND Reminders (there is no
     separate right for Reminders). Without it macOS refuses silently, without a prompt.
+  - personal-information.photos-library: Hardened Runtime right for PhotoKit (NSPhotoLibraryUsageDescription): previews
+    of the photos Pippa's Photos search found. The search itself goes through Apple Events (automation for Photos).
 
   Dropped with the sandbox (effective only inside it): app-sandbox, files.user-selected.read-write,
   files.bookmarks.app-scope, files.downloads.read-write, network.client, network.server,
@@ -24,6 +26,8 @@
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
 	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<key>com.apple.security.personal-information.photos-library</key>
 	<true/>
 </dict>
 </plist>

@@ -106,7 +106,7 @@ public enum WorkStepPhrase {
         switch name {
         case "read", "read_context", "read_document": return .file
         case "edit", "write", "move_files": return .change
-        case "ls", "find", "grep", "search_files", "list_context", "list_plan_files": return .search
+        case "ls", "find", "grep", "search_files", "list_context", "list_plan_files", "photos_search": return .search
         case "web_search", "read_web_page", "fetch_content", "get_search_content": return .online
         case "remember": return .memory
         case "bash":
@@ -175,6 +175,7 @@ public enum WorkStepPhrase {
             case "calendar_add": return Described(text: l("Adding a calendar entry"), result: .none)
             case "mail_search": return Described(text: l("Searching your mail"), result: .none)
             case "mail_selected": return Described(text: l("Reading the selected mail"), result: .none)
+            case "photos_search": return Described(text: l("Searching your photos"), result: .none)
             case "remember": return Described(text: l("Remembering that"), result: .none)
             case "mail_draft": return Described(text: l("Writing a mail draft"), result: .none)
             case "reminders_read": return Described(text: l("Looking at your reminders"), result: .none)

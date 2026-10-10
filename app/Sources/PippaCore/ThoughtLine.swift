@@ -87,7 +87,7 @@ public enum WorkPhase: Sendable, Equatable {
     /// Plain words, no architecture.
     public var title: String {
         switch self {
-        case .starting, .waitingForAnswer(continuing: false): L("Preparing your answer…", table: "Thought")
+        case .starting, .waitingForAnswer(continuing: false): L("Answering…", table: "Thought")
         case .reading(let name, _, _): L("Reading %@…", table: "Thought", name)
         case .recognizing(_, let page, let pages):
             pages > 1 ? L("Recognizing text on page %lld of %lld…", table: "Thought", page, pages) : L("Recognizing text…", table: "Thought")
@@ -309,6 +309,26 @@ public struct ThoughtLine: Sendable, Equatable {
     }
 
     public func showsElapsed(at now: Date) -> Bool { isVisible && elapsedSeconds(at: now) >= Self.elapsedThreshold }
+
+    /// The line's words: while Pi's own tools work, the running step itself ("Suche in deinen Mails …") instead of
+    /// the general "Working on it" plus the step; otherwise the phase with the step or detail beside it.
+    /// Once the seconds show, the trailing "…" goes: the counter already says it is still going.
+    public func words(showingElapsed: Bool) -> (title: String, detail: String?)? {
+        guard let phase, isVisible else { return nil }
+        var title = phase.title
+        var detail = currentStep ?? phase.detail
+        if phase == .working, let step = currentStep {
+            title = L("%@…", table: "Thought", step)
+            detail = nil
+        }
+        if showingElapsed { title = Self.withoutEllipsis(title) }
+        return (title, detail)
+    }
+
+    static func withoutEllipsis(_ text: String) -> String {
+        guard text.hasSuffix("…") else { return text }
+        return String(text.dropLast()).trimmingCharacters(in: .whitespaces)
+    }
 
     public mutating func begin(_ request: UUID, at now: Date) {
         self = ThoughtLine()

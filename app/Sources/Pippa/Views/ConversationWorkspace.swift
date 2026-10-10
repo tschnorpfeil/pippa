@@ -490,6 +490,8 @@ struct ConversationWorkspace: View {
                 }
                 if message.role == .assistant, let draft = message.mailDraft {
                     MailDraftCard(model: model, chat: chat, messageID: message.id, draft: draft)
+                } else if message.role == .assistant, let card = message.calendar?.card {
+                    CalendarCardView(card: card, text: message.text)
                 } else if message.role == .assistant {
                     AssistantAnswerView(text: message.text, files: message.attachments).equatable()
                         .contextMenu {
@@ -512,6 +514,9 @@ struct ConversationWorkspace: View {
                         .padding(message.role == .user ? 12 : 0)
                         .background(message.role == .user ? Theme.chatUser : .clear, in: RoundedRectangle(cornerRadius: 16))
                         .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
+                }
+                if message.role == .assistant, let cards = message.actions?.cards {
+                    ResultCardsView(cards: cards)
                 }
                 if let actions = message.actions {
                     ActionReceiptView(receipt: actions, disabled: chat.isRunning,

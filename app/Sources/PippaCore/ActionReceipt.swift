@@ -138,7 +138,26 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
     public var items: [Item]
     /// Added later (MailDraftOffer.swift): "Als Entwurf in Mail" under an answer without a draft. Missing in older histories.
     public var mailOffer: MailDraftOffer?
-    public init(items: [Item], mailOffer: MailDraftOffer? = nil) { self.items = items; self.mailOffer = mailOffer }
+    /// What reading tools returned, as cards under the answer (ResultCard). Missing in older histories.
+    public var cards: [ResultCard]?
+    public init(items: [Item], mailOffer: MailDraftOffer? = nil, cards: [ResultCard]? = nil) {
+        self.items = items; self.mailOffer = mailOffer; self.cards = cards?.isEmpty == false ? cards : nil
+    }
+
+    /// A card this version does not know (a newer app wrote it) or cannot read is dropped: the answer and its
+    /// receipt still open, the answer text stays the plain-text fallback.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        items = try c.decode([Item].self, forKey: .items)
+        mailOffer = try c.decodeIfPresent(MailDraftOffer.self, forKey: .mailOffer)
+        let known = (try? c.decodeIfPresent([LenientCard].self, forKey: .cards))?.compactMap(\.card)
+        cards = known?.isEmpty == false ? known : nil
+    }
+
+    private struct LenientCard: Decodable {
+        var card: ResultCard?
+        init(from decoder: Decoder) throws { card = try? ResultCard(from: decoder) }
+    }
 
     /// Lines without direct repetition (the same failed attempt twice → one line).
 

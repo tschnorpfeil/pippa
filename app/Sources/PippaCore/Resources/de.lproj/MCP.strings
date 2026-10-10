@@ -48,3 +48,9 @@
 "Pippa may not add to your calendar. To change that, open System Settings → Privacy & Security → Calendars and allow full access for Pippa." = "Pippa darf nichts in deinen Kalender eintragen. Um das zu ändern, öffne Systemeinstellungen → Datenschutz & Sicherheit → Kalender und erlaube Pippa vollen Zugriff.";
 "Pippa may not add reminders. To change that, open System Settings → Privacy & Security → Reminders and allow full access for Pippa." = "Pippa darf keine Erinnerungen anlegen. Um das zu ändern, öffne Systemeinstellungen → Datenschutz & Sicherheit → Erinnerungen und erlaube Pippa vollen Zugriff.";
 "Pippa couldn’t add to %@ just now. Nothing was changed." = "Pippa konnte gerade nichts in %@ eintragen. Es wurde nichts geändert.";
+"Mail on this Mac" = "Mail auf diesem Mac";
+"Mail on this Mac · %lld of %lld" = "Mail auf diesem Mac · %lld von %lld";
+"Searched Photos for “%@”: %lld found" = "Fotos durchsucht nach „%@“: %lld gefunden";
+"To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything." = "Dafür muss ich in Fotos auf diesem Mac suchen und dir die Bilder hier zeigen – nur, wenn du fragst, und ich ändere nichts.";
+"Photos on this Mac · %lld found" = "Fotos auf diesem Mac · %lld gefunden";
+"Showing %lld of %lld. Search for “%@” in Photos to see all of them." = "%lld von %lld gezeigt. Such in Fotos nach „%@“, dann siehst du alle.";

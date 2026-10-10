@@ -1,5 +1,7 @@
 /* Thought Line: working status and receipt (ThoughtLine.swift). Plain verbs, no architecture words. */
-"Preparing your answer…" = "Preparing your answer…";
+"Answering…" = "Answering…";
+/* The running step as the line itself (ThoughtLine.words). */
+"%@…" = "%@…";
 "Reading %@…" = "Reading %@…";
 "%lld of %lld" = "%lld of %lld";
 "Recognizing text on page %lld of %lld…" = "Recognizing text on page %lld of %lld…";
@@ -203,3 +205,4 @@
 "Drop something on me!" = "Drop something on me!";
 "Remembering that" = "Remembering that";
 "Loading my AI · %lld%%" = "Loading my AI · %lld%%";
+"Searching your photos" = "Searching your photos";
