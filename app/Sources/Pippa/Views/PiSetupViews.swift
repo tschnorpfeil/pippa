@@ -2,7 +2,7 @@ import PippaCore
 import SwiftUI
 
 // Welcome with setup (PiSetupController). No technical questions, no paths, no "Pi" and no
-// "Terminal" in the UI. With Reduce Motion everything stands still: dots without motion, examples change only
+// "Terminal" in the UI. With Reduce Motion everything stands still: the rings without motion, examples change only
 // on click and without cross-fade.
 
 struct PiSetupContent: View {
@@ -18,12 +18,12 @@ struct PiSetupContent: View {
                 waiting(title: T("Pippa is getting ready", table: "Settings"),
                         line: source.map { T("I’m taking over my AI from %@, without extra space …", table: "Settings", $0) }
                             ?? T("I’m setting myself up …", table: "Settings"),
-                        pattern: source == nil ? .sequence : .sweep, progress: nil, remaining: nil)
+                        progress: nil, remaining: nil)
             case .downloading(let progress, let remaining):
                 // Stuck (no new data for 30 s or offline): say so instead of a bar that silently stands still.
                 waiting(title: T("Pippa is loading her AI", table: "Settings"),
                         line: setup.stalled ? AppModel.offlineText : T("I’m loading my AI …", table: "Settings"),
-                        pattern: .fill, progress: progress, remaining: setup.stalled ? nil : remaining)
+                        progress: progress, remaining: setup.stalled ? nil : remaining)
             case .failed(let problem):
                 failed(problem)
             case .ready(let source):
@@ -88,11 +88,11 @@ struct PiSetupContent: View {
 
     // MARK: Setting up and loading
 
-    private func waiting(title: String, line: String, pattern: DotPattern, progress: Double?, remaining: TimeInterval?) -> some View {
+    private func waiting(title: String, line: String, progress: Double?, remaining: TimeInterval?) -> some View {
         VStack(spacing: 0) {
             head(title)
             VStack(spacing: 10) {
-                SetupThoughtLine(text: line, pattern: pattern, progress: progress, remaining: remaining)
+                SetupThoughtLine(text: line, progress: progress, remaining: remaining)
                 if let progress { ThinProgress(value: progress, height: 6) }
             }
             .padding(.horizontal, 28)
@@ -205,10 +205,9 @@ struct PiSetupContent: View {
     }
 }
 
-/// The setup's thought line: same dots as ThoughtLineView, one sentence, percent and time left on the right.
+/// The setup's thought line: Pippa's rings breathing awake as in ThoughtLineView, one sentence, percent and time left on the right.
 struct SetupThoughtLine: View {
     var text: String
-    var pattern: DotPattern
     var progress: Double?
     var remaining: TimeInterval?
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -216,7 +215,7 @@ struct SetupThoughtLine: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            DotMatrixView(pattern: pattern, reduceMotion: reduceMotion)
+            WorkShapeView(shape: .wake, reduceMotion: reduceMotion)
             Text(text).foregroundStyle(Theme.ink2).lineLimit(2).fixedSize(horizontal: false, vertical: true).layoutPriority(1)
             Spacer(minLength: 8)
             if let remaining, remaining > 0, (progress ?? 0) < 1 {
