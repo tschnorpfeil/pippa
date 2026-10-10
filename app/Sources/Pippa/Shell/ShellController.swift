@@ -7,6 +7,9 @@ import SwiftUI
 
 @MainActor
 final class ShellController: NSObject {
+    /// Height an expanded panel may take on its screen right now (pages with a scrolling list size it from this).
+    static var panelRoom: CGFloat = ShellTokens.workspaceMax.height
+
     let model: AppModel
     let panel: ShellPanel
     private let stage = StageView()
@@ -479,6 +482,7 @@ final class ShellController: NSObject {
                                                maximumSize: DevSnapshot.workspaceSize, inset: inset)
             }
             let place = workspace!
+            Self.panelRoom = place.bounds.height
             if ["line", "resume"].contains(model.mode.key) {
                 let width = min(Theme.inputWidth, place.bounds.width)
                 if model.compactInputWidth != width { model.compactInputWidth = width }

@@ -9,15 +9,31 @@ struct OnboardingContent: View {
     var body: some View {
         // Pi path (the default): setup without technical questions, the only question is the download.
         if let setup = PiSetupController.shared {
-            ViewThatFits(in: .vertical) {
-                PiSetupContent(model: model, setup: setup)
-                ScrollView(.vertical) { PiSetupContent(model: model, setup: setup) }.scrollIndicators(.automatic)
-            }
+            PiOnboarding(model: model, setup: setup, permissions: model.permissions)
         } else {
             // Give and the scan tools work independently of the local language model.
             ViewThatFits(in: .vertical) {
                 WelcomeContent(model: model)
                 ScrollView(.vertical) { WelcomeContent(model: model) }.scrollIndicators(.automatic)
+            }
+        }
+    }
+}
+
+/// After "Load", once: "What Pippa may do" (PermissionViews.swift), then the setup as before.
+private struct PiOnboarding: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var setup: PiSetupController
+    @ObservedObject var permissions: PermissionsModel
+
+    var body: some View {
+        if PermissionsOnboardingPage.shows(permissions, setup) {
+            // Scrolls only its list (sized to the panel's room), so "Continue" never scrolls away.
+            PermissionsOnboardingPage(permissions: permissions, setup: setup)
+        } else {
+            ViewThatFits(in: .vertical) {
+                PiSetupContent(model: model, setup: setup)
+                ScrollView(.vertical) { PiSetupContent(model: model, setup: setup) }.scrollIndicators(.automatic)
             }
         }
     }
