@@ -1,5 +1,5 @@
 # Builds and checks Pippa on a real Mac (Apple silicon).
-# checks: on every push to claude/** branches and by hand. app: by hand only, uploads Pippa.app as an artifact.
+# On every push to claude/** branches and by hand; by hand with *app* ticked it also uploads Pippa.app.
 name: CI
 
 on:
@@ -23,9 +23,11 @@ permissions:
 jobs:
   checks:
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the app's build number counts commits
       - uses: actions/cache@v4
         with:
           path: app/.build
@@ -36,12 +38,13 @@ jobs:
           node-version: '22'
       - name: Select latest Xcode
         run: |
-          ls -d /Applications/Xcode*.app
           X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
           sudo xcode-select -s "$X/Contents/Developer"
           swift --version
-      - name: Check translations
-        run: python3 scripts/check-strings.py
+      - name: Translations and release scripts
+        run: |
+          python3 scripts/check-strings.py
+          python3 -m unittest discover -s scripts/tests -p 'test_*.py'
       - name: swift build (all targets)
         run: |
           set +e
@@ -75,30 +78,13 @@ jobs:
       - name: Terminal autostart tests (runtime/pippa-local-server)
         run: node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
-
-  app:
-    if: github.event_name == 'workflow_dispatch' && inputs.app
-    needs: checks
-    runs-on: macos-26
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Select latest Xcode
-        run: |
-          ls -d /Applications/Xcode*.app
-          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
-          sudo xcode-select -s "$X/Contents/Developer"
-          swift --version
       - name: Pippa.app (ad-hoc signed)
-        run: scripts/build-app.sh
-      - name: Zip
-        run: ditto -c -k --keepParent dist/Pippa.app dist/Pippa.zip
+        if: inputs.app
+        run: |
+          scripts/build-app.sh
+          ditto -c -k --keepParent dist/Pippa.app dist/Pippa.zip
       - uses: actions/upload-artifact@v4
+        if: inputs.app
         with:
           name: Pippa-app
           path: dist/Pippa.zip
