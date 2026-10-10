@@ -54,11 +54,12 @@ struct ThoughtLineView: View {
     private func words(_ phase: WorkPhase) -> some View {
         TimelineView(.periodic(from: thought.startedAt ?? Date(), by: 1)) { context in
             let elapsed = thought.showsElapsed(at: context.date) ? WorkReceipt.duration(thought.elapsedSeconds(at: context.date)) : nil
+            let words = thought.words(showingElapsed: elapsed != nil) ?? (title: phase.title, detail: nil)
             HStack(spacing: 6) {
-                Text(phase.title).foregroundStyle(Theme.ink2)
+                Text(words.title).foregroundStyle(Theme.ink2)
                     .lineLimit(1).truncationMode(.middle)
                     .layoutPriority(1)
-                if let detail = thought.currentStep ?? phase.detail {
+                if let detail = words.detail {
                     Text(detail).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle)
                 }
                 if let elapsed {
@@ -68,7 +69,7 @@ struct ThoughtLineView: View {
             .font(Fonts.hint)
             // VoiceOver reads the phase when it lands here; changes are announced politely by the controller.
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(["Pippa", phase.title, thought.currentStep ?? phase.detail].compactMap { $0 }.joined(separator: ", "))
+            .accessibilityLabel(["Pippa", words.title, words.detail].compactMap { $0 }.joined(separator: ", "))
             .accessibilityValue(elapsed ?? "")
         }
     }
