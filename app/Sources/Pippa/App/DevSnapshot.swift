@@ -161,6 +161,7 @@ enum DevSnapshot {
                 await snap("permissions-02-asking", wait: 0.1)
                 await snap("permissions-03-allowed", wait: 1.0)
                 let report = MacPermission.allCases.map { p in "\(p.rawValue): \(permissions.states[p].map { s in String(describing: s) } ?? "hidden")" }
+                    + ["room: \(Int(ShellController.panelRoom)) pt, measured: \(Int(shell.lastMeasuredHeight)) pt, list: \(Int(PermissionsOnboardingPage.listHeight(rows: permissions.rows.count))) pt"]
                 try? report.joined(separator: "\n").appending("\n").write(to: dir.appendingPathComponent("permissions.txt"), atomically: true, encoding: .utf8)
                 permissions.finishOnboarding()
                 await snap("permissions-04-continue", wait: 0.9)

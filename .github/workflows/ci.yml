@@ -88,6 +88,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          cat snaps/dark/permissions.txt
           for f in snaps/dark/permissions-01-onboarding.png snaps/light/permissions-03-allowed.png; do
             [ -f "$f" ] || continue
             sips -Z 760 -s format jpeg -s formatOptions 50 "$f" --out /tmp/s.jpg >/dev/null
