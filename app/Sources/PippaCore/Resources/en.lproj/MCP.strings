@@ -54,3 +54,9 @@
 "To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything." = "To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything.";
 "Photos on this Mac · %lld found" = "Photos on this Mac · %lld found";
 "Showing %lld of %lld. Search for “%@” in Photos to see all of them." = "Showing %lld of %lld. Search for “%@” in Photos to see all of them.";
+"Read Photos: pictures from today" = "Read Photos: pictures from today";
+"Read Photos: pictures from the last %lld days" = "Read Photos: pictures from the last %lld days";
+"Read Photos: newest pictures" = "Read Photos: newest pictures";
+"Photos on this Mac" = "Photos on this Mac";
+"Showing %lld of %lld. Open Photos to see all of them." = "Showing %lld of %lld. Open Photos to see all of them.";
+"Pippa may not see your photos. To change that, open System Settings → Privacy & Security → Photos and turn on Pippa." = "Pippa may not see your photos. To change that, open System Settings → Privacy & Security → Photos and turn on Pippa.";

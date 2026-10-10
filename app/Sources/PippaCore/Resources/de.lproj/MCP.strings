@@ -54,3 +54,9 @@
 "To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything." = "Dafür muss ich in Fotos auf diesem Mac suchen und dir die Bilder hier zeigen – nur, wenn du fragst, und ich ändere nichts.";
 "Photos on this Mac · %lld found" = "Fotos auf diesem Mac · %lld gefunden";
 "Showing %lld of %lld. Search for “%@” in Photos to see all of them." = "%lld von %lld gezeigt. Such in Fotos nach „%@“, dann siehst du alle.";
+"Read Photos: pictures from today" = "Fotos gelesen: Bilder von heute";
+"Read Photos: pictures from the last %lld days" = "Fotos gelesen: Bilder der letzten %lld Tage";
+"Read Photos: newest pictures" = "Fotos gelesen: neueste Bilder";
+"Photos on this Mac" = "Fotos auf diesem Mac";
+"Showing %lld of %lld. Open Photos to see all of them." = "%lld von %lld gezeigt. In Fotos siehst du alle.";
+"Pippa may not see your photos. To change that, open System Settings → Privacy & Security → Photos and turn on Pippa." = "Pippa darf deine Fotos nicht sehen. Das änderst du in den Systemeinstellungen unter Datenschutz & Sicherheit → Fotos: dort Pippa einschalten.";

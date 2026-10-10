@@ -15,7 +15,7 @@ struct PhotoCardView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "photo.on.rectangle").font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
                     .accessibilityHidden(true)
-                Text(T("“%@” in Photos", table: "Views", card.query)).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(card.query.isEmpty ? T("Newest in Photos", table: "Views") : T("“%@” in Photos", table: "Views", card.query)).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
                     .lineLimit(1)
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 8)

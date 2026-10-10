@@ -27,17 +27,37 @@ public enum PhotosLibrary {
 
     // MARK: Previews (PhotoKit)
 
-    /// May Pippa show previews? PhotoKit's own permission ("Fotos"), separate from the automation for the search.
-    /// Limited access counts: previews then appear only for the photos the person shared.
-    public static func previewAccess(ask: Bool) async -> Bool {
+    /// May Pippa read the library itself? PhotoKit's own permission ("Fotos"), separate from the automation for the
+    /// search: previews, and the newest photos. Limited access counts: then only the photos the person shared.
+    public static func libraryAccess(ask: Bool) async -> IntegrationAccess {
         switch PHPhotoLibrary.authorizationStatus(for: .readWrite) {
-        case .authorized, .limited: return true
+        case .authorized, .limited: return .granted
         case .notDetermined:
-            guard ask else { return false }
+            guard ask else { return .notDetermined }
             let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-            return status == .authorized || status == .limited
-        default: return false
+            return status == .authorized || status == .limited ? .granted : .denied
+        default: return .denied
         }
+    }
+
+    public static func previewAccess(ask: Bool) async -> Bool { await libraryAccess(ask: ask) == .granted }
+
+    /// System Settings → Privacy & Security → Photos.
+    public static let settingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Photos")!
+
+    /// The newest photos and videos, newest first; with `since` only those taken from then on. No content search
+    /// (PhotoKit has no labels), so no automation and Photos need not run. `total`: all that match.
+    public static func recent(since: Date?, limit: Int) -> HostFetch<PhotoHit> {
+        let options = PHFetchOptions()
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        if let since { options.predicate = NSPredicate(format: "creationDate >= %@", since as NSDate) }
+        let found = PHAsset.fetchAssets(with: options)
+        let items = (0..<min(limit, found.count)).map { index in
+            let asset = found.object(at: index)
+            return PhotoHit(id: asset.localIdentifier, date: asset.creationDate,
+                            filename: PHAssetResource.assetResources(for: asset).first?.originalFilename ?? "")
+        }
+        return HostFetch(items: items, total: found.count)
     }
 
     /// A finished preview image; CGImage is immutable, so it may cross actors.
@@ -101,7 +121,7 @@ public struct PhotoCard: Codable, Sendable, Equatable {
             self.id = id; self.date = date; self.dateLabel = dateLabel; self.label = label
         }
     }
-    /// The search word as sent to Photos ("Fahrrad").
+    /// The search word as sent to Photos ("Fahrrad"); empty for the newest photos.
     public var query: String
     public var items: [Item]
     public var total: Int
