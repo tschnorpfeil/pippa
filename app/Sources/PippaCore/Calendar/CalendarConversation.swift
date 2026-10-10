@@ -44,6 +44,23 @@ public enum CalendarConversation {
         messages.suffix(followUpWindow).contains { $0.calendar != nil }
     }
 
+    /// Short follow-ups as buttons under a calendar answer, from the period that was read (never from the answer text).
+    /// Each one is a question CalendarIntent answers natively right after a calendar answer.
+    public static func followUps(for read: ConversationCalendarRead, now: Date, calendar: Calendar, language: String? = nil) -> [String] {
+        guard read.state == .read else { return [] }
+        let tomorrow = L("And tomorrow?", table: "Calendar", language: language)
+        let week = L("And this week?", table: "Calendar", language: language)
+        let nextWeek = L("And next week?", table: "Calendar", language: language)
+        let weekend = L("And the weekend?", table: "Calendar", language: language)
+        switch read.range.kind {
+        case .day where calendar.isDate(read.range.start, inSameDayAs: now): return [tomorrow, week]
+        case .day where calendar.isDate(read.range.start, inSameDayAs: calendar.date(byAdding: .day, value: 1, to: now) ?? now): return [week]
+        case .restOfWeek: return [nextWeek, weekend]
+        case .weekend: return [nextWeek]
+        default: return []
+        }
+    }
+
     /// The newest access offer still waiting for a click: only the last calendar message of the conversation can carry the button.
     public static func pendingAccessOffer(in messages: [ConversationMessage]) -> ConversationMessage? {
         guard let last = messages.last(where: { $0.calendar != nil }), last.calendar?.state == .needsAccess else { return nil }

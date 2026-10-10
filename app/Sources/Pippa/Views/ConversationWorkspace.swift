@@ -588,6 +588,18 @@ struct ConversationWorkspace: View {
             case .denied:
                 Button { model.openCalendarPrivacySettings() } label: { Label(T("Open System Settings", table: "CalendarUI"), systemImage: "gear") }
                     .pippa(.tinted)
+            case .read where chat.current?.messages.last?.id == message.id:
+                // Follow-ups only on the newest answer: a tap asks them like a typed message.
+                let followUps = CalendarConversation.followUps(for: read, now: Date(), calendar: .autoupdatingCurrent)
+                if !followUps.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(followUps, id: \.self) { question in
+                            Button(question) { model.route(question) }
+                                .pippa(.quiet).controlSize(.small).disabled(model.isActiveWork)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
             default:
                 EmptyView()
             }

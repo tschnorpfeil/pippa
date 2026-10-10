@@ -130,4 +130,23 @@ func runResultCardChecks() async {
             && de("done", nil, "*") == "Alles vergessen, was Pippa über dich wusste"
             && de("failed", "IBAN DE89 3704 0044 0532 0130 00", nil) == "Nicht gemerkt"
     }
+    check("Calendar follow-up buttons: from the period read, and each one is answered by the calendar itself (de, en)") {
+        let now = berlin.date(from: DateComponents(year: 2026, month: 10, day: 7, hour: 14, minute: 32))!
+        func read(_ kind: CalendarRange.Kind, day: Int) -> ConversationCalendarRead {
+            let start = berlin.date(from: DateComponents(year: 2026, month: 10, day: day))!
+            return ConversationCalendarRead(state: .read, question: "x", range: CalendarRange(kind: kind, start: start, end: start.addingTimeInterval(86_400)))
+        }
+        var ok = true
+        for language in ["de", "en"] {
+            let today = CalendarConversation.followUps(for: read(.day, day: 7), now: now, calendar: berlin, language: language)
+            let week = CalendarConversation.followUps(for: read(.restOfWeek, day: 7), now: now, calendar: berlin, language: language)
+            let all = today + week + CalendarConversation.followUps(for: read(.weekend, day: 10), now: now, calendar: berlin, language: language)
+            ok = ok && today.count == 2 && week.count == 2
+                && all.allSatisfy { CalendarIntent.parse($0, now: now, calendar: berlin, recentCalendarTurn: true) != nil }
+        }
+        var denied = read(.day, day: 7); denied.state = .denied
+        return ok && CalendarConversation.followUps(for: read(.lastWeek, day: 1), now: now, calendar: berlin).isEmpty
+            && CalendarConversation.followUps(for: denied, now: now, calendar: berlin).isEmpty
+            && CalendarConversation.followUps(for: read(.day, day: 7), now: now, calendar: berlin, language: "de") == ["Und morgen?", "Und diese Woche?"]
+    }
 }
