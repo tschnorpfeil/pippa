@@ -218,6 +218,37 @@ box-shadow:0 0 0 1px rgba(16,37,26,.08),0 24px 48px -22px rgba(16,37,26,.45);tra
 @keyframes press{0%,30%,100%{transform:none;border-bottom-width:3px}36%,44%{transform:translateY(2px);border-bottom-width:1px}}
 @media(max-width:900px){.split{grid-template-columns:1fr;gap:28px}}
 
+/* Mini-Schreibtisch */
+.desk{position:relative;margin:48px auto 0;max-width:1000px;aspect-ratio:16/10;border-radius:24px;overflow:hidden;text-align:left;
+background:radial-gradient(55% 60% at 20% 25%,#bfe3c8 0,transparent 70%),radial-gradient(50% 60% at 85% 75%,#c8dbff 0,transparent 70%),radial-gradient(40% 40% at 70% 15%,#ffe6ad 0,transparent 70%),linear-gradient(160deg,#f3f8f4,#e6eefa);
+box-shadow:inset 0 0 0 1px rgba(16,37,26,.08),0 30px 60px -36px rgba(16,37,26,.5)}
+.file{all:unset;position:absolute;left:6%;top:9%;display:grid;justify-items:center;gap:6px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;transition:transform .45s var(--spring),opacity .3s;z-index:2}
+.file svg{width:54px;height:68px;filter:drop-shadow(0 6px 10px rgba(16,37,26,.25))}
+.file span{font-size:13px;font-weight:600;background:rgba(255,255,255,.8);border-radius:6px;padding:1px 6px}
+.file:focus-visible{outline:3px solid var(--ink);outline-offset:4px;border-radius:8px}
+.file.drag{transition:none;cursor:grabbing;z-index:6}
+.file.gone{opacity:0;pointer-events:none}
+.dhint,.phint{position:absolute;font:400 22px/1 var(--fh);color:var(--ink-2);transform:rotate(-4deg);pointer-events:none;transition:opacity .3s;margin:0}
+.dhint{left:calc(6% + 84px);top:calc(9% + 24px)}
+.phint{right:30px;bottom:82px}
+.dhint.gone,.phint.gone,.desk.won .dhint,.desk.won .phint{opacity:0}
+.dpill{all:unset;position:absolute;left:0;top:0;z-index:5;display:flex;align-items:center;gap:8px;height:48px;padding:0 18px 0 10px;border-radius:999px;background:#fff;font-weight:650;font-size:16px;white-space:nowrap;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+box-shadow:0 0 0 1px rgba(16,37,26,.08),0 16px 30px -14px rgba(16,37,26,.5);transition:width .55s var(--spring),background-color .4s,box-shadow .4s}
+.dpill:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.dpill.drag{cursor:grabbing;box-shadow:0 0 0 1px rgba(16,37,26,.08),0 26px 40px -14px rgba(16,37,26,.55)}
+.dpill.hot{box-shadow:0 0 0 3px rgba(0,91,205,.4),0 16px 30px -14px rgba(0,91,205,.6)}
+.dpill .lend{font-weight:800;opacity:0;transform:scale(.4);transition:opacity .3s,transform .5s var(--spring)}
+.dpill .lprog{position:absolute;left:50px;right:18px;bottom:8px;height:3px;border-radius:3px;background:rgba(0,91,205,.15);opacity:0;transition:opacity .3s}
+.dpill .lprog i{display:block;height:100%;width:0;border-radius:3px;background:var(--blue)}
+.dpill[data-s="arbeitet"]{box-shadow:0 0 0 1px rgba(16,37,26,.06),0 0 30px 3px rgba(80,110,255,.35)}
+.dpill[data-s="arbeitet"] .lprog{opacity:1}
+.dpill[data-s="arbeitet"] .lprog i{animation:prog 2.2s linear forwards}
+.dpill[data-s="offen"]{background:#e6f1e7;box-shadow:0 0 0 1px rgba(13,113,44,.25),0 16px 30px -14px rgba(13,113,44,.45)}
+.dpill[data-s="offen"] .lend{opacity:1;transform:none;color:var(--ok)}
+.dwin{position:absolute;z-index:4;width:50%;border-radius:5.6%/6.1%;box-shadow:0 0 0 .5px rgba(16,37,26,.2),0 30px 60px -24px rgba(16,37,26,.55);opacity:0;transform:scale(.6);pointer-events:none;transition:opacity .25s,transform .55s var(--spring)}
+.dwin.on{opacity:1;transform:none}
+@media(max-width:760px){.desk{aspect-ratio:3/4}.file{left:8%;top:6%}.dhint{left:calc(8% + 76px)}.phint{bottom:70px;right:16px}.dpill{height:42px;font-size:14px}.dpill .lprog{left:42px}}
+
 /* Was Pippa darf */
 .trust{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:start;background:var(--sky);border-radius:36px;padding:72px 64px}
 .facts{list-style:none;margin:34px 0 0;padding:0;display:grid;gap:18px}
@@ -354,44 +385,18 @@ footer canvas{--pippa-ink:var(--ink)}
 
 <section class="sec center" id="figur" aria-labelledby="h-figur">
   <div class="wrap"><div class="panel pn-green">
-    <h2 id="h-figur" class="rv">Pippa sitzt am Rand.<br><span class="hand">Und zeigt, was sie tut.</span></h2>
-    <p class="lead rv" style="--d:1">Zieh etwas auf sie, klick sie an oder drück <kbd>⌃⌥ Leertaste</kbd>.</p>
-    <div class="live rv" style="--d:2">
-      <div class="lpill" id="lpill" data-s="ruht" aria-hidden="true"><canvas id="liveMark"></canvas><span class="lt" id="lt">Pippa</span><span class="lend" id="lend"></span><span class="lprog"><i></i></span></div>
-      <div class="states" role="tablist" aria-label="Pippas Zustände" id="states">
-        <button class="st" type="button" role="tab" aria-selected="true" data-s="ruht" data-t="Pippa">wartet</button>
-        <button class="st" type="button" role="tab" aria-selected="false" data-s="arbeitet" data-t="Lese Mietvertrag · 2/3">liest gerade</button>
-        <button class="st" type="button" role="tab" aria-selected="false" data-s="offen" data-t="Deine Antwort ist da" data-e="✓">ist fertig</button>
-        <button class="st" type="button" role="tab" aria-selected="false" data-s="fehler" data-t="Hat nicht geklappt" data-e="!">hat’s nicht geschafft</button>
-      </div>
+    <h2 id="h-figur" class="rv">Pippa ist da,<br><span class="hand">wo du sie haben willst.</span></h2>
+    <p class="lead rv" style="--d:1">Schieb sie an jede Stelle, auch auf einen anderen Bildschirm. Zieh etwas auf sie, klick sie an oder drück <kbd>⌃⌥ Leertaste</kbd>.</p>
+    <div class="desk rv" style="--d:2" id="desk">
+      <p class="sr" id="deskHelp">Zum Ausprobieren: Pippa lässt sich mit der Maus oder den Pfeiltasten verschieben. Ein Klick öffnet ihr Fenster. Zieh den Mietvertrag auf Pippa, dann liest sie ihn.</p>
+      <button class="file" type="button" id="dfile" aria-describedby="deskHelp"><svg viewBox="0 0 48 60" aria-hidden="true"><path d="M4 2h28l12 12v44H4z" fill="#fff" stroke="#b7c0c6" stroke-width="1.5"/><path d="M32 2v12h12" fill="#eef1f3" stroke="#b7c0c6" stroke-width="1.5"/><rect x="10" y="22" width="22" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="29" width="28" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="36" width="25" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="46" width="16" height="7" rx="1.5" fill="#e2483d"/></svg><span>Mietvertrag.pdf</span></button>
+      <p class="dhint" id="dhint" aria-hidden="true">zieh mich auf Pippa</p>
+      <img class="dwin" id="dwOpen" src="images/neu/s-offen.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster: Was möchtest du erledigen? Darunter ein Feld für Dateien und vier Beispiele, etwa Wo ist mein Mietvertrag? und Räum meinen Download-Ordner auf.">
+      <img class="dwin" id="dwDone" src="images/neu/s-brief.webp" width="1000" height="921" loading="lazy" alt="Pippas Antwort zum Mietvertrag: Bis 31. Dezember kündigen, mit der Stelle aus Paragraf 4.">
+      <button class="dpill" type="button" id="dpill" data-s="ruht" aria-describedby="deskHelp"><canvas id="deskMark" aria-hidden="true"></canvas><span class="lt" id="dlt">Pippa</span><span class="lend" id="dlend" aria-hidden="true"></span><span class="lprog" aria-hidden="true"><i></i></span></button>
+      <p class="phint" id="phint" aria-hidden="true">schieb mich herum</p>
     </div>
   </div></div>
-</section>
-
-<section class="sec" aria-labelledby="h-karten">
-  <div class="wrap"><div class="panel pn-sun">
-    <h2 id="h-karten" class="rv">Antworten, die du <span class="hand">anklicken</span> kannst.</h2>
-    <p class="lead rv" style="--d:1">Termine, Mails, Fotos, Erinnerungen und Dateien kommen als Karte. Ein Klick öffnet sie in der passenden App.</p>
-    <div class="cards">
-      <img class="rv" src="images/neu/karte-kalender.webp" width="400" height="196" loading="lazy" decoding="async" alt="Kalenderkarte: Heute, Dienstag, 14. Oktober. Zahnarzt, Mittagessen mit Jonas, Fahrrad zur Inspektion und Geburtstag Oma Hilde.">
-      <img class="rv" style="--d:1" src="images/neu/karte-mail.webp" width="400" height="270" loading="lazy" decoding="async" alt="Mailkarte: drei Mails von Radhaus Lindner mit Betreff und Textanfang.">
-      <img class="rv" style="--d:2" src="images/neu/karte-fotos.webp" width="400" height="239" loading="lazy" decoding="async" alt="Fotokarte: Fahrrad in Fotos, sechs Fotos von Fahrrädern.">
-      <img class="rv" style="--d:1" src="images/neu/karte-erinnerungen.webp" width="400" height="211" loading="lazy" decoding="async" alt="Erinnerungskarte: vier offene Erinnerungen. Reifen aufpumpen war gestern fällig.">
-      <img class="rv" style="--d:2" src="images/neu/karte-online.webp" width="400" height="166" loading="lazy" decoding="async" alt="Karte Online nachgesehen: vier Seiten zu Fahrradinspektion Kosten Köln, zwei davon gelesen.">
-      <img class="rv" style="--d:3" src="images/neu/karte-dateien.webp" width="400" height="187" loading="lazy" decoding="async" alt="Karte Gefunden auf diesem Mac: Rechnung Fahrradhelm, Garantie Fahrrad, Mietvertrag und ein Foto der Rahmennummer, jeweils mit Ordner.">
-    </div>
-  </div></div>
-</section>
-
-<section class="sec" aria-labelledby="h-paste">
-  <div class="wrap split">
-    <div>
-      <h2 id="h-paste" class="rv">Oder einfach <span class="hand">einfügen.</span></h2>
-      <p class="lead rv" style="--d:1">Bildschirmfoto oder Dateien kopieren, Pippa öffnen, einfügen.</p>
-      <p class="keys rv" style="--d:2" aria-label="Befehl V"><kbd>⌘</kbd><kbd>V</kbd></p>
-    </div>
-    <picture class="rv" style="--d:1"><source media="(max-width:640px)" srcset="images/einfuegen-de-schmal.webp"><img src="images/einfuegen-de.webp" width="960" height="429" loading="lazy" decoding="async" alt="Zwei Karten in Pippa. Links ein eingefügtes Bildschirmfoto mit den Knöpfen Als PDF, Als JPG und Kleiner machen. Rechts drei eingefügte Fotos mit Ein PDF machen und Kleiner machen."></picture>
-  </div>
 </section>
 
 <section class="sec" id="daten" aria-labelledby="h-daten">
@@ -538,22 +543,51 @@ new IntersectionObserver(es=>{seen=es[0].isIntersecting;if(seen)t0=performance.n
 const tick=now=>{if(run&&seen){const p=Math.min(1,(now-t0)/DUR);asks[i].style.setProperty('--p',p*100+'%');if(p>=1)show((i+1)%asks.length)}requestAnimationFrame(tick)};
 requestAnimationFrame(tick);
 
-/* Pippa lebt: vier Zustände, wie in der App. */
-const lp=$('#lpill'),lt=$('#lt'),le=$('#lend'),sts=$$('#states .st');
-const liveMark=mk($('#liveMark'),innerWidth<600?40:50,{idleAmplitude:1.2});
-const meas=document.createElement('div');meas.className='lpill';meas.style.cssText='position:absolute;visibility:hidden;width:auto;left:-9999px';meas.setAttribute('aria-hidden','true');
-meas.innerHTML='<canvas style="width:'+(innerWidth<600?40:50)+'px;height:1px"></canvas><span class="lt"></span><span class="lend" style="opacity:1"></span>';document.body.append(meas);
-let si=0,sTimer=0,sAuto=!RM;
-const fit=(t,e)=>{meas.querySelector('.lt').textContent=t;meas.querySelector('.lend').textContent=e||'';lp.style.width=meas.offsetWidth+'px'};
-const setS=k=>{si=k;const b=sts[k];sts.forEach(x=>x.setAttribute('aria-selected',x===b));
-  lt.classList.add('out');
-  later(()=>{lt.textContent=b.dataset.t;le.textContent=b.dataset.e||'';fit(b.dataset.t,b.dataset.e);lp.dataset.s=b.dataset.s;liveMark.setState(b.dataset.s);lt.classList.remove('out');
-    const p=lp.querySelector('.lprog i');p.style.animation='none';p.offsetWidth;p.style.animation=''},180);
-};
-fit('Pippa');
-sts.forEach((b,k)=>b.addEventListener('click',()=>{sAuto=false;clearInterval(sTimer);setS(k)}));
-new IntersectionObserver(es=>{if(es[0].isIntersecting&&sAuto&&!sTimer)sTimer=setInterval(()=>setS((si+1)%sts.length),3400)}).observe(lp);
-lp.addEventListener('click',()=>liveMark.pulse());
+/* Mini-Schreibtisch: Pippa verschieben, anklicken, Datei draufziehen. */
+const desk=$('#desk'),dp=$('#dpill'),dlt=$('#dlt'),dle=$('#dlend'),dfile=$('#dfile'),wOpen=$('#dwOpen'),wDone=$('#dwDone');
+const DM=innerWidth<600?26:32,deskMark=mk($('#deskMark'),DM);
+const dmeas=document.createElement('div');dmeas.className='dpill';dmeas.style.cssText='position:absolute;visibility:hidden;left:-9999px;top:0;width:auto';dmeas.setAttribute('aria-hidden','true');
+dmeas.innerHTML='<canvas style="width:'+DM+'px;height:1px"></canvas><span class="lt"></span><span class="lend" style="opacity:1"></span>';document.body.append(dmeas);
+const dfit=(t,e)=>{dmeas.querySelector('.lt').textContent=t;dmeas.querySelector('.lend').textContent=e||'';dp.style.width=dmeas.offsetWidth+'px'};
+const dstate=(st,t,e)=>{dp.dataset.s=st;deskMark.setState(st==='arbeitet'||st==='offen'?st:'ruht');dlt.textContent=t;dle.textContent=e||'';dfit(t,e);
+  if(st==='arbeitet'){const p=dp.querySelector('.lprog i');p.style.animation='none';p.offsetWidth;p.style.animation=''}};
+dfit('Pippa');
+let px=0,py=0,open=null,dbusy=false;
+const aim=img=>{const W=desk.clientWidth,H=desk.clientHeight,ph=dp.offsetHeight,cx=px+dp.offsetWidth/2,up=py-20,dn=H-py-ph-20,room=Math.max(up,dn);
+  const w=Math.min(W*(innerWidth<760?.94:.56),560,room/.921),h=w*.921;let x=Math.max(8,Math.min(W-w-8,cx-w/2)),y=up>=dn?py-h-12:py+ph+12;
+  img.style.width=w+'px';img.style.left=x+'px';img.style.top=y+'px';img.style.transformOrigin=`${cx-x}px ${up>=dn?h:0}px`};
+const place=()=>{const W=desk.clientWidth,H=desk.clientHeight;px=Math.max(8,Math.min(W-dp.offsetWidth-8,px));py=Math.max(8,Math.min(H-dp.offsetHeight-8,py));dp.style.transform=`translate(${px}px,${py}px)`;if(open)aim(open)};
+const home=()=>{px=desk.clientWidth-dp.offsetWidth-24;py=desk.clientHeight-dp.offsetHeight-20;place()};
+const dshow=img=>{desk.classList.toggle('won',!!img);[wOpen,wDone].forEach(i=>i.classList.toggle('on',i===img));open=img;if(img)aim(img)};
+const reset=()=>{dstate('ruht','Pippa');dfile.classList.remove('gone','fly');dfile.style.transform=''};
+const close=()=>{const wasDone=open===wDone;dshow(null);if(wasDone)reset()};
+const toggle=()=>{if(dbusy)return;if(open)close();else{if(dp.dataset.s!=='ruht')reset();dshow(wOpen);deskMark.pulse()}};
+requestAnimationFrame(home);addEventListener('resize',place);
+/* Pippa verschieben oder anklicken */
+{let sx=0,sy=0,ox=0,oy=0,moved=false,id=null;
+dp.addEventListener('pointerdown',e=>{if(e.button>0)return;id=e.pointerId;sx=e.clientX;sy=e.clientY;ox=px;oy=py;moved=false;dp.setPointerCapture(id)});
+dp.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(!moved&&Math.hypot(dx,dy)<5)return;moved=true;dp.classList.add('drag');$('#phint').classList.add('gone');px=ox+dx;py=oy+dy;place()});
+const up=e=>{if(e.pointerId!==id)return;id=null;dp.classList.remove('drag');if(!moved)toggle()};
+dp.addEventListener('pointerup',up);dp.addEventListener('pointercancel',up);
+dp.addEventListener('click',e=>{if(e.detail===0)toggle()});
+dp.addEventListener('keydown',e=>{const k={ArrowLeft:[-24,0],ArrowRight:[24,0],ArrowUp:[0,-24],ArrowDown:[0,24]}[e.key];if(k){e.preventDefault();px+=k[0];py+=k[1];place()}});}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&open)close();if(e.code==='Space'&&e.ctrlKey&&e.altKey){const r=desk.getBoundingClientRect();if(r.top<innerHeight&&r.bottom>0){e.preventDefault();toggle()}}});
+desk.addEventListener('pointerdown',e=>{if(e.target===desk&&open)close()});
+/* Datei auf Pippa ziehen */
+const readIt=()=>{dbusy=true;dshow(null);dfile.classList.add('gone');$('#dhint').classList.add('gone');dstate('arbeitet','Lese Mietvertrag · 2/3');
+  later(()=>{dstate('offen','Deine Antwort ist da','✓');deskMark.pulse();later(()=>{dbusy=false;dshow(wDone)},700)},2200)};
+{let sx=0,sy=0,moved=false,id=null,ox=0,oy=0,ready=false;
+dfile.addEventListener('pointerdown',e=>{if(dbusy||e.button>0)return;id=e.pointerId;sx=e.clientX;sy=e.clientY;moved=false;ox=oy=0;ready=false;dfile.setPointerCapture(id)});
+dfile.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(!moved&&Math.hypot(dx,dy)<5)return;moved=true;dfile.classList.add('drag');
+  const r=dfile.getBoundingClientRect(),t=dp.getBoundingClientRect(),cx=r.left+r.width/2-ox+dx,cy=r.top+r.height/2-oy+dy;
+  const sm=window.PippaDrag?PippaDrag.sample({centerX:cx,centerY:cy,pointerX:e.clientX,pointerY:e.clientY,width:r.width,height:r.height},t,{maxPull:RM?0:36}):{pullX:0,pullY:0,ready:false};
+  ox=dx+sm.pullX;oy=dy+sm.pullY;ready=sm.ready;dfile.style.transform=`translate(${ox}px,${oy}px)`;dp.classList.toggle('hot',ready)});
+const fend=e=>{if(e.pointerId!==id)return;id=null;dfile.classList.remove('drag');dp.classList.remove('hot');
+  if(!moved){const a=dfile.getBoundingClientRect(),b=dp.getBoundingClientRect();dfile.style.transform=`translate(${b.left+b.width/2-a.left-a.width/2}px,${b.top+b.height/2-a.top-a.height/2}px) scale(.3)`;later(readIt,450)}
+  else if(ready){dfile.style.transform=`translate(${ox}px,${oy}px) scale(.3)`;later(readIt,150)}
+  else dfile.style.transform=''};
+dfile.addEventListener('pointerup',fend);dfile.addEventListener('pointercancel',fend);
+dfile.addEventListener('click',e=>{if(e.detail===0&&!dbusy)readIt()});}
 
 /* Rechte werden nacheinander erlaubt, sobald die Liste zu sehen ist. */
 const bs=$$('#perm .b');
@@ -569,7 +603,7 @@ eb.addEventListener('blur',()=>{endMark.setState('ruht');big.classList.remove('y
 
 /* Pippa läuft beim Scrollen unten am Rand mit. */
 const w=$('#walker');
-const walk=()=>{const max=document.documentElement.scrollHeight-innerHeight,p=max>0?scrollY/max:0;w.style.transform='translateX('+Math.round(16+p*(innerWidth-w.offsetWidth-32))+'px)';w.style.opacity=scrollY>innerHeight*.8&&p<.9?1:0};
+const walk=()=>{const max=document.documentElement.scrollHeight-innerHeight,p=max>0?scrollY/max:0;w.style.transform='translateX('+Math.round(16+p*(innerWidth-w.offsetWidth-32))+'px)';const dr=desk.getBoundingClientRect(),inDesk=dr.top<innerHeight&&dr.bottom>0;w.style.opacity=scrollY>innerHeight*.8&&p<.9&&!inDesk?1:0};
 addEventListener('scroll',walk,{passive:true});addEventListener('resize',walk);walk();
 })();
 </script>
