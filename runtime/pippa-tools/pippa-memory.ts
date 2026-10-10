@@ -118,14 +118,13 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "remember",
 		label: "Merken",
-		description: "Pippa's memory across conversations. add: a lasting fact or wish the person states about themselves "
-			+ "(family and other people, doctors, landlord and companies they deal with, where they live, how they want answers), one short fact per call; not "
-			+ "details of the current task. forget: what the person asks you to forget ('*' = everything). Both = change.",
+		description: "Keep a lasting fact the person states about themselves (people, doctors, home, how to answer), not task "
+			+ "details. Forget on request. Both: replace.",
 		parameters: {
 			type: "object",
 			properties: {
-				add: { type: "string", description: "One fact in a short sentence, e.g. 'Landlord: Mr Berger, Hausverwaltung Kraus'." },
-				forget: { type: "string", description: "Words of the fact to remove." },
+				add: { type: "string", description: "One short fact." },
+				forget: { type: "string", description: "Its words; '*' = all." },
 			},
 			additionalProperties: false,
 		},
