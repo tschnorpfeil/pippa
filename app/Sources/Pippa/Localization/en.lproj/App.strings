@@ -244,7 +244,6 @@
 "Show details" = "Show details";
 "Hide details" = "Hide details";
 "I’m almost ready. I’ll answer as soon as I am." = "I’m almost ready. I’ll answer as soon as I am.";
-"I’m not set up yet. Setup is open now." = "I’m not set up yet. Setup is open now.";
 "Clipboard image %@.png" = "Clipboard image %@.png";
 "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done.";
 "Tidy preview: 1 file" = "Tidy preview: 1 file";
@@ -265,3 +264,5 @@
 "Pippa couldn’t move herself." = "Pippa couldn’t move herself.";
 "Drag Pippa into the Applications folder in Finder. Until then she works from here." = "Drag Pippa into the Applications folder in Finder. Until then she works from here.";
 "I can already answer simple questions; for everything else my AI is still loading." = "I can already answer simple questions; for everything else my AI is still loading.";
+"For that I need my AI. Shall I load it now?" = "For that I need my AI. Shall I load it now?";
+"I can already answer simple questions. For everything else I need my AI." = "I can already answer simple questions. For everything else I need my AI.";

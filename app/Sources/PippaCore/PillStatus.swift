@@ -75,8 +75,10 @@ public struct PillStatus: Sendable, Equatable {
         }
         if busy { return PillStatus(tone: .working, label: L("Working on it…", table: "Thought", language: language)) }
         if let loading {
-            return PillStatus(tone: .working, label: L("Loading my AI…", table: "Thought", language: language),
-                              progress: min(max(loading, 0), 1))
+            // The percent in the label: the bar alone is thin, the number reads from across the screen.
+            let fraction = min(max(loading, 0), 1)
+            return PillStatus(tone: .working, label: L("Loading my AI · %lld%%", table: "Thought", language: language, Int((fraction * 100).rounded())),
+                              progress: fraction)
         }
         switch moment {
         case .finished: return PillStatus(tone: .done, label: L("Done!", table: "Thought", language: language), hand: true)

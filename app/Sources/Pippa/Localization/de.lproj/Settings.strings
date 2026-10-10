@@ -64,6 +64,7 @@
 "With a fast connection, this takes %@. After that, everything runs on your Mac." = "Mit schnellem Internet dauert das %@. Danach rechnet alles auf deinem Mac.";
 "Pippa loads her AI once. After that, everything runs on your Mac." = "Pippa lädt einmalig ihre KI. Danach rechnet alles auf deinem Mac.";
 "Later" = "Später";
+"Tidying up and overviews already work without it. You can load it any time." = "Aufräumen und Übersichten gehen schon ohne. Laden kannst du jederzeit.";
 "Not everything is available yet" = "Noch nicht alles verfügbar";
 "You can still look at an overview of your files." = "Eine Dateiübersicht kannst du trotzdem ansehen.";
 "Quit Pippa" = "Pippa beenden";

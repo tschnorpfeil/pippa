@@ -1,7 +1,7 @@
 import Foundation
 import PippaCore
 
-/// Who answers while Pippa's own AI is still being set up or loaded (setup gate `.wait`), and the first message after it
+/// Who answers while Pippa's own AI is still being set up or loaded (setup gate `.wait`, or before "Load"), and the first message after it
 /// (StartupBridge.swift). Plain questions get a short answer from the system model right away; everything else shows
 /// "I’m almost ready", waits for Pi and then goes there, together with what was answered in between. Stop works
 /// throughout. The message is in the conversation from the start, so nobody has to type it twice.
@@ -32,7 +32,8 @@ final class StartupBridgeChat: ConversationChat {
         delegated = nil
         let key = String(taskID.prefix { $0 != ":" })
         let language = Bundle.module.preferredLocalizations.first ?? "en"
-        if model?.piSetupGate == .wait {
+        let gate = model?.piSetupGate ?? .open
+        if gate != .open {
             let route = StartupBridge.route(text, hasFiles: !context.files.isEmpty || !newFiles.isEmpty, selectedText: context.selectedText,
                                             skill: skill != nil, systemModel: Self.systemModelAvailable)
             if route == .quick, let system = AppleQuickModel.system,
@@ -40,6 +41,14 @@ final class StartupBridgeChat: ConversationChat {
                 pending[key, default: []].append(StartupBridge.Turn(person: text, pippa: answer))
                 DiagnosticsLog.shared.event("start-bruecke", ["weg": "apple"])
                 return PiRPCChat.ShownAnswer(text: answer, reviewed: false)
+            }
+            if case .showSetup = gate {
+                // Before "Load": nothing loads that could answer later. Say so calmly and show the question again.
+                DiagnosticsLog.shared.event("start-bruecke", ["weg": "einrichtung"])
+                let line = model?.piSetupBlockedReason ?? T("For that I need my AI. Shall I load it now?", table: "App")
+                model?.startupBridgeNeedsSetup()
+                onDelta(line)
+                return PiRPCChat.ShownAnswer(text: line, reviewed: false)
             }
             DiagnosticsLog.shared.event("start-bruecke", ["weg": "warten"])
             model?.startupBridgeWaits()
