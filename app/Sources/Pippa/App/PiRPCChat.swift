@@ -432,18 +432,19 @@ final class PiRPCChat {
                 onDelta(delta)
             case .toolStarted(let id, let name, let arguments):
                 if name == "read" || WorkStepPhrase.hasOutcome(tool: name) { toolArguments[id] = arguments }
-                onWork?(.toolStarted(name: name, source: nil, step: WorkStepPhrase.phrase(tool: name, arguments: arguments, home: Self.homePath)))
+                let step = WorkStepPhrase.step(tool: name, arguments: arguments, home: Self.homePath)
+                onWork?(.toolStarted(name: name, source: nil, step: step?.text, kind: step?.kind))
             case .toolEnded(let id, let name, let isError, let result):
                 // What Pi read with `read`, for this answer's source check (PiReadLedger).
                 let arguments = toolArguments.removeValue(forKey: id)
                 if name == "read", !isError, let arguments {
                     await PippaMCPTurns.shared.active?.notePiRead(arguments: arguments, result: result)
                 }
-                let outcome = arguments.flatMap {
-                    WorkStepPhrase.outcome(tool: name, arguments: $0, isError: isError, result: result, home: Self.homePath,
-                                           resultWasCut: result.count >= PiRPCClient.listingResultLimit)
+                let ending = arguments.map {
+                    WorkStepPhrase.ending(tool: name, arguments: $0, isError: isError, result: result, home: Self.homePath,
+                                          resultWasCut: result.count >= PiRPCClient.listingResultLimit)
                 }
-                onWork?(.toolEnded(name: name, outcome: outcome))
+                onWork?(.toolEnded(name: name, outcome: ending?.outcome, failed: ending?.failed ?? isError))
             case .userMessage:
                 onSteered(segment)
                 segment = ""

@@ -169,10 +169,12 @@ struct PillContent: View {
             }
         }
         .overlay {
-            if status.tone != .rest {
+            if status.tone == .working {
+                BreathingRim(reduceMotion: reduceMotion)
+            } else if status.tone != .rest {
                 Capsule()
-                    .strokeBorder(tint.opacity(status.tone == .working ? 0.45 : 0.6), lineWidth: 1)
-                    .shadow(color: (status.tone == .working ? Theme.accentFill : tint).opacity(0.6), radius: 8)
+                    .strokeBorder(tint.opacity(0.6), lineWidth: 1)
+                    .shadow(color: tint.opacity(0.6), radius: 8)
                     .allowsHitTesting(false)
             }
         }
@@ -212,6 +214,25 @@ struct PillContent: View {
         case .done: "checkmark"
         case .failed: "exclamationmark"
         }
+    }
+}
+
+/// While anything runs in the background the pill's rim breathes slowly, so it reads as alive from across the screen.
+/// Opacity only: no size change, nothing for the window to re-measure.
+private struct BreathingRim: View {
+    var reduceMotion: Bool
+    private let inhaleState = State<Bool>(initialValue: false)
+
+    var body: some View {
+        let inhaled = reduceMotion || inhaleState.wrappedValue
+        Capsule()
+            .strokeBorder(Theme.accent.opacity(inhaled ? 0.7 : 0.3), lineWidth: 1)
+            .shadow(color: Theme.accentFill.opacity(inhaled ? 0.75 : 0.25), radius: 8)
+            .allowsHitTesting(false)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { inhaleState.wrappedValue = true }
+            }
     }
 }
 

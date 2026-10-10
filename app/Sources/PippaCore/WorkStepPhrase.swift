@@ -8,10 +8,19 @@ import Foundation
 
 /// One step of the tool loop as the person sees it.
 public struct WorkStep: Codable, Sendable, Equatable {
+    /// What sort of thing the step touches, so the list can show a small picture instead of more words.
+    public enum Kind: String, Codable, Sendable { case file, change, search, online, calendar, mail, reminder, memory, mac }
+
     public var text: String
     /// What came of it, when cheaply known ("3 matches", "nothing found").
     public var outcome: String?
-    public init(text: String, outcome: String? = nil) { self.text = text; self.outcome = outcome }
+    /// `nil` in receipts from before kinds existed.
+    public var kind: Kind?
+    /// The step did not work (file missing, no access, an error). Searches that found nothing did work.
+    public var failed: Bool?
+    public init(text: String, outcome: String? = nil, kind: Kind? = nil, failed: Bool? = nil) {
+        self.text = text; self.outcome = outcome; self.kind = kind; self.failed = failed
+    }
 
     /// "Lese Brief.docx · nichts gefunden", for VoiceOver and receipts.
     public var line: String { outcome.map { text + " · " + $0 } ?? text }
@@ -24,33 +33,71 @@ public enum WorkStepPhrase {
         Describer(home: home, cwd: cwd, language: language).describe(tool: tool, arguments: arguments)?.text
     }
 
+    /// The step for a tool that just started, with its kind; `nil` for bookkeeping tools that should not show up.
+    public static func step(tool: String, arguments: String, home: String, cwd: String? = nil, language: String? = nil) -> WorkStep? {
+        Describer(home: home, cwd: cwd, language: language).describe(tool: tool, arguments: arguments).map {
+            WorkStep(text: $0.text, kind: kind(tool: tool, result: $0.result))
+        }
+    }
+
     /// A short result for a finished tool, when it is cheap and safe to know. Never text of the result itself.
     public static func outcome(tool: String, arguments: String, isError: Bool, result: String, home: String, cwd: String? = nil,
                                language: String? = nil, resultWasCut: Bool = false) -> String? {
+        ending(tool: tool, arguments: arguments, isError: isError, result: result, home: home, cwd: cwd, language: language,
+               resultWasCut: resultWasCut).outcome
+    }
+
+    /// The short result and whether the step failed. A search that found nothing is not a failure.
+    public static func ending(tool: String, arguments: String, isError: Bool, result: String, home: String, cwd: String? = nil,
+                              language: String? = nil, resultWasCut: Bool = false) -> (outcome: String?, failed: Bool) {
         let d = Describer(home: home, cwd: cwd, language: language)
-        guard let described = d.describe(tool: tool, arguments: arguments) else { return nil }
+        guard let described = d.describe(tool: tool, arguments: arguments) else { return (nil, false) }
         let lowered = result.lowercased()
         let missing = lowered.contains("enoent") || lowered.contains("no such file") || lowered.contains("not found")
         let denied = lowered.contains("permission denied") || lowered.contains("not permitted") || lowered.contains("eacces")
         switch described.result {
         case .file:
-            guard isError else { return nil }
-            if missing { return d.l("file not found") }
-            if denied { return d.l("no access") }
-            return d.l("didn’t work")
+            guard isError else { return (nil, false) }
+            if missing { return (d.l("file not found"), true) }
+            if denied { return (d.l("no access"), true) }
+            return (d.l("didn’t work"), true)
         case .matches, .entries:
-            if isError, missing, tool == "ls" || described.result == .entries { return d.l("folder not found") }
-            if isError, denied, d.countLines(result) == 0 { return d.l("no access") }
-            if resultWasCut { return described.result == .matches ? d.l("many matches") : nil }
+            if isError, missing, tool == "ls" || described.result == .entries { return (d.l("folder not found"), true) }
+            if isError, denied, d.countLines(result) == 0 { return (d.l("no access"), true) }
+            if resultWasCut { return (described.result == .matches ? d.l("many matches") : nil, false) }
             let lowerHead = lowered.trimmingCharacters(in: .whitespacesAndNewlines)
-            if lowerHead.hasPrefix("no files found") || lowerHead.hasPrefix("no matches") { return d.l("nothing found") }
+            if lowerHead.hasPrefix("no files found") || lowerHead.hasPrefix("no matches") { return (d.l("nothing found"), false) }
             let n = d.countLines(result)
             if described.result == .matches {
-                return n == 0 ? d.l("nothing found") : n == 1 ? d.l("1 match") : d.l("%lld matches", n)
+                return (n == 0 ? d.l("nothing found") : n == 1 ? d.l("1 match") : d.l("%lld matches", n), false)
             }
-            return n == 0 ? d.l("empty") : n == 1 ? d.l("1 item") : d.l("%lld items", n)
+            return (n == 0 ? d.l("empty") : n == 1 ? d.l("1 item") : d.l("%lld items", n), false)
         case .none:
-            return isError ? d.l("didn’t work") : nil
+            return isError ? (d.l("didn’t work"), true) : (nil, false)
+        }
+    }
+
+    /// What sort of thing a tool touches. A shell command counts by what was recognized in it.
+    static func kind(tool: String, result: ResultKind) -> WorkStep.Kind {
+        var name = tool.lowercased()
+        if name.hasPrefix("mcp__pippa__") { name.removeFirst("mcp__pippa__".count) }
+        switch name {
+        case "read", "read_context", "read_document": return .file
+        case "edit", "write", "move_files": return .change
+        case "ls", "find", "grep", "search_files", "list_context", "list_plan_files": return .search
+        case "web_search", "read_web_page", "fetch_content", "get_search_content": return .online
+        case "remember": return .memory
+        case "bash":
+            switch result {
+            case .matches, .entries: return .search
+            case .file: return .file
+            case .none: return .mac
+            }
+        default:
+            if name.contains("calendar") || name.contains("kalender") { return .calendar }
+            if name.hasPrefix("mail_") { return .mail }
+            if name.hasPrefix("reminder") { return .reminder }
+            return .mac
         }
     }
 

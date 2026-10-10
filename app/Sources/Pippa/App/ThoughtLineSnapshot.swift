@@ -97,12 +97,15 @@ private actor ThoughtScript {
         work?(.phase(.waitingForAnswer(continuing: false)))
         await gate.hold("waiting")
         // Pi searches with its own tools first: finished steps with results, as the host words them.
-        for (step, outcome) in [("Suche .md-Dateien in deinem Benutzerordner", "3 Treffer"), ("Suche mit Spotlight nach „Kaution“", "nichts gefunden"),
-                                ("Schaue in Downloads nach", "12 Einträge")] {
-            work?(.toolStarted(name: "bash", source: nil, step: step))
-            work?(.toolEnded(name: "bash", outcome: outcome))
+        for (step, outcome, kind, failed) in [("Suche .md-Dateien in deinem Benutzerordner", "3 Treffer", WorkStep.Kind.search, false),
+                                              ("Suche mit Spotlight nach „Kaution“", "nichts gefunden", .search, false),
+                                              ("Lese Kaution.pdf", "Datei nicht gefunden", .file, true),
+                                              ("Schaue in Downloads nach", "12 Einträge", .search, false),
+                                              ("Suche deine Mails nach „Kaution“", "1 Treffer", .mail, false)] {
+            work?(.toolStarted(name: "bash", source: nil, step: step, kind: kind))
+            work?(.toolEnded(name: "bash", outcome: outcome, failed: failed))
         }
-        work?(.toolStarted(name: "bash", source: nil, step: "Suche „Miete“ in deinen Dokumenten"))
+        work?(.toolStarted(name: "bash", source: nil, step: "Suche „Miete“ in deinen Dokumenten", kind: .search))
         await gate.hold("searching")
         work?(.toolEnded(name: "bash", outcome: "2 Treffer"))
         work?(.toolStarted(name: "read_context", source: "Mietvertrag.pdf"))
@@ -238,7 +241,7 @@ private actor ThoughtScript {
         verify(await waitFor("searching"), "Engine reached its own search tool")
         try? await Task.sleep(for: .milliseconds(150))
         verify(chat.thought.phase == .working && chat.thought.currentStep == "Suche „Miete“ in deinen Dokumenten", "Phase: working, current step shown")
-        verify(chat.thought.recentSteps.shown.count == 3, "Three finished steps listed")
+        verify(chat.thought.recentSteps.shown.count == 4 && chat.thought.recentSteps.hidden == 1 && chat.thought.doneSteps.contains { $0.failed == true }, "Four finished steps listed, one folded, the failed one marked")
         await snap("03b-steps")
         gate.release("searching")
 

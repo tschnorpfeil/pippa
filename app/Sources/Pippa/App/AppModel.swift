@@ -53,7 +53,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var pillInvites = UserDefaults.standard.bool(forKey: "pill.invite")
     @Published private(set) var lastJob: String?
     @Published private(set) var lastReceipt: JobReceipt?
-    @Published private(set) var modelStatus: ModelStatus = .loading
+    @Published private(set) var modelStatus: ModelStatus = .loading { didSet { updateMark() } }
     @Published var busy = false {
         didSet {
             updateMark()
@@ -191,6 +191,8 @@ final class AppModel: ObservableObject {
         case .working: return .arbeitet
         default: break
         }
+        // Loading the AI is work too: the mark circles instead of resting next to "Lade meine KI" (as the pill's order).
+        if modelLoadProgress != nil { return .arbeitet }
         if pillOutcome == .failed { return .fehler }
         if parked != nil || toastShowing || pillOutcome == .answered || pillMoment == .finished || pillMoment == .undone { return .offen }
         return .ruht
@@ -231,7 +233,7 @@ final class AppModel: ObservableObject {
         defaults.set(true, forKey: "onboarded")
     }
 
-    private func updateMark() {
+    func updateMark() {
         MarkHub.shared.set(markState)
     }
 

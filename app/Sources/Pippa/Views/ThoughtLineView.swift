@@ -9,8 +9,11 @@ struct ThoughtLineView: View {
     /// Where no Stop is in reach (compact surfaces), the line carries one.
     var onStop: (() -> Void)? = nil
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    /// "Show all steps" was clicked for the answer that started then (a new answer starts folded again).
+    private let showsAllState = State<Date?>(initialValue: nil)
 
     private var reduceMotion: Bool { systemReduceMotion || MarkHub.shared.reduced }
+    private var showsAll: Bool { showsAllState.wrappedValue != nil && showsAllState.wrappedValue == thought.startedAt }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -31,9 +34,10 @@ struct ThoughtLineView: View {
                 }
                 .accessibilityElement(children: .contain)
                 .transition(reduceMotion ? .identity : .opacity)
-                let recent = thought.recentSteps
+                let recent = showsAll ? (shown: thought.doneSteps, hidden: 0) : thought.recentSteps
                 if !recent.shown.isEmpty {
-                    StepList(steps: recent.shown, hidden: recent.hidden, reduceMotion: reduceMotion)
+                    StepList(steps: recent.shown, hidden: recent.hidden, reduceMotion: reduceMotion,
+                             onShowAll: { showsAllState.wrappedValue = thought.startedAt })
                         .padding(.leading, 30).padding(.top, 5)
                         .transition(reduceMotion ? .identity : .opacity)
                 }
@@ -70,41 +74,83 @@ struct ThoughtLineView: View {
     }
 }
 
-/// What Pippa has just done, quietly under the line: the last few steps in everyday words, with the result when
-/// known. A step that appears fades in; with Reduce Motion nothing animates. Older steps collapse into one count.
+/// What Pippa has just done, quietly under the line: the last few steps in everyday words, each with a small picture
+/// of what it touched and the result when known. A step that appears fades in; with Reduce Motion nothing animates.
+/// Older steps collapse into one count, which opens them all.
 struct StepList: View {
     var steps: [WorkStep]
     var hidden = 0
     var reduceMotion: Bool
+    var onShowAll: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             if hidden > 0 {
-                Text(hidden == 1 ? T("1 earlier step", table: "ThoughtUI") : T("%lld earlier steps", table: "ThoughtUI", hidden))
-                    .font(Fonts.hint).foregroundStyle(Theme.ink3)
+                let count = hidden == 1 ? T("1 earlier step", table: "ThoughtUI") : T("%lld earlier steps", table: "ThoughtUI", hidden)
+                if let onShowAll {
+                    Button(action: onShowAll) {
+                        HStack(spacing: 4) {
+                            Text(count)
+                            Image(systemName: "chevron.down").font(.scaled(size: 8.5, weight: .semibold))
+                        }
+                        .font(Fonts.hint).foregroundStyle(Theme.ink3).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(T("Show All Steps", table: "ThoughtUI"))
+                    .accessibilityLabel(count)
+                    .accessibilityHint(T("Show All Steps", table: "ThoughtUI"))
+                } else {
+                    Text(count).font(Fonts.hint).foregroundStyle(Theme.ink3)
+                }
             }
-            ForEach(Array(steps.enumerated()), id: \.offset) { _, step in
-                StepRow(step: step)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(Array(steps.enumerated()), id: \.offset) { _, step in
+                    StepRow(step: step)
+                }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(T("What I did", table: "ThoughtUI"))
+            .accessibilityValue(steps.map(\.line).joined(separator: ". "))
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: steps)
         .frame(maxWidth: 520, alignment: .leading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(T("What I did", table: "ThoughtUI"))
-        .accessibilityValue(steps.map(\.line).joined(separator: ". "))
+        .accessibilityElement(children: .contain)
     }
 }
 
+/// One step: a small picture of what it touched, the everyday words, and what came of it. A step that did not work
+/// is marked, so a gap is never mistaken for "nothing there".
 struct StepRow: View {
     var step: WorkStep
     var body: some View {
-        HStack(spacing: 6) {
-            Text(step.text).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+        let failed = step.failed == true
+        HStack(alignment: .firstTextBaseline, spacing: 7) {
+            Image(systemName: failed ? "exclamationmark.circle" : Self.symbol(step.kind))
+                .font(.scaled(size: 10.5, weight: .medium))
+                .foregroundStyle(failed ? Theme.need : Theme.ink3)
+                .frame(width: 13)
+                .accessibilityHidden(true)
+            Text(step.text).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle).layoutPriority(1)
             if let outcome = step.outcome {
-                Text("· " + outcome).foregroundStyle(Theme.ink3).lineLimit(1).fixedSize()
+                Text("· " + outcome).foregroundStyle(failed ? Theme.need : Theme.ink3).lineLimit(1).fixedSize()
             }
         }
         .font(Fonts.hint)
+    }
+
+    private static func symbol(_ kind: WorkStep.Kind?) -> String {
+        switch kind {
+        case .file: "doc.text"
+        case .change: "pencil"
+        case .search: "magnifyingglass"
+        case .online: "globe"
+        case .calendar: "calendar"
+        case .mail: "envelope"
+        case .reminder: "checklist"
+        case .memory: "bookmark"
+        case .mac: "gearshape"
+        case nil: "checkmark"
+        }
     }
 }
 
