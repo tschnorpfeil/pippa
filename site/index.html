@@ -132,7 +132,7 @@ header .btn{min-height:40px;padding:0 18px;font-size:15px}
 @media(max-width:860px){.nav{display:none}.langsw{margin-left:auto}header .wrap{gap:14px}}
 
 /* Start: Dinge auf Pippa ziehen */
-.hero{position:relative;text-align:center;padding:84px 0 0;overflow:hidden}
+.hero{position:relative;isolation:isolate;text-align:center;padding:84px 0 40px;overflow:hidden}
 h1{font:400 clamp(50px,3rem + 6vw,124px)/.98 var(--fd);letter-spacing:-.015em}
 .hp{position:relative;display:inline-flex;align-items:center;gap:.14em;vertical-align:-.06em;background:#fff;color:var(--ink);border-radius:999px;padding:.08em .34em .1em .2em;
 box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 24px 44px -20px rgba(16,37,26,.45);transform:rotate(-2deg);transition:box-shadow .4s,transform .5s var(--spring)}
@@ -266,6 +266,30 @@ footer{margin-top:140px;padding:40px 0 60px;border-top:1px solid var(--sep);font
 footer .wrap{display:grid;gap:8px}footer .row{display:flex;align-items:center;gap:8px;font:400 20px/1 var(--fd);color:var(--ink)}
 footer canvas{--pippa-ink:var(--ink)}
 .draftbar{position:fixed;bottom:0;right:0;z-index:60;background:#ffe36e;font-size:12.5px;font-weight:650;padding:5px 12px;border-top-left-radius:10px}
+
+/* Farbe */
+.hero:before,.hero:after,.hero .blob{content:"";position:absolute;border-radius:50%;filter:blur(60px);z-index:-1;pointer-events:none}
+.hero:before{width:560px;height:560px;left:-160px;top:-140px;background:#bcd6ff;animation:drift 18s ease-in-out infinite alternate}
+.hero:after{width:520px;height:520px;right:-180px;top:40px;background:#c2e8cb;animation:drift 22s ease-in-out infinite alternate-reverse}
+.hero .blob{width:420px;height:420px;left:40%;top:420px;background:#ffe3a3;opacity:.7;animation:drift 26s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate(60px,40px) scale(1.12)}}
+.panel{border-radius:40px;padding:84px 56px}
+.pn-green{background:radial-gradient(60% 80% at 15% 10%,#d3ecd8 0,transparent 70%),#e6f3e8}
+.pn-green .hand{color:#0d712c}
+.pn-sun{background:radial-gradient(60% 70% at 90% 0%,#ffe6b0 0,transparent 70%),#fff6e3}
+.pn-sun .hand{color:#d4570f}
+.pn-blue{background:radial-gradient(60% 70% at 10% 0%,#2f7ff0 0,transparent 70%),radial-gradient(50% 60% at 95% 100%,#0a3f99 0,transparent 70%),#005bcd;color:#fff}
+.pn-blue .hand{color:#ffe36e}.pn-blue .req{color:#cfe0ff}
+.pn-blue .steps li{box-shadow:none}
+.pn-blue .btn{background:#fff;color:var(--ink)}.pn-blue .btn:hover{background:#ffe36e}
+.stage{background:radial-gradient(50% 60% at 12% 20%,#c9e6cf 0,transparent 70%),radial-gradient(45% 55% at 90% 80%,#c4d9ff 0,transparent 70%),radial-gradient(40% 50% at 70% 5%,#ffe7b3 0,transparent 70%),#eef3f8}
+.trust{background:radial-gradient(60% 70% at 100% 0%,#c9dcff 0,transparent 70%),#e3edff}
+.trust .hand{color:var(--blue)}
+.ask[aria-selected="true"]{background:var(--blue)}
+.ask .fill{background:#ffe36e}
+.facts svg{stroke:var(--ok)}
+.end{padding-top:150px}
+@media(max-width:760px){.panel{padding:56px 18px;border-radius:28px}.hero .blob{display:none}}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.walker{display:none}}
 </style>
 </head>
@@ -282,14 +306,15 @@ footer canvas{--pippa-ink:var(--ink)}
 
 <main id="main">
 <section class="hero" id="top" aria-labelledby="h1">
+  <span class="blob" aria-hidden="true"></span>
   <div class="wrap">
     <h1 id="h1">Zieh’s einfach<br><span class="nw">auf <span class="hp" id="drop"><canvas id="heroMark" aria-hidden="true"></canvas>Pippa</span>.</span></h1>
     <p class="say" id="say" aria-live="polite"><span>Gib her, ich schau rein.</span></p>
     <ul class="things" aria-label="Probier es aus: tipp auf ein Ding, und Pippa schaut hinein">
-      <li><button class="thing" type="button" style="--r:-4deg" data-busy="Lese Mietvertrag.pdf …" data-done="Kündigen bis 31. Dezember."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6z" fill="#fff" stroke="#8a97a0" stroke-width="1.4"/><path d="M14 2v5h5" fill="none" stroke="#8a97a0" stroke-width="1.4"/><rect x="8" y="12" width="9" height="5" rx="1" fill="#e2483d"/></svg>Mietvertrag.pdf</button></li>
-      <li><button class="thing" type="button" style="--r:3deg" data-busy="Lese Rechnung Fahrradhelm.pdf …" data-done="79,90 Euro an Radhaus Lindner, vom 9. Oktober."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6z" fill="#fff" stroke="#8a97a0" stroke-width="1.4"/><path d="M14 2v5h5" fill="none" stroke="#8a97a0" stroke-width="1.4"/><rect x="8" y="12" width="9" height="5" rx="1" fill="#e2483d"/></svg>Rechnung Fahrradhelm.pdf</button></li>
-      <li><button class="thing" type="button" style="--r:-2deg" data-busy="Schaue mir das Foto an …" data-done="Soll ich ein PDF draus machen oder es kleiner machen?"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="18" rx="4" fill="#f3b33d"/><path d="m4 18 5-6 4 4 3-3 5 5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="8" r="2" fill="#fff"/></svg>Fahrrad.jpg</button></li>
-      <li><button class="thing" type="button" style="--r:4deg" data-busy="Schaue in Downloads …" data-done="Soll ich aufräumen? Ich zeig dir vorher, was ich vorhabe."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#5aa9f0"/><path d="M2 9h20" stroke="#3d8fdc" stroke-width="1.4"/></svg>Downloads</button></li>
+      <li><button class="thing" type="button" style="--r:-4deg" data-busy="Schaue in Downloads …" data-done="Soll ich aufräumen? Ich zeig dir vorher, was ich vorhabe."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#5aa9f0"/><path d="M2 9h20" stroke="#3d8fdc" stroke-width="1.4"/></svg>Downloads</button></li>
+      <li><button class="thing" type="button" style="--r:3deg" data-busy="Lese 3 Rechnungen …" data-done="Fertig: eine Tabelle mit Datum, Absender und Betrag."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 1h7l4 4v12H9z" fill="#fff" stroke="#a8b2b9" stroke-width="1.2"/><path d="M6 4h7l4 4v12H6z" fill="#fff" stroke="#97a2aa" stroke-width="1.2"/><path d="M3 7h7l4 4v12H3z" fill="#fff" stroke="#8a97a0" stroke-width="1.3"/><rect x="5" y="16" width="7" height="4" rx="1" fill="#e2483d"/></svg>3 Rechnungen</button></li>
+      <li><button class="thing" type="button" style="--r:-2deg" data-busy="Lese Mietvertrag.pdf …" data-done="Kündigen bis 31. Dezember."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6z" fill="#fff" stroke="#8a97a0" stroke-width="1.4"/><path d="M14 2v5h5" fill="none" stroke="#8a97a0" stroke-width="1.4"/><rect x="8" y="12" width="9" height="5" rx="1" fill="#e2483d"/></svg>Mietvertrag.pdf</button></li>
+      <li><button class="thing" type="button" style="--r:4deg" data-busy="Schaue in Steuer 2024 …" data-done="Soll ich alles nach Art und Monat ordnen?"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#5aa9f0"/><path d="M2 9h20" stroke="#3d8fdc" stroke-width="1.4"/></svg>Steuer 2024</button></li>
     </ul>
     <p class="hint" aria-hidden="true"><svg viewBox="0 0 34 30"><path d="M4 26c10 0 20-6 24-20M22 9l6-3 2 7"/></svg>Zieh eins auf Pippa</p>
     <p class="local">Läuft auf deinem Mac, auch offline. Ohne Konto, ohne Abo.</p>
@@ -300,7 +325,7 @@ footer canvas{--pippa-ink:var(--ink)}
 
 <section class="sec center" id="kann" aria-labelledby="h-kann">
   <div class="wrap">
-    <h2 id="h-kann" class="rv">Dein persönlicher Assistent.<br><span class="hand">Auch offline immer für dich da.</span></h2>
+    <h2 id="h-kann" class="rv">Deine persönliche Assistentin.<br><span class="hand">Auch offline immer für dich da.</span></h2>
     <p class="lead rv" style="--d:1">Pippa findet und liest deine Dateien, Mails, Termine, Fotos und Erinnerungen. Die KI läuft auf deinem Mac, also klappt das auch ohne Internet. Online geht sie nur, wenn sie etwas nachschlagen soll.</p>
     <div class="asks rv" style="--d:2" role="tablist" aria-label="Beispiele" id="asks">
       <button class="ask" type="button" role="tab" aria-selected="true">Bis wann muss ich kündigen?<i class="fill"></i></button>
@@ -328,7 +353,7 @@ footer canvas{--pippa-ink:var(--ink)}
 </section>
 
 <section class="sec center" id="figur" aria-labelledby="h-figur">
-  <div class="wrap">
+  <div class="wrap"><div class="panel pn-green">
     <h2 id="h-figur" class="rv">Pippa sitzt am Rand.<br><span class="hand">Und zeigt, was sie tut.</span></h2>
     <p class="lead rv" style="--d:1">Zieh etwas auf sie, klick sie an oder drück <kbd>⌃⌥ Leertaste</kbd>.</p>
     <div class="live rv" style="--d:2">
@@ -340,11 +365,11 @@ footer canvas{--pippa-ink:var(--ink)}
         <button class="st" type="button" role="tab" aria-selected="false" data-s="fehler" data-t="Hat nicht geklappt" data-e="!">hat’s nicht geschafft</button>
       </div>
     </div>
-  </div>
+  </div></div>
 </section>
 
 <section class="sec" aria-labelledby="h-karten">
-  <div class="wrap">
+  <div class="wrap"><div class="panel pn-sun">
     <h2 id="h-karten" class="rv">Antworten, die du <span class="hand">anklicken</span> kannst.</h2>
     <p class="lead rv" style="--d:1">Termine, Mails, Fotos, Erinnerungen und Dateien kommen als Karte. Ein Klick öffnet sie in der passenden App.</p>
     <div class="cards">
@@ -355,7 +380,7 @@ footer canvas{--pippa-ink:var(--ink)}
       <img class="rv" style="--d:2" src="images/neu/karte-online.webp" width="400" height="166" loading="lazy" decoding="async" alt="Karte Online nachgesehen: vier Seiten zu Fahrradinspektion Kosten Köln, zwei davon gelesen.">
       <img class="rv" style="--d:3" src="images/neu/karte-dateien.webp" width="400" height="187" loading="lazy" decoding="async" alt="Karte Gefunden auf diesem Mac: Rechnung Fahrradhelm, Garantie Fahrrad, Mietvertrag und ein Foto der Rahmennummer, jeweils mit Ordner.">
     </div>
-  </div>
+  </div></div>
 </section>
 
 <section class="sec" aria-labelledby="h-paste">
@@ -410,13 +435,13 @@ footer canvas{--pippa-ink:var(--ink)}
 </section>
 
 <section class="sec center end" aria-labelledby="h-home">
-  <div class="wrap">
+  <div class="wrap"><div class="panel pn-blue">
     <div class="bigpill rv" id="bigpill" aria-hidden="true"><canvas id="endMark"></canvas>Pippa</div>
     <h2 id="h-home" class="rv" style="--d:1">Pippa wartet <span class="hand">schon.</span></h2>
     <ol class="steps"><li class="rv" style="--d:2">Öffne die geladene Datei und zieh Pippa in „Programme“.</li><li class="rv" style="--d:3">Öffne Pippa.</li><li class="rv" style="--d:4">Bevor Pippa ihre KI lädt, fragt sie dich und sagt dir, wie groß sie ist.</li></ol>
     <div class="ctas"><a class="btn dl" id="endBtn" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a></div>
     <p class="req">Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer.</p>
-  </div>
+  </div></div>
 </section>
 </main>
 
@@ -548,6 +573,6 @@ const walk=()=>{const max=document.documentElement.scrollHeight-innerHeight,p=ma
 addEventListener('scroll',walk,{passive:true});addEventListener('resize',walk);walk();
 })();
 </script>
-<div class="draftbar">Entwurf 3</div>
+<div class="draftbar">Entwurf 4</div>
 </body>
 </html>
