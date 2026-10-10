@@ -158,6 +158,22 @@ func runCalendarChecks() async {
             && digest.rangeLabel.contains(fmt.string(from: now)) && text.contains("Call \\*NY\\* \\[x\\](y)")
             && digest.days.allSatisfy { text.contains("**" + $0.label + "**") } && !text.lowercased().contains("attach") && !text.contains("Anhang")
     }
+    check("Calendar card: same days and appointments as the text, struck through when cancelled, colour and event kept, stored with the answer") {
+        var colored = fixture
+        colored[1].color = "#1BADF8"
+        let card = CalendarDigest.make(CalendarFetch(events: colored, total: colored.count, calendars: ["Arbeit", "Privat"]), range: week, now: now, calendar: berlin).card
+        let rows = card.days.flatMap(\.entries)
+        let standup = rows.first { $0.title == "Standup" && !$0.inactive }
+        let answer = CalendarConversation.answer(for: .read(digest), question: "Was steht an?", range: week)
+        let back = try JSONDecoder().decode(ConversationCalendarRead.self, from: JSONEncoder().encode(answer.calendar))
+        let old = try JSONDecoder().decode(ConversationCalendarRead.self, from: JSONEncoder().encode(ConversationCalendarRead(state: .read, question: "x", range: week)))
+        return card.days.map(\.label) == digest.days.map(\.label) && rows.count == digest.shown
+            && standup?.color == "#1BADF8" && standup?.eventID == "standup"
+            && rows.filter(\.inactive).count == digest.inactiveCount && card.showsCalendar && card.rangeLabel == digest.rangeLabel
+            && card.footer.contains(digest.readAtLabel) && card.emptyText == nil && card.truncatedNote == nil
+            && back.card == digest.card && old.card == nil && answer.text == digest.markdown
+    }
+
     check("Calendar: upper limit visible (first 60 of 75), nothing silently cut off") {
         let many = (0..<75).map { i in event("e\(i)", "T\(i)", at(berlin, 2026, 10, 8, 8).addingTimeInterval(Double(i) * 600), at(berlin, 2026, 10, 8, 8).addingTimeInterval(Double(i) * 600 + 300)) }
         let demo = DemoIntegrations(granted: true)

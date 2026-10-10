@@ -56,6 +56,7 @@ import PippaCore
         verify(demo.calendarReads.count == 1 && demo.calendarReads.first?.end == calendar.dateInterval(of: .weekOfYear, for: Date())?.end,
                "Exactly one bounded read until the end of the local week")
         verify(week.map { noAttachmentWords($0.text) && $0.text.contains("_") } == true, "Answer shows source line, no attachment request")
+        verify(week?.calendar?.card?.days.isEmpty == false, "The week is shown as a card with days")
         snapshot("calendar-02-week")
 
         let tomorrow = await ask("und morgen?")

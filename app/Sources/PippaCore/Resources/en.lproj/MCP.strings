@@ -48,3 +48,5 @@
 "Pippa may not add to your calendar. To change that, open System Settings → Privacy & Security → Calendars and allow full access for Pippa." = "Pippa may not add to your calendar. To change that, open System Settings → Privacy & Security → Calendars and allow full access for Pippa.";
 "Pippa may not add reminders. To change that, open System Settings → Privacy & Security → Reminders and allow full access for Pippa." = "Pippa may not add reminders. To change that, open System Settings → Privacy & Security → Reminders and allow full access for Pippa.";
 "Pippa couldn’t add to %@ just now. Nothing was changed." = "Pippa couldn’t add to %@ just now. Nothing was changed.";
+"Mail on this Mac" = "Mail on this Mac";
+"Mail on this Mac · %lld of %lld" = "Mail on this Mac · %lld of %lld";

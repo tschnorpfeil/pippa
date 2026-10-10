@@ -18,10 +18,13 @@ public struct CalendarEvent: Sendable, Equatable {
     public var declined: Bool
     public var recurring: Bool
     public var location: String?
+    /// The calendar's colour as "#RRGGBB" (for the card), `nil` when unknown.
+    public var color: String?
     public init(id: String, title: String, start: Date, end: Date, allDay: Bool = false, calendar: String, timeZone: String? = nil,
-                status: Status = .none, declined: Bool = false, recurring: Bool = false, location: String? = nil) {
+                status: Status = .none, declined: Bool = false, recurring: Bool = false, location: String? = nil, color: String? = nil) {
         self.id = id; self.title = title; self.start = start; self.end = end; self.allDay = allDay; self.calendar = calendar
         self.timeZone = timeZone; self.status = status; self.declined = declined; self.recurring = recurring; self.location = location
+        self.color = color
     }
 }
 
@@ -54,6 +57,8 @@ public struct CalendarDigest: Sendable, Equatable {
         public var otherZone: String?
         public var location: String?
         public var start: Date
+        public var color: String?
+        public var eventID: String
     }
     public struct Day: Sendable, Equatable {
         public var date: DayDate
@@ -92,7 +97,7 @@ public struct CalendarDigest: Sendable, Equatable {
                               state: event.status == .cancelled ? .cancelled : event.declined ? .declined : event.status == .tentative ? .tentative : .active,
                               recurring: event.recurring, span: nil, otherZone: nil,
                               location: event.location.map { String($0.replacingOccurrences(of: "\n", with: " ").prefix(80)) }.flatMap { $0.isEmpty ? nil : $0 },
-                              start: event.start)
+                              start: event.start, color: event.color, eventID: event.id)
             if event.allDay {
                 entry.time = L("All day", table: "Calendar")
                 if lastDay > startDay { entry.span = L("until %@", table: "Calendar", format.shortDay.string(from: lastDay)) }
