@@ -79,621 +79,293 @@ document.addEventListener('click',function(e){var a=e.target.closest&&e.target.c
 @font-face{font-family:"Gochi Hand";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/gochi-hand.ttf") format("truetype")}
 :root{
 color-scheme:light;
---lino:#86ad94;--ink:#10251a;--ink-2:#22402f;--grey:#4d5a52;--page:#f4f6f2;--paper:#fff;
---sep:rgba(16,37,26,.12);--fill:rgba(16,37,26,.05);--fill-2:rgba(16,37,26,.09);--fill-3:rgba(16,37,26,.14);
---blue:#005bcd;--blue-d:#0049a6;--ok:#0d712c;--warn:#a34a00;--note:#ffe36e;
---pap:0 1px 1px rgba(16,37,26,.18),0 12px 22px -10px rgba(16,37,26,.55);
---shadow:0 0 0 .5px rgba(16,37,26,.14),0 18px 44px -16px rgba(16,37,26,.55);
+--ink:#10251a;--ink-2:#3c4d43;--grey:#5f6b64;--page:#fbfbf8;--off:#f4f6f1;--paper:#fff;--lino:#86ad94;--lino-l:#dfeadf;
+--sep:rgba(16,37,26,.1);--fill:rgba(16,37,26,.05);--fill-2:rgba(16,37,26,.09);
+--blue:#005bcd;--blue-d:#0049a6;--ok:#0d712c;--note:#ffe36e;
 --pippa-ink:#005bcd;--pippa-ink-offen:#0d712c;--pippa-ink-fehler:#c4001d;
 --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
---fd:"Bagel Fat One",-apple-system,BlinkMacSystemFont,"SF Pro Display","Arial Black",sans-serif;
+--fd:"Bagel Fat One",-apple-system,BlinkMacSystemFont,"Arial Black",sans-serif;
 --fh:"Gochi Hand","Marker Felt","Comic Sans MS",cursive;
---mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
---spring:cubic-bezier(.16,1,.3,1);--out:cubic-bezier(.16,1,.3,1);
-/* Abstände */
---s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;--s8:64px;--s9:96px;
-/* Schrift */
---t-xs:13px;--t-sm:15px;--t-md:17px;--t-lg:20px;
---gut-l:max(16px,env(safe-area-inset-left));--gut-r:max(16px,env(safe-area-inset-right));--sb:env(safe-area-inset-bottom,0px);
-
+--gut:max(16px,env(safe-area-inset-left));
 }
-@media (min-width:700px){:root{--gut-l:max(32px,env(safe-area-inset-left));--gut-r:max(32px,env(safe-area-inset-right))}}
+@media (min-width:700px){:root{--gut:32px}}
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;background:var(--page)}
-::selection{background:var(--note);color:var(--ink)}
-html{scroll-behavior:smooth;scroll-padding-top:24px}
-body{margin:0;background:var(--page);color:var(--ink);font:var(--t-md)/1.55 var(--f);-webkit-font-smoothing:antialiased;overflow-x:hidden}
-p{margin:0;text-wrap:pretty}
-h1,h2{text-wrap:balance}
+html{-webkit-text-size-adjust:100%;background:var(--page);scroll-behavior:smooth;scroll-padding-top:80px}
+body{margin:0;background:var(--page);color:var(--ink);font:17px/1.55 var(--f);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+p{margin:0;text-wrap:pretty}h1,h2,h3{margin:0;text-wrap:balance}
 a{color:var(--blue);text-underline-offset:.18em}
-a:hover{text-decoration-thickness:2px}
-button{font:inherit;color:inherit;cursor:pointer}
+img{display:block;max-width:100%;height:auto}
 :focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:8px}
-[hidden]{display:none!important}
-.wrap{max-width:1320px;margin:0 auto;padding:0 var(--gut-r) 0 var(--gut-l)}
-.skip{position:absolute;left:16px;top:-80px;background:#fff;padding:var(--s3) var(--s4);border-radius:10px;z-index:99}
-.skip:focus{top:12px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 var(--gut)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.lino{background:var(--lino)}
+.skip{position:absolute;left:16px;top:-80px;background:#fff;padding:12px 16px;border-radius:10px;z-index:99}.skip:focus{top:12px}
+kbd{font:600 .82em/1 var(--f);background:#fff;border:1px solid var(--sep);border-bottom-width:2px;border-radius:6px;padding:3px 6px;white-space:nowrap}
+.hand{font:400 1.08em/1 var(--fh);color:var(--blue);letter-spacing:0}
+.label{font:700 12.5px/1 var(--f);letter-spacing:.14em;text-transform:uppercase;color:var(--grey);margin:0 0 18px}
+h2{font:400 clamp(34px,1.4rem + 3vw,60px)/1.02 var(--fd);letter-spacing:-.01em}
+.lead{color:var(--ink-2);max-width:34em;margin-top:18px;font-size:18px}
+.sec{padding:140px 0 0}
 
 /* Knöpfe */
-.btn,.btn2,.b1,.b2,.tbtn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);min-height:44px;border:0;border-radius:999px;font-weight:650;text-decoration:none;
-transition:background-color .2s,box-shadow .2s,transform .25s var(--out)}
-.btn{background:var(--blue);color:#fff}
-.btn:hover{background:var(--blue-d)}
-.btn2{background:#fff;color:var(--ink);box-shadow:var(--pap);padding:0 var(--s4);font-size:var(--t-sm)}
-.btn2:hover{transform:translateY(-1px);box-shadow:0 1px 1px rgba(16,37,26,.18),0 16px 26px -12px rgba(16,37,26,.6)}
-.b1,.b2{padding:0 var(--s4);font-size:var(--t-sm)}
-.b1{background:var(--blue);color:#fff}.b1:hover{background:var(--blue-d)}
-.b2{background:var(--fill-2)}.b2:hover{background:var(--fill-3)}
-.tbtn{background:none;color:var(--ink);padding:0 var(--s3);text-decoration:underline;text-underline-offset:.2em;font-size:var(--t-sm)}
-.tbtn:hover{background:rgba(255,255,255,.45)}
-.btn:active,.btn2:active,.b1:active,.b2:active{transform:scale(.97)}
+.btn{display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 26px;border-radius:999px;background:var(--ink);color:#fff;font-weight:650;font-size:17px;text-decoration:none;
+box-shadow:-6px 4px 22px -6px rgba(134,173,148,.9),6px 6px 22px -8px rgba(0,91,205,.55);transition:transform .2s,background-color .2s}
+.btn:hover{transform:translateY(-1px);background:#1f3a2b}
+.btn2{display:inline-flex;align-items:center;min-height:52px;padding:0 24px;border-radius:999px;border:1px solid var(--sep);background:#fff;color:var(--ink);font-weight:600;text-decoration:none}
+.btn2:hover{background:var(--off)}
 
 /* Kopfzeile */
-header .wrap{display:flex;align-items:center;gap:var(--s3);height:64px;flex-wrap:nowrap}
-.brand{display:inline-flex;align-items:center;gap:var(--s2);min-height:44px;padding-right:var(--s2);text-decoration:none;color:var(--ink);font:400 24px/1 var(--fd);white-space:nowrap;border-radius:12px}
-.brand:hover{color:var(--ink-2)}
-.brand canvas,footer canvas[data-mark]{--pippa-ink:var(--ink)}
-header .btn{background:var(--ink)}
-header .btn:hover{background:var(--ink-2)}
-.nav-short{display:none}
-.nav-demo{margin-left:auto;color:var(--ink);font-size:15px;font-weight:600;text-decoration:none;padding:10px 4px;white-space:nowrap}
-header .btn{margin-left:12px;font-size:15px;padding:0 var(--s4);white-space:nowrap}@media(max-width:420px){header .wrap{gap:var(--s2)}.nav-demo{font-size:13px}header .btn{margin-left:4px}.brand{font-size:21px;gap:6px;padding-right:0}header .btn{font-size:14px;padding:0 14px;min-height:44px}}@media(max-width:380px){.nav-full{display:none}.nav-short{display:inline}}@media(max-width:340px){.brand{font-size:19px}header .btn{padding:0 12px}}
+header{position:sticky;top:0;z-index:40;background:rgba(251,251,248,.88);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--sep)}
+header .wrap{display:flex;align-items:center;gap:28px;height:64px}
+.brand{display:inline-flex;align-items:center;gap:8px;color:var(--ink);text-decoration:none;font:400 23px/1 var(--fd)}
+.brand canvas{--pippa-ink:var(--ink)}
+.nav{display:flex;gap:26px;margin:0 auto}.nav a{color:var(--ink-2);text-decoration:none;font-size:15px;font-weight:550}.nav a:hover{color:var(--ink)}
+.langsw{color:var(--ink-2);font-size:15px;font-weight:550;text-decoration:none}
+header .btn{min-height:40px;padding:0 18px;font-size:15px;box-shadow:none}
+@media(max-width:860px){.nav{display:none}.langsw{margin-left:auto}header .wrap{gap:14px}}
 
-/* Der Tisch */
-.desk{position:relative;padding:var(--s2) 0 var(--s6);box-shadow:inset 0 -60px 80px -60px rgba(16,37,26,.35)}
-.desk>.wrap{position:relative}
-.desk::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.4s ease;
-background:radial-gradient(ellipse 46% 52% at var(--spot,50% 62%),rgba(255,255,255,.42),rgba(255,255,255,.12) 55%,transparent 75%)}
-.desk.calm::before{opacity:1}
-@media (min-width:900px){.desk{--spot:68% 42%}}
-.top{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s5)}
-@media (min-width:900px){.top{grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:var(--s6);align-items:center}}
-@media (min-width:900px) and (max-width:1099px){.top{grid-template-columns:minmax(0,4fr) minmax(0,6fr)}}
-.hero{container-type:inline-size}
-h1{font:400 clamp(44px,19cqi,104px)/.94 var(--fd);letter-spacing:-.01em;margin:var(--s5) 0 0 -.03em;color:var(--ink)}
-h1 .hp{margin-right:.06em}
-@media (min-width:900px){h1{margin-top:0}}
-@media (max-width:899px){
-.top{display:flex;flex-direction:column;gap:0}
-.hero{display:contents}
-h1{order:1;font-size:clamp(44px,17.4vw,104px)}.voice{order:2;margin-top:24px}.ctas{order:3;margin-top:28px}.req{order:4}.mnote{order:5}.playground{order:6;margin-top:28px;width:100%}
-.q{font-size:18px}
-}
-.w{display:inline-block}
-.hp{display:inline-block;background:#fff;color:var(--blue);border-radius:999px;padding:.02em .3em .1em;transform:rotate(-3deg);box-shadow:0 .05em 0 rgba(16,37,26,.15),0 .3em .5em -.3em rgba(16,37,26,.5)}
-.voice{margin-top:28px;max-width:30em}
-.q{display:block;font:600 20px/1.3 var(--f);color:var(--ink);letter-spacing:-.005em}
-.q>span{display:block;text-wrap:balance}
-.q>.hang{text-indent:-.42em}
-.def{display:block;margin-top:14px;font:500 17px/1.45 var(--f);color:var(--ink);max-width:27em;text-wrap:pretty}
-.ctas{display:flex;flex-wrap:wrap;gap:var(--s3);margin-top:32px;align-items:center}
-.cta{font-size:var(--t-md);padding:0 var(--s5);min-height:52px;transition:background-color .2s,transform .5s var(--spring),box-shadow .2s,color .2s}
-.cta small{font-weight:400;opacity:.9;font-size:var(--t-xs)}
-.cta.moment{transform:rotate(-1.5deg);box-shadow:var(--pap)}
-.cta.moment:hover{transform:rotate(-1.5deg) translateY(-2px)}
-.cta{white-space:nowrap}
+/* Hero */
+.hero{position:relative;text-align:center;padding:96px 0 0;overflow:hidden}
+.hero:before,.hero:after{content:"";position:absolute;top:-120px;width:620px;height:620px;border-radius:50%;filter:blur(70px);opacity:.55;z-index:-1}
+.hero:before{left:-220px;background:#cfe3d4}.hero:after{right:-240px;background:#d6e4fb}
+.badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--sep);background:#fff;border-radius:999px;padding:6px 14px;font-size:14px;color:var(--ink-2)}
+.badge i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+h1{font:400 clamp(52px,3rem + 6vw,128px)/.95 var(--fd);letter-spacing:-.015em;margin-top:26px}
+.hp{display:inline-block;background:#fff;color:var(--blue);border-radius:999px;padding:.02em .32em .08em;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 20px 40px -18px rgba(16,37,26,.45);transform:rotate(-2deg)}
+.for{margin:30px auto 0;max-width:30em;font-size:clamp(19px,1rem + .6vw,24px);line-height:1.9;color:var(--ink-2)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--sep);background:#fff;border-radius:999px;padding:1px 12px 2px 10px;color:var(--ink);font-weight:550;line-height:1.5;white-space:nowrap}
+.chip svg{width:17px;height:17px;fill:none;stroke:var(--blue);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.local{margin-top:10px;font-weight:650;font-size:18px}
+.ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+.req{margin-top:16px;font-size:14px;color:var(--grey)}.req a{color:var(--ink-2)}
 
-.mnote{margin-top:10px;font-size:15px;color:var(--ink);max-width:30em}
-.fb{font-weight:600}
-.req{margin-top:10px;font-size:13px;color:var(--ink);text-wrap:balance;max-width:30em}
-.req a{color:var(--ink);font-weight:600}
-.tidy .hero{text-align:left}
+/* Mac mit Kapiteln */
+.show{display:grid;grid-template-columns:260px minmax(0,1fr);gap:40px;align-items:center;margin-top:90px;text-align:left}
+.chapters{list-style:none;margin:0;padding:0 0 0 20px;border-left:1px solid var(--sep)}
+.chapters li{position:relative}
+.chapters button{all:unset;cursor:pointer;display:grid;grid-template-columns:30px 1fr;gap:2px 8px;padding:10px 0;width:100%;color:var(--grey)}
+.chapters button:focus-visible{outline:3px solid var(--ink);outline-offset:4px;border-radius:6px}
+.chapters .no{font-size:13px;padding-top:4px;font-variant-numeric:tabular-nums}
+.chapters b{font-size:19px;font-weight:600}
+.chapters p{grid-column:2;font-size:15px;color:var(--ink-2);display:none}
+.chapters .on button{color:var(--ink)}.chapters .on p{display:block}
+.chapters .on:before{content:"";position:absolute;left:-21px;top:8px;bottom:8px;width:2px;background:var(--ink)}
+.bar{grid-column:2;height:2px;background:var(--fill-2);margin-top:10px;display:none;overflow:hidden;border-radius:2px}.on .bar{display:block}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--lino),var(--blue))}
+.pause{all:unset;cursor:pointer;margin:14px 0 0 20px;border:1px solid var(--sep);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--ink-2);background:#fff}
+.mac{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:16/12;background:
+radial-gradient(60% 55% at 15% 20%,#f6e7c9 0,transparent 70%),radial-gradient(50% 50% at 85% 25%,#d7e3fb 0,transparent 70%),
+radial-gradient(70% 60% at 50% 100%,#bcd7c3 0,transparent 75%),linear-gradient(160deg,#eaf1e8,#dbe8e0);box-shadow:0 0 0 .5px rgba(16,37,26,.18),0 40px 80px -40px rgba(16,37,26,.6)}
+.menubar{display:flex;gap:18px;align-items:center;height:30px;padding:0 16px;background:rgba(255,255,255,.55);backdrop-filter:blur(10px);font-size:13px;color:#1d2a22}
+.menubar b{font-weight:700}.menubar span:last-child{margin-left:auto}
+.screen{position:absolute;inset:30px 0 0}
+.nw{white-space:nowrap}.screen img{position:absolute;right:4%;bottom:13%;width:64%;border-radius:5.6%/6.1%;box-shadow:0 0 0 .5px rgba(16,37,26,.2),0 30px 60px -24px rgba(16,37,26,.55);opacity:0;transform:translateY(8px);transition:opacity .45s,transform .45s}
+.screen img.on{opacity:1;transform:none}
+.dockpill{position:absolute;right:5%;bottom:5%;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:7px 16px 7px 10px;font-weight:650;font-size:14px;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 10px 24px -10px rgba(16,37,26,.5)}
+.note{position:absolute;left:3%;top:10%;font:400 clamp(20px,1rem+1vw,30px)/1.1 var(--fh);color:var(--ink);transform:rotate(-4deg);max-width:9em}
+@media(max-width:900px){.show>*{min-width:0}.show{grid-template-columns:minmax(0,1fr);gap:28px;margin-top:56px}.chapters{display:flex;overflow-x:auto;border:0;padding:0;gap:6px}.chapters li{flex:none}.chapters button{display:block;padding:6px 14px;border:1px solid var(--sep);border-radius:999px;background:#fff}.chapters .no,.chapters p,.bar,.chapters .on:before{display:none!important}.chapters .on button{background:var(--ink);color:#fff}.pause{display:none}.screen img{width:94%;right:3%;bottom:12%}.note{display:none}.mac{aspect-ratio:1/1.08}}
 
-/* Bühne mit den Sachen */
-.stage{position:relative;width:100%;aspect-ratio:1/1.05;border-radius:28px;background:radial-gradient(ellipse 70% 60% at 50% 45%,rgba(255,255,255,.16),transparent 70%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
-.scatter{--u:3.43px;position:absolute;inset:0}
-.scatter .obj{position:absolute;left:var(--x);top:var(--y);display:block;font-size:calc(var(--u)*1.55);touch-action:none}
-.o-mail{--x:2%;--y:4%}.o-steuer{--x:62%;--y:3%}.o-zug{--x:2%;--y:50%}.o-k{--x:68%;--y:61%}.o-ordner{--x:30%;--y:71%}
-@media (min-width:600px) and (max-width:899px){
-.stage{aspect-ratio:4/3}.scatter .obj{font-size:calc(var(--u)*1.3)}
-.o-mail{--x:2%;--y:3%}.o-steuer{--x:70%;--y:2%}.o-zug{--x:6%;--y:52%}.o-k{--x:72%;--y:45%}.o-ordner{--x:36%;--y:64%}
-}
-@media (min-width:900px){
-.stage{aspect-ratio:7/6;min-height:500px;border-radius:0;background:none;box-shadow:none}
-.scatter .obj{font-size:calc(var(--u)*1.36)}
-.o-mail{--x:0%;--y:2%}.o-steuer{--x:64%;--y:0%}.o-zug{--x:2%;--y:52%}.o-k{--x:69%;--y:47%}.o-ordner{--x:30%;--y:64%}
-}
-@media (min-width:900px) and (max-height:940px){
-.stage{min-height:420px;aspect-ratio:7/5}
-.scatter .obj{font-size:calc(var(--u)*1.2)}
-.o-mail{--x:0%;--y:1%}.o-steuer{--x:68%;--y:0%}.o-zug{--x:3%;--y:52%}.o-k{--x:73%;--y:47%}.o-ordner{--x:30%;--y:65%}
-}
-.obj{border:0;background:none;padding:0;cursor:grab;position:relative;text-align:left;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
-transform:translate(var(--dx,0px),calc(var(--dy,0px) + var(--h,0px))) rotate(var(--r,0deg));transition:transform .18s var(--out),opacity .18s;border-radius:6px}
-.obj:hover,.obj:focus-visible{--h:-6px}
-.obj:focus-visible{outline-offset:8px}
-.obj>span{pointer-events:none}
-.obj.lift{transition:none;z-index:60;cursor:grabbing;filter:none}
-.obj.lent{opacity:.22}
-.obj.away{opacity:0}
-.obj.gone{visibility:hidden;pointer-events:none}
-.stage.focused .obj:not(.lent):not(.away):not(.lift){opacity:.5}
-.stage.focused .obj:not(.lent):not(.away):hover,.stage.focused .obj:focus-visible{opacity:1}
-.paper{display:block;background:var(--paper);width:22em;padding:1.5em 1.6em 1.3em;box-shadow:var(--pap);border-radius:.25em;color:#3a3a3c}
-.paper b{display:block;font:700 1.35em/1.2 var(--f);color:#1d1d1f;margin-bottom:.45em}
-.paper i{display:block;font:normal 1.1em/1.5 var(--f);color:#56565b}
-.paper u{display:block;height:.5em;background:#e6e5e1;border-radius:.25em;margin:.75em 0;text-decoration:none}
-.paper u.s{width:58%}
-.o-k{padding-right:1em}
-.o-k .paper{width:17em;min-height:21em}
-.sticky{position:absolute;right:-.2em;bottom:1.6em;width:max-content;min-width:4.6em;white-space:nowrap;padding:.9em .8em 1.4em;background:var(--note);font:2.1em/1.05 var(--fh);color:#4a3b00;transform:rotate(9deg);box-shadow:0 1px 1px rgba(0,0,0,.12),0 10px 14px -8px rgba(0,0,0,.35)}
+/* Figur */
+.moods{display:flex;flex-wrap:wrap;gap:24px 10px;justify-content:center;align-items:flex-end;margin-top:56px}
+.mood{display:grid;justify-items:center;gap:0;margin:0}
+.mood img{margin:-48px -50px -56px;width:auto;height:180px}
+.mood figcaption{position:relative;z-index:1;font:400 24px/1 var(--fh);color:var(--blue);transform:rotate(-3deg)}
+.center{text-align:center}.center .lead{margin-inline:auto}
 
-.zettel{display:block;width:6.6em;padding:.75em .7em 1.1em;background:var(--note);font:2.25em/1.08 var(--fh);color:#4a3b00;box-shadow:var(--pap);border-radius:2px}
-.zettel small{display:block;font:600 .38em/1.3 var(--f);color:#7a6420;margin-top:.7em;letter-spacing:.01em}
-.ticket{display:block;width:17em;background:#fff;border-radius:.5em;box-shadow:var(--pap);padding:1.1em 1.2em 1.4em 1.4em;border-left:.6em solid #c62f2f;font:normal 1.05em/1.45 var(--f);color:#56565b}
-.ticket b{display:block;font:700 1.2em/1.25 var(--f);color:#1d1d1f;margin-bottom:.4em}
-.ticket i{display:block;font-style:normal}
-.ticket em{display:block;font-style:normal;font-weight:700;color:#1d1d1f;margin-top:.5em}
-.ticket strong{display:inline-block;margin-top:.6em;padding:.15em .5em;border:2px solid #c62f2f;border-radius:.3em;color:#c62f2f;font:700 1em/1.3 var(--f);transform:rotate(-3deg)}
-.dlw{display:block;position:relative;width:22em;height:14.5em;background:#fbfbf9;border-radius:.6em;box-shadow:var(--pap);overflow:hidden}
-.dlw b{display:block;height:2.2em;background:#e9e9e6;font:600 1em/2.2em var(--f);color:#3a3a3c;padding-left:4.6em;position:relative}
-.dlw b::before{content:"";position:absolute;left:1em;top:.75em;width:.7em;height:.7em;border-radius:50%;background:#ff5f57;box-shadow:1em 0 #febc2e,2em 0 #28c840}
-.dlw i{position:absolute;width:4.4em;font:normal .8em/1.2 var(--f);color:#56565b;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dlw i::before{content:"";display:block;width:2.6em;height:3.1em;margin:0 auto .35em;background:#fff;border:1px solid #d8d8d4;border-radius:.2em;box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.dlw i.p::before{background:linear-gradient(170deg,#ffd29a,#f08a5d 52%,#3c5f86 52%);border-color:#fff}
-.dlw i.r::before{background:linear-gradient(#c62f2f 0 22%,#fff 22%)}
-.dlw i.w::before{background:linear-gradient(#2c6fd6 0 22%,#fff 22%)}
-.dlw i:nth-of-type(1){left:1em;top:3.2em;transform:rotate(-6deg)}.dlw i:nth-of-type(2){left:6.2em;top:3.6em;transform:rotate(4deg)}
-.dlw i:nth-of-type(3){left:11.6em;top:3em;transform:rotate(-2deg)}.dlw i:nth-of-type(4){left:17em;top:3.8em;transform:rotate(7deg)}
-.dlw i:nth-of-type(5){left:2.6em;top:9.6em;transform:rotate(5deg)}.dlw i:nth-of-type(6){left:8.4em;top:10em;transform:rotate(-8deg)}
-.dlw i:nth-of-type(7){left:14em;top:9.4em;transform:rotate(3deg)}.dlw i:nth-of-type(8){left:19.6em;top:10.2em;transform:rotate(-4deg)}
-.dlw em{position:absolute;right:.7em;top:.45em;font:600 .85em/1.4 var(--f);font-style:normal;background:#c62f2f;color:#fff;border-radius:99px;padding:0 .6em}
+/* Karten */
+.cards{columns:3 300px;column-gap:24px;margin-top:56px}
+.cards img{break-inside:avoid;margin:0 0 24px;border-radius:16px;box-shadow:0 0 0 .5px rgba(16,37,26,.12),0 16px 32px -22px rgba(16,37,26,.5);background:#f6f7fa}
 
-/* Pippa: Pille, die zur Karte wird */
-.shell{--obj:0 0 0 .5px rgba(16,37,26,.10),0 1px 1px rgba(16,37,26,.10),0 4px 10px -3px rgba(16,37,26,.20),0 18px 34px -14px rgba(16,37,26,.50),inset 0 1px 0 #fff;
-position:absolute;left:var(--sx,30%);top:var(--sy,44%);z-index:30;max-width:calc(100vw - 32px);background:linear-gradient(#fff,#f8f9f7);box-shadow:var(--obj);border-radius:28px;overflow:hidden;text-align:left;
-transition:border-radius .18s,opacity .18s,translate .18s var(--out)}
-.shell[data-mode=card]{border-radius:24px}
-.shell[data-mode=pill]{border-radius:999px}
-.mk{display:block;pointer-events:none;}
-.shell.target{translate:none;outline:1px solid rgba(0,91,205,.3)}
-.shell.hot{outline:2px solid var(--blue)}
-.shell[data-mode=card]{box-shadow:var(--shadow)}
-.shell[data-mode=card] .in{max-height:var(--mh,calc(100svh - 32px - var(--sb)));overflow:auto;overscroll-behavior:contain}
-.slot{flex:none;display:inline-block;width:38px;height:38px}
-.slot .mk{width:38px!important;height:38px!important}
-.pc{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 22px 8px 9px;font-size:17px;font-weight:500;line-height:1.2;border:0;background:none;width:100%;max-width:100%;text-align:left}
-@media (min-width:900px){.pc{min-height:64px;font-size:20px;padding:8px 24px 8px 10px;gap:12px}.slot{width:44px;height:44px}.slot .mk{width:44px!important;height:44px!important}.pc .t{font-size:24px}}
-.card .slot,.card .slot .mk{width:36px!important;height:36px!important}
-button.pc:focus-visible{outline-offset:-5px;border-radius:999px}
-.pc .lbl{font-weight:650}
-.pc .t{font:400 21px/1 var(--fd);color:var(--blue);letter-spacing:.005em;transform:translateY(-2px)}
-@media(min-width:900px){.pc .t{font-size:24px}}
-.bub{--bubble-fill:#fff;--bubble-ink:var(--blue);--bubble-tilt:-1.5deg;position:absolute;left:0;top:0;z-index:35;pointer-events:none;display:flex;align-items:center;gap:10px;width:max-content;max-width:min(260px,calc(100% - 24px));background:var(--bubble-fill);color:var(--bubble-ink);font:400 23px/1.12 var(--fh);padding:13px 17px;border:1.5px solid var(--bubble-ink);border-radius:24px 24px 24px 10px;opacity:0;
-box-shadow:0 8px 16px -10px rgba(16,37,26,.35);transform:rotate(var(--bubble-tilt));transform-origin:var(--tx,20px) calc(100% + 8px)}
-.bub[data-tone=hello]{--bubble-fill:#eaf3ff;border-radius:28px 28px 28px 12px}
-.bub[data-tone=hint]{--bubble-fill:#fffdf3;--bubble-ink:var(--ink);--bubble-tilt:1deg;border-radius:18px 22px 20px 8px;font-size:21px}
-.bub[data-tone=success]{--bubble-fill:#fff0a6;--bubble-ink:var(--ink);--bubble-tilt:-2deg;border-radius:28px 18px 26px 10px}
-.bub-text{min-width:0;overflow-wrap:anywhere;text-wrap:pretty}
-.bub-emote{flex:none;font:22px/1 "Apple Color Emoji","Segoe UI Emoji",sans-serif}
-.bub-emote[hidden]{display:none}
-.bub::after{content:"";position:absolute;left:calc(var(--tx,20px) - 6px);bottom:-7px;width:12px;height:12px;background:var(--bubble-fill);border-right:1.5px solid var(--bubble-ink);border-bottom:1.5px solid var(--bubble-ink);transform:rotate(45deg);border-radius:0 0 3px 0}
-.bub.side{transform-origin:-8px 50%}.bub.side::after{left:-7px;bottom:auto;top:calc(50% - 6px);transform:rotate(135deg)}
-.bub.below{transform-origin:var(--tx,20px) -8px}.bub.below::after{top:-7px;bottom:auto;transform:rotate(225deg)}
-@media(max-width:599px){.bub{font-size:21px;padding:11px 14px;max-width:min(240px,calc(100% - 24px))}}
-body.grabbing,body.grabbing *{cursor:grabbing!important}
-.shimmer{color:var(--ink)}
-.card{width:min(410px,calc(100vw - 32px));padding:18px 20px 20px}
-.ch{display:flex;gap:var(--s3);align-items:flex-start;min-height:36px;margin-bottom:var(--s4)}
-.ct{font-weight:700;font-size:var(--t-md);line-height:1.3;text-wrap:balance}
-.cs{font-size:var(--t-sm);color:var(--grey);line-height:1.35;margin-top:2px;overflow-wrap:anywhere}
-.facts{display:grid;grid-template-columns:auto 1fr;gap:6px var(--s4);font-size:var(--t-sm);background:var(--fill);border-radius:12px;padding:var(--s3) var(--s4);margin:0}
-.facts dt{color:var(--grey)}.facts dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
-.note{font-size:var(--t-xs);color:var(--grey);margin-top:var(--s3)}
-.ans{font-size:var(--t-md);font-weight:700;margin-bottom:var(--s3);line-height:1.35}
-.src{font-size:var(--t-xs);background:var(--fill);border-radius:12px;padding:10px var(--s3);line-height:1.5;margin-top:var(--s3)}
-.src cite{display:block;font-style:normal;color:var(--grey);font-size:13px;margin-bottom:3px}
-mark{background:rgba(0,91,205,.15);color:inherit;border-radius:3px;padding:0 2px;animation:glow 1.4s .6s 2}
-@keyframes glow{40%{background:rgba(0,91,205,.32);box-shadow:0 0 0 3px rgba(0,91,205,.18)}}
-.draft{background:var(--fill);border-radius:12px;padding:var(--s3) var(--s4);font-size:var(--t-sm);line-height:1.5}
-.draft p{margin:0 0 .55em}.draft p:last-child{margin:0}
-.hits{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.hits li{display:grid;grid-template-columns:1fr auto;gap:0 var(--s3);background:var(--fill);border-radius:10px;padding:8px var(--s3);font-size:var(--t-sm)}
-.hits b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hits small{color:var(--grey);white-space:nowrap}
-.hits li.more{background:none;padding:2px var(--s3);color:var(--grey);font-size:var(--t-xs)}
-table{border-collapse:collapse;width:100%;font-size:var(--t-xs);font-variant-numeric:tabular-nums}
-.acts{display:flex;gap:var(--s2);justify-content:flex-end;margin-top:var(--s4);flex-wrap:wrap}
-.ownimg{display:block;width:100%;max-height:180px;object-fit:cover;border-radius:12px;margin-bottom:var(--s3)}
+/* Einfügen */
+.split{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:64px;align-items:center}
+.split img{border-radius:24px}
+@media(max-width:900px){.split{grid-template-columns:1fr;gap:28px}}
 
-/* Ordnung */
-.shelf{margin-top:var(--s6)}
-.shead{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s4);margin-bottom:var(--s3)}
-.shead h2{font:400 28px/1 var(--fh);margin:0;color:var(--ink)}
-.shead h2 span{font:600 15px var(--f);color:var(--ink);margin-left:var(--s3)}
-.shead .btn2{margin-left:auto}
-@media (max-width:899px){
-.slots{display:flex;gap:var(--s2);overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin:0 calc(-1*var(--gut-r)) 0 calc(-1*var(--gut-l));padding:2px var(--gut-r) 6px var(--gut-l);scroll-padding:0 var(--gut-l)}
-.slots::-webkit-scrollbar{display:none}
-.slots .slt{flex:0 0 150px;min-height:146px;scroll-snap-align:start;padding:var(--s2) var(--s3);border-radius:14px}
-.slots .slt .sl{font-size:20px}
-.shead .btn2{width:100%;margin-left:0}
-}
-@media (min-width:900px){.slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s3)}}
-@media (min-width:600px) and (max-width:899px){
-.slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s2);overflow:visible;margin:0;padding:0}
-.slots .slt{min-width:0;min-height:140px;padding:var(--s2) 6px}
-.slots .slt .sl{font-size:19px}
-.slots .fold{font-size:12px;padding:2px 5px;white-space:normal;flex-wrap:wrap}
-@media (max-width:699px){.slots .slt{min-height:182px}}.slots .tagh{font-size:16px;white-space:normal}.slots .stk{width:22px;height:26px}
-}
-.slt{border:1.5px dashed rgba(16,37,26,.2);background:rgba(255,255,255,.06);border-radius:16px;min-height:150px;padding:var(--s3);position:relative;display:flex;flex-direction:column;transition:background-color .4s,border-color .4s,box-shadow .4s}
-@media (min-width:900px) and (max-height:940px){.slots .slt{min-height:150px}h1{font-size:clamp(44px,16cqi,92px)}.voice{margin-top:22px}.ctas{margin-top:24px}}
-@media (min-width:900px) and (max-height:820px){.stage{aspect-ratio:16/10}.shelf{margin-top:var(--s4)}.slots .slt{min-height:150px}h1{font-size:clamp(44px,14cqi,80px)}.def{margin-top:10px}}
-.slt .sl{font:22px/1 var(--fh);color:var(--ink)}
-.slt.full{background:rgba(255,255,255,.8);border-color:transparent;box-shadow:0 8px 20px -14px rgba(16,37,26,.6)}
-.sc{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:var(--s2);font-size:13px}
-.fold,.tagh{white-space:nowrap}
-.rc{line-height:1.3}.rc b{display:block}
-.slt.full .sc{animation:settle .5s var(--spring)}
-@keyframes settle{from{transform:translateY(-6px) scale(.96);opacity:0}}
-.fold{display:inline-flex;gap:5px;align-items:center;background:#5aaef5;color:#06263f;font-weight:650;border-radius:3px 7px 7px 7px;padding:3px 8px}
-.fold em{font-style:normal;background:#fff;border-radius:99px;padding:0 6px;font-size:13px}
-.tagh{font:19px/1.1 var(--fh);background:var(--note);color:#4a3b00;padding:2px 9px;transform:rotate(-3deg);box-shadow:0 2px 4px rgba(0,0,0,.15)}
-.stk{display:inline-block;width:30px;height:34px;background:#fff;box-shadow:3px 3px 0 #fff,3px 3px 0 1px #d8d8d4,6px 6px 0 #fff,6px 6px 0 1px #d8d8d4;border:1px solid #d8d8d4;margin-right:var(--s2)}
-.und{display:inline-flex;align-items:center;align-self:flex-start;min-height:44px;margin:auto 0 -10px -8px;border:0;background:none;border-radius:10px;font-size:var(--t-xs);color:var(--blue);text-decoration:underline;padding:0 var(--s2)}
-.und:hover{background:var(--fill)}
+/* Dunkler Block */
+.dusk{height:300px;margin-top:140px;background:linear-gradient(var(--page),#e7efe6 25%,#9fbfa9 55%,#2c4a39 82%,#0f1d16)}
+.dark{background:#0f1d16;color:#eef3ef;padding:40px 0 120px}
+.dark .label{color:#98ab9f}.dark .lead{color:#b9c7bd}
+.dark h2 .hand{color:#9cc4ff}
+.grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:56px;border:1px solid rgba(238,243,239,.16);border-radius:22px;overflow:hidden}
+.grid6 div{padding:30px 28px;border-right:1px solid rgba(238,243,239,.16);border-bottom:1px solid rgba(238,243,239,.16)}
+.grid6 div:nth-child(3n){border-right:0}.grid6 div:nth-last-child(-n+3){border-bottom:0}
+.grid6 svg{width:22px;height:22px;fill:none;stroke:#cfe0d4;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.grid6 h3{font-size:20px;margin:22px 0 8px;font-weight:650}.grid6 p{color:#b9c7bd;font-size:15.5px}
+@media(max-width:900px){.grid6{grid-template-columns:1fr}.grid6 div{border-right:0!important;border-bottom:1px solid rgba(238,243,239,.16)!important}.grid6 div:last-child{border-bottom:0!important}}
+.dawn{height:220px;background:linear-gradient(#0f1d16,#2c4a39 25%,#9fbfa9 60%,var(--page))}
+
+/* Fragen */
+.faq{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:64px}
+details{border-bottom:1px solid var(--sep)}details:first-child{border-top:1px solid var(--sep)}
+summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:16px;padding:22px 0;font-weight:600;font-size:18px}
+summary::-webkit-details-marker{display:none}summary:after{content:"+";font-size:24px;line-height:1;color:var(--grey)}
+details[open] summary:after{content:"–"}
+details p{padding:0 0 22px;color:var(--ink-2);max-width:36em}
+@media(max-width:900px){.faq{grid-template-columns:1fr;gap:24px}}
 
 /* Finale */
-.finale{display:flex;flex-direction:column;align-items:center;gap:var(--s4);width:100%}
-.frow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;width:100%;max-width:760px}
-.frow .slt{max-width:none;min-height:128px;background:rgba(255,255,255,.88);border:0}
-@media (max-width:899px){.frow{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:599px){.frow{grid-template-columns:1fr;max-width:360px}.frow .slt{display:grid;grid-template-columns:5.2em 1fr;align-items:center;gap:var(--s3);min-height:0;padding:10px var(--s4)}.frow .sc{margin:0}}
-.tidy .finale+*{display:none}
-.psst{display:none;font:20px/1.2 var(--fh);color:var(--ink)}
-@media (hover:hover) and (pointer:fine){.psst{display:block}}
-.tidy .scatter,.tidy .shead,.tidy .slots,.tidy .und{display:none}
-.tidy .stage{aspect-ratio:auto;min-height:0;background:none;box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s6);padding:96px 0 var(--s6)}
-.tidy .shell{position:relative;left:0;top:0;bottom:auto;translate:none;opacity:1;pointer-events:auto}
-.tidy .shelf{margin-top:var(--s4)}
-@media (min-width:900px){.tidy .stage{min-height:min(612px,70vh)}}
+.home{margin-top:140px}
+.home .panel{position:relative;border-radius:32px;overflow:hidden;min-height:620px;display:grid;align-items:center;justify-items:end;padding:40px;background:
+radial-gradient(40% 50% at 25% 60%,#f7f1dc 0,transparent 70%),radial-gradient(60% 70% at 20% 100%,#9fc2a9 0,transparent 70%),linear-gradient(150deg,#cfe1d2,#86ad94)}
+.home .big{position:absolute;left:12%;top:50%;transform:translateY(-50%) rotate(-4deg);display:flex;align-items:center;gap:16px;background:#fff;border-radius:999px;padding:18px 40px 18px 22px;font:400 46px/1 var(--fd);color:var(--ink);box-shadow:0 30px 60px -24px rgba(16,37,26,.6)}
+.home .card{position:relative;background:#fff;border-radius:24px;padding:36px;max-width:440px;box-shadow:0 30px 70px -30px rgba(16,37,26,.6)}
+.home .card h2{font-size:clamp(34px,1.2rem+2.4vw,52px)}
+.home .btn{width:100%;justify-content:center;margin-top:24px}
+.steps{margin:20px 0 0;padding-left:1.3em;color:var(--ink-2);font-size:16px;display:grid;gap:4px}
+@media(max-width:900px){.home .panel{justify-items:stretch;padding:16px;min-height:0;padding-top:140px}.home .big{top:70px;left:50%;transform:translate(-50%,-50%) rotate(-4deg);font-size:30px;padding:12px 26px 12px 14px}.home .card{max-width:none;padding:26px}}
 
-/* Unter dem Tisch */
-.calm-s{padding:var(--s8) 0;text-align:center}
-.calm-s h2,.faq h2{font:400 clamp(32px,1.2rem + 2.4vw,48px)/1 var(--fd);margin:0 0 var(--s5)}
-.more{max-width:800px}
-details{border-bottom:1px solid var(--sep)}
-summary{list-style:none;cursor:pointer;padding:var(--s5) 40px var(--s5) 0;font-weight:650;font-size:17px;position:relative;border-radius:8px;transition:color .2s}
-summary:hover{color:var(--blue)}
-summary::-webkit-details-marker{display:none}
-summary::after{content:"";position:absolute;right:8px;top:50%;width:9px;height:9px;border-right:2px solid var(--grey);border-bottom:2px solid var(--grey);transform:translateY(-70%) rotate(45deg);transition:transform .25s}
-details[open] summary::after{transform:translateY(-30%) rotate(-135deg)}
-details>p{padding:0 0 var(--s5);color:var(--grey);max-width:40em}
-.feat{list-style:none;margin:0 auto;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--s4);max-width:1000px;text-align:left}
-.feat li{background:var(--paper);border-radius:16px;padding:18px 20px;color:var(--grey);font-size:15px;line-height:1.45;box-shadow:0 1px 2px rgba(16,37,26,.06)}
-.feat b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px}
-.feat-how{margin:var(--s5) auto 0;max-width:40em;color:var(--ink-2)}
-kbd{font-family:var(--f);font-size:.9em;background:var(--paper);border:1px solid var(--sep);border-bottom-width:2px;border-radius:6px;padding:1px 6px}
-.nerd{border-top:1px solid var(--sep)}
-.nerd summary small{display:block;font-weight:400;font-size:15px;color:var(--grey)}
-.nerd .body{padding:0 0 var(--s6);display:grid;gap:var(--s5)}
-.specs{margin:0;display:grid;gap:var(--s4)}
-.specs dt{font-weight:650}.specs dd{margin:2px 0 0;color:var(--grey)}
-code{font-family:var(--mono);font-size:.88em;background:var(--fill);border-radius:5px;padding:1px 5px}
-pre{margin:0;font:var(--t-xs)/1.6 var(--mono);background:#e6ece5;color:#1d2a22;border-radius:16px;padding:18px;white-space:pre-wrap;overflow-wrap:anywhere}
-.faq h2{margin-top:var(--s8)}
-footer{padding:var(--s6) 0 calc(var(--s7) + var(--sb));font-size:13px;color:var(--grey)}
-footer .wrap{display:grid;gap:6px;max-width:800px}
-.band{padding:var(--s8) 0;margin-top:var(--s8);text-align:center}
-.band h2{font:400 clamp(32px,1.2rem + 2.4vw,48px)/1 var(--fd);margin:0 0 var(--s5)}
-.band .req,.band .mnote{margin-left:auto;margin-right:auto}
-.paste{padding-bottom:0}
-.paste-lead{margin:0 auto var(--s5);max-width:36em;color:var(--ink-2);text-wrap:pretty}
-.paste-lead kbd{white-space:nowrap}
-.paste-shot{margin:0 auto;max-width:960px}
-.paste img{display:block;max-width:100%;width:100%;height:auto;border-radius:24px;box-shadow:0 1px 2px rgba(16,37,26,.06)}
-.paste .demo-note{margin-top:var(--s3)}
-.nerd{margin-top:var(--s7)}
-footer .row{display:flex;gap:var(--s2);align-items:center;font:400 18px/1 var(--fd);color:var(--ink)}
+/* Begleiter am Rand */
+.walker{position:fixed;left:0;bottom:14px;z-index:30;display:flex;align-items:center;gap:7px;background:#fff;border-radius:999px;padding:6px 14px 6px 8px;font-weight:650;font-size:14px;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 10px 24px -10px rgba(16,37,26,.5);transition:opacity .3s;pointer-events:none;will-change:transform}
+@media (prefers-reduced-motion:reduce){.walker{display:none}}
 
-
-/* Der Probiertisch: eine Einladung, sichtbare Ergebnisse, Platz für die Finger. */
-.shead svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.playground{min-width:0;scroll-margin-top:20px}
-.demo-head{display:flex;align-items:center;gap:12px;justify-content:space-between}
-.demo-head h2{font:400 clamp(23px,2.2vw,29px)/1.15 var(--fh);margin:0}
-.demo-label{font:600 12px/1 var(--f);padding:6px 9px;border:1px solid rgba(16,37,26,.3);border-radius:6px}
-.demo-help{font-size:14px;margin-top:7px;color:var(--ink-2)}
-.tap-hint{display:none}
-.demo-picks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.demo-picks button{border:1px solid rgba(16,37,26,.22);border-radius:999px;background:rgba(255,255,255,.18);min-height:44px;padding:8px 12px;font-size:13px;font-weight:600;transition:background .2s,color .2s,border-color .2s}
-.demo-picks button:hover{background:rgba(255,255,255,.55)}
-.demo-picks button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
-.demo-picks button[data-done][aria-pressed=false]{background:rgba(255,255,255,.7);border-color:transparent}
-.demo-picks small{font-size:11px;font-weight:500;margin-left:3px}
-.demo-note{margin-top:10px;font-size:12px;line-height:1.45;color:var(--ink-2)}
-.demo-progress{height:3px;background:rgba(16,37,26,.13);border-radius:3px;margin-bottom:16px;overflow:hidden}
-.demo-progress span{display:block;width:100%;height:100%;background:var(--ink);transform:scaleX(0);transform-origin:left;transition:transform .35s var(--out)}
-.slot-hint{font-size:13px;line-height:1.4;color:var(--ink-2);margin-top:10px;max-width:14em}
-.slt.full .slot-hint{display:none}
-.slt.full .sl{margin-bottom:4px}
-.tidy .demo-head h2{font-size:29px}
-.tidy .demo-help,.tidy .demo-picks,.tidy .demo-progress{display:none}
-.card .facts dd{overflow-wrap:anywhere;min-width:0}
-.card .acts button:disabled{opacity:.5;cursor:default}
-@media(min-width:900px){
-.desk{padding-top:24px;padding-bottom:40px}
-.top{grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:48px}
-h1{font-size:clamp(64px,16cqi,92px)}
-.stage{margin-top:14px;aspect-ratio:7/5;min-height:400px}
-.scatter .obj{font-size:calc(var(--u)*1.28)}
-.o-mail{--x:1%;--y:3%}.o-steuer{--x:66%;--y:1%}.o-zug{--x:4%;--y:53%}.o-k{--x:72%;--y:46%}.o-ordner{--x:30%;--y:64%}
-.shelf{margin-top:32px}
-.slots .slt{min-height:138px}
-.tidy .stage{min-height:440px;padding:96px 0 48px;gap:24px}
-}
-@media(min-width:600px) and (max-width:899px){
-.playground{max-width:680px;align-self:center}
-.stage{margin-top:16px}
-.slots{grid-template-columns:repeat(3,minmax(0,1fr))}
-.slots .slt{min-height:136px;padding:12px}
-}
-@media(max-width:599px){
-.desk{padding-top:4px;padding-bottom:28px}
-h1{font-size:clamp(44px,14.5vw,80px);max-width:7.2em}
-.voice{margin-top:22px}.q{font-size:17px;line-height:1.4}.def{font-size:16px;margin-top:12px;max-width:32em}
-.ctas{gap:12px 18px;margin-top:24px}.cta{font-size:15px;min-height:48px;padding:0 19px}
-.req,.mnote{font-size:13px;max-width:32em}
-.demo-head h2{font-size:25px}.demo-help{font-size:14px}
-.stage{margin-top:16px;aspect-ratio:1/1.12;border-radius:20px}
-.o-mail{--x:3%;--y:5%}.o-steuer{--x:63%;--y:5%}.o-zug{--x:5%;--y:62%}.o-k{--x:66%;--y:61%}.o-ordner{--x:28%;--y:75%}
-.scatter .obj{font-size:calc(var(--u)*1.45)}
-.demo-picks{gap:6px;margin-top:16px}.demo-picks button{font-size:12px;padding-inline:11px}
-.shead h2{font-size:27px}.shead h2 span{margin-left:8px;font-size:13px}.shead .btn2{width:auto;margin-left:auto;font-size:13px;padding-inline:13px}
-.shelf{margin-top:28px}.slots .slt{min-height:144px;flex-basis:156px}.slot-hint{font-size:12px}
-.card{width:min(410px,calc(100vw - 40px));padding:16px}.ct{font-size:16px}.facts{gap:8px 12px;padding:12px;font-size:14px}.src{font-size:13px}.acts{gap:8px}.acts button{font-size:13px;padding-inline:13px}
-.calm-s{padding:48px 0}
-.faq h2{margin-top:40px}.band{margin-top:48px;padding:48px 0}
-.tidy .stage{padding-top:96px;gap:24px}.tidy .demo-head h2{font-size:25px}
-}
-@media(pointer:coarse){.drag-hint{display:none}.tap-hint{display:inline}.scatter .obj{touch-action:pan-y;cursor:pointer}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-
-
-/* Direct manipulation: the paper moves; the target stays put. */
-.drop-zone{position:absolute;z-index:29;pointer-events:none;border:1.5px dashed rgba(0,91,205,.5);border-radius:34px;opacity:0;transform:scale(.96);transition:opacity .18s,transform .24s var(--out),background-color .18s}
-.stage.dragging .drop-zone{opacity:1;transform:scale(1)}
-.drop-zone.ready{border-style:solid;border-color:var(--blue);background:rgba(255,255,255,.14)}
-.drop-caption{position:absolute;top:100%;left:0;width:100%;margin-top:8px;text-align:center;font:600 13px/1.3 var(--f);color:var(--ink)}
-.grip{display:none;position:absolute;right:-10px;bottom:-10px;width:44px;height:44px;border-radius:50%;background:var(--paper);color:var(--ink-2);box-shadow:0 3px 8px rgba(16,37,26,.16);align-items:center;justify-content:center;touch-action:none}
-.obj>.grip{pointer-events:auto}
-.grip svg{width:20px;height:20px;pointer-events:none;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round}
-.hero-trust{margin-top:22px;max-width:28em;font-size:14px;line-height:1.5;color:var(--ink)}
-.trust-copy{display:grid;grid-template-columns:1fr 1fr;gap:40px;max-width:850px;margin:0 auto;text-align:left;color:var(--ink-2)}
-.calm-s h2{max-width:18em;margin-inline:auto}
-.obj.lift .grip{opacity:.5}
-@media(max-width:899px){
-.hero-trust{order:3;margin-top:20px}.ctas{order:4}.req{order:5}.mnote{order:6}.playground{order:7}
-h1{font-size:clamp(44px,14vw,96px)}
-}
-@media(max-width:599px){
-.hero-trust{margin-top:18px}
-.trust-copy{grid-template-columns:1fr;gap:20px;font-size:16px;max-width:35em}
-.demo-head h2{font-size:25px}.demo-label{font-size:11px}
-.stage{background:none;box-shadow:none;border:1px solid rgba(16,37,26,.1)}
-.shead h2{font-size:22px}.shead h2 span{display:block;margin:5px 0 0;font-size:12px}
-}
-@media(pointer:coarse){.grip{display:flex}}
-
-@media (prefers-reduced-motion:reduce){
-*,*::before,*::after{animation:none!important;transition-duration:.01ms!important;transition-delay:0s!important}
-.shimmer{color:var(--ink);background:none}
-.obj:hover,.obj:focus-visible{--h:0px}
-}
-
-/* Bilder aus Papier: nur Beispiele, aus HTML gebaut */
-.fig{margin:0;font-size:16px}
-.pap{display:block;background:var(--paper);box-shadow:var(--pap);border-radius:4px;color:#3a3a3c}
-.pap b{display:block;font-weight:700;color:#1d1d1f}
-.ln{display:block;height:.5em;background:#e6e5e1;border-radius:.25em;margin:.7em 0}
-.ln.s{width:58%}
-
-
-/* Situationen */
-section{scroll-margin-top:24px}
-.block{padding:var(--s9) 0 0}
-.block h2{font:400 clamp(34px,5vw,52px)/1.02 var(--fd)}
-.intro{margin-top:var(--s4);max-width:34em;color:var(--ink-2);font-size:18px}
-.sits{list-style:none;margin:var(--s7) 0 0;padding:0;display:grid;gap:var(--s8)}
-.sit{display:grid;gap:var(--s5);align-items:center}
-@media (min-width:860px){.sit{grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:var(--s7)}}
-.sit h3{font-size:24px;line-height:1.25;font-weight:700;letter-spacing:-.01em}
-.sit>div>p{margin-top:var(--s3);max-width:34em;color:var(--ink-2)}
-.sit .fig{justify-self:center;width:100%;max-width:520px}
-
-/* Bild: Antwort mit Fundstelle */
-.xcard{background:var(--paper);border-radius:20px;padding:var(--s5);box-shadow:var(--pap)}
-.xct{font-weight:700;line-height:1.3}
-.xcs{font-size:15px;color:var(--grey);margin-top:2px}
-.xfacts{display:grid;grid-template-columns:auto 1fr;gap:6px var(--s4);margin:var(--s4) 0 0;font-size:15px;background:var(--fill);border-radius:12px;padding:var(--s3) var(--s4)}
-.xfacts dt{color:var(--grey)}
-.xfacts dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
-.xsrc{margin-top:var(--s3);font-size:15px;line-height:1.5;border-radius:12px;background:var(--fill);padding:var(--s3) var(--s4)}
-.xsrc cite{display:block;font-style:normal;color:var(--grey);font-size:14px;margin-bottom:2px}
-mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
-
-/* Bild: Mail-Entwurf */
-.mail{background:var(--paper);border-radius:14px;box-shadow:var(--pap);overflow:hidden;font-size:15px}
-.mh{display:grid;grid-template-columns:auto 1fr;gap:4px var(--s3);padding:var(--s3) var(--s4);border-bottom:1px solid var(--sep)}
-.mh dt{color:var(--grey)}.mh dd{margin:0}
-.mb{padding:var(--s4);line-height:1.55}
-.mb p+p{margin-top:.6em}
-.mf{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);border-top:1px solid var(--sep);color:var(--grey);font-size:14px}
-.mf span:last-child{border-radius:999px;background:var(--fill-2);padding:4px 12px;color:var(--ink);font-weight:600}
-
-/* Bild: Fotos zu PDF */
-.pdf{display:flex;align-items:center;justify-content:center;gap:var(--s5);padding:var(--s4) 0}
-.shots{position:relative;width:150px;height:150px;flex:none}
-.shots .pap{position:absolute;width:96px;height:128px;padding:12px 10px;border:5px solid #fff;background:#f3f1ea}
-.shots .pap:nth-child(1){left:0;top:14px;transform:rotate(-9deg)}
-.shots .pap:nth-child(2){left:26px;top:6px;transform:rotate(-1deg)}
-.shots .pap:nth-child(3){left:52px;top:16px;transform:rotate(8deg)}
-.shots .ln{margin:.55em 0;background:#d9d6cc}
-.arrow{width:36px;height:24px;flex:none;color:var(--grey)}
-.doc{width:118px;flex:none;display:flex;flex-direction:column;align-items:center}
-.doc .pap{position:relative;width:100%;height:150px;padding:16px 14px;overflow:hidden}
-.doc .dt{font-size:13px}
-.doc .tag{position:absolute;left:10px;bottom:14px;background:#c4001d;color:#fff;font:700 12px/1 var(--f);padding:5px 7px;border-radius:4px;letter-spacing:.04em}
-.doc p{margin-top:var(--s2);font-size:14px;line-height:1.35;text-align:center;width:150px;color:var(--ink-2)}
-
-/* Bild: Quittung mit Rückgängig */
-.rcpt{background:var(--paper);border-radius:20px;padding:var(--s5);box-shadow:var(--pap)}
-.rows{list-style:none;margin:var(--s4) 0 0;padding:0;display:grid;gap:6px;font-size:15px}
-.rows li{display:flex;justify-content:space-between;gap:var(--s3);background:var(--fill);border-radius:10px;padding:8px var(--s3)}
-.rows li span:last-child{color:var(--grey);font-variant-numeric:tabular-nums;white-space:nowrap}
-.undo{display:flex;justify-content:flex-end;margin-top:var(--s4)}
-.undo span{border-radius:999px;background:var(--fill-2);padding:8px 16px;font-size:15px;font-weight:600}
-
-/* Außerdem */
-.also{margin-top:var(--s8);border-top:1px solid var(--sep);padding-top:var(--s5);display:grid;gap:var(--s4)}
-@media (min-width:860px){.also{grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:var(--s7)}}
-.also h3{font-size:20px;font-weight:700}
-.also ul{margin:0;padding:0 0 0 1.1em;display:grid;gap:var(--s2);color:var(--ink-2)}
-.also b{color:var(--ink)}
-
-/* Grenzen */
-.rules{margin:var(--s6) 0 0;display:grid;gap:var(--s5) var(--s7)}
-@media (min-width:760px){.rules{grid-template-columns:1fr 1fr}}
-.rules dt{font-weight:700;font-size:18px}
-.rules dd{margin:4px 0 0;color:var(--ink-2);max-width:32em}
-
-
-/* Unterhalb der Demo (aus claude/site-r2) */
-.langsw{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--s2);margin-left:12px;color:var(--ink);font-size:15px;font-weight:600;border-radius:8px;white-space:nowrap}
-@media (max-width:520px){.nav-demo{display:none}.langsw{margin-left:auto;font-size:14px}}
-section{scroll-margin-top:24px}
-.block{padding:var(--s9) 0 0}
-.block h2{font:400 clamp(32px,1.2rem + 2.4vw,48px)/1.02 var(--fd);margin:0}
-.intro{margin-top:var(--s4);max-width:34em;color:var(--ink-2);font-size:18px}
-.sit h3,.also h3{margin:0}
-.xsrc mark{animation:none}
-.faq>*{max-width:760px}
-.also+.also{margin-top:var(--s6)}
-footer .wrap{max-width:1120px}
-.also-sub{margin-top:var(--s2);color:var(--ink-2);font-size:16px;max-width:22em}
-.band .steps-t{margin-top:var(--s6);font-weight:700}
-.band .steps{margin:var(--s2) auto 0;padding:0 0 0 1.4em;display:grid;gap:4px;max-width:30em;width:fit-content;text-align:left;color:var(--ink-2);font-size:16px}
-.band .steps li::marker{font-weight:700;color:var(--ink)}
-@media (max-width:599px){
-.block{padding-top:var(--s8)}
-.sits{gap:var(--s7);margin-top:var(--s6)}
-.sit h3{font-size:22px}
-.xcard,.rcpt{padding:var(--s4)}
-.shots{transform:scale(.85);margin:-10px -12px}
-.band .steps{width:auto}
-}
+footer{margin-top:120px;padding:40px 0 60px;border-top:1px solid var(--sep);font-size:14px;color:var(--grey)}
+footer .wrap{display:grid;gap:8px}footer .row{display:flex;align-items:center;gap:8px;font:400 20px/1 var(--fd);color:var(--ink)}
+footer canvas{--pippa-ink:var(--ink)}
+.draftbar{position:fixed;bottom:0;right:0;z-index:60;background:#ffe36e;font-size:12.5px;font-weight:650;padding:5px 12px;border-top-left-radius:10px}
 </style>
 </head>
 <body>
-<a class="skip" href="#main">Zum Inhalt springen</a>
-<header class="lino">
+<a class="skip" href="#main">Zum Inhalt</a>
+<header>
   <div class="wrap">
     <a class="brand" href="#top"><canvas data-mark="26" aria-hidden="true"></canvas>Pippa</a>
-    <a class="nav-demo" href="#demo"><span class="nav-full">Ausprobieren</span><span class="nav-short">Demo</span></a>
+    <nav class="nav" aria-label="Seite"><a href="#kann">Was sie kann</a><a href="#daten">Deine Daten</a><a href="#fragen">Fragen</a></nav>
     <a class="langsw" href="en/" hreflang="en" lang="en" data-lang="en">English</a>
-    <a class="btn dl" data-short="1" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Kostenlos laden</a>
+    <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Kostenlos laden</a>
   </div>
 </header>
 
 <main id="main">
-<section class="desk lino" id="top" aria-labelledby="h1">
+<section class="hero" id="top" aria-labelledby="h1">
   <div class="wrap">
-    <div class="top">
-      <div class="hero">
-        <h1 id="h1"><span class="w">Zieh’s</span> <span class="w">einfach</span> <span class="w">auf&nbsp;<span class="hp">Pippa</span>.</span></h1>
-        <p class="voice" id="voice"><span class="q"><span class="hang">„Gib her, ich schau rein.“</span></span><span class="def">Mails beantworten. Kündigungsfristen finden. Unterlagen zusammensuchen. Downloads aufräumen.</span></p>
-        <p class="hero-trust">Deine Dateien bleiben auf deinem Mac. Mails legt Pippa nur als Entwurf an.</p>
-        <div class="ctas">
-          <a class="btn cta dl" id="cta" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden</a>
-        </div>
-        <p class="req">Kostenlos. Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer · <a href="#mac">Passt mein Mac?</a></p>
-        <p class="mnote" hidden>Pippa läuft auf dem Mac. Schick dir den Link. <span class="fb" aria-live="polite"></span></p>
-      </div>
+    <span class="badge"><i></i>Kostenlos und quelloffen, für den Mac</span>
+    <h1 id="h1">Zieh’s einfach<br><span class="nw">auf <span class="hp">Pippa</span>.</span></h1>
+    <p class="for">Deine Hilfe für
+      <span class="chip"><svg viewBox="0 0 16 16"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3M6 8h4M6 10.5h4"/></svg>Briefe</span>,
+      <span class="chip"><svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="2"/><path d="m2 4 6 5 6-5"/></svg>Mails</span>,
+      <span class="chip"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>Termine</span>,
+      <span class="chip"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><circle cx="5.5" cy="6.5" r="1.3"/><path d="m2 12 4-4 3 3 2-2 3.5 3.5"/></svg>Fotos</span> und
+      <span class="chip"><svg viewBox="0 0 16 16"><path d="M1.5 4a1.5 1.5 0 0 1 1.5-1.5h3l1.5 1.5H13a1.5 1.5 0 0 1 1.5 1.5V12A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12z"/></svg>Ordner</span>.</p>
+    <p class="local">Die KI läuft auf deinem Mac. Ohne Konto, ohne Abo.</p>
+    <div class="ctas"><a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a><a class="btn2" href="#kann">So sieht sie aus</a></div>
+    <p class="req">Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer · <a href="#mac">Passt mein Mac?</a></p>
 
-      <div class="playground" id="demo" aria-labelledby="h-demo">
-        <div class="demo-head"><h2 id="h-demo">Probier Pippa aus.</h2><span class="demo-label">Demo</span></div>
-        <p class="demo-help"><span class="drag-hint">Auf Pippa ziehen. Anklicken geht auch.</span><span class="tap-hint">Antippen zum Öffnen. Am Griff ziehen.</span></p>
-      <div class="stage" id="stage">
-        <div class="shell" id="ds" data-mode="pill" role="region" aria-label="Pippa">
-          <canvas class="mk" aria-hidden="true"></canvas>
-          <div class="in" id="din"><button class="pc" type="button" data-a="ask" aria-label="Pippa: etwas fragen"><span class="slot"></span><span class="t">Pippa</span></button></div>
-        </div>
-        <div class="finale" id="finale" hidden>
-          <div class="frow" id="frow"></div>
-          <button class="tbtn" type="button" id="again">Nochmal Chaos machen</button>
-          
-        </div>
-        <div class="scatter" id="scatter" role="group" aria-label="Sachen auf dem Tisch. Zieh sie auf Pippa oder tipp sie an.">
-          <button class="obj o-mail" type="button" data-k="mail" style="--r:-4deg" aria-label="Mail der Hausverwaltung: Termin für den Wasserzähler"><span class="paper" aria-hidden="true"><b>Hausverwaltung Berger</b><i>Betreff: Ablesung Wasserzähler</i><i>Hallo Frau Weber, passt Ihnen Donnerstag, 16.10., zwischen 9 und 12 Uhr?</i><u></u><u class="s"></u></span></button>
-          <button class="obj o-k" type="button" data-k="vertrag" style="--r:6deg" aria-label="Handyvertrag mit Klebezettel: Kündigung?"><span class="paper" aria-hidden="true"><b>Mobilfunkvertrag</b><i>Tarif Allnet M</i><u></u><u></u><u class="s"></u><u></u><u class="s"></u></span><span class="sticky" aria-hidden="true">Kündigung??</span></button>
-          <button class="obj o-steuer" type="button" data-k="steuer" style="--r:3deg" aria-label="Zettel: Alles für die Steuer 2025?"><span class="zettel" aria-hidden="true">Alles für die Steuer 2025?<small>Lohnzettel, Spenden, Handwerker … wo war das alles?</small></span></button>
-          <button class="obj o-zug" type="button" data-k="zug" style="--r:-5deg" aria-label="Zugfahrkarte Hamburg nach München, 89,90 Euro, Zettel: über 2 Stunden zu spät"><span class="ticket" aria-hidden="true"><b>Hamburg Hbf → München Hbf</b><i>Fr., 3. Oktober · ab 8:02</i><i>1 Erwachsener · 2. Klasse</i><em>89,90 €</em><strong>+2:10 Std. verspätet</strong></span></button>
-          <button class="obj o-ordner" type="button" data-k="ordner" style="--r:2deg" aria-label="Volle Downloads: 47 lose Dateien"><span class="dlw" aria-hidden="true"><b>Downloads</b><em>47</em><i class="p">IMG_4821.jpg</i><i class="r">Rechnung (3).pdf</i><i>scan0001.pdf</i><i class="w">Unbenannt.docx</i><i class="p">IMG_4822.jpg</i><i class="r">Vertrag_final_v2.pdf</i><i class="r">Rechnung (4).pdf</i><i class="p">Bildschirmfoto.png</i></span></button>
-        </div>
+    <div class="show" id="kann">
+      <div>
+        <ol class="chapters" id="chapters">
+          <li class="on"><button type="button" data-i="0"><span class="no">01</span><b>Briefe und Verträge</b><p>Was drinsteht, bis wann und was du tun musst. Mit der Stelle, woher sie es hat.</p><span class="bar"><i></i></span></button></li>
+          <li><button type="button" data-i="1"><span class="no">02</span><b>Mails</b><p>Findet Mails in Apple Mail. Antworten legt sie nur als Entwurf an.</p><span class="bar"><i></i></span></button></li>
+          <li><button type="button" data-i="2"><span class="no">03</span><b>Termine</b><p>Was heute ansteht. Die nächste Frage ist ein Klick.</p><span class="bar"><i></i></span></button></li>
+          <li><button type="button" data-i="3"><span class="no">04</span><b>Fotos</b><p>„Zeig mir meine Fotos vom Fahrrad“ reicht.</p><span class="bar"><i></i></span></button></li>
+          <li><button type="button" data-i="4"><span class="no">05</span><b>Erinnerungen</b><p>Was diese Woche noch fällig ist, und was schon drüber.</p><span class="bar"><i></i></span></button></li>
+          <li><button type="button" data-i="5"><span class="no">06</span><b>Nachschlagen</b><p>Wenn die Antwort nicht auf deinem Mac liegt. Mit den Seiten, die sie gelesen hat.</p><span class="bar"><i></i></span></button></li>
+        </ol>
+        <button class="pause" type="button" id="pause">Anhalten</button>
       </div>
-      <div class="demo-picks" role="group" aria-label="Beispiel auswählen">
-        <button type="button" data-demo="mail" aria-pressed="false">Mail beantworten</button>
-        <button type="button" data-demo="vertrag" aria-pressed="false">Frist finden</button>
-        <button type="button" data-demo="steuer" aria-pressed="false">Unterlagen finden</button>
-        <button type="button" data-demo="zug" aria-pressed="false">Online nachsehen</button>
-        <button type="button" data-demo="ordner" aria-pressed="false">Downloads ordnen</button>
-      </div>
-      <p class="demo-note">Beispieldateien · vorbereitete Antworten</p>
-      </div>
+      <figure class="mac" role="img" aria-label="Ein Mac-Bildschirm. Unten rechts sitzt Pippa als kleine Pille, darüber ist ihr Fenster offen und zeigt nacheinander echte Antworten: einen Mietvertrag, Mails, Termine, Fotos, Erinnerungen und eine Suche im Netz.">
+        <div class="menubar" aria-hidden="true"><b>Pippa</b><span>Ablage</span><span>Bearbeiten</span><span>Fenster</span><span>Di. 14. Okt. 16:05</span></div>
+        <div class="screen" id="screen">
+          <p class="note" aria-hidden="true">Gib her, ich schau rein.</p>
+          <img class="on" src="images/neu/s-brief.webp" width="1000" height="921" alt="">
+          <img src="images/neu/s-mail.webp" width="1000" height="921" alt="" loading="lazy">
+          <img src="images/neu/s-kalender.webp" width="1000" height="921" alt="" loading="lazy">
+          <img src="images/neu/s-fotos.webp" width="1000" height="921" alt="" loading="lazy">
+          <img src="images/neu/s-erinnerungen.webp" width="1000" height="921" alt="" loading="lazy">
+          <img src="images/neu/s-online.webp" width="1000" height="921" alt="" loading="lazy">
+          <span class="dockpill" aria-hidden="true"><canvas data-mark="20"></canvas>Pippa</span>
+        </div>
+      </figure>
     </div>
-
-    <div class="shelf" aria-labelledby="h-shelf">
-      <div class="shead">
-        <h2 id="h-shelf">Ergebnisse <span id="cnt">0 von 5 ausprobiert</span></h2>
-      </div>
-      <div class="demo-progress" role="progressbar" aria-label="Demo-Fortschritt" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span></span></div>
-      <div class="slots" id="slots">
-        <div class="slt" data-k="mail"><p class="sl">Antwort</p><p class="slot-hint">Entwurf, nichts verschickt</p><div class="sc"></div></div>
-        <div class="slt" data-k="vertrag"><p class="sl">Fristen</p><p class="slot-hint">Kündigung im Blick</p><div class="sc"></div></div>
-        <div class="slt" data-k="steuer"><p class="sl">Unterlagen</p><p class="slot-hint">Alles zu einem Thema</p><div class="sc"></div></div>
-        <div class="slt" data-k="zug"><p class="sl">Online</p><p class="slot-hint">Regeln nachgesehen</p><div class="sc"></div></div>
-        <div class="slt" data-k="ordner"><p class="sl">Ordnung</p><p class="slot-hint">Mit Rückgängig</p><div class="sc"></div></div>
-      </div>
-    </div>
-  </div>
-  <p class="sr" id="live" aria-live="polite"></p>
-</section>
-
-<section class="calm-s paste" aria-labelledby="h-paste">
-  <div class="wrap">
-    <h2 id="h-paste">Oder einfach einfügen.</h2>
-    <p class="paste-lead">Was in der Zwischenablage liegt, nimmt Pippa wie alles, was du auf sie ziehst. Ein Bildschirmfoto mit <kbd>⌃⇧⌘4</kbd> oder Dateien mit <kbd>⌘C</kbd> im Finder, dann Pippa öffnen und <kbd>⌘V</kbd> drücken.</p>
-    <div class="paste-shot"><picture><source media="(max-width:640px)" srcset="images/einfuegen-de-schmal.webp"><img src="images/einfuegen-de.webp" width="960" height="429" loading="lazy" decoding="async" alt="Zwei Karten in Pippas Pille. Links ein eingefügtes Bildschirmfoto „Bild aus der Zwischenablage 16-42.png“ mit der Frage „Was soll ich damit machen?“ und den Knöpfen Als PDF, Als JPG und Kleiner machen. Rechts drei eingefügte Fotos mit den Knöpfen Ein PDF machen und Kleiner machen."></picture></div>
-    <p class="demo-note">Entwurf der Pille, keine Bildschirmaufnahme. Namen sind Beispiele.</p>
   </div>
 </section>
 
-<section class="block" aria-labelledby="h-faq">
+<section class="sec center" aria-labelledby="h-figur">
+  <div class="wrap">
+    <p class="label">Immer da</p>
+    <h2 id="h-figur">Pippa sitzt am Rand.<br><span class="hand">Und sagt, was sie tut.</span></h2>
+    <p class="lead">Zieh etwas auf sie, klick sie an oder drück <kbd>⌃⌥ Leertaste</kbd>.</p>
+    <div class="moods">
+      <figure class="mood" role="img" aria-label="Pippa wartet: drei blaue Ringe und ihr Name."><img src="images/neu/pippa-ruht.webp" width="202" height="142" alt=""><figcaption>wartet</figcaption></figure>
+      <figure class="mood" role="img" aria-label="Pippa liest: Lese Mietvertrag, Seite 2 von 3."><img src="images/neu/pippa-liest.webp" width="317" height="142" alt=""><figcaption>liest gerade</figcaption></figure>
+      <figure class="mood" role="img" aria-label="Pippa ist fertig: grünes Lächeln, Deine Antwort ist da."><img src="images/neu/pippa-fertig.webp" width="322" height="142" alt=""><figcaption>fertig</figcaption></figure>
+      <figure class="mood" role="img" aria-label="Pippa meldet einen Fehler: Hat nicht geklappt."><img src="images/neu/pippa-fehler.webp" width="301" height="142" alt=""><figcaption>hat nicht geklappt</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="h-karten">
+  <div class="wrap">
+    <p class="label">Ergebnisse</p>
+    <h2 id="h-karten">Antworten, die du <span class="hand">anklicken</span> kannst.</h2>
+    <p class="lead">Termine, Mails, Fotos, Erinnerungen und Dateien kommen als Karte. Ein Klick öffnet sie in der passenden App.</p>
+    <div class="cards">
+      <img src="images/neu/karte-kalender.webp" width="400" height="196" loading="lazy" decoding="async" alt="Kalenderkarte: Heute, Dienstag, 14. Oktober. Zahnarzt, Mittagessen mit Jonas, Fahrrad zur Inspektion und Geburtstag Oma Hilde. Darunter die Knöpfe Und morgen? und Und diese Woche?">
+      <img src="images/neu/karte-mail.webp" width="400" height="270" loading="lazy" decoding="async" alt="Mailkarte: drei Mails von Radhaus Lindner mit Betreff und Textanfang.">
+      <img src="images/neu/karte-fotos.webp" width="400" height="239" loading="lazy" decoding="async" alt="Fotokarte: Fahrrad in Fotos, sechs Fotos von Fahrrädern.">
+      <img src="images/neu/karte-erinnerungen.webp" width="400" height="211" loading="lazy" decoding="async" alt="Erinnerungskarte: vier offene Erinnerungen. Reifen aufpumpen war gestern fällig.">
+      <img src="images/neu/karte-online.webp" width="400" height="166" loading="lazy" decoding="async" alt="Karte Online nachgesehen: vier Seiten zu Fahrradinspektion Kosten Köln, zwei davon gelesen.">
+      <img src="images/neu/karte-dateien.webp" width="400" height="187" loading="lazy" decoding="async" alt="Karte Gefunden auf diesem Mac: Rechnung Fahrradhelm, Garantie Fahrrad, Mietvertrag und ein Foto der Rahmennummer, jeweils mit Ordner.">
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="h-paste">
+  <div class="wrap split">
+    <div>
+      <p class="label">Zwischenablage</p>
+      <h2 id="h-paste">Oder einfach <span class="hand">einfügen.</span></h2>
+      <p class="lead">Bildschirmfoto mit <kbd>⌃⇧⌘4</kbd> oder Dateien mit <kbd>⌘C</kbd> kopieren, Pippa öffnen, <kbd>⌘V</kbd>.</p>
+    </div>
+    <picture><source media="(max-width:640px)" srcset="images/einfuegen-de-schmal.webp"><img src="images/einfuegen-de.webp" width="960" height="429" loading="lazy" decoding="async" alt="Zwei Karten in Pippa. Links ein eingefügtes Bildschirmfoto mit den Knöpfen Als PDF, Als JPG und Kleiner machen. Rechts drei eingefügte Fotos mit Ein PDF machen und Kleiner machen."></picture>
+  </div>
+</section>
+
+<div class="dusk" aria-hidden="true"></div>
+<section class="dark" id="daten" aria-labelledby="h-daten">
+  <div class="wrap">
+    <p class="label">Deine Daten</p>
+    <h2 id="h-daten">Pippa arbeitet für dich.<br><span class="hand">Für niemanden sonst.</span></h2>
+    <p class="lead">Kein Konto, kein Pippa-Server, keine Werbung.</p>
+    <div class="grid6">
+      <div><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><h3>KI auf deinem Mac.</h3><p>Antworten kommen von einem offenen Modell, das auf deinem Mac läuft.</p></div>
+      <div><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg><h3>Mails nur als Entwurf.</h3><p>Pippa kann keine Mail verschicken. Das machst du.</p></div>
+      <div><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg><h3>Gedächtnis zum Nachlesen.</h3><p>Was sie sich merkt, steht in einer Textdatei auf deinem Mac. Passwörter und Kontonummern merkt sie sich nicht.</p></div>
+      <div><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><h3>Du bestimmst, was sie darf.</h3><p>Ein Knopf pro Recht, beim ersten Start und in den Einstellungen.</p></div>
+      <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg><h3>Online nur zum Nachschlagen.</h3><p>Unter der Antwort steht genau, was dabei rausging.</p></div>
+      <div><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg><h3>Offener Quellcode.</h3><p>MIT-Lizenz. Jeder kann nachsehen, was Pippa tut.</p></div>
+    </div>
+  </div>
+</section>
+<div class="dawn" aria-hidden="true"></div>
+
+<section class="sec" id="fragen" aria-labelledby="h-faq" style="padding-top:60px">
   <div class="wrap faq">
-    <h2 id="h-faq">Fragen</h2>
-    <details><summary>Was kostet Pippa?</summary><p>Nichts. Kein Konto, keine Werbung. Der Quellcode ist offen (MIT-Lizenz).</p></details>
-    <details id="mac"><summary>Läuft Pippa auf meinem Mac?</summary><p>Auf jedem Mac mit Apple-Chip (M1 oder neuer) und macOS 15 oder neuer. Nachsehen kannst du im Apple-Menü unter „Über diesen Mac“.</p></details>
-    <details><summary>Kann Pippa auch etwas ohne KI?</summary><p>Ja, und das sogar ohne Internet: PDFs zusammenfügen und verkleinern, aus Fotos ein PDF machen, Text in Scans durchsuchbar machen.</p></details>
-    <details><summary>Wer sieht meine Daten?</summary><p>Nur dein Mac. Die KI läuft auf deinem Mac, es gibt keinen Pippa-Server. Ins Netz geht Pippa nur, wenn sie etwas nachschlägt, und unter der Antwort steht genau, was dabei rausging. Mehr in der <a href="datenschutz.html">Datenschutzerklärung</a>.</p></details>
-    <details><summary>Kann Pippa etwas kaputt machen?</summary><p>Pippa arbeitet direkt auf deinem Mac und fragt nicht vor jedem Schritt. Unter jeder Antwort steht, was sie geändert hat. Mails legt sie nur als Entwurf an, abschicken tust du. Beim Aufräumen zeigt sie dir vorher, was sie vorhat, und ein Klick macht es rückgängig.</p></details>
-    <details><summary>Was steckt dahinter?</summary><p>Ein offenes KI-Modell auf deinem Mac und <a href="https://github.com/earendil-works/pi">Pi</a>, ein offener Coding-Agent (MIT-Lizenz). Pippa ist von Apple beglaubigt.</p></details>
+    <div><p class="label">Fragen</p><h2 id="h-faq">Noch <span class="hand">Fragen?</span></h2></div>
+    <div>
+      <details><summary>Was kostet Pippa?</summary><p>Nichts. Kein Konto, keine Werbung. Der Quellcode ist offen (MIT-Lizenz).</p></details>
+      <details id="mac"><summary>Läuft Pippa auf meinem Mac?</summary><p>Auf jedem Mac mit Apple-Chip (M1 oder neuer) und macOS 15 oder neuer. Nachsehen kannst du im Apple-Menü unter „Über diesen Mac“.</p></details>
+      <details><summary>Wer sieht meine Daten?</summary><p>Nur dein Mac. Die KI läuft auf deinem Mac, es gibt keinen Pippa-Server. Ins Netz geht Pippa nur, wenn sie etwas nachschlägt, und unter der Antwort steht genau, was dabei rausging. Mehr in der <a href="datenschutz.html">Datenschutzerklärung</a>.</p></details>
+      <details><summary>Kann Pippa etwas kaputt machen?</summary><p>Pippa arbeitet direkt auf deinem Mac und fragt nicht vor jedem Schritt. Unter jeder Antwort steht, was sie geändert hat. Mails legt sie nur als Entwurf an, abschicken tust du. Beim Aufräumen zeigt sie dir vorher, was sie vorhat, und ein Klick macht es rückgängig.</p></details>
+    </div>
   </div>
 </section>
 
-<section class="band lino" aria-labelledby="h-band">
+<section class="home" aria-labelledby="h-home">
   <div class="wrap">
-    <h2 id="h-band">Pippa für deinen Mac.</h2>
-    <a class="btn cta dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden</a>
-    <p class="req">Für Macs mit Apple-Chip (M1&nbsp;oder&nbsp;neuer) und macOS&nbsp;15 oder neuer. <a href="#mac">Passt mein&nbsp;Mac?</a></p>
-    <p class="steps-t">So geht’s los</p>
-      <ol class="steps"><li>Öffne die geladene Datei und zieh Pippa in „Programme“.</li><li>Öffne Pippa.</li><li>Bevor Pippa ihre KI lädt, fragt sie dich und sagt dir, wie groß sie ist.</li></ol>
-    <p class="mnote" hidden>Pippa läuft auf dem Mac. Schick dir den Link. <span class="fb" aria-live="polite"></span></p>
+    <div class="panel">
+      <span class="big" aria-hidden="true"><canvas data-mark="44"></canvas>Pippa</span>
+      <div class="card">
+        <p class="label">Für deinen Mac</p>
+        <h2 id="h-home">Hol dir <span class="hand">Pippa.</span></h2>
+        <ol class="steps"><li>Öffne die geladene Datei und zieh Pippa in „Programme“.</li><li>Öffne Pippa.</li><li>Bevor Pippa ihre KI lädt, fragt sie dich und sagt dir, wie groß sie ist.</li></ol>
+        <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a>
+        <p class="req">Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer.</p>
+      </div>
+    </div>
   </div>
 </section>
 </main>
+
+<div class="walker" id="walker" aria-hidden="true"><canvas data-mark="18"></canvas>Pippa</div>
 
 <footer>
   <div class="wrap">
@@ -703,456 +375,28 @@ footer .wrap{max-width:1120px}
     <p>Pippa nutzt offene Modelle über llama.cpp und den Open-Source-Agenten <a href="https://github.com/earendil-works/pi">Pi</a> (MIT). <a href="https://github.com/tschnorpfeil/pippa">Quellcode auf GitHub</a></p>
   </div>
 </footer>
-
-<noscript><p class="wrap nojs">Zum Ausprobieren braucht die Demo JavaScript. Pippa selbst läuft als App auf deinem Mac.</p></noscript>
-<script src="pippaDrag.js"></script>
 <script src="pippaMark.js"></script>
 <script>
 (()=>{
 'use strict';
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-const BR=e=>e.getBoundingClientRect();
-const done_=(a,ms)=>Promise.race([a.finished.catch(()=>{}),new Promise(r=>setTimeout(r,ms))]);
-const wait=(ms,keep)=>new Promise(r=>setTimeout(r,RM&&!keep?0:ms));
-const mk=(c,s,st)=>window.PippaMark?new PippaMark(c,{size:s,state:st||'ruht',alive:true,idleSpeed:1.35,idleAmplitude:1.25}):null;
-$$('canvas[data-mark]').forEach(c=>mk(c,+c.dataset.mark,c.dataset.state));
-const ds=$('#ds'),din=$('#din'),live=$('#live'),cta=$('#cta'),stage=$('#stage'),scatter=$('#scatter'),desk=$('.desk');
-const h1=$('#h1'),voice=$('#voice'),finEl=$('#finale'),frow=$('#frow'),slotsEl=$('#slots'),again=$('#again');
-const mkc=$('.mk',ds),dm=mk(mkc,44);
-const set=s=>dm&&dm.setState(s),pulse=()=>dm&&dm.pulse();
-const say=t=>{live.textContent='';setTimeout(()=>{live.textContent=t},40)};
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const obj=k=>$('.obj[data-k="'+k+'"]'),slot=k=>$('.slt[data-k="'+k+'"]');
-const wide=()=>innerWidth>=900;
-const ORDER=['mail','vertrag','steuer','zug','ordner'];
-let tidy=false;
-
-/* Überschrift: Wort für Wort */
-const HEAD=[['Zieh’s','einfach','auf&nbsp;<span class="hp">Pippa</span>.'],['Alles','in','<span class="hp">Ordnung</span>.']];
-const VOICE=[voice.innerHTML,'<span class="q"><span>Das war die Demo.</span><span>Jetzt deine Dateien.</span></span>'];
-const head=i=>{voice.getAnimations().forEach(a=>a.cancel());h1.innerHTML=HEAD[i].map(w=>'<span class="w">'+w+'</span>').join(' ');voice.innerHTML=VOICE[i]};
-function wordsOut(){
-if(RM)return Promise.resolve();
-const els=[...$$('.w',h1),voice];
-return Promise.all(els.map((e,i)=>done_(e.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-.18em)'}],
-{duration:260,delay:i*55,easing:'ease-in',fill:'forwards'}),i*55+400)));
-}
-function wordsIn(){
-if(RM)return;
-[...$$('.w',h1),voice].forEach((e,i)=>e.animate([{opacity:0,transform:'translateY(.25em)'},{opacity:1,transform:'none'}],
-{duration:320,delay:i*80,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'}));
-}
-
-/* Wo die Pille steht */
-let fin={w:0,h:0};
-function place(w,h){
-fin={w,h};
-if(tidy){ds.style.left=ds.style.top='';ds.style.removeProperty('--mh');return}
-const sw=stage.clientWidth,sh=stage.clientHeight,mh=wide()?Math.min(sh-16,innerHeight-32):innerHeight-32;
-ds.style.setProperty('--mh',mh+'px');h=Math.min(h,mh);
-const x=Math.max(0,Math.min(sw-w,sw*.5-w/2)),y=h>sh-16?8:Math.max(8,Math.min(sh-h-8,sh*(wide()?.38:.41)-h/2));
-ds.style.left=x+'px';ds.style.top=y+'px';
-}
-function seen(){
-if(tidy)return;
-const s=BR(stage),top=s.top+parseFloat(ds.style.top||0),bot=top+fin.h,vh=innerHeight;
-let d=0;if(bot>vh-16)d=bot-vh+16;if(top-d<16)d=top-16;
-if(Math.abs(d)>2)scrollBy({top:d,behavior:RM?'auto':'smooth'});
-}
-
-/* Hülle: Größe einmal setzen, den sichtbaren Übergang per Transform zeichnen. */
-function morph(mode,html){
-hideBub();const before=BR(ds);
-ds.getAnimations().forEach(a=>a.cancel());din.getAnimations().forEach(a=>a.cancel());
-ds.dataset.mode=mode;stage.classList.toggle('focused',mode==='card');ds.appendChild(mkc);din.innerHTML=html;
-const sl=$('.slot',din);if(sl)sl.appendChild(mkc);
-place(ds.offsetWidth,ds.offsetHeight);
-if(!RM){
-  const after=BR(ds),dx=before.left+before.width/2-after.left-after.width/2,dy=before.top+before.height/2-after.top-after.height/2;
-  if(before.width&&after.width&&before.height&&after.height){
-    ds.animate([{transform:'translate('+dx+'px,'+dy+'px) scale('+before.width/after.width+','+before.height/after.height+')'},{transform:'none'}],
-      {duration:300,easing:'cubic-bezier(.22,.8,.25,1)'});
-  }
-  din.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'none'}],{duration:220,delay:60,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'});
-}
-}
-const pill=(l,g,c)=>'<div class="pc"><span class="slot"></span><span class="lbl'+(c?' '+c:'')+'">'+l+'</span>'+(g?'<span class="g2">'+g+'</span>':'')+'</div>';
-const IDLE='<button class="pc" type="button" data-a="ask" aria-label="Pippa: etwas fragen"><span class="slot"></span><span class="t">Pippa</span></button>';
-const card=(h,b,a)=>'<div class="card"><div class="ch"><span class="slot"></span><div>'+h+'</div></div>'+(b||'')+'<div class="acts">'+a+'</div></div>';
-const B=(a,t,p)=>'<button class="'+(p?'b1':'b2')+'" type="button" data-a="'+a+'">'+t+'</button>';
-function idle(){ds.classList.remove('working');set('ruht');morph('pill',IDLE)}
-
-
-const rot=o=>parseFloat(o.style.getPropertyValue('--r'))||0;
-function flip(els,change,stag){
-const a=els.map(BR);change();
-if(RM)return Promise.resolve();
-const b=els.map(BR);
-return Promise.all(els.map((e,i)=>{const dx=a[i].left-b[i].left,dy=a[i].top-b[i].top;if(!a[i].width||(Math.abs(dx)<1&&Math.abs(dy)<1))return;
-return done_(e.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'none'}],{duration:420,delay:i*(stag||0),easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'}),i*(stag||0)+900)}));
-}
-
-/* Was Pippa versteht */
-const C={
-mail:{w:'Ich lese und schaue in deinen Kalender …',h:'<p class="ct">Antwort an Hausverwaltung Berger</p><p class="cs">Entwurf · ich schicke nichts ab</p>',
-b:'<div class="draft"><p>Hallo Herr Berger,</p><p>Donnerstag, 16.10., passt mir. Ich bin ab 9 Uhr zu Hause.</p><p>Viele Grüße<br>Anna Weber</p></div><p class="note">Dein Kalender ist am 16.10. vormittags frei.</p>',
-a:'In Mail öffnen',d:'Entwurf liegt in Mail. Abschicken tust du.',s:'<span class="stk"></span><span class="tagh">Entwurf</span>'},
-vertrag:{q:'Wann kann ich kündigen?',w:'Ich suche die Stelle …',h:'<p class="ct">Mobilfunkvertrag</p><p class="cs">Du hast gefragt: Wann kann ich kündigen?</p>',
-b:'<p class="ans">Der Vertrag läuft bis zum 30.11.2027. Kündigen kannst du bis zum 30.08.2027 (bitte prüfen).</p><div class="src"><cite>Vertrag_Mobilfunk.pdf · Seite 2</cite>„Die Mindestlaufzeit endet am <mark>30.11.2027</mark>. Die Kündigung muss <mark>drei Monate vor Ablauf</mark> eingehen.“</div>',
-a:'Frist merken',d:'Erinnerung am 16.08.27.',s:'<span class="tagh">bis 30.08.27</span>'},
-steuer:{q:'Such alles für die Steuer 2025.',w:'Ich suche auf deinem Mac …',h:'<p class="ct">7 Unterlagen für die Steuer 2025</p><p class="cs">Gefunden in Downloads, Dokumente und Mail</p>',
-b:'<ul class="hits"><li><b>Lohnsteuerbescheinigung 2025</b><small>Dokumente</small></li><li><b>Spendenquittung Tafel</b><small>Downloads</small></li><li><b>Rechnung Heizungswartung</b><small>Mail</small></li><li><b>Riester-Bescheinigung 2025</b><small>Dokumente</small></li><li class="more">und 3 weitere</li></ul><p class="note">Ich habe nichts verschoben.</p>',
-a:'In einen Ordner kopieren',d:'Ordner „Steuer 2025“ mit 7 Kopien. Die Originale bleiben, wo sie sind.',s:'<span class="fold">Steuer 2025 <em>7</em></span>'},
-zug:{q:'Bekomme ich Geld zurück?',w:'Ich schaue online nach den Regeln …',h:'<p class="ct">Dir stehen 44,95 € zu</p><p class="cs">Du hast gefragt: Bekomme ich Geld zurück?</p>',
-b:'<p class="ans">Ab 120 Minuten Verspätung gibt es die Hälfte des Fahrpreises zurück. Deine Fahrkarte kostete 89,90 €.</p><div class="src"><cite>Online nachgesehen · Fahrgastrechte, 2 Quellen</cite>Ab 60 Minuten Verspätung 25 %, ab 120 Minuten 50 % des Fahrpreises.</div><p class="note">Ins Internet ging nur die Frage nach den Regeln, nicht deine Fahrkarte.</p>',
-a:'Antrag vorbereiten',d:'Die Angaben für den Antrag liegen bereit. Abschicken tust du.',s:'<span class="tagh">44,95 € zurück</span>'},
-ordner:{w:'Ich schaue mir 47 Dateien an …',h:'<p class="ct">Downloads ordnen</p><p class="cs">Vorschau · noch nichts geändert</p>',
-b:'<dl class="facts"><dt>Rechnungen</dt><dd>12 Dateien</dd><dt>Fotos</dt><dd>14, nach Jahr</dd><dt>Verträge</dt><dd>5 Dateien</dd><dt>Bleibt liegen</dt><dd>16, da bin ich unsicher</dd></dl><p class="note">Nichts wird gelöscht. Ein Klick macht alles rückgängig.</p>',
-a:'31 Dateien ordnen',d:'31 Dateien in 3 Ordnern. Rückgängig geht jederzeit.',s:'<span class="fold">3 Ordner <em>31</em></span>'}
-};
-
-let T=0,cur=null,kb=false,done={},blob='',touched=false;
-const picks=$$('[data-demo]');
-function selection(k){picks.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.demo===k)))}
-function release(){if(cur){const o=obj(cur);o&&o.classList.remove('lent')}cur=null}
-function drop(){if(blob){URL.revokeObjectURL(blob);blob=''}}
-async function run(k,src,t,auto){
-if(tidy)return false;
-cancelDrag();
-if(Object.keys(done).length===ORDER.length)return finale();
-t=t||++T;release();drop();touched=true;selection(k);
-const o=obj(k),c=C[k];cur=k;
-if(src&&o&&!done[k]){o.classList.add('lent');await arc(o,BR(o),BR(mkc),{s0:1,s1:0,r0:rot(o),r1:0,sw:14,o1:.5,d:400,bl:1})}
-else if(o)o.classList.add('lent');
-if(t!==T)return false;
-
-ds.classList.add('working');set('arbeitet');morph('pill',pill(c.w,'',RM?'':'shimmer'));say(c.w);
-// Each prepared example works for 2–3.5 seconds, including reduced motion.
-await wait(2000+Math.random()*1500,true);if(t!==T)return false;
-ds.classList.remove('working');set('offen');pulse();
-morph('card',card(c.h,c.b,done[k]?B('leave','Fertig',1):B('leave','Liegen lassen')+B('apply',c.a,1)));
-say(($('.ct',din).innerText+'. '+$('.facts,.ans,.draft,.hits,.note',din).innerText).replace(/\s*\n+\s*/g,' '));
-if(!auto)seen();
-if(kb){const f=$('[data-a=apply]',din)||$('[data-a=leave]',din);f.focus({preventScroll:true})}
-return true;
-}
-async function apply(k,t){
-const o=obj(k),sl=slot(k),c=C[k];
-const a=BR(ds),w=o.offsetWidth||200,h=o.offsetHeight||150;
-cur=null;done[k]=1;o.classList.remove('lent');o.disabled=true;selection(null);
-const action=$('[data-a=apply]',din);if(action)action.disabled=true;
-morph('pill',pill(c.d));set('offen');pulse();say('Erledigt. '+c.d);
-if(!wide())slotsEl.scrollLeft=sl.offsetLeft-(slotsEl.clientWidth-sl.offsetWidth)/2-slotsEl.offsetLeft;
-const b=BR(sl);
-const f=arc(o,a,b,{s0:.15,s1:Math.min(.6,b.width/w,b.height/h),r0:0,r1:0,o1:.15,d:420});
-o.classList.add('gone');
-sl.classList.add('full');$('.sc',sl).innerHTML=c.s;
-sl.insertAdjacentHTML('beforeend','<button class="und" type="button" data-u="'+k+'" aria-label="'+o.getAttribute('aria-label')+': rückgängig machen">Rückgängig</button>');
-count();
-await f;if(t!==T)return;
-if(Object.keys(done).length===ORDER.length)return finale();
-if(kb)$('.und',sl).focus();
-await wait(1200,true);if(t===T&&!cur)idle();
-}
-async function undo(k){
-cancelDrag();const t=++T,o=obj(k),sl=slot(k);if(cur)release();selection(null);o.disabled=false;
-delete done[k];const a=BR(sl);
-sl.classList.remove('full');$('.sc',sl).innerHTML='';const u=$('.und',sl);u&&u.remove();
-o.classList.remove('gone');o.classList.add('away');
-const b=BR(o);
-await arc(o,a,b,{s0:.4,s1:1,r0:0,r1:rot(o),o1:1,d:420});
-o.classList.remove('away');count();if(t!==T)return;
-morph('pill',pill('Liegt wieder da.'));set('ruht');say('Rückgängig gemacht. '+o.getAttribute('aria-label')+' liegt wieder auf dem Tisch.');
-if(kb)o.focus();
-await wait(1200,true);if(t===T&&!cur)idle();
-}
-function count(){
-const n=Object.keys(done).length;$('#cnt').textContent=n+' von 5 ausprobiert';
-const progress=$('.demo-progress');progress.setAttribute('aria-valuenow',n);$('span',progress).style.transform='scaleX('+n/ORDER.length+')';
-picks.forEach(b=>b.toggleAttribute('data-done',!!done[b.dataset.demo]));
-}
-
-/* Finale: der Tisch atmet aus */
-async function finale(){
-const t=++T,viaKb=kb;
-say('Alles ausprobiert. Das war die Demo. Jetzt deine Dateien.');
-set('offen');hideBub();morph('pill',pill('Pippa'));
-await wait(700);if(t!==T)return;
-desk.classList.add('calm');
-{const y=BR(desk).top+scrollY;if(Math.abs(scrollY-y)>8){scrollTo({top:y,behavior:RM?'auto':'smooth'});await wait(600)}}
-await wait(450);if(t!==T)return;
-await wordsOut();if(t!==T)return;
-const sl=$$('.slt',slotsEl);
-ds.style.transition='none';
-await flip([ds,...sl,cta],()=>{
-tidy=true;$('#h-demo').textContent='Alles ausprobiert.';desk.classList.add('tidy');finEl.hidden=false;sl.forEach(s=>frow.appendChild(s));
-head(1);cta.classList.add('moment');place(0,0);
-},45);
-ds.style.transition='';
-if(t!==T)return;
-wordsIn();
-pulse();
-
-setTimeout(()=>{if(t===T&&tidy)bubble('Ahh. So ist’s besser.',3800,'✨','success')},RM?0:450);
-if(viaKb)cta.focus();
-}
-async function chaos(){
-cancelDrag();
-const resetKeyboard=document.activeElement===again;const t=++T;hideBub();kb=false;release();drop();selection(null);$('#h-demo').textContent='Probier Pippa aus.';
-say('Wieder auf dem Tisch. Zieh eine Datei auf Pippa oder wähle ein Beispiel.');
-await wordsOut();if(t!==T)return;
-const sl=$$('.slt',frow);
-ds.style.transition='none';
-sl.forEach(s=>{s.classList.remove('full');$('.sc',s).innerHTML='';const u=$('.und',s);u&&u.remove()});
-done={};
-await flip([ds,cta],()=>{
-tidy=false;stage.style.minHeight='';desk.classList.remove('tidy','calm');finEl.hidden=true;sl.forEach(s=>slotsEl.appendChild(s));
-$$('.obj').forEach(o=>{o.disabled=false;o.classList.remove('gone','lent','away')});
-head(0);cta.classList.remove('moment');count();
-set('ruht');ds.dataset.mode='pill';ds.appendChild(mkc);din.innerHTML=IDLE;$('.slot',din).appendChild(mkc);place(ds.offsetWidth,ds.offsetHeight);
-});
-ds.style.transition='';
-wordsIn();
-if(resetKeyboard)picks[0].focus({preventScroll:true});
-if(RM)return;
-const p=BR(ds),px=p.left+p.width/2,py=p.top+p.height/2;
-$$('.obj').forEach((o,i)=>{
-const r=BR(o),dx=px-(r.left+r.width/2),dy=py-(r.top+r.height/2),z=rot(o),s=i%2?1:-1;
-o.animate([{transform:'translate('+dx+'px,'+dy+'px) rotate('+(z+s*160)+'deg) scale(.15)',opacity:0},
-{transform:'translate('+dx*.35+'px,'+(dy*.35-60)+'px) rotate('+(z+s*40)+'deg) scale(.8)',opacity:1,offset:.55},
-{transform:'translate(0,0) rotate('+z+'deg) scale(1)',opacity:1}],{duration:720,delay:i*70,easing:'cubic-bezier(.3,.9,.3,1)',fill:'backwards'});
-});
-}
-again.addEventListener('click',chaos);
-
-picks.forEach(b=>b.addEventListener('click',e=>{kb=e.detail===0;run(b.dataset.demo,true)}));
-$$('a[href="#demo"]').forEach(a=>a.addEventListener('click',()=>{setTimeout(()=>{if(!tidy&&!cur&&!D){bubble('Was nehmen wir zuerst?',3200,'👀');picks[0].focus({preventScroll:true})}},350)}));
-
-din.addEventListener('click',e=>{
-const b=e.target.closest('button');if(!b)return;kb=e.detail===0;const a=b.dataset.a;
-if(a==='ask'){if(!done.vertrag)run('vertrag');return}
-if(a==='leave'){close();return}
-if(a==='apply'&&cur){apply(cur,++T)}
-});
-function close(){cancelDrag();selection(null);const k=cur;++T;release();drop();idle();if(kb){if(k&&obj(k)&&!done[k])obj(k).focus();else $('button',din).focus()}}
-ds.addEventListener('keydown',e=>{if(e.key==='Escape'&&ds.dataset.mode==='card'){kb=true;close()}});
-$('.shelf').addEventListener('click',e=>{const b=e.target.closest('[data-u]');if(b){kb=e.detail===0;undo(b.dataset.u)}});
-
-/* Sprechblase */
-const mkEl=c=>{const e=document.createElement('div');e.className=c;e.setAttribute('aria-hidden','true');stage.appendChild(e);return e};
-const bub=mkEl('bub');let bubT=0;
-const bubEmote=document.createElement('span'),bubText=document.createElement('span');
-bubEmote.className='bub-emote';bubText.className='bub-text';bub.append(bubEmote,bubText);
-function bubble(text,ms,emoji='',tone=''){
-tone=tone||(emoji==='👋'?'hello':'chat');
-clearTimeout(bubT);bub.getAnimations().forEach(a=>a.cancel());bubEmote.getAnimations().forEach(a=>a.cancel());
-bubText.textContent=text;bubEmote.textContent=emoji;bubEmote.hidden=!emoji;bub.dataset.tone=tone;bub.classList.remove('side','below');
-const sw=stage.clientWidth,pl=tidy?ds.offsetLeft:parseFloat(ds.style.left)||ds.offsetLeft,pt=tidy?ds.offsetTop:parseFloat(ds.style.top)||ds.offsetTop,pw=ds.offsetWidth,bw=bub.offsetWidth,bh=bub.offsetHeight,mx=pl+(wide()?32:28);
-let x=Math.max(12,Math.min(sw-bw-12,mx-28)),y=pt-bh-16;
-if(y<8){
-  if(pl+pw+16+bw<=sw-12){x=pl+pw+16;y=pt+(ds.offsetHeight-bh)/2;bub.classList.add('side')}
-  else{y=pt+ds.offsetHeight+16;bub.classList.add('below')}
-}
-bub.style.left=x+'px';bub.style.top=y+'px';bub.style.setProperty('--tx',Math.max(16,Math.min(bw-16,mx-x))+'px');bub.style.opacity='1';
-if(!RM){
-  const angle=tone==='hint'?1:tone==='success'?-2:-1.5,rest='rotate('+angle+'deg)';
-  const frames=tone==='hint'?[{opacity:0,transform:'translateY(5px) '+rest+' scale(.97)'},{opacity:1,transform:rest}]:[{opacity:0,transform:'translateY(8px) rotate('+(angle-4)+'deg) scale(.88)'},{opacity:1,transform:'translateY(-2px) rotate('+(angle+2)+'deg) scale(1.025)',offset:.72},{opacity:1,transform:rest}];
-  bub.animate(frames,{duration:tone==='hint'?220:360,easing:'cubic-bezier(.16,1,.3,1)'});
-  if(tone==='success')bubEmote.animate([{transform:'scale(.7) rotate(-15deg)'},{transform:'scale(1.2) rotate(8deg)'},{transform:'none'}],{duration:460,delay:100,easing:'cubic-bezier(.16,1,.3,1)'});
-  if(emoji==='👋')bubEmote.animate([{transform:'rotate(-12deg)'},{transform:'rotate(16deg)'},{transform:'rotate(-10deg)'},{transform:'none'}],{duration:520,delay:120,easing:'ease-in-out'});
-}
-if(ms)bubT=setTimeout(hideBub,ms);
-}
-function hideBub(){
-clearTimeout(bubT);if(bub.style.opacity!=='1')return;
-const from=getComputedStyle(bub).transform,opacity=getComputedStyle(bub).opacity;
-bub.getAnimations().forEach(a=>a.cancel());bubEmote.getAnimations().forEach(a=>a.cancel());bub.style.opacity='0';
-if(!RM)bub.animate([{opacity,transform:from},{opacity:0,transform:'translateY(4px) rotate(-3deg) scale(.96)'}],{duration:150,easing:'ease-out'});
-}
-const LINES=[['Na, was hast du da?','👀'],['Was liegt an?','🙂'],['Gib her. Ich schau rein.','👀'],['Eine Datei nach der anderen.','🙂']];let lastL='',pv=true,once=false,nb=0;
-const HINTS={mail:['Soll ich antworten?','📬'],vertrag:['Ich such die Kündigungsfrist.','🤔'],steuer:['Ich such alles zusammen.','🔎'],zug:['Ich schau nach, was dir zusteht.','🚆'],ordner:['Ich räum auf, du entscheidest.','🧹']};
-let hintTimer=0;
-$$('.obj').forEach(o=>{
-  o.addEventListener('pointerenter',e=>{
-    if(e.pointerType==='touch'||RM)return;
-    clearTimeout(hintTimer);hintTimer=setTimeout(()=>{if(!D&&!cur&&!tidy&&!done[o.dataset.k]&&$('[data-a=ask]',din)){const hint=HINTS[o.dataset.k];bubble(hint[0],2600,hint[1],'hint')}},450);
-  });
-  o.addEventListener('pointerleave',()=>clearTimeout(hintTimer));
-  o.addEventListener('pointerdown',()=>clearTimeout(hintTimer));
-});
-if('IntersectionObserver' in window)new IntersectionObserver(es=>{pv=es[0].isIntersecting}).observe(ds);
-function tick(first){
-const ok=!D&&!tidy&&!cur&&pv&&!document.hidden&&$('[data-a=ask]',din)&&!ds.classList.contains('working');
-if(touched||nb>=2)return;
-if(ok){let l=first?['Hi! Ich bin Pippa.','👋']:LINES[Math.random()*LINES.length|0];while(l[0]===lastL)l=LINES[Math.random()*LINES.length|0];lastL=l[0];bubble(l[0],3400,l[1]);pulse();once=true;nb++}
-if(!(RM&&once))setTimeout(tick,first&&!ok?1500:7000+Math.random()*2000);
-}
-setTimeout(()=>tick(true),1500);
-/* Wer nur schaut, sieht Pippa einmal von selbst arbeiten. */
-setTimeout(()=>{if(!touched&&!D&&!tidy&&!cur&&pv&&!document.hidden&&$('[data-a=ask]',din)){bubble('Ich zeig’s dir mal.',1800,'🙂');setTimeout(()=>{if(!touched&&!D&&!cur)run('vertrag',true,undefined,true)},RM?0:1400)}},6200);
-
-/* Drag: pointer follows directly; only gravity and the pickup pose ease out. */
-const dragMath=window.PippaDrag;
-let D=null,press=null;
-const dropZone=mkEl('drop-zone');
-dropZone.innerHTML='<span class="drop-caption">Zu Pippa ziehen</span>';
-const dropCaption=$('.drop-caption',dropZone);
-const profile=location.hostname==='localhost'&&new URLSearchParams(location.search).has('perf')?{
-  costs:[],queueWaits:[],longTasks:[],
-  begin(){this.costs=[];this.queueWaits=[];this.longTasks=[]},
-  frame(now,cost,queueWait){this.costs.push(cost);this.queueWaits.push(queueWait)},
-  report(){
-    let out=$('#drag-perf');if(!out){out=document.createElement('output');out.id='drag-perf';out.hidden=true;document.body.appendChild(out)}
-    out.textContent=JSON.stringify({frames:this.costs.length,meanCallbackMs:this.costs.reduce((a,b)=>a+b,0)/(this.costs.length||1),maxCallbackMs:Math.max(0,...this.costs),maxQueueWaitMs:Math.max(0,...this.queueWaits),userAgent:navigator.userAgent,longTasks:this.longTasks,paint:performance.getEntriesByType('paint').map(e=>({name:e.name,ms:e.startTime})),resources:performance.getEntriesByType('resource').map(e=>({name:e.name.split('/').pop(),bytes:e.decodedBodySize}))})
-  }
-}:null;
-if(profile&&typeof PerformanceObserver!=='undefined'){
-  try{new PerformanceObserver(list=>{if(D)profile.longTasks.push(...list.getEntries().map(e=>e.duration))}).observe({type:'longtask'})}catch(_){}
-}
-function dragSample(d){
-  const dx=d.px-d.x0,dy=d.py-d.y0;
-  return dragMath.sample({centerX:d.cx+dx,centerY:d.cy+dy,pointerX:d.px,pointerY:d.py,width:d.w,height:d.h},d.target,{radius:d.radius,margin:32,maxPull:RM?0:36});
-}
-function queueFrame(d){
-  if(d.raf)return;
-  if(profile)d.queuedAt=performance.now();
-  d.raf=requestAnimationFrame(frame);
-}
-function receive(ready){
-  const from=getComputedStyle(ds).transform;
-  ds.getAnimations().forEach(a=>a.cancel());
-  set(ready?'offen':'ruht');
-  if(RM)return;
-  if(ready){
-    pulse();
-    ds.animate([{transform:from},{transform:'translateY(-2px) scale(1.055)',offset:.55},{transform:'translateY(-1px) scale(1.025)'}],
-      {duration:280,easing:'cubic-bezier(.22,.8,.25,1)',fill:'forwards'});
-  }else ds.animate([{transform:from},{transform:'none'}],{duration:220,easing:'cubic-bezier(.16,1,.3,1)'});
-}
-function frame(now){
-  const d=D;if(!d)return;d.raf=0;
-  const started=profile?performance.now():0,s=dragSample(d);
-  const ease=RM?1:1-Math.exp(-Math.min(32,now-(d.lastFrame??now-16))/45);
-  d.lastFrame=now;
-  d.pullX+=(s.pullX-d.pullX)*ease;d.pullY+=(s.pullY-d.pullY)*ease;
-  d.dock+=(s.dock-d.dock)*ease;d.pickup+=(1-d.pickup)*ease;
-  const scale=RM?1:1+.035*d.pickup-.065*d.dock;
-  const angle=RM?d.r0:d.r0*(1-.8*d.dock)+Math.sign(d.r0||1)*1.5*d.pickup*(1-d.dock);
-  d.o.style.transform='translate3d('+(d.px-d.x0+d.pullX)+'px,'+(d.py-d.y0+d.pullY+d.offsetY)+'px,0) rotate('+angle+'deg) scale('+scale+')';
-  if(s.ready!==d.ready){
-    d.ready=s.ready;dropZone.classList.toggle('ready',s.ready);ds.classList.toggle('hot',s.ready);
-    dropCaption.textContent=s.ready?'Hier loslassen':'Zu Pippa ziehen';
-    if(s.ready||d.received)receive(s.ready);d.received=s.ready;
-  }
-  if(profile)profile.frame(now,performance.now()-started,started-d.queuedAt);
-  // Stop after the short settling tail. Holding a still paper needs no frames.
-  if(!RM&&(Math.abs(s.pullX-d.pullX)>.06||Math.abs(s.pullY-d.pullY)>.06||Math.abs(s.dock-d.dock)>.002||1-d.pickup>.002))queueFrame(d);
-}
-function cancelDrag(animate=true){
-  press=null;const d=D;if(!d)return;D=null;cancelAnimationFrame(d.raf);
-  const from=d.o.style.transform;d.o._skip=true;
-  d.o.style.transform='';d.o.style.willChange='';d.o.classList.remove('lift');
-  ds.getAnimations().forEach(a=>a.cancel());
-  stage.classList.remove('dragging');dropZone.classList.remove('ready');ds.classList.remove('hot','target');document.body.classList.remove('grabbing');
-  if(animate&&!RM&&from)d.o.animate([{transform:from},{transform:getComputedStyle(d.o).transform}],{duration:260,easing:'cubic-bezier(.16,1,.3,1)'});
-  set('ruht');if(profile)profile.report();
-}
-function begin(o,p,e){
-  const gesture=press;cancelDrag(false);press=gesture;
-  ++T;release();drop();selection(null);hideBub();touched=true;
-  if(ds.dataset.mode!=='pill'||!$('[data-a=ask]',din))idle();
-  ds.getAnimations().forEach(a=>a.cancel());din.getAnimations().forEach(a=>a.cancel());
-  o.getAnimations().forEach(a=>a.cancel());
-  const r=BR(o),target=BR(ds),sr=BR(stage);
-  D={o,k:o.dataset.k,x0:p.x,y0:p.y,px:e.clientX,py:e.clientY,cx:r.left+r.width/2,cy:r.top+r.height/2,w:r.width,h:r.height,offsetY:parseFloat(getComputedStyle(o).getPropertyValue('--h'))||0,r0:rot(o),target,radius:Math.min(180,Math.max(110,sr.width*.26)),ready:null,raf:0,pullX:0,pullY:0,dock:0,pickup:0,received:false};
-  dropZone.style.left=target.left-sr.left-32+'px';dropZone.style.top=target.top-sr.top-32+'px';
-  dropZone.style.width=target.width+64+'px';dropZone.style.height=target.height+64+'px';
-  o.classList.add('lift');o.style.willChange='transform';stage.classList.add('dragging');document.body.classList.add('grabbing');ds.classList.add('target');
-  try{o.setPointerCapture(e.pointerId)}catch(_){}
-  if(profile)profile.begin();
-}
-function swallow(d){
-  const a=BR(d.o),b=d.target,k=d.k;
-  cancelDrag(false);kb=false;
-  arc(d.o,a,b,{s0:1,s1:.12,r0:d.r0*(1-.8*d.dock),r1:0,o1:0,d:260});
-  run(k,false);
-}
-$$('.obj').forEach(o=>{
-  // The small grip supports vertical touch drags; the rest of the paper scrolls normally.
-  const grip=document.createElement('span');grip.className='grip';grip.setAttribute('aria-hidden','true');
-  grip.innerHTML='<svg viewBox="0 0 20 20"><path d="M7 5h.01M13 5h.01M7 10h.01M13 10h.01M7 15h.01M13 15h.01"/></svg>';
-  o.appendChild(grip);
-  o.addEventListener('pointerdown',e=>{
-    if(!dragMath||e.button>0||e.isPrimary===false||tidy||done[o.dataset.k]||press)return;
-    o._skip=false;press={o,id:e.pointerId,x:e.clientX,y:e.clientY,touch:e.pointerType==='touch',handle:!!e.target.closest('.grip'),dragged:false};
-  });
-  o.addEventListener('click',e=>{
-    if((o._skip&&e.detail!==0)||done[o.dataset.k]||D)return;
-    kb=e.detail===0;run(o.dataset.k,true);
-  });
-});
-addEventListener('pointermove',e=>{
-  const p=press;if(!p||p.id!==e.pointerId)return;
-  if(!p.dragged){
-    const x=Math.abs(e.clientX-p.x),y=Math.abs(e.clientY-p.y);
-    if(p.touch&&!p.handle){if(y>10&&y>=x){press=null;return}if(x<10)return}
-    else if(Math.hypot(x,y)<7)return;
-    p.dragged=true;begin(p.o,p,e);
-  }
-  e.preventDefault();const d=D;if(!d)return;d.px=e.clientX;d.py=e.clientY;
-  queueFrame(d);
-},{passive:false});
-function endDrag(e){
-  const p=press;if(!p||p.id!==e.pointerId)return;press=null;
-  if(!p.dragged)return;
-  p.o._skip=true;
-  const d=D;if(!d)return;
-  if(e.type==='pointerup'){
-    d.px=e.clientX;d.py=e.clientY;
-    if(dragSample(d).ready){swallow(d);return}
-  }
-  cancelDrag();
-}
-addEventListener('pointerup',endDrag);
-addEventListener('pointercancel',endDrag);
-addEventListener('keydown',e=>{if(e.key==='Escape'&&D){e.preventDefault();cancelDrag();say('Liegt wieder auf dem Tisch.')}});
-addEventListener('blur',()=>cancelDrag(false));
-addEventListener('scroll',()=>{if(D)cancelDrag(false)},{passive:true});
-addEventListener('resize',()=>cancelDrag(false));
-document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelDrag(false)});
-
-function arc(src,a,b,o){
-if(RM)return Promise.resolve();
-const w=src.offsetWidth||200,h=src.offsetHeight||150,c=src.cloneNode(true);
-c.classList.remove('gone','lent','lift','away');c.setAttribute('aria-hidden','true');c.removeAttribute('data-k');c.inert=true;c.tabIndex=-1;
-c.style.cssText+=';position:fixed;margin:0;z-index:80;pointer-events:none;transition:none;font-size:'+getComputedStyle(src).fontSize+';left:'+(a.left+a.width/2-w/2)+'px;top:'+(a.top+a.height/2-h/2)+'px;width:'+w+'px;height:'+h+'px';
-document.body.appendChild(c);
-const sx=a.left+a.width/2,sy=a.top+a.height/2,ex=b.left+b.width/2,ey=b.top+b.height/2,qx=(sx+ex)/2,qy=Math.min(sy,ey)-Math.max(40,Math.abs(ex-sx)*.25),dir=ex>sx?1:-1,kf=[];
-for(let i=0;i<=8;i++){const t=i/8,u=t<.5?2*t*t:1-Math.pow(2-2*t,2)/2,v=1-u,x=v*v*sx+2*v*u*qx+u*u*ex,y=v*v*sy+2*v*u*qy+u*u*ey;
-kf.push({offset:t,transform:'translate('+(x-sx)+'px,'+(y-sy)+'px) rotate('+(o.r0*v+o.r1*u+dir*(o.sw||0)*Math.sin(Math.PI*u))+'deg) scale('+(o.s0+(o.s1-o.s0)*u)+')',
-opacity:1+(o.o1-1)*Math.max(0,(t-.6)/.4)})}
-return done_(c.animate(kf,{duration:o.d}),o.d+160).then(()=>c.remove());
-}
-
-
-/* Maße: Sachen skalieren mit der Bühne; schmale Pille nur, solange der Tisch sichtbar ist */
-const fit=()=>{hideBub();scatter.style.setProperty('--u',stage.clientWidth/100+'px');place(ds.offsetWidth,ds.offsetHeight)};
-fit();addEventListener('resize',fit);
-new ResizeObserver(()=>{ds.style.transition='none';fit();void ds.offsetWidth;ds.style.transition=''}).observe(stage);
-
-/* Kein Mac in der Hand: Link merken statt laden */
-const URL_='https://heypippa.app/';
-if(matchMedia('(pointer:coarse)').matches&&!/Macintosh/.test(navigator.userAgent)){
-$$('.dl').forEach(a=>{a.textContent=a.dataset.short?'Link merken':'Link für meinen Mac merken';a.removeAttribute('download');
-a.addEventListener('click',async e=>{e.preventDefault();const w=a.closest('.wrap'),fb=w&&$('.fb',w)||$('.fb');let msg='';
-try{if(navigator.share){await navigator.share({title:'Pippa',text:'Pippa für meinen Mac',url:URL_});return}await navigator.clipboard.writeText(URL_);msg='Link kopiert'}catch(_){msg='Link: heypippa.app'}
-if(msg){$$('.fb').forEach(f=>f.textContent='');fb.textContent=msg}})});
-$$('.mnote').forEach(n=>n.hidden=false)}
-$$('a[href="#mac"]').forEach(a=>a.addEventListener('click',()=>{$('#mac').open=true}));
-/* Hallo, dann bereit */
-idle();
+$$('canvas[data-mark]').forEach(c=>window.PippaMark&&new PippaMark(c,{size:+c.dataset.mark,state:c.dataset.state||'ruht',alive:!RM}));
+/* Kapitel: wechseln von selbst, Klick springt, Anhalten hält an. */
+const items=$$('#chapters li'),shots=$$('#screen img'),pause=$('#pause'),DUR=5200;
+let i=0,t0=performance.now(),run=!RM;
+const show=n=>{i=n;t0=performance.now();items.forEach((li,k)=>li.classList.toggle('on',k===n));shots.forEach((s,k)=>s.classList.toggle('on',k===n));};
+items.forEach((li,k)=>li.querySelector('button').addEventListener('click',()=>show(k)));
+pause.textContent=run?'Anhalten':'Abspielen';
+pause.addEventListener('click',()=>{run=!run;t0=performance.now()-(+(items[i].querySelector('.bar i').style.width.replace('%',''))||0)*DUR/100;pause.textContent=run?'Anhalten':'Abspielen'});
+const tick=now=>{if(run){const p=Math.min(1,(now-t0)/DUR);items[i].querySelector('.bar i').style.width=p*100+'%';if(p>=1)show((i+1)%items.length)}requestAnimationFrame(tick)};
+requestAnimationFrame(tick);
+/* Pippa läuft beim Scrollen unten am Rand mit. */
+const w=$('#walker');
+const walk=()=>{const max=document.documentElement.scrollHeight-innerHeight,p=max>0?scrollY/max:0;w.style.transform='translateX('+Math.round(16+p*(innerWidth-w.offsetWidth-32))+'px)';w.style.opacity=scrollY>innerHeight*.8&&p<.92?1:0};
+addEventListener('scroll',walk,{passive:true});addEventListener('resize',walk);walk();
 })();
 </script>
+<div class="draftbar">Entwurf 2</div>
 </body>
 </html>
