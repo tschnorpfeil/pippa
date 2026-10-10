@@ -331,6 +331,9 @@ key in the Keychain (account `ed25519`, or `PIPPA_SPARKLE_ACCOUNT`). It checks t
 `dist/releases/<tag>/` (default `v<version>-<build>`) with the versioned DMG, a stable-name `Pippa.dmg`, `appcast.xml`
 (`write-appcast.py`), `SHA256SUMS` and `commit.txt`. Publishing is a separate, deliberate step: the DMG and `appcast.xml`
 go into the same GitHub release, because the in-app update feed is `releases/latest/download/appcast.xml`.
+On a Mac without the Sparkle key, `PIPPA_NO_SPARKLE=1` still builds the signed, notarized DMG but skips the key check,
+the update signature and `appcast.xml`. Attach the previous release's `appcast.xml` unchanged to that release, so
+installed copies keep a working feed; they are not offered this release.
 
 **Updates.** Sparkle 2.10.0 is pinned exactly. Pippa checks daily, downloads in the background and installs on quit or
 after 20 minutes without input, never during work, an open preview or a dialog. To test a real update from an installed
