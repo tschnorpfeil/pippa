@@ -135,6 +135,9 @@ struct StepRow: View {
             if let outcome = step.outcome {
                 Text("· " + outcome).foregroundStyle(failed ? Theme.need : Theme.ink3).lineLimit(1).fixedSize()
             }
+            if let repeats = step.repeats, repeats > 1 {
+                Text(verbatim: "\(repeats)×").foregroundStyle(Theme.ink3).monospacedDigit().lineLimit(1).fixedSize()
+            }
         }
         .font(Fonts.hint)
     }
@@ -222,11 +225,11 @@ struct WorkReceiptView: View {
                         if !receipt.sources.isEmpty || receipt.lookedUpOnline || receipt.checkedCalendar { Divider() }
                         Text(T("What I did", table: "ThoughtUI")).font(Fonts.hint.weight(.medium)).foregroundStyle(Theme.ink2)
                         VStack(alignment: .leading, spacing: 3) {
-                            ForEach(Array(steps.enumerated()), id: \.offset) { _, step in StepRow(step: step) }
+                            ForEach(Array(WorkStep.merged(steps).enumerated()), id: \.offset) { _, step in StepRow(step: step) }
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(T("What I did", table: "ThoughtUI"))
-                        .accessibilityValue(steps.map(\.line).joined(separator: ". "))
+                        .accessibilityValue(WorkStep.merged(steps).map(\.line).joined(separator: ". "))
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 10)
