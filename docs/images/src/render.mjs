@@ -20,6 +20,10 @@ const states = {
   failed: 'S.failed()',
   fotos: 'S.resultFotos()',
   copy: 'S.resultCopy()',
+  pasteshot: 'S.pasteShot()',
+  pastefiles: 'S.pasteFiles()',
+  'pasteshot-de': 'S.pasteShot(true)',
+  'pastefiles-de': 'S.pasteFiles(true)',
 };
 
 const browser = await chromium.launch();
@@ -44,6 +48,23 @@ for (const theme of ['light', 'dark']) {
     await g.evaluate(() => document.fonts.ready);
     await g.waitForTimeout(400);
     await g.locator('#g').screenshot({ path: join(images, `pill-${kind}-${theme}.png`) });
+  }
+  // Pasting with ⌘V: README in both themes, the website (light only) in German and English.
+  await g.goto(page('gallery.html', { theme, kind: 'paste', dir: pathToFileURL(work).href }));
+  await g.evaluate(() => document.fonts.ready);
+  await g.waitForTimeout(400);
+  await g.locator('#g').screenshot({ path: join(images, `pill-paste-${theme}.png`) });
+  if (theme === 'light') {
+    for (const [lang, narrow] of [['de', ''], ['en', ''], ['de', '1'], ['en', '1']]) {
+      await g.goto(page('gallery.html', { theme, kind: 'paste', lang, narrow, dir: pathToFileURL(work).href }));
+      await g.evaluate(() => document.fonts.ready);
+      await g.waitForTimeout(400);
+      const name = `einfuegen-${lang}${narrow ? '-schmal' : ''}`;
+      const shot = join(work, `${name}.png`);
+      await g.locator('#g').screenshot({ path: shot });
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', shot, '-c:v', 'libwebp', '-quality', '86',
+        join(here, '..', '..', '..', 'site', 'images', `${name}.webp`)]);
+    }
   }
   await g.close();
 

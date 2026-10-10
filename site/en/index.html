@@ -382,6 +382,12 @@ footer .wrap{display:grid;gap:6px;max-width:800px}
 .band{padding:var(--s8) 0;margin-top:var(--s8);text-align:center}
 .band h2{font:400 clamp(32px,1.2rem + 2.4vw,48px)/1 var(--fd);margin:0 0 var(--s5)}
 .band .req,.band .mnote{margin-left:auto;margin-right:auto}
+.paste{padding-bottom:0}
+.paste-lead{margin:0 auto var(--s5);max-width:36em;color:var(--ink-2);text-wrap:pretty}
+.paste-lead kbd{white-space:nowrap}
+.paste-shot{margin:0 auto;max-width:960px}
+.paste img{display:block;max-width:100%;width:100%;height:auto;border-radius:24px;box-shadow:0 1px 2px rgba(16,37,26,.06)}
+.paste .demo-note{margin-top:var(--s3)}
 .nerd{margin-top:var(--s7)}
 footer .row{display:flex;gap:var(--s2);align-items:center;font:400 18px/1 var(--fd);color:var(--ink)}
 
@@ -656,6 +662,15 @@ footer .wrap{max-width:1120px}
     </div>
   </div>
   <p class="sr" id="live" aria-live="polite"></p>
+</section>
+
+<section class="calm-s paste" aria-labelledby="h-paste">
+  <div class="wrap">
+    <h2 id="h-paste">Or just paste it.</h2>
+    <p class="paste-lead">Whatever is on your clipboard, Pippa takes like anything you drop on her. A screenshot with <kbd>⌃⇧⌘4</kbd> or files copied with <kbd>⌘C</kbd> in the Finder, then open Pippa and press <kbd>⌘V</kbd>.</p>
+    <div class="paste-shot"><picture><source media="(max-width:640px)" srcset="../images/einfuegen-en-schmal.webp"><img src="../images/einfuegen-en.webp" width="960" height="429" loading="lazy" decoding="async" alt="Two cards in Pippa's pill. Left: a pasted screenshot, 'Clipboard image 16-42.png', with the question 'What should I do with it?' and the buttons As PDF, As JPG and Make smaller. Right: three pasted photos with the buttons Make one PDF and Make smaller."></picture></div>
+    <p class="demo-note">A rendering of the pill, not a screen recording. Names are examples.</p>
+  </div>
 </section>
 
 <section class="block" aria-labelledby="h-faq">

@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
 @font-face{font-family:"Gochi Hand";src:url(../../../site/fonts/gochi-hand.ttf)}
-:root{--ink:#10251a;--ink-3:#56645b;--wall-a:#cfe0d4;--wall-b:#e9efe6;--wall-c:#b7cfc0}
-.dark{--ink:#edf1f7;--ink-3:#a3b0a8;--wall-a:#1d2a22;--wall-b:#141b17;--wall-c:#26382d}
+:root{--ink:#10251a;--ink-3:#56645b;--wall-a:#cfe0d4;--wall-b:#e9efe6;--wall-c:#b7cfc0;--key:#fff;--sep:rgba(16,37,26,.2)}
+.dark{--ink:#edf1f7;--ink-3:#a3b0a8;--wall-a:#1d2a22;--wall-b:#141b17;--wall-c:#26382d;--key:#2a3330;--sep:rgba(0,0,0,.6)}
 html,body{margin:0}
 .g{width:960px;padding:34px 28px 30px;box-sizing:border-box;font:15px/1.4 Inter,sans-serif;color:var(--ink);
   background:radial-gradient(120% 90% at 85% 10%,var(--wall-c),transparent 60%),linear-gradient(160deg,var(--wall-a),var(--wall-b))}
@@ -9,12 +9,13 @@ html,body{margin:0}
 .cell{display:grid;justify-items:center;gap:2px;text-align:center}
 .cell img{display:block;margin:-40px -40px -52px;position:relative;z-index:0}.cap{position:relative;z-index:1}
 .cap b{display:block;font-weight:650;font-size:15.5px}
-.cap span{color:var(--ink-3);font-size:13.5px}
+.cap span{color:var(--ink-3);font-size:13.5px;display:inline-block;max-width:30em;line-height:1.7}
+.k{display:inline-block;min-width:1.9em;padding:1px 6px;margin:0 1px;border-radius:6px;background:var(--key);box-shadow:0 0 0 .5px var(--sep),0 1.5px 0 var(--sep);font:600 12.5px/1.6 Inter,sans-serif;color:var(--ink);text-align:center}
 .n{font:22px/1 "Gochi Hand",cursive;color:var(--ink-3);margin-right:6px}
 </style></head><body><div class="g" id="g"></div><script>
 const q=new URLSearchParams(location.search), t=q.get('theme')||'light', kind=q.get('kind');
 if(t==='dark')document.documentElement.classList.add('dark');
-const img=k=>`<img src="${q.get('dir')}/${t}-crop-${k}.png" onload="this.style.width=this.naturalWidth/2+'px'">`;
+const img=k=>`<img src="${q.get('dir')}/${t}-crop-${k}${k.startsWith('paste')&&q.get('lang')==='de'?'-de':''}.png" onload="this.style.width=this.naturalWidth/2+'px'">`;
 const g=document.getElementById('g');
 if(kind==='moods'){
   g.innerHTML=`<div class="grid" style="grid-template-columns:1fr 1fr">`+[
@@ -23,10 +24,21 @@ if(kind==='moods'){
    ['done','Done, and waiting for you','The result stays in the pill until you look at it.'],
    ['failed','Says when something went wrong','With the reason and a next step, never a silent spinner.'],
   ].map(([k,h,s])=>`<div class="cell">${img(k)}<div class="cap"><b>${h}</b><span>${s}</span></div></div>`).join('')+`</div>`;
+} else if(kind==='paste'){
+  const de=q.get('lang')==='de', k=s=>`<span class="k">${s}</span>`;
+  // narrow=1: one column for phones on the website.
+  if(q.get('narrow'))g.style.width='520px';
+  g.innerHTML=`<div class="grid" style="grid-template-columns:${q.get('narrow')?'1fr':'1fr 1fr'};align-items:start">`+(de?[
+   ['pasteshot','Ein Bildschirmfoto einfügen',`${k('⌃⇧⌘4')} legt es in die Zwischenablage, ${k('⌘V')} in Pippa.`],
+   ['pastefiles','Kopierte Dateien einfügen',`${k('⌘C')} im Finder, ${k('⌘V')} in Pippa. Wie Draufziehen.`],
+  ]:[
+   ['pasteshot','Paste a screenshot',`${k('⌃⇧⌘4')} puts it on the clipboard, ${k('⌘V')} in Pippa.`],
+   ['pastefiles','Paste copied files',`${k('⌘C')} in the Finder, ${k('⌘V')} in Pippa. Like dropping them.`],
+  ]).map(([k,h,s])=>`<div class="cell">${img(k)}<div class="cap"><b>${h}</b><span>${s}</span></div></div>`).join('')+`</div>`;
 } else {
   g.innerHTML=`<div class="grid" style="grid-template-columns:1fr 1fr;align-items:start">`+[
    ['fotos','Photos in, one PDF out','The result is a file you drag straight into Mail.'],
-   ['copy','Help when you copy','Copy text in another language and Pippa offers to translate.'],
+   ['copy','Translate what you paste','Paste text in another language and ask Pippa to translate it.'],
   ].map(([k,h,s])=>`<div class="cell">${img(k)}<div class="cap"><b>${h}</b><span>${s}</span></div></div>`).join('')+`</div>`;
 }
 </script></body></html>

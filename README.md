@@ -49,6 +49,7 @@ Pippa is for people who don't pay for an AI subscription and never open Terminal
 - **Photos to PDF.** Drop scans or phone photos and choose *Make one PDF* (with searchable text), *Make smaller*, or convert between PDF, JPG and PNG. This runs on your Mac without a model, and your originals stay as they are.
 - **Tidy a folder.** Ask her to tidy Downloads; she sorts files into folders and shows you what went where.
 - **Check a spreadsheet.** Select cells in Microsoft Excel and choose *Check the total*: the numbers are added up again in code, and rows the total leaves out are pointed out. She can also collect invoices from a folder into a table.
+- **Paste instead of dragging.** Press **⌘V** in Pippa: a screenshot from the clipboard (**⌃⇧⌘4**) or files copied in the Finder are taken just like a drop, with the same choices. Text pastes as usual.
 - **Find a file.** "Where is the invoice from the plumber?" searches your Mac with Spotlight.
 - **Look something up online,** when the answer isn't on your Mac.
 
@@ -57,7 +58,14 @@ Behind the pill is an agent with file and shell tools, so she can also do jobs t
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/pill-moments-dark.png">
-    <img src="docs/images/pill-moments-light.png" width="960" alt="Two result cards in the pill. Left: 'Your PDF is ready' with the file 'Rental agreement.pdf' to drag into Mail. Right: copied French text translated into English, with buttons to note the dates and copy the text.">
+    <img src="docs/images/pill-moments-light.png" width="960" alt="Two result cards in the pill. Left: 'Your PDF is ready' with the file 'Rental agreement.pdf' to drag into Mail. Right: pasted French text translated into English, with buttons to note the dates and copy the text.">
+  </picture>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/pill-paste-dark.png">
+    <img src="docs/images/pill-paste-light.png" width="960" alt="Two cards in the pill after pressing ⌘V. Left: a pasted screenshot, 'Clipboard image 16-42.png', with 'What should I do with it?' and the buttons As PDF, As JPG and Make smaller. Right: three photos copied in the Finder, with Make one PDF and Make smaller.">
   </picture>
 </p>
 
