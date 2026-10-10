@@ -28,9 +28,12 @@ public struct ConversationMessage: Codable, Sendable, Identifiable, Equatable {
     /// What tools actually did during this answer (from tool events and Pippa's own results, never from the model's text).
     /// Missing in older histories and on the old path.
     public var actions: ActionReceipt?
+    /// This message starts a new topic inside the conversation (TopicBoundary): a line above it, the part before steps
+    /// back, and Pi started a fresh session for it. Missing in older histories (= no).
+    public var topicStart: Bool?
     public init(id: UUID = UUID(), role: Role, text: String, timestamp: Date = Date(), attachments: [URL] = [], modelLabel: String? = nil,
                 stopped: Bool = false, notice: Bool = false, previousConversation: UUID? = nil, receipt: UUID? = nil, draft: Bool = false, mailDraft: ConversationMailDraft? = nil,
-                calendar: ConversationCalendarRead? = nil, work: WorkReceipt? = nil, actions: ActionReceipt? = nil) {
+                calendar: ConversationCalendarRead? = nil, work: WorkReceipt? = nil, actions: ActionReceipt? = nil, topicStart: Bool = false) {
         self.id = id; self.role = role; self.text = text; self.timestamp = timestamp; self.attachments = attachments; self.modelLabel = modelLabel
         self.stopped = stopped ? true : nil
         self.notice = notice ? true : nil
@@ -41,6 +44,7 @@ public struct ConversationMessage: Codable, Sendable, Identifiable, Equatable {
         self.calendar = calendar
         self.work = work
         self.actions = actions.flatMap { $0.items.isEmpty ? nil : $0 }
+        self.topicStart = topicStart ? true : nil
     }
 }
 
@@ -296,6 +300,19 @@ public enum ConversationStoreError: LocalizedError, Sendable {
         }
         next.conversations[index].context = context
         next.conversations[index].updatedAt = max(Date(), next.conversations[index].updatedAt)
+        try persist(next)
+        return next.conversations[index]
+    }
+
+    /// A new topic inside the open conversation: Pi continues in a new session (with a short handover from the old one,
+    /// pippa-context.ts), the visible history stays as it is.
+    @discardableResult public func startTopic(in id: UUID) throws -> Conversation {
+        guard let index = archive.conversations.firstIndex(where: { $0.id == id }) else { throw ConversationStoreError.unknownConversation }
+        var next = archive
+        if let revision = next.conversations[index].modelSessionRevision {
+            next.conversations[index].retiredModelSessionRevisions = (next.conversations[index].retiredModelSessionRevisions ?? []) + [revision]
+        }
+        next.conversations[index].modelSessionRevision = UUID()
         try persist(next)
         return next.conversations[index]
     }

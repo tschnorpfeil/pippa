@@ -7,6 +7,11 @@ struct ConversationWorkspace: View {
     var mode: ShellMode
     var measuring: Bool
     @FocusState private var focused: Bool
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || MarkHub.shared.reduced }
+    /// The pointer rests on the earlier topic: it comes back to full strength.
+    private let hoveringEarlierState = State<Bool>(initialValue: false)
+    private var hoveringEarlier: Bool { get { hoveringEarlierState.wrappedValue } nonmutating set { hoveringEarlierState.wrappedValue = newValue } }
     // SwiftUI state without the macro plugin, which ships only with Xcode.
     private let followState = State<Bool>(initialValue: true)
     private let bottomState = State<Bool>(initialValue: true)
@@ -35,12 +40,13 @@ struct ConversationWorkspace: View {
                         let showsCard = mode.key != "input"
                         let anchor = showsCard ? min(model.cardAnchor, messages.count) : messages.count
                         if messages.isEmpty && !model.isActiveWork { welcome }
-                        ForEach(Array(messages.prefix(anchor))) { message in
-                            messageView(message)
+                        let topicStart = TopicBoundary.latestStart(messages)
+                        ForEach(Array(messages.prefix(anchor).enumerated()), id: \.element.id) { index, message in
+                            topicRow(message, earlier: topicStart.map { index < $0 } ?? false)
                         }
                         if showsCard { card }
-                        ForEach(Array(messages.dropFirst(anchor))) { message in
-                            messageView(message)
+                        ForEach(Array(messages.dropFirst(anchor).enumerated()), id: \.element.id) { offset, message in
+                            topicRow(message, earlier: topicStart.map { anchor + offset < $0 } ?? false)
                         }
                         if chat.isRunning {
                             if !chat.streamingText.isEmpty { AssistantAnswerView(text: chat.streamingText, cached: false) }
@@ -350,6 +356,36 @@ struct ConversationWorkspace: View {
                 }
             }
         }.padding(.vertical, 14)
+    }
+
+    /// A message with its topic line (TopicBoundary): a quiet line with the time above a message that starts a new topic,
+    /// and the earlier topics step far back while the person is at the latest answer. Scrolling up or pointing at them
+    /// brings them back to full strength, so nothing seems to vanish.
+    @ViewBuilder private func topicRow(_ message: ConversationMessage, earlier: Bool) -> some View {
+        if message.topicStart == true { topicLine(message.timestamp) }
+        if earlier {
+            messageView(message)
+                .opacity(nearBottom && !hoveringEarlier ? 0.2 : 1)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.35), value: nearBottom && !hoveringEarlier)
+                .onHover { hoveringEarlier = $0 }
+        } else {
+            messageView(message)
+        }
+    }
+
+    private func topicLine(_ time: Date) -> some View {
+        let label = T("New topic · %@", table: "Views", time.formatted(date: .omitted, time: .shortened))
+        return HStack(spacing: 12) {
+            Theme.hair.frame(height: 0.5)
+            Text(label)
+                .font(.scaled(size: 11.5, weight: .medium))
+                .foregroundStyle(Theme.ink2)
+                .fixedSize(horizontal: true, vertical: false)
+            Theme.hair.frame(height: 0.5)
+        }
+        .padding(.top, 10)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
     }
 
     @ViewBuilder private func messageView(_ message: ConversationMessage) -> some View {
