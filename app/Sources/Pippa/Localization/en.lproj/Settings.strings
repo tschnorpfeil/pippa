@@ -32,15 +32,10 @@
 "Load Now" = "Load Now";
 "Cancel" = "Cancel";
 "Try Again" = "Try Again";
-"Allow Pippa to…" = "Allow Pippa to…";
 "Add deadlines to Reminders and Calendar" = "Add deadlines to Reminders and Calendar";
 "Read the selected mail" = "Read the selected mail";
-"Your conversations go to %@. The internet is also used for downloads and updates." = "Your conversations go to %@. The internet is also used for downloads and updates.";
-"Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve." = "Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve.";
 "%@ (Default)" = "%@ (Default)";
-"allowed" = "allowed";
 "Open System Settings" = "Open System Settings";
-"asks the first time" = "asks the first time";
 "Hello, I’m" = "Hello, I’m";
 "I tidy up your files, read your invoices and tell you what your letters say." = "I tidy up your files, read your invoices and tell you what your letters say.";
 "Runs on your Mac" = "Runs on your Mac";
@@ -103,8 +98,6 @@
 "I can make one PDF from your photos, right here on your Mac." = "I can make one PDF from your photos, right here on your Mac.";
 "Choose Files…" = "Choose Files…";
 "Get Started" = "Get Started";
-"What Pippa knows" = "What Pippa knows";
-"Learned actions" = "Learned actions";
 "Forget" = "Forget";
 "Learned actions forgotten." = "Learned actions forgotten.";
 "I couldn’t forget the learned actions. Please try again." = "I couldn’t forget the learned actions. Please try again.";
@@ -151,11 +144,8 @@
 /* Vereinfachte Einstellungen (docs/settings-simplification.md) */
 "Online AI" = "Online AI";
 "Use my own online AI" = "Use my own online AI";
-"Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there." = "Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there.";
 "Remove" = "Remove";
 "Saving first sends one short test message. No files and nothing from your conversations." = "Saving first sends one short test message. No files and nothing from your conversations.";
-"Version %@" = "Version %@";
-"I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay." = "I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay.";
 "Standard (fast, %@)" = "Standard (fast, %@)";
 "More thorough (%@)" = "More thorough (%@)";
 "A new AI is ready to load. Until then, Pippa keeps working with the one she has." = "A new AI is ready to load. Until then, Pippa keeps working with the one she has.";
@@ -181,3 +171,27 @@
 "Another sign-in is still open. Close it and try again." = "Another sign-in is still open. Close it and try again.";
 "The sign-in didn’t work just now. Please try again." = "The sign-in didn’t work just now. Please try again.";
 "You’re on a phone hotspot right now. Better load on Wi-Fi." = "You’re on a phone hotspot right now. Better load on Wi-Fi.";
+
+/* Settings redesign: privacy banner, groups with icons, online AI folded away */
+"Your conversations go to %@" = "Your conversations go to %@";
+"Everything stays on your Mac" = "Everything stays on your Mac";
+"Pippa only goes online for downloads, updates and searches you allow." = "Pippa only goes online for downloads, updates and searches you allow.";
+"Your files stay on your Mac. You can switch back below at any time." = "Your files stay on your Mac. You can switch back below at any time.";
+"Everyday" = "Everyday";
+"Opens Pippa from anywhere." = "Opens Pippa from anywhere.";
+"Pippa is there as soon as your Mac is on." = "Pippa is there as soon as your Mac is on.";
+"Permissions" = "Permissions";
+"Your Mac asks you once before Pippa uses them. You can change it later in System Settings." = "Your Mac asks you once before Pippa uses them. You can change it later in System Settings.";
+"Allowed" = "Allowed";
+"Will ask" = "Will ask";
+"What Pippa remembers" = "What Pippa remembers";
+"Favourite suggestions" = "Favourite suggestions";
+"Pippa notes which suggestions you pick, so the right ones come first. Only on this Mac, for up to a year. Forgetting keeps your conversations and files." = "Pippa notes which suggestions you pick, so the right ones come first. Only on this Mac, for up to a year. Forgetting keeps your conversations and files.";
+"Use an online AI (optional)" = "Use an online AI (optional)";
+"Only if you already have ChatGPT or your own AI account. Pippa doesn’t need it." = "Only if you already have ChatGPT or your own AI account. Pippa doesn’t need it.";
+"For your own OpenAI or Anthropic account. When it’s on, your conversations go there." = "For your own OpenAI or Anthropic account. When it’s on, your conversations go there.";
+"Option + Space" = "Option + Space";
+"Control + Option + Space" = "Control + Option + Space";
+"Control + Shift + Space" = "Control + Shift + Space";
+"Control + Option + P" = "Control + Option + P";
+"Pippa %@" = "Pippa %@";

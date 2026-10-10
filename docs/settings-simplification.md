@@ -7,9 +7,16 @@ audience is non-technical people.
 Rule used for every surface: keep only what a non-technical person would truly miss. Duplicates of the menu-bar menu,
 technical knobs and anything a sensible default covers are gone.
 
-| Default | Own online AI switched on |
-|---|---|
-| ![Settings, local only](settings-simplification/settings-01-local.png) | ![Settings, own online AI on](settings-simplification/settings-02-online.png) |
+| Default (dark) | Default (light) | Own online AI switched on |
+|---|---|---|
+| ![Settings, local only](settings-simplification/settings-01-local.png) | ![Settings, local only, light](settings-simplification/settings-03-local-light.png) | ![Settings, own online AI on](settings-simplification/settings-02-online.png) |
+
+Layout (2026-10-10): one sentence about privacy at the top (green lock while everything stays on this Mac, orange
+globe naming the service as soon as conversations go online, ChatGPT included), then groups with System Settings
+style icons: Everyday (shortcut spelled out with key names, open at login, text size), Pippa's AI (only while there
+is something to load or choose), Permissions (badges "Allowed" / "Will ask", a button only when access was denied),
+What Pippa remembers, and Online AI folded into one "optional" row that opens by itself when an online AI is in use.
+The version sits small at the very end.
 
 Screenshots: `PIPPA_DEMO=1 PIPPA_SNAPSHOT=<dir> PIPPA_SNAPSHOT_ONLY=settings app/.build/debug/Pippa` (demo engine, no
 key, nothing leaves the Mac).
