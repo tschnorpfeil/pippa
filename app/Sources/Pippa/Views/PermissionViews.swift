@@ -150,6 +150,13 @@ struct PermissionRow: View {
     var body: some View {
         let state = permissions.states[permission]
         SettingsRow(title: permission.title, detail: detail(state), icon: permission.symbol, tint: permission.tint, divider: divider) {
+            trailing(state).fixedSize()
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    /// The state or the button, never squeezed by a long explanation.
+    @ViewBuilder private func trailing(_ state: PermissionState?) -> some View {
             if permissions.asking == permission {
                 ProgressView().controlSize(.small).frame(width: 34, height: 34)
                     .accessibilityLabel(T("Your Mac is asking you", table: "Settings"))
@@ -172,8 +179,6 @@ struct PermissionRow: View {
                     EmptyView()
                 }
             }
-        }
-        .accessibilityElement(children: .contain)
     }
 
     private func detail(_ state: PermissionState?) -> String {

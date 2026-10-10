@@ -96,7 +96,7 @@ jobs:
         continue-on-error: true
         run: |
           cat snaps/*/permissions.txt 2>/dev/null
-          for f in snaps/dark/permissions-01-onboarding.png snaps/light/permissions-03-allowed.png snaps/dark/permissions-05-settings.png; do
+          for f in snaps/light/permissions-05-settings.png; do
             [ -f "$f" ] || continue
             sips -Z 760 -s format jpeg -s formatOptions 50 "$f" --out /tmp/s.jpg >/dev/null
             echo "B64BEGIN $(echo $f | tr '/' '_')"; base64 -i /tmp/s.jpg | fold -w 8000; echo "B64END"
