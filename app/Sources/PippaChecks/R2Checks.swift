@@ -32,6 +32,9 @@ func runR2Checks() async {
     check("Shown: without shown items the message is the question and its language note; too short to tell: no note") {
         PiShownContext.prompt(.init(question: "Wie spät ist es heute?")) == "Wie spät ist es heute?\n\n" + PiShownContext.germanNote
             && PiShownContext.prompt(.init(question: "Hallo")) == "Hallo"
+            // Tobias, 2026-10-10: greetings were taken for English, and the model then kept answering in English.
+            && PiShownContext.languageNote("Hey Pippa :)") == "" && PiShownContext.languageNote("Hi Pippa") == ""
+            && PiShownContext.languageNote("Wie viel?") == ""
     }
     check("Shown: the answer language follows the question (English note, German note), also in an English app and with shown files") {
         let english = PiShownContext.prompt(.init(question: "Find all my invoices from 2024 and tell me the total."))

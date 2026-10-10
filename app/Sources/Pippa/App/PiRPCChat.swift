@@ -560,7 +560,8 @@ final class PiRPCChat {
 
     func steer(_ text: String) async -> Bool {
         guard let client else { return false }
-        return (try? await client.steer(text)) ?? false
+        // A message typed while Pippa works gets the same language note as any other.
+        return (try? await client.steer(text + PiShownContext.languageNote(text))) ?? false
     }
 
     func cancel() async {

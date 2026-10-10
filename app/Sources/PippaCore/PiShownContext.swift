@@ -19,12 +19,15 @@ public enum PiShownContext {
     /// Added after a question in the question's language: Qwen3.5 otherwise answers in the language of the documents
     /// (1 of 6 English with any system prompt line, docs/rebuild/measurements/model-compare/prompt-fix) or of its English
     /// tool texts (a German question about Photos got an English answer, 2026-10-10). Per message, so the system prompt
-    /// and its cache stay the same.
+    /// and its cache stay the same. Only from three words on: "Hey Pippa :)" was taken for English, and the model kept
+    /// "Answer in English." as the person's wish for the whole conversation (even in its summary).
     public static let englishNote = "Answer in English."
     public static let germanNote = "Antworte auf Deutsch."
 
     /// The note for the question's language; none when it is too short to tell (then the system prompt decides).
     public static func languageNote(_ question: String) -> String {
+        let words = question.split { !$0.isLetter }.filter { $0.count > 1 && $0.lowercased() != "pippa" }
+        guard words.count >= 3 else { return "" }
         switch SourceFidelity.language(question: question, answer: "") {
         case "en"?: return "\n\n" + englishNote
         case "de"?: return "\n\n" + germanNote
