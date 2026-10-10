@@ -8,7 +8,18 @@ on:
     paths-ignore: ['docs/**', 'site/**', '**/*.md']
   workflow_dispatch:
     inputs:
-      app:
+          - name: TEMP print permission snapshots
+        if: always()
+        continue-on-error: true
+        run: |
+          cat snaps/*/permissions.txt 2>/dev/null
+          for f in snaps/dark/permissions-01-onboarding.png snaps/light/permissions-03-allowed.png snaps/dark/permissions-05-settings.png; do
+            [ -f "$f" ] || continue
+            sips -Z 760 -s format jpeg -s formatOptions 50 "$f" --out /tmp/s.jpg >/dev/null
+            echo "B64BEGIN $(echo $f | tr '/' '_')"; base64 -i /tmp/s.jpg | fold -w 8000; echo "B64END"
+          done
+
+  app:
         description: 'Build Pippa.app and upload it as an artifact'
         type: boolean
         default: true
@@ -61,10 +72,6 @@ jobs:
           done
           find snaps -type f | sort
           cat snaps/*/permissions.txt 2>/dev/null
-          for f in $(find snaps -name 'permissions-0*.png' | sort); do
-            sips -Z 1000 -s format jpeg -s formatOptions 60 "$f" --out /tmp/s.jpg >/dev/null
-            echo "B64BEGIN $(echo $f | tr '/' '_')"; base64 -i /tmp/s.jpg | fold -w 8000; echo "B64END"
-          done
       - uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
