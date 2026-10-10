@@ -266,6 +266,10 @@
 "Open in Photos" = "Open in Photos";
 "Open in Reminders" = "Open in Reminders";
 "overdue" = "overdue";
+"Looked up online" = "Looked up online";
+"read" = "read";
+"Open in browser" = "Open in browser";
+"“%@”" = "“%@”";
 
 /* Chip above the input: the app Pippa was called from (FrontAppChip.swift) */
 "Leave out %@. Pippa then knows nothing about it." = "Leave out %@. Pippa then knows nothing about it.";

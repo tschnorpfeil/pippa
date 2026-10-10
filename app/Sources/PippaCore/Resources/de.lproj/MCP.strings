@@ -59,6 +59,7 @@
 "Reminders · due in the next %lld days" = "Erinnerungen · fällig in den nächsten %lld Tagen";
 "Reminders on this Mac" = "Erinnerungen auf diesem Mac";
 "Reminders on this Mac · %lld of %lld" = "Erinnerungen auf diesem Mac · %lld von %lld";
+"From the web · looked up at %@" = "Aus dem Netz · nachgesehen um %@";
 
 /* App in front (front_read) */
 "the app in front" = "die App im Vordergrund";

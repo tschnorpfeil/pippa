@@ -104,5 +104,19 @@ func runResultCardChecks() async {
             .flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }
         return !card.items.isEmpty && card.items.count <= ReminderCard.maxItems && round?.cards == [.reminders(card)]
     }
+    check("Web sources card: pages read first, the same page once, only http(s), links from search results without punctuation") {
+        let now = berlin.date(from: DateComponents(year: 2026, month: 10, day: 7, hour: 14, minute: 32))!
+        let search = "1. [Wetter Köln](https://www.wetter.example/koeln/morgen) – Regen ab 15 Uhr.\n2. https://dwd.example/warnungen, "
+            + "siehe auch javascript:alert(1) und https://wetter.example/koeln/morgen/#top."
+        guard let card = WebSourcesCard(queries: ["Wetter morgen Köln", ""], pagesRead: ["https://wetter.example/koeln/morgen", "file:///etc/hosts"],
+                                        searchResults: [search], now: now, calendar: berlin) else { return false }
+        let many = (1...12).map { "https://seite\($0).example/" }.joined(separator: " ")
+        let capped = WebSourcesCard(queries: [], pagesRead: [], searchResults: [many], now: now, calendar: berlin)
+        return card.items.map(\.host) == ["wetter.example", "dwd.example"] && card.items.map(\.read) == [true, false]
+            && card.items[0].path == "/koeln/morgen" && card.items[1].path == "/warnungen" && card.queries == ["Wetter morgen Köln"]
+            && card.footer.contains("14:32") && capped?.items.count == WebSourcesCard.maxItems && capped?.items.first?.path == nil
+            && WebSourcesCard(queries: ["x"], pagesRead: [], searchResults: ["keine Treffer"], now: now, calendar: berlin) == nil
+            && (try? JSONEncoder().encode(ActionReceipt(items: [], cards: [.web(card)])))
+                .flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }?.cards == [.web(card)]
+    }
 }
-
