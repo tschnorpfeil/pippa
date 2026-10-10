@@ -7,6 +7,7 @@ site/_test.html
 site/_docs
 runtime/pippa-web/src/generated/
 node_modules/
+__pycache__/
 
 # Local quality validation
 .build-quality/
