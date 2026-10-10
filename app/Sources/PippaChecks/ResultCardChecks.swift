@@ -149,4 +149,10 @@ func runResultCardChecks() async {
             && CalendarConversation.followUps(for: denied, now: now, calendar: berlin).isEmpty
             && CalendarConversation.followUps(for: read(.day, day: 7), now: now, calendar: berlin, language: "de") == ["Und morgen?", "Und diese Woche?"]
     }
+    check("Files card: files the answer names first, folders and missing files left out") {
+        let a = URL(fileURLWithPath: "/Users/x/Documents/Mietvertrag.pdf"), b = URL(fileURLWithPath: "/Users/x/Bilder/Urlaub.jpg")
+        let gone = URL(fileURLWithPath: "/Users/x/weg.txt"), folder = URL(fileURLWithPath: "/Users/x/Documents", isDirectory: true)
+        let order = FoundFiles.ordered([a, folder, gone, b], answer: "Das Bild ist [Urlaub.jpg](\(b.absoluteString)).") { $0 != gone }
+        return order == [b, a] && FoundFiles.ordered([], answer: "") == []
+    }
 }

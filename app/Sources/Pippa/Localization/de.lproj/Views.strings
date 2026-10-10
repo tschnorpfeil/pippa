@@ -278,3 +278,9 @@
 "Pippa knows: %@" = "Pippa weiß: %@";
 "Newest in Photos" = "Neueste in Fotos";
 "New topic · %@" = "Neues Thema · %@";
+"Found on this Mac" = "Gefunden auf diesem Mac";
+"Files on this Mac · %lld of %lld" = "Dateien auf diesem Mac · %lld von %lld";
+"Files on this Mac" = "Dateien auf diesem Mac";
+"Open" = "Öffnen";
+"%@ in %@" = "%@ in %@";
+"Opens the file" = "Öffnet die Datei";

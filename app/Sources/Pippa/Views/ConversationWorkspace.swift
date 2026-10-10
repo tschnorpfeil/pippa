@@ -551,6 +551,9 @@ struct ConversationWorkspace: View {
                         .background(message.role == .user ? Theme.chatUser : .clear, in: RoundedRectangle(cornerRadius: 16))
                         .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
                 }
+                if message.role == .assistant, message.mailDraft == nil, message.calendar == nil, !message.attachments.isEmpty {
+                    FoundFilesCardView(files: message.attachments, answer: message.text)
+                }
                 if message.role == .assistant, let cards = message.actions?.cards {
                     ResultCardsView(cards: cards)
                 }

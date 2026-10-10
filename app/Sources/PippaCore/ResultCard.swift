@@ -179,3 +179,15 @@ public struct WebSourcesCard: Codable, Sendable, Equatable {
         }
     }
 }
+
+/// Files a search found, for the files card under the answer (Pippa's own search result, never the model's text).
+public enum FoundFiles {
+    public static let maxRows = 8
+
+    /// Files the answer names come first (in search order), then the rest; folders and files that are gone stay out.
+    public static func ordered(_ files: [URL], answer: String, exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) -> [URL] {
+        let present = files.filter { !$0.hasDirectoryPath && exists($0) }
+        let named = present.filter { answer.contains($0.lastPathComponent) || answer.contains($0.absoluteString) }
+        return named + present.filter { !named.contains($0) }
+    }
+}
