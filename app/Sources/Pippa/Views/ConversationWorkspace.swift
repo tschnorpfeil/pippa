@@ -32,7 +32,6 @@ struct ConversationWorkspace: View {
             header
             Theme.hair.frame(height: 0.5)
             ScrollViewReader { reader in
-                VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         let messages = chat.current?.messages ?? []
@@ -59,6 +58,17 @@ struct ConversationWorkspace: View {
                     }.padding(20)
                 }
                 .scrollPosition(scrollState.projectedValue)
+                // The bar crowded the bubbles; scrolling stays, the round button below leads back down.
+                .scrollIndicators(.never)
+                // Opening or resizing the panel keeps the latest line in view instead of the top of the old frame.
+                .defaultScrollAnchor(.bottom, for: .sizeChanges)
+                // Anything that grows the content (streamed text, the thought line, a receipt, a queued entry) is followed.
+                .onScrollGeometryChange(for: ConversationScrollExtent.self) { geometry in
+                    ConversationScrollExtent(content: geometry.contentSize.height, container: geometry.containerSize.height)
+                } action: { old, new in
+                    // The panel itself changing size jumps; only growing content glides.
+                    follow(reader, animated: old.container == new.container)
+                }
                 .onScrollGeometryChange(for: ConversationScrollMetrics.self) { geometry in
                     ConversationScrollMetrics(offsetY: max(0, geometry.contentOffset.y + geometry.contentInsets.top),
                         atBottom: geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 70)
@@ -81,10 +91,6 @@ struct ConversationWorkspace: View {
                     if chat.current?.messages.last?.role == .user { followLatest = true }
                     follow(reader)
                 }
-                .onChange(of: chat.streamingText) { _, _ in follow(reader) }
-                .onChange(of: chat.queued.count) { _, _ in follow(reader) }
-                // Opening the receipt of the latest answer keeps its details in view.
-                .onChange(of: chat.expandedReceipts) { _, _ in follow(reader) }
                 .onChange(of: mode.key) { _, _ in
                     followLatest = true
                     if mode.key != "input" && mode.key != "notice" {
@@ -97,16 +103,27 @@ struct ConversationWorkspace: View {
                     restoreViewport(reader)
                 }
                 .onAppear { restoreViewport(reader) }
-                HStack {
-                    Spacer()
-                    if !followLatest {
-                        Button {
-                            followLatest = true
-                            reader.scrollTo("latest", anchor: .bottom)
-                        } label: { Label(T("Jump to Latest", table: "Views"), systemImage: "arrow.down") }
-                            .pippa(.quiet)
+                // Lines slide softly under the header and the composer instead of being cut off at a hard edge.
+                // The padding inside covers the fade, so nothing is faded at the very top or bottom.
+                .mask {
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 10)
+                        Color.black
+                        LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 18)
                     }
-                }.padding(.horizontal, 20).frame(height: 32)
+                }
+                .overlay(alignment: .bottom) {
+                    ZStack {
+                        if !followLatest {
+                            JumpToLatestButton(arriving: chat.isRunning) {
+                                followLatest = true
+                                scrollToLatest(reader, animated: true)
+                            }
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85)).combined(with: .offset(y: 6)))
+                        }
+                    }
+                    .padding(.bottom, 12)
+                    .animation(reduceMotion ? .easeOut(duration: 0.15) : .smooth(duration: 0.25), value: followLatest)
                 }
             }
             if mode.shape == .sheet {
@@ -133,9 +150,19 @@ struct ConversationWorkspace: View {
         }
     }
 
-    /// New rows and streaming stay visible as long as nobody has scrolled up.
-    private func follow(_ reader: ScrollViewProxy) {
-        if followLatest && !restoringViewport { reader.scrollTo("latest", anchor: .bottom) }
+    /// New rows and streaming stay visible as long as nobody has scrolled up, and a hand on the trackpad is never pulled away.
+    /// Glides along while text streams; with Reduce Motion it jumps.
+    private func follow(_ reader: ScrollViewProxy, animated: Bool = true) {
+        guard followLatest, !restoringViewport, !userScrolling else { return }
+        scrollToLatest(reader, animated: animated)
+    }
+
+    private func scrollToLatest(_ reader: ScrollViewProxy, animated: Bool) {
+        if animated && !reduceMotion {
+            withAnimation(.smooth(duration: 0.28)) { reader.scrollTo("latest", anchor: .bottom) }
+        } else {
+            reader.scrollTo("latest", anchor: .bottom)
+        }
     }
 
     private func restoreViewport(_ reader: ScrollViewProxy) {
@@ -154,6 +181,8 @@ struct ConversationWorkspace: View {
             }
             await Task.yield()
             restoringViewport = false
+            // Answers lay out a moment after the first pass; land on the true end, not the end of the first estimate.
+            follow(reader, animated: false)
         }
     }
 
@@ -755,5 +784,33 @@ struct KnowledgeStatus: View {
         } else if showsText, let text = model.learningText {
             Text(text).font(Fonts.hint).foregroundStyle(Theme.ink3).lineLimit(2)
         }
+    }
+}
+
+/// Round "back down" button, centered above the composer while the person reads further up.
+/// While an answer is still arriving below, the arrow takes the accent color: there is something new to see.
+private struct JumpToLatestButton: View {
+    var arriving: Bool
+    var action: () -> Void
+    private let hoverState = State(initialValue: false)
+    private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "arrow.down")
+                .font(.scaled(size: 13, weight: .semibold))
+                .foregroundStyle(arriving ? Theme.accent : hover ? Theme.ink : Theme.ink2)
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(hover ? Theme.fill2 : .clear))
+                .background(Circle().fill(Theme.chatCard))
+                .overlay(Circle().strokeBorder(Theme.chatBorder, lineWidth: 0.5))
+                .shadow(color: Theme.shadowInk.opacity(0.10), radius: 1, y: 0.5)
+                .shadow(color: Theme.shadowInk.opacity(0.16), radius: 8, y: 4)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .help(T("Jump to Latest", table: "Views"))
+        .accessibilityLabel(T("Jump to Latest", table: "Views"))
     }
 }
