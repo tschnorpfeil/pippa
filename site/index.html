@@ -134,27 +134,6 @@ header .btn{min-height:40px;padding:0 18px;font-size:15px}
 /* Start: Dinge auf Pippa ziehen */
 .hero{position:relative;isolation:isolate;text-align:center;padding:84px 0 40px;overflow:hidden}
 h1{font:400 clamp(50px,3rem + 6vw,124px)/.98 var(--fd);letter-spacing:-.015em}
-.hp{position:relative;display:inline-flex;align-items:center;gap:.14em;vertical-align:-.06em;background:#fff;color:var(--ink);border-radius:999px;padding:.08em .34em .1em .2em;
-box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 24px 44px -20px rgba(16,37,26,.45);transform:rotate(-2deg);transition:box-shadow .4s,transform .5s var(--spring)}
-.hp canvas{display:block;flex:none}
-.hp.hot{transform:rotate(-2deg) scale(1.06);box-shadow:0 0 0 3px rgba(0,91,205,.35),0 30px 60px -20px rgba(0,91,205,.55)}
-.hp.gulp{animation:gulp .55s var(--spring)}
-@keyframes gulp{0%{transform:rotate(-2deg) scale(1)}35%{transform:rotate(-2deg) scale(1.1,.9)}70%{transform:rotate(-2deg) scale(.97,1.04)}100%{transform:rotate(-2deg) scale(1)}}
-.say{min-height:2.6em;margin:22px auto 0;max-width:22em;font:400 clamp(24px,1rem + 1.2vw,34px)/1.15 var(--fh);color:var(--blue);transform:rotate(-1.5deg)}
-.say span{display:inline-block;animation:sayin .5s var(--spring)}
-@keyframes sayin{from{opacity:0;transform:translateY(8px) scale(.96)}}
-.things{list-style:none;margin:8px auto 0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:14px 16px;max-width:880px}
-.thing{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;display:inline-flex;align-items:center;gap:9px;border:0;background:#fff;border-radius:12px;padding:10px 16px 10px 12px;font-weight:600;font-size:16px;
-box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 10px 22px -14px rgba(16,37,26,.55);transform:rotate(var(--r,0deg));transition:transform .45s var(--spring),opacity .3s,box-shadow .3s}
-.thing:hover{transform:rotate(0deg) translateY(-3px)}
-.thing svg{width:22px;height:22px;flex:none}
-.thing.drag{cursor:grabbing;transition:none;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 26px 40px -16px rgba(16,37,26,.6);z-index:5;position:relative}
-.thing.fly{transition:transform .55s cubic-bezier(.5,0,.2,1),opacity .55s;opacity:0;pointer-events:none}
-.thing.gone{opacity:0;transform:scale(.6);pointer-events:none}
-.hint{margin-top:16px;font:400 22px/1 var(--fh);color:var(--grey);display:inline-flex;align-items:center;gap:8px}
-.hint svg{width:34px;height:30px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;animation:bob 2.4s ease-in-out infinite}
-@keyframes bob{50%{transform:translateY(-5px)}}
-.local{margin-top:46px;font-weight:650;font-size:18px}
 .ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:22px}
 .req{margin-top:16px;font-size:14px;color:var(--grey)}.req a{color:var(--ink-2)}
 @media(max-width:600px){h1{font-size:clamp(38px,11.5vw,50px)}.hp{padding:.06em .26em .08em .14em}.say{font-size:22px}}
@@ -167,55 +146,15 @@ box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 10px 22px -14px rgba(16,37,26,.55);tr
 .ask[aria-selected="true"]{color:#fff;background:var(--ink);box-shadow:none}
 .ask .fill{position:absolute;left:0;bottom:0;height:3px;width:0;background:#8fb6ff}
 .ask[aria-selected="true"] .fill{width:var(--p,0%)}
-.stage{position:relative;margin:36px auto 0;max-width:1060px;border-radius:32px;padding:56px 0 64px;
-background:radial-gradient(50% 60% at 18% 30%,#dfeadf 0,transparent 70%),radial-gradient(45% 55% at 85% 70%,#d9e6fb 0,transparent 70%),var(--off);overflow:hidden}
-.stage:before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(16,37,26,.13) 1px,transparent 1.4px);background-size:22px 22px;mask-image:radial-gradient(70% 70% at 50% 50%,#000 30%,transparent 100%);-webkit-mask-image:radial-gradient(70% 70% at 50% 50%,#000 30%,transparent 100%)}
-.win{position:relative;width:min(700px,86%);margin:0 auto;aspect-ratio:1000/921}
-.win img{position:absolute;inset:0;width:100%;height:100%;border-radius:5.6%/6.1%;box-shadow:0 0 0 .5px rgba(16,37,26,.18),0 40px 70px -34px rgba(16,37,26,.6);
-opacity:0;transform:translateY(18px) scale(.965);transform-origin:90% 100%;transition:opacity .35s,transform .7s var(--spring)}
-.win img.on{opacity:1;transform:none}
-.spill{position:absolute;right:max(4%,calc(50% - 400px));bottom:22px;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:7px 18px 7px 10px;font-weight:650;font-size:15px;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 14px 28px -12px rgba(16,37,26,.5);transition:box-shadow .4s}
-.spill.busy{box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 0 26px 2px rgba(80,110,255,.35)}
-.pause{all:unset;cursor:pointer;margin-top:18px;border:1px solid var(--sep);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--ink-2);background:#fff}
-.pause:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 @media(max-width:760px){.asks{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;margin-inline:calc(var(--gut) * -1);padding:4px var(--gut) 8px;scrollbar-width:none}.ask{flex:none}.stage{border-radius:24px;padding:28px 0 64px}.win{width:94%}.spill{right:4%;bottom:14px}}
 
 /* Pippa lebt */
-.live{display:grid;justify-items:center;margin-top:64px}
-.lpill{position:relative;display:flex;align-items:center;gap:12px;height:76px;padding:0 30px 0 18px;border-radius:999px;background:#fff;font-weight:650;font-size:24px;white-space:nowrap;overflow:hidden;
-box-shadow:0 0 0 1px rgba(16,37,26,.08),0 24px 48px -22px rgba(16,37,26,.45);transition:width .6s var(--spring),background-color .4s,box-shadow .5s}
-.lpill .lt{transition:opacity .2s}.lpill .lt.out{opacity:0}
-.lpill .lend{font-weight:800;opacity:0;transform:scale(.4);transition:opacity .3s,transform .5s var(--spring)}
-.lpill .lprog{position:absolute;left:84px;right:30px;bottom:14px;height:3px;border-radius:3px;background:rgba(0,91,205,.15);opacity:0;transition:opacity .3s}
-.lpill .lprog i{display:block;height:100%;width:0;border-radius:3px;background:var(--blue)}
-.lpill[data-s="arbeitet"]{box-shadow:0 0 0 1px rgba(16,37,26,.06),0 0 40px 4px rgba(80,110,255,.32)}
-.lpill[data-s="arbeitet"] .lprog{opacity:1}
-.lpill[data-s="arbeitet"] .lprog i{animation:prog 3.2s linear forwards}
 @keyframes prog{from{width:8%}to{width:72%}}
-.lpill[data-s="offen"]{background:#e6f1e7;box-shadow:0 0 0 1px rgba(13,113,44,.25),0 24px 48px -22px rgba(13,113,44,.45)}
-.lpill[data-s="offen"] .lend{opacity:1;transform:none;color:var(--ok)}
-.lpill[data-s="fehler"]{background:#f9e5e6;box-shadow:0 0 0 1px rgba(196,0,29,.25),0 24px 48px -22px rgba(196,0,29,.4)}
-.lpill[data-s="fehler"] .lend{opacity:1;transform:none;color:var(--bad)}
-.states{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 26px;margin-top:34px}
-.st{all:unset;cursor:pointer;font:400 25px/1.2 var(--fh);color:var(--grey);padding:2px 4px;transition:color .2s,transform .35s var(--spring)}
-.st:hover{transform:translateY(-2px)}
-.st:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
-.st[aria-selected="true"]{color:var(--blue);transform:rotate(-3deg) scale(1.08)}
 @media(max-width:600px){.lpill{font-size:19px;height:62px;padding:0 22px 0 12px}.lpill .lprog{left:70px;right:22px;bottom:11px}.st{font-size:22px}}
 
 /* Karten */
-.cards{columns:3 300px;column-gap:24px;margin-top:56px}
-.cards img{break-inside:avoid;margin:0 0 24px;border-radius:16px;box-shadow:0 0 0 .5px rgba(16,37,26,.12),0 16px 32px -22px rgba(16,37,26,.5);background:#f6f7fa;transition:transform .5s var(--spring),box-shadow .4s}
-.cards img:hover{transform:translateY(-4px) rotate(-.6deg);box-shadow:0 0 0 .5px rgba(16,37,26,.12),0 26px 44px -22px rgba(16,37,26,.55)}
 
 /* Einfügen */
-.split{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:64px;align-items:center}
-.split img{border-radius:24px}
-.keys{display:inline-flex;gap:6px;margin-top:22px}
-.keys kbd{font-size:20px;padding:10px 14px;border-bottom-width:3px;border-radius:10px}
-.js .keys.in kbd{animation:press 2.8s ease-in-out infinite}
-.js .keys.in kbd:nth-child(2){animation-delay:.12s}
-@keyframes press{0%,30%,100%{transform:none;border-bottom-width:3px}36%,44%{transform:translateY(2px);border-bottom-width:1px}}
 @media(max-width:900px){.split{grid-template-columns:1fr;gap:28px}}
 
 /* Mini-Schreibtisch */
@@ -232,7 +171,7 @@ box-shadow:inset 0 0 0 1px rgba(16,37,26,.08),0 30px 60px -36px rgba(16,37,26,.5
 .dhint{left:calc(6% + 84px);top:calc(9% + 24px)}
 .phint{right:30px;bottom:82px}
 .dhint.gone,.phint.gone,.desk.won .dhint,.desk.won .phint{opacity:0}
-.dpill{all:unset;position:absolute;left:0;top:0;z-index:5;display:flex;align-items:center;gap:8px;height:48px;padding:0 18px 0 10px;border-radius:999px;background:#fff;font-weight:650;font-size:16px;white-space:nowrap;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+.dpill{all:unset;box-sizing:border-box;position:absolute;left:0;top:0;z-index:5;display:flex;align-items:center;gap:8px;height:48px;padding:0 18px 0 10px;border-radius:999px;background:#fff;font-weight:650;font-size:16px;white-space:nowrap;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
 box-shadow:0 0 0 1px rgba(16,37,26,.08),0 16px 30px -14px rgba(16,37,26,.5);transition:width .55s var(--spring),background-color .4s,box-shadow .4s}
 .dpill:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 .dpill.drag{cursor:grabbing;box-shadow:0 0 0 1px rgba(16,37,26,.08),0 26px 40px -14px rgba(16,37,26,.55)}
@@ -248,6 +187,18 @@ box-shadow:0 0 0 1px rgba(16,37,26,.08),0 16px 30px -14px rgba(16,37,26,.5);tran
 .dwin{position:absolute;z-index:4;width:50%;border-radius:5.6%/6.1%;box-shadow:0 0 0 .5px rgba(16,37,26,.2),0 30px 60px -24px rgba(16,37,26,.55);opacity:0;transform:scale(.6);pointer-events:none;transition:opacity .25s,transform .55s var(--spring)}
 .dwin.on{opacity:1;transform:none}
 @media(max-width:760px){.desk{aspect-ratio:3/4}.file{left:8%;top:6%}.dhint{left:calc(8% + 76px)}.phint{bottom:70px;right:16px}.dpill{height:42px;font-size:14px}.dpill .lprog{left:42px}}
+
+
+/* Start mit Demo */
+.hw{color:var(--blue);position:relative;white-space:nowrap}
+.sub{margin:26px auto 0;max-width:24em;font-size:clamp(19px,1rem + .7vw,25px);line-height:1.35;color:var(--ink-2);font-weight:550}
+.hero .ctas{margin-top:30px}
+.demo{margin:56px auto 0;max-width:1040px}
+.demo .desk{margin:0;max-width:none}
+.dhint{display:flex;align-items:flex-start;gap:6px}.dhint svg{width:30px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;transform:scaleX(-1) rotate(10deg);margin-top:-6px}
+.asklabel{margin-top:26px;font:400 22px/1 var(--fh);color:var(--grey)}
+.demo .asks{margin-top:12px}
+.ask[aria-pressed="true"]{color:#fff;background:var(--blue);box-shadow:none}
 
 /* Was Pippa darf */
 .trust{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:start;background:var(--sky);border-radius:36px;padding:72px 64px}
@@ -281,9 +232,6 @@ details p{padding:0 0 22px;color:var(--ink-2);max-width:36em}
 
 /* Schluss */
 .end{padding-bottom:20px}
-.bigpill{display:inline-flex;align-items:center;gap:16px;background:#fff;border-radius:999px;padding:16px 40px 16px 20px;font:400 clamp(34px,1.2rem + 2.4vw,52px)/1 var(--fd);color:var(--ink);
-box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 30px 60px -26px rgba(16,37,26,.55);transform:rotate(-3deg);margin-bottom:40px;transition:transform .5s var(--spring)}
-.bigpill.yay{transform:rotate(2deg) scale(1.05)}
 .steps{list-style:none;counter-reset:s;margin:40px auto 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;max-width:900px;text-align:left}
 .steps li{counter-increment:s;background:#fff;border-radius:20px;padding:22px 22px 24px;box-shadow:0 0 0 1px var(--sep);color:var(--ink-2);font-size:16px}
 .steps li:before{content:counter(s);display:block;font:400 34px/1 var(--fd);color:var(--blue);margin-bottom:10px}
@@ -291,7 +239,6 @@ box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 30px 60px -26px rgba(16,37,26,.55);tr
 @media(max-width:760px){.steps{grid-template-columns:1fr}}
 
 /* Begleiter am Rand */
-.walker{position:fixed;left:0;bottom:14px;z-index:30;display:flex;align-items:center;gap:7px;background:#fff;border-radius:999px;padding:6px 14px 6px 8px;font-weight:650;font-size:14px;box-shadow:0 0 0 .5px rgba(16,37,26,.14),0 10px 24px -10px rgba(16,37,26,.5);transition:opacity .3s;pointer-events:none;will-change:transform}
 
 footer{margin-top:140px;padding:40px 0 60px;border-top:1px solid var(--sep);font-size:14px;color:var(--grey)}
 footer .wrap{display:grid;gap:8px}footer .row{display:flex;align-items:center;gap:8px;font:400 20px/1 var(--fd);color:var(--ink)}
@@ -307,21 +254,34 @@ footer canvas{--pippa-ink:var(--ink)}
 .panel{border-radius:40px;padding:84px 56px}
 .pn-green{background:radial-gradient(60% 80% at 15% 10%,#d3ecd8 0,transparent 70%),#e6f3e8}
 .pn-green .hand{color:#0d712c}
-.pn-sun{background:radial-gradient(60% 70% at 90% 0%,#ffe6b0 0,transparent 70%),#fff6e3}
-.pn-sun .hand{color:#d4570f}
 .pn-blue{background:radial-gradient(60% 70% at 10% 0%,#2f7ff0 0,transparent 70%),radial-gradient(50% 60% at 95% 100%,#0a3f99 0,transparent 70%),#005bcd;color:#fff}
 .pn-blue .hand{color:#ffe36e}.pn-blue .req{color:#cfe0ff}
 .pn-blue .steps li{box-shadow:none}
 .pn-blue .btn{background:#fff;color:var(--ink)}.pn-blue .btn:hover{background:#ffe36e}
-.stage{background:radial-gradient(50% 60% at 12% 20%,#c9e6cf 0,transparent 70%),radial-gradient(45% 55% at 90% 80%,#c4d9ff 0,transparent 70%),radial-gradient(40% 50% at 70% 5%,#ffe7b3 0,transparent 70%),#eef3f8}
 .trust{background:radial-gradient(60% 70% at 100% 0%,#c9dcff 0,transparent 70%),#e3edff}
 .trust .hand{color:var(--blue)}
 .ask[aria-selected="true"]{background:var(--blue)}
 .ask .fill{background:#ffe36e}
-.facts svg{stroke:var(--ok)}
 .end{padding-top:150px}
 @media(max-width:760px){.panel{padding:56px 18px;border-radius:28px}.hero .blob{display:none}}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.walker{display:none}}
+
+/* Feinschliff */
+.dot{display:inline-block;width:.3em;height:.3em;margin-left:.04em;vertical-align:baseline;position:relative}
+.dot canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.mbar{position:absolute;left:0;right:0;top:0;height:26px;display:flex;align-items:center;gap:16px;padding:0 14px;background:rgba(255,255,255,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:12.5px;color:#1d2a22;z-index:3}
+.mbar b{font-weight:700}.mbar i{margin-left:auto;font-style:normal}
+.demo .desk{aspect-ratio:16/9;max-height:640px;width:100%}
+.file{top:15%}.dhint{top:calc(15% + 24px)}
+.asklabel kbd{font-size:.7em;vertical-align:.15em}
+.pcap{color:var(--grey);font-size:14px;margin:-2px 0 8px}
+.perm .b{all:unset;cursor:pointer;min-width:92px;text-align:center;border-radius:999px;padding:6px 12px;font-weight:650;font-size:13.5px;background:var(--blue);color:#fff;transition:background-color .3s,color .3s,transform .45s var(--spring)}
+.perm .b:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.perm .b.ok{background:#e6f1e7;color:var(--ok)}.perm .b.tap{transform:scale(.9)}
+header .btn{transition:opacity .3s,transform .3s}
+body:not(.pastcta) header .btn{opacity:0;pointer-events:none;transform:translateY(-6px)}
+.end h2{font-size:clamp(40px,1.6rem + 3.4vw,72px)}
+@media(max-width:760px){.demo .desk{aspect-ratio:3/4;max-height:none}.mbar span{display:none}.demo .asks{flex-wrap:wrap;overflow:visible;justify-content:center;margin-inline:0;padding:0}}
 </style>
 </head>
 <body>
@@ -339,71 +299,46 @@ footer canvas{--pippa-ink:var(--ink)}
 <section class="hero" id="top" aria-labelledby="h1">
   <span class="blob" aria-hidden="true"></span>
   <div class="wrap">
-    <h1 id="h1">Zieh’s einfach<br><span class="nw">auf <span class="hp" id="drop"><canvas id="heroMark" aria-hidden="true"></canvas>Pippa</span>.</span></h1>
-    <p class="say" id="say" aria-live="polite"><span>Gib her, ich schau rein.</span></p>
-    <ul class="things" aria-label="Probier es aus: tipp auf ein Ding, und Pippa schaut hinein">
-      <li><button class="thing" type="button" style="--r:-4deg" data-busy="Schaue in Downloads …" data-done="Soll ich aufräumen? Ich zeig dir vorher, was ich vorhabe."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#5aa9f0"/><path d="M2 9h20" stroke="#3d8fdc" stroke-width="1.4"/></svg>Downloads</button></li>
-      <li><button class="thing" type="button" style="--r:3deg" data-busy="Lese 3 Rechnungen …" data-done="Fertig: eine Tabelle mit Datum, Absender und Betrag."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 1h7l4 4v12H9z" fill="#fff" stroke="#a8b2b9" stroke-width="1.2"/><path d="M6 4h7l4 4v12H6z" fill="#fff" stroke="#97a2aa" stroke-width="1.2"/><path d="M3 7h7l4 4v12H3z" fill="#fff" stroke="#8a97a0" stroke-width="1.3"/><rect x="5" y="16" width="7" height="4" rx="1" fill="#e2483d"/></svg>3 Rechnungen</button></li>
-      <li><button class="thing" type="button" style="--r:-2deg" data-busy="Lese Mietvertrag.pdf …" data-done="Kündigen bis 31. Dezember."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6z" fill="#fff" stroke="#8a97a0" stroke-width="1.4"/><path d="M14 2v5h5" fill="none" stroke="#8a97a0" stroke-width="1.4"/><rect x="8" y="12" width="9" height="5" rx="1" fill="#e2483d"/></svg>Mietvertrag.pdf</button></li>
-      <li><button class="thing" type="button" style="--r:4deg" data-busy="Schaue in Steuer 2024 …" data-done="Soll ich alles nach Art und Monat ordnen?"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="#5aa9f0"/><path d="M2 9h20" stroke="#3d8fdc" stroke-width="1.4"/></svg>Steuer 2024</button></li>
-    </ul>
-    <p class="hint" aria-hidden="true"><svg viewBox="0 0 34 30"><path d="M4 26c10 0 20-6 24-20M22 9l6-3 2 7"/></svg>Zieh eins auf Pippa</p>
-    <p class="local">Läuft auf deinem Mac, auch offline. Ohne Konto, ohne Abo.</p>
-    <div class="ctas"><a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a><a class="btn2" href="#kann">So sieht sie aus</a></div>
-    <p class="req">Kostenlos und quelloffen. Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer · <a href="#mac">Passt mein Mac?</a></p>
-  </div>
-</section>
+    <h1 id="h1">Zieh’s einfach<br><span class="nw">auf <span class="hw">Pippa</span><span class="dot"><canvas id="dotMark" aria-hidden="true"></canvas><span class="sr">.</span></span></span></h1>
+    <p class="sub">Deine persönliche Assistentin auf dem Mac.<br>Offline, immer für dich da.</p>
+    <div class="ctas"><a class="btn dl" id="heroDl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a></div>
+    <p class="req">Kostenlos und quelloffen, ohne Konto und ohne Abo. Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer · <a href="#mac">Passt mein Mac?</a></p>
 
-<section class="sec center" id="kann" aria-labelledby="h-kann">
-  <div class="wrap">
-    <h2 id="h-kann" class="rv">Deine persönliche Assistentin.<br><span class="hand">Auch offline immer für dich da.</span></h2>
-    <p class="lead rv" style="--d:1">Pippa findet und liest deine Dateien, Mails, Termine, Fotos und Erinnerungen. Die KI läuft auf deinem Mac, also klappt das auch ohne Internet. Online geht sie nur, wenn sie etwas nachschlagen soll.</p>
-    <div class="asks rv" style="--d:2" role="tablist" aria-label="Beispiele" id="asks">
-      <button class="ask" type="button" role="tab" aria-selected="true">Bis wann muss ich kündigen?<i class="fill"></i></button>
-      <button class="ask" type="button" role="tab" aria-selected="false">Hat mir der Fahrradladen geschrieben?<i class="fill"></i></button>
-      <button class="ask" type="button" role="tab" aria-selected="false">Was steht heute an?<i class="fill"></i></button>
-      <button class="ask" type="button" role="tab" aria-selected="false">Zeig mir meine Fotos vom Fahrrad.<i class="fill"></i></button>
-      <button class="ask" type="button" role="tab" aria-selected="false">Was muss ich noch erledigen?<i class="fill"></i></button>
-      <button class="ask" type="button" role="tab" aria-selected="false">Was kostet eine Inspektion?<i class="fill"></i></button>
-      <button class="ask" type="button" role="tab" aria-selected="false">Wo ist die Rechnung für meinen Helm?<i class="fill"></i></button>
-    </div>
-    <div class="stage rv" style="--d:3">
-      <div class="win" id="win">
-        <img class="on" src="images/neu/s-brief.webp" width="1000" height="921" alt="Pippas Fenster. Frage mit angehängtem Mietvertrag: Bis wann muss ich kündigen, wenn ich Ende März ausziehe? Antwort: Bis 31. Dezember, mit der Stelle aus Paragraf 4. Darunter Gemerkt: Auszug Ende März.">
-        <img src="images/neu/s-mail.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Hat mir der Fahrradladen geschrieben? Antwort mit Mailkarte: drei Mails von Radhaus Lindner.">
-        <img src="images/neu/s-kalender.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Was steht heute in meinem Kalender? Kalenderkarte mit vier Terminen und den Knöpfen Und morgen? und Und diese Woche?">
-        <img src="images/neu/s-fotos.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Zeig mir meine Fotos vom Fahrrad. Fotokarte mit sechs Fahrradfotos.">
-        <img src="images/neu/s-erinnerungen.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Was muss ich noch erledigen? Vier offene Erinnerungen, Reifen aufpumpen war gestern fällig.">
-        <img src="images/neu/s-online.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Was kostet eine Fahrradinspektion in Köln? Antwort: meist 50 bis 90 Euro, darunter die vier Seiten, die Pippa nachgesehen hat.">
-        <img src="images/neu/s-dateien.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster. Frage: Wo ist die Rechnung für meinen Helm? Antwort: in deinen Downloads, dazu passende Dateien vom Mac.">
+    <div class="demo" id="kann">
+      <div class="desk" id="desk">
+        <div class="mbar" aria-hidden="true"><b>Finder</b><span>Ablage</span><span>Bearbeiten</span><span>Darstellung</span><i>Di. 14. Okt. 16:05</i></div>
+        <p class="sr" id="deskHelp">Zum Ausprobieren: Zieh den Mietvertrag auf Pippa, klick Pippa an oder wähl unten eine Frage. Pippa lässt sich mit der Maus oder den Pfeiltasten verschieben.</p>
+        <button class="file" type="button" id="dfile" aria-describedby="deskHelp"><svg viewBox="0 0 48 60" aria-hidden="true"><path d="M4 2h28l12 12v44H4z" fill="#fff" stroke="#b7c0c6" stroke-width="1.5"/><path d="M32 2v12h12" fill="#eef1f3" stroke="#b7c0c6" stroke-width="1.5"/><rect x="10" y="22" width="22" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="29" width="28" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="36" width="25" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="46" width="16" height="7" rx="1.5" fill="#e2483d"/></svg><span>Mietvertrag.pdf</span></button>
+        <p class="dhint" id="dhint" aria-hidden="true"><svg viewBox="0 0 34 30"><path d="M30 26C20 26 10 20 6 6M12 9 6 6 4 13"/></svg>Zieh mich auf Pippa</p>
+        <img class="dwin" data-k="offen" src="images/neu/s-offen.webp" width="1000" height="921" alt="Pippas Fenster: Was möchtest du erledigen? Darunter ein Feld für Dateien und vier Beispiele, etwa Wo ist mein Mietvertrag? und Räum meinen Download-Ordner auf.">
+        <img class="dwin" data-k="brief" src="images/neu/s-brief.webp" width="1000" height="921" loading="lazy" alt="Pippas Antwort zum Mietvertrag. Frage: Bis wann muss ich kündigen, wenn ich Ende März ausziehe? Antwort: Bis 31. Dezember, mit der Stelle aus Paragraf 4. Darunter Gemerkt: Auszug Ende März.">
+        <img class="dwin" data-k="mail" src="images/neu/s-mail.webp" width="1000" height="921" loading="lazy" alt="Frage: Hat mir der Fahrradladen geschrieben? Antwort mit Mailkarte: drei Mails von Radhaus Lindner.">
+        <img class="dwin" data-k="kalender" src="images/neu/s-kalender.webp" width="1000" height="921" loading="lazy" alt="Frage: Was steht heute in meinem Kalender? Kalenderkarte mit vier Terminen und den Knöpfen Und morgen? und Und diese Woche?">
+        <img class="dwin" data-k="fotos" src="images/neu/s-fotos.webp" width="1000" height="921" loading="lazy" alt="Frage: Zeig mir meine Fotos vom Fahrrad. Fotokarte mit sechs Fahrradfotos.">
+        <img class="dwin" data-k="erinnerungen" src="images/neu/s-erinnerungen.webp" width="1000" height="921" loading="lazy" alt="Frage: Was muss ich noch erledigen? Vier offene Erinnerungen, Reifen aufpumpen war gestern fällig.">
+        <img class="dwin" data-k="online" src="images/neu/s-online.webp" width="1000" height="921" loading="lazy" alt="Frage: Was kostet eine Fahrradinspektion in Köln? Antwort: meist 50 bis 90 Euro, darunter die vier Seiten, die Pippa nachgesehen hat.">
+        <img class="dwin" data-k="dateien" src="images/neu/s-dateien.webp" width="1000" height="921" loading="lazy" alt="Frage: Wo ist die Rechnung für meinen Helm? Antwort: in deinen Downloads, dazu passende Dateien von diesem Mac.">
+        <button class="dpill" type="button" id="dpill" data-s="ruht" aria-describedby="deskHelp"><canvas id="deskMark" aria-hidden="true"></canvas><span class="lt" id="dlt">Pippa</span><span class="lend" id="dlend" aria-hidden="true"></span><span class="lprog" aria-hidden="true"><i></i></span></button>
+        <p class="phint" id="phint" aria-hidden="true">Klick mich an oder schieb mich herum</p>
       </div>
-      <span class="spill" id="spill" aria-hidden="true"><canvas id="stageMark"></canvas>Pippa</span>
+      <p class="asklabel">Oder frag sie etwas. Mit <kbd>⌃⌥ Leertaste</kbd> geht ihr Fenster auf, auch hier.</p>
+      <div class="asks" id="asks">
+        <button class="ask" type="button" data-k="mail">Hat mir der Fahrradladen geschrieben?</button>
+        <button class="ask" type="button" data-k="kalender">Was steht heute in meinem Kalender?</button>
+        <button class="ask" type="button" data-k="dateien">Wo ist die Rechnung für meinen Helm?</button>
+        <button class="ask" type="button" data-k="fotos">Zeig mir meine Fotos vom Fahrrad.</button>
+        <button class="ask" type="button" data-k="erinnerungen">Was muss ich noch erledigen?</button>
+        <button class="ask" type="button" data-k="online">Was kostet eine Fahrradinspektion in Köln?</button>
+      </div>
     </div>
-    <button class="pause" type="button" id="pause">Anhalten</button>
   </div>
-</section>
-
-<section class="sec center" id="figur" aria-labelledby="h-figur">
-  <div class="wrap"><div class="panel pn-green">
-    <h2 id="h-figur" class="rv">Pippa ist da,<br><span class="hand">wo du sie haben willst.</span></h2>
-    <p class="lead rv" style="--d:1">Schieb sie an jede Stelle, auch auf einen anderen Bildschirm. Zieh etwas auf sie, klick sie an oder drück <kbd>⌃⌥ Leertaste</kbd>.</p>
-    <div class="desk rv" style="--d:2" id="desk">
-      <p class="sr" id="deskHelp">Zum Ausprobieren: Pippa lässt sich mit der Maus oder den Pfeiltasten verschieben. Ein Klick öffnet ihr Fenster. Zieh den Mietvertrag auf Pippa, dann liest sie ihn.</p>
-      <button class="file" type="button" id="dfile" aria-describedby="deskHelp"><svg viewBox="0 0 48 60" aria-hidden="true"><path d="M4 2h28l12 12v44H4z" fill="#fff" stroke="#b7c0c6" stroke-width="1.5"/><path d="M32 2v12h12" fill="#eef1f3" stroke="#b7c0c6" stroke-width="1.5"/><rect x="10" y="22" width="22" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="29" width="28" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="36" width="25" height="3" rx="1.5" fill="#cfd5da"/><rect x="10" y="46" width="16" height="7" rx="1.5" fill="#e2483d"/></svg><span>Mietvertrag.pdf</span></button>
-      <p class="dhint" id="dhint" aria-hidden="true">zieh mich auf Pippa</p>
-      <img class="dwin" id="dwOpen" src="images/neu/s-offen.webp" width="1000" height="921" loading="lazy" alt="Pippas Fenster: Was möchtest du erledigen? Darunter ein Feld für Dateien und vier Beispiele, etwa Wo ist mein Mietvertrag? und Räum meinen Download-Ordner auf.">
-      <img class="dwin" id="dwDone" src="images/neu/s-brief.webp" width="1000" height="921" loading="lazy" alt="Pippas Antwort zum Mietvertrag: Bis 31. Dezember kündigen, mit der Stelle aus Paragraf 4.">
-      <button class="dpill" type="button" id="dpill" data-s="ruht" aria-describedby="deskHelp"><canvas id="deskMark" aria-hidden="true"></canvas><span class="lt" id="dlt">Pippa</span><span class="lend" id="dlend" aria-hidden="true"></span><span class="lprog" aria-hidden="true"><i></i></span></button>
-      <p class="phint" id="phint" aria-hidden="true">schieb mich herum</p>
-    </div>
-  </div></div>
 </section>
 
 <section class="sec" id="daten" aria-labelledby="h-daten">
   <div class="wrap">
     <div class="trust">
       <div>
-        <h2 id="h-daten" class="rv">Pippa fragt, <span class="hand">bevor sie reinschaut.</span></h2>
+        <h2 id="h-daten" class="rv">Pippa fragt, bevor sie reinschaut.</h2>
         <p class="lead rv" style="--d:1">Kein Konto, kein Pippa-Server, keine Werbung. Ein Knopf pro Recht, beim ersten Start und jederzeit in den Einstellungen.</p>
         <ul class="facts">
           <li class="rv"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>KI auf deinem Mac.</h3><p>Antworten kommen von einem offenen Modell, das auf deinem Mac läuft.</p></li>
@@ -413,23 +348,23 @@ footer canvas{--pippa-ink:var(--ink)}
           <li class="rv" style="--d:4"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Offener Quellcode.</h3><p>MIT-Lizenz. Jeder kann nachsehen, was Pippa tut.</p></li>
         </ul>
       </div>
-      <figure class="perm rv" style="--d:2" id="perm" role="img" aria-label="Die Liste Was Pippa darf: Schreibtisch, Dokumente und Downloads, Kalender, Erinnerungen, Fotos und Mail, jeweils mit einem Satz, wofür Pippa es braucht, und einem Knopf Erlauben.">
-        <p class="ph">Was Pippa darf</p>
+      <div class="perm rv" style="--d:2" id="perm">
+        <p class="ph">Was Pippa darf</p><p class="pcap">So sieht es in Pippa aus. Probier’s: Du entscheidest, einzeln.</p>
         <ul>
-          <li><span class="ic" style="background:#1f7cf2"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><div><b>Schreibtisch, Dokumente und Downloads</b><span>Damit Pippa deine Dateien findet, liest und aufräumt, wenn du sie darum bittest.</span></div><span class="b">Erlauben</span></li>
-          <li><span class="ic" style="background:#f04a3e"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><div><b>Kalender</b><span>Damit Pippa deine Termine liest und Fristen einträgt.</span></div><span class="b">Erlauben</span></li>
-          <li><span class="ic" style="background:#f7902b"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></span><div><b>Erinnerungen</b><span>Damit Pippa Fristen als Erinnerung einträgt.</span></div><span class="b">Erlauben</span></li>
-          <li><span class="ic" style="background:#ec3f6c"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg></span><div><b>Fotos</b><span>Damit Pippa deine Fotos findet, wenn du fragst.</span></div><span class="b">Erlauben</span></li>
-          <li><span class="ic" style="background:#1f7cf2"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span><div><b>Mail</b><span>Damit Pippa die ausgewählte Mail liest und eine Antwort vorbereitet. Verschickt wird nichts.</span></div><span class="b">Erlauben</span></li>
+          <li><span class="ic" style="background:#1f7cf2"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><div><b>Schreibtisch, Dokumente und Downloads</b><span>Damit Pippa deine Dateien findet, liest und aufräumt, wenn du sie darum bittest.</span></div><button class="b" type="button" aria-pressed="false">Erlauben</button></li>
+          <li><span class="ic" style="background:#f04a3e"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><div><b>Kalender</b><span>Damit Pippa deine Termine liest und Fristen einträgt.</span></div><button class="b" type="button" aria-pressed="false">Erlauben</button></li>
+          <li><span class="ic" style="background:#f7902b"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></span><div><b>Erinnerungen</b><span>Damit Pippa Fristen als Erinnerung einträgt.</span></div><button class="b" type="button" aria-pressed="false">Erlauben</button></li>
+          <li><span class="ic" style="background:#ec3f6c"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg></span><div><b>Fotos</b><span>Damit Pippa deine Fotos findet, wenn du fragst.</span></div><button class="b" type="button" aria-pressed="false">Erlauben</button></li>
+          <li><span class="ic" style="background:#1f7cf2"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span><div><b>Mail</b><span>Damit Pippa die ausgewählte Mail liest und eine Antwort vorbereitet. Verschickt wird nichts.</span></div><button class="b" type="button" aria-pressed="false">Erlauben</button></li>
         </ul>
-      </figure>
+      </div>
     </div>
   </div>
 </section>
 
 <section class="sec center" id="fragen" aria-labelledby="h-faq">
   <div class="wrap faq">
-    <h2 id="h-faq" class="rv">Noch <span class="hand">Fragen?</span></h2>
+    <h2 id="h-faq" class="rv">Noch Fragen?</h2>
     <div class="list">
       <details><summary>Was kostet Pippa?</summary><p>Nichts. Kein Konto, keine Werbung. Der Quellcode ist offen (MIT-Lizenz).</p></details>
       <details id="mac"><summary>Läuft Pippa auf meinem Mac?</summary><p>Auf jedem Mac mit Apple-Chip (M1 oder neuer) und macOS 15 oder neuer. Nachsehen kannst du im Apple-Menü unter „Über diesen Mac“.</p></details>
@@ -441,22 +376,20 @@ footer canvas{--pippa-ink:var(--ink)}
 
 <section class="sec center end" aria-labelledby="h-home">
   <div class="wrap"><div class="panel pn-blue">
-    <div class="bigpill rv" id="bigpill" aria-hidden="true"><canvas id="endMark"></canvas>Pippa</div>
-    <h2 id="h-home" class="rv" style="--d:1">Pippa wartet <span class="hand">schon.</span></h2>
-    <ol class="steps"><li class="rv" style="--d:2">Öffne die geladene Datei und zieh Pippa in „Programme“.</li><li class="rv" style="--d:3">Öffne Pippa.</li><li class="rv" style="--d:4">Bevor Pippa ihre KI lädt, fragt sie dich und sagt dir, wie groß sie ist.</li></ol>
-    <div class="ctas"><a class="btn dl" id="endBtn" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a></div>
+    <h2 id="h-home" class="rv" style="--d:1">Hol dir Pippa.</h2>
+    <ol class="steps"><li class="rv" style="--d:2">Die geladene Datei öffnen und Pippa in „Programme“ ziehen.</li><li class="rv" style="--d:3">Pippa öffnen. Bevor sie ihre KI lädt, fragt sie dich und sagt, wie groß die ist.</li><li class="rv" style="--d:4">Etwas auf Pippa ziehen. Fertig.</li></ol>
+    <div class="ctas"><a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Pippa kostenlos laden <span aria-hidden="true">→</span></a></div>
     <p class="req">Für Macs mit Apple-Chip und macOS&nbsp;15 oder neuer.</p>
   </div></div>
 </section>
 </main>
 
-<div class="walker" id="walker" aria-hidden="true"><canvas data-mark="18"></canvas>Pippa</div>
 
 <footer>
   <div class="wrap">
     <p class="row"><canvas data-mark="22" aria-hidden="true"></canvas>Pippa</p>
     <p><a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a> · <a href="en/" hreflang="en" lang="en" data-lang="en">English</a></p>
-    <p>Ein unabhängiges Open-Source-Projekt. Nicht verbunden mit Apple Inc. oder Microsoft. Mac und macOS sind Marken von Apple Inc. Microsoft Excel ist eine Marke der Microsoft Corporation.</p>
+    <p>Ein unabhängiges Open-Source-Projekt. Nicht verbunden mit Apple Inc. Mac und macOS sind Marken von Apple Inc.</p>
     <p>Pippa nutzt offene Modelle über llama.cpp und den Open-Source-Agenten <a href="https://github.com/earendil-works/pi">Pi</a> (MIT). <a href="https://github.com/tschnorpfeil/pippa">Quellcode auf GitHub</a></p>
   </div>
 </footer>
@@ -465,7 +398,6 @@ footer canvas{--pippa-ink:var(--ink)}
 <script>
 (()=>{
 'use strict';
-document.documentElement.classList.add('js');
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const mk=(c,size,o)=>window.PippaMark?new PippaMark(c,{size,state:'ruht',alive:!RM,...o}):{setState(){},pulse(){}};
@@ -476,137 +408,73 @@ const later=(f,ms)=>setTimeout(f,RM?0:ms);
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{rootMargin:'0px 0px -8% 0px'});
 $$('.rv,.keys').forEach(el=>RM?el.classList.add('in'):io.observe(el));
 
-/* Start: Dinge auf Pippa ziehen. Tippen geht auch. */
-const drop=$('#drop'),say=$('#say'),h1=$('#h1');
-const heroMark=mk($('#heroMark'),Math.round(parseFloat(getComputedStyle(h1).fontSize)*.62),{idleAmplitude:1.25});
-let busy=false,auto=null,touched=false,timer=0;
-const speak=t=>{say.innerHTML='';const s=document.createElement('span');s.textContent=t;say.append(s)};
-const feed=(btn)=>{
-  if(busy)return;busy=true;
-  drop.classList.remove('hot');drop.classList.add('gulp');later(()=>drop.classList.remove('gulp'),600);
-  btn.classList.add('gone');heroMark.setState('arbeitet');speak(btn.dataset.busy);
-  clearTimeout(timer);
-  timer=setTimeout(()=>{heroMark.setState('offen');heroMark.pulse();speak(btn.dataset.done);
-    timer=setTimeout(()=>{heroMark.setState('ruht');btn.style.transform='';btn.classList.remove('gone','fly');busy=false},RM?1500:3400)},RM?300:1600);
-};
-const fly=btn=>{
-  if(busy)return;
-  const a=btn.getBoundingClientRect(),b=drop.getBoundingClientRect();
-  btn.classList.add('fly');
-  btn.style.transform=`translate(${b.left+b.width/2-a.left-a.width/2}px,${b.top+b.height/2-a.top-a.height/2}px) scale(.3) rotate(-12deg)`;
-  later(()=>feed(btn),520);
-};
-$$('.thing').forEach(btn=>{
-  let sx=0,sy=0,moved=false,id=null;
-  btn.addEventListener('pointerdown',e=>{if(busy||e.button>0)return;id=e.pointerId;sx=e.clientX;sy=e.clientY;moved=false;btn.setPointerCapture(id);stopAuto()});
-  btn.addEventListener('pointermove',e=>{
-    if(e.pointerId!==id)return;
-    const dx=e.clientX-sx,dy=e.clientY-sy;
-    if(!moved&&Math.hypot(dx,dy)<6)return;
-    moved=true;btn.classList.add('drag');
-    const r=btn.getBoundingClientRect(),t=drop.getBoundingClientRect();
-    const cx=r.left+r.width/2-(parseFloat(btn.dataset.ox)||0)+dx,cy=r.top+r.height/2-(parseFloat(btn.dataset.oy)||0)+dy;
-    const s=window.PippaDrag?PippaDrag.sample({centerX:cx,centerY:cy,pointerX:e.clientX,pointerY:e.clientY,width:r.width,height:r.height},t,{maxPull:RM?0:36}):{pullX:0,pullY:0,ready:false};
-    const x=dx+s.pullX,y=dy+s.pullY;btn.dataset.ox=x;btn.dataset.oy=y;btn.dataset.ready=s.ready?1:'';
-    btn.style.transform=`translate(${x}px,${y}px) rotate(${Math.max(-8,Math.min(8,dx/20))}deg)`;
-    drop.classList.toggle('hot',s.ready);
-  });
-  const end=e=>{
-    if(e.pointerId!==id)return;id=null;
-    if(!moved){fly(btn);return}
-    btn.classList.remove('drag');drop.classList.remove('hot');
-    const ready=btn.dataset.ready;btn.dataset.ox=btn.dataset.oy=0;
-    if(ready){btn.style.transform='scale(.3)';btn.classList.add('fly');later(()=>feed(btn),200)}
-    else btn.style.transform='';
-  };
-  btn.addEventListener('pointerup',end);btn.addEventListener('pointercancel',end);
-  btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();stopAuto();fly(btn)}});
-});
-/* Ohne Zutun zeigt Pippa es einmal selbst. */
-function stopAuto(){touched=true;clearTimeout(auto)}
-if(!RM)auto=setTimeout(()=>{if(!touched)fly($('.thing'))},2200);
-
-/* Vorführung: Fragen wechseln von selbst, Klick springt, Anhalten hält an. */
-const asks=$$('#asks .ask'),shots=$$('#win img'),pause=$('#pause'),spill=$('#spill'),DUR=5600;
-const stageMark=mk($('#stageMark'),22);
-let i=0,t0=performance.now(),run=!RM,seen=false,st=0;
-const show=n=>{i=n;t0=performance.now();
-  asks.forEach((b,k)=>{b.setAttribute('aria-selected',k===n);b.style.setProperty('--p','0%')});
-  shots.forEach((s,k)=>s.classList.toggle('on',k===n));
-  clearTimeout(st);stageMark.setState('arbeitet');spill.classList.add('busy');
-  st=setTimeout(()=>{stageMark.setState('offen');spill.classList.remove('busy');st=setTimeout(()=>stageMark.setState('ruht'),1500)},RM?0:900);
-};
-asks.forEach((b,k)=>b.addEventListener('click',()=>{show(k);if(innerWidth<760)b.scrollIntoView({block:'nearest',inline:'center',behavior:RM?'auto':'smooth'})}));
-pause.textContent=run?'Anhalten':'Abspielen';
-pause.addEventListener('click',()=>{run=!run;t0=performance.now()-(parseFloat(asks[i].style.getPropertyValue('--p'))||0)*DUR/100;pause.textContent=run?'Anhalten':'Abspielen'});
-new IntersectionObserver(es=>{seen=es[0].isIntersecting;if(seen)t0=performance.now()-(parseFloat(asks[i].style.getPropertyValue('--p'))||0)*DUR/100}).observe($('#win'));
-const tick=now=>{if(run&&seen){const p=Math.min(1,(now-t0)/DUR);asks[i].style.setProperty('--p',p*100+'%');if(p>=1)show((i+1)%asks.length)}requestAnimationFrame(tick)};
-requestAnimationFrame(tick);
-
-/* Mini-Schreibtisch: Pippa verschieben, anklicken, Datei draufziehen. */
-const desk=$('#desk'),dp=$('#dpill'),dlt=$('#dlt'),dle=$('#dlend'),dfile=$('#dfile'),wOpen=$('#dwOpen'),wDone=$('#dwDone');
+/* Demo: ein Schreibtisch, eine Pippa. Datei draufziehen, Pippa anklicken, verschieben oder eine Frage wählen. */
+const desk=$('#desk'),dp=$('#dpill'),dlt=$('#dlt'),dle=$('#dlend'),dfile=$('#dfile'),wins=$$('#desk .dwin'),asks=$$('#asks .ask');
+const win=k=>wins.find(w=>w.dataset.k===k);
 const DM=innerWidth<600?26:32,deskMark=mk($('#deskMark'),DM);
 const dmeas=document.createElement('div');dmeas.className='dpill';dmeas.style.cssText='position:absolute;visibility:hidden;left:-9999px;top:0;width:auto';dmeas.setAttribute('aria-hidden','true');
 dmeas.innerHTML='<canvas style="width:'+DM+'px;height:1px"></canvas><span class="lt"></span><span class="lend" style="opacity:1"></span>';document.body.append(dmeas);
-const dfit=(t,e)=>{dmeas.querySelector('.lt').textContent=t;dmeas.querySelector('.lend').textContent=e||'';dp.style.width=dmeas.offsetWidth+'px'};
-const dstate=(st,t,e)=>{dp.dataset.s=st;deskMark.setState(st==='arbeitet'||st==='offen'?st:'ruht');dlt.textContent=t;dle.textContent=e||'';dfit(t,e);
+let pw=0;const dfit=(t,e)=>{dmeas.querySelector('.lt').textContent=t;dmeas.querySelector('.lend').textContent=e||'';pw=dmeas.offsetWidth;dp.style.width=pw+'px';if(desk.clientWidth)place()};
+const dstate=(st,t,e)=>{dp.dataset.s=st;deskMark.setState(st);dlt.textContent=t;dle.textContent=e||'';dfit(t,e);
   if(st==='arbeitet'){const p=dp.querySelector('.lprog i');p.style.animation='none';p.offsetWidth;p.style.animation=''}};
-dfit('Pippa');
-let px=0,py=0,open=null,dbusy=false;
-const aim=img=>{const W=desk.clientWidth,H=desk.clientHeight,ph=dp.offsetHeight,cx=px+dp.offsetWidth/2,up=py-20,dn=H-py-ph-20,room=Math.max(up,dn);
-  const w=Math.min(W*(innerWidth<760?.94:.56),560,room/.921),h=w*.921;let x=Math.max(8,Math.min(W-w-8,cx-w/2)),y=up>=dn?py-h-12:py+ph+12;
+let px=0,py=0,open=null,dbusy=false,job=0;
+const aim=img=>{const W=desk.clientWidth,H=desk.clientHeight,ph=dp.offsetHeight,cx=px+pw/2,up=py-40,dn=H-py-ph-16,room=Math.max(up,dn);
+  const w=Math.min(W*(innerWidth<760?.94:.6),620,room/.921),h=w*.921;const x=Math.max(8,Math.min(W-w-8,cx-w/2)),y=up>=dn?py-h-10:py+ph+10;
   img.style.width=w+'px';img.style.left=x+'px';img.style.top=y+'px';img.style.transformOrigin=`${cx-x}px ${up>=dn?h:0}px`};
-const place=()=>{const W=desk.clientWidth,H=desk.clientHeight;px=Math.max(8,Math.min(W-dp.offsetWidth-8,px));py=Math.max(8,Math.min(H-dp.offsetHeight-8,py));dp.style.transform=`translate(${px}px,${py}px)`;if(open)aim(open)};
-const home=()=>{px=desk.clientWidth-dp.offsetWidth-24;py=desk.clientHeight-dp.offsetHeight-20;place()};
-const dshow=img=>{desk.classList.toggle('won',!!img);[wOpen,wDone].forEach(i=>i.classList.toggle('on',i===img));open=img;if(img)aim(img)};
-const reset=()=>{dstate('ruht','Pippa');dfile.classList.remove('gone','fly');dfile.style.transform=''};
-const close=()=>{const wasDone=open===wDone;dshow(null);if(wasDone)reset()};
-const toggle=()=>{if(dbusy)return;if(open)close();else{if(dp.dataset.s!=='ruht')reset();dshow(wOpen);deskMark.pulse()}};
-requestAnimationFrame(home);addEventListener('resize',place);
+const place=()=>{const W=desk.clientWidth,H=desk.clientHeight;px=Math.max(8,Math.min(W-pw-8,px));py=Math.max(34,Math.min(H-dp.offsetHeight-8,py));dp.style.transform=`translate(${px}px,${py}px)`;if(open)aim(open)};
+const home=()=>{px=desk.clientWidth-pw-14;py=desk.clientHeight*.62;place()};
+const dshow=img=>{desk.classList.toggle('won',!!img);wins.forEach(i=>i.classList.toggle('on',i===img));open=img;if(img)aim(img)};
+const fileBack=()=>{dfile.classList.remove('gone');dfile.style.transform=''};
+const calm=()=>{dstate('ruht','Pippa')};
+const close=()=>{dshow(null);calm();fileBack();asks.forEach(a=>a.setAttribute('aria-pressed','false'))};
+/* Eine Antwort: Pippa arbeitet kurz, freut sich, das Fenster geht auf. */
+const answer=(k,busyText)=>{const my=++job;dbusy=true;dshow(null);$('#phint').classList.add('gone');dstate('arbeitet',busyText||'Pippa');
+  later(()=>{if(my!==job)return;dstate('offen','Deine Antwort ist da','✓');deskMark.pulse();
+    later(()=>{if(my!==job)return;dbusy=false;dshow(win(k))},600)},busyText?2000:1100)};
+const toggle=()=>{if(dbusy)return;if(open)close();else{calm();fileBack();dshow(win('offen'));deskMark.pulse()}};
+dfit('Pippa');requestAnimationFrame(home);addEventListener('resize',place);
+/* Der Punkt in der Überschrift ist Pippa. Sie lächelt, wenn du zum Laden zeigst. */
+const h1=$('#h1'),dot=mk($('#dotMark'),Math.round(parseFloat(getComputedStyle(h1).fontSize)*.3),{idleAmplitude:1.4});
+const hdl=$('#heroDl');['pointerenter','focus'].forEach(t=>hdl.addEventListener(t,()=>dot.setState('offen')));['pointerleave','blur'].forEach(t=>hdl.addEventListener(t,()=>dot.setState('ruht')));
+/* Der Knopf oben erscheint erst, wenn der große Knopf weggescrollt ist. */
+new IntersectionObserver(es=>document.body.classList.toggle('pastcta',!es[0].isIntersecting)).observe(hdl);
+let auto=null;const stopAuto=()=>{clearTimeout(auto);auto=null};
 /* Pippa verschieben oder anklicken */
 {let sx=0,sy=0,ox=0,oy=0,moved=false,id=null;
-dp.addEventListener('pointerdown',e=>{if(e.button>0)return;id=e.pointerId;sx=e.clientX;sy=e.clientY;ox=px;oy=py;moved=false;dp.setPointerCapture(id)});
+dp.addEventListener('pointerdown',e=>{if(e.button>0)return;stopAuto();id=e.pointerId;sx=e.clientX;sy=e.clientY;ox=px;oy=py;moved=false;dp.setPointerCapture(id)});
 dp.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(!moved&&Math.hypot(dx,dy)<5)return;moved=true;dp.classList.add('drag');$('#phint').classList.add('gone');px=ox+dx;py=oy+dy;place()});
 const up=e=>{if(e.pointerId!==id)return;id=null;dp.classList.remove('drag');if(!moved)toggle()};
 dp.addEventListener('pointerup',up);dp.addEventListener('pointercancel',up);
-dp.addEventListener('click',e=>{if(e.detail===0)toggle()});
-dp.addEventListener('keydown',e=>{const k={ArrowLeft:[-24,0],ArrowRight:[24,0],ArrowUp:[0,-24],ArrowDown:[0,24]}[e.key];if(k){e.preventDefault();px+=k[0];py+=k[1];place()}});}
-addEventListener('keydown',e=>{if(e.key==='Escape'&&open)close();if(e.code==='Space'&&e.ctrlKey&&e.altKey){const r=desk.getBoundingClientRect();if(r.top<innerHeight&&r.bottom>0){e.preventDefault();toggle()}}});
-desk.addEventListener('pointerdown',e=>{if(e.target===desk&&open)close()});
+dp.addEventListener('click',e=>{if(e.detail===0){stopAuto();toggle()}});
+dp.addEventListener('keydown',e=>{const k={ArrowLeft:[-24,0],ArrowRight:[24,0],ArrowUp:[0,-24],ArrowDown:[0,24]}[e.key];if(k){e.preventDefault();stopAuto();px+=k[0];py+=k[1];place()}});}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&open)close();if(e.code==='Space'&&e.ctrlKey&&e.altKey){const r=desk.getBoundingClientRect();if(r.top<innerHeight&&r.bottom>0){e.preventDefault();stopAuto();toggle()}}});
+desk.addEventListener('pointerdown',e=>{if(e.target===desk&&open){stopAuto();close()}});
 /* Datei auf Pippa ziehen */
-const readIt=()=>{dbusy=true;dshow(null);dfile.classList.add('gone');$('#dhint').classList.add('gone');dstate('arbeitet','Lese Mietvertrag · 2/3');
-  later(()=>{dstate('offen','Deine Antwort ist da','✓');deskMark.pulse();later(()=>{dbusy=false;dshow(wDone)},700)},2200)};
+const readIt=()=>{dfile.classList.add('gone');$('#dhint').classList.add('gone');asks.forEach(a=>a.setAttribute('aria-pressed','false'));answer('brief','Lese Mietvertrag · 2/3')};
+const flyIn=()=>{const a=dfile.getBoundingClientRect(),b=dp.getBoundingClientRect();dfile.style.transform=`translate(${b.left+b.width/2-a.left-a.width/2}px,${b.top+b.height/2-a.top-a.height/2}px) scale(.3)`;later(readIt,450)};
 {let sx=0,sy=0,moved=false,id=null,ox=0,oy=0,ready=false;
-dfile.addEventListener('pointerdown',e=>{if(dbusy||e.button>0)return;id=e.pointerId;sx=e.clientX;sy=e.clientY;moved=false;ox=oy=0;ready=false;dfile.setPointerCapture(id)});
+dfile.addEventListener('pointerdown',e=>{if(dbusy||e.button>0)return;stopAuto();if(open)dshow(null);id=e.pointerId;sx=e.clientX;sy=e.clientY;moved=false;ox=oy=0;ready=false;dfile.setPointerCapture(id)});
 dfile.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(!moved&&Math.hypot(dx,dy)<5)return;moved=true;dfile.classList.add('drag');
   const r=dfile.getBoundingClientRect(),t=dp.getBoundingClientRect(),cx=r.left+r.width/2-ox+dx,cy=r.top+r.height/2-oy+dy;
   const sm=window.PippaDrag?PippaDrag.sample({centerX:cx,centerY:cy,pointerX:e.clientX,pointerY:e.clientY,width:r.width,height:r.height},t,{maxPull:RM?0:36}):{pullX:0,pullY:0,ready:false};
   ox=dx+sm.pullX;oy=dy+sm.pullY;ready=sm.ready;dfile.style.transform=`translate(${ox}px,${oy}px)`;dp.classList.toggle('hot',ready)});
 const fend=e=>{if(e.pointerId!==id)return;id=null;dfile.classList.remove('drag');dp.classList.remove('hot');
-  if(!moved){const a=dfile.getBoundingClientRect(),b=dp.getBoundingClientRect();dfile.style.transform=`translate(${b.left+b.width/2-a.left-a.width/2}px,${b.top+b.height/2-a.top-a.height/2}px) scale(.3)`;later(readIt,450)}
-  else if(ready){dfile.style.transform=`translate(${ox}px,${oy}px) scale(.3)`;later(readIt,150)}
-  else dfile.style.transform=''};
+  if(!moved)flyIn();else if(ready){dfile.style.transform=`translate(${ox}px,${oy}px) scale(.3)`;later(readIt,150)}else dfile.style.transform=''};
 dfile.addEventListener('pointerup',fend);dfile.addEventListener('pointercancel',fend);
-dfile.addEventListener('click',e=>{if(e.detail===0&&!dbusy)readIt()});}
+dfile.addEventListener('click',e=>{if(e.detail===0&&!dbusy){stopAuto();readIt()}});}
+/* Fragen */
+asks.forEach(a=>{a.setAttribute('aria-pressed','false');a.addEventListener('click',()=>{stopAuto();fileBack();asks.forEach(b=>b.setAttribute('aria-pressed',b===a));answer(a.dataset.k)})});
+/* Ohne Zutun zeigt Pippa es einmal selbst: Mietvertrag rein, dann zwei Fragen. */
+if(!RM){const steps=[()=>flyIn(),()=>{fileBack();asks[1].click.call(asks[1]);},()=>{asks[3].click.call(asks[3])}];
+  let n=0;const run=()=>{if(auto===null&&n>0)return;const f=steps[n++];if(!f){auto=null;return}
+    if(n>1){asks.forEach(b=>b.setAttribute('aria-pressed',b===asks[n===2?1:3]));fileBack();answer(asks[n===2?1:3].dataset.k)}else f();auto=setTimeout(run,6500)};
+  new IntersectionObserver((es,o)=>{if(es[0].isIntersecting){o.disconnect();auto=setTimeout(run,1400)}},{threshold:.5}).observe(desk)}
 
-/* Rechte werden nacheinander erlaubt, sobald die Liste zu sehen ist. */
-const bs=$$('#perm .b');
-new IntersectionObserver((es,o)=>{if(!es[0].isIntersecting)return;o.disconnect();
-  bs.forEach((b,k)=>later(()=>{b.classList.add('tap');later(()=>{b.classList.remove('tap');b.classList.add('ok');b.textContent='✓ Erlaubt'},140)},600+k*520))},{threshold:.5}).observe($('#perm'));
+/* Rechte: der Besucher entscheidet selbst, wie in Pippa. */
+$$('#perm .b').forEach(b=>b.addEventListener('click',()=>{const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);b.classList.toggle('ok',on);b.textContent=on?'✓ Erlaubt':'Erlauben';b.classList.add('tap');later(()=>b.classList.remove('tap'),160)}));
 
-/* Schluss: Pippa freut sich, wenn du zum Laden zeigst. */
-const endMark=mk($('#endMark'),innerWidth<600?40:56,{idleAmplitude:1.3}),big=$('#bigpill'),eb=$('#endBtn');
-eb.addEventListener('pointerenter',()=>{endMark.setState('offen');big.classList.add('yay')});
-eb.addEventListener('pointerleave',()=>{endMark.setState('ruht');big.classList.remove('yay')});
-eb.addEventListener('focus',()=>{endMark.setState('offen');big.classList.add('yay')});
-eb.addEventListener('blur',()=>{endMark.setState('ruht');big.classList.remove('yay')});
-
-/* Pippa läuft beim Scrollen unten am Rand mit. */
-const w=$('#walker');
-const walk=()=>{const max=document.documentElement.scrollHeight-innerHeight,p=max>0?scrollY/max:0;w.style.transform='translateX('+Math.round(16+p*(innerWidth-w.offsetWidth-32))+'px)';const dr=desk.getBoundingClientRect(),inDesk=dr.top<innerHeight&&dr.bottom>0;w.style.opacity=scrollY>innerHeight*.8&&p<.9&&!inDesk?1:0};
-addEventListener('scroll',walk,{passive:true});addEventListener('resize',walk);walk();
 })();
 </script>
-<div class="draftbar">Entwurf 4</div>
+<div class="draftbar">Entwurf 6</div>
 </body>
 </html>
