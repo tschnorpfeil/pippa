@@ -215,9 +215,12 @@ public enum ConversationStoreError: LocalizedError, Sendable {
         return result
     }
 
-    @discardableResult public func create(title: String = L("New Conversation", table: "Core")) throws -> Conversation {
+    /// The title of a conversation that has no topic yet.
+    nonisolated public static var defaultTitle: String { L("New Conversation", table: "Core") }
+
+    @discardableResult public func create(title: String = ConversationStore.defaultTitle) throws -> Conversation {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let conversation = Conversation(title: trimmed.isEmpty ? L("New Conversation", table: "Core") : trimmed)
+        let conversation = Conversation(title: trimmed.isEmpty ? ConversationStore.defaultTitle : trimmed)
         var next = archive
         next.conversations.append(conversation); next.selectedID = conversation.id
         try persist(next)
@@ -301,7 +304,7 @@ public enum ConversationStoreError: LocalizedError, Sendable {
         guard let index = archive.conversations.firstIndex(where: { $0.id == id }) else { throw ConversationStoreError.unknownConversation }
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         var next = archive
-        next.conversations[index].title = trimmed.isEmpty ? L("New Conversation", table: "Core") : trimmed
+        next.conversations[index].title = trimmed.isEmpty ? ConversationStore.defaultTitle : trimmed
         next.conversations[index].updatedAt = max(Date(), next.conversations[index].updatedAt)
         try persist(next)
         return next.conversations[index]

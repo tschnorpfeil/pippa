@@ -639,6 +639,10 @@ final class AppModel: ObservableObject {
     }
 
     func openInput() {
+        // The download question was only clicked away, not answered: it comes back instead of a chat that cannot answer.
+        if needsDownloadConsent, PiSetupController.shared?.deferred == false {
+            return show(.onboarding)
+        }
         selection = 0
         show(.input)
         composerFocus += 1
@@ -1570,7 +1574,7 @@ final class AppModel: ObservableObject {
         }
         // Free text and skills go to the real Pi (PiRPCChat); model choice and approvals are handled by the Pi path itself.
         // While Pippa's AI is still loading (and for the first message after), the start bridge answers or waits for Pi.
-        let bridged = usesStartupBridge
+        let bridged = usesStartupBridge(q, skill: skill)
         if !bridged, piSetupHolds(q, queued: queued) { return }
         if query.trimmingCharacters(in: .whitespacesAndNewlines) == q { query = "" }
         // What is shown (files, folder, mail, table, text) and Pippa's working state go along (PiRPCChat+Shown.swift).
@@ -1582,12 +1586,17 @@ final class AppModel: ObservableObject {
     /// The first minutes (StartupBridge.swift): while setup still runs or loads, a plain question gets a short answer from
     /// Apple Intelligence and everything else waits in the conversation for Pi; the first message after that hands the
     /// quick answers over to Pi.
-    private var usesStartupBridge: Bool {
+    /// Before "Load" (also after "Later") the same holds for a plain question: Apple Intelligence answers it right away,
+    /// so the chat is never a dead end; anything that needs Pippa's AI brings back the download question.
+    private func usesStartupBridge(_ text: String, skill: PippaSkill?) -> Bool {
         guard PiRPCChat.isLive else { return false }
         switch piSetupGate {
         case .wait: return true
         case .open: return conversations.current.map { StartupBridgeChat.shared.hasPending(conversation: $0.id) } ?? false
-        case .showSetup: return false
+        case .showSetup(let problem):
+            return problem == nil && needsDownloadConsent
+                && StartupBridge.route(text, hasFiles: false, selectedText: "", skill: skill != nil,
+                                       systemModel: StartupBridgeChat.systemModelAvailable) == .quick
         }
     }
 
@@ -1622,7 +1631,7 @@ final class AppModel: ObservableObject {
         switch piSetupGate {
         case .open: nil
         case .wait: T("I’m almost ready. I’ll answer as soon as I am.", table: "App")
-        case .showSetup(let problem): problem ?? T("I’m not set up yet. Setup is open now.", table: "App")
+        case .showSetup(let problem): problem ?? T("For that I need my AI. Shall I load it now?", table: "App")
         }
     }
 
