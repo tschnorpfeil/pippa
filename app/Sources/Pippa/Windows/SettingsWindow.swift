@@ -143,15 +143,25 @@ private struct AIGroup: View {
     @ObservedObject var setup: PiSetupController
 
     var body: some View {
-        if loadRowShows || knowledgeRowShows {
+        if loadRowShows || knowledgeRowShows || readyRowShows {
             SettingsGroup(title: T("Pippa’s AI", table: "Settings")) {
                 VStack(spacing: 0) {
                     if loadRowShows { AILoadRow(model: model) }
                     if knowledgeRowShows { KnowledgeRow(model: model, setup: setup) }
+                    if readyRowShows {
+                        // Nothing to choose: only say that the AI is here and works offline.
+                        SettingsRow(title: T("Pippa’s AI", table: "Settings"),
+                                    detail: T("Runs on your Mac, also without internet.", table: "Settings"),
+                                    icon: "cpu", tint: .teal, divider: false) {
+                            StatusBadge(text: T("Ready", table: "Settings"), symbol: "checkmark", ink: Theme.ok, fill: Theme.okTint)
+                        }
+                    }
                 }
             }
         }
     }
+
+    private var readyRowShows: Bool { !model.alwaysUsesConnection && setup.isReady && !knowledgeRowShows }
 
     private var loadRowShows: Bool { AILoadRow.shows(model) }
     private var knowledgeRowShows: Bool {
