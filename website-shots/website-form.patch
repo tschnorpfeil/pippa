@@ -1,0 +1,307 @@
+diff --git a/app/Sources/Pippa/App/ConversationController.swift b/app/Sources/Pippa/App/ConversationController.swift
+index 17d59c8..bcfbc0f 100644
+--- a/app/Sources/Pippa/App/ConversationController.swift
++++ b/app/Sources/Pippa/App/ConversationController.swift
+@@ -125,6 +125,18 @@ final class ConversationController: ObservableObject {
+         } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
+     }
+ 
++    #if DEBUG
++    /// Snapshot `website`: a finished message with its own time (the topic line shows it).
++    func appendForSnapshot(_ message: ConversationMessage) {
++        guard let store, let current else { return }
++        if message.role == .user && !current.messages.contains(where: { $0.role == .user }) {
++            _ = try? store.rename(current.id, title: String(message.text.prefix(60)))
++        }
++        if let updated = try? store.append(message, to: current.id) { self.current = updated }
++        refresh()
++    }
++    #endif
++
+     @discardableResult func updateMailDraft(messageID: UUID, draft: ConversationMailDraft) -> Bool {
+         guard let id = current?.id else { return false }
+         return updateMailDraft(messageID: messageID, in: id, draft: draft)
+diff --git a/app/Sources/Pippa/App/DevSnapshot.swift b/app/Sources/Pippa/App/DevSnapshot.swift
+index 05b068a..5478eb3 100644
+--- a/app/Sources/Pippa/App/DevSnapshot.swift
++++ b/app/Sources/Pippa/App/DevSnapshot.swift
+@@ -190,6 +190,12 @@ enum DevSnapshot {
+                 return
+             }
+ 
++            if only == "website" {
++                await WebsiteSnapshot.run(model: model, shell: shell, directory: dir)
++                NSApp.terminate(nil)
++                return
++            }
++
+             if only == "pireceipt" {
+                 await PiReceiptSnapshot.run(model: model, shell: shell, directory: dir)
+                 NSApp.terminate(nil)
+diff --git a/app/Sources/Pippa/Views/PhotoCardView.swift b/app/Sources/Pippa/Views/PhotoCardView.swift
+index 1f32cce..97a3258 100644
+--- a/app/Sources/Pippa/Views/PhotoCardView.swift
++++ b/app/Sources/Pippa/Views/PhotoCardView.swift
+@@ -44,8 +44,11 @@ struct PhotoCardView: View {
+ private struct PhotoTile: View {
+     var item: PhotoCard.Item
+     var previews: Bool
+-    @State private var image: CGImage?
+-    @State private var hovering = false
++    // @State is not available without Xcode (macro plugin): storage by hand.
++    private let imageState = State<CGImage?>(initialValue: nil)
++    private let hoveringState = State(initialValue: false)
++    private var image: CGImage? { get { imageState.wrappedValue } nonmutating set { imageState.wrappedValue = newValue } }
++    private var hovering: Bool { get { hoveringState.wrappedValue } nonmutating set { hoveringState.wrappedValue = newValue } }
+ 
+     var body: some View {
+         Button(action: open) {
+@@ -78,6 +81,13 @@ private struct PhotoTile: View {
+         .accessibilityHint(T("Open in Photos", table: "Views"))
+         .accessibilityAddTraits(.isButton)
+         .task(id: item.id) {
++            // Snapshot `website`: stock photos from PIPPA_WEBSITE_PHOTOS/<id>.jpg instead of the library.
++            if previews, image == nil, let dir = DevEnvironment.value("PIPPA_WEBSITE_PHOTOS"),
++               let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: dir).appendingPathComponent("\(item.id).jpg") as CFURL, nil) {
++                image = CGImageSourceCreateThumbnailAtIndex(src, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true,
++                    kCGImageSourceThumbnailMaxPixelSize: 280, kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary)
++                return
++            }
+             // With PIPPA_DEMO=1 no real library (the ids are invented).
+             guard previews, image == nil, DevEnvironment.value("PIPPA_DEMO") != "1" else { return }
+             image = await PhotosLibrary.preview(id: item.id, side: 280)?.image
+diff --git a/app/Sources/Pippa/App/WebsiteSnapshot.swift b/app/Sources/Pippa/App/WebsiteSnapshot.swift
+new file mode 100644
+index 0000000..7bfcdf6
+--- /dev/null
++++ b/app/Sources/Pippa/App/WebsiteSnapshot.swift
+@@ -0,0 +1,229 @@
++import AppKit
++import PippaCore
++
++#if DEBUG
++/// Pictures for the website: the real conversation window with invented sample content, no model, no real apps.
++/// `PIPPA_DEMO=1 PIPPA_SNAPSHOT=<fresh folder> PIPPA_SNAPSHOT_ONLY=website` (optional `PIPPA_APPEARANCE=dark`,
++/// `PIPPA_WEBSITE_PHOTOS=<folder with bike1.jpg … bike6.jpg>` for the photo tiles). Report `website.txt`.
++@MainActor enum WebsiteSnapshot {
++    static func run(model: AppModel, shell: ShellController, directory: URL) async {
++        var lines: [String] = []
++        func verify(_ ok: Bool, _ what: String) { lines.append("\(ok ? "PASS" : "FAIL"): \(what)") }
++        guard let stub = model.engine as? StubEngine else {
++            try? "FAIL: website requires PIPPA_DEMO=1\n".write(to: directory.appendingPathComponent("website.txt"), atomically: true, encoding: .utf8)
++            return
++        }
++        NSApp.activate()
++        model.conversationSize = DevSnapshot.workspaceSize
++        let calendar = Calendar.autoupdatingCurrent
++        let now = Date()
++        let today = calendar.startOfDay(for: now)
++        func at(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
++            let base = calendar.date(byAdding: .day, value: day, to: today) ?? today
++            return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: base) ?? base
++        }
++        let files = directory.appendingPathComponent("Beispieldateien", isDirectory: true)
++        try? FileManager.default.createDirectory(at: files, withIntermediateDirectories: true)
++        func shot(_ name: String) async {
++            try? await Task.sleep(for: .milliseconds(1100))
++            verify(capture(shell, to: directory.appendingPathComponent(name + ".png")), "Bild \(name).png")
++        }
++        func fresh() async {
++            model.frontApp = nil
++            model.newConversation()
++            model.openInput()
++            try? await Task.sleep(for: .milliseconds(400))
++        }
++        let chat = model.conversations
++
++        // 1. The conversation: earlier part, "Neues Thema · 16:05", question with PDF, answer with quote,
++        //    "Gemerkt: …", reading receipt, app chip above the input.
++        let lease = files.appendingPathComponent("Mietvertrag Wohnung.pdf")
++        writePDF(to: lease, title: "Mietvertrag", lines: [
++            "§ 1 Mietsache: Wohnung im 2. OG links, Lindenstraße 12, 50674 Köln.",
++            "§ 3 Miete: 890,00 Euro monatlich, zahlbar bis zum dritten Werktag.",
++            "§ 4 Kündigung: Die Kündigungsfrist beträgt drei Monate zum Ende eines Kalendermonats.",
++            "Die Kündigung bedarf der Schriftform.",
++        ])
++        await fresh()
++        chat.appendForSnapshot(ConversationMessage(role: .user, text: "Wann kommt mein neuer Fahrradhelm?", timestamp: at(0, 15, 41)))
++        chat.appendForSnapshot(ConversationMessage(role: .assistant, text: "Laut der Versandmail von Radhaus Lindner kommt er am Montag zwischen 10 und 14 Uhr.",
++                                                   timestamp: at(0, 15, 41)))
++        chat.appendForSnapshot(ConversationMessage(role: .user, text: "Wie lange ist meine Kündigungsfrist? Merk dir bitte, dass ich Ende März ausziehen will.",
++                                                   timestamp: at(0, 16, 5), attachments: [lease], topicStart: true))
++        let answer = """
++        **Drei Monate zum Monatsende.** Für einen Auszug Ende März muss deine Kündigung spätestens am 31. Dezember beim Vermieter sein.
++
++        > Die Kündigungsfrist beträgt drei Monate zum Ende eines Kalendermonats. — Mietvertrag § 4
++
++        Kündige schriftlich, mit deiner Unterschrift. Soll ich dir ein Kündigungsschreiben vorbereiten?
++        """
++        chat.appendForSnapshot(ConversationMessage(role: .assistant, text: answer, timestamp: at(0, 16, 5),
++                                                   work: WorkReceipt(seconds: 8, sources: [.init(name: lease.lastPathComponent, status: .read, pagesRead: 1, pageCount: 1)]),
++                                                   actions: ActionReceipt(items: [.init(action: "remember", outcome: "done", name: "Will Ende März ausziehen")])))
++        let safari = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Safari").first?.processIdentifier
++            ?? NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first?.processIdentifier ?? 0
++        model.frontApp = FrontApp(name: "Safari", bundleID: "com.apple.Safari", pid: safari, title: "Wohnungen in Köln-Ehrenfeld")
++        verify(chat.current?.messages.count == 4, "Gespräch mit vier Nachrichten")
++        await shot("website-01-gespraech")
++
++        // 2. Calendar from the real calendar route, with the follow-ups under the newest answer.
++        let demo = stub.integrations
++        demo.set(.calendar, .granted)
++        demo.calendarEvents = [
++            CalendarEvent(id: "w-markt", title: "Wochenmarkt mit Lena", start: at(0, 10), end: at(0, 11), calendar: "Privat", color: "#34C759"),
++            CalendarEvent(id: "w-rad", title: "Fahrrad zur Inspektion bringen", start: at(0, 17, 30), end: at(0, 18), calendar: "Privat", color: "#34C759"),
++            CalendarEvent(id: "w-oma", title: "Geburtstag Oma Hilde", start: at(0, 19), end: at(0, 22), calendar: "Familie", color: "#FF9500"),
++            CalendarEvent(id: "w-lauf", title: "Laufen im Stadtwald", start: at(1, 9), end: at(1, 10), calendar: "Privat", color: "#34C759"),
++            CalendarEvent(id: "w-zahn", title: "Zahnarzt Dr. Brandt", start: at(2, 8, 30), end: at(2, 9, 15), calendar: "Privat", color: "#34C759"),
++            CalendarEvent(id: "w-team", title: "Teambesprechung", start: at(2, 10), end: at(2, 11), calendar: "Arbeit", color: "#1BADF8"),
++        ]
++        func ask(_ text: String) async {
++            model.route(text)
++            for _ in 0..<200 {
++                if !model.isActiveWork { break }
++                try? await Task.sleep(for: .milliseconds(50))
++            }
++        }
++        await fresh()
++        await ask("Was steht heute in meinem Kalender?")
++        let todayRead = chat.current?.messages.last?.calendar
++        verify(todayRead?.state == .read && todayRead?.card != nil, "Kalender heute gelesen, als Karte")
++        if let todayRead { lines.append("     Nachfragen heute: " + CalendarConversation.followUps(for: todayRead, now: now, calendar: calendar).joined(separator: " · ")) }
++        await shot("website-02-kalender-heute")
++        await fresh()
++        await ask("Was steht diese Woche noch an?")
++        if let weekRead = chat.current?.messages.last?.calendar {
++            lines.append("     Nachfragen Woche (\(weekRead.range.kind)): " + CalendarConversation.followUps(for: weekRead, now: now, calendar: calendar).joined(separator: " · "))
++        }
++        await shot("website-03-kalender-woche")
++
++        // Cards ride on a receipt with at least one line (ConversationMessage drops an empty one), as Pippa's MCP reads write them.
++        // 3. Mail.
++        await fresh()
++        let mails = [
++            MailHeader(subject: "Dein Fahrradhelm ist unterwegs", sender: "Radhaus Lindner <versand@radhaus-lindner.example>", date: at(0, 9, 12),
++                       mailbox: "Eingang", preview: "Hallo Mara, deine Bestellung 40215 hat unser Lager verlassen. Voraussichtliche Zustellung: Montag zwischen 10 und 14 Uhr."),
++            MailHeader(subject: "Termin Inspektion bestätigt", sender: "Radhaus Lindner <werkstatt@radhaus-lindner.example>", date: at(-2, 14, 30),
++                       mailbox: "Eingang", preview: "Wir haben deinen Termin für heute, 17:30 Uhr, eingetragen. Bitte bring den Schlüssel für das Rahmenschloss mit."),
++            MailHeader(subject: "Rechnung zu deiner Bestellung", sender: "Radhaus Lindner <rechnung@radhaus-lindner.example>", date: at(-5, 11, 3),
++                       mailbox: "Eingang", preview: "Im Anhang findest du die Rechnung über 79,90 Euro für den Helm „City Pro“, Größe M."),
++        ]
++        chat.appendForSnapshot(ConversationMessage(role: .user, text: "Hat mir der Fahrradladen geschrieben?"))
++        chat.appendForSnapshot(ConversationMessage(role: .assistant, text: "Ja, drei Mails von Radhaus Lindner. Die neueste: Dein Helm kommt am Montag zwischen 10 und 14 Uhr.",
++                                                   actions: ActionReceipt(items: [.init(action: "read", outcome: "done", name: L("Searched Mail for “%@”: %lld found", table: "MCP", "Radhaus Lindner", 3))], cards: [.mail(MailCard(query: "Radhaus Lindner", mails: mails, total: 3, calendar: calendar))])))
++        await shot("website-04-mail")
++
++        // 4. Photos (stock tiles only from PIPPA_WEBSITE_PHOTOS).
++        await fresh()
++        let day = DateFormatter()
++        day.locale = calendar.locale ?? .autoupdatingCurrent
++        day.setLocalizedDateFormatFromTemplate("EEEdMMMyyyy")
++        let photoDays = [-1, -1, -9, -23, -40, -61]
++        let photos = photoDays.enumerated().map { index, offset in
++            let date = at(offset, 11 + index)
++            return PhotoCard.Item(id: "bike\(index + 1)", date: date, dateLabel: day.string(from: date), label: "Fahrrad \(index + 1)")
++        }
++        let photoCard = PhotoCard(query: "Fahrrad", items: photos, total: photos.count, previews: true,
++                                  footer: L("Photos on this Mac · %lld found", table: "MCP", photos.count), truncatedNote: nil)
++        chat.appendForSnapshot(ConversationMessage(role: .user, text: "Zeig mir meine Fotos vom Fahrrad."))
++        chat.appendForSnapshot(ConversationMessage(role: .assistant, text: "Ich habe sechs Fotos mit Fahrrädern gefunden. Ein Klick öffnet das Foto in Fotos.",
++                                                   actions: ActionReceipt(items: [.init(action: "read", outcome: "done", name: L("Searched Photos for “%@”: %lld found", table: "MCP", "Fahrrad", photos.count))], cards: [.photos(photoCard)])))
++        await shot("website-05-fotos")
++
++        // 5. Reminders, one overdue.
++        await fresh()
++        let reminders = [
++            ReminderItem(title: "Reifen aufpumpen", list: "Fahrrad", due: at(-1, 18), dueHasTime: true),
++            ReminderItem(title: "Fahrrad zur Inspektion bringen", list: "Fahrrad", due: at(0, 17, 30), dueHasTime: true),
++            ReminderItem(title: "Geschenk für Oma Hilde abholen", list: "Privat", due: at(0, 0)),
++            ReminderItem(title: "Kündigung Mietvertrag abschicken", list: "Privat", due: at(3, 0)),
++        ]
++        chat.appendForSnapshot(ConversationMessage(role: .user, text: "Was muss ich diese Woche noch erledigen?"))
++        chat.appendForSnapshot(ConversationMessage(role: .assistant, text: "Vier Erinnerungen sind offen. „Reifen aufpumpen“ war schon gestern fällig.",
++                                                   actions: ActionReceipt(items: [.init(action: "read", outcome: "done", name: L("Read Reminders: due in the next %lld days", table: "MCP", 7))], cards: [.reminders(ReminderCard(days: 7, reminders: reminders, total: 4, now: now, calendar: calendar))])))
++        verify(ReminderCard(days: 7, reminders: reminders, total: 4, now: now, calendar: calendar).items.first?.overdue == true, "Eine Erinnerung überfällig")
++        await shot("website-06-erinnerungen")
++
++        // 6. Online looked up.
++        await fresh()
++        let query = "Fahrradinspektion Kosten Köln"
++        let web = WebSourcesCard(queries: [query],
++                                 pagesRead: ["https://www.radratgeber.example/inspektion/kosten", "https://www.fahrradwerkstatt-koeln.example/preise"],
++                                 searchResults: ["[ADFC Tipps](https://www.radclub.example/wartung/inspektion) https://www.stadtrad-magazin.example/ratgeber/inspektion-checkliste"],
++                                 now: now, calendar: calendar)
++        verify(web != nil, "Webquellen-Karte")
++        chat.appendForSnapshot(ConversationMessage(role: .user, text: "Was kostet eine Fahrradinspektion in Köln ungefähr?"))
++        chat.appendForSnapshot(ConversationMessage(role: .assistant, text: "Meist **zwischen 50 und 90 Euro** für eine Standardinspektion, Ersatzteile kommen dazu. Bei E-Bikes eher 80 bis 130 Euro.",
++                                                   actions: ActionReceipt(items: [.init(action: "webSearch", outcome: "done", name: query)], cards: web.map { [.web($0)] }),
++                                                   ))
++        await shot("website-07-online")
++
++        // 7. Found on this Mac (real files in the capture folder).
++        await fresh()
++        let found = ["Rechnung Fahrradhelm.pdf", "Garantie Fahrrad Lindner.pdf", "Inspektion 2025.pdf", "Rahmennummer Fahrrad.jpg"].map { files.appendingPathComponent($0) }
++        for file in found where file.pathExtension == "pdf" {
++            writePDF(to: file, title: file.deletingPathExtension().lastPathComponent, lines: ["Beispieldokument für die Website.", "Radhaus Lindner · Köln"])
++        }
++        if let jpg = found.last { writeJPEG(to: jpg) }
++        chat.appendForSnapshot(ConversationMessage(role: .user, text: "Wo ist die Rechnung für meinen Fahrradhelm?"))
++        chat.appendForSnapshot(ConversationMessage(role: .assistant, text: "Gefunden: „Rechnung Fahrradhelm.pdf“ in deinen Beispieldateien. Dazu passen noch drei weitere Dateien zum Fahrrad.",
++                                                   attachments: found))
++        await shot("website-08-gefunden")
++
++        try? (["website"] + lines).joined(separator: "\n").appending("\n").write(to: directory.appendingPathComponent("website.txt"), atomically: true, encoding: .utf8)
++    }
++
++    private static func writePDF(to url: URL, title: String, lines: [String]) {
++        var box = CGRect(x: 0, y: 0, width: 595, height: 842)
++        guard let context = CGContext(url as CFURL, mediaBox: &box, nil) else { return }
++        context.beginPDFPage(nil)
++        NSGraphicsContext.saveGraphicsState()
++        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
++        (title as NSString).draw(at: NSPoint(x: 60, y: 760), withAttributes: [.font: NSFont.boldSystemFont(ofSize: 22)])
++        for (index, line) in lines.enumerated() {
++            (line as NSString).draw(at: NSPoint(x: 60, y: 710 - CGFloat(index) * 24), withAttributes: [.font: NSFont.systemFont(ofSize: 12)])
++        }
++        NSGraphicsContext.restoreGraphicsState()
++        context.endPDFPage()
++        context.closePDF()
++    }
++
++    private static func writeJPEG(to url: URL) {
++        let image = NSImage(size: NSSize(width: 400, height: 300), flipped: false) { rect in
++            NSColor(calibratedWhite: 0.92, alpha: 1).setFill(); rect.fill()
++            ("WBK 4021 7Z" as NSString).draw(at: NSPoint(x: 110, y: 140), withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 28, weight: .bold)])
++            return true
++        }
++        guard let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
++              let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) else { return }
++        try? data.write(to: url)
++    }
++
++    /// Only Pippa's window, cropped to the shell (as CalendarSnapshot); fallback draws the view hierarchy.
++    private static func capture(_ shell: ShellController, to destination: URL) -> Bool {
++        let window = shell.panel
++        let temporary = destination.deletingLastPathComponent().appendingPathComponent("website-window-\(UUID().uuidString).png")
++        defer { try? FileManager.default.removeItem(at: temporary) }
++        let process = Process()
++        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
++        process.arguments = ["-x", "-o", "-l", "\(window.windowNumber)", temporary.path]
++        var data: Data?
++        do { try process.run(); process.waitUntilExit(); data = try? Data(contentsOf: temporary) } catch {}
++        if data == nil, let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
++            view.cacheDisplay(in: view.bounds, to: rep)
++            data = rep.representation(using: .png, properties: [:])
++        }
++        guard let data, let rep = NSBitmapImageRep(data: data), let image = rep.cgImage else { return false }
++        let region = shell.shellScreenRect.insetBy(dx: -30, dy: -30)
++            .offsetBy(dx: -window.frame.minX, dy: -window.frame.minY)
++            .intersection(CGRect(origin: .zero, size: window.frame.size))
++        let scale = CGFloat(image.width) / window.frame.width
++        let pixels = CGRect(x: region.minX * scale, y: (window.frame.height - region.maxY) * scale,
++                            width: region.width * scale, height: region.height * scale).integral
++        guard let cropped = image.cropping(to: pixels),
++              let png = NSBitmapImageRep(cgImage: cropped).representation(using: .png, properties: [:]) else { return false }
++        do { try png.write(to: destination, options: .atomic); return true } catch { return false }
++    }
++}
++#endif
