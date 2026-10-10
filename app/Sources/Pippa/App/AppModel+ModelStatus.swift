@@ -59,15 +59,28 @@ extension AppModel {
         return size.remaining == 0 && size.existing > 0
     }
 
+    /// Apple Intelligence answers plain questions while Pippa's AI loads or before "Load" (StartupBridgeChat): sending stays
+    /// possible then, even though `chatBlockedReason` explains what is still missing.
+    var startupBridgeAnswers: Bool {
+        guard PiRPCChat.isLive, StartupBridgeChat.systemModelAvailable else { return false }
+        switch piSetupGate {
+        case .wait: return true
+        case .showSetup(let problem): return problem == nil && needsDownloadConsent
+        case .open: return false
+        }
+    }
+
     /// Why the chat cannot answer right now (for the send button and system line); `nil` = it can.
     var chatBlockedReason: String? {
         if hasConfiguredInference { return nil }
         if let reason = unsupportedReason { return reason }
         guard chatReadiness == .unavailable else { return nil }
         // While it loads, Apple Intelligence already answers simple questions (StartupBridgeChat): say that instead.
-        // Only then: before "Load" (or after "Later") nothing loads and the bridge does not answer.
-        let bridged = PiRPCChat.isLive && StartupBridgeChat.systemModelAvailable && piSetupGate == .wait
-        var text = bridged ? T("I can already answer simple questions; for everything else my AI is still loading.", table: "App")
+        // Before "Load" (or after "Later") it answers them too, but nothing loads yet.
+        let bridged = startupBridgeAnswers
+        let loading = piSetupGate == .wait
+        var text = bridged ? (loading ? T("I can already answer simple questions; for everything else my AI is still loading.", table: "App")
+                                      : T("I can already answer simple questions. For everything else I need my AI.", table: "App"))
                            : T("I need my AI to answer.", table: "App")
         switch modelStatus {
         case .downloading(_, let remaining):

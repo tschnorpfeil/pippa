@@ -244,7 +244,6 @@
 "Show details" = "Details zeigen";
 "Hide details" = "Details ausblenden";
 "I’m almost ready. I’ll answer as soon as I am." = "Ich bin gleich so weit und antworte dann sofort.";
-"I’m not set up yet. Setup is open now." = "Ich bin noch nicht eingerichtet. Die Einrichtung ist jetzt offen.";
 "Clipboard image %@.png" = "Bild aus der Zwischenablage %@.png";
 "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "„Für diese Aufgabe erlauben“ heißt: Bis die Antwort fertig ist, frage ich bei dieser Art Schritt nicht mehr.";
 "Tidy preview: 1 file" = "Vorschau zum Ordnen: 1 Datei";
@@ -265,3 +264,5 @@
 "Pippa couldn’t move herself." = "Pippa konnte sich nicht selbst verschieben.";
 "Drag Pippa into the Applications folder in Finder. Until then she works from here." = "Zieh Pippa im Finder in den Ordner „Programme“. Bis dahin arbeitet sie von hier aus.";
 "I can already answer simple questions; for everything else my AI is still loading." = "Einfache Fragen beantworte ich schon, für alles andere lädt meine KI noch.";
+"For that I need my AI. Shall I load it now?" = "Dafür brauche ich meine KI. Soll ich sie jetzt laden?";
+"I can already answer simple questions. For everything else I need my AI." = "Einfache Fragen beantworte ich schon. Für alles andere brauche ich meine KI.";
