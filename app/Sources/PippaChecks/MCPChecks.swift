@@ -263,6 +263,25 @@ func runMCPChecks() async {
             && closed.isError && closed.json["status"] as? String == "unavailable"
             && denied.isError && (denied.json["tell"] as? String)?.contains("Automation") == true
     }
+    await checkAsync("MCP photos_search without a search word: the newest by date (PhotoKit), days, wishes like \"neuestes Bild\", denied") {
+        let s = setup()
+        func data(_ r: (json: [String: Any], isError: Bool, bytes: Int)) -> [String: Any] { r.json["data"] as? [String: Any] ?? [:] }
+        let newest = await call(s.tools, "photos_search", ["limit": 1])
+        let wish = await call(s.tools, "photos_search", ["query": "neuestes Bild"])
+        let recent = await call(s.tools, "photos_search", ["days": 200])
+        let yesterday = await call(s.tools, "photos_search", ["query": "Fotos von gestern"])
+        let both = await call(s.tools, "photos_search", ["query": "Fahrrad", "days": 3])
+        let tooMany = await call(s.tools, "photos_search", ["days": 400])
+        s.data.libraryPermission = .denied
+        let denied = await call(s.tools, "photos_search", [:])
+        return !newest.isError && (data(newest)["photos"] as? [Any])?.count == 1 && data(newest)["query"] == nil && data(newest)["total"] == nil
+            && (((data(newest)["photos"] as? [[String: Any]])?.first?["date"] as? String)?.contains("2026") == true)
+            && !wish.isError && (data(wish)["photos"] as? [Any])?.count == 4
+            && !recent.isError && data(recent)["total"] as? Int == 1 && data(recent)["days"] as? Int == 200
+            && !yesterday.isError && data(yesterday)["days"] as? Int == 2 && (data(yesterday)["photos"] as? [Any])?.isEmpty == true
+            && both.isError && tooMany.isError
+            && denied.isError && denied.json["status"] as? String == "denied" && s.data.photoQueries.isEmpty
+    }
     await checkAsync("Photos card: from Pippa's own result (ids, newest first, label), in the read note; previews asked once after the sentence") {
         final class Box<T>: @unchecked Sendable {
             private let lock = NSLock(); private var items: [T] = []

@@ -67,3 +67,9 @@
 "To answer this, I need to read what’s open in %@ – only when you ask, and I don’t change anything." = "Dafür muss ich lesen, was in %@ offen ist – nur wenn du fragst, und ich ändere nichts.";
 "I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again." = "Ich sehe nicht, welche App du meinst. Kopier den Text oder zieh die Datei auf mich, dann frag noch einmal.";
 "I can’t read anything from %@. Copy the text you mean or drop the file on me, then ask again." = "Aus %@ kann ich nichts lesen. Kopier den Text oder zieh die Datei auf mich, dann frag noch einmal.";
+"Read Photos: pictures from today" = "Fotos gelesen: Bilder von heute";
+"Read Photos: pictures from the last %lld days" = "Fotos gelesen: Bilder der letzten %lld Tage";
+"Read Photos: newest pictures" = "Fotos gelesen: neueste Bilder";
+"Photos on this Mac" = "Fotos auf diesem Mac";
+"Showing %lld of %lld. Open Photos to see all of them." = "%lld von %lld gezeigt. In Fotos siehst du alle.";
+"Pippa may not see your photos. To change that, open System Settings → Privacy & Security → Photos and turn on Pippa." = "Pippa darf deine Fotos nicht sehen. Das änderst du in den Systemeinstellungen unter Datenschutz & Sicherheit → Fotos: dort Pippa einschalten.";

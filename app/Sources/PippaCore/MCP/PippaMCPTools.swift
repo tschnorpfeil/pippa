@@ -224,8 +224,8 @@ public struct PippaMCPTools: Sendable {
             tool("excel_selection", "Excel-Auswahl lesen",
                  "Read the Excel sheet around the selection: values, formulas [in brackets]."),
             tool("photos_search", "Fotos suchen",
-                 "Find photos in Photos by what is in them, place or text. query: one word in the Mac's language.",
-                 ["query": string, "limit": integer], required: ["query"]),
+                 "Find photos by content, place or text (query: one word, in the Mac's language). No query: newest; days: last N days.",
+                 ["query": string, "days": integer, "limit": integer]),
             // The message names the app only ([Im Vordergrund: …], FrontApp.label); the content costs a round, and only
             // when the question is about it.
             tool("front_read", "Geöffnetes lesen", "Read the page or document open in front. Only if the question is about it."),
@@ -309,7 +309,12 @@ public struct PippaMCPTools: Sendable {
         case "mail_search":
             line = L("Searched Mail for “%@”: %lld found", table: "MCP", short(input.query ?? ""), data["total"] as? Int ?? 0)
         case "photos_search":
-            line = L("Searched Photos for “%@”: %lld found", table: "MCP", short(data["query"] as? String ?? ""), data["total"] as? Int ?? 0)
+            line = switch (data["query"] as? String, data["days"] as? Int) {
+            case let (query?, _): L("Searched Photos for “%@”: %lld found", table: "MCP", short(query), data["total"] as? Int ?? 0)
+            case (nil, 1?): L("Read Photos: pictures from today", table: "MCP")
+            case let (nil, days?): L("Read Photos: pictures from the last %lld days", table: "MCP", days)
+            case (nil, nil): L("Read Photos: newest pictures", table: "MCP")
+            }
         case "front_read": line = L("Read %@: “%@”", table: "MCP", app, short(data["title"] as? String ?? ""))
         default: line = L("Read Excel: active sheet", table: "MCP")
         }
@@ -481,9 +486,14 @@ public struct PippaMCPTools: Sendable {
     /// first search that found something (one sentence from Pippa covers both).
     private func photosSearch(_ input: ToolInput) async -> PippaMCPToolResult {
         let asked = Self.photoQuery(input.query ?? "")
-        guard (2...60).contains(asked.count) else { return invalid("query must be one word, 2 to 60 characters.") }
         let limit = input.limit ?? 12
         guard (1...PhotoCard.maxItems).contains(limit) else { return invalid("limit must be 1 to \(PhotoCard.maxItems).") }
+        if let days = input.days, !(1...366).contains(days) { return invalid("days must be 1 to 366.") }
+        // "das neueste Bild", "Fotos von gestern": no content search, the newest by date (PhotoKit).
+        if asked.isEmpty { return await recentPhotos(days: input.days, limit: limit) }
+        if let wish = Self.newestWish(asked) { return await recentPhotos(days: input.days ?? wish.days, limit: limit) }
+        guard input.days == nil else { return invalid("days only works without query. Search with query alone.") }
+        guard (2...60).contains(asked.count) else { return invalid("query must be one word, 2 to 60 characters.") }
         var access = await host.hostData.photosAccess(ask: false)
         var explained = false
         if access == .notDetermined && host.askForAccess, await mayAsk(.photos) {
@@ -536,6 +546,46 @@ public struct PippaMCPTools: Sendable {
         }
     }
 
+    /// The newest photos, with `days` only those of the last days (1 = today). Needs only PhotoKit's permission.
+    private func recentPhotos(days: Int?, limit: Int) async -> PippaMCPToolResult {
+        var access = await host.hostData.photoLibraryAccess(ask: false)
+        if access == .notDetermined && host.askForAccess, await mayAsk(.photos) {
+            access = await host.hostData.photoLibraryAccess(ask: true)
+        }
+        switch access {
+        case .granted: break
+        case .denied: return blocked("denied", Self.deniedPhotoLibrary)
+        default: return blocked("needs_access", Self.notYet(app: PhotosLibrary.appName))
+        }
+        let cal = host.calendar
+        let since = days.flatMap { cal.date(byAdding: .day, value: 1 - $0, to: cal.startOfDay(for: host.now())) }
+        do {
+            let fetch = try await host.hostData.recentPhotos(since: since, limit: limit)
+            let items = fetch.items.map { hit in
+                PhotoCard.Item(id: hit.id, date: hit.date, dateLabel: hit.date.map { Self.dateLabel($0, time: false, calendar: cal) } ?? "",
+                               label: hit.title.isEmpty ? hit.filename : hit.title)
+            }
+            // Without days the total is the whole library: neither a count nor "shown of" means anything to the person.
+            let card = PhotoCard(query: "", items: items, total: fetch.total, previews: true, footer: L("Photos on this Mac", table: "MCP"),
+                                 truncatedNote: since != nil && fetch.total > items.count
+                                    ? L("Showing %lld of %lld. Open Photos to see all of them.", table: "MCP", items.count, fetch.total) : nil)
+            var data: [String: Any] = ["photos": items.map { $0.dateLabel.isEmpty ? [:] : ["date": $0.dateLabel] }, "shown": items.count]
+            if let days { data["days"] = days; data["total"] = fetch.total; data["truncated"] = fetch.total > items.count }
+            var result = Self.bounded(source: "Photos on this Mac (newest first)", data: data,
+                                      next: "The person sees these photos as pictures under your answer. Say in one sentence what is shown (how many, from when); do not list them. If photos is empty, there are no photos for this period.")
+            if !items.isEmpty { result.card = .photos(card) }
+            return result
+        } catch PippaError.accessDenied {
+            return blocked("denied", Self.deniedPhotoLibrary)
+        } catch {
+            return blocked("failed", L("Pippa couldn’t read %@ just now. Please try again.", table: "MCP", PhotosLibrary.appName))
+        }
+    }
+
+    static var deniedPhotoLibrary: String {
+        L("Pippa may not see your photos. To change that, open System Settings → Privacy & Security → Photos and turn on Pippa.", table: "MCP")
+    }
+
     /// The search text without quotes and punctuation, words separated by one space.
     static func photoQuery(_ raw: String) -> String {
         raw.split { !$0.isLetter && !$0.isNumber && $0 != "-" }.joined(separator: " ")
@@ -547,10 +597,26 @@ public struct PippaMCPTools: Sendable {
     static func photoWord(_ query: String) -> String? {
         let words = query.split(separator: " ").map(String.init)
         guard words.count > 1 else { return nil }
-        let generic: Set<String> = ["foto", "fotos", "bild", "bilder", "photo", "photos", "picture", "pictures", "image", "images", "pic", "pics",
-                                    "meine", "meiner", "meinen", "meinem", "unsere", "unserer", "unseren", "unserem", "alle", "aus", "von", "mit"]
-        let kept = words.filter { $0.count > 3 && !generic.contains($0.lowercased()) }
+        let kept = words.filter { $0.count > 3 && !photoFiller.contains($0.lowercased()) }
         return kept.last ?? words.last
+    }
+
+    /// Words that only say "picture" or "my".
+    static let photoFiller: Set<String> = ["foto", "fotos", "bild", "bilder", "photo", "photos", "picture", "pictures", "image", "images",
+                                           "pic", "pics", "meine", "meiner", "meinen", "meinem", "unsere", "unserer", "unseren", "unserem",
+                                           "alle", "aus", "von", "mit", "my", "the", "of", "from"]
+
+    /// Small models sometimes put "the newest" into query ("neuestes Bild", "Fotos von gestern") instead of leaving it out.
+    /// `nil`: a real search word is in there. Otherwise a wish for the newest, with the days it names (today 1, yesterday 2).
+    struct NewestWish { var days: Int? }
+
+    static func newestWish(_ query: String) -> NewestWish? {
+        let newest: Set<String> = ["neueste", "neuestes", "neuesten", "neuster", "neustes", "neusten", "letzte", "letztes", "letzten",
+                                   "aktuellste", "aktuellstes", "newest", "latest", "recent", "last"]
+        let days: [String: Int] = ["heute": 1, "today": 1, "gestern": 2, "yesterday": 2]
+        let words = query.split(separator: " ").map { $0.lowercased() }
+        guard words.allSatisfy({ photoFiller.contains($0) || newest.contains($0) || days[$0] != nil }) else { return nil }
+        return NewestWish(days: words.compactMap { days[$0] }.max())
     }
 
     // MARK: Excel

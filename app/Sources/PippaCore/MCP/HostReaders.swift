@@ -52,6 +52,10 @@ public protocol HostDataReading: Sendable {
     func searchPhotos(_ query: String, limit: Int) async throws -> HostFetch<PhotoHit>
     /// May the card show previews (PhotoKit)? `ask: true` shows the system prompt once.
     func photoPreviewAccess(ask: Bool) async -> Bool
+    /// May Pippa read the library (PhotoKit)? `ask: true` shows the system prompt once.
+    func photoLibraryAccess(ask: Bool) async -> IntegrationAccess
+    /// The newest photos (PhotoKit), with `since` only those taken from then on; newest first.
+    func recentPhotos(since: Date?, limit: Int) async throws -> HostFetch<PhotoHit>
 }
 
 extension SystemIntegrations: HostDataReading {
@@ -87,6 +91,13 @@ extension SystemIntegrations {
     }
 
     public func photoPreviewAccess(ask: Bool) async -> Bool { await PhotosLibrary.previewAccess(ask: ask) }
+
+    public func photoLibraryAccess(ask: Bool) async -> IntegrationAccess { await PhotosLibrary.libraryAccess(ask: ask) }
+
+    public func recentPhotos(since: Date?, limit: Int) async throws -> HostFetch<PhotoHit> {
+        guard await PhotosLibrary.libraryAccess(ask: false) == .granted else { throw PippaError.accessDenied(PhotosLibrary.appName) }
+        return PhotosLibrary.recent(since: since, limit: limit)
+    }
 }
 
 enum HostOrder {
@@ -117,6 +128,8 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
     /// Checks: automation for Photos and the previews (PhotoKit).
     public var photosPermission: IntegrationAccess = .granted
     public var previewsAllowed = true
+    /// Checks: PhotoKit's permission for the newest photos.
+    public var libraryPermission: IntegrationAccess = .granted
     /// Checks: what `searchPhotos` was asked for, and whether the preview prompt was shown.
     public private(set) var photoQueries: [String] = []
     public private(set) var previewAsked = false
@@ -155,6 +168,22 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
             if ask { previewAsked = true }
             return previewsAllowed
         }
+    }
+
+    public func photoLibraryAccess(ask: Bool) async -> IntegrationAccess {
+        lock.withLock {
+            if libraryPermission == .notDetermined && ask { libraryPermission = .granted }
+            return libraryPermission
+        }
+    }
+
+    /// Like PhotoKit: newest first by date (photos without a date last), `since` drops older ones and those without a date.
+    public func recentPhotos(since: Date?, limit: Int) async throws -> HostFetch<PhotoHit> {
+        let (allowed, photos) = lock.withLock { (libraryPermission == .granted, storedPhotos.map(\.hit)) }
+        guard allowed else { throw PippaError.accessDenied(PhotosLibrary.appName) }
+        let found = photos.filter { hit in since.map { start in hit.date.map { $0 >= start } ?? false } ?? true }
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+        return HostFetch(items: Array(found.prefix(limit)), total: found.count)
     }
 
     public func searchMail(_ query: String, limit: Int) async throws -> HostFetch<MailHeader> {
