@@ -103,10 +103,19 @@ struct ConversationWorkspace: View {
                     restoreViewport(reader)
                 }
                 .onAppear { restoreViewport(reader) }
+                // Lines slide softly under the header and the composer instead of being cut off at a hard edge.
+                // The padding inside covers the fade, so nothing is faded at the very top or bottom.
+                .mask {
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 10)
+                        Color.black
+                        LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 18)
+                    }
+                }
                 .overlay(alignment: .bottom) {
                     ZStack {
                         if !followLatest {
-                            JumpToLatestButton {
+                            JumpToLatestButton(arriving: chat.isRunning) {
                                 followLatest = true
                                 scrollToLatest(reader, animated: true)
                             }
@@ -779,7 +788,9 @@ struct KnowledgeStatus: View {
 }
 
 /// Round "back down" button, centered above the composer while the person reads further up.
+/// While an answer is still arriving below, the arrow takes the accent color: there is something new to see.
 private struct JumpToLatestButton: View {
+    var arriving: Bool
     var action: () -> Void
     private let hoverState = State(initialValue: false)
     private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
@@ -788,7 +799,7 @@ private struct JumpToLatestButton: View {
         Button(action: action) {
             Image(systemName: "arrow.down")
                 .font(.scaled(size: 13, weight: .semibold))
-                .foregroundStyle(hover ? Theme.ink : Theme.ink2)
+                .foregroundStyle(arriving ? Theme.accent : hover ? Theme.ink : Theme.ink2)
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(hover ? Theme.fill2 : .clear))
                 .background(Circle().fill(Theme.chatCard))
