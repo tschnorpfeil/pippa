@@ -384,9 +384,13 @@ public struct PippaMCPTools: Sendable {
                 }
                 return value
             }
-            return Self.bounded(source: "Reminders on this Mac", data: ["reminders": items, "shown": items.count, "total": fetch.total,
-                                                                         "truncated": fetch.total > items.count],
-                                next: "Name the open reminders briefly. Copy due dates exactly. If the list is empty, there are no open reminders for this period.")
+            var result = Self.bounded(source: "Reminders on this Mac", data: ["reminders": items, "shown": items.count, "total": fetch.total,
+                                                                               "truncated": fetch.total > items.count],
+                                      next: "Name the open reminders briefly. Copy due dates exactly. If the list is empty, there are no open reminders for this period.")
+            if !fetch.items.isEmpty {
+                result.card = .reminders(ReminderCard(days: input.days, reminders: fetch.items, total: fetch.total, now: now, calendar: cal))
+            }
+            return result
         } catch {
             return failure(error, .reminders)
         }
