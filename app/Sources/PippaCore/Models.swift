@@ -127,8 +127,12 @@ public enum ModelSelector {
     /// Memory classes the table distinguishes (`tierGB`).
     public static let tiers = [8, 16, 24, 32]
 
-    /// Settings show "Standard" / "Gründlicher" only on Macs with 24 GB or more.
-    public static func offersThorough(physicalMemory: UInt64) -> Bool { tierGB(physicalMemory: physicalMemory) >= 24 }
+    /// "Gründlicher" stays hidden until the 35B model has passed the side-by-side test with Pi (docs/rebuild/measurements/model-compare).
+    /// Its table row stays pinned for developers (`PIPPA_PI_MODEL`); a saved choice counts as "Standard" meanwhile.
+    public static let thoroughTested = false
+
+    /// Settings show "Standard" / "Gründlicher" only on Macs with 24 GB or more, and only once `thoroughTested`.
+    public static func offersThorough(physicalMemory: UInt64) -> Bool { thoroughTested && tierGB(physicalMemory: physicalMemory) >= 24 }
 
     /// Every catalog key the table can hand out. A release must have all of them pinned (PippaChecks, build-app.sh).
     public static var tableKeys: [String] {

@@ -165,8 +165,13 @@ final class PiRPCChat {
             ?? work
         // Pippa's MCP server (calendar, reminders, mail, read Excel), see PippaMCPService.
         let mcp = await PippaMCPService.endpoint(extensions: extensions)
-        let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: key,
+        var configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: key,
                                                         language: language, environment: extra, mcp: mcp)
+        // Pi starts with `--no-extensions`, so the terminal extension that restarts a crashed model (PIPPA_APP_PID above)
+        // comes explicitly, from the app's own payload.
+        if let local = try? Self.installTarget(env).roots.payload.terminalExtension {
+            configuration.extensions.append(local.appendingPathComponent("index.ts"))
+        }
         let fresh = PiRPCClient(configuration: configuration)
         await fresh.setUIHandler { request in await Self.ask(request) }
         try await fresh.start()

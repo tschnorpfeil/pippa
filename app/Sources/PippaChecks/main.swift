@@ -511,14 +511,14 @@ check("Model: K2 Horizon 7B does not fit 8 GB; low thinking via the template, XM
 }
 check("Model: 24 GB → qwen3.5-9b-q4, ctx 32768; \"More thorough\" → qwen3.6-35b-a3b-iq3 within the memory budget") {
     let c = pick(24), t = pick(24, .thorough)
-    return c?.model.key == "qwen3.5-9b-q4" && c?.ctx == 32768 && ModelSelector.offersThorough(physicalMemory: 24 * GB)
+    return c?.model.key == "qwen3.5-9b-q4" && c?.ctx == 32768 && ModelSelector.offersThorough(physicalMemory: 24 * GB) == ModelSelector.thoroughTested
         && t?.model.key == "qwen3.6-35b-a3b-iq3" && t?.ctx == 32768
         && (t?.model.memGiB ?? 99) <= ModelSelector.budgetGiB(physicalMemory: 24 * GB)
 }
 check("Model: 32 and 64 GB → qwen3.5-9b-q4; \"More thorough\" → qwen3.6-35b-a3b-iq3") {
     [32, 64].allSatisfy { gb in
         pick(UInt64(gb))?.model.key == "qwen3.5-9b-q4" && pick(UInt64(gb), .thorough)?.model.key == "qwen3.6-35b-a3b-iq3"
-            && ModelSelector.offersThorough(physicalMemory: UInt64(gb) * GB)
+            && ModelSelector.offersThorough(physicalMemory: UInt64(gb) * GB) == ModelSelector.thoroughTested
     }
 }
 check("Model: an unpinned table model is unavailable (never a download without a SHA256)") {
