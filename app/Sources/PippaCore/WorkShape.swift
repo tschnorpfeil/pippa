@@ -8,7 +8,7 @@ import simd
 public enum WorkShape: String, Sendable, CaseIterable {
     /// Getting ready, waking up: the rings breathe in and out, one shortly after the other.
     case wake
-    /// Waiting for the first words, working, retrying: the rings turn like the mark at the pill.
+    /// Waiting for the first words ("Considering…"), working, retrying: the rings turn like the mark at the pill.
     case think
     /// Reading a file or recognizing text: lines light up from left to right, a small ring runs ahead.
     case read
