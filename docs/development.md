@@ -171,7 +171,7 @@ everything from the inside out. Of `runtime/pippa-tools` only the sources Pi loa
 | `PIPPA_NOTARY_PROFILE` | Keychain profile for `xcrun notarytool`; without it `make-dmg.sh` does not notarize |
 | `PIPPA_SKIP_BUILD=1` | Package the existing release build |
 | `PIPPA_CACHE` | Download cache (default `~/Library/Caches/pippa-build`) |
-| `PIPPA_DMG_LAYOUT=0` | Skip the Finder window layout in the DMG (for example over SSH) |
+| `PIPPA_DMG_LAYOUT` | Finder window layout in the DMG. Unset: only when the Terminal may already control Finder, so a build never stops at the macOS Automation question. `1`: try and let macOS ask (once, to grant it). `0`: skip (for example over SSH) |
 | `PIPPA_REQUIRE_DISTRIBUTION=1` | Developer ID, notarization and Gatekeeper become mandatory (`release.sh` sets it) |
 
 `verify-app.sh` takes `--verify-runtime` (the default) or `--no-runtime`. The runtime probe reads resources, abilities
