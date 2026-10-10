@@ -44,8 +44,8 @@ func runPillStatusChecks() {
 
     check("Living pill: while the AI downloads it says so with a measured bar, over the invitation") {
         PillStatus.make(phase: nil, loading: 0.42, moment: .invite, language: "de")
-            == PillStatus(tone: .working, label: "Lade meine KI …", progress: 0.42)
-            && PillStatus.make(phase: .writing, loading: 0.5).label != "Lade meine KI …"
+            == PillStatus(tone: .working, label: "Lade meine KI · 42 %", progress: 0.42)
+            && PillStatus.make(phase: .writing, loading: 0.5, language: "de").label != "Lade meine KI · 50 %"
             && PillStatus.make(phase: nil, loading: 1.7).progress == 1
     }
 
