@@ -12,7 +12,7 @@ const results = {};
 for (const [label, path] of [['before', before], ['final', after]]) {
  const payload = JSON.parse(await readFile(path, 'utf8'));
  // Identical question, independent of which test last wrote the capture.
- payload.messages = [payload.messages.find(m => m.role === 'system'), {role:'user', content:'Hallo'}];
+ payload.messages = [payload.messages.find(m => m.role === 'system' || m.role === 'developer'), {role:'user', content:'Hallo'}];
  const counts = {};
  for (const include of [false, true]) {
   const request = {...payload};
