@@ -62,6 +62,8 @@ public enum PippaPiLaunch {
                                      mcp: (endpoint: MCPEndpoint, extension: URL)? = nil) -> PiRPCConfiguration {
         var env = launcher.environment.merging(environment) { $1 }
         if let memory = paths.memoryFile { env[memoryVariable] = memory.path }
+        // The app's language for the questions pippa-assist.ts asks before the shell sends anything out.
+        env["PIPPA_LANGUAGE"] = language
         env.merge(offlineEnvironment) { $1 }
         var configuration = PiRPCConfiguration(executable: launcher.executable, workingDirectory: workingDirectory, environment: env,
                                                extensions: extensions(paths),
