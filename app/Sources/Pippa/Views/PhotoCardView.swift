@@ -42,8 +42,11 @@ struct PhotoCardView: View {
 private struct PhotoTile: View {
     var item: PhotoCard.Item
     var previews: Bool
-    @State private var image: CGImage?
-    @State private var hovering = false
+    // @State is not available without Xcode (macro plugin): storage by hand.
+    private let imageState = State<CGImage?>(initialValue: nil)
+    private let hoveringState = State(initialValue: false)
+    private var image: CGImage? { imageState.wrappedValue }
+    private var hovering: Bool { hoveringState.wrappedValue }
 
     var body: some View {
         Button(action: open) {
@@ -69,7 +72,7 @@ private struct PhotoTile: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { hovering = $0 }
+        .onHover { hoveringState.wrappedValue = $0 }
         .help(T("Open in Photos", table: "Views"))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel([item.label, item.dateLabel].filter { !$0.isEmpty }.joined(separator: ", "))
@@ -78,7 +81,7 @@ private struct PhotoTile: View {
         .task(id: item.id) {
             // With PIPPA_DEMO=1 no real library (the ids are invented).
             guard previews, image == nil, DevEnvironment.value("PIPPA_DEMO") != "1" else { return }
-            image = await PhotosLibrary.preview(id: item.id, side: 280)?.image
+            imageState.wrappedValue = await PhotosLibrary.preview(id: item.id, side: 280)?.image
         }
     }
 
