@@ -114,6 +114,10 @@ große Schrift.
 
 ## Entscheidungen
 
+- Owner 10.10.: Ergebnisse als Karten aus Pippas eigenen Werkzeugdaten (Kalender, Mail, Erinnerungen, Dateien/Fotos,
+  Web-Quellen, Diagramme nur aus echten Zahlen), keine Wiki-Wissensbox aus Modelltext. Keine Bestätigungskarte vor
+  Aktionen; Mail bleibt bei Entwürfen, Pippa sendet nie.
+
 - Owner 09.10. (Thread „Pippa entschlacken“): Der Guard fällt ganz weg, damit auch Freigabe-Karte und Rückgängig.
   Die Zwei-Knopf-Freigabe (Schritt 5) und der Moment „Wieder wie vorher.“ sind damit hinfällig; das Entfernen übernimmt
   „Pippa entschlacken“. Dieser Branch bleibt bei Pille, Gespräch, Fehlerkarte und Charme-Momenten.
