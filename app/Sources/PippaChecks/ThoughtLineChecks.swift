@@ -187,6 +187,21 @@ func runThoughtLineChecks() async {
         return texts.allSatisfy { text in !banned.contains { text.lowercased().contains($0) } } && kinds.count == phases.count
     }
 
+    check("Thought Line: the running step is the line itself, and no \"…\" next to the seconds") {
+        var line = ThoughtLine()
+        let request = UUID()
+        line.begin(request, at: at(0))
+        let start = line.words(showingElapsed: false)
+        let waiting = line.words(showingElapsed: true)
+        line.apply(.toolStarted(name: "bash", source: nil, step: "Suche in deinen Mails"), request: request, at: at(1))
+        let step = line.words(showingElapsed: false)
+        let stepTimed = line.words(showingElapsed: true)
+        return start?.title == L("Answering…", table: "Thought") && start?.detail == nil
+            && waiting.map { !$0.title.hasSuffix("…") && L("Answering…", table: "Thought").hasPrefix($0.title) } == true
+            && line.phase == .working && step?.title == L("%@…", table: "Thought", "Suche in deinen Mails") && step?.detail == nil
+            && stepTimed?.title == "Suche in deinen Mails" && stepTimed?.detail == nil
+    }
+
     check("Thought Line: receipt honestly names partial, no and names-only reading") {
         let partial = SourceReading(name: "Vertrag.pdf", status: .partial, pagesRead: 12, pageCount: 30, recognizedText: true)
         let folder = SourceReading(name: "Belege", status: .namesOnly)
