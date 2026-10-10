@@ -2,8 +2,6 @@
  * Rough kind of a shell command, for the live search evaluation's fixture isolation only (fixture-isolation.ts).
  * Taken from the former guard's policy.ts; the app itself no longer classifies commands (Pi runs them as they come).
  */
-import { isFileSearch } from "../../runtime/pippa-tools/search-command.ts";
-
 /**
  * Kind of a call. There is no `read` here: the guard checks read-only tools from a trusted source beforehand.
  * `appEntry`: Pippa's own tools `calendar_add`, `reminder_add`, `mail_draft` (self-asking.ts `appEntry`): they change
@@ -15,7 +13,7 @@ export type Category = "fileChange" | "appEntry" | "look" | "command" | "delete"
 export type Rule = "allow" | "ask";
 
 /** Pippa's file tools: changes with a real backup or way back. */
-const FILE_TOOLS = new Set(["write", "edit", "rename_or_move", "move_files", "move_to_trash"]);
+const FILE_TOOLS = new Set(["write", "edit", "move_files", "move_to_trash"]);
 
 export function classify(tool: string, input: any): Category {
 	if (FILE_TOOLS.has(tool)) return "fileChange";
@@ -28,7 +26,6 @@ export function classify(tool: string, input: any): Category {
  * is "command". Scripting languages (python, node, osascript ...) count as network: what they do is not in the command.
  */
 export function classifyCommand(command: string): Category {
-	if (isFileSearch(command)) return "look";
 	// Creating folders is reversible (empty folders go to the trash): like Pippa's file tools.
 	if (mkdirTargets(command)) return "fileChange";
 	const c = ` ${command} `;

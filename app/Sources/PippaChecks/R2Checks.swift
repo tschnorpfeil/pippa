@@ -198,6 +198,14 @@ func runR2Checks() async {
             // Three writing tools on top (own size check in R3Checks).
             && list.count == 9 && bytes < 5400
     }
+    // The other share (prompt, Pi's, Pippa's and the web tools) is runtime/pippa-tools/real-pi-budget.test.mjs, 6,400
+    // characters; both together about 3,000 tokens, prefilled cold on every new conversation.
+    check("First request budget: Pippa's MCP declarations as Pi sends them (name, description, schema) stay under 3,100 characters") {
+        let declared = PippaMCPTools.toolList().map { tool in tool.filter { ["name", "description", "inputSchema"].contains($0.key) } }
+        let bytes = (try? JSONSerialization.data(withJSONObject: declared, options: [.withoutEscapingSlashes]))?.count ?? .max
+        if bytes >= 3100 { print("    MCP declarations: \(bytes) characters") }
+        return bytes < 3100
+    }
     check("Work line: Pippa's MCP tools show the same phases as the old path") {
         WorkPhase.tool("web_search", source: nil) == .lookingUpOnline && WorkPhase.tool("fetch_content", source: nil) == .lookingUpOnline
             && WorkPhase.tool("mcp__pippa__read_document", source: nil) == .lookingThrough(name: nil)

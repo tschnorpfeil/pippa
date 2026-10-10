@@ -30,7 +30,7 @@ Pippa.app (Swift, SwiftUI)
 `AGENTS.md` in a user folder could otherwise inject instructions); `--no-approve` (project-local `.pi/` settings are
 ignored); `--session-dir` in Pippa's support folder and `--session-id` per conversation; `--system-prompt` with Pippa's
 own short prompt; `--tools` with a fixed list (Pi's `read`, `bash`, `edit`, `write`, Pippa's file
-tools, pi-web-access's `web_search`, `fetch_content`, `get_search_content` and `mcp__pippa__*`, so the person's
+tools, pi-web-access's `web_search` and `fetch_content`, and `mcp__pippa__*`, so the person's
 `defaultTools` change nothing); `--no-skills --skill <bundle>/pippa-skills`
 (only Pippa's skills, a same-named personal skill would otherwise win); `--provider/--model` from the installer. The
 agent directory is the shared `~/.pi/agent`, so the person's own Pi extensions stay active. Pi runs every tool without
@@ -51,13 +51,15 @@ Pippa replaces its own earlier default "high" in `settings.json` with the new on
 
 **Pippa's extensions (`runtime/pippa-tools`).** Nothing here decides what Pi may do.
 
-- `pippa-tools.ts` adds `list_folder`, `rename_or_move`, `move_files` (files grouped by target subfolder) and
-  `move_to_trash`, shortens the parameter texts of Pi's built-in tools in each request and caps each tool result to
+- `pippa-tools.ts` adds `search_files` (Spotlight content search with an optional year in Documents, Desktop,
+  Downloads, iCloud Drive and CloudStorage, `search.mjs`; it uses the existing macOS index, so unloaded cloud files and
+  unindexed content can be missing, and an empty result never proves absence), `list_folder`, `move_files` (one item
+  with `from`/`to`, or files grouped by target subfolder) and `move_to_trash`, shortens the parameter texts of Pi's built-in tools in each request and caps each tool result to
   about a quarter of the context window (`budget.ts`).
 - `pippa-assist.ts` keeps a small local model on track. Per answer it stops an identical call that failed twice, an
   identical change that already worked once (no duplicate reminders), and any identical call after four runs; after
   three stops it ends the answer (`loopBrake`). A durable `pippa-loop-stop` entry supplies the reason and actual partial
-  file locations to the app; the answer is marked incomplete. The exact bundled search script emits
+  file locations to the app; the answer is marked incomplete. Each `search_files` result emits
   `pippa-search-result`; only these verified paths enable local links in the saved answer. `read` on a PDF, Word,
   image, mail or spreadsheet is sent to `mcp__pippa__read_document` (`documentForRead`), because Pi's `read` returns
   raw bytes.
@@ -115,11 +117,8 @@ if nothing answers, starts llama-server through a detached supervisor with the s
 terminal from ever running two servers. Pippa's own Pi loads it too, so a model that crashed mid-answer comes back;
 that server stops once Pippa quits (`PIPPA_APP_PID`).
 
-**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). The 14 action skills use
-`disable-model-invocation: true` and cost no prompt space. `dateien-finden` is advertised automatically: Pi reads its
-instructions and invokes its Spotlight script once, searching content (including an optional year) in Documents,
-Desktop, Downloads, iCloud Drive and CloudStorage. It uses the existing macOS index, so unloaded cloud files and
-unindexed content can be missing; an empty result never proves absence. Pi loads them with `--skill`; a button sends `/skill:<name> <message>` (`PiSkillTurn`) and Pi
+**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). All skills use
+`disable-model-invocation: true` and cost no prompt space (finding files is the `search_files` tool, not a skill). Pi loads them with `--skill`; a button sends `/skill:<name> <message>` (`PiSkillTurn`) and Pi
 puts the instructions in front. Swift reads the headers only for buttons and suggestions (`PippaSkill`).
 `PIPPA_SKILLS_DIR` overrides the folder for development. Invoices (`rechnung-auslesen`: Pi writes `Rechnungen.csv`),
 deadlines (`fristen-erkennen`: Pi adds them with `calendar_add`) and "Check online" on a letter (`online-pruefen`) are
