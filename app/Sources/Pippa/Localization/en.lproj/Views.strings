@@ -93,6 +93,7 @@
 /* ShellViews.swift */
 "Pippa is reading…" = "Pippa is reading…";
 "Close" = "Close";
+"Minimize" = "Minimize";
 "Let Go" = "Let Go";
 "Drop Here" = "Drop Here";
 "Let go to drop" = "Let go to drop";
