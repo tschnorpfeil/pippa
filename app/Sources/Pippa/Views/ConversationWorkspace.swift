@@ -212,7 +212,10 @@ struct ConversationWorkspace: View {
             MarkSlot(size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Pippa").font(Fonts.head)
-                Text(chat.current?.title ?? T("Your Conversation", table: "Views")).font(Fonts.hint).foregroundStyle(Theme.ink3).lineLimit(1)
+                // Only a real topic: "New Conversation" says nothing (the empty chat shows that already).
+                if let title = chat.current?.title, title != L("New Conversation", table: "Core") {
+                    Text(title).font(Fonts.hint).foregroundStyle(Theme.ink3).lineLimit(1)
+                }
             }
             Spacer()
             // History lives in the menu bar; new topics also start automatically.
