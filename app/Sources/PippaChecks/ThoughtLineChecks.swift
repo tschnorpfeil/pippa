@@ -203,10 +203,12 @@ func runThoughtLineChecks() async {
         }
         let merged = line.bubbles == [StepBubble(id: 0, text: "Suche in deinen Mails", kind: .mail, outcome: "3 Treffer"),
                                       StepBubble(id: 1, text: "Arbeite an deinem Mac", kind: .mac, count: 4)]
+        // One grouping rule: with nothing running, the bubbles count exactly what WorkStep.merged counts.
+        let sameRule = line.bubbles.map(\.count) == WorkStep.merged(line.steps).map { $0.repeats ?? 1 }
         let waiting = line.phase == .waitingForAnswer(continuing: false) && line.phaseNote == nil
         let slow = line.isSlow(at: at(10)) && !L("Taking a little longer, I’m on it.", table: "Thought").isEmpty
         line.textArrived(request: request)
-        return quietAtStart && reading && running && merged && waiting && slow && !line.isSlow(at: at(11))
+        return quietAtStart && reading && running && merged && sameRule && waiting && slow && !line.isSlow(at: at(11))
     }
 
     check("Thought Line: receipt honestly names partial, no and names-only reading") {
