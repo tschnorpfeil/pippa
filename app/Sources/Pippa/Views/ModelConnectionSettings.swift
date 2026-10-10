@@ -40,7 +40,7 @@ struct ModelConnectionSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsRow(title: T("Use my own online AI", table: "Settings"), detail: explanation, divider: false) {
+            SettingsRow(title: T("Use my own online AI", table: "Settings"), detail: explanation) {
                 Toggle("", isOn: onBinding).labelsHidden()
             }
             if onBinding.wrappedValue { form.padding(.horizontal, 14).padding(.top, 4).padding(.bottom, 14) }
@@ -123,7 +123,7 @@ struct ModelConnectionSettings: View {
 
     private var explanation: String {
         if model.inferenceSettings.policy == .localOnly {
-            return T("Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there.", table: "Settings")
+            return T("For your own OpenAI or Anthropic account. When it’s on, your conversations go there.", table: "Settings")
         }
         return T("Your conversations and what you show Pippa go to your online AI. Your key stays in your macOS Keychain.", table: "Settings")
     }

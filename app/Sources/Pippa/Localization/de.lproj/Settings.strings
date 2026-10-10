@@ -32,15 +32,10 @@
 "Load Now" = "Jetzt laden";
 "Cancel" = "Abbrechen";
 "Try Again" = "Erneut versuchen";
-"Allow Pippa to…" = "Darf Pippa …";
 "Add deadlines to Reminders and Calendar" = "Fristen in Erinnerungen und Kalender eintragen";
 "Read the selected mail" = "Ausgewählte Mail lesen";
-"Your conversations go to %@. The internet is also used for downloads and updates." = "Deine Gespräche gehen an %@. Sonst nutzt Pippa das Internet nur für Downloads und Updates.";
-"Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve." = "Deine Inhalte bleiben auf deinem Mac. Ins Internet geht Pippa nur für Downloads, Updates und Suchen, die du erlaubst.";
 "%@ (Default)" = "%@ (Standard)";
-"allowed" = "erlaubt";
 "Open System Settings" = "Systemeinstellungen öffnen";
-"asks the first time" = "fragt beim ersten Mal";
 "Hello, I’m" = "Hallo, ich bin";
 "I tidy up your files, read your invoices and tell you what your letters say." = "Ich räume deine Unterlagen auf, lese Rechnungen aus und sage dir, was in deinen Briefen steht.";
 "Runs on your Mac" = "Läuft auf deinem Mac";
@@ -104,8 +99,6 @@
 "I can make one PDF from your photos, right here on your Mac." = "Ich mache aus deinen Fotos eine PDF, direkt auf deinem Mac.";
 "Choose Files…" = "Dateien auswählen…";
 "Get Started" = "Los geht’s";
-"What Pippa knows" = "Was Pippa weiß";
-"Learned actions" = "Gemerkte Aktionen";
 "Forget" = "Vergessen";
 "Learned actions forgotten." = "Gemerkte Aktionen vergessen.";
 "I couldn’t forget the learned actions. Please try again." = "Ich konnte die gemerkten Aktionen nicht vergessen. Versuch es bitte noch einmal.";
@@ -152,11 +145,8 @@
 /* Vereinfachte Einstellungen (docs/settings-simplification.md) */
 "Online AI" = "Online-KI";
 "Use my own online AI" = "Meine eigene Online-KI nutzen";
-"Off: everything stays on this Mac. On: Pippa works with your own OpenAI or Anthropic account; your conversations go there." = "Aus: alles bleibt auf diesem Mac. An: Pippa arbeitet mit deinem eigenen OpenAI- oder Anthropic-Konto; deine Gespräche gehen dorthin.";
 "Remove" = "Entfernen";
 "Saving first sends one short test message. No files and nothing from your conversations." = "Beim Speichern geht zuerst eine kurze Testnachricht raus. Keine Dateien und nichts aus deinen Gesprächen.";
-"Version %@" = "Version %@";
-"I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay." = "Ich merke mir bis zu zwölf Monate auf diesem Mac, welche Aktionen du wählst oder auslässt, um Vorschläge zu ordnen. Vergessen setzt diese Reihenfolge zurück. Gespräche, Dateien und Rückgängig bleiben.";
 "Standard (fast, %@)" = "Standard (schnell, %@)";
 "More thorough (%@)" = "Gründlicher (%@)";
 "A new AI is ready to load. Until then, Pippa keeps working with the one she has." = "Eine neue KI ist bereit zum Laden. Bis dahin arbeitet Pippa mit ihrer bisherigen KI.";
@@ -182,3 +172,29 @@
 "Another sign-in is still open. Close it and try again." = "Eine andere Anmeldung ist noch offen. Schließe sie und versuche es noch einmal.";
 "The sign-in didn’t work just now. Please try again." = "Die Anmeldung hat gerade nicht geklappt. Bitte versuche es noch einmal.";
 "You’re on a phone hotspot right now. Better load on Wi-Fi." = "Du bist gerade im Handy-Hotspot. Lade lieber im WLAN.";
+
+/* Settings redesign: privacy banner, groups with icons, online AI folded away */
+"Your conversations go to %@" = "Deine Gespräche gehen an %@";
+"Everything stays on your Mac" = "Alles bleibt auf deinem Mac";
+"Pippa only goes online for downloads, updates and searches you allow." = "Ins Internet geht Pippa nur für Downloads, Updates und Suchen, die du erlaubst.";
+"Your files stay on your Mac. You can switch back below at any time." = "Deine Dateien bleiben auf deinem Mac. Unten kannst du jederzeit zurückschalten.";
+"Everyday" = "Bedienung";
+"Opens Pippa from anywhere." = "Öffnet Pippa, egal wo du bist.";
+"Pippa is there as soon as your Mac is on." = "Pippa ist da, sobald dein Mac an ist.";
+"Permissions" = "Erlaubnisse";
+"Your Mac asks you once before Pippa uses them. You can change it later in System Settings." = "Dein Mac fragt dich einmal, bevor Pippa darauf zugreift. Ändern kannst du das später in den Systemeinstellungen.";
+"Allowed" = "Erlaubt";
+"Will ask" = "Fragt vorher";
+"What Pippa remembers" = "Was Pippa sich merkt";
+"Favourite suggestions" = "Lieblingsvorschläge";
+"Pippa notes which suggestions you pick, so the right ones come first. Only on this Mac, for up to a year. Forgetting keeps your conversations and files." = "Pippa merkt sich, welche Vorschläge du nimmst, damit die passenden zuerst kommen. Nur auf diesem Mac, höchstens ein Jahr. Vergessen lässt Gespräche und Dateien in Ruhe.";
+"Use an online AI (optional)" = "Online-KI nutzen (optional)";
+"Only if you already have ChatGPT or your own AI account. Pippa doesn’t need it." = "Nur wenn du schon ChatGPT oder ein eigenes KI-Konto hast. Pippa braucht das nicht.";
+"For your own OpenAI or Anthropic account. When it’s on, your conversations go there." = "Für dein eigenes OpenAI- oder Anthropic-Konto. Ist es an, gehen deine Gespräche dorthin.";
+"Option + Space" = "Option + Leertaste";
+"Control + Option + Space" = "Control + Option + Leertaste";
+"Control + Shift + Space" = "Control + Shift + Leertaste";
+"Control + Option + P" = "Control + Option + P";
+"Pippa %@" = "Pippa %@";
+"Runs on your Mac, also without internet." = "Läuft auf deinem Mac, auch ohne Internet.";
+"Ready" = "Bereit";

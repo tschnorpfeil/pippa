@@ -32,40 +32,160 @@ final class SettingsWindowController {
     }
 }
 
-/// Group: small heading, box with hairline, rows 44.
+/// Group: small heading, box with hairline, rows 52, an optional quiet note under the box.
 private struct SettingsGroup<Content: View>: View {
     var title: String?
+    var note: String?
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let title {
-                Text(title).font(.scaled(size: 12, weight: .semibold)).foregroundStyle(Theme.ink3).padding(.leading, 12)
+                Text(title).font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.ink2).padding(.leading, 4)
+                    .accessibilityAddTraits(.isHeader)
             }
             VStack(spacing: 0) { content }
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.fill)
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hair, lineWidth: 0.5)))
+            if let note {
+                Text(note).font(Fonts.hint).foregroundStyle(Theme.ink3)
+                    .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4)
+            }
         }
+    }
+}
+
+/// Small coloured square with a symbol, as in System Settings: lets a row be found by its picture before it is read.
+struct SettingsIcon: View {
+    var symbol: String
+    var tint: Color
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 26, height: 26)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(tint))
+            .accessibilityHidden(true)
     }
 }
 
 struct SettingsRow<Trailing: View>: View {
     var title: String
     var detail: String?
+    var icon: String? = nil
+    var tint: Color = .gray
     var divider = true
     @ViewBuilder var trailing: Trailing
     var body: some View {
         HStack(spacing: 12) {
+            if let icon { SettingsIcon(symbol: icon, tint: tint) }
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.scaled(size: 13.5)).foregroundStyle(Theme.ink)
+                Text(title).font(.scaled(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink)
                 if let detail { Text(detail).font(.scaled(size: 12)).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true) }
             }
+            .layoutPriority(1)
             Spacer(minLength: 8)
             trailing
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .frame(minHeight: 44)
-        .overlay(alignment: .top) { if divider { Theme.hair.frame(height: 0.5) } }
+        .padding(.vertical, 10)
+        .frame(minHeight: 52)
+        .overlay(alignment: .top) { if divider { Theme.hair.frame(height: 0.5).padding(.leading, icon == nil ? 14 : 52) } }
+    }
+}
+
+/// The plain answer to "where do my things go?", at the top where it is read first. Green lock while everything stays
+/// on this Mac; an orange globe naming the service as soon as conversations go online.
+private struct PrivacyBanner: View {
+    @ObservedObject var model: AppModel
+    var body: some View {
+        let online = destination
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: online == nil ? "lock.fill" : "globe")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(online == nil ? Theme.ok : Theme.need)
+                .frame(width: 26, height: 26)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(online.map { T("Your conversations go to %@", table: "Settings", $0) }
+                     ?? T("Everything stays on your Mac", table: "Settings"))
+                    .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(online == nil
+                     ? T("Pippa only goes online for downloads, updates and searches you allow.", table: "Settings")
+                     : T("Your files stay on your Mac. You can switch back below at any time.", table: "Settings"))
+                    .font(.scaled(size: 12)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(online == nil ? Theme.okTint : Theme.needTint))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Where conversations go, or nil while they stay here. Covers the ChatGPT subscription as well as an own service.
+    private var destination: String? {
+        if model.inferenceSettings.subscriptionModel != nil { return "OpenAI (ChatGPT)" }
+        if model.inferenceSettings.policy != .localOnly,
+           let connection = model.inferenceSettings.connection, !connection.isLocal {
+            switch connection.provider {
+            case .openAI: return "OpenAI"
+            case .anthropic: return "Anthropic"
+            case .compatible: return connection.destination
+            }
+        }
+        return nil
+    }
+}
+
+/// Pippa's AI in its own group, only while there is something to see or do (loading, the Standard/More thorough
+/// choice, an update). The rows and their logic are unchanged; this only decides whether the group shows.
+private struct AIGroup: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var setup: PiSetupController
+
+    var body: some View {
+        if loadRowShows || knowledgeRowShows || readyRowShows {
+            SettingsGroup(title: T("Pippa’s AI", table: "Settings")) {
+                VStack(spacing: 0) {
+                    if loadRowShows { AILoadRow(model: model) }
+                    if knowledgeRowShows { KnowledgeRow(model: model, setup: setup) }
+                    if readyRowShows {
+                        // Nothing to choose: only say that the AI is here and works offline.
+                        SettingsRow(title: T("Pippa’s AI", table: "Settings"),
+                                    detail: T("Runs on your Mac, also without internet.", table: "Settings"),
+                                    icon: "cpu", tint: .teal, divider: false) {
+                            StatusBadge(text: T("Ready", table: "Settings"), symbol: "checkmark", ink: Theme.ok, fill: Theme.okTint)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var readyRowShows: Bool { !model.alwaysUsesConnection && setup.isReady && !knowledgeRowShows }
+
+    private var loadRowShows: Bool { AILoadRow.shows(model) }
+    private var knowledgeRowShows: Bool {
+        !model.alwaysUsesConnection && setup.isReady && (setup.offersThorough || setup.update != nil)
+    }
+}
+
+/// Before the AI is on this Mac: say so and offer loading. Same conditions and buttons as before.
+private struct AILoadRow: View {
+    @ObservedObject var model: AppModel
+    static func shows(_ model: AppModel) -> Bool {
+        !model.alwaysUsesConnection && !model.aiLoaded && model.unsupportedReason == nil
+    }
+    var body: some View {
+        SettingsRow(title: T("Pippa’s AI", table: "Settings"), detail: model.learningText ?? model.capabilityText, divider: false) {
+            if model.needsDownloadConsent {
+                Button(T("Load Now", table: "Settings")) { model.startModelDownload() }.pippa(.secondary)
+            } else if model.downloadStalled || model.piSetupFailed {
+                Button(T("Try Again", table: "Settings")) { model.retryDownloadNow() }.pippa(.quiet)
+            } else if model.isDownloading, PiSetupController.shared == nil {
+                // Pi path: loading goes on in the background; there is nothing to cancel here.
+                Button(T("Cancel", table: "Settings")) { model.cancelModelDownload() }.pippa(.quiet)
+            }
+        }
     }
 }
 
@@ -78,7 +198,7 @@ private struct KnowledgeRow: View {
 
     var body: some View {
         if setup.isReady, setup.offersThorough || setup.update != nil {
-            SettingsRow(title: T("Pippa’s AI", table: "Settings"), detail: detail) {
+            SettingsRow(title: T("Pippa’s AI", table: "Settings"), detail: detail, divider: false) {
                 VStack(alignment: .trailing, spacing: 6) {
                     if setup.offersThorough {
                         Picker("", selection: Binding(get: { setup.preference }, set: { setup.choose($0) })) {
@@ -139,30 +259,41 @@ struct SettingsView: View {
     private let learningStatusState = State<String?>(initialValue: nil)
     private let forgettingState = State(initialValue: false)
 
-    private var textScaleBinding: Binding<Double> {
-        Binding(get: { TextScaleStore.shared.factor }, set: { TextScaleStore.shared.set($0) })
+    /// "Online AI" stays folded away until someone opens it; it opens by itself when an online AI is already in use.
+    private let onlineOpenState: State<Bool>
+
+    init(model: AppModel) {
+        self.model = model
+        let settings = model.inferenceSettings
+        onlineOpenState = State(initialValue: settings.subscriptionModel != nil || settings.policy != .localOnly || settings.connection != nil)
     }
 
     var body: some View { TextScaleRoot { content } }
 
     private var content: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                SettingsGroup(title: "Pippa") {
-                    SettingsRow(title: T("Call Pippa", table: "Settings"), detail: hotkeyTaken.wrappedValue ? HotkeyCenter.takenText : nil, divider: false) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                PrivacyBanner(model: model)
+                SettingsGroup(title: T("Everyday", table: "Settings")) {
+                    SettingsRow(title: T("Call Pippa", table: "Settings"),
+                                detail: hotkeyTaken.wrappedValue ? HotkeyCenter.takenText : T("Opens Pippa from anywhere.", table: "Settings"),
+                                icon: "keyboard", tint: .blue, divider: false) {
                         Picker("", selection: hotkeyState.projectedValue) {
                             ForEach(Hotkey.allCases) { Text(Self.hotkeyTitle($0)).tag($0) }
                         }
                         .labelsHidden()
                         .fixedSize()
+                        .accessibilityLabel(T("Call Pippa", table: "Settings"))
                         .onChange(of: hotkeyState.wrappedValue) { _, new in
                             Hotkey.current = new
                             hotkeyTaken.wrappedValue = !HotkeyCenter.shared.apply(new)
                         }
                     }
-                    SettingsRow(title: T("Open at login", table: "Settings"), detail: loginError.wrappedValue) {
+                    SettingsRow(title: T("Open at login", table: "Settings"),
+                                detail: loginError.wrappedValue ?? T("Pippa is there as soon as your Mac is on.", table: "Settings"),
+                                icon: "power", tint: .green) {
                         Toggle("", isOn: loginState.projectedValue).labelsHidden()
+                            .accessibilityLabel(T("Open at login", table: "Settings"))
                             .onChange(of: loginState.wrappedValue) { _, on in
                                 do {
                                     if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
@@ -174,46 +305,34 @@ struct SettingsView: View {
                                 }
                             }
                     }
-                    SettingsRow(title: T("Text size", table: "Settings"), detail: T("Makes all text in Pippa larger.", table: "Settings")) {
+                    SettingsRow(title: T("Text size", table: "Settings"), detail: T("Makes all text in Pippa larger.", table: "Settings"),
+                                icon: "textformat.size", tint: .orange) {
                         TextSizeControl()
                     }
-                    if !model.alwaysUsesConnection && !model.aiLoaded && model.unsupportedReason == nil {
-                        SettingsRow(title: T("Pippa’s AI", table: "Settings"), detail: model.learningText ?? model.capabilityText) {
-                            if model.needsDownloadConsent {
-                                Button(T("Load Now", table: "Settings")) { model.startModelDownload() }.pippa(.secondary)
-                            } else if model.downloadStalled || model.piSetupFailed {
-                                Button(T("Try Again", table: "Settings")) { model.retryDownloadNow() }.pippa(.quiet)
-                            } else if model.isDownloading, PiSetupController.shared == nil {
-                                // Pi path: loading goes on in the background; there is nothing to cancel here.
-                                Button(T("Cancel", table: "Settings")) { model.cancelModelDownload() }.pippa(.quiet)
-                            }
-                        }
-                    }
-                    if let setup = PiSetupController.shared, !model.alwaysUsesConnection {
-                        KnowledgeRow(model: model, setup: setup)
-                    }
                 }
-                SettingsGroup(title: T("Allow Pippa to…", table: "Settings")) {
-                    accessRow(T("Add deadlines to Reminders and Calendar", table: "Settings"), [.reminders, .calendar], divider: false)
-                    accessRow(T("Read the selected mail", table: "Settings"), [.mail])
+                if let setup = PiSetupController.shared {
+                    AIGroup(model: model, setup: setup)
+                } else if AILoadRow.shows(model) {
+                    SettingsGroup(title: T("Pippa’s AI", table: "Settings")) { AILoadRow(model: model) }
                 }
-                SettingsGroup(title: T("Online AI", table: "Settings")) {
-                    ChatGPTSubscriptionSettings(model: model)
-                    ModelConnectionSettings(model: model)
+                SettingsGroup(title: T("Permissions", table: "Settings"),
+                              note: T("Your Mac asks you once before Pippa uses them. You can change it later in System Settings.", table: "Settings")) {
+                    accessRow(T("Add deadlines to Reminders and Calendar", table: "Settings"), [.reminders, .calendar],
+                              icon: "calendar", tint: .red, divider: false)
+                    accessRow(T("Read the selected mail", table: "Settings"), [.mail], icon: "envelope.fill", tint: .blue)
                 }
                 learningGroup
+                onlineGroup
+                Text(T("Pippa %@", table: "Settings", PippaCore.Pippa.version))
+                    .font(Fonts.sill).foregroundStyle(Theme.ink3)
+                    .frame(maxWidth: .infinity)
+                    .textSelection(.enabled)
             }
             .padding(.horizontal, 24)
-            .padding(.top, 52)
-            .padding(.bottom, 24)
-            }
-            Text(footer)
-                .font(Fonts.sill).foregroundStyle(Theme.ink2)
-                .padding(.horizontal, 24).padding(.vertical, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.sill)
+            .padding(.top, 48)
+            .padding(.bottom, 20)
         }
-        .frame(width: 560, height: 620)
+        .frame(width: 560, height: 640)
         .background(Color(nsColor: Theme.materialTintSolid))
         .toggleStyle(.switch)
         .tint(Theme.accentFill)
@@ -226,11 +345,34 @@ struct SettingsView: View {
         }
     }
 
+    /// Online AI is for the few who already pay for one: one folded row with a plain "optional", the forms behind it.
+    private var onlineGroup: some View {
+        SettingsGroup(title: T("Online AI", table: "Settings")) {
+            Button { withAnimation(.easeInOut(duration: 0.2)) { onlineOpenState.wrappedValue.toggle() } } label: {
+                SettingsRow(title: T("Use an online AI (optional)", table: "Settings"),
+                            detail: T("Only if you already have ChatGPT or your own AI account. Pippa doesn’t need it.", table: "Settings"),
+                            icon: "globe", tint: .purple, divider: false) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.ink3)
+                        .rotationEffect(.degrees(onlineOpenState.wrappedValue ? 90 : 0))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(onlineOpenState.wrappedValue ? T("Details shown", table: "Settings") : T("Details hidden", table: "Settings"))
+            if onlineOpenState.wrappedValue {
+                ChatGPTSubscriptionSettings(model: model)
+                ModelConnectionSettings(model: model)
+            }
+        }
+    }
+
     /// Just one row: what Pippa remembers and "Forget". No list of individual actions anymore.
     private var learningGroup: some View {
-        SettingsGroup(title: T("What Pippa knows", table: "Settings")) {
-            SettingsRow(title: T("Learned actions", table: "Settings"),
-                        detail: T("I keep which actions you choose or pass over on this Mac for up to twelve months, so I can order suggestions. Forgetting them resets that order. Conversations, files and Undo stay.", table: "Settings"), divider: false) {
+        SettingsGroup(title: T("What Pippa remembers", table: "Settings")) {
+            SettingsRow(title: T("Favourite suggestions", table: "Settings"),
+                        detail: T("Pippa notes which suggestions you pick, so the right ones come first. Only on this Mac, for up to a year. Forgetting keeps your conversations and files.", table: "Settings"),
+                        icon: "sparkles", tint: .pink, divider: false) {
                 Button(T("Forget", table: "Settings")) { forgetLearnedActions() }
                     .pippa(.quiet)
                     .disabled(forgettingState.wrappedValue || model.isActiveWork || model.tray.isWorking || learnedState.wrappedValue == 0)
@@ -268,32 +410,29 @@ struct SettingsView: View {
         }
     }
 
-    /// A custom online service gets Pi's conversation requests (PiOnlineProvider).
-    private var inferenceFooter: String {
-        if model.inferenceSettings.policy != .localOnly,
-           let connection = model.inferenceSettings.connection, !connection.isLocal {
-            return T("Your conversations go to %@. The internet is also used for downloads and updates.", table: "Settings", connection.destination)
-        }
-        return T("Your content is handled on your Mac. The internet is used for downloads, updates and network access you approve.", table: "Settings")
-    }
-
-    private var footer: String { inferenceFooter + " " + T("Version %@", table: "Settings", PippaCore.Pippa.version) }
-
-    /// Shortcut with a hint about the default binding.
+    /// Shortcut spelled out with the key names printed on the keyboard; the symbols alone mean nothing to many people.
     private static func hotkeyTitle(_ hotkey: Hotkey) -> String {
-        if hotkey == .standard { return T("%@ (Default)", table: "Settings", hotkey.display) }
-        return hotkey.display
+        let keys: String
+        switch hotkey {
+        case .optionSpace: keys = T("Option + Space", table: "Settings")
+        case .controlOptionSpace: keys = T("Control + Option + Space", table: "Settings")
+        case .controlShiftSpace: keys = T("Control + Shift + Space", table: "Settings")
+        case .controlOptionP: keys = T("Control + Option + P", table: "Settings")
+        case .off: keys = hotkey.display
+        }
+        if hotkey == .standard { return T("%@ (Default)", table: "Settings", keys) }
+        return keys
     }
 
-    private func accessRow(_ title: String, _ integrations: [Integration], divider: Bool = true) -> some View {
+    private func accessRow(_ title: String, _ integrations: [Integration], icon: String, tint: Color, divider: Bool = true) -> some View {
         let states = integrations.compactMap { accessState.wrappedValue[$0] }
-        return SettingsRow(title: title, divider: divider) {
+        return SettingsRow(title: title, icon: icon, tint: tint, divider: divider) {
             if !states.isEmpty && states.allSatisfy({ $0 == .granted }) {
-                Label(T("allowed", table: "Settings"), systemImage: "checkmark").font(.scaled(size: 12.5, weight: .medium)).foregroundStyle(Theme.ok)
+                StatusBadge(text: T("Allowed", table: "Settings"), symbol: "checkmark", ink: Theme.ok, fill: Theme.okTint)
             } else if states.contains(.denied) {
-                Button(T("Open System Settings", table: "Settings")) { NSWorkspace.shared.open(integrations[0].settingsURL) }.pippa(.quiet)
+                Button(T("Allow…", table: "Settings")) { NSWorkspace.shared.open(integrations[0].settingsURL) }.pippa(.secondary)
             } else {
-                Text(T("asks the first time", table: "Settings")).font(.scaled(size: 12.5, weight: .medium)).foregroundStyle(Theme.ink3)
+                StatusBadge(text: T("Will ask", table: "Settings"), symbol: nil, ink: Theme.ink2, fill: Theme.fill2)
             }
         }
     }
@@ -312,6 +451,24 @@ struct SettingsView: View {
         var access: [Integration: IntegrationAccess] = [:]
         for i in Integration.allCases { access[i] = await model.engine.integrationAccess(i) }
         accessState.wrappedValue = access
+    }
+}
+
+/// Small rounded label for a state that needs no action ("Allowed", "Will ask").
+private struct StatusBadge: View {
+    var text: String
+    var symbol: String?
+    var ink: Color
+    var fill: Color
+    var body: some View {
+        HStack(spacing: 4) {
+            if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .bold)) }
+            Text(text).font(.scaled(size: 12, weight: .medium)).lineLimit(1)
+        }
+        .foregroundStyle(ink)
+        .padding(.horizontal, 9).padding(.vertical, 4)
+        .background(Capsule().fill(fill))
+        .fixedSize()
     }
 }
 
