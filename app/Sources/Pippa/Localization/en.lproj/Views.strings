@@ -194,8 +194,6 @@
 
 "New topic. Previous conversation under Recent Conversations." = "New topic. Previous conversation under Recent Conversations.";
 
-"Preparing your answer…" = "Preparing your answer…";
-
 "To (optional)" = "To (optional)";
 "Subject (optional)" = "Subject (optional)";
 "Draft text" = "Draft text";
@@ -263,3 +261,6 @@
 "Remind me tomorrow morning to take out the paper recycling" = "Remind me tomorrow morning to take out the paper recycling";
 "Puts this sentence into the input field" = "Puts this sentence into the input field";
 "Asks the same question again" = "Asks the same question again";
+"“%@” in Mail" = "“%@” in Mail";
+"“%@” in Photos" = "“%@” in Photos";
+"Open in Photos" = "Open in Photos";

@@ -87,10 +87,10 @@ public struct PippaMCPReadNote: Sendable, Equatable {
     /// For `mail_selected`: identity of the mail read (Message-ID, reply address, subject), so
     /// "Als Entwurf in Mail" replies to exactly this mail and not to whatever is selected at click time.
     public var mail: MailReplySource?
-    /// For `photos_search`: the hits as a card (previews, click opens Photos), from Pippa's own result.
-    public var photos: PhotoCard?
-    public init(tool: String, read: Bool, line: String, mail: MailReplySource? = nil, photos: PhotoCard? = nil) {
-        self.tool = tool; self.read = read; self.line = line; self.mail = mail; self.photos = photos
+    /// What was read, as a card under the answer (calendar, mail search, photos search).
+    public var card: ResultCard?
+    public init(tool: String, read: Bool, line: String, mail: MailReplySource? = nil, card: ResultCard? = nil) {
+        self.tool = tool; self.read = read; self.line = line; self.mail = mail; self.card = card
     }
 }
 
@@ -100,8 +100,8 @@ public struct PippaMCPToolResult: Sendable, Equatable {
     public var isError: Bool
     /// What a writing tool did, for Pippa's receipt (`PippaMCPHost.onWrite`; the model does not see it).
     public var receipt: PippaMCPWriteReceipt? = nil
-    /// What `photos_search` found, for the card (`PippaMCPReadNote.photos`; the model sees only dates and the count).
-    public var photos: PhotoCard? = nil
+    /// What a reading tool returned, as a card for the conversation (`PippaMCPReadNote.card`; the model does not see it).
+    public var card: ResultCard? = nil
 }
 
 public struct PippaMCPTools: Sendable {
@@ -298,7 +298,7 @@ public struct PippaMCPTools: Sendable {
         let mail = name == "mail_selected" ? (data["messageID"] as? String).flatMap {
             MailReplySource(messageID: $0, replyTo: data["replyTo"] as? String, subject: data["subject"] as? String ?? "")
         } : nil
-        return PippaMCPReadNote(tool: name, read: true, line: line, mail: mail, photos: outcome.photos)
+        return PippaMCPReadNote(tool: name, read: true, line: line, mail: mail, card: outcome.card)
     }
 
     /// Time range in words, as the person meant it ("heute", "nächste Woche", "Do., 8. Okt. 2026 bis …").
@@ -355,8 +355,10 @@ public struct PippaMCPTools: Sendable {
                 return blocked("failed", CalendarReadResult.failureText)
             }
             let source = digest.removeValue(forKey: "source") as? String ?? "Calendar on this Mac"
-            return Self.bounded(source: source, data: digest,
-                                next: "Answer briefly, by day. Copy days, times and states exactly; do not compute them. If days is empty, nothing is in the calendar for this period. If truncated, say only the first appointments are shown.")
+            var result = Self.bounded(source: source, data: digest,
+                                      next: "Answer briefly, by day. Copy days, times and states exactly; do not compute them. If days is empty, nothing is in the calendar for this period. If truncated, say only the first appointments are shown.")
+            result.card = reply.card.map(ResultCard.calendar)
+            return result
         case .invalidRange:
             return invalid("This period cannot be read. Use a period from the list, or dates (YYYY-MM-DD) with at most 31 days.")
         case .needsAccess: return blocked("needs_access", Self.notYet(.calendar))
@@ -431,9 +433,11 @@ public struct PippaMCPTools: Sendable {
                 if let date = m.date { value["date"] = Self.dateLabel(date, time: true, calendar: host.calendar) }
                 return value
             }
-            return Self.bounded(source: "Mail on this Mac (inbox search by subject or sender)",
-                                data: ["query": query, "mails": mails, "shown": mails.count, "total": fetch.total, "truncated": fetch.total > mails.count],
-                                next: "List the matches briefly. start is only the beginning of each email. If mails is empty, no email in the inbox matches.")
+            var result = Self.bounded(source: "Mail on this Mac (inbox search by subject or sender)",
+                                      data: ["query": query, "mails": mails, "shown": mails.count, "total": fetch.total, "truncated": fetch.total > mails.count],
+                                      next: "List the matches briefly. start is only the beginning of each email. If mails is empty, no email in the inbox matches.")
+            if !fetch.items.isEmpty { result.card = .mail(MailCard(query: query, mails: fetch.items, total: fetch.total, calendar: host.calendar)) }
+            return result
         } catch {
             return failure(error, .mail)
         }
@@ -448,7 +452,7 @@ public struct PippaMCPTools: Sendable {
         let asked = Self.photoQuery(input.query ?? "")
         guard (2...60).contains(asked.count) else { return invalid("query must be one word, 2 to 60 characters.") }
         let limit = input.limit ?? 12
-        guard (1...30).contains(limit) else { return invalid("limit must be 1 to 30.") }
+        guard (1...PhotoCard.maxItems).contains(limit) else { return invalid("limit must be 1 to \(PhotoCard.maxItems).") }
         var access = await host.hostData.photosAccess(ask: false)
         var explained = false
         if access == .notDetermined && host.askForAccess, await mayAsk(.photos) {
@@ -477,7 +481,6 @@ public struct PippaMCPTools: Sendable {
             }
             let card = PhotoCard(query: query, items: items, total: fetch.total, previews: previews,
                                  footer: L("Photos on this Mac · %lld found", table: "MCP", fetch.total),
-                                 emptyText: items.isEmpty ? L("Photos found nothing for “%@”.", table: "MCP", query) : nil,
                                  truncatedNote: fetch.total > items.count
                                     ? L("Showing %lld of %lld. Search for “%@” in Photos to see all of them.", table: "MCP", items.count, fetch.total, query) : nil)
             let photos = fetch.items.map { hit -> [String: Any] in
@@ -490,7 +493,8 @@ public struct PippaMCPTools: Sendable {
                                       data: ["query": query, "photos": photos, "shown": photos.count, "total": fetch.total,
                                              "truncated": fetch.total > photos.count],
                                       next: "The person sees these photos as pictures under your answer. Say in one sentence how many were found and from when; do not list them. If photos is empty, Photos found nothing for this word: suggest one other word.")
-            result.photos = card
+            // Nothing found: no card, the answer says so (as for mail_search).
+            if !items.isEmpty { result.card = .photos(card) }
             return result
         } catch PippaError.accessDenied {
             return blocked("denied", Self.deniedAutomation(PhotosLibrary.appName))

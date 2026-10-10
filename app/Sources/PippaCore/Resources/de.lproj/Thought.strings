@@ -1,5 +1,7 @@
 /* Thought Line: working status and receipt (ThoughtLine.swift). Plain verbs, no architecture words. */
-"Preparing your answer…" = "Bereite die Antwort vor …";
+"Answering…" = "Antwortet …";
+/* The running step as the line itself (ThoughtLine.words). */
+"%@…" = "%@ …";
 "Reading %@…" = "Lese %@ …";
 "%lld of %lld" = "%lld von %lld";
 "Recognizing text on page %lld of %lld…" = "Erkenne Text auf Seite %lld von %lld …";

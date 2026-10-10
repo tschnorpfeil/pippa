@@ -154,9 +154,18 @@ final class EventKitBridge: @unchecked Sendable {
             let declined = ev.attendees?.contains { $0.isCurrentUser && $0.participantStatus == .declined } ?? false
             return CalendarEvent(id: ev.eventIdentifier ?? ev.calendarItemIdentifier, title: ev.title ?? "", start: ev.startDate, end: ev.endDate,
                                  allDay: ev.isAllDay, calendar: ev.calendar?.title ?? "", timeZone: ev.isAllDay ? nil : ev.timeZone?.identifier,
-                                 status: status, declined: declined, recurring: ev.hasRecurrenceRules || ev.isDetached, location: ev.location)
+                                 status: status, declined: declined, recurring: ev.hasRecurrenceRules || ev.isDetached, location: ev.location,
+                                 color: ev.calendar?.cgColor.flatMap(Self.hex))
         }
         return CalendarFetch(events: Array(events), total: found.count, calendars: calendars.map(\.title).sorted())
+    }
+
+    /// "#RRGGBB" in sRGB, for the calendar card.
+    static func hex(_ color: CGColor) -> String? {
+        guard let srgb = CGColorSpace(name: CGColorSpace.sRGB), let c = color.converted(to: srgb, intent: .defaultIntent, options: nil),
+              let parts = c.components, parts.count >= 3 else { return nil }
+        let v = parts.prefix(3).map { Int((min(max($0, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", v[0], v[1], v[2])
     }
 
     /// Content only as a hash in the journal: also detect changes within one timestamp second.

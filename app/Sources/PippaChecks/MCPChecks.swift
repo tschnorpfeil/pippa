@@ -279,15 +279,15 @@ func runMCPChecks() async {
                                 onRead: { notes.append($0) })
         let tools = PippaMCPTools(host: host)
         _ = await call(tools, "photos_search", ["query": "Knokke", "limit": 1])
-        let card = notes.all.first?.photos
+        guard case .photos(let card)? = notes.all.first?.card else { return false }
         let empty = setup()
         let nothing = await call(empty.tools, "photos_search", ["query": "Giraffe"])
-        return card?.items.map(\.id) == ["DEMO-0003/L0/001"] && card?.total == 2 && card?.previews == true && card?.query == "Knokke"
-            && card?.items.first?.label == "IMG_0203.HEIC" && card?.items.first?.dateLabel.contains("2025") == true
-            && card?.truncatedNote != nil && card?.emptyText == nil
+        return card.items.map(\.id) == ["DEMO-0003/L0/001"] && card.total == 2 && card.previews && card.query == "Knokke"
+            && card.items.first?.label == "IMG_0203.HEIC" && card.items.first?.dateLabel.contains("2025") == true
+            && card.truncatedNote != nil
             && asked.all == ["\(PhotosLibrary.appName)|\(PippaMCPTools.accessExplanation(.photos))"] && data.previewAsked
             && notes.all.first?.line == L("Searched Photos for “%@”: %lld found", table: "MCP", "Knokke", 2)
-            && !nothing.isError && !empty.data.previewAsked
+            && !nothing.isError && !empty.data.previewAsked && notes.all.count == 1
     }
 
     // MARK: Excel

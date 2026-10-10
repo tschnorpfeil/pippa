@@ -86,7 +86,7 @@ public struct PhotoHit: Sendable, Equatable {
     }
 }
 
-/// A Photos search as a card in the conversation: previews in a grid, click opens the photo in Photos. Built by Pippa's
+/// A Photos search as a card in the conversation (`ResultCard.photos`): previews in a grid, click opens the photo in Photos. Built by Pippa's
 /// own MCP server from what it read (never from model text); the model only gets the count and the dates.
 public struct PhotoCard: Codable, Sendable, Equatable {
     public struct Item: Codable, Sendable, Equatable {
@@ -97,6 +97,9 @@ public struct PhotoCard: Codable, Sendable, Equatable {
         public var dateLabel: String
         /// The person's title, else the file name: for VoiceOver and as a fallback without preview.
         public var label: String
+        public init(id: String, date: Date?, dateLabel: String, label: String) {
+            self.id = id; self.date = date; self.dateLabel = dateLabel; self.label = label
+        }
     }
     /// The search word as sent to Photos ("Fahrrad").
     public var query: String
@@ -106,10 +109,15 @@ public struct PhotoCard: Codable, Sendable, Equatable {
     public var previews: Bool
     /// "Fotos auf diesem Mac · 23 gefunden": quiet footer.
     public var footer: String
-    /// Instead of the grid: Photos found nothing for this word.
-    public var emptyText: String?
     /// More photos than shown, and where to see all of them.
     public var truncatedNote: String?
+    /// The most photos one search shows (`photos_search` limit).
+    public static let maxItems = 30
+
+    public init(query: String, items: [Item], total: Int, previews: Bool, footer: String, truncatedNote: String?) {
+        self.query = query; self.items = Array(items.prefix(Self.maxItems)); self.total = total; self.previews = previews
+        self.footer = footer; self.truncatedNote = truncatedNote
+    }
 }
 
 enum PhotosSearchScript {

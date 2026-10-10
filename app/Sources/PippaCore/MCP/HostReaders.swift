@@ -12,8 +12,11 @@ public struct MailHeader: Sendable, Equatable {
     public var mailbox: String
     /// At most the first 400 characters of the text.
     public var preview: String
-    public init(subject: String, sender: String, date: Date?, mailbox: String, preview: String) {
+    /// Message-ID header (to open the mail in Mail); never shown to the model.
+    public var messageID: String?
+    public init(subject: String, sender: String, date: Date?, mailbox: String, preview: String, messageID: String? = nil) {
         self.subject = subject; self.sender = sender; self.date = date; self.mailbox = mailbox; self.preview = preview
+        self.messageID = messageID
     }
 }
 
@@ -172,10 +175,12 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
     public static let sampleMails: [MailHeader] = [
         MailHeader(subject: "Nebenkostenabrechnung 2025", sender: "Hausverwaltung Berger <info@berger-hv.de>",
                    date: DayDate(year: 2026, month: 10, day: 1)?.localNoon, mailbox: "Eingang",
-                   preview: "Guten Tag, anbei die Nebenkostenabrechnung 2025. Die Nachzahlung von 312,48 € ist zahlbar bis 31.10.2026."),
+                   preview: "Guten Tag, anbei die Nebenkostenabrechnung 2025. Die Nachzahlung von 312,48 € ist zahlbar bis 31.10.2026.",
+                   messageID: "nk-2025@berger-hv.example"),
         MailHeader(subject: "Elternabend am Donnerstag", sender: "Testschule Musterstadt <sekretariat@testschule.example>",
                    date: DayDate(year: 2026, month: 10, day: 5)?.localNoon, mailbox: "Eingang",
-                   preview: "Liebe Eltern, der Elternabend der Klasse 4b findet am Donnerstag um 19:30 Uhr im Raum 12 statt."),
+                   preview: "Liebe Eltern, der Elternabend der Klasse 4b findet am Donnerstag um 19:30 Uhr im Raum 12 statt.",
+                   messageID: "elternabend-4b@testschule.example"),
     ]
 
     /// Freely invented (no real photos): labels as Photos would find them, then the hit.
@@ -225,7 +230,11 @@ enum MailSearchScript {
                     set c to (content of m) as text
                     if (length of c) > 400 then set c to text 1 thru 400 of c
                 end try
-                set end of out to {subject of m, sender of m, date received of m, boxName, c}
+                set mid to ""
+                try
+                    set mid to (message id of m) as text
+                end try
+                set end of out to {subject of m, sender of m, date received of m, boxName, c, mid}
             end repeat
             return {total, out}
         end tell
@@ -240,9 +249,9 @@ enum MailSearchScript {
             guard parts.count == 2 else { return HostFetch(items: [], total: 0) }
             let items = AppleEvents.items(parts[1]).compactMap { row -> MailHeader? in
                 let f = AppleEvents.items(row)
-                guard f.count == 5 else { return nil }
+                guard f.count >= 5 else { return nil }
                 return MailHeader(subject: f[0].stringValue ?? "", sender: f[1].stringValue ?? "", date: f[2].dateValue,
-                                  mailbox: f[3].stringValue ?? "", preview: f[4].stringValue ?? "")
+                                  mailbox: f[3].stringValue ?? "", preview: f[4].stringValue ?? "", messageID: f.count > 5 ? f[5].stringValue : nil)
             }
             let sorted = items.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
             return HostFetch(items: sorted, total: Int(parts[0].int32Value))

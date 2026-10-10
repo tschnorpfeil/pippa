@@ -8,8 +8,10 @@ public struct ConversationCalendarRead: Codable, Sendable, Equatable {
     public var state: State
     public var question: String
     public var range: CalendarRange
-    public init(state: State, question: String, range: CalendarRange) {
-        self.state = state; self.question = String(question.prefix(500)); self.range = range
+    /// What was read, as a card (CalendarCard). Missing in older histories: the text is shown instead.
+    public var card: CalendarCard?
+    public init(state: State, question: String, range: CalendarRange, card: CalendarCard? = nil) {
+        self.state = state; self.question = String(question.prefix(500)); self.range = range; self.card = card
     }
 }
 
@@ -30,7 +32,7 @@ public enum CalendarConversation {
     /// Text and marker for the answer. Each state has its own wording; only a real read can say „nothing in your calendar“.
     public static func answer(for result: CalendarReadResult, question: String, range: CalendarRange) -> (text: String, calendar: ConversationCalendarRead) {
         switch result {
-        case .read(let digest): (digest.markdown, ConversationCalendarRead(state: .read, question: question, range: range))
+        case .read(let digest): (digest.markdown, ConversationCalendarRead(state: .read, question: question, range: range, card: digest.card))
         case .needsAccess: (accessBenefit, ConversationCalendarRead(state: .needsAccess, question: question, range: range))
         case .denied: (deniedText, ConversationCalendarRead(state: .denied, question: question, range: range))
         case .failed(let why): (why, ConversationCalendarRead(state: .failed, question: question, range: range))

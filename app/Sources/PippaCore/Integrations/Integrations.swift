@@ -253,14 +253,14 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
         }
         func dayStart(_ day: Int) -> Date { calendar.date(byAdding: .day, value: day, to: today) ?? today }
         return [
-            CalendarEvent(id: "demo-zahnarzt", title: "Zahnarzt (Beispiel)", start: at(0, 16), end: at(0, 17), calendar: "Privat", location: "Praxis Beispiel"),
-            CalendarEvent(id: "demo-standup", title: "Team-Standup (Beispiel)", start: at(1, 9), end: at(1, 9, 30), calendar: "Arbeit", status: .confirmed, recurring: true),
-            CalendarEvent(id: "demo-standup", title: "Team-Standup (Beispiel)", start: at(2, 9), end: at(2, 9, 30), calendar: "Arbeit", status: .cancelled, recurring: true),
+            CalendarEvent(id: "demo-zahnarzt", title: "Zahnarzt (Beispiel)", start: at(0, 16), end: at(0, 17), calendar: "Privat", location: "Praxis Beispiel", color: "#34C759"),
+            CalendarEvent(id: "demo-standup", title: "Team-Standup (Beispiel)", start: at(1, 9), end: at(1, 9, 30), calendar: "Arbeit", status: .confirmed, recurring: true, color: "#1BADF8"),
+            CalendarEvent(id: "demo-standup", title: "Team-Standup (Beispiel)", start: at(2, 9), end: at(2, 9, 30), calendar: "Arbeit", status: .cancelled, recurring: true, color: "#1BADF8"),
             CalendarEvent(id: "demo-call", title: "Abstimmung Projekt (Beispiel)", start: at(2, 15), end: at(2, 16), calendar: "Arbeit",
-                          timeZone: "America/New_York", declined: true),
+                          timeZone: "America/New_York", declined: true, color: "#1BADF8"),
             CalendarEvent(id: "demo-reise", title: "Reise nach Hamburg (Beispiel)", start: dayStart(3), end: dayStart(5).addingTimeInterval(-1),
-                          allDay: true, calendar: "Privat"),
-            CalendarEvent(id: "demo-essen", title: "Abendessen mit Freunden (Beispiel)", start: at(4, 19), end: at(4, 22), calendar: "Privat"),
+                          allDay: true, calendar: "Privat", color: "#34C759"),
+            CalendarEvent(id: "demo-essen", title: "Abendessen mit Freunden (Beispiel)", start: at(4, 19), end: at(4, 22), calendar: "Privat", color: "#34C759"),
         ]
     }
 }
