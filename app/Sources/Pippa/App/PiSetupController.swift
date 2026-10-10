@@ -81,7 +81,8 @@ final class PiSetupController: ObservableObject {
             roots = PiInstallRoots(support: Pippa.supportDirectory, payload: payload)
         }
         // The model comes from the memory table; the only setting is "Standard" / "Gründlicher" (24 GB and up).
-        let preference = PippaSettings.load(from: roots.support).preference
+        let saved = PippaSettings.load(from: roots.support).preference
+        let preference = ModelSelector.offersThorough(physicalMemory: ProcessInfo.processInfo.physicalMemory) ? saved : .standard
         guard let choice = PiSetupFlow.choice(override: env["PIPPA_PI_MODEL"], preference: preference) else {
             // Also an unpinned table model (scripts/pin-model.sh): loud on purpose, a release must never get here.
             let unpinned = ModelSelector.tableKeys.filter { ModelCatalog.bundled().model($0)?.pinned == nil }
