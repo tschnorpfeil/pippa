@@ -224,7 +224,7 @@ public struct PippaMCPTools: Sendable {
             tool("excel_selection", "Excel-Auswahl lesen",
                  "Read the Excel sheet around the selection: values, formulas [in brackets]."),
             tool("photos_search", "Fotos suchen",
-                 "Find photos in Photos by what is in them, place or text (query: one word in the Mac's language). No query: the newest; days: only the last N days.",
+                 "Find photos by content, place or text (query: one word, in the Mac's language). No query: newest; days: last N days.",
                  ["query": string, "days": integer, "limit": integer]),
             // The message names the app only ([Im Vordergrund: …], FrontApp.label); the content costs a round, and only
             // when the question is about it.
