@@ -88,7 +88,8 @@ extension PiRPCChat {
     /// did is told by the read receipt.
     func takeShownActions() -> ActionReceipt? {
         let own = Set(PippaMCPTurnTools.names.map { "mcp__\(PippaMCPTools.serverName)__" + $0 })
-        let events = (takeActions()?.items ?? []).filter { !($0.action == "tool" && own.contains($0.name ?? "")) }
+        let taken = takeActions()
+        let events = (taken?.items ?? []).filter { !($0.action == "tool" && own.contains($0.name ?? "")) }
         var items = events
         // Answer text without a mail draft from code → "Noch kein Entwurf in Mail" + "Als Entwurf in Mail".
         var offer: MailDraftOffer?
@@ -98,7 +99,7 @@ extension PiRPCChat {
             offer = rule.offer
         }
         Self.pendingMail = nil
-        return items.isEmpty ? nil : ActionReceipt(items: items, mailOffer: offer)
+        return items.isEmpty ? nil : ActionReceipt(items: items, mailOffer: offer, cards: taken?.cards)
     }
 
     /// Answer and identity of the mail in question (shown .eml or `mail_selected`), of the last finished answer.

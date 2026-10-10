@@ -6,8 +6,8 @@ import SwiftUI
 /// opens it in Calendar. The facts come from code (CalendarDigest), so the card never shows more or less than was read.
 struct CalendarCardView: View {
     var card: CalendarCard
-    /// Plain text of the same answer, for "Copy".
-    var text: String
+    /// Plain text of the same answer, for "Copy"; `nil`: no menu (the card sits under an answer of its own).
+    var text: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -51,9 +51,11 @@ struct CalendarCardView: View {
         .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
         .accessibilityElement(children: .contain)
         .contextMenu {
-            Button(T("Copy", table: "Views")) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
+            if let text {
+                Button(T("Copy", table: "Views")) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                }
             }
         }
     }
@@ -108,6 +110,7 @@ private struct CalendarCardRow: View {
 
     /// Calendar shows the appointment itself; if it cannot (an identifier Calendar does not know), Calendar opens.
     private func open() {
+        guard DevEnvironment.value("PIPPA_DEMO") != "1" else { return }
         let id = entry.eventID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? entry.eventID
         if let url = URL(string: "ical://ekevent/\(id)?method=show&options=more"), NSWorkspace.shared.open(url) { return }
         if let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iCal") {

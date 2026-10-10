@@ -515,6 +515,9 @@ struct ConversationWorkspace: View {
                         .background(message.role == .user ? Theme.chatUser : .clear, in: RoundedRectangle(cornerRadius: 16))
                         .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
                 }
+                if message.role == .assistant, let cards = message.actions?.cards {
+                    ResultCardsView(cards: cards)
+                }
                 if let actions = message.actions {
                     ActionReceiptView(receipt: actions, disabled: chat.isRunning,
                                       onOpenMailDraft: { chat.openMailDraft() }, onSaveMailOffer: { chat.saveMailOffer(messageID: message.id) },

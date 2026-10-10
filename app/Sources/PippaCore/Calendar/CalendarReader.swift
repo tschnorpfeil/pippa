@@ -54,7 +54,7 @@ public enum CalendarReader {
         switch await read(range, from: integrations, now: now, calendar: calendar) {
         case .read(let digest):
             let payload = try? JSONSerialization.data(withJSONObject: digest.toolPayload(), options: [.sortedKeys])
-            return payload.map { CalendarToolReply(status: .ok, payload: $0) } ?? CalendarToolReply(status: .failed)
+            return payload.map { CalendarToolReply(status: .ok, payload: $0, card: digest.card) } ?? CalendarToolReply(status: .failed)
         case .needsAccess: return CalendarToolReply(status: .needsAccess)
         case .denied: return CalendarToolReply(status: .denied)
         case .failed: return CalendarToolReply(status: .failed)

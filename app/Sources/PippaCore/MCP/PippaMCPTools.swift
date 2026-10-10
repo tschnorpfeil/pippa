@@ -85,8 +85,10 @@ public struct PippaMCPReadNote: Sendable, Equatable {
     /// For `mail_selected`: identity of the mail read (Message-ID, reply address, subject), so
     /// "Als Entwurf in Mail" replies to exactly this mail and not to whatever is selected at click time.
     public var mail: MailReplySource?
-    public init(tool: String, read: Bool, line: String, mail: MailReplySource? = nil) {
-        self.tool = tool; self.read = read; self.line = line; self.mail = mail
+    /// What was read, as a card under the answer (calendar, mail search).
+    public var card: ResultCard?
+    public init(tool: String, read: Bool, line: String, mail: MailReplySource? = nil, card: ResultCard? = nil) {
+        self.tool = tool; self.read = read; self.line = line; self.mail = mail; self.card = card
     }
 }
 
@@ -96,6 +98,8 @@ public struct PippaMCPToolResult: Sendable, Equatable {
     public var isError: Bool
     /// What a writing tool did, for Pippa's receipt (`PippaMCPHost.onWrite`; the model does not see it).
     public var receipt: PippaMCPWriteReceipt? = nil
+    /// What a reading tool returned, as a card for the conversation (`PippaMCPReadNote.card`; the model does not see it).
+    public var card: ResultCard? = nil
 }
 
 public struct PippaMCPTools: Sendable {
@@ -285,7 +289,7 @@ public struct PippaMCPTools: Sendable {
         let mail = name == "mail_selected" ? (data["messageID"] as? String).flatMap {
             MailReplySource(messageID: $0, replyTo: data["replyTo"] as? String, subject: data["subject"] as? String ?? "")
         } : nil
-        return PippaMCPReadNote(tool: name, read: true, line: line, mail: mail)
+        return PippaMCPReadNote(tool: name, read: true, line: line, mail: mail, card: outcome.card)
     }
 
     /// Time range in words, as the person meant it ("heute", "nächste Woche", "Do., 8. Okt. 2026 bis …").
@@ -340,8 +344,10 @@ public struct PippaMCPTools: Sendable {
                 return blocked("failed", CalendarReadResult.failureText)
             }
             let source = digest.removeValue(forKey: "source") as? String ?? "Calendar on this Mac"
-            return Self.bounded(source: source, data: digest,
-                                next: "Answer briefly, by day. Copy days, times and states exactly; do not compute them. If days is empty, nothing is in the calendar for this period. If truncated, say only the first appointments are shown.")
+            var result = Self.bounded(source: source, data: digest,
+                                      next: "Answer briefly, by day. Copy days, times and states exactly; do not compute them. If days is empty, nothing is in the calendar for this period. If truncated, say only the first appointments are shown.")
+            result.card = reply.card.map(ResultCard.calendar)
+            return result
         case .invalidRange:
             return invalid("This period cannot be read. Use a period from the list, or dates (YYYY-MM-DD) with at most 31 days.")
         case .needsAccess: return blocked("needs_access", Self.notYet(.calendar))
@@ -416,9 +422,11 @@ public struct PippaMCPTools: Sendable {
                 if let date = m.date { value["date"] = Self.dateLabel(date, time: true, calendar: host.calendar) }
                 return value
             }
-            return Self.bounded(source: "Mail on this Mac (inbox search by subject or sender)",
-                                data: ["query": query, "mails": mails, "shown": mails.count, "total": fetch.total, "truncated": fetch.total > mails.count],
-                                next: "List the matches briefly. start is only the beginning of each email. If mails is empty, no email in the inbox matches.")
+            var result = Self.bounded(source: "Mail on this Mac (inbox search by subject or sender)",
+                                      data: ["query": query, "mails": mails, "shown": mails.count, "total": fetch.total, "truncated": fetch.total > mails.count],
+                                      next: "List the matches briefly. start is only the beginning of each email. If mails is empty, no email in the inbox matches.")
+            if !fetch.items.isEmpty { result.card = .mail(MailCard(query: query, mails: fetch.items, total: fetch.total, calendar: host.calendar)) }
+            return result
         } catch {
             return failure(error, .mail)
         }
