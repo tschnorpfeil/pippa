@@ -285,10 +285,10 @@ public struct ThoughtLine: Sendable, Equatable {
         return steps[index].text
     }
 
-    /// All finished steps so far, oldest first (the open ones are still running).
+    /// All finished steps so far, oldest first (the open ones are still running); identical ones in a row merged.
     public var doneSteps: [WorkStep] {
         let open = Set(openSteps.compactMap { $0 })
-        return steps.enumerated().filter { !open.contains($0.offset) }.map(\.element)
+        return WorkStep.merged(steps.enumerated().filter { !open.contains($0.offset) }.map(\.element))
     }
 
     /// Finished steps, newest last, for the quiet list (`hidden`: how many older ones are not listed).

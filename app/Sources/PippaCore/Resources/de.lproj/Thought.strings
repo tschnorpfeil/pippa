@@ -156,6 +156,12 @@
 "Copying files" = "Kopiere Dateien";
 "Creating a folder" = "Lege einen Ordner an";
 "Working on your Mac" = "Arbeite an deinem Mac";
+"Looking in your mail" = "Schaue in deine Mails";
+"Looking in your notes" = "Schaue in deine Notizen";
+"Looking in your contacts" = "Schaue in deine Kontakte";
+"Using %@" = "Nutze %@";
+"Opening %@" = "Öffne %@";
+"%lld times" = "%lld-mal";
 "Looking in your calendar" = "Schaue in deinen Kalender";
 "Adding a calendar entry" = "Trage einen Termin ein";
 "Searching your mail" = "Suche in deinen Mails";

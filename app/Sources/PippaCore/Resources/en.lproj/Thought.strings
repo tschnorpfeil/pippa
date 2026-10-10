@@ -156,6 +156,12 @@
 "Copying files" = "Copying files";
 "Creating a folder" = "Creating a folder";
 "Working on your Mac" = "Working on your Mac";
+"Looking in your mail" = "Looking in your mail";
+"Looking in your notes" = "Looking in your notes";
+"Looking in your contacts" = "Looking in your contacts";
+"Using %@" = "Using %@";
+"Opening %@" = "Opening %@";
+"%lld times" = "%lld times";
 "Looking in your calendar" = "Looking in your calendar";
 "Adding a calendar entry" = "Adding a calendar entry";
 "Searching your mail" = "Searching your mail";
