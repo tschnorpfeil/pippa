@@ -190,16 +190,19 @@ enum AppleEvents {
     }
 
     /// Starts the app invisibly in the background if it is not running.
-    static func launchHidden(_ i: Integration) async -> Bool {
-        if isRunning(i) { return true }
-        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: i.bundleIdentifier) else { return false }
+    static func launchHidden(_ i: Integration) async -> Bool { await launchHidden(bundle: i.bundleIdentifier) }
+
+    /// As above, for apps without their own case in `Integration` (Photos).
+    static func launchHidden(bundle: String) async -> Bool {
+        if isRunning(bundle: bundle) { return true }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else { return false }
         let config = NSWorkspace.OpenConfiguration()
         config.activates = false
         config.hides = true
         config.addsToRecentItems = false
         _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: config)
-        for _ in 0..<25 where !isRunning(i) { try? await Task.sleep(for: .milliseconds(200)) }
-        return isRunning(i)
+        for _ in 0..<25 where !isRunning(bundle: bundle) { try? await Task.sleep(for: .milliseconds(200)) }
+        return isRunning(bundle: bundle)
     }
 
     /// May Pippa ask the app via Apple Events? `ask: true` shows the system prompt and waits for the answer,
@@ -704,7 +707,8 @@ indirect enum ScriptValue: Sendable {
 public enum IntegrationScripts {
     /// Name and text of all scripts, for `compileAll` and the check that none calls `send`.
     public static var sources: [(name: String, source: String)] {
-        [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("Excel", ExcelScript.source)]
+        [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("Excel", ExcelScript.source),
+         ("PhotosSearch", PhotosSearchScript.source), ("PhotosShow", PhotosShowScript.source)]
     }
 
     /// Scripts for apps that are not part of macOS. Their terms (`active workbook`, `used range` ...) exist only in the

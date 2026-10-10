@@ -1,8 +1,8 @@
 import EventKit
 import Foundation
 
-// Two small readers that exist only for Pippa's MCP server, separate from
-// `AppIntegrations` so the existing integrations and their checks stay unchanged. Both only read.
+// Small readers that exist only for Pippa's MCP server, separate from
+// `AppIntegrations` so the existing integrations and their checks stay unchanged. All only read.
 
 /// Header of a found mail with a short start of the text. Read only.
 public struct MailHeader: Sendable, Equatable {
@@ -43,6 +43,12 @@ public protocol HostDataReading: Sendable {
     func searchMail(_ query: String, limit: Int) async throws -> HostFetch<MailHeader>
     /// Reminders not done; with `dueBefore` only those due by then (those without a date are dropped).
     func openReminders(dueBefore: Date?, limit: Int) async throws -> HostFetch<ReminderItem>
+    /// May Pippa search Photos (automation)? `ask: true` shows the system prompt. Starts Photos invisibly if needed.
+    func photosAccess(ask: Bool) async -> IntegrationAccess
+    /// Photos' own search (objects, places, people, text) for `query`; newest first.
+    func searchPhotos(_ query: String, limit: Int) async throws -> HostFetch<PhotoHit>
+    /// May the card show previews (PhotoKit)? `ask: true` shows the system prompt once.
+    func photoPreviewAccess(ask: Bool) async -> Bool
 }
 
 extension SystemIntegrations: HostDataReading {
@@ -69,6 +75,17 @@ extension SystemIntegrations: HostDataReading {
     }
 }
 
+extension SystemIntegrations {
+    public func photosAccess(ask: Bool) async -> IntegrationAccess { await PhotosLibrary.access(ask: ask) }
+
+    public func searchPhotos(_ query: String, limit: Int) async throws -> HostFetch<PhotoHit> {
+        guard AppleEvents.isRunning(bundle: PhotosLibrary.bundleIdentifier) else { throw PippaError.appNotOpen(PhotosLibrary.appName) }
+        return try await PhotosSearchScript.search(query, limit: limit)
+    }
+
+    public func photoPreviewAccess(ask: Bool) async -> Bool { await PhotosLibrary.previewAccess(ask: ask) }
+}
+
 enum HostOrder {
     /// Due first (by date), then those without a date by title.
     static func reminders(_ items: [ReminderItem]) -> [ReminderItem] {
@@ -92,11 +109,49 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
     private var storedReminders: [ReminderItem]
     /// Checks: Mail is not open.
     public var mailClosed = false
+    /// Checks: Photos is not open (and could not be started).
+    public var photosClosed = false
+    /// Checks: automation for Photos and the previews (PhotoKit).
+    public var photosPermission: IntegrationAccess = .granted
+    public var previewsAllowed = true
+    /// Checks: what `searchPhotos` was asked for, and whether the preview prompt was shown.
+    public private(set) var photoQueries: [String] = []
+    public private(set) var previewAsked = false
+    private var storedPhotos: [(words: [String], hit: PhotoHit)]
 
     public init(integrations: DemoIntegrations, mails: [MailHeader]? = nil, reminders: [ReminderItem]? = nil, now: Date = Date()) {
         self.integrations = integrations
         storedMails = mails ?? Self.sampleMails
         storedReminders = reminders ?? Self.sampleReminders(now: now)
+        storedPhotos = Self.samplePhotos
+    }
+
+    public func photosAccess(ask: Bool) async -> IntegrationAccess {
+        lock.withLock {
+            if photosClosed { return .unavailable(L("%@ isn’t open right now.", table: "Core", PhotosLibrary.appName)) }
+            if photosPermission == .notDetermined && ask { photosPermission = .granted }
+            return photosPermission
+        }
+    }
+
+    /// Like Photos: a word matches what is in the picture (here: invented labels), the place or the title.
+    public func searchPhotos(_ query: String, limit: Int) async throws -> HostFetch<PhotoHit> {
+        let (closed, allowed, photos): (Bool, Bool, [(words: [String], hit: PhotoHit)]) = lock.withLock {
+            photoQueries.append(query)
+            return (photosClosed, photosPermission == .granted, storedPhotos)
+        }
+        if closed { throw PippaError.appNotOpen(PhotosLibrary.appName) }
+        guard allowed else { throw PippaError.accessDenied(PhotosLibrary.appName) }
+        let found = photos.filter { entry in entry.words.contains { $0.localizedCaseInsensitiveContains(query) } }.map(\.hit)
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+        return HostFetch(items: Array(found.prefix(limit)), total: found.count)
+    }
+
+    public func photoPreviewAccess(ask: Bool) async -> Bool {
+        lock.withLock {
+            if ask { previewAsked = true }
+            return previewsAllowed
+        }
     }
 
     public func searchMail(_ query: String, limit: Int) async throws -> HostFetch<MailHeader> {
@@ -121,6 +176,15 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
         MailHeader(subject: "Elternabend am Donnerstag", sender: "Testschule Musterstadt <sekretariat@testschule.example>",
                    date: DayDate(year: 2026, month: 10, day: 5)?.localNoon, mailbox: "Eingang",
                    preview: "Liebe Eltern, der Elternabend der Klasse 4b findet am Donnerstag um 19:30 Uhr im Raum 12 statt."),
+    ]
+
+    /// Freely invented (no real photos): labels as Photos would find them, then the hit.
+    public static let samplePhotos: [(words: [String], hit: PhotoHit)] = [
+        (["Fahrrad", "bicycle", "Köln"], PhotoHit(id: "DEMO-0001/L0/001", date: DayDate(year: 2026, month: 5, day: 1)?.localNoon, filename: "IMG_0101.HEIC")),
+        (["Fahrrad", "bicycle", "Strand", "beach", "Knokke"],
+         PhotoHit(id: "DEMO-0002/L0/001", date: DayDate(year: 2025, month: 8, day: 3)?.localNoon, filename: "IMG_0202.HEIC", title: "Radtour (Beispiel)")),
+        (["Strand", "beach", "Knokke"], PhotoHit(id: "DEMO-0003/L0/001", date: DayDate(year: 2025, month: 8, day: 4)?.localNoon, filename: "IMG_0203.HEIC")),
+        (["Hund", "dog"], PhotoHit(id: "DEMO-0004/L0/001", date: nil, filename: "Scan 12.jpg")),
     ]
 
     /// Freely invented, relative to `now`.
