@@ -679,7 +679,7 @@ final class ShellController: NSObject {
         radius = t.radius
         markRect = toMark
         updateStack(animated: canAnimate)
-        updateAura()
+        updateAura(motion: canAnimate && !reduced ? spring(motion) : nil)
         updateMouseIgnoring()
 
         let finish: @MainActor () -> Void = { [weak self] in
@@ -980,7 +980,8 @@ final class ShellController: NSObject {
     }
 
     /// Glow and thought bubble only around the collapsed pill; the open conversation shows the same steps itself.
-    func updateAura() {
+    /// `motion`: the spring the shape is morphing with, so the glow follows it instead of jumping ahead.
+    func updateAura(motion: ShellTokens.Spring? = nil) {
         if aura.frame != stage.bounds { aura.frame = stage.bounds }
         let height = stage.bounds.height
         func flipped(_ r: CGRect) -> CGRect { CGRect(x: r.minX, y: height - r.maxY, width: r.width, height: r.height) }
@@ -988,7 +989,9 @@ final class ShellController: NSObject {
         let chat = model.conversations
         let running = atRest && chat.isRunning && chat.thought.isVisible
         let room = toStage(screen(containing: shellScreenRect).visibleFrame)
-        auraState.update(pill: flipped(shellRect), mark: flipped(markRect), below: room.maxY - shellRect.maxY < 120,
+        // While the shell is open the light keeps the pill's place and fades there, instead of stretching around it.
+        auraState.update(pill: atRest ? flipped(shellRect) : nil, mark: atRest ? flipped(markRect) : nil, motion: motion,
+                         below: room.maxY - shellRect.maxY < 120,
                          working: atRest && model.pillStatus.tone == .working,
                          step: running ? chat.thought.bubbles.last : nil, startedAt: running ? chat.thought.startedAt : nil,
                          slowText: ThoughtLine.slowNote)
