@@ -57,6 +57,26 @@ test("read on a document is sent to read_document; text files and other tools pa
 	assert.equal(documentForRead("mcp__pippa__read_document", { path: "a.pdf" }), undefined);
 });
 
+test('call budget: different calls still stop after MAX_CALLS per answer, then the answer ends; a new answer starts fresh', async () => {
+ const { MAX_CALLS } = await import('./pippa-assist.ts');
+ const handlers={},entries=[];let aborted=0;
+ assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+ const ctx={abort:()=>aborted++};
+ await handlers.agent_start({});
+ const blocked=[];
+ for(let i=0;i<MAX_CALLS+3;i++){
+  const event={toolName:'mcp__pippa__read_document',input:{path:`/fake/Downloads/beleg_${i}.pdf`},toolCallId:'r'+i};
+  const block=await handlers.tool_call(event,ctx);
+  if(block)blocked.push(block.reason);else await handlers.tool_result({...event,isError:false,content:[{type:'text',text:'ok'}]},ctx);
+ }
+ assert.equal(blocked.length,3);
+ assert.match(blocked[0],/Answer the user now/);
+ assert.equal(aborted,1);
+ assert.equal(entries.filter(x=>x.type==='pippa-loop-stop').length,1);
+ await handlers.agent_start({});
+ assert.equal(await handlers.tool_call({toolName:'mcp__pippa__read_document',input:{path:'/fake/a.pdf'},toolCallId:'n1'},ctx),undefined);
+});
+
 test('loop stop is distinct from manual Stop and preserves actual search locations', async () => {
  const handlers={},entries=[];let aborted=0;
   assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
