@@ -57,9 +57,8 @@ jobs:
           mkdir -p snaps; ls -la app/.build/debug/Pippa
           for a in dark light; do
             for o in thoughtline pillstatus; do
-              mkdir -p snaps/$a-$o
-              PIPPA_DEMO=1 PIPPA_APPEARANCE=$a PIPPA_SNAPSHOT=$PWD/snaps/$a-$o PIPPA_SNAPSHOT_ONLY=$o app/.build/debug/Pippa -AppleLanguages "(de)" > snaps/$a-$o/run.log 2>&1 &
-              pid=$!; ( sleep 300; kill $pid 2>/dev/null ) & wait $pid; echo "$a $o exit $?"; tail -n 15 snaps/$a-$o/run.log
+              PIPPA_DEMO=1 PIPPA_APPEARANCE=$a PIPPA_SNAPSHOT=$PWD/snaps/$a-$o PIPPA_SNAPSHOT_ONLY=$o app/.build/debug/Pippa -AppleLanguages "(de)" > snaps/$a-$o.log 2>&1 &
+              pid=$!; ( sleep 300; kill $pid 2>/dev/null ) & wait $pid; echo "$a $o exit $?"; tail -n 15 snaps/$a-$o.log
             done
           done
           find snaps -type f | sort
