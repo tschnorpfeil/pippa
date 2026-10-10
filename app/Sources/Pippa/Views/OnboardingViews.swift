@@ -28,10 +28,8 @@ private struct PiOnboarding: View {
 
     var body: some View {
         if PermissionsOnboardingPage.shows(permissions, setup) {
-            ViewThatFits(in: .vertical) {
-                PermissionsOnboardingPage(permissions: permissions, setup: setup)
-                ScrollView(.vertical) { PermissionsOnboardingPage(permissions: permissions, setup: setup) }.scrollIndicators(.automatic)
-            }
+            // Scrolls only its list (sized to the panel's room), so "Continue" never scrolls away.
+            PermissionsOnboardingPage(permissions: permissions, setup: setup)
         } else {
             ViewThatFits(in: .vertical) {
                 PiSetupContent(model: model, setup: setup)
