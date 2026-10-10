@@ -158,7 +158,7 @@
     },
     "language": {
       "englishQuestionEnglishAnswer": "6/6 (with the English note)",
-      "germanQuestionWithDu": "1/6 du, 1 mixed, 4 Sie (summary of a letter written with Sie); the German note now says mit du"
+      "germanQuestionWithDu": "1/6 du, 1 mixed, 4 Sie (summary of a letter written with Sie); the German note now says "duze mich" (only how Pippa addresses the person; the mail-antwort task checks the draft to the property manager stays formal)"
     },
     "tomorrow": "weather: web_search 'Wetter morgen Berlin' in all runs, no wrong date"
   }

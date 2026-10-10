@@ -84,7 +84,7 @@ try {
     }
    });
    // As the app sends it: German cases get PiShownContext.germanNote (PIPPA_DE_NOTE=0 measures without it).
-   child.stdin.write(JSON.stringify({type:'prompt',message:item.prompt+(process.env.PIPPA_DE_NOTE==='0'?'':'\n\nAntworte auf Deutsch, mit du.')})+'\n');
+   child.stdin.write(JSON.stringify({type:'prompt',message:item.prompt+(process.env.PIPPA_DE_NOTE==='0'?'':'\n\nAntworte auf Deutsch und duze mich.')})+'\n');
   }).catch(e=>{timedOut=true;err+=e.message;});
   // The previous Pi must exit before the shared proxy starts another case.
   await new Promise(done=>{
