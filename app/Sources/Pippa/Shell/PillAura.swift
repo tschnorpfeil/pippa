@@ -222,7 +222,7 @@ struct WanderingGlow: View, Animatable {
     private static let breath = 4.2
     private static let violet = Color(red: 132 / 255, green: 110 / 255, blue: 255 / 255)
 
-    var animatableData: Double {
+    nonisolated var animatableData: Double {
         get { lift }
         set { lift = newValue }
     }
