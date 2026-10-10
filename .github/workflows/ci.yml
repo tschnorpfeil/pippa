@@ -92,6 +92,16 @@ jobs:
       - name: Terminal autostart tests (runtime/pippa-local-server)
         run: node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
+      - name: TEMP print snapshots
+        if: always()
+        continue-on-error: true
+        run: |
+          grep -h -i "fail\|✗" snaps/*/thoughtline.txt snaps/*/pillstatus.txt 2>/dev/null | head -20
+          find snaps -name '*.png' | sed 's|.*/||' | sort | tr '\n' ' '; echo
+          for f in $(find snaps/dark-thoughtline -name '*03b-steps*.png') $(find snaps/light-thoughtline -name '*08-receipt-details*.png') $(find snaps/dark-pillstatus -name '*03-thinking*.png'); do
+            sips -Z 900 -s format jpeg -s formatOptions 55 "$f" --out /tmp/s.jpg >/dev/null
+            echo "B64BEGIN $(basename $f)"; base64 -i /tmp/s.jpg | fold -w 8000; echo "B64END"
+          done
 
   app:
     if: github.event_name == 'workflow_dispatch' && inputs.app
