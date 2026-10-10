@@ -155,4 +155,22 @@ func runResultCardChecks() async {
         let order = FoundFiles.ordered([a, folder, gone, b], answer: "Das Bild ist [Urlaub.jpg](\(b.absoluteString)).") { $0 != gone }
         return order == [b, a] && FoundFiles.ordered([], answer: "") == []
     }
+    check("What Pippa knows: read the remember file, forget one fact or all, other lines stay, only the person can read it") {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-memory-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("memory.md")
+        write("# Meine Notiz\n- Ärztin: Dr. Wolf\n-  Hund heißt Bello \n- Antworten kurz\n", file)
+        let before = MemoryFacts.read(file)
+        try? MemoryFacts.forget(["Hund heißt Bello"], in: file)
+        let after = MemoryFacts.read(file)
+        let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
+        let mode = (try? FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int) ?? 0
+        try? MemoryFacts.forget(nil, in: file)
+        let none = MemoryFacts.read(file)
+        let missing = MemoryFacts.read(folder.appendingPathComponent("gibt-es-nicht.md"))
+        return before == ["Ärztin: Dr. Wolf", "Hund heißt Bello", "Antworten kurz"] && after == ["Ärztin: Dr. Wolf", "Antworten kurz"]
+            && text.hasPrefix("# Meine Notiz\n") && mode == 0o600 && none.isEmpty && missing.isEmpty
+            && (try? String(contentsOf: file, encoding: .utf8))?.contains("# Meine Notiz") == true
+    }
 }
