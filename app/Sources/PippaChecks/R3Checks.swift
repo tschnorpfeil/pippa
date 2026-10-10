@@ -71,8 +71,8 @@ func runR3Checks() async {
         let allBytes = (try? JSONSerialization.data(withJSONObject: list))?.count ?? .max
         print("    Tool list: 3 new \(writerBytes) B, all \(list.count) together \(allBytes) B")
         let names = writers.compactMap { $0["name"] as? String }
-        return names == ["calendar_add", "reminder_add", "mail_draft"] && hintsOK && list.count == 9 && writerBytes < 1900
-            && PippaMCPTools.toolNames.count == 9 && !names.contains { $0.contains("send") || $0.contains("delete") }
+        return names == ["calendar_add", "reminder_add", "mail_draft"] && hintsOK && list.count == 10 && writerBytes < 1900
+            && PippaMCPTools.toolNames.count == 10 && !names.contains { $0.contains("send") || $0.contains("delete") }
     }
     check("R3 date: weekday = the next one after today, today/tomorrow, ISO; past, invalid and unknown → nil") {
         func d(_ s: String) -> String? {

@@ -67,7 +67,9 @@
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Pippa adds deadlines from your letters to Reminders when you ask, and can remove them again.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>When you ask, Pippa reads the email you selected in Mail, the table you’re looking at in Excel, and searches your photos and notes. Nothing is sent without your approval.</string>
+	<string>When you ask, Pippa reads the email you selected in Mail and the table you’re looking at in Excel, and searches your photos and notes. Nothing is sent without your approval.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>When you ask for pictures, Pippa shows the matching photos from your library. She doesn’t change or upload anything.</string>
 	<key>NSDesktopFolderUsageDescription</key>
 	<string>Pippa reads and tidies files on your Desktop when you ask her to. You can undo her changes.</string>
 	<key>NSDocumentsFolderUsageDescription</key>

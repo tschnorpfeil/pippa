@@ -552,7 +552,7 @@ final class PiRPCChat {
             }
             return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName)
         }
-        return items.isEmpty ? nil : ActionReceipt(items: items)
+        return items.isEmpty ? nil : ActionReceipt(items: items, cards: reads.compactMap(\.card))
     }
 
     /// Pippa's write tools → the action of their receipt (PippaMCPWriteReceipt).

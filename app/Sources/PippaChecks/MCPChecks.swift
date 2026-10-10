@@ -79,7 +79,7 @@ func runMCPChecks() async {
             && (unknown?["error"] as? [String: Any])?["code"] as? Int == -32601
             && (broken?["error"] as? [String: Any])?["code"] as? Int == -32700 && batch?.count == 1
     }
-    await checkAsync("MCP: five readers (+ read_document), all read-only (readOnly, non-destructive, closed world), schema as object") {
+    await checkAsync("MCP: six readers (+ read_document), all read-only (readOnly, non-destructive, closed world), schema as object") {
         let s = setup()
         let list = (await rpc(s.tools, "tools/list"))?["result"] as? [String: Any]
         let all = list?["tools"] as? [[String: Any]] ?? []
@@ -93,7 +93,7 @@ func runMCPChecks() async {
         }
         // Keep the tool list small: with direct approval it goes into every request.
         let bytes = (try? JSONSerialization.data(withJSONObject: tools))?.count ?? .max
-        return names == PippaMCPTools.toolNames && hintsOK && bytes < 3500 && tools.count == 6
+        return names == PippaMCPTools.toolNames && hintsOK && bytes < 3500 && tools.count == 7
     }
     await checkAsync("MCP: unknown tool is a protocol error, unknown arguments a tool error") {
         let s = setup()
@@ -233,6 +233,61 @@ func runMCPChecks() async {
         return !hit.isError && mails.count == 1 && (mails.first?["start"] as? String)?.contains("312,48") == true && hit.json["untrusted"] as? Bool == true
             && !none.isError && ((none.json["data"] as? [String: Any])?["mails"] as? [Any])?.isEmpty == true
             && short.isError && many.isError && closed.isError && closed.json["status"] as? String == "unavailable"
+    }
+
+    // MARK: Photos
+
+    await checkAsync("MCP photos_search: dates and count for the model, ids only in the card; one word retried; limits; closed, denied") {
+        let s = setup()
+        let hit = await call(s.tools, "photos_search", ["query": "Fahrrad"])
+        let data = hit.json["data"] as? [String: Any] ?? [:]
+        let photos = data["photos"] as? [[String: Any]] ?? []
+        let text = (try? JSONSerialization.data(withJSONObject: hit.json)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+        // Several words without a hit: once more with the one word that names the thing.
+        let wish = await call(s.tools, "photos_search", ["query": "Bilder aus Knokke"])
+        let wishData = wish.json["data"] as? [String: Any] ?? [:]
+        let none = await call(s.tools, "photos_search", ["query": "Giraffe"])
+        let short = await call(s.tools, "photos_search", ["query": "F"])
+        let many = await call(s.tools, "photos_search", ["query": "Fahrrad", "limit": 50])
+        s.data.photosClosed = true
+        let closed = await call(s.tools, "photos_search", ["query": "Fahrrad"])
+        s.data.photosClosed = false; s.data.photosPermission = .denied
+        let denied = await call(s.tools, "photos_search", ["query": "Fahrrad"])
+        return !hit.isError && photos.count == 2 && data["total"] as? Int == 2 && hit.json["untrusted"] as? Bool == true
+            && (photos.first?["date"] as? String)?.contains("2026") == true && photos.last?["title"] as? String == "Radtour (Beispiel)"
+            && !text.contains("DEMO-0001") && !text.contains("IMG_0101")
+            && !wish.isError && wishData["query"] as? String == "Knokke" && wishData["total"] as? Int == 2
+            && s.data.photoQueries.prefix(3) == ["Fahrrad", "Bilder aus Knokke", "Knokke"]
+            && !none.isError && (((none.json["data"] as? [String: Any])?["photos"] as? [Any])?.isEmpty == true)
+            && short.isError && many.isError
+            && closed.isError && closed.json["status"] as? String == "unavailable"
+            && denied.isError && (denied.json["tell"] as? String)?.contains("Automation") == true
+    }
+    await checkAsync("Photos card: from Pippa's own result (ids, newest first, label), in the read note; previews asked once after the sentence") {
+        final class Box<T>: @unchecked Sendable {
+            private let lock = NSLock(); private var items: [T] = []
+            func append(_ item: T) { lock.withLock { items.append(item) } }
+            var all: [T] { lock.withLock { items } }
+        }
+        let notes = Box<PippaMCPReadNote>()
+        let asked = Box<String>()
+        let demo = DemoIntegrations(granted: true)
+        let data = DemoHostData(integrations: demo, now: now)
+        data.photosPermission = .notDetermined
+        let host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: data, askForAccess: true, now: { now },
+                                calendar: berlin, explainAccess: { subject, sentence in asked.append("\(subject.appName)|\(sentence)"); return true },
+                                onRead: { notes.append($0) })
+        let tools = PippaMCPTools(host: host)
+        _ = await call(tools, "photos_search", ["query": "Knokke", "limit": 1])
+        guard case .photos(let card)? = notes.all.first?.card else { return false }
+        let empty = setup()
+        let nothing = await call(empty.tools, "photos_search", ["query": "Giraffe"])
+        return card.items.map(\.id) == ["DEMO-0003/L0/001"] && card.total == 2 && card.previews && card.query == "Knokke"
+            && card.items.first?.label == "IMG_0203.HEIC" && card.items.first?.dateLabel.contains("2025") == true
+            && card.truncatedNote != nil
+            && asked.all == ["\(PhotosLibrary.appName)|\(PippaMCPTools.accessExplanation(.photos))"] && data.previewAsked
+            && notes.all.first?.line == L("Searched Photos for “%@”: %lld found", table: "MCP", "Knokke", 2)
+            && !nothing.isError && !empty.data.previewAsked && notes.all.count == 1
     }
 
     // MARK: Excel

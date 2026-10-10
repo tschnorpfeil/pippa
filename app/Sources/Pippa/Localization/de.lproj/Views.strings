@@ -194,8 +194,6 @@
 
 "New topic. Previous conversation under Recent Conversations." = "Neues Thema. Vorheriges Gespräch unter „Letzte Gespräche“.";
 
-"Preparing your answer…" = "Ich bereite die Antwort vor…";
-
 "To (optional)" = "An (optional)";
 "Subject (optional)" = "Betreff (optional)";
 "Draft text" = "Entwurfstext";
@@ -263,3 +261,6 @@
 "Remind me tomorrow morning to take out the paper recycling" = "Erinnere mich morgen früh ans Altpapier";
 "Puts this sentence into the input field" = "Schreibt diesen Satz ins Eingabefeld";
 "Asks the same question again" = "Stellt dieselbe Frage noch einmal";
+"“%@” in Mail" = "„%@“ in Mail";
+"“%@” in Photos" = "„%@“ in Fotos";
+"Open in Photos" = "In Fotos öffnen";

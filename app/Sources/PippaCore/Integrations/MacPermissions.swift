@@ -67,7 +67,7 @@ public enum MacPermission: String, CaseIterable, Sendable, Identifiable {
         case .mail: (Integration.mail.bundleIdentifier, Integration.mail.appName)
         case .notes: ("com.apple.Notes", L("Notes", table: "Core"))
         case .excel: (ExcelScript.bundleIdentifier, ExcelScript.appName)
-        case .photos: ("com.apple.Photos", L("Photos", table: "Core"))
+        case .photos: (PhotosLibrary.bundleIdentifier, PhotosLibrary.appName)
         default: nil
         }
     }
@@ -290,21 +290,6 @@ public final class SystemPermissions: PermissionDesk, @unchecked Sendable {
         case .denied: .denied
         case .unavailable(let why): .unavailable(why)
         }
-    }
-}
-
-extension AppleEvents {
-    /// Starts the app invisibly in the background if it is not running (for an app without its own `Integration`).
-    static func launchHidden(bundle: String) async -> Bool {
-        if isRunning(bundle: bundle) { return true }
-        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else { return false }
-        let config = NSWorkspace.OpenConfiguration()
-        config.activates = false
-        config.hides = true
-        config.addsToRecentItems = false
-        _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: config)
-        for _ in 0..<25 where !isRunning(bundle: bundle) { try? await Task.sleep(for: .milliseconds(200)) }
-        return isRunning(bundle: bundle)
     }
 }
 

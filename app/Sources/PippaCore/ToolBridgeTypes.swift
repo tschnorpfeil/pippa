@@ -27,5 +27,7 @@ public struct CalendarToolReply: Sendable, Equatable {
     public var status: Status
     /// On `ok`: JSON object from `CalendarDigest.toolPayload` (source, period, days, events), otherwise empty.
     public var payload: Data?
-    public init(status: Status, payload: Data? = nil) { self.status = status; self.payload = payload }
+    /// On `ok`: the same facts as a card for the conversation (the model does not see it).
+    public var card: CalendarCard?
+    public init(status: Status, payload: Data? = nil, card: CalendarCard? = nil) { self.status = status; self.payload = payload; self.card = card }
 }
