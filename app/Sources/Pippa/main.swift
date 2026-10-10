@@ -13,6 +13,8 @@ if CommandLine.arguments.dropFirst().contains("--probe-legacy-container") {
     print("legacy_container \(LegacyMigrationPrompt.probe())")
     exit(0)
 }
+// First launch from the disk image or Downloads: offer once to move to Applications (before the single-instance lock).
+if AppMover.runIfNeeded() { exit(0) }
 // Without the sandbox, offer once to take over conversations and settings from the old container (before AppModel).
 LegacyMigrationPrompt.runIfNeeded()
 let delegate = AppDelegate()

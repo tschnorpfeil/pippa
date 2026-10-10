@@ -258,3 +258,11 @@
 "Your ChatGPT sign-in has run out. Sign in again in Pippa’s settings, or switch back to the AI on this Mac." = "Your ChatGPT sign-in has run out. Sign in again in Pippa’s settings, or switch back to the AI on this Mac.";
 "Your ChatGPT subscription has reached its limit for now. Try again later, or switch back to the AI on this Mac." = "Your ChatGPT subscription has reached its limit for now. Try again later, or switch back to the AI on this Mac.";
 "Online · ChatGPT" = "Online · ChatGPT";
+
+/* Move to Applications (AppMover) */
+"Move Pippa to your Applications folder?" = "Move Pippa to your Applications folder?";
+"Then she stays up to date by herself and can start with your Mac. It only takes a moment." = "Then she stays up to date by herself and can start with your Mac. It only takes a moment.";
+"Move to Applications" = "Move to Applications";
+"Pippa couldn’t move herself." = "Pippa couldn’t move herself.";
+"Drag Pippa into the Applications folder in Finder. Until then she works from here." = "Drag Pippa into the Applications folder in Finder. Until then she works from here.";
+"I can already answer simple questions; for everything else my AI is still loading." = "I can already answer simple questions; for everything else my AI is still loading.";

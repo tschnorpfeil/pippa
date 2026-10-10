@@ -32,7 +32,8 @@ struct PiSetupContent: View {
         }
         .workflowWidth(Theme.wideWidth)
         .overlay(alignment: .topTrailing) {
-            CloseButton { setup.later() }.padding(12)
+            // The download question is its own step: one clear button, no corner exit (only the quiet "Later" below).
+            if !setup.asksDownload { CloseButton { setup.later() }.padding(12) }
         }
     }
 
@@ -49,14 +50,30 @@ struct PiSetupContent: View {
                 .padding(.top, 12)
                 .padding(.horizontal, 32)
                 .stagger(1)
-            HStack(spacing: 8) {
-                Button(T("Later", table: "Settings")) { setup.later() }.pippa(.quiet)
+            // A phone hotspot or Low Data Mode: say so before 5+ GB go over it.
+            if NetworkWatch.shared.expensive {
+                Text(T("You’re on a phone hotspot right now. Better load on Wi-Fi.", table: "Settings"))
+                    .font(Fonts.hint)
+                    .foregroundStyle(Theme.ink2)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                    .padding(.horizontal, 32)
+            }
+            VStack(spacing: 10) {
                 Button(T("Load", table: "Settings")) { setup.load() }
-                    .pippa(.primary)
+                    .pippa(.primary, large: true)
                     .keyboardShortcut(.defaultAction)
+                    .accessibilityLabel(T("Load", table: "Settings"))
+                // Quiet way out (hotspot, no time): tidying, PDFs and text recognition work without the AI.
+                Button(T("Later", table: "Settings")) { setup.later() }
+                    .buttonStyle(.plain)
+                    .font(Fonts.hint)
+                    .foregroundStyle(Theme.ink3)
+                    .accessibilityLabel(T("Later", table: "Settings"))
             }
             .padding(.top, 20)
-            .padding(.bottom, 26)
+            .padding(.bottom, 22)
             .stagger(2)
         }
     }
