@@ -10,7 +10,7 @@ import { readFile, writeFile, mkdir, rm, chmod, symlink } from 'node:fs/promises
 import { existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { VARIANTS, modelsJson, piSettings } from './variants.mjs';
-import { TASKS, WEB } from './tasks.mjs';
+import { TASKS, WEB, taskPrompt } from './tasks.mjs';
 import { rssMB } from './server.mjs';
 
 const root = resolve(import.meta.dirname, '../../..');
@@ -162,7 +162,7 @@ try {
     }
    });
    sent = Date.now(); current.start = sent;
-   child.stdin.write(json({ type: 'prompt', message: task.prompt(home, shown) }) + '\n');
+   child.stdin.write(json({ type: 'prompt', message: taskPrompt(task, home, shown) }) + '\n');
   });
   const total = (Date.now() - sent) / 1000;
   clearInterval(sampler);
@@ -176,7 +176,7 @@ try {
   const thinking = assistant.flatMap(m => m.content?.filter(p => p.type === 'thinking').map(p => p.thinking) ?? []).join('\n');
   const result = {
    variant: variant.label, model: variant.key, thinking: variant.thinking, round: Number(round), task: task.id, lang: task.lang,
-   prompt: task.prompt(home, shown), autoGrade: auto.grade, autoNotes: auto.notes,
+   prompt: taskPrompt(task, home, shown), autoGrade: auto.grade, autoNotes: auto.notes,
    toolCalls: toolsUsed.length, tools: toolsUsed, mcp: current.mcp, approvals: current.approvals,
    loopStopped, aborted: abort, completed: events.some(x => x.type === 'agent_settled') && !abort,
    firstTokenSeconds: firstToken === null ? null : firstToken / 1000, firstWordSeconds: firstWord === null ? null : firstWord / 1000, totalSeconds: total,

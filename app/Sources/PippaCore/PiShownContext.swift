@@ -20,9 +20,11 @@ public enum PiShownContext {
     /// (1 of 6 English with any system prompt line, docs/rebuild/measurements/model-compare/prompt-fix) or of its English
     /// tool texts (a German question about Photos got an English answer, 2026-10-10). Per message, so the system prompt
     /// and its cache stay the same. Only from three words on: "Hey Pippa :)" was taken for English, and the model kept
-    /// "Answer in English." as the person's wish for the whole conversation (even in its summary).
+    /// "Answer in English." as the person's wish for the whole conversation (even in its summary). "duze mich": Qwen took
+    /// "Sie" from a formal letter in 4 of 6 runs although the system prompt says du (Mac, 2026-10-10); "mich", in the
+    /// person's own voice, so letters and mails Pippa drafts for others keep their own tone.
     public static let englishNote = "Answer in English."
-    public static let germanNote = "Antworte auf Deutsch."
+    public static let germanNote = "Antworte auf Deutsch und duze mich."
 
     /// The note for the question's language; none when it is too short to tell (then the system prompt decides).
     public static func languageNote(_ question: String) -> String {
