@@ -110,7 +110,7 @@ private struct PrivacyBanner: View {
                      ?? T("Everything stays on your Mac", table: "Settings"))
                     .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
                 Text(online == nil
-                     ? T("Pippa only goes online for downloads, updates and searches you allow.", table: "Settings")
+                     ? T("Pippa only goes online for downloads, updates and web searches. Under each answer you see what was searched.", table: "Settings")
                      : T("Your files stay on your Mac. You can switch back below at any time.", table: "Settings"))
                     .font(.scaled(size: 12)).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
             }

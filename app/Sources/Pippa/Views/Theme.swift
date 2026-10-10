@@ -274,6 +274,13 @@ private struct StaggerObserving: ViewModifier {
 extension View {
     /// Result first (0), well (+60 ms = 4), actions and base (+120 ms = 8); rows in between.
     func stagger(_ index: Int, moves: Bool = true) -> some View { modifier(StaggerModifier(index: min(index, 16), moves: moves)) }
+
+    /// The frame every card under an answer shares (calendar, reminders, mail, photos, found files, web sources).
+    func resultCard() -> some View {
+        frame(maxWidth: 520, alignment: .leading)
+            .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 12))
+            .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
+    }
 }
 
 // MARK: - Grain (linoleum of the website)

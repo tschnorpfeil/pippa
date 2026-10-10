@@ -1,6 +1,6 @@
 /**
- * Small helps that keep a small local model on track. No permissions: Pi runs every tool without asking, this file only
- * steers. Loaded by Pippa next to its file tools:
+ * Small helps that keep a small local model on track, and a quiet safety net. No permissions: Pi runs every tool
+ * without asking; this file steers, keeps old versions and stops a few shell commands. Loaded by Pippa next to its file tools:
  *
  *   pi --mode rpc --extension …/pippa-tools.ts --extension …/pippa-assist.ts
  *
@@ -18,7 +18,17 @@
  * - Today's date: each new message starts with "[2026-10-09, Friday]". The system prompt has no date so it stays the
  *   same (prompt cache); without one K2 searched the weather for a wrong "tomorrow". The line is saved with the
  *   message, so earlier turns never change. ISO date, no sentence: the answer follows the question's language.
+ * - Safety net, without asking: Pi runs every tool, and the people using Pippa have no Git and often no Time Machine.
+ *   Before `edit` or `write` changes an existing file, a copy goes to Pippa's backup folder (APFS clone, free on the
+ *   same disk) and the tool result says where, so "mach das rückgängig" can copy it back; copies older than
+ *   `BACKUP_DAYS` go. `bash` never deletes for good (`move_to_trash` puts things in the Trash instead) and never
+ *   reaches the network or other apps (the web tools and Pippa's MCP tools do that, visibly): text from a web page or
+ *   document must not be able to turn into `rm` or `curl`.
  */
+import { constants } from "node:fs";
+import { copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
+import { basename, isAbsolute, join, dirname, resolve } from "node:path";
+import { homedir } from "node:os";
 
 type ExtensionAPI = any;
 
@@ -98,7 +108,82 @@ export function withToday(text: string, line: string): string {
 	return space === -1 ? `${text} ${line}` : `${text.slice(0, space)} ${line}\n${text.slice(space + 1)}`;
 }
 
+/** Shell commands that delete for good, and those that reach the network or script other apps. */
+const DELETES = new Set(["rm", "rmdir", "unlink", "shred", "srm"]);
+const OUTSIDE = new Set(["curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "ftp", "telnet", "osascript"]);
+/** Words in front of the actual command: `sudo rm`, `xargs -0 rm`, `FOO=1 curl`. */
+const PREFIXES = new Set(["sudo", "env", "command", "exec", "nohup", "time", "nice", "xargs"]);
+
+/** Why a `bash` command must not run, or `undefined`. Looks at every command in a chain (`;`, `&&`, `|`, `$( )`). */
+export function riskyCommand(command: string): string | undefined {
+	for (const segment of command.split(/[;&|\n`()]|\$\(/)) {
+		const words = segment.trim().split(/\s+/).filter(Boolean);
+		while (words.length && (PREFIXES.has(words[0]) || /^\w+=/.test(words[0]) || words[0].startsWith("-"))) words.shift();
+		const name = (words[0] ?? "").replace(/^["']|["']$/g, "").split("/").pop() ?? "";
+		const execs = words.flatMap((word, i) => (word === "-exec" || word === "-execdir" ? [words[i + 1]?.split("/").pop() ?? ""] : []));
+		if (DELETES.has(name) || (name === "find" && (words.includes("-delete") || execs.some((e) => DELETES.has(e))))) {
+			return "Not run: Pippa never deletes for good. Use move_to_trash for those files; the person can get them back from the Trash.";
+		}
+		if (OUTSIDE.has(name)) {
+			return "Not run: the shell does not go online or control other apps. Use web_search or fetch_content for the web, and Pippa's own mcp__pippa__ tools for Mail, Calendar and Reminders.";
+		}
+	}
+	return undefined;
+}
+
+export const BACKUP_DAYS = 30;
+/** Larger files are not copied (a clone is free on APFS, a real copy of a huge file is not). */
+const BACKUP_MAX_BYTES = 1024 ** 3;
+
+/** Where old versions go: `PIPPA_BACKUP_DIR`, else `Backups` next to Pippa's memory file; none in trial runs. */
+export function backupDirectory(env: Record<string, string | undefined> = process.env): string | undefined {
+	if (env.PIPPA_BACKUP_DIR) return env.PIPPA_BACKUP_DIR;
+	return env.PIPPA_MEMORY_FILE ? join(dirname(env.PIPPA_MEMORY_FILE), "Backups") : undefined;
+}
+
+/** The absolute path an `edit`/`write` call targets (Pi resolves `~` and relative paths the same way). */
+export function targetPath(raw: unknown, cwd: string, home = homedir()): string | undefined {
+	const path = typeof raw === "string" ? raw.trim() : "";
+	if (!path) return undefined;
+	if (path === "~" || path.startsWith("~/")) return join(home, path.slice(1));
+	return isAbsolute(path) ? path : resolve(cwd, path);
+}
+
+/** Copies an existing file into `directory` before it changes; the copy's path, or `undefined` (new file, folder, too big). */
+export async function backUp(file: string, directory: string, now = new Date()): Promise<string | undefined> {
+	let info;
+	try { info = await stat(file); } catch { return undefined; }
+	if (!info.isFile() || info.size > BACKUP_MAX_BYTES) return undefined;
+	const pad = (n: number) => String(n).padStart(2, "0");
+	const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`;
+	await mkdir(directory, { recursive: true });
+	for (let n = 1; n < 100; n++) {
+		const copy = join(directory, `${stamp}${n > 1 ? ` (${n})` : ""} ${basename(file)}`);
+		try {
+			await copyFile(file, copy, constants.COPYFILE_FICLONE | constants.COPYFILE_EXCL);
+			// On macOS the copy keeps the file's own dates; the age that counts for pruning is the copy's.
+			await utimes(copy, now, now);
+			return copy;
+		}
+		catch (error: any) { if (error?.code !== "EEXIST") throw error; }
+	}
+	return undefined;
+}
+
+/** Removes copies older than `days` (by the time they were made, set in `backUp`). */
+export async function pruneBackups(directory: string, days = BACKUP_DAYS, now = Date.now()): Promise<void> {
+	let names: string[];
+	try { names = await readdir(directory); } catch { return; }
+	for (const name of names) {
+		const path = join(directory, name);
+		try { if (now - (await stat(path)).mtimeMs > days * 86_400_000) await rm(path, { force: true }); } catch { /* next one */ }
+	}
+}
+
 export default function (pi: ExtensionAPI) {
+	const backups = backupDirectory();
+	const kept = new Map<string, { copy: string; file: string }>();
+	if (backups) void pruneBackups(backups);
 	const counts = new Map<string, LoopCount>();
 	const keys = new Map<string, string>();
 	let stops = 0;
@@ -128,6 +213,19 @@ export default function (pi: ExtensionAPI) {
 			}
 			return { block: true, reason: loop };
 		}
+		if (tool === "bash") {
+			const risky = riskyCommand(String(event.input?.command ?? ""));
+			if (risky) return { block: true, reason: risky };
+		}
+		if (backups && (tool === "edit" || tool === "write")) {
+			const file = targetPath(event.input?.path ?? event.input?.file_path, ctx?.cwd ?? process.cwd());
+			try {
+				const copy = file ? await backUp(file, backups) : undefined;
+				if (copy && file) kept.set(event.toolCallId, { copy, file });
+			} catch {
+				return { block: true, reason: "Not changed: Pippa could not keep a copy of the old version first. Tell the person in one short sentence that the file stays as it was." };
+			}
+		}
 		if (tool === "search_files" || (tool === "bash" && /(^|\s)mdfind\b/.test(String(event.input?.command ?? "")))) {
 			searchCalls.add(event.toolCallId);
 			searched = true;
@@ -136,6 +234,8 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_result", async (event: any) => {
+		const backup = kept.get(event.toolCallId);
+		kept.delete(event.toolCallId);
 		if (event.toolName === "search_files" && searchCalls.has(event.toolCallId)) {
 			pi.appendEntry("pippa-search-result", { v: 1, files: searchFiles(event.content).slice(0, 200) });
 		}
@@ -151,6 +251,10 @@ export default function (pi: ExtensionAPI) {
 		keys.delete(event.toolCallId);
 		const count = key ? counts.get(key) : undefined;
 		if (count) { if (event.isError) count.failures++; else count.successes++; }
+		if (backup && !event.isError) {
+			const note = `The previous version of ${basename(backup.file)} is kept at ${backup.copy}. To undo, copy it back over ${backup.file}.`;
+			return { content: [...(event.content ?? []), { type: "text", text: note }] };
+		}
 		return undefined;
 	});
 }
