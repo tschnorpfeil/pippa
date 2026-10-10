@@ -32,6 +32,22 @@ func runResultCardChecks() async {
         let old = try? JSONDecoder().decode(ActionReceipt.self, from: Data(#"{"items":[{"action":"tool","outcome":"done","name":"read"}]}"#.utf8))
         return round?.cards == [mail] && old != nil && old?.cards == nil && ActionReceipt(items: [], cards: []).cards == nil
     }
+    check("A card from a newer app (unknown kind) is dropped; the receipt and the other cards still open") {
+        let mail = ResultCard.mail(MailCard(query: "Berger", mails: [DemoHostData.sampleMails[0]], total: 1, calendar: berlin))
+        guard let data = try? JSONEncoder().encode(ActionReceipt(items: [ActionReceipt.Item(action: "tool", outcome: "done", name: "read")], cards: [mail])),
+              var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any], var cards = json["cards"] as? [Any] else { return false }
+        cards.insert(["hologram": ["_0": ["x": 1]]], at: 0)
+        json["cards"] = cards
+        let onlyUnknown = #"{"items":[],"cards":[{"hologram":{}}]}"#
+        let mixed = (try? JSONSerialization.data(withJSONObject: json)).flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }
+        let none = try? JSONDecoder().decode(ActionReceipt.self, from: Data(onlyUnknown.utf8))
+        return mixed?.cards == [mail] && mixed?.items.count == 1 && none != nil && none?.cards == nil
+    }
+    check("Mail card: at most 20 rows, footer counts what is shown") {
+        let many = Array(repeating: DemoHostData.sampleMails[0], count: 25)
+        let card = MailCard(query: "x", mails: many, total: 25, calendar: berlin)
+        return card.items.count == MailCard.maxItems && card.footer.contains("20") && card.footer.contains("25")
+    }
     await checkAsync("mail_search and calendar_read hand a card to Pippa, outside what the model reads") {
         let notes = LockedBox<[PippaMCPReadNote]>([])
         var host = PippaMCPHost.demo()

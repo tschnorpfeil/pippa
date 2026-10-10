@@ -81,7 +81,8 @@ struct ResultCardsView: View {
             ForEach(Array(cards.enumerated()), id: \.offset) { _, card in
                 switch card {
                 case .calendar(let calendar): CalendarCardView(card: calendar, text: nil)
-                case .mail(let mail): MailCardView(card: mail)
+                case .mail(let mail) where !mail.items.isEmpty: MailCardView(card: mail)
+                case .mail: EmptyView()
                 }
             }
         }

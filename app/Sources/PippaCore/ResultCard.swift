@@ -1,7 +1,8 @@
 import Foundation
 
 /// What a reading tool returned, as a card under the answer: built in code from Pippa's own result, never from the
-/// model's text. Stored with the answer (`ActionReceipt.cards`); missing in older histories.
+/// model's text. Stored with the answer (`ActionReceipt.cards`); missing in older histories. A closed list: every card
+/// has a row limit and a source line (footer), and a card that cannot be read is dropped while the answer text stays.
 public enum ResultCard: Codable, Sendable, Equatable {
     case calendar(CalendarCard)
     case mail(MailCard)
@@ -25,6 +26,8 @@ public struct MailCard: Codable, Sendable, Equatable {
     public var total: Int
     /// "Mail auf diesem Mac · 3 von 7"
     public var footer: String
+    /// More rows than the search tool ever returns (mail_search allows at most 20).
+    public static let maxItems = 20
 
     public init(query: String, mails: [MailHeader], total: Int, calendar: Calendar) {
         self.query = query
@@ -32,7 +35,7 @@ public struct MailCard: Codable, Sendable, Equatable {
         let day = DateFormatter(), time = DateFormatter()
         for f in [day, time] { f.calendar = calendar; f.timeZone = calendar.timeZone; f.locale = calendar.locale ?? .autoupdatingCurrent }
         day.setLocalizedDateFormatFromTemplate("EEEdMMM"); time.timeStyle = .short; time.dateStyle = .none
-        items = mails.map { m in
+        items = mails.prefix(Self.maxItems).map { m in
             let label = m.date.map { calendar.isDateInToday($0) ? time.string(from: $0) : day.string(from: $0) }
             let one = m.preview.split(whereSeparator: \.isNewline).joined(separator: " ")
                 .split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
@@ -40,7 +43,7 @@ public struct MailCard: Codable, Sendable, Equatable {
                         preview: one.count > 160 ? String(one.prefix(159)) + "…" : one,
                         messageID: m.messageID.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "<> ")) }.flatMap { $0.isEmpty ? nil : $0 })
         }
-        footer = total > mails.count ? L("Mail on this Mac · %lld of %lld", table: "MCP", mails.count, total) : L("Mail on this Mac", table: "MCP")
+        footer = total > items.count ? L("Mail on this Mac · %lld of %lld", table: "MCP", items.count, total) : L("Mail on this Mac", table: "MCP")
     }
 
     /// "Hausverwaltung Berger <info@berger-hv.de>" → "Hausverwaltung Berger".
