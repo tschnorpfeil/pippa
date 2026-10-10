@@ -54,3 +54,8 @@
 "To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything." = "To find your pictures, I need to search Photos on this Mac and show them here – only when you ask, and I don’t change anything.";
 "Photos on this Mac · %lld found" = "Photos on this Mac · %lld found";
 "Showing %lld of %lld. Search for “%@” in Photos to see all of them." = "Showing %lld of %lld. Search for “%@” in Photos to see all of them.";
+"Reminders · open" = "Reminders · open";
+"Reminders · due today" = "Reminders · due today";
+"Reminders · due in the next %lld days" = "Reminders · due in the next %lld days";
+"Reminders on this Mac" = "Reminders on this Mac";
+"Reminders on this Mac · %lld of %lld" = "Reminders on this Mac · %lld of %lld";
