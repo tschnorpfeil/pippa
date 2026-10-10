@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="site/icon-512.png" width="96" height="96" alt="Pippa's mark: three soft blue rings">
+  <img src="site/icon-512.png" width="112" height="112" alt="Pippa's app icon: three wobbly blue rings on a light tile">
 </p>
 
 <h1 align="center">Pippa</h1>
 
 <p align="center">
   <b>Just drop it on Pippa.</b><br>
-  A small helper at the edge of your Mac's screen. Give her a letter, a few photos or a messy folder,<br>
-  pick one of the next steps she offers, and get the result right in the pill. The AI runs on your Mac.
+  A small pill at the edge of your Mac's screen. Drop a letter, a few photos or a folder on it,<br>
+  pick one of the steps she suggests, and the result appears in the pill. The AI runs on your Mac.
 </p>
 
 <p align="center">
@@ -23,16 +23,14 @@
   </picture>
 </p>
 
-## Why Pippa
+## How it feels
 
-Most AI apps start with an empty text box and expect you to know what to ask. Pippa starts with your stuff.
+You don't have to know what to ask. Drag something onto the pill, or click her while a mail or a spreadsheet is open, and she suggests two or three next steps. You can always type instead.
 
-- **Drop, don't prompt.** Drag something onto the pill, or click her while a mail or a spreadsheet is open. She offers two or three next steps in plain words. Typing always works too, but you never have to.
-- **The pill tells you what's happening.** "Reading the letter · page 2 of 2", not dots that blink. Every job ends in one of three ways: done, needs you, or didn't work, with the reason.
-- **The answer comes first.** One sentence that says what to do, the passage it came from, and a button for the next step.
-- **Results are things.** A finished PDF sits in the pill and can be dragged straight into Mail. A reply waits in Mail as a draft.
-- **It stays until you look.** Close the window, come back later: the result is still in the pill.
-- **She remembers what matters.** Tell her where you live or who your landlord is, and she keeps it for next time. "Forget that" is enough to remove it. New topics start by themselves, with a short note of what came before.
+- While she works, the pill says what she is doing, for example "Reading the letter · page 2 of 2". A job ends as done, needs you, or didn't work, and a failure comes with the reason.
+- An answer starts with one sentence about what to do, followed by the passage it came from and a button for the next step.
+- A finished PDF stays in the pill and can be dragged into Mail. A reply waits in Mail as a draft. Results stay in the pill until you open them.
+- She remembers facts you tell her, such as where you live or who your landlord is. "Forget that" removes one. When you move on to something new, she starts a new topic by herself and carries over deadlines and amounts.
 
 <p align="center">
   <picture>
@@ -41,7 +39,7 @@ Most AI apps start with an empty text box and expect you to know what to ask. Pi
   </picture>
 </p>
 
-Pippa is made for people who don't pay for AI subscriptions and never open Terminal. She speaks English, and German when your Mac is set to German, and answers in the language you write in.
+Pippa is for people who don't pay for an AI subscription and never open Terminal. Her menus are in English, or German when your Mac is set to German, and she answers in the language you write in.
 
 ## What she can do
 
@@ -54,7 +52,7 @@ Pippa is made for people who don't pay for AI subscriptions and never open Termi
 - **Find a file.** "Where is the invoice from the plumber?" searches your Mac with Spotlight.
 - **Look something up online,** when the answer isn't on your Mac.
 
-Because the brain behind the pill is a real agent with real tools, Pippa can also handle jobs nobody planned for, such as renaming a batch of files.
+Behind the pill is an agent with file and shell tools, so she can also do jobs that have no button, such as renaming a batch of files.
 
 <p align="center">
   <picture>
@@ -67,7 +65,7 @@ Because the brain behind the pill is a real agent with real tools, Pippa can als
 
 ## How it works
 
-Pippa is a thin, friendly layer over proven open-source parts. The app is the pill; everything clever is [Pi](https://github.com/earendil-works/pi).
+The app draws the pill and connects to your Mac's apps. The agent behind it is [Pi](https://github.com/earendil-works/pi), running a local model through llama.cpp.
 
 ```
 Pippa.app (Swift, SwiftUI)          the pill, cards, settings, first start
@@ -80,7 +78,7 @@ Pippa.app (Swift, SwiftUI)          the pill, cards, settings, first start
  └─ optional: your ChatGPT subscription through Pi's own sign-in
 ```
 
-- **Pi is the brain.** Pippa installs a pinned Pi release for you, without Terminal, and talks to it over `pi --mode rpc`. Everything Pippa knows how to do is a Pi skill in [`runtime/pippa-skills`](runtime/pippa-skills) or a Pi package, so new abilities are text files and packages, not app code. Pi's own updates arrive with Pippa's.
+- **Pi does the work.** Pippa installs a pinned Pi release for you, without Terminal, and talks to it over `pi --mode rpc`. Everything Pippa knows how to do is a Pi skill in [`runtime/pippa-skills`](runtime/pippa-skills) or a Pi package, so new abilities are text files and packages, not app code. Pi's own updates arrive with Pippa's.
 - **Local AI through llama.cpp.** Pippa picks a model that fits your Mac, downloads it once after you agree, and runs it with a bundled, pinned [llama.cpp](https://github.com/ggml-org/llama.cpp). After that she works offline.
 - **The web through [pi-web-access](https://github.com/nicobailon/pi-web-access),** the Pi package for search and reading pages.
 - **Your Mac's apps through MCP.** Mail, Calendar, Reminders and Excel need the app's macOS permissions, so the app itself serves them to Pi over the Model Context Protocol on 127.0.0.1.
@@ -90,6 +88,7 @@ Pippa.app (Swift, SwiftUI)          the pill, cards, settings, first start
 
 - **The AI runs on your Mac.** No Pippa account, no Pippa server, no usage statistics. Pi's telemetry and update checks are switched off for the Pi that Pippa starts.
 - **Pippa reads only when you call her,** and then what you yourself can open: files, the selected mail, your calendar.
+- **What she remembers is one text file on your Mac** (`memory.md` in Pippa's support folder). She refuses to store passwords or account, card, ID, tax and phone numbers.
 - **The network is used for** the one-time model download (Hugging Face), app updates (Sparkle, from GitHub releases), web lookups, and an online model if you connect one.
 - **Mail is only ever drafted.** Pippa has no tool to send it.
 
@@ -98,7 +97,7 @@ Worth knowing: like Pi, Pippa just does the job instead of asking before every s
 ## Requirements
 
 - A Mac with Apple silicon (M1 or later) and macOS 15 or later
-- About 3 to 6 GB of free disk space for the model
+- 3 to 6 GB of free disk space for the model (about 14 GB for the larger one)
 
 | Memory | Model Pippa picks | Download |
 |---|---|---|
@@ -149,7 +148,7 @@ Signing, notarizing, environment variables and where Pippa keeps its data: [docs
 
 ## Credits
 
-Pippa stands on the shoulders of:
+Pippa is built on:
 
 - [Pi](https://github.com/earendil-works/pi) by Mario Zechner and Earendil Works (MIT), the agent that does the work
 - [llama.cpp](https://github.com/ggml-org/llama.cpp) by the ggml authors (MIT), which runs the local model
