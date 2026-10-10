@@ -44,6 +44,14 @@ final class PillAuraState: ObservableObject {
     @Published private(set) var thought: AuraThought?
     /// Too little room above the pill (it sits near the top of the screen): the bubble hangs below it.
     @Published private(set) var below = false
+    /// How the glow follows the latest change of `pill`: the shape's own spring while it morphs, nil when it jumps
+    /// (dragged, another screen, Reduce Motion). Set together with `pill`, so the light never lags or runs ahead.
+    @Published private(set) var pillMotion: Animation?
+    /// The glow's own clock: when its light started wandering, and when it stood still again (nil while it wanders).
+    /// The light keeps its place when work ends or the mouse leaves; it only goes back to the resting pose once it
+    /// is out of sight, so it never jumps while it can be seen.
+    @Published private(set) var glowStart: Date?
+    @Published private(set) var glowStopped: Date?
 
     /// A finished step stays this long as its finding before it floats away (unless the next step comes first).
     static let findingShown: Duration = .milliseconds(1700)
@@ -55,16 +63,31 @@ final class PillAuraState: ObservableObject {
     private var slowTask: Task<Void, Never>?
     private var answerStart: Date?
     private var slowSaid = false
+    private var glowRestTask: Task<Void, Never>?
 
     func setHovered(_ on: Bool) {
-        if hovered != on { hovered = on }
+        guard hovered != on else { return }
+        hovered = on
+        settleGlow()
     }
 
-    func update(pill: CGRect, mark: CGRect, below: Bool, working: Bool, step: StepBubble?, startedAt: Date?, slowText: String) {
-        if self.pill != pill { self.pill = pill }
-        if self.mark != mark { self.mark = mark }
+    /// - Parameters:
+    ///   - pill: the collapsed pill; nil while the shell is open (the light stays where the pill was and fades there).
+    ///   - motion: the spring the shape morphs with right now, nil when it jumps.
+    func update(pill: CGRect?, mark: CGRect?, motion: ShellTokens.Spring?, below: Bool, working: Bool, step: StepBubble?,
+                startedAt: Date?, slowText: String) {
+        if let pill, self.pill != pill {
+            // The very first place has nothing to come from.
+            pillMotion = self.pill == .zero ? nil
+                : motion.map { .interpolatingSpring(mass: $0.mass, stiffness: $0.stiffness, damping: $0.damping) }
+            self.pill = pill
+        }
+        if let mark, self.mark != mark { self.mark = mark }
         if self.below != below { self.below = below }
-        if self.working != working { self.working = working }
+        if self.working != working {
+            self.working = working
+            settleGlow()
+        }
         guard working else {
             shownStep = nil; answerStart = nil; slowSaid = false
             retireTask?.cancel(); slowTask?.cancel()
@@ -86,6 +109,29 @@ final class PillAuraState: ObservableObject {
                 guard !Task.isCancelled, let self, self.thought?.id == "step:\(step.id)" else { return }
                 self.thought = nil
             }
+        }
+    }
+
+    /// Work starts: the light wanders on from wherever it stands. Work ends: it stands still where it is. Out of
+    /// sight (no work, no mouse) it goes back to the resting pose after the fade.
+    private func settleGlow() {
+        glowRestTask?.cancel()
+        if working {
+            if let start = glowStart, let stopped = glowStopped {
+                glowStart = Date().addingTimeInterval(-stopped.timeIntervalSince(start))
+            } else if glowStart == nil {
+                glowStart = Date()
+            }
+            glowStopped = nil
+            return
+        }
+        if glowStart != nil && glowStopped == nil { glowStopped = Date() }
+        guard !hovered, glowStart != nil else { return }
+        glowRestTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let self, !self.working, !self.hovered else { return }
+            self.glowStart = nil
+            self.glowStopped = nil
         }
     }
 
@@ -123,12 +169,18 @@ struct PillAura: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Hover at rest: the same light, standing still and at half strength. While working it only brightens a little.
-            WanderingGlow(reduceMotion: reduceMotion || (state.hovered && !state.working), running: state.working,
+            // Each part has its own animation: the shape follows the pill's spring, strength and lift fade, and
+            // none of them carries the others along.
+            WanderingGlow(reduceMotion: reduceMotion, start: state.glowStart, stopped: state.glowStopped,
                           lift: state.hovered && state.working ? 0.12 : 0)
-                .frame(width: state.pill.width + 12, height: state.pill.height + 10)
-                .offset(x: state.pill.minX - 6, y: state.pill.minY - 5)
-                .opacity(glow)
-                .animation(state.hovered ? .easeOut(duration: 0.3) : .easeInOut(duration: state.working ? 0.9 : 0.6), value: glow)
+                .animation(.easeOut(duration: 0.3), value: state.hovered)
+                .animation(state.pillMotion) {
+                    $0.frame(width: state.pill.width + 12, height: state.pill.height + 10)
+                        .offset(x: state.pill.minX - 6, y: state.pill.minY - 5)
+                }
+                .animation(state.hovered ? .easeOut(duration: 0.3) : .easeInOut(duration: state.working ? 0.9 : 0.6)) {
+                    $0.opacity(glow)
+                }
             thoughtSpot
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -149,30 +201,40 @@ struct PillAura: View {
                     .transition(reduceMotion ? .opacity : .asymmetric(insertion: .identity, removal: .floatAway(below: state.below)))
             }
         }
-        .frame(width: 320, height: height, alignment: state.below ? .topLeading : .bottomLeading)
-        .offset(x: x, y: y)
         .animation(reduceMotion ? .easeInOut(duration: 0.25) : .easeIn(duration: 0.85), value: state.thought?.id)
+        .frame(width: 320, height: height, alignment: state.below ? .topLeading : .bottomLeading)
+        // The bubble rides along with Pippa's mark when the pill changes width.
+        .animation(state.pillMotion) { $0.offset(x: x, y: y) }
     }
 }
 
 /// A light that hugs the pill: two soft highlights wander slowly along it over a faint accent base, and the whole
-/// light breathes a little. Reduce Motion: the highlights stand still and nothing breathes.
-struct WanderingGlow: View {
+/// light breathes a little. Its clock runs from `start` and stands at `stopped`; without a start it shows the resting
+/// pose (one highlight at each end), which is also where wandering begins, so the light never jumps.
+/// Reduce Motion: always the resting pose, nothing breathes.
+struct WanderingGlow: View, Animatable {
     var reduceMotion: Bool
-    var running: Bool
-    /// Extra brightness while the mouse is on the working pill.
+    var start: Date?
+    var stopped: Date?
+    /// Extra brightness while the mouse is on the working pill (animated).
     var lift = 0.0
     private static let cycle = 7.0
     private static let breath = 4.2
     private static let violet = Color(red: 132 / 255, green: 110 / 255, blue: 255 / 255)
 
+    nonisolated var animatableData: Double {
+        get { lift }
+        set { lift = newValue }
+    }
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || !running)) { context in
-            let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
-            let a = 2 * Double.pi * t / Self.cycle
-            let first = reduceMotion ? UnitPoint(x: 0.3, y: 0.5) : UnitPoint(x: 0.5 + 0.38 * sin(a), y: 0.5 + 0.3 * sin(1.7 * a))
-            let second = reduceMotion ? UnitPoint(x: 0.75, y: 0.5) : UnitPoint(x: 0.5 - 0.38 * sin(a), y: 0.5 - 0.3 * sin(1.7 * a + 0.8))
-            let intensity = (reduceMotion ? 0.88 : 0.875 + 0.125 * cos(2 * Double.pi * t / Self.breath)) + lift
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || start == nil || stopped != nil)) { context in
+            let t = reduceMotion ? 0 : start.map { max(0, (stopped ?? context.date).timeIntervalSince($0)) } ?? 0
+            // A quarter cycle in: the highlights start at the two ends of the pill.
+            let a = 2 * Double.pi * (t / Self.cycle + 0.25)
+            let first = UnitPoint(x: 0.5 + 0.38 * sin(a), y: 0.5 + 0.3 * sin(1.7 * a))
+            let second = UnitPoint(x: 0.5 - 0.38 * sin(a), y: 0.5 - 0.3 * sin(1.7 * a + 0.8))
+            let intensity = 0.875 + 0.125 * cos(2 * Double.pi * t / Self.breath) + lift
             GeometryReader { geo in
                 let reach = max(geo.size.width, geo.size.height) * 0.55
                 ZStack {
