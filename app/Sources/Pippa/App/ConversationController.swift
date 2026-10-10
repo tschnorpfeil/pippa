@@ -111,7 +111,7 @@ final class ConversationController: ObservableObject {
 
     func append(_ role: ConversationMessage.Role, _ text: String, attachments: [URL] = [], modelLabel: String? = nil, stopped: Bool = false, notice: Bool = false,
                 previousConversation: UUID? = nil, receipt: UUID? = nil, draft: Bool = false, mailDraft: ConversationMailDraft? = nil, capturingAttachments: Bool = false,
-                calendar: ConversationCalendarRead? = nil, work: WorkReceipt? = nil, actions: ActionReceipt? = nil) {
+                calendar: ConversationCalendarRead? = nil, work: WorkReceipt? = nil, actions: ActionReceipt? = nil, topicStart: Bool = false) {
         guard let store, let current, !text.isEmpty else { return }
         do {
             if role == .user && !current.messages.contains(where: { $0.role == .user }) {
@@ -119,7 +119,8 @@ final class ConversationController: ObservableObject {
             }
             self.current = try store.append(ConversationMessage(role: role, text: text, attachments: attachments, modelLabel: modelLabel,
                                                                 stopped: stopped, notice: notice, previousConversation: previousConversation,
-                                                                receipt: receipt, draft: draft, mailDraft: mailDraft, calendar: calendar, work: work, actions: actions), to: current.id, capturingAttachments: capturingAttachments)
+                                                                receipt: receipt, draft: draft, mailDraft: mailDraft, calendar: calendar, work: work, actions: actions,
+                                                                topicStart: topicStart), to: current.id, capturingAttachments: capturingAttachments)
             refresh()
         } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
     }
@@ -162,7 +163,17 @@ final class ConversationController: ObservableObject {
         guard !isRunning, let id = current?.id, store != nil else { return }
         error = nil
         failed = nil
-        append(.user, text, capturingAttachments: true)
+        // A new topic inside the conversation: Pi starts a fresh, small session with a short handover (TopicBoundary).
+        // Not while things are handed over here: those belong to the conversation's topic.
+        var topicStart = false
+        if let conversation = current, let store, conversation.context?.files.isEmpty ?? true, conversation.context?.selectedText == nil,
+           ConversationPromptAttachments.pendingFiles(in: conversation).isEmpty,
+           TopicBoundary.startsNewTopic(text, messages: conversation.messages, now: Date()),
+           let restarted = try? store.startTopic(in: id) {
+            current = restarted
+            topicStart = true
+        }
+        append(.user, text, capturingAttachments: true, topicStart: topicStart)
         guard error == nil else { return }
         let context = current?.context
         // What is newly shown with this message is spelled out in Pi's message.
