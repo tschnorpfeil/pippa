@@ -69,8 +69,8 @@ try {
  for(const item of cases){
   requests=0;captured=undefined;
   const events=[];let err='';const start=Date.now();
-  const env={HOME:home,CFFIXED_USER_HOME:home,PI_CODING_AGENT_DIR:join(home,'.pi/agent'),PI_OFFLINE:'1',PI_TELEMETRY:'0',PI_SKIP_VERSION_CHECK:'1',PATH:flow?join(home,'bin')+':/Applications/Pippa.app/Contents/Helpers:/usr/bin:/bin:/usr/sbin:/sbin':'/usr/bin:/bin:/usr/sbin:/sbin',PIPPA_FIXTURE_SKILLS:join(base,'runtime/pippa-skills'),PIPPA_TRASH_DIR:join(home,'trash'),PIPPA_WEB_DIR:join(home,'web'),PIPPA_MCP_URL:`http://127.0.0.1:${mcp.address().port}/mcp`,PIPPA_MCP_TOKEN:'a'.repeat(64)};
-  const child=spawn(join(payload,'bin/node'),[join(payload,'release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'),'--mode','rpc','--no-session','--no-context-files','--no-approve','--no-skills','--skill',join(base,'runtime/pippa-skills'),'--extension',join(base,'runtime/pippa-tools/pippa-tools.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-mcp.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-assist.ts'),'--extension',web,'--extension',flow?join(root,'scripts/quality/fixture-isolation.ts'):extension,'--tools',tools,'--system-prompt',prompt,'--provider','pippa-local','--model',modelID,'--thinking',thinking],{cwd:join(home,'work'),env,stdio:['pipe','pipe','pipe']});
+  const env={HOME:home,CFFIXED_USER_HOME:home,PI_CODING_AGENT_DIR:join(home,'.pi/agent'),PI_OFFLINE:'1',PI_TELEMETRY:'0',PI_SKIP_VERSION_CHECK:'1',PATH:flow?join(home,'bin')+':/Applications/Pippa.app/Contents/Helpers:/usr/bin:/bin:/usr/sbin:/sbin':'/usr/bin:/bin:/usr/sbin:/sbin',PIPPA_FIXTURE_SKILLS:join(base,'runtime/pippa-skills'),PIPPA_TRASH_DIR:join(home,'trash'),PIPPA_WEB_DIR:join(home,'web'),PIPPA_MEMORY_FILE:join(home,'memory.md'),PIPPA_MCP_URL:`http://127.0.0.1:${mcp.address().port}/mcp`,PIPPA_MCP_TOKEN:'a'.repeat(64)};
+  const child=spawn(join(payload,'bin/node'),[join(payload,'release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'),'--mode','rpc','--no-session','--no-context-files','--no-approve','--no-skills','--skill',join(base,'runtime/pippa-skills'),'--extension',join(base,'runtime/pippa-tools/pippa-tools.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-mcp.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-assist.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-memory.ts'),'--extension',join(root,'runtime/pippa-tools/pippa-context.ts'),'--extension',web,'--extension',flow?join(root,'scripts/quality/fixture-isolation.ts'):extension,'--tools',tools,'--system-prompt',prompt,'--provider','pippa-local','--model',modelID,'--thinking',thinking],{cwd:join(home,'work'),env,stdio:['pipe','pipe','pipe']});
   child.stderr.on('data',d=>err+=d);let buffer='';let timedOut=false;
   await new Promise((ok,fail)=>{
    const timer=setTimeout(()=>{child.kill();fail(Error('timeout '+item.id+' '+err.slice(-500)));},dialogue ? 300000 : 180000);
@@ -83,7 +83,8 @@ try {
      if(e.type==='agent_settled'){clearTimeout(timer);ok();}
     }
    });
-   child.stdin.write(JSON.stringify({type:'prompt',message:item.prompt})+'\n');
+   // As the app sends it: German cases get PiShownContext.germanNote (PIPPA_DE_NOTE=0 measures without it).
+   child.stdin.write(JSON.stringify({type:'prompt',message:item.prompt+(process.env.PIPPA_DE_NOTE==='0'?'':'\n\nAntworte auf Deutsch und duze mich.')})+'\n');
   }).catch(e=>{timedOut=true;err+=e.message;});
   // The previous Pi must exit before the shared proxy starts another case.
   await new Promise(done=>{

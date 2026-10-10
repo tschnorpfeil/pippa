@@ -78,5 +78,45 @@ func runResultCardChecks() async {
         return mail.items.first?.messageID == "nk-2025@berger-hv.example" && mail.items.first?.sender == "Hausverwaltung Berger"
             && cards[1] == nil && !found.contains("nk-2025") && !none.isEmpty
     }
+    check("Reminders card: overdue only before now (with a time) or before today (day only), list names only across several lists") {
+        let now = berlin.date(from: DateComponents(year: 2026, month: 10, day: 7, hour: 14, minute: 32))!
+        func at(_ d: Int, _ h: Int = 0, _ m: Int = 0) -> Date { berlin.date(from: DateComponents(year: 2026, month: 10, day: d, hour: h, minute: m))! }
+        let items = [ReminderItem(title: "Müll raus", list: "Zuhause", due: at(7, 9), dueHasTime: true),
+                     ReminderItem(title: "Blumen gießen", list: "Zuhause", due: at(7), dueHasTime: false),
+                     ReminderItem(title: "Steuer", list: "Büro", due: at(6), dueHasTime: false),
+                     ReminderItem(title: "Zeile\nzwei", list: "Büro")]
+        let card = ReminderCard(days: 1, reminders: items, total: 4, now: now, calendar: berlin)
+        let single = ReminderCard(days: nil, reminders: Array(items.prefix(2)), total: 9, now: now, calendar: berlin)
+        return card.items.map(\.overdue) == [true, false, true, false] && card.items[3].title == "Zeile zwei" && card.items[3].dueLabel == nil
+            && card.items[0].dueLabel != nil && card.showsList && !single.showsList
+            && card.title != single.title && single.footer.contains("2") && single.footer.contains("9") && !card.footer.contains("4")
+    }
+    await checkAsync("reminders_read hands a card to Pippa; nothing open means no card") {
+        let notes = LockedBox<[PippaMCPReadNote]>([])
+        var host = PippaMCPHost.demo()
+        host.onRead = { note in notes.mutate { $0.append(note) } }
+        let tools = PippaMCPTools(host: host)
+        let body = try! JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                                                                "params": ["name": "reminders_read", "arguments": [:] as [String: Any]]])
+        _ = await tools.handle(body)
+        guard case .reminders(let card)? = notes.value.first?.card else { return false }
+        let round = (try? JSONEncoder().encode(ActionReceipt(items: [], cards: [.reminders(card)])))
+            .flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }
+        return !card.items.isEmpty && card.items.count <= ReminderCard.maxItems && round?.cards == [.reminders(card)]
+    }
+    check("Web sources card: pages read first, the same page once, only http(s), links from search results without punctuation") {
+        let now = berlin.date(from: DateComponents(year: 2026, month: 10, day: 7, hour: 14, minute: 32))!
+        let search = "1. [Wetter Köln](https://www.wetter.example/koeln/morgen) – Regen ab 15 Uhr.\n2. https://dwd.example/warnungen, "
+            + "siehe auch javascript:alert(1) und https://wetter.example/koeln/morgen/#top."
+        guard let card = WebSourcesCard(queries: ["Wetter morgen Köln", ""], pagesRead: ["https://wetter.example/koeln/morgen", "file:///etc/hosts"],
+                                        searchResults: [search], now: now, calendar: berlin) else { return false }
+        let many = (1...12).map { "https://seite\($0).example/" }.joined(separator: " ")
+        let capped = WebSourcesCard(queries: [], pagesRead: [], searchResults: [many], now: now, calendar: berlin)
+        return card.items.map(\.host) == ["wetter.example", "dwd.example"] && card.items.map(\.read) == [true, false]
+            && card.items[0].path == "/koeln/morgen" && card.items[1].path == "/warnungen" && card.queries == ["Wetter morgen Köln"]
+            && card.footer.contains("14:32") && capped?.items.count == WebSourcesCard.maxItems && capped?.items.first?.path == nil
+            && WebSourcesCard(queries: ["x"], pagesRead: [], searchResults: ["keine Treffer"], now: now, calendar: berlin) == nil
+            && (try? JSONEncoder().encode(ActionReceipt(items: [], cards: [.web(card)])))
+                .flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }?.cards == [.web(card)]
+    }
 }
-

@@ -31,13 +31,17 @@ extension PiRPCChat {
         let turn = PippaMCPTurn(onWork: context.onWork)
         PippaMCPTurns.shared.begin(turn)
         Self.pendingMail = nil
-        defer { PippaMCPTurns.shared.end(turn) }
+        // The chip's app for this answer: `front_read` reads only this one, and nothing without a chip.
+        FrontAppStage.shared.current = context.frontApp
+        defer { PippaMCPTurns.shared.end(turn); FrontAppStage.shared.current = nil }
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         let input = PiShownContext.Input(question: text, files: context.files, newFiles: newFiles, focused: context.focusedFiles,
                                          selectedText: context.selectedText, workflowSummary: context.workflowSummary, language: language,
                                          inlineShortText: Self.inlinesShortText)
-        // Read metadata (and, if the setting is on, short texts): off the main thread.
-        let shown = await Task.detached(priority: .userInitiated) { PiShownContext.prompt(input) }.value
+        // Read metadata (and, if the setting is on, short texts): off the main thread. The app in front only as a
+        // label before it (10 to 20 tokens); its content only if Pi asks for it with `front_read`.
+        let described = await Task.detached(priority: .userInitiated) { PiShownContext.prompt(input) }.value
+        let shown = context.frontApp.map { $0.label(german: language.hasPrefix("de")) + "\n" + described } ?? described
         let prompt = skill.map { PiSkillTurn.prompt(for: $0, message: shown, language: language, draftOnly: draftOnly) } ?? shown
         do {
             let answer = try await chat(prompt, taskID: taskID, onWork: context.onWork, onDelta: onDelta, onSteered: onSteered, onReset: onReset)

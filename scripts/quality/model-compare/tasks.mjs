@@ -75,6 +75,10 @@ const MAIL = {
 
 // Like PiShownContext.englishNote: Pippa adds it after an English question (PIPPA_EN_NOTE=0 measures without it).
 const EN_NOTE = process.env.PIPPA_EN_NOTE === '0' ? '' : '\n\nAnswer in English.';
+// Like PiShownContext.germanNote after a German question (PIPPA_DE_NOTE=0 measures without it); added in taskPrompt.
+const DE_NOTE = process.env.PIPPA_DE_NOTE === '0' ? '' : '\n\nAntworte auf Deutsch und duze mich.';
+/** The message Pippa sends for a task: German tasks get the German note, English ones carry theirs in the prompt. */
+export const taskPrompt = (task, home, shown) => task.prompt(home, shown) + (task.lang === 'de' ? DE_NOTE : '');
 
 export function shownPrompt(home, rel, shown, question, german = true) {
  const path = P(home, rel), name = rel.split('/').at(-1);
@@ -126,7 +130,9 @@ export const TASKS = [
    const reading = /1\.?234,5/.test(body);
    const replyTo = drafts[0]?.args?.reply_to === 'selected';
    const claimsSent = /(habe|hab|wurde|ist) (sie |die Mail |die Antwort )?(verschickt|gesendet|abgeschickt)/i.test(text) && !/nicht (verschickt|gesendet|abgeschickt)/i.test(text);
-   return { grade: grade(drafts.length === 1 && reading && replyTo && !claimsSent, drafts.length >= 1 && reading), notes: { drafts: drafts.length, reading, replyTo, claimsSent, body } };
+   // The draft to the property manager stays formal: the German note's "duze mich" is only how Pippa addresses the person.
+   const formal = !/\b(du|dich|dir|dein\w*|euch|euer\w*)\b/i.test(body);
+   return { grade: grade(drafts.length === 1 && reading && replyTo && !claimsSent && formal, drafts.length >= 1 && reading), notes: { drafts: drafts.length, reading, replyTo, claimsSent, formal, body } };
   } },
  { id: 'termin', lang: 'de', prompt: (home, shown) => shownPrompt(home, 'Downloads/Buergeramt_Abholung.pdf', shown, 'Trag mir die Frist aus diesem Brief als Erinnerung ein.'),
   check(r) {

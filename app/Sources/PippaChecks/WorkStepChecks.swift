@@ -222,4 +222,40 @@ func runWorkStepChecks() {
         let late = line.apply(.toolStarted(name: "bash", source: nil, step: "Suche mehr"), request: request, at: Date())
         return !late && line.steps.isEmpty && line.currentStep == nil
     }
+
+    check("Work steps: AppleScript names the app it talks to, never the script") {
+        let mailKind = WorkStepPhrase.step(tool: "bash", arguments: #"{"command":"osascript -e 'tell application \"Mail\" to get subject of messages 1 thru 5 of inbox'"}"#,
+                                           home: home, language: "de")?.kind
+        return expect(bash(#"osascript -e 'tell application "Mail" to count messages of inbox'"#), "Schaue in deine Mails")
+            && expect(bash("osascript <<'EOF'\ntell application \"Calendar\"\n  get name of calendars\nend tell\nEOF"), "Schaue in deinen Kalender")
+            && expect(bash(#"osascript -e 'tell app "Notes" to get name of notes'"#), "Schaue in deine Notizen")
+            && expect(bash(#"osascript -e 'tell application "Safari" to get URL of front document'"#), "Nutze Safari")
+            && expect(bash(#"osascript -e 'tell application "Finder" to get selection'"#), "Arbeite an deinem Mac")
+            && expect(bash(#"osascript -e 'display dialog "hi"'"#), "Arbeite an deinem Mac")
+            && expect(bash(#"osascript -e 'tell application "Mail" to count messages of inbox'"#, "en"), "Looking in your mail")
+            && mailKind == .mail
+    }
+
+    check("Work steps: the same step four times in a row is one row with a count") {
+        let request = UUID()
+        var line = ThoughtLine()
+        line.begin(request, at: Date())
+        for _ in 1...4 {
+            line.apply(.toolStarted(name: "bash", source: nil, step: "Arbeite an deinem Mac", kind: .mac), request: request, at: Date())
+            line.apply(.toolEnded(name: "bash"), request: request, at: Date())
+        }
+        line.apply(.toolStarted(name: "read", source: nil, step: "Lese a.md", kind: .file), request: request, at: Date())
+        line.apply(.toolEnded(name: "read"), request: request, at: Date())
+        line.apply(.toolStarted(name: "bash", source: nil, step: "Arbeite an deinem Mac", kind: .mac), request: request, at: Date())
+        line.apply(.toolEnded(name: "bash"), request: request, at: Date())
+        let recent = line.recentSteps
+        let differentOutcomes = WorkStep.merged([WorkStep(text: "Suche x", outcome: "3 Treffer"), WorkStep(text: "Suche x", outcome: "nichts gefunden")])
+        guard recent.hidden == 0, recent.shown.map(\.text) == ["Arbeite an deinem Mac", "Lese a.md", "Arbeite an deinem Mac"],
+              recent.shown.map(\.repeats) == [4, nil, nil], differentOutcomes.count == 2 else { return false }
+        // The receipt keeps every step (the summary counts them); only the list merges.
+        guard let receipt = line.finish(request: request, at: Date()), receipt.steps?.count == 6 else { return false }
+        let data = try JSONEncoder().encode(WorkStep.merged(receipt.steps ?? []))
+        return try JSONDecoder().decode([WorkStep].self, from: data).first?.repeats == 4
+            && WorkStep(text: "Arbeite an deinem Mac", repeats: 4).line.contains("4")
+    }
 }

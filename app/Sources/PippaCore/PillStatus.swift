@@ -47,7 +47,7 @@ public struct PillStatus: Sendable, Equatable {
 
     /// Longest file name the pill shows before shortening with "…" (the pill stays below ~260 pt).
     public static let nameLimit = 22
-    /// Longest step sentence from Pi's tools before shortening.
+    /// Longest step sentence in the thought bubble above the pill before shortening (PillAura).
     public static let stepLimit = 34
 
     /// What the pill says. A running answer wins over an old outcome; `busy` covers file tasks without a phase.
@@ -94,6 +94,14 @@ public struct PillStatus: Sendable, Equatable {
 
     /// Short form of the Thought Line for the pill.
     static func label(for phase: WorkPhase, step: String?, language: String?) -> String {
+        // Waiting and steps say nothing on the pill itself: the glow shows that she works, the thought bubble above
+        // the pill shows the step (PillAura). Only real host work without a bubble keeps its words.
+        let hasStep = !(step ?? "").isEmpty
+        switch phase {
+        case .starting, .waitingForAnswer, .working: return "Pippa"
+        case .lookingThrough, .lookingUpOnline, .checkingCalendar, .preparingPreview: if hasStep { return "Pippa" }
+        default: break
+        }
         switch phase {
         case .reading(let name, let index, let count):
             let base = L("Reading %@", table: "Thought", language: language, shortName(name))
@@ -109,17 +117,15 @@ public struct PillStatus: Sendable, Equatable {
         case .lookingUpOnline: return L("Looking it up online…", table: "Thought", language: language)
         case .checkingCalendar: return L("Checking your calendar…", table: "Thought", language: language)
         case .preparingPreview: return L("Preparing a preview…", table: "Thought", language: language)
-        case .working:
-            if let step, !step.isEmpty { return shorten(step, limit: stepLimit) }
-            return L("Working on it…", table: "Thought", language: language)
         case .retrying: return L("Trying again…", table: "Thought", language: language)
         case .condensing: return L("Summarizing…", table: "Thought", language: language)
         case .checkingSources: return L("Double-checking…", table: "Thought", language: language)
         case .writing: return L("Writing…", table: "Thought", language: language)
         case .stopping: return L("Stopping…", table: "Thought", language: language)
         case .waitingForPerson: return L("Quick question", table: "Thought", language: language)
-        case .starting, .waitingForAnswer, .gettingReady, .wakingUp, .warmingUp:
+        case .gettingReady, .wakingUp, .warmingUp:
             return L("Thinking…", table: "Thought", language: language)
+        case .starting, .waitingForAnswer, .working: return "Pippa"
         }
     }
 

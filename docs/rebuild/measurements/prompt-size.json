@@ -112,5 +112,54 @@
       "note": "same level as the #11 re-measurement; the date line does not change it"
     },
     "tomorrow": "weather: web_search 'Wetter morgen Berlin' in all runs, no wrong date"
+  },
+  "macMain": {
+    "setup": "Mac, same as macQwen (Qwen3.5-9B Q4 with thinking, variant B, patched llama-server). MAIN = 4a28f81 (after #30, #37, #42), compared with NEU = 4da815a in the same session; tool-choice with pippa-memory and pippa-context loaded as in the app. Raw data stayed on the Mac (pippa-lp-main/docs/rebuild/measurements/lean-prompt-main).",
+    "firstRequestTokens": {
+      "neu": 2845,
+      "main": 2819,
+      "note": "system text 639 -> 436 (no skills section); tools 2206 -> 2383, 21 tools: new remember 170, search_files 121, photos_search 89"
+    },
+    "coldTimeToFirstTokenMs": {
+      "neu": [
+        3860,
+        3866
+      ],
+      "main": [
+        3847,
+        3848
+      ],
+      "note": "min and max of 3, alternating in one session"
+    },
+    "toolChoice25": {
+      "neu": [
+        24,
+        25,
+        25
+      ],
+      "main": [
+        25,
+        25,
+        25
+      ]
+    },
+    "fileSearch6": {
+      "neu": [
+        6,
+        6,
+        6
+      ],
+      "main": [
+        5,
+        6,
+        6
+      ],
+      "mainFailure": "r1 where: search_files with an invented year 2026, nothing found; the parameter now says never guess one"
+    },
+    "language": {
+      "englishQuestionEnglishAnswer": "6/6 (with the English note)",
+      "germanQuestionWithDu": "1/6 du, 1 mixed, 4 Sie (summary of a letter written with Sie); the German note now says "duze mich" (only how Pippa addresses the person; the mail-antwort task checks the draft to the property manager stays formal)"
+    },
+    "tomorrow": "weather: web_search 'Wetter morgen Berlin' in all runs, no wrong date"
   }
 }

@@ -23,6 +23,9 @@ final class ShellController: NSObject {
     private let interaction: PillInteractionView
     /// Items lying on Pippa: cards behind the pill (at rest only).
     private let stack = TrayStackView()
+    /// While Pippa works: the light around the pill and the thought bubble above it (PillAura).
+    private let auraState: PillAuraState
+    private let aura: PillAuraHost
     let reveal = RevealState()
     private var cancellables: Set<AnyCancellable> = []
     private var layoutScheduled = false
@@ -71,6 +74,9 @@ final class ShellController: NSObject {
                            styleMask: [.borderless], backing: .buffered, defer: false)
         hosting = ShellHostingView(rootView: ShellHostRoot(model: model, reveal: reveal))
         interaction = PillInteractionView()
+        let auraState = PillAuraState()
+        self.auraState = auraState
+        aura = PillAuraHost(rootView: PillAura(state: auraState))
         super.init()
 
         panel.isFloatingPanel = true
@@ -109,6 +115,11 @@ final class ShellController: NSObject {
         // Below the shape, above the shadow: the pill covers the lower part of the cards.
         stack.controller = self
         stage.addSubview(stack, positioned: .below, relativeTo: clip)
+
+        // Directly behind the shape: the glow only shows around the pill's edge, the bubble above it.
+        aura.sizingOptions = []
+        aura.wantsLayer = true
+        stage.addSubview(aura, positioned: .below, relativeTo: clip)
 
         inner.wantsLayer = true
         clip.addSubview(inner)
@@ -264,6 +275,7 @@ final class ShellController: NSObject {
                 self?.layout(animated: true)
                 // The drop target can change without the shape moving.
                 self?.updateStack(animated: true)
+                self?.updateAura()
             }
         }
     }
@@ -666,6 +678,7 @@ final class ShellController: NSObject {
         radius = t.radius
         markRect = toMark
         updateStack(animated: canAnimate)
+        updateAura()
         updateMouseIgnoring()
 
         let finish: @MainActor () -> Void = { [weak self] in
@@ -920,6 +933,7 @@ final class ShellController: NSObject {
         unionRect = to
         markRect = mark.frame
         updateStack(animated: false)
+        updateAura()
     }
 
     /// Frame of the shell in screen coordinates.
@@ -959,6 +973,21 @@ final class ShellController: NSObject {
         let room = toStage(screen(containing: shellScreenRect).visibleFrame)
         stack.update(items: visible ? model.tray.peek : [], tray: model.tray, pill: shellRect, room: room,
                      animated: animated && !MarkHub.shared.reduced)
+    }
+
+    /// Glow and thought bubble only around the collapsed pill; the open conversation shows the same steps itself.
+    func updateAura() {
+        if aura.frame != stage.bounds { aura.frame = stage.bounds }
+        let height = stage.bounds.height
+        func flipped(_ r: CGRect) -> CGRect { CGRect(x: r.minX, y: height - r.maxY, width: r.width, height: r.height) }
+        let atRest = stageVisible && model.pillVisible && model.mode.key == "pill"
+        let chat = model.conversations
+        let running = atRest && chat.isRunning && chat.thought.isVisible
+        let room = toStage(screen(containing: shellScreenRect).visibleFrame)
+        auraState.update(pill: flipped(shellRect), mark: flipped(markRect), below: room.maxY - shellRect.maxY < 120,
+                         working: atRest && model.pillStatus.tone == .working,
+                         step: running ? chat.thought.bubbles.last : nil, startedAt: running ? chat.thought.startedAt : nil,
+                         slowText: ThoughtLine.slowNote)
     }
 
     @discardableResult
