@@ -150,9 +150,10 @@ public enum WorkEvent: Sendable, Equatable {
     case sources([SourceReading])
     /// A Pi tool started; `source` is the host's name of the source it opened, never agent text.
     /// `step`: the everyday phrase for what the tool does (WorkStepPhrase), computed by the host.
-    case toolStarted(name: String, source: String?, step: String? = nil)
-    /// `outcome`: a short result such as "3 matches", when cheaply known.
-    case toolEnded(name: String, outcome: String? = nil)
+    /// `kind`: what sort of thing the step touches (WorkStepPhrase.step).
+    case toolStarted(name: String, source: String?, step: String? = nil, kind: WorkStep.Kind? = nil)
+    /// `outcome`: a short result such as "3 matches", when cheaply known. `failed`: the step did not work.
+    case toolEnded(name: String, outcome: String? = nil, failed: Bool = false)
 }
 
 public typealias WorkEventHandler = @Sendable (WorkEvent) -> Void
@@ -284,10 +285,15 @@ public struct ThoughtLine: Sendable, Equatable {
         return steps[index].text
     }
 
+    /// All finished steps so far, oldest first (the open ones are still running).
+    public var doneSteps: [WorkStep] {
+        let open = Set(openSteps.compactMap { $0 })
+        return steps.enumerated().filter { !open.contains($0.offset) }.map(\.element)
+    }
+
     /// Finished steps, newest last, for the quiet list (`hidden`: how many older ones are not listed).
     public var recentSteps: (shown: [WorkStep], hidden: Int) {
-        let open = Set(openSteps.compactMap { $0 })
-        let done = steps.enumerated().filter { !open.contains($0.offset) }.map(\.element)
+        let done = doneSteps
         return (Array(done.suffix(Self.visibleSteps)), max(0, done.count - Self.visibleSteps))
     }
 
@@ -333,7 +339,7 @@ public struct ThoughtLine: Sendable, Equatable {
                 }
                 upsert(source)
             }
-        case .toolStarted(let name, let sourceName, let step):
+        case .toolStarted(let name, let sourceName, let step, let kind):
             // Only names the host listed as sources are shown; anything else stays generic.
             var mapped = WorkPhase.tool(name, source: nil)
             if case .lookingThrough = mapped, let sourceName, var known = sources.first(where: { $0.name == sourceName }) {
@@ -345,7 +351,7 @@ public struct ThoughtLine: Sendable, Equatable {
             if mapped == .checkingCalendar { checkedCalendar = true }
             var stepIndex: Int?
             if let step, !step.isEmpty {
-                steps.append(WorkStep(text: step))
+                steps.append(WorkStep(text: step, kind: kind))
                 if steps.count > Self.maxSteps { steps.removeFirst(); openSteps = openSteps.map { $0.map { $0 - 1 }.flatMap { $0 >= 0 ? $0 : nil } } }
                 stepIndex = steps.count - 1
                 // Pi's own tools (no mapped phase) still move the line: "Working on it" with the step as detail.
@@ -355,8 +361,11 @@ public struct ThoughtLine: Sendable, Equatable {
             openTools.append(mapped)
             furthest = Int.max
             if let mapped { phase = mapped }
-        case .toolEnded(_, let outcome):
-            if let index = openSteps.popLast() ?? nil, steps.indices.contains(index) { steps[index].outcome = outcome }
+        case .toolEnded(_, let outcome, let failed):
+            if let index = openSteps.popLast() ?? nil, steps.indices.contains(index) {
+                steps[index].outcome = outcome
+                if failed { steps[index].failed = true }
+            }
             // A tool that never changed the line does not change it when it ends either.
             let ended = openTools.popLast() ?? nil
             if let running = openTools.compactMap({ $0 }).last { phase = running }

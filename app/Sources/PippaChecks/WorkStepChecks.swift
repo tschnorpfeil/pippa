@@ -192,6 +192,26 @@ func runWorkStepChecks() {
             && receipt.summary == L("%lld steps · %@", table: "Thought", 8, WorkReceipt.duration(9))
     }
 
+    check("Work steps: each step knows what it touched and whether it worked, old receipts still open") {
+        let home = "/Users/anna"
+        let step = { (tool: String, args: String) in WorkStepPhrase.step(tool: tool, arguments: args, home: home, language: "de")?.kind }
+        guard step("read", #"{"path":"~/Documents/Brief.docx"}"#) == .file, step("edit", #"{"path":"a.txt"}"#) == .change,
+              step("bash", #"{"command":"find ~/Documents -name '*.pdf'"}"#) == .search, step("bash", #"{"command":"osascript -e x"}"#) == .mac,
+              step("web_search", #"{"query":"Miete"}"#) == .online, step("mcp__pippa__mail_search", "{}") == .mail,
+              step("remember", "{}") == .memory, step("propose_actions", "{}") == nil else { return false }
+        let missing = WorkStepPhrase.ending(tool: "read", arguments: #"{"path":"x.pdf"}"#, isError: true, result: "ENOENT", home: home, language: "de")
+        let nothing = WorkStepPhrase.ending(tool: "grep", arguments: #"{"pattern":"Miete"}"#, isError: true, result: "", home: home, language: "de")
+        guard missing.failed, missing.outcome == "Datei nicht gefunden", !nothing.failed, nothing.outcome == "nichts gefunden" else { return false }
+        let request = UUID()
+        var line = ThoughtLine()
+        line.begin(request, at: Date())
+        line.apply(.toolStarted(name: "read", source: nil, step: "Lese x.pdf", kind: .file), request: request, at: Date())
+        line.apply(.toolEnded(name: "read", outcome: "Datei nicht gefunden", failed: true), request: request, at: Date())
+        let old = try JSONDecoder().decode(WorkStep.self, from: Data(#"{"text":"Lese a.md","outcome":"leer"}"#.utf8))
+        return line.doneSteps == [WorkStep(text: "Lese x.pdf", outcome: "Datei nicht gefunden", kind: .file, failed: true)]
+            && old == WorkStep(text: "Lese a.md", outcome: "leer")
+    }
+
     check("Work steps: stale tool events after the end change nothing") {
         let request = UUID()
         var line = ThoughtLine()
