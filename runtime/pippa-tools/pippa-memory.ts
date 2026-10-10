@@ -119,7 +119,7 @@ export default function (pi: ExtensionAPI) {
 		name: "remember",
 		label: "Merken",
 		description: "Pippa's memory across conversations. add: a lasting fact or wish the person states about themselves "
-			+ "(people and companies they deal with, where they live, how they want answers), one short fact per call; not "
+			+ "(family and other people, doctors, landlord and companies they deal with, where they live, how they want answers), one short fact per call; not "
 			+ "details of the current task. forget: what the person asks you to forget ('*' = everything). Both = change.",
 		parameters: {
 			type: "object",
