@@ -101,7 +101,11 @@ final class PiSetupController: ObservableObject {
     /// At app start: pass changes on to the shell (size), then set up quietly.
     func attach(to model: AppModel) {
         self.model = model
-        forward = objectWillChange.sink { [weak model] _ in model?.objectWillChange.send() }
+        forward = objectWillChange.sink { [weak model] _ in
+            model?.objectWillChange.send()
+            // After the change has landed: the mark follows the download (AppModel.markState).
+            Task { @MainActor [weak model] in model?.updateMark() }
+        }
         begin()
     }
 

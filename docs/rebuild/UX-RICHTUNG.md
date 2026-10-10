@@ -82,6 +82,9 @@ Gebaut wird auf dem Mac erst nach der Abnahme der Web-Recherche (Owner 09.10.). 
 Fehler im offenen Gespräch (Klicktest 09.10.): Die Notiz zeigt jetzt dasselbe rote „!“ wie die Pille und „Erneut versuchen“,
 das dieselbe Frage noch einmal stellt.
 
+Pille im Hintergrund (Owner 10.10.): Läuft irgendetwas, auch das Laden der KI, kreist das Zeichen und der Rand der
+Pille atmet langsam (nur Deckkraft, 1,6 s). Mit „Bewegung reduzieren“ steht der Rand still und leuchtet.
+
 Fixplan Phase 1: in diesem Branch 1.1 (Grund sichtbar, „Problem melden“ hinter Details), 1.3 (kein ⌘↵ im Knopf), 1.4 („vorher: …“ in normaler Schrift). Offen: 1.2, 1.5–1.9.
 
 ## Was dieser Branch ändert
