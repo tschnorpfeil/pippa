@@ -213,3 +213,11 @@
 "Pippa keeps loading her AI meanwhile · %lld %%" = "Pippa lädt nebenbei weiter · %lld %%";
 "Continue" = "Weiter";
 "For the files you keep in %@." = "Für die Dateien, die du in %@ ablegst.";
+"What Pippa knows about you" = "Was Pippa über dich weiß";
+"Pippa only keeps what you tell it about yourself, on this Mac. A forgotten fact is gone from the next conversation on." = "Pippa behält nur, was du über dich erzählst, und nur auf diesem Mac. Was du vergisst, ist ab dem nächsten Gespräch weg.";
+"Nothing yet" = "Noch nichts";
+"When you tell Pippa something about yourself that should last, such as your doctor’s name, it appears here." = "Wenn du Pippa etwas über dich erzählst, das bleiben soll, etwa den Namen deiner Ärztin, steht es hier.";
+"Forget “%@”" = "„%@“ vergessen";
+"Forget everything" = "Alles vergessen";
+"Forget All" = "Alle vergessen";
+"I couldn’t forget that just now. Please try again." = "Das konnte ich gerade nicht vergessen. Versuch es bitte noch einmal.";

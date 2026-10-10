@@ -316,6 +316,7 @@ struct SettingsView: View {
                 }
                 // Same rows and buttons as the onboarding page "What Pippa may do".
                 PermissionSettingsGroup(permissions: model.permissions)
+                MemoryFactsGroup()
                 learningGroup
                 onlineGroup
                 Text(T("Pippa %@", table: "Settings", PippaCore.Pippa.version))
