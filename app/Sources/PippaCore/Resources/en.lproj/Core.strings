@@ -203,3 +203,7 @@
 "%lld in the Trash" = "%lld in the Trash";
 "It’s no longer in the Trash." = "It’s no longer in the Trash.";
 "Photos" = "Photos";
+
+/* What Pippa may (MacPermissions.swift) */
+"Notes" = "Notes";
+"When you connect a drive, your Mac asks the first time Pippa opens it." = "When you connect a drive, your Mac asks the first time Pippa opens it.";

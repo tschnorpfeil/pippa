@@ -11,6 +11,7 @@
     separate right for Reminders). Without it macOS refuses silently, without a prompt.
   - personal-information.photos-library: Hardened Runtime right for PhotoKit (NSPhotoLibraryUsageDescription): previews
     of the photos Pippa's Photos search found. The search itself goes through Apple Events (automation for Photos).
+  - personal-information.addressbook: Hardened Runtime right for Contacts (read only, "What Pippa may do").
 
   Dropped with the sandbox (effective only inside it): app-sandbox, files.user-selected.read-write,
   files.bookmarks.app-scope, files.downloads.read-write, network.client, network.server,
@@ -28,6 +29,8 @@
 	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
 	<key>com.apple.security.personal-information.photos-library</key>
+	<true/>
+	<key>com.apple.security.personal-information.addressbook</key>
 	<true/>
 </dict>
 </plist>

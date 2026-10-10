@@ -32,8 +32,6 @@
 "Load Now" = "Load Now";
 "Cancel" = "Cancel";
 "Try Again" = "Try Again";
-"Add deadlines to Reminders and Calendar" = "Add deadlines to Reminders and Calendar";
-"Read the selected mail" = "Read the selected mail";
 "%@ (Default)" = "%@ (Default)";
 "Open System Settings" = "Open System Settings";
 "Hello, I’m" = "Hello, I’m";
@@ -182,7 +180,6 @@
 "Opens Pippa from anywhere." = "Opens Pippa from anywhere.";
 "Pippa is there as soon as your Mac is on." = "Pippa is there as soon as your Mac is on.";
 "Permissions" = "Permissions";
-"Your Mac asks you once before Pippa uses them. You can change it later in System Settings." = "Your Mac asks you once before Pippa uses them. You can change it later in System Settings.";
 "Allowed" = "Allowed";
 "Will ask" = "Will ask";
 "What Pippa remembers" = "What Pippa remembers";
@@ -198,3 +195,36 @@
 "Pippa %@" = "Pippa %@";
 "Runs on your Mac, also without internet." = "Runs on your Mac, also without internet.";
 "Ready" = "Ready";
+
+/* What Pippa may do (PermissionViews.swift) */
+"Desktop, Documents and Downloads" = "Desktop, Documents and Downloads";
+"iCloud Drive" = "iCloud Drive";
+"External drives" = "External drives";
+"Contacts" = "Contacts";
+"Photos" = "Photos";
+"Mail" = "Mail";
+"Notes" = "Notes";
+"Excel" = "Excel";
+"So Pippa can find, read and tidy your files when you ask." = "So Pippa can find, read and tidy your files when you ask.";
+"For the files you keep in iCloud." = "For the files you keep in iCloud.";
+"For USB sticks and external disks." = "For USB sticks and external disks.";
+"So Pippa can read your appointments and add deadlines." = "So Pippa can read your appointments and add deadlines.";
+"So Pippa can add deadlines as reminders." = "So Pippa can add deadlines as reminders.";
+"So Pippa can find addresses and phone numbers when you ask." = "So Pippa can find addresses and phone numbers when you ask.";
+"So Pippa can find your photos when you ask, like “photos of my bike”." = "So Pippa can find your photos when you ask, like “photos of my bike”.";
+"So Pippa can read the selected mail and prepare a reply. Nothing is sent." = "So Pippa can read the selected mail and prepare a reply. Nothing is sent.";
+"So Pippa can find and add notes when you ask." = "So Pippa can find and add notes when you ask.";
+"So Pippa can read the table you’re looking at." = "So Pippa can read the table you’re looking at.";
+"Your Mac is asking you" = "Your Mac is asking you";
+"Opens System Settings." = "Opens System Settings.";
+"Allow" = "Allow";
+"Allow %@" = "Allow %@";
+"You said no. “Allow…” opens System Settings, where you can turn it on." = "You said no. “Allow…” opens System Settings, where you can turn it on.";
+"Your files" = "Your files";
+"Your apps" = "Your apps";
+"Your Mac asks you once for each. You can change it later in System Settings." = "Your Mac asks you once for each. You can change it later in System Settings.";
+"What Pippa may do" = "What Pippa may do";
+"Your Mac asks you once for each. You can change it later in Settings." = "Your Mac asks you once for each. You can change it later in Settings.";
+"Pippa keeps loading her AI meanwhile · %lld %%" = "Pippa keeps loading her AI meanwhile · %lld %%";
+"Continue" = "Continue";
+"For the files you keep in %@." = "For the files you keep in %@.";

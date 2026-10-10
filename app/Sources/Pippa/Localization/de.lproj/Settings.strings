@@ -32,8 +32,6 @@
 "Load Now" = "Jetzt laden";
 "Cancel" = "Abbrechen";
 "Try Again" = "Erneut versuchen";
-"Add deadlines to Reminders and Calendar" = "Fristen in Erinnerungen und Kalender eintragen";
-"Read the selected mail" = "Ausgewählte Mail lesen";
 "%@ (Default)" = "%@ (Standard)";
 "Open System Settings" = "Systemeinstellungen öffnen";
 "Hello, I’m" = "Hallo, ich bin";
@@ -182,7 +180,6 @@
 "Opens Pippa from anywhere." = "Öffnet Pippa, egal wo du bist.";
 "Pippa is there as soon as your Mac is on." = "Pippa ist da, sobald dein Mac an ist.";
 "Permissions" = "Erlaubnisse";
-"Your Mac asks you once before Pippa uses them. You can change it later in System Settings." = "Dein Mac fragt dich einmal, bevor Pippa darauf zugreift. Ändern kannst du das später in den Systemeinstellungen.";
 "Allowed" = "Erlaubt";
 "Will ask" = "Fragt vorher";
 "What Pippa remembers" = "Was Pippa sich merkt";
@@ -198,3 +195,36 @@
 "Pippa %@" = "Pippa %@";
 "Runs on your Mac, also without internet." = "Läuft auf deinem Mac, auch ohne Internet.";
 "Ready" = "Bereit";
+
+/* What Pippa may do (PermissionViews.swift) */
+"Desktop, Documents and Downloads" = "Schreibtisch, Dokumente und Downloads";
+"iCloud Drive" = "iCloud Drive";
+"External drives" = "Externe Laufwerke";
+"Contacts" = "Kontakte";
+"Photos" = "Fotos";
+"Mail" = "Mail";
+"Notes" = "Notizen";
+"Excel" = "Excel";
+"So Pippa can find, read and tidy your files when you ask." = "Damit Pippa deine Dateien findet, liest und aufräumt, wenn du sie darum bittest.";
+"For the files you keep in iCloud." = "Für die Dateien, die du in iCloud ablegst.";
+"For USB sticks and external disks." = "Für USB-Sticks und externe Festplatten.";
+"So Pippa can read your appointments and add deadlines." = "Damit Pippa deine Termine liest und Fristen einträgt.";
+"So Pippa can add deadlines as reminders." = "Damit Pippa Fristen als Erinnerung einträgt.";
+"So Pippa can find addresses and phone numbers when you ask." = "Damit Pippa Adressen und Telefonnummern findet, wenn du fragst.";
+"So Pippa can find your photos when you ask, like “photos of my bike”." = "Damit Pippa deine Fotos findet, wenn du fragst, etwa „Fotos von meinem Fahrrad“.";
+"So Pippa can read the selected mail and prepare a reply. Nothing is sent." = "Damit Pippa die ausgewählte Mail liest und eine Antwort vorbereitet. Verschickt wird nichts.";
+"So Pippa can find and add notes when you ask." = "Damit Pippa Notizen findet und anlegt, wenn du fragst.";
+"So Pippa can read the table you’re looking at." = "Damit Pippa die Tabelle liest, die du gerade ansiehst.";
+"Your Mac is asking you" = "Dein Mac fragt dich gerade";
+"Opens System Settings." = "Öffnet die Systemeinstellungen.";
+"Allow" = "Erlauben";
+"Allow %@" = "%@ erlauben";
+"You said no. “Allow…” opens System Settings, where you can turn it on." = "Du hast abgelehnt. „Erlauben …“ öffnet die Systemeinstellungen, dort kannst du es einschalten.";
+"Your files" = "Deine Dateien";
+"Your apps" = "Deine Apps";
+"Your Mac asks you once for each. You can change it later in System Settings." = "Dein Mac fragt dich bei jedem Punkt einmal. Ändern kannst du es später in den Systemeinstellungen.";
+"What Pippa may do" = "Was Pippa darf";
+"Your Mac asks you once for each. You can change it later in Settings." = "Dein Mac fragt dich bei jedem Punkt einmal. Ändern kannst du es später in den Einstellungen.";
+"Pippa keeps loading her AI meanwhile · %lld %%" = "Pippa lädt nebenbei weiter · %lld %%";
+"Continue" = "Weiter";
+"For the files you keep in %@." = "Für die Dateien, die du in %@ ablegst.";

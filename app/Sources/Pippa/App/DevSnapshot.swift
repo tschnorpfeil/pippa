@@ -7,7 +7,7 @@ import SwiftUI
 /// sample engine, photographs the real window (with alpha, via `screencapture -l`)
 /// and saves one PNG per form, plus frame sequences of every morph (in slow motion) and a
 /// check of the corners (`corners.txt`). `PIPPA_APPEARANCE=dark|light` forces the appearance.
-/// `PIPPA_SNAPSHOT_ONLY=morph|states|pillstatus|workspace|chat|natural|keyboard|byom|settings|firstrun|welcome|setup-*` restricts the run. Exits afterwards.
+/// `PIPPA_SNAPSHOT_ONLY=morph|states|pillstatus|workspace|chat|natural|keyboard|byom|settings|permissions|firstrun|welcome|setup-*` restricts the run. Exits afterwards.
 /// `setup-*`: setup without technical questions (PiSetupSnapshot).
 /// `firstrun` and `welcome` need `PIPPA_DEMO_MODEL=missing` (sample engine without knowledge, as on first launch);
 /// `welcome` additionally without consent to download (`-model.download.allowed NO` as an argument), best with `PIPPA_SNAPSHOT_HEIGHT=700`.
@@ -141,6 +141,45 @@ enum DevSnapshot {
                 await grabSettings("settings-01-local")
                 try? model.saveInferenceSettings(.init(policy: .ask, connection: ModelConnection(provider: .openAI, modelID: "gpt-example")))
                 await grabSettings("settings-02-online")
+                NSApp.terminate(nil)
+                return
+            }
+
+            // "What Pippa may do" (PermissionViews.swift): the onboarding page while the AI loads, one Allow, then the
+            // Settings group. PIPPA_DEMO=1 answers with fixed states (DemoPermissions); no real dialog, nothing is read.
+            if only == "permissions" {
+                let permissions = model.permissions
+                permissions.onboardingPending = true
+                let setup = PiSetupController(flow: nil, state: .downloading(progress: 0.42, remaining: 330))
+                PiSetupController.shared = setup
+                setup.attach(to: model)
+                model.show(.pill)
+                try? await Task.sleep(for: .milliseconds(300))
+                model.show(.onboarding)
+                await snap("permissions-01-onboarding", wait: 1.4)
+                permissions.allow(.reminders)
+                await snap("permissions-02-asking", wait: 0.1)
+                await snap("permissions-03-allowed", wait: 1.0)
+                let report = MacPermission.allCases.map { p in "\(p.rawValue): \(permissions.states[p].map { s in String(describing: s) } ?? "hidden")" }
+                try? report.joined(separator: "\n").appending("\n").write(to: dir.appendingPathComponent("permissions.txt"), atomically: true, encoding: .utf8)
+                permissions.finishOnboarding()
+                await snap("permissions-04-continue", wait: 0.9)
+                model.collapse()
+                let settings = SettingsWindowController(model: model)
+                settings.show()
+                try? await Task.sleep(for: .seconds(1.2))
+                if let window = settings.window {
+                    // Scroll to the permissions so the whole group is in the picture.
+                    if let scroll = window.contentView?.firstDescendant(of: NSScrollView.self) {
+                        scroll.contentView.scroll(to: NSPoint(x: 0, y: 330))
+                        scroll.reflectScrolledClipView(scroll.contentView)
+                        try? await Task.sleep(for: .milliseconds(400))
+                    }
+                    if let data = grabWindow(window), let rep = NSBitmapImageRep(data: data), let cg = rep.cgImage {
+                        writePNG(cg, to: dir.appendingPathComponent("permissions-05-settings.png"))
+                    }
+                }
+                settings.window?.close()
                 NSApp.terminate(nil)
                 return
             }
@@ -1390,6 +1429,14 @@ enum DevSnapshot {
         guard let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: url)
+    }
+}
+private extension NSView {
+    func firstDescendant<V: NSView>(of type: V.Type) -> V? {
+        for sub in subviews {
+            if let match = sub as? V ?? sub.firstDescendant(of: type) { return match }
+        }
+        return nil
     }
 }
 #endif

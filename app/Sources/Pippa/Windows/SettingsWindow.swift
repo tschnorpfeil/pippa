@@ -33,7 +33,7 @@ final class SettingsWindowController {
 }
 
 /// Group: small heading, box with hairline, rows 52, an optional quiet note under the box.
-private struct SettingsGroup<Content: View>: View {
+struct SettingsGroup<Content: View>: View {
     var title: String?
     var note: String?
     @ViewBuilder var content: Content
@@ -252,7 +252,6 @@ struct SettingsView: View {
     private let loginState = State(initialValue: SMAppService.mainApp.status == .enabled)
     private let loginError = State<String?>(initialValue: nil)
     private let hotkeyTaken = State(initialValue: HotkeyCenter.shared.mainTaken)
-    private let accessState = State<[Integration: IntegrationAccess]>(initialValue: [:])
 
     private let learnedState = State(initialValue: 0)
     private let learningErrorState = State<String?>(initialValue: nil)
@@ -315,12 +314,8 @@ struct SettingsView: View {
                 } else if AILoadRow.shows(model) {
                     SettingsGroup(title: T("Pippa’s AI", table: "Settings")) { AILoadRow(model: model) }
                 }
-                SettingsGroup(title: T("Permissions", table: "Settings"),
-                              note: T("Your Mac asks you once before Pippa uses them. You can change it later in System Settings.", table: "Settings")) {
-                    accessRow(T("Add deadlines to Reminders and Calendar", table: "Settings"), [.reminders, .calendar],
-                              icon: "calendar", tint: .red, divider: false)
-                    accessRow(T("Read the selected mail", table: "Settings"), [.mail], icon: "envelope.fill", tint: .blue)
-                }
+                // Same rows and buttons as the onboarding page "What Pippa may do".
+                PermissionSettingsGroup(permissions: model.permissions)
                 learningGroup
                 onlineGroup
                 Text(T("Pippa %@", table: "Settings", PippaCore.Pippa.version))
@@ -424,19 +419,6 @@ struct SettingsView: View {
         return keys
     }
 
-    private func accessRow(_ title: String, _ integrations: [Integration], icon: String, tint: Color, divider: Bool = true) -> some View {
-        let states = integrations.compactMap { accessState.wrappedValue[$0] }
-        return SettingsRow(title: title, icon: icon, tint: tint, divider: divider) {
-            if !states.isEmpty && states.allSatisfy({ $0 == .granted }) {
-                StatusBadge(text: T("Allowed", table: "Settings"), symbol: "checkmark", ink: Theme.ok, fill: Theme.okTint)
-            } else if states.contains(.denied) {
-                Button(T("Allow…", table: "Settings")) { NSWorkspace.shared.open(integrations[0].settingsURL) }.pippa(.secondary)
-            } else {
-                StatusBadge(text: T("Will ask", table: "Settings"), symbol: nil, ink: Theme.ink2, fill: Theme.fill2)
-            }
-        }
-    }
-
     private func loadLearning() async {
         do {
             learnedState.wrappedValue = try await model.taskLog.recordsForSettings().count
@@ -448,14 +430,11 @@ struct SettingsView: View {
 
     private func load() async {
         await loadLearning()
-        var access: [Integration: IntegrationAccess] = [:]
-        for i in Integration.allCases { access[i] = await model.engine.integrationAccess(i) }
-        accessState.wrappedValue = access
     }
 }
 
 /// Small rounded label for a state that needs no action ("Allowed", "Will ask").
-private struct StatusBadge: View {
+struct StatusBadge: View {
     var text: String
     var symbol: String?
     var ink: Color
