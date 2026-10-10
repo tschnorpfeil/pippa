@@ -182,7 +182,7 @@ struct ToastView: View {
                 }
                 .padding(.top, 3)
                 Spacer(minLength: 0)
-                CloseButton(action: onClose)
+                CloseButton(action: onClose, collapses: false)
             }
             .padding(.top, 16)
             .padding(.leading, 16)

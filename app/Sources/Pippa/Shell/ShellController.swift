@@ -57,8 +57,6 @@ final class ShellController: NSObject {
     var dragBaseline = NSPasteboard(name: .drag).changeCount
     var dragAnnounced = false
     var monitors: [Any] = []
-    /// State of the drag pasteboard at the last press outside (click or start of a drag?).
-    var outsideDragBaseline = NSPasteboard(name: .drag).changeCount
 
     /// Slow motion (developer check only): springs and fades run slower.
     var slowdown: Double = 1 {
