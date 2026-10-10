@@ -64,11 +64,16 @@ extension AppModel {
         if hasConfiguredInference { return nil }
         if let reason = unsupportedReason { return reason }
         guard chatReadiness == .unavailable else { return nil }
-        var text = T("I need my AI to answer.", table: "App")
+        // While it loads, Apple Intelligence already answers simple questions (StartupBridgeChat): say that instead.
+        let bridged = PiRPCChat.isLive && StartupBridgeChat.systemModelAvailable
+        var text = bridged ? T("I can already answer simple questions; for everything else my AI is still loading.", table: "App")
+                           : T("I need my AI to answer.", table: "App")
         switch modelStatus {
         case .downloading(_, let remaining):
             if let remaining {
-                text += " " + T("It’s loading right now, %@.", table: "App", Self.remainingText(remaining))
+                // "noch etwa 2 Min." already ends with a period.
+                let left = Self.remainingText(remaining).trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                text += " " + T("It’s loading right now, %@.", table: "App", left)
             } else {
                 text += " " + T("It’s loading right now.", table: "App")
             }

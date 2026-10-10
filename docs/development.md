@@ -267,8 +267,20 @@ text report and quits (for example `settings`, `scans`, `calendar`, `ctxsug`, `t
 
 **Clicking through the real app.** Pippa is a menu bar app (accessory), which UI automation tools that only list
 regular apps cannot reach. `PIPPA_REGULAR_APP=1` makes it a regular app with a Dock icon. For a clean first start
-without touching your own data, point Foundation at a fake home (`HOME` alone is ignored):
-`open --env PIPPA_REGULAR_APP=1 --env CFFIXED_USER_HOME=$PWD/.build/fakehome --env HOME=$PWD/.build/fakehome dist/Pippa.app`.
+point Foundation at a fake home (`HOME` alone is ignored) and Pi's setup at its own folder:
+`open --env PIPPA_REGULAR_APP=1 --env PIPPA_NO_MOVE=1 --env CFFIXED_USER_HOME=$PWD/.build/fakehome --env HOME=$PWD/.build/fakehome --env PIPPA_PI_HOME=$PWD/.build/fakehome dist/Pippa.app`.
+A fake home alone does not isolate everything: Pi's setup follows the account's real home (`ExistingModels.realHome`)
+unless `PIPPA_PI_HOME` is set, and preferences (`io.github.tschnorpfeil.pippa`) go through `cfprefsd` to the real
+account. Save them first (`defaults export io.github.tschnorpfeil.pippa ~/pippa-prefs.plist`), delete them for a true
+first launch, and import them back afterwards.
+`PIPPA_NO_MOVE=1` skips the one question a first launch outside Applications asks (move to Applications, `AppMover`);
+leave it out to try that question from the disk image. Debug builds ask only with `PIPPA_TRY_MOVE=1`.
+
+**The first minutes.** While setup still runs or the model loads, plain questions get a short answer from Apple
+Intelligence (macOS 26 and later, when it is on); anything that needs files, Mail, Calendar, the web or a change waits in
+the conversation and goes to Pi once it is ready, together with the quick answers in between
+(`PippaCore/StartupBridge.swift`, `StartupBridgeChat`). Without Apple Intelligence every message waits. Tidying, PDFs
+from photos, text recognition and calendar questions never wait: they do not need the model.
 
 ## Localization
 
