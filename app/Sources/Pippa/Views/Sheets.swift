@@ -126,7 +126,7 @@ struct SortSheet: View {
     }
 
     /// What is still to come, in plain words: documents for later, and the rest of a very full folder. (While Pippa is
-    /// still looking at files, `SortProgress` says so above the approval button.)
+    /// still looking at files, the approval row says so: `SortProgressButton`.)
     private func comingNext(_ plan: Plan, placed: Int) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if !plan.later.isEmpty && plan.pending.isEmpty {
@@ -323,65 +323,77 @@ struct SortSheet: View {
     }
 }
 
-/// While the tidy preview still fills: how far Pippa is, which file she is on and what she does with it (reading,
-/// recognizing the text of a scan or photo, deciding where it belongs), and why "Organize" waits. Pinned right above
-/// the approval button, outside the scroll area: at the top of the preview it scrolled away, and the grey button looked
-/// broken.
-struct SortProgress: View {
-    @ObservedObject var model: AppModel
-    var placed: Int
-    var total: Int
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
+/// While the tidy preview still fills, the approval row itself shows it, without taking extra room: on the left one
+/// line with what Pippa does right now (reading, recognizing the text of a scan or photo, placing a file), and the
+/// "Organize" button becomes a progress button ("Reading 12 of 42…" with a bar along its bottom) that turns blue once
+/// every file has its place. Outside the scroll area, so it never scrolls away.
+enum SortProgress {
     /// Files with a place so far, and all of this round: the same counts the preview shows.
     static func counts(_ plan: Plan) -> (placed: Int, total: Int) {
         let placed = plan.ops.filter { $0.kind != .mkdir }.count + plan.skipped.count + plan.later.count
         return (placed, placed + plan.pending.count)
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(T("Looking at your files…", table: "Views"))
-                    .font(.scaled(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
-                Spacer(minLength: 8)
-                Text(T("%lld of %lld", table: "Views", min(placed, total), total))
-                    .font(.scaled(size: 13, weight: .medium).monospacedDigit())
-                    .foregroundStyle(Theme.ink2)
-                    .fixedSize()
-            }
-            ThinProgress(value: Double(placed) / Double(max(total, 1)), height: 8)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: placed)
-            if let name = model.workProgress?.current {
-                let kind = DocIcon.kind(for: URL(fileURLWithPath: name))
-                HStack(spacing: 6) {
-                    DocIcon(kind: kind, width: 11)
-                    Text(Self.doing(FileName.display(name), stage: model.workProgress?.stage, image: kind == .image))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                .font(Fonts.hint)
-                .foregroundStyle(Theme.ink2)
-            }
-            Text(T("You can already look through the preview. I’ll organize once every file has its place.", table: "Views"))
-                .font(Fonts.hint)
-                .foregroundStyle(Theme.ink3)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-
-    /// The current step in plain words.
+    /// The current step in a few words.
     static func doing(_ name: String, stage: WorkProgress.Stage?, image: Bool) -> String {
         switch stage {
-        case .placing?: T("Deciding where “%@” belongs", table: "Views", name)
-        case .reading? where image: T("Recognizing the text in “%@”", table: "Views", name)
-        default: T("Reading “%@”", table: "Views", name)
+        case .placing?: T("Placing · %@", table: "Views", name)
+        case .reading? where image: T("Recognizing text · %@", table: "Views", name)
+        default: T("Reading · %@", table: "Views", name)
         }
+    }
+}
+
+/// Left of the buttons while the preview fills: a small spinner and the file Pippa is on.
+private struct SortStepLine: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        HStack(spacing: 7) {
+            ProgressView().controlSize(.small).scaleEffect(0.8).frame(width: 14, height: 14)
+            if let name = model.workProgress?.current {
+                let kind = DocIcon.kind(for: URL(fileURLWithPath: name))
+                DocIcon(kind: kind, width: 11)
+                Text(SortProgress.doing(FileName.display(name), stage: model.workProgress?.stage, image: kind == .image))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .font(.scaled(size: 12.5))
+        .foregroundStyle(Theme.ink2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .layoutPriority(-1)
+    }
+}
+
+/// In place of "Organize" while Pippa still looks: the count in the button, the bar along its bottom edge.
+private struct SortProgressButton: View {
+    var placed: Int
+    var total: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let fraction = min(1, Double(placed) / Double(max(total, 1)))
+        Text(T("Reading %lld of %lld…", table: "Views", min(placed, total), total))
+            .font(.scaled(size: 13.5, weight: .semibold).monospacedDigit())
+            .lineLimit(1)
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 16)
+            .frame(height: 34)
+            .frame(minWidth: 168)
+            .background(Capsule().fill(Theme.accentTint))
+            .overlay(alignment: .bottomLeading) {
+                GeometryReader { g in
+                    Rectangle().fill(Theme.accentFill)
+                        .frame(width: g.size.width * fraction, height: 3)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+            }
+            .clipShape(Capsule())
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: placed)
+            .fixedSize()
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(T("Reading %lld of %lld…", table: "Views", min(placed, total), total))
     }
 }
 
@@ -490,12 +502,16 @@ struct SortActions: View {
         model.plan?.ops.filter { $0.kind != .mkdir && $0.certainty != .unreadable && !model.excluded.contains($0.id) }.count ?? 0
     }
     var body: some View {
-        VStack(spacing: 0) {
-            // While Pippa is still looking, the progress sits right above the grey button that waits for it.
-            if model.sortFilling, let plan = model.plan, !plan.pending.isEmpty {
-                let counts = SortProgress.counts(plan)
-                SortProgress(model: model, placed: counts.placed, total: counts.total)
+        // While Pippa is still looking, the same row says so: no extra room, nothing that scrolls away.
+        if model.sortFilling, let plan = model.plan, !plan.pending.isEmpty {
+            let counts = SortProgress.counts(plan)
+            HStack(spacing: 10) {
+                SortStepLine(model: model)
+                Button(T("Not Now", table: "Views")) { model.escape() }.pippa(.quiet).fixedSize()
+                SortProgressButton(placed: counts.placed, total: counts.total)
             }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+        } else {
             buttons
         }
     }

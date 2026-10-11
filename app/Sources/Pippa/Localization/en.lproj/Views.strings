@@ -278,8 +278,7 @@
 "As Letter" = "As Letter";
 "As Word File" = "As Word File";
 "A letter with your address, the date and the subject, as a PDF" = "A letter with your address, the date and the subject, as a PDF";
-"Looking at your files…" = "Looking at your files…";
-"Reading “%@”" = "Reading “%@”";
-"Recognizing the text in “%@”" = "Recognizing the text in “%@”";
-"Deciding where “%@” belongs" = "Deciding where “%@” belongs";
-"You can already look through the preview. I’ll organize once every file has its place." = "You can already look through the preview. I’ll organize once every file has its place.";
+"Placing · %@" = "Placing · %@";
+"Recognizing text · %@" = "Recognizing text · %@";
+"Reading · %@" = "Reading · %@";
+"Reading %lld of %lld…" = "Reading %lld of %lld…";
