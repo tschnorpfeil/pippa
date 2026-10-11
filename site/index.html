@@ -811,7 +811,7 @@ a.addEventListener('click',e=>{if(!navigator.share)return;e.preventDefault();nav
 <script>
 /* Besuche zählen ohne Cookies (GoatCounter): nur Seite und Klicks auf „Herunterladen“, kein Skript von außen. */
 (()=>{if(navigator.doNotTrack==='1'||/^(localhost|127\.)/.test(location.hostname))return;const gc=(p,e)=>{new Image().src='https://heypippa.goatcounter.com/count?p='+encodeURIComponent(p)+'&t='+encodeURIComponent(document.title)+(e?'&e=true':'')+'&rnd='+Math.random().toString(36).slice(2)};
-gc(location.pathname);document.querySelectorAll('a.btn.dl').forEach(a=>a.addEventListener('click',()=>{if(/\.dmg$/.test(a.href))gc('download-dmg-de',1)}))})();
+gc(location.pathname);document.querySelectorAll('a.btn.dl').forEach(a=>a.addEventListener('click',()=>{if(/\.dmg$/.test(a.href))gc('download-'+(a.closest('header')?'header':a.id==='heroDl'?'hero':'end')+'-de',1)}))})();
 </script>
 </body>
 </html>
