@@ -334,6 +334,20 @@ func runMCPChecks() async {
             && cut.count == FrontApp.titleLimit && cut.hasSuffix("…") && !cut.contains("\n")
             && FrontApp.ignoredBundles.contains("com.apple.finder")
     }
+    check("Front app label: once per conversation, again only when the chip changes or comes back after the ×") {
+        let safari = FrontApp(name: "Safari", bundleID: FrontApp.safari, pid: 1, title: "Mietkaution")
+        var other = safari
+        other.title = "Nebenkosten"
+        var memo = FrontLabelMemo()
+        let first = memo.line(for: safari, conversation: "a", german: true)
+        let again = memo.line(for: safari, conversation: "a", german: true)
+        let elsewhere = memo.line(for: safari, conversation: "b", german: true)
+        let changed = memo.line(for: other, conversation: "a", german: true)
+        let removed = memo.line(for: nil, conversation: "a", german: true)
+        let back = memo.line(for: other, conversation: "a", german: true)
+        return first == safari.label(german: true) && again == nil && elsewhere != nil
+            && changed == other.label(german: true) && removed == nil && back == other.label(german: true)
+    }
     await checkAsync("MCP front_read: only the chip's app; page text as untrusted data; without chip, permission or window plain text") {
         final class Box<T>: @unchecked Sendable {
             private let lock = NSLock(); private var items: [T] = []

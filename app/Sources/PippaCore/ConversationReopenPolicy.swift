@@ -7,7 +7,7 @@ import Foundation
 /// handover from the old one (runtime/pippa-tools/pippa-context.ts), so "and the letter from earlier?" still works.
 public enum ConversationReopenPolicy {
     public static let compactAfter: TimeInterval = 10 * 60
-    public static let freshAfter: TimeInterval = 3 * 60 * 60
+    public static let freshAfter: TimeInterval = 60 * 60
 
     public enum Destination: Equatable, Sendable {
         case conversation

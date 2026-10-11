@@ -4,7 +4,7 @@ import Foundation
 
 // "Pippa knows the app in front." When the person calls Pippa, the app they were in is remembered before Pippa
 // takes the focus (FrontmostTracker in the app). Only a label goes into Pi's message: app name and window title,
-// 10 to 20 tokens (`FrontApp.label`). The content comes only on request, through Pippa's read tool `front_read`
+// 10 to 20 tokens (`FrontApp.label`), once per conversation and again only when the chip changes (`FrontLabelMemo`). The content comes only on request, through Pippa's read tool `front_read`
 // (PippaMCPTools.swift), when the question is about it ("was steht hier?", "fass das zusammen").
 // The person sees the label as a chip above the input field and can remove it with one click; without the chip,
 // neither the label nor the content goes anywhere, also not with the online model.
@@ -42,6 +42,26 @@ public struct FrontApp: Sendable, Equatable {
 
     public static let safari = "com.apple.Safari"
     public static let chrome = "com.google.Chrome"
+}
+
+/// The label goes before the first message with a chip, and again only when the chip changes (other app, other title,
+/// or back after the ×). Pi keeps it in the conversation; repeated before every message, a small model weighed the app
+/// more than the question.
+public struct FrontLabelMemo: Sendable {
+    private var sent: [String: String] = [:]
+    public init() {}
+
+    /// The line for this message of `conversation`, or `nil` (no chip, or the same chip already named there).
+    public mutating func line(for app: FrontApp?, conversation: String, german: Bool) -> String? {
+        guard let app else {
+            sent[conversation] = nil
+            return nil
+        }
+        let label = app.label(german: german)
+        guard sent[conversation] != label else { return nil }
+        sent[conversation] = label
+        return label
+    }
 }
 
 /// What `front_read` found.

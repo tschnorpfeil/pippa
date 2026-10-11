@@ -680,9 +680,16 @@ public actor LocalEngine: PippaEngine {
         }
 
         // 3. Model, only for unclear ones (TidyClassifier: system model first, else the local one; short excerpt, time limit).
-        // If none is there (still loading, waking up, not answering), Pippa doesn't guess: the document stays put and goes
-        // to `later`, for one round, once the model is ready. Small, text-rich files first, so the progress moves visibly.
+        // If none answers while one is on the way (still loading, waking up), Pippa doesn't guess: the document stays put and
+        // goes to `later`, for one round, once the model is ready. Without a model on the way it goes to "Dokumente" by kind.
+        // Small, text-rich files first, so the progress moves visibly.
         unclear = TidyClassifier.readingOrder(unclear)
+        // Only a model on the way (ready, loading, downloading) is worth waiting for. Without one (not loaded yet, none fits
+        // this Mac) unclear documents get their place by kind ("Dokumente"), so tidying really works without the AI.
+        let modelComing = await modelOnTheWay
+        func setAside(_ urls: [URL]) {
+            if modelComing { later += urls } else { insights += urls.map { PreSort.documentByKind(FileFacts.read($0)) } }
+        }
         // One save and one restore of Pi's cache for the whole stage, not one per file.
         holdSlot = true
         defer { holdSlot = false }
@@ -690,7 +697,7 @@ public actor LocalEngine: PippaEngine {
             for (i, url) in unclear.enumerated() {
                 try Task.checkCancellation()
                 guard canClassify else {
-                    later += unclear.dropFirst(i)
+                    setAside(Array(unclear.dropFirst(i)))
                     publish(pending: [])
                     break
                 }
@@ -698,7 +705,7 @@ public actor LocalEngine: PippaEngine {
                 let insight = try await insight(for: url, model: true)
                 if let why = insight.skipReason { skipped.append((url, why)) }
                 else if insight.fromModel { insights.append(insight) }
-                else { later.append(url) }
+                else { setAside([url]) }
                 publish(pending: Array(unclear.dropFirst(i + 1)))
             }
         } catch {
@@ -707,6 +714,19 @@ public actor LocalEngine: PippaEngine {
         }
         await unparkSlot()
         return plan
+    }
+
+    /// Will a model answer soon (ready, loading, downloading)? If not, tidying does not leave documents waiting for it.
+    /// Recordings (checks) count as a model.
+    var modelOnTheWay: Bool {
+        get async {
+            if replay != nil { return true }
+            guard modelEnabled else { return false }
+            switch await modelStatus {
+            case .ready, .loading, .downloading: return true
+            case .notInstalled, .failed, .unsupported: return false
+            }
+        }
     }
 
     /// Can stage 3 classify now (system model or local model)? No side effects.

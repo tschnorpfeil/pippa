@@ -208,7 +208,7 @@ public protocol PippaEngine: AnyObject, Sendable {
     /// Staged sorting: `items` = nil means all files directly in `scope`. `limit`: only the newest that many, the rest
     /// ends up in `Plan.remaining`. `onUpdate` immediately gets the plan without a model, then every grown plan
     /// (`Plan.pending` = still in progress). Without a ready model, documents that would need it go to `Plan.later`
-    /// (they stay in place, nothing guessed). The returned plan is final. Whoever approves earlier
+    /// (they stay in place, nothing guessed) while a model is on the way; without one, to "Dokumente" by kind. The returned plan is final. Whoever approves earlier
     /// cancels the rest; only what the preview already shows is executed.
     func proposeSort(items: [URL]?, scope: URL, limit: Int?, onUpdate: @escaping @Sendable (Plan) -> Void) async throws -> Plan
     /// Resume an interrupted job (from `pendingRecovery`).

@@ -162,6 +162,16 @@ func runResultCardChecks() async {
         let answer = "Dort gibt es: Kinderbuch\\_35cm\\_Gesamt.pdf und [Skizze](\(sketch.absoluteString)), auch weg.pdf"
         return FoundFiles.named([pdf, sketch, other, gone, pdf], answer: answer) { $0 != gone } == [pdf, sketch]
     }
+    check("Files card: copies with the same name in folders of the same name show where they differ") {
+        let work = URL(fileURLWithPath: "/Users/x/Developer/pippa/quellen/mail.md")
+        let backup = URL(fileURLWithPath: "/Users/x/Pippa-Backup/pippa/quellen/mail.md")
+        let near = URL(fileURLWithPath: "/Users/x/alt/quellen/mail.md"), intake = URL(fileURLWithPath: "/Users/x/Developer/pippa/mail-intake/mail.md")
+        let other = URL(fileURLWithPath: "/Users/x/Developer/pippa/quellen/brief.md")
+        let labels = FoundFiles.folderLabels([work, backup, intake, other])
+        return labels[work] == "Developer › … › quellen" && labels[backup] == "Pippa-Backup › … › quellen"
+            && labels[intake] == "mail-intake" && labels[other] == "quellen"
+            && FoundFiles.folderLabels([work, near])[near] == "alt › quellen"
+    }
     check("What Pippa knows: read the remember file, forget one fact or all, other lines stay, only the person can read it") {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-memory-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
