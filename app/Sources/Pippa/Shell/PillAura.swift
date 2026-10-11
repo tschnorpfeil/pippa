@@ -336,10 +336,11 @@ struct ThoughtBubble: View {
     }
 
     /// The chip's words, shortened in the middle so the bubble stays small (the conversation shows them in full).
+    /// The calm sentence for a long wait is Pippa's own words and always shown whole.
     private var words: String {
         let limit = PillStatus.stepLimit
         var text = thought.text
-        if text.count > limit {
+        if !thought.slow, text.count > limit {
             let head = (limit - 1) * 2 / 3
             text = String(text.prefix(head)).trimmingCharacters(in: .whitespaces) + "…"
                 + String(text.suffix(limit - 1 - head)).trimmingCharacters(in: .whitespaces)
