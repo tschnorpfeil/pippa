@@ -68,8 +68,8 @@
 "The connection isn’t working right now. Please try again in a few minutes." = "The connection isn’t working right now. Please try again in a few minutes.";
 "Answer stopped." = "Answer stopped.";
 "The answer didn’t come through just now. Please try again in a moment." = "The answer didn’t come through just now. Please try again in a moment.";
-"The request was turned down. Please check the online AI and address under Settings › Advanced." = "The request was turned down. Please check the online AI and address under Settings › Advanced.";
-"The online AI you chose didn’t let me in. Please check the key under Settings › Advanced." = "The online AI you chose didn’t let me in. Please check the key under Settings › Advanced.";
+"The request was turned down. Please check the online AI and address under Settings › Online AI." = "The request was turned down. Please check the online AI and address under Settings › Online AI.";
+"The online AI you chose didn’t let me in. Please check the key under Settings › Online AI." = "The online AI you chose didn’t let me in. Please check the key under Settings › Online AI.";
 "Sample answer: Here you can ask Pippa a question or attach files for context. In the finished app, Pippa answers right here on your Mac." = "Sample answer: Here you can ask Pippa a question or attach files for context. In the finished app, Pippa answers right here on your Mac.";
 "Sender" = "Sender";
 "Date" = "Date";
@@ -101,7 +101,6 @@
 "Reading this one took too long. It stays where it is for now." = "Reading this one took too long. It stays where it is for now.";
 "Added to Reminders" = "Added to Reminders";
 "Added to Calendar" = "Added to Calendar";
-"I didn’t find anything about that in your files." = "I didn’t find anything about that in your files.";
 "I don’t have anything suitable for this Mac right now." = "I don’t have anything suitable for this Mac right now.";
 "Part of the app is missing. Please open Pippa from the Applications folder." = "Part of the app is missing. Please open Pippa from the Applications folder.";
 "Linked files weren’t searched." = "Linked files weren’t searched.";

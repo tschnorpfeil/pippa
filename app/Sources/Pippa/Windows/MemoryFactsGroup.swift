@@ -11,7 +11,7 @@ struct MemoryFactsGroup: View {
     var body: some View {
         SettingsGroup(title: T("What Pippa knows about you", table: "Settings"),
                       note: factsState.wrappedValue.isEmpty ? nil
-                          : T("Pippa only keeps what you tell it about yourself, on this Mac. A forgotten fact is gone from the next conversation on.", table: "Settings")) {
+                          : T("Pippa only keeps what you tell her about yourself, on this Mac. A forgotten fact is gone from the next conversation on.", table: "Settings")) {
             if factsState.wrappedValue.isEmpty {
                 SettingsRow(title: T("Nothing yet", table: "Settings"),
                             detail: T("When you tell Pippa something about yourself that should last, such as your doctor’s name, it appears here.", table: "Settings"),

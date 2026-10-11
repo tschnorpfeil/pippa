@@ -1261,7 +1261,7 @@ final class AppModel: ObservableObject {
     /// How Pippa says "later": without consent to load "once my knowledge is loaded", otherwise "awake".
     /// If no model fits this Mac, it only works with an own connection.
     var laterPhrase: String {
-        if unsupportedReason != nil { return T("once an online AI is connected (Settings → Advanced)", table: "App") }
+        if unsupportedReason != nil { return T("once an online AI is connected (Settings › Online AI)", table: "App") }
         if needsDownloadConsent { return T("once my AI has loaded", table: "App") }
         return T("once I’m fully awake", table: "App")
     }

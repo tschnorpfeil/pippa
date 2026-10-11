@@ -7,7 +7,6 @@ import PippaCore
 //
 //   PIPPA_LIVE=1 swift run PippaLive download [model]   Load a model through the app's own downloader (resumable, SHA256)
 //   PIPPA_LIVE=1 swift run PippaLive run <corpus> [model]   all flows, timings and checks
-//   PIPPA_LIVE=1 swift run PippaLive decide   decision spike (no llama-server needed, see DecisionSpike.swift)
 //   PIPPA_LIVE=1 swift run PippaLive tidy-speed <corpus> [model]   seconds per unclear document while tidying (TidySpeedLive.swift)
 //
 // Model: catalog key; if omitted, the choice by memory.
@@ -28,9 +27,6 @@ func engine(model: String?) async throws -> LocalEngine {
 }
 
 switch args.first {
-case "p0-answers":
-    // ANS-1 now runs only on the Pi path: scripts/pi-rpc-spike.sh r7 ans1 (PiRPCR2Spike, R7.swift).
-    print("p0-answers no longer exists; ANS-1 on the Pi path: scripts/pi-rpc-spike.sh r7 ans1"); exit(2)
 case "p0-suggestions":
     try await P0SuggestionLive.run(useAppleFM: args.contains("--apple-fm"))
 case "tidy-speed":
@@ -143,9 +139,6 @@ case "ocrwarm":
 case "ocr-bench":
     // FLOW-5: classic vs document text recognition on synthetic scans (OCRBench.swift).
     OCRBench.run(Array(args.dropFirst()))
-case "decide":
-    // Measurement spike for the decision model: Apple FM, NaturalLanguage, BM25 (see DecisionSpike.swift).
-    try await DecisionSpike.run()
 case "run":
     guard args.count >= 2 else { print("run <corpus> [model]"); exit(2) }
     let corpus = URL(fileURLWithPath: args[1], isDirectory: true)

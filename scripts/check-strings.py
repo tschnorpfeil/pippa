@@ -12,8 +12,8 @@ T("…", table: "X") and verifies:
     match each other and name texts that app/Packaging/Info.plist has.
 
 Keys must be plain string literals (no interpolation). Calls with other keys are counted
-and listed with --verbose, but not checked. Keys in a table that no code uses are listed
-as notes, not errors.
+and listed with --verbose, but not checked. A key in a table that no literal call uses is an
+error (stale), unless DYNAMIC_KEYS lists it: keys the code looks up through a variable.
 
   python3 scripts/check-strings.py [--verbose]
 
@@ -34,6 +34,78 @@ MODULES = {
     "T": ("Pippa", SOURCES / "Pippa" / "Localization", ("App", "Views", "Settings", "Line", "Shelf", "TrayApp", "Call", "SheetUI", "CalendarUI", "ThoughtUI")),
 }
 LANGUAGES = ("en", "de")
+
+# Keys looked up through a variable instead of a literal L/T call, per (module, table). They
+# are not reported as unused. Thought: WorkStepPhrase.Describer.l(…) and fileTitle(…).
+# When such a phrase goes away, remove it here too (an entry that is no longer in its table
+# is an error).
+DYNAMIC_KEYS: dict[tuple[str, str], frozenset[str]] = {
+    ("PippaCore", "Thought"): frozenset({
+        "%lld items",
+        "%lld matches",
+        "1 item",
+        "1 match",
+        "Adding a calendar entry",
+        "Adding a reminder",
+        "Changing %@",
+        "Changing a file",
+        "Copying files",
+        "Creating a folder",
+        "Going through your documents",
+        "Looking %@",
+        "Looking at your reminders",
+        "Looking for %@ files %@",
+        "Looking for files %@",
+        "Looking for files with %@ in the name %@",
+        "Looking for folders %@",
+        "Looking for folders with %@ in the name %@",
+        "Looking in your calendar",
+        "Looking in your contacts",
+        "Looking in your mail",
+        "Looking in your notes",
+        "Moving files",
+        "Reading %lld files",
+        "Reading a document",
+        "Reading a file",
+        "Reading a web page",
+        "Reading the selected mail",
+        "Remembering that",
+        "Searching Spotlight for %@",
+        "Searching Spotlight for %@ %@",
+        "Searching for %@",
+        "Searching for %@ %@",
+        "Searching online",
+        "Searching online for %@",
+        "Searching through text",
+        "Searching through text %@",
+        "Searching with Spotlight",
+        "Searching your mail",
+        "Searching your photos",
+        "Taking a closer look at files",
+        "Using %@",
+        "Working on your Mac",
+        "Writing %@",
+        "Writing a file",
+        "Writing a mail draft",
+        "didn’t work",
+        "empty",
+        "file not found",
+        "folder not found",
+        "in Downloads",
+        "in the file %@",
+        "in the folder %@",
+        "in your Documents",
+        "in your Pictures",
+        "in your home folder",
+        "many matches",
+        "no access",
+        "nothing found",
+        "on an external drive",
+        "on your Desktop",
+        "on your Mac",
+        "“%@”",
+    }),
+}
 
 CALL = re.compile(r'(?<![A-Za-z0-9_.])(L|T)\(')
 PLACEHOLDER = re.compile(
@@ -418,9 +490,19 @@ def main() -> int:
     for function, (module, _, names) in MODULES.items():
         for name in names:
             used = calls.get((function, name), {})
-            for key in sorted(tables.get((function, name, "en"), {})):
-                if key not in used:
-                    notes.append(f'{module} {name}: "{show(key)}" is not used by a literal call (dynamic key or stale)')
+            dynamic = DYNAMIC_KEYS.get((module, name), frozenset())
+            table = tables.get((function, name, "en"), {})
+            for key in sorted(table):
+                if key in dynamic:
+                    notes.append(f'{module} {name}: "{show(key)}" is looked up dynamically (DYNAMIC_KEYS)')
+                elif key not in used:
+                    problems.append(
+                        f'{module} {name}: "{show(key)}" is not used by any literal call; remove it from en and de, '
+                        f"or list it in DYNAMIC_KEYS if the code looks it up through a variable"
+                    )
+            if (function, name, "en") in tables:
+                for key in sorted(dynamic - set(table)):
+                    problems.append(f'scripts/check-strings.py DYNAMIC_KEYS: "{show(key)}" is not in {module} {name}.strings (stale entry)')
 
     used_count = sum(len(keys) for keys in calls.values())
     if verbose:
@@ -434,7 +516,7 @@ def main() -> int:
         return 1
     print(
         f"check-strings: OK ({used_count} keys used in code, {len(skipped)} non-literal calls, "
-        f"{len(notes)} unused table keys{'' if verbose else '; --verbose lists them'})"
+        f"{len(notes)} dynamic table keys{'' if verbose else '; --verbose lists them'})"
     )
     return 0
 

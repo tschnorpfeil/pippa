@@ -21,7 +21,7 @@ struct MailDraftCard: View {
         bodyState = State(initialValue: draft.body)
     }
 
-    private var isSimulation: Bool { model.engine is StubEngine }
+    private var isSimulation: Bool { model.engine.isDemo }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

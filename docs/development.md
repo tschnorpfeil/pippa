@@ -23,7 +23,7 @@ Pippa.app (Swift, SwiftUI)
 | Pi extensions | `runtime/pippa-tools` | Pippa's small file tools, helps for small local models (document reader instead of raw bytes, loop brake) and the MCP registration; no permissions |
 | Terminal autostart | `runtime/pippa-local-server` | Pi extension for the *terminal* `pi`: starts Pippa's llama-server when provider `pippa-local` is used |
 | Web access | `runtime/pippa-web` | The Pi package pi-web-access with Pippa's settings, loaded into Pi as an extension |
-| Abilities | `runtime/pippa-skills` | 15 Pi skills (`SKILL.md`), bundled with the app and loaded with `--skill` |
+| Abilities | `runtime/pippa-skills` | 10 Pi skills (`SKILL.md`), bundled with the app and loaded with `--skill` |
 
 **Conversation path.** Pippa starts `pi --mode rpc` with Pippa's Node and the pinned Pi release (`PippaPiLaunch`,
 `PiRPCClient`). Flags: `--extension` for the file tools, the helps, web access and the MCP registration; `--no-context-files` (an
@@ -83,11 +83,13 @@ Pippa replaces its own earlier default "high" in `settings.json` with the new on
   Pi never waits forever.
 
 **Web access (`runtime/pippa-web`).** `index.ts` loads the pinned Pi package `pi-web-access` (own lockfile) with
-Pippa's settings, written to `<Application Support>/Pippa/pi-web/pi/web-search.json` (`PIPPA_WEB_DIR`): Exa without a
-key first, then DuckDuckGo; no automatic switch to OpenAI or another signed-in provider; slim results for a small
+Pippa's settings, written to `<Application Support>/Pippa/pi-web/pi/web-search.json` (`PIPPA_WEB_DIR`): DuckDuckGo
+only, as the privacy policy says; no automatic switch to OpenAI or another signed-in provider; slim results for a small
 model. The person's own `~/.pi` web settings are never read or changed. It also repairs a `queries` value that small
-models send as a broken string. Pi runs searches and page reads without a card; the receipt names exactly what went
-out ("Online nachgesehen: „…“").
+models send as a broken string. The first search of an answer asks the person with the exact search text; page reads
+run without asking only for addresses from the person's message or this answer's search results, others are asked
+for, and this Mac's own and local-network addresses are never read. The receipt names exactly what went out
+("Online nachgesehen: „…“").
 
 **MCP server (`app/Sources/PippaCore/MCP`).** The app serves MCP over Streamable HTTP on 127.0.0.1. Reading tools: mail,
 calendar, reminders, Excel selection, documents (with text recognition). Writing tools: calendar event, reminder, unsent
@@ -120,9 +122,10 @@ that server stops once Pippa quits (`PIPPA_APP_PID`).
 **Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). All skills use
 `disable-model-invocation: true` and cost no prompt space (finding files is the `search_files` tool, not a skill). Pi loads them with `--skill`; a button sends `/skill:<name> <message>` (`PiSkillTurn`) and Pi
 puts the instructions in front. Swift reads the headers only for buttons and suggestions (`PippaSkill`).
-`PIPPA_SKILLS_DIR` overrides the folder for development. Invoices (`rechnung-auslesen`: Pi writes `Rechnungen.csv`),
-deadlines (`fristen-erkennen`: Pi adds them with `calendar_add`) and "Check online" on a letter (`online-pruefen`) are
-Pi conversations; the code's deadline patterns still fill the deadline cards without a model.
+`PIPPA_SKILLS_DIR` overrides the folder for development. Deadlines (`fristen-erkennen`: Pi adds them with
+`calendar_add`) and "Check online" on a letter (`online-pruefen`) are Pi conversations; invoices are the native
+"Invoices as a Spreadsheet" tool (`InvoiceTable`), not a skill; the code's deadline patterns still fill the deadline
+cards without a model.
 
 **Own online service.** Switching it on in Settings is the consent. models.json gets `pippa-online` with the service's
 own address and `apiKey: "$PIPPA_ONLINE_KEY"`; Pippa reads the key from the Keychain and puts it only into its own Pi's
@@ -149,8 +152,7 @@ need neither Terminal nor npm.
 | `app/Sources/PippaChecks` | Checks without a model: `swift run --package-path app PippaChecks` |
 | `app/Sources/PippaLive` | Flows against a real model, only with `PIPPA_LIVE=1` |
 | `app/Sources/PippaUpdateProbe` | Probe for a real Sparkle update through a loopback feed |
-| `app/Sources/PiSetupSpike`, `PiRPCR2Spike`, `PiRPCR3Spike` | Developer probes: installer, shown items and online lookup, calendar/reminder/mail draft, own online service. Driven by `scripts/pi-rpc-spike.sh` |
-| `app/Fixtures` | Data files used by `PippaLive`, the probes and `PippaChecks` (suggestion cases, answer fixtures, decision gold labels) |
+| `app/Fixtures` | Data files used by `PippaLive` and `PippaChecks` (suggestion cases, answer fixtures) |
 | `app/Packaging` | `Info.plist` and its translations, entitlements, icon generator, pinned llama.cpp, Node and Pi releases |
 | `runtime/` | Pippa's Pi extensions, web access, terminal autostart, abilities (above) |
 | `scripts/` | Build, verify, DMG, release and check scripts (below) |
@@ -229,8 +231,8 @@ Some `PippaChecks` groups need extra input and are switched on by environment va
 `PIPPA_PERF=1` enables the slow speed checks. `PIPPA_OCR_FAST=1` makes the searchable text layer use the fast
 recognizer (CI sets it).
 
-**CI.** `.github/workflows/ci.yml` runs on pushes to `claude/**` branches (not for documentation-only changes) and by
-hand, on a `macos-26` runner: string check, release script tests, `swift build`, `PippaChecks`, the web access tests and
+**CI.** `.github/workflows/ci.yml` runs on every pull request, on pushes to `main` (not for documentation-only changes) and
+by hand, on a `macos-26` runner: string check, release script tests, `swift build`, `PippaChecks`, the web access tests and
 the tests of Pippa's Pi extensions. Started by hand with *app* ticked it also builds an ad-hoc signed `Pippa.app` and
 uploads it as an artifact. `.github/workflows/pages.yml` runs the site checks on changes to `site/` and publishes it to
 GitHub Pages from `main`.
@@ -252,10 +254,10 @@ and Hugging Face. Single steps run through `PIPPA_LIVE=1 swift run PippaLive <st
 The suggestion and answer runners read their data from `app/Fixtures`. The larger document corpus is generated, not
 committed: `swift scripts/quality/make-ctxsug-corpus.swift` writes `.build/quality/ctxsug-corpus`.
 
-**Conversations through the real Pi.** `scripts/pi-rpc-spike.sh` builds a fake HOME under `.build/` with the pinned Pi
-and drives the probes against a local llama-server (`setup`, `llama-start`, `app`, `r2`, `r3`, `r7`, `r10`; run it
-without arguments for usage). `scripts/pi-setup-ui.sh` records the setup UI and end-to-end runs in the real Pippa
-window. Both only read the model files in `~/Library/Caches/pippa-live` and never touch the real `~/.pi`.
+**Conversations through the real Pi.** `scripts/pi-rpc-spike.sh` opens the real Pippa window against the real Pi in a
+fake HOME under `.build/` (the app sets up the pinned Pi there itself) and a local llama-server (`app`, `llama-start`,
+`llama-stop`, `env`; run it without arguments for usage). `scripts/pi-setup-ui.sh` records the setup UI and an
+end-to-end run in the real Pippa window. Both only read the model files in `~/Library/Caches/pippa-live` and never touch the real `~/.pi`.
 `scripts/pi-rpc-smoke.mjs` is the headless Pi RPC smoke test that `bump-pi.sh` uses.
 
 **Native UI fixtures.** The debug build renders scripted scenarios without a model:
@@ -316,7 +318,8 @@ There is one table per area (for example `Core`, `Analysis`, `Letter`, `Lookup`,
 
 `python3 scripts/check-strings.py` (also in CI; `--verbose` for details) checks that every literal key is in `en` and
 `de` of the right table, that `.strings` files parse without duplicates, that both languages have the same keys and
-placeholders, and that the packaging strings match `Info.plist`. `PippaChecks` checks the English fallback and that the
+placeholders, that no table key is left without a literal call (keys looked up through a variable are listed in its
+`DYNAMIC_KEYS`), and that the packaging strings match `Info.plist`. `PippaChecks` checks the English fallback and that the
 resource bundle carries both languages.
 
 ## Releasing

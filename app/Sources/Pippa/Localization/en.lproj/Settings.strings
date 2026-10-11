@@ -34,16 +34,7 @@
 "Try Again" = "Try Again";
 "%@ (Default)" = "%@ (Default)";
 "Open System Settings" = "Open System Settings";
-"Hello, I’m" = "Hello, I’m";
-"I tidy up your files, read your invoices and tell you what your letters say." = "I tidy up your files, read your invoices and tell you what your letters say.";
-"Runs on your Mac" = "Runs on your Mac";
-"You’ll see everything first. Or drag a different folder here." = "You’ll see everything first. Or drag a different folder here.";
-"Choose Folder…" = "Choose Folder…";
-"Tidy Up Downloads" = "Tidy Up Downloads";
-"Free" = "Free";
 "%lld%%" = "%lld%%";
-"Pippa loads her AI once: %@." = "Pippa loads her AI once: %@.";
-"With a fast connection, this takes %@. After that, everything runs on your Mac." = "With a fast connection, this takes %@. After that, everything runs on your Mac.";
 "Pippa loads her AI once. After that, everything runs on your Mac." = "Pippa loads her AI once. After that, everything runs on your Mac.";
 "Later" = "Later";
 "Tidying up and overviews already work without it. You can load it any time." = "Tidying up and overviews already work without it. You can load it any time.";
@@ -214,7 +205,7 @@
 "Continue" = "Continue";
 "For the files you keep in %@." = "For the files you keep in %@.";
 "What Pippa knows about you" = "What Pippa knows about you";
-"Pippa only keeps what you tell it about yourself, on this Mac. A forgotten fact is gone from the next conversation on." = "Pippa only keeps what you tell it about yourself, on this Mac. A forgotten fact is gone from the next conversation on.";
+"Pippa only keeps what you tell her about yourself, on this Mac. A forgotten fact is gone from the next conversation on." = "Pippa only keeps what you tell her about yourself, on this Mac. A forgotten fact is gone from the next conversation on.";
 "Nothing yet" = "Nothing yet";
 "When you tell Pippa something about yourself that should last, such as your doctor’s name, it appears here." = "When you tell Pippa something about yourself that should last, such as your doctor’s name, it appears here.";
 "Forget “%@”" = "Forget “%@”";

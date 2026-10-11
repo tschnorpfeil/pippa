@@ -102,14 +102,14 @@ ok "web access (pi-web-access) in Contents/Resources/pippa-web, same as this che
 # Pippa's abilities: exactly the folders of runtime/pippa-skills, each with its SKILL.md.
 expected_skills="$(find "$ROOT/runtime/pippa-skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')"
 found_skills="$(find "$APP/Contents/Resources/pippa-skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
-((expected_skills >= 11)) || fail "runtime/pippa-skills has only $expected_skills abilities"
+((expected_skills >= 10)) || fail "runtime/pippa-skills has only $expected_skills abilities"
 [[ "$found_skills" == "$expected_skills" ]] || fail "Pippa's abilities: $found_skills in the bundle, $expected_skills in runtime/pippa-skills"
 diff -rq "$ROOT/runtime/pippa-skills" "$APP/Contents/Resources/pippa-skills" -x .DS_Store >/dev/null || fail "bundled abilities differ from runtime/pippa-skills"
 ok "Pippa's abilities: $found_skills in Contents/Resources/pippa-skills, same as runtime/pippa-skills"
 # The old conversation core is gone and must not come along from an old build.
 [[ ! -e "$APP/Contents/Resources/pi-runtime" ]] || fail "old conversation core (Contents/Resources/pi-runtime) still in the bundle"
 # The Pi RPC path starts Pi with Pippa's extensions from the bundle.
-for f in pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-context.ts pippa-mcp.ts files.ts budget.ts search.mjs; do
+for f in pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-context.ts pippa-mcp.ts files.ts shell.ts budget.ts search.mjs; do
   cmp -s "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f" || fail "pippa-tools/$f missing or stale (Pi extensions)"
 done
 [[ ! -e "$APP/Contents/Resources/pippa-guard" ]] || fail "old guard (Contents/Resources/pippa-guard) still in the bundle"

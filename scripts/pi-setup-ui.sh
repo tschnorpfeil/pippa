@@ -7,13 +7,6 @@
 #                                                        an existing model sits "in LM Studio" (APFS clone from
 #                                                        ~/Library/Caches/pippa-live, read only), Pippa adopts it
 #                                                        without asking, sets up Pi silently and answers a question.
-#   scripts/pi-setup-ui.sh r6                            like e2e, then a question about a shown PDF, the abilities
-#                                                        button, a look-up online (pi-web-access, network), an event
-#                                                        via a stand-in calendar. Extensions and work folder
-#                                                        without environment (default).
-#                                                        Corpus: swift scripts/quality/make-ctxsug-corpus.swift .build/quality/ctxsug-corpus
-#   scripts/pi-setup-ui.sh r7b                           "Tidy my Downloads" natively (preview, one undo) in
-#                                                        a fake HOME with made-up Downloads (corpus as for r6)
 #
 # Before: swift build --package-path app --product Pippa; payload in .build/pi-payload (bundle-pi-payload.sh --with-node).
 # Never: real ~/.pi, ~/.local, ~/models, Application Support/Pippa. The app starts and stops the llama-server.
@@ -77,69 +70,6 @@ e2e)
   cat "$shot/setup.txt"
   echo "Snapshots: $shot  HOME: $home"
   ;;
-r6)
-  if pgrep -x llama-server >/dev/null; then echo "A llama-server is already running:"; pgrep -lx llama-server | cut -c1-160; exit 3; fi
-  payload="${PIPPA_PI_PAYLOAD:-$root/.build/pi-payload}"
-  home="$root/.build/r6-home-$stamp"
-  shot="$root/.build/r6-run-$stamp"
-  model="$cache/models/Qwen3.5-4B-Q4_K_M.gguf"
-  lms="$home/.lmstudio/models/unsloth/Qwen3.5-4B-GGUF"
-  mkdir -p "$lms" "$shot"
-  before=$(stat -f '%z %m %i' "$model")
-  cp -c "$model" "$lms/"
-  # Pi path: explicit in debug snapshots (PIPPA_PI_RPC=1); in release builds it is on without the switch.
-  export PIPPA_PI_RPC=1 PIPPA_DEMO=1 PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$payload" PIPPA_PI_MODEL="${PIPPA_PI_MODEL:-qwen3.5-4b-q4}"
-  export PI_CODING_AGENT_DIR="$home/.pi/agent" PIPPA_TRASH_DIR="$home/trash"
-  unset PIPPA_PI_EXTENSIONS PIPPA_PI_WEB PIPPA_PI_WORKDIR PIPPA_MODEL_FILE || true
-  export PIPPA_LLAMA_SERVER="${PIPPA_LLAMA_SERVER:-$cache/llama-b11503/llama-server}"
-  export PIPPA_R2_CORPUS="$root/.build/quality/ctxsug-corpus"
-  export PIPPA_SNAPSHOT="$shot" PIPPA_SNAPSHOT_ONLY=r6 PIPPA_LOG_DIR="$shot/logs"
-  "$bin/Pippa" -AppleLanguages "(de)" -AppleLocale de_DE >"$shot/app.log" 2>&1 || true
-  after=$(stat -f '%z %m %i' "$model")
-  {
-    [ "$before" = "$after" ] && echo "PASS: model in cache unchanged" || echo "FAIL: model in cache changed"
-    left=$(pgrep -f "llama-server.*$(basename "$home")" || true)
-    echo "llama-server still running after quit: ${left:-no}"
-    echo "Work folder (default): $(ls -d "$shot/support/pi-work" 2>/dev/null || echo missing)"
-  } >>"$shot/r6.txt"
-  cat "$shot/r6.txt"
-  echo "Snapshots: $shot  HOME: $home"
-  ;;
-r7b)
-  # "Tidy my Downloads" in the real window on the Pi path, natively with preview and one undo. Made-up Downloads
-  # folder in the fake HOME under .build; no model and no payload needed (setup does not finish, tidying does not
-  # need it). Corpus as for r6.
-  corpus="$root/.build/quality/ctxsug-corpus"
-  [ -d "$corpus" ] || { echo "run first: swift scripts/quality/make-ctxsug-corpus.swift $corpus"; exit 2; }
-  home="$root/.build/r7b-home-$stamp"
-  shot="$root/.build/r7b-run-$stamp"
-  dl="$home/Downloads"
-  mkdir -p "$dl" "$shot"
-  while IFS='|' read -r from to; do cp "$corpus/$from" "$dl/$to"; done <<'LIST'
-rechnung-1.pdf|Rechnung_2026-09_Stadtwerke.pdf
-rechnung-2.pdf|invoice-10233.pdf
-rechnung-heizung.pdf|Heizung Wartung Rechnung.pdf
-brief-finanzamt.pdf|Steuerbescheid 2025.pdf
-mietvertrag-12-seiten.pdf|Mietvertrag_Musterstrasse.pdf
-urlaub-strand.jpg|IMG_4711.jpg
-garten-1.jpg|IMG_4712.jpg
-bildschirmfoto-fehlermeldung.png|Bildschirmfoto 2026-10-01 um 09.12.33.png
-haushaltsbuch-2026.csv|haushaltsbuch-2026.csv
-kuendigung-entwurf.docx|Kuendigung_Fitnessstudio.docx
-garten-video.mov|garten.mov
-nachricht-nachbar.txt|notiz.txt
-rechnung-1.pdf|Rechnung_2026-09_Stadtwerke (1).pdf
-LIST
-  printf 'PK\003\004' >"$dl/Fotos_Export(1).zip"
-  head -c 2048 /dev/zero >"$dl/Pippa-Installer.dmg"
-  export PIPPA_PI_RPC=1 PIPPA_PI_HOME="$home" PIPPA_PI_PAYLOAD="$home/no-payload"
-  export PI_CODING_AGENT_DIR="$home/.pi/agent" PIPPA_TRASH_DIR="$home/trash"
-  unset PIPPA_PI_EXTENSIONS PIPPA_PI_WEB PIPPA_PI_WORKDIR PIPPA_MODEL_FILE PIPPA_DEMO || true
-  export PIPPA_SNAPSHOT="$shot" PIPPA_SNAPSHOT_ONLY=r7b PIPPA_LOG_DIR="$shot/logs"
-  (cd "$root" && "$bin/Pippa" -AppleLanguages "(de)" -AppleLocale de_DE >"$shot/app.log" 2>&1) || true
-  cat "$shot/r7b.txt"
-  echo "Snapshots: $shot  HOME: $home"
-  ;;
 *)
-  sed -n '2,18p' "$0"; exit 2 ;;
+  sed -n '2,12p' "$0"; exit 2 ;;
 esac

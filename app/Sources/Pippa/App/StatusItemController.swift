@@ -135,7 +135,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         switch model.markState {
         case .ruht:
             if model.modelReady { return T("Ready", table: "App") }
-            return T("Still learning", table: "App")
+            return T("AI not loaded yet", table: "App")
         case .arbeitet: return T("Working…", table: "App")
         case .offen: return T("Needs you", table: "App")
         case .fehler: return T("That didn’t work", table: "App")

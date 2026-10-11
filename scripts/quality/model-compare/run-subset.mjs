@@ -18,7 +18,7 @@ await mkdir(rawDir, { recursive: true });
 
 function busy() {
  const found = [];
- for (const name of ['llama-server', 'Pippa', 'PippaChecks', 'PippaLive', 'PiRPCR2Spike', 'PiRPCR3Spike']) {
+ for (const name of ['llama-server', 'Pippa', 'PippaChecks', 'PippaLive']) {
   try { found.push(execFileSync('/usr/bin/pgrep', ['-lx', name], { encoding: 'utf8' }).trim()); } catch {}
  }
  if (load1() >= 10) found.push(`load ${load1()}`);

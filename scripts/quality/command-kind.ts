@@ -2,24 +2,8 @@
  * Rough kind of a shell command, for the live search evaluation's fixture isolation only (fixture-isolation.ts).
  * Taken from the former guard's policy.ts; the app itself no longer classifies commands (Pi runs them as they come).
  */
-/**
- * Kind of a call. There is no `read` here: the guard checks read-only tools from a trusted source beforehand.
- * `appEntry`: Pippa's own tools `calendar_add`, `reminder_add`, `mail_draft` (self-asking.ts `appEntry`): they change
- * something on the Mac but never leave it; events and reminders can be undone, the mail draft is never sent. So they
- * behave like file changes: `undo-first` without a question, with receipt; `ask-all` asks. Sending does not exist as
- * a tool; via bash it stays "send" and asks.
- */
-export type Category = "fileChange" | "appEntry" | "look" | "command" | "delete" | "network" | "send" | "tool";
-export type Rule = "allow" | "ask";
-
-/** Pippa's file tools: changes with a real backup or way back. */
-const FILE_TOOLS = new Set(["write", "edit", "move_files", "move_to_trash"]);
-
-export function classify(tool: string, input: any): Category {
-	if (FILE_TOOLS.has(tool)) return "fileChange";
-	if (tool === "bash" || tool === "powershell") return classifyCommand(String(input?.command ?? ""));
-	return "tool";
-}
+/** Kind of a shell command. fixture-isolation.ts lets only "look" through. */
+export type Category = "fileChange" | "look" | "command" | "delete" | "network" | "send";
 
 /**
  * Shell command to category; the most dangerous wins: send before network before delete before look; everything else
@@ -40,9 +24,8 @@ export function classifyCommand(command: string): Category {
 
 /**
  * `mkdir Archiv`, `mkdir -p Belege/2026 Archiv`: only the options `-p`/`-v` and names without shell special
- * characters (no quotes, variables, wildcards, redirections, second commands; `~/` only at the start). Then the guard
- * knows exactly which folders appear, and undo moves them to the trash while they are empty. Anything else:
- * `undefined` (stays "command" and asks).
+ * characters (no quotes, variables, wildcards, redirections, second commands; `~/` only at the start). Anything else:
+ * `undefined` (stays "command").
  */
 export function mkdirTargets(command: string): { parents: boolean; paths: string[] } | undefined {
 	const words = command.trim().split(/[ \t]+/);
@@ -94,7 +77,7 @@ const LOOK_RUNNERS = new Set(["grep", "rg", "ls", "stat", "file", "wc", "head", 
  */
 export function lookOnly(command: string): string | undefined {
 	// Discarding output or merging stderr writes nothing: `find ~ -name "*.md" 2>/dev/null | head -50` is the usual
-	// way models search, and it must not ask.
+	// way models search, and it counts as looking.
 	command = command.replace(/\s*(?:[12&]?>>?)\s*\/dev\/null(?=$|[\s|;&)])/g, " ").replace(/\s*2>&1(?=$|[\s|;&)])/g, " ");
 	const { parts, shape } = shellParts(command);
 	if (/[>`]|\$\(|<\(/.test(shape)) return undefined;
@@ -128,14 +111,4 @@ export function lookOnly(command: string): string | undefined {
 		if (meaning) seen.add(meaning);
 	}
 	return seen.size ? [...seen].join(", ") : undefined;
-}
-
-/** Size of a folder (file sizes, symlinks not followed). */
-async function size(path: string): Promise<number> {
-	const info = await stat(path).catch(() => undefined);
-	if (!info) return 0;
-	if (!info.isDirectory()) return info.size;
-	let total = 0;
-	for (const name of await readdir(path).catch(() => [] as string[])) total += await size(join(path, name));
-	return total;
 }

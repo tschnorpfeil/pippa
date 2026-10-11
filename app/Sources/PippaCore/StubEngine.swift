@@ -1,8 +1,10 @@
 import Foundation
 
-/// Delivers sample data as in the prototype so the UI can be demoed without a model.
+#if DEBUG
+/// Debug builds only (the shipped app has no demo switch). Delivers sample data as in the prototype so the UI can be demoed without a model.
 /// Never changes anything on disk.
 public final class StubEngine: PippaEngine, @unchecked Sendable {
+    public var isDemo: Bool { true }
     private let lock = NSLock()
     private var status: ModelStatus = .ready
     /// Artificial wait per step (seconds), for believable progress indicators.
@@ -238,11 +240,6 @@ public final class StubEngine: PippaEngine, @unchecked Sendable {
     public func pendingRecovery() async -> [JobReceipt] { [] }
 }
 
-public extension Answer {
-    /// Default text when nothing verifiable was found.
-    static var notFoundText: String { L("I didn’t find anything about that in your files.", table: "Core") }
-}
-
 /// Picks the engine: `StubEngine` with `PIPPA_DEMO=1`, otherwise `LocalEngine`.
 public enum PippaEngineFactory {
     public static func make() -> any PippaEngine {
@@ -252,3 +249,4 @@ public enum PippaEngineFactory {
         return LocalEngine()
     }
 }
+#endif
