@@ -209,7 +209,6 @@ details p{padding:0 0 22px;color:var(--ink-2);max-width:36em}
 footer{margin-top:140px;padding:40px 0 60px;border-top:1px solid var(--sep);font-size:14px;color:var(--grey)}
 footer .wrap{display:grid;gap:8px}footer .row{display:flex;align-items:center;gap:8px;font:400 20px/1 var(--fd);color:var(--ink)}
 footer canvas{--pippa-ink:var(--ink)}
-.draftbar{position:fixed;bottom:0;right:0;z-index:60;background:#ffe36e;font-size:12.5px;font-weight:650;padding:5px 12px;border-top-left-radius:10px}
 
 /* Farbe */
 .hero:before,.hero:after,.hero .blob{content:"";position:absolute;border-radius:50%;filter:blur(60px);z-index:-1;pointer-events:none}
@@ -458,7 +457,7 @@ display:grid;grid-template-columns:30px 1fr auto;gap:2px 10px;align-items:center
 .so-ba{gap:6px;padding:8px}.so-ba li{font-size:11px}
 .so-act{gap:12px;padding:8px 10px;font-size:12.5px}
 }
-.st{margin-top:0!important;animation:rise .4s var(--spring)}.st h4{font-size:17px;font-weight:700;margin:2px 0 10px;color:#1d1d1f}
+.st{margin-top:0!important;animation:rise .4s var(--spring)}.st .sh{display:block;font-size:17px;font-weight:700;margin:2px 0 10px;color:#1d1d1f}
 .dz{border:1.5px dashed #c9cfd9;border-radius:12px;background:#eef0f4;padding:10px 12px;display:flex;gap:10px;align-items:center;font-size:12px;color:#5f6368;line-height:1.35}.dz b{display:block;color:#1d1d1f;font-size:13px}
 .dz svg,.ex svg{flex:none;width:16px;height:16px;fill:none;stroke:var(--acc);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
 .st p{font-size:12.5px;color:#5f6368;margin:12px 0 0}
@@ -520,7 +519,7 @@ footer p a{display:inline-block;padding:6px 2px}
             <li><button type="button" data-k="brief"><span class="no">02</span><b>Briefe verstehen</b><span class="d">Frag einfach, was du wissen willst. Pippa antwortet in einfachen Worten und zeigt dir die Stelle im Brief.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="dateien"><span class="no">03</span><b>Dateien wiederfinden</b><span class="d">Du weißt nur noch, worum es ging? Pippa findet die Datei auf deinem Mac. Mit <kbd>⌃⌥ Leertaste</kbd> ist sie sofort da.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="mail"><span class="no">04</span><b>Mails finden</b><span class="d">Pippa schaut für dich in Apple Mail nach. Antworten schreibt sie nur als Entwurf, abschicken tust du.</span><span class="bar"><i></i></span></button></li>
-            <li><button type="button" data-k="buero"><span class="no">05</span><b>Büroarbeit</b><span class="d">Pippa prüft Summen in Excel, erklärt Tabellen und macht aus Rechnungen eine Tabelle. Deine Dateien ändert sie dabei nicht.</span><span class="bar"><i></i></span></button></li>
+            <li><button type="button" data-k="buero"><span class="no">05</span><b>Büroarbeit</b><span class="d">Pippa prüft Summen in Excel, erklärt Tabellen und macht aus Rechnungen eine Tabelle, die sich in Excel öffnet. Deine Dateien ändert sie dabei nicht.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="pdf"><span class="no">06</span><b>PDF-Werkzeuge</b><span class="d">Zu groß für die Mail? Pippa macht PDFs und Fotos kleiner, fügt Scans zusammen und wandelt Bilder um. Ohne Internet.</span><span class="bar"><i></i></span></button></li>
           </ol>
           <button class="pause" type="button" id="pause" aria-pressed="false" aria-label="Vorführung anhalten"><span aria-hidden="true">❙❙</span><em>Pause</em></button>
@@ -625,7 +624,7 @@ footer p a{display:inline-block;padding:6px 2px}
   <div class="wrap">
     <p class="row"><canvas data-mark="22" aria-hidden="true"></canvas>Pippa</p>
     <p><a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a> · <a href="en/" hreflang="en" lang="en" data-lang="en">English</a></p>
-    <p>Ein unabhängiges Open-Source-Projekt. Nicht verbunden mit Apple Inc. Mac und macOS sind Marken von Apple Inc.</p>
+    <p>Ein unabhängiges Open-Source-Projekt. Nicht verbunden mit Apple Inc. oder Microsoft. Mac und macOS sind Marken von Apple Inc. Microsoft Excel ist eine Marke der Microsoft Corporation.</p>
     <p>Pippa nutzt offene Modelle über llama.cpp und den Open-Source-Agenten <a href="https://github.com/earendil-works/pi">Pi</a> (MIT). Den <a href="https://github.com/tschnorpfeil/pippa">Quellcode</a> findest du auf GitHub.</p>
   </div>
 </footer>
@@ -690,7 +689,7 @@ const drag=async(ids,my,cards)=>{const els=ids.map(i=>$('#'+i));await glide(els[
 const openLine=(chips,ph)=>{lnAtt.innerHTML=chips.join('');lnPh.textContent=ph||'Was soll ich damit machen?';lnT.textContent='';lnX.innerHTML='';dp.classList.add('away');tray.classList.add('away');ln.classList.add('on')};
 /* Pippas Fenster öffnet sich aus der Pille */
 const openPanel=()=>{ln.classList.remove('on');dp.classList.add('away');tray.classList.add('away');pw.classList.add('on')};
-const START=`<div class="st"><h4>Was möchtest du erledigen?</h4><div class="dz"><svg viewBox="0 0 16 16"><path d="M4 1.5h5l3 3V14.5H4z"/><path d="M8 6.5v5m-2-2 2 2 2-2"/></svg><div><b>Dateien oder Ordner hier ablegen …</b>Oder klicken, um Dokumente, Briefe oder Tabellen auszuwählen.</div></div><p>Zum Beispiel:</p>
+const START=`<div class="st"><b class="sh">Was möchtest du erledigen?</b><div class="dz"><svg viewBox="0 0 16 16"><path d="M4 1.5h5l3 3V14.5H4z"/><path d="M8 6.5v5m-2-2 2 2 2-2"/></svg><div><b>Dateien oder Ordner hier ablegen …</b>Oder klicken, um Dokumente, Briefe oder Tabellen auszuwählen.</div></div><p>Zum Beispiel:</p>
 <div class="ex"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg>Wo ist mein Mietvertrag?</div><div class="ex"><svg viewBox="0 0 16 16"><path d="M1.5 4.5a1 1 0 0 1 1-1h3.5l1.5 1.5h6a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg>Räum meinen Download-Ordner auf</div></div>`;
 const send=async(q,my)=>{await type(pwT,q,my);pwS.classList.add('go');await wait(300,my);pwS.classList.remove('go');pwT.textContent=''};
 const bubble=(q,chips)=>{const st=$('.st',pwB);if(st)st.remove();pwSub.textContent=q;pwAtt.innerHTML='';pwB.insertAdjacentHTML('beforeend',`<div class="pw-q">${chips?chips+'<br>':''}${q}</div>`);pwS.classList.add('stop');pwMark.setState('arbeitet');down()};
@@ -710,7 +709,7 @@ const reset=ids=>{[pw,ln,toast,xl].forEach(e=>e.classList.remove('on'));dp.class
   lnAtt.innerHTML=lnT.textContent=lnX.innerHTML='';mApp.textContent='Finder';$('#xlMiss').classList.remove('miss');$('#xlSum').classList.remove('selc');
   [pwMark,lnMark,toastMark].forEach(m=>m.setState('ruht'));target(null);dstate('ruht','Pippa');lay(ids)};
 const S={
-  dl:{ids:['f-dl'],run:async my=>{await drag(['f-dl'],my,['fo']);await tap(dp,my,{press:false});
+  dl:{ids:['f-dl'],run:async my=>{await drag(['f-dl'],my,['fo']);await wait(250,my);
     openLine([chip('Downloads','fo',1)]);lnX.innerHTML='<div class="acts"><span class="q" id="aOrd">Ordnen</span></div>';await wait(1000,my);await tap($('#aOrd'),my);
     openPanel();pwSub.textContent='Downloads';pwAtt.innerHTML=chip('Downloads','fo',1);pwPh.textContent='Was soll ich damit machen …';pwN.textContent='Vorschau · Noch nichts geändert';pwMark.setState('arbeitet');
     pwAct.innerHTML=`<span class="w">Warum so?</span><span class="l">Lieber nicht</span><span class="p dim" id="soGo">${I.ord}38 Dateien ordnen</span>`;pwAct.hidden=false;
@@ -723,7 +722,7 @@ const S={
     $('#soGo').classList.remove('dim');down();await wait(1500,my);await tap($('#soGo'),my);
     pw.classList.remove('on');dp.classList.remove('away');dstate('arbeitet','Ordne 38 Dateien');await wait(1900,my);
     dstate('ruht','Pippa');toast.classList.add('on');toastMark.setState('offen')}},
-  brief:{ids:['f-mv','f-dl'],run:async my=>{await drag(['f-mv'],my,['doc']);await tap(dp,my,{press:false});openLine([chip('Mietvertrag.pdf','doc',1)]);await wait(500,my);
+  brief:{ids:['f-mv','f-dl'],run:async my=>{await drag(['f-mv'],my,['doc']);await wait(250,my);openLine([chip('Mietvertrag.pdf','doc',1)]);await wait(500,my);
     const q='Ich ziehe Ende März aus. Bis wann muss ich kündigen?';await type(lnT,q,my);lnS.classList.add('go');await wait(300,my);lnS.classList.remove('go');
     openPanel();pwPh.textContent='Was soll ich damit machen …';pwB.innerHTML='<div class="added">Hinzugefügt: Mietvertrag.pdf</div>';bubble(q,chip('Mietvertrag.pdf','doc'));pwU.innerHTML=I.clip+'Verwendete Dateien (1) '+I.cv;
     tl();note('Lese Mietvertrag.pdf …','1 von 1');await wait(1500,my);note('Suche die passenden Stellen …');await wait(1300,my);answer(ANS.brief)}},
@@ -738,7 +737,7 @@ const S={
     lnX.innerHTML=head+acts('aSum');await wait(1600,my);await tap($('#aSum'),my);
     lnX.innerHTML=head+'<div class="find"><i>!</i><span>Diese Summe lässt die Zeile mit „Müll“ aus. Damit wäre die Summe 892,39.</span></div><div class="note">In deiner Tabelle wurde nichts geändert.</div>';
     $('#xlMiss').classList.add('miss')}},
-  pdf:{ids:['f-sc','f-sm'],run:async my=>{await drag(['f-sc'],my,['doc']);await tap(dp,my,{press:false});openLine([chip('Steuerbescheid.pdf','doc',1)]);
+  pdf:{ids:['f-sc','f-sm'],run:async my=>{await drag(['f-sc'],my,['doc']);await wait(250,my);openLine([chip('Steuerbescheid.pdf','doc',1)]);
     lnX.innerHTML='<div class="acts"><span class="q" id="aSm">Kleiner machen</span><span class="q">Einfach erklären</span><span class="q more">…</span></div>';await wait(1100,my);await tap($('#aSm'),my);
     lnX.innerHTML='<div class="lrow"><span class="spin"></span><span id="pg">Mache es kleiner</span><span class="q">Stoppen</span></div>';
     for(let n=1;n<=8;n++){await wait(230,my);$('#pg').textContent=`Mache es kleiner · ${n} von 8 Seiten`}await wait(300,my);
@@ -769,6 +768,12 @@ $$('#perm .b').forEach(b=>b.addEventListener('click',()=>{const on=b.getAttribut
 
 })();
 </script>
-<div class="draftbar">Entwurf 10</div>
+<script>
+/* Auf Handy und iPad gibt es nichts zu installieren: der Knopf merkt sich den Link für den Mac. */
+(()=>{const m=/iPhone|iPad|iPod|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);if(!m)return;
+document.documentElement.classList.add('mob');const u='https://heypippa.app'+location.pathname;
+document.querySelectorAll('a.btn.dl').forEach((a,i)=>{a.href='mailto:?subject='+encodeURIComponent('Pippa für den Mac')+'&body='+encodeURIComponent(u);a.firstChild.textContent=a.closest('header')?'Link merken':'Link für den Mac merken ';
+a.addEventListener('click',e=>{if(!navigator.share)return;e.preventDefault();navigator.share({title:'Pippa für den Mac',url:u}).catch(()=>{})})});})();
+</script>
 </body>
 </html>
