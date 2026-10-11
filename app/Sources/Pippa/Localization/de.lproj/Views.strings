@@ -278,8 +278,7 @@
 "As Letter" = "Als Brief";
 "As Word File" = "Als Word-Datei";
 "A letter with your address, the date and the subject, as a PDF" = "Ein Brief mit deiner Adresse, dem Datum und dem Betreff, als PDF";
-"Looking at your files…" = "Ich schaue mir deine Dateien an …";
-"Reading “%@”" = "Lese „%@“";
-"Recognizing the text in “%@”" = "Erkenne den Text in „%@“";
-"Deciding where “%@” belongs" = "Überlege, wohin „%@“ gehört";
-"You can already look through the preview. I’ll organize once every file has its place." = "Du kannst dir die Vorschau schon ansehen. Ich ordne, sobald jede Datei ihren Platz hat.";
+"Placing · %@" = "Ordne ein · %@";
+"Recognizing text · %@" = "Erkenne Text · %@";
+"Reading · %@" = "Lese · %@";
+"Reading %lld of %lld…" = "Lese %lld von %lld …";
