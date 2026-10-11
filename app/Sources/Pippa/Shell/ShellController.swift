@@ -19,7 +19,8 @@ final class ShellController: NSObject {
     private let effect = NSVisualEffectView()
     private let tint = TintView()
     private let hosting: ShellHostingView<ShellHostRoot>
-    let mark = MarkNSView(size: 36)
+    /// Follows what Pippa does in a conversation with the chat's working shapes (handwriting while answering).
+    let mark = MarkNSView(size: 36, workShapes: true)
     private let interaction: PillInteractionView
     /// Items lying on Pippa: cards behind the pill (at rest only).
     private let stack = TrayStackView()
