@@ -447,7 +447,9 @@ public final class PiInstaller: @unchecked Sendable {
 
     /// Is the model verified in the model folder? Otherwise adopt without asking (clone -> hardlink -> copy, the copy only
     /// with enough free space), otherwise `.needsDownload` (then `downloadModel`). Originals are never moved,
-    /// changed or deleted.
+    /// changed or deleted. A wrong file of Pippa's own (an older download, a broken adoption) is removed and loaded
+    /// again; a found file of another program that doesn't match is skipped. Only a wrong file the person put into a
+    /// shared `~/models` stops setup, because the download would have to replace it.
     public func provideModel(_ model: CatalogModel, searchRoots: [ModelLocation]? = nil) -> PiStepResult {
         begin(.model)
         guard let path = state.modelsFolder else { return finish(.model, .failed(.missingStep(.modelsFolder))) }
@@ -460,19 +462,29 @@ public final class PiInstaller: @unchecked Sendable {
             for file in files where !downloader.isInstalled(file) {
                 let dest = downloader.localURL(file)
                 if fm.fileExists(atPath: dest.path) {
-                    // Already there (e.g. placed in ~/models by the person): only check, never replace.
-                    guard ModelDownloader.fileSize(dest) == file.size, try ModelDownloader.sha256(of: dest) == file.sha256 else {
-                        return finish(.model, .failed(.checksumMismatch(dest.path)))
+                    if ModelDownloader.fileSize(dest) == file.size, try ModelDownloader.sha256(of: dest) == file.sha256 {
+                        try file.sha256.write(to: dest.appendingPathExtension("ok"), atomically: true, encoding: .utf8)
+                        state.record(dest.appendingPathExtension("ok"))
+                        continue
                     }
-                    try file.sha256.write(to: dest.appendingPathExtension("ok"), atomically: true, encoding: .utf8)
-                    state.record(dest.appendingPathExtension("ok"))
-                    continue
+                    // The person's own file in ~/models: never replace it. Pippa's own: load it again.
+                    guard ownsModelFile(dest) else { return finish(.model, .failed(.checksumMismatch(dest.path))) }
+                    DiagnosticsLog.shared.event("modell-ersetzt", ["datei": dest.lastPathComponent])
+                    for stale in [dest, dest.appendingPathExtension("ok")] {
+                        try? fm.removeItem(at: stale)
+                        state.forget(stale)
+                    }
+                    state.adopted.removeAll { $0.file == dest.path }
+                    save()
                 }
                 guard let source = found[file.sha256] else { missing += file.size; continue }
                 switch try adopt(file, from: source, into: folder) {
                 case .adopted(let method): lastMethod = method; lastSource = source.source
                 case .unavailable: missing += file.size
-                case .mismatch: return finish(.model, .failed(.checksumMismatch(source.url.path)))
+                case .mismatch:
+                    // Same name and size, other content (e.g. an older upload in LM Studio): load the right one instead.
+                    DiagnosticsLog.shared.event("modell-uebernahme-passt-nicht", ["quelle": source.source])
+                    missing += file.size
                 }
             }
         } catch { return finish(.model, .failed(failure(error, path: folder))) }
@@ -498,7 +510,7 @@ public final class PiInstaller: @unchecked Sendable {
         catch let error as PippaError {
             switch error {
             case .notEnoughSpace(let bytes): return finish(.model, .failed(.notEnoughSpace(bytes: bytes)))
-            case .checksumMismatch: return finish(.model, .failed(.checksumMismatch(path)))
+            case .checksumMismatch: return finish(.model, .failed(.downloadDamaged))
             case .writeFailed: return finish(.model, .failed(.notWritable(path: path, reason: error.localizedDescription)))
             default: return finish(.model, .failed(.downloadFailed(error.localizedDescription)))
             }
@@ -509,7 +521,19 @@ public final class PiInstaller: @unchecked Sendable {
             let code = error as NSError   // for "Details": technical cause, not the everyday wording
             return finish(.model, .failed(.downloadFailed("\(code.domain) \(code.code): \(code.localizedDescription)")))
         }
+        // Pippa's own from now on, also in a shared ~/models: a later catalog change may replace it (`ownsModelFile`).
+        for file in model.pinned?.files ?? [] {
+            let dest = folder.appendingPathComponent((file.path as NSString).lastPathComponent)
+            state.record(dest); state.record(dest.appendingPathExtension("ok"))
+        }
+        save()
         return provideModel(model, searchRoots: [])
+    }
+
+    /// May Pippa replace this file in the model folder? In its own folder always; in a shared `~/models` only what it
+    /// put there itself (downloaded or adopted).
+    func ownsModelFile(_ url: URL) -> Bool {
+        state.modelsFolderShared != true || state.didCreate(url) || state.adopted.contains { $0.file == url.path }
     }
 
     func modelSearchRoots(folder: URL, extra: [ModelLocation]?) -> [ModelLocation] {

@@ -81,7 +81,9 @@ final class EventKitBridge: @unchecked Sendable {
         do {
             if i == .reminders { _ = try await s.requestFullAccessToReminders() } else { _ = try await s.requestFullAccessToEvents() }
         } catch {
-            return .denied
+            // Without a prompt (missing right, or macOS gave the request to another app, e.g. Terminal) it ends here.
+            DiagnosticsLog.shared.event("zugriff-fehler", ["app": i.rawValue, "fehler": String(describing: error).prefix(200).description])
+            return access(i)
         }
         lock.withLock { cached = s }
         return access(i)

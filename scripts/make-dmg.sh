@@ -50,9 +50,9 @@ STAGE="$WORK/stage"
 mkdir -p "$STAGE/.background"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Programme"
-# Background: 640×400 pt, @1x and @2x in one TIFF (sharp on Retina).
-swift "$ROOT/app/Packaging/make-icon.swift" --dmg-background "$WORK/bg.png" 640x400
-swift "$ROOT/app/Packaging/make-icon.swift" --dmg-background "$WORK/bg@2x.png" 1280x800
+# Background: 640×400 pt, @1x and @2x in one TIFF (sharp on Retina), with the website's fonts.
+swift "$ROOT/app/Packaging/make-icon.swift" --dmg-background "$WORK/bg.png" 640x400 "$ROOT/site/fonts"
+swift "$ROOT/app/Packaging/make-icon.swift" --dmg-background "$WORK/bg@2x.png" 1280x800 "$ROOT/site/fonts"
 tiffutil -cathidpicheck "$WORK/bg.png" "$WORK/bg@2x.png" -out "$STAGE/.background/background.tiff" >/dev/null 2>&1 ||
   cp "$WORK/bg.png" "$STAGE/.background/background.tiff"
 
@@ -75,7 +75,8 @@ tell application "Finder"
     set current view of container window to icon view
     set toolbar visible of container window to false
     set statusbar visible of container window to false
-    set the bounds of container window to {200, 120, 840, 520}
+    -- 400 pt content plus the title bar, so the whole background is visible.
+    set the bounds of container window to {200, 120, 840, 548}
     set viewOptions to the icon view options of container window
     set arrangement of viewOptions to not arranged
     set icon size of viewOptions to 112
