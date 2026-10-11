@@ -13,6 +13,9 @@ final class PermissionsModel: ObservableObject {
     @Published private(set) var rows: [MacPermission] = []
     @Published private(set) var states: [MacPermission: PermissionState] = [:]
     @Published private(set) var asking: MacPermission?
+    /// Allow was pressed but the Mac showed no question (the state did not change): the row says so and its button
+    /// opens System Settings, instead of a button that seems to do nothing.
+    @Published private(set) var unanswered: Set<MacPermission> = []
     /// The onboarding page is still to come (once, after "Load"). Never in recordings unless they ask for it.
     @Published var onboardingPending: Bool
 
@@ -41,7 +44,7 @@ final class PermissionsModel: ObservableObject {
     /// The person pressed this row's Allow: its dialog(s) only, nothing else.
     func allow(_ permission: MacPermission) {
         guard asking == nil else { return }
-        if states[permission] == .denied { return openSettings(permission) }
+        if states[permission] == .denied || unanswered.contains(permission) { return openSettings(permission) }
         asking = permission
         Task {
             let result = await desk.request(permission)
@@ -49,6 +52,12 @@ final class PermissionsModel: ObservableObject {
             asking = nil
             NSApp.activate()
             await refresh()
+            if states[permission] == .notAsked {
+                unanswered.insert(permission)
+                DiagnosticsLog.shared.event("erlaubnis-ohne-frage", ["recht": permission.rawValue])
+            } else {
+                unanswered.remove(permission)
+            }
         }
     }
 
@@ -180,6 +189,10 @@ struct PermissionRow: View {
                         .accessibilityHint(T("Opens System Settings.", table: "Settings"))
                 case .unavailable(_)?:
                     StatusBadge(text: T("Will ask", table: "Settings"), symbol: nil, ink: Theme.ink2, fill: Theme.fill2)
+                case .notAsked? where permissions.unanswered.contains(permission):
+                    Button(T("Allow…", table: "Settings")) { permissions.openSettings(permission) }
+                        .pippa(.secondary)
+                        .accessibilityHint(T("Opens System Settings.", table: "Settings"))
                 case .notAsked?:
                     Button(T("Allow", table: "Settings")) { permissions.allow(permission) }
                         .pippa(.secondary)
@@ -194,6 +207,8 @@ struct PermissionRow: View {
     private func detail(_ state: PermissionState?) -> String {
         switch state {
         case .denied?: T("You said no. “Allow…” opens System Settings, where you can turn it on.", table: "Settings")
+        case .notAsked? where permissions.unanswered.contains(permission):
+            T("Your Mac didn’t ask. Quit Pippa, open it again from the Applications folder and try once more – or turn it on in System Settings.", table: "Settings")
         case .unavailable(let why)?: why
         default: permission.purpose
         }
