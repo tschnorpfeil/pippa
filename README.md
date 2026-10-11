@@ -6,8 +6,8 @@
 
 <p align="center">
   <b>Just drop it on Pippa.</b><br>
-  A small pill at the edge of your Mac's screen. Drop a letter, a few photos or a folder on it,<br>
-  pick one of the steps she suggests, and the result appears in the pill. The AI runs on your Mac.
+  A small pill on your Mac. Drop a letter, a folder or a few photos on it, pick a step, done.<br>
+  The AI runs on your Mac. No account, no subscription.
 </p>
 
 <p align="center">
@@ -17,159 +17,80 @@
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/pippa-demo-dark.gif">
-    <img src="docs/images/pippa-demo-light.gif" width="960" alt="A letter is dragged from the desktop onto Pippa's pill. The pill opens into a small card with three choices. After clicking 'What do I need to do?' the pill shows 'Reading the letter, page 2 of 2', then 'Done, pay by 31 Oct'. Clicking it opens the answer: 'You need to pay €84.20 by 31 October', with the quoted passage from the letter.">
-  </picture>
+  <img src="docs/images/demo-tidy.gif" width="960" alt="The Downloads folder is dragged onto Pippa. She shows where 38 files would go (Invoices, Photos, Letters, Apps) before changing anything. One click on 'Organize 38 Files' sorts them, and 'Undo' brings everything back.">
 </p>
 
-## How it feels
+Pippa is for people who don't pay for an AI subscription and never open Terminal. Her menus are in English or German, and she answers in the language you write in.
 
-You don't have to know what to ask. Drag something onto the pill, or click her while a mail or a spreadsheet is open, and she suggests two or three next steps. You can always type instead.
+## What she does
 
-- While she works, the pill says what she is doing, for example "Reading the letter · page 2 of 2". A job ends as done, needs you, or didn't work, and a failure comes with the reason.
-- An answer starts with one sentence about what to do, followed by the passage it came from and a button for the next step.
-- A finished PDF stays in the pill and can be dragged into Mail. A reply waits in Mail as a draft. Results stay in the pill until you open them.
-- She remembers facts you tell her, such as where you live or who your landlord is. "Forget that" removes one. When you move on to something new, she starts a new topic by herself and carries over deadlines and amounts.
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/pill-moods-dark.png">
-    <img src="docs/images/pill-moods-light.png" width="960" alt="Four pill states: resting ('Pippa'), working ('Reading the letter · page 2 of 2' with a progress ring), done ('Done · pay by 31 Oct' with a green smile), and didn't work ('Didn't work · no internet' in red).">
-  </picture>
-</p>
-
-Pippa is for people who don't pay for an AI subscription and never open Terminal. Her menus are in English, or German when your Mac is set to German, and she answers in the language you write in.
-
-## What she can do
-
-- **Understand a letter or a PDF.** What does it say, what do I need to do, by when? Amounts and dates come with the passage they were taken from.
-- **Answer an email.** Select a mail in Apple Mail and call Pippa (click her or press **⌃⌥ Space**). She can check your calendar and put a reply into Mail as a draft. Pippa never sends mail; you do.
-- **Calendar and reminders.** Add an appointment or a reminder, for example a payment deadline from a letter.
-- **Photos to PDF.** Drop scans or phone photos and choose *Make one PDF* (with searchable text), *Make smaller*, or convert between PDF, JPG and PNG. This runs on your Mac without a model, and your originals stay as they are.
-- **Tidy a folder.** Ask her to tidy Downloads; she sorts files into folders and shows you what went where.
-- **Check a spreadsheet.** Select cells in Microsoft Excel and choose *Check the total*: the numbers are added up again in code, and rows the total leaves out are pointed out. She can also collect invoices from a folder into a table.
-- **Paste instead of dragging.** Press **⌘V** in Pippa: a screenshot from the clipboard (**⌃⇧⌘4**) or files copied in the Finder are taken just like a drop, with the same choices. Text pastes as usual.
-- **Find a file.** "Where is the invoice from the plumber?" searches your Mac with Spotlight.
-- **Look something up online,** when the answer isn't on your Mac.
-
-Behind the pill is an agent with file and shell tools, so she can also do jobs that have no button, such as renaming a batch of files.
+- **Tidy up a folder.** She shows first where everything would go and waits for your OK. Undo puts it all back.
+- **Understand a letter.** What does it say, what do I have to do, by when? With the passage it came from.
+- **Find files again.** "Where is the invoice for my helmet?" searches your Mac.
+- **Answer emails.** Select a mail in Apple Mail and ask. She checks your calendar and puts a reply into Mail as a draft. She never sends mail.
+- **Office work.** *Check the total* in Excel adds the numbers up again in code and points out rows a total leaves out. Invoices become a CSV table that opens in Excel. Your files stay as they are.
+- **PDF tools, no AI needed.** Make PDFs and photos smaller, combine scans into one PDF, convert between PDF, JPG and PNG.
+- **Calendar, reminders, the web.** Add an appointment or a reminder, or look something up online.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/pill-moments-dark.png">
-    <img src="docs/images/pill-moments-light.png" width="960" alt="Two result cards in the pill. Left: 'Your PDF is ready' with the file 'Rental agreement.pdf' to drag into Mail. Right: pasted French text translated into English, with buttons to note the dates and copy the text.">
-  </picture>
+  <img src="docs/images/demo-letter.gif" width="480" alt="Lease.pdf is dropped on Pippa with the question 'I'm moving out at the end of March. When do I have to give notice?' She answers 'By December 31' and quotes § 4 of the lease.">
+  <img src="docs/images/demo-excel.gif" width="480" alt="In Excel, Pippa checks a total and finds that it leaves out the row 'Trash'. Nothing in the table is changed.">
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/pill-paste-dark.png">
-    <img src="docs/images/pill-paste-light.png" width="960" alt="Two cards in the pill after pressing ⌘V. Left: a pasted screenshot, 'Clipboard image 16-42.png', with 'What should I do with it?' and the buttons As PDF, As JPG and Make smaller. Right: three photos copied in the Finder, with Make one PDF and Make smaller.">
-  </picture>
+  <img src="docs/images/demo-pdf-tools.gif" width="480" alt="Tax notice.pdf is dropped on Pippa. After 'Make smaller' she offers 'Tax notice (smaller).pdf' to drag where it is needed, with Undo.">
 </p>
 
-<sub>The pictures are renderings of the pill design Pippa is moving to, made from [`docs/images/src`](docs/images/src). Examples and names are made up.</sub>
+<sub>Recorded from the demo on [heypippa.app/en](https://heypippa.app/en/). Names and files are made up.</sub>
 
-## How it works
+## Private by design
 
-The app draws the pill and connects to your Mac's apps. The agent behind it is [Pi](https://github.com/earendil-works/pi), running a local model through llama.cpp.
+- **The AI runs on your Mac.** No Pippa account, server or usage statistics.
+- **She reads only when you ask,** and only what you can open yourself.
+- **What she remembers is one text file on your Mac.** She refuses to store passwords and account, card or ID numbers.
+- **The network is used for** the one-time model download, updates, web lookups, and ChatGPT if you connect your own subscription (optional).
 
-```
-Pippa.app (Swift, SwiftUI)          the pill, cards, settings, first start
- ├─ llama-server (llama.cpp)        the local AI, on 127.0.0.1 only
- ├─ pi --mode rpc                   the agent that does the work
- │   ├─ Pippa's skills              letter, reply, tidy, find a file, ...
- │   ├─ Pi packages                 file tools, pi-web-access for the web
- │   └─ MCP client ───────────────► Pippa's MCP server (inside the app)
- │                                  Mail, Calendar, Reminders, Excel, documents
- └─ optional: your ChatGPT subscription through Pi's own sign-in
-```
-
-- **Pi does the work.** Pippa installs a pinned Pi release for you, without Terminal, and talks to it over `pi --mode rpc`. Everything Pippa knows how to do is a Pi skill in [`runtime/pippa-skills`](runtime/pippa-skills) or a Pi package, so new abilities are text files and packages, not app code. Pi's own updates arrive with Pippa's.
-- **Local AI through llama.cpp.** Pippa picks a model that fits your Mac, downloads it once after you agree, and runs it with a bundled, pinned [llama.cpp](https://github.com/ggml-org/llama.cpp). After that she works offline.
-- **The web through [pi-web-access](https://github.com/nicobailon/pi-web-access),** the Pi package for search and reading pages.
-- **Your Mac's apps through MCP.** Mail, Calendar, Reminders and Excel need the app's macOS permissions, so the app itself serves them to Pi over the Model Context Protocol on 127.0.0.1.
-- **Online models are optional.** If you have a ChatGPT subscription, you can sign in through Pi and use it instead of the local model.
-
-## Privacy
-
-- **The AI runs on your Mac.** No Pippa account, no Pippa server, no usage statistics. Pi's telemetry and update checks are switched off for the Pi that Pippa starts.
-- **Pippa reads only when you call her,** and then what you yourself can open: files, the selected mail, your calendar.
-- **What she remembers is one text file on your Mac** (`memory.md` in Pippa's support folder). She refuses to store passwords or account, card, ID, tax and phone numbers.
-- **The network is used for** the one-time model download (Hugging Face), app updates (Sparkle, from GitHub releases), web lookups, and an online model if you connect one.
-- **Mail is only ever drafted.** Pippa has no tool to send it.
-
-Worth knowing: like Pi, Pippa just does the job instead of asking before every step, and she runs without the macOS App Sandbox because a sandboxed app cannot set up Pi. Keep Time Machine on, as you would anyway.
-
-## Requirements
-
-- A Mac with Apple silicon (M1 or later) and macOS 15 or later
-- 3 to 6 GB of free disk space for the model (about 14 GB for the larger one)
-
-| Memory | Model Pippa picks | Download |
-|---|---|---|
-| 8 GB | Qwen3.5 4B | about 2.7 GB |
-| 16 GB or more (recommended) | Qwen3.5 9B | about 5.7 GB |
-| 24 GB or more, *More thorough* in Settings | Qwen3.6 35B-A3B | about 13.7 GB |
-
-If a matching model is already on your Mac (LM Studio, Ollama, Hugging Face cache), Pippa reuses it and leaves the original untouched.
+Worth knowing: Pippa runs without the macOS App Sandbox, because a sandboxed app cannot set up her agent. Keep Time Machine on, as you would anyway.
 
 ## Install
 
-1. Download [Pippa.dmg](https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg).
-2. Drag Pippa into Applications and open her.
-3. Answer one question: may she download her AI now? Everything else sets itself up. If you opened her from the disk image or Downloads, she offers once to move herself to Applications.
+You need a Mac with Apple silicon (M1 or later), macOS 15 or later, and 3 to 6 GB of free space.
 
-While the AI downloads, Apple Intelligence on your Mac already answers simple questions, if it is turned on. Anything that needs your files, Mail or the web waits in the conversation and goes out by itself as soon as Pippa's AI is ready.
+1. Download [Pippa.dmg](https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg) and drag Pippa into Applications.
+2. Open her and say yes to the one-time AI download. Everything else sets itself up, and updates arrive by themselves.
 
-Pi lands in its standard place (`~/.pi/agent`, plus `~/.local/bin/pi` if you have no Pi yet), so the same Pi and the same local model also work from Terminal. An existing Pi install is left alone. Updates arrive automatically.
+| Memory | Model | Download |
+|---|---|---|
+| 8 GB | Qwen3.5 4B | about 2.7 GB |
+| 16 GB or more | Qwen3.5 9B | about 5.7 GB |
+
+A matching model from LM Studio, Ollama or the Hugging Face cache is reused.
+
+## How it works
+
+The Swift app draws the pill and connects to Mail, Calendar, Reminders and Excel. Behind it, the [Pi](https://github.com/earendil-works/pi) agent does the work with a local model run by [llama.cpp](https://github.com/ggml-org/llama.cpp). Pippa's abilities are Pi skills in [`runtime/pippa-skills`](runtime/pippa-skills): plain text files, not app code.
+
+```
+Pippa.app (Swift)      pill, cards, settings, MCP server for Mail, Calendar, Excel
+ ├─ llama-server       the local model, on 127.0.0.1 only
+ └─ pi --mode rpc      the agent, with Pippa's skills and pi-web-access
+```
 
 ## Building from source
 
-You need Apple silicon, macOS 15 or later, the Command Line Tools with Swift 6 (`xcode-select --install`) and `cmake` (`brew install cmake`). The first build downloads the pinned llama.cpp source, Node.js and Pi's locked dependencies, all checksum-verified.
+Apple silicon, macOS 15+, Command Line Tools with Swift 6 and `cmake`.
 
 ```sh
-scripts/build-app.sh      # dist/Pippa.app (ad-hoc signed without PIPPA_SIGN_IDENTITY)
-scripts/verify-app.sh     # signature, entitlements, bundled Pi, runtime probe
-scripts/make-dmg.sh       # dist/Pippa.dmg
+scripts/build-app.sh                        # dist/Pippa.app
+swift run --package-path app PippaChecks    # checks, no model needed
 ```
 
-Checks that need no model:
+More in [docs/development.md](docs/development.md) and [docs/updating-pi.md](docs/updating-pi.md).
 
-```sh
-swift run --package-path app PippaChecks    # native checks
-python3 scripts/check-strings.py            # every UI text in English and German
-```
+## Credits and license
 
-Signing, notarizing, environment variables and where Pippa keeps its data: [docs/development.md](docs/development.md). How to move to a new Pi release: [docs/updating-pi.md](docs/updating-pi.md).
-
-| Path | Contents |
-|---|---|
-| `app/Sources/Pippa` | the macOS app: pill, cards, settings, first start, updates |
-| `app/Sources/PippaCore` | models, llama-server, Pi installer, MCP server, Mail/Calendar/Excel readers, scan tools |
-| `app/Sources/PiRPC` | client for `pi --mode rpc` |
-| `app/Packaging` | Info.plist, entitlements, pinned llama.cpp, Node and Pi releases |
-| `runtime/` | Pippa's Pi skills and packages |
-| `scripts/` | build, verify, DMG, release and check scripts |
-| `site/` | [heypippa.app](https://heypippa.app) |
-
-## Credits
-
-Pippa is built on:
-
-- [Pi](https://github.com/earendil-works/pi) by Mario Zechner and Earendil Works (MIT), the agent that does the work
-- [llama.cpp](https://github.com/ggml-org/llama.cpp) by the ggml authors (MIT), which runs the local model
-- [pi-web-access](https://github.com/nicobailon/pi-web-access) by Nico Bailon (MIT), for web search and reading pages
-- [Node.js](https://nodejs.org) (MIT and others), which runs Pi
-- [Sparkle](https://sparkle-project.org) (MIT), for updates
-- [Bagel Fat One](https://fonts.google.com/specimen/Bagel+Fat+One) (SIL Open Font License 1.1)
-- the open models [Qwen](https://huggingface.co/Qwen) (Apache 2.0) and, for developers, [K2 Horizon](https://huggingface.co/IFM/K2-Horizon-7B) by MBZUAI and IFM (Apache 2.0), downloaded from Hugging Face on your Mac and not part of this repository
-
-Licence texts and the full list of bundled components: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-## License
+Built on [Pi](https://github.com/earendil-works/pi), [llama.cpp](https://github.com/ggml-org/llama.cpp), [pi-web-access](https://github.com/nicobailon/pi-web-access), [Node.js](https://nodejs.org), [Sparkle](https://sparkle-project.org) and the open [Qwen](https://huggingface.co/Qwen) models. Full list: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 [MIT](LICENSE). Contributions welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Pippa is an independent project and is not affiliated with Apple, Microsoft, OpenAI, Google, Alibaba Cloud or Earendil Works. Mac and macOS are trademarks of Apple Inc. Microsoft Excel is a trademark of Microsoft Corporation. ChatGPT is a trademark of OpenAI.
+<sub>Pippa is an independent project, not affiliated with Apple, Microsoft, OpenAI, Alibaba Cloud or Earendil Works. Mac and macOS are trademarks of Apple Inc., Excel of Microsoft Corporation, ChatGPT of OpenAI.</sub>
