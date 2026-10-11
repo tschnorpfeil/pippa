@@ -94,12 +94,6 @@ struct SortSheet: View {
                 let placed = all.count + stay.count + plan.later.count
                 AdaptiveScroll {
                     VStack(spacing: 0) {
-                        // First thing in view while Pippa is still looking: what she is on, and how far she is.
-                        if !plan.pending.isEmpty {
-                            SortProgressCard(model: model, placed: placed, total: placed + plan.pending.count)
-                                .padding(.horizontal, 20)
-                                .padding(.top, 14)
-                        }
                         BeforeAfter(total: all.count + stay.count + plan.pending.count + plan.later.count, groups: groups.filter { !$0.isTrash })
                             .padding(.horizontal, 20)
                             .padding(.top, 14)
@@ -132,7 +126,7 @@ struct SortSheet: View {
     }
 
     /// What is still to come, in plain words: documents for later, and the rest of a very full folder. (While Pippa is
-    /// still looking at files, `SortProgressCard` says so above.)
+    /// still looking at files, `SortProgress` says so above the approval button.)
     private func comingNext(_ plan: Plan, placed: Int) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if !plan.later.isEmpty && plan.pending.isEmpty {
@@ -330,46 +324,54 @@ struct SortSheet: View {
 }
 
 /// While the tidy preview still fills: how far Pippa is, which file she is on and what she does with it (reading,
-/// recognizing the text of a scan or photo, deciding where it belongs), and why "Organize" waits. Big enough to
-/// notice: reading scans can take a while, and a small grey line looked like nothing was happening.
-struct SortProgressCard: View {
+/// recognizing the text of a scan or photo, deciding where it belongs), and why "Organize" waits. Pinned right above
+/// the approval button, outside the scroll area: at the top of the preview it scrolled away, and the grey button looked
+/// broken.
+struct SortProgress: View {
     @ObservedObject var model: AppModel
     var placed: Int
     var total: Int
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Files with a place so far, and all of this round: the same counts the preview shows.
+    static func counts(_ plan: Plan) -> (placed: Int, total: Int) {
+        let placed = plan.ops.filter { $0.kind != .mkdir }.count + plan.skipped.count + plan.later.count
+        return (placed, placed + plan.pending.count)
+    }
+
     var body: some View {
-        Well(padding: 16) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(T("Looking at your files…", table: "Views"))
-                        .font(.scaled(size: 15, weight: .semibold))
-                        .foregroundStyle(Theme.ink)
-                    Spacer(minLength: 8)
-                    Text(T("%lld of %lld", table: "Views", min(placed, total), total))
-                        .font(.scaled(size: 13, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Theme.ink2)
-                        .fixedSize()
-                }
-                ThinProgress(value: Double(placed) / Double(max(total, 1)), height: 8)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: placed)
-                if let name = model.workProgress?.current {
-                    let kind = DocIcon.kind(for: URL(fileURLWithPath: name))
-                    HStack(spacing: 6) {
-                        DocIcon(kind: kind, width: 11)
-                        Text(Self.doing(FileName.display(name), stage: model.workProgress?.stage, image: kind == .image))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    .font(Fonts.hint)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(T("Looking at your files…", table: "Views"))
+                    .font(.scaled(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                Spacer(minLength: 8)
+                Text(T("%lld of %lld", table: "Views", min(placed, total), total))
+                    .font(.scaled(size: 13, weight: .medium).monospacedDigit())
                     .foregroundStyle(Theme.ink2)
-                }
-                Text(T("You can already look through the preview. I’ll organize once every file has its place.", table: "Views"))
-                    .font(Fonts.hint)
-                    .foregroundStyle(Theme.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .fixedSize()
             }
+            ThinProgress(value: Double(placed) / Double(max(total, 1)), height: 8)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: placed)
+            if let name = model.workProgress?.current {
+                let kind = DocIcon.kind(for: URL(fileURLWithPath: name))
+                HStack(spacing: 6) {
+                    DocIcon(kind: kind, width: 11)
+                    Text(Self.doing(FileName.display(name), stage: model.workProgress?.stage, image: kind == .image))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .font(Fonts.hint)
+                .foregroundStyle(Theme.ink2)
+            }
+            Text(T("You can already look through the preview. I’ll organize once every file has its place.", table: "Views"))
+                .font(Fonts.hint)
+                .foregroundStyle(Theme.ink3)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
@@ -488,6 +490,17 @@ struct SortActions: View {
         model.plan?.ops.filter { $0.kind != .mkdir && $0.certainty != .unreadable && !model.excluded.contains($0.id) }.count ?? 0
     }
     var body: some View {
+        VStack(spacing: 0) {
+            // While Pippa is still looking, the progress sits right above the grey button that waits for it.
+            if model.sortFilling, let plan = model.plan, !plan.pending.isEmpty {
+                let counts = SortProgress.counts(plan)
+                SortProgress(model: model, placed: counts.placed, total: counts.total)
+            }
+            buttons
+        }
+    }
+
+    private var buttons: some View {
         ResponsiveSheetActions {
             LinkButton(title: model.showReasons ? T("Hide Reasons", table: "Views") : T("Why This Way?", table: "Views"), icon: "questionmark.bubble") { model.showReasons.toggle() }
             HStack(spacing: 8) {
