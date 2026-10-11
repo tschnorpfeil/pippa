@@ -301,10 +301,10 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
         return files.allSatisfy(isInstalled)
     }
 
-    /// Current file size, -1 if the file does not exist. Not via `URL.resourceValues`: it caches the first
+    /// Current file size (of the target, for a symlinked model), -1 if the file does not exist. Not via `URL.resourceValues`: it caches the first
     /// value per URL, and resuming then kept restarting from the same spot (the .part file grew endlessly).
     public static func fileSize(_ url: URL) -> Int64 {
-        ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? NSNumber)?.int64Value ?? -1
+        ((try? FileManager.default.attributesOfItem(atPath: url.resolvingSymlinksInPath().path))?[.size] as? NSNumber)?.int64Value ?? -1
     }
 
     func isInstalled(_ f: CatalogModel.File) -> Bool {
