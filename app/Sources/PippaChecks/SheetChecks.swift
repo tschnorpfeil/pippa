@@ -327,4 +327,53 @@ func runSheetChecks() async {
         if elapsed >= 1 { print("  \(elapsed) s") }
         return elapsed < 1 && r.findings.map(\.kind) == [.missingRows] && r.totals.count == 3
     }
+
+    // MARK: Table files (dropped .xlsx, .csv, .tsv)
+
+    check("Table file: CSV with semicolons, quotes and German numbers becomes cells; Pippa's own Excel text does not") {
+        let csv = "\u{FEFF}Posten;Betrag;Notiz\r\nMiete;\"1.200,00\";\"warm; inkl. NK\"\r\nStrom;84,20;\"sagt \"\"hallo\"\"\"\r\n\r\n"
+        guard let g = SheetFileCheck.csvGrid(csv) else { return false }
+        let cells = g.rowCount == 3 && g.columnCount == 3 && g[2, 2].value == .number(1200) && g[3, 2].value == .number(84.2)
+            && g[2, 3].value == .text("warm; inkl. NK") && g[3, 3].value == .text("sagt \"hallo\"") && g[1, 1].value == .text("Posten")
+        let tab = SheetFileCheck.csvGrid("A\tB\n1\t2", separator: "\t")?.columnCount == 2
+        let comma = SheetFileCheck.guessSeparator("a,b,c\n1;2") == ","
+        return cells && tab && comma && SheetFileCheck.csvGrid("Table: Kosten\nSheet: 2026\nRow\tA") == nil && SheetFileCheck.csvGrid(" \n") == nil
+    }
+    check("Table file: a total row that is wrong is found in code; without a total there is no note") {
+        let csv = "Posten;Betrag\nMiete;800\nStrom;84,20\nWasser;22,49\nSumme;884,20\n"
+        guard let g = SheetFileCheck.csvGrid(csv), let note = SheetFileCheck.note(for: [("Nebenkosten", g)], locale: english) else { return false }
+        let plain = SheetFileCheck.csvGrid("Posten;Betrag\nMiete;800\nStrom;84,20\n")!
+        return note.hasPrefix("[Pippa hat die Summen") && note.contains("B5") && !note.contains("Blatt")
+            && SheetFileCheck.note(for: [("Liste", plain)], locale: english) == nil
+            && SheetFileCheck.prepend(nil, to: "x") == "x" && SheetFileCheck.prepend("n", to: "x") == "n\n\nx"
+    }
+    check("Table file: Excel cells keep numbers, text numbers and formulas for the check; a total leaving out a row is found") {
+        let sheetXML = #"<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Posten</t></is></c><c r="B1" t="inlineStr"><is><t>Betrag</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Miete</t></is></c><c r="B2"><v>800</v></c></row><row r="3"><c r="A3" t="inlineStr"><is><t>Strom</t></is></c><c r="B3" t="inlineStr"><is><t>84,20</t></is></c></row><row r="4"><c r="A4" t="inlineStr"><is><t>Wasser</t></is></c><c r="B4"><v>22.5</v></c></row><row r="5"><c r="A5" t="inlineStr"><is><t>Summe</t></is></c><c r="B5"><f>SUM(B2:B3)</f><v>800</v></c></row></sheetData></worksheet>"#
+        var zip = ZipWriter()
+        zip.add("xl/workbook.xml", Data(#"<workbook xmlns:r="r"><sheets><sheet name="Kosten" r:id="r1"/></sheets></workbook>"#.utf8))
+        zip.add("xl/_rels/workbook.xml.rels", Data(#"<Relationships><Relationship Id="r1" Target="worksheets/sheet1.xml"/></Relationships>"#.utf8))
+        zip.add("xl/worksheets/sheet1.xml", Data(sheetXML.utf8))
+        let data = zip.finish()
+        guard let book = XLSXReader.workbook(data), let g = book.sheets.first?.grid else { return false }
+        let typed = g[2, 2].value == .number(800) && g[3, 2].value == .text("84,20") && g[5, 2].formula == "=SUM(B2:B3)" && g[1, 1].value == .text("Posten")
+        let result = SheetCheck.run(g, locale: english)
+        let file = dir("table-file").appendingPathComponent("Kosten.xlsx")
+        try data.write(to: file)
+        let read = TextReader.read(file)
+        let csv = dir("table-file").appendingPathComponent("Liste.csv")
+        write("Posten;Betrag\nMiete;800\nStrom;84,20\nSumme;900\n", csv)
+        let csvRead = TextReader.read(csv).fullText
+        return typed && result.findings.map(\.kind).contains(.missingRows) && book.text == XLSXReader.read(data)?.text
+            && read.fullText.hasPrefix("[Pippa hat die Summen") && read.fullText.hasSuffix(book.text)
+            && csvRead.hasPrefix("[Pippa hat die Summen") && csvRead.hasSuffix("Summe;900\n")
+    }
+    check("Table file: only readable tables get the check button; Numbers, .xls and .ods get a sentence instead") {
+        func place(_ name: String) -> PippaSkill.Place? {
+            let url = URL(fileURLWithPath: "/x/" + name)
+            return PippaSkill.place(for: DropKind.guess(for: url), fileExtension: url.pathExtension)
+        }
+        return place("Haushalt.xlsx") == .tabelle && place("Liste.csv") == .tabelle && place("Haushalt.numbers") == nil
+            && place("Alt.xls") == nil && place("Libre.ods") == nil
+            && SheetFileCheck.unreadableNote(fileExtension: "Numbers")?.contains(".xlsx") == true && SheetFileCheck.unreadableNote(fileExtension: "pdf") == nil
+    }
 }
