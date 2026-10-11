@@ -7,7 +7,7 @@ import Foundation
 /// often: a message that refers back ("und das Foto?", "Danke", "noch kürzer") never starts a topic.
 /// - a greeting after a short pause ("Hey Pippa, was geht ab?"),
 /// - any message of at least three words after a long pause.
-/// New things handed over and three hours of quiet already start a whole new conversation (AppModel, ConversationReopenPolicy).
+/// New things handed over and an hour of quiet already start a whole new conversation (AppModel, ConversationReopenPolicy).
 public enum TopicBoundary {
     public static let greetingAfter: TimeInterval = 2 * 60
     public static let quietAfter: TimeInterval = 30 * 60
