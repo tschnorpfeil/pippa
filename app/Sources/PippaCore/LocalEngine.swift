@@ -958,6 +958,9 @@ public actor LocalEngine: PippaEngine {
                 if !folders.contains(path) && !fm.fileExists(atPath: folderURL(path).path) { folders.append(path) }
             }
             let dir = folderURL(rel)
+            // Already in its place under its name (tidying ~/Documents, a document "to Dokumente"): nothing to do, not "Name (2)".
+            if dir.standardizedFileURL.path == i.url.deletingLastPathComponent().standardizedFileURL.path
+                && Naming.key(name) == Naming.key(i.url.lastPathComponent) { continue }
             let target = Naming.unique(name, in: dir, taken: &taken)
             if target.standardizedFileURL.path == i.url.standardizedFileURL.path { continue }
             let kind: PlanOp.Kind = dir.standardizedFileURL.path == i.url.deletingLastPathComponent().standardizedFileURL.path ? .rename : .move
