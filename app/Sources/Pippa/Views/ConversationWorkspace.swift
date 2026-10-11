@@ -154,6 +154,9 @@ struct ConversationWorkspace: View {
     /// Glides along while text streams; with Reduce Motion it jumps.
     private func follow(_ reader: ScrollViewProxy, animated: Bool = true) {
         guard followLatest, !restoringViewport, !userScrolling else { return }
+        // A tidy preview still filling grows with every file: keep its top in view instead of chasing its bottom, so the
+        // overview and the first folders don't slide away while the person reads them.
+        if model.sortFilling { return reader.scrollTo("workflow", anchor: .top) }
         scrollToLatest(reader, animated: animated)
     }
 
