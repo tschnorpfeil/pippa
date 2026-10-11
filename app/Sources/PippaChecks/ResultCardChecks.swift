@@ -155,6 +155,13 @@ func runResultCardChecks() async {
         let order = FoundFiles.ordered([a, folder, gone, b], answer: "Das Bild ist [Urlaub.jpg](\(b.absoluteString)).") { $0 != gone }
         return order == [b, a] && FoundFiles.ordered([], answer: "") == []
     }
+    check("Files card: listed files join only when the answer names them, escaped or linked") {
+        let pdf = URL(fileURLWithPath: "/Users/x/projects/Kinderbuch/Kinderbuch_35cm_Gesamt.pdf")
+        let sketch = URL(fileURLWithPath: "/Users/x/projects/Kinderbuch/Layout Sketch.pdf")
+        let other = URL(fileURLWithPath: "/Users/x/projects/Kinderbuch/Verlage.md"), gone = URL(fileURLWithPath: "/Users/x/weg.pdf")
+        let answer = "Dort gibt es: Kinderbuch\\_35cm\\_Gesamt.pdf und [Skizze](\(sketch.absoluteString)), auch weg.pdf"
+        return FoundFiles.named([pdf, sketch, other, gone, pdf], answer: answer) { $0 != gone } == [pdf, sketch]
+    }
     check("What Pippa knows: read the remember file, forget one fact or all, other lines stay, only the person can read it") {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-memory-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

@@ -402,6 +402,7 @@ final class PiRPCChat {
               onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil) async throws -> String {
         lastActions = nil
         searchFiles = []
+        listedFiles = []
         // Read and write receipts belong to the answer that triggered them.
         _ = PippaMCPService.readNotes.take()
         _ = PippaMCPService.writeNotes.take()
@@ -467,6 +468,12 @@ final class PiRPCChat {
                         if !searchFiles.contains(url), searchFiles.count < 200 { searchFiles.append(url) }
                     }
                 }
+                if kind == "pippa-listed-files", let data = text.data(using: .utf8),
+                   let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    for path in (record["files"] as? [String] ?? []) where path.hasPrefix("/") && listedFiles.count < 1000 {
+                        listedFiles.append(URL(fileURLWithPath: path))
+                    }
+                }
                 if kind == "pippa-loop-stop", let data = text.data(using: .utf8),
                    let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let files = (record["files"] as? [String] ?? []).filter { $0.hasPrefix("/") }
@@ -491,6 +498,8 @@ final class PiRPCChat {
             }
         }
         }
+        // Files an opened folder or a shell command showed, as far as the answer names them: clickable on the card too.
+        adoptListedFiles(answer: segment)
         if let loopStop {
             throw AnswerFailure.stopped(partial: segment.trimmingCharacters(in: .whitespacesAndNewlines) + (segment.isEmpty ? "" : "\n\n") + loopStop)
         }
@@ -526,6 +535,13 @@ final class PiRPCChat {
     }
 
     private var searchFiles: [URL] = []
+    private var listedFiles: [URL] = []
+    private func adoptListedFiles(answer: String) {
+        for file in FoundFiles.named(listedFiles, answer: answer) where !searchFiles.contains(file) && searchFiles.count < 200 {
+            searchFiles.append(file)
+        }
+        listedFiles = []
+    }
     func takeSearchFiles() -> [URL] {
         defer { searchFiles = [] }
         return searchFiles

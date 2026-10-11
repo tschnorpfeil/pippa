@@ -3,8 +3,8 @@ import PippaCore
 import QuickLookThumbnailing
 import SwiftUI
 
-/// Files a search found, as a card under the answer: preview, name, folder. A click opens the file; "Show in Finder"
-/// selects it in its folder. The list is Pippa's own search result (`message.attachments`), never the model's text;
+/// Files a search found, as a card under the answer: preview, name, folder. A click opens the file; the "Show in Finder"
+/// button on each row selects it in its folder. The list is Pippa's own search result (`message.attachments`), never the model's text;
 /// files the answer names come first.
 struct FoundFilesCardView: View {
     var files: [URL]
@@ -43,38 +43,52 @@ private struct FoundFileRow: View {
     private let thumbnailState = State<NSImage?>(initialValue: nil)
 
     var body: some View {
-        Button { NSWorkspace.shared.open(file) } label: {
-            HStack(spacing: 10) {
-                Image(nsImage: thumbnailState.wrappedValue ?? NSWorkspace.shared.icon(forFile: file.path))
-                    .resizable().aspectRatio(contentMode: .fill)
-                    .frame(width: 34, height: 34)
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(verbatim: file.lastPathComponent).font(.scaled(size: 13)).foregroundStyle(Theme.ink)
-                        .lineLimit(1).truncationMode(.middle)
-                    Text(verbatim: file.deletingLastPathComponent().lastPathComponent).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3)
-                        .lineLimit(1)
+        HStack(spacing: 8) {
+            Button { NSWorkspace.shared.open(file) } label: {
+                HStack(spacing: 10) {
+                    Image(nsImage: thumbnailState.wrappedValue ?? NSWorkspace.shared.icon(forFile: file.path))
+                        .resizable().aspectRatio(contentMode: .fill)
+                        .frame(width: 34, height: 34)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(verbatim: file.lastPathComponent).font(.scaled(size: 13)).foregroundStyle(Theme.ink)
+                            .lineLimit(1).truncationMode(.middle)
+                        Text(verbatim: file.deletingLastPathComponent().lastPathComponent).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 14).padding(.vertical, 4)
-            .background(hoverState.wrappedValue ? Theme.chatBorder : .clear)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .help(file.path)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(T("%@ in %@", table: "Views", file.lastPathComponent, file.deletingLastPathComponent().lastPathComponent))
+            .accessibilityHint(T("Opens the file", table: "Views"))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(named: T("Show in Finder", table: "Views")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+            // Visible, not only in the context menu: many people never right-click.
+            Button { NSWorkspace.shared.activateFileViewerSelecting([file]) } label: {
+                Label(T("Show in Finder", table: "Views"), systemImage: "folder")
+                    .font(.scaled(size: 11.5)).foregroundStyle(hoverState.wrappedValue ? Theme.accent : Theme.ink3)
+                    .lineLimit(1).fixedSize()
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(T("Show in Finder", table: "Views"))
+            .accessibilityLabel(T("Show %@ in Finder", table: "Views", file.lastPathComponent))
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 14).padding(.vertical, 4)
+        .background(hoverState.wrappedValue ? Theme.chatBorder : .clear)
         .onHover { hoverState.wrappedValue = $0 }
-        .help(file.path)
         .contextMenu {
             Button(T("Open", table: "Views")) { NSWorkspace.shared.open(file) }
             Button(T("Show in Finder", table: "Views")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
         }
         .task(id: file) { thumbnailState.wrappedValue = await Self.thumbnail(file) }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(T("%@ in %@", table: "Views", file.lastPathComponent, file.deletingLastPathComponent().lastPathComponent))
-        .accessibilityHint(T("Opens the file", table: "Views"))
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction(named: T("Show in Finder", table: "Views")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+        .accessibilityElement(children: .contain)
     }
 
     /// Quick Look's preview (pictures, PDFs, documents); `nil` keeps the file's icon.

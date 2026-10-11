@@ -357,7 +357,7 @@ public actor PiRPCClient {
                                      isError: record["isError"] as? Bool == true, result: String(result.prefix(limit))))
         case "entry_appended":
             if let entry = record["entry"] as? [String: Any], entry["type"] as? String == "custom",
-               let kind = entry["customType"] as? String, ["pippa-loop-stop", "pippa-search-result"].contains(kind), let data = entry["data"],
+               let kind = entry["customType"] as? String, ["pippa-loop-stop", "pippa-search-result", "pippa-listed-files"].contains(kind), let data = entry["data"],
                let json = try? JSONSerialization.data(withJSONObject: data) {
                 events?.yield(.notice(String(decoding: json, as: UTF8.self), kind: kind))
             }
