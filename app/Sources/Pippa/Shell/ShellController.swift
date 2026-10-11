@@ -989,7 +989,7 @@ final class ShellController: NSObject {
         let room = toStage(screen(containing: shellScreenRect).visibleFrame)
         // While the shell is open the light keeps the pill's place and fades there, instead of stretching around it.
         auraState.update(pill: atRest ? flipped(shellRect) : nil, mark: atRest ? flipped(markRect) : nil, motion: motion,
-                         below: room.maxY - shellRect.maxY < 120,
+                         below: room.maxY - shellRect.maxY < 120, roomMaxX: room.maxX,
                          working: atRest && model.pillStatus.tone == .working,
                          step: running ? chat.thought.bubbles.last : nil, startedAt: running ? chat.thought.startedAt : nil,
                          slowText: ThoughtLine.slowNote)
