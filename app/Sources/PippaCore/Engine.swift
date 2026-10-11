@@ -267,10 +267,20 @@ public protocol PippaEngine: AnyObject, Sendable {
 
 /// Progress while reading: how many files are done, how many in total, which is current.
 public struct WorkProgress: Sendable, Equatable {
+    /// What happens to the current file while tidying, so the preview can say it in plain words.
+    public enum Stage: Sendable, Equatable {
+        /// Reading its text; for scans and photos that means recognizing the text first.
+        case reading
+        /// Asking the AI where it belongs.
+        case placing
+    }
     public var done: Int
     public var total: Int
     public var current: String?
-    public init(done: Int, total: Int, current: String?) { self.done = done; self.total = total; self.current = current }
+    public var stage: Stage?
+    public init(done: Int, total: Int, current: String?, stage: Stage? = nil) {
+        self.done = done; self.total = total; self.current = current; self.stage = stage
+    }
 }
 
 public extension PippaEngine {

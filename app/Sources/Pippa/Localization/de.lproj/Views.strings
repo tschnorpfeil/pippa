@@ -12,7 +12,6 @@
 "Organize %@" = "%@ ordnen";
 "%lld files get a place · %lld new folders · nothing is deleted" = "%lld Dateien bekommen einen Platz · %lld neue Ordner · nichts wird gelöscht";
 "Only moved and renamed · nothing deleted" = "Nur verschoben und umbenannt · nichts gelöscht";
-"Looking at %lld files… %lld of %lld" = "Ich schaue mir %lld Dateien an … %lld von %lld";
 "This folder is very full. I’m starting with the newest %lld files; the other %lld come afterward." = "Der Ordner ist sehr voll. Ich fange mit den neuesten %lld Dateien an, die übrigen %lld kommen danach.";
 "I’ll take a calm look at %@ later, %@. Until then, it stays where it is." = "%@ schaue ich mir später in Ruhe an, %@. Bis dahin bleibt es, wo es ist.";
 "I’ll take a calm look at %@ later, %@. Until then, they stay where they are." = "%@ schaue ich mir später in Ruhe an, %@. Bis dahin bleiben sie, wo sie sind.";
@@ -279,3 +278,8 @@
 "As Letter" = "Als Brief";
 "As Word File" = "Als Word-Datei";
 "A letter with your address, the date and the subject, as a PDF" = "Ein Brief mit deiner Adresse, dem Datum und dem Betreff, als PDF";
+"Looking at your files…" = "Ich schaue mir deine Dateien an …";
+"Reading “%@”" = "Lese „%@“";
+"Recognizing the text in “%@”" = "Erkenne den Text in „%@“";
+"Deciding where “%@” belongs" = "Überlege, wohin „%@“ gehört";
+"You can already look through the preview. I’ll organize once every file has its place." = "Du kannst dir die Vorschau schon ansehen. Ich ordne, sobald jede Datei ihren Platz hat.";

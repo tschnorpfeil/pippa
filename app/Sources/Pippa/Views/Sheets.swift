@@ -10,7 +10,6 @@ struct SortSheet: View {
     @ObservedObject var model: AppModel
     /// Row with keyboard focus: the space bar toggles it on or off.
     @FocusState private var focusedRow: UUID?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     struct Row: Identifiable {
         var id: UUID
@@ -92,13 +91,20 @@ struct SortSheet: View {
                 PanelHead(title: T("Organize %@", table: "Views", plan.scope.lastPathComponent),
                           meta: T("%lld files get a place · %lld new folders · nothing is deleted", table: "Views", chosen, newFolders),
                           markSize: 36, sheet: true, onClose: { model.escape() })
+                let placed = all.count + stay.count + plan.later.count
                 AdaptiveScroll {
                     VStack(spacing: 0) {
+                        // First thing in view while Pippa is still looking: what she is on, and how far she is.
+                        if !plan.pending.isEmpty {
+                            SortProgressCard(model: model, placed: placed, total: placed + plan.pending.count)
+                                .padding(.horizontal, 20)
+                                .padding(.top, 14)
+                        }
                         BeforeAfter(total: all.count + stay.count + plan.pending.count + plan.later.count, groups: groups.filter { !$0.isTrash })
                             .padding(.horizontal, 20)
                             .padding(.top, 14)
                             .stagger(4)
-                        if !plan.pending.isEmpty || !plan.remaining.isEmpty || !plan.later.isEmpty { comingNext(plan, placed: all.count + stay.count + plan.later.count) }
+                        if !plan.remaining.isEmpty || (!plan.later.isEmpty && plan.pending.isEmpty) { comingNext(plan, placed: placed) }
                         // While files are still being looked at, the count would only grow under the person's eyes.
                         if all.count > 1 && !model.sortFilling { selectionBar(chosen: chosen, all: all) }
                         VStack(spacing: 0) {
@@ -125,22 +131,10 @@ struct SortSheet: View {
         }
     }
 
-    /// What is still to come, in plain words: one progress line while Pippa is still looking at files (the groups fill in
-    /// meanwhile, organizing waits until every file has its place), documents for later, and the rest of a very full folder.
+    /// What is still to come, in plain words: documents for later, and the rest of a very full folder. (While Pippa is
+    /// still looking at files, `SortProgressCard` says so above.)
     private func comingNext(_ plan: Plan, placed: Int) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            if !plan.pending.isEmpty {
-                let total = placed + plan.pending.count
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(T("Looking at %lld files… %lld of %lld", table: "Views", total, placed, total))
-                        .monospacedDigit()
-                    ProgressView(value: Double(placed), total: Double(max(total, 1)))
-                        .progressViewStyle(.linear)
-                        .controlSize(.small)
-                        .tint(Theme.accent)
-                        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: placed)
-                }
-            }
             if !plan.later.isEmpty && plan.pending.isEmpty {
                 Text(laterText(plan.later.count))
             }
@@ -332,6 +326,60 @@ struct SortSheet: View {
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .padding(.bottom, 4)
+    }
+}
+
+/// While the tidy preview still fills: how far Pippa is, which file she is on and what she does with it (reading,
+/// recognizing the text of a scan or photo, deciding where it belongs), and why "Organize" waits. Big enough to
+/// notice: reading scans can take a while, and a small grey line looked like nothing was happening.
+struct SortProgressCard: View {
+    @ObservedObject var model: AppModel
+    var placed: Int
+    var total: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Well(padding: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(T("Looking at your files…", table: "Views"))
+                        .font(.scaled(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                    Spacer(minLength: 8)
+                    Text(T("%lld of %lld", table: "Views", min(placed, total), total))
+                        .font(.scaled(size: 13, weight: .medium).monospacedDigit())
+                        .foregroundStyle(Theme.ink2)
+                        .fixedSize()
+                }
+                ThinProgress(value: Double(placed) / Double(max(total, 1)), height: 8)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: placed)
+                if let name = model.workProgress?.current {
+                    let kind = DocIcon.kind(for: URL(fileURLWithPath: name))
+                    HStack(spacing: 6) {
+                        DocIcon(kind: kind, width: 11)
+                        Text(Self.doing(FileName.display(name), stage: model.workProgress?.stage, image: kind == .image))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .font(Fonts.hint)
+                    .foregroundStyle(Theme.ink2)
+                }
+                Text(T("You can already look through the preview. I’ll organize once every file has its place.", table: "Views"))
+                    .font(Fonts.hint)
+                    .foregroundStyle(Theme.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The current step in plain words.
+    static func doing(_ name: String, stage: WorkProgress.Stage?, image: Bool) -> String {
+        switch stage {
+        case .placing?: T("Deciding where “%@” belongs", table: "Views", name)
+        case .reading? where image: T("Recognizing the text in “%@”", table: "Views", name)
+        default: T("Reading “%@”", table: "Views", name)
+        }
     }
 }
 

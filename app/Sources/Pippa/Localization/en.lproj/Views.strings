@@ -12,7 +12,6 @@
 "Organize %@" = "Organize %@";
 "%lld files get a place · %lld new folders · nothing is deleted" = "%lld files get a place · %lld new folders · nothing is deleted";
 "Only moved and renamed · nothing deleted" = "Only moved and renamed · nothing deleted";
-"Looking at %lld files… %lld of %lld" = "Looking at %lld files… %lld of %lld";
 "This folder is very full. I’m starting with the newest %lld files; the other %lld come afterward." = "This folder is very full. I’m starting with the newest %lld files; the other %lld come afterward.";
 "I’ll take a calm look at %@ later, %@. Until then, it stays where it is." = "I’ll take a calm look at %@ later, %@. Until then, it stays where it is.";
 "I’ll take a calm look at %@ later, %@. Until then, they stay where they are." = "I’ll take a calm look at %@ later, %@. Until then, they stay where they are.";
@@ -279,3 +278,8 @@
 "As Letter" = "As Letter";
 "As Word File" = "As Word File";
 "A letter with your address, the date and the subject, as a PDF" = "A letter with your address, the date and the subject, as a PDF";
+"Looking at your files…" = "Looking at your files…";
+"Reading “%@”" = "Reading “%@”";
+"Recognizing the text in “%@”" = "Recognizing the text in “%@”";
+"Deciding where “%@” belongs" = "Deciding where “%@” belongs";
+"You can already look through the preview. I’ll organize once every file has its place." = "You can already look through the preview. I’ll organize once every file has its place.";

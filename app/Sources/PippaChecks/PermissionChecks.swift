@@ -44,6 +44,33 @@ func runPermissionChecks() async {
     check("Permissions: a row without its dialog text in Info.plist stays hidden (macOS would end the app)") {
         !desk.applies(.contacts) && !desk.applies(.photos) && !desk.applies(.folders)
     }
+    check("Permissions page: after Load and after Later, never before the download question is answered") {
+        let downloading = PermissionOnboarding.shows(pending: true, setup: .downloading(progress: 0.4, remaining: nil), deferred: false)
+        let later = PermissionOnboarding.shows(pending: true, setup: .askDownload(bytes: 1), deferred: true)
+        let asking = PermissionOnboarding.shows(pending: true, setup: .askDownload(bytes: 1), deferred: false)
+        let preparing = PermissionOnboarding.shows(pending: true, setup: .preparing(adoptingFrom: nil), deferred: false)
+        let done = PermissionOnboarding.shows(pending: false, setup: .ready(adoptedFrom: nil), deferred: false)
+        return downloading && later && !asking && !preparing && !done
+    }
+    check("Permissions page: closed with × it comes back at a later start, but not forever") {
+        PermissionOnboarding.remindsAtStart(pending: true, dismissals: 0)
+            && PermissionOnboarding.remindsAtStart(pending: true, dismissals: 1)
+            && !PermissionOnboarding.remindsAtStart(pending: true, dismissals: PermissionOnboarding.reminders)
+            && !PermissionOnboarding.remindsAtStart(pending: false, dismissals: 0)
+    }
+    check("Permissions page: Continue counts only the rows nobody answered") {
+        PermissionOnboarding.undecided([.folders: .granted, .calendar: .notAsked, .photos: .denied, .notes: .notAsked,
+                                        .externalDrives: .unavailable("kein Laufwerk")]) == 2
+    }
+    await checkAsync("Tidying: a folder macOS refused is told apart from an empty one") {
+        let empty = home.appendingPathComponent("Desktop")
+        let locked = home.appendingPathComponent("Downloads")
+        try fm.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked.path)
+        defer { try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        let refused = await PermissionOnboarding.folderRefused(locked)
+        let open = await PermissionOnboarding.folderRefused(empty)
+        return refused && !open
+    }
     await checkAsync("Permissions: demo asks only the pressed row; declined stays declined") {
         let demo = DemoPermissions()
         let reminders = await demo.request(.reminders)

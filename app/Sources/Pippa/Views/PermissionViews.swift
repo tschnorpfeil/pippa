@@ -20,6 +20,7 @@ final class PermissionsModel: ObservableObject {
     @Published var onboardingPending: Bool
 
     private static let doneKey = "onboarding.permissions.done"
+    private static let dismissedKey = "onboarding.permissions.dismissed"
 
     init(desk: any PermissionDesk) {
         self.desk = desk
@@ -71,6 +72,19 @@ final class PermissionsModel: ObservableObject {
         UserDefaults.standard.set(true, forKey: Self.doneKey)
         onboardingPending = false
     }
+
+    /// × instead of "Continue": the page stays to come and returns at a later start (`PermissionOnboarding`).
+    func dismissOnboarding() {
+        let defaults = UserDefaults.standard
+        defaults.set(defaults.integer(forKey: Self.dismissedKey) + 1, forKey: Self.dismissedKey)
+    }
+
+    var remindsAtStart: Bool {
+        PermissionOnboarding.remindsAtStart(pending: onboardingPending, dismissals: UserDefaults.standard.integer(forKey: Self.dismissedKey))
+    }
+
+    /// Rows nobody has answered yet.
+    var undecided: Int { PermissionOnboarding.undecided(states.filter { rows.contains($0.key) }) }
 }
 
 extension AppModel {
@@ -196,8 +210,9 @@ struct PermissionRow: View {
                         .pippa(.secondary)
                         .accessibilityHint(T("Opens System Settings.", table: "Settings"))
                 case .notAsked?:
+                    // Blue, so an open row stands out from the ones already answered.
                     Button(T("Allow", table: "Settings")) { permissions.allow(permission) }
-                        .pippa(.secondary)
+                        .pippa(.tinted)
                         .disabled(permissions.asking != nil)
                         .accessibilityLabel(T("Allow %@", table: "Settings", permission.title))
                 case nil:
@@ -273,9 +288,11 @@ struct PermissionGroups: View {
 
 // MARK: - Onboarding
 
-/// Once, right after "Load": while the AI loads, the person decides what Pippa may. "Continue" goes on to the loading
-/// view (or straight to "I'm ready").
+/// Once, right after "Load" (or "Later"): while the AI loads, the person decides what Pippa may. "Continue" goes on to
+/// the loading view (or straight to "I'm ready"; after "Later" back to the pill). × keeps the page to come: it returns
+/// at a later start (`PermissionOnboarding`).
 struct PermissionsOnboardingPage: View {
+    @ObservedObject var model: AppModel
     @ObservedObject var permissions: PermissionsModel
     @ObservedObject var setup: PiSetupController
 
@@ -313,14 +330,33 @@ struct PermissionsOnboardingPage: View {
             .overlay(alignment: .bottom) { Theme.hair.frame(height: 0.5) }
             .stagger(2)
             ActionBar {
-                Button(T("Continue", table: "Settings")) { permissions.finishOnboarding() }
-                    .pippa(.primary)
-                    .keyboardShortcut(.defaultAction)
+                // Pressing "Continue" with rows still open is a choice, not an oversight: say how many are left.
+                if permissions.undecided > 0 {
+                    Text(permissions.undecided == 1
+                         ? T("1 not answered yet. You can allow it later in Settings.", table: "Settings")
+                         : T("%lld not answered yet. You can allow them later in Settings.", table: "Settings", permissions.undecided))
+                        .font(Fonts.hint)
+                        .foregroundStyle(Theme.ink2)
+                        .monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Button(T("Continue", table: "Settings")) {
+                    permissions.finishOnboarding()
+                    // After "Later" the download question would only come back: the pill instead.
+                    if setup.asksDownload { model.collapse() }
+                }
+                .pippa(.primary)
+                .keyboardShortcut(.defaultAction)
             }
         }
         .workflowWidth(Theme.wideWidth)
         .overlay(alignment: .topTrailing) {
-            CloseButton { setup.later() }.padding(12)
+            CloseButton {
+                permissions.dismissOnboarding()
+                model.collapse()
+            }
+            .padding(12)
         }
     }
 
@@ -332,18 +368,15 @@ struct PermissionsOnboardingPage: View {
         return text
     }
 
-    /// All rows if they fit, otherwise what the panel has room for (heading, subtitle and "Continue" take about 230 pt).
+    /// All rows if they fit, otherwise what the panel has room for (heading, subtitle, the open count and "Continue"
+    /// take about 250 pt).
     static func listHeight(rows: Int) -> CGFloat {
         let wanted = CGFloat(max(rows, 1)) * 58 + 92
-        return max(140, min(wanted, ShellController.panelRoom - 230))
+        return max(140, min(wanted, ShellController.panelRoom - 250))
     }
 
-    /// After "Load" (or with the AI already here), as long as the page has not been finished once.
+    /// After "Load" or "Later" (or with the AI already here), as long as the page has not been finished once.
     static func shows(_ permissions: PermissionsModel, _ setup: PiSetupController) -> Bool {
-        guard permissions.onboardingPending else { return false }
-        switch setup.state {
-        case .downloading, .ready: return true
-        default: return false
-        }
+        PermissionOnboarding.shows(pending: permissions.onboardingPending, setup: setup.state, deferred: setup.deferred)
     }
 }

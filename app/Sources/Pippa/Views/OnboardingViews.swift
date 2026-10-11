@@ -20,7 +20,7 @@ struct OnboardingContent: View {
     }
 }
 
-/// After "Load", once: "What Pippa may do" (PermissionViews.swift), then the setup as before.
+/// After "Load" or "Later", once: "What Pippa may do" (PermissionViews.swift), then the setup as before.
 private struct PiOnboarding: View {
     @ObservedObject var model: AppModel
     @ObservedObject var setup: PiSetupController
@@ -29,7 +29,7 @@ private struct PiOnboarding: View {
     var body: some View {
         if PermissionsOnboardingPage.shows(permissions, setup) {
             // Scrolls only its list (sized to the panel's room), so "Continue" never scrolls away.
-            PermissionsOnboardingPage(permissions: permissions, setup: setup)
+            PermissionsOnboardingPage(model: model, permissions: permissions, setup: setup)
         } else {
             ViewThatFits(in: .vertical) {
                 PiSetupContent(model: model, setup: setup)

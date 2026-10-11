@@ -50,8 +50,8 @@ public actor LocalEngine: PippaEngine {
     public var workProgress: WorkProgress? { get async { progress } }
 
     /// Progress for the UI: file `index` of `total` is being processed.
-    private func step(_ index: Int, of total: Int, _ url: URL) {
-        progress = WorkProgress(done: index, total: total, current: url.lastPathComponent)
+    private func step(_ index: Int, of total: Int, _ url: URL, stage: WorkProgress.Stage? = nil) {
+        progress = WorkProgress(done: index, total: total, current: url.lastPathComponent, stage: stage)
     }
     /// Switch the model off, e.g. for checks.
     public var modelEnabled: Bool
@@ -670,7 +670,7 @@ public actor LocalEngine: PippaEngine {
         var unclear: [URL] = []
         for (i, url) in toRead.enumerated() {
             try Task.checkCancellation()
-            step(i, of: toRead.count, url)
+            step(i, of: toRead.count, url, stage: .reading)
             let insight = try await insight(for: url, model: false)
             if let why = insight.skipReason { skipped.append((url, why)) }
             else if insight.certainty == .sure { insights.append(insight) }
@@ -701,7 +701,7 @@ public actor LocalEngine: PippaEngine {
                     publish(pending: [])
                     break
                 }
-                step(i, of: unclear.count, url)
+                step(i, of: unclear.count, url, stage: .placing)
                 let insight = try await insight(for: url, model: true)
                 if let why = insight.skipReason { skipped.append((url, why)) }
                 else if insight.fromModel { insights.append(insight) }
