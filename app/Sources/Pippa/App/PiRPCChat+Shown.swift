@@ -39,9 +39,11 @@ extension PiRPCChat {
                                          selectedText: context.selectedText, workflowSummary: context.workflowSummary, language: language,
                                          inlineShortText: Self.inlinesShortText)
         // Read metadata (and, if the setting is on, short texts): off the main thread. The app in front only as a
-        // label before it (10 to 20 tokens); its content only if Pi asks for it with `front_read`.
+        // label before it (10 to 20 tokens), once per conversation (`FrontLabelMemo`); its content only if Pi asks for
+        // it with `front_read`.
         let described = await Task.detached(priority: .userInitiated) { PiShownContext.prompt(input) }.value
-        let shown = context.frontApp.map { $0.label(german: language.hasPrefix("de")) + "\n" + described } ?? described
+        let front = Self.frontLabels.line(for: context.frontApp, conversation: taskID, german: language.hasPrefix("de"))
+        let shown = front.map { $0 + "\n" + described } ?? described
         let prompt = skill.map { PiSkillTurn.prompt(for: $0, message: shown, language: language, draftOnly: draftOnly) } ?? shown
         do {
             let answer = try await chat(prompt, taskID: taskID, onWork: context.onWork, onDelta: onDelta, onSteered: onSteered, onReset: onReset)
@@ -105,6 +107,9 @@ extension PiRPCChat {
         Self.pendingMail = nil
         return items.isEmpty ? nil : ActionReceipt(items: items, mailOffer: offer, cards: taken?.cards)
     }
+
+    /// Which chip each conversation already named (`FrontLabelMemo`).
+    @MainActor static var frontLabels = FrontLabelMemo()
 
     /// Answer and identity of the mail in question (shown .eml or `mail_selected`), of the last finished answer.
     @MainActor static var pendingMail: (answer: String, source: MailReplySource?)?
