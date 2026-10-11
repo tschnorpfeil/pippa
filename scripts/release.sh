@@ -2,8 +2,8 @@
 # Prepares a signed/notarized update and appcast.xml strictly locally.
 # No push, no GitHub release, no tag and no CI. Publishing must be requested separately.
 # PIPPA_SIGN_IDENTITY='Developer ID Application: …' PIPPA_NOTARY_PROFILE=pippa-notary scripts/release.sh [tag]
-# PIPPA_NO_SPARKLE=1: a Mac without the Sparkle key builds the signed, notarized DMG but no update signature and no
-# appcast.xml, so installed copies are not offered this release.
+# PIPPA_NO_SPARKLE=1: a Mac without the Sparkle key builds the signed, notarized DMG without an update signature. Its
+# appcast.xml is informational: installed copies are told about this release and sent to the website, not updated.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
@@ -24,8 +24,7 @@ RELEASE="$ROOT/dist/releases/$TAG"
 NO_SPARKLE="${PIPPA_NO_SPARKLE:-0}"
 [[ "$NO_SPARKLE" == 0 || "$NO_SPARKLE" == 1 ]] || die 'PIPPA_NO_SPARKLE must be 0 or 1'
 if [[ "$NO_SPARKLE" == 1 ]]; then
-  printf 'Warning: PIPPA_NO_SPARKLE=1: no update signature and no appcast.xml. Installed copies will not be offered this release.\n' >&2
-  printf '         Attach the previous release'"'"'s appcast.xml unchanged, so the update feed (releases/latest) keeps working.\n' >&2
+  printf 'Warning: PIPPA_NO_SPARKLE=1: no update signature. Installed copies are told about this release but not updated.\n' >&2
 else
   # Resolve only the pinned Sparkle tools; never generate/replace a signing key here.
   swift package --package-path "$ROOT/app" resolve
@@ -34,7 +33,7 @@ else
   ACCOUNT="${PIPPA_SPARKLE_ACCOUNT:-ed25519}"
   PUBLIC_KEY="$("$SPARKLE_TOOLS/generate_keys" --account "$ACCOUNT" -p)" || die 'existing Sparkle key in the Keychain is not readable'
   EXPECTED_KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$ROOT/app/Packaging/Info.plist")"
-  [[ "$PUBLIC_KEY" == "$EXPECTED_KEY" ]] || die 'Sparkle key does not match SUPublicEDKey; do not generate a new key for existing users'
+  [[ "$PUBLIC_KEY" == "$EXPECTED_KEY" ]] || die 'Sparkle key does not match SUPublicEDKey in Info.plist; see docs/development.md "Update key"'
 fi
 
 export PIPPA_REQUIRE_DISTRIBUTION=1
@@ -51,17 +50,19 @@ ASSET="Pippa-$VERSION-$BUILD.dmg"
 cp "$ROOT/dist/Pippa.dmg" "$STAGE/$ASSET"
 # Stable name for the website link releases/latest/download/Pippa.dmg.
 cp "$STAGE/$ASSET" "$STAGE/Pippa.dmg"
+SIGNATURE=''
 if [[ "$NO_SPARKLE" == 0 ]]; then
   SIGNATURE="$("$SPARKLE_TOOLS/sign_update" --account "$ACCOUNT" -p "$STAGE/$ASSET")"
   "$SPARKLE_TOOLS/sign_update" --account "$ACCOUNT" --verify "$STAGE/$ASSET" "$SIGNATURE"
-  python3 "$ROOT/scripts/write-appcast.py" "$ROOT/dist/Pippa.app/Contents/Info.plist" \
-    "$STAGE/$ASSET" "$TAG" "$SIGNATURE" "$STAGE/appcast.xml"
 fi
+# Every release carries its own appcast.xml, so the feed (releases/latest) never names an older version as the newest.
+python3 "$ROOT/scripts/write-appcast.py" "$ROOT/dist/Pippa.app/Contents/Info.plist" \
+  "$STAGE/$ASSET" "$TAG" "$SIGNATURE" "$STAGE/appcast.xml"
 (cd "$STAGE" && shasum -a 256 "$ASSET" Pippa.dmg > SHA256SUMS)
 printf '%s\n' "$COMMIT" > "$STAGE/commit.txt"
 mv "$STAGE" "$RELEASE"
 if [[ "$NO_SPARKLE" == 1 ]]; then
-  printf 'Ready locally WITHOUT update feed: %s\nPublish it with the previous release'"'"'s appcast.xml; installed copies are not updated. That requires an explicit request.\n' "$RELEASE"
+  printf 'Ready locally WITHOUT update signature: %s\nPublish the DMGs and this appcast.xml together; installed copies are pointed to the website, not updated. That requires an explicit request.\n' "$RELEASE"
 else
   printf 'Ready locally: %s\nPublish the update and appcast.xml together as one GitHub release; that requires an explicit request.\n' "$RELEASE"
 fi

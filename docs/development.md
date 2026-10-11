@@ -331,9 +331,24 @@ key in the Keychain (account `ed25519`, or `PIPPA_SPARKLE_ACCOUNT`). It checks t
 `dist/releases/<tag>/` (default `v<version>-<build>`) with the versioned DMG, a stable-name `Pippa.dmg`, `appcast.xml`
 (`write-appcast.py`), `SHA256SUMS` and `commit.txt`. Publishing is a separate, deliberate step: the DMG and `appcast.xml`
 go into the same GitHub release, because the in-app update feed is `releases/latest/download/appcast.xml`.
-On a Mac without the Sparkle key, `PIPPA_NO_SPARKLE=1` still builds the signed, notarized DMG but skips the key check,
-the update signature and `appcast.xml`. Attach the previous release's `appcast.xml` unchanged to that release, so
-installed copies keep a working feed; they are not offered this release.
+On a Mac without the Sparkle key, `PIPPA_NO_SPARKLE=1` still builds the signed, notarized DMG but skips the key check
+and the update signature. Its `appcast.xml` names the new version without a download: installed copies show "a new
+version is available" and open heypippa.app, but nothing installs by itself. Never attach an older release's
+`appcast.xml`; Sparkle would then call that older version the newest.
+
+**Update key.** Run once on the Mac that builds releases:
+
+```sh
+swift package --package-path app resolve
+app/.build/artifacts/sparkle/Sparkle/bin/generate_keys             # creates the key in the login Keychain, or shows the existing one
+app/.build/artifacts/sparkle/Sparkle/bin/generate_keys -x pippa-update-key.txt   # backup: into the password manager, then delete
+```
+
+The printed public key goes into `SUPublicEDKey` in `app/Packaging/Info.plist`. A new key works for installed copies
+with an older key too: Sparkle checks the old key first and, when that fails, accepts a DMG that is Developer ID signed
+by the same team (`make-dmg.sh` signs it) as long as the new app's own key matches the update signature. That fallback
+needs `SUVerifyUpdateBeforeExtraction`, so keep it on. The first `sign_update` may ask for Keychain access; allow it
+always.
 
 **Updates.** Sparkle 2.10.0 is pinned exactly. Pippa checks daily, downloads in the background and installs on quit or
 after 20 minutes without input, never during work, an open preview or a dialog. To test a real update from an installed
