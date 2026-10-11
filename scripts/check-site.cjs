@@ -79,7 +79,7 @@ for (const [lang, html] of Object.entries(pages)) {
   const other = lang === 'de' ? ['en/', 'en'] : ['../', 'de'];
   assert.ok(head.includes(`<a class="langsw" href="${other[0]}" hreflang="${other[1]}" lang="${other[1]}" data-lang="${other[1]}">`), `${lang}: header language toggle missing`);
   assert.match(html, /localStorage\.getItem\('pippa-lang'\)/, `${lang}: first-visit language choice missing`);
-  assert.match(html, /<ol class="steps">(?:<li>[\s\S]*?<\/li>){3}<\/ol>/, `${lang}: getting-started steps missing`);
+  assert.match(html, /<ol class="steps">(?:<li\b[^>]*>[\s\S]*?<\/li>){3}<\/ol>/, `${lang}: getting-started steps missing`);
   // No emoji in the copy.
   assert.doesNotMatch(t, /\p{Extended_Pictographic}/u, `${lang}: emoji in copy`);
 }
