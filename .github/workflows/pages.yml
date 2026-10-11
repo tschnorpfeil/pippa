@@ -1,10 +1,12 @@
-# Checks site/ on claude/** branches and publishes it to GitHub Pages (heypippa.app) from main.
+# Checks site/ on pull requests and publishes it to GitHub Pages (heypippa.app) from main.
 # Runs only on changes to the website or by hand.
 name: Website
 
 on:
   push:
-    branches: [main, 'claude/**']
+    branches: [main]
+    paths: ['site/**', 'scripts/check-site*.cjs', '.github/workflows/pages.yml']
+  pull_request:
     paths: ['site/**', 'scripts/check-site*.cjs', '.github/workflows/pages.yml']
   workflow_dispatch:
 
@@ -27,7 +29,7 @@ jobs:
           node scripts/check-site-launch.cjs
 
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 5
