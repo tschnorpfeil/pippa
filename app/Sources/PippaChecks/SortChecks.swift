@@ -185,8 +185,9 @@ func runSortChecks() async {
     await runSortWithoutModelChecks()
 }
 
-/// First launch: the knowledge is still loading (no model, no server). Sorting works anyway; whatever only the model could settle
-/// stays in place (`Plan.later`), nothing is guessed, nothing hangs, no error.
+/// No model on this Mac (not loaded yet, "Later"): sorting works anyway. Whatever only the model could settle by content goes
+/// to "Dokumente" by kind (nothing waits for an AI that may never come); nothing hangs, no error. While a model is on the way
+/// (here: a recording that does not answer), such documents stay in place for later (`Plan.later`), nothing guessed.
 func runSortWithoutModelChecks() async {
     let folder = dir("Ohne Modell")
     makeImage(at: folder.appendingPathComponent("logo.png"), type: .png)
@@ -198,26 +199,29 @@ func runSortWithoutModelChecks() async {
     let engine = LocalEngine(baseDirectory: dir("support-ohne-modell"), modelEnabled: false)
     let updates = Updates()
 
-    await checkAsync("Without model: sorting runs, unclear items stay in place (\"more precisely later\"), nothing guessed") {
+    await checkAsync("Without model: sorting runs, unclear documents go to \"Dokumente\" by kind, nothing waits") {
         let status = await engine.modelStatus
         let start = Date()
         let plan = try await engine.proposeSort(items: nil, scope: folder, limit: PreSort.firstRunLimit) { updates.add($0) }
         let seconds = Date().timeIntervalSince(start)
         let sources = Set(plan.ops.compactMap { $0.source?.lastPathComponent })
         if status == .ready { print("   Model state unexpected: ready") }
-        return Set(plan.later.map(\.lastPathComponent)) == ["Angebot Küche.txt", "Rechnung.pdf", "liste.txt"]
-            && sources == ["logo.png", "Firefox 140.dmg"]
+        let documents = Set(plan.ops.filter { $0.target.deletingLastPathComponent().lastPathComponent == "Dokumente" }.compactMap { $0.source?.lastPathComponent })
+        return plan.later.isEmpty
+            && sources == ["logo.png", "Firefox 140.dmg", "Angebot Küche.txt", "Rechnung.pdf", "liste.txt"]
+            && documents == ["Angebot Küche.txt", "Rechnung.pdf", "liste.txt"]
+            && plan.ops.allSatisfy { $0.certainty == .sure }
             && plan.pending.isEmpty && plan.skipped.isEmpty && seconds < 10
-            && Set(updates.all.last?.later.map(\.lastPathComponent) ?? []) == ["Angebot Küche.txt", "Rechnung.pdf", "liste.txt"]
+            && updates.all.last?.later.isEmpty == true
     }
 
-    await checkAsync("Without model: approving leaves the document for later untouched, undo restores everything") {
+    await checkAsync("Without model: approving puts documents in \"Dokumente\" with their names, undo restores everything") {
         let before = tree(folder)
         let plan = try await engine.proposeSort(items: nil, scope: folder, limit: nil) { _ in }
         let receipt = try await engine.apply(plan, excluding: [])
         let after = tree(folder)
         try await engine.undo(receipt)
-        return after.contains("Angebot Küche.txt") && after.contains("Bilder/logo.png") && tree(folder) == before
+        return after.contains("Dokumente/Angebot Küche.txt") && !after.contains("Angebot Küche.txt") && after.contains("Bilder/logo.png") && tree(folder) == before
     }
 
     await checkAsync("Model does not answer (replay empty): document stays in place instead of a \"please check\" guess") {

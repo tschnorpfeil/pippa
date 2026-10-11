@@ -60,6 +60,13 @@ public enum PreSort {
         return DocInsight(url: url, facts: facts, category: .other, reason: L("Not a document, so it goes to “%@”", table: "Analysis", other), certainty: .sure)
     }
 
+    /// A document only a model could place by content, while no model is on the way (not loaded, none fits this Mac):
+    /// by kind to "Dokumente", like office files, name unchanged. Nothing waits for an AI that may never come.
+    static func documentByKind(_ facts: FileFacts) -> DocInsight {
+        DocInsight(url: facts.url, facts: facts, category: .other, reason: L("Document. Sorting by content needs my AI", table: "Analysis"),
+                   certainty: .sure, folder: documents)
+    }
+
     /// Marked by the system as a screenshot (also after renaming).
     static func isScreenCapture(_ url: URL) -> Bool {
         getxattr(url.path, "com.apple.metadata:kMDItemIsScreenCapture", nil, 0, 0, XATTR_NOFOLLOW) > 0

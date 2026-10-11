@@ -1234,7 +1234,8 @@ final class AppModel: ObservableObject {
     /// Preview for tidying. It appears as soon as the files have a place without a model (by kind, name, photo data);
     /// read documents and model classifications are added while it is already open.
     /// Also works without a model (first launch, knowledge still loading): whatever only the model could classify stays in place
-    /// (`Plan.later`) and is handled once Pippa is awake. No waiting, no guessing.
+    /// (`Plan.later`) and is handled once Pippa is awake. No waiting, no guessing. If the AI isn't loaded at all ("Later"),
+    /// those documents go to "Dokumente" by kind instead, so tidying really works without it.
     func proposeSort(items: [URL]?, scope folder: URL, limit: Int?) {
         resetPlanSheet()
         let round = UUID()
