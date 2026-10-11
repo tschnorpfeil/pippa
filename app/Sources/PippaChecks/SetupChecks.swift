@@ -337,7 +337,7 @@ func runSetupChecks() async {
         let badOK = skipped.outcome == .needsDownload(bytes: Int64(data.count))
             && !fm.fileExists(atPath: rD.pippaModels.appendingPathComponent(file).path)
             && (try? Data(contentsOf: bad)) == wrong
-        if !(cloneOK && linkOK && copyOK && badOK) { print("   ", cloneOK, linkOK, copyOK, badOK, cloned.outcome, linked.outcome, copied.outcome, refused.outcome) }
+        if !(cloneOK && linkOK && copyOK && badOK) { print("   ", cloneOK, linkOK, copyOK, badOK, cloned.outcome, linked.outcome, copied.outcome, skipped.outcome) }
         return cloneOK && linkOK && copyOK && badOK
     }
 
