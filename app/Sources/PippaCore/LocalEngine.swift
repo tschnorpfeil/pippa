@@ -867,22 +867,41 @@ public actor LocalEngine: PippaEngine {
             for part in rel.split(separator: "/") { url = url.appendingPathComponent(String(part), isDirectory: true) }
             return url
         }
+        // A folder that is already there is used, by its real name: "Dokumente" in the home folder is ~/Documents
+        // (Finder shows it as "Dokumente"), "Rechnungen" is "rechnungen". Looked up once per folder.
+        var resolved: [String: String] = [:]
+        func existingFolders(_ rel: String) -> String {
+            var out = ""
+            for part in rel.split(separator: "/").map(String.init) {
+                let key = out + "/" + part.lowercased()
+                if resolved[key] == nil { resolved[key] = Naming.existing(part, in: folderURL(out), fileManager: fm) ?? part }
+                out = out.isEmpty ? resolved[key]! : out + "/" + resolved[key]!
+            }
+            return out
+        }
         // If already in "Rechnungen" or "Rechnungen/2024", don't create "Rechnungen/2024" inside again.
         // If in another subfolder of the category ("Rechnungen/2026" for a 2025 invoice),
         // the file stays here: not "Rechnungen/2026/Rechnungen/2025" and not out of the chosen folder.
-        let scopeParts = scope.standardizedFileURL.pathComponents.map { $0.lowercased() }
+        // Each part of the scope with every name it answers to: tidying ~/Documents ("Dokumente" in Finder) puts nothing in "Dokumente" inside it.
+        var scopeURLs: [URL] = []
+        var walk = scope.standardizedFileURL
+        while walk.path != "/" && !walk.path.isEmpty { scopeURLs.insert(walk, at: 0); walk = walk.deletingLastPathComponent() }
+        let scopeParts = scopeURLs.map { Naming.names(of: $0, fileManager: fm) }
+        func matches(_ scopeSlice: ArraySlice<Set<String>>, _ lower: ArraySlice<String>) -> Bool {
+            zip(scopeSlice, lower).allSatisfy { $0.contains($1) }
+        }
         func withinScope(_ rel: String) -> String {
             let parts = rel.split(separator: "/").map(String.init)
-            let lower = parts.map { $0.lowercased() }
+            let lower = parts.map { $0.precomposedStringWithCanonicalMapping.lowercased() }
             for k in stride(from: min(parts.count, scopeParts.count), through: 1, by: -1)
-            where Array(scopeParts.suffix(k)) == Array(lower.prefix(k)) {
-                return parts.dropFirst(k).joined(separator: "/")
+            where matches(scopeParts.suffix(k), lower.prefix(k)) {
+                return existingFolders(parts.dropFirst(k).joined(separator: "/"))
             }
             for k in stride(from: min(parts.count, scopeParts.count - 1), through: 1, by: -1)
-            where Array(scopeParts.dropLast().suffix(k)) == Array(lower.prefix(k)) {
+            where matches(scopeParts.dropLast().suffix(k), lower.prefix(k)) {
                 return ""
             }
-            return rel
+            return existingFolders(rel)
         }
 
         // Number photos in capture order
@@ -939,6 +958,9 @@ public actor LocalEngine: PippaEngine {
                 if !folders.contains(path) && !fm.fileExists(atPath: folderURL(path).path) { folders.append(path) }
             }
             let dir = folderURL(rel)
+            // Already in its place under its name (tidying ~/Documents, a document "to Dokumente"): nothing to do, not "Name (2)".
+            if dir.standardizedFileURL.path == i.url.deletingLastPathComponent().standardizedFileURL.path
+                && Naming.key(name) == Naming.key(i.url.lastPathComponent) { continue }
             let target = Naming.unique(name, in: dir, taken: &taken)
             if target.standardizedFileURL.path == i.url.standardizedFileURL.path { continue }
             let kind: PlanOp.Kind = dir.standardizedFileURL.path == i.url.deletingLastPathComponent().standardizedFileURL.path ? .rename : .move
