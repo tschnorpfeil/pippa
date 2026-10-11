@@ -244,6 +244,24 @@ func runSheetChecks() async {
             && SheetCheck.run(years, locale: english).allFine
     }
 
+    check("Sheet: without a pair the person picks the columns, then code compares them") {
+        let plain = grid([
+            [t("Nr."), t("Posten"), t("Alt"), t("Neu"), t("Notiz")],
+            [n(1), t("Miete"), n(900), n(950), t("Index")],
+            [n(2), t("Strom"), n(70), n(84), t("")],
+            [n(3), t("Wasser"), n(30), n(30), t("")],
+            [t(""), t("Summe"), f("=SUM(C2:C4)", 1000), f("=SUM(D2:D4)", 1064), t("")],
+        ])
+        let columns = SheetComparison.columns(in: plain)
+        guard SheetComparison.find(in: plain) == nil, columns.map(\.heading) == ["Alt", "Neu"],
+              let c = SheetComparison.make(in: plain, current: columns[1].column, previous: columns[0].column) else { return false }
+        let line = c.line(locale: english)
+        let one = grid([[t("Posten"), t("Betrag")], [t("Miete"), n(950)], [t("Strom"), n(84)]])
+        return c.changes.count == 3 && line.contains("In total 1,064 instead of 1,000 (+6.4 %).") && line.contains("Miete +50")
+            && SheetComparison.columns(in: one).isEmpty
+            && SheetComparison.make(in: plain, current: columns[0].column, previous: columns[0].column) == nil
+    }
+
     // MARK: Reading from Excel (without Excel)
 
     check("Excel: a single cell reads the used range, a whole column is trimmed, at most 4000 cells") {

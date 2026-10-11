@@ -2,7 +2,7 @@ import Foundation
 
 /// "Compare with last year" in code, only if the sheet has two comparable columns: two consecutive
 /// years as heading ("2025" and "2026", also "Kosten 2025") or a column "Vorjahr" / "Last year" next to a
-/// number column. Otherwise nil, and the question goes to the model with `SheetSnapshot.contextText()`.
+/// number column. Otherwise nil, and the line asks which column is last year (`columns`, then `make`).
 public struct SheetComparison: Sendable, Hashable {
     public struct Change: Sendable, Hashable {
         public var row: Int
@@ -37,18 +37,51 @@ public struct SheetComparison: Sendable, Hashable {
             if let current = left ?? right { pair = (current.column, previous.column) }
         }
         guard let pair else { return nil }
+        return make(in: grid, layout: layout, current: pair.current, previous: pair.previous)
+    }
+
+    /// A number column the person can pick when code finds no pair by itself ("Which column is last year?").
+    public struct Column: Sendable, Hashable {
+        public var column: Int
+        public var heading: String
+    }
+
+    /// Columns to choose from, left to right: a heading, mostly numbers, not the label column, not years or numbers
+    /// like "Nr." or "PLZ". At most `limit`; empty if fewer than two.
+    public static func columns(in grid: SheetGrid, layout: SheetLayout? = nil, limit: Int = 4) -> [Column] {
+        let layout = layout ?? SheetLayout.detect(grid)
+        guard layout.headerRow != nil else { return [] }
+        let first = layout.firstDataRow(in: grid)
+        guard first <= grid.lastRow else { return [] }
+        let rows = (first...grid.lastRow).filter { !layout.isTotalRow($0, in: grid) }
+        var found: [Column] = []
+        for c in grid.columnNumbers where c != layout.labelColumn {
+            guard found.count < limit, let heading = layout.heading(column: c, in: grid), !SheetFacts.isIdentifier(heading) else { continue }
+            let numbers = rows.compactMap { grid[$0, c].value.anyNumber }
+            let filled = rows.filter { !grid[$0, c].value.isEmpty }.count
+            guard numbers.count >= 2, numbers.count * 2 > filled, !numbers.allSatisfy(SheetLayout.isYear) else { continue }
+            found.append(Column(column: c, heading: heading))
+        }
+        return found.count >= 2 ? found : []
+    }
+
+    /// The comparison for two columns, found or chosen by the person. Nil with fewer than two rows that have numbers
+    /// in both, or without headings.
+    public static func make(in grid: SheetGrid, layout: SheetLayout? = nil, current: Int, previous: Int) -> SheetComparison? {
+        let layout = layout ?? SheetLayout.detect(grid)
+        guard current != previous else { return nil }
         let first = layout.firstDataRow(in: grid)
         guard first <= grid.lastRow else { return nil }
         var changes: [Change] = []
         for row in first...grid.lastRow where !layout.isTotalRow(row, in: grid) {
-            guard let current = grid[row, pair.current].value.anyNumber, let previous = grid[row, pair.previous].value.anyNumber else { continue }
-            let label = layout.label(row: row, before: min(pair.current, pair.previous), in: grid)
-            changes.append(Change(row: row, label: label, current: current, previous: previous))
+            guard let now = grid[row, current].value.anyNumber, let before = grid[row, previous].value.anyNumber else { continue }
+            let label = layout.label(row: row, before: min(current, previous), in: grid)
+            changes.append(Change(row: row, label: label, current: now, previous: before))
         }
         guard changes.count >= 2,
-              let currentHeading = layout.heading(column: pair.current, in: grid),
-              let previousHeading = layout.heading(column: pair.previous, in: grid) else { return nil }
-        return SheetComparison(currentColumn: pair.current, previousColumn: pair.previous, currentHeading: currentHeading,
+              let currentHeading = layout.heading(column: current, in: grid),
+              let previousHeading = layout.heading(column: previous, in: grid) else { return nil }
+        return SheetComparison(currentColumn: current, previousColumn: previous, currentHeading: currentHeading,
                                previousHeading: previousHeading, changes: changes)
     }
 

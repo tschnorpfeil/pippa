@@ -77,6 +77,9 @@ struct SheetTableLine: View {
             headline
             findingsList
             actionSlots
+        case .choosingColumn(let previous, let choices):
+            headline
+            columnChoice(previous: previous, choices: choices)
         case .compared(let line):
             headline
             resultSentence(line, symbol: "arrow.left.arrow.right")
@@ -195,6 +198,30 @@ struct SheetTableLine: View {
         }
     }
 
+    // MARK: Compare: which column
+
+    /// "Which column is last year?" with one button per heading, then "And which is this year?".
+    private func columnChoice(previous: SheetComparison.Column?, choices: [SheetComparison.Column]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sentence(previous == nil ? T("Which column is last year?", table: "SheetUI") : T("And which one is this year?", table: "SheetUI"))
+            HStack(spacing: 8) {
+                ForEach(choices, id: \.column) { choice in
+                    Button { sheet.pick(choice) } label: {
+                        Text(choice.heading).lineLimit(1).truncationMode(.middle).frame(maxWidth: .infinity)
+                    }
+                    .pippa(.secondary)
+                    .help(choice.heading)
+                }
+            }
+            HStack {
+                Spacer(minLength: 0)
+                Button(T("None of these", table: "SheetUI")) { sheet.pickNone() }
+                    .pippa(.quiet)
+                    .help(T("Then I look at the whole table and compare.", table: "SheetUI"))
+            }
+        }
+    }
+
     // MARK: Aktionen
 
     /// Exactly three equal-width slots, as on the letter.
@@ -283,6 +310,9 @@ struct SheetTableLine: View {
         case .checked:
             let sentences = sheet.findings.prefix(SheetController.findingLimit).map(\.sentence)
             text = sentences.isEmpty ? (sheet.firstLine?.text ?? "") : sentences.joined(separator: " ")
+        case .choosingColumn(let previous, let choices):
+            let question = previous == nil ? T("Which column is last year?", table: "SheetUI") : T("And which one is this year?", table: "SheetUI")
+            text = question + " " + ListFormatter.localizedString(byJoining: choices.map(\.heading))
         case .compared(let line):
             text = line
         case .permission(let denied):
