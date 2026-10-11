@@ -258,11 +258,51 @@ class TakeSourceView: NSView {
 
     private func beginTake(_ item: TrayItem, event: NSEvent) {
         let dragItem = NSDraggingItem(pasteboardWriter: Self.writer(for: item))
-        dragItem.setDraggingFrame(bounds, contents: TrayThumbnails.shared.image(for: item))
+        dragItem.setDraggingFrame(bounds, contents: dragPicture(item))
         onDragState?(true)
         let session = beginDraggingSession(with: [dragItem], event: event, source: self)
         session.animatesToStartingPositionsOnCancelOrFail = true
         session.draggingFormation = .none
+    }
+
+    /// What hangs at the pointer: the card as it looks, a preview on its paper or the free icon, never stretched.
+    private func dragPicture(_ item: TrayItem) -> NSImage {
+        let image = TrayThumbnails.shared.image(for: item)
+        let rect = CGRect(origin: .zero, size: bounds.size)
+        let scale = window?.backingScaleFactor ?? 2
+        let source = image.size
+        guard rect.width > 0, rect.height > 0, source.width > 0, source.height > 0,
+              let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(rect.width * scale), pixelsHigh: Int(rect.height * scale),
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return image }
+        rep.size = rect.size
+        func placed(in box: CGRect, fill: Bool) -> CGRect {
+            let factor = fill ? max(box.width / source.width, box.height / source.height)
+                              : min(box.width / source.width, box.height / source.height)
+            let size = CGSize(width: source.width * factor, height: source.height * factor)
+            return CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height)
+        }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        if iconOnly {
+            image.draw(in: placed(in: iconRect, fill: false))
+        } else {
+            let sheet = NSBezierPath(roundedRect: rect.insetBy(dx: 0.25, dy: 0.25), xRadius: 3, yRadius: 3)
+            NSColor.white.setFill()
+            sheet.fill()
+            let inner = rect.insetBy(dx: 2, dy: 2)
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(roundedRect: inner, xRadius: 1.5, yRadius: 1.5).addClip()
+            image.draw(in: placed(in: inner, fill: true))
+            NSGraphicsContext.restoreGraphicsState()
+            NSColor(white: 0, alpha: 0.09).setStroke()
+            sheet.lineWidth = 0.5
+            sheet.stroke()
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        let picture = NSImage(size: rect.size)
+        picture.addRepresentation(rep)
+        return picture
     }
 
     /// Result: promise (+ file URL). Given: only the URL of the person's file.
