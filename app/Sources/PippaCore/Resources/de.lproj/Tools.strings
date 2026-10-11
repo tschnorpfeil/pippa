@@ -48,3 +48,8 @@
 "1 invoice, %@" = "1 Rechnung, %@";
 "%lld invoices, together %@" = "%lld Rechnungen, zusammen %@";
 "Please check the yellow cells." = "Bitte prüf die gelben Felder.";
+"[Your name]" = "[Dein Name]";
+"[Street and number]" = "[Straße und Hausnummer]";
+"[Postcode and town]" = "[PLZ und Ort]";
+"[Recipient]" = "[Empfänger]";
+"Page %lld of %lld" = "Seite %lld von %lld";

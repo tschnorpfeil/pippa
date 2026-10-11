@@ -48,3 +48,8 @@
 "1 invoice, %@" = "1 invoice, %@";
 "%lld invoices, together %@" = "%lld invoices, together %@";
 "Please check the yellow cells." = "Please check the yellow cells.";
+"[Your name]" = "[Your name]";
+"[Street and number]" = "[Street and number]";
+"[Postcode and town]" = "[Postcode and town]";
+"[Recipient]" = "[Recipient]";
+"Page %lld of %lld" = "Page %lld of %lld";

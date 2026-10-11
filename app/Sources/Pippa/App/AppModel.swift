@@ -1418,6 +1418,26 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// "As Letter" under a draft: the text in letter layout (DIN 5008) as a PDF, or as a Word file, in Pippa's results
+    /// folder; sender from "My Card" in Contacts, missing parts as yellow placeholders. No model, nothing sent.
+    func makeLetter(from draft: String, word: Bool = false) {
+        Task { [weak self] in
+            let me = await MeCard.sender()
+            guard let self else { return }
+            let letter = LetterDocument.from(draft: draft, sender: me?.lines, place: me?.place)
+            do {
+                let file = try letter.write(word: word)
+                let receipt = try await self.engine.recordResult([file], summary: file.lastPathComponent, detail: "")
+                self.finish(receipt)
+                self.showResultToast(receipt, open: T("Show Result", table: "App"), openFirst: true) { NSWorkspace.shared.open(file) }
+                NSWorkspace.shared.open(file)
+            } catch {
+                UserMessage.record(error, context: "brief")
+                self.toasts?.show(title: T("That didn’t work", table: "App"), detail: UserMessage.text(for: error, context: "brief"), buttons: [])
+            }
+        }
+    }
+
     /// Receipt with "Undo" and a button that shows the result (file, calendar, notes).
     /// `openFirst`: for a new file, viewing is the obvious step, otherwise undo.
     func showResultToast(_ receipt: JobReceipt, open title: String, openFirst: Bool = false, _ open: @escaping @MainActor () -> Void) {
