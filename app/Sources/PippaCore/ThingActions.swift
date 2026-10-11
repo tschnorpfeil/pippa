@@ -114,7 +114,10 @@ public enum ThingActions {
         if sorts.allSatisfy({ $0 == .folder }) { return [.tidy] }
         guard urls.count == 1 else { return [] }
         switch sorts[0] {
-        case .table: return [skill("tabelle-pruefen")].compactMap { $0 }
+        case .table:
+            // A table format Pippa cannot read gets no button that would then fail (`SheetFileCheck.unreadableNote`).
+            guard SheetFileCheck.readableExtensions.contains(urls[0].pathExtension.lowercased()) else { return [] }
+            return [skill("tabelle-pruefen")].compactMap { $0 }
         case .mail: return role == .correspondence ? [skill("brief-verstehen"), skill("antwort-schreiben")].compactMap { $0 } : []
         case .document:
             // Editable Word files are often the person's own outgoing draft, which the system model cannot tell

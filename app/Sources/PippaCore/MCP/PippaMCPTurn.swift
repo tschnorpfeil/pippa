@@ -166,6 +166,8 @@ public struct PippaMCPTurnTools: Sendable {
             }
             return Self.failure("not_found", "There is no file at this path. Use the exact path from the message.")
         }
+        // A Numbers file can be a package folder; say what to do with it instead of "folder" or "unsupported".
+        if let note = SheetFileCheck.unreadableNote(fileExtension: url.pathExtension) { return Self.failure("unsupported", note) }
         if isFolder.boolValue { return Self.failure("is_folder", "This is a folder. Use list_folder to see what is in it.") }
         // macOS privacy settings (Downloads, Desktop, Documents) can deny the app while the file exists; say that
         // instead of "damaged", so the model tells the person rather than trying other ways.

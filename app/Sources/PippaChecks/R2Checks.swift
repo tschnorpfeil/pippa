@@ -47,7 +47,7 @@ func runR2Checks() async {
             && photos == "Kannst du mir das neuste Bild aus meiner Fotos app zeigen bitte\n\n" + PiShownContext.germanNote
             && shown.hasSuffix("Summarize this letter briefly.\n\n" + PiShownContext.englishNote)
     }
-    check("Shown: path and tool per kind (PDF → read_document, folder → list_folder, mail with subject, table → read), question last") {
+    check("Shown: path and tool per kind (PDF → read_document, folder → list_folder, mail with subject, table → read_document), question last") {
         let files = [letter, folder, mail, table, photo]
         let prompt = PiShownContext.prompt(.init(question: "Bis wann muss ich zahlen?", files: files, newFiles: files, language: "de"))
         let lines = prompt.components(separatedBy: "\n")
@@ -59,7 +59,7 @@ func runR2Checks() async {
         return pdf.contains("2 Seiten") && pdf.contains(letter.path) && pdf.hasSuffix("mcp__pippa__read_document")
             && dirLine.contains("Ordner") && dirLine.contains("2 Einträge") && dirLine.hasSuffix("list_folder")
             && mailLine.contains("Einladung Sommerfest") && mailLine.hasSuffix("mcp__pippa__read_document")
-            && tsv.hasSuffix("read") && img.contains("Bild") && img.hasSuffix("mcp__pippa__read_document")
+            && tsv.hasSuffix("mcp__pippa__read_document") && img.contains("Bild") && img.hasSuffix("mcp__pippa__read_document")
             && prompt.hasSuffix("\nBis wann muss ich zahlen?" + PiShownContext.languageNote("Bis wann muss ich zahlen?")) && !prompt.contains("1.234,56")
     }
     check("Shown: already shown → name and path only; several → \"gemeint\" marker on the focused one") {
