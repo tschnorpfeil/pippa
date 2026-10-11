@@ -72,7 +72,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         let hotkey = Hotkey.current
         menu.addItem(MenuAction.item(T("Ask Pippa…", table: "App"), key: hotkey.menuKey, modifiers: hotkey.menuModifiers) { [weak self] in
-            self?.model.openInput()
+            self?.model.openInputForCall()
         })
         menu.addItem(MenuAction.item(T("Look at a Folder…", table: "App")) { [weak self] in self?.model.chooseFolder() })
         menu.addItem(MenuAction.item(T("Look at Selected Mail", table: "App")) { [weak self] in self?.model.readSelectedMail() })

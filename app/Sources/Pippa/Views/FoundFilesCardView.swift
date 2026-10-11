@@ -13,6 +13,7 @@ struct FoundFilesCardView: View {
     var body: some View {
         let all = FoundFiles.ordered(files, answer: answer)
         let shown = all.prefix(FoundFiles.maxRows)
+        let folders = FoundFiles.folderLabels(Array(shown))
         if !shown.isEmpty {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -23,7 +24,7 @@ struct FoundFilesCardView: View {
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
             .accessibilityAddTraits(.isHeader)
             ForEach(Array(shown), id: \.self) { file in
-                FoundFileRow(file: file)
+                FoundFileRow(file: file, folder: folders[file] ?? file.deletingLastPathComponent().lastPathComponent)
             }
             Text(all.count > shown.count ? T("Files on this Mac · %lld of %lld", table: "Views", shown.count, all.count)
                                            : T("Files on this Mac", table: "Views"))
@@ -39,6 +40,8 @@ struct FoundFilesCardView: View {
 
 private struct FoundFileRow: View {
     var file: URL
+    /// The folder's name, or more of the path where two rows would otherwise read the same (FoundFiles.folderLabels).
+    var folder: String
     private let hoverState = State<Bool>(initialValue: false)
     private let thumbnailState = State<NSImage?>(initialValue: nil)
 
@@ -54,8 +57,8 @@ private struct FoundFileRow: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(verbatim: file.lastPathComponent).font(.scaled(size: 13)).foregroundStyle(Theme.ink)
                             .lineLimit(1).truncationMode(.middle)
-                        Text(verbatim: file.deletingLastPathComponent().lastPathComponent).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3)
-                            .lineLimit(1)
+                        Text(verbatim: folder).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3)
+                            .lineLimit(1).truncationMode(.middle)
                     }
                     Spacer(minLength: 0)
                 }
@@ -64,7 +67,7 @@ private struct FoundFileRow: View {
             .buttonStyle(.plain)
             .help(file.path)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(T("%@ in %@", table: "Views", file.lastPathComponent, file.deletingLastPathComponent().lastPathComponent))
+            .accessibilityLabel(T("%@ in %@", table: "Views", file.lastPathComponent, folder))
             .accessibilityHint(T("Opens the file", table: "Views"))
             .accessibilityAddTraits(.isButton)
             .accessibilityAction(named: T("Show in Finder", table: "Views")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }

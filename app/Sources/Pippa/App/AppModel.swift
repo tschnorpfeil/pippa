@@ -641,15 +641,7 @@ final class AppModel: ObservableObject {
 
     func openConversationFromPill(now: Date = Date()) {
         guard hasResumableConversation, let current = conversations.current else { return openInput() }
-        let requiresAttention = isActiveWork || tray.isWorking || pillOutcome != nil
-            || parked?.requiresReviewOnReopen == true || taskCard?.requiresReviewOnReopen == true
-            || conversationPresentations[current.id]?.requiresReviewOnReopen == true
-            || current.messages.contains { message in
-                guard let draft = message.mailDraft else { return false }
-                return draft.state == .draft || draft.state == .opening || draft.state == .uncertain
-            }
-        let lastActivity = conversationActivity[current.id] ?? current.lastActivity
-        switch ConversationReopenPolicy.destination(lastActivity: lastActivity, now: now, requiresAttention: requiresAttention) {
+        switch reopenDestination(current, now: now) {
         case .conversation:
             restoreConversationPresentation()
             recordConversationActivity(at: now)
@@ -662,6 +654,29 @@ final class AppModel: ObservableObject {
             openInput()
             recordConversationActivity(at: now)
         }
+    }
+
+    /// The shortcut and "Ask Pippa…" open the input with the conversation above it. After hours of quiet that would be
+    /// a long-finished conversation in full, so they start a new one as the pill does (ConversationReopenPolicy `.fresh`);
+    /// the old one stays under Recent Conversations. Within the hours the conversation stays, as before.
+    func openInputForCall(now: Date = Date()) {
+        if let current = conversations.current, !current.messages.isEmpty, reopenDestination(current, now: now) == .fresh {
+            newConversation()
+            recordConversationActivity(at: now)
+        }
+        openInput()
+    }
+
+    private func reopenDestination(_ current: Conversation, now: Date) -> ConversationReopenPolicy.Destination {
+        let requiresAttention = isActiveWork || tray.isWorking || pillOutcome != nil
+            || parked?.requiresReviewOnReopen == true || taskCard?.requiresReviewOnReopen == true
+            || conversationPresentations[current.id]?.requiresReviewOnReopen == true
+            || current.messages.contains { message in
+                guard let draft = message.mailDraft else { return false }
+                return draft.state == .draft || draft.state == .opening || draft.state == .uncertain
+            }
+        let lastActivity = conversationActivity[current.id] ?? current.lastActivity
+        return ConversationReopenPolicy.destination(lastActivity: lastActivity, now: now, requiresAttention: requiresAttention)
     }
 
     func resumeConversation() {
@@ -691,7 +706,7 @@ final class AppModel: ObservableObject {
 
     func toggleInput() {
         if mode.key == "resume" { collapse(); return }
-        if mode.isConversation { collapse() } else { openInput() }
+        if mode.isConversation { collapse() } else { openInputForCall() }
     }
 
     /// Back to the pill. An open result waits silently (no number; preview image from R1).

@@ -204,6 +204,27 @@ public enum FoundFiles {
         return named + present.filter { !named.contains($0) }
     }
 
+    /// The folder shown under each name: its folder's name, unless another file of the same name sits in a folder of the
+    /// same name (copies in a backup, "quellen" in two projects). Then the first folder up that tells them apart comes
+    /// first: "Pippa-Backup › … › quellen", so the rows no longer look like the same file twice.
+    public static func folderLabels(_ files: [URL]) -> [URL: String] {
+        func parents(_ file: URL) -> [String] { file.deletingLastPathComponent().standardizedFileURL.pathComponents.filter { $0 != "/" } }
+        var labels: [URL: String] = [:]
+        for file in files {
+            let own = parents(file)
+            let folder = own.last ?? "/"
+            let twins = files.filter { $0 != file && $0.lastPathComponent == file.lastPathComponent && parents($0).last == own.last }
+                .map(parents)
+            labels[file] = folder
+            guard !twins.isEmpty, own.count > 1 else { continue }
+            for depth in 2...own.count where !twins.contains(where: { Array($0.suffix(depth)) == Array(own.suffix(depth)) }) {
+                labels[file] = own[own.count - depth] + (depth == 2 ? " › " : " › … › ") + folder
+                break
+            }
+        }
+        return labels
+    }
+
     /// Files a folder listing or shell command showed (not a search) join the card only when the answer names them:
     /// a listed folder of 80 files must not become a card of 80. Name, link or path; Markdown escapes ("a\_b") count.
     public static func named(_ listed: [URL], answer: String, exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) -> [URL] {
