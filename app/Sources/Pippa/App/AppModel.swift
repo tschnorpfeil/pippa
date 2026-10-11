@@ -1397,12 +1397,45 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Invoices as a table: Pi reads them and writes `Rechnungen.csv` next to them (skill `rechnung-auslesen`, Pi's
-    /// `write`). Nothing goes through a fixed JSON flow any more.
+    /// Invoices as a table, in code like "Make one PDF" (`InvoiceTable`): totals, dates and the sum per currency come
+    /// from code, unsure cells are yellow. Works without the local model; the invoices stay untouched, the .xlsx goes
+    /// to Pippa's results folder and opens with one click. Questions afterwards ("only 2025?") go to Pi as before.
     func startInvoices() {
         guard let ctx = context, !ctx.items.isEmpty else { return askForContext() }
-        guard let skill = PippaSkill.bundled.first(where: { $0.name == "rechnung-auslesen" }) else { return }
-        runSkill(skill)
+        let inputs = ctx.items
+        perform(title: T("Reading invoices…", table: "App"), subtitle: T("Your invoices stay as they are.", table: "App"),
+                writes: T("A new spreadsheet", table: "App"), retry: { [weak self] in self?.startInvoices() }) { engine in
+            let output = try await OneAnswerTools.run(.invoiceTable, inputs: inputs)
+            let receipt = try await engine.recordResult(output.files, summary: output.summary, detail: output.detailSentence ?? "")
+            return (receipt, output.files.first)
+        } done: { [weak self] (result: (JobReceipt, URL?)) in
+            guard let self else { return }
+            let (receipt, file) = result
+            self.finish(receipt)
+            self.showResultToast(receipt, open: T("Show Result", table: "App"), openFirst: true) {
+                if let file { NSWorkspace.shared.open(file) }
+            }
+        }
+    }
+
+    /// "As Letter" under a draft: the text in letter layout (DIN 5008) as a PDF, or as a Word file, in Pippa's results
+    /// folder; sender from "My Card" in Contacts, missing parts as yellow placeholders. No model, nothing sent.
+    func makeLetter(from draft: String, word: Bool = false) {
+        Task { [weak self] in
+            let me = await MeCard.sender()
+            guard let self else { return }
+            let letter = LetterDocument.from(draft: draft, sender: me?.lines, place: me?.place)
+            do {
+                let file = try letter.write(word: word)
+                let receipt = try await self.engine.recordResult([file], summary: file.lastPathComponent, detail: "")
+                self.finish(receipt)
+                self.showResultToast(receipt, open: T("Show Result", table: "App"), openFirst: true) { NSWorkspace.shared.open(file) }
+                NSWorkspace.shared.open(file)
+            } catch {
+                UserMessage.record(error, context: "brief")
+                self.toasts?.show(title: T("That didn’t work", table: "App"), detail: UserMessage.text(for: error, context: "brief"), buttons: [])
+            }
+        }
     }
 
     /// Receipt with "Undo" and a button that shows the result (file, calendar, notes).
