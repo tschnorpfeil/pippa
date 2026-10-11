@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://gc.zgo.at; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://heypippa.goatcounter.com; font-src 'self'; connect-src https://heypippa.goatcounter.com; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <title>Pippa – deine persönliche Assistentin auf dem Mac</title>
 <meta name="description" content="Pippa ist deine persönliche Assistentin auf dem Mac. Zieh Rechnungen, Briefe oder ganze Ordner auf sie. Offline, kostenlos und quelloffen.">
@@ -512,7 +512,7 @@ footer p a{display:inline-block;padding:6px 2px}
     <a class="brand" href="#top"><canvas data-mark="26" aria-hidden="true"></canvas>Pippa</a>
     <nav class="nav" aria-label="Seite"><a href="#kann">Was sie kann</a><a href="#daten">Deine Daten</a><a href="#fragen">Fragen</a></nav>
     <a class="langsw" href="en/" hreflang="en" lang="en" data-lang="en">English</a>
-    <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Herunterladen</a>
+    <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg" data-goatcounter-click="download-header" data-goatcounter-title="Download (header, de)">Herunterladen</a>
   </div>
 </header>
 
@@ -522,7 +522,7 @@ footer p a{display:inline-block;padding:6px 2px}
   <div class="wrap">
     <h1 id="h1">Zieh’s einfach<br><span class="nw">auf <span class="hw">Pippa</span><span class="dot"><canvas id="dotMark" aria-hidden="true"></canvas><span class="sr">.</span></span></span></h1>
     <p class="sub">Deine persönliche Assistentin auf&nbsp;dem&nbsp;Mac.<br>Offline, immer für dich da.</p>
-    <div class="ctas"><a class="btn dl" id="heroDl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Kostenlos herunterladen <span aria-hidden="true">→</span></a></div>
+    <div class="ctas"><a class="btn dl" id="heroDl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg" data-goatcounter-click="download-hero" data-goatcounter-title="Download (hero, de)">Kostenlos herunterladen <span aria-hidden="true">→</span></a></div>
     <p class="req">Ohne Konto, ohne Abo, quelloffen. Für Macs mit Apple-Chip ab macOS&nbsp;15.<br><a href="#mac">Passt mein Mac?</a></p>
 
     <div class="demo" id="kann">
@@ -633,7 +633,7 @@ footer p a{display:inline-block;padding:6px 2px}
   <div class="wrap"><div class="panel pn-blue">
     <h2 id="h-home" class="rv" style="--d:1">Hol dir Pippa.</h2>
     <ol class="steps"><li class="rv" style="--d:2">Öffne die geladene Datei und zieh Pippa in den Ordner „Programme“.</li><li class="rv" style="--d:3">Öffne Pippa. Bevor sie ihre KI herunterlädt, fragt sie dich und sagt dir, wie groß sie ist.</li><li class="rv" style="--d:4">Zieh deinen Downloads-Ordner auf Pippa.</li></ol>
-    <div class="ctas"><a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Kostenlos herunterladen <span aria-hidden="true">→</span></a></div>
+    <div class="ctas"><a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg" data-goatcounter-click="download-end" data-goatcounter-title="Download (end, de)">Kostenlos herunterladen <span aria-hidden="true">→</span></a></div>
     <p class="req">Für Macs mit Apple-Chip ab macOS&nbsp;15.</p>
   </div></div>
 </section>
@@ -808,5 +808,6 @@ document.documentElement.classList.add('mob');const u='https://heypippa.app'+loc
 document.querySelectorAll('a.btn.dl').forEach((a,i)=>{a.href='mailto:?subject='+encodeURIComponent('Pippa für den Mac')+'&body='+encodeURIComponent(u);a.firstChild.textContent=a.closest('header')?'Link merken':'Link für den Mac merken ';
 a.addEventListener('click',e=>{if(!navigator.share)return;e.preventDefault();navigator.share({title:'Pippa für den Mac',url:u}).catch(()=>{})})});})();
 </script>
+<script data-goatcounter="https://heypippa.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </body>
 </html>

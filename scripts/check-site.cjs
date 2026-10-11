@@ -60,8 +60,11 @@ for (const [lang, html] of Object.entries(pages)) {
   levels.reduce((prev, l) => { assert.ok(l <= prev + 1, `${lang}: heading level skipped (h${prev} → h${l})`); return l; }, 1);
   // Every illustration has a description.
   for (const m of html.matchAll(/<figure[^>]*>/g)) assert.match(m[0], /role="img" aria-label="[^"]{20,}"/, `${lang}: figure without description`);
-  // Nothing is loaded from elsewhere; only links point outward.
-  assert.doesNotMatch(html, /\bsrc="(https?:)?\/\//, `${lang}: external script or image`);
+  // Nothing is loaded from elsewhere except GoatCounter's counter (named in the privacy policy); only links point outward.
+  const counter = '<script data-goatcounter="https://heypippa.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>';
+  assert.equal(html.split(counter).length - 1, 1, `${lang}: GoatCounter script exactly once`);
+  assert.doesNotMatch(html.replace(counter, ''), /\bsrc="(https?:)?\/\//, `${lang}: external script or image`);
+  assert.match(html, /connect-src https:\/\/heypippa\.goatcounter\.com;/, `${lang}: CSP allows only GoatCounter to be contacted`);
   for (const m of html.matchAll(/<link\b[^>]*href="(https?:)?\/\/[^>]*>/g)) {
     assert.match(m[0], /rel="(canonical|alternate)"/, `${lang}: external resource ${m[0]}`);
   }
@@ -83,7 +86,7 @@ for (const [lang, html] of Object.entries(pages)) {
   // No emoji in the copy.
   assert.doesNotMatch(t, /\p{Extended_Pictographic}/u, `${lang}: emoji in copy`);
 }
-console.log('Site checks passed: DE/EN in step, headings, figure descriptions, no external resources, no banned promises or emoji.');
+console.log('Site checks passed: DE/EN in step, headings, figure descriptions, no external resources but GoatCounter, no banned promises or emoji.');
 
 // Legal pages: toggle in the header, and the placeholder sentence is gone.
 for (const f of ['datenschutz.html', 'impressum.html']) {
