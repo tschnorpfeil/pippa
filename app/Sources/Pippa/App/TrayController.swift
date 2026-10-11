@@ -565,6 +565,8 @@ final class TrayController: ObservableObject {
     /// Save and recompute the offer (on every change).
     private func changed() {
         try? store.save(state)
+        // Pictures of items that left Pippa are let go too.
+        TrayThumbnails.shared.forget(keeping: state.items)
         recomputeOffered()
     }
 

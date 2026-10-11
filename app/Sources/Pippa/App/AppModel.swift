@@ -151,10 +151,17 @@ final class AppModel: ObservableObject {
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark(); self?.schedulePendingDrops() }
         }
         conversations.onAnswerFinished = { [weak self] failed in
-            guard let self, !self.isExpanded else { return }
+            // Only the open conversation shows the answer itself; the line or the setup above the pill does not.
+            guard let self, !self.mode.isConversation else { return }
             self.pillOutcome = failed ? .failed : .answered
             self.shell?.pulseMark()
             if !failed { Self.tap() }
+            // VoiceOver: a finished answer reads itself out (ConversationController); a failed one says so here.
+            if failed {
+                NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
+                                     userInfo: [.announcement: "Pippa: " + self.pillStatus.label,
+                                                .priority: NSAccessibilityPriorityLevel.high.rawValue])
+            }
         }
         tray.model = self
         trayChanges = tray.objectWillChange.sink { [weak self] _ in
@@ -173,6 +180,8 @@ final class AppModel: ObservableObject {
     // MARK: Figure
 
     var markState: MarkState {
+        // A question waits for the person: the rings stop circling, like the pill that says "Quick question".
+        if conversations.isRunning, conversations.thought.phase == .waitingForPerson { return .offen }
         if busy || mailDraftOpening || conversations.isRunning || tray.isWorking || letter.isWorking { return .arbeitet }
         if case .message(_, _, true) = mode { return .fehler }
         // Loading the AI is stuck (offline, server silent): a problem, not a green "done" or "needs you".
@@ -209,7 +218,8 @@ final class AppModel: ObservableObject {
     /// One of Pippa's small moments (UX rule 6): shown by the collapsed pill, never two at once, gone after a moment.
     /// Opening anything else ends it (`show`).
     func say(_ moment: PillMoment) {
-        guard moment != .invite, pillMoment == nil else { return }
+        // Never two at once: the newer one replaces the older ("Back as it was." right after "Done!").
+        guard moment != .invite, pillMoment != moment else { return }
         pillMoment = moment
         shell?.pulseMark()
         Self.tap()

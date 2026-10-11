@@ -244,6 +244,7 @@
 "Show details" = "Show details";
 "Hide details" = "Hide details";
 "I’m almost ready. I’ll answer as soon as I am." = "I’m almost ready. I’ll answer as soon as I am.";
+"Dropped image %@.png" = "Image %@.png";
 "Clipboard image %@.png" = "Clipboard image %@.png";
 "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done.";
 "Tidy preview: 1 file" = "Tidy preview: 1 file";

@@ -21,6 +21,8 @@ extension ShellController {
     // MARK: Dropping
 
     var canDrop: Bool {
+        // A card Pippa is handing out is not a drop on Pippa, even when it is let go over the pill.
+        if takingOut { return false }
         // Expanded conversation receives attachments even during a preview or
         // active request; AppModel queues them visibly until the request ends.
         if model.mode.isConversation { return true }
@@ -45,7 +47,7 @@ extension ShellController {
     func performDrop(_ pb: NSPasteboard) -> Bool {
         guard canDrop else { return false }
         dragAnnounced = false
-        return receive(pb, imageName: "Bild.png")
+        return receive(pb, imageName: T("Dropped image %@.png", table: "App", PasteDecision.timeStamp(Date())))
     }
 
     /// ⌘V in the input: copied files or a picture are attached exactly like a drop; text pastes as usual.

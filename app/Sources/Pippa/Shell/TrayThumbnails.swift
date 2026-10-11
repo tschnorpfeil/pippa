@@ -27,6 +27,8 @@ final class TrayThumbnails: ObservableObject {
 
     private var images: [String: NSImage] = [:]
     private var pending: Set<String> = []
+    /// Files Quick Look has no picture for: they keep their icon instead of asking again on every redraw.
+    private var failed: Set<String> = []
     private var icons: [String: NSImage] = [:]
     private var opaque: [String: CGRect] = [:]
 
@@ -38,6 +40,7 @@ final class TrayThumbnails: ObservableObject {
         if Self.isFolder(item) { return placeholder(for: item) }
         let key = Self.key(for: item, size: size)
         if let image = images[key] { return image }
+        if failed.contains(key) { return placeholder(for: item) }
         request(item, key: key, size: size, scale: scale ?? Self.backingScale)
         return placeholder(for: item)
     }
@@ -67,6 +70,7 @@ final class TrayThumbnails: ObservableObject {
     func forget(keeping items: [TrayItem]) {
         let ids = Set(items.map { $0.id.uuidString })
         images = images.filter { ids.contains(Self.itemID(ofKey: $0.key)) }
+        failed = failed.filter { ids.contains(Self.itemID(ofKey: $0)) }
         icons = icons.filter { ids.contains($0.key) }
         opaque = opaque.filter { ids.contains($0.key) }
     }
@@ -133,7 +137,7 @@ final class TrayThumbnails: ObservableObject {
 
     private func finish(key: String, box: ThumbnailBox, size: CGSize) {
         pending.remove(key)
-        guard let cg = box.image else { return }
+        guard let cg = box.image else { failed.insert(key); return }
         images[key] = NSImage(cgImage: cg, size: size)
         revision += 1
     }
