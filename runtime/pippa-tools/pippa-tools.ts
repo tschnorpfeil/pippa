@@ -4,7 +4,8 @@
  *
  *   pi --mode rpc --extension runtime/pippa-tools/pippa-tools.ts --extension runtime/pippa-tools/pippa-assist.ts …
  *
- * - `search_files`: find the person's own documents by content with Spotlight's index (search.mjs), read-only. One
+ * - `search_files`: find the person's own documents by content, file name or folder name with Spotlight's index
+ *   (search.mjs), anywhere in the home folder and iCloud Drive, read-only. One
  *   call instead of reading a skill and building a bash command (one model round less, and the step that failed).
  * - `list_folder`: look at a folder, read-only (no question).
  * - `move_files`: rename or move one file or folder (`from`, `to`), or sort many files into (new) subfolders in one
@@ -83,16 +84,18 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "search_files",
 		label: "Dateien suchen",
-		description: "Find the person's own documents by their content (Spotlight): Documents, Desktop, Downloads, iCloud Drive.",
+		description: "Find the person's own files by content, file name or folder name (Spotlight), anywhere in their home folder and iCloud Drive.",
 		parameters: Type.Object({
 			query: Type.String({ description: "1-3 topic words from the question, e.g. Zahnarzt; without Rechnung, Dokument, PDF, Unterlagen." }),
 			year: Type.Optional(Type.String({ description: "Only when the person names a year; never guess one." })),
+			kind: Type.Optional(Type.String({ description: "Only when the person names a file type: pdf, image, word, excel, presentation, text, video, audio." })),
 		}),
 		annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 		async execute(_id: string, params: any) {
-			const result = await search(String(params?.query ?? ""), params?.year ? String(params.year) : undefined);
+			const result = await search(String(params?.query ?? ""), params?.year ? String(params.year) : undefined, undefined,
+				{ kind: params?.kind ? String(params.kind) : undefined });
 			// How to pass the result on, only when there is one (the skill text used to cost every search a read).
-			const guide = "Name each file as [name](file:///path), never as code. Found is not read: for content use mcp__pippa__read_document. "
+			const guide = "Best matches come first. Name each file as [name](file:///path), never as code. Found is not read: for content use mcp__pippa__read_document. "
 				+ "No files: nothing indexed was found; never say the files do not exist. Do not repeat the same search.";
 			return { content: [{ type: "text", text: JSON.stringify({ ...result, guide }) }], details: { query: result.query, total: result.total } };
 		},

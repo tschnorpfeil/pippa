@@ -1,4 +1,4 @@
-// Real Spotlight against generated PDFs only: content vs filename/year, all five scopes.
+// Real Spotlight against generated PDFs only: content vs filename/year, across the fake home folder.
 import assert from 'node:assert/strict';
 import { search, predicate } from '../../runtime/pippa-tools/search.mjs';
 import { join } from 'node:path';
@@ -8,11 +8,11 @@ const cases=[['Steuer','2025',['Documents/f.pdf','Library/Mobile Documents/com~a
 const results=[];
 for(const [query,year,expected] of cases){
  const start=performance.now();const result=await search(query,year);
- assert.equal(result.status,'ok');assert.equal(result.searched.length,5);
+ assert.equal(result.status,'ok');assert.equal(result.searched.length,1);
  assert.deepEqual(result.files.map(f=>f.path).sort(),expected.map(p=>join(home,p)).sort());
  results.push({query,year,milliseconds:Math.round(performance.now()-start),files:result.files.length});
 }
 assert.throws(()=>predicate('Steuer','2023; rm x'));
 const missing=await search('Steuer','2025',join(home,'missing-home'));
-assert.equal(missing.status,'unavailable');assert.equal(missing.unavailable.length,5);
+assert.equal(missing.status,'unavailable');assert.equal(missing.unavailable.length,1);
 console.log(JSON.stringify({passed:results.length,results},null,2));

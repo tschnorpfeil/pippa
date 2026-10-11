@@ -133,6 +133,7 @@
 "and %lld more" = "and %lld more";
 "Choose Folder…" = "Choose Folder…";
 "Show in Finder" = "Show in Finder";
+"Show %@ in Finder" = "Show %@ in Finder";
 "%lld months" = "%lld months";
 "%lld years" = "%lld years";
 "%lld½ years" = "%lld½ years";
