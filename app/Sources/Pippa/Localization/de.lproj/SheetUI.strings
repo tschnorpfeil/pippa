@@ -35,3 +35,7 @@
 "None of these" = "Keine davon";
 "Then I look at the whole table and compare." = "Dann schaue ich mir die ganze Tabelle an und vergleiche.";
 "These two columns have too few rows with numbers in both." = "Diese beiden Spalten haben zu wenige Zeilen, in denen beide eine Zahl haben.";
+"Show me where" = "Zeig mir die Stelle";
+"Hide" = "Ausblenden";
+"I draw this part of the table here. Nothing in Excel moves." = "Ich zeichne diesen Teil der Tabelle hier. In Excel bewegt sich nichts.";
+"Part of the table" = "Ausschnitt der Tabelle";

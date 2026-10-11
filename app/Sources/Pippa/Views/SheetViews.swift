@@ -141,8 +141,12 @@ struct SheetTableLine: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(sheet.findings.prefix(SheetController.findingLimit).enumerated()), id: \.offset) { _, finding in
-                    findingRow(finding)
+                ForEach(Array(sheet.findings.prefix(SheetController.findingLimit).enumerated()), id: \.offset) { index, finding in
+                    findingRow(finding, index: index)
+                    if sheet.shownFinding == index, let excerpt = sheet.excerpt(for: index) {
+                        SheetExcerptView(excerpt: excerpt)
+                            .transition(.opacity)
+                    }
                 }
                 if sheet.findings.count > SheetController.findingLimit {
                     Text(T("There is more. Ask me, and we’ll go through it together.", table: "SheetUI"))
@@ -158,8 +162,9 @@ struct SheetTableLine: View {
         }
     }
 
-    private func findingRow(_ finding: SheetFinding) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+    private func findingRow(_ finding: SheetFinding, index: Int) -> some View {
+        let shown = sheet.shownFinding == index
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: Self.symbol(for: finding.kind))
                 .font(.scaled(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.need)
@@ -168,11 +173,17 @@ struct SheetTableLine: View {
                 .font(Fonts.body)
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
+                // "Details": cells only in the help text, never in the sentence.
+                .help(finding.addresses.joined(separator: ", "))
             Spacer(minLength: 0)
+            Button(shown ? T("Hide", table: "SheetUI") : T("Show me where", table: "SheetUI")) { sheet.show(finding: index) }
+                .buttonStyle(.borderless)
+                .font(Fonts.hint)
+                .foregroundStyle(Theme.accent)
+                .fixedSize()
+                .help(T("I draw this part of the table here. Nothing in Excel moves.", table: "SheetUI"))
         }
-        // "Details": cells only in the help text, never in the sentence.
-        .help(finding.addresses.joined(separator: ", "))
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     private static func symbol(for kind: SheetFinding.Kind) -> String {
@@ -325,5 +336,60 @@ struct SheetTableLine: View {
         guard !text.isEmpty else { return }
         NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
                              userInfo: [.announcement: "Pippa: " + text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+    }
+}
+
+/// "Show me where": a small piece of the sheet, drawn by Pippa. Headings on top, the affected cells marked like the
+/// yellow cells in an invoice table, a thin gap where rows were left out.
+struct SheetExcerptView: View {
+    let excerpt: SheetExcerpt
+
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+            GridRow {
+                ForEach(Array(excerpt.headings.enumerated()), id: \.offset) { column, heading in
+                    cell(heading, column: column, marked: false, bold: true)
+                }
+            }
+            .foregroundStyle(Theme.ink2)
+            ForEach(Array(excerpt.rows.enumerated()), id: \.offset) { _, row in
+                if row.gapBefore {
+                    GridRow {
+                        Text(verbatim: "⋯")
+                            .font(Fonts.hint)
+                            .foregroundStyle(Theme.ink3)
+                            .gridCellColumns(excerpt.headings.count)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityHidden(true)
+                    }
+                }
+                GridRow {
+                    ForEach(Array(row.cells.enumerated()), id: \.offset) { column, text in
+                        cell(text, column: column, marked: row.marked[column], bold: row.isTotal)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(6)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.paper))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.chatBorder))
+        .foregroundStyle(Theme.paperInk)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(T("Part of the table", table: "SheetUI"))
+    }
+
+    private func cell(_ text: String, column: Int, marked: Bool, bold: Bool) -> some View {
+        let numeric = excerpt.numeric.indices.contains(column) && excerpt.numeric[column]
+        return Text(verbatim: text)
+            .font(Fonts.text(12, bold ? .semibold : .regular))
+            .monospacedDigit()
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, alignment: numeric ? .trailing : .leading)
+            .background(marked ? Theme.needTint : Color.clear)
+            .overlay(marked ? RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.needDot, lineWidth: 1) : nil)
     }
 }
