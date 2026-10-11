@@ -46,7 +46,7 @@ func runAgentChangeChecks() async {
         let ex = try Executor(baseDirectory: dir("agent-change-later-support"))
         guard let receipt = try await ex.recordAgentChanges([AgentChange(kind: .restore, from: copy.path, to: edited.path)],
                                                              summary: "Liste.txt", detail: "") else { return false }
-        Thread.sleep(forTimeInterval: 0.05)
+        try await Task.sleep(nanoseconds: 50_000_000)
         write("von Hand weiter geschrieben", edited)
         let report = try await ex.undo(jobID: receipt.id)
         let text = try? String(contentsOf: edited, encoding: .utf8)
