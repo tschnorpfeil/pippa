@@ -55,6 +55,8 @@ final class PermissionsModel: ObservableObject {
             if states[permission] == .notAsked {
                 unanswered.insert(permission)
                 DiagnosticsLog.shared.event("erlaubnis-ohne-frage", ["recht": permission.rawValue])
+                // The press must lead somewhere: the place where it can be turned on.
+                openSettings(permission)
             } else {
                 unanswered.remove(permission)
             }
@@ -208,7 +210,7 @@ struct PermissionRow: View {
         switch state {
         case .denied?: T("You said no. “Allow…” opens System Settings, where you can turn it on.", table: "Settings")
         case .notAsked? where permissions.unanswered.contains(permission):
-            T("Your Mac didn’t ask. Quit Pippa, open it again from the Applications folder and try once more – or turn it on in System Settings.", table: "Settings")
+            T("Your Mac didn’t ask. Turn on Pippa in System Settings.", table: "Settings")
         case .unavailable(let why)?: why
         default: permission.purpose
         }
