@@ -224,6 +224,28 @@ func runSortWithoutModelChecks() async {
         return after.contains("Dokumente/Angebot Küche.txt") && !after.contains("Angebot Küche.txt") && after.contains("Bilder/logo.png") && tree(folder) == before
     }
 
+    // Folders that are already there are used, nothing is created twice: "Dokumente" is the Mac's ~/Documents (Finder shows it as
+    // "Dokumente"), "Bilder" is an existing "bilder". Tidying ~/Documents itself puts nothing into a "Dokumente" inside it.
+    let home = dir("Vorhandene Ordner")
+    for name in ["Documents", "bilder"] { try? fm.createDirectory(at: home.appendingPathComponent(name), withIntermediateDirectories: true) }
+    write("Einkaufsliste: Milch, Brot, Äpfel", home.appendingPathComponent("liste.txt"))
+    makeImage(at: home.appendingPathComponent("logo.png"), type: .png)
+    write("dmg", home.appendingPathComponent("Firefox 140.dmg"))
+    await checkAsync("Existing folders: documents go to the Mac's Documents, pictures to an existing \"bilder\", no second folder") {
+        let plan = try await engine.proposeSort(items: nil, scope: home, limit: nil) { _ in }
+        func parent(_ name: String) -> String? {
+            plan.ops.first { $0.source?.lastPathComponent == name }?.target.deletingLastPathComponent().lastPathComponent
+        }
+        let made = Set(plan.ops.filter { $0.kind == .mkdir }.map(\.target.lastPathComponent))
+        return parent("liste.txt") == "Documents" && parent("logo.png") == "bilder" && made == ["Installer (kann weg?)"]
+    }
+    let documentsFolder = dir("Heim/Documents")
+    write("Einkaufsliste: Milch, Brot, Äpfel", documentsFolder.appendingPathComponent("liste.txt"))
+    await checkAsync("Tidying Documents itself: a document stays there, no \"Dokumente\" inside it") {
+        let plan = try await engine.proposeSort(items: nil, scope: documentsFolder, limit: nil) { _ in }
+        return plan.ops.isEmpty && !tree(documentsFolder).contains("Dokumente/")
+    }
+
     await checkAsync("Model does not answer (replay empty): document stays in place instead of a \"please check\" guess") {
         let silent = LocalEngine(baseDirectory: dir("support-ohne-antwort"), modelEnabled: false)
         let asked = Asked()
