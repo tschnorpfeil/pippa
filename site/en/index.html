@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://heypippa.goatcounter.com; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <title>Pippa – your personal assistant on the Mac</title>
 <meta name="description" content="Pippa is your personal assistant on the Mac. Drop invoices, letters or whole folders on her. Offline, free and open source.">
@@ -809,6 +809,11 @@ $$('#perm .b').forEach(b=>b.addEventListener('click',()=>{const on=b.getAttribut
 document.documentElement.classList.add('mob');const u='https://heypippa.app'+location.pathname;
 document.querySelectorAll('a.btn.dl').forEach((a,i)=>{a.href='mailto:?subject='+encodeURIComponent('Pippa for the Mac')+'&body='+encodeURIComponent(u);a.firstChild.textContent=a.closest('header')?'Save link':'Save the link for your Mac ';
 a.addEventListener('click',e=>{if(!navigator.share)return;e.preventDefault();navigator.share({title:'Pippa for the Mac',url:u}).catch(()=>{})})});})();
+</script>
+<script>
+/* Besuche zählen ohne Cookies (GoatCounter): nur Seite und Klicks auf „Herunterladen“, kein Skript von außen. */
+(()=>{if(navigator.doNotTrack==='1'||/^(localhost|127\.)/.test(location.hostname))return;const gc=(p,e)=>{new Image().src='https://heypippa.goatcounter.com/count?p='+encodeURIComponent(p)+'&t='+encodeURIComponent(document.title)+(e?'&e=true':'')+'&rnd='+Math.random().toString(36).slice(2)};
+gc(location.pathname);document.querySelectorAll('a.btn.dl').forEach(a=>a.addEventListener('click',()=>{if(/\.dmg$/.test(a.href))gc('download-dmg-en',1)}))})();
 </script>
 </body>
 </html>
