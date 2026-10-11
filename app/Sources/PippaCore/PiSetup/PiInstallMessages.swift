@@ -46,7 +46,9 @@ extension PiInstaller {
         case .modelsJSONUnreadable:
             L("A settings file Pippa shares with other tools can’t be read. Pippa changed nothing; the details say which one.", table: "Setup")
         case .checksumMismatch:
-            L("A file of Pippa’s AI isn’t the one she expects. Pippa leaves it untouched.", table: "Setup")
+            L("A file in your models folder has the name of Pippa’s AI but different contents. Pippa leaves it untouched; the details say what helps.", table: "Setup")
+        case .downloadDamaged:
+            L("Pippa’s AI arrived damaged. Try Again loads it once more.", table: "Setup")
         case .notEnoughSpace(let bytes):
             L("There isn’t enough free space on this Mac. About %@ more is needed.", table: "Setup", ModelDownloadSize.gigabytes(bytes))
         case .downloadFailed:
@@ -63,7 +65,8 @@ extension PiInstaller {
         case .releaseBroken(let path): "\(path) does not start and was not created by Pippa. Run “pi update” in Terminal or remove the folder, then try again."
         case .notWritable(let path, let reason): "Cannot write \(path): \(reason)"
         case .modelsJSONUnreadable(let path): "\(path) is not plain JSON (comments?). Tidy it up or remove it, then try again."
-        case .checksumMismatch(let path): "SHA-256 mismatch: \(path)"
+        case .checksumMismatch(let path): "SHA-256 mismatch: \(path) is not the file Pippa expects and was not put there by Pippa. Rename or remove it, then try again."
+        case .downloadDamaged: "SHA-256 mismatch after download; the downloaded file was removed."
         case .notEnoughSpace(let bytes): "Not enough free space: \(bytes) more bytes needed"
         case .missingStep(let step): "Step “\(step.rawValue)” is not finished"
         case .downloadFailed(let reason): "Download interrupted: \(reason)"

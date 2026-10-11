@@ -322,69 +322,26 @@ struct ConversationWorkspace: View {
     }
 
     private var welcome: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 18) {
             Text(T("What would you like to do?", table: "Views"))
-                .font(.scaled(size: 20, weight: .semibold))
+                .font(.scaled(size: 22, weight: .semibold))
                 .foregroundStyle(Theme.ink)
+                .accessibilityAddTraits(.isHeader)
 
-            Button {
-                model.chooseFolder()
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "arrow.down.doc")
-                        .font(.scaled(size: 20, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(T("Drop files or folders here…", table: "Views"))
-                            .font(Fonts.head)
-                            .foregroundStyle(Theme.ink)
-                        Text(T("Or click to choose documents, letters, or spreadsheets.", table: "Views"))
-                            .font(Fonts.hint)
-                            .foregroundStyle(Theme.ink2)
-                    }
-                    Spacer()
-                }
-                .padding(14)
-                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(Theme.hair, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(T("Drop or choose files or folders", table: "Views"))
+            WelcomeDropZone(reduceMotion: reduceMotion) { model.chooseFolder() }
 
             // Examples put a sentence into the input field: the person sees it, can change it, and sends it with Return.
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(T("For example:", table: "Views"))
-                    .font(Fonts.hint).foregroundStyle(Theme.ink2)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], alignment: .leading, spacing: 8) {
+                    .font(Fonts.sill).foregroundStyle(Theme.ink3)
+                    .padding(.leading, 2)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], alignment: .leading, spacing: 10) {
                     ForEach(Self.examples, id: \.self) { example in
-                        Button { model.suggest(example.text) } label: {
-                            HStack(alignment: .top, spacing: 10) {
-                                Image(systemName: example.symbol)
-                                    .font(.scaled(size: 15, weight: .medium))
-                                    .foregroundStyle(Theme.accent)
-                                    .frame(width: 20)
-                                Text(example.text)
-                                    .font(Fonts.body).foregroundStyle(Theme.ink)
-                                    .multilineTextAlignment(.leading)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                Spacer(minLength: 0)
-                            }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
-                            .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 14))
-                            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.chatBorder, lineWidth: 1) }
-                            .contentShape(RoundedRectangle(cornerRadius: 14))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(example.text)
-                        .accessibilityHint(T("Puts this sentence into the input field", table: "Views"))
+                        WelcomeExampleCard(example: example, reduceMotion: reduceMotion) { model.suggest(example.text) }
                     }
                 }
             }
-        }.padding(.vertical, 14)
+        }.padding(.top, 22).padding(.bottom, 14)
     }
 
     /// A message with its topic line (TopicBoundary): a quiet line with the time above a message that starts a new topic,
@@ -812,5 +769,87 @@ private struct JumpToLatestButton: View {
         .onHover { hover = $0 }
         .help(T("Jump to Latest", table: "Views"))
         .accessibilityLabel(T("Jump to Latest", table: "Views"))
+    }
+}
+
+/// Drop zone of the empty conversation: the icon sits in a soft accent tile, and pointing at it lights the dashed edge,
+/// so it reads as something to click or drop on rather than a note.
+private struct WelcomeDropZone: View {
+    var reduceMotion: Bool
+    var action: () -> Void
+    private let hoverState = State(initialValue: false)
+    private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: "arrow.down.doc")
+                    .font(.scaled(size: 19, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 40, height: 40)
+                    .background(hover ? Theme.accentTint2 : Theme.accentTint, in: RoundedRectangle(cornerRadius: 11))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(T("Drop files or folders here…", table: "Views"))
+                        .font(Fonts.head)
+                        .foregroundStyle(Theme.ink)
+                    Text(T("Or click to choose documents, letters, or spreadsheets.", table: "Views"))
+                        .font(Fonts.hint)
+                        .foregroundStyle(Theme.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 16)
+            .background(hover ? Theme.fill2 : Theme.fill, in: RoundedRectangle(cornerRadius: 16))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(hover ? Theme.accent.opacity(0.55) : Theme.chatBorder,
+                                  style: StrokeStyle(lineWidth: 1.25, dash: [6, 4]))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: hover)
+        }
+        .buttonStyle(.plain)
+        .pointerStyle(.link)
+        .onHover { hover = $0 }
+        .accessibilityLabel(T("Drop or choose files or folders", table: "Views"))
+    }
+}
+
+/// One starter card: icon and sentence on one centered line, a quiet lift on hover.
+private struct WelcomeExampleCard: View {
+    var example: ConversationWorkspace.Example
+    var reduceMotion: Bool
+    var action: () -> Void
+    private let hoverState = State(initialValue: false)
+    private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 11) {
+                Image(systemName: example.symbol)
+                    .font(.scaled(size: 14, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 20)
+                Text(example.text)
+                    .font(Fonts.body).foregroundStyle(Theme.ink)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+            .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 14))
+            .overlay { RoundedRectangle(cornerRadius: 14).fill(hover ? Theme.fill2 : .clear) }
+            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(hover ? Theme.accent.opacity(0.45) : Theme.chatBorder, lineWidth: 1) }
+            .shadow(color: Theme.shadowInk.opacity(hover ? 0.10 : 0), radius: 6, y: 2)
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: hover)
+        }
+        .buttonStyle(.plain)
+        .pointerStyle(.link)
+        .onHover { hover = $0 }
+        .accessibilityLabel(example.text)
+        .accessibilityHint(T("Puts this sentence into the input field", table: "Views"))
     }
 }
