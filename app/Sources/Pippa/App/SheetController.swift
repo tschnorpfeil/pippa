@@ -337,12 +337,20 @@ final class SheetController: ObservableObject {
         model.handOver([url]) { model.route(message) }
     }
 
-    /// The sheet as a text file in Pippa's cache (`Inbox`), like a mail's .eml. Extension .tsv: the conversation shows
-    /// the buttons for tables with it (`tabelle-pruefen`, `zusammenfassen`). Excel and the workbook stay untouched.
+    /// The sheet as a copy in Pippa's cache (`Inbox`), like a mail's .eml: an .xlsx with every cell at its address,
+    /// values and formulas, so the conversation reads it like a dropped table: totals checked and sums computed in code
+    /// first (`SheetFileCheck`). The conversation shows the buttons for tables with it. Excel and the workbook stay
+    /// untouched. A sheet read far from A1 falls back to the text form (.tsv).
     static func writeContext(_ snapshot: SheetSnapshot) throws -> URL {
         let base = Naming.sanitize(snapshot.tableName, maxLength: 60)
-        let name = (base.isEmpty ? T("Table", table: "SheetUI") : base) + ".tsv"
-        let url = try Inbox.freshFolder().appendingPathComponent(name)
+        let stem = base.isEmpty ? T("Table", table: "SheetUI") : base
+        let folder = try Inbox.freshFolder()
+        if let sheet = XLSXWriter.Sheet(name: snapshot.sheet, grid: snapshot.grid) {
+            let url = folder.appendingPathComponent(stem + ".xlsx")
+            try XLSXWriter.write([sheet], to: url)
+            return url
+        }
+        let url = folder.appendingPathComponent(stem + ".tsv")
         try snapshot.contextText().write(to: url, atomically: true, encoding: .utf8)
         return url
     }

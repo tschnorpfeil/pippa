@@ -422,6 +422,21 @@ display:grid;grid-template-columns:30px 1fr auto;gap:2px 10px;align-items:center
 /* Eine Tabelle in Excel (05) */
 .xl{position:absolute;left:4%;top:calc(26px + 7%);width:min(340px,46%);background:#fff;border-radius:10px;overflow:hidden;z-index:3;font-size:12.5px;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 30px 60px -24px rgba(0,0,0,.5);opacity:0;transform:translateY(16px) scale(.97);transition:opacity .35s,transform .6s var(--spring)}
 .xl.on{opacity:1;transform:none}
+.mw{position:absolute;left:4%;top:calc(26px + 7%);width:min(360px,48%);background:#fff;border-radius:10px;overflow:hidden;z-index:3;font-size:12.5px;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 30px 60px -24px rgba(0,0,0,.5);opacity:0;transform:translateY(16px) scale(.97);transition:opacity .35s,transform .5s var(--spring)}
+.mw.on{opacity:1;transform:none}
+.mw-t{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#eceef1;border-bottom:1px solid #dcdfe3;color:#3a3f47;font-weight:600;font-size:12px}
+.mw-t i{width:9px;height:9px;border-radius:50%;background:#c9cdd2}.mw-t span{margin-left:8px}
+.mw-l{border-bottom:1px solid #e6e8ea}
+.mw-i{display:grid;grid-template-columns:1fr auto;padding:6px 12px;border-bottom:1px solid #f0f1f3;transition:background .2s,color .2s}
+.mw-i:last-child{border-bottom:0}.mw-i b{font-size:12.5px}.mw-i time{color:#80858c;font-size:11px}.mw-i span{grid-column:1/-1;color:#5f6368;font-size:12px}
+.mw-i.sel{background:#2f6fe0;color:#fff}.mw-i.sel time,.mw-i.sel span{color:rgba(255,255,255,.85)}
+.mw-m{padding:10px 12px 12px;line-height:1.45}.mw-m>b{display:block;font-size:13.5px}.mw-m small{display:block;color:#80858c;font-size:11.5px;margin-bottom:8px}.mw-m p{margin:0 0 6px}
+.mw-m span.hl{background:#fff1b8;border-radius:3px;transition:background .4s}
+.rcpt{margin-top:8px;border-radius:10px;background:#f5f6f8;padding:4px 10px}
+.rcpt div{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;animation:pop .5s var(--spring) both}
+.rcpt div+div{border-top:1px solid #e6e8ea;animation-delay:.15s}
+.rcpt b{font-weight:600}.rcpt small{display:block;color:#6b7079;font-size:11.5px}
+.rcpt svg{flex:none;width:14px;height:14px;fill:none;stroke:var(--acc);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
 .xl-t{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#1f7a46;color:#fff;font-weight:600;font-size:12px}.xl-t i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.55)}.xl-t span{margin-left:8px}
 .xl-fx{display:flex;gap:10px;padding:5px 10px;border-bottom:1px solid #e3e6e8;color:#3a3f47;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}.xl-fx b{color:#8b9096;font-weight:500;min-width:20px}
 .xl table{width:100%;border-collapse:collapse}
@@ -453,7 +468,7 @@ display:grid;grid-template-columns:30px 1fr auto;gap:2px 10px;align-items:center
 .ln{right:8px;bottom:8px;width:calc(100% - 16px)}
 .pw{right:8px;bottom:8px;width:calc(100% - 16px);height:calc(100% - 26px - 16px);font-size:13px}
 .toast{right:8px;bottom:70px}
-.xl{left:3%;width:94%;top:calc(26px + 4%)}
+.xl,.mw{left:3%;width:94%;top:calc(26px + 4%)}
 .mbar span{display:none}
 .mkeys kbd{font-size:18px;padding:8px 12px}
 .so-ba{gap:6px;padding:8px}.so-ba li{font-size:11px}
@@ -520,7 +535,7 @@ footer p a{display:inline-block;padding:6px 2px}
             <li><button type="button" data-k="dl"><span class="no">01</span><b>Tidy up Downloads</b><span class="d">Drop the folder on Pippa and tap “Tidy Up”. She shows you first where everything goes, and “Undo” puts it all back.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="brief"><span class="no">02</span><b>Understand letters</b><span class="d">Just ask what you want to know. Pippa answers in plain words and shows you the passage in the letter.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="dateien"><span class="no">03</span><b>Find files again</b><span class="d">You only remember what it was about? Pippa finds the file on your Mac. Press <kbd>⌃⌥ Space</kbd> and she’s right there.</span><span class="bar"><i></i></span></button></li>
-            <li><button type="button" data-k="mail"><span class="no">04</span><b>Find emails</b><span class="d">Pippa looks in Apple Mail for you. She only writes replies as drafts, and you send them.</span><span class="bar"><i></i></span></button></li>
+            <li><button type="button" data-k="mail"><span class="no">04</span><b>Answer emails</b><span class="d">Pippa reads the email, checks your calendar and adds the appointment. She puts the reply in Mail as a draft, and you send it.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="buero"><span class="no">05</span><b>Office work</b><span class="d">Pippa checks totals in Excel, explains spreadsheets and turns invoices into a table that opens in Excel. She doesn’t change your files.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="pdf"><span class="no">06</span><b>PDF tools</b><span class="d">Too big for email? Pippa makes PDFs and photos smaller, combines scans and converts images. No internet needed.</span><span class="bar"><i></i></span></button></li>
           </ol>
@@ -548,6 +563,11 @@ footer p a{display:inline-block;padding:6px 2px}
             <tr><td class="k">6</td><td>Insurance</td><td class="r">61.20</td></tr>
             <tr id="xlMiss"><td class="k">7</td><td>Trash</td><td class="r">28.40</td></tr>
             <tr class="s"><td class="k">8</td><td>Total</td><td class="r" id="xlSum">863.99</td></tr></table>
+          </div>
+          <div class="mw" id="mw">
+            <div class="mw-t"><i></i><i></i><i></i><span>Inbox</span></div>
+            <div class="mw-l"><div class="mw-i" id="mwSel"><b>Radhaus Lindner</b><time>9:12 AM</time><span>Your bike service appointment</span></div><div class="mw-i"><b>Hausverwaltung Berger</b><time>Yesterday</time><span>Heating meter reading</span></div></div>
+            <div class="mw-m"><b>Your bike service appointment</b><small>Radhaus Lindner · Today, 9:12 AM</small><p>Hi Mara,</p><p>we have a slot for your bike service on <span id="mwWhen">Tuesday, October 21, at 5:30 pm</span>. Does that work for you?</p><p>Best,<br>Jonas from Radhaus Lindner</p></div>
           </div>
           <div class="tray" id="tray" aria-hidden="true"></div>
           <div class="dpill" id="dpill" data-s="ruht"><canvas id="deskMark"></canvas><span class="lt" id="dlt">Pippa</span><span class="lend" id="dlend"></span><span class="lprog"><i></i></span></div>
@@ -647,7 +667,7 @@ $$('.rv,.keys').forEach(el=>RM?el.classList.add('in'):io.observe(el));
 
 /* Vorführung: links eine Aufgabe, rechts erledigt Pippa sie auf einem Mac, so wie in der App. Läuft von selbst, ein Klick wählt. */
 const mac=$('#mac'),cur=$('#cur'),pw=$('#pw'),pwB=$('#pwB'),pwT=$('#pwT'),pwPh=$('#pwPh'),pwS=$('#pwS'),pwSub=$('#pwSub'),pwAtt=$('#pwAtt'),pwU=$('#pwU'),pwN=$('#pwN'),pwAct=$('#pwAct'),
-  dp=$('#dpill'),dlt=$('#dlt'),dle=$('#dlend'),tray=$('#tray'),ln=$('#ln'),lnAtt=$('#lnAtt'),lnT=$('#lnT'),lnPh=$('#lnPh'),lnS=$('#lnS'),lnX=$('#lnX'),toast=$('#toast'),xl=$('#xl'),mApp=$('#mApp');
+  dp=$('#dpill'),dlt=$('#dlt'),dle=$('#dlend'),tray=$('#tray'),ln=$('#ln'),lnAtt=$('#lnAtt'),lnT=$('#lnT'),lnPh=$('#lnPh'),lnS=$('#lnS'),lnX=$('#lnX'),toast=$('#toast'),xl=$('#xl'),mw=$('#mw'),mApp=$('#mApp');
 const items=$$('#scen li'),scenOl=$('#scen'),scenD=$('#scenD'),pauseB=$('#pause'),narrow=matchMedia('(max-width:700px)');
 const DM=innerWidth<600?24:30,deskMark=mk($('#deskMark'),DM),lnMark=mk($('#lnMark'),28),pwMark=mk($('#pwMark'),24),toastMark=mk($('#toastMark'),26);
 const dmeas=document.createElement('div');dmeas.className='dpill';dmeas.style.cssText='position:absolute;visibility:hidden;left:-9999px;right:auto;top:0;bottom:auto;width:auto';dmeas.setAttribute('aria-hidden','true');
@@ -662,6 +682,7 @@ const I={doc:'<svg viewBox="0 0 12 12"><path d="M3 1h4l2.5 2.5V11h-6.5z"/><path 
   fo:'<svg viewBox="0 0 12 12"><path d="M1 3a1 1 0 0 1 1-1h2.5l1 1H10a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1z"/></svg>',
   find:'<svg viewBox="0 0 12 12"><circle cx="5" cy="5" r="3.2"/><path d="M7.4 7.4 10 10"/></svg>',
   mail:'<svg viewBox="0 0 12 12"><rect x="1" y="2.5" width="10" height="7" rx="1"/><path d="m1.5 3 4.5 3.5L10.5 3"/></svg>',
+  cal:'<svg viewBox="0 0 12 12"><rect x="1.5" y="2.5" width="9" height="8" rx="1.2"/><path d="M1.5 5h9M4 1.5v2M8 1.5v2"/></svg>',
   clip:'<svg viewBox="0 0 12 12"><path d="M8.5 4.5 5 8a1.4 1.4 0 0 1-2-2l4-4a2.3 2.3 0 0 1 3.3 3.3L6 9.6"/></svg>',
   files:'<svg viewBox="0 0 16 16"><path d="M5 3.5V1.5h5l3 3v8H11"/><path d="M2.5 4h5.5l2.5 2.5v8h-8z"/></svg>',
   cv:'<svg class="cv" viewBox="0 0 10 10"><path d="m2 3.5 3 3 3-3"/></svg>',
@@ -669,7 +690,7 @@ const I={doc:'<svg viewBox="0 0 12 12"><path d="M3 1h4l2.5 2.5V11h-6.5z"/><path 
 const chip=(n,k,x)=>`<span class="chip">${I[k]}${n}${x?'<u>×</u>':''}</span>`;
 const ANS={brief:`<p><b>By December 31.</b> The notice period is three months to the end of a month. Give notice in writing and sign it yourself.</p><blockquote>The notice period is three months to the end of a calendar month. – Lease § 4</blockquote><div class="rc">${I.doc}Read Lease.pdf · 6 s ${I.cv}</div>`,
   dateien:`<div class="cd"><div class="cd-h">${I.files}Found on this Mac</div>${[['Bike helmet invoice.pdf','Downloads'],['Bike warranty.pdf','Bike'],['Lease.pdf','Home'],['Frame number.jpg','Pictures','ph']].map(([n,o,c])=>`<div class="fr"><span class="ft ${c||''}"></span><div><b>${n}</b><small>${o}</small></div></div>`).join('')}<div class="cd-f">Files on this Mac</div></div>`,
-  mail:`<div class="cd"><div class="cd-h">${I.mail}“Radhaus Lindner” in Mail</div>${[['9:12 AM','Your bike helmet is on its way','Hi Mara, your helmet has left our warehouse. It arrives on Thursday between 10 am and 2 pm.'],['Sun Oct 12','Service appointment confirmed','We’ve booked you in for Tuesday at 5:30 pm.'],['Thu Oct 9','Your invoice for €79.90','Thanks for your purchase! The invoice for the City Pro helmet is attached.']].map(([t,s,x])=>`<div class="ml"><div><b>Radhaus Lindner</b><time>${t}</time></div><span>${s}</span><small>${x}</small></div>`).join('')}<div class="cd-f">Mail on this Mac</div></div>`};
+  mail:`<p><b>Yes, Tuesday at 5:30 pm is free.</b> I added the service to your calendar and put a reply saying yes in Mail as a draft.</p><div class="rcpt"><div>${I.cal}<span><b>Bike service</b><small>Tue Oct 21, 5:30 PM · in Calendar</small></span></div><div>${I.mail}<span><b>Draft in Mail</b><small>Just a draft · nothing sent</small></span></div></div>`};
 let job=0,at=0,paused=false;
 const wait=(ms,my)=>new Promise((ok,no)=>setTimeout(()=>my===job?ok():no('stop'),RM?Math.min(ms,40):ms));
 const rel=el=>{const m=mac.getBoundingClientRect(),r=el.getBoundingClientRect();return{x:r.left-m.left+r.width/2,y:r.top-m.top+r.height/2}};
@@ -713,9 +734,9 @@ const keys=async my=>{const k=document.createElement('div');k.className='mkeys';
 const SLOT={wide:[[4,12],[4,32],[17,12],[17,32]],narrow:[[2,8],[27,8],[52,8],[77,8]]};
 const lay=ids=>{const sl=SLOT[narrow.matches?'narrow':'wide'];$$('#mac .ic').forEach(i=>i.classList.remove('sel','on','hit'));
   ids.forEach((id,n)=>{const e=$('#'+id);e.style.left=sl[n][0]+'%';e.style.top=sl[n][1]+'%';if(!e.classList.contains('res'))e.classList.add('on')})};
-const reset=ids=>{[pw,ln,toast,xl].forEach(e=>e.classList.remove('on'));dp.classList.remove('away');tray.classList.remove('away');tray.innerHTML='';ghost.className='ghost';
+const reset=ids=>{[pw,ln,toast,xl,mw].forEach(e=>e.classList.remove('on'));dp.classList.remove('away');tray.classList.remove('away');tray.innerHTML='';ghost.className='ghost';
   pwB.innerHTML=pwSub.textContent=pwT.textContent=pwAtt.innerHTML=pwU.innerHTML=pwN.textContent=pwAct.innerHTML='';pwAct.hidden=true;pwPh.textContent='Ask Pippa…';pwS.className='pw-s';
-  lnAtt.innerHTML=lnT.textContent=lnX.innerHTML='';mApp.textContent='Finder';$('#xlMiss').classList.remove('miss');$('#xlSum').classList.remove('selc');
+  lnAtt.innerHTML=lnT.textContent=lnX.innerHTML='';mApp.textContent='Finder';$('#xlMiss').classList.remove('miss');$('#mwSel').classList.remove('sel');$('#mwWhen').classList.remove('hl');$('#xlSum').classList.remove('selc');
   [pwMark,lnMark,toastMark].forEach(m=>m.setState('ruht'));target(null);dstate('ruht','Pippa');lay(ids)};
 const S={
   dl:{ids:['f-dl'],run:async my=>{await drag(['f-dl'],my,['fo']);await wait(250,my);
@@ -737,8 +758,13 @@ const S={
     tl();note('Reading Lease.pdf…','1 of 1');await wait(1500,my);note('Finding the right passages…');await wait(1300,my);answer(ANS.brief)}},
   dateien:{ids:['f-dl','f-mv'],run:async my=>{await keys(my);openPanel();pwB.innerHTML=START;await wait(900,my);const q='Where’s the invoice for my helmet?';await send(q,my);bubble(q);
     tl();const s=step('find','Searching Spotlight for “helmet”');await wait(1300,my);stepDone(s,'4 matches');await wait(600,my);answer(ANS.dateien)}},
-  mail:{ids:['f-dl'],run:async my=>{await tap(dp,my,{press:false});openPanel();pwB.innerHTML=START;await wait(900,my);const q='Did Radhaus Lindner email me?';await send(q,my);bubble(q);
-    tl();const s=step('mail','Searching your mail for “Radhaus Lindner”','m');await wait(1400,my);stepDone(s,'3 matches');await wait(600,my);answer(ANS.mail)}},
+  mail:{ids:[],run:async my=>{mApp.textContent='Mail';mw.classList.add('on');await wait(900,my);const it=$('#mwSel');await tap(it,my);it.classList.add('sel');$('#mwWhen').classList.add('hl');await wait(500,my);await keys(my);
+    openLine([],'Ask about this mail');await wait(500,my);const q='Does that work? Then add it and say yes.';await type(lnT,q,my);lnS.classList.add('go');await wait(300,my);lnS.classList.remove('go');
+    openPanel();bubble(q,chip('Your bike service appointment','mail'));tl();
+    let s=step('mail','Reading the selected mail','m');await wait(1000,my);stepDone(s);
+    s=step('cal','Looking in your calendar');await wait(1100,my);stepDone(s,'Tue 5:30 PM free');
+    s=step('cal','Adding a calendar entry');await wait(900,my);stepDone(s);
+    s=step('mail','Writing a mail draft','m');await wait(1100,my);stepDone(s);await wait(500,my);answer(ANS.mail)}},
   buero:{ids:[],run:async my=>{mApp.textContent='Excel';xl.classList.add('on');await wait(900,my);const sum=$('#xlSum');await tap(sum,my,{press:false});sum.classList.add('selc');await wait(300,my);await keys(my);
     openLine([],'Ask about this table');lnX.innerHTML='<div class="lrow"><span class="spin"></span>Looking at your table…</div>';await wait(1400,my);
     const head='<div class="lh"><small>Looking at your table: Utilities 2025, column B</small><b>This total leaves out one row.</b></div>',
@@ -754,7 +780,7 @@ const S={
     await wait(1500,my);const th=$('#rth'),out=$('#f-sm');await glide(th,700,my);cur.classList.add('down');lift([out]);th.style.opacity='.4';await wait(200,my);
     const d=rel(out);curTo(d,1000);await wait(1050,my);cur.classList.remove('down');ghost.classList.add('drop');out.classList.add('on')}}
 };
-const EST={dl:17500,brief:13000,dateien:11000,mail:11000,buero:13000,pdf:14500};
+const EST={dl:17500,brief:13000,dateien:11000,mail:13500,buero:13000,pdf:14500};
 const play=async i=>{const my=++job;at=i;items.forEach((li,n)=>{li.classList.toggle('on',n===i);const b=$('.bar i',li);b.style.transition='none';b.style.width='0';$('button',li).setAttribute('aria-current',n===i?'true':'false')});
   const btn=$('button',items[i]),k=btn.dataset.k,bar=$('.bar i',items[i]);reset(S[k].ids);scenD.innerHTML=$('.d',items[i]).innerHTML;
   if(scenOl.scrollWidth>scenOl.clientWidth)scenOl.scrollTo({left:items[i].offsetLeft-scenOl.offsetLeft-16,behavior:RM?'auto':'smooth'});

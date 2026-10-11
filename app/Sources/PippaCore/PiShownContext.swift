@@ -192,13 +192,14 @@ public enum PiShownContext {
                          from.isEmpty ? nil : (german ? "von \(from.prefix(80))" : "from \(from.prefix(80))")].compactMap { $0 }.joined(separator: ", ")
             }
             return line("Mail", extra, tool: doc)
-        case "tsv":
-            return line(german ? "Tabelle (Text, Spalten mit Tab)" : "Table (text, tab-separated)", tool: "read")
+        case "tsv", "csv":
+            // read_document, not read: Pippa recomputes the totals in code and puts the result before the cells.
+            return line(german ? "Tabelle (Text)" : "Table (text)", tool: doc)
         case "docx", "doc", "rtf", "rtfd", "odt", "pages":
             return line(german ? "Textdokument" : "Text document", tool: doc)
-        case "xlsx", "xls", "numbers":
+        case "xlsx", "xlsm", "xls", "numbers", "ods":
             return line(german ? "Tabelle" : "Spreadsheet", tool: doc)
-        case "txt", "md", "csv", "json", "xml", "log", "html", "htm":
+        case "txt", "md", "json", "xml", "log", "html", "htm":
             return line(german ? "Textdatei" : "Text file", tool: "read")
         default:
             return line(german ? "Datei" : "File", tool: doc)

@@ -5,8 +5,8 @@ import Foundation
 
 /// An offered button. `id` is the identifier in the task log.
 public struct ThingAction: Sendable, Hashable, Identifiable {
-    public enum Handler: Sendable, Hashable { case tool(ToolID), skill(String), tidy, invoiceTable }
-    /// `ToolID.rawValue`, skill name, "tidy" or "invoice-table".
+    public enum Handler: Sendable, Hashable { case tool(ToolID), skill(String), tidy }
+    /// `ToolID.rawValue` (also "invoice-table"), skill name or "tidy".
     public var id: String
     public var handler: Handler
     public var title: String
@@ -20,9 +20,6 @@ public struct ThingAction: Sendable, Hashable, Identifiable {
     }
     public static var tidy: ThingAction {
         ThingAction(id: "tidy", handler: .tidy, title: L("Tidy Up", table: "TrayCore"))
-    }
-    public static var invoiceTable: ThingAction {
-        ThingAction(id: "invoice-table", handler: .invoiceTable, title: L("Invoices as a Spreadsheet", table: "TrayCore"))
     }
 }
 
@@ -73,21 +70,22 @@ public enum ThingActions {
         for (url, s) in zip(urls, sorts) where s == .image || s == .pdf { total += size(url) }
         let large = total > largeBytes
 
-        // Images and PDFs, nothing else.
+        // Images and PDFs, nothing else. Receipts and invoices (by name) offer the table first.
         if others == 0 {
+            let invoices: [ThingAction] = urls.count >= 2 && urls.contains(where: looksLikeInvoice) ? [.tool(.invoiceTable)] : []
             if images >= 2 && pdfs == 0 {
-                var out: [ThingAction] = [.tool(.makeOnePDF)]
+                var out: [ThingAction] = invoices + [.tool(.makeOnePDF)]
                 if large { out.append(.tool(.makeSmaller)) }
-                out.append(.tool(.asPDF))
+                if invoices.isEmpty { out.append(.tool(.asPDF)) }
                 return out
             }
             if pdfs >= 2 && images == 0 {
-                var out: [ThingAction] = [.tool(.makeOnePDF)]
+                var out: [ThingAction] = invoices + [.tool(.makeOnePDF)]
                 if large { out.append(.tool(.makeSmaller)) }
                 return out
             }
             if images >= 1 && pdfs >= 1 {
-                return [.tool(.makeOnePDF), .tool(.makeSmaller)]
+                return invoices + [.tool(.makeOnePDF), .tool(.makeSmaller)]
             }
             if images == 1 {
                 let ext = urls[0].pathExtension.lowercased()
@@ -99,6 +97,7 @@ public enum ThingActions {
             if large { out.append(.tool(.makeSmaller)) }
             if role == .correspondence { out += [skill("brief-verstehen"), skill("antwort-schreiben")].compactMap { $0 } }
             else if role == .report || role == .notes { out += [skill("zusammenfassen")].compactMap { $0 } }
+            else if role == .invoice || looksLikeInvoice(urls[0]) { out.append(.tool(.invoiceTable)) }
             return out
         }
 
@@ -114,7 +113,10 @@ public enum ThingActions {
         if sorts.allSatisfy({ $0 == .folder }) { return [.tidy] }
         guard urls.count == 1 else { return [] }
         switch sorts[0] {
-        case .table: return [skill("tabelle-pruefen")].compactMap { $0 }
+        case .table:
+            // A table format Pippa cannot read gets no button that would then fail (`SheetFileCheck.unreadableNote`).
+            guard SheetFileCheck.isReadable(fileExtension: urls[0].pathExtension) else { return [] }
+            return [skill("tabelle-pruefen")].compactMap { $0 }
         case .mail: return role == .correspondence ? [skill("brief-verstehen"), skill("antwort-schreiben")].compactMap { $0 } : []
         case .document:
             // Editable Word files are often the person's own outgoing draft, which the system model cannot tell
@@ -126,6 +128,13 @@ public enum ThingActions {
             return role == .report || role == .notes ? [skill("zusammenfassen")].compactMap { $0 } : []
         case .folder, .image, .pdf, .other: return []
         }
+    }
+
+    /// Does the file name say receipt or invoice ("Rechnung 2026-03.pdf", "Kassenbon.jpg", "invoice_123.pdf")?
+    static func looksLikeInvoice(_ url: URL) -> Bool {
+        let name = url.deletingPathExtension().lastPathComponent.lowercased()
+        return ["rechnung", "invoice", "beleg", "quittung", "kassenbon", "receipt", "bon_", "bon-", "bon "].contains { name.contains($0) }
+            || name == "bon"
     }
 
     /// Kind for habits and log: several images or PDFs are scans, otherwise as before by kind and extension.

@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 public enum ToolID: String, Sendable, Codable, CaseIterable {
     case makeOnePDF = "make-one-pdf", makeSmaller = "make-smaller", asPDF = "as-pdf"
     case asJPEG = "as-jpg", asPNG = "as-png"
+    case invoiceTable = "invoice-table"
 
     /// Plain verb for the button.
     public var title: String {
@@ -20,6 +21,7 @@ public enum ToolID: String, Sendable, Codable, CaseIterable {
         case .asPDF: L("As PDF", table: "Tools")
         case .asJPEG: L("As JPG", table: "Tools")
         case .asPNG: L("As PNG", table: "Tools")
+        case .invoiceTable: L("Invoices as a Spreadsheet", table: "Tools")
         }
     }
 
@@ -31,6 +33,7 @@ public enum ToolID: String, Sendable, Codable, CaseIterable {
         case .asPDF: L("Making a PDF", table: "Tools")
         case .asJPEG: L("Making a JPG", table: "Tools")
         case .asPNG: L("Making a PNG", table: "Tools")
+        case .invoiceTable: L("Reading invoices", table: "Tools")
         }
     }
 }
@@ -52,13 +55,21 @@ public struct ToolOutput: Sendable {
     public var skipped: [FileReason]
     /// e.g. "Scans 06.10.2026.pdf" or "2 images as JPG".
     public var summary: String
+    /// One more sentence for the person, e.g. "Please check the yellow cells (2 invoices)."
+    public var note: String?
 
-    public init(files: [URL], consumedInputs: [URL], skipped: [FileReason], summary: String) {
-        self.files = files; self.consumedInputs = consumedInputs; self.skipped = skipped; self.summary = summary
+    public init(files: [URL], consumedInputs: [URL], skipped: [FileReason], summary: String, note: String? = nil) {
+        self.files = files; self.consumedInputs = consumedInputs; self.skipped = skipped; self.summary = summary; self.note = note
     }
 
     /// A sentence under the result when something stayed in place ("I skipped video.mov. I can only turn …"); otherwise nil.
     public var skippedSentence: String? { ToolText.skipped(skipped) }
+
+    /// What goes under the result: the note, then what stayed in place; nil when there is neither.
+    public var detailSentence: String? {
+        let parts = [note, skippedSentence].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
 }
 
 /// Errors the row answers with one sentence (and for passwords with a field).
@@ -149,6 +160,8 @@ public enum ResultNaming {
             return compose(base(inputs), ext: "jpg")
         case .asPNG:
             return compose(base(inputs), ext: "png")
+        case .invoiceTable:
+            return compose(german ? "Rechnungen" : "Invoices", ext: "xlsx")
         }
     }
 
@@ -181,6 +194,7 @@ public enum OneAnswerTools {
         switch tool {
         case .makeOnePDF, .makeSmaller: return kind != .other
         case .asPDF, .asJPEG, .asPNG: return kind == .image
+        case .invoiceTable: return kind != .other || ["docx", "txt", "eml", "rtf", "odt", "md"].contains(url.pathExtension.lowercased())
         }
     }
 
@@ -192,6 +206,7 @@ public enum OneAnswerTools {
         case .makeOnePDF: return try await MakePDF.combine(inputs, passwords: passwords, progress: progress)
         case .makeSmaller: return try await Shrink.run(inputs, passwords: passwords, progress: progress)
         case .asPDF, .asJPEG, .asPNG: return try await Convert.run(tool, inputs: inputs, progress: progress)
+        case .invoiceTable: return try await InvoiceTable.run(inputs.filter { accepts(.invoiceTable, $0) }, progress: progress)
         }
     }
 }
@@ -222,6 +237,7 @@ enum ToolText {
         case .asJPEG: return L("%lld images as JPG", table: "Tools", n)
         case .asPNG: return L("%lld images as PNG", table: "Tools", n)
         case .makeSmaller: return L("%lld files made smaller", table: "Tools", n)
+        case .invoiceTable: return files[0].lastPathComponent
         }
     }
 }

@@ -49,7 +49,7 @@ struct ConversationWorkspace: View {
                         }
                         if chat.isRunning {
                             if !chat.streamingText.isEmpty { AssistantAnswerView(text: chat.streamingText, cached: false) }
-                            // Real phases only; steps aside while answer text streams, returns for a tool after text.
+                            // Real phases only; while answer text streams only the handwriting stays, the words return for a tool after text.
                             ThoughtLineView(thought: chat.thought).id("thought")
                         }
                         ForEach(chat.queued) { entry in queuedView(entry) }
@@ -625,6 +625,16 @@ struct ConversationWorkspace: View {
             } label: {
                 Label(copied == message.id ? T("Copied", table: "Views") : T("Copy", table: "Views"), systemImage: copied == message.id ? "checkmark" : "doc.on.doc")
             }.pippa(.quiet).accessibilityLabel(T("Copy Draft", table: "Views"))
+            // A finished letter to print or attach: PDF in letter layout; the menu has the Word file.
+            Menu {
+                Button(T("As Word File", table: "Views")) { model.makeLetter(from: message.text, word: true) }
+            } label: {
+                Label(T("As Letter", table: "Views"), systemImage: "envelope")
+            } primaryAction: {
+                model.makeLetter(from: message.text)
+            }
+            .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+            .help(T("A letter with your address, the date and the subject, as a PDF", table: "Views"))
             Text(T("Just a draft · nothing sent", table: "Views")).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)
         }
     }

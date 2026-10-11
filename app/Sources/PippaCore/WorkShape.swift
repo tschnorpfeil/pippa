@@ -4,19 +4,17 @@ import simd
 /// Pippa's working sign in the chat line: the three rings of her mark take the shape of what she is doing,
 /// instead of a row of blinking dots. Thinking is the mark's own working motion; reading lights up lines, searching
 /// sends the rings out to roam until they meet on one spot, writing flows as endless handwriting, a question mark
-/// asks for the person. One calm movement per shape; the line's words say the rest.
+/// asks for the person. One calm movement per shape; the line's words say the rest. Few shapes on purpose: each one
+/// should be recognizable, and writing (the one seen most) stays under the answer for as long as text streams.
 public enum WorkShape: String, Sendable, CaseIterable {
-    /// Getting ready, waking up: the rings breathe in and out, one shortly after the other.
-    case wake
-    /// Waiting for the first words ("Considering…"), working, retrying: the rings turn like the mark at the pill.
+    /// Waiting for the first words ("Considering…"), getting ready, working, retrying: the rings turn like the mark at the pill.
     case think
-    /// Reading a file or recognizing text: lines light up from left to right, a small ring runs ahead.
+    /// Reading a file, recognizing text, checking the answer against it: lines light up from left to right, a small ring runs ahead.
     case read
     /// Choosing passages, looking through documents, the calendar or online: the rings roam and meet on one spot.
     case swarm
-    /// Checking the answer against the sources: a green ring ticks off one line after another.
-    case check
-    /// Answer text is on its way: handwriting that keeps flowing and never repeats.
+    /// Text is on its way (the answer, a draft for the preview, the summary of the conversation): handwriting that
+    /// keeps flowing and never repeats.
     case write
     /// Pippa needs the person: an orange question mark that sways a little.
     case question
@@ -25,12 +23,10 @@ public enum WorkShape: String, Sendable, CaseIterable {
 
     public init(_ phase: WorkPhase) {
         switch phase {
-        case .gettingReady, .wakingUp, .warmingUp: self = .wake
-        case .starting, .waitingForAnswer, .working, .retrying, .condensing, .preparingPreview: self = .think
-        case .reading, .recognizing: self = .read
+        case .starting, .gettingReady, .wakingUp, .warmingUp, .waitingForAnswer, .working, .retrying: self = .think
+        case .reading, .recognizing, .checkingSources: self = .read
         case .choosingPassages, .lookingThrough, .lookingUpOnline, .checkingCalendar: self = .swarm
-        case .checkingSources: self = .check
-        case .writing: self = .write
+        case .writing, .preparingPreview, .condensing: self = .write
         case .waitingForPerson: self = .question
         case .stopping: self = .still
         }
@@ -40,7 +36,7 @@ public enum WorkShape: String, Sendable, CaseIterable {
 /// One picture of a shape: seven strokes of equal point count, so any shape can morph into any other point by point.
 /// Coordinates run from -1 to 1 with y pointing down; unused strokes are tiny and invisible.
 public struct WorkShapeFrame: Sendable {
-    public enum Ink: Sendable { case accent, ok, need }
+    public enum Ink: Sendable { case accent, need }
     public struct Stroke: Sendable {
         public var points: [SIMD2<Double>]
         public var alpha: Double
@@ -64,18 +60,8 @@ public enum WorkShapeGeometry {
         var lines: [[SIMD2<Double>]]
         var alpha: [Double] = alphas
         var ink = WorkShapeFrame.Ink.accent
-        var inks: [WorkShapeFrame.Ink]? = nil
 
         switch shape {
-        case .wake:
-            // Starts at the top of a breath, in step with the pill's hover breath (outer ring first).
-            let breath = (0..<3).map { k in still ? 0.6 : 0.5 + 0.5 * cos((t - 0.22 * Double(k)) * tau / 3) }
-            lines = (0..<3).map { k in
-                let r = radii[k] * (0.3 + 0.62 * breath[k])
-                return ellipse(center: .zero, rx: r, ry: r, wobble: 1, time: t, strand: k)
-            }
-            alpha = (0..<3).map { k in alphas[k] * (still ? 1 : 0.6 + 0.4 * breath[k]) }
-
         case .think:
             let axes = [68.0, -28, 119], stillAngles = [0.9, 1.7, 2.4]
             lines = (0..<3).map { k in
@@ -120,18 +106,6 @@ public enum WorkShapeGeometry {
                 return apart + (alphas[k] - apart) * together
             }
 
-        case .check:
-            let ys = [-0.42, 0, 0.42]
-            let c = still ? 1.2 : t.truncatingRemainder(dividingBy: 3.6) / 1.2
-            let row = min(2, Int(c)), f = c - Double(row)
-            let hop = still ? 1 : spring(f / 0.45), previous = row == 0 ? -0.7 : ys[row - 1]
-            let y = previous + (ys[row] - previous) * clamp(hop, 0, 1.15)
-            let fade = still ? 1 : (row == 0 ? smooth(f / 0.25) : 1) * (row == 2 ? 1 - smooth((f - 0.8) / 0.2) : 1)
-            lines = (0..<3).map { k in polyline([SIMD2(-0.28, ys[k]), SIMD2(0.68, ys[k])]) }
-            lines.append(ellipse(center: SIMD2(-0.56, y), rx: 0.11, ry: 0.11))
-            alpha = (0..<3).map { k in k < row || (k == row && f > 0.35) ? 0.95 : 0.3 } + [fade]
-            inks = [.accent, .accent, .accent, .ok]
-
         case .write:
             func noise(_ x: Double, _ s: Double) -> Double {
                 0.5 * sin(x * 1.7 + s) + 0.3 * sin(x * 3.1 + s * 1.9) + 0.2 * sin(x * 5.3 + s * 0.7)
@@ -170,7 +144,7 @@ public enum WorkShapeGeometry {
         while lines.count < strokeCount { lines.append(hidden) }
         while alpha.count < strokeCount { alpha.append(0) }
         let strokes = (0..<strokeCount).map { i in
-            WorkShapeFrame.Stroke(points: lines[i], alpha: clamp(alpha[i], 0, 1), ink: inks.map { i < $0.count ? $0[i] : ink } ?? ink)
+            WorkShapeFrame.Stroke(points: lines[i], alpha: clamp(alpha[i], 0, 1), ink: ink)
         }
         return WorkShapeFrame(strokes: strokes)
     }
@@ -179,8 +153,6 @@ public enum WorkShapeGeometry {
 
     static func clamp(_ x: Double, _ lo: Double, _ hi: Double) -> Double { min(hi, max(lo, x)) }
     static func smooth(_ x: Double) -> Double { let x = clamp(x, 0, 1); return x * x * (3 - 2 * x) }
-    /// A soft spring with a little overshoot, 0 → 1.
-    static func spring(_ x: Double) -> Double { let x = clamp(x, 0, 10); return 1 - exp(-6 * x) * cos(8 * x) }
 
     /// A ring, with the mark's organic wobble when `wobble` > 0.
     static func ellipse(center: SIMD2<Double>, rx: Double, ry: Double, wobble: Double = 0, time: Double = 0, strand: Int = 0) -> [SIMD2<Double>] {

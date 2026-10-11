@@ -84,6 +84,21 @@ public enum XLSXReader {
     static let maxCharacters = 200_000
 
     public static func read(_ data: Data) -> (text: String, truncated: Bool)? {
+        workbook(data).map { ($0.text, $0.truncated) }
+    }
+
+    /// One sheet as cells for `SheetCheck` (values and formulas with a leading "="). Cells of a shared formula
+    /// other than its origin carry only their value: their formula text is not in the file.
+    public struct Sheet: Sendable {
+        public var name: String
+        public var grid: SheetGrid
+    }
+
+    /// Largest grid built for the check; a sparse sheet over a larger area gets no grid (the text stays).
+    static let maxGridCells = 200_000
+
+    /// Text for Pi and the read sheets as grids, from the same pass.
+    public static func workbook(_ data: Data) -> (text: String, truncated: Bool, sheets: [Sheet])? {
         guard let zip = ZipReader(data), let workbook = zip.read("xl/workbook.xml") else { return nil }
         guard let relXML = zip.read("xl/_rels/workbook.xml.rels"), let rels = Relationships.parse(relXML),
               let sheets = SheetList.parse(workbook) else { return nil }
@@ -94,6 +109,7 @@ public enum XLSXReader {
         }
         var out: [String] = [], cells = 0, truncated = false
         var characters = 0
+        var grids: [Sheet] = []
         for sheet in sheets {
             guard let relative = rels[sheet.rid] else { return nil }
             // Relationships are package paths; never access the file system.
@@ -105,9 +121,24 @@ public enum XLSXReader {
                 let text = "Blatt „\(sheet.name)“\n" + parsed.rows.joined(separator: "\n")
                 out.append(text); characters += text.count
             }
+            if let grid = grid(parsed.cells) { grids.append(Sheet(name: sheet.name, grid: grid)) }
             if truncated { break }
         }
-        return (out.joined(separator: "\n\n"), truncated)
+        return (out.joined(separator: "\n\n"), truncated, grids)
+    }
+
+    /// The cells as one rectangle from the first to the last used cell; nil if empty or too sparse.
+    static func grid(_ cells: [CellRef: SheetCell]) -> SheetGrid? {
+        guard let first = cells.keys.first else { return nil }
+        var top = first.row, bottom = first.row, left = first.column, right = first.column
+        for ref in cells.keys {
+            top = min(top, ref.row); bottom = max(bottom, ref.row)
+            left = min(left, ref.column); right = max(right, ref.column)
+        }
+        guard (bottom - top + 1) * (right - left + 1) <= maxGridCells else { return nil }
+        var rows = Array(repeating: Array(repeating: SheetCell.empty, count: right - left + 1), count: bottom - top + 1)
+        for (ref, cell) in cells { rows[ref.row - top][ref.column - left] = cell }
+        return SheetGrid(origin: CellRef(row: top, column: left), rows: rows)
     }
 
     /// Number as in German: decimal comma. Everything else stays as it is.
@@ -144,10 +175,20 @@ public enum XLSXReader {
     private final class SheetCells: NSObject, XMLParserDelegate {
         let strings: [String]; var budget: Int; var characterBudget: Int
         var rows: [String] = [], line: [String] = [], cellCount = 0, truncated = false
+        var cells: [CellRef: SheetCell] = [:]
         var ref = "", type = "", formula = "", value = "", inline = "", field = ""
         var sharedID: String?, sharedFormulas: [String: String] = [:]
         var invalid = false
         init(strings: [String], budget: Int, characterBudget: Int) { self.strings = strings; self.budget = budget; self.characterBudget = characterBudget }
+        /// The cell's value for the check: text cells stay text (a number typed as text is what the check looks for),
+        /// numbers become numbers, error values ("#REF!") stay text.
+        func typed(_ shown: String) -> SheetValue {
+            switch type {
+            case "s", "inlineStr", "str", "e": return shown.isEmpty ? .empty : .text(shown)
+            case "b": return .bool(value == "1")
+            default: return Double(value).map(SheetValue.number) ?? (shown.isEmpty ? .empty : .text(shown))
+            }
+        }
         static func parse(_ data: Data, strings: [String], budget: Int, characterBudget: Int) -> SheetCells? {
             let d = SheetCells(strings: strings, budget: budget, characterBudget: characterBudget); let p = XMLParser(data: data); p.delegate = d
             let ok = p.parse()
@@ -194,6 +235,8 @@ public enum XLSXReader {
                     budget -= 1; cellCount += 1
                     characterBudget -= cell.count + 3
                     line.append(cell)
+                    let derived = sharedID != nil && formula.isEmpty
+                    if let at = CellRef(a1: ref) { cells[at] = SheetCell(typed(shown), formula: derived || f.isEmpty ? nil : "=" + f) }
                 }
             } else if e == "row" {
                 if !line.isEmpty { rows.append(line.joined(separator: " | ")) }

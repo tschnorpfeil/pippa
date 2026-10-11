@@ -97,13 +97,27 @@ public enum TextReader {
             let text = (try? NSAttributedString(url: url, options: opts, documentAttributes: nil))?.string ?? ""
             return DocumentText(url: url, pages: [text], isPaged: false, usedOCR: false, problem: text.isEmpty ? .noText : .none)
         }
-        if ext == "xlsx" {
-            // Excel: values and formulas per cell, so Pi can check formulas (not just the results).
-            guard let data = try? Data(contentsOf: url, options: .mappedIfSafe), let sheet = XLSXReader.read(data) else {
+        if ext == "xlsx" || ext == "xlsm" {
+            // Excel: values and formulas per cell, so Pi can check formulas (not just the results). The totals were
+            // recomputed and the sums computed in code first (`SheetFileCheck`); the results come before the cells.
+            guard let data = try? Data(contentsOf: url, options: .mappedIfSafe), let book = XLSXReader.workbook(data) else {
                 return DocumentText(url: url, pages: [], isPaged: false, usedOCR: false, problem: .damaged)
             }
-            var result = DocumentText(url: url, pages: [sheet.text], isPaged: false, usedOCR: false, problem: sheet.text.isEmpty ? .noText : .none)
-            result.isTruncated = sheet.truncated
+            let note = book.text.isEmpty ? nil : SheetFileCheck.note(for: book.sheets.map { ($0.name, $0.grid) })
+            var result = DocumentText(url: url, pages: [SheetFileCheck.prepend(note, to: book.text)], isPaged: false, usedOCR: false,
+                                      problem: book.text.isEmpty ? .noText : .none)
+            result.isTruncated = book.truncated
+            return result
+        }
+        if ext == "csv" || ext == "tsv" {
+            // Table as text: the same check and sums in code before the text.
+            let text = readPlain(url) ?? ""
+            let shown = String(text.prefix(200_000))
+            let grid = SheetFileCheck.csvGrid(shown, separator: ext == "tsv" ? "\t" : nil)
+            let note = grid.flatMap { SheetFileCheck.note(for: [(url.deletingPathExtension().lastPathComponent, $0)]) }
+            var result = DocumentText(url: url, pages: [SheetFileCheck.prepend(note, to: shown)], isPaged: false, usedOCR: false,
+                                      problem: text.isEmpty ? .noText : .none)
+            result.isTruncated = text.count > 200_000
             return result
         }
         if type.conforms(to: .text) || ["md", "csv", "txt", "log", "json", "xml"].contains(ext) {

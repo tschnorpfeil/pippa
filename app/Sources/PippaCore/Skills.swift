@@ -114,10 +114,9 @@ public struct PippaSkill: Identifiable, Sendable, Hashable {
         let ext = fileExtension?.lowercased() ?? ""
         switch kind {
         case .mail, .pdf, .image: return nil
-        case .text: return ["csv", "tsv"].contains(ext) ? .tabelle : nil
-        case .office:
-            if ["xlsx", "xls", "ods", "numbers"].contains(ext) { return .tabelle }
-            return nil
+        case .text, .office:
+            // Only tables Pippa can read as cells; a .numbers, .xls or .ods would get a button that then fails.
+            return SheetFileCheck.isReadable(fileExtension: ext) ? .tabelle : nil
         case .folder, .mixed, .link, .other: return nil
         }
     }

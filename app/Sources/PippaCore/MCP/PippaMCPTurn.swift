@@ -166,7 +166,21 @@ public struct PippaMCPTurnTools: Sendable {
             }
             return Self.failure("not_found", "There is no file at this path. Use the exact path from the message.")
         }
-        if isFolder.boolValue { return Self.failure("is_folder", "This is a folder. Use list_folder to see what is in it.") }
+        // A Numbers file can be a package folder. With Numbers installed, Numbers saves an Excel copy that is read
+        // instead (the person's file stays untouched); otherwise say what to do with it instead of "folder".
+        var source = url
+        if url.pathExtension.lowercased() == "numbers", NumbersExport.isInstalled {
+            do {
+                source = try await NumbersExport.excelCopy(of: url)
+            } catch PippaError.accessDenied {
+                return Self.failure("no_access", "Pippa may not use Numbers to read this table. Tell the person in one sentence: allow Numbers for Pippa in System Settings > Privacy & Security > Automation, or save the table as an Excel file (.xlsx).")
+            } catch {
+                return Self.failure("unsupported", SheetFileCheck.unreadableNote(fileExtension: "numbers") ?? "")
+            }
+        } else if let note = SheetFileCheck.unreadableNote(fileExtension: url.pathExtension) {
+            return Self.failure("unsupported", note)
+        }
+        if isFolder.boolValue && source == url { return Self.failure("is_folder", "This is a folder. Use list_folder to see what is in it.") }
         // macOS privacy settings (Downloads, Desktop, Documents) can deny the app while the file exists; say that
         // instead of "damaged", so the model tells the person rather than trying other ways.
         do { try FileHandle(forReadingFrom: url).close() } catch let error as NSError where Self.isDenied(error) {
@@ -177,7 +191,7 @@ public struct PippaMCPTurnTools: Sendable {
 
         let turn = turns.active
         let window = from - 1 + Self.pagesPerCall
-        let document = await turn?.text(of: url, maxPages: window) ?? TextReader.read(url, options: .init(maxPages: window, ocr: true))
+        let document = await turn?.text(of: source, maxPages: window) ?? TextReader.read(source, options: .init(maxPages: window, ocr: true))
         switch document.problem {
         case .protected: return Self.failure("protected", "This file is password-protected. Pippa cannot read it.")
         case .cloudOnly: return Self.failure("cloud_only", "This file is only in iCloud and not downloaded to this Mac.")

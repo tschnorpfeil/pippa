@@ -288,3 +288,6 @@
 "Open" = "Öffnen";
 "%@ in %@" = "%@ in %@";
 "Opens the file" = "Öffnet die Datei";
+"As Letter" = "Als Brief";
+"As Word File" = "Als Word-Datei";
+"A letter with your address, the date and the subject, as a PDF" = "Ein Brief mit deiner Adresse, dem Datum und dem Betreff, als PDF";
