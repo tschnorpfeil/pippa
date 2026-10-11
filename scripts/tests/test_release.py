@@ -42,6 +42,24 @@ class ReleaseChecks(unittest.TestCase):
             with self.assertRaises(ValueError):
                 appcast.write_appcast(plist, archive, "v1", signature, output)
 
+    def test_unsigned_release_is_informational_and_never_older(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = pathlib.Path(folder)
+            plist, archive, output = folder / "Info.plist", folder / "Pippa-0.3.7-650.dmg", folder / "appcast.xml"
+            plist.write_bytes(plistlib.dumps(dict(
+                CFBundleVersion="650", CFBundleShortVersionString="0.3.7", LSMinimumSystemVersion="15.0",
+                SUFeedURL="https://github.com/tschnorpfeil/pippa/releases/latest/download/appcast.xml")))
+            archive.write_bytes(b"fixture")
+            appcast.write_appcast(plist, archive, "v0.3.7-650", "", output)
+            items = ET.parse(output).findall("channel/item")
+            ns = "{http://www.andymatuschak.org/xml-namespaces/sparkle}"
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0].findtext(ns + "version"), "650")
+            self.assertEqual(items[0].findtext(ns + "shortVersionString"), "0.3.7")
+            # No enclosure: Sparkle treats the item as informational and opens the link instead of installing.
+            self.assertIsNone(items[0].find("enclosure"))
+            self.assertEqual(items[0].findtext("link"), appcast.WEBSITE)
+
     def test_release_fails_before_build_without_credentials(self):
         result = subprocess.run(["bash", str(ROOT / "scripts/release.sh")], env={"PATH": "/usr/bin:/bin"}, capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
