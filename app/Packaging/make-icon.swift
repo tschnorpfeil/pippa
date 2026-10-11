@@ -190,7 +190,7 @@ func dmgBackground(width: Int, height: Int, fontsDir: String?) -> CGImage {
     ctx.saveGState()
     ctx.translateBy(x: 262 * scale, y: h - 160 * scale)
     ctx.rotate(by: 5 * .pi / 180)
-    NSAttributedString(string: "zieh mich rüber!", attributes: [.font: gochi(21), .foregroundColor: NSColor(cgColor: blue)!])
+    NSAttributedString(string: "rüber damit!", attributes: [.font: gochi(21), .foregroundColor: NSColor(cgColor: blue)!])
         .draw(at: .zero)
     ctx.restoreGState()
 
