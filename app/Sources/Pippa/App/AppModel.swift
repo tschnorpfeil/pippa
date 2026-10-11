@@ -267,7 +267,15 @@ final class AppModel: ObservableObject {
     }
 
     func updateMark() {
-        MarkHub.shared.set(markState)
+        MarkHub.shared.set(markState, shape: markShape)
+    }
+
+    /// While a conversation runs the pill's mark takes the chat's working shape ("Schreibe …" with handwriting);
+    /// thinking is the mark's own orbit, so it needs none.
+    var markShape: WorkShape? {
+        guard conversations.isRunning, let phase = conversations.thought.phase else { return nil }
+        let shape = WorkShape(phase)
+        return shape == .think ? nil : shape
     }
 
     /// The Pi setup's stuck flag changed (it lives there, not here).

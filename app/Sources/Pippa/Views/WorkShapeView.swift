@@ -53,6 +53,9 @@ final class WorkShapeMorph {
     private var strokes: [WorkShapeFrame.Stroke] = []
     private var last: Double?
 
+    /// Starts from this picture, so the next target morphs out of it instead of appearing at once.
+    func seed(_ frame: WorkShapeFrame) { strokes = frame.strokes }
+
     func step(toward target: WorkShapeFrame, at time: Double, follow: Double, snap: Bool) -> [WorkShapeFrame.Stroke] {
         let dt = last.map { min(0.1, max(0, time - $0)) } ?? 0
         last = time
