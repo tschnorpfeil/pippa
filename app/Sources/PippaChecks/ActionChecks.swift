@@ -67,7 +67,7 @@ func runActionChecks() {
         let text: [String] = []
         let mail: [String] = []
         return ids([f("Kosten.xlsx")]) == table && ids([f("Liste.csv")]) == table && ids([f("Bericht.docx")]) == document
-            && ids([f("Haushalt.numbers")]).isEmpty && ids([f("Alt.xls")]).isEmpty
+            && ids([f("Haushalt.numbers")]) == (NumbersExport.isInstalled ? table : []) && ids([f("Alt.xls")]).isEmpty
             && ids([f("Notiz.txt")]) == text && ids([f("Nachricht.eml")]) == mail
     }
     check("Offers: mixed with video – one PDF if an image or PDF is included; video only – nothing") {

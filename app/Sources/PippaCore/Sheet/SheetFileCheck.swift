@@ -1,12 +1,18 @@
 import Foundation
 
-// "Check the total" for a table file (dropped .xlsx, .csv, .tsv), not only for the open Excel window:
-// `SheetCheck` runs on the read cells and its findings go to the model ahead of the cells, so the model
-// explains what code found instead of adding up numbers itself. Plain code, no model.
+// "Check the total" for a table file (dropped .xlsx, .csv, .tsv, and the open Excel sheet handed to the conversation):
+// `SheetCheck` and `SheetFacts` run on the read cells and their results go to the model ahead of the cells, so the
+// model explains what code found and computed instead of adding up numbers itself. Plain code, no model.
 
 public enum SheetFileCheck {
     /// Table formats Pippa reads as cells. Others (.numbers, .xls, .ods) get a sentence instead (`unreadableNote`).
     public static let readableExtensions: Set<String> = ["xlsx", "xlsm", "csv", "tsv"]
+    /// Can Pippa read this table? The formats above, and Numbers files when Numbers is installed (`NumbersExport`
+    /// saves an Excel copy first).
+    public static func isReadable(fileExtension: String) -> Bool {
+        let ext = fileExtension.lowercased()
+        return readableExtensions.contains(ext) || (ext == "numbers" && NumbersExport.isInstalled)
+    }
     /// Spreadsheet formats Pippa cannot read yet.
     public static let unreadableExtensions: Set<String> = ["numbers", "xls", "ods"]
     /// At most this many findings per sheet in the note; the cells follow anyway.
@@ -14,26 +20,30 @@ public enum SheetFileCheck {
     /// At most this many cells from a CSV go into the check (the same budget as Excel files).
     static let maxCells = 4000
 
-    /// What the model reads before the cells. Fixed German text, like "Blatt" in `XLSXReader`; the finding sentences
-    /// are in the UI language. Nil if no sheet has a total: then there is nothing code checked, and the model must stay
-    /// free to answer questions like "how much in total?".
+    /// What the model reads before the cells: the totals checked (`SheetCheck`) and the sums computed (`SheetFacts`).
+    /// Fixed German text, like "Blatt" in `XLSXReader`; the finding sentences are in the UI language. Nil if code found
+    /// nothing to check or to add up (no heading row, no number column, no total).
     public static func note(for sheets: [(name: String, grid: SheetGrid)], locale: Locale = .current) -> String? {
-        let checked = sheets.filter { !$0.grid.isEmpty }.map { (name: $0.name, result: SheetCheck.run($0.grid, locale: locale)) }
-            .filter { $0.result.foundTotals || !$0.result.findings.isEmpty }
-        guard !checked.isEmpty else { return nil }
-        var lines = ["[Pippa hat die Summen dieser Tabelle mit Code nachgerechnet – verlässlich. Übernimm diese Ergebnisse, statt die Summen selbst neu zu rechnen.]"]
-        for (name, result) in checked {
-            let prefix = sheets.count > 1 ? "Blatt „\(name)“: " : ""
-            lines.append(prefix + result.firstLine.text)
-            for finding in result.findings.prefix(findingLimit) {
-                let cells = finding.addresses.isEmpty ? "" : " (Zellen: \(finding.addresses.joined(separator: ", ")))"
-                lines.append("- " + finding.sentence + cells)
+        var lines = ["[Pippa hat diese Tabelle mit Code nachgerechnet – verlässlich. Übernimm diese Zahlen genau, statt selbst zu rechnen. Summenzeilen sind in den Summen nicht mitgezählt.]"]
+        for sheet in sheets where !sheet.grid.isEmpty {
+            let result = SheetCheck.run(sheet.grid, locale: locale)
+            let facts = SheetFacts.lines(SheetFacts.compute(sheet.grid), locale: locale)
+            let checked = result.foundTotals || !result.findings.isEmpty
+            guard checked || !facts.isEmpty else { continue }
+            if sheets.count > 1 { lines.append("Blatt „\(sheet.name)“:") }
+            if checked {
+                lines.append(result.firstLine.text)
+                for finding in result.findings.prefix(findingLimit) {
+                    let cells = finding.addresses.isEmpty ? "" : " (Zellen: \(finding.addresses.joined(separator: ", ")))"
+                    lines.append("- " + finding.sentence + cells)
+                }
+                if result.findings.count > findingLimit {
+                    lines.append("- … und \(result.findings.count - findingLimit) weitere Funde.")
+                }
             }
-            if result.findings.count > findingLimit {
-                lines.append("- … und \(result.findings.count - findingLimit) weitere Funde.")
-            }
+            lines += facts
         }
-        return lines.joined(separator: "\n")
+        return lines.count > 1 ? lines.joined(separator: "\n") : nil
     }
 
     /// The check's note followed by the text Pi reads, or the text alone when there is nothing to check.

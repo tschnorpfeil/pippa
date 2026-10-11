@@ -116,7 +116,7 @@ public struct PippaSkill: Identifiable, Sendable, Hashable {
         case .mail, .pdf, .image: return nil
         case .text, .office:
             // Only tables Pippa can read as cells; a .numbers, .xls or .ods would get a button that then fails.
-            return SheetFileCheck.readableExtensions.contains(ext) ? .tabelle : nil
+            return SheetFileCheck.isReadable(fileExtension: ext) ? .tabelle : nil
         case .folder, .mixed, .link, .other: return nil
         }
     }

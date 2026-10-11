@@ -237,7 +237,9 @@ func runSheetChecks() async {
         guard let c = SheetComparison.find(in: years), let p = SheetComparison.find(in: previous) else { return false }
         let line = c.line(locale: english)
         return c.currentHeading == "2026" && c.previousHeading == "2025" && c.changes.count == 2
-            && c.biggestChange?.label == "Miete" && line.contains("Miete") && noAddress(line)
+            && c.biggestChange?.label == "Miete" && line.contains("In total 1,034 instead of 970 (+6.6 %).")
+            && line.contains("Miete +50 (950 instead of 900)") && line.contains("Strom +14 (84 instead of 70)") && noAddress(line)
+            && SheetComparison.signed(-14, locale: english) == "−14" && SheetComparison.percent(-0.13, locale: english) == "−13 %"
             && p.currentColumn == 2 && p.previousColumn == 3 && SheetComparison.find(in: single) == nil
             && SheetCheck.run(years, locale: english).allFine
     }
@@ -339,13 +341,58 @@ func runSheetChecks() async {
         let comma = SheetFileCheck.guessSeparator("a,b,c\n1;2") == ","
         return cells && tab && comma && SheetFileCheck.csvGrid("Table: Kosten\nSheet: 2026\nRow\tA") == nil && SheetFileCheck.csvGrid(" \n") == nil
     }
-    check("Table file: a total row that is wrong is found in code; without a total there is no note") {
+    check("Table file: a total row that is wrong is found in code, the sum without it computed; nothing to add up, no note") {
         let csv = "Posten;Betrag\nMiete;800\nStrom;84,20\nWasser;22,49\nSumme;884,20\n"
         guard let g = SheetFileCheck.csvGrid(csv), let note = SheetFileCheck.note(for: [("Nebenkosten", g)], locale: english) else { return false }
         let plain = SheetFileCheck.csvGrid("Posten;Betrag\nMiete;800\nStrom;84,20\n")!
-        return note.hasPrefix("[Pippa hat die Summen") && note.contains("B5") && !note.contains("Blatt")
-            && SheetFileCheck.note(for: [("Liste", plain)], locale: english) == nil
+        let words = SheetFileCheck.csvGrid("Name;Ort\nAnna;Köln\nBen;Bonn\n")!
+        let plainNote = SheetFileCheck.note(for: [("Liste", plain)], locale: english) ?? ""
+        if !note.contains("Summe 906.69 aus 3 Zeilen") { print("  note: \(note)") }
+        return note.hasPrefix("[Pippa hat diese Tabelle") && note.contains("B5") && !note.contains("Blatt") && note.contains("Summe 906.69 aus 3 Zeilen")
+            && plainNote.contains("Summe 884.20 aus 2 Zeilen") && !plainNote.contains("Zellen:")
+            && SheetFileCheck.note(for: [("Namen", words)], locale: english) == nil
             && SheetFileCheck.prepend(nil, to: "x") == "x" && SheetFileCheck.prepend("n", to: "x") == "n\n\nx"
+    }
+    check("Table facts: sum, smallest and largest with their row, sums per category; numbers, years and totals kept apart") {
+        let g = grid([
+            [t("Kategorie"), t("Rechnungsnr."), t("Jahr"), t("Betrag")],
+            [t("Strom"), n(1001), n(2025), n(84.2)],
+            [t("Miete"), n(1002), n(2025), n(800)],
+            [t("Strom"), n(1003), n(2025), t("90,10")],
+            [t("Miete"), n(1004), n(2025), n(800)],
+            [t("Wasser"), n(1005), n(2025), n(22.5)],
+            [t("Summe"), SheetCell(.empty), SheetCell(.empty), f("=SUM(D2:D6)", 1796.8)],
+        ])
+        let facts = SheetFacts.compute(g)
+        guard facts.columns.count == 1, let column = facts.columns.first, let groups = facts.groups else {
+            print("  facts: \(facts.columns.map(\.heading)), groups: \(facts.groups?.by ?? "none")"); return false
+        }
+        let lines = SheetFacts.lines(facts, locale: english).joined(separator: "\n")
+        if !lines.contains("Miete 1,600 (2); Strom 174.30 (2); Wasser 22.50 (1)") { print("  lines: \(lines)") }
+        return column.heading == "Betrag" && abs(column.sum - 1796.8) < 0.001 && column.count == 5 && column.textNumbers == 1
+            && column.smallest.row == 6 && column.largest.row == 3 && groups.by == "Kategorie" && groups.items.first?.name == "Miete"
+            && lines.contains("Miete 1,600 (2); Strom 174.30 (2); Wasser 22.50 (1)") && lines.contains("Zeile 6, Wasser")
+            && SheetFacts.isIdentifier("Kunden-Nr") && SheetFacts.isIdentifier("PLZ") && !SheetFacts.isIdentifier("Anrede") && !SheetFacts.isIdentifier("Betrag")
+    }
+    check("Excel writer: the file reads back with text, numbers, formulas, umlauts and dates; Pippa's copy of a sheet keeps addresses") {
+        let day = Date(timeIntervalSince1970: 1_767_225_600) // 1 Jan 2026, 00:00 UTC
+        let rows: [[XLSXWriter.Cell]] = [
+            [.text("Posten"), .text("Betrag"), .text("Datum")],
+            [.text("Müll & <Gebühr>"), .number(84.2, format: .money), XLSXWriter.Cell(.date(day), format: .date)],
+            [.text("Summe", bold: true), XLSXWriter.Cell(.number(84.2), formula: "=SUM(B2:B2)", format: .money, bold: true), .text("prüfen", highlight: true)],
+        ]
+        let data = XLSXWriter.data([XLSXWriter.Sheet(name: "Kosten: 2026/1", rows: rows)])
+        guard let book = XLSXReader.workbook(data), let sheet = book.sheets.first else { return false }
+        let g = sheet.grid
+        let written = sheet.name == "Kosten 20261" && g[2, 1].value == .text("Müll & <Gebühr>") && g[2, 2].value == .number(84.2)
+            && g[2, 3].value == .number(46023) && g[3, 2].formula == "=SUM(B2:B2)" && g[3, 2].value == .number(84.2) && g[3, 3].value == .text("prüfen")
+        // A sheet read from Excel starting at C3 lands at C3 again.
+        let excerpt = SheetGrid(origin: CellRef(row: 3, column: 3), rows: [[t("Posten"), t("Betrag")], [t("Miete"), n(800)], [t("Summe"), f("=SUM(D4:D4)", 800)]])
+        guard let copy = XLSXWriter.Sheet(name: "2026", grid: excerpt), let back = XLSXReader.workbook(XLSXWriter.data([copy]))?.sheets.first?.grid else { return false }
+        let kept = back[4, 4].value == .number(800) && back[5, 4].formula == "=SUM(D4:D4)" && back[3, 3].value == .text("Posten")
+        let names = XLSXWriter.uniqueName("Kosten", in: ["kosten"]) == "Kosten 2" && XLSXWriter.sheetName("[]") == "Tabelle1"
+        if !written || !kept { print("  read back: \(book.text.prefix(400))") }
+        return written && kept && names && XLSXWriter.Sheet(name: "x", grid: SheetGrid(origin: CellRef(row: 5000, column: 1), rows: [[n(1)]])) == nil
     }
     check("Table file: Excel cells keep numbers, text numbers and formulas for the check; a total leaving out a row is found") {
         let sheetXML = #"<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Posten</t></is></c><c r="B1" t="inlineStr"><is><t>Betrag</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Miete</t></is></c><c r="B2"><v>800</v></c></row><row r="3"><c r="A3" t="inlineStr"><is><t>Strom</t></is></c><c r="B3" t="inlineStr"><is><t>84,20</t></is></c></row><row r="4"><c r="A4" t="inlineStr"><is><t>Wasser</t></is></c><c r="B4"><v>22.5</v></c></row><row r="5"><c r="A5" t="inlineStr"><is><t>Summe</t></is></c><c r="B5"><f>SUM(B2:B3)</f><v>800</v></c></row></sheetData></worksheet>"#
@@ -364,15 +411,23 @@ func runSheetChecks() async {
         write("Posten;Betrag\nMiete;800\nStrom;84,20\nSumme;900\n", csv)
         let csvRead = TextReader.read(csv).fullText
         return typed && result.findings.map(\.kind).contains(.missingRows) && book.text == XLSXReader.read(data)?.text
-            && read.fullText.hasPrefix("[Pippa hat die Summen") && read.fullText.hasSuffix(book.text)
-            && csvRead.hasPrefix("[Pippa hat die Summen") && csvRead.hasSuffix("Summe;900\n")
+            && read.fullText.hasPrefix("[Pippa hat diese Tabelle") && read.fullText.hasSuffix(book.text)
+            && csvRead.hasPrefix("[Pippa hat diese Tabelle") && csvRead.hasSuffix("Summe;900\n")
     }
-    check("Table file: only readable tables get the check button; Numbers, .xls and .ods get a sentence instead") {
+    check("Numbers: the Excel copy goes to Pippa's cache, one name per file and change, never next to the person's file") {
+        let file = dir("numbers").appendingPathComponent("Haushalt 2026.numbers")
+        write("x", file)
+        let first = NumbersExport.copyURL(for: file), again = NumbersExport.copyURL(for: file)
+        let other = NumbersExport.copyURL(for: dir("numbers").appendingPathComponent("Anders.numbers"))
+        return first == again && first != other && first.lastPathComponent == "Haushalt 2026.xlsx" && first.path.contains("/Caches/")
+            && first.deletingLastPathComponent() != file.deletingLastPathComponent()
+    }
+    check("Table file: only readable tables get the check button; Numbers (without Numbers), .xls and .ods get a sentence instead") {
         func place(_ name: String) -> PippaSkill.Place? {
             let url = URL(fileURLWithPath: "/x/" + name)
             return PippaSkill.place(for: DropKind.guess(for: url), fileExtension: url.pathExtension)
         }
-        return place("Haushalt.xlsx") == .tabelle && place("Liste.csv") == .tabelle && place("Haushalt.numbers") == nil
+        return place("Haushalt.xlsx") == .tabelle && place("Liste.csv") == .tabelle && place("Haushalt.numbers") == (NumbersExport.isInstalled ? PippaSkill.Place.tabelle : nil)
             && place("Alt.xls") == nil && place("Libre.ods") == nil
             && SheetFileCheck.unreadableNote(fileExtension: "Numbers")?.contains(".xlsx") == true && SheetFileCheck.unreadableNote(fileExtension: "pdf") == nil
     }
