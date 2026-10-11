@@ -323,7 +323,8 @@ func runSetupChecks() async {
             && copied.outcome == .modelReady(file: rC.pippaModels.appendingPathComponent(file), method: .copy, source: "Pippa")
             && (try? Data(contentsOf: container)) == data
 
-        // Wrong content (same size): nothing adopted, source untouched. Nothing found: download needed.
+        // Wrong content (same size): nothing adopted, source untouched, the right one is downloaded instead (setup
+        // used to stop here for good, as "Try again" found the same file again).
         let homeD = fakeHome("adopt-bad"); defer { discard(homeD) }
         let rD = roots(homeD, payload)
         var wrong = data; wrong[0] ^= 0xFF
@@ -332,14 +333,45 @@ func runSetupChecks() async {
         try wrong.write(to: bad)
         let mismatch = PiInstaller(roots: rD)
         _ = mismatch.prepareModelsFolder()
-        let refused = mismatch.provideModel(model, searchRoots: ExistingModels.defaultRoots(home: homeD))
-        try fm.removeItem(at: bad) // our test file in the fake HOME
-        let missing = mismatch.provideModel(model, searchRoots: ExistingModels.defaultRoots(home: homeD))
-        let badOK = refused.outcome == .failed(.checksumMismatch(bad.path))
+        let skipped = mismatch.provideModel(model, searchRoots: ExistingModels.defaultRoots(home: homeD))
+        let badOK = skipped.outcome == .needsDownload(bytes: Int64(data.count))
             && !fm.fileExists(atPath: rD.pippaModels.appendingPathComponent(file).path)
-            && missing.outcome == .needsDownload(bytes: Int64(data.count))
+            && (try? Data(contentsOf: bad)) == wrong
         if !(cloneOK && linkOK && copyOK && badOK) { print("   ", cloneOK, linkOK, copyOK, badOK, cloned.outcome, linked.outcome, copied.outcome, refused.outcome) }
         return cloneOK && linkOK && copyOK && badOK
+    }
+
+    check("Installer: a wrong model file of Pippa's own is loaded again; the person's own in ~/models stays and is named") {
+        let home = fakeHome("model-wrong"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let (model, data) = dummyModel()
+        let file = "Dummy-1B-Q4_K_M.gguf"
+        var wrong = data; wrong[0] ^= 0xFF
+
+        // Pippa's own folder: an older download (old .ok marker) no longer matches the catalog. Removed, download needed.
+        let r = roots(home, payload)
+        let own = PiInstaller(roots: r)
+        _ = own.prepareModelsFolder()
+        let stale = r.pippaModels.appendingPathComponent(file)
+        try wrong.write(to: stale)
+        try "0000".write(to: stale.appendingPathExtension("ok"), atomically: true, encoding: .utf8)
+        let reloaded = own.provideModel(model, searchRoots: [])
+        let ownOK = reloaded.outcome == .needsDownload(bytes: Int64(data.count))
+            && !fm.fileExists(atPath: stale.path) && !fm.fileExists(atPath: stale.appendingPathExtension("ok").path)
+
+        // Shared ~/models with the person's own file of that name: untouched, and setup says which file is in the way.
+        let homeB = fakeHome("model-wrong-shared"); defer { discard(homeB) }
+        let rB = roots(homeB, payload)
+        try fm.createDirectory(at: rB.sharedModels, withIntermediateDirectories: true)
+        let theirs = rB.sharedModels.appendingPathComponent(file)
+        try wrong.write(to: theirs)
+        let shared = PiInstaller(roots: rB)
+        _ = shared.prepareModelsFolder()
+        let refused = shared.provideModel(model, searchRoots: [])
+        let sharedOK = refused.outcome == .failed(.checksumMismatch(theirs.path)) && (try? Data(contentsOf: theirs)) == wrong
+            && PiInstaller.details(.checksumMismatch(theirs.path)).contains("Rename or remove it")
+        if !(ownOK && sharedOK) { print("   ", ownOK, sharedOK, reloaded.outcome, refused.outcome) }
+        return ownOK && sharedOK
     }
 
     check("Installer: second run changes nothing (idempotent); repair only replaces Pippa's own release") {

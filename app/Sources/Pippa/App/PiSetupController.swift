@@ -124,7 +124,8 @@ final class PiSetupController: ObservableObject {
     }
 
     /// "Laden": the only consent. Downloads resumably, then the rest of setup.
-    func load() {
+    /// `previous`: a cancelled attempt that must have let go of the part file before this one opens it.
+    func load(after previous: Task<Void, Never>? = nil) {
         guard let flow, task == nil else { return }
         downloadChosen = true
         showsDetails = false
@@ -133,6 +134,7 @@ final class PiSetupController: ObservableObject {
         loadID = id
         watchStall()
         task = Task { [weak self] in
+            await previous?.value
             let result = await flow.download { progress, remaining in
                 Task { @MainActor in self?.progress(progress, remaining) }
             }
@@ -156,16 +158,20 @@ final class PiSetupController: ObservableObject {
     func retry() { begin() }
 
     /// "Try Again" while a download hangs: stop the attempt and start a fresh one right away. It continues where the
-    /// previous one stopped (the part file stays).
+    /// previous one stopped (the part file stays). The fresh attempt waits until the old one has really stopped: two
+    /// downloaders appending to the same part file would corrupt it, and the checksum would then throw away everything
+    /// loaded so far.
     func retryDownload() {
         if case .downloading = state {
-            task?.cancel()
+            let previous = task
+            previous?.cancel()
             task = nil
             loadID = nil
-            load()
+            load(after: previous)
         } else if case .downloading? = update {
+            let previous = updateTask
             stopUpdate()
-            loadUpdate()
+            loadUpdate(after: previous)
         }
     }
 
@@ -271,7 +277,8 @@ extension PiSetupController {
     }
 
     /// "Pippas Wissen jetzt laden (5,7 GB)": loads the new knowledge beside the working one (resumable).
-    func loadUpdate() {
+    /// `previous`: as in `load(after:)`.
+    func loadUpdate(after previous: Task<Void, Never>? = nil) {
         guard let flow, updateTask == nil, flow.pendingDownload != nil else { return }
         let id = UUID()
         updateID = id
@@ -279,6 +286,7 @@ extension PiSetupController {
         watchStall()
         DiagnosticsLog.shared.event("wissen-laden", ["modell": flow.model.key])
         updateTask = Task { [weak self] in
+            await previous?.value
             let result = await flow.download { progress, remaining in
                 Task { @MainActor in self?.updateProgress(progress, remaining, id: id) }
             }

@@ -40,8 +40,10 @@ public enum PiInstallFailure: Error, Sendable, Equatable {
     case notWritable(path: String, reason: String)
     /// models.json is not readable JSON (e.g. comments); nothing changed.
     case modelsJSONUnreadable(String)
-    /// An existing model file does not match the catalog (SHA-256). It stays untouched.
+    /// A model file the person put into the shared `~/models` does not match the catalog (SHA-256). It stays untouched.
     case checksumMismatch(String)
+    /// The downloaded file did not match the catalog (SHA-256) and was thrown away; "Try again" loads it once more.
+    case downloadDamaged
     case notEnoughSpace(bytes: Int64)
     /// A step needs a previous one (e.g. model without model folder).
     case missingStep(PiInstallStep)
