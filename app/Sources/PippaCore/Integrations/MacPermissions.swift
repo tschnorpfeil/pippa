@@ -228,7 +228,7 @@ public final class SystemPermissions: PermissionDesk, @unchecked Sendable {
     }
 
     /// Lists each folder in turn (off the main thread: the call waits for the dialog). Any refusal counts as declined.
-    static func read(_ folders: [URL]) async -> PermissionState {
+    public static func read(_ folders: [URL]) async -> PermissionState {
         await Task.detached(priority: .userInitiated) { () -> PermissionState in
             var denied = false
             for folder in folders {

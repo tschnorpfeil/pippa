@@ -1259,10 +1259,7 @@ final class AppModel: ObservableObject {
             if plan.ops.isEmpty, plan.skipped.isEmpty, plan.later.isEmpty, plan.remaining.isEmpty {
                 self.sortRound = nil
                 self.plan = nil
-                let body = T("I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”.", table: "App", plan.scope.lastPathComponent)
-                return self.show(.message(title: T("Nothing to tidy here", table: "App"),
-                                          body: body,
-                                          isError: false))
+                return self.showNothingToTidy(in: plan.scope, retry: { [weak self] in self?.proposeSort(items: items, scope: folder, limit: limit) })
             }
             // Nothing that could be moved without a model, only documents for later: no empty preview, but a sentence.
             if !plan.later.isEmpty, !plan.ops.contains(where: { $0.kind != .mkdir && $0.certainty != .unreadable }) {
@@ -1277,6 +1274,29 @@ final class AppModel: ObservableObject {
                 ? T("Tidy preview: 1 file", table: "App")
                 : T("Tidy preview: %lld files", table: "App", n)
             self.conversations.append(.system, line)
+        }
+    }
+
+    /// An empty tidy preview. If macOS refused the folder, say that plainly with the way to turn it on, instead of
+    /// "nothing here" for a folder full of files.
+    private func showNothingToTidy(in folder: URL, retry: @escaping @MainActor () -> Void) {
+        let name = folder.lastPathComponent
+        let fallback = ShellMode.message(title: T("Nothing to tidy here", table: "App"),
+                                         body: T("I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”.", table: "App", name),
+                                         isError: false)
+        guard !engine.isDemo else { return show(fallback) }
+        Task { @MainActor [weak self] in
+            let refused = await PermissionOnboarding.folderRefused(folder)
+            guard let self, !self.isActiveWork else { return }
+            guard refused else { return self.show(fallback) }
+            DiagnosticsLog.shared.event("aufraeumen-ohne-erlaubnis", [:])
+            self.show(.notice(title: T("I’m not allowed to look into “%@”", table: "App", name),
+                              detail: T("Your Mac said no to Pippa for this folder. Turn on Pippa in System Settings under “Files & Folders”, then try again.", table: "App"),
+                              buttons: [.init(title: T("Open System Settings", table: "App"), primary: true) { [weak self] in
+                                            NSWorkspace.shared.open(MacPermission.folders.settingsURL)
+                                            self?.collapse()
+                                        },
+                                        .init(title: T("Try Again", table: "App"), primary: false) { retry() }]))
         }
     }
 

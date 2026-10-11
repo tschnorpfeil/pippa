@@ -61,6 +61,8 @@ final class PiSetupController: ObservableObject {
     private var rawProgress = 0.0
     /// The running "Laden": a restart ("Try Again") ignores the result of the attempt it replaced.
     private var loadID: UUID?
+    /// The first setup result after app start may bring back "What Pippa may do" (`PermissionOnboarding.remindsAtStart`).
+    private var remindsPermissions = false
 
     init(flow: PiSetupFlow?, state: PiSetupState = .preparing(adoptingFrom: nil)) {
         self.flow = flow
@@ -102,6 +104,7 @@ final class PiSetupController: ObservableObject {
     /// At app start: pass changes on to the shell (size), then set up quietly.
     func attach(to model: AppModel) {
         self.model = model
+        remindsPermissions = true
         forward = objectWillChange.sink { [weak model] _ in
             model?.objectWillChange.send()
             // After the change has landed: the mark follows the download (AppModel.markState).
@@ -149,8 +152,15 @@ final class PiSetupController: ObservableObject {
     private(set) var deferred = false
 
     /// "Später" and "Ausblenden": back to the pill. A running download continues.
+    /// "Später" to the download while "What Pippa may do" is still to come: that page first, the AI waits.
     func later() {
-        if asksDownload { deferred = true }
+        if asksDownload {
+            deferred = true
+            if model?.permissions.onboardingPending == true {
+                objectWillChange.send()
+                return
+            }
+        }
         model?.collapse()
     }
 
@@ -237,8 +247,15 @@ final class PiSetupController: ObservableObject {
         } else if case .failed(let problem) = result {
             DiagnosticsLog.shared.event("pi-setup", ["stand": "fehler", "details": problem.details])
         }
+        let remind = remindsPermissions
+        remindsPermissions = false
+        guard let model, DevSnapshot.directory == nil, model.mode.key == "pill", !model.isActiveWork else { return }
+        // Ready, but "What Pippa may do" was closed or never seen: the Welcome brings it back (at most twice).
+        if isReady {
+            if remind, model.permissions.remindsAtStart { model.show(.onboarding) }
+            return
+        }
         // Not done yet (e.g. earlier "Später"): show the Welcome once at start. Not in recordings.
-        guard let model, DevSnapshot.directory == nil, !isReady, model.mode.key == "pill", !model.isActiveWork else { return }
         model.show(.onboarding)
     }
 }
