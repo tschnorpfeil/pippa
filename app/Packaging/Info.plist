@@ -87,14 +87,15 @@
 	     Check daily, download silently and install on the next quit; no "Check for updates automatically?"
 	     dialog because the values are already set here.
 	     SUPublicEDKey: public EdDSA key; the private one lives only in the developer's keychain
-	     (generate_keys) and signs every update.
+	     (generate_keys) and signs every update. Replaced in October 2026 after 0.3.6; older installs accept it through Sparkle's
+	     Developer ID fallback (docs/development.md "Update key").
 	     Without the App Sandbox, Sparkle installs directly: no SUEnableInstallerLauncherService,
 	     no SUEnableDownloaderService; build-app.sh removes Sparkle's XPC services from the bundle
 	     (Sparkle docs, "Sandboxing": not sandboxed means the XPC services are not needed and may be removed). -->
 	<key>SUFeedURL</key>
 	<string>https://github.com/tschnorpfeil/pippa/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>BM/Djr2FKjYH9JN70SGI8LxeGtSnwB1yfDPPOPl5syw=</string>
+	<string>iapp2ewnuhO1qQZ1NmiV1eLn5OxjykHnHI0/nj+G3Ck=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUAutomaticallyUpdate</key>
