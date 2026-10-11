@@ -420,6 +420,21 @@ display:grid;grid-template-columns:30px 1fr auto;gap:2px 10px;align-items:center
 /* Eine Tabelle in Excel (05) */
 .xl{position:absolute;left:4%;top:calc(26px + 7%);width:min(340px,46%);background:#fff;border-radius:10px;overflow:hidden;z-index:3;font-size:12.5px;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 30px 60px -24px rgba(0,0,0,.5);opacity:0;transform:translateY(16px) scale(.97);transition:opacity .35s,transform .6s var(--spring)}
 .xl.on{opacity:1;transform:none}
+.mw{position:absolute;left:4%;top:calc(26px + 7%);width:min(360px,48%);background:#fff;border-radius:10px;overflow:hidden;z-index:3;font-size:12.5px;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 30px 60px -24px rgba(0,0,0,.5);opacity:0;transform:translateY(16px) scale(.97);transition:opacity .35s,transform .5s var(--spring)}
+.mw.on{opacity:1;transform:none}
+.mw-t{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#eceef1;border-bottom:1px solid #dcdfe3;color:#3a3f47;font-weight:600;font-size:12px}
+.mw-t i{width:9px;height:9px;border-radius:50%;background:#c9cdd2}.mw-t span{margin-left:8px}
+.mw-l{border-bottom:1px solid #e6e8ea}
+.mw-i{display:grid;grid-template-columns:1fr auto;padding:6px 12px;border-bottom:1px solid #f0f1f3;transition:background .2s,color .2s}
+.mw-i:last-child{border-bottom:0}.mw-i b{font-size:12.5px}.mw-i time{color:#80858c;font-size:11px}.mw-i span{grid-column:1/-1;color:#5f6368;font-size:12px}
+.mw-i.sel{background:#2f6fe0;color:#fff}.mw-i.sel time,.mw-i.sel span{color:rgba(255,255,255,.85)}
+.mw-m{padding:10px 12px 12px;line-height:1.45}.mw-m>b{display:block;font-size:13.5px}.mw-m small{display:block;color:#80858c;font-size:11.5px;margin-bottom:8px}.mw-m p{margin:0 0 6px}
+.mw-m span.hl{background:#fff1b8;border-radius:3px;transition:background .4s}
+.rcpt{margin-top:8px;border-radius:10px;background:#f5f6f8;padding:4px 10px}
+.rcpt div{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;animation:pop .5s var(--spring) both}
+.rcpt div+div{border-top:1px solid #e6e8ea;animation-delay:.15s}
+.rcpt b{font-weight:600}.rcpt small{display:block;color:#6b7079;font-size:11.5px}
+.rcpt svg{flex:none;width:14px;height:14px;fill:none;stroke:var(--acc);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
 .xl-t{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#1f7a46;color:#fff;font-weight:600;font-size:12px}.xl-t i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.55)}.xl-t span{margin-left:8px}
 .xl-fx{display:flex;gap:10px;padding:5px 10px;border-bottom:1px solid #e3e6e8;color:#3a3f47;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}.xl-fx b{color:#8b9096;font-weight:500;min-width:20px}
 .xl table{width:100%;border-collapse:collapse}
@@ -451,7 +466,7 @@ display:grid;grid-template-columns:30px 1fr auto;gap:2px 10px;align-items:center
 .ln{right:8px;bottom:8px;width:calc(100% - 16px)}
 .pw{right:8px;bottom:8px;width:calc(100% - 16px);height:calc(100% - 26px - 16px);font-size:13px}
 .toast{right:8px;bottom:70px}
-.xl{left:3%;width:94%;top:calc(26px + 4%)}
+.xl,.mw{left:3%;width:94%;top:calc(26px + 4%)}
 .mbar span{display:none}
 .mkeys kbd{font-size:18px;padding:8px 12px}
 .so-ba{gap:6px;padding:8px}.so-ba li{font-size:11px}
@@ -518,7 +533,7 @@ footer p a{display:inline-block;padding:6px 2px}
             <li><button type="button" data-k="dl"><span class="no">01</span><b>Downloads aufräumen</b><span class="d">Zieh den Ordner auf Pippa und tipp auf „Ordnen“. Sie zeigt dir vorher, wohin alles kommt, und „Rückgängig“ holt es zurück.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="brief"><span class="no">02</span><b>Briefe verstehen</b><span class="d">Frag einfach, was du wissen willst. Pippa antwortet in einfachen Worten und zeigt dir die Stelle im Brief.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="dateien"><span class="no">03</span><b>Dateien wiederfinden</b><span class="d">Du weißt nur noch, worum es ging? Pippa findet die Datei auf deinem Mac. Mit <kbd>⌃⌥ Leertaste</kbd> ist sie sofort da.</span><span class="bar"><i></i></span></button></li>
-            <li><button type="button" data-k="mail"><span class="no">04</span><b>Mails finden</b><span class="d">Pippa schaut für dich in Apple Mail nach. Antworten schreibt sie nur als Entwurf, abschicken tust du.</span><span class="bar"><i></i></span></button></li>
+            <li><button type="button" data-k="mail"><span class="no">04</span><b>Mails beantworten</b><span class="d">Pippa liest die Mail, schaut in deinen Kalender und trägt den Termin ein. Die Antwort legt sie als Entwurf in Mail, abschicken tust du.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="buero"><span class="no">05</span><b>Büroarbeit</b><span class="d">Pippa prüft Summen in Excel, erklärt Tabellen und macht aus Rechnungen eine Tabelle, die sich in Excel öffnet. Deine Dateien ändert sie dabei nicht.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="pdf"><span class="no">06</span><b>PDF-Werkzeuge</b><span class="d">Zu groß für die Mail? Pippa macht PDFs und Fotos kleiner, fügt Scans zusammen und wandelt Bilder um. Ohne Internet.</span><span class="bar"><i></i></span></button></li>
           </ol>
@@ -546,6 +561,11 @@ footer p a{display:inline-block;padding:6px 2px}
             <tr><td class="k">6</td><td>Versicherung</td><td class="r">61,20</td></tr>
             <tr id="xlMiss"><td class="k">7</td><td>Müll</td><td class="r">28,40</td></tr>
             <tr class="s"><td class="k">8</td><td>Summe</td><td class="r" id="xlSum">863,99</td></tr></table>
+          </div>
+          <div class="mw" id="mw">
+            <div class="mw-t"><i></i><i></i><i></i><span>Posteingang</span></div>
+            <div class="mw-l"><div class="mw-i" id="mwSel"><b>Radhaus Lindner</b><time>09:12</time><span>Termin für die Inspektion</span></div><div class="mw-i"><b>Hausverwaltung Berger</b><time>Gestern</time><span>Ablesung der Heizkörper</span></div></div>
+            <div class="mw-m"><b>Termin für die Inspektion</b><small>Radhaus Lindner · Heute, 09:12</small><p>Hallo Mara,</p><p>für die Inspektion deines Fahrrads hätten wir <span id="mwWhen">Dienstag, 21. Oktober, um 17:30 Uhr</span> frei. Passt dir das?</p><p>Viele Grüße<br>Jonas vom Radhaus Lindner</p></div>
           </div>
           <div class="tray" id="tray" aria-hidden="true"></div>
           <div class="dpill" id="dpill" data-s="ruht"><canvas id="deskMark"></canvas><span class="lt" id="dlt">Pippa</span><span class="lend" id="dlend"></span><span class="lprog"><i></i></span></div>
@@ -645,7 +665,7 @@ $$('.rv,.keys').forEach(el=>RM?el.classList.add('in'):io.observe(el));
 
 /* Vorführung: links eine Aufgabe, rechts erledigt Pippa sie auf einem Mac, so wie in der App. Läuft von selbst, ein Klick wählt. */
 const mac=$('#mac'),cur=$('#cur'),pw=$('#pw'),pwB=$('#pwB'),pwT=$('#pwT'),pwPh=$('#pwPh'),pwS=$('#pwS'),pwSub=$('#pwSub'),pwAtt=$('#pwAtt'),pwU=$('#pwU'),pwN=$('#pwN'),pwAct=$('#pwAct'),
-  dp=$('#dpill'),dlt=$('#dlt'),dle=$('#dlend'),tray=$('#tray'),ln=$('#ln'),lnAtt=$('#lnAtt'),lnT=$('#lnT'),lnPh=$('#lnPh'),lnS=$('#lnS'),lnX=$('#lnX'),toast=$('#toast'),xl=$('#xl'),mApp=$('#mApp');
+  dp=$('#dpill'),dlt=$('#dlt'),dle=$('#dlend'),tray=$('#tray'),ln=$('#ln'),lnAtt=$('#lnAtt'),lnT=$('#lnT'),lnPh=$('#lnPh'),lnS=$('#lnS'),lnX=$('#lnX'),toast=$('#toast'),xl=$('#xl'),mw=$('#mw'),mApp=$('#mApp');
 const items=$$('#scen li'),scenOl=$('#scen'),scenD=$('#scenD'),pauseB=$('#pause'),narrow=matchMedia('(max-width:700px)');
 const DM=innerWidth<600?24:30,deskMark=mk($('#deskMark'),DM),lnMark=mk($('#lnMark'),28),pwMark=mk($('#pwMark'),24),toastMark=mk($('#toastMark'),26);
 const dmeas=document.createElement('div');dmeas.className='dpill';dmeas.style.cssText='position:absolute;visibility:hidden;left:-9999px;right:auto;top:0;bottom:auto;width:auto';dmeas.setAttribute('aria-hidden','true');
@@ -660,6 +680,7 @@ const I={doc:'<svg viewBox="0 0 12 12"><path d="M3 1h4l2.5 2.5V11h-6.5z"/><path 
   fo:'<svg viewBox="0 0 12 12"><path d="M1 3a1 1 0 0 1 1-1h2.5l1 1H10a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1z"/></svg>',
   find:'<svg viewBox="0 0 12 12"><circle cx="5" cy="5" r="3.2"/><path d="M7.4 7.4 10 10"/></svg>',
   mail:'<svg viewBox="0 0 12 12"><rect x="1" y="2.5" width="10" height="7" rx="1"/><path d="m1.5 3 4.5 3.5L10.5 3"/></svg>',
+  cal:'<svg viewBox="0 0 12 12"><rect x="1.5" y="2.5" width="9" height="8" rx="1.2"/><path d="M1.5 5h9M4 1.5v2M8 1.5v2"/></svg>',
   clip:'<svg viewBox="0 0 12 12"><path d="M8.5 4.5 5 8a1.4 1.4 0 0 1-2-2l4-4a2.3 2.3 0 0 1 3.3 3.3L6 9.6"/></svg>',
   files:'<svg viewBox="0 0 16 16"><path d="M5 3.5V1.5h5l3 3v8H11"/><path d="M2.5 4h5.5l2.5 2.5v8h-8z"/></svg>',
   cv:'<svg class="cv" viewBox="0 0 10 10"><path d="m2 3.5 3 3 3-3"/></svg>',
@@ -667,7 +688,7 @@ const I={doc:'<svg viewBox="0 0 12 12"><path d="M3 1h4l2.5 2.5V11h-6.5z"/><path 
 const chip=(n,k,x)=>`<span class="chip">${I[k]}${n}${x?'<u>×</u>':''}</span>`;
 const ANS={brief:`<p><b>Bis 31. Dezember.</b> Die Frist ist drei Monate zum Monatsende. Kündige schriftlich und unterschreib selbst.</p><blockquote>Die Kündigungsfrist beträgt drei Monate zum Ende eines Kalendermonats. – Mietvertrag § 4</blockquote><div class="rc">${I.doc}Mietvertrag.pdf gelesen · 6 s ${I.cv}</div>`,
   dateien:`<div class="cd"><div class="cd-h">${I.files}Gefunden auf diesem Mac</div>${[['Rechnung Fahrradhelm.pdf','Downloads'],['Garantie Fahrrad.pdf','Fahrrad'],['Mietvertrag.pdf','Wohnung'],['Rahmennummer.jpg','Bilder','ph']].map(([n,o,c])=>`<div class="fr"><span class="ft ${c||''}"></span><div><b>${n}</b><small>${o}</small></div></div>`).join('')}<div class="cd-f">Dateien auf diesem Mac</div></div>`,
-  mail:`<div class="cd"><div class="cd-h">${I.mail}„Radhaus Lindner“ in Mail</div>${[['09:12','Dein Fahrradhelm ist unterwegs','Hallo Mara, dein Helm hat unser Lager verlassen. Er kommt am Donnerstag zwischen 10 und 14 Uhr.'],['So. 12. Okt.','Termin Inspektion bestätigt','Wir haben dich für Dienstag, 17:30 Uhr, eingetragen.'],['Do. 9. Okt.','Deine Rechnung über 79,90 €','Danke für deinen Einkauf! Im Anhang findest du die Rechnung für den Helm City Pro.']].map(([t,s,x])=>`<div class="ml"><div><b>Radhaus Lindner</b><time>${t}</time></div><span>${s}</span><small>${x}</small></div>`).join('')}<div class="cd-f">Mail auf diesem Mac</div></div>`};
+  mail:`<p><b>Ja, Dienstag um 17:30 ist frei.</b> Ich habe die Inspektion eingetragen und dir eine Zusage als Entwurf in Mail gelegt.</p><div class="rcpt"><div>${I.cal}<span><b>Inspektion Fahrrad</b><small>Di. 21. Okt., 17:30 · im Kalender</small></span></div><div>${I.mail}<span><b>Entwurf in Mail</b><small>Nur ein Entwurf · nichts gesendet</small></span></div></div>`};
 let job=0,at=0,paused=false;
 const wait=(ms,my)=>new Promise((ok,no)=>setTimeout(()=>my===job?ok():no('stop'),RM?Math.min(ms,40):ms));
 const rel=el=>{const m=mac.getBoundingClientRect(),r=el.getBoundingClientRect();return{x:r.left-m.left+r.width/2,y:r.top-m.top+r.height/2}};
@@ -711,9 +732,9 @@ const keys=async my=>{const k=document.createElement('div');k.className='mkeys';
 const SLOT={wide:[[4,12],[4,32],[17,12],[17,32]],narrow:[[2,8],[27,8],[52,8],[77,8]]};
 const lay=ids=>{const sl=SLOT[narrow.matches?'narrow':'wide'];$$('#mac .ic').forEach(i=>i.classList.remove('sel','on','hit'));
   ids.forEach((id,n)=>{const e=$('#'+id);e.style.left=sl[n][0]+'%';e.style.top=sl[n][1]+'%';if(!e.classList.contains('res'))e.classList.add('on')})};
-const reset=ids=>{[pw,ln,toast,xl].forEach(e=>e.classList.remove('on'));dp.classList.remove('away');tray.classList.remove('away');tray.innerHTML='';ghost.className='ghost';
+const reset=ids=>{[pw,ln,toast,xl,mw].forEach(e=>e.classList.remove('on'));dp.classList.remove('away');tray.classList.remove('away');tray.innerHTML='';ghost.className='ghost';
   pwB.innerHTML=pwSub.textContent=pwT.textContent=pwAtt.innerHTML=pwU.innerHTML=pwN.textContent=pwAct.innerHTML='';pwAct.hidden=true;pwPh.textContent='Frag Pippa …';pwS.className='pw-s';
-  lnAtt.innerHTML=lnT.textContent=lnX.innerHTML='';mApp.textContent='Finder';$('#xlMiss').classList.remove('miss');$('#xlSum').classList.remove('selc');
+  lnAtt.innerHTML=lnT.textContent=lnX.innerHTML='';mApp.textContent='Finder';$('#xlMiss').classList.remove('miss');$('#mwSel').classList.remove('sel');$('#mwWhen').classList.remove('hl');$('#xlSum').classList.remove('selc');
   [pwMark,lnMark,toastMark].forEach(m=>m.setState('ruht'));target(null);dstate('ruht','Pippa');lay(ids)};
 const S={
   dl:{ids:['f-dl'],run:async my=>{await drag(['f-dl'],my,['fo']);await wait(250,my);
@@ -735,8 +756,13 @@ const S={
     tl();note('Lese Mietvertrag.pdf …','1 von 1');await wait(1500,my);note('Suche die passenden Stellen …');await wait(1300,my);answer(ANS.brief)}},
   dateien:{ids:['f-dl','f-mv'],run:async my=>{await keys(my);openPanel();pwB.innerHTML=START;await wait(900,my);const q='Wo ist die Rechnung für meinen Helm?';await send(q,my);bubble(q);
     tl();const s=step('find','Suche mit Spotlight nach „Helm“');await wait(1300,my);stepDone(s,'4 Treffer');await wait(600,my);answer(ANS.dateien)}},
-  mail:{ids:['f-dl'],run:async my=>{await tap(dp,my,{press:false});openPanel();pwB.innerHTML=START;await wait(900,my);const q='Hat mir Radhaus Lindner geschrieben?';await send(q,my);bubble(q);
-    tl();const s=step('mail','Suche deine Mails nach „Radhaus Lindner“','m');await wait(1400,my);stepDone(s,'3 Treffer');await wait(600,my);answer(ANS.mail)}},
+  mail:{ids:[],run:async my=>{mApp.textContent='Mail';mw.classList.add('on');await wait(900,my);const it=$('#mwSel');await tap(it,my);it.classList.add('sel');$('#mwWhen').classList.add('hl');await wait(500,my);await keys(my);
+    openLine([],'Frag mich zu dieser Mail');await wait(500,my);const q='Passt das? Dann trag es ein und sag zu.';await type(lnT,q,my);lnS.classList.add('go');await wait(300,my);lnS.classList.remove('go');
+    openPanel();bubble(q,chip('Termin für die Inspektion','mail'));tl();
+    let s=step('mail','Lese die markierte Mail','m');await wait(1000,my);stepDone(s);
+    s=step('cal','Schaue in deinen Kalender');await wait(1100,my);stepDone(s,'Di. 17:30 frei');
+    s=step('cal','Trage einen Termin ein');await wait(900,my);stepDone(s);
+    s=step('mail','Schreibe einen Mailentwurf','m');await wait(1100,my);stepDone(s);await wait(500,my);answer(ANS.mail)}},
   buero:{ids:[],run:async my=>{mApp.textContent='Excel';xl.classList.add('on');await wait(900,my);const sum=$('#xlSum');await tap(sum,my,{press:false});sum.classList.add('selc');await wait(300,my);await keys(my);
     openLine([],'Frag mich zu dieser Tabelle');lnX.innerHTML='<div class="lrow"><span class="spin"></span>Ich schaue mir deine Tabelle an …</div>';await wait(1400,my);
     const head='<div class="lh"><small>Ich schaue mir deine Tabelle an: Nebenkosten 2025, Spalte B</small><b>Diese Summe lässt eine Zeile aus.</b></div>',
@@ -752,7 +778,7 @@ const S={
     await wait(1500,my);const th=$('#rth'),out=$('#f-sm');await glide(th,700,my);cur.classList.add('down');lift([out]);th.style.opacity='.4';await wait(200,my);
     const d=rel(out);curTo(d,1000);await wait(1050,my);cur.classList.remove('down');ghost.classList.add('drop');out.classList.add('on')}}
 };
-const EST={dl:17500,brief:13000,dateien:11000,mail:11000,buero:13000,pdf:14500};
+const EST={dl:17500,brief:13000,dateien:11000,mail:13500,buero:13000,pdf:14500};
 const play=async i=>{const my=++job;at=i;items.forEach((li,n)=>{li.classList.toggle('on',n===i);const b=$('.bar i',li);b.style.transition='none';b.style.width='0';$('button',li).setAttribute('aria-current',n===i?'true':'false')});
   const btn=$('button',items[i]),k=btn.dataset.k,bar=$('.bar i',items[i]);reset(S[k].ids);scenD.innerHTML=$('.d',items[i]).innerHTML;
   if(scenOl.scrollWidth>scenOl.clientWidth)scenOl.scrollTo({left:items[i].offsetLeft-scenOl.offsetLeft-16,behavior:RM?'auto':'smooth'});
