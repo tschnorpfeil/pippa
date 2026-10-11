@@ -72,7 +72,7 @@ Pippa replaces its own earlier default "high" in `settings.json` with the new on
   dates, amounts, file paths, what is open). Pi's threshold stays as the net. A question during that summary aborts it
   first (`PiRPCClient.prompt`). A new session gets a short `<earlier>` section from the session used last within
   12 hours (its last summary, or the last question and answer), so a new topic still knows "the letter from earlier".
-  Pippa starts a new topic by itself after three hours without input or when new things are given to a used
+  Pippa starts a new topic by itself after an hour without input or when new things are given to a used
   conversation (`ConversationReopenPolicy`, `AppModel.attach`); the person never presses "New topic".
 - `pippa-mcp.ts` registers Pippa's MCP server for this Pi session from `PIPPA_MCP_URL` and `PIPPA_MCP_TOKEN` (loopback
   only, new key per app start, removed from `process.env` afterwards).
