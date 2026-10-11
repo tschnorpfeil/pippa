@@ -80,7 +80,7 @@ extension AppModel {
     var permissions: PermissionsModel {
         if let existing = Self.permissionsModel { return existing }
         let engine = self.engine
-        let desk: any PermissionDesk = engine is StubEngine
+        let desk: any PermissionDesk = engine.isDemo
             ? DemoPermissions()
             : SystemPermissions(access: { await engine.integrationAccess($0) }, request: { await engine.requestIntegrationAccess($0) })
         let made = PermissionsModel(desk: desk)

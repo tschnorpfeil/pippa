@@ -1,11 +1,14 @@
 # Builds and checks Pippa on a real Mac (Apple silicon).
-# On every push to claude/** branches and by hand; by hand with *app* ticked it also uploads Pippa.app.
+# On every pull request, every push to main and by hand; by hand with *app* ticked it also uploads Pippa.app.
+# Only changes to docs/, site/ or Markdown at the top level skip it (skills are Markdown too, so `*.md`, not `**/*.md`).
 name: CI
 
 on:
   push:
-    branches: ['claude/**']
-    paths-ignore: ['docs/**', 'site/**', '**/*.md']
+    branches: [main]
+    paths-ignore: ['docs/**', 'site/**', '*.md']
+  pull_request:
+    paths-ignore: ['docs/**', 'site/**', '*.md']
   workflow_dispatch:
     inputs:
       app:
@@ -14,8 +17,9 @@ on:
         default: true
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # A new push to a pull request replaces its running check; runs on main all finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -75,8 +79,10 @@ jobs:
       - name: ChatGPT sign-in helper tests (runtime/pippa-auth)
         run: node --test runtime/pippa-auth/pi-auth.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
-      - name: Terminal autostart tests (runtime/pippa-local-server)
-        run: node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200
+      - name: Terminal autostart tests (runtime/pippa-local-server, also with the pinned Pi)
+        run: |
+          export PIPPA_PI_CLI="$PWD/.build/pi-release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"
+          node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs runtime/pippa-local-server/test/real-pi.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
       - name: Pippa.app (ad-hoc signed)
         if: inputs.app

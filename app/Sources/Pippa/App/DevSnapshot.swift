@@ -202,24 +202,6 @@ enum DevSnapshot {
                 return
             }
 
-            if only == "r7b" {
-                await PiR7bSnapshot.run(model: model, shell: shell, directory: dir)
-                NSApp.terminate(nil)
-                return
-            }
-
-            if only == "r6" {
-                await PiR6Snapshot.run(model: model, shell: shell, directory: dir)
-                NSApp.terminate(nil)
-                return
-            }
-
-            if only == "pirpc-r2" {
-                await PiRPCR2Snapshot.run(model: model, shell: shell, directory: dir)
-                NSApp.terminate(nil)
-                return
-            }
-
             if only == "pirpc" {
                 await PiRPCSnapshot.run(model: model, shell: shell, directory: dir)
                 NSApp.terminate(nil)

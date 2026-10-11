@@ -7,8 +7,9 @@ Pi's turn ends empty. With this patch every effort's end tag closes the reasonin
 Measured: official low 24/30 OK, medium 0/20; patched low 19/20 with zero leaks.
 Same change as the regression-tested version on llama.cpp master (scratch branch, not submitted).
 
-Goes away once upstream accepts it (see docs/rebuild/llama-cpp-k2-pr.md); then delete this file and the
-"patches" entry in llama-release.json.
+Goes away once upstream accepts an equivalent fix (checked 2026-10-09: no upstream issue or PR yet; llama.cpp
+wants an issue with a reproduction and a regression test first); then delete this file and the "patches" entry in
+llama-release.json.
 
 Applied by scripts/build-app.sh with `patch -p1`.
 

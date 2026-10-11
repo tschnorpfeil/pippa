@@ -4,7 +4,7 @@
   "release": "after v0.6.0 (first builds with K2 Horizon support, PR #29535)",
   "tested": "2026-10-08: llama-server --help of the macOS arm64 asset has every flag Pippa passes; K2 Horizon 7B still to be run on a Mac (Hugging Face was unreachable)",
   "bundled": {
-    "note": "Official binary plus a K2 Horizon parser patch: K2 writes </ifm|think> after tool results even for low/medium effort, upstream only accepts the end tag of the requested effort. Drop the patch once upstream accepts it (docs/rebuild/llama-cpp-k2-pr.md).",
+    "note": "Official binary plus a K2 Horizon parser patch: K2 writes </ifm|think> after tool results even for low/medium effort, upstream only accepts the end tag of the requested effort. Drop the patch once upstream accepts an equivalent fix (see the patch header).",
     "tag": "b11503",
     "commit": "03aa006acb547549162a00dddeab3d3b38ebf7b2",
     "source": "https://github.com/ggml-org/llama.cpp/archive/refs/tags/b11503.tar.gz",
@@ -12,7 +12,7 @@
     "patches": [
       {
         "file": "llama-patches/k2-horizon-think-tags.patch",
-        "sha256": "5ffb0b7faacb4a6dc0fe8834ce481d7409d2116200e7bf82c17f26dd9f365394"
+        "sha256": "590cf1c450f6ab673c1a0ae05bb34e79925bf429cae934e5d07e4d1277bc6429"
       }
     ],
     "cmake": [

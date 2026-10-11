@@ -135,4 +135,5 @@ final class StartupBridgeChat: ConversationChat {
 
     func takeSearchFiles() -> [URL] { delegated?.takeSearchFiles() ?? [] }
     func takeShownActions() -> ActionReceipt? { delegated?.takeShownActions() }
+    func takeChanges() -> [AgentChange] { delegated?.takeChanges() ?? [] }
 }

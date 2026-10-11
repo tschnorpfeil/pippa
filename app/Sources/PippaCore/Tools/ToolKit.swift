@@ -436,15 +436,6 @@ enum ToolImages {
         if type == .tiff { return "tiff" }
         return "jpg"
     }
-
-    /// Keep the format when rotating: PNG, JPEG, TIFF stay; HEIC and everything else becomes JPEG.
-    static func keptType(_ source: CGImageSource) -> UTType {
-        guard let raw = CGImageSourceGetType(source), let type = UTType(raw as String) else { return .jpeg }
-        if type.conforms(to: .png) { return .png }
-        if type.conforms(to: .jpeg) { return .jpeg }
-        if type.conforms(to: .tiff) { return .tiff }
-        return .jpeg
-    }
 }
 
 enum ToolPDF {

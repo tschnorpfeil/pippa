@@ -35,7 +35,7 @@ One table, `ModelSelector.table(tier:preference:)` in `app/Sources/PippaCore/Mod
 Qwen3.5 9B replaced K2 Horizon 7B as the standard after a side-by-side test with Pi (same prompt, skills, guard and
 server; 30 agentic dialogues per model, file search, tool choice, latency): 17 vs. 16 tasks fully done, 2 vs. 8 runs
 with invented facts, no loop vs. one, median 28 s vs. 48 s per task, German rated better blind
-(`docs/rebuild/measurements/model-compare/`). One model family for all three rows
+(`docs/measurements/model-compare/`). One model family for all three rows
 means one template and one tool-call parser. K2 stays in the catalog for measurements (`PIPPA_PI_MODEL`).
 
 Qwen3.5 9B (7 GiB) and K2 Horizon 7B (8.5 GiB) do not fit the 8 GB budget (4.8 GiB, `ModelSelector.budgetGiB`). K2 needs llama.cpp b11503 or

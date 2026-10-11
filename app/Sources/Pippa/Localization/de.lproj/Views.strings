@@ -41,7 +41,6 @@
 "Organize %lld Files" = "%lld Dateien ordnen";
 
 /* ConversationWorkspace.swift */
-"Pippa is thinking…" = "Pippa denkt nach …";
 "Jump to Latest" = "Nach unten";
 "Drop here · I’ll add it next" = "Ablegen · kommt gleich dazu";
 "Add to Conversation" = "Zum Gespräch hinzufügen";
@@ -50,9 +49,6 @@
 "Organize" = "Ordnen";
 "Undo" = "Rückgängig";
 "Your Conversation" = "Dein Gespräch";
-"Delete This Conversation…" = "Dieses Gespräch löschen …";
-"Conversation History" = "Gesprächsverlauf";
-"New Conversation" = "Neues Gespräch";
 "Resize" = "Größe ändern";
 "What would you like to do?" = "Was möchtest du erledigen?";
 "Drop files or folders here…" = "Dateien oder Ordner hier ablegen …";
@@ -60,7 +56,6 @@
 "Drop or choose files or folders" = "Dateien oder Ordner hier ablegen oder auswählen";
 "New Topic" = "Neues Thema";
 "Previous Conversation…" = "Vorheriges Gespräch …";
-"New topic. Previous conversation in history." = "Neues Thema. Vorheriges Gespräch im Verlauf.";
 "Note: %@" = "Hinweis: %@";
 "You" = "Du";
 "Note" = "Hinweis";
@@ -91,14 +86,11 @@
 "Send when ready · up next" = "Vormerken, kommt gleich dran";
 
 /* ShellViews.swift */
-"Pippa is reading…" = "Pippa liest …";
 "Close" = "Schließen";
 "Minimize" = "Verkleinern";
 "Let Go" = "Loslassen";
 "Drop Here" = "Hier ablegen";
 "Let go to drop" = "Loslassen zum Ablegen";
-"Remove Attachment" = "Anhang entfernen";
-"Attached: %@" = "Angehängt: %@";
 "Stop" = "Stoppen";
 "Almost ready · %lld%%" = "Gleich bereit · %lld %%";
 "Almost ready" = "Gleich bereit";
@@ -127,7 +119,6 @@
 "That didn’t work." = "Das hat nicht geklappt.";
 "Part of it is already done. One click puts everything back the way it was." = "Ein Teil ist schon erledigt. Mit einem Klick ist alles wieder wie vorher.";
 "Nothing was changed. Your files are just as they were." = "Nichts wurde geändert. Deine Dateien sind, wie sie waren.";
-"What happened?" = "Was war los?";
 "Report a Problem…" = "Problem melden …";
 "Try Again" = "Erneut versuchen";
 "and %lld more" = "und %lld weitere";
@@ -196,8 +187,6 @@
 
 "New topic. Previous conversation under Recent Conversations." = "Neues Thema. Vorheriges Gespräch unter „Letzte Gespräche“.";
 
-"To (optional)" = "An (optional)";
-"Subject (optional)" = "Betreff (optional)";
 "Draft text" = "Entwurfstext";
 "Opened in Mail · not sent" = "In Mail geöffnet · nicht gesendet";
 "Draft discarded" = "Entwurf verworfen";
@@ -254,8 +243,6 @@
 "Open draft" = "Entwurf öffnen";
 "Save as draft in Mail" = "Als Entwurf in Mail";
 "Copy text" = "Text kopieren";
-"Undo All" = "Alles rückgängig";
-"Undoes every change above, the last one first." = "Macht alle Änderungen darüber rückgängig, die letzte zuerst.";
 "For example:" = "Zum Beispiel:";
 "Tidy up my Downloads folder" = "Räum meinen Download-Ordner auf";
 "What’s on my calendar tomorrow?" = "Was steht morgen in meinem Kalender?";

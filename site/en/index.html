@@ -523,9 +523,9 @@ footer p a{display:inline-block;padding:6px 2px}
   <span class="blob" aria-hidden="true"></span>
   <div class="wrap">
     <h1 id="h1">Just drop it<br><span class="nw">on <span class="hw">Pippa</span><span class="dot"><canvas id="dotMark" aria-hidden="true"></canvas><span class="sr">.</span></span></span></h1>
-    <p class="sub">Your personal assistant on&nbsp;the&nbsp;Mac.<br>Offline, always there for you.</p>
+    <p class="sub">Your personal AI assistant on&nbsp;the&nbsp;Mac.<br>Offline, always there for you.</p>
     <div class="ctas"><a class="btn dl" id="heroDl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free <span aria-hidden="true">→</span></a></div>
-    <p class="req">No account, no subscription, open source. For Macs with Apple silicon on macOS&nbsp;15 or later.<br><a href="#mac">Will it run on my Mac?</a></p>
+    <p class="req">No account, no subscription, open source. Still an early version.<br>For Macs with Apple silicon on macOS&nbsp;15 or later. <a href="#passt">Will it run on my Mac?</a></p>
 
     <div class="demo" id="kann">
       <p class="peek" aria-hidden="true">Here’s how it works.</p>
@@ -600,7 +600,7 @@ footer p a{display:inline-block;padding:6px 2px}
           <li class="rv"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>AI on your Mac</h3><p>Pippa’s AI runs on your Mac, even without internet. You don’t need an account.</p></li>
           <li class="rv" style="--d:1"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Emails only as drafts</h3><p>Pippa drafts replies. You send them.</p></li>
           <li class="rv" style="--d:2"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>A memory you can read</h3><p>What she remembers is in a text file on your Mac. She doesn’t remember passwords or account numbers.</p></li>
-          <li class="rv" style="--d:3"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Online only when needed</h3><p>Pippa only goes online for downloads, updates and web searches. Below the answer you see what she searched for.</p></li>
+          <li class="rv" style="--d:3"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Online only when needed</h3><p>Pippa only goes online for downloads, updates and web searches. Before she searches or a command wants to go online, she asks you.</p></li>
           <li class="rv" style="--d:4"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Open source</h3><p>MIT license. Anyone can check what Pippa does.</p></li>
         </ul>
       </div>
@@ -623,10 +623,10 @@ footer p a{display:inline-block;padding:6px 2px}
     <h2 id="h-faq" class="rv">Any questions?</h2>
     <div class="list">
       <details><summary>How much does Pippa cost?</summary><p>Nothing. No subscription, no ads.</p></details>
-      <details id="mac"><summary>Will Pippa run on my Mac?</summary><p>On any Mac with Apple silicon (M1 or later) and macOS 15 or later. You can check in the Apple menu under “About This Mac”.</p></details>
-      <details><summary>Do I need internet?</summary><p>Once, to download Pippa’s AI. After that she works offline. For web searches and updates Pippa goes online, and below the answer you see what she searched for.</p></details>
+      <details id="passt"><summary>Will Pippa run on my Mac?</summary><p>On any Mac with Apple silicon (M1 or later), macOS 15 or later and at least 8&nbsp;GB of memory. With 16&nbsp;GB Pippa answers noticeably better. She downloads her AI once, 3 to 6&nbsp;GB depending on your Mac. You can check in the Apple menu under “About This Mac”.</p></details>
+      <details><summary>Do I need internet?</summary><p>Once, to download Pippa’s AI. After that she works offline. For updates Pippa goes online. Before she searches the web, she asks you and shows you the search text.</p></details>
       <details><summary>Who sees my data?</summary><p>Nobody but you. The AI runs on your Mac, and there is no Pippa server. Only if you add a ChatGPT or other AI account yourself do your conversations go there. More in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p></details>
-      <details><summary>Can Pippa break anything?</summary><p>When tidying up, she shows you her plan first and waits for your okay. “Undo” puts everything back. She only creates emails as drafts. Small steps she does right away and notes below the answer what she changed.</p></details>
+      <details><summary>Can Pippa break anything?</summary><p>When tidying up, she shows you her plan first and waits for your okay. Small steps she does right away and notes below the answer what she changed; “Undo” brings your files back. She only creates emails as drafts. Her commands run shielded: Pippa reaches the internet, other apps or your files outside her working folder only when you allow it, and she cannot delete anything there for good. Pippa is still an early version, so keep a backup of important files as always.</p></details>
     </div>
   </div>
 </section>
@@ -815,5 +815,6 @@ a.addEventListener('click',e=>{if(!navigator.share)return;e.preventDefault();nav
 (()=>{if(navigator.doNotTrack==='1'||/^(localhost|127\.)/.test(location.hostname))return;const gc=(p,e)=>{new Image().src='https://heypippa.goatcounter.com/count?p='+encodeURIComponent(p)+'&t='+encodeURIComponent(document.title)+(e?'&e=true':'')+'&rnd='+Math.random().toString(36).slice(2)};
 gc(location.pathname);document.querySelectorAll('a.btn.dl').forEach(a=>a.addEventListener('click',()=>{if(/\.dmg$/.test(a.href))gc('download-'+(a.closest('header')?'header':a.id==='heroDl'?'hero':'end')+'-en',1)}))})();
 </script>
+<script>(()=>{const open=()=>{const d=location.hash&&document.querySelector(location.hash);if(d&&d.tagName==='DETAILS')d.open=true};addEventListener('hashchange',open);open()})();</script>
 </body>
 </html>

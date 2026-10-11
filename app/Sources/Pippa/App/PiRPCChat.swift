@@ -4,7 +4,7 @@ import PippaCore
 
 /// The **conversation path in every
 /// build**: free text and capabilities in the conversation go to the real Pi (`pi --mode rpc`) instead of the own core.
-/// Pi runs its tools without asking. Only before the shell sends something out (pippa-assist.ts) does an extension ask
+/// Pi runs its tools without asking. Only when the shell needs the internet, other programs or the person's files (shell.ts), or before the web is used, does an extension ask
 /// (`extension_ui_request`); a simple Pippa prompt (NSAlert) shows the question. The old own core no longer exists; only debug recordings use a stand-in (`ConversationChat`).
 ///
 /// Launch as in `PippaPiLaunch.configuration`: the **pinned release with Pippa's Node** (`PiInstaller.launchSpec`, never
@@ -402,6 +402,7 @@ final class PiRPCChat {
               onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil) async throws -> String {
         lastActions = nil
         searchFiles = []
+        changes = []
         listedFiles = []
         // Read and write receipts belong to the answer that triggered them.
         _ = PippaMCPService.readNotes.take()
@@ -468,6 +469,7 @@ final class PiRPCChat {
                         if !searchFiles.contains(url), searchFiles.count < 200 { searchFiles.append(url) }
                     }
                 }
+                if kind == "pippa-change" { changes += AgentChange.parse(text) }
                 if kind == "pippa-listed-files", let data = text.data(using: .utf8),
                    let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     for path in (record["files"] as? [String] ?? []) where path.hasPrefix("/") && listedFiles.count < 1000 {
@@ -535,6 +537,8 @@ final class PiRPCChat {
     }
 
     private var searchFiles: [URL] = []
+    /// What Pi changed in this answer and can be taken back (pippa-assist.ts `pippa-change`); `takeChanges()`.
+    private var changes: [AgentChange] = []
     private var listedFiles: [URL] = []
     private func adoptListedFiles(answer: String) {
         for file in FoundFiles.named(listedFiles, answer: answer) where !searchFiles.contains(file) && searchFiles.count < 200 {
@@ -545,6 +549,12 @@ final class PiRPCChat {
     func takeSearchFiles() -> [URL] {
         defer { searchFiles = [] }
         return searchFiles
+    }
+
+    /// The file changes of the last answer that can be taken back, once (also stopped or with error).
+    func takeChanges() -> [AgentChange] {
+        defer { changes = [] }
+        return changes
     }
 
     /// The receipt of the last answer, once. `nil` if no tool wanted to change anything.
@@ -598,7 +608,7 @@ final class PiRPCChat {
     /// answers in the person's place (button code). `nil`: the person answers.
     static var answerForSnapshot: ((NSWindow, PiUIRequest) -> NSApplication.ModalResponse)?
 
-    /// A question of an extension (pippa-assist.ts before sending or uploading): a Pippa prompt, so Pi never waits forever. `confirm` and
+    /// A question of an extension (shell.ts or web access before going further): a Pippa prompt, so Pi never waits forever. `confirm` and
     /// short `select` as buttons, `input`/`editor` with text field.
     private static func ask(_ request: PiUIRequest) async -> PiUIResponse {
         let alert = NSAlert()

@@ -12,6 +12,8 @@
  *   call, grouped by target (`groups: [{into: "Bilder", files: [...]}]`). Never overwrites. One call instead of one
  *   model turn per file (r7: 16 turns, 211 s for 15 files); one tool instead of two (fewer declaration tokens).
  * - `move_to_trash`: to the trash, never permanently delete.
+ * - `bash`: Pi's own shell tool, run inside a macOS sandbox (shell.ts): every program, but writing outside Pippa's
+ *   working folder, the internet and other apps only after the person's OK, and never deleting for good.
  *
  * Pi runs these tools without asking (as all its tools). They never overwrite and never delete for good; paths always
  * go to programs as a single argument, never into script text.
@@ -27,23 +29,23 @@ import { execFile } from "node:child_process";
 import { mkdir, readdir, rename, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
+import { createBashToolDefinition } from "@earendil-works/pi-coding-agent";
+import { backupDirectory, backUp } from "./pippa-assist.ts";
 import { capResult, resultLimit, shortenParameters } from "./budget.ts";
 import { exists, folderLabel, moveOne, planMoves, resolvePath } from "./files.ts";
 import { search } from "./search.mjs";
+import { shellTool } from "./shell.ts";
 
 type ExtensionAPI = any;
 
 const LIST_LIMIT = 200;
 
-/** Short versions for Pi's built-in tools (Pi 1.1.0: read 303, bash 270, edit 330, write 141, grep 229, find 196, ls 186 characters). */
+/** Short versions for Pi's built-in tools (Pi 1.1.0: read 303, bash 270, edit 330, write 141 characters). */
 export const BUILTIN_DESCRIPTIONS: Record<string, string> = {
 	read: "Read a text file or image; long files with offset/limit.",
 	write: "Save text to a file; create or overwrite.",
 	edit: "Replace exact, unique text passages in a file.",
 	bash: "Run a command when no dedicated tool fits; save text with write.",
-	grep: "Search file contents for text or a regex; lines with path and number.",
-	find: "Find files by glob pattern, e.g. '**/*.pdf'.",
-	ls: "List a folder's entries; folders end in '/'.",
 };
 
 /** The Mac's trash via /usr/bin/trash (macOS 15+, FileManager.trashItem; no Finder automation, no system prompt).
@@ -75,6 +77,10 @@ function size(bytes: number): string {
 
 export default function (pi: ExtensionAPI) {
 	pi.on("before_provider_request", (event: any) => shortenParameters(event?.payload));
+	const backups = backupDirectory();
+	const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined });
+	pi.on("agent_start", () => shell.resetAnswer());
+	pi.registerTool(shell.definition(process.cwd()));
 	// One result must not fill a 16k window (Pi's read and bash allow 50 KB, ~14k tokens).
 	pi.on("tool_result", (event: any, ctx: any) => {
 		const content = capResult(String(event?.toolName ?? ""), event?.content, resultLimit(ctx?.model?.contextWindow));

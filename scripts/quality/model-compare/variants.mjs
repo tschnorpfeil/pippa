@@ -1,6 +1,6 @@
 // Variants of the K2 vs. Qwen3.5-9B comparison. Server arguments mirror LlamaServer.arguments (Pi path: alias set,
 // no --reasoning off), models.json fields mirror PiReasoningStyle.modelFields as PiInstaller writes them
-// (PiSetupSpike --install-only), context as Pippa uses it from 24 GB (32768, one slot).
+// (PiInstaller provider step), context as Pippa uses it from 24 GB (32768, one slot).
 // The only addition for Qwen is Pi's own `samplingParamsByThinkingLevel` (models.md), so B and C get the sampling the
 // comparison prescribes per request while the server stays the same.
 import { execFileSync } from 'node:child_process';

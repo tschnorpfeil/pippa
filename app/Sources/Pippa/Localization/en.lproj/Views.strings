@@ -41,7 +41,6 @@
 "Organize %lld Files" = "Organize %lld Files";
 
 /* ConversationWorkspace.swift */
-"Pippa is thinking…" = "Pippa is thinking…";
 "Jump to Latest" = "Jump to Latest";
 "Drop here · I’ll add it next" = "Drop here · I’ll add it next";
 "Add to Conversation" = "Add to Conversation";
@@ -50,9 +49,6 @@
 "Organize" = "Organize";
 "Undo" = "Undo";
 "Your Conversation" = "Your Conversation";
-"Delete This Conversation…" = "Delete This Conversation…";
-"Conversation History" = "Conversation History";
-"New Conversation" = "New Conversation";
 "Resize" = "Resize";
 "What would you like to do?" = "What would you like to do?";
 "Drop files or folders here…" = "Drop files or folders here…";
@@ -60,7 +56,6 @@
 "Drop or choose files or folders" = "Drop or choose files or folders";
 "New Topic" = "New Topic";
 "Previous Conversation…" = "Previous Conversation…";
-"New topic. Previous conversation in history." = "New topic. Previous conversation in history.";
 "Note: %@" = "Note: %@";
 "You" = "You";
 "Note" = "Note";
@@ -91,14 +86,11 @@
 "Send when ready · up next" = "Send when ready · up next";
 
 /* ShellViews.swift */
-"Pippa is reading…" = "Pippa is reading…";
 "Close" = "Close";
 "Minimize" = "Minimize";
 "Let Go" = "Let Go";
 "Drop Here" = "Drop Here";
 "Let go to drop" = "Let go to drop";
-"Remove Attachment" = "Remove Attachment";
-"Attached: %@" = "Attached: %@";
 "Stop" = "Stop";
 "Almost ready · %lld%%" = "Almost ready · %lld%%";
 "Almost ready" = "Almost ready";
@@ -127,7 +119,6 @@
 "That didn’t work." = "That didn’t work.";
 "Part of it is already done. One click puts everything back the way it was." = "Part of it is already done. One click puts everything back the way it was.";
 "Nothing was changed. Your files are just as they were." = "Nothing was changed. Your files are just as they were.";
-"What happened?" = "What happened?";
 "Report a Problem…" = "Report a Problem…";
 "Try Again" = "Try Again";
 "and %lld more" = "and %lld more";
@@ -196,8 +187,6 @@
 
 "New topic. Previous conversation under Recent Conversations." = "New topic. Previous conversation under Recent Conversations.";
 
-"To (optional)" = "To (optional)";
-"Subject (optional)" = "Subject (optional)";
 "Draft text" = "Draft text";
 "Opened in Mail · not sent" = "Opened in Mail · not sent";
 "Draft discarded" = "Draft discarded";
@@ -254,8 +243,6 @@
 "Open draft" = "Open draft";
 "Save as draft in Mail" = "Save as draft in Mail";
 "Copy text" = "Copy text";
-"Undo All" = "Undo All";
-"Undoes every change above, the last one first." = "Undoes every change above, the last one first.";
 "For example:" = "For example:";
 "Tidy up my Downloads folder" = "Tidy up my Downloads folder";
 "What’s on my calendar tomorrow?" = "What’s on my calendar tomorrow?";

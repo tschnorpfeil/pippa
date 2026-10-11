@@ -134,8 +134,8 @@ struct LiveRun {
         t.add("Undo", restored == before ? "everything back in its old place" : "Difference: \(restored.symmetricDifference(before).sorted())",
               restored == before, s5)
 
-        // Invoices and deadlines are Pi conversations with skills now (rechnung-auslesen, fristen-erkennen):
-        // measure them on the Pi path (scripts/pi-rpc-spike.sh), not here.
+        // Deadlines are a Pi conversation with a skill now (fristen-erkennen), invoices the native InvoiceTable tool:
+        // measure them on the Pi path (scripts/pi-rpc-spike.sh app), not here.
 
         await engine.shutdown()
         try? await Task.sleep(for: .seconds(1))

@@ -152,9 +152,8 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
     public var calendarFails = false
     private var reads: [DateInterval] = []
     private let created = Date()
-    /// Events created by Pippa's MCP server (appear on the next read) and, in tests, "changed by hand".
+    /// Events created by Pippa's MCP server (appear on the next read).
     private var addedEvents: [String: CalendarEvent] = [:]
-    private var edited: Set<String> = []
     /// Lists for `addReminder` (invented).
     public var reminderLists = ["Erinnerungen", "Privat"]
     /// Tests: what `insertReply` reports instead of a draft (error) or which result (e.g. `replyNeedsPaste`).
@@ -193,18 +192,10 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
 
     public func remove(_ item: CreatedItem) async throws -> RemoveResult {
         lock.withLock {
-            // Like EventKitBridge.remove: changed since creation → stays.
-            if edited.contains(item.identifier), items[item.identifier] != nil { return .changed }
             addedEvents.removeValue(forKey: item.identifier)
             return items.removeValue(forKey: item.identifier) != nil ? .removed : .gone
         }
     }
-
-    /// Tests only: the person changes a created entry in the app (afterwards undo no longer removes it).
-    public func simulateEdit(_ identifier: String) { lock.withLock { _ = edited.insert(identifier) } }
-
-    /// Tests only: title of a still-existing entry created by Pippa.
-    public func createdTitle(_ identifier: String) -> String? { lock.withLock { items[identifier]?.title } }
 
     /// Tests only: number of created entries.
     public var createdCount: Int { lock.withLock { items.count } }

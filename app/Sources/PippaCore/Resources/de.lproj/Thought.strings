@@ -72,15 +72,10 @@
 "Unclear whether it happened: %@" = "Unklar, ob es passiert ist: %@";
 "a command" = "etwas";
 "%@ (you said no)" = "%@ (du hast abgelehnt)";
-"%@ (no undo copy possible)" = "%@ (lässt sich nicht rückgängig machen)";
-"%@ (needs your OK, couldn’t ask)" = "%@ (braucht dein OK, Pippa konnte nicht fragen)";
 "%@ (didn’t work)" = "%@ (hat nicht geklappt)";
-"%@ · can be undone" = "%@ · rückgängig machbar";
-"%@ · can’t be undone" = "%@ · nicht rückgängig machbar";
 /* „Rückgängig“ an einer Quittungszeile (PiUndo). */
 "Restored: %@" = "Wiederhergestellt: %@";
 "Undone: %@ moved to the Trash" = "Rückgängig: %@ in den Papierkorb gelegt";
-"%@ · can no longer be undone (undo copy cleared after a while)" = "%@ · nicht mehr rückgängig machbar";
 "Not undone: %@" = "Nicht rückgängig gemacht: %@";
 "%@ (no longer there)" = "%@ (nicht mehr da)";
 "%@ (something else is in its place now)" = "%@ (dort liegt inzwischen etwas anderes)";
@@ -88,7 +83,6 @@
 "%@ (no undo copy)" = "%@ (nicht rückgängig zu machen)";
 /* Welle 2d: einfaches mkdir als Dateiänderung, Lesen über Pippas MCP-Leser. */
 "Folder created: %@" = "Ordner angelegt: %@";
-"Folder already there: %@" = "Ordner war schon da: %@";
 "Folder not created: %@" = "Ordner nicht angelegt: %@";
 "%@ (there’s something in the folder now)" = "%@ (im Ordner liegt inzwischen etwas)";
 "Read something" = "Etwas gelesen";

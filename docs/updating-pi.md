@@ -50,8 +50,8 @@ Nothing is pushed. The next app build bundles the new Pi.
 
 If a change breaks a gate, fix Pippa; if it cannot be fixed cleanly, stay on the old pin.
 
-Release flow: read upstream release notes → bump → gates → a short real-model smoke (`scripts/pi-rpc-spike.sh r7 …`,
-which runs the standard path against a real local model) → fresh app build → `scripts/verify-app.sh --verify-runtime` → explicitly authorized
+Release flow: read upstream release notes → bump → gates → a short real-model smoke (`scripts/pi-setup-ui.sh e2e`,
+which sets up the new Pi in a fake HOME and answers a question with a real local model) → fresh app build → `scripts/verify-app.sh --verify-runtime` → explicitly authorized
 release. Pi is never updated on a customer's Mac by itself; it ships with a reviewed Pippa update. There is no Pi fork,
 patched dependency or private import.
 

@@ -1,7 +1,7 @@
 import Foundation
 
 // Interface between the UI (target `Pippa`) and the core (`PippaCore`).
-// The UI knows only these types. `StubEngine` supplies sample data so
+// The UI knows only these types. `StubEngine` (debug builds only) supplies sample data so
 // the UI stays buildable and demoable without a model.
 
 /// What was dropped.
@@ -240,6 +240,9 @@ public protocol PippaEngine: AnyObject, Sendable {
     /// Finished result files of a tool (in the cache, `ResultsFolder`) into the journal so "Rückgängig" (undo) removes them again.
     /// Starts no model.
     func recordResult(_ files: [URL], summary: String, detail: String) async throws -> JobReceipt
+    /// What Pi changed in one answer (AgentChange) into the journal, so "Undo" under the answer takes it back.
+    /// `nil` when there is nothing to take back. Starts no model.
+    func recordAgentChanges(_ changes: [AgentChange]) async throws -> JobReceipt?
 
     // Letter (ToolBridgeTypes.swift):
 
@@ -257,6 +260,9 @@ public protocol PippaEngine: AnyObject, Sendable {
     /// The active sheet with selection (values and formulas of a limited range); nil without an open workbook.
     /// There is no method that writes to a sheet.
     func selectedSheet() async throws -> SheetSnapshot?
+    /// Sample engine without a real Mac behind it (debug builds with `PIPPA_DEMO=1`): the UI simulates instead of
+    /// touching Mail or the system permissions. Always false in the shipped app.
+    var isDemo: Bool { get }
 }
 
 /// Progress while reading: how many files are done, how many in total, which is current.
@@ -268,6 +274,7 @@ public struct WorkProgress: Sendable, Equatable {
 }
 
 public extension PippaEngine {
+    var isDemo: Bool { false }
     var chatReadiness: ChatReadiness { get async { .ready } }
     var modelDownloadSize: ModelDownloadSize? { get async { nil } }
     func cancelModelPreparation() async {}
@@ -290,6 +297,7 @@ public extension PippaEngine {
     func selectedMail() async throws -> MailMessage? { throw PippaError.notAvailable }
     func readCalendar(_ range: CalendarRange) async -> CalendarReadResult { .failed(CalendarReadResult.failureText) }
     func recordResult(_ files: [URL], summary: String, detail: String) async throws -> JobReceipt { throw PippaError.notAvailable }
+    func recordAgentChanges(_ changes: [AgentChange]) async throws -> JobReceipt? { nil }
     func insertMailReply(_ draft: MailDraft) async throws -> MailInsertResult { throw PippaError.notAvailable }
     func keepWarmAfterCall() async {}
     func sheetAccess() async -> IntegrationAccess { .unavailable(L("That isn’t possible here right now.", table: "Core")) }

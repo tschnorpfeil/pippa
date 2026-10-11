@@ -34,16 +34,7 @@
 "Try Again" = "Erneut versuchen";
 "%@ (Default)" = "%@ (Standard)";
 "Open System Settings" = "Systemeinstellungen öffnen";
-"Hello, I’m" = "Hallo, ich bin";
-"I tidy up your files, read your invoices and tell you what your letters say." = "Ich räume deine Unterlagen auf, lese Rechnungen aus und sage dir, was in deinen Briefen steht.";
-"Runs on your Mac" = "Läuft auf deinem Mac";
-"You’ll see everything first. Or drag a different folder here." = "Du siehst vorher alles. Oder zieh einen anderen Ordner hier hinein.";
-"Choose Folder…" = "Ordner wählen …";
-"Tidy Up Downloads" = "Downloads aufräumen";
-"Free" = "Kostenlos";
 "%lld%%" = "%lld %%";
-"Pippa loads her AI once: %@." = "Pippa lädt einmalig ihre KI: %@.";
-"With a fast connection, this takes %@. After that, everything runs on your Mac." = "Mit schnellem Internet dauert das %@. Danach rechnet alles auf deinem Mac.";
 "Pippa loads her AI once. After that, everything runs on your Mac." = "Pippa lädt einmalig ihre KI. Danach rechnet alles auf deinem Mac.";
 "Later" = "Später";
 "Tidying up and overviews already work without it. You can load it any time." = "Aufräumen und Übersichten gehen schon ohne. Laden kannst du jederzeit.";
@@ -214,7 +205,7 @@
 "Continue" = "Weiter";
 "For the files you keep in %@." = "Für die Dateien, die du in %@ ablegst.";
 "What Pippa knows about you" = "Was Pippa über dich weiß";
-"Pippa only keeps what you tell it about yourself, on this Mac. A forgotten fact is gone from the next conversation on." = "Pippa behält nur, was du über dich erzählst, und nur auf diesem Mac. Was du vergisst, ist ab dem nächsten Gespräch weg.";
+"Pippa only keeps what you tell her about yourself, on this Mac. A forgotten fact is gone from the next conversation on." = "Pippa behält nur, was du über dich erzählst, und nur auf diesem Mac. Was du Pippa vergessen lässt, ist ab dem nächsten Gespräch weg.";
 "Nothing yet" = "Noch nichts";
 "When you tell Pippa something about yourself that should last, such as your doctor’s name, it appears here." = "Wenn du Pippa etwas über dich erzählst, das bleiben soll, etwa den Namen deiner Ärztin, steht es hier.";
 "Forget “%@”" = "„%@“ vergessen";

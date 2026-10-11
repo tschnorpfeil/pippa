@@ -72,15 +72,10 @@
 "Unclear whether it happened: %@" = "Unclear whether it happened: %@";
 "a command" = "a command";
 "%@ (you said no)" = "%@ (you said no)";
-"%@ (no undo copy possible)" = "%@ (no undo copy possible)";
-"%@ (needs your OK, couldn’t ask)" = "%@ (needs your OK, couldn’t ask)";
 "%@ (didn’t work)" = "%@ (didn’t work)";
-"%@ · can be undone" = "%@ · can be undone";
-"%@ · can’t be undone" = "%@ · can’t be undone";
 /* „Rückgängig“ an einer Quittungszeile (PiUndo). */
 "Restored: %@" = "Restored: %@";
 "Undone: %@ moved to the Trash" = "Undone: %@ moved to the Trash";
-"%@ · can no longer be undone (undo copy cleared after a while)" = "%@ · can no longer be undone (undo copy cleared after a while)";
 "Not undone: %@" = "Not undone: %@";
 "%@ (no longer there)" = "%@ (no longer there)";
 "%@ (something else is in its place now)" = "%@ (something else is in its place now)";
@@ -88,7 +83,6 @@
 "%@ (no undo copy)" = "%@ (no undo copy)";
 /* Welle 2d: einfaches mkdir als Dateiänderung, Lesen über Pippas MCP-Leser. */
 "Folder created: %@" = "Folder created: %@";
-"Folder already there: %@" = "Folder already there: %@";
 "Folder not created: %@" = "Folder not created: %@";
 "%@ (there’s something in the folder now)" = "%@ (there’s something in the folder now)";
 "Read something" = "Read something";

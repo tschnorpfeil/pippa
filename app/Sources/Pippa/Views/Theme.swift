@@ -99,7 +99,6 @@ enum Fonts {
     static func rounded(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font { .scaled(size: size, weight: weight, design: .rounded) }
     static func text(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font { .scaled(size: size, weight: weight) }
     static func serif(_ size: CGFloat) -> Font { .scaled(size: size, weight: .regular, design: .serif) }
-    static func mono(_ size: CGFloat) -> Font { .scaled(size: size, weight: .regular, design: .monospaced) }
 
     static var resultXL: Font { rounded(28, .bold) }
     static var resultL: Font { rounded(22, .bold) }

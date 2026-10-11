@@ -38,7 +38,7 @@
 "Show Pippa" = "Show Pippa";
 "That didn’t work" = "That didn’t work";
 "Ready" = "Ready";
-"Still learning" = "Still learning";
+"AI not loaded yet" = "AI not loaded yet";
 "Working…" = "Working…";
 "Needs you" = "Needs you";
 "Pippa %@: Problem" = "Pippa %@: Problem";
@@ -70,9 +70,6 @@
 "I’m creating a new entry" = "I’m creating a new entry";
 "Open %@" = "Open %@";
 "Reading the mail…" = "Reading the mail…";
-"Only reading. I won’t send anything." = "Only reading. I won’t send anything.";
-"No mail selected" = "No mail selected";
-"Select a message in Mail, then try again." = "Select a message in Mail, then try again.";
 "On this Mac · Connected AI" = "On this Mac · Connected AI";
 "Locally on this Mac" = "Locally on this Mac";
 "Connected AI" = "Connected AI";
@@ -127,16 +124,13 @@
 "Create Table" = "Create Table";
 "Read Mail" = "Read Mail";
 "Add Entry" = "Add Entry";
-"I need my AI for this" = "I need my AI for this";
-"Pippa is just waking up." = "Pippa is just waking up.";
-"Not ready yet" = "Not ready yet";
 "Tidy Here" = "Tidy Here";
 "Your files are in different places. Which folder should I tidy? Anything outside it stays where it is." = "Your files are in different places. Which folder should I tidy? Anything outside it stays where it is.";
 "Shall I tidy up your Downloads folder?" = "Shall I tidy up your Downloads folder?";
 "Nothing is changed yet." = "Nothing is changed yet.";
 "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”." = "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”.";
 "Nothing to tidy here" = "Nothing to tidy here";
-"once an online AI is connected (Settings → Advanced)" = "once an online AI is connected (Settings → Advanced)";
+"once an online AI is connected (Settings › Online AI)" = "once an online AI is connected (Settings › Online AI)";
 "once my AI has loaded" = "once my AI has loaded";
 "once I’m fully awake" = "once I’m fully awake";
 "1 document" = "1 document";
@@ -211,12 +205,6 @@
 "Your reply is open in Mail, but Mail could not confirm your text in it. Your text is on the clipboard: if it’s missing, click into the reply and press ⌘V." = "Your reply is open in Mail, but Mail could not confirm your text in it. Your text is on the clipboard: if it’s missing, click into the reply and press ⌘V.";
 
 /* FLOW-7: Online nachsehen im Gespräch (WebAccessCard) */
-"Look it up online:" = "Look it up online:";
-"Read this page:" = "Read this page:";
-"Contains text from your documents" = "Contains text from your documents";
-"I left out numbers and personal details." = "I left out numbers and personal details.";
-"Only this goes out, once. Nothing else from this Mac goes along." = "Only this goes out, once. Nothing else from this Mac goes along.";
-"Look It Up" = "Look It Up";
 "Not Now" = "Not Now";
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
@@ -234,19 +222,14 @@
 "Start Fresh" = "Start Fresh";
 "Pippa couldn’t copy everything." = "Pippa couldn’t copy everything.";
 "Your previous conversations are unchanged. Pippa will ask again next time she starts." = "Your previous conversations are unchanged. Pippa will ask again next time she starts.";
-"Undo All" = "Undo All";
 "I can’t find the folder “%@” on this Mac." = "I can’t find the folder “%@” on this Mac.";
-"Allow for This Task" = "Allow for This Task";
 "Details" = "Details";
-"Show details" = "Show details";
-"Hide details" = "Hide details";
 "I’m almost ready. I’ll answer as soon as I am." = "I’m almost ready. I’ll answer as soon as I am.";
 "Dropped image %@.png" = "Image %@.png";
 "Drop it on me again once I’m done." = "Drop it on me again once I’m done.";
 "That didn’t reach me" = "That didn’t reach me";
 "Drag it onto me once more." = "Drag it onto me once more.";
 "Clipboard image %@.png" = "Clipboard image %@.png";
-"“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done.";
 "Tidy preview: 1 file" = "Tidy preview: 1 file";
 "Tidy preview: %lld files" = "Tidy preview: %lld files";
 

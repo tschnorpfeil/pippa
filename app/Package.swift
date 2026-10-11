@@ -27,13 +27,7 @@ let package = Package(
         .executableTarget(name: "PippaUpdateProbe", dependencies: [.product(name: "Sparkle", package: "Sparkle")]),
         // Development only: all flows against a real model (runs only with PIPPA_LIVE=1, see Sources/PippaLive).
         .executableTarget(name: "PippaLive", dependencies: ["PippaCore"]),
-        // Pi's RPC client (`pi --mode rpc`), used by the app and the probe programs.
+        // Pi's RPC client (`pi --mode rpc`), used by the app.
         .target(name: "PiRPC"),
-        // Probe: installer with a wrong HOME, llama-server, Pi via PiLaunchSpec.
-        .executableTarget(name: "PiSetupSpike", dependencies: ["PippaCore", "PiRPC"]),
-        // Probe: R2 and R7 acceptance on the RPC path (R7.swift).
-        .executableTarget(name: "PiRPCR2Spike", dependencies: ["PippaCore", "PiRPC"]),
-        // Probe: event, reminder, mail draft with stand-in integrations + real Pi.
-        .executableTarget(name: "PiRPCR3Spike", dependencies: ["PippaCore", "PiRPC"]),
     ]
 )

@@ -38,7 +38,7 @@
 "Show Pippa" = "Pippa einblenden";
 "That didn’t work" = "Hat nicht geklappt";
 "Ready" = "Bereit";
-"Still learning" = "Lernt noch";
+"AI not loaded yet" = "KI noch nicht geladen";
 "Working…" = "Arbeitet …";
 "Needs you" = "Braucht dich";
 "Pippa %@: Problem" = "Pippa %@: Problem";
@@ -70,9 +70,6 @@
 "I’m creating a new entry" = "Ich lege einen neuen Eintrag an";
 "Open %@" = "%@ öffnen";
 "Reading the mail…" = "Ich lese die Mail …";
-"Only reading. I won’t send anything." = "Nur lesen. Ich schicke nichts.";
-"No mail selected" = "Keine Mail ausgewählt";
-"Select a message in Mail, then try again." = "Wähl in Mail eine Mail aus. Dann nochmal.";
 "On this Mac · Connected AI" = "Auf diesem Mac · Verbundene KI";
 "Locally on this Mac" = "Lokal auf diesem Mac";
 "Connected AI" = "Verbundene KI";
@@ -127,16 +124,13 @@
 "Create Table" = "Tabelle anlegen";
 "Read Mail" = "Mail lesen";
 "Add Entry" = "Eintragen";
-"I need my AI for this" = "Dafür brauche ich meine KI";
-"Pippa is just waking up." = "Pippa wird gerade wach.";
-"Not ready yet" = "Noch nicht bereit";
 "Tidy Here" = "Hier ordnen";
 "Your files are in different places. Which folder should I tidy? Anything outside it stays where it is." = "Deine Dateien liegen an verschiedenen Orten. In welchem Ordner soll ich ordnen? Was nicht darin liegt, bleibt, wo es ist.";
 "Shall I tidy up your Downloads folder?" = "Soll ich deinen Downloads-Ordner aufräumen?";
 "Nothing is changed yet." = "Es wird noch nichts geändert.";
 "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”." = "In „%@“ habe ich keine losen Dateien gefunden. Hat dein Mac nach einer Erlaubnis gefragt und du hast abgelehnt? Dann kannst du sie in den Systemeinstellungen unter „Datenschutz & Sicherheit“ → „Dateien und Ordner“ geben.";
 "Nothing to tidy here" = "Hier gibt es nichts zu ordnen";
-"once an online AI is connected (Settings → Advanced)" = "sobald eine Online-KI verbunden ist (Einstellungen → Erweitert)";
+"once an online AI is connected (Settings › Online AI)" = "sobald eine Online-KI verbunden ist (Einstellungen › Online-KI)";
 "once my AI has loaded" = "sobald meine KI geladen ist";
 "once I’m fully awake" = "sobald ich ganz wach bin";
 "1 document" = "1 Unterlage";
@@ -211,12 +205,6 @@
 "Your reply is open in Mail, but Mail could not confirm your text in it. Your text is on the clipboard: if it’s missing, click into the reply and press ⌘V." = "Deine Antwort ist in Mail offen, aber Mail konnte deinen Text darin nicht bestätigen. Er liegt in der Zwischenablage: Fehlt er, klick in die Antwort und drück ⌘V.";
 
 /* FLOW-7: Online nachsehen im Gespräch (WebAccessCard) */
-"Look it up online:" = "Online nachsehen:";
-"Read this page:" = "Diese Seite lesen:";
-"Contains text from your documents" = "Enthält Text aus deinen Unterlagen";
-"I left out numbers and personal details." = "Nummern und Persönliches habe ich weggelassen.";
-"Only this goes out, once. Nothing else from this Mac goes along." = "Nur das geht hinaus, einmal. Sonst nichts von diesem Mac.";
-"Look It Up" = "Nachsehen";
 "Not Now" = "Nicht jetzt";
 
 /* R10: eigener Online-Dienst und KI-Wahl im RPC-Weg */
@@ -234,19 +222,14 @@
 "Start Fresh" = "Neu beginnen";
 "Pippa couldn’t copy everything." = "Pippa konnte nicht alles kopieren.";
 "Your previous conversations are unchanged. Pippa will ask again next time she starts." = "Deine bisherigen Gespräche sind unverändert. Pippa fragt beim nächsten Start noch einmal.";
-"Undo All" = "Alles rückgängig";
 "I can’t find the folder “%@” on this Mac." = "Den Ordner „%@“ finde ich auf diesem Mac nicht.";
-"Allow for This Task" = "Für diese Aufgabe erlauben";
 "Details" = "Details";
-"Show details" = "Details zeigen";
-"Hide details" = "Details ausblenden";
 "I’m almost ready. I’ll answer as soon as I am." = "Ich bin gleich so weit und antworte dann sofort.";
 "Dropped image %@.png" = "Bild %@.png";
 "Drop it on me again once I’m done." = "Leg es nochmal auf mich, sobald ich fertig bin.";
 "That didn’t reach me" = "Das ist nicht bei mir angekommen";
 "Drag it onto me once more." = "Zieh es bitte noch einmal auf mich.";
 "Clipboard image %@.png" = "Bild aus der Zwischenablage %@.png";
-"“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "„Für diese Aufgabe erlauben“ heißt: Bis die Antwort fertig ist, frage ich bei dieser Art Schritt nicht mehr.";
 "Tidy preview: 1 file" = "Vorschau zum Ordnen: 1 Datei";
 "Tidy preview: %lld files" = "Vorschau zum Ordnen: %lld Dateien";
 

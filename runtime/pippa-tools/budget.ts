@@ -5,8 +5,9 @@
  */
 
 /**
- * Short parameter texts for Pi's built-in tools (Pi 1.1.0: edit alone ~190 tokens, most of it parameter texts). Pi has
- * no hook for parameter descriptions (`prepareLoadout` changes only the tool description), so `shortenParameters`
+ * Short parameter texts for the Pi built-in tools Pippa turns on (PippaPiLaunch.tools; Pi 1.1.0: edit alone ~190
+ * tokens, most of it parameter texts). Pi has no hook for parameter descriptions (`prepareLoadout` changes only the
+ * tool description), so `shortenParameters`
  * replaces them in the provider request; "" drops a text the name already says. Only `description` strings change,
  * never the schema; payloads of an unknown shape stay untouched.
  */
@@ -15,9 +16,6 @@ export const BUILTIN_PARAMETERS: Record<string, Record<string, string>> = {
 	bash: { command: "", timeout: "Seconds." },
 	edit: { path: "", edits: "Replacements, each matched against the original file; they must not overlap.", oldText: "Exact text, unique in the file.", newText: "" },
 	write: { path: "", content: "" },
-	grep: { pattern: "", path: "Folder or file.", glob: "e.g. '*.pdf'.", ignoreCase: "", literal: "Pattern is plain text.", context: "Lines around each match.", limit: "" },
-	find: { pattern: "", path: "Folder.", limit: "" },
-	ls: { path: "", limit: "" },
 };
 
 /** The provider request with `BUILTIN_PARAMETERS` applied; `undefined` = nothing to change (keep Pi's payload). */

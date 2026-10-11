@@ -68,8 +68,8 @@
 "The connection isn’t working right now. Please try again in a few minutes." = "Die Verbindung klappt gerade nicht. Versuch es in ein paar Minuten noch einmal.";
 "Answer stopped." = "Antwort angehalten.";
 "The answer didn’t come through just now. Please try again in a moment." = "Die Antwort kam gerade nicht zustande. Versuch es gleich noch einmal.";
-"The request was turned down. Please check the online AI and address under Settings › Advanced." = "Die Anfrage wurde abgelehnt. Prüf unter Einstellungen › Erweitert die Online-KI und die Adresse.";
-"The online AI you chose didn’t let me in. Please check the key under Settings › Advanced." = "Die gewählte Online-KI hat den Zugang abgelehnt. Prüf den Schlüssel unter Einstellungen › Erweitert.";
+"The request was turned down. Please check the online AI and address under Settings › Online AI." = "Die Anfrage wurde abgelehnt. Prüf die Online-KI und die Adresse unter Einstellungen › Online-KI.";
+"The online AI you chose didn’t let me in. Please check the key under Settings › Online AI." = "Die gewählte Online-KI hat den Zugang abgelehnt. Prüf den Schlüssel unter Einstellungen › Online-KI.";
 "Sample answer: Here you can ask Pippa a question or attach files for context. In the finished app, Pippa answers right here on your Mac." = "Beispielantwort: Hier kannst du Pippa eine Frage stellen oder Dateien als Kontext anhängen. In der fertigen App antwortet Pippa direkt auf deinem Mac.";
 "Sender" = "Absender";
 "Date" = "Datum";
@@ -101,7 +101,6 @@
 "Reading this one took too long. It stays where it is for now." = "Das Lesen hat zu lange gedauert. Die Datei bleibt erst einmal, wo sie ist.";
 "Added to Reminders" = "In Erinnerungen eingetragen";
 "Added to Calendar" = "Im Kalender eingetragen";
-"I didn’t find anything about that in your files." = "Dazu habe ich in deinen Dateien nichts gefunden.";
 "I don’t have anything suitable for this Mac right now." = "Für diesen Mac habe ich gerade nichts Passendes.";
 "Part of the app is missing. Please open Pippa from the Applications folder." = "Ein Teil der App fehlt. Bitte Pippa aus dem Programme-Ordner starten.";
 "Linked files weren’t searched." = "Verknüpfte Dateien wurden nicht durchsucht.";
@@ -207,3 +206,9 @@
 /* Was Pippa darf (MacPermissions.swift) */
 "Notes" = "Notizen";
 "When you connect a drive, your Mac asks the first time Pippa opens it." = "Wenn du ein Laufwerk ansteckst, fragt dein Mac, sobald Pippa es zum ersten Mal öffnet.";
+
+/* Undo of a conversation's file changes (AgentChange.swift, Executor.recordAgentChanges) */
+"Changed “%@”" = "„%@“ geändert";
+"%lld files changed" = "%lld Dateien geändert";
+"In the conversation" = "Im Gespräch";
+"The old version is no longer there." = "Die alte Version ist nicht mehr da.";

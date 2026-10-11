@@ -4,7 +4,7 @@ import Foundation
 /// file stays while the new one loads (`PiSetupFlow.fallback`); once the new model has answered, the old one is only
 /// taking space. Owner decision 2026-10-09: delete it then, silently.
 public enum SupersededModels {
-    /// K2 Horizon 7B was the standard from 16 GB until Qwen3.5 9B (docs/rebuild/measurements/model-compare).
+    /// K2 Horizon 7B was the standard from 16 GB until Qwen3.5 9B (docs/measurements/model-compare).
     public static let keys: Set<String> = ["k2-horizon-7b"]
 
     /// Deletes superseded models from Pippa's own model folder after a successful answer with `activeModelID`.

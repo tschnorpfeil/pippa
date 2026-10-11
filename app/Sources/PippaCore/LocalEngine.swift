@@ -1039,6 +1039,15 @@ public actor LocalEngine: PippaEngine {
         try await requireExecutor().recordResult(files, summary: summary, detail: detail)
     }
 
+    public func recordAgentChanges(_ changes: [AgentChange]) async throws -> JobReceipt? {
+        let kept = AgentChange.merged(changes)
+        guard !kept.isEmpty else { return nil }
+        let summary = kept.count == 1
+            ? L("Changed “%@”", table: "Core", URL(fileURLWithPath: kept[0].kind == .trash ? (kept[0].from ?? kept[0].to) : kept[0].to).lastPathComponent)
+            : L("%lld files changed", table: "Core", Int64(kept.count))
+        return try await requireExecutor().recordAgentChanges(kept, summary: summary, detail: L("In the conversation", table: "Core"))
+    }
+
     public func recentJobs(limit: Int) async -> [JobReceipt] {
         guard let executor else { return [] }
         return await executor.recentJobs(limit: limit)
