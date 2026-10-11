@@ -1,6 +1,6 @@
 /**
  * Small helps that keep a small local model on track, and a quiet safety net. No permissions: Pi runs every tool
- * without asking; this file steers, keeps old versions and stops a few shell commands. Loaded by Pippa next to its file tools:
+ * without asking; this file steers, keeps old versions and asks before the shell sends anything out. Loaded by Pippa next to its file tools:
  *
  *   pi --mode rpc --extension …/pippa-tools.ts --extension …/pippa-assist.ts
  *
@@ -21,9 +21,10 @@
  * - Safety net, without asking: Pi runs every tool, and the people using Pippa have no Git and often no Time Machine.
  *   Before `edit` or `write` changes an existing file, a copy goes to Pippa's backup folder (APFS clone, free on the
  *   same disk) and the tool result says where, so "mach das rückgängig" can copy it back; copies older than
- *   `BACKUP_DAYS` go. `bash` never deletes for good (`move_to_trash` puts things in the Trash instead) and never
- *   reaches the network or other apps (the web tools and Pippa's MCP tools do that, visibly): text from a web page or
- *   document must not be able to turn into `rm` or `curl`.
+ *   `BACKUP_DAYS` go. `bash` never deletes for good (`move_to_trash` puts things in the Trash instead). Before it
+ *   sends (mail, messages), uploads, connects to another computer or runs a download, Pippa asks the person
+ *   (`ctx.ui.confirm`, shown by the app): text from a web page or document must not be able to send the person's
+ *   files anywhere unseen. Everything else runs without asking, AppleScript for other apps and downloads included.
  */
 import { constants } from "node:fs";
 import { copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
@@ -108,28 +109,65 @@ export function withToday(text: string, line: string): string {
 	return space === -1 ? `${text} ${line}` : `${text.slice(0, space)} ${line}\n${text.slice(space + 1)}`;
 }
 
-/** Shell commands that delete for good, and those that reach the network or script other apps. */
+/** Shell commands that delete for good, and those that connect to another computer. */
 const DELETES = new Set(["rm", "rmdir", "unlink", "shred", "srm"]);
-const OUTSIDE = new Set(["curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "ftp", "telnet", "osascript"]);
+const REMOTE = new Set(["nc", "ncat", "netcat", "ssh", "scp", "sftp", "ftp", "telnet"]);
 /** Words in front of the actual command: `sudo rm`, `xargs -0 rm`, `FOO=1 curl`. */
 const PREFIXES = new Set(["sudo", "env", "command", "exec", "nohup", "time", "nice", "xargs"]);
+/** curl/wget options that send data instead of fetching it. */
+const UPLOAD = /(^|\s)(-d|-F|-T|--data\S*|--form\S*|--upload-file|--json|--post-data|--post-file|--body-data|--body-file|--method|-X\s*(POST|PUT|PATCH|DELETE)|--request\s*(POST|PUT|PATCH|DELETE))(?=[\s=]|$)/i;
 
-/** Why a `bash` command must not run, or `undefined`. Looks at every command in a chain (`;`, `&&`, `|`, `$( )`). */
-export function riskyCommand(command: string): string | undefined {
+export const DELETE_REASON = "Not run: Pippa never deletes for good. Use move_to_trash for those files; the person can get them back from the Trash.";
+
+/** What a command does that the person decides first: send something, upload, connect to another computer, run a download. */
+export type Ask = "send" | "upload" | "remote" | "run";
+
+/**
+ * What a `bash` command needs: `"delete"` (stopped, the Trash does it instead), an `Ask` (Pippa asks the person first),
+ * or `undefined` (runs). Looks at every command in a chain (`;`, `&&`, `|`, `$( )`) and inside `do shell script`.
+ * Everything else runs without asking: AppleScript for the person's apps, downloads, any local command.
+ */
+export function classifyCommand(command: string): "delete" | Ask | undefined {
 	for (const segment of command.split(/[;&|\n`()]|\$\(/)) {
 		const words = segment.trim().split(/\s+/).filter(Boolean);
 		while (words.length && (PREFIXES.has(words[0]) || /^\w+=/.test(words[0]) || words[0].startsWith("-"))) words.shift();
 		const name = (words[0] ?? "").replace(/^["']|["']$/g, "").split("/").pop() ?? "";
 		const execs = words.flatMap((word, i) => (word === "-exec" || word === "-execdir" ? [words[i + 1]?.split("/").pop() ?? ""] : []));
-		if (DELETES.has(name) || (name === "find" && (words.includes("-delete") || execs.some((e) => DELETES.has(e))))) {
-			return "Not run: Pippa never deletes for good. Use move_to_trash for those files; the person can get them back from the Trash.";
-		}
-		if (OUTSIDE.has(name)) {
-			return "Not run: the shell does not go online or control other apps. Use web_search or fetch_content for the web, and Pippa's own mcp__pippa__ tools for Mail, Calendar and Reminders.";
-		}
+		if (DELETES.has(name) || (name === "find" && (words.includes("-delete") || execs.some((e) => DELETES.has(e))))) return "delete";
+		if (REMOTE.has(name)) return "remote";
+	}
+	const words = command.split(/[\s;&|()`]+/).map((word) => word.replace(/^["']|["']$/g, "").split("/").pop() ?? "");
+	if (words.includes("osascript")) {
+		const inner = command.match(/do\s+shell\s+script\s+\\?["']([\s\S]*?)\\?["']/i)?.[1];
+		if (inner !== undefined) { const kind = classifyCommand(inner); if (kind) return kind; }
+		else if (/do\s+shell\s+script/i.test(command)) return "run";
+		// `send` covers Mail and Messages; a draft (make new outgoing message) is not sent.
+		if (/\bsend\b/i.test(command)) return "send";
+	}
+	if (words.includes("curl") || words.includes("wget")) {
+		if (/\|\s*(sudo\s+)?(sh|bash|zsh|python3?|perl|ruby|osascript)\b/.test(command)) return "run";
+		// Data options, or a URL built from command output or variables, can carry the person's files out.
+		if (UPLOAD.test(command) || /\$\(|`|\$\{?\w/.test(command)) return "upload";
 	}
 	return undefined;
 }
+
+/** The question Pippa shows, in the app's language (`PIPPA_LANGUAGE`). First paragraph everyday words, then the command. */
+export function askText(kind: Ask, command: string, language = process.env.PIPPA_LANGUAGE ?? ""): { title: string; message: string } {
+	const de = language.startsWith("de");
+	const texts: Record<Ask, [string, string, string, string]> = {
+		send: ["Darf Pippa das abschicken?", "Pippa möchte über ein anderes Programm etwas verschicken.", "May Pippa send this?", "Pippa wants to send something through another app."],
+		upload: ["Darf Pippa Daten ins Internet schicken?", "Pippa möchte etwas an eine Webseite oder einen Server senden.", "May Pippa send data to the internet?", "Pippa wants to send something to a website or server."],
+		remote: ["Darf Pippa sich mit einem anderen Rechner verbinden?", "Pippa möchte eine Verbindung zu einem anderen Computer aufbauen.", "May Pippa connect to another computer?", "Pippa wants to open a connection to another computer."],
+		run: ["Darf Pippa ein Programm aus dem Internet ausführen?", "Pippa möchte etwas Heruntergeladenes direkt starten.", "May Pippa run something from the internet?", "Pippa wants to start something it downloads."],
+	};
+	const [titleDe, bodyDe, titleEn, bodyEn] = texts[kind];
+	const shown = command.length > 300 ? command.slice(0, 299) + "…" : command;
+	return { title: de ? titleDe : titleEn, message: `${de ? bodyDe : bodyEn}\n\n${shown}` };
+}
+
+export const DECLINED_REASON = "Not run: the person said no. Do not try another way; tell them in one short sentence that nothing was sent.";
+export const NO_ONE_TO_ASK_REASON = "Not run: this would send something out of this Mac, and there is no one to ask right now.";
 
 export const BACKUP_DAYS = 30;
 /** Larger files are not copied (a clone is free on APFS, a real copy of a huge file is not). */
@@ -214,8 +252,14 @@ export default function (pi: ExtensionAPI) {
 			return { block: true, reason: loop };
 		}
 		if (tool === "bash") {
-			const risky = riskyCommand(String(event.input?.command ?? ""));
-			if (risky) return { block: true, reason: risky };
+			const command = String(event.input?.command ?? "");
+			const kind = classifyCommand(command);
+			if (kind === "delete") return { block: true, reason: DELETE_REASON };
+			if (kind) {
+				if (!ctx?.hasUI || !ctx?.ui?.confirm) return { block: true, reason: NO_ONE_TO_ASK_REASON };
+				const { title, message } = askText(kind, command);
+				if (!(await ctx.ui.confirm(title, message))) return { block: true, reason: DECLINED_REASON };
+			}
 		}
 		if (backups && (tool === "edit" || tool === "write")) {
 			const file = targetPath(event.input?.path ?? event.input?.file_path, ctx?.cwd ?? process.cwd());

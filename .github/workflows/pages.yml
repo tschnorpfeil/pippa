@@ -1,35 +1,44 @@
-# Publishes site/ to GitHub Pages (heypippa.app).
+# Checks site/ on claude/** branches and publishes it to GitHub Pages (heypippa.app) from main.
 # Runs only on changes to the website or by hand.
 name: Website
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
     paths: ['site/**', 'scripts/check-site*.cjs', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Launch check
         run: |
           node scripts/check-site.cjs
           node scripts/check-site-launch.cjs
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

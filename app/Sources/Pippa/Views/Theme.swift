@@ -578,13 +578,16 @@ extension View {
 }
 
 /// Close: 26 pt round, filled only on hover.
+/// Top right of a panel. Folding back into the pill shows a chevron, not an X:
+/// an X reads as "quit", and nothing is lost here. Only something that really goes away (a toast) keeps the X.
 struct CloseButton: View {
     var action: () -> Void
+    var collapses = true
     private let hoverState = State(initialValue: false)
     private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
     var body: some View {
         Button(action: action) {
-            Image(systemName: "xmark")
+            Image(systemName: collapses ? "chevron.down" : "xmark")
                 .font(.scaled(size: 11, weight: .semibold))
                 .foregroundStyle(hover ? Theme.ink2 : Theme.ink3)
                 .frame(width: 26, height: 26)
@@ -593,7 +596,8 @@ struct CloseButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hover = $0 }
-        .accessibilityLabel(T("Close", table: "Views"))
+        .help(collapses ? T("Minimize", table: "Views") : T("Close", table: "Views"))
+        .accessibilityLabel(collapses ? T("Minimize", table: "Views") : T("Close", table: "Views"))
     }
 }
 

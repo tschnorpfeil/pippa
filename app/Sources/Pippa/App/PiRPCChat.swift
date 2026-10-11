@@ -4,8 +4,8 @@ import PippaCore
 
 /// The **conversation path in every
 /// build**: free text and capabilities in the conversation go to the real Pi (`pi --mode rpc`) instead of the own core.
-/// Pi runs its tools without asking. Should an extension still ask (`extension_ui_request`), a simple Pippa prompt
-/// (NSAlert) shows the question. The old own core no longer exists; only debug recordings use a stand-in (`ConversationChat`).
+/// Pi runs its tools without asking. Only before the shell sends something out (pippa-assist.ts) does an extension ask
+/// (`extension_ui_request`); a simple Pippa prompt (NSAlert) shows the question. The old own core no longer exists; only debug recordings use a stand-in (`ConversationChat`).
 ///
 /// Launch as in `PippaPiLaunch.configuration`: the **pinned release with Pippa's Node** (`PiInstaller.launchSpec`, never
 /// `~/.local/bin/pi`), `--provider pippa-local`, shared `~/.pi/agent`, Pippa's extensions and web access, no
@@ -578,7 +578,7 @@ final class PiRPCChat {
     /// answers in the person's place (button code). `nil`: the person answers.
     static var answerForSnapshot: ((NSWindow, PiUIRequest) -> NSApplication.ModalResponse)?
 
-    /// A question of an extension (Pippa's own ask none): a Pippa prompt, so Pi never waits forever. `confirm` and
+    /// A question of an extension (pippa-assist.ts before sending or uploading): a Pippa prompt, so Pi never waits forever. `confirm` and
     /// short `select` as buttons, `input`/`editor` with text field.
     private static func ask(_ request: PiUIRequest) async -> PiUIResponse {
         let alert = NSAlert()

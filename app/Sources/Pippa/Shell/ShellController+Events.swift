@@ -1,7 +1,7 @@
 import AppKit
 import PippaCore
 
-// Shell events: pass clicks outside through or collapse, drop files,
+// Shell events: pass clicks outside through, drop files,
 // keyboard (Esc, ⌘↩, typing during deformation). State lives in ShellController.
 extension ShellController {
     // MARK: Pass clicks through
@@ -129,7 +129,8 @@ extension ShellController {
     func installMonitors() {
         // Scripted QA snapshots run beside the installed Pippa: they never watch clicks or drags in other apps.
         let watchesOtherApps = DevSnapshot.directory == nil
-        // The conversation stays open when switching to another app.
+        // The conversation stays open when switching to or clicking in another app (copying text there, a look
+        // elsewhere): only X, Esc or the shortcut close it.
         // Intercept clicks only where the shell is.
         if watchesOtherApps, let m = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseUp], handler: { [weak self] event in
             let type = event.type
@@ -139,21 +140,6 @@ extension ShellController {
                     // Let AppKit deliver the drop before shrinking its destination.
                     DispatchQueue.main.async { [weak self] in self?.pollDrag() }
                 } else { self?.pollDrag() }
-            }
-        }) { monitors.append(m) }
-        // A click in another app collapses the conversation, but only on release: pressing on a file in the
-        // Finder may start a drag toward here, and the drop target must not disappear meanwhile.
-        if watchesOtherApps, let m = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .rightMouseDown], handler: { [weak self] event in
-            let type = event.type
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                // A scripted snapshot must not collapse because the developer clicks
-                // in another app while the fixture is running. Production is unchanged.
-                if DevSnapshot.directory != nil,
-                   ["attachments", "mailcards", "dragtarget", "conversationresume", "calendar", "thoughtline"].contains(DevEnvironment.value("PIPPA_SNAPSHOT_ONLY") ?? "") { return }
-                if type == .leftMouseDown { self.outsideDragBaseline = NSPasteboard(name: .drag).changeCount; return }
-                let dragged = type == .leftMouseUp && NSPasteboard(name: .drag).changeCount != self.outsideDragBaseline
-                if self.collapsesOnOutsideClick(dragged: dragged) { self.model.collapse() }
             }
         }) { monitors.append(m) }
         if let m = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseUp], handler: { [weak self] event in
@@ -190,13 +176,6 @@ extension ShellController {
             }
             return handled ? nil : event
         }) { monitors.append(m) }
-    }
-
-    /// Collapse after a click outside, except while dragging. Also not while the system prompt
-    /// for the calendar is open: the click on "Allow" is outside, the answer should appear in the open conversation.
-    func collapsesOnOutsideClick(dragged: Bool) -> Bool {
-        model.isExpanded && !isDraggingPill && !dragged && !dragAnnounced
-            && !model.awaitingSystemPrompt && !shellScreenRect.contains(NSEvent.mouseLocation)
     }
 
     /// Typing before the field has focus (shell still deforming): nothing gets lost.

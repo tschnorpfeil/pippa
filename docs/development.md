@@ -230,9 +230,10 @@ Some `PippaChecks` groups need extra input and are switched on by environment va
 recognizer (CI sets it).
 
 **CI.** `.github/workflows/ci.yml` runs on pushes to `claude/**` branches (not for documentation-only changes) and by
-hand, on a `macos-26` runner: string check, `swift build`, `PippaChecks`, the web access tests and the tests of Pippa's Pi extensions.
-Started by hand with *app* ticked it also builds an ad-hoc signed `Pippa.app` and uploads it as an artifact.
-`.github/workflows/pages.yml` publishes `site/` to GitHub Pages.
+hand, on a `macos-26` runner: string check, release script tests, `swift build`, `PippaChecks`, the web access tests and
+the tests of Pippa's Pi extensions. Started by hand with *app* ticked it also builds an ad-hoc signed `Pippa.app` and
+uploads it as an artifact. `.github/workflows/pages.yml` runs the site checks on changes to `site/` and publishes it to
+GitHub Pages from `main`.
 
 ## Working with a real model
 

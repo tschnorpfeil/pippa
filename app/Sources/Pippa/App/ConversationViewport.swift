@@ -11,3 +11,9 @@ struct ConversationScrollMetrics: Equatable {
     var offsetY: CGFloat
     var atBottom: Bool
 }
+
+/// Heights only: following the latest line cares about growth, not about where the view is scrolled.
+struct ConversationScrollExtent: Equatable {
+    var content: CGFloat
+    var container: CGFloat
+}
