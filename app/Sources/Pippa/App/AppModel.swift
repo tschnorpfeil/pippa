@@ -153,6 +153,12 @@ final class AppModel: ObservableObject {
         conversationChanges = conversations.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark(); self?.schedulePendingDrops() }
         }
+        conversations.recordChanges = { [weak self] changes in
+            guard !changes.isEmpty, let engine = self?.engine else { return nil }
+            let receipt = try? await engine.recordAgentChanges(changes)
+            if receipt != nil { self?.refreshJobs() }
+            return receipt?.id
+        }
         conversations.onAnswerFinished = { [weak self] failed in
             // Only the open conversation shows the answer itself; the line or the setup above the pill does not.
             guard let self, !self.mode.isConversation else { return }

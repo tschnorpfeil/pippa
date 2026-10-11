@@ -18,10 +18,13 @@ protocol ConversationChat: AnyObject {
     /// What tools did in the last answer, once; `nil` if nothing.
     func takeSearchFiles() -> [URL]
     func takeShownActions() -> ActionReceipt?
+    /// File changes of the last answer that can be undone, once.
+    func takeChanges() -> [AgentChange]
 }
 
 extension ConversationChat {
     func takeSearchFiles() -> [URL] { [] }
+    func takeChanges() -> [AgentChange] { [] }
 }
 
 extension PiRPCChat: ConversationChat {

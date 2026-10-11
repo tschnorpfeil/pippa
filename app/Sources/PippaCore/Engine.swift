@@ -240,6 +240,9 @@ public protocol PippaEngine: AnyObject, Sendable {
     /// Finished result files of a tool (in the cache, `ResultsFolder`) into the journal so "Rückgängig" (undo) removes them again.
     /// Starts no model.
     func recordResult(_ files: [URL], summary: String, detail: String) async throws -> JobReceipt
+    /// What Pi changed in one answer (AgentChange) into the journal, so "Undo" under the answer takes it back.
+    /// `nil` when there is nothing to take back. Starts no model.
+    func recordAgentChanges(_ changes: [AgentChange]) async throws -> JobReceipt?
 
     // Letter (ToolBridgeTypes.swift):
 
@@ -294,6 +297,7 @@ public extension PippaEngine {
     func selectedMail() async throws -> MailMessage? { throw PippaError.notAvailable }
     func readCalendar(_ range: CalendarRange) async -> CalendarReadResult { .failed(CalendarReadResult.failureText) }
     func recordResult(_ files: [URL], summary: String, detail: String) async throws -> JobReceipt { throw PippaError.notAvailable }
+    func recordAgentChanges(_ changes: [AgentChange]) async throws -> JobReceipt? { nil }
     func insertMailReply(_ draft: MailDraft) async throws -> MailInsertResult { throw PippaError.notAvailable }
     func keepWarmAfterCall() async {}
     func sheetAccess() async -> IntegrationAccess { .unavailable(L("That isn’t possible here right now.", table: "Core")) }

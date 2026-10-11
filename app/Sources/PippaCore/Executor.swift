@@ -489,6 +489,39 @@ public actor Executor {
                           undoDetail: L("Removed.", table: "TrayCore"), date: Date())
     }
 
+    // MARK: Changes from a conversation (Pi)
+
+    /// Remembers what Pi changed in one answer for undo: a job of kind "agent", one step per change with the
+    /// fingerprint of the file where it is now (after later moves in the same answer), so undo only takes back what
+    /// nobody changed since. `nil` when there is nothing to take back.
+    public func recordAgentChanges(_ changes: [AgentChange], summary: String, detail: String) throws -> JobReceipt? {
+        let kept = AgentChange.merged(changes)
+        guard !kept.isEmpty else { return nil }
+        let job = UUID()
+        try db.run("INSERT INTO jobs(id, kind, scope, state, created) VALUES(?,?,?,'running',?)",
+                   [.text(job.uuidString), .text("agent"), .text(NSHomeDirectory()), .real(Date().timeIntervalSince1970)])
+        for (index, change) in kept.enumerated() {
+            let now = URL(fileURLWithPath: AgentChange.finalPath(of: index, in: kept))
+            let seq = try journalStart(job, opID: nil, kind: change.kind.rawValue, source: change.from.map { URL(fileURLWithPath: $0) },
+                                       target: URL(fileURLWithPath: change.to), fp: FileFingerprint.of(now))
+            try journalMark(job, seq, "done")
+        }
+        let reveal = kept.last.map { URL(fileURLWithPath: $0.kind == .trash ? ($0.from ?? $0.to) : $0.to) }
+        try finishJob(job, state: "done", summary: summary, detail: detail, reveal: reveal)
+        return JobReceipt(id: job, summary: summary, detail: detail, revealURL: reveal, date: Date())
+    }
+
+    /// Undo of a changed file: the old version comes back; what is there now goes to the Trash (never deleted).
+    private func restore(_ target: URL, from copy: URL, fp: FileFingerprint?) throws -> String? {
+        guard fm.fileExists(atPath: copy.path) else { return L("The old version is no longer there.", table: "Core") }
+        if fm.fileExists(atPath: target.path) {
+            guard let fp, fp.matches(FileFingerprint.of(target)) else { return L("The file has changed since then, so it stays.", table: "Core") }
+            try fm.trashItem(at: target, resultingItemURL: nil)
+        }
+        try fm.copyItem(at: copy, to: target)
+        return nil
+    }
+
     /// Undo a result file: in the cache simply remove it (with the empty `Results/<uuid>`), otherwise only move it to the Trash if unchanged.
     /// `true` if the file is gone.
     private func removeResult(_ target: URL, fp: FileFingerprint?) throws -> Bool {
@@ -613,6 +646,11 @@ public actor Executor {
                 }
                 guard !sourceThere else { conflicts.append((source, L("Something else is in the old place now.", table: "Core"))); continue }
                 try fm.moveItem(at: target, to: source)
+                try journalMark(jobID, seq, "undone")
+                restored += 1
+            case "restore":
+                guard let sourcePath = r[2].string else { continue }
+                if let why = try restore(target, from: URL(fileURLWithPath: sourcePath), fp: fp) { conflicts.append((target, why)); continue }
                 try journalMark(jobID, seq, "undone")
                 restored += 1
             case "result":

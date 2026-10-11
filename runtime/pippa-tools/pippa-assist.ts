@@ -24,9 +24,11 @@
  *   same disk) and the tool result says where, so "mach das rückgängig" can copy it back; copies older than
  *   `BACKUP_DAYS` go. `bash` runs in a sandbox (shell.ts): no deleting for good, and the internet, other apps and
  *   writing in the person's folders only after their OK.
+ * - Undo: every change the app can take back (an old version kept, a new file, a move, the Trash) becomes a session
+ *   entry `pippa-change`; the app keeps them in its journal, so "Rückgängig" under the answer undoes them.
  */
 import { constants } from "node:fs";
-import { copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
+import { access, copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
 import { basename, isAbsolute, join, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 
@@ -168,6 +170,11 @@ export async function backUp(file: string, directory: string, now = new Date()):
 	return undefined;
 }
 
+/** Does anything exist at `path`? */
+async function exists(path: string): Promise<boolean> {
+	try { await access(path); return true; } catch { return false; }
+}
+
 /** Removes copies older than `days` (by the time they were made, set in `backUp`). */
 export async function pruneBackups(directory: string, days = BACKUP_DAYS, now = Date.now()): Promise<void> {
 	let names: string[];
@@ -178,9 +185,38 @@ export async function pruneBackups(directory: string, days = BACKUP_DAYS, now = 
 	}
 }
 
+/** One change Pippa can take back (app: Executor.recordAgentChanges). `restore`: copy `copy` back over `file`;
+ * `create`: the file is new, undo moves it to the Trash; `move`/`trash`: put `to` back at `from`. */
+export type Change =
+	| { kind: "restore"; file: string; copy: string }
+	| { kind: "create"; file: string }
+	| { kind: "move" | "trash"; from: string; to: string };
+
+/** What a finished tool call changed, from its own result (never from the model's text). `before`: what `tool_call`
+ * saw, the copy of an existing file or that the file was new. */
+export function changesOf(tool: string, details: any, isError: boolean, before?: { file: string; copy?: string; created?: boolean }): Change[] {
+	if (isError) return [];
+	if ((tool === "edit" || tool === "write") && before) {
+		if (before.copy) return [{ kind: "restore", file: before.file, copy: before.copy }];
+		return before.created ? [{ kind: "create", file: before.file }] : [];
+	}
+	if (tool === "move_files") {
+		const moved: any[] = Array.isArray(details?.moved) ? details.moved : details?.from && details?.to ? [details] : [];
+		return moved.filter((m) => typeof m?.from === "string" && typeof m?.to === "string").map((m) => ({ kind: "move", from: m.from, to: m.to }));
+	}
+	if (tool === "move_to_trash" && typeof details?.path === "string" && typeof details?.trashedTo === "string") {
+		return [{ kind: "trash", from: details.path, to: details.trashedTo }];
+	}
+	if (tool === "bash" && Array.isArray(details?.pippaKept)) {
+		return details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
+			.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }));
+	}
+	return [];
+}
+
 export default function (pi: ExtensionAPI) {
 	const backups = backupDirectory();
-	const kept = new Map<string, { copy: string; file: string }>();
+	const kept = new Map<string, { file: string; copy?: string; created?: boolean }>();
 	if (backups) void pruneBackups(backups);
 	const counts = new Map<string, LoopCount>();
 	const keys = new Map<string, string>();
@@ -217,7 +253,7 @@ export default function (pi: ExtensionAPI) {
 			const file = targetPath(event.input?.path ?? event.input?.file_path, ctx?.cwd ?? process.cwd());
 			try {
 				const copy = file ? await backUp(file, backups) : undefined;
-				if (copy && file) kept.set(event.toolCallId, { copy, file });
+				if (file) kept.set(event.toolCallId, copy ? { copy, file } : { file, created: !(await exists(file)) });
 			} catch {
 				return { block: true, reason: "Not changed: Pippa could not keep a copy of the old version first. Tell the person in one short sentence that the file stays as it was." };
 			}
@@ -253,7 +289,9 @@ export default function (pi: ExtensionAPI) {
 		keys.delete(event.toolCallId);
 		const count = key ? counts.get(key) : undefined;
 		if (count) { if (event.isError) count.failures++; else count.successes++; }
-		if (backup && !event.isError) {
+		const changes = changesOf(event.toolName, event.details, event.isError === true, backup);
+		if (changes.length) pi.appendEntry("pippa-change", { v: 1, changes });
+		if (backup?.copy && !event.isError) {
 			const note = `The previous version of ${basename(backup.file)} is kept at ${backup.copy}. To undo, copy it back over ${backup.file}.`;
 			return { content: [...(event.content ?? []), { type: "text", text: note }] };
 		}

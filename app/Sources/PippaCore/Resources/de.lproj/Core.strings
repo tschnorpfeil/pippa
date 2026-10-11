@@ -206,3 +206,9 @@
 /* Was Pippa darf (MacPermissions.swift) */
 "Notes" = "Notizen";
 "When you connect a drive, your Mac asks the first time Pippa opens it." = "Wenn du ein Laufwerk ansteckst, fragt dein Mac, sobald Pippa es zum ersten Mal öffnet.";
+
+/* Undo of a conversation's file changes (AgentChange.swift, Executor.recordAgentChanges) */
+"Changed “%@”" = "„%@“ geändert";
+"%lld files changed" = "%lld Dateien geändert";
+"In the conversation" = "Im Gespräch";
+"The old version is no longer there." = "Die alte Version ist nicht mehr da.";

@@ -199,3 +199,16 @@ test("old copies go after BACKUP_DAYS", async () => {
 	await pruneBackups(dir);
 	assert.deepEqual(await readdir(dir), ["neu.txt"]);
 });
+
+test("what an answer changed is told to the app from the tools' own results, so it can be undone", async () => {
+	const { changesOf } = await import("./pippa-assist.ts");
+	assert.deepEqual(changesOf("edit", undefined, false, { file: "/u/a.txt", copy: "/b/a.txt" }), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
+	assert.deepEqual(changesOf("write", undefined, false, { file: "/u/new.txt", created: true }), [{ kind: "create", file: "/u/new.txt" }]);
+	assert.deepEqual(changesOf("write", undefined, true, { file: "/u/new.txt", created: true }), [], "failed: nothing changed");
+	assert.deepEqual(changesOf("move_files", { moved: [{ from: "/d/a.pdf", to: "/d/X/a.pdf" }], failed: [] }, false), [{ kind: "move", from: "/d/a.pdf", to: "/d/X/a.pdf" }]);
+	assert.deepEqual(changesOf("move_files", { from: "/d/a.pdf", to: "/e/a.pdf" }, false), [{ kind: "move", from: "/d/a.pdf", to: "/e/a.pdf" }]);
+	assert.deepEqual(changesOf("move_to_trash", { path: "/d/a.pdf", trashedTo: "/T/a.pdf" }, false), [{ kind: "trash", from: "/d/a.pdf", to: "/T/a.pdf" }]);
+	assert.deepEqual(changesOf("move_to_trash", { path: "/d/a.pdf" }, false), [], "unknown place in the Trash: nothing to take back");
+	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, false), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
+	assert.deepEqual(changesOf("read", {}, false), []);
+});

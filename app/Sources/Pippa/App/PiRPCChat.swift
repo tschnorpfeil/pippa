@@ -402,6 +402,7 @@ final class PiRPCChat {
               onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil) async throws -> String {
         lastActions = nil
         searchFiles = []
+        changes = []
         listedFiles = []
         // Read and write receipts belong to the answer that triggered them.
         _ = PippaMCPService.readNotes.take()
@@ -468,6 +469,7 @@ final class PiRPCChat {
                         if !searchFiles.contains(url), searchFiles.count < 200 { searchFiles.append(url) }
                     }
                 }
+                if kind == "pippa-change" { changes += AgentChange.parse(text) }
                 if kind == "pippa-listed-files", let data = text.data(using: .utf8),
                    let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     for path in (record["files"] as? [String] ?? []) where path.hasPrefix("/") && listedFiles.count < 1000 {
@@ -535,6 +537,8 @@ final class PiRPCChat {
     }
 
     private var searchFiles: [URL] = []
+    /// What Pi changed in this answer and can be taken back (pippa-assist.ts `pippa-change`); `takeChanges()`.
+    private var changes: [AgentChange] = []
     private var listedFiles: [URL] = []
     private func adoptListedFiles(answer: String) {
         for file in FoundFiles.named(listedFiles, answer: answer) where !searchFiles.contains(file) && searchFiles.count < 200 {
@@ -545,6 +549,12 @@ final class PiRPCChat {
     func takeSearchFiles() -> [URL] {
         defer { searchFiles = [] }
         return searchFiles
+    }
+
+    /// The file changes of the last answer that can be taken back, once (also stopped or with error).
+    func takeChanges() -> [AgentChange] {
+        defer { changes = [] }
+        return changes
     }
 
     /// The receipt of the last answer, once. `nil` if no tool wanted to change anything.

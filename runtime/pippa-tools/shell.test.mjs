@@ -242,7 +242,10 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 			const request = JSON.parse(body);
 			res.writeHead(200, { "Content-Type": "text/event-stream" });
 			if (turn++ === 0) {
-				res.end(chunk({ role: "assistant", tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "bash", arguments: JSON.stringify({ command: "echo sandboxed > made.txt; cat made.txt" }) } }] }, "tool_calls") + "data: [DONE]\n\n");
+				res.end(chunk({ role: "assistant", tool_calls: [
+					{ index: 0, id: "call_1", type: "function", function: { name: "bash", arguments: JSON.stringify({ command: "echo sandboxed > made.txt; cat made.txt" }) } },
+					{ index: 1, id: "call_2", type: "function", function: { name: "write", arguments: JSON.stringify({ path: "neu.txt", content: "neu" }) } },
+				] }, "tool_calls") + "data: [DONE]\n\n");
 			} else {
 				toolResult = request.messages.filter((m) => m.role === "tool").map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))).join("\n");
 				res.end(chunk({ role: "assistant", content: "fertig" }, "stop") + "data: [DONE]\n\n");
@@ -258,6 +261,7 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 		"--extension", join(here, "pippa-tools.ts"), "--extension", join(here, "pippa-assist.ts"),
 		"--tools", "read,bash,edit,write,list_folder", "--provider", "pippa-local", "--model", "m"], { cwd: work, env, stdio: ["pipe", "pipe", "pipe"] });
 	let err = "", buffer = "";
+	const changes = [];
 	child.stderr.on("data", (d) => (err += d));
 	try {
 		await new Promise((done, fail) => {
@@ -270,7 +274,8 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 					let event;
 					try { event = JSON.parse(line); } catch { continue; }
 					if (event.type === "extension_error") { clearTimeout(timer); fail(new Error(line)); }
-					if (event.type === "agent_settled" || event.type === "agent_end") { clearTimeout(timer); done(); }
+					if (event.type === "entry_appended" && event.entry?.customType === "pippa-change") changes.push(...event.entry.data.changes);
+					if (event.type === "agent_settled") { clearTimeout(timer); done(); }
 				}
 			});
 			child.stdin.write(JSON.stringify({ type: "prompt", message: "Mach eine Datei" }) + "\n");
@@ -280,6 +285,7 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 		server.close();
 	}
 	assert.ok(toolResult, "Pi sent the tool result back");
+	assert.deepEqual(changes, [{ kind: "create", file: join(work, "neu.txt") }], "the app hears of the new file, so Undo can take it back");
 	if (onMac) {
 		assert.match(toolResult, /sandboxed/);
 		assert.equal(readFileSync(join(work, "made.txt"), "utf8"), "sandboxed\n", "the working folder is writable");

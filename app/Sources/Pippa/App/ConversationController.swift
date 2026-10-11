@@ -18,6 +18,9 @@ final class ConversationController: ObservableObject {
     @Published private(set) var expandedReceipts: Set<UUID> = []
     /// An answer ended on its own (`true`: it failed); not called when Stop was pressed. Set by AppModel for the pill.
     var onAnswerFinished: ((Bool) -> Void)?
+    /// Puts what Pi changed in an answer into the journal (AppModel → `PippaEngine.recordAgentChanges`); the job's id
+    /// becomes the answer's receipt, so "Undo" appears under it.
+    var recordChanges: (([AgentChange]) async -> UUID?)?
     /// The failed answer's note and the question it answered, for "Try again" on that note (cleared by the next send).
     @Published private(set) var failed: (notice: UUID, question: String)?
     private var lastAnnouncedKind: String?
@@ -197,6 +200,7 @@ final class ConversationController: ObservableObject {
                 if self.thought.apply(event, request: requestID, at: Date()) { self.announcePhase() }
             }
         }
+        let record = recordChanges
         request = Task { [weak self] in
             var scoped: [URL] = []
             defer {
@@ -247,6 +251,8 @@ final class ConversationController: ObservableObject {
                 // With what was shown, source checking and looking things up online (PiRPCChat+Shown.swift); skills.
                 let answer = try await chat.answer(text, taskID: sessionID, context: chatContext, newFiles: newFiles, skill: skill,
                                                    draftOnly: false, onDelta: onDelta, onSteered: onSteered, onReset: nil).text
+                // Recorded even if the person moved on: the menu bar's recent jobs can still undo it.
+                let undo = await record?(chat.takeChanges())
                 guard let self, self.current?.id == id, self.requestID == requestID else { return }
                 // Some engines finish normally after cancellation. Preserve only
                 // the text accepted before Stop, never a completed draft or plan.
@@ -258,13 +264,15 @@ final class ConversationController: ObservableObject {
                             mailDraft: skill?.name == "antwort-schreiben" ? ConversationMailDraft(
                                 to: replySource.flatMap { MailAddress.parse($0.replyTo ?? "").address } ?? "",
                                 subject: replySource.map { MailDraft(messageID: $0.messageID, to: nil, toName: nil, subject: $0.subject, body: "").replySubject } ?? "",
-                                body: answer, replySource: replySource, requiresOriginalReply: !mailFiles.isEmpty) : nil, work: work, actions: actions)
+                                body: answer, replySource: replySource, requiresOriginalReply: !mailFiles.isEmpty) : nil, receipt: undo, work: work, actions: actions)
                 self.clearStream()
                 self.onAnswerFinished?(false)
                 // VoiceOver: announce the finished answer once (not every streamed piece).
                 NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
                                      userInfo: [.announcement: "Pippa: " + answer, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
             } catch {
+                // What changed before the stop or error can be undone as well.
+                let undo = await record?(chat.takeChanges())
                 guard let self, self.current?.id == id, self.requestID == requestID else { return }
                 var partial: String?
                 // Also when stopped or failed: what tools did until then is shown with it.
@@ -275,13 +283,13 @@ final class ConversationController: ObservableObject {
                 if let partial {
                     // Stopped is not an error: what was already written stays.
                     if partial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        self.append(.system, T("Answer stopped. You can pick up from here.", table: "App"), actions: actions)
+                        self.append(.system, T("Answer stopped. You can pick up from here.", table: "App"), receipt: undo, actions: actions)
                     } else {
-                        self.append(.assistant, partial, attachments: found, modelLabel: modelLabel, stopped: true, actions: actions)
+                        self.append(.assistant, partial, attachments: found, modelLabel: modelLabel, stopped: true, receipt: undo, actions: actions)
                     }
                 } else {
                     self.error = PiRPCChat.userText(for: error, context: "gespraech")
-                    self.append(.system, PiRPCChat.userText(for: error, context: "antwort"), notice: true, actions: actions)
+                    self.append(.system, PiRPCChat.userText(for: error, context: "antwort"), notice: true, receipt: undo, actions: actions)
                     if let notice = self.current?.messages.last?.id { self.failed = (notice, text) }
                     self.onAnswerFinished?(true)
                 }
