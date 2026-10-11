@@ -203,12 +203,6 @@ final class TrayController: ObservableObject {
                 if let kind { model.taskLog.chose(action.id, offered: ids, kind: kind, bindsReceipt: true) }
                 model.startSort()
             }
-        case .invoiceTable:
-            guard !model.isActiveWork else { return }
-            handOver(given, urls: urls) {
-                if let kind { model.taskLog.chose(action.id, offered: ids, kind: kind, bindsReceipt: true) }
-                model.startInvoices()
-            }
         }
     }
 
@@ -386,7 +380,7 @@ final class TrayController: ObservableObject {
             await discard(output, receipt: nil)
             return
         }
-        let detail = output.skippedSentence ?? ""
+        let detail = output.detailSentence ?? ""
         var receipt: JobReceipt?
         if let engine = model?.engine, !output.files.isEmpty {
             do { receipt = try await engine.recordResult(output.files, summary: output.summary, detail: detail) }
@@ -418,7 +412,7 @@ final class TrayController: ObservableObject {
             receipts[receipt.id] = receipt
             model?.taskLog.finished(receipt.id)
         }
-        resultNote = output.skippedSentence
+        resultNote = output.detailSentence
         guard let first = results.first else {
             settle()
             changed()

@@ -1397,12 +1397,25 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Invoices as a table: Pi reads them and writes `Rechnungen.csv` next to them (skill `rechnung-auslesen`, Pi's
-    /// `write`). Nothing goes through a fixed JSON flow any more.
+    /// Invoices as a table, in code like "Make one PDF" (`InvoiceTable`): totals, dates and the sum per currency come
+    /// from code, unsure cells are yellow. Works without the local model; the invoices stay untouched, the .xlsx goes
+    /// to Pippa's results folder and opens with one click. Questions afterwards ("only 2025?") go to Pi as before.
     func startInvoices() {
         guard let ctx = context, !ctx.items.isEmpty else { return askForContext() }
-        guard let skill = PippaSkill.bundled.first(where: { $0.name == "rechnung-auslesen" }) else { return }
-        runSkill(skill)
+        let inputs = ctx.items
+        perform(title: T("Reading invoices…", table: "App"), subtitle: T("Your invoices stay as they are.", table: "App"),
+                writes: T("A new spreadsheet", table: "App"), retry: { [weak self] in self?.startInvoices() }) { engine in
+            let output = try await OneAnswerTools.run(.invoiceTable, inputs: inputs)
+            let receipt = try await engine.recordResult(output.files, summary: output.summary, detail: output.detailSentence ?? "")
+            return (receipt, output.files.first)
+        } done: { [weak self] (result: (JobReceipt, URL?)) in
+            guard let self else { return }
+            let (receipt, file) = result
+            self.finish(receipt)
+            self.showResultToast(receipt, open: T("Show Result", table: "App"), openFirst: true) {
+                if let file { NSWorkspace.shared.open(file) }
+            }
+        }
     }
 
     /// Receipt with "Undo" and a button that shows the result (file, calendar, notes).
