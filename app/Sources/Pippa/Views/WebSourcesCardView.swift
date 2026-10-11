@@ -87,7 +87,7 @@ struct SourceChipsView: View {
 
     var body: some View {
         FlowRow(spacing: 6, maxItemWidth: 220) {
-            ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in SourceChip(chip: chip) }
+            ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in WebSourceChip(chip: chip) }
             if more > 0 {
                 Text(verbatim: "+\(more)").font(.scaled(size: 12, weight: .medium)).foregroundStyle(Theme.ink3)
                     .padding(.horizontal, 10).frame(minHeight: 26)
@@ -100,7 +100,7 @@ struct SourceChipsView: View {
     }
 }
 
-private struct SourceChip: View {
+private struct WebSourceChip: View {
     var chip: SourceChipsView.Chip
     private let hoverState = State<Bool>(initialValue: false)
 
