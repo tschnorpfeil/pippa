@@ -7,12 +7,18 @@ func runWorkShapeChecks() {
     check("Work shape: each phase shows the shape of what Pippa does") {
         let expected: [(WorkPhase, WorkShape)] = [
             (.starting, .think), (.waitingForAnswer(continuing: true), .think), (.working, .think), (.retrying, .think),
-            (.wakingUp(progress: 0.4), .wake), (.gettingReady, .wake), (.warmingUp, .wake),
+            (.wakingUp(progress: 0.4), .think), (.gettingReady, .think), (.warmingUp, .think),
             (.reading(name: "Mietvertrag.pdf", index: 1, count: 1), .read), (.recognizing(name: "Scan.pdf", page: 1, pages: 2), .read),
+            (.checkingSources, .read),
             (.lookingThrough(name: nil), .swarm), (.lookingUpOnline, .swarm), (.checkingCalendar, .swarm), (.choosingPassages, .swarm),
-            (.checkingSources, .check), (.writing, .write), (.waitingForPerson, .question), (.stopping, .still),
+            (.writing, .write), (.preparingPreview, .write), (.condensing, .write),
+            (.waitingForPerson, .question), (.stopping, .still),
         ]
         return expected.allSatisfy { WorkShape($0.0) == $0.1 }
+    }
+
+    check("Work shape: few enough shapes to tell apart, handwriting among them") {
+        WorkShape.allCases.count <= 6 && WorkShape.allCases.contains(.write)
     }
 
     check("Work shape: every shape has the same strokes and points, all inside the square") {
@@ -43,11 +49,10 @@ func runWorkShapeChecks() {
         }
     }
 
-    check("Work shape: a question is orange, a checked line green, everything else Pippa blue") {
+    check("Work shape: a question is orange, everything else Pippa blue") {
         let question = WorkShapeGeometry.frame(.question, at: 1, still: false).strokes.filter { $0.alpha > 0 }
-        let check = WorkShapeGeometry.frame(.check, at: 1, still: false).strokes
-        let read = WorkShapeGeometry.frame(.read, at: 1, still: false).strokes
-        return question.allSatisfy { $0.ink == .need } && check[3].ink == .ok && check[0].ink == .accent
-            && read.allSatisfy { $0.ink == .accent }
+        let others = WorkShape.allCases.filter { $0 != .question }
+        return question.allSatisfy { $0.ink == .need }
+            && others.allSatisfy { WorkShapeGeometry.frame($0, at: 1, still: false).strokes.allSatisfy { $0.ink == .accent } }
     }
 }

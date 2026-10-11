@@ -5,7 +5,8 @@ import SwiftUI
 /// appears as a small chip (a picture of what it touches, everyday words) and turns into what came of it. Identical
 /// steps in a row count up instead of repeating. Words appear only for something real the host does (reading a file,
 /// waking up, a question) and, after ten seconds, one calm sentence that it takes a little longer.
-/// With Reduce Motion chips appear without moving and the shape stands still. Steps aside as soon as answer text arrives.
+/// With Reduce Motion chips appear without moving and the shape stands still. While answer text streams the words
+/// and chips step aside; only the shape stays below the text, writing along as handwriting.
 struct ThoughtLineView: View {
     var thought: ThoughtLine
     /// Where no Stop is in reach (compact surfaces), the line carries one.
@@ -18,18 +19,23 @@ struct ThoughtLineView: View {
     private var showsAll: Bool { showsAllState.wrappedValue != nil && showsAllState.wrappedValue == thought.startedAt }
     /// How many chips stay in view; older ones fold into one count.
     static let visibleChips = 4
+    /// The handwriting under streaming text is a little larger: it is alone there and the shape seen most.
+    static let writingSide: CGFloat = 22
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let phase = thought.phase, thought.isVisible {
+            if let phase = thought.phase {
+                // One shape for the whole answer, so thinking morphs into the handwriting and back.
                 HStack(alignment: .top, spacing: 10) {
-                    WorkShapeView(shape: WorkShape(phase), reduceMotion: reduceMotion)
-                    content(phase)
-                    Spacer(minLength: 0)
-                    if let onStop {
-                        Button(T("Stop", table: "ThoughtUI"), action: onStop)
-                            .pippa(.quiet).controlSize(.small)
-                            .disabled(phase == .stopping)
+                    WorkShapeView(shape: WorkShape(phase), reduceMotion: reduceMotion, side: thought.isVisible ? WorkShapeView.side : Self.writingSide)
+                    if thought.isVisible {
+                        content(phase)
+                        Spacer(minLength: 0)
+                        if let onStop {
+                            Button(T("Stop", table: "ThoughtUI"), action: onStop)
+                                .pippa(.quiet).controlSize(.small)
+                                .disabled(phase == .stopping)
+                        }
                     }
                 }
                 .accessibilityElement(children: .contain)

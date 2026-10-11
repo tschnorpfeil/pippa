@@ -49,7 +49,7 @@ struct ConversationWorkspace: View {
                         }
                         if chat.isRunning {
                             if !chat.streamingText.isEmpty { AssistantAnswerView(text: chat.streamingText, cached: false) }
-                            // Real phases only; steps aside while answer text streams, returns for a tool after text.
+                            // Real phases only; while answer text streams only the handwriting stays, the words return for a tool after text.
                             ThoughtLineView(thought: chat.thought).id("thought")
                         }
                         ForEach(chat.queued) { entry in queuedView(entry) }

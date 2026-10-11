@@ -205,7 +205,7 @@ struct PiSetupContent: View {
     }
 }
 
-/// The setup's thought line: Pippa's rings breathing awake as in ThoughtLineView, one sentence, percent and time left on the right.
+/// The setup's thought line: Pippa's rings turning as in ThoughtLineView, one sentence, percent and time left on the right.
 struct SetupThoughtLine: View {
     var text: String
     var progress: Double?
@@ -215,7 +215,7 @@ struct SetupThoughtLine: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            WorkShapeView(shape: .wake, reduceMotion: reduceMotion)
+            WorkShapeView(shape: .think, reduceMotion: reduceMotion)
             Text(text).foregroundStyle(Theme.ink2).lineLimit(2).fixedSize(horizontal: false, vertical: true).layoutPriority(1)
             Spacer(minLength: 8)
             if let remaining, remaining > 0, (progress ?? 0) < 1 {

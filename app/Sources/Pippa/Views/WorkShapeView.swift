@@ -3,11 +3,12 @@ import SwiftUI
 
 /// Pippa's working sign beside the thought line: the rings of her mark in the shape of what she is doing
 /// (PippaCore/WorkShape.swift). A new shape morphs out of the old one point by point. Decorative: VoiceOver skips it.
-/// It only animates while it is on screen (the line removes it when hidden), at a low frame rate, and under
+/// It only animates while it is on screen (the line removes it when the answer is done), at a low frame rate, and under
 /// Reduce Motion shows each shape as a still picture that changes without morphing.
 struct WorkShapeView: View {
     var shape: WorkShape
     var reduceMotion: Bool
+    var side: CGFloat = Self.side
 
     static let side: CGFloat = 16
     /// Points per second the drawn shape follows its target; high enough to feel immediate, low enough to morph.
@@ -34,14 +35,13 @@ struct WorkShapeView: View {
                 }
             }
         }
-        .frame(width: Self.side, height: Self.side)
+        .frame(width: side, height: side)
         .accessibilityHidden(true)
     }
 
     private static func color(_ ink: WorkShapeFrame.Ink) -> Color {
         switch ink {
         case .accent: Theme.accent
-        case .ok: Theme.ok
         case .need: Theme.needDot
         }
     }

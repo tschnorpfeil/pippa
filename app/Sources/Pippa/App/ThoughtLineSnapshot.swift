@@ -252,10 +252,10 @@ private actor ThoughtScript {
         await snap("04-looking")
         gate.release("looking")
 
-        // 5 Text streams: the line steps aside.
+        // 5 Text streams: words and chips step aside, the handwriting stays below the text.
         verify(await waitFor("writing"), "Engine streamed first text")
         try? await Task.sleep(for: .milliseconds(200))
-        verify(chat.thought.phase == .writing && !chat.thought.isVisible && !chat.streamingText.isEmpty, "Line hidden while text streams")
+        verify(chat.thought.phase == .writing && !chat.thought.isVisible && !chat.streamingText.isEmpty, "Words hidden while text streams, handwriting stays")
         await snap("05-writing")
         gate.release("writing")
 
