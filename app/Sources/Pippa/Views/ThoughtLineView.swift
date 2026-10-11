@@ -199,9 +199,14 @@ struct WakeBar: View {
     }
 }
 
-/// The small note under a finished answer ("3 sources read · 12 s"). Click or press to see what was actually read.
+/// The small note under a finished answer ("3 sources read · 12 s"). Click or press to see what was actually read:
+/// the web pages, what Pippa only looked at, and the steps. Folded by default, so a finished answer is just the answer.
 struct WorkReceiptView: View {
     var receipt: WorkReceipt
+    /// What was looked up online, shown in full when open (the chips above stay).
+    var web: [WebSourcesCard] = []
+    /// Lines of the action receipt that only looked something up (ActionReceipt.Item.isQuiet).
+    var lookedUp: [String] = []
     var expanded: Bool
     var toggle: () -> Void
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -232,19 +237,27 @@ struct WorkReceiptView: View {
             .accessibilityValue(expanded ? T("Details shown", table: "ThoughtUI") : T("Details hidden", table: "ThoughtUI"))
             .accessibilityHint(expanded ? T("Hide Details", table: "ThoughtUI") : T("Show What I Read", table: "ThoughtUI"))
             if expanded {
+                ForEach(Array(web.enumerated()), id: \.offset) { _, card in
+                    WebSourcesCardView(card: card).transition(.opacity)
+                }
+            }
+            if expanded, hasDetails {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(receipt.sources.enumerated()), id: \.offset) { _, source in
                         row(icon: Self.icon(source), strong: !source.wasRead || source.status == .partial,
                             title: source.displayName, detail: source.detail)
                     }
-                    if receipt.lookedUpOnline {
+                    ForEach(Array(lookedUp.enumerated()), id: \.offset) { _, line in
+                        row(icon: "eye", strong: false, title: line, detail: nil)
+                    }
+                    if receipt.lookedUpOnline, web.isEmpty {
                         row(icon: "globe", strong: false, title: T("Looked it up online", table: "ThoughtUI"), detail: nil)
                     }
                     if receipt.checkedCalendar {
                         row(icon: "calendar", strong: false, title: T("Checked your calendar", table: "ThoughtUI"), detail: nil)
                     }
                     if let steps = receipt.steps, !steps.isEmpty {
-                        if !receipt.sources.isEmpty || receipt.lookedUpOnline || receipt.checkedCalendar { Divider() }
+                        if !receipt.sources.isEmpty || !lookedUp.isEmpty || (receipt.lookedUpOnline && web.isEmpty) || receipt.checkedCalendar { Divider() }
                         Text(T("What I did", table: "ThoughtUI")).font(Fonts.hint.weight(.medium)).foregroundStyle(Theme.ink2)
                         VStack(alignment: .leading, spacing: 3) {
                             ForEach(Array(WorkStep.merged(steps).enumerated()), id: \.offset) { _, step in StepRow(step: step) }
@@ -261,6 +274,12 @@ struct WorkReceiptView: View {
                 .transition(.opacity)
             }
         }
+    }
+
+    /// Anything to list besides the web cards.
+    private var hasDetails: Bool {
+        !receipt.sources.isEmpty || !lookedUp.isEmpty || (receipt.lookedUpOnline && web.isEmpty) || receipt.checkedCalendar
+            || receipt.steps?.isEmpty == false
     }
 
     private func row(icon: String, strong: Bool, title: String, detail: String?) -> some View {

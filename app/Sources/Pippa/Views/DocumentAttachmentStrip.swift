@@ -7,7 +7,7 @@ struct DocumentAttachmentStrip: View {
     var onRemove: ((URL) -> Void)? = nil
 
     var body: some View {
-        AttachmentFlowLayout {
+        FlowRow {
             ForEach(Array(files.prefix(3).enumerated()), id: \.offset) { _, file in
                 chip(file)
             }
@@ -69,9 +69,12 @@ struct DocumentAttachmentStrip: View {
     }
 }
 
-/// Uses the proposed width during both shell measurement and rendering, without geometry state.
-private struct AttachmentFlowLayout: Layout {
-    private let spacing: CGFloat = 6
+/// Chips that wrap onto the next row. Uses the proposed width during both shell measurement and rendering, without
+/// geometry state.
+struct FlowRow: Layout {
+    var spacing: CGFloat = 6
+    /// No chip grows wider than this (long names truncate).
+    var maxItemWidth: CGFloat = 170
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         arrangement(width: proposal.width ?? 400, subviews: subviews).size
@@ -93,7 +96,7 @@ private struct AttachmentFlowLayout: Layout {
         var y: CGFloat = 0
         var rowHeight: CGFloat = 0
         for subview in subviews {
-            let size = subview.sizeThatFits(ProposedViewSize(width: min(170, width), height: nil))
+            let size = subview.sizeThatFits(ProposedViewSize(width: min(maxItemWidth, width), height: nil))
             if x > 0 && x + size.width > width {
                 x = 0
                 y += rowHeight + spacing

@@ -504,6 +504,21 @@ struct ConversationWorkspace: View {
     }
 
     @ViewBuilder private func plainMessageView(_ message: ConversationMessage) -> some View {
+        // A finished answer folds what it only looked up: its web sources become chips and, with the reading lines,
+        // go into the one receipt line underneath (open on a click). What changed something stays in view.
+        let webCards = message.role == .assistant ? (message.actions?.cards ?? []).compactMap { card -> WebSourcesCard? in
+            if case .web(let web) = card { return web } else { return nil }
+        } : []
+        let folds = message.role == .assistant && message.work != nil
+        // The web card already says what was searched and read online; its lines would only repeat it.
+        let quietLines = folds ? (message.actions?.lines ?? []).filter {
+            $0.item.isQuiet && (webCards.isEmpty || !["webSearch", "webPage"].contains($0.item.action))
+        }.map(\.text) : []
+        let loudActions = message.actions.map { receipt -> ActionReceipt in
+            var loud = receipt
+            if folds { loud.items.removeAll(where: \.isQuiet) }
+            return loud
+        }
         HStack {
             if message.role == .user { Spacer(minLength: 60) }
             VStack(alignment: .leading, spacing: 5) {
@@ -515,7 +530,7 @@ struct ConversationWorkspace: View {
                 } else if message.role == .assistant, let card = message.calendar?.card {
                     CalendarCardView(card: card, text: message.text)
                 } else if message.role == .assistant {
-                    AssistantAnswerView(text: message.text, files: message.attachments).equatable()
+                    AssistantAnswerView(text: message.text, files: message.attachments, hidesSourceList: !webCards.isEmpty).equatable()
                         .contextMenu {
                             Button(T("Copy", table: "Views")) {
                                 NSPasteboard.general.clearContents()
@@ -541,15 +556,20 @@ struct ConversationWorkspace: View {
                     FoundFilesCardView(files: message.attachments, answer: message.text)
                 }
                 if message.role == .assistant, let cards = message.actions?.cards {
-                    ResultCardsView(cards: cards)
+                    let shown = folds ? cards.filter { if case .web = $0 { false } else { true } } : cards
+                    if !shown.isEmpty { ResultCardsView(cards: shown) }
                 }
-                if let actions = message.actions {
+                if folds, !webCards.isEmpty {
+                    SourceChipsView(cards: webCards).padding(.top, 2)
+                }
+                if let actions = loudActions, !actions.items.isEmpty {
                     ActionReceiptView(receipt: actions, disabled: chat.isRunning,
                                       onOpenMailDraft: { chat.openMailDraft() }, onSaveMailOffer: { chat.saveMailOffer(messageID: message.id) },
                                       onCopyMailOffer: { chat.copyMailOffer(messageID: message.id) })
                 }
                 if message.role == .assistant, let work = message.work {
-                    WorkReceiptView(receipt: work, expanded: chat.expandedReceipts.contains(message.id)) { chat.toggleReceipt(message.id) }
+                    WorkReceiptView(receipt: work, web: webCards, lookedUp: quietLines,
+                                    expanded: chat.expandedReceipts.contains(message.id)) { chat.toggleReceipt(message.id) }
                 }
                 if message.stopped == true {
                     Text(T("Stopped", table: "Views")).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink3)

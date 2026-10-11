@@ -187,11 +187,11 @@ func runThoughtLineChecks() async {
         return texts.allSatisfy { text in !banned.contains { text.lowercased().contains($0) } } && kinds.count == phases.count
     }
 
-    check("Thought Line: no words while waiting, steps as merged bubbles, one calm sentence after ten seconds") {
+    check("Thought Line: words while waiting, steps as merged bubbles, one calm sentence after ten seconds") {
         var line = ThoughtLine()
         let request = UUID()
         line.begin(request, at: at(0))
-        let quietAtStart = line.phaseNote == nil && line.bubbles.isEmpty && !line.isSlow(at: at(9.9))
+        let quietAtStart = line.phaseNote?.title == WorkPhase.starting.title && line.bubbles.isEmpty && !line.isSlow(at: at(9.9))
         line.apply(.phase(.reading(name: "Mietvertrag.pdf", index: 1, count: 1)), request: request, at: at(0.5))
         let reading = line.phaseNote?.title == WorkPhase.reading(name: "Mietvertrag.pdf", index: 1, count: 1).title
         line.apply(.toolStarted(name: "bash", source: nil, step: "Suche in deinen Mails", kind: .mail), request: request, at: at(1))
@@ -205,7 +205,7 @@ func runThoughtLineChecks() async {
                                       StepBubble(id: 1, text: "Arbeite an deinem Mac", kind: .mac, count: 4)]
         // One grouping rule: with nothing running, the bubbles count exactly what WorkStep.merged counts.
         let sameRule = line.bubbles.map(\.count) == WorkStep.merged(line.steps).map { $0.repeats ?? 1 }
-        let waiting = line.phase == .waitingForAnswer(continuing: false) && line.phaseNote == nil
+        let waiting = line.phase == .waitingForAnswer(continuing: false) && line.phaseNote?.title == WorkPhase.waitingForAnswer(continuing: false).title
         let slow = line.isSlow(at: at(10)) && !L("Taking a little longer, I’m on it.", table: "Thought").isEmpty
         line.textArrived(request: request)
         return quietAtStart && reading && running && merged && sameRule && waiting && slow && !line.isSlow(at: at(11))

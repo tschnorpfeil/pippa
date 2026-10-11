@@ -5,6 +5,20 @@ public struct AnswerDocument: Equatable, Sendable {
     public enum Block: Equatable, Sendable {
         case paragraph(String), heading(Int, String), item(Int, String, String), quote(String)
         case code(String, String), table([String], [[String]])
+        /// A "Quellen:" list of links the model wrote, shown as chips (or left out where Pippa shows its own).
+        case sources([SourceLink])
+    }
+    public struct SourceLink: Equatable, Sendable {
+        /// What the model called it ("Deutscher Wetterdienst"); `nil` when it only gave the address.
+        public var title: String?
+        public var url: URL
+        /// "dwd.de" (without "www.")
+        public var host: String { Self.site(url) }
+        public init(title: String?, url: URL) { self.title = title; self.url = url }
+        public static func site(_ url: URL) -> String {
+            let host = (url.host ?? "").lowercased()
+            return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        }
     }
     public let blocks: [Block]
 
@@ -46,7 +60,53 @@ public struct AnswerDocument: Equatable, Sendable {
             } else { paragraph.append(line) }
             index += 1
         }
-        flush(); blocks = result
+        flush(); blocks = Self.gatherSources(result)
+    }
+
+    /// "Quellen:" (or a heading of that name) followed by list items that each hold a web link becomes one sources block.
+    static func gatherSources(_ blocks: [Block]) -> [Block] {
+        var result: [Block] = [], index = 0
+        while index < blocks.count {
+            if Self.isSourcesLabel(blocks[index]) {
+                var links: [SourceLink] = [], next = index + 1
+                while next < blocks.count, case .item(_, _, let text) = blocks[next], let link = Self.sourceLink(text) {
+                    links.append(link); next += 1
+                }
+                if !links.isEmpty { result.append(.sources(links)); index = next; continue }
+            }
+            result.append(blocks[index]); index += 1
+        }
+        return result
+    }
+
+    private static func isSourcesLabel(_ block: Block) -> Bool {
+        let text: String
+        switch block {
+        case .paragraph(let value), .heading(_, let value): text = value
+        default: return false
+        }
+        let plain = text.replacingOccurrences(of: "*", with: "").replacingOccurrences(of: "_", with: "")
+            .trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: ":")).lowercased()
+        return ["quellen", "quelle", "sources", "source", "links"].contains(plain)
+    }
+
+    /// One list item that is a source: "Deutscher Wetterdienst: https://…", "[DWD](https://…)" or just the address.
+    static func sourceLink(_ text: String) -> SourceLink? {
+        if let markdown = try? NSRegularExpression(pattern: #"^\s*\[([^\]]+)\]\((https?://[^\s)]+)\)\s*$"#),
+           let match = markdown.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let titleRange = Range(match.range(at: 1), in: text), let urlRange = Range(match.range(at: 2), in: text),
+           let url = WebSourcesCard.webURL(String(text[urlRange])) {
+            return SourceLink(title: String(text[titleRange]).replacingOccurrences(of: "*", with: ""), url: url)
+        }
+        let found = WebSourcesCard.links(in: text)
+        guard let url = found.first, Set(found.map(WebSourcesCard.key)).count == 1,
+              let first = text.range(of: #"[\[<(]?https?://"#, options: .regularExpression) else { return nil }
+        // After the title only the address may follow (bare, <…> or [address](address)), nothing else.
+        let rest = text[first.lowerBound...].replacingOccurrences(of: #"https?://[^\s<>()\[\]]+"#, with: "", options: .regularExpression)
+        guard rest.trimmingCharacters(in: CharacterSet(charactersIn: " []()<>.,;:")).isEmpty else { return nil }
+        let title = text[..<first.lowerBound].replacingOccurrences(of: "*", with: "")
+            .trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet(charactersIn: ":–—-")))
+        return SourceLink(title: title.isEmpty ? nil : title, url: url)
     }
 
     private static func fence(_ line: String) -> (Character, Int)? {
@@ -132,8 +192,13 @@ public struct AnswerDocument: Equatable, Sendable {
             if let file = localFile(url, files: files) {
                 value[range].link = file
             } else if safeLink(url) {
-                let label = String(value[range].characters)
-                if let host = url.host, !label.localizedCaseInsensitiveContains(host) {
+                let label = String(value[range].characters).trimmingCharacters(in: .whitespaces)
+                // A bare address reads as its site only ("dwd.de"); the whole address stays behind the link.
+                if label.lowercased().hasPrefix("http://") || label.lowercased().hasPrefix("https://") || label.lowercased().hasPrefix("www.") {
+                    var short = AttributedString(SourceLink.site(url))
+                    if let attributes = value[range].runs.first?.attributes { short.mergeAttributes(attributes) }
+                    value.replaceSubrange(range, with: short)
+                } else if let host = url.host, !label.localizedCaseInsensitiveContains(host) {
                     value.insert(AttributedString(" (\(host))"), at: range.upperBound)
                 }
             } else {
@@ -143,5 +208,27 @@ public struct AnswerDocument: Equatable, Sendable {
             }
         }
         return value
+    }
+}
+
+/// What the model wrote before its last tool call ("Ich suche jetzt mal …", a question it then answered itself) is
+/// narration, not answer. It stays in view while Pippa works and drops out of the finished answer, but only when the
+/// text after the tools is a real answer on its own and the text before is short, like an announcement; otherwise
+/// everything stays, so nothing said is lost (a summary written before saving it to a file stays).
+public enum AnswerNarration {
+    /// Shorter than this after the tools ("Erledigt."), the earlier text is kept.
+    public static let minimumAnswer = 80
+    /// Longer than this before the tools, the earlier text is content, not an announcement.
+    public static let maximumNarration = 500
+
+    /// `full`: the whole streamed text; `afterTools`: where the text after the last tool call starts, in UTF-8 bytes.
+    public static func finished(_ full: String, afterTools: Int?) -> String {
+        let whole = full.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let afterTools, afterTools > 0, afterTools < full.utf8.count,
+              let start = full.utf8.index(full.utf8.startIndex, offsetBy: afterTools, limitedBy: full.utf8.endIndex),
+              start.samePosition(in: full.unicodeScalars) != nil else { return whole }
+        let tail = full[start...].trimmingCharacters(in: .whitespacesAndNewlines)
+        let before = full[..<start].trimmingCharacters(in: .whitespacesAndNewlines)
+        return tail.count >= minimumAnswer && before.count <= maximumNarration ? tail : whole
     }
 }

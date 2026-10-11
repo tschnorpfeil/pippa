@@ -269,6 +269,9 @@
 "overdue" = "overdue";
 "Looked up online" = "Looked up online";
 "read" = "read";
+/* Source chips under an answer (WebSourcesCardView.swift). */
+"Sources" = "Sources";
+"More sources: %lld" = "More sources: %lld";
 "Open in browser" = "Open in browser";
 "“%@”" = "“%@”";
 
