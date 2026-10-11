@@ -35,3 +35,7 @@
 "None of these" = "None of these";
 "Then I look at the whole table and compare." = "Then I look at the whole table and compare.";
 "These two columns have too few rows with numbers in both." = "These two columns have too few rows with numbers in both.";
+"Show me where" = "Show me where";
+"Hide" = "Hide";
+"I draw this part of the table here. Nothing in Excel moves." = "I draw this part of the table here. Nothing in Excel moves.";
+"Part of the table" = "Part of the table";

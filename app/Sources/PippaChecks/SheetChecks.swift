@@ -219,6 +219,32 @@ func runSheetChecks() async {
         return r.totals.count == 1 && r.allFine
     }
 
+    check("Sheet: \"Show me where\" draws the rows of a finding, the total marked, long sheets with a gap") {
+        let short = grid([
+            [t("Posten"), t("Betrag")],
+            [t("Miete"), n(950)],
+            [t("Strom"), n(84.2)],
+            [t("Internet"), n(39.99)],
+            [t("Wasser"), n(36.5)],
+            [t("Summe"), f("=SUMME(B2:B4)", 1074.19)],
+        ])
+        let r = SheetCheck.run(short, locale: english)
+        guard let finding = r.findings.first,
+              let e = SheetExcerpt.around(finding, in: short, layout: r.layout, locale: english) else { return false }
+        let shortOK = e.headings == ["Posten", "Betrag"] && e.numeric == [false, true] && e.rows.map(\.number) == [2, 3, 4, 5, 6]
+            && e.rows[3].cells == ["Wasser", "36.50"] && e.rows[3].marked == [false, true] && e.rows[4].marked == [false, true]
+            && e.rows[4].isTotal && !e.rows[0].gapBefore && !e.rows[1].marked[1]
+        var rows = [[t("Posten"), t("Betrag")]]
+        for i in 2...20 { rows.append([t("Posten \(i)"), n(Double(i))]) }
+        rows.append([t("Summe"), f("=SUM(B2:B19)", Double((2...19).reduce(0, +)))])
+        let long = grid(rows)
+        let lr = SheetCheck.run(long, locale: english)
+        guard let lf = lr.findings.first, let le = SheetExcerpt.around(lf, in: long, layout: lr.layout, locale: english) else { return false }
+        let longOK = le.rows.map(\.number) == [19, 20, 21] && le.rows[0].gapBefore && !le.rows[1].gapBefore
+            && le.rows.count <= SheetExcerpt.maxRows
+        return shortOK && longOK
+    }
+
     // MARK: Compare with last year
 
     check("Sheet: last year only with two comparable columns") {

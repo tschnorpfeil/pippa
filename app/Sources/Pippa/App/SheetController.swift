@@ -83,6 +83,8 @@ final class SheetController: ObservableObject {
     @Published private(set) var firstLine: FirstLine?
     /// Findings of *Check the total*, one sentence each with heading and label.
     @Published private(set) var findings: [SheetFinding] = []
+    /// "Show me where": the finding whose piece of the sheet is open under its sentence (index in `findings`).
+    @Published private(set) var shownFinding: Int?
     /// Did the check find a sum at all? (For the sentence under "The total adds up.")
     @Published private(set) var foundTotals = false
     @Published private(set) var actions: [SheetAction] = []
@@ -298,6 +300,7 @@ final class SheetController: ObservableObject {
         case .checkTotal:
             model.taskLog.chose(action.id, offered: offered, kind: .table)
             findings = current.result.findings
+            shownFinding = nil
             phase = .checked
         case .compare:
             if let comparison = current.comparison {
@@ -314,6 +317,18 @@ final class SheetController: ObservableObject {
         case .explain:
             handOver(action.instruction, chosen: action.id, offered: offered)
         }
+    }
+
+    /// "Show me where" on a finding: opens its piece of the sheet, a second tap closes it. Only one at a time.
+    func show(finding index: Int) {
+        guard phase == .checked, findings.indices.contains(index) else { return }
+        shownFinding = shownFinding == index ? nil : index
+    }
+
+    /// The piece of the sheet around a finding, drawn in the line (code only, nothing in Excel moves).
+    func excerpt(for index: Int) -> SheetExcerpt? {
+        guard let current = session, findings.indices.contains(index) else { return nil }
+        return SheetExcerpt.around(findings[index], in: current.snapshot.grid, layout: current.result.layout)
     }
 
     /// A heading button while choosing the columns: first last year, then this year. With two columns one tap is enough.
@@ -422,6 +437,7 @@ final class SheetController: ObservableObject {
         lookingText = ""
         firstLine = nil
         findings = []
+        shownFinding = nil
         foundTotals = false
         actions = []
         note = nil
