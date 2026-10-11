@@ -30,3 +30,8 @@
 "This table is large. I looked at its first part." = "This table is large. I looked at its first part.";
 "To read the table you selected, your Mac will ask whether I may. When checking, I only read and change nothing." = "To read the table you selected, your Mac will ask whether I may. When checking, I only read and change nothing.";
 "Which table should I look at? I only read it." = "Which table should I look at? I only read it.";
+"Which column is last year?" = "Which column is last year?";
+"And which one is this year?" = "And which one is this year?";
+"None of these" = "None of these";
+"Then I look at the whole table and compare." = "Then I look at the whole table and compare.";
+"These two columns have too few rows with numbers in both." = "These two columns have too few rows with numbers in both.";

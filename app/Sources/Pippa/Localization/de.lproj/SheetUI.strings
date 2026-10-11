@@ -30,3 +30,8 @@
 "This table is large. I looked at its first part." = "Diese Tabelle ist groß. Ich habe mir ihren ersten Teil angesehen.";
 "To read the table you selected, your Mac will ask whether I may. When checking, I only read and change nothing." = "Um die Tabelle zu lesen, die du ausgewählt hast, fragt dein Mac, ob ich das darf. Beim Prüfen lese ich nur und ändere nichts.";
 "Which table should I look at? I only read it." = "Welche Tabelle soll ich mir ansehen? Ich lese sie nur.";
+"Which column is last year?" = "Welche Spalte ist das Vorjahr?";
+"And which one is this year?" = "Und welche ist dieses Jahr?";
+"None of these" = "Keine davon";
+"Then I look at the whole table and compare." = "Dann schaue ich mir die ganze Tabelle an und vergleiche.";
+"These two columns have too few rows with numbers in both." = "Diese beiden Spalten haben zu wenige Zeilen, in denen beide eine Zahl haben.";

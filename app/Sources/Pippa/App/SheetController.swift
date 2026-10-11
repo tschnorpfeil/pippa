@@ -8,7 +8,8 @@ import UniformTypeIdentifiers
 // sheet read via Apple Events (ExcelScript, read only) → first line from `SheetCheck` (pure code) → three actions:
 //   - *Check the total*: code, the findings as one short sentence each in the line,
 //   - *Explain this table*: the conversation takes over, the sheet as text (values and formulas) in the context,
-//   - *Compare with last year*: code, if the sheet has two comparable columns; otherwise the conversation, like *Explain*.
+//   - *Compare with last year*: code, if the sheet has two comparable columns; otherwise the line asks which column is
+//     last year (buttons with the headings), and code compares those. Only without number columns the conversation.
 // Without Accessibility permission, so no glow over cells. The line therefore names cells by
 // column heading and row label; addresses at most in the help text ("Details").
 // Pippa never writes to the table: there is no path to it here.
@@ -24,6 +25,9 @@ enum SheetPhase: Equatable {
     case ready
     /// *Check the total* has run: the findings are shown under the first line.
     case checked
+    /// *Compare with last year* found no pair: "Which column is last year?" (`previous: nil`), then "And which is
+    /// this year?" with the remaining columns. Buttons with the headings, code compares afterwards.
+    case choosingColumn(previous: SheetComparison.Column?, choices: [SheetComparison.Column])
     /// *Compare with last year* in code: one sentence.
     case compared(String)
     /// A calm sentence.
@@ -93,8 +97,10 @@ final class SheetController: ObservableObject {
     private struct Session {
         let snapshot: SheetSnapshot
         let result: SheetCheckResult
-        /// Two comparable columns (years or "previous year"), otherwise nil: then the model compares.
-        let comparison: SheetComparison?
+        /// Two comparable columns (years or "previous year"), otherwise nil: then the person picks them.
+        var comparison: SheetComparison?
+        /// Number columns to pick from when `comparison` is nil.
+        let columns: [SheetComparison.Column]
     }
 
     private var session: Session?
@@ -123,7 +129,7 @@ final class SheetController: ObservableObject {
     var canChoose: Bool {
         guard session != nil else { return false }
         switch phase {
-        case .ready, .checked, .compared, .failure: return true
+        case .ready, .checked, .choosingColumn, .compared, .failure: return true
         default: return false
         }
     }
@@ -252,16 +258,18 @@ final class SheetController: ObservableObject {
     /// Sheet read: check and comparison in code, off the main thread (GCD, not the cooperative pool).
     private func begin(_ snapshot: SheetSnapshot) async {
         let locale = Locale.current
-        let computed = await withCheckedContinuation { (continuation: CheckedContinuation<(SheetCheckResult, SheetComparison?), Never>) in
+        let computed = await withCheckedContinuation {
+            (continuation: CheckedContinuation<(SheetCheckResult, SheetComparison?, [SheetComparison.Column]), Never>) in
             DispatchQueue.global(qos: .userInitiated).async {
                 let result = SheetCheck.run(snapshot, locale: locale)
                 let comparison = SheetComparison.find(in: snapshot.grid, layout: result.layout)
-                continuation.resume(returning: (result, comparison))
+                let columns = comparison == nil ? SheetComparison.columns(in: snapshot.grid, layout: result.layout) : []
+                continuation.resume(returning: (result, comparison, columns))
             }
         }
         guard pendingCall else { return }
-        let (result, comparison) = computed
-        session = Session(snapshot: snapshot, result: result, comparison: comparison)
+        let (result, comparison, columns) = computed
+        session = Session(snapshot: snapshot, result: result, comparison: comparison, columns: columns)
         pendingCall = false
         lookingText = SheetLine.calling(snapshot)
         firstLine = result.firstLine
@@ -295,13 +303,47 @@ final class SheetController: ObservableObject {
             if let comparison = current.comparison {
                 model.taskLog.chose(action.id, offered: offered, kind: .table)
                 phase = .compared(comparison.line(locale: .current))
+            } else if !current.columns.isEmpty {
+                // No pair found: the person points at the columns, code compares.
+                model.taskLog.chose(action.id, offered: offered, kind: .table)
+                phase = .choosingColumn(previous: nil, choices: current.columns)
             } else {
-                // No two comparable columns: the model gets the sheet and the question.
+                // No number columns to pick: the model gets the sheet and the question.
                 handOver(action.instruction, chosen: action.id, offered: offered)
             }
         case .explain:
             handOver(action.instruction, chosen: action.id, offered: offered)
         }
+    }
+
+    /// A heading button while choosing the columns: first last year, then this year. With two columns one tap is enough.
+    func pick(_ column: SheetComparison.Column) {
+        guard case .choosingColumn(let previous, let choices) = phase, let current = session else { return }
+        guard let previous else {
+            let rest = current.columns.filter { $0 != column }
+            if rest.count == 1 { return compare(current: rest[0], previous: column) }
+            phase = .choosingColumn(previous: column, choices: rest)
+            return
+        }
+        guard choices.contains(column) else { return }
+        compare(current: column, previous: previous)
+    }
+
+    /// "None of these" while choosing: the conversation compares, like before.
+    func pickNone() {
+        guard case .choosingColumn = phase else { return }
+        handOver(SheetAction(kind: .compare).instruction, chosen: nil, offered: [])
+    }
+
+    private func compare(current: SheetComparison.Column, previous: SheetComparison.Column) {
+        guard let snapshot = session?.snapshot, let layout = session?.result.layout else { return }
+        guard let comparison = SheetComparison.make(in: snapshot.grid, layout: layout, current: current.column,
+                                                    previous: previous.column) else {
+            phase = .failure(T("These two columns have too few rows with numbers in both.", table: "SheetUI"))
+            return
+        }
+        session?.comparison = comparison
+        phase = .compared(comparison.line(locale: .current))
     }
 
     /// With text to Pippa: the sheet goes into the conversation.
