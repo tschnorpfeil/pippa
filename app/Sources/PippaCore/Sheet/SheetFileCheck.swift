@@ -98,7 +98,7 @@ public enum SheetFileCheck {
     }
 
     /// The separator that occurs most often in the first line outside quotes; a comma if none occurs.
-    static func guessSeparator(_ text: String) -> Character {
+    public static func guessSeparator(_ text: String) -> Character {
         var counts: [Character: Int] = ["\t": 0, ";": 0, ",": 0]
         var quoted = false
         for c in text {
