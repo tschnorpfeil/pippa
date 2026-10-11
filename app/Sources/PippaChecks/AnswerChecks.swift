@@ -32,6 +32,41 @@ import PippaCore
             .item(0, "•", "Start"), .item(1, "•", "Kind"), .item(2, "3.", "Enkel")
         ]
     }
+    check("Answer: a sources list becomes chips; a list with other text stays a list") {
+        let dwd = URL(string: "https://www.dwd.de/DE/wetter/vorhersage_aktuell/vorhersage_brd.html")!
+        let tagesschau = URL(string: "https://www.tagesschau.de/wetter")!
+        let source = "Regen.\n\nQuellen:\n- Deutscher Wetterdienst: \(dwd.absoluteString)\n- [tagesschau.de](\(tagesschau.absoluteString))\n\nPasst das?"
+        let mixed = "**Sources:**\n- Read https://example.org and call me\n- https://example.org"
+        return AnswerDocument(source).blocks == [
+            .paragraph("Regen."),
+            .sources([.init(title: "Deutscher Wetterdienst", url: dwd), .init(title: "tagesschau.de", url: tagesschau)]),
+            .paragraph("Passt das?")
+        ] && AnswerDocument.SourceLink(title: nil, url: dwd).host == "dwd.de"
+            && AnswerDocument(mixed).blocks.first == AnswerDocument.Block.paragraph("**Sources:**")
+    }
+    check("Answer: a bare address reads as its site, the full address stays behind the link") {
+        let value = AnswerDocument.inline("Siehe <https://www.dwd.de/DE/wetter.html> heute.")
+        return String(value.characters) == "Siehe dwd.de heute." && value.runs.contains { $0.link?.absoluteString == "https://www.dwd.de/DE/wetter.html" }
+    }
+    check("Answer: an announcement before the tools drops out once a real answer follows") {
+        let before = "Ich suche jetzt mal nach dem Wetter für heute.\n\n"
+        let answer = "Heute wird es wechselhaft und windig, im Süden regnet es bis zum Nachmittag. Im Norden gibt es einzelne Gewitter."
+        let long = String(repeating: "Eine lange Zusammenfassung. ", count: 30) + "\n\n"
+        return AnswerNarration.finished(before + answer, afterTools: before.utf8.count) == answer
+            && AnswerNarration.finished(before + "Erledigt.", afterTools: before.utf8.count) == before + "Erledigt."
+            && AnswerNarration.finished(long + answer, afterTools: long.utf8.count) == (long + answer).trimmingCharacters(in: .whitespacesAndNewlines)
+            && AnswerNarration.finished(answer, afterTools: nil) == answer
+    }
+    check("Answer: the sources under it show one chip per site, read pages first") {
+        let card = WebSourcesCard(queries: ["Wetter heute"], pagesRead: ["https://www.dwd.de/a", "https://dwd.de/b", "https://tagesschau.de/wetter"],
+                                  searchResults: ["https://accuweather.com/x"], now: Date(), calendar: .current)!
+        let searchOnly = WebSourcesCard(queries: ["x"], pagesRead: [], searchResults: ["https://a.org/1 https://b.org/2"], now: Date(), calendar: .current)!
+        let receipt = ActionReceipt.Item(action: "webSearch", outcome: "done", name: "Wetter heute")
+        return card.chips().shown.map(\.host) == ["dwd.de", "tagesschau.de"] && card.chips().more == 0
+            && searchOnly.chips(limit: 1).shown.map(\.host) == ["a.org"] && searchOnly.chips(limit: 1).more == 1
+            && receipt.isQuiet && !ActionReceipt.Item(action: "webSearch", outcome: "declined", name: "x").isQuiet
+            && !ActionReceipt.Item(action: "create", outcome: "done", name: "a.txt").isQuiet
+    }
     check("Answer: a bold link title gets the domain only once") {
         String(AnswerDocument.inline("[**Report** lesen](https://example.org/a)").characters) == "Report lesen (example.org)"
     }

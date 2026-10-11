@@ -359,15 +359,12 @@ public struct ThoughtLine: Sendable, Equatable {
         return result
     }
 
-    /// Words only for something real the host does without a running step (reading a file, recognizing text, waking
-    /// up, condensing, a question, stopping). Starting, waiting for the first words and generic work say nothing:
-    /// Pippa's mark breathes instead.
+    /// Words for what happens while no step chip is running: "Überlege …" while waiting for the first words, "Ich arbeite
+    /// daran …", reading a file, waking up, a question, stopping. Pippa's mark alone said too little. A running step
+    /// speaks for itself in its chip.
     public var phaseNote: (title: String, detail: String?)? {
         guard let phase, isVisible, currentStep == nil else { return nil }
-        switch phase {
-        case .starting, .waitingForAnswer, .working, .writing: return nil
-        default: return (phase.title, phase.detail)
-        }
+        return (phase.title, phase.detail)
     }
 
     /// The one sentence for a long wait.

@@ -30,7 +30,8 @@ final class FileThumbnails {
         let key = Self.key(url, side: side)
         if let image = cache.object(forKey: key as NSString) { return image }
         if let task = running[key] { return await task.value }
-        let scale = NSScreen.main?.backingScaleFactor ?? 2
+        // The sharpest screen attached: the pill may sit on a Retina display while another one has focus.
+        let scale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
         let task = Task<NSImage?, Never> {
             let size = CGSize(width: side, height: side)
             let request = QLThumbnailGenerator.Request(fileAt: url, size: size, scale: scale, representationTypes: .thumbnail)

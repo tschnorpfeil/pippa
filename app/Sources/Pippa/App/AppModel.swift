@@ -59,6 +59,9 @@ final class AppModel: ObservableObject {
             if !busy { workProgress = nil; schedulePendingDrops() }
         }
     }
+    /// Files another app promised (a mail dragged from Mail) are on their way: the pill works until they arrive.
+    @Published private(set) var receivingDrop = false { didSet { updateMark() } }
+    private var receivingTask: Task<Void, Never>?
     /// A native compose operation cannot be cancelled safely once Mail may have created it.
     @Published var mailDraftOpening = false {
         didSet {
@@ -151,10 +154,17 @@ final class AppModel: ObservableObject {
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark(); self?.schedulePendingDrops() }
         }
         conversations.onAnswerFinished = { [weak self] failed in
-            guard let self, !self.isExpanded else { return }
+            // Only the open conversation shows the answer itself; the line or the setup above the pill does not.
+            guard let self, !self.mode.isConversation else { return }
             self.pillOutcome = failed ? .failed : .answered
             self.shell?.pulseMark()
             if !failed { Self.tap() }
+            // VoiceOver: a finished answer reads itself out (ConversationController); a failed one says so here.
+            if failed {
+                NSAccessibility.post(element: NSApp.keyWindow ?? NSApp as Any, notification: .announcementRequested,
+                                     userInfo: [.announcement: "Pippa: " + self.pillStatus.label,
+                                                .priority: NSAccessibilityPriorityLevel.high.rawValue])
+            }
         }
         tray.model = self
         trayChanges = tray.objectWillChange.sink { [weak self] _ in
@@ -173,7 +183,9 @@ final class AppModel: ObservableObject {
     // MARK: Figure
 
     var markState: MarkState {
-        if busy || mailDraftOpening || conversations.isRunning || tray.isWorking || letter.isWorking { return .arbeitet }
+        // A question waits for the person: the rings stop circling, like the pill that says "Quick question".
+        if conversations.isRunning, conversations.thought.phase == .waitingForPerson { return .offen }
+        if busy || receivingDrop || mailDraftOpening || conversations.isRunning || tray.isWorking || letter.isWorking { return .arbeitet }
         if case .message(_, _, true) = mode { return .fehler }
         // Loading the AI is stuck (offline, server silent): a problem, not a green "done" or "needs you".
         if downloadStalled, !aiLoaded { return .fehler }
@@ -202,14 +214,35 @@ final class AppModel: ObservableObject {
     var pillStatus: PillStatus {
         let thought = conversations.thought
         return PillStatus.make(phase: conversations.isRunning ? thought.phase : nil, step: thought.currentStep,
-                               outcome: pillOutcome, busy: busy || tray.isWorking || letter.isWorking,
+                               outcome: pillOutcome, busy: busy || receivingDrop || tray.isWorking || letter.isWorking,
                                loading: modelLoadProgress, moment: pillMoment ?? (pillInvites ? .invite : nil))
+    }
+
+    /// A promised drop started arriving. Should the other app never deliver, the pill stops working after a minute
+    /// and `onTimeout` says so.
+    func receivingStarted(onTimeout: @escaping @MainActor () -> Void) {
+        receivingDrop = true
+        receivingTask?.cancel()
+        receivingTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            guard !Task.isCancelled, let self, self.receivingDrop else { return }
+            self.receivingDrop = false
+            onTimeout()
+        }
+    }
+
+    func receivingEnded() {
+        receivingTask?.cancel()
+        receivingTask = nil
+        if receivingDrop { receivingDrop = false }
     }
 
     /// One of Pippa's small moments (UX rule 6): shown by the collapsed pill, never two at once, gone after a moment.
     /// Opening anything else ends it (`show`).
     func say(_ moment: PillMoment) {
-        guard moment != .invite, pillMoment == nil else { return }
+        // Never two at once: the newer one replaces the older ("Back as it was." right after "Done!").
+        // Never while an answer runs: its phase owns the pill, the moment would only tap and pass unseen.
+        guard moment != .invite, pillMoment != moment, !conversations.isRunning else { return }
         pillMoment = moment
         shell?.pulseMark()
         Self.tap()

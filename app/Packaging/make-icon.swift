@@ -163,7 +163,8 @@ func dmgBackground(width: Int, height: Int, fontsDir: String?) -> CGImage {
     // the names black or white: a mid blue keeps either readable (about 4.5:1).
     ctx.setFillColor(rgb(61, 118, 204))
     for (x, width) in [(160, 56), (480, 92)] as [(CGFloat, CGFloat)] {
-        let tag = CGRect(x: (x - width / 2) * scale, y: h - 270 * scale, width: width * scale, height: 19 * scale)
+        // Finder draws the label about 255–275 pt from the top (measured on a mounted DMG).
+        let tag = CGRect(x: (x - width / 2) * scale, y: h - 275 * scale, width: width * scale, height: 20 * scale)
         ctx.addPath(CGPath(roundedRect: tag, cornerWidth: 6 * scale, cornerHeight: 6 * scale, transform: nil))
         ctx.fillPath()
     }

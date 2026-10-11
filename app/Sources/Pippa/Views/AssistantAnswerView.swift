@@ -7,6 +7,8 @@ struct AssistantAnswerView: View, Equatable {
     var files: [URL] = []
     /// Off for the streaming answer, whose text changes with every batch.
     var cached = true
+    /// Pippa shows its own sources under the answer: a "Quellen:" list the model wrote is left out.
+    var hidesSourceList = false
 
     /// Parsed answers by text: a conversation re-renders while another answer streams, old answers are not parsed again.
     private static let parsed: NSCache<NSString, Parsed> = { let c = NSCache<NSString, Parsed>(); c.countLimit = 200; return c }()
@@ -23,8 +25,14 @@ struct AssistantAnswerView: View, Equatable {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(document.blocks.enumerated()), id: \.offset) { _, block in
-                blockView(block)
+            let blocks = document.blocks
+            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                if index == 0, blocks.count > 1, case .paragraph(let value) = block, value.count <= Self.leadLimit {
+                    // The first short sentence carries the main point: a little larger, so the eye lands there.
+                    inline(value).font(.scaled(size: 16, weight: .semibold)).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                } else {
+                    blockView(block)
+                }
             }
         }
         .font(.scaled(size: 15, weight: .regular))
@@ -37,6 +45,9 @@ struct AssistantAnswerView: View, Equatable {
             AnswerDocument.safeLink(url, files: files) ? .systemAction : .discarded
         })
     }
+
+    /// Longer than this, the first paragraph is ordinary text.
+    static let leadLimit = 220
 
     private func inline(_ source: String) -> Text { Text(AnswerDocument.inline(source, files: files)) }
 
@@ -51,7 +62,16 @@ struct AssistantAnswerView: View, Equatable {
                 .accessibilityAddTraits(.isHeader)
         case .item(let depth, let marker, let value):
             HStack(alignment: .firstTextBaseline, spacing: 9) {
-                Text(marker).foregroundStyle(Theme.ink2).frame(minWidth: 15, alignment: .trailing)
+                Group {
+                    if marker == "•" {
+                        Text(Image(systemName: "circle.fill")).font(.scaled(size: depth == 0 ? 6 : 5)).baselineOffset(2)
+                            .foregroundStyle(depth == 0 ? Theme.accent : Theme.ink3)
+                    } else {
+                        Text(marker).foregroundStyle(Theme.accent).monospacedDigit()
+                    }
+                }
+                .frame(minWidth: 15, alignment: .trailing)
+                .accessibilityHidden(marker == "•")
                 inline(value).frame(maxWidth: .infinity, alignment: .leading)
             }.padding(.leading, CGFloat(depth) * 14).accessibilityElement(children: .combine)
         case .quote(let value):
@@ -68,6 +88,10 @@ struct AssistantAnswerView: View, Equatable {
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }.padding(12).background(Theme.fill2, in: RoundedRectangle(cornerRadius: 8))
+        case .sources(let links):
+            if !hidesSourceList {
+                SourceChipsView(chips: links.map { .init(host: $0.host, url: $0.url, title: $0.title) })
+            }
         case .table(let headers, let rows):
             ViewThatFits(in: .horizontal) {
                 table(headers, rows).frame(minWidth: CGFloat(headers.count) * 150, alignment: .leading)

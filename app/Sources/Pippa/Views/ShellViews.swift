@@ -222,14 +222,16 @@ struct ShimmerText: View {
     var color: Color = Theme.ink
     private let phaseState = State<CGFloat>(initialValue: -1)
     private var phase: CGFloat { get { phaseState.wrappedValue } nonmutating set { phaseState.wrappedValue = newValue } }
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     var body: some View {
-        let label = Text(text).font(Fonts.status)
+        // Even digits: "Lade meine KI · 7 %" → "· 8 %" must not make the pill breathe with every percent.
+        let label = Text(text).font(Fonts.status.monospacedDigit())
         label
             .foregroundStyle(color)
             .lineLimit(1)
             .overlay {
-                if active && !MarkHub.shared.reduced {
+                if active && !MarkHub.shared.reduced && !systemReduceMotion {
                     GeometryReader { geo in
                         LinearGradient(colors: [.clear, Theme.accent, .clear], startPoint: .leading, endPoint: .trailing)
                             .frame(width: geo.size.width * 0.7)

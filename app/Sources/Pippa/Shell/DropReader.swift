@@ -33,6 +33,14 @@ enum DropReader {
         var items: [URL]
     }
 
+    /// Only promises, no real files: the other app writes them first (a mail from Mail).
+    @MainActor
+    static func isPromise(_ pb: NSPasteboard) -> Bool {
+        let files = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        guard files.isEmpty else { return false }
+        return !(pb.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver] ?? []).isEmpty
+    }
+
     @MainActor
     static func read(_ pb: NSPasteboard, imageName: String = "Bild.png", completion: @escaping @MainActor (Result?) -> Void) {
         // 1. Real files and folders

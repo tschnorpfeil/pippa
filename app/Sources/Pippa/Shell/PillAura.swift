@@ -44,6 +44,8 @@ final class PillAuraState: ObservableObject {
     @Published private(set) var thought: AuraThought?
     /// Too little room above the pill (it sits near the top of the screen): the bubble hangs below it.
     @Published private(set) var below = false
+    /// Right edge of the usable screen in the aura's coordinates: a bubble that would run past it moves left.
+    @Published private(set) var roomMaxX: CGFloat = .infinity
     /// How the glow follows the latest change of `pill`: the shape's own spring while it morphs, nil when it jumps
     /// (dragged, another screen, Reduce Motion). Set together with `pill`, so the light never lags or runs ahead.
     @Published private(set) var pillMotion: Animation?
@@ -74,8 +76,8 @@ final class PillAuraState: ObservableObject {
     /// - Parameters:
     ///   - pill: the collapsed pill; nil while the shell is open (the light stays where the pill was and fades there).
     ///   - motion: the spring the shape morphs with right now, nil when it jumps.
-    func update(pill: CGRect?, mark: CGRect?, motion: ShellTokens.Spring?, below: Bool, working: Bool, step: StepBubble?,
-                startedAt: Date?, slowText: String) {
+    func update(pill: CGRect?, mark: CGRect?, motion: ShellTokens.Spring?, below: Bool, roomMaxX: CGFloat, working: Bool,
+                step: StepBubble?, startedAt: Date?, slowText: String) {
         if let pill, self.pill != pill {
             // The very first place has nothing to come from.
             pillMotion = self.pill == .zero ? nil
@@ -84,6 +86,7 @@ final class PillAuraState: ObservableObject {
         }
         if let mark, self.mark != mark { self.mark = mark }
         if self.below != below { self.below = below }
+        if self.roomMaxX != roomMaxX { self.roomMaxX = roomMaxX }
         if self.working != working {
             self.working = working
             settleGlow()
@@ -196,7 +199,7 @@ struct PillAura: View {
         let y = state.below ? state.pill.maxY + 4 : state.pill.minY - height - 4
         return ZStack(alignment: state.below ? .topLeading : .bottomLeading) {
             if let thought = state.thought {
-                ThoughtBubble(thought: thought, below: state.below, reduceMotion: reduceMotion)
+                ThoughtBubble(thought: thought, below: state.below, room: state.roomMaxX - 8 - x, reduceMotion: reduceMotion)
                     .id(thought.id)
                     .transition(reduceMotion ? .opacity : .asymmetric(insertion: .identity, removal: .floatAway(below: state.below)))
             }
@@ -256,14 +259,21 @@ struct WanderingGlow: View, Animatable {
 struct ThoughtBubble: View {
     var thought: AuraThought
     var below: Bool
+    /// Width from the bubble's corner to the screen's right edge. A wider bubble (the pill sits at the right edge)
+    /// slides left by the difference; the dots stay at Pippa's mark.
+    var room: CGFloat
     var reduceMotion: Bool
     private let shownState = State<Bool>(initialValue: false)
     private var shown: Bool { shownState.wrappedValue }
+    private let widthState = State<CGFloat>(initialValue: 0)
+    private var shift: CGFloat { min(0, room - widthState.wrappedValue) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             if below { dots }
             bubble
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { widthState.wrappedValue = $0 }
+                .offset(x: shift)
                 .scaleEffect(shown || reduceMotion ? 1 : 0.55, anchor: below ? .topLeading : .bottomLeading)
                 .offset(y: shown || reduceMotion ? 0 : (below ? -10 : 10))
                 .opacity(shown ? 1 : 0)

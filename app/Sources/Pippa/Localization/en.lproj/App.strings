@@ -244,6 +244,10 @@
 "Show details" = "Show details";
 "Hide details" = "Hide details";
 "I’m almost ready. I’ll answer as soon as I am." = "I’m almost ready. I’ll answer as soon as I am.";
+"Dropped image %@.png" = "Image %@.png";
+"Drop it on me again once I’m done." = "Drop it on me again once I’m done.";
+"That didn’t reach me" = "That didn’t reach me";
+"Drag it onto me once more." = "Drag it onto me once more.";
 "Clipboard image %@.png" = "Clipboard image %@.png";
 "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done.";
 "Tidy preview: 1 file" = "Tidy preview: 1 file";
