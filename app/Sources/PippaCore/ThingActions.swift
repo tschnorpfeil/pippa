@@ -116,7 +116,7 @@ public enum ThingActions {
         switch sorts[0] {
         case .table:
             // A table format Pippa cannot read gets no button that would then fail (`SheetFileCheck.unreadableNote`).
-            guard SheetFileCheck.readableExtensions.contains(urls[0].pathExtension.lowercased()) else { return [] }
+            guard SheetFileCheck.isReadable(fileExtension: urls[0].pathExtension) else { return [] }
             return [skill("tabelle-pruefen")].compactMap { $0 }
         case .mail: return role == .correspondence ? [skill("brief-verstehen"), skill("antwort-schreiben")].compactMap { $0 } : []
         case .document:

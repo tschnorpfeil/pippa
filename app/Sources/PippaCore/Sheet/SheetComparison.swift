@@ -53,18 +53,53 @@ public struct SheetComparison: Sendable, Hashable {
     }
 
     /// The row with the largest change (with label), nil if nothing changed.
-    public var biggestChange: Change? {
-        changes.filter { $0.label != nil && !SheetCheck.same($0.current, $0.previous) }
-            .max { abs($0.difference) < abs($1.difference) }
+    public var biggestChange: Change? { biggestChanges(1).first }
+
+    /// The rows with the largest changes (with label), largest first.
+    public func biggestChanges(_ count: Int) -> [Change] {
+        Array(changes.filter { $0.label != nil && !SheetCheck.same($0.current, $0.previous) }
+            .sorted { abs($0.difference) > abs($1.difference) }.prefix(count))
     }
 
-    /// One sentence: "Compared with last year, “Strom” changed most: 1,020 instead of 840."
+    /// Sums of both columns over the compared rows (totals rows left out).
+    public var totals: (current: Double, previous: Double) {
+        (changes.reduce(0) { $0 + $1.current }, changes.reduce(0) { $0 + $1.previous })
+    }
+
+    /// Two lines, all numbers from code: "In total 1,034 instead of 970 (+6.6 %)." and
+    /// "Changed most: Miete +50 (950 instead of 900), Strom +14 (84 instead of 70)."
     public func line(locale: Locale = .current) -> String {
-        guard let change = biggestChange, let label = change.label else {
-            return L("Nothing changed compared with last year.", table: "Sheet")
+        let top = biggestChanges(3)
+        guard !top.isEmpty else { return L("Nothing changed compared with last year.", table: "Sheet") }
+        func n(_ value: Double) -> String { SheetCheck.format(value, locale: locale) }
+        let sum = totals
+        var change = Self.signed(sum.current - sum.previous, locale: locale)
+        if !SheetCheck.same(sum.previous, 0) {
+            change = Self.percent((sum.current - sum.previous) / abs(sum.previous), locale: locale)
         }
-        return L("Compared with last year, “%@” changed most: %@ instead of %@.", table: "Sheet", label,
-                 SheetCheck.format(change.current, locale: locale), SheetCheck.format(change.previous, locale: locale))
+        let total = L("In total %@ instead of %@ (%@).", table: "Sheet", n(sum.current), n(sum.previous), change)
+        let items = top.map { c in
+            L("%@ %@ (%@ instead of %@)", table: "Sheet", c.label ?? "", Self.signed(c.difference, locale: locale), n(c.current), n(c.previous))
+        }
+        return total + "\n" + L("Changed most: %@.", table: "Sheet", ListFormatter.localizedString(byJoining: items))
+    }
+
+    /// "+50", "−14" (a real minus sign), "±0".
+    public static func signed(_ value: Double, locale: Locale) -> String {
+        let sign = SheetCheck.same(value, 0) ? "±" : value > 0 ? "+" : "−"
+        return sign + SheetCheck.format(abs(value), locale: locale)
+    }
+
+    /// "+6.6 %", "−12 %": one decimal below 10 %, whole numbers above.
+    public static func percent(_ ratio: Double, locale: Locale) -> String {
+        let value = abs(ratio * 100)
+        let f = NumberFormatter()
+        f.locale = locale
+        f.numberStyle = .decimal
+        f.maximumFractionDigits = value < 10 ? 1 : 0
+        f.minimumFractionDigits = 0
+        let sign = value < 0.05 ? "±" : ratio > 0 ? "+" : "−"
+        return sign + (f.string(from: NSNumber(value: value)) ?? String(value)) + " %"
     }
 
     static func year(in text: String) -> Int? {

@@ -37,5 +37,8 @@
 "“%@”" = "„%@“";
 "the row with %@" = "die Zeile mit %@";
 "the column with %@" = "die Spalte mit %@";
-"Compared with last year, “%@” changed most: %@ instead of %@." = "Im Vergleich zum Vorjahr hat sich „%@“ am meisten verändert: %@ statt %@.";
+"In total %@ instead of %@ (%@)." = "Insgesamt %@ statt %@ (%@).";
+"%@ %@ (%@ instead of %@)" = "%@ %@ (%@ statt %@)";
+"Changed most: %@." = "Am meisten verändert: %@.";
 "Nothing changed compared with last year." = "Im Vergleich zum Vorjahr hat sich nichts verändert.";
+"Numbers" = "Numbers";

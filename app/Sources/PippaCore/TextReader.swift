@@ -99,7 +99,7 @@ public enum TextReader {
         }
         if ext == "xlsx" || ext == "xlsm" {
             // Excel: values and formulas per cell, so Pi can check formulas (not just the results). The totals were
-            // recomputed in code first (`SheetFileCheck`); their findings come before the cells.
+            // recomputed and the sums computed in code first (`SheetFileCheck`); the results come before the cells.
             guard let data = try? Data(contentsOf: url, options: .mappedIfSafe), let book = XLSXReader.workbook(data) else {
                 return DocumentText(url: url, pages: [], isPaged: false, usedOCR: false, problem: .damaged)
             }
@@ -110,7 +110,7 @@ public enum TextReader {
             return result
         }
         if ext == "csv" || ext == "tsv" {
-            // Table as text: the same check in code before the text, if the cells contain a total.
+            // Table as text: the same check and sums in code before the text.
             let text = readPlain(url) ?? ""
             let shown = String(text.prefix(200_000))
             let grid = SheetFileCheck.csvGrid(shown, separator: ext == "tsv" ? "\t" : nil)

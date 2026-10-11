@@ -101,7 +101,7 @@ func runSkillChecks() {
             let url = URL(fileURLWithPath: path, isDirectory: folder)
             return PippaSkill.place(for: DropKind.guess(for: url), fileExtension: url.pathExtension)
         }
-        return place("/x/Brief.PDF", false) == nil && place("/x/Scan.heic", false) == nil && place("/x/Haushalt.numbers", false) == nil
+        return place("/x/Brief.PDF", false) == nil && place("/x/Scan.heic", false) == nil && place("/x/Haushalt.numbers", false) == (NumbersExport.isInstalled ? PippaSkill.Place.tabelle : nil)
             && place("/x/Bericht.odt", false) == nil && place("/x/Notiz.txt", false) == nil && place("/x/Liste.csv", false) == .tabelle
             && place("/x/Folien.pptx", false) == nil && place("/x/Steuer", true) == nil
             && DropKind.officeExtensions.isSuperset(of: ["docx", "xlsx", "pages", "numbers", "pptx", "rtf"])
@@ -148,7 +148,7 @@ func runSkillChecks() {
         let packedData = try Data(contentsOf: packed)
         // The reader puts what code recomputed (the total "Summe") before the cells.
         return XLSXReader.read(stored.finish())?.text == expected && XLSXReader.read(packedData)?.text == expected
-            && viaReader.fullText.hasSuffix("\n\n" + expected) && viaReader.fullText.hasPrefix("[Pippa hat die Summen") && viaReader.problem == .none && TextReader.read(broken).problem == .damaged
+            && viaReader.fullText.hasSuffix("\n\n" + expected) && viaReader.fullText.hasPrefix("[Pippa hat diese Tabelle") && viaReader.problem == .none && TextReader.read(broken).problem == .damaged
     }
     check("Skills: draft flag is kept in the history, older histories count as no draft") {
         let draft = ConversationMessage(role: .assistant, text: "Sehr geehrte …", draft: true)
