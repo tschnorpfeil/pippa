@@ -99,6 +99,24 @@ test('verified search results are signalled only for search_files, not model-wri
  assert.equal(found.length,1);assert.deepEqual(found[0].data.files,['/fake/Documents/beleg.pdf']);
 });
 
+test('files a folder listing or shell command showed become pippa-listed-files', async () => {
+ const { listedFiles } = await import('./pippa-assist.ts');
+ const listing='/Users/remi/projects/Kinderbuch:\nBilder/\nKinderbuch_35cm_Gesamt.pdf (3.5 MB, 2026-09-01)\nNotiz (alt) (1 KB, 2026-01-02)\nohne-info\n… and 3 more';
+ assert.deepEqual(listedFiles('list_folder',[{type:'text',text:listing}]),
+  ['/Users/remi/projects/Kinderbuch/Kinderbuch_35cm_Gesamt.pdf','/Users/remi/projects/Kinderbuch/Notiz (alt)','/Users/remi/projects/Kinderbuch/ohne-info']);
+ assert.deepEqual(listedFiles('list_folder',[{type:'text',text:'/x is empty.'}]),[]);
+ assert.deepEqual(listedFiles('bash',[{type:'text',text:'/a/b.pdf\n/a/c/\nrelative.txt'}],'find /a -name "*.pdf"'),['/a/b.pdf']);
+ assert.deepEqual(listedFiles('bash',[{type:'text',text:'b.pdf\nc.pdf'}],'ls -1 "/a/x y"'),['/a/x y/b.pdf','/a/x y/c.pdf']);
+ assert.deepEqual(listedFiles('bash',[{type:'text',text:'-rw-r--r-- 1 b.pdf'}],'ls -la /a'),[]);
+ const handlers={},entries=[];
+ assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+ await handlers.tool_call({toolName:'list_folder',toolCallId:'l',input:{path:'/Users/remi/projects/Kinderbuch'}},{});
+ await handlers.tool_result({toolName:'list_folder',toolCallId:'l',isError:false,content:[{type:'text',text:listing}]},{});
+ const listed=entries.filter(e=>e.type==='pippa-listed-files');
+ assert.equal(listed.length,1);assert.equal(listed[0].data.files[0],'/Users/remi/projects/Kinderbuch/Kinderbuch_35cm_Gesamt.pdf');
+ assert.equal(entries.filter(e=>e.type==='pippa-search-result').length,0);
+});
+
 test('loop stop preserves the search truncation flag with exactly 200 returned files', async () => {
  const handlers={},entries=[];
   assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});

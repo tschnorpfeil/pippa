@@ -203,4 +203,15 @@ public enum FoundFiles {
         let named = present.filter { answer.contains($0.lastPathComponent) || answer.contains($0.absoluteString) }
         return named + present.filter { !named.contains($0) }
     }
+
+    /// Files a folder listing or shell command showed (not a search) join the card only when the answer names them:
+    /// a listed folder of 80 files must not become a card of 80. Name, link or path; Markdown escapes ("a\_b") count.
+    public static func named(_ listed: [URL], answer: String, exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) -> [URL] {
+        let plain = answer.replacingOccurrences(of: "\\", with: "")
+        var seen = Set<URL>()
+        return listed.filter { file in
+            !file.hasDirectoryPath && seen.insert(file).inserted && exists(file)
+                && (plain.contains(file.lastPathComponent) || answer.contains(file.absoluteString) || plain.contains(file.path))
+        }
+    }
 }

@@ -14,7 +14,8 @@
  *   when the search came back empty: 48 calls, 4 minutes, a wrong total). After `MAX_CALLS` tool calls in one answer
  *   every further call is stopped with the request to answer now; the measured tasks needed at most 14.
  * - File search results: `search_files` results become a session entry `pippa-search-result`, so Pippa shows the
- *   files found from the tool's output, never from the model's prose.
+ *   files found from the tool's output, never from the model's prose. Files that `list_folder` listed or `bash`
+ *   printed as full paths become `pippa-listed-files`; Pippa shows those the answer names (opened folder, `find`).
  * - Today's date: each new message starts with "[2026-10-09, Friday]". The system prompt has no date so it stays the
  *   same (prompt cache); without one K2 searched the weather for a wrong "tomorrow". The line is saved with the
  *   message, so earlier turns never change. ISO date, no sentence: the answer follows the question's language.
@@ -92,6 +93,27 @@ export function searchFiles(content: any[]): string[] {
 	} catch {
 		return text.split(/[\n\0]/).filter((p) => p.startsWith("/") && !/[\r\t]/.test(p));
 	}
+}
+
+/** Files a folder listing or a shell command showed: `list_folder`'s "folder:" plus "name (size, date)" lines,
+ * otherwise full paths on their own line. Folders ("name/") stay out. */
+export function listedFiles(tool: string, content: any[], command = ""): string[] {
+	const text = (content ?? []).filter((p) => p?.type === "text").map((p) => String(p.text ?? "")).join("\n");
+	if (tool === "list_folder") {
+		const [head, ...lines] = text.split("\n");
+		const folder = head.match(/^(\/.*):$/)?.[1];
+		if (!folder) return [];
+		return lines.filter((l) => l && !l.endsWith("/") && !/^… and \d+ more$/.test(l))
+			.map((l) => `${folder.replace(/\/$/, "")}/${l.replace(/ \([^()]*, \d{4}-\d\d-\d\d\)$/, "")}`);
+	}
+	// `ls /folder` or `ls ~/folder` (no long format): plain names below that folder.
+	const ls = command.match(/^\s*ls((?:\s+-[A-Za-z1]+)*)\s+(["']?)((?:\/|~\/)[^"'|;&<>`$]*?)\2\s*$/);
+	if (tool === "bash" && ls && !/l/.test(ls[1])) {
+		const folder = ls[3].replace(/^~(?=\/)/, homedir()).replace(/\/$/, "");
+		return text.split("\n").map((l) => l.trim()).filter((l) => l && !l.includes("/") && !l.endsWith(":")).map((l) => `${folder}/${l}`);
+	}
+	if (tool === "bash") return text.split(/[\n\0]/).map((l) => l.trim()).filter((l) => l.startsWith("/") && !l.endsWith("/") && !/[\r\t]/.test(l));
+	return [];
 }
 
 /** "[2026-10-09, Friday]": today in the Mac's time zone, in no particular language. */
@@ -228,9 +250,10 @@ export default function (pi: ExtensionAPI) {
 	let calls = 0;
 	const searchCalls = new Set<string>();
 	const found = new Set<string>();
+	const commands = new Map<string, string>();
 	let searched = false;
 	let truncated = false;
-	const reset = () => { counts.clear(); keys.clear(); stops = 0; calls = 0; searchCalls.clear(); found.clear(); searched = false; truncated = false; };
+	const reset = () => { counts.clear(); keys.clear(); commands.clear(); stops = 0; calls = 0; searchCalls.clear(); found.clear(); searched = false; truncated = false; };
 	// Only a new message; a message sent while Pi is still working (steering) is shown back as typed.
 	pi.on("input", async (event: any) => {
 		if (event?.streamingBehavior || typeof event?.text !== "string") return { action: "continue" };
@@ -253,6 +276,7 @@ export default function (pi: ExtensionAPI) {
 		}
 		if (tool === "bash") {
 			const command = String(event.input?.command ?? "");
+			commands.set(event.toolCallId, command);
 			const kind = classifyCommand(command);
 			if (kind === "delete") return { block: true, reason: DELETE_REASON };
 			if (kind) {
@@ -278,10 +302,16 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_result", async (event: any) => {
+		const command = commands.get(event.toolCallId);
+		commands.delete(event.toolCallId);
 		const backup = kept.get(event.toolCallId);
 		kept.delete(event.toolCallId);
 		if (event.toolName === "search_files" && searchCalls.has(event.toolCallId)) {
 			pi.appendEntry("pippa-search-result", { v: 1, files: searchFiles(event.content).slice(0, 200) });
+		}
+		else if ((event.toolName === "list_folder" || event.toolName === "bash") && !event.isError) {
+			const files = listedFiles(event.toolName, event.content, command).slice(0, 200);
+			if (files.length) pi.appendEntry("pippa-listed-files", { v: 1, files });
 		}
 		if (searchCalls.delete(event.toolCallId)) {
 			// Failed or time-limited searches may still return useful partial locations.
