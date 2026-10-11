@@ -411,6 +411,8 @@ final class PiRPCChat {
         defer { if let held { Task { await held.server.releaseAgentLease(held.lease) } } }
         let client = try await ready(session: taskID)
         var segment = ""
+        // Where the text after the last tool call starts (AnswerNarration).
+        var afterTools: Int?
         var lastStop = ""
         var lastError: String?
         var loopStop: String?
@@ -447,15 +449,16 @@ final class PiRPCChat {
                 onWork?(.toolEnded(name: name, outcome: ending?.outcome, failed: ending?.failed ?? isError))
             case .userMessage:
                 onSteered(segment)
-                segment = ""
+                segment = ""; afterTools = nil
             case .assistantEnded(_, let reason, let error):
                 lastStop = reason; lastError = error
                 if reason == "toolUse", let onReset {
                     segment = ""; onReset("")
                 } else if reason == "toolUse", !segment.isEmpty, !segment.hasSuffix("\n") {
-                    // Text before a tool call stays part of the answer; a paragraph separates it from the rest.
+                    // Text before a tool call stays in view while Pippa works; a paragraph separates it from the rest.
                     segment += "\n\n"; onDelta("\n\n")
                 }
+                if reason == "toolUse" { afterTools = segment.utf8.count }
             case .notice(let text, let kind):
                 if kind == "pippa-search-result", let data = text.data(using: .utf8),
                    let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -500,7 +503,8 @@ final class PiRPCChat {
             throw Failure.model(lastError ?? "unbekannt")
         }
         if held != nil, let plan = localPlan { Self.removeSupersededModels(after: plan) }
-        return segment.trimmingCharacters(in: .whitespacesAndNewlines)
+        // "Ich suche jetzt mal …" before the tools drops out once a real answer follows them.
+        return AnswerNarration.finished(segment, afterTools: afterTools)
     }
 
     /// After the first local answer with the table's model in this app run: delete models it replaced (SupersededModels),

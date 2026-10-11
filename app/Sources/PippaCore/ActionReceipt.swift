@@ -28,6 +28,10 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
 
         public var happened: Bool { outcome == "done" }
 
+        /// Only looked something up, and it worked (Pippa's reader, a web search, a page read online): the line folds
+        /// into the receipt under the answer. Everything that changed something, was declined or failed stays in view.
+        public var isQuiet: Bool { happened && ["read", "webSearch", "webPage"].contains(action) }
+
         /// Pippa's memory (`remember`): `name` what was kept, `toName` what was let go ("*": everything).
         func memoryLine(language: String?) -> String {
             switch (outcome, name, toName) {

@@ -154,6 +154,19 @@ public struct WebSourcesCard: Codable, Sendable, Equatable {
         footer = L("From the web · looked up at %@", table: "MCP", time.string(from: now))
     }
 
+    /// The sources as small chips under the answer: one per site, pages Pi read first; search results only when nothing
+    /// was read. At most `limit` chips; `more` counts the sites left out.
+    public func chips(limit: Int = 4) -> (shown: [Item], more: Int) { Self.chips([self], limit: limit) }
+
+    /// The same across all web cards of one answer.
+    public static func chips(_ cards: [WebSourcesCard], limit: Int = 4) -> (shown: [Item], more: Int) {
+        let items = cards.flatMap(\.items)
+        let read = items.filter(\.read)
+        var seen = Set<String>()
+        let sites = (read.isEmpty ? items : read).filter { seen.insert($0.host).inserted }
+        return (Array(sites.prefix(limit)), max(0, sites.count - limit))
+    }
+
     /// The same page with or without "www.", trailing slash or fragment.
     static func key(_ url: URL) -> String {
         var parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
