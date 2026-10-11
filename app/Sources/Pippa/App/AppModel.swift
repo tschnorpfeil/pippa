@@ -1165,26 +1165,6 @@ final class AppModel: ObservableObject {
         if let r = retry { r() } else { collapse() }
     }
 
-    private func needsModel() -> Bool {
-        if canRunModelWork { return false }
-        if needsDownloadConsent {
-            let detail: String
-            if let size = downloadSize {
-                detail = T("Invoices work once it has loaded (%@). Tidying, overviews and deadlines work right now.", table: "App", ModelDownloadSize.gigabytes(size.remaining))
-            } else {
-                detail = T("Invoices work once it has loaded. Tidying, overviews and deadlines work right now.", table: "App")
-            }
-            show(.notice(title: T("I need my AI for this", table: "App"), detail: detail,
-                         buttons: [.init(title: T("Load Now", table: "App"), primary: true) { [weak self] in self?.startModelDownload(); self?.collapse() },
-                                   .init(title: T("Later", table: "App"), primary: false) { [weak self] in self?.collapse() }]), recordResult: false)
-            return true
-        }
-        let status = unsupportedReason ?? learningText ?? T("Pippa is just waking up.", table: "App")
-        let body = status + "\n" + T("Invoices work once my AI has loaded. Tidying, overviews and deadlines work right now.", table: "App")
-        show(.message(title: T("Not ready yet", table: "App"), body: body, isError: false))
-        return true
-    }
-
     func run(_ action: Action) {
         if let o = lastOverview, o.actions.contains(action), action != .ask,
            let kind = TaskKind.guess(for: o.kind, fileExtension: context?.items.first?.pathExtension, count: context?.items.count ?? 1) {
@@ -1403,7 +1383,7 @@ final class AppModel: ObservableObject {
     func startInvoices() {
         guard let ctx = context, !ctx.items.isEmpty else { return askForContext() }
         let inputs = ctx.items
-        perform(title: T("Reading invoices…", table: "App"), subtitle: T("Your invoices stay as they are.", table: "App"),
+        perform(title: T("Reading the invoices…", table: "App"), subtitle: T("Your invoices stay as they are.", table: "App"),
                 writes: T("A new spreadsheet", table: "App"), retry: { [weak self] in self?.startInvoices() }) { engine in
             let output = try await OneAnswerTools.run(.invoiceTable, inputs: inputs)
             let receipt = try await engine.recordResult(output.files, summary: output.summary, detail: output.detailSentence ?? "")

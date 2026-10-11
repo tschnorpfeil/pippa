@@ -53,3 +53,4 @@
 "[Postcode and town]" = "[PLZ und Ort]";
 "[Recipient]" = "[Empfänger]";
 "Page %lld of %lld" = "Seite %lld von %lld";
+"I can only read invoices as PDFs, photos or text." = "Rechnungen lese ich nur als PDF, Foto oder Text.";

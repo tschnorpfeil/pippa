@@ -24,10 +24,11 @@ public struct LetterDocument: Sendable, Hashable {
     public static var senderPlaceholder: [String] { [L("[Your name]", table: "Tools"), L("[Street and number]", table: "Tools"), L("[Postcode and town]", table: "Tools")] }
     public static var recipientPlaceholder: [String] { [L("[Recipient]", table: "Tools"), L("[Street and number]", table: "Tools"), L("[Postcode and town]", table: "Tools")] }
 
-    /// A letter from a draft: a "Betreff:"/"Subject:" line becomes the subject (or a short first line before the
-    /// greeting), Markdown bold marks go, the rest is the text.
+    /// A letter from a draft: an address block at the top becomes the recipient, a "Betreff:"/"Subject:" line the
+    /// subject (or a short first line before the greeting), Markdown bold marks go, the rest is the text.
     public static func from(draft: String, sender: [String]?, place: String?, recipient: [String]? = nil, date: Date = Date()) -> LetterDocument {
         var lines = draft.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+        let address = recipient?.isEmpty == false ? nil : addressBlock(&lines)
         var subject: String?
         if let index = lines.firstIndex(where: { isSubjectLine($0) }) {
             let line = lines[index]
@@ -43,8 +44,29 @@ public struct LetterDocument: Sendable, Hashable {
         }
         let body = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         return LetterDocument(sender: sender?.isEmpty == false ? sender! : senderPlaceholder,
-                              recipient: recipient?.isEmpty == false ? recipient! : recipientPlaceholder,
+                              recipient: recipient?.isEmpty == false ? recipient! : address ?? recipientPlaceholder,
                               place: place, date: date, subject: subject?.isEmpty == true ? nil : subject, body: body)
+    }
+
+    /// One of the draft's first two blocks when it reads like an address (2 to 6 short lines, one with postcode and town,
+    /// no greeting, no subject), before any greeting or subject: taken out of the lines and returned. Nil otherwise, and
+    /// the lines stay. Two blocks, because a draft may open with a note line ("Hinweis: …").
+    static func addressBlock(_ lines: inout [String]) -> [String]? {
+        var start = 0
+        for _ in 0..<2 {
+            guard let first = lines[start...].firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) else { return nil }
+            var end = first
+            while end < lines.count, !lines[end].trimmingCharacters(in: .whitespaces).isEmpty { end += 1 }
+            let block = lines[first..<end].map { $0.trimmingCharacters(in: .whitespaces) }
+            if block.contains(where: { isGreeting($0) || isSubjectLine($0) }) { return nil }
+            if (2...6).contains(block.count), block.allSatisfy({ $0.count <= 60 }),
+               block.contains(where: { $0.range(of: #"^(?:[A-Z]{1,2}-)?\d{4,5}\s+\p{L}"#, options: .regularExpression) != nil }) {
+                lines.removeSubrange(first..<end)
+                return block
+            }
+            start = end
+        }
+        return nil
     }
 
     static func isSubjectLine(_ line: String) -> Bool {

@@ -53,3 +53,4 @@
 "[Postcode and town]" = "[Postcode and town]";
 "[Recipient]" = "[Recipient]";
 "Page %lld of %lld" = "Page %lld of %lld";
+"I can only read invoices as PDFs, photos or text." = "I can only read invoices as PDFs, photos or text.";

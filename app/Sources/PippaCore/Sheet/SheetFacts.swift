@@ -89,8 +89,12 @@ public enum SheetFacts {
 
     /// Headings of numbers that are not amounts ("Nr.", "Rechnungsnummer", "PLZ", "Jahr", "ID").
     public static func isIdentifier(_ heading: String) -> Bool {
+        // Percentages, rates and unit prices too: their sum means nothing ("MwSt %", "Steuersatz", "Einzelpreis").
+        if heading.contains("%") { return true }
         let words = heading.lowercased().split { !$0.isLetter }.map(String.init)
-        let names: Set<String> = ["nr", "no", "nummer", "number", "id", "plz", "tel", "telefon", "phone", "jahr", "year", "kw", "pos", "iban"]
+        let names: Set<String> = ["nr", "no", "nummer", "number", "id", "plz", "postleitzahl", "tel", "telefon", "phone", "jahr", "year",
+                                  "monat", "month", "kw", "pos", "iban", "prozent", "percent", "anteil", "satz", "steuersatz", "zinssatz", "mwstsatz", "stk", "einzelpreis",
+                                  "stückpreis"]
         return words.contains { names.contains($0) || $0.hasSuffix("nummer") || $0.hasSuffix("nr") }
     }
 

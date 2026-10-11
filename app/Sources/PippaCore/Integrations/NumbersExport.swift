@@ -6,7 +6,8 @@ import Foundation
 
 /// Pippa cannot read the .numbers format, but Numbers can save a copy as Excel. So a dropped Numbers table goes
 /// through Numbers once: open, `export … as Microsoft Excel` into Pippa's cache, close again without saving. The
-/// person's file is never changed. If the document was already open in Numbers it stays open; if Numbers was not
+/// person's file is never changed. If the document was already open in Numbers it stays open (only a window the
+/// export opened itself is closed, counted by the number of documents, not by comparing paths); if Numbers was not
 /// running, it is started hidden and quit again. Apple Events like `ExcelScript` (`automation.apple-events`, no App
 /// Sandbox); macOS asks once for Numbers.
 ///
@@ -29,15 +30,11 @@ public enum NumbersExport {
         """
         on exportCopy(sourcePath, targetPath)
             tell application id "\(bundle)"
-                set wasOpen to false
-                repeat with d in documents
-                    try
-                        if (POSIX path of ((file of d) as alias)) is sourcePath then set wasOpen to true
-                    end try
-                end repeat
+                set docCount to count of documents
                 set theDoc to open (POSIX file sourcePath)
+                set isNew to (count of documents) > docCount
                 export theDoc to (POSIX file targetPath) as Microsoft Excel
-                if not wasOpen then close theDoc saving no
+                if isNew then close theDoc saving no
             end tell
             return targetPath
         end exportCopy
@@ -67,20 +64,21 @@ public enum NumbersExport {
         guard let bundle = bundleIdentifier else { throw PippaError.notAvailable }
         let wasRunning = AppleEvents.isRunning(bundle: bundle)
         guard await AppleEvents.launchHidden(bundle: bundle) else { throw PippaError.notAvailable }
+        let script = source(bundle: bundle)
+        let name = appName
+        // Quit a Numbers Pippa started, also when permission is missing or the export fails.
+        defer {
+            if !wasRunning {
+                Task { try? await AppleEvents.perform { _ = try AppleEvents.call(script, handler: "quitApp", appName: name) } }
+            }
+        }
         switch await AppleEvents.permission(bundle: bundle, appName: appName, ask: true) {
         case .granted: break
         case .denied: throw PippaError.accessDenied(appName)
         default: throw PippaError.notAvailable
         }
         try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let script = source(bundle: bundle)
-        let name = appName
         let sourcePath = url.standardizedFileURL.path, targetPath = target.path
-        defer {
-            if !wasRunning {
-                Task { try? await AppleEvents.perform { _ = try AppleEvents.call(script, handler: "quitApp", appName: name) } }
-            }
-        }
         try await AppleEvents.perform {
             _ = try AppleEvents.call(script, handler: "exportCopy",
                                  [NSAppleEventDescriptor(string: sourcePath), NSAppleEventDescriptor(string: targetPath)], appName: name)

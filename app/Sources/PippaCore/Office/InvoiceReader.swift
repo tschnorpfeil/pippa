@@ -40,12 +40,15 @@ public enum InvoiceReader {
     static let strong = ["gesamtbetrag", "rechnungsbetrag", "endbetrag", "zu zahlen", "zahlbetrag", "bruttobetrag", "gesamtsumme",
                          "summe brutto", "brutto", "amount due", "total due", "grand total", "zahlbar", "zu überweisen", "total amount"]
     static let medium = ["summe", "gesamt", "total", "betrag", "amount"]
-    /// Lines that carry an amount that is not the total.
-    static let never = ["netto", "mwst", "ust", "umsatzsteuer", "steuer", "tax", "vat", "zwischensumme", "subtotal", "sub-total",
-                        "gegeben", "rückgeld", "wechselgeld", "rabatt", "skonto", "net", "trinkgeld", "pfand"]
+    /// Lines that carry an amount that is not the total, even next to a total word ("Rechnungsbetrag netto").
+    static let partial = ["netto", "net", "zwischensumme", "subtotal", "sub-total", "gegeben", "rückgeld", "wechselgeld"]
+    /// Lines about tax or a deduction: not the total, unless the line also says total or "incl." ("Gesamtbetrag inkl. MwSt").
+    static let never = ["mwst", "ust", "umsatzsteuer", "steuer", "tax", "vat", "rabatt", "skonto", "trinkgeld", "pfand"]
+    /// "inkl. MwSt", "incl. VAT", "brutto": the tax is in this amount, so it is a total.
+    static let inclusive = ["inkl", "incl", "including", "brutto"]
 
     static let amountPattern = try! NSRegularExpression(
-        pattern: #"(?<![\d.,])[-−]?(?:\d{1,3}(?:[.  ' ]\d{3})+|\d+)[,.]\d{2}(?![\d])(?![.,]\d)"#)
+        pattern: #"(?<![\d.,])[-−]?(?:\d{1,3}(?:[.,  ' ]\d{3})+|\d+)[,.]\d{2}(?![\d])(?![.,]\d)"#)
     static let germanDate = try! NSRegularExpression(pattern: #"(?<!\d)(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4}|\d{2})(?!\d)"#)
     static let isoDate = try! NSRegularExpression(pattern: #"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)"#)
 
@@ -53,7 +56,16 @@ public enum InvoiceReader {
     public static func read(file: String, text: String) -> InvoiceRow {
         let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         var row = InvoiceRow(file: file)
-        let amounts = lines.flatMap(amounts(in:))
+        var amounts: [Amount] = []
+        for (index, line) in lines.enumerated() {
+            let own = Self.amounts(in: line)
+            // Tables in PDFs often put "Gesamtbetrag" on one line and "96,70 €" on the next: the next line's first amount
+            // counts with this line's words, when the next line says nothing itself.
+            if own.isEmpty, score(line) > 0, index + 1 < lines.count, let next = Self.amounts(in: lines[index + 1]).first, next.score == 0 {
+                amounts.append(Amount(value: next.value, written: next.written, line: line + " " + lines[index + 1], score: score(line)))
+            }
+            amounts += own
+        }
         row.candidates = amounts.filter { $0.score > 0 }
         if let pick = pickTotal(amounts) {
             row.amount = pick.amount.value
@@ -72,19 +84,28 @@ public enum InvoiceReader {
     /// The amounts on one line, scored by its words: strong total words 3, others 2, words for something else -3.
     static func amounts(in line: String) -> [Amount] {
         let range = NSRange(line.startIndex..., in: line)
-        let lower = line.lowercased()
-        let words = Set(lower.split { !$0.isLetter && $0 != "-" }.map(String.init))
-        // Long words also inside compounds ("Rechnungsbetrag", "Nettobetrag"); short ones only as words ("USt", not "Kunst").
-        func has(_ word: String) -> Bool { word.count >= 5 || word.contains(" ") ? lower.contains(word) : words.contains(word) }
-        var score = 0
-        if strong.contains(where: has) { score = 3 } else if medium.contains(where: has) { score = 2 }
-        if never.contains(where: has) { score = -3 }
+        let lineScore = Self.score(line)
         return amountPattern.matches(in: line, range: range).compactMap { match in
             guard let r = Range(match.range, in: line) else { return nil }
             let written = String(line[r])
             guard let value = SheetNumber.parse(written.replacingOccurrences(of: "−", with: "-")) else { return nil }
-            return Amount(value: value, written: written, line: line, score: score)
+            return Amount(value: value, written: written, line: line, score: lineScore)
         }
+    }
+
+    /// How much a line says "total": strong words 3, others 2 (3 with "inkl."), a partial amount -3, a tax line -3
+    /// unless it also says total and "inkl." or is a strong total line ("Gesamtbetrag inkl. MwSt"), else 0.
+    static func score(_ line: String) -> Int {
+        let lower = line.lowercased()
+        let words = Set(lower.split { !$0.isLetter && $0 != "-" }.map(String.init))
+        // Long words also inside compounds ("Rechnungsbetrag", "Nettobetrag"); short ones only as words ("USt", not "Kunst").
+        func has(_ word: String) -> Bool { word.count >= 5 || word.contains(" ") ? lower.contains(word) : words.contains(word) }
+        let includes = inclusive.contains(where: has)
+        if partial.contains(where: has) && !includes { return -3 }
+        var score = 0
+        if strong.contains(where: has) { score = 3 } else if medium.contains(where: has) { score = includes ? 3 : 2 }
+        if never.contains(where: has) && score < 3 { return -3 }
+        return score
     }
 
     /// The total: the amounts on the best total lines; sure when they all say the same number. Without a total word,
@@ -105,14 +126,17 @@ public enum InvoiceReader {
 
     /// The invoice date: a date on a line that says so ("Rechnungsdatum", "Datum", "Date"), else the only date.
     static func findDate(_ lines: [String]) -> (date: Date, sure: Bool)? {
-        var found: [(date: Date, labelled: Bool)] = []
+        // 2: says "Rechnungsdatum" (even on "Rechnungsdatum/Lieferdatum"), 1: another date word that is not a due or
+        // delivery date ("Datum", "Bestelldatum"), 0: no word.
+        var found: [(date: Date, rank: Int)] = []
         for line in lines {
             let lower = line.lowercased()
-            let labelled = ["rechnungsdatum", "belegdatum", "datum", "date", "invoice date", "ausgestellt"].contains { lower.contains($0) }
+            let invoice = ["rechnungsdatum", "invoice date", "belegdatum", "rechnungs-datum"].contains { lower.contains($0) }
+            let other = ["datum", "date", "ausgestellt"].contains { lower.contains($0) }
                 && !["fällig", "due", "lieferdatum", "leistungsdatum", "zahlbar bis"].contains { lower.contains($0) }
-            for date in dates(in: line) { found.append((date, labelled)) }
+            for date in dates(in: line) { found.append((date, invoice ? 2 : other ? 1 : 0)) }
         }
-        if let labelled = found.first(where: { $0.labelled }) { return (labelled.date, true) }
+        if let best = found.first(where: { $0.rank == 2 }) ?? found.first(where: { $0.rank == 1 }) { return (best.date, true) }
         let distinct = Set(found.map { $0.date })
         guard let first = found.first else { return nil }
         return (first.date, distinct.count == 1)
@@ -141,23 +165,28 @@ public enum InvoiceReader {
         return out
     }
 
+    /// The currency named in the text: a symbol, or a code as a word of its own ("EUR", not "Friseur").
     static func currency(in text: String) -> String? {
-        let upper = text.uppercased()
-        if upper.contains("€") || upper.contains("EUR") { return "EUR" }
-        if upper.contains("CHF") { return "CHF" }
-        if upper.contains("£") || upper.contains("GBP") { return "GBP" }
-        if upper.contains("$") || upper.contains("USD") { return "USD" }
+        func code(_ c: String) -> Bool { text.range(of: #"\b"# + c + #"\b"#, options: .regularExpression) != nil }
+        if text.contains("€") || code("EUR") { return "EUR" }
+        if code("CHF") { return "CHF" }
+        if text.contains("£") || code("GBP") { return "GBP" }
+        if text.contains("$") || code("USD") { return "USD" }
         return nil
     }
 
     /// A guess at the sender: the first line at the top that reads like a name, without legal form ("GmbH").
     static func guessSender(_ lines: [String]) -> String? {
         let skip = ["rechnung", "invoice", "quittung", "kassenbon", "beleg", "seite", "page", "datum", "date", "tel", "fax", "www",
-                    "http", "@", "ust-id", "steuer", "kunden", "iban", "bic", "an:", "lieferschein", "angebot", "herr", "frau"]
+                    "http", "@", "ust-id", "steuernummer", "steuer-nr", "kundennummer", "kunden-nr", "iban", "bic", "an:", "lieferschein",
+                    "angebot", "herr", "frau"]
         for line in lines.prefix(8) {
             let lower = line.lowercased()
+            let words = Set(lower.split { !$0.isLetter }.map(String.init))
+            // Short words only as words ("Tel", not "Hotel" or "Telekom"), longer ones and marks like "@" anywhere.
+            func has(_ s: String) -> Bool { s.count >= 6 || !s.allSatisfy(\.isLetter) ? lower.contains(s) : words.contains(s) }
             let letters = line.filter(\.isLetter).count
-            guard letters >= 3, letters * 2 >= line.count, !skip.contains(where: { lower.contains($0) }) else { continue }
+            guard letters >= 3, letters * 2 >= line.count, !skip.contains(where: has) else { continue }
             // Address lines: postcode and town, or a street with a number.
             if line.range(of: #"\b\d{4,5}\s+\p{L}"#, options: .regularExpression) != nil { continue }
             if line.range(of: #"(str\.|straße|strasse|weg|platz|allee|gasse)\s*\d"#, options: [.regularExpression, .caseInsensitive]) != nil { continue }
@@ -178,11 +207,12 @@ public enum InvoiceReader {
         return s.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ",")))
     }
 
-    /// A model's pick among the candidates: taken only when it names one of them; the row becomes sure when the pick and
-    /// code agree, and takes the pick (not sure) when they differ. A sender is taken only when it appears in the text.
+    /// A model's pick among the candidates: taken only when it names one of them and code was unsure of the total (the
+    /// model sees only the first page, a sure total may be further down); the row becomes sure when the pick and code
+    /// agree, and takes the pick (not sure) when they differ. A sender is taken only when it appears in the text.
     public static func choose(_ row: InvoiceRow, amount picked: String?, sender: String?, text: String) -> InvoiceRow {
         var out = row
-        if let picked, let match = row.candidates.first(where: { $0.written == picked.trimmingCharacters(in: .whitespaces) }) {
+        if row.unsure.contains(.amount), let picked, let match = row.candidates.first(where: { $0.written == picked.trimmingCharacters(in: .whitespaces) }) {
             if let amount = row.amount, SheetCheck.same(amount, match.value) {
                 out.unsure.remove(.amount)
             } else {

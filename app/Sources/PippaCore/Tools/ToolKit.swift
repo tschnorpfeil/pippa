@@ -206,7 +206,13 @@ public enum OneAnswerTools {
         case .makeOnePDF: return try await MakePDF.combine(inputs, passwords: passwords, progress: progress)
         case .makeSmaller: return try await Shrink.run(inputs, passwords: passwords, progress: progress)
         case .asPDF, .asJPEG, .asPNG: return try await Convert.run(tool, inputs: inputs, progress: progress)
-        case .invoiceTable: return try await InvoiceTable.run(inputs.filter { accepts(.invoiceTable, $0) }, progress: progress)
+        case .invoiceTable:
+            // A dropped folder counts with the files in it (one level, like "Make one PDF" from a folder); what Pippa
+            // cannot read as an invoice is named, not dropped silently.
+            let files = LocalEngine.files(in: inputs, depth: 0, limit: 200)
+            let rejected = files.filter { !accepts(.invoiceTable, $0) }
+                .map { FileReason(name: $0.lastPathComponent, why: L("I can only read invoices as PDFs, photos or text.", table: "Tools")) }
+            return try await InvoiceTable.run(files.filter { accepts(.invoiceTable, $0) }, skipped: rejected, progress: progress)
         }
     }
 }

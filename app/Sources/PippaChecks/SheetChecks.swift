@@ -397,6 +397,16 @@ func runSheetChecks() async {
             && SheetFileCheck.note(for: [("Namen", words)], locale: english) == nil
             && SheetFileCheck.prepend(nil, to: "x") == "x" && SheetFileCheck.prepend("n", to: "x") == "n\n\nx"
     }
+    check("Table file: one column keeps its decimal commas; a table longer than Pippa reads says the sums cover only a part") {
+        let single = SheetFileCheck.csvRead("Betrag\n12,50\n7,25\n")
+        var long = "Posten;Betrag\n"
+        for i in 1...2100 { long += "Posten \(i);\(i),50\n" }
+        let cut = SheetFileCheck.csvRead(long)
+        let note = cut.flatMap { SheetFileCheck.note(for: [("Lang", $0.grid)], locale: english, truncated: $0.truncated) } ?? ""
+        let whole = SheetFileCheck.csvRead("Posten;Betrag\nMiete;800\nStrom;84,20\n")
+        return single?.grid.columnCount == 1 && single?.grid[2, 1].value == .number(12.5) && single?.truncated == false
+            && cut?.truncated == true && note.hasPrefix("[Die Tabelle ist länger") && whole?.truncated == false
+    }
     check("Table facts: sum, smallest and largest with their row, sums per category; numbers, years and totals kept apart") {
         let g = grid([
             [t("Kategorie"), t("Rechnungsnr."), t("Jahr"), t("Betrag")],
@@ -417,6 +427,7 @@ func runSheetChecks() async {
             && column.smallest.row == 6 && column.largest.row == 3 && groups.by == "Kategorie" && groups.items.first?.name == "Miete"
             && lines.contains("Miete 1,600 (2); Strom 174.30 (2); Wasser 22.50 (1)") && lines.contains("Zeile 6, Wasser")
             && SheetFacts.isIdentifier("Kunden-Nr") && SheetFacts.isIdentifier("PLZ") && !SheetFacts.isIdentifier("Anrede") && !SheetFacts.isIdentifier("Betrag")
+            && SheetFacts.isIdentifier("MwSt %") && SheetFacts.isIdentifier("Monat") && !SheetFacts.isIdentifier("Umsatz")
     }
     check("Excel writer: the file reads back with text, numbers, formulas, umlauts and dates; Pippa's copy of a sheet keeps addresses") {
         let day = Date(timeIntervalSince1970: 1_767_225_600) // 1 Jan 2026, 00:00 UTC
@@ -429,7 +440,7 @@ func runSheetChecks() async {
         guard let book = XLSXReader.workbook(data), let sheet = book.sheets.first else { return false }
         let g = sheet.grid
         let written = sheet.name == "Kosten 20261" && g[2, 1].value == .text("Müll & <Gebühr>") && g[2, 2].value == .number(84.2)
-            && g[2, 3].value == .number(46023) && g[3, 2].formula == "=SUM(B2:B2)" && g[3, 2].value == .number(84.2) && g[3, 3].value == .text("prüfen")
+            && g[2, 3].value == .date(day) && book.text.contains("C2: 2026-01-01") && g[3, 2].formula == "=SUM(B2:B2)" && g[3, 2].value == .number(84.2) && g[3, 3].value == .text("prüfen")
         // A sheet read from Excel starting at C3 lands at C3 again.
         let excerpt = SheetGrid(origin: CellRef(row: 3, column: 3), rows: [[t("Posten"), t("Betrag")], [t("Miete"), n(800)], [t("Summe"), f("=SUM(D4:D4)", 800)]])
         guard let copy = XLSXWriter.Sheet(name: "2026", grid: excerpt), let back = XLSXReader.workbook(XLSXWriter.data([copy]))?.sheets.first?.grid else { return false }

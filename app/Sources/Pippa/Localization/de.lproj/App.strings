@@ -127,11 +127,8 @@
 "Create Table" = "Tabelle anlegen";
 "Read Mail" = "Mail lesen";
 "Add Entry" = "Eintragen";
-"Invoices work once it has loaded (%@). Tidying, overviews and deadlines work right now." = "Rechnungen gehen, sobald es geladen ist (%@). Ordnen, Übersichten und Fristen gehen schon jetzt.";
-"Invoices work once it has loaded. Tidying, overviews and deadlines work right now." = "Rechnungen gehen, sobald es geladen ist. Ordnen, Übersichten und Fristen gehen schon jetzt.";
 "I need my AI for this" = "Dafür brauche ich meine KI";
 "Pippa is just waking up." = "Pippa wird gerade wach.";
-"Invoices work once my AI has loaded. Tidying, overviews and deadlines work right now." = "Rechnungen gehen, sobald meine KI geladen ist. Ordnen, Übersichten und Fristen gehen schon jetzt.";
 "Not ready yet" = "Noch nicht bereit";
 "Tidy Here" = "Hier ordnen";
 "Your files are in different places. Which folder should I tidy? Anything outside it stays where it is." = "Deine Dateien liegen an verschiedenen Orten. In welchem Ordner soll ich ordnen? Was nicht darin liegt, bleibt, wo es ist.";
@@ -270,6 +267,5 @@
 "I can already answer simple questions; for everything else my AI is still loading." = "Einfache Fragen beantworte ich schon, für alles andere lädt meine KI noch.";
 "For that I need my AI. Shall I load it now?" = "Dafür brauche ich meine KI. Soll ich sie jetzt laden?";
 "I can already answer simple questions. For everything else I need my AI." = "Einfache Fragen beantworte ich schon. Für alles andere brauche ich meine KI.";
-"Reading invoices…" = "Lese die Rechnungen …";
 "Your invoices stay as they are." = "Deine Rechnungen bleiben, wie sie sind.";
 "A new spreadsheet" = "Eine neue Tabelle";

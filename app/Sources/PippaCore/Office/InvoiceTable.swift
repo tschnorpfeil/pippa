@@ -51,9 +51,10 @@ public enum InvoiceTable {
 
     /// Reads the invoices and writes the table into a fresh results folder. Files without any amount stay out, with a
     /// reason. Cancellable per file.
-    public static func run(_ inputs: [URL], progress: @escaping @Sendable (ToolProgress) -> Void = { _ in }) async throws -> ToolOutput {
+    public static func run(_ inputs: [URL], skipped alreadySkipped: [FileReason] = [],
+                           progress: @escaping @Sendable (ToolProgress) -> Void = { _ in }) async throws -> ToolOutput {
         var rows: [InvoiceRow] = []
-        var skipped: [FileReason] = []
+        var skipped = alreadySkipped
         var used: [URL] = []
         progress(ToolProgress(done: 0, total: inputs.count))
         for (index, url) in inputs.enumerated() {
@@ -100,9 +101,9 @@ public enum InvoiceTable {
         return rows.count == 1 ? L("1 invoice, %@", table: "Tools", together) : L("%lld invoices, together %@", table: "Tools", rows.count, together)
     }
 
-    /// "Please check the yellow cells." or nil when code was sure of every total and date.
+    /// "Please check the yellow cells." or nil when nothing is yellow (every total, date and sender sure).
     static func note(_ rows: [InvoiceRow]) -> String? {
-        rows.allSatisfy({ $0.unsure.isDisjoint(with: [.amount, .date]) }) ? nil : L("Please check the yellow cells.", table: "Tools")
+        rows.allSatisfy({ $0.unsure.isEmpty && $0.sender != nil }) ? nil : L("Please check the yellow cells.", table: "Tools")
     }
 
     // MARK: System model: point at the total
