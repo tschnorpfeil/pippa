@@ -245,6 +245,9 @@
 "Hide details" = "Details ausblenden";
 "I’m almost ready. I’ll answer as soon as I am." = "Ich bin gleich so weit und antworte dann sofort.";
 "Dropped image %@.png" = "Bild %@.png";
+"Drop it on me again once I’m done." = "Leg es nochmal auf mich, sobald ich fertig bin.";
+"That didn’t reach me" = "Das ist nicht bei mir angekommen";
+"Drag it onto me once more." = "Zieh es bitte noch einmal auf mich.";
 "Clipboard image %@.png" = "Bild aus der Zwischenablage %@.png";
 "“Allow for This Task” means I won’t ask again for this kind of step until the answer is done." = "„Für diese Aufgabe erlauben“ heißt: Bis die Antwort fertig ist, frage ich bei dieser Art Schritt nicht mehr.";
 "Tidy preview: 1 file" = "Vorschau zum Ordnen: 1 Datei";

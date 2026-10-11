@@ -34,7 +34,14 @@ extension ShellController {
     }
 
     func draggingEntered() -> NSDragOperation {
-        guard canDrop else { return [] }
+        guard canDrop else {
+            // Busy at the pill: say why nothing happens instead of staying silent.
+            if !takingOut, model.mode.key == "pill", !model.toastShowing {
+                model.toasts?.show(title: T("I’m still working", table: "App"),
+                                   detail: T("Drop it on me again once I’m done.", table: "App"), buttons: [], log: false)
+            }
+            return []
+        }
         model.dragEntered()
         return .copy
     }
@@ -47,7 +54,18 @@ extension ShellController {
     func performDrop(_ pb: NSPasteboard) -> Bool {
         guard canDrop else { return false }
         dragAnnounced = false
+        if DropReader.isPromise(pb) {
+            // Promised files (a mail from Mail) take a moment: the pill leaves "Let Go" and works until they are here.
+            model.dragEnded()
+            model.receivingStarted { [weak self] in self?.showNotReceived() }
+            return receive(pb, imageName: "", promised: true)
+        }
         return receive(pb, imageName: T("Dropped image %@.png", table: "App", PasteDecision.timeStamp(Date())))
+    }
+
+    private func showNotReceived() {
+        model.show(.message(title: T("That didn’t reach me", table: "App"),
+                            body: T("Drag it onto me once more.", table: "App"), isError: false))
     }
 
     /// ⌘V in the input: copied files or a picture are attached exactly like a drop; text pastes as usual.
@@ -62,11 +80,15 @@ extension ShellController {
         return receive(pb, imageName: T("Clipboard image %@.png", table: "App", PasteDecision.timeStamp(Date())))
     }
 
-    private func receive(_ pb: NSPasteboard, imageName: String) -> Bool {
+    private func receive(_ pb: NSPasteboard, imageName: String, promised: Bool = false) -> Bool {
         DropReader.read(pb, imageName: imageName) { [weak self] result in
             guard let self else { return }
+            if promised { self.model.receivingEnded() }
             if let result {
                 self.model.receive(result.payload, items: result.items)
+            } else if promised {
+                // The other app didn't deliver: the thing was fine, getting it failed.
+                self.showNotReceived()
             } else {
                 self.model.show(.message(title: T("I can’t do anything with that", table: "App"), body: T("Drag files, folders, text or a link onto me.", table: "App"), isError: false))
             }

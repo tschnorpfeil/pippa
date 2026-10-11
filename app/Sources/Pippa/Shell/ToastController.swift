@@ -14,6 +14,9 @@ struct ToastButton: Identifiable {
 final class ToastController {
     private let model: AppModel
     private var panel: ShellPanel?
+    /// A notice without buttons leaves by itself; one with Undo or Show stays until it is used or closed.
+    private var dismissTask: Task<Void, Never>?
+    static let noticeShown: Duration = .seconds(5)
     /// Developer captures only.
     var currentPanel: NSWindow? { panel }
 
@@ -57,7 +60,7 @@ final class ToastController {
         }, onClose: { [weak self] in self?.dismiss() })
         let size = NSHostingController(rootView: view).sizeThatFits(in: CGSize(width: w, height: 1000))
         let h = ceil(size.height)
-        let root = NSView(frame: NSRect(x: 0, y: 0, width: w + 2 * margin, height: h + 2 * margin))
+        let root = ToastRoot(frame: NSRect(x: 0, y: 0, width: w + 2 * margin, height: h + 2 * margin))
         root.wantsLayer = true
         panel.setContentSize(root.frame.size)
         panel.contentView = root
@@ -96,6 +99,13 @@ final class ToastController {
         hosting.sizingOptions = []
         hosting.frame = clip.bounds
         clip.addSubview(hosting)
+        // Light or dark switched while the notice stands: edge and shadow follow, like the shell's.
+        root.onAppearance = { [weak root, weak clip, weak shadow] in
+            guard let root else { return }
+            let dark = root.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            clip?.layer?.borderColor = (dark ? ShellTokens.edgeDark : ShellTokens.edgeLight).cgColor
+            shadow?.setAppearance(dark: dark)
+        }
 
         let screen = model.shell?.shellScreen ?? NSScreen.main ?? NSScreen.screens[0]
         let vis = screen.visibleFrame
@@ -112,6 +122,7 @@ final class ToastController {
         panel.orderFrontRegardless()
         self.panel = panel
         model.toastShowing = true
+        if buttons.isEmpty { scheduleDismiss(panel, after: Self.noticeShown) }
         NSAccessibility.post(element: panel, notification: .announcementRequested,
                              userInfo: [.announcement: "\(title). \(detail)", .priority: NSAccessibilityPriorityLevel.high.rawValue])
         if !reduced {
@@ -123,7 +134,23 @@ final class ToastController {
         }
     }
 
+    /// Waits while the mouse rests on the notice, so nothing vanishes while it is being read.
+    private func scheduleDismiss(_ shown: ShellPanel, after delay: Duration) {
+        dismissTask?.cancel()
+        dismissTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self, self.panel === shown else { return }
+            if shown.frame.contains(NSEvent.mouseLocation) {
+                self.scheduleDismiss(shown, after: .seconds(1.5))
+            } else {
+                self.dismiss()
+            }
+        }
+    }
+
     func dismiss(animated: Bool = true) {
+        dismissTask?.cancel()
+        dismissTask = nil
         guard let panel else { return }
         self.panel = nil
         model.toastShowing = false
@@ -137,6 +164,15 @@ final class ToastController {
         } completionHandler: {
             MainActor.assumeIsolated { panel.orderOut(nil) }
         }
+    }
+}
+
+/// The notice's window content; tells the controller when light or dark changes.
+private final class ToastRoot: NSView {
+    var onAppearance: (@MainActor () -> Void)?
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        onAppearance?()
     }
 }
 

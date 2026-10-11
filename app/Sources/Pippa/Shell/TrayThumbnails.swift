@@ -77,7 +77,8 @@ final class TrayThumbnails: ObservableObject {
 
     // MARK: Internal
 
-    private static var backingScale: CGFloat { NSScreen.main?.backingScaleFactor ?? 2 }
+    /// The sharpest screen attached: the pill may sit on a Retina display while another one has focus.
+    private static var backingScale: CGFloat { NSScreen.screens.map(\.backingScaleFactor).max() ?? 2 }
 
     private static func key(for item: TrayItem, size: CGSize) -> String {
         let modified = (try? item.url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
@@ -138,7 +139,9 @@ final class TrayThumbnails: ObservableObject {
     private func finish(key: String, box: ThumbnailBox, size: CGSize) {
         pending.remove(key)
         guard let cg = box.image else { failed.insert(key); return }
-        images[key] = NSImage(cgImage: cg, size: size)
+        // The picture's own shape inside the card's box: a landscape photo stays landscape wherever it is drawn.
+        let ratio = min(size.width / CGFloat(cg.width), size.height / CGFloat(cg.height))
+        images[key] = NSImage(cgImage: cg, size: CGSize(width: CGFloat(cg.width) * ratio, height: CGFloat(cg.height) * ratio))
         revision += 1
     }
 

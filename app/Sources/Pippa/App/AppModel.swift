@@ -59,6 +59,9 @@ final class AppModel: ObservableObject {
             if !busy { workProgress = nil; schedulePendingDrops() }
         }
     }
+    /// Files another app promised (a mail dragged from Mail) are on their way: the pill works until they arrive.
+    @Published private(set) var receivingDrop = false { didSet { updateMark() } }
+    private var receivingTask: Task<Void, Never>?
     /// A native compose operation cannot be cancelled safely once Mail may have created it.
     @Published var mailDraftOpening = false {
         didSet {
@@ -182,7 +185,7 @@ final class AppModel: ObservableObject {
     var markState: MarkState {
         // A question waits for the person: the rings stop circling, like the pill that says "Quick question".
         if conversations.isRunning, conversations.thought.phase == .waitingForPerson { return .offen }
-        if busy || mailDraftOpening || conversations.isRunning || tray.isWorking || letter.isWorking { return .arbeitet }
+        if busy || receivingDrop || mailDraftOpening || conversations.isRunning || tray.isWorking || letter.isWorking { return .arbeitet }
         if case .message(_, _, true) = mode { return .fehler }
         // Loading the AI is stuck (offline, server silent): a problem, not a green "done" or "needs you".
         if downloadStalled, !aiLoaded { return .fehler }
@@ -211,15 +214,35 @@ final class AppModel: ObservableObject {
     var pillStatus: PillStatus {
         let thought = conversations.thought
         return PillStatus.make(phase: conversations.isRunning ? thought.phase : nil, step: thought.currentStep,
-                               outcome: pillOutcome, busy: busy || tray.isWorking || letter.isWorking,
+                               outcome: pillOutcome, busy: busy || receivingDrop || tray.isWorking || letter.isWorking,
                                loading: modelLoadProgress, moment: pillMoment ?? (pillInvites ? .invite : nil))
+    }
+
+    /// A promised drop started arriving. Should the other app never deliver, the pill stops working after a minute
+    /// and `onTimeout` says so.
+    func receivingStarted(onTimeout: @escaping @MainActor () -> Void) {
+        receivingDrop = true
+        receivingTask?.cancel()
+        receivingTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            guard !Task.isCancelled, let self, self.receivingDrop else { return }
+            self.receivingDrop = false
+            onTimeout()
+        }
+    }
+
+    func receivingEnded() {
+        receivingTask?.cancel()
+        receivingTask = nil
+        if receivingDrop { receivingDrop = false }
     }
 
     /// One of Pippa's small moments (UX rule 6): shown by the collapsed pill, never two at once, gone after a moment.
     /// Opening anything else ends it (`show`).
     func say(_ moment: PillMoment) {
         // Never two at once: the newer one replaces the older ("Back as it was." right after "Done!").
-        guard moment != .invite, pillMoment != moment else { return }
+        // Never while an answer runs: its phase owns the pill, the moment would only tap and pass unseen.
+        guard moment != .invite, pillMoment != moment, !conversations.isRunning else { return }
         pillMoment = moment
         shell?.pulseMark()
         Self.tap()
