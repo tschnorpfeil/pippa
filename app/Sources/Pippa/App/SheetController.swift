@@ -397,12 +397,13 @@ final class SheetController: ObservableObject {
     /// The sheet as a copy in Pippa's cache (`Inbox`), like a mail's .eml: an .xlsx with every cell at its address,
     /// values and formulas, so the conversation reads it like a dropped table: totals checked and sums computed in code
     /// first (`SheetFileCheck`). The conversation shows the buttons for tables with it. Excel and the workbook stay
-    /// untouched. A sheet read far from A1 falls back to the text form (.tsv).
+    /// untouched. A sheet read far from A1, or only in part (a large sheet), falls back to the text form (.tsv), which says
+    /// that rows are missing, so no sum over the part is passed off as the whole table's.
     static func writeContext(_ snapshot: SheetSnapshot) throws -> URL {
         let base = Naming.sanitize(snapshot.tableName, maxLength: 60)
         let stem = base.isEmpty ? T("Table", table: "SheetUI") : base
         let folder = try Inbox.freshFolder()
-        if let sheet = XLSXWriter.Sheet(name: snapshot.sheet, grid: snapshot.grid) {
+        if !snapshot.isClipped, let sheet = XLSXWriter.Sheet(name: snapshot.sheet, grid: snapshot.grid) {
             let url = folder.appendingPathComponent(stem + ".xlsx")
             try XLSXWriter.write([sheet], to: url)
             return url

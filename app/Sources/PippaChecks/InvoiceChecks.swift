@@ -54,6 +54,19 @@ func runInvoiceChecks() async {
             && same.amount == 50 && !same.unsure.contains(.amount) && same.sender == "bäckerei" && !same.unsure.contains(.sender)
             && invented.amount == 50 && invented.unsure.contains(.amount) && none.amount == nil
     }
+    check("Invoices: \"inkl. MwSt\" totals, English thousands, a total on the next line, the invoice date first, codes as words") {
+        let gross = InvoiceReader.read(file: "a.pdf", text: "Hotel Sonne\nBeratung 100,00 €\nNetto 100,00 €\nMwSt 19 % 19,00 €\nGesamtbetrag inkl. MwSt. 119,00 €")
+        let english = InvoiceReader.read(file: "b.pdf", text: "Acme Inc.\nInvoice date: 2026-10-01\nSubtotal $1,120.00\nTax $114.00\nTotal due $1,234.56")
+        let split = InvoiceReader.read(file: "c.pdf", text: "Friseur Haarwerk\nAbschlag Betrag 85,00\nGesamtbetrag\n96,70 €")
+        let amazon = InvoiceReader.read(file: "d.pdf", text: "Bestelldatum 01.10.2026\nRechnungsdatum/Lieferdatum 05.10.2026\nZahlbetrag 19,99 €")
+        let usd = InvoiceReader.read(file: "e.pdf", text: "Friseur Studio\nAmount due 40.00\nAll amounts in USD")
+        let sure = InvoiceReader.choose(split, amount: "85,00", sender: nil, text: "")
+        if gross.amount != 119 || english.amount != 1234.56 || split.amount != 96.7 { print("  \(gross.amount ?? -1) \(english.amount ?? -1) \(split.amount ?? -1)") }
+        return gross.amount == 119 && !gross.unsure.contains(.amount) && gross.sender == "Hotel Sonne"
+            && english.amount == 1234.56 && english.currency == "USD" && english.date == day(2026, 10, 1)
+            && split.amount == 96.7 && split.currency == "EUR"
+            && amazon.date == day(2026, 10, 5) && usd.currency == "USD" && sure.amount == 96.7 && !sure.unsure.contains(.amount)
+    }
     check("Invoices: the sheet has one row per invoice by date, unsure cells yellow, a total per currency as a formula") {
         let rows = [
             InvoiceRow(file: "b.pdf", sender: "B", date: day(2026, 3, 1), amount: 10, currency: "EUR"),

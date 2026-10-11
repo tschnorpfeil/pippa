@@ -103,7 +103,7 @@ public enum TextReader {
             guard let data = try? Data(contentsOf: url, options: .mappedIfSafe), let book = XLSXReader.workbook(data) else {
                 return DocumentText(url: url, pages: [], isPaged: false, usedOCR: false, problem: .damaged)
             }
-            let note = book.text.isEmpty ? nil : SheetFileCheck.note(for: book.sheets.map { ($0.name, $0.grid) })
+            let note = book.text.isEmpty ? nil : SheetFileCheck.note(for: book.sheets.map { ($0.name, $0.grid) }, truncated: book.truncated)
             var result = DocumentText(url: url, pages: [SheetFileCheck.prepend(note, to: book.text)], isPaged: false, usedOCR: false,
                                       problem: book.text.isEmpty ? .noText : .none)
             result.isTruncated = book.truncated
@@ -113,8 +113,9 @@ public enum TextReader {
             // Table as text: the same check and sums in code before the text.
             let text = readPlain(url) ?? ""
             let shown = String(text.prefix(200_000))
-            let grid = SheetFileCheck.csvGrid(shown, separator: ext == "tsv" ? "\t" : nil)
-            let note = grid.flatMap { SheetFileCheck.note(for: [(url.deletingPathExtension().lastPathComponent, $0)]) }
+            let read = SheetFileCheck.csvRead(shown, separator: ext == "tsv" ? "\t" : nil)
+            let cut = text.count > 200_000 || read?.truncated == true
+            let note = read.flatMap { SheetFileCheck.note(for: [(url.deletingPathExtension().lastPathComponent, $0.grid)], truncated: cut) }
             var result = DocumentText(url: url, pages: [SheetFileCheck.prepend(note, to: shown)], isPaged: false, usedOCR: false,
                                       problem: text.isEmpty ? .noText : .none)
             result.isTruncated = text.count > 200_000

@@ -19,15 +19,20 @@ func runLetterDocumentChecks() {
     let day = Date(timeIntervalSince1970: 1_791_676_800) // 11 Oct 2026, 00:00 UTC
     let german = Locale(identifier: "de_DE")
 
-    check("Letter: the Betreff line becomes the subject, a short first line too; greetings stay text; bold marks go") {
+    check("Letter: the Betreff line becomes the subject, a short first line too, an address block the recipient; greetings stay text; bold marks go") {
         let a = LetterDocument.from(draft: draft, sender: ["Tobias Muster", "Ringstraße 1", "50667 Köln"], place: "Köln", date: day)
         let b = LetterDocument.from(draft: "Widerspruch gegen den Bescheid vom 1.10.2026\n\nSehr geehrte Damen und Herren,\n**hiermit** lege ich Widerspruch ein.", sender: nil, place: nil, date: day)
         let c = LetterDocument.from(draft: "Sehr geehrte Frau Berger,\n\ndanke für Ihre Nachricht.", sender: nil, place: nil, date: day)
+        let d = LetterDocument.from(draft: "Stadtwerke Musterstadt GmbH\nKundenservice\nPostfach 10 20 30\n12345 Musterstadt\n\nBetreff: Kündigung\n\nSehr geehrte Damen und Herren,\nich kündige.",
+                                    sender: nil, place: nil, date: day)
         return a.subject == "Kündigung meines Stromvertrags, Kundennummer [Kundennummer]" && a.body.hasPrefix("Sehr geehrte Damen und Herren,")
             && a.dateLine(locale: german).hasPrefix("Köln, ") && a.dateLine(locale: german).contains("Oktober 2026")
             && b.subject == "Widerspruch gegen den Bescheid vom 1.10.2026" && b.body.contains("hiermit lege") && !b.body.contains("**")
             && b.sender == LetterDocument.senderPlaceholder && b.recipient == LetterDocument.recipientPlaceholder
             && c.subject == nil && c.body.hasPrefix("Sehr geehrte Frau Berger,")
+            && d.recipient == ["Stadtwerke Musterstadt GmbH", "Kundenservice", "Postfach 10 20 30", "12345 Musterstadt"]
+            && d.subject == "Kündigung" && d.body.hasPrefix("Sehr geehrte") && !d.body.contains("12345")
+            && a.recipient == LetterDocument.recipientPlaceholder
     }
     check("Letter: My Card's fields become sender lines; a missing street stays a placeholder") {
         let address = CNMutablePostalAddress()

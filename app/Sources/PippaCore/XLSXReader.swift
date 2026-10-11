@@ -107,6 +107,8 @@ public enum XLSXReader {
             guard let xml = zip.read("xl/sharedStrings.xml"), let parsed = SharedStrings.parse(xml) else { return nil }
             strings = parsed
         }
+        // Cells with a date format hold day numbers; without styles.xml (or unreadable) there are no date cells.
+        let dateStyles = zip.read("xl/styles.xml").flatMap(DateStyles.parse) ?? []
         var out: [String] = [], cells = 0, truncated = false
         var characters = 0
         var grids: [Sheet] = []
@@ -115,7 +117,8 @@ public enum XLSXReader {
             // Relationships are package paths; never access the file system.
             let target = URL(fileURLWithPath: relative, relativeTo: URL(fileURLWithPath: "/xl/", isDirectory: true)).standardizedFileURL.path.dropFirst()
             guard target.hasPrefix("xl/"), let xml = zip.read(String(target)),
-                  let parsed = SheetCells.parse(xml, strings: strings, budget: maxCells - cells, characterBudget: maxCharacters - characters) else { return nil }
+                  let parsed = SheetCells.parse(xml, strings: strings, dateStyles: dateStyles, budget: maxCells - cells,
+                                                      characterBudget: maxCharacters - characters) else { return nil }
             cells += parsed.cellCount; truncated = truncated || parsed.truncated
             if !parsed.rows.isEmpty {
                 let text = "Blatt „\(sheet.name)“\n" + parsed.rows.joined(separator: "\n")
@@ -156,6 +159,43 @@ public enum XLSXReader {
         }
     }
 
+    /// Indexes into `cellXfs` whose number format shows a date: the built-in date formats (14–22, 45–47) and own
+    /// formats with day, month or year letters outside quotes and brackets ("dd.mm.yyyy", not "[Red]0.00").
+    final class DateStyles: NSObject, XMLParserDelegate {
+        var custom: [Int: String] = [:], styles: [Int] = [], inCellXfs = false
+        static func parse(_ data: Data) -> Set<Int>? {
+            let d = DateStyles(); let p = XMLParser(data: data); p.delegate = d
+            guard p.parse() else { return nil }
+            return Set(d.styles.indices.filter { d.isDate(d.styles[$0]) })
+        }
+        func isDate(_ id: Int) -> Bool {
+            if (14...22).contains(id) || (45...47).contains(id) { return true }
+            guard let code = custom[id] else { return false }
+            let plain = code.replacingOccurrences(of: #""[^"]*"|\[[^\]]*\]|\\."#, with: "", options: .regularExpression).lowercased()
+            return plain.contains("d") || plain.contains("y") || plain.contains("m") && !plain.contains("0") && !plain.contains("#")
+        }
+        func parser(_ p: XMLParser, didStartElement e: String, namespaceURI: String?, qualifiedName: String?, attributes a: [String: String]) {
+            switch e {
+            case "numFmt": if let id = a["numFmtId"].flatMap(Int.init), let code = a["formatCode"] { custom[id] = code }
+            case "cellXfs": inCellXfs = true
+            case "xf" where inCellXfs: styles.append(a["numFmtId"].flatMap(Int.init) ?? 0)
+            default: break
+            }
+        }
+        func parser(_ p: XMLParser, didEndElement e: String, namespaceURI: String?, qualifiedName: String?) {
+            if e == "cellXfs" { inCellXfs = false }
+        }
+    }
+
+    /// Day number (1900 system) as a date at midnight UTC, and as "2026-01-01" for the text.
+    static func date(serial: Double) -> (date: Date, text: String)? {
+        guard serial.isFinite, serial >= 1, serial < 2_958_466 else { return nil }
+        let date = Date(timeIntervalSince1970: (serial.rounded(.down) - 25_569) * 86_400)
+        var f = Date.ISO8601FormatStyle(timeZone: TimeZone(identifier: "UTC")!)
+        f = f.year().month().day()
+        return (date, date.formatted(f))
+    }
+
     private final class Relationships: NSObject, XMLParserDelegate {
         var map: [String: String] = [:]
         static func parse(_ data: Data) -> [String: String]? { let d = Relationships(); let p = XMLParser(data: data); p.delegate = d; return p.parse() ? d.map : nil }
@@ -173,30 +213,40 @@ public enum XLSXReader {
     }
 
     private final class SheetCells: NSObject, XMLParserDelegate {
-        let strings: [String]; var budget: Int; var characterBudget: Int
+        let strings: [String]; let dateStyles: Set<Int>; var budget: Int; var characterBudget: Int
         var rows: [String] = [], line: [String] = [], cellCount = 0, truncated = false
         var cells: [CellRef: SheetCell] = [:]
-        var ref = "", type = "", formula = "", value = "", inline = "", field = ""
+        var ref = "", type = "", formula = "", value = "", inline = "", field = "", style = 0
         var sharedID: String?, sharedFormulas: [String: String] = [:]
         var invalid = false
-        init(strings: [String], budget: Int, characterBudget: Int) { self.strings = strings; self.budget = budget; self.characterBudget = characterBudget }
+        init(strings: [String], dateStyles: Set<Int>, budget: Int, characterBudget: Int) {
+            self.strings = strings; self.dateStyles = dateStyles; self.budget = budget; self.characterBudget = characterBudget
+        }
+        /// A number cell with a date format: the date, else nil.
+        var dateValue: (date: Date, text: String)? {
+            guard type == "" || type == "n", dateStyles.contains(style), let serial = Double(value) else { return nil }
+            return XLSXReader.date(serial: serial)
+        }
         /// The cell's value for the check: text cells stay text (a number typed as text is what the check looks for),
         /// numbers become numbers, error values ("#REF!") stay text.
         func typed(_ shown: String) -> SheetValue {
             switch type {
             case "s", "inlineStr", "str", "e": return shown.isEmpty ? .empty : .text(shown)
             case "b": return .bool(value == "1")
-            default: return Double(value).map(SheetValue.number) ?? (shown.isEmpty ? .empty : .text(shown))
+            default:
+                if let date = dateValue { return .date(date.date) }
+                return Double(value).map(SheetValue.number) ?? (shown.isEmpty ? .empty : .text(shown))
             }
         }
-        static func parse(_ data: Data, strings: [String], budget: Int, characterBudget: Int) -> SheetCells? {
-            let d = SheetCells(strings: strings, budget: budget, characterBudget: characterBudget); let p = XMLParser(data: data); p.delegate = d
+        static func parse(_ data: Data, strings: [String], dateStyles: Set<Int>, budget: Int, characterBudget: Int) -> SheetCells? {
+            let d = SheetCells(strings: strings, dateStyles: dateStyles, budget: budget, characterBudget: characterBudget)
+            let p = XMLParser(data: data); p.delegate = d
             let ok = p.parse()
             return !d.invalid && (ok || d.truncated) ? d : nil
         }
         func parser(_ p: XMLParser, didStartElement e: String, namespaceURI: String?, qualifiedName: String?, attributes a: [String: String]) {
             switch e {
-            case "c": ref = a["r"] ?? ""; type = a["t"] ?? ""; formula = ""; value = ""; inline = ""; sharedID = nil
+            case "c": ref = a["r"] ?? ""; type = a["t"] ?? ""; style = a["s"].flatMap(Int.init) ?? 0; formula = ""; value = ""; inline = ""; sharedID = nil
             case "f": field = e; sharedID = a["t"] == "shared" ? a["si"] : nil
             case "v", "t": field = e
             default: break
@@ -215,7 +265,7 @@ public enum XLSXReader {
                     shown = strings[i]
                 case "inlineStr": shown = inline
                 case "b": shown = value == "1" ? "WAHR" : "FALSCH"
-                default: shown = XLSXReader.german(value)
+                default: shown = dateValue?.text ?? XLSXReader.german(value)
                 }
                 shown = shown.replacingOccurrences(of: "\n", with: " ")
                 var f = formula.trimmingCharacters(in: .whitespacesAndNewlines)

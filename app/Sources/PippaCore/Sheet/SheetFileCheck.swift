@@ -22,9 +22,13 @@ public enum SheetFileCheck {
 
     /// What the model reads before the cells: the totals checked (`SheetCheck`) and the sums computed (`SheetFacts`).
     /// Fixed German text, like "Blatt" in `XLSXReader`; the finding sentences are in the UI language. Nil if code found
-    /// nothing to check or to add up (no heading row, no number column, no total).
-    public static func note(for sheets: [(name: String, grid: SheetGrid)], locale: Locale = .current) -> String? {
-        var lines = ["[Pippa hat diese Tabelle mit Code nachgerechnet – verlässlich. Übernimm diese Zahlen genau, statt selbst zu rechnen. Summenzeilen sind in den Summen nicht mitgezählt.]"]
+    /// nothing to check or to add up (no heading row, no number column, no total). `truncated`: Pippa read only the first
+    /// part of the table, so the sums cover only that part, and the note says so.
+    public static func note(for sheets: [(name: String, grid: SheetGrid)], locale: Locale = .current, truncated: Bool = false) -> String? {
+        let header = truncated
+            ? "[Die Tabelle ist länger, als Pippa liest. Pippa hat nur den gelesenen Teil mit Code nachgerechnet: Diese Summen gelten nur für diesen Teil, nicht für die ganze Tabelle. Sag das der Person, wenn du sie nennst. Summenzeilen sind nicht mitgezählt.]"
+            : "[Pippa hat diese Tabelle mit Code nachgerechnet – verlässlich. Übernimm diese Zahlen genau, statt selbst zu rechnen. Summenzeilen sind in den Summen nicht mitgezählt.]"
+        var lines = [header]
         for sheet in sheets where !sheet.grid.isEmpty {
             let result = SheetCheck.run(sheet.grid, locale: locale)
             let facts = SheetFacts.lines(SheetFacts.compute(sheet.grid), locale: locale)
@@ -63,9 +67,16 @@ public enum SheetFileCheck {
     /// Nil for an empty text and for the table text Pippa writes itself from Excel (`SheetSnapshot.contextText`):
     /// that sheet was already checked.
     public static func csvGrid(_ text: String, separator forced: Character? = nil) -> SheetGrid? {
+        csvRead(text, separator: forced)?.grid
+    }
+
+    /// `csvGrid`, and whether the cell budget cut the table short.
+    public static func csvRead(_ text: String, separator forced: Character? = nil) -> (grid: SheetGrid, truncated: Bool)? {
         let body = text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text
         guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !body.hasPrefix("Table: ") else { return nil }
-        let separator = forced ?? guessSeparator(body)
+        // No separator in the first line: one column ("Betrag" over "12,50"), never split at a decimal comma.
+        let separator = forced ?? (separatorCounts(body).values.contains { $0 > 0 } ? guessSeparator(body) : "\u{1F}")
+        var truncated = false
         var rows: [[SheetCell]] = []
         var row: [SheetCell] = []
         var field = ""
@@ -96,7 +107,10 @@ public enum SheetFileCheck {
             } else if c == separator {
                 endField()
             } else if c == "\n" || c == "\r\n" || c == "\r" {
-                if !endRow() { break }
+                if !endRow() {
+                    while !truncated, let rest = chars.next() { truncated = !rest.isWhitespace }
+                    break
+                }
             } else {
                 field.append(c)
             }
@@ -104,11 +118,19 @@ public enum SheetFileCheck {
         if !field.isEmpty || !row.isEmpty { _ = endRow() }
         while let last = rows.last, last.allSatisfy({ $0.value.isEmpty }) { rows.removeLast() }
         guard !rows.isEmpty else { return nil }
-        return SheetGrid(rows: rows)
+        return (SheetGrid(rows: rows), truncated)
     }
 
     /// The separator that occurs most often in the first line outside quotes; a comma if none occurs.
     public static func guessSeparator(_ text: String) -> Character {
+        let counts = separatorCounts(text)
+        let order: [Character] = ["\t", ";", ","]
+        let best = order.max { (counts[$0] ?? 0) < (counts[$1] ?? 0) } ?? ","
+        return (counts[best] ?? 0) > 0 ? best : ","
+    }
+
+    /// How often tab, semicolon and comma occur in the first line, outside quotes.
+    static func separatorCounts(_ text: String) -> [Character: Int] {
         var counts: [Character: Int] = ["\t": 0, ";": 0, ",": 0]
         var quoted = false
         for c in text {
@@ -116,9 +138,7 @@ public enum SheetFileCheck {
             if !quoted && (c == "\n" || c == "\r\n" || c == "\r") { break }
             if !quoted, counts[c] != nil { counts[c, default: 0] += 1 }
         }
-        let order: [Character] = ["\t", ";", ","]
-        let best = order.max { (counts[$0] ?? 0) < (counts[$1] ?? 0) } ?? ","
-        return (counts[best] ?? 0) > 0 ? best : ","
+        return counts
     }
 
     /// A field as a cell: empty, number (as Excel would store it on import) or text.
