@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/demo-tidy.gif" width="960" alt="The Downloads folder is dragged onto Pippa. She shows where 38 files would go (Invoices, Photos, Letters, Programs), nothing is changed yet. One click on '38 Dateien ordnen' sorts them, and 'Undo' brings everything back.">
+  <img src="docs/images/demo-tidy.gif" width="960" alt="The Downloads folder is dragged onto Pippa. She shows where 38 files would go (Invoices, Photos, Letters, Apps) before changing anything. One click on 'Organize 38 Files' sorts them, and 'Undo' brings everything back.">
 </p>
 
 Pippa is for people who don't pay for an AI subscription and never open Terminal. Her menus are in English or German, and she answers in the language you write in.
@@ -28,20 +28,20 @@ Pippa is for people who don't pay for an AI subscription and never open Terminal
 - **Understand a letter.** What does it say, what do I have to do, by when? With the passage it came from.
 - **Find files again.** "Where is the invoice for my helmet?" searches your Mac.
 - **Answer emails.** Select a mail in Apple Mail and ask. She checks your calendar and puts a reply into Mail as a draft. She never sends mail.
-- **Office work.** *Check the total* in Excel adds the numbers up again in code and points out rows a total leaves out. Invoices become a table (`Rechnungen.csv`) that opens in Excel. Your files stay as they are.
+- **Office work.** *Check the total* in Excel adds the numbers up again in code and points out rows a total leaves out. Invoices become a CSV table that opens in Excel. Your files stay as they are.
 - **PDF tools, no AI needed.** Make PDFs and photos smaller, combine scans into one PDF, convert between PDF, JPG and PNG.
 - **Calendar, reminders, the web.** Add an appointment or a reminder, or look something up online.
 
 <p align="center">
-  <img src="docs/images/demo-letter.gif" width="480" alt="A rental agreement is dropped on Pippa and she answers when the notice is due.">
-  <img src="docs/images/demo-excel.gif" width="480" alt="In Excel, Pippa checks a total and finds that it leaves out the row 'Müll'. Nothing in the table is changed.">
+  <img src="docs/images/demo-letter.gif" width="480" alt="Lease.pdf is dropped on Pippa with the question 'I'm moving out at the end of March. When do I have to give notice?' She answers 'By December 31' and quotes § 4 of the lease.">
+  <img src="docs/images/demo-excel.gif" width="480" alt="In Excel, Pippa checks a total and finds that it leaves out the row 'Trash'. Nothing in the table is changed.">
 </p>
 
 <p align="center">
-  <img src="docs/images/demo-pdf-tools.gif" width="480" alt="A large PDF is dropped on Pippa, who offers 'Kleiner machen' (make smaller).">
+  <img src="docs/images/demo-pdf-tools.gif" width="480" alt="Tax notice.pdf is dropped on Pippa. After 'Make smaller' she offers 'Tax notice (smaller).pdf' to drag where it is needed, with Undo.">
 </p>
 
-<sub>Recorded from the demo on [heypippa.app](https://heypippa.app), shown in German. Names and files are made up.</sub>
+<sub>Recorded from the demo on [heypippa.app/en](https://heypippa.app/en/). Names and files are made up.</sub>
 
 ## Private by design
 
