@@ -106,6 +106,7 @@ extension AppModel {
     /// Click on the pill as before: a pending result comes back; if something is on Pippa, the line; otherwise the input.
     func openPillDefault() {
         if !tray.givenItems.isEmpty || tray.isWorking { return openLine() }
+        if permissionsPageWaiting { return show(.onboarding) }
         if hasResumableConversation { return openConversationFromPill() }
         if parked != nil { return resumeParked() }
         if !tray.items.isEmpty { return openLine() }

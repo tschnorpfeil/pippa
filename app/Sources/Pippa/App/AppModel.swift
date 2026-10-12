@@ -701,6 +701,7 @@ final class AppModel: ObservableObject {
     }
 
     func openInput() {
+        if permissionsPageWaiting { return show(.onboarding) }
         // The download question was only clicked away, not answered: it comes back instead of a chat that cannot answer.
         if needsDownloadConsent, PiSetupController.shared?.deferred == false {
             return show(.onboarding)

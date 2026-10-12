@@ -18,6 +18,12 @@ public enum PermissionOnboarding {
         }
     }
 
+    /// Opening Pippa (pill or shortcut) while the page is still open in this run: back to the page, so it is never
+    /// lost when it went away without "Continue" or ×. After × it waits for the next start.
+    public static func reopens(pending: Bool, setup: PiSetupState?, deferred: Bool, closedThisRun: Bool) -> Bool {
+        !closedThisRun && shows(pending: pending, setup: setup, deferred: deferred)
+    }
+
     /// At a later start, once setup is ready: show the Welcome again so the page comes back (also for someone who went
     /// straight to work on the first day and never saw it).
     public static func remindsAtStart(pending: Bool, dismissals: Int) -> Bool {
