@@ -116,13 +116,11 @@ func runR6Checks() async {
         return PippaSettings.load(from: base).piInlineShortText == true
     }
 
-    // One llama-server: on the Pi path LocalEngine never requests its own.
-    let calls = LockedBox(0)
+    // One llama-server: on the Pi path LocalEngine never starts its own.
     let status = LockedBox<ModelStatus>(.notInstalled)
     let engine = LocalEngine(baseDirectory: dir("r6-engine"), modelEnabled: true, integrations: DemoIntegrations(),
                              existingModelRoots: [])
-    await engine.useSharedServer(.init(server: { calls.mutate { $0 += 1 }; throw PippaError.modelUnavailable },
-                                       status: { status.value }))
+    await engine.useSharedServer(.init(status: { status.value }))
     await checkAsync("R6: LocalEngine uses the shared server, state comes from setup") {
         let shared = await engine.usesSharedServer
         let before = await engine.modelStatus
@@ -132,8 +130,8 @@ func runR6Checks() async {
         let readiness = await engine.chatReadiness
         return shared && before == .notInstalled && size == nil && after == .ready && readiness == .ready
     }
-    await checkAsync("R6: prepareModel starts no server of its own and does not request the shared one") {
+    await checkAsync("R6: prepareModel starts no server of its own") {
         try await engine.prepareModel(allowDownload: true)
-        return calls.value == 0
+        return await engine.modelStatus == .ready
     }
 }

@@ -13,8 +13,6 @@
 "%lld files get a place · %lld new folders · nothing is deleted" = "%lld Dateien bekommen einen Platz · %lld neue Ordner · nichts wird gelöscht";
 "Only moved and renamed · nothing deleted" = "Nur verschoben und umbenannt · nichts gelöscht";
 "This folder is very full. I’m starting with the newest %lld files; the other %lld come afterward." = "Der Ordner ist sehr voll. Ich fange mit den neuesten %lld Dateien an, die übrigen %lld kommen danach.";
-"I’ll take a calm look at %@ later, %@. Until then, it stays where it is." = "%@ schaue ich mir später in Ruhe an, %@. Bis dahin bleibt es, wo es ist.";
-"I’ll take a calm look at %@ later, %@. Until then, they stay where they are." = "%@ schaue ich mir später in Ruhe an, %@. Bis dahin bleiben sie, wo sie sind.";
 "%lld of %lld selected" = "%lld von %lld ausgewählt";
 "All" = "Alle";
 "Select All Files" = "Alle Dateien auswählen";

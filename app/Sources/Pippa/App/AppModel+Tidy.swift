@@ -2,9 +2,8 @@ import Foundation
 import PippaCore
 
 // "Tidy my Downloads" in conversation goes like a calendar question to Pippa's native flow, not to Pi: preview as a card, one run, one
-// undo for the whole job (executor + journal). Recognized in code (TidyIntent); unclear documents are sorted by
-// LocalEngine with the shared llama-server (`useSharedServer`); while the model loads they stay in place,
-// without one they go to "Dokumente" by kind.
+// undo for the whole job (executor + journal). Recognized in code (TidyIntent); LocalEngine sorts unclear documents
+// with Apple's on-device model, without it they go to "Dokumente" by kind.
 // Moving or renaming individual files stays with Pi.
 extension AppModel {
 

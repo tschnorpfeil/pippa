@@ -110,10 +110,6 @@ final class AppModel: ObservableObject {
     @Published private(set) var sortFilling = false
     /// Does a growing preview still belong to the current round? (Not after approve or back.)
     private var sortRound: UUID?
-    /// Documents left in place when tidying without a model (`Plan.later`); once Pippa is awake, she offers them.
-    private(set) var sortLater: (files: [URL], scope: URL)?
-    /// Already offered (once per remembered round)?
-    private var sortLaterOffered = false
     @Published var excluded: Set<UUID> = []
     @Published var showReasons = false
     /// Open groups in the tidy preview (target folders) and those that show all rows.
@@ -387,7 +383,6 @@ final class AppModel: ObservableObject {
                 if status != self.modelStatus { self.modelStatus = status }
                 // While loading, a found file can be rejected: then stop claiming it "adopts".
                 if self.isDownloading { self.downloadSize = await self.engine.modelDownloadSize }
-                self.offerSortLater()
                 let readiness = await self.engine.chatReadiness
                 if readiness != self.chatReadiness { self.chatReadiness = readiness }
                 self.updateStall()
@@ -1240,9 +1235,7 @@ final class AppModel: ObservableObject {
 
     /// Preview for tidying. It appears as soon as the files have a place without a model (by kind, name, photo data);
     /// read documents and model classifications are added while it is already open.
-    /// Also works without a model (first launch, knowledge still loading): whatever only the model could classify stays in place
-    /// (`Plan.later`) and is handled once Pippa is awake. No waiting, no guessing. If the AI isn't loaded at all ("Later"),
-    /// those documents go to "Dokumente" by kind instead, so tidying really works without it.
+    /// Also works without Apple's on-device model: whatever only it could classify goes to "Dokumente" by kind.
     func proposeSort(items: [URL]?, scope folder: URL, limit: Int?) {
         resetPlanSheet()
         let round = UUID()
@@ -1257,17 +1250,10 @@ final class AppModel: ObservableObject {
             guard let self, self.sortRound == round else { return }
             self.sortFilling = false
             self.plan = plan
-            if plan.ops.isEmpty, plan.skipped.isEmpty, plan.later.isEmpty, plan.remaining.isEmpty {
+            if plan.ops.isEmpty, plan.skipped.isEmpty, plan.remaining.isEmpty {
                 self.sortRound = nil
                 self.plan = nil
                 return self.showNothingToTidy(in: plan.scope, retry: { [weak self] in self?.proposeSort(items: items, scope: folder, limit: limit) })
-            }
-            // Nothing that could be moved without a model, only documents for later: no empty preview, but a sentence.
-            if !plan.later.isEmpty, !plan.ops.contains(where: { $0.kind != .mkdir && $0.certainty != .unreadable }) {
-                self.sortRound = nil
-                self.rememberSortLater(plan.later, scope: plan.scope)
-                self.plan = nil
-                return self.showLaterOnly(plan.later.count)
             }
             if case .sortSheet = self.mode {} else { self.show(.sortSheet) }
             let n = plan.ops.filter { $0.kind != .mkdir }.count
@@ -1299,62 +1285,6 @@ final class AppModel: ObservableObject {
                                         },
                                         .init(title: T("Try Again", table: "App"), primary: false) { retry() }]))
         }
-    }
-
-    /// How Pippa says "later": without consent to load "once my knowledge is loaded", otherwise "awake".
-    /// If no model fits this Mac, it only works with an own connection.
-    var laterPhrase: String {
-        if unsupportedReason != nil { return T("once an online AI is connected (Settings › Online AI)", table: "App") }
-        if needsDownloadConsent { return T("once my AI has loaded", table: "App") }
-        return T("once I’m fully awake", table: "App")
-    }
-
-    static func laterCount(_ n: Int) -> String {
-        if n == 1 { return T("1 document", table: "App") }
-        return T("%lld documents", table: "App", n)
-    }
-
-    private func rememberSortLater(_ files: [URL], scope: URL) {
-        guard !files.isEmpty else { return }
-        var all = sortLater.flatMap { $0.scope.standardizedFileURL == scope.standardizedFileURL ? $0.files : nil } ?? []
-        for f in files where !all.contains(f) { all.append(f) }
-        sortLater = (all, scope)
-        sortLaterOffered = false
-    }
-
-    private func showLaterOnly(_ count: Int) {
-        var buttons: [ToastButton] = []
-        if needsDownloadConsent {
-            buttons.append(.init(title: T("Load Now", table: "App"), primary: true) { [weak self] in self?.startModelDownload(); self?.collapse() })
-        }
-        buttons.append(.init(title: T("OK", table: "App"), primary: buttons.isEmpty) { [weak self] in self?.collapse() })
-        let detail = count == 1
-            ? T("Without my AI I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then.", table: "App")
-            : T("Without my AI I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then.", table: "App")
-        show(.notice(title: T("I’ll sort %@ more carefully %@", table: "App", Self.laterCount(count), laterPhrase),
-                     detail: detail,
-                     buttons: buttons))
-    }
-
-    /// Pippa is awake: offer leftover documents once (only what is still there). Not in the middle of
-    /// work or an open preview: then again at the next look (every second).
-    private func offerSortLater() {
-        guard let later = sortLater, !sortLaterOffered, canRunModelWork, !isActiveWork,
-              ["pill", "input"].contains(mode.key) else { return }
-        sortLaterOffered = true
-        let files = later.files.filter { FileManager.default.fileExists(atPath: $0.path) }
-        guard !files.isEmpty else { sortLater = nil; return }
-        toasts?.show(title: T("I’m fully awake now", table: "App"),
-                     detail: T("I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first.", table: "App", Self.laterCount(files.count), later.scope.lastPathComponent),
-                     buttons: [.init(title: T("Tidy Now", table: "App"), primary: true) { [weak self] in self?.sortLaterNow() },
-                               .init(title: T("Later", table: "App"), primary: false) {}])
-    }
-
-    /// "Tidy now": the leftover documents in a new preview.
-    func sortLaterNow() {
-        guard let later = sortLater, !refuseWhileWorking() else { return }
-        sortLater = nil
-        proposeSort(items: later.files.filter { FileManager.default.fileExists(atPath: $0.path) }, scope: later.scope, limit: nil)
     }
 
     /// A tidy round started from a toast waits until running work is done: both share the one local model slot.
@@ -1409,11 +1339,7 @@ final class AppModel: ObservableObject {
     func applySort() {
         guard let plan else { return }
         let excluded = self.excluded
-        // Leftover documents: if Pippa is awake by now, offer them right away, otherwise remember.
-        let wakeful = canRunModelWork
-        let more = plan.pending + plan.remaining + (wakeful ? plan.later : [])
-        if !wakeful { rememberSortLater(plan.later, scope: plan.scope) }
-        let laterCount = wakeful ? 0 : plan.later.count
+        let more = plan.pending + plan.remaining
         // The still-running preview ends here; `perform` cancels it, its interim states no longer count.
         sortRound = nil
         sortFilling = false
@@ -1424,7 +1350,7 @@ final class AppModel: ObservableObject {
             guard let self else { return }
             self.plan = nil
             self.finish(receipt)
-            self.showReceipt(receipt, more: more, scope: plan.scope, later: laterCount)
+            self.showReceipt(receipt, more: more, scope: plan.scope)
         }
     }
 
@@ -1521,8 +1447,7 @@ final class AppModel: ObservableObject {
 
     /// Receipt after tidying: "In 4 folders · 1 stays", "Show" opens the list (or Finder).
     /// `more`: files not yet handled in this round; "Tidy more …" makes a new preview with them.
-    /// `later`: documents that stay in place until awake (one sentence in the message).
-    private func showReceipt(_ receipt: JobReceipt, more: [URL] = [], scope: URL? = nil, later: Int = 0) {
+    private func showReceipt(_ receipt: JobReceipt, more: [URL] = [], scope: URL? = nil) {
         var buttons: [ToastButton] = [
             .init(title: T("Undo", table: "App"), primary: true) { [weak self] in self?.undo(receipt) },
             .init(title: T("Show", table: "App"), primary: false) { [weak self] in
@@ -1538,14 +1463,7 @@ final class AppModel: ObservableObject {
                 self.proposeSort(items: more, scope: scope, limit: nil)
             })
         }
-        var detail = receipt.detail
-        if later > 0 {
-            let note = later == 1
-                ? T("I’ll sort %@ more carefully %@. Until then it stays put.", table: "App", Self.laterCount(later), laterPhrase)
-                : T("I’ll sort %@ more carefully %@. Until then they stay put.", table: "App", Self.laterCount(later), laterPhrase)
-            detail += (detail.isEmpty ? "" : "\n") + note
-        }
-        toasts?.show(title: receipt.summary, detail: detail, buttons: buttons, receipt: receipt.id)
+        toasts?.show(title: receipt.summary, detail: receipt.detail, buttons: buttons, receipt: receipt.id)
     }
 
     // MARK: Left in place, history

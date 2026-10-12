@@ -483,21 +483,6 @@ public actor LlamaServer {
         DiagnosticsLog.shared.event("llama-slot-geladen", ["status": String(status), "tokens": String(tokens), "dauer-ms": String(Int(seconds * 1000))])
     }
 
-    /// A direct model call (LocalEngine: classifying while tidying, letters, invoices) is about to use slot 0, which holds
-    /// Pi's conversation as prompt cache (`--parallel 1`). Save it first; `true`: saved, put it back with
-    /// `restoreConversationSlot()` afterwards. Without slot saving (old llama.cpp) nothing happens.
-    public func saveConversationSlot() async -> Bool {
-        guard slotsActive, state == .ready else { return false }
-        await saveSlot()
-        return lastSlotSave?.ok == true
-    }
-
-    /// Puts the conversation's prompt cache back into slot 0 after a direct model call.
-    public func restoreConversationSlot() async {
-        guard slotsActive, state == .ready else { return }
-        await restoreSlot()
-    }
-
     /// The saved slot is the last conversation as cache. If a conversation is deleted, it disappears with it
     /// (Pippa's own cache file; the running server keeps its memory until unloading).
     public func discardSavedSlot() {

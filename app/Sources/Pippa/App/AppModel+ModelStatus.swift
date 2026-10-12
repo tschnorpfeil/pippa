@@ -5,8 +5,6 @@ import SwiftUI
 // cannot answer right now. Derived texts only; loading and state live in AppModel.
 extension AppModel {
     var modelReady: Bool { modelStatus == .ready }
-    /// Model work is possible: local model loaded or a connected model set up.
-    var canRunModelWork: Bool { modelReady || hasConfiguredInference }
 
     /// Asks before the first load: model is missing and the person has not agreed yet.
     var needsDownloadConsent: Bool {

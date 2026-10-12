@@ -95,11 +95,8 @@ public struct Plan: Sendable {
     public var pending: [URL]
     /// Not in this round (newest first only); can be sorted afterwards.
     public var remaining: [URL]
-    /// Documents whose place only the model could decide, and it is currently unavailable (still loading, waking up, not responding).
-    /// Pippa does not guess: they stay where they are and can be sorted once the model is ready.
-    public var later: [URL]
-    public init(scope: URL, ops: [PlanOp], skipped: [(url: URL, why: String)], pending: [URL] = [], remaining: [URL] = [], later: [URL] = []) {
-        self.scope = scope; self.ops = ops; self.skipped = skipped; self.pending = pending; self.remaining = remaining; self.later = later
+    public init(scope: URL, ops: [PlanOp], skipped: [(url: URL, why: String)], pending: [URL] = [], remaining: [URL] = []) {
+        self.scope = scope; self.ops = ops; self.skipped = skipped; self.pending = pending; self.remaining = remaining
     }
 }
 
@@ -207,9 +204,9 @@ public protocol PippaEngine: AnyObject, Sendable {
     func proposeSort(items: [URL], scope: URL) async throws -> Plan
     /// Staged sorting: `items` = nil means all files directly in `scope`. `limit`: only the newest that many, the rest
     /// ends up in `Plan.remaining`. `onUpdate` immediately gets the plan without a model, then every grown plan
-    /// (`Plan.pending` = still in progress). Without a ready model, documents that would need it go to `Plan.later`
-    /// (they stay in place, nothing guessed) while a model is on the way; without one, to "Dokumente" by kind. The returned plan is final. Whoever approves earlier
-    /// cancels the rest; only what the preview already shows is executed.
+    /// (`Plan.pending` = still in progress). Documents only Apple's on-device model could place go to "Dokumente" by kind
+    /// when it is missing or declines. The returned plan is final. Whoever approves earlier cancels the rest; only what the
+    /// preview already shows is executed.
     func proposeSort(items: [URL]?, scope: URL, limit: Int?, onUpdate: @escaping @Sendable (Plan) -> Void) async throws -> Plan
     /// Resume an interrupted job (from `pendingRecovery`).
     func resume(_ receipt: JobReceipt) async throws -> JobReceipt

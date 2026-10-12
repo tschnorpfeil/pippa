@@ -5,50 +5,17 @@ import FoundationModels
 
 /// How tidying classifies a document whose place stays unclear after reading (stage 3 of `proposeSort`).
 ///
-/// Fast first: the system's on-device model (Apple Foundation Models, guided output, well under a second per file) when
-/// it is available; otherwise, or when it declines or fails, the local model (llama-server). Both get the same short
-/// excerpt (first page, about 1,500 characters) after the same fixed system prompt, so llama-server can reuse the
-/// prompt prefix from file to file. Every file has a time limit: a slow answer never holds up the preview.
-/// Results from either model go through the same evidence check (`LocalEngine.documentInsight`).
+/// Only the system's on-device model (Apple Foundation Models, guided output, about 2 s per file). Swift never asks the
+/// local model itself: that one belongs to Pi. Without the system model, or when it declines, the document goes to
+/// "Dokumente" by kind (`PreSort.documentByKind`). Every file has a time limit: a slow answer never holds up the preview.
+/// The answer goes through the evidence check (`LocalEngine.documentInsight`).
 public enum TidyClassifier {
     /// Characters of document text per file: about the first page. Enough for sender, kind and date in the letterhead.
     public static let excerptChars = 1500
-    /// At most this long per file and model; then the next model, or the file stays where it is.
-    /// The local model gets more: measured 2026-10-08 (a 12B local model, this corpus; re-measure with K2) p50 26 s, max 39 s per file, almost all of it
-    /// generating the ~110–140 answer tokens at ~5 tokens/s (prefill with the cached system prompt ~5 s). The system model: ~3 s.
-    public static func perFileTimeout(_ route: Route) -> Duration {
-        switch route {
-        case .apple: .seconds(20)
-        case .local: .seconds(60)
-        }
-    }
+    /// At most this long per file; then the file stays where it is. Measured: p50 2.0 s per file.
+    public static let perFileTimeout: Duration = .seconds(20)
     /// Answer budget for the system model (the guided answer is a handful of short fields).
     static let appleResponseTokens = 200
-
-    public enum Route: String, Sendable, Equatable { case apple, local }
-
-    /// Outcome of one route for one file.
-    public enum Outcome: Sendable, Equatable { case answered, declined, timedOut }
-
-    /// Which models to ask, in order. Recordings (checks) answer alone, so checks never depend on this Mac's models.
-    /// `localReady`: the local model can answer without starting anything (`LocalEngine.canAskModel`).
-    public static func routes(replay: Bool, appleAvailable: Bool, localReady: Bool) -> [Route] {
-        if replay { return [.local] }
-        return (appleAvailable ? [.apple] : []) + (localReady ? [.local] : [])
-    }
-
-    /// Can stage 3 classify at all right now? If not, unclear documents wait for later (`Plan.later`).
-    public static func canClassify(replay: Bool, appleAvailable: Bool, localReady: Bool) -> Bool {
-        !routes(replay: replay, appleAvailable: appleAvailable, localReady: localReady).isEmpty
-    }
-
-    /// After all routes for a file: an answer counts; a time limit with no answer means "stays where it is" (calm note);
-    /// only declines everywhere (or no route) leave the file for later.
-    public static func settle(_ outcomes: [Outcome]) -> Outcome {
-        if outcomes.contains(.answered) { return .answered }
-        if outcomes.contains(.timedOut) { return .timedOut }
-        return .declined
-    }
 
     /// The user text: file name, then the excerpt. Nothing per file goes before it (the system prompt stays the prefix).
     public static func prompt(name: String, doc: DocumentText) -> String {
@@ -113,8 +80,8 @@ public enum TidyClassifier {
 }
 
 #if canImport(FoundationModels)
-/// The classify schema (`Prompts.classifySchema`) for the system model. Built at runtime: the Command Line Tools
-/// don't ship the @Generable macro plugin. Guided output is constrained to it like llama-server's grammar.
+/// The classify schema for the system model. Built at runtime: the Command Line Tools don't ship the @Generable
+/// macro plugin. Guided output is constrained to it.
 @available(macOS 26.0, *)
 enum AppleSchema {
     static let categories = ["rechnung", "vertrag", "brief", "sonstiges"]
