@@ -333,6 +333,7 @@ key in the Keychain (account `ed25519`, or `PIPPA_SPARKLE_ACCOUNT`). It checks t
 `dist/releases/<tag>/` (default `v<version>-<build>`) with the versioned DMG, a stable-name `Pippa.dmg`, `appcast.xml`
 (`write-appcast.py`), `SHA256SUMS` and `commit.txt`. Publishing is a separate, deliberate step: the DMG and `appcast.xml`
 go into the same GitHub release, because the in-app update feed is `releases/latest/download/appcast.xml`.
+The release body is `docs/releases/<version>.md`, in English only ([format](releases/README.md)).
 On a Mac without the Sparkle key, `PIPPA_NO_SPARKLE=1` still builds the signed, notarized DMG but skips the key check
 and the update signature. Its `appcast.xml` names the new version without a download: installed copies show "a new
 version is available" and open heypippa.app, but nothing installs by itself. Never attach an older release's

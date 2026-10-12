@@ -5,6 +5,7 @@ Thanks for helping. Pippa is for people who never open Terminal, so every change
 - **Open an issue first** for anything larger than a fix, so we can agree on the approach before you write code.
 - **Prefer Pi packages, skills and extensions over own code.** A capability Pi can get from a maintained package or a skill should come from there; Pippa's own code is for the macOS side and the interface. What Pippa does keep goes into code with a check, not into prompts.
 - **Every UI text exists in English and German.** English is the development language; add the German translation in the matching `de.lproj` table.
+- **Everything on GitHub is in English:** commits, pull requests, issues, docs and release notes (see [CLAUDE.md](CLAUDE.md)).
 - **Run the checks before you send a pull request:**
 
   ```sh
