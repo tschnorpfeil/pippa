@@ -22,17 +22,9 @@ public actor LocalEngine: PippaEngine {
     private var rejectedExisting: Set<String> = []
     private var server: LlamaServer?
     /// The app's one llama-server (`pippa-local`, PiRPCChat) instead of its own on a random port. Set as soon as
-    /// the Pi RPC path drives the conversation: sorting classification, invoices, deadlines and letter suggestions then use
-    /// the same model, and a second server never runs. State and download then belong to setup.
+    /// the Pi RPC path drives the conversation; a second server never runs. State and download then belong to setup.
+    /// Swift never asks this server itself: only Pi does.
     private var shared: SharedModelServer?
-    private var structuredBusy = false
-    /// Slot 0 of the shared llama-server is Pi's conversation cache. A direct model call saves it first and puts it back
-    /// afterwards, during a tidy round only once its model stage ends (`holdSlot`), so the next answer does not read the
-    /// whole conversation again and an idle unload does not save the tidy prompt instead. `slotSaveTried`: save at most
-    /// once per round; a second save would store the tidy prompt over the conversation.
-    private var parkedSlot: LlamaServer?
-    private var holdSlot = false
-    private var slotSaveTried = false
     private var inferenceWorkBusy = false
 
     /// One model job at a time. Callers reset the state via `defer`.
@@ -83,14 +75,12 @@ public actor LocalEngine: PippaEngine {
         do { executor = try Executor(baseDirectory: baseDirectory) } catch { executorError = error }
     }
 
-    /// Server and state come from outside (the app: PiRPCChat and PiSetupController).
+    /// The model server belongs to Pi; its state comes from outside (the app: PiRPCChat and PiSetupController).
     public struct SharedModelServer: Sendable {
-        /// The running server, or one started on demand; throws if it is not ready.
-        public var server: @Sendable () async throws -> LlamaServer
         /// State for the UI (setup, loading, ready).
         public var status: @Sendable () async -> ModelStatus
-        public init(server: @escaping @Sendable () async throws -> LlamaServer, status: @escaping @Sendable () async -> ModelStatus) {
-            self.server = server; self.status = status
+        public init(status: @escaping @Sendable () async -> ModelStatus) {
+            self.status = status
         }
     }
 
@@ -219,7 +209,7 @@ public actor LocalEngine: PippaEngine {
         // A newer preparation must not be cleared or have its server stopped.
         guard preparationID == nil || preparationID == id else { return }
         preparation = nil; preparationID = nil; download = nil; preparationError = nil
-        if !structuredBusy, !inferenceWorkBusy, let idleServer = server {
+        if !inferenceWorkBusy, let idleServer = server {
             server = nil
             validatedModel = nil
             await idleServer.stop()
@@ -238,17 +228,6 @@ public actor LocalEngine: PippaEngine {
         let s = LlamaServer(choice: c, modelPath: file, binary: binary, logDirectory: baseDirectory)
         server = s
         return s
-    }
-
-    /// The server for model work: the shared one or the own one. `nil`: no model ready.
-    private func modelServer() async -> LlamaServer? {
-        if let shared {
-            do { return try await shared.server() } catch {
-                DiagnosticsLog.shared.event("gemeinsamer-server-fehlt", ["art": String(describing: type(of: error))])
-                return nil
-            }
-        }
-        return llm()
     }
 
     /// Verified model file; replaceable for development via PIPPA_MODEL_FILE (any GGUF file, unverified).
@@ -368,66 +347,10 @@ public actor LocalEngine: PippaEngine {
         if let server { await server.stop() }
     }
 
-    /// After a server start failure, keep working without a model for a while instead of waiting anew for every file.
-    private var modelPausedUntil: Date?
-
-    /// For checks: model answers from recordings (task, user text → JSON text) instead of from the server; `nil` = no answer.
+    /// For checks: model answers from recordings (task, user text → JSON text) instead of a model; `nil` = no answer.
     public typealias ModelReplay = @Sendable (Prompts.Task, String) -> String?
     private var replay: ModelReplay?
     public func setModelReplay(_ replay: ModelReplay?) { self.replay = replay }
-
-    private func askModel<T: Decodable>(_ task: Prompts.Task, user: String, schema: String, name: String, as: T.Type) async throws -> T? {
-        if let replay { return replay(task, user).flatMap { Self.decodeModelJSON(T.self, from: Data($0.utf8)) } }
-        // During the first start the fixed flows keep working. A second
-        // start from a document request would stop the still-starting server.
-        guard preparation == nil else { return nil }
-        if let until = modelPausedUntil, until > Date() { return nil }
-        guard let server = await modelServer() else { return nil }
-        let lease: LlamaServer.AgentLease
-        do { lease = try await server.acquireAgentLease() }
-        catch { return nil }
-        // Directly to llama-server (LocalModelJSON).
-        structuredBusy = true
-        defer { structuredBusy = false }
-        if !slotSaveTried {
-            slotSaveTried = true
-            if await server.saveConversationSlot() { parkedSlot = server }
-        }
-        do {
-            // Classifying fills a few fields; a quarter of the context would let a runaway answer hold the slot for long.
-            let data = try await LocalModelJSON.request(lease, system: Prompts.system(task), user: user, schema: schema, name: name,
-                                                        maxTokens: task == .classify ? 300 : nil)
-            if !holdSlot { await unparkSlot() }
-            #if DEBUG
-            if let path = ProcessInfo.processInfo.environment["PIPPA_ANALYSIS_TRACE_DIR"] {
-                let directory = URL(fileURLWithPath: path)
-                try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try? data.write(to: directory.appendingPathComponent("\(name)-\(UUID().uuidString).json"))
-            }
-            #endif
-            validatedModel = server.choice.model.key
-            await server.releaseAgentLease(lease)
-            return Self.decodeModelJSON(T.self, from: data)
-        } catch {
-            if !holdSlot { await unparkSlot() }
-            await server.releaseAgentLease(lease)
-            let code = (error as? LocalModelJSON.Failure).map { String(describing: $0).components(separatedBy: "(").first ?? "json" } ?? "modell"
-            DiagnosticsLog.shared.event("analyse-fehler", ["code": code])
-            #if DEBUG
-            if ProcessInfo.processInfo.environment["PIPPA_LIVE"] == "1" { print("Pi-Analyse fehlgeschlagen: \(error.localizedDescription)") }
-            #endif
-            if await server.state != .ready { modelPausedUntil = Date().addingTimeInterval(120) }
-            if Task.isCancelled { throw CancellationError() }
-            return nil
-        }
-    }
-
-    private func unparkSlot() async {
-        slotSaveTried = false
-        guard let server = parkedSlot else { return }
-        parkedSlot = nil
-        await server.restoreConversationSlot()
-    }
 
     /// Read the JSON of the model answer; tolerates text before or after the object (e.g. truncated fences).
     public nonisolated static func decodeModelJSON<T: Decodable>(_ type: T.Type, from data: Data) -> T? {
@@ -568,7 +491,7 @@ public actor LocalEngine: PippaEngine {
         var facts: [(label: String, value: String)] = []
         var sender: String?
         var kindWord: String?
-        // Same routes as tidying (Apple's on-device model first, ~3 s), then the evidence checks below.
+        // Same model as tidying (Apple's on-device model, ~2 s), then the evidence checks below.
         if let doc = look.doc, doc.hasText,
            let m = try? await classifyForTidy(name: look.facts.url.lastPathComponent, doc: doc).answer {
             if !m.absender.isEmpty, GermanText.normalize(text).contains(GermanText.normalize(m.absender)) { sender = Heuristics.displayName(m.absender) }
@@ -620,8 +543,8 @@ public actor LocalEngine: PippaEngine {
         try await proposeSort(items: items, scope: scope, limit: nil, onUpdate: { _ in })
     }
 
-    /// Pre-sort immediately by type, name, photo data and identical contents (`PreSort`);
-    /// unclear documents are then read by Pi using the bundled skills.
+    /// Pre-sort immediately by type, name, photo data and identical contents (`PreSort`); then documents are read,
+    /// and the ones still unclear go to Apple's on-device model or to "Dokumente" by kind.
     /// After stage 1 and after each further file, the grown plan goes to `onUpdate`.
     public func proposeSort(items: [URL]?, scope: URL, limit: Int?, onUpdate: @escaping @Sendable (Plan) -> Void) async throws -> Plan {
         try beginInferenceWork()
@@ -639,14 +562,12 @@ public actor LocalEngine: PippaEngine {
         let copies = PreSort.duplicates(in: all.filter { guardrail.contains($0) })
         var insights: [DocInsight] = []
         var skipped: [(url: URL, why: String)] = []
-        var later: [URL] = []
         var plan = Plan(scope: scope, ops: [], skipped: [])
         var published = Date.distantPast
         func publish(pending: [URL]) {
             plan = Self.buildPlan(scope: scope, insights: insights, skipped: skipped, keepingIDsOf: plan)
             plan.pending = pending
             plan.remaining = remaining
-            plan.later = later
             onUpdate(plan)
             published = Date()
         }
@@ -666,7 +587,7 @@ public actor LocalEngine: PippaEngine {
         }
         publish(pending: toRead)
 
-        // 2. Reading, keywords: clear cases get their place, unclear ones wait for the model.
+        // 2. Reading, keywords: clear cases get their place, unclear ones go on to stage 3.
         var unclear: [URL] = []
         for (i, url) in toRead.enumerated() {
             try Task.checkCancellation()
@@ -679,93 +600,46 @@ public actor LocalEngine: PippaEngine {
             if i == toRead.count - 1 || Date().timeIntervalSince(published) > 0.3 { publish(pending: Array(toRead.dropFirst(i + 1)) + unclear) }
         }
 
-        // 3. Model, only for unclear ones (TidyClassifier: system model first, else the local one; short excerpt, time limit).
-        // If none answers while one is on the way (still loading, waking up), Pippa doesn't guess: the document stays put and
-        // goes to `later`, for one round, once the model is ready. Without a model on the way it goes to "Dokumente" by kind.
+        // 3. Apple's on-device model, only for unclear ones (TidyClassifier: short excerpt, time limit). Without it, or when it
+        // declines, the document gets its place by kind ("Dokumente"), so tidying really works without the AI.
         // Small, text-rich files first, so the progress moves visibly.
         unclear = TidyClassifier.readingOrder(unclear)
-        // Only a model on the way (ready, loading, downloading) is worth waiting for. Without one (not loaded yet, none fits
-        // this Mac) unclear documents get their place by kind ("Dokumente"), so tidying really works without the AI.
-        let modelComing = await modelOnTheWay
-        func setAside(_ urls: [URL]) {
-            if modelComing { later += urls } else { insights += urls.map { PreSort.documentByKind(FileFacts.read($0)) } }
+        func byKind(_ urls: [URL]) { insights += urls.map { PreSort.documentByKind(FileFacts.read($0)) } }
+        guard canClassify else {
+            if !unclear.isEmpty { byKind(unclear); publish(pending: []) }
+            return plan
         }
-        // One save and one restore of Pi's cache for the whole stage, not one per file.
-        holdSlot = true
-        defer { holdSlot = false }
-        do {
-            for (i, url) in unclear.enumerated() {
-                try Task.checkCancellation()
-                guard canClassify else {
-                    setAside(Array(unclear.dropFirst(i)))
-                    publish(pending: [])
-                    break
-                }
-                step(i, of: unclear.count, url, stage: .placing)
-                let insight = try await insight(for: url, model: true)
-                if let why = insight.skipReason { skipped.append((url, why)) }
-                else if insight.fromModel { insights.append(insight) }
-                else { setAside([url]) }
-                publish(pending: Array(unclear.dropFirst(i + 1)))
-            }
-        } catch {
-            await unparkSlot()
-            throw error
+        for (i, url) in unclear.enumerated() {
+            try Task.checkCancellation()
+            step(i, of: unclear.count, url, stage: .placing)
+            let insight = try await insight(for: url, model: true)
+            if let why = insight.skipReason { skipped.append((url, why)) }
+            else if insight.fromModel { insights.append(insight) }
+            else { byKind([url]) }
+            publish(pending: Array(unclear.dropFirst(i + 1)))
         }
-        await unparkSlot()
         return plan
     }
 
-    /// Will a model answer soon (ready, loading, downloading)? If not, tidying does not leave documents waiting for it.
-    /// Recordings (checks) count as a model.
-    var modelOnTheWay: Bool {
-        get async {
-            if replay != nil { return true }
-            guard modelEnabled else { return false }
-            switch await modelStatus {
-            case .ready, .loading, .downloading: return true
-            case .notInstalled, .failed, .unsupported: return false
-            }
-        }
-    }
+    /// Can stage 3 classify (Apple's on-device model, or recordings in checks)? No side effects.
+    var canClassify: Bool { replay != nil || TidyClassifier.appleAvailable }
 
-    /// Can stage 3 classify now (system model or local model)? No side effects.
-    var canClassify: Bool {
-        TidyClassifier.canClassify(replay: replay != nil, appleAvailable: TidyClassifier.appleAvailable, localReady: canAskModel)
-    }
-
-    /// One unclear document while tidying: the routes of `TidyClassifier` in order, each with the per-file time limit.
-    private func classifyForTidy(name: String, doc: DocumentText) async throws -> (answer: ClassifyJSON?, outcome: TidyClassifier.Outcome) {
+    /// One unclear document while tidying, with the per-file time limit. `timedOut`: no answer in time.
+    private func classifyForTidy(name: String, doc: DocumentText) async throws -> (answer: ClassifyJSON?, timedOut: Bool) {
         let prompt = TidyClassifier.prompt(name: name, doc: doc)
+        if let replay { return (replay(.classify, prompt).flatMap { Self.decodeModelJSON(ClassifyJSON.self, from: Data($0.utf8)) }, false) }
+        guard TidyClassifier.appleAvailable else { return (nil, false) }
         let system = Prompts.system(.classify)
-        var outcomes: [TidyClassifier.Outcome] = []
-        for route in TidyClassifier.routes(replay: replay != nil, appleAvailable: TidyClassifier.appleAvailable, localReady: canAskModel) {
-            let started = Date()
-            let (answer, timedOut) = try await TidyClassifier.withTimeout(TidyClassifier.perFileTimeout(route)) { [self] () async throws -> ClassifyJSON? in
-                switch route {
-                case .apple: try await TidyClassifier.askApple(system: system, prompt: prompt)
-                case .local: try await self.askModel(.classify, user: prompt, schema: Prompts.classifySchema, name: "einordnung", as: ClassifyJSON.self)
-                }
-            }
-            DiagnosticsLog.shared.event("einordnen", ["weg": route.rawValue, "ms": String(Int(Date().timeIntervalSince(started) * 1000)),
-                                                      "ergebnis": answer != nil ? "ja" : timedOut ? "zeit" : "nein"])
-            if let answer { return (answer, .answered) }
-            outcomes.append(timedOut ? .timedOut : .declined)
+        let started = Date()
+        let (answer, timedOut) = try await TidyClassifier.withTimeout(TidyClassifier.perFileTimeout) { () async throws -> ClassifyJSON? in
+            try await TidyClassifier.askApple(system: system, prompt: prompt)
         }
-        return (nil, TidyClassifier.settle(outcomes))
+        DiagnosticsLog.shared.event("einordnen", ["weg": "apple", "ms": String(Int(Date().timeIntervalSince(started) * 1000)),
+                                                  "ergebnis": answer != nil ? "ja" : timedOut ? "zeit" : "nein"])
+        return (answer, timedOut)
     }
 
-    /// Can stage 3 ask the model now? No side effects: starts no server and loads nothing.
-    /// On this Mac only with a loaded model file, outside the first start and not shortly after a failure.
-    var canAskModel: Bool {
-        if replay != nil { return true }
-        guard preparation == nil, modelPausedUntil.map({ $0 <= Date() }) ?? true else { return false }
-        if shared != nil { return modelEnabled }
-        guard modelEnabled, case .success(let c) = choice, modelFile(c) != nil, LlamaServer.binaryURL() != nil else { return false }
-        return true
-    }
-
-    /// Classification of an unclear document by Pi with native evidence check.
+    /// Classification of an unclear document, with native evidence check.
     func insight(for url: URL, model: Bool) async throws -> DocInsight {
         let facts = FileFacts.read(url)
         if facts.isImage {
@@ -796,9 +670,9 @@ public actor LocalEngine: PippaEngine {
         var unbacked = false
         var classified: ClassifyJSON?
         if model {
-            let (answer, outcome) = try await classifyForTidy(name: name, doc: doc)
-            // Too slow everywhere: no guessing and no waiting, the file stays where it is (calm note in the preview).
-            if outcome == .timedOut {
+            let (answer, timedOut) = try await classifyForTidy(name: name, doc: doc)
+            // Too slow: no guessing and no waiting, the file stays where it is (calm note in the preview).
+            if timedOut {
                 return DocInsight(url: url, facts: facts, text: doc, category: .other, reason: "", certainty: .unreadable,
                                   skipReason: L("Reading this one took too long. It stays where it is for now.", table: "Core"))
             }

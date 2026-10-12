@@ -91,14 +91,14 @@ struct SortSheet: View {
                 PanelHead(title: T("Organize %@", table: "Views", plan.scope.lastPathComponent),
                           meta: T("%lld files get a place · %lld new folders · nothing is deleted", table: "Views", chosen, newFolders),
                           markSize: 36, sheet: true, onClose: { model.escape() })
-                let placed = all.count + stay.count + plan.later.count
+                let placed = all.count + stay.count
                 AdaptiveScroll {
                     VStack(spacing: 0) {
-                        BeforeAfter(total: all.count + stay.count + plan.pending.count + plan.later.count, groups: groups.filter { !$0.isTrash })
+                        BeforeAfter(total: all.count + stay.count + plan.pending.count, groups: groups.filter { !$0.isTrash })
                             .padding(.horizontal, 20)
                             .padding(.top, 14)
                             .stagger(4)
-                        if !plan.remaining.isEmpty || (!plan.later.isEmpty && plan.pending.isEmpty) { comingNext(plan, placed: placed) }
+                        if !plan.remaining.isEmpty { comingNext(plan, placed: placed) }
                         // While files are still being looked at, the count would only grow under the person's eyes.
                         if all.count > 1 && !model.sortFilling { selectionBar(chosen: chosen, all: all) }
                         VStack(spacing: 0) {
@@ -125,33 +125,17 @@ struct SortSheet: View {
         }
     }
 
-    /// What is still to come, in plain words: documents for later, and the rest of a very full folder. (While Pippa is
-    /// still looking at files, the approval row says so: `SortProgressButton`.)
+    /// What is still to come, in plain words: the rest of a very full folder. (While Pippa is still looking at files,
+    /// the approval row says so: `SortProgressButton`.)
     private func comingNext(_ plan: Plan, placed: Int) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if !plan.later.isEmpty && plan.pending.isEmpty {
-                Text(laterText(plan.later.count))
-            }
-            if !plan.remaining.isEmpty {
-                Text(T("This folder is very full. I’m starting with the newest %lld files; the other %lld come afterward.", table: "Views",
-                       placed + plan.pending.count, plan.remaining.count))
-            }
-        }
+        Text(T("This folder is very full. I’m starting with the newest %lld files; the other %lld come afterward.", table: "Views",
+               placed + plan.pending.count, plan.remaining.count))
         .font(.scaled(size: 12.5))
         .foregroundStyle(Theme.ink3)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 22)
         .padding(.top, 10)
         .accessibilityElement(children: .combine)
-    }
-
-    /// Documents for later: how many, when, and that they stay where they are until then.
-    private func laterText(_ count: Int) -> String {
-        let what = AppModel.laterCount(count)
-        if count == 1 {
-            return T("I’ll take a calm look at %@ later, %@. Until then, it stays where it is.", table: "Views", what, model.laterPhrase)
-        }
-        return T("I’ll take a calm look at %@ later, %@. Until then, they stay where they are.", table: "Views", what, model.laterPhrase)
     }
 
     /// "All" / "None" for the whole preview; single rows are toggled by their checkbox (or the space bar).
@@ -330,7 +314,7 @@ struct SortSheet: View {
 enum SortProgress {
     /// Files with a place so far, and all of this round: the same counts the preview shows.
     static func counts(_ plan: Plan) -> (placed: Int, total: Int) {
-        let placed = plan.ops.filter { $0.kind != .mkdir }.count + plan.skipped.count + plan.later.count
+        let placed = plan.ops.filter { $0.kind != .mkdir }.count + plan.skipped.count
         return (placed, placed + plan.pending.count)
     }
 

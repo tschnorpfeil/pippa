@@ -75,8 +75,6 @@
 "Connected AI" = "Connected AI";
 "Online · %@" = "Online · %@";
 "Runs on this Mac" = "Runs on this Mac";
-"Later" = "Later";
-"Load Now" = "Load Now";
 "I’m still working" = "I’m still working";
 "Show" = "Show";
 "Continue" = "Continue";
@@ -130,18 +128,7 @@
 "Nothing is changed yet." = "Nothing is changed yet.";
 "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”." = "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”.";
 "Nothing to tidy here" = "Nothing to tidy here";
-"once an online AI is connected (Settings › Online AI)" = "once an online AI is connected (Settings › Online AI)";
-"once my AI has loaded" = "once my AI has loaded";
-"once I’m fully awake" = "once I’m fully awake";
-"1 document" = "1 document";
-"%lld documents" = "%lld documents";
-"I’ll sort %@ more carefully %@" = "I’ll sort %@ more carefully %@";
 "OK" = "OK";
-"Without my AI I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then." = "Without my AI I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then.";
-"Without my AI I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then." = "Without my AI I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then.";
-"I’m fully awake now" = "I’m fully awake now";
-"I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first." = "I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first.";
-"Tidy Now" = "Tidy Now";
 "Click again once I’m done." = "Click again once I’m done.";
 "The files go back to where they were. Nothing is deleted." = "The files go back to where they were. Nothing is deleted.";
 "The entry will be removed again." = "The entry will be removed again.";
@@ -153,8 +140,6 @@
 "The files are back where they were." = "The files are back where they were.";
 "Tidy 1 More File" = "Tidy 1 More File";
 "Tidy %lld More" = "Tidy %lld More";
-"I’ll sort %@ more carefully %@. Until then it stays put." = "I’ll sort %@ more carefully %@. Until then it stays put.";
-"I’ll sort %@ more carefully %@. Until then they stay put." = "I’ll sort %@ more carefully %@. Until then they stay put.";
 "1 file stays put" = "1 file stays put";
 "%lld files stay put" = "%lld files stay put";
 "I didn’t touch these:" = "I didn’t touch these:";

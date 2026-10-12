@@ -87,9 +87,11 @@ func runSortChecks() async {
             "Clip.mov": "Videos/Clip.mov",
             "daten.xyz": "Sonstiges/daten.xyz",
             "Rechnung (1).pdf": "Papierkorb",   // identical copy: to the Trash, the clean name stays
+            "liste.txt": "Dokumente/liste.txt",         // the model declines: by kind
+            "Rechnung.pdf": "Dokumente/Rechnung.pdf",
         ]
         let copy = plan.ops.first { $0.source?.lastPathComponent == "Rechnung (1).pdf" }
-        return placed == expected && copy?.kind == .trash && copy?.reason.contains("Rechnung.pdf") == true && Set(plan.later.map(\.lastPathComponent)) == ["liste.txt", "Rechnung.pdf"] && plan.skipped.isEmpty && plan.pending.isEmpty && plan.remaining.isEmpty
+        return placed == expected && copy?.kind == .trash && copy?.reason.contains("Rechnung.pdf") == true && plan.skipped.isEmpty && plan.pending.isEmpty && plan.remaining.isEmpty
             && plan.ops.allSatisfy { $0.certainty == .sure } && asked.count == 2
     }
 
@@ -112,7 +114,7 @@ func runSortChecks() async {
         if tree(downloads) != before { print("   Difference: \(tree(downloads).symmetricDifference(before).sorted())") }
         if !receipt.stayed.isEmpty { print("   Stayed in place: \(receipt.stayed)") }
         return moved != before && moved.contains("Installer (kann weg?)/Firefox 140.dmg") && !moved.contains("Rechnung (1).pdf")
-            && moved.contains("Rechnung.pdf") && !moved.contains(where: { $0.hasPrefix("Doppelt") })
+            && moved.contains("Dokumente/Rechnung.pdf") && !moved.contains(where: { $0.hasPrefix("Doppelt") })
             && receipt.stayed.isEmpty && tree(downloads) == before
     }
 
@@ -178,16 +180,15 @@ func runSortChecks() async {
         let total = Date().timeIntervalSince(start)
         let first = progress.first.map { $0.timeIntervalSince(start) } ?? total
         print(String(format: "   first preview after %.2f s, done after %.2f s (%.0f ms per file)", first, total, total * 1000 / 300))
-        print("   steps: \(plan.ops.filter { $0.kind != .mkdir }.count), later: \(plan.later.count), skipped: \(plan.skipped.count), model calls: \(asked.count - askedBefore)")
-        return plan.ops.filter { $0.kind != .mkdir }.count == 200 && plan.later.count == 100 && plan.pending.isEmpty && first < 3 && total < 20 && asked.count - askedBefore == 100
+        print("   steps: \(plan.ops.filter { $0.kind != .mkdir }.count), skipped: \(plan.skipped.count), model calls: \(asked.count - askedBefore)")
+        return plan.ops.filter { $0.kind != .mkdir }.count == 300 && plan.pending.isEmpty && first < 3 && total < 20 && asked.count - askedBefore == 100
     }
 
     await runSortWithoutModelChecks()
 }
 
-/// No model on this Mac (not loaded yet, "Later"): sorting works anyway. Whatever only the model could settle by content goes
-/// to "Dokumente" by kind (nothing waits for an AI that may never come); nothing hangs, no error. While a model is on the way
-/// (here: a recording that does not answer), such documents stay in place for later (`Plan.later`), nothing guessed.
+/// Without Apple's on-device model: sorting works anyway. Whatever only the model could settle by content goes to "Dokumente"
+/// by kind; nothing waits, nothing hangs, no error. The same when the model declines (here: a recording that does not answer).
 func runSortWithoutModelChecks() async {
     let folder = dir("Ohne Modell")
     makeImage(at: folder.appendingPathComponent("logo.png"), type: .png)
@@ -207,12 +208,11 @@ func runSortWithoutModelChecks() async {
         let sources = Set(plan.ops.compactMap { $0.source?.lastPathComponent })
         if status == .ready { print("   Model state unexpected: ready") }
         let documents = Set(plan.ops.filter { $0.target.deletingLastPathComponent().lastPathComponent == "Dokumente" }.compactMap { $0.source?.lastPathComponent })
-        return plan.later.isEmpty
-            && sources == ["logo.png", "Firefox 140.dmg", "Angebot Küche.txt", "Rechnung.pdf", "liste.txt"]
+        return sources == ["logo.png", "Firefox 140.dmg", "Angebot Küche.txt", "Rechnung.pdf", "liste.txt"]
             && documents == ["Angebot Küche.txt", "Rechnung.pdf", "liste.txt"]
             && plan.ops.allSatisfy { $0.certainty == .sure }
             && plan.pending.isEmpty && plan.skipped.isEmpty && seconds < 10
-            && updates.all.last?.later.isEmpty == true
+            && updates.all.last?.pending.isEmpty == true
     }
 
     await checkAsync("Without model: approving puts documents in \"Dokumente\" with their names, undo restores everything") {
@@ -246,19 +246,12 @@ func runSortWithoutModelChecks() async {
         return plan.ops.isEmpty && !tree(documentsFolder).contains("Dokumente/")
     }
 
-    await checkAsync("Model does not answer (replay empty): document stays in place instead of a \"please check\" guess") {
+    await checkAsync("Model does not answer (replay empty): document goes to \"Dokumente\" by kind instead of a guess") {
         let silent = LocalEngine(baseDirectory: dir("support-ohne-antwort"), modelEnabled: false)
         let asked = Asked()
         await silent.setModelReplay { _, user in asked.add(user); return nil }
         let plan = try await silent.proposeSort(items: nil, scope: folder, limit: nil) { _ in }
-        return Set(plan.later.map(\.lastPathComponent)) == ["Angebot Küche.txt", "Rechnung.pdf", "liste.txt"] && asked.names(of: ["Angebot Küche.txt"]) == ["Angebot Küche.txt"]
-            && !plan.ops.contains { $0.source?.lastPathComponent == "Angebot Küche.txt" }
-    }
-
-    await checkAsync("Sample engine without knowledge: Word document waits, rest appears in the preview") {
-        let stub = StubEngine(delay: 0.01, status: .notInstalled)
-        let plan = try await stub.proposeSort(items: nil, scope: folder, limit: nil) { _ in }
-        return plan.later.count == 1 && plan.later[0].pathExtension == "docx"
-            && !plan.ops.contains { $0.source?.pathExtension == "docx" } && plan.ops.contains { $0.kind == .move }
+        let documents = Set(plan.ops.filter { $0.target.deletingLastPathComponent().lastPathComponent == "Dokumente" }.compactMap { $0.source?.lastPathComponent })
+        return documents == ["Angebot Küche.txt", "Rechnung.pdf", "liste.txt"] && asked.names(of: ["Angebot Küche.txt"]) == ["Angebot Küche.txt"]
     }
 }

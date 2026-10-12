@@ -2,7 +2,7 @@ import Foundation
 import PippaCore
 
 // What stays in the product no longer depends on the old conversation core. Letter suggestions and "Check online"
-// run as fixed flows with structured calls (LetterModel, LocalModelJSON), skills live in runtime/pippa-skills,
+// run through Pi, skills live in runtime/pippa-skills,
 // web access is the Pi package pi-web-access in runtime/pippa-web.
 // Runs with PIPPA_W4A_CHECKS=1 and in the full run. No model, no Pi, no network.
 func runW4aChecks() async {
@@ -42,7 +42,7 @@ func runW4aChecks() async {
     }
     // What stays does not name the old core (types in AnswerTypes/ToolBridgeTypes, comparison in GermanText).
     check("Cleanup: remaining parts without PiRuntimeClient, ContextSelection, LocalEngine.chat and pi-runtime") {
-        let kept = ["app/Sources/PippaCore/LocalModelJSON.swift", "app/Sources/PippaCore/Skills.swift",
+        let kept = ["app/Sources/PippaCore/Skills.swift",
                     "app/Sources/PippaCore/SourceFidelity.swift", "app/Sources/PippaCore/PiShownContext.swift", "app/Sources/PippaCore/PiReadLedger.swift",
                     "app/Sources/PippaCore/AnswerTypes.swift",
                     "app/Sources/PippaCore/ToolBridgeTypes.swift", "app/Sources/Pippa/App/BundleVerification.swift", "app/Sources/Pippa/App/PiRPCChat.swift",
@@ -67,7 +67,9 @@ func runW4aChecks() async {
     check("Cleanup: runtime/pi, old scripts and types of the old core no longer exist") {
         let gone = ["runtime/pi", "scripts/bundle-pi-runtime.sh", "scripts/check-pi-contract.sh", "app/Sources/PippaNativeChecks",
                     "app/Sources/PippaCore/PiRuntimeClient.swift", "app/Sources/PippaCore/ChatShim.swift", "app/Sources/PippaCore/ContextSelection.swift",
-                    "app/Sources/PippaCore/QuickAnswerBoundary.swift", "app/Sources/PippaCore/PiPlan.swift", "app/Sources/Pippa/App/InferenceRouting.swift"]
+                    "app/Sources/PippaCore/QuickAnswerBoundary.swift", "app/Sources/PippaCore/PiPlan.swift", "app/Sources/Pippa/App/InferenceRouting.swift",
+                    // Swift no longer asks the local model directly; only Pi does.
+                    "app/Sources/PippaCore/LocalModelJSON.swift"]
         let left = gone.filter { fm.fileExists(atPath: repo.appendingPathComponent($0).path) }
         let banned = ["PiRuntimeClient", "ChatShim", "ContextSelection", "QuickAnswerBoundary", "PIPPA_LEGACY_CHAT", "InferenceRoute",
                       "configureInference", "takeProposedPlan", "takeProposedActions", "takeCitations", "forgetChat", "steerChat", "PIPPA_PI_RUNTIME"]
@@ -83,27 +85,6 @@ func runW4aChecks() async {
         if !left.isEmpty || !named.isEmpty { print("   ", left, named) }
         return left.isEmpty && named.isEmpty && !ci.contains("runtime/pi\n") && !ci.contains("PIPPA_INFERENCE_FIXTURE")
             && !read("app/Package.swift").contains("PippaNativeChecks")
-    }
-
-    // MARK: LocalModelJSON (without a server)
-
-    check("LocalModelJSON builds the request like the old core (schema grammar, 0.1, thinking off, limit ¼ of context)") {
-        guard let body = try? LocalModelJSON.body(modelID: "m", system: "S", user: "U", schema: #"{"type":"object"}"#, name: "x_1", contextWindow: 16384),
-              let messages = body["messages"] as? [[String: String]], let format = body["response_format"] as? [String: Any],
-              let schema = format["json_schema"] as? [String: Any] else { return false }
-        return messages.count == 2 && messages[0]["content"]?.hasSuffix(#"Return only JSON matching this schema: {"type":"object"}"#) == true
-            && messages[1]["content"] == "U" && body["max_tokens"] as? Int == 4096 && body["temperature"] as? Double == 0.1
-            && (body["chat_template_kwargs"] as? [String: Bool])?["enable_thinking"] == false
-            && schema["name"] as? String == "x_1" && schema["strict"] as? Bool == true && LocalModelJSON.maxTokens(contextWindow: 8192) == 2048
-    }
-    check("LocalModelJSON rejects requests that are too long, wrong names and truncated answers") {
-        let long = String(repeating: "ä", count: 9000)   // 18,000 bytes > 2 × 8192
-        let tooLong = (try? LocalModelJSON.body(modelID: "m", system: "S", user: long, schema: "{}", name: "x", contextWindow: 8192)) == nil
-        let badName = (try? LocalModelJSON.body(modelID: "m", system: "S", user: "U", schema: "{}", name: "a b", contextWindow: 8192)) == nil
-        let ok = #"{"choices":[{"finish_reason":"stop","message":{"content":"{\"a\":1}"}}]}"#
-        let cut = #"{"choices":[{"finish_reason":"length","message":{"content":"{\"a\":"}}]}"#
-        return tooLong && badName && (try? LocalModelJSON.content(of: Data(ok.utf8))) == Data(#"{"a":1}"#.utf8)
-            && (try? LocalModelJSON.content(of: Data(cut.utf8))) == nil && (try? LocalModelJSON.content(of: Data("{}".utf8))) == nil
     }
 
     // MARK: Connection test (settings) without the old core

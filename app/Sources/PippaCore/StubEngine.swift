@@ -160,14 +160,8 @@ public final class StubEngine: PippaEngine, @unchecked Sendable {
         first.pending = full.ops.filter { reading.contains($0.id) }.compactMap(\.source)
         onUpdate(first)
         await pause(1.5)
-        // Without a model, what only the model could sort stays put (here: the Word document).
-        guard await modelStatus != .ready else { onUpdate(full); return full }
-        var done = full
-        let unclear = done.ops.filter { $0.source?.pathExtension.lowercased() == "docx" }
-        done.ops.removeAll { op in unclear.contains { $0.id == op.id } }
-        done.later = unclear.compactMap(\.source)
-        onUpdate(done)
-        return done
+        onUpdate(full)
+        return full
     }
 
     public func apply(_ plan: Plan, excluding: Set<UUID>) async throws -> JobReceipt {

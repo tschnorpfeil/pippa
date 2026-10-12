@@ -452,21 +452,6 @@ check("Persona + rules under 500 tokens (per task)") {
     print("   fixed contexts: \(sizes) tokens (estimated)")
     return Prompts.persona.contains("Pippa") && sizes.allSatisfy { $0 < Prompts.budget }
 }
-check("Strict schema for the one fixed task (tidy classification): every required field declared, no open objects") {
-    func valid(_ value: Any) -> Bool {
-        if let list = value as? [Any] { return list.allSatisfy(valid) }
-        guard let object = value as? [String: Any] else { return true }
-        if object["type"] as? String == "object" {
-            guard let props = object["properties"] as? [String: Any], let required = object["required"] as? [String],
-                  Set(required) == Set(props.keys), object["additionalProperties"] as? Bool == false else { return false }
-        }
-        return object.values.allSatisfy(valid)
-    }
-    return [Prompts.classifySchema].allSatisfy {
-        guard let schema = try? JSONSerialization.jsonObject(with: Data($0.utf8)) else { return false }
-        return valid(schema)
-    }
-}
 
 // MARK: - Model choice
 

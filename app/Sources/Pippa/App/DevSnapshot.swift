@@ -7,10 +7,10 @@ import SwiftUI
 /// sample engine, photographs the real window (with alpha, via `screencapture -l`)
 /// and saves one PNG per form, plus frame sequences of every morph (in slow motion) and a
 /// check of the corners (`corners.txt`). `PIPPA_APPEARANCE=dark|light` forces the appearance.
-/// `PIPPA_SNAPSHOT_ONLY=morph|states|pillstatus|workspace|chat|natural|keyboard|byom|settings|permissions|firstrun|welcome|setup-*` restricts the run. Exits afterwards.
+/// `PIPPA_SNAPSHOT_ONLY=morph|states|pillstatus|workspace|chat|natural|keyboard|byom|settings|permissions|welcome|setup-*` restricts the run. Exits afterwards.
 /// `setup-*`: setup without technical questions (PiSetupSnapshot).
-/// `firstrun` and `welcome` need `PIPPA_DEMO_MODEL=missing` (sample engine without knowledge, as on first launch);
-/// `welcome` additionally without consent to download (`-model.download.allowed NO` as an argument), best with `PIPPA_SNAPSHOT_HEIGHT=700`.
+/// `welcome` needs `PIPPA_DEMO_MODEL=missing` (sample engine without knowledge, as on first launch);
+/// and also runs without consent to download (`-model.download.allowed NO` as an argument), best with `PIPPA_SNAPSHOT_HEIGHT=700`.
 /// `contextstop` needs `PIPPA_DEMO=1`: controlled stop/callback race through the real conversation controller; report `contextstop.txt`.
 ///
 /// Debug build only (`swift run Pippa`, `swift build`): the release build from `scripts/build-app.sh`
@@ -867,58 +867,6 @@ enum DevSnapshot {
                 report.append("welcome-05-ready: Höhe \(Int(shell.lastMeasuredHeight)) pt, Platz \(Int(shell.shellScreenRect.height)) pt")
                 let text = (failures.isEmpty ? ["PASS"] : failures.map { "FAIL: " + $0 }) + report
                 try? text.joined(separator: "\n").write(to: dir.appendingPathComponent("welcome.txt"), atomically: true, encoding: .utf8)
-            }
-
-            if only == "firstrun" {
-                var failures: [String] = []
-                func verify(_ condition: Bool, _ message: String) { if !condition { failures.append(message) } }
-                @MainActor func settle() async {
-                    for _ in 0..<160 {
-                        if !model.isActiveWork { break }
-                        try? await Task.sleep(for: .milliseconds(100))
-                    }
-                }
-                verify(!model.modelReady, "Beispiel-Engine hat schon Wissen (PIPPA_DEMO_MODEL=missing setzen)")
-                model.newConversation()
-                model.show(.onboarding)
-                await snap("firstrun-01-welcome")
-                // Own folder instead of the real Downloads: the file waiting for the knowledge must exist.
-                let fixture = dir.appendingPathComponent("Downloads", isDirectory: true)
-                try? FileManager.default.createDirectory(at: fixture, withIntermediateDirectories: true)
-                try? "Entwurf".write(to: fixture.appendingPathComponent("Brief Vermieter.docx"), atomically: true, encoding: .utf8)
-                model.tidyDownloads(folder: fixture)
-                await snap("firstrun-02-working", wait: 0.4)
-                await settle()
-                verify(model.mode.key == "sort" && model.plan?.later.count == 1 && model.plan?.ops.contains { $0.kind == .move } == true,
-                       "Ordnen ohne Wissen zeigt keine Vorschau oder merkt die unklare Unterlage nicht für später")
-                verify(!model.modelReady, "Wissen war zu schnell da, Lauf sagt nichts über Ordnen ohne Wissen")
-                await snap("firstrun-03-sort")
-                model.confirmPreview()
-                await settle()
-                if case .notice(_, let detail, _) = model.mode {
-                    verify(detail.contains("ordne ich genauer"), "Quittung nennt die liegen gebliebene Unterlage nicht")
-                } else {
-                    verify(false, "Keine Quittung nach dem Ordnen ohne Wissen")
-                }
-                verify(model.sortLater?.files.count == 1, "Unterlage für später nicht gemerkt")
-                await snap("firstrun-04-receipt")
-                model.openInput()
-                if !model.downloadAllowed { model.startModelDownload() }
-                var offered: [ToastButton] = []
-                for _ in 0..<300 {
-                    if case .notice(let title, _, let buttons) = model.mode, title == "Ich bin jetzt ganz wach" { offered = buttons; break }
-                    try? await Task.sleep(for: .milliseconds(100))
-                }
-                verify(model.modelReady && !offered.isEmpty,
-                       "Nach dem Wachwerden kein Angebot für die liegen gebliebene Unterlage (bereit: \(model.modelReady), Form: \(model.mode.key), beschäftigt: \(model.isActiveWork), gemerkt: \(model.sortLater?.files.count ?? 0))")
-                await snap("firstrun-05-awake")
-                offered.first { $0.title == "Jetzt ordnen" }?.action()
-                await settle()
-                verify(model.mode.key == "sort" && model.plan?.later.isEmpty == true && model.sortLater == nil,
-                       "„Jetzt ordnen“ zeigt keine vollständige Vorschau")
-                await snap("firstrun-06-later-sorted")
-                let report = failures.isEmpty ? "PASS: Downloads aufräumen ohne Wissen, Unklares bleibt liegen und steht in Vorschau und Quittung, nach dem Wachwerden einmal angeboten und geordnet" : failures.map { "FAIL: " + $0 }.joined(separator: "\n")
-                try? report.write(to: dir.appendingPathComponent("firstrun.txt"), atomically: true, encoding: .utf8)
             }
 
             if only == "natural" {

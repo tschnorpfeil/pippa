@@ -330,21 +330,15 @@ final class PiRPCChat {
         return (server, try await Self.lease(server, onWork: onWork))
     }
 
-    /// LocalEngine (sort classification, invoices, deadlines, letter suggestions) no longer gets its own llama-server,
-    /// but this one. State and loading belong to setup (PiSetupController), not LocalEngine.
+    /// LocalEngine never starts its own llama-server: the one model server belongs to Pi. State and loading belong to
+    /// setup (PiSetupController), not LocalEngine.
     func shareServer(with engine: any PippaEngine) {
         guard let local = engine as? LocalEngine else { return }
-        let shared = LocalEngine.SharedModelServer(server: { try await PiRPCChat.serverForLocalEngine() },
-                                                   status: { await PiRPCChat.statusForLocalEngine() })
+        let shared = LocalEngine.SharedModelServer(status: { await PiRPCChat.statusForLocalEngine() })
         Task { await local.useSharedServer(shared) }
     }
 
-    static func serverForLocalEngine() async throws -> LlamaServer {
-        guard isLive, ownsLocalServer else { throw Failure.setup("kein eigener llama-server (PIPPA_PI_OWN_LLAMA=0)") }
-        return try await shared.localModelServer()
-    }
-
-    /// State of setup in LocalEngine's terms (pill, "Knowledge" line, `canRunModelWork`).
+    /// State of setup in LocalEngine's terms (pill, "Knowledge" line).
     static func statusForLocalEngine() -> ModelStatus {
         if DevEnvironment.value("PIPPA_MODEL_FILE") != nil { return .ready }
         switch PiSetupController.shared?.state {

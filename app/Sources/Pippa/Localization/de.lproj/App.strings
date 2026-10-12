@@ -75,8 +75,6 @@
 "Connected AI" = "Verbundene KI";
 "Online · %@" = "Online · %@";
 "Runs on this Mac" = "Läuft auf diesem Mac";
-"Later" = "Später";
-"Load Now" = "Jetzt laden";
 "I’m still working" = "Ich arbeite gerade noch";
 "Show" = "Zeigen";
 "Continue" = "Fortsetzen";
@@ -130,18 +128,7 @@
 "Nothing is changed yet." = "Es wird noch nichts geändert.";
 "I didn’t find any loose files in “%@”. Did your Mac ask for permission and you declined? Then you can allow it in System Settings under “Privacy & Security” → “Files & Folders”." = "In „%@“ habe ich keine losen Dateien gefunden. Hat dein Mac nach einer Erlaubnis gefragt und du hast abgelehnt? Dann kannst du sie in den Systemeinstellungen unter „Datenschutz & Sicherheit“ → „Dateien und Ordner“ geben.";
 "Nothing to tidy here" = "Hier gibt es nichts zu ordnen";
-"once an online AI is connected (Settings › Online AI)" = "sobald eine Online-KI verbunden ist (Einstellungen › Online-KI)";
-"once my AI has loaded" = "sobald meine KI geladen ist";
-"once I’m fully awake" = "sobald ich ganz wach bin";
-"1 document" = "1 Unterlage";
-"%lld documents" = "%lld Unterlagen";
-"I’ll sort %@ more carefully %@" = "%@ ordne ich genauer, %@";
 "OK" = "Gut";
-"Without my AI I can’t place it reliably. I won’t guess: it stays where it is, and I’ll ask you again then." = "Ohne meine KI kann ich sie nicht sicher einordnen. Ich rate nicht: Sie bleibt, wo sie ist, und ich frage dich dann nochmal.";
-"Without my AI I can’t place them reliably. I won’t guess: they stay where they are, and I’ll ask you again then." = "Ohne meine KI kann ich sie nicht sicher einordnen. Ich rate nicht: Sie bleiben, wo sie sind, und ich frage dich dann nochmal.";
-"I’m fully awake now" = "Ich bin jetzt ganz wach";
-"I can now sort %1$@ from “%2$@” more carefully. You’ll see everything first." = "%1$@ aus „%2$@“ kann ich jetzt genauer einordnen. Du siehst vorher alles.";
-"Tidy Now" = "Jetzt ordnen";
 "Click again once I’m done." = "Sobald ich fertig bin, nochmal klicken.";
 "The files go back to where they were. Nothing is deleted." = "Die Dateien kommen wieder an ihren alten Platz. Gelöscht wird nichts.";
 "The entry will be removed again." = "Der Eintrag wird wieder entfernt.";
@@ -153,8 +140,6 @@
 "The files are back where they were." = "Die Dateien sind wieder an ihrem alten Platz.";
 "Tidy 1 More File" = "Noch 1 Datei ordnen";
 "Tidy %lld More" = "Weitere %lld ordnen";
-"I’ll sort %@ more carefully %@. Until then it stays put." = "%@ ordne ich genauer, %@. Bis dahin bleibt sie liegen.";
-"I’ll sort %@ more carefully %@. Until then they stay put." = "%@ ordne ich genauer, %@. Bis dahin bleiben sie liegen.";
 "1 file stays put" = "1 Datei bleibt liegen";
 "%lld files stay put" = "%lld Dateien bleiben liegen";
 "I didn’t touch these:" = "Die habe ich nicht angefasst:";

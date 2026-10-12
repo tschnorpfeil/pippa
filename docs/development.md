@@ -132,10 +132,9 @@ own address and `apiKey: "$PIPPA_ONLINE_KEY"`; Pippa reads the key from the Keyc
 environment (`PiOnlineProvider`). Pi in the terminal has no key and stops before any request.
 
 **Apple's on-device model.** `AppleQuickModel` for short decisions: document suggestions, the letter's first line, and
-classifying unclear documents while tidying (`TidyClassifier`). Measured on the Mac mini M6 (`PippaLive tidy-speed`, 25
-unclear files): Apple's model p50 2.0 s per file, all answered; the fallback when it is missing, a direct structured call on
-the local server (`LocalModelJSON`) with K2 Horizon 7B, p50 3.2 s per file (it was ~26 s with the old 12B model), so the
-fallback stays.
+classifying unclear documents while tidying (`TidyClassifier`). Measured on the Mac mini M6 (25 unclear files): p50 2.0 s
+per file, all answered. Without it, unclear documents go to "Dokumente" by kind. Swift never asks the local model itself:
+the llama-server belongs to Pi.
 
 ## Requirements
 

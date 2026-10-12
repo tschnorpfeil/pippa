@@ -127,18 +127,9 @@ func runR7bChecks() async {
         return same.previousName == nil && renamed.previousName == "IMG_1.jpg" && ext.previousName == "Bild.jpeg"
     }
 
-    check("Tidy classification: system model first, local model as fallback, recordings alone; time limit leaves the file in place") {
+    check("Tidy classification: short excerpt, time limit per file") {
         typealias C = TidyClassifier
-        return C.routes(replay: false, appleAvailable: true, localReady: true) == [.apple, .local]
-            && C.routes(replay: false, appleAvailable: true, localReady: false) == [.apple]
-            && C.routes(replay: false, appleAvailable: false, localReady: true) == [.local]
-            && C.routes(replay: true, appleAvailable: true, localReady: false) == [.local]
-            && !C.canClassify(replay: false, appleAvailable: false, localReady: false)
-            && C.canClassify(replay: false, appleAvailable: true, localReady: false)       // not deferred to "later" when the system model is there
-            && C.settle([.declined, .answered]) == .answered
-            && C.settle([.timedOut, .declined]) == .timedOut
-            && C.settle([.declined]) == .declined && C.settle([]) == .declined
-            && C.excerptChars <= 1500 && C.perFileTimeout(.apple) <= .seconds(20) && C.perFileTimeout(.local) <= .seconds(60)
+        return C.excerptChars <= 1500 && C.perFileTimeout <= .seconds(20)
             && C.prompt(name: "a.txt", doc: DocumentText(url: URL(fileURLWithPath: "/tmp/a.txt"), pages: [String(repeating: "x", count: 9000)], isPaged: false, usedOCR: false, headers: [:])).count < 1600
     }
 
