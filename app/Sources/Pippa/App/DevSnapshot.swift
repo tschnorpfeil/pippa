@@ -320,6 +320,8 @@ enum DevSnapshot {
                     model.dragEnded()
                 }
                 var failures: [String] = []
+                var trace: [String] = []
+                @MainActor func t(_ label: String) { trace.append("\(label): mode=\(model.mode) announced=\(shell.dragAnnounced) targeted=\(model.dropTargeted) busy=\(model.busy)") }
                 func verify(_ condition: Bool, _ note: String) { if !condition { failures.append(note) } }
                 @MainActor func presence(_ pressed: Bool, _ supported: Bool, count: Int? = nil) {
                     shell.updateDragPresence(pressed: pressed, changeCount: count ?? baseline + 1, hasSupportedType: supported)
@@ -351,11 +353,11 @@ enum DevSnapshot {
                 presence(true, true, count: baseline + 4)
                 verify(isTarget(hot: false) && shell.dragAnnounced, "Supported drag did not announce the early drop zone")
                 verify(model.markState == .ruht, "Early target claimed completion before drop")
-                await snap("dragtarget-02-early")
+                t("before02"); await snap("dragtarget-02-early"); t("after02")
                 verify(shell.draggingEntered() == .copy && isTarget(hot: true), "Entering did not highlight the target")
                 verify(model.markState == .ruht, "Hot target claimed completion before drop")
-                await snap("dragtarget-03-hot")
-                shell.draggingExited()
+                t("before03"); await snap("dragtarget-03-hot"); t("after03")
+                shell.draggingExited(); t("exited")
                 verify(isTarget(hot: false) && shell.dragAnnounced, "Leaving prematurely removed the announced target")
                 await snap("dragtarget-04-exited")
                 presence(false, true, count: baseline + 4)
@@ -364,7 +366,7 @@ enum DevSnapshot {
                 verify(model.tray.items == trayBefore, "Drag metadata changed the tray")
                 verify(model.conversations.current?.context == contextBefore, "Drag metadata changed conversation context")
                 let report = ["Synthetic native state-machine regression only: no drag contents read, no OS pointer drag simulated."]
-                    + (failures.isEmpty ? ["PASS: early supported target, hot/exit, release, unsupported and own-drag exclusions; tray/context unchanged."] : failures.map { "FAIL: \($0)" })
+                    + trace + (failures.isEmpty ? ["PASS: early supported target, hot/exit, release, unsupported and own-drag exclusions; tray/context unchanged."] : failures.map { "FAIL: \($0)" })
                 try? report.joined(separator: "\n").write(to: dir.appendingPathComponent("dragtarget.txt"), atomically: true, encoding: .utf8)
             }
 

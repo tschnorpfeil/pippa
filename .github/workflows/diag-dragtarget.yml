@@ -1,0 +1,28 @@
+name: diag-dragtarget
+on:
+  push:
+    branches: ['claude/dragtarget-diag']
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+          swift build --package-path app --product Pippa 2>&1 | tail -n 30
+      - name: dragtarget
+        run: |
+          out="$PWD/.build/drag"; mkdir -p "$out"
+          PIPPA_DEMO=1 PIPPA_SNAPSHOT="$out" PIPPA_SNAPSHOT_ONLY=dragtarget app/.build/debug/Pippa > "$out/log.txt" 2>&1 &
+          pid=$!; for i in $(seq 1 120); do kill -0 $pid 2>/dev/null || break; sleep 1; done; kill $pid 2>/dev/null || true
+          cat "$out/dragtarget.txt" || tail -n 50 "$out/log.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: drag
+          path: .build/drag
