@@ -58,6 +58,13 @@ func runPermissionChecks() async {
             && !PermissionOnboarding.remindsAtStart(pending: true, dismissals: PermissionOnboarding.reminders)
             && !PermissionOnboarding.remindsAtStart(pending: false, dismissals: 0)
     }
+    check("Permissions page: opening Pippa brings it back until Continue or ×") {
+        let ready = PiSetupState.ready(adoptedFrom: nil)
+        return PermissionOnboarding.reopens(pending: true, setup: ready, deferred: false, closedThisRun: false)
+            && !PermissionOnboarding.reopens(pending: true, setup: ready, deferred: false, closedThisRun: true)
+            && !PermissionOnboarding.reopens(pending: false, setup: ready, deferred: false, closedThisRun: false)
+            && !PermissionOnboarding.reopens(pending: true, setup: .askDownload(bytes: 1), deferred: false, closedThisRun: false)
+    }
     check("Permissions page: Continue counts only the rows nobody answered") {
         PermissionOnboarding.undecided([.folders: .granted, .calendar: .notAsked, .photos: .denied, .notes: .notAsked,
                                         .externalDrives: .unavailable("kein Laufwerk")]) == 2

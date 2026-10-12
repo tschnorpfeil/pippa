@@ -18,6 +18,8 @@ final class PermissionsModel: ObservableObject {
     @Published private(set) var unanswered: Set<MacPermission> = []
     /// The onboarding page is still to come (once, after "Load"). Never in recordings unless they ask for it.
     @Published var onboardingPending: Bool
+    /// Closed with × in this run: the pill no longer brings the page back until the next start.
+    private(set) var closedThisRun = false
 
     private static let doneKey = "onboarding.permissions.done"
     private static let dismissedKey = "onboarding.permissions.dismissed"
@@ -47,11 +49,12 @@ final class PermissionsModel: ObservableObject {
         guard asking == nil else { return }
         if states[permission] == .denied || unanswered.contains(permission) { return openSettings(permission) }
         asking = permission
+        // The window the person pressed Allow in (the Welcome or Settings): it comes back to the front afterwards.
+        let window = NSApp.keyWindow
         Task {
             let result = await desk.request(permission)
             states[permission] = result
             asking = nil
-            NSApp.activate()
             await refresh()
             if states[permission] == .notAsked {
                 unanswered.insert(permission)
@@ -60,8 +63,20 @@ final class PermissionsModel: ObservableObject {
                 openSettings(permission)
             } else {
                 unanswered.remove(permission)
+                bringBack(window)
             }
         }
+    }
+
+    /// After the Mac's question (or Mail, Notes or Excel that macOS opened for it) Pippa is no longer in front, and
+    /// a plain `activate()` is only a request macOS may ignore: without a Dock icon the window then seems gone. Pressing
+    /// Allow was the person's own step, so taking the front back is expected here.
+    private func bringBack(_ window: NSWindow?) {
+        guard DevSnapshot.directory == nil else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        guard let window, window.isVisible else { return }
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
 
     func openSettings(_ permission: MacPermission) {
@@ -75,6 +90,7 @@ final class PermissionsModel: ObservableObject {
 
     /// × instead of "Continue": the page stays to come and returns at a later start (`PermissionOnboarding`).
     func dismissOnboarding() {
+        closedThisRun = true
         let defaults = UserDefaults.standard
         defaults.set(defaults.integer(forKey: Self.dismissedKey) + 1, forKey: Self.dismissedKey)
     }
@@ -100,6 +116,14 @@ extension AppModel {
         let made = PermissionsModel(desk: desk)
         Self.permissionsModel = made
         return made
+    }
+
+    /// "What Pippa may do" is still open in this run (neither "Continue" nor ×): opening Pippa leads back to it, so a
+    /// page that went away (another window in front, a click elsewhere) is never lost until the next start.
+    var permissionsPageWaiting: Bool {
+        guard let setup = PiSetupController.shared else { return false }
+        return PermissionOnboarding.reopens(pending: permissions.onboardingPending, setup: setup.state, deferred: setup.deferred,
+                                            closedThisRun: permissions.closedThisRun)
     }
 }
 
