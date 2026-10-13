@@ -4,7 +4,7 @@ Pippa itself is MIT-licensed (see [LICENSE](LICENSE)). `Pippa.app` ships the thi
 
 | Component | Use in Pippa | Licence |
 |---|---|---|
-| [Pi](https://github.com/earendil-works/pi) 1.1.0 (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`, `pi-tui`, `pi-mcp`, `pi-codemode`, `pi-telemetry`, `chord`) | The agent. Shipped as the install payload Pippa copies to `~/.pi/agent` (`Contents/Resources/pi-payload/release`) | MIT, Copyright (c) 2025 Mario Zechner. The npm packages contain no licence file, so the text is reproduced below |
+| [Pi](https://github.com/earendil-works/pi) 1.2.0 (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`, `pi-tui`, `pi-mcp`, `pi-codemode`, `pi-telemetry`, `chord`) | The agent. Shipped as the install payload Pippa copies to `~/.pi/agent` (`Contents/Resources/pi-payload/release`) | MIT, Copyright (c) 2025 Mario Zechner. The npm packages contain no licence file, so the text is reproduced below |
 | [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk), bundled inside `@earendil-works/pi-mcp` | MCP client in Pi | MIT, Copyright (c) 2024 Anthropic, PBC; shipped in `node_modules/@earendil-works/pi-mcp/LICENSES/` |
 | [llama.cpp](https://github.com/ggml-org/llama.cpp) b11503 (`llama-server`, ggml, llama and mtmd libraries) | Runs the local language model | MIT, see below and `Contents/Resources/llama.cpp-LICENSE.txt`. Code compiled into it is listed under "Inside llama.cpp" below |
 | [fd](https://github.com/sharkdp/fd) 10.3.0 (`Contents/Helpers/fd`) | File search for Pi's `find` tool | MIT or Apache 2.0, Copyright (c) 2017-present The fd developers; see `Contents/Resources/fd-LICENSE-MIT.txt` and `fd-LICENSE-APACHE.txt` |

@@ -100,9 +100,9 @@ public typealias PiUIHandler = @Sendable (PiUIRequest) async -> PiUIResponse
 
 /// Drives a `pi --mode rpc` process. One response at a time; deliver more via `steer`/`followUp`.
 public actor PiRPCClient {
-    /// Tested range: the pinned minor version (app/Packaging/pi-release, currently Pi 1.1.x). `start()` rejects other versions
+    /// Tested range: the pinned minor version (app/Packaging/pi-release, currently Pi 1.2.x). `start()` rejects other versions
     /// with `.versionMismatch`. scripts/bump-pi.sh aborts if that does not match the new pin.
-    public static let supportedVersionPrefix = "1.1."
+    public static let supportedVersionPrefix = "1.2."
     public nonisolated let configuration: PiRPCConfiguration
     private var process: Process?
     private var stdin: FileHandle?
