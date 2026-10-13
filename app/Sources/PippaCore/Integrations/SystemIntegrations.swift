@@ -188,6 +188,17 @@ final class EventKitBridge: @unchecked Sendable {
 
 // MARK: - Apple Events
 
+/// For checks: Apple Events consent with a stand-in for the system call (for example one that hangs).
+public enum AppleEventsConsentCheck {
+    public static func permission(bundle: String, appName: String, ask: Bool, limit: TimeInterval,
+                                  determine: @escaping @Sendable (String, Bool) -> OSStatus) async -> IntegrationAccess {
+        let real = AppleEvents.determine
+        AppleEvents.determine = determine
+        defer { AppleEvents.determine = real }
+        return await AppleEvents.permission(bundle: bundle, appName: appName, ask: ask, limit: limit)
+    }
+}
+
 enum AppleEvents {
     static func isRunning(_ i: Integration) -> Bool { isRunning(bundle: i.bundleIdentifier) }
 
@@ -216,20 +227,55 @@ enum AppleEvents {
         return isRunning(bundle: bundle)
     }
 
-    /// May Pippa ask the app via Apple Events? `ask: true` shows the system prompt and waits for the answer,
-    /// so not on the main thread.
+    /// May Pippa ask the app via Apple Events? `ask: true` shows the system prompt and waits for the answer.
     static func permission(_ i: Integration, ask: Bool) async -> IntegrationAccess {
         await permission(bundle: i.bundleIdentifier, appName: i.appName, ask: ask)
     }
 
+    /// Reading the state needs no person, asking waits for one (the dialog).
+    static let readLimit: TimeInterval = 3
+    static let askLimit: TimeInterval = 60
+
+    /// The system call; checks replace it with one that hangs.
+    nonisolated(unsafe) static var determine: @Sendable (_ bundle: String, _ ask: Bool) -> OSStatus = { bundle, ask in
+        let target = NSAppleEventDescriptor(bundleIdentifier: bundle)
+        guard let desc = target.aeDesc else { return OSStatus(procNotFound) }
+        // With a prompt, wildcards are not allowed: a concrete read event (core/getd).
+        return AEDeterminePermissionToAutomateTarget(desc, AEEventClass(kCoreEventClass), AEEventID(kAEGetData), ask)
+    }
+
+    /// Checks waiting for the answer of a call already running, per app and kind.
+    nonisolated(unsafe) private static var waiting: [String: [@Sendable (OSStatus) -> Void]] = [:]
+    private static let waitingLock = NSLock()
+
     /// As above, for apps without their own case in `Integration` (Excel).
-    static func permission(bundle: String, appName: String, ask: Bool) async -> IntegrationAccess {
-        let status: OSStatus = await Task.detached(priority: .userInitiated) {
-            let target = NSAppleEventDescriptor(bundleIdentifier: bundle)
-            guard let desc = target.aeDesc else { return OSStatus(procNotFound) }
-            // With a prompt, wildcards are not allowed: a concrete read event (core/getd).
-            return AEDeterminePermissionToAutomateTarget(desc, AEEventClass(kCoreEventClass), AEEventID(kAEGetData), ask)
-        }.value
+    ///
+    /// macOS can leave this call hanging for minutes (seen with Mail running: two threads stuck, a dialog that never
+    /// showed). So it runs on a thread of its own, not in Swift's small shared pool where it would hold up other work,
+    /// and after `limit` the answer is "not responding". The hanging call stays parked; while it runs, further checks for
+    /// the same app share its answer instead of starting another one.
+    static func permission(bundle: String, appName: String, ask: Bool, limit: TimeInterval? = nil) async -> IntegrationAccess {
+        let key = "\(bundle)|\(ask)"
+        let status: OSStatus? = await withCheckedContinuation { (cont: CheckedContinuation<OSStatus?, Never>) in
+            let once = ResumeOnce(cont)
+            let first: Bool = waitingLock.withLock {
+                let first = waiting[key] == nil
+                waiting[key, default: []].append { once.resume($0) }
+                return first
+            }
+            if first {
+                Thread.detachNewThread {
+                    let status = determine(bundle, ask)
+                    let waiters = waitingLock.withLock { waiting.removeValue(forKey: key) ?? [] }
+                    waiters.forEach { $0(status) }
+                }
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + (limit ?? (ask ? askLimit : readLimit))) { once.resume(nil) }
+        }
+        guard let status else {
+            DiagnosticsLog.shared.event("erlaubnis-haengt", ["app": appName, "fragen": String(ask)])
+            return .unavailable(L("%@ isn’t responding right now.", table: "Core", appName))
+        }
         switch Int(status) {
         case Int(noErr): return .granted
         case -1744: return .notDetermined           // errAEEventWouldRequireUserConsent

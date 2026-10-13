@@ -94,6 +94,30 @@ public protocol PermissionDesk: Sendable {
     func request(_ permission: MacPermission) async -> PermissionState
 }
 
+extension PermissionDesk {
+    /// Every row's state, read side by side. A row that does not answer within `limit` keeps its previous state (or
+    /// "not asked"), so one hanging check (an Apple Events consent with Mail busy) never holds up the other rows.
+    public func states(_ rows: [MacPermission], previous: [MacPermission: PermissionState] = [:],
+                       limit: TimeInterval = 5) async -> [MacPermission: PermissionState] {
+        await withTaskGroup(of: (MacPermission, PermissionState).self) { group in
+            for permission in rows {
+                let fallback = previous[permission] ?? .notAsked
+                // Each child ends by `limit` at the latest, so the group never waits on a hanging call.
+                group.addTask { (permission, await firstAnswer(within: limit, fallback: fallback) { await self.state(permission) }) }
+            }
+            var found: [MacPermission: PermissionState] = [:]
+            for await (permission, state) in group { found[permission] = state }
+            return found
+        }
+    }
+
+    /// This row's dialog(s), or `nil` when nothing came back within `limit` (no dialog showed, or macOS hangs): the row
+    /// then offers to try again instead of spinning. A late answer is picked up by the next refresh.
+    public func request(_ permission: MacPermission, limit: TimeInterval) async -> PermissionState? {
+        await firstAnswer(within: limit, fallback: nil) { await self.request(permission) }
+    }
+}
+
 // MARK: - Real
 
 /// Calendar, Reminders and Mail go through the engine's integrations (one EventKit store, refreshed after a new

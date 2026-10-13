@@ -85,9 +85,53 @@ func runPermissionChecks() async {
         let notes = await demo.state(.notes)
         return reminders == .granted && photos == .denied && notes == .notAsked
     }
+
+    await checkAsync("Permissions: a hanging Apple Events check gives up in time and runs only once per app") {
+        let calls = Counter()
+        let release = DispatchSemaphore(value: 0)
+        defer { for _ in 0..<4 { release.signal() } }
+        let hang: @Sendable (String, Bool) -> OSStatus = { _, _ in calls.add(); release.wait(); return 0 }
+        let started = Date()
+        async let first = AppleEventsConsentCheck.permission(bundle: "com.example.hang", appName: "Mail", ask: false, limit: 0.5, determine: hang)
+        async let second = AppleEventsConsentCheck.permission(bundle: "com.example.hang", appName: "Mail", ask: false, limit: 0.5, determine: hang)
+        let (a, b) = await (first, second)
+        let timedOut: (IntegrationAccess) -> Bool = { if case .unavailable = $0 { return true }; return false }
+        return timedOut(a) && timedOut(b) && calls.value == 1 && Date().timeIntervalSince(started) < 3
+    }
+    await checkAsync("Permissions: one row that hangs never holds up the others, and Allow stops spinning") {
+        let hanging = HangingDesk()
+        let started = Date()
+        let states = await hanging.states([.iCloudDrive, .mail, .calendar], previous: [.calendar: .denied], limit: 0.3)
+        let asked = await hanging.request(.iCloudDrive, limit: 0.3)
+        let quick = await hanging.request(.calendar, limit: 0.3)
+        return states[.mail] == .notAsked && states[.calendar] == .denied && states[.iCloudDrive] == .granted
+            && asked == nil && quick == .granted && Date().timeIntervalSince(started) < 3
+    }
 }
 
 private actor AskLog {
     private(set) var all: [Integration] = []
     func add(_ integration: Integration) { all.append(integration) }
+}
+
+private final class Counter: @unchecked Sendable {
+    private var count = 0
+    private let lock = NSLock()
+    func add() { lock.withLock { count += 1 } }
+    var value: Int { lock.withLock { count } }
+}
+
+/// Mail's check and every request for iCloud Drive never come back; Calendar hangs on reading only.
+private struct HangingDesk: PermissionDesk {
+    func applies(_ permission: MacPermission) -> Bool { true }
+    func state(_ permission: MacPermission) async -> PermissionState {
+        switch permission {
+        case .mail, .calendar: try? await Task.sleep(for: .seconds(30)); return .granted
+        default: return .granted
+        }
+    }
+    func request(_ permission: MacPermission) async -> PermissionState {
+        if permission == .iCloudDrive { try? await Task.sleep(for: .seconds(30)) }
+        return .granted
+    }
 }

@@ -125,20 +125,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let engine = model.engine
         // Take along only the server actor: PiRPCChat lives on the MainActor, which is blocked here until the reply.
         let piServer = PiRPCChat.shared.ownedServer
+        // Reply exactly once: after a clean shutdown, or after 5 s at the latest. Saving the prompt cache of a 16k
+        // conversation takes about a second; a slow disk, a stuck download or a hanging Apple Events check must not
+        // hold the quit. The timer runs on the main run loop, not in Swift's shared pool: blocked work there cannot
+        // delay it, and nothing waits for a shutdown that never returns (a task group would).
+        let reply = TerminateReply()
         Task.detached {
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { await engine.shutdown(); await piServer?.stopSavingConversation() }
-                // Saving the prompt cache of a 16k conversation takes about a second; a slow disk must not hold the quit.
-                group.addTask { try? await Task.sleep(for: .seconds(5)) }
-                await group.next()
-                group.cancelAll()
-            }
-            // Via the run loop instead of the main queue: this way the reply also arrives when quitting
-            // was triggered from a running MainActor task.
-            RunLoop.main.perform(inModes: [.common, .modalPanel]) {
-                MainActor.assumeIsolated { NSApp.reply(toApplicationShouldTerminate: true) }
-            }
+            await engine.shutdown(); await piServer?.stopSavingConversation()
+            reply.send()
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { reply.send() }
         return .terminateLater
     }
 
@@ -192,6 +188,20 @@ final class ServiceProvider: NSObject {
         DropReader.read(pboard) { result in
             guard let result else { return }
             AppModel.shared.receive(result.payload, items: result.items)
+        }
+    }
+}
+
+/// `NSApp.reply(toApplicationShouldTerminate:)` once, whoever comes first.
+private final class TerminateReply: @unchecked Sendable {
+    private var sent = false
+    private let lock = NSLock()
+    func send() {
+        guard lock.withLock({ defer { sent = true }; return !sent }) else { return }
+        // Via the run loop instead of the main queue: this way the reply also arrives when quitting
+        // was triggered from a running MainActor task.
+        RunLoop.main.perform(inModes: [.common, .modalPanel]) {
+            MainActor.assumeIsolated { NSApp.reply(toApplicationShouldTerminate: true) }
         }
     }
 }

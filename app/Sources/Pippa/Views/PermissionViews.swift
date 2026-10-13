@@ -16,6 +16,10 @@ final class PermissionsModel: ObservableObject {
     /// Allow was pressed but the Mac showed no question (the state did not change): the row says so and its button
     /// opens System Settings, instead of a button that seems to do nothing.
     @Published private(set) var unanswered: Set<MacPermission> = []
+    /// Allow was pressed but nothing came back in time (the dialog never showed, macOS hung): the row offers to try again.
+    @Published private(set) var timedOut: Set<MacPermission> = []
+    /// Long enough to read and answer the Mac's question, short enough that a stuck one does not spin for minutes.
+    static let answerLimit: TimeInterval = 90
     /// The onboarding page is still to come (once, after "Load"). Never in recordings unless they ask for it.
     @Published var onboardingPending: Bool
     /// Closed with × in this run: the pill no longer brings the page back until the next start.
@@ -36,8 +40,7 @@ final class PermissionsModel: ObservableObject {
     /// Reads every state without showing a dialog.
     func refresh() async {
         let shown = MacPermission.allCases.filter { desk.applies($0) }
-        var found: [MacPermission: PermissionState] = [:]
-        for permission in shown { found[permission] = await desk.state(permission) }
+        var found = await desk.states(shown, previous: states)
         rows = shown
         // A row being asked right now keeps its spinner; its answer arrives with `allow`.
         if let asking { found[asking] = states[asking] }
@@ -49,10 +52,18 @@ final class PermissionsModel: ObservableObject {
         guard asking == nil else { return }
         if states[permission] == .denied || unanswered.contains(permission) { return openSettings(permission) }
         asking = permission
+        timedOut.remove(permission)
         // The window the person pressed Allow in (the Welcome or Settings): it comes back to the front afterwards.
         let window = NSApp.keyWindow
         Task {
-            let result = await desk.request(permission)
+            guard let result = await desk.request(permission, limit: Self.answerLimit) else {
+                DiagnosticsLog.shared.event("erlaubnis-zeitueberschreitung", ["recht": permission.rawValue])
+                timedOut.insert(permission)
+                states[permission] = .notAsked
+                asking = nil
+                await refresh()
+                return
+            }
             states[permission] = result
             asking = nil
             await refresh()
@@ -229,6 +240,10 @@ struct PermissionRow: View {
                         .accessibilityHint(T("Opens System Settings.", table: "Settings"))
                 case .unavailable(_)?:
                     StatusBadge(text: T("Will ask", table: "Settings"), symbol: nil, ink: Theme.ink2, fill: Theme.fill2)
+                case .notAsked? where permissions.timedOut.contains(permission):
+                    Button(T("Try Again", table: "Settings")) { permissions.allow(permission) }
+                        .pippa(.tinted)
+                        .disabled(permissions.asking != nil)
                 case .notAsked? where permissions.unanswered.contains(permission):
                     Button(T("Allow…", table: "Settings")) { permissions.openSettings(permission) }
                         .pippa(.secondary)
@@ -248,6 +263,8 @@ struct PermissionRow: View {
     private func detail(_ state: PermissionState?) -> String {
         switch state {
         case .denied?: T("You said no. “Allow…” opens System Settings, where you can turn it on.", table: "Settings")
+        case .notAsked? where permissions.timedOut.contains(permission):
+            T("Your Mac didn’t answer. Try again.", table: "Settings")
         case .notAsked? where permissions.unanswered.contains(permission):
             T("Your Mac didn’t ask. Turn on Pippa in System Settings.", table: "Settings")
         case .unavailable(let why)?: why
