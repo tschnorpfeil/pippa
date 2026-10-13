@@ -38,6 +38,59 @@ cp "$ROOT/runtime/pippa-web/package.json" "$ROOT/runtime/pippa-web/package-lock.
 # The Pi packages are peers of pi-web-access, so npm installs them despite --omit=dev. The running Pi hands its own
 # copies to extensions (jiti aliases in Pi's extension loader), so they and their dangling .bin links go.
 rm -rf "$STAGE/node_modules/@earendil-works"
+# What only those Pi packages needed stays behind otherwise (the provider SDKs openai, @anthropic-ai/sdk, @google/genai,
+# @aws-sdk, …: about 75 MB and 10,000 files). Keep only what pippa-web's own dependencies reach, resolved like Node does.
+python3 - "$STAGE" <<'PY'
+import json, os, shutil, sys
+stage = os.path.realpath(sys.argv[1])  # /var is /private/var on macOS
+modules = os.path.join(stage, "node_modules")
+def manifest(directory):
+    with open(os.path.join(directory, "package.json")) as f:
+        return json.load(f)
+def resolve(name, directory):
+    while True:
+        candidate = os.path.join(directory, "node_modules", name)
+        if os.path.isfile(os.path.join(candidate, "package.json")):
+            return os.path.realpath(candidate)
+        if directory == stage or not directory.startswith(stage):
+            return None
+        directory = os.path.dirname(directory)
+reached, todo = set(), [stage]
+while todo:
+    directory = todo.pop()
+    m = manifest(directory)
+    names = list(m.get("dependencies", {})) + list(m.get("optionalDependencies", {}))
+    names += [n for n in m.get("peerDependencies", {}) if not n.startswith("@earendil-works/")]
+    for name in names:
+        found = resolve(name, directory)
+        if found and found not in reached:
+            reached.add(found)
+            todo.append(found)
+def packages(directory):
+    for entry in sorted(os.listdir(directory)):
+        path = os.path.join(directory, entry)
+        if entry.startswith(".") or not os.path.isdir(path) or os.path.islink(path):
+            continue
+        if entry.startswith("@"):
+            yield from packages(path)
+        else:
+            yield path
+removed = 0
+def prune(directory):
+    global removed
+    for package in packages(directory):
+        if os.path.realpath(package) not in reached:
+            shutil.rmtree(package)
+            removed += 1
+        elif os.path.isdir(os.path.join(package, "node_modules")):
+            prune(os.path.join(package, "node_modules"))
+prune(modules)
+for scope in os.listdir(modules):
+    path = os.path.join(modules, scope)
+    if scope.startswith("@") and os.path.isdir(path) and not os.listdir(path):
+        os.rmdir(path)
+print(f"    pippa-web: {len(reached)} packages kept, {removed} only the Pi packages needed removed")
+PY
 find "$STAGE/node_modules/.bin" -type l ! -exec test -e {} \; -delete
 [[ ! -e "$STAGE/node_modules/@earendil-works/pi-coding-agent" ]] || { echo 'pippa-web ships its test-only Pi (dev dependency)' >&2; exit 1; }
 [[ -f "$STAGE/node_modules/pi-web-access/dist/index.js" ]] || { echo 'pi-web-access missing in pippa-web' >&2; exit 1; }
