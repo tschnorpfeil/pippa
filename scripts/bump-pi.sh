@@ -68,7 +68,7 @@ previous="$root/.build/pi-payload-$old"
 if [[ $gates == 1 && "$old" != "$new" && ! -x "$previous/bin/node" ]]; then
   rm -rf "$previous" "$work/old-repo"
   mkdir -p "$work/old-repo/app/Packaging" "$work/old-repo/scripts"
-  git -C "$root" archive HEAD app/Packaging/pi-release app/Packaging/node-release.json scripts/bundle-pi-payload.sh | tar -x -C "$work/old-repo"
+  git -C "$root" archive HEAD app/Packaging/pi-release app/Packaging/node-release.json scripts/bundle-pi-payload.sh runtime/pippa-local-server | tar -x -C "$work/old-repo"
   if [[ "$(node -p "require('$work/old-repo/app/Packaging/pi-release/package.json').version")" == "$old" ]]; then
     PIPPA_NPM_CACHE="$root/.build/npm-cache" "$work/old-repo/scripts/bundle-pi-payload.sh" "$previous" --with-node
   fi
