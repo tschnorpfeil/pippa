@@ -124,6 +124,10 @@ public struct PippaMCPTools: Sendable {
     let host: PippaMCPHost
     public init(host: PippaMCPHost) { self.host = host }
 
+    /// Pippa reads the app in front itself when the question means it (`FrontQuestion`): the same `front_read` as Pi's
+    /// call, with the same permission steps and read receipt; the result goes into the message (PiRPCChat+Shown.swift).
+    public func readFront() async -> PippaMCPToolResult { await call("front_read", ToolInput([:])) }
+
     // MARK: JSON-RPC
 
     /// One HTTP message (an object or a list). `nil`: nothing to answer (notifications only) → HTTP 202.
@@ -226,9 +230,10 @@ public struct PippaMCPTools: Sendable {
             tool("photos_search", "Fotos suchen",
                  "Find photos by content, place or text (query: one word, in the Mac's language). No query: newest; days: last N days.",
                  ["query": string, "days": integer, "limit": integer]),
-            // The message names the app only ([Im Vordergrund: …], FrontApp.label); the content costs a round, and only
-            // when the question is about it.
-            tool("front_read", "Geöffnetes lesen", "Read the page or document open in front. Only if the question is about it."),
+            // The message names the app ([Im Vordergrund: …], FrontApp.label); a question that points at it already brings
+            // the content (FrontQuestion), this call is for the rest.
+            tool("front_read", "Geöffnetes lesen",
+                 "Read the page or document open in the app named [In front: …]. Call it when the question means it (this, here, the page)."),
         ]
         return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList()
     }

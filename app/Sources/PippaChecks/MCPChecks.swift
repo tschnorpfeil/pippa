@@ -348,6 +348,12 @@ func runMCPChecks() async {
         return first == safari.label(german: true) && again == nil && elsewhere != nil
             && changed == other.label(german: true) && removed == nil && back == other.label(german: true)
     }
+    check("Front app question: pointing words and phrases read what is open; other questions and a bare „das“ do not") {
+        let open = ["Was hältst du hiervon?", "Fass das kurz zusammen", "Worum geht es auf dieser Seite?", "Was steht da?",
+                    "Stimmt das hier?", "What do you think of this?", "Summarize the page", "tl;dr"]
+        let other = ["Wie wird das Wetter morgen?", "Erinnere mich um 8 an den Zahnarzt", "Was ist ein Mietspiegel?", "Hallo Pippa"]
+        return open.allSatisfy(FrontQuestion.meansOpen) && !other.contains(where: FrontQuestion.meansOpen)
+    }
     await checkAsync("MCP front_read: only the chip's app; page text as untrusted data; without chip, permission or window plain text") {
         final class Box<T>: @unchecked Sendable {
             private let lock = NSLock(); private var items: [T] = []
