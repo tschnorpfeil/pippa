@@ -53,6 +53,7 @@
 "Ready now: tidying up, overviews and deadlines. Once my AI has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully." = "Ready now: tidying up, overviews and deadlines. Once my AI has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully.";
 "I can’t get online right now. I’ll keep trying." = "I can’t get online right now. I’ll keep trying.";
 "Pippa is loading her AI · %lld %%" = "Pippa is loading her AI · %lld %%";
+"Pippa is setting up her AI …" = "Pippa is setting up her AI …";
 "Pippa is getting ready to load…" = "Pippa is getting ready to load…";
 "Pippa’s AI isn’t loaded yet (%@)" = "Pippa’s AI isn’t loaded yet (%@)";
 "Pippa’s AI isn’t loaded yet" = "Pippa’s AI isn’t loaded yet";

@@ -387,7 +387,9 @@ struct PermissionsOnboardingPage: View {
     private var subtitle: String {
         var text = T("Your Mac asks you once for each. You can change it later in Settings.", table: "Settings")
         if case .downloading(let progress, _) = setup.state {
-            text += "\n" + T("Pippa keeps loading her AI meanwhile · %lld %%", table: "Settings", Int((progress * 100).rounded()))
+            text += "\n" + (DownloadProgress.isFinishing(progress)
+                ? T("Pippa is setting up her AI meanwhile …", table: "Settings")
+                : T("Pippa keeps loading her AI meanwhile · %lld %%", table: "Settings", DownloadProgress.percent(progress)))
         }
         return text
     }

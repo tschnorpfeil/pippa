@@ -223,7 +223,8 @@ public struct DownloadStallWatch: Sendable {
 
     /// `progress`: current state, `nil` = no download running. Returns whether it is stuck right now.
     public mutating func update(progress: Double?, now: Date = Date()) -> Bool {
-        guard let progress else { last = nil; since = nil; return false }
+        // Every byte in (checking and setting up follow): no new bytes is expected then, not a stall.
+        guard let progress, progress < 1 else { last = nil; since = nil; return false }
         if progress != last || since == nil { last = progress; since = now; return false }
         return now.timeIntervalSince(since ?? now) >= limit
     }

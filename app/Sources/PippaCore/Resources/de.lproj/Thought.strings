@@ -199,6 +199,7 @@
 "Drop something on me!" = "Leg was auf mich!";
 "Remembering that" = "Merke mir das";
 "Loading my AI · %lld%%" = "Lade meine KI · %lld %%";
+"Setting up my AI…" = "Richte meine KI ein …";
 "Searching your photos" = "Suche in deinen Fotos";
 "Remembered: “%@” (instead of “%@”)" = "Gemerkt: „%@“ (statt „%@“)";
 "Remembered: “%@”" = "Gemerkt: „%@“";

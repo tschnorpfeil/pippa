@@ -37,7 +37,8 @@ extension AppModel {
             return T("Pippa is getting ready to load…", table: "App")
         case .downloading(let progress, let remaining):
             if setup.stalled { return Self.offlineText }
-            var s = T("Pippa is loading her AI · %lld %%", table: "App", Int((progress * 100).rounded()))
+            if DownloadProgress.isFinishing(progress) { return T("Pippa is setting up her AI …", table: "App") }
+            var s = T("Pippa is loading her AI · %lld %%", table: "App", DownloadProgress.percent(progress))
             if let r = remaining, r > 0 { s += " · \(Self.remainingText(r))" }
             return s
         case .failed(let problem): return problem.message
@@ -124,9 +125,11 @@ extension AppModel {
         switch modelStatus {
         case .downloading(let progress, _) where canAdoptWithoutDownload:
             return T("Pippa is adopting her AI from %@ · %lld %%", table: "App",
-                     downloadSize?.existingSource ?? T("another app", table: "App"), Int((progress * 100).rounded()))
+                     downloadSize?.existingSource ?? T("another app", table: "App"), DownloadProgress.percent(progress))
+        case .downloading(let progress, _) where DownloadProgress.isFinishing(progress):
+            return T("Pippa is setting up her AI …", table: "App")
         case .downloading(let progress, let remaining):
-            let percent = Int((progress * 100).rounded())
+            let percent = DownloadProgress.percent(progress)
             var s = T("Pippa is loading her AI · %lld %%", table: "App", percent)
             if let r = remaining, r > 0 { s += " · \(Self.remainingText(r))" }
             return s

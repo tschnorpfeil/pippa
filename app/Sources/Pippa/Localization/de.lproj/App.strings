@@ -53,6 +53,7 @@
 "Ready now: tidying up, overviews and deadlines. Once my AI has loaded, invoices and large documents join in, and I’ll sort unclear documents more carefully." = "Schon jetzt: Ordnen, Übersichten und Fristen. Nach dem Laden kommen Rechnungen und große Dokumente dazu, und unklare Unterlagen ordne ich dann genauer.";
 "I can’t get online right now. I’ll keep trying." = "Ich komme gerade nicht ins Internet – ich versuche es weiter.";
 "Pippa is loading her AI · %lld %%" = "Pippa lädt ihre KI · %lld %%";
+"Pippa is setting up her AI …" = "Pippa richtet ihre KI ein …";
 "Pippa is getting ready to load…" = "Pippa bereitet das Laden vor …";
 "Pippa’s AI isn’t loaded yet (%@)" = "Pippas KI ist noch nicht geladen (%@)";
 "Pippa’s AI isn’t loaded yet" = "Pippas KI ist noch nicht geladen";

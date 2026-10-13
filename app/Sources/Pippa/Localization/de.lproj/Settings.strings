@@ -85,6 +85,8 @@
 "Pippa is getting ready" = "Pippa macht sich bereit";
 "I’m taking over my AI from %@, without extra space …" = "Ich übernehme meine KI aus %@, ohne extra Platz …";
 "I’m setting myself up …" = "Ich richte mich ein …";
+"I’m checking my AI and setting it up …" = "Ich prüfe meine KI und richte sie ein …";
+"Pippa is setting up her AI meanwhile …" = "Pippa richtet nebenbei ihre KI ein …";
 "Pippa is loading her AI" = "Pippa lädt ihre KI";
 "I’m loading my AI …" = "Ich lade meine KI …";
 "Hi, I’m Pippa" = "Hallo, ich bin Pippa";

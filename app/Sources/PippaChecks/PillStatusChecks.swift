@@ -45,7 +45,21 @@ func runPillStatusChecks() {
         PillStatus.make(phase: nil, loading: 0.42, moment: .invite, language: "de")
             == PillStatus(tone: .working, label: "Lade meine KI · 42 %", progress: 0.42)
             && PillStatus.make(phase: .writing, loading: 0.5, language: "de").label != "Lade meine KI · 50 %"
-            && PillStatus.make(phase: nil, loading: 1.7).progress == 1
+    }
+
+    check("Download: after the last byte the pill and texts say checking and setting up, never a bare 100 %") {
+        let finishing = PillStatus.make(phase: nil, loading: 1, language: "de")
+        let english = PillStatus.make(phase: nil, loading: 1.7, language: "en")
+        var watch = DownloadStallWatch(limit: 30)
+        let start = Date()
+        _ = watch.update(progress: 1, now: start)
+        return finishing == PillStatus(tone: .working, label: "Richte meine KI ein …") && english.label == "Setting up my AI…"
+            && !finishing.label.contains("%")
+            && PillStatus.make(phase: nil, loading: 0.997, language: "de").label == "Lade meine KI · 99 %"
+            && DownloadProgress.percent(0.996) == 99 && DownloadProgress.percent(0.42) == 42
+            && !DownloadProgress.isFinishing(0.999) && DownloadProgress.isFinishing(1)
+            // Checking the file brings no new bytes: that is not a stalled download.
+            && !watch.update(progress: 1, now: start.addingTimeInterval(120))
     }
 
     check("Living pill: names lose endings and get shortened, never a path or extension in view") {
@@ -68,6 +82,7 @@ func runPillStatusChecks() {
             labels += [PillStatus.make(phase: nil, outcome: .answered, language: language).label,
                        PillStatus.make(phase: nil, outcome: .failed, language: language).label]
             labels.append(PillStatus.make(phase: nil, loading: 0.3, language: language).label)
+            labels.append(PillStatus.make(phase: nil, loading: 1, language: language).label)
             labels += [PillMoment.finished, .undone, .invite].map { PillStatus.make(phase: nil, moment: $0, language: language).label }
         }
         return labels.allSatisfy { label in

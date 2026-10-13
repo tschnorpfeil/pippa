@@ -19,6 +19,11 @@ struct PiSetupContent: View {
                         line: source.map { T("I’m taking over my AI from %@, without extra space …", table: "Settings", $0) }
                             ?? T("I’m setting myself up …", table: "Settings"),
                         progress: nil, remaining: nil)
+            case .downloading(let progress, _) where DownloadProgress.isFinishing(progress):
+                // Every byte is in: checking and setting up take a while, without a bar that already reads 100 %.
+                waiting(title: T("Pippa is getting ready", table: "Settings"),
+                        line: T("I’m checking my AI and setting it up …", table: "Settings"),
+                        progress: nil, remaining: nil)
             case .downloading(let progress, let remaining):
                 // Stuck (no new data for 30 s or offline): say so instead of a bar that silently stands still.
                 waiting(title: T("Pippa is loading her AI", table: "Settings"),

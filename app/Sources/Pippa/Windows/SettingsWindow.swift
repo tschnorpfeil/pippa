@@ -233,8 +233,10 @@ private struct KnowledgeRow: View {
         switch setup.update {
         case .offer?:
             return T("A new AI is ready to load. Until then, Pippa keeps working with the one she has.", table: "Settings")
+        case .downloading(let progress, _)? where DownloadProgress.isFinishing(progress):
+            return T("Pippa is setting up her AI …", table: "App")
         case .downloading(let progress, let remaining)?:
-            var text = T("Pippa is loading her AI · %lld %%", table: "App", Int((progress * 100).rounded()))
+            var text = T("Pippa is loading her AI · %lld %%", table: "App", DownloadProgress.percent(progress))
             if let remaining, remaining > 0 { text += " · " + AppModel.remainingText(remaining) }
             return text
         case .failed(let reason)?:
