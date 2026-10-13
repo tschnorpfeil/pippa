@@ -232,8 +232,7 @@ public struct PippaMCPTools: Sendable {
                  ["query": string, "days": integer, "limit": integer]),
             // The message names the app ([Im Vordergrund: …], FrontApp.label); a question that points at it already brings
             // the content (FrontQuestion), this call is for the rest.
-            tool("front_read", "Geöffnetes lesen",
-                 "Read the page or document open in the app named [In front: …]. Call it when the question means it (this, here, the page)."),
+            tool("front_read", "Geöffnetes lesen", "Read the page or document open in front when the question means it (this, here, the page)."),
         ]
         return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList()
     }
