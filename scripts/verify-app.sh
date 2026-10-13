@@ -132,10 +132,10 @@ native_executables=()
 while IFS= read -r -d '' file; do
   if [[ "$file" != *.node ]] && file -b "$file" | grep -q 'Mach-O.*executable'; then native_executables+=("$file"); fi
 done < <(find "$APP/Contents/Resources/pi-payload" "$APP/Contents/Resources/pippa-web" -type f -perm -111 -print0)
-for file in ${native_executables[@]+${native_executables[@]+"${native_executables[@]}"}}; do
+for file in ${native_executables[@]+"${native_executables[@]}"}; do
   expect_entitlements "$file" "${file#"$APP/"}" "-"
 done
-signed_helpers=("$APP/Contents/Helpers/node" "$APP/Contents/Helpers/llama-server" "$APP/Contents/Helpers/fd" "$APP/Contents/Helpers/rg" ${native_executables[@]+${native_executables[@]+"${native_executables[@]}"}})
+signed_helpers=("$APP/Contents/Helpers/node" "$APP/Contents/Helpers/llama-server" "$APP/Contents/Helpers/fd" "$APP/Contents/Helpers/rg" ${native_executables[@]+"${native_executables[@]}"})
 while IFS= read -r -d '' file; do signed_helpers+=("$file"); done < <(find "$APP/Contents/Resources/pi-payload" "$APP/Contents/Resources/pippa-web" -type f -name '*.node' -print0)
 for file in "${signed_helpers[@]}"; do
   codesign --verify --strict "$file" 2>/dev/null || fail "${file#"$APP/"} invalidly signed"
@@ -193,7 +193,7 @@ cp "$APP/Contents/Helpers/node" "$WORK/bin/node"
 found="$(HOME="$WORK/home" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0 "$WORK/bin/node" "$PAYLOAD/release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js" --version 2>&1)" ||
   fail "pinned Pi CLI does not start with the copied Node: $found"
 [[ "$found" == "$pin" ]] || fail "pi --version from the payload: $found, expected $pin"
-esbuild="$(printf '%s\n' ${native_executables[@]+${native_executables[@]+"${native_executables[@]}"}} | grep '/pi-payload/' | grep -m1 '/esbuild$' || true)"
+esbuild="$(printf '%s\n' ${native_executables[@]+"${native_executables[@]}"} | grep '/pi-payload/' | grep -m1 '/esbuild$' || true)"
 if [[ -n "$esbuild" ]]; then
   cp "$esbuild" "$WORK/bin/esbuild"
   "$WORK/bin/esbuild" --version >/dev/null || fail "payload esbuild does not run outside the bundle"
