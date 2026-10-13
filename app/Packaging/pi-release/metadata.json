@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"version": "1.2.0",
 	"sourceCommit": "06a466935536f8c9bcacb2d5efc0fc021be1bdff",
-	"publishedAt": "2026-10-12T23:03:25.459Z",
+	"publishedAt": "2026-10-12T23:03:31.125Z",
 	"packages": [
 		{
 			"name": "@earendil-works/pi-agent-core",
