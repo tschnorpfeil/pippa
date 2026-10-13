@@ -1,113 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--
-  Template for Pippa.app/Contents/Info.plist. scripts/build-app.sh replaces
-  __VERSION__ (Pippa.version from PippaCore.swift), __BUILD__ (commit count)
-  and __YEAR__.
-  Visible texts here are English (development language, fallback). Translations:
-  app/Packaging/Localization/{en,de}.lproj/InfoPlist.strings (key = Info.plist key;
-  for CFBundleTypeName the English name) and ServicesMenu.strings (key = English
-  Services menu title). build-app.sh copies them to Contents/Resources/<language>.lproj.
--->
 <plist version="1.0">
 <dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
-	<key>CFBundleLocalizations</key>
-	<array>
-		<string>en</string>
-		<string>de</string>
-	</array>
 	<key>CFBundleAllowMixedLocalizations</key>
 	<true/>
-	<key>CFBundleExecutable</key>
-	<string>Pippa</string>
-	<key>CFBundleIdentifier</key>
-	<string>io.github.tschnorpfeil.pippa</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>Pippa</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>Pippa</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>__VERSION__</string>
-	<key>CFBundleVersion</key>
-	<string>__BUILD__</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
-	<key>CFBundleSupportedPlatforms</key>
-	<array>
-		<string>MacOSX</string>
-	</array>
-	<key>LSMinimumSystemVersion</key>
-	<string>15.0</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.productivity</string>
-	<key>LSUIElement</key>
-	<true/>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSSupportsAutomaticTermination</key>
-	<false/>
-	<key>NSHumanReadableCopyright</key>
-	<string>© __YEAR__ Tobias Schnorpfeil.</string>
-
-	<!-- Texts of the system prompts (macOS asks only when the feature is used).
-	     Calendar and Reminders: add deadlines and remove them again (undo), hence full access.
-	     Apple Events: read the selected mail and the active Excel sheet; nothing is sent without approval.
-	     Folders (Desktop, Documents, Downloads), external drives and iCloud Drive: without the App Sandbox, macOS asks on
-	     first access. Contacts: read only. The "What Pippa may do" page (onboarding, Settings) asks each one on its own button. -->
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>When you ask, Pippa reads your appointments for the period you ask about, and adds deadlines from your letters to Calendar, which it can remove again.</string>
-	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Pippa adds deadlines from your letters to Reminders when you ask, and can remove them again.</string>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>When you ask, Pippa reads the email you selected in Mail and the table you’re looking at in Excel, opens Numbers tables you give her to read them, and searches your photos and notes. Nothing is sent without your approval.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>When you ask for pictures, Pippa shows the matching photos from your library. She doesn’t change or upload anything.</string>
-	<key>NSDesktopFolderUsageDescription</key>
-	<string>Pippa reads and tidies files on your Desktop when you ask her to. You can undo her changes.</string>
-	<key>NSDocumentsFolderUsageDescription</key>
-	<string>Pippa reads and tidies files in your Documents folder when you ask her to. You can undo her changes.</string>
-	<key>NSDownloadsFolderUsageDescription</key>
-	<string>Pippa reads and tidies files in your Downloads folder when you ask her to. You can undo her changes.</string>
-	<key>NSRemovableVolumesUsageDescription</key>
-	<string>Pippa reads and tidies files on your USB sticks and external disks when you ask her to. You can undo her changes.</string>
-	<key>NSFileProviderDomainUsageDescription</key>
-	<string>Pippa reads and tidies files in your cloud folders (iCloud Drive, OneDrive, Dropbox, Google Drive) when you ask her to. You can undo her changes.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>When you ask, Pippa looks up addresses and phone numbers in your contacts. She doesn’t change them.</string>
-
-	<!-- Automatic updates (Sparkle 2, see docs/development.md "Releasing").
-	     Check daily, download silently and install on the next quit; no "Check for updates automatically?"
-	     dialog because the values are already set here.
-	     SUPublicEDKey: public EdDSA key; the private one lives only in the developer's keychain
-	     (generate_keys) and signs every update. Replaced in October 2026 after 0.3.6; older installs accept it through Sparkle's
-	     Developer ID fallback (docs/development.md "Update key").
-	     Without the App Sandbox, Sparkle installs directly: no SUEnableInstallerLauncherService,
-	     no SUEnableDownloaderService; build-app.sh removes Sparkle's XPC services from the bundle
-	     (Sparkle docs, "Sandboxing": not sandboxed means the XPC services are not needed and may be removed). -->
-	<key>SUFeedURL</key>
-	<string>https://github.com/tschnorpfeil/pippa/releases/latest/download/appcast.xml</string>
-	<key>SUPublicEDKey</key>
-	<string>iapp2ewnuhO1qQZ1NmiV1eLn5OxjykHnHI0/nj+G3Ck=</string>
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
-	<key>SUAutomaticallyUpdate</key>
-	<true/>
-	<key>SUAllowsAutomaticUpdates</key>
-	<true/>
-	<key>SUScheduledCheckInterval</key>
-	<integer>86400</integer>
-	<key>SUVerifyUpdateBeforeExtraction</key>
-	<true/>
-
-	<!-- Drag files and folders onto the Dock or app icon. -->
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -123,10 +23,63 @@
 			</array>
 		</dict>
 	</array>
-
-	<!-- Services menu: "Look at with Pippa" / "Mit Pippa ansehen" (ServicesMenu.strings) for files and selected text.
-	     The app must set NSApp.servicesProvider and
-	     implement pippaService(_:userData:error:). -->
+	<key>CFBundleExecutable</key>
+	<string>Pippa</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.tschnorpfeil.pippa</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>de</string>
+	</array>
+	<key>CFBundleName</key>
+	<string>Pippa</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>MacOSX</string>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>When you ask, Pippa reads the email you selected in Mail and the table you’re looking at in Excel, opens Numbers tables you give her to read them, and searches your photos and notes. Nothing is sent without your approval.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>When you ask, Pippa reads your appointments for the period you ask about, and adds deadlines from your letters to Calendar, which it can remove again.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>When you ask, Pippa looks up addresses and phone numbers in your contacts. She doesn’t change them.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Pippa reads and tidies files on your Desktop when you ask her to. You can undo her changes.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Pippa reads and tidies files in your Documents folder when you ask her to. You can undo her changes.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Pippa reads and tidies files in your Downloads folder when you ask her to. You can undo her changes.</string>
+	<key>NSFileProviderDomainUsageDescription</key>
+	<string>Pippa reads and tidies files in your cloud folders (iCloud Drive, OneDrive, Dropbox, Google Drive) when you ask her to. You can undo her changes.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© __YEAR__ Tobias Schnorpfeil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>When you ask for pictures, Pippa shows the matching photos from your library. She doesn’t change or upload anything.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Pippa adds deadlines from your letters to Reminders when you ask, and can remove them again.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Pippa reads and tidies files on your USB sticks and external disks when you ask her to. You can undo her changes.</string>
 	<key>NSServices</key>
 	<array>
 		<dict>
@@ -152,5 +105,21 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>SUAllowsAutomaticUpdates</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/tschnorpfeil/pippa/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>BM/Djr2FKjYH9JN70SGI8LxeGtSnwB1yfDPPOPl5syw=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>
