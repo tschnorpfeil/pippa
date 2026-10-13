@@ -67,6 +67,12 @@ enum PippaMCPService {
         await MailDraftOfferRule.save(offer, with: PippaMCPWriteTools(host: currentHost))
     }
 
+    /// The app in front, read by Pippa itself before Pi answers (`FrontQuestion`): same permission steps and receipt
+    /// as Pi's `front_read`. The chip must be staged (`FrontAppStage`).
+    static func readFront() async -> PippaMCPToolResult {
+        await PippaMCPTools(host: currentHost).readFront()
+    }
+
     /// Bring mail to the front ("Entwurf öffnen"). With PIPPA_DEMO=1 nothing (no real apps).
     static func showMail() async {
         guard DevEnvironment.value("PIPPA_DEMO") != "1",

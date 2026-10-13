@@ -393,7 +393,8 @@ final class PiRPCChat {
     /// `onReset` (letter draft): if set, only the text after the last tool call counts; what Pi wrote before
     /// ("Ich lese den Brief …") disappears again, so the draft is only the draft.
     func chat(_ text: String, taskID: String, onWork: WorkEventHandler?, onDelta: @escaping @Sendable (String) -> Void,
-              onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil) async throws -> String {
+              onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil,
+              carriedReads: [PippaMCPReadNote] = []) async throws -> String {
         lastActions = nil
         searchFiles = []
         changes = []
@@ -401,6 +402,8 @@ final class PiRPCChat {
         // Read and write receipts belong to the answer that triggered them.
         _ = PippaMCPService.readNotes.take()
         _ = PippaMCPService.writeNotes.take()
+        // What Pippa read for this message before Pi started (the app in front, PiRPCChat+Shown.swift).
+        for note in carriedReads { PippaMCPService.readNotes.append(note) }
         // First the model, then Pi: Pi starts only if the server responds.
         // If the own online service works, no local model is needed.
         let held = Self.onlineConnection == nil && Self.subscriptionModel == nil ? try await modelLease(onWork: onWork) : nil
