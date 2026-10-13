@@ -75,8 +75,10 @@ public enum FrontQuestion {
         "hier", "hiervon", "hierzu", "hierüber", "hieraus", "hierin", "hierauf", "hiermit",
         "dies", "diese", "dieser", "dieses", "diesem", "diesen",
         "seite", "webseite", "website", "artikel", "beitrag", "dokument", "zusammenfassen", "zusammenfassung",
+        // With Mail in front ("Antworte bitte", "Was will sie von mir?" after "Lies die Mail")
+        "mail", "antworte", "antworten", "beantworte", "beantworten",
         // English
-        "this", "here", "page", "article", "post", "document", "summarize", "summarise", "summary",
+        "this", "here", "page", "article", "post", "document", "summarize", "summarise", "summary", "email", "reply", "respond",
     ]
     static let phrases: [String] = ["tl;dr", "was steht", "worum geht", "was meinst du dazu", "what does it say", "what's it about", "what is it about"]
 

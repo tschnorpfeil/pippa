@@ -350,7 +350,8 @@ func runMCPChecks() async {
     }
     check("Front app question: pointing words and phrases read what is open; other questions and a bare „das“ do not") {
         let open = ["Was hältst du hiervon?", "Fass das kurz zusammen", "Worum geht es auf dieser Seite?", "Was steht da?",
-                    "Stimmt das hier?", "What do you think of this?", "Summarize the page", "tl;dr"]
+                    "Stimmt das hier?", "What do you think of this?", "Summarize the page", "tl;dr",
+                    "Antworte bitte freundlich", "Was will er in der Mail?", "Reply that I can come"]
         let other = ["Wie wird das Wetter morgen?", "Erinnere mich um 8 an den Zahnarzt", "Was ist ein Mietspiegel?", "Hallo Pippa"]
         return open.allSatisfy(FrontQuestion.meansOpen) && !other.contains(where: FrontQuestion.meansOpen)
     }
