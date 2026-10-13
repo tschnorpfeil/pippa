@@ -24,13 +24,17 @@ enum BundleVerification {
         let llama = try child(bundle, "llama-server", ["--version"])
         guard llama.contains("version:") else { throw Failure.llama }
         progress("llama_ok")
+        // esbuild came with Pi 1.1 and is tested when present; Pi 1.2 no longer ships it.
         let native = release.appendingPathComponent("node_modules/@earendil-works/pi-tui/native/darwin/prebuilds/darwin-arm64/darwin-platform.node")
         let js = """
         const {createRequire}=await import('node:module');
+        const {existsSync}=await import('node:fs');
         createRequire(import.meta.url)(process.argv[1]);
-        const esbuild=await import(process.argv[2]);
-        const result=await esbuild.transform('const x:number=1',{loader:'ts'});
-        if(!result.code.includes('const x = 1'))throw Error('esbuild failed');
+        if(existsSync(new URL(process.argv[2]))){
+          const esbuild=await import(process.argv[2]);
+          const result=await esbuild.transform('const x:number=1',{loader:'ts'});
+          if(!result.code.includes('const x = 1'))throw Error('esbuild failed');
+        }
         if(process.version!==process.argv[3])throw Error('Node version mismatch');
         console.log('pippa_node_ok',process.version);
         """
