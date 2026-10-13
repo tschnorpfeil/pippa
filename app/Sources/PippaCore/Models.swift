@@ -284,9 +284,11 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
     public static let endpoint = ProcessInfo.processInfo.environment["PIPPA_HF_ENDPOINT"] ?? "https://huggingface.co"
 
     public let directory: URL
+    /// Where `download` fetches from; checks point it at a loopback fixture.
+    public var source = ModelDownloader.endpoint
     public init(directory: URL) { self.directory = directory }
 
-    public static func url(repo: String, revision: String, path: String) -> URL {
+    public static func url(repo: String, revision: String, path: String, endpoint: String = endpoint) -> URL {
         let encoded = path.split(separator: "/").map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }.joined(separator: "/")
         return URL(string: "\(endpoint)/\(repo)/resolve/\(revision)/\(encoded)")!
     }
@@ -453,6 +455,9 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
     private var handle: FileHandle?
     private var continuation: CheckedContinuation<Int, Error>?
     private var received: Int64 = 0
+    /// Full size of the file being fetched: once that many bytes are written the transfer is done, completion or not.
+    private var expected: Int64 = 0
+    private var lastActivity = Date()
     private var onData: ((Int64) -> Void)?
     private var activeTask: URLSessionDataTask?
     private var transferCancelled = false
@@ -460,6 +465,8 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
     /// Bytes written since the last space check (checked about every 256 MB).
     private var sinceSpaceCheck: Int64 = 0
     private let lock = NSLock()
+    /// No bytes and no completion for this long ends the attempt (URLSession's own idle timeout is 60 s).
+    public var stallTimeout: TimeInterval = 90
 
     /// Downloads all files. `progress(done 0…1, remaining time in s)`. Files from `existing` are adopted instead of downloaded.
     /// If one does not match, `rejected` reports its hash; it is then downloaded only with `allowNetwork`, else `AdoptionFailed`.
@@ -515,7 +522,7 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
                 if have >= file.size { break }
                 if startBytes == nil { startBytes = base + have }
                 do {
-                    try await fetch(Self.url(repo: model.repo, revision: pinned.revision, path: file.path), to: part, from: have) { bytes in
+                    try await fetch(Self.url(repo: model.repo, revision: pinned.revision, path: file.path, endpoint: source), to: part, from: have, size: file.size) { bytes in
                         let done = base + bytes
                         let elapsed = Date().timeIntervalSince(started)
                         let rate = elapsed > 2 ? Double(done - (startBytes ?? 0)) / elapsed : 0
@@ -528,6 +535,8 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
                     throw writeFailure(failure.underlying, remaining: file.size - max(0, Self.fileSize(part)))
                 } catch {
                     if Task.isCancelled { throw CancellationError() }
+                    // All bytes are in even though the attempt failed (for example the connection dropped after the last byte).
+                    if Self.fileSize(part) >= file.size { continue }
                     attempts += 1
                     if attempts > 8 { DiagnosticsLog.shared.event("download-aufgegeben", ["versuche": String(attempts)]); throw PippaError.downloadFailed("Bitte Internetverbindung prüfen. Es geht dort weiter, wo es aufgehört hat.") }
                     try await Task.sleep(for: .seconds(Double(attempts) * 3))
@@ -569,7 +578,7 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
-    private func fetch(_ url: URL, to part: URL, from offset: Int64, onBytes: @escaping (Int64) -> Void) async throws {
+    private func fetch(_ url: URL, to part: URL, from offset: Int64, size: Int64, onBytes: @escaping (Int64) -> Void) async throws {
         if !FileManager.default.fileExists(atPath: part.path) { FileManager.default.createFile(atPath: part.path, contents: nil) }
         let fh: FileHandle
         do { fh = try FileHandle(forWritingTo: part) } catch { throw WriteFailure(underlying: error) }
@@ -583,7 +592,30 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
             try? fh.close()
             lock.withLock { handle = nil; onData = nil; activeTask = nil }
         }
-        lock.withLock { handle = fh; received = offset; onData = onBytes; transferCancelled = false; writeError = nil; sinceSpaceCheck = 0 }
+        lock.withLock {
+            handle = fh; received = offset; expected = size; onData = onBytes
+            transferCancelled = false; writeError = nil; sinceSpaceCheck = 0; lastActivity = Date()
+        }
+        // Never wait forever for URLSession: a transfer without bytes or completion for `stallTimeout` ends the attempt.
+        let stall = stallTimeout
+        let watchdog = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(min(5, stall / 4)))
+                guard let self, !Task.isCancelled else { return }
+                let cont: CheckedContinuation<Int, Error>? = self.lock.withLock {
+                    guard self.continuation != nil, Date().timeIntervalSince(self.lastActivity) > stall else { return nil }
+                    self.activeTask?.cancel(); self.activeTask = nil
+                    defer { self.continuation = nil }
+                    return self.continuation
+                }
+                if let cont {
+                    DiagnosticsLog.shared.event("download-haengt")
+                    cont.resume(throwing: PippaError.downloadFailed("Der Download kam nicht weiter."))
+                    return
+                }
+            }
+        }
+        defer { watchdog.cancel() }
         _ = try await withTaskCancellationHandler {
             try Task.checkCancellation()
             return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Int, Error>) in
@@ -600,38 +632,57 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
         }
     }
 
+    /// Takes the waiting continuation exactly once and detaches the task, so its later callbacks change nothing. Call with `lock` held.
+    private func takeContinuation() -> CheckedContinuation<Int, Error>? {
+        let cont = continuation
+        continuation = nil; activeTask = nil
+        return cont
+    }
+
+    // Each attempt has its own URLSession but shares this delegate: callbacks of an older, cancelled task are ignored,
+    // so they can neither write into the new attempt's file nor end its wait.
+
     public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
                            completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         lock.lock()
-        defer { lock.unlock() }
+        guard dataTask === activeTask else { lock.unlock(); completionHandler(.cancel); return }
+        lastActivity = Date()
+        var failure: Error?
         do {
-        if status == 200 {
-            // Server ignores Range: start from the beginning.
-            do { try handle?.truncate(atOffset: 0); try handle?.seek(toOffset: 0) } catch { throw WriteFailure(underlying: error) }
-            received = 0
-        } else if status == 206 {
-            let range = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Range") ?? ""
-            guard range.hasPrefix("bytes \(received)-") else { throw PippaError.downloadFailed("Der Download konnte nicht fortgesetzt werden.") }
-            do { _ = try handle?.seekToEnd() } catch { throw WriteFailure(underlying: error) }
+            if status == 200 {
+                // Server ignores Range: start from the beginning.
+                do { try handle?.truncate(atOffset: 0); try handle?.seek(toOffset: 0) } catch { throw WriteFailure(underlying: error) }
+                received = 0
+            } else if status == 206 {
+                let range = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Range") ?? ""
+                guard range.hasPrefix("bytes \(received)-") else { throw PippaError.downloadFailed("Der Download konnte nicht fortgesetzt werden.") }
+                do { _ = try handle?.seekToEnd() } catch { throw WriteFailure(underlying: error) }
+            } else {
+                throw PippaError.downloadFailed("Antwort \(status)")
+            }
+        } catch { failure = error }
+        let cont = failure == nil ? nil : takeContinuation()
+        lock.unlock()
+        if let failure {
+            completionHandler(.cancel)
+            cont?.resume(throwing: failure)
         } else {
-            completionHandler(.cancel)
-            continuation?.resume(throwing: PippaError.downloadFailed("Antwort \(status)")); continuation = nil
-            return
-        }
-        completionHandler(.allow)
-        } catch {
-            completionHandler(.cancel)
-            continuation?.resume(throwing: error); continuation = nil
+            completionHandler(.allow)
         }
     }
 
     public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         lock.lock()
-        do { try handle?.write(contentsOf: data) }
+        guard dataTask === activeTask else { lock.unlock(); return }
+        lastActivity = Date()
+        // Never write past the expected size: extra bytes would only spoil a complete file.
+        let room = expected > 0 ? max(0, expected - received) : Int64(data.count)
+        let chunk = Int64(data.count) > room ? data.prefix(Int(room)) : data
+        do { try handle?.write(contentsOf: chunk) }
         catch { writeError = WriteFailure(underlying: error); activeTask?.cancel(); lock.unlock(); return }
-        received += Int64(data.count)
-        sinceSpaceCheck += Int64(data.count)
+        received += Int64(chunk.count)
+        sinceSpaceCheck += Int64(chunk.count)
         if sinceSpaceCheck >= 256 << 20 {
             sinceSpaceCheck = 0
             // Other programs may be filling the disk right now: better to stop beforehand than fill the Mac completely.
@@ -640,15 +691,20 @@ public final class ModelDownloader: NSObject, URLSessionDataDelegate, @unchecked
                 activeTask?.cancel(); lock.unlock(); return
             }
         }
+        // All bytes are in: done, whether or not URLSession ever reports completion (it did not, after a reset at the end).
+        var done: CheckedContinuation<Int, Error>?
+        if expected > 0, received >= expected { dataTask.cancel(); done = takeContinuation() }
         let r = received, cb = onData
         lock.unlock()
         cb?(r)
+        done?.resume(returning: 0)
     }
 
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         lock.lock()
-        let cont = continuation; continuation = nil
+        guard task === activeTask else { lock.unlock(); return }
         let failure = writeError
+        let cont = takeContinuation()
         lock.unlock()
         if let failure { cont?.resume(throwing: failure) }
         else if let error { cont?.resume(throwing: error) } else { cont?.resume(returning: 0) }
