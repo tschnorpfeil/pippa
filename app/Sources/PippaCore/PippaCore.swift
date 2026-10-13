@@ -2,7 +2,7 @@ import Foundation
 
 /// Common version and paths of Pippa.
 public enum Pippa {
-    public static let version = "0.3.9"
+    public static let version = "0.3.10"
 
     /// ~/Library/Application Support/Pippa
     public static var supportDirectory: URL {
