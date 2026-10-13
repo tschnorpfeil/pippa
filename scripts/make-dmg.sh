@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packs dist/Pippa.app into dist/Pippa.dmg (UDZO, volume "Pippa") with an
+# Packs dist/Pippa.app into dist/Pippa.dmg (ULMO, volume "Pippa") with an
 # Applications link (named "Programme"), background image and, if Finder plays
 # along, window layout. Optionally notarizes and staples.
 #
@@ -148,9 +148,11 @@ else
 fi
 
 # --- Compress ----------------------------------------------------------------
-say "Compressing to $DMG (UDZO)"
+# ULMO (LZMA) instead of UDZO (zlib): about a quarter smaller for the same contents (Node and the Pi packages compress
+# much better with LZMA). macOS reads it from 10.15 on, Pippa needs 15; Sparkle mounts updates with hdiutil as well.
+say "Compressing to $DMG (ULMO)"
 rm -f "$DMG"
-hdiutil convert -quiet "$WORK/rw.dmg" -format UDZO -imagekey zlib-level=9 -o "$DMG"
+hdiutil convert -quiet "$WORK/rw.dmg" -format ULMO -o "$DMG"
 if [[ -n "${PIPPA_SIGN_IDENTITY:-}" ]]; then
   codesign --force --timestamp --sign "$PIPPA_SIGN_IDENTITY" "$DMG"
 fi
