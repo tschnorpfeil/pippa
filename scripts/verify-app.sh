@@ -98,6 +98,7 @@ done
 cmp -s "$ROOT/runtime/pippa-web/package-lock.json" "$WEB/package-lock.json" || fail "bundled web access lockfile differs from this checkout; rebuild the app"
 cmp -s "$ROOT/runtime/pippa-web/index.ts" "$WEB/index.ts" || fail "bundled web access settings differ from this checkout; rebuild the app"
 [[ ! -e "$WEB/node_modules/@earendil-works/pi-coding-agent" ]] || fail "pippa-web ships its test-only Pi (dev dependency)"
+[[ ! -e "$WEB/node_modules/openai" ]] || fail "pippa-web ships the Pi packages' provider SDKs (openai); bundle-web.sh prunes them"
 ok "web access (pi-web-access) in Contents/Resources/pippa-web, same as this checkout"
 # Pippa's abilities: exactly the folders of runtime/pippa-skills, each with its SKILL.md.
 expected_skills="$(find "$ROOT/runtime/pippa-skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')"
