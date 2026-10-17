@@ -86,7 +86,7 @@ if [[ $gates == 1 ]]; then
   PIPPA_PI_PAYLOAD="$payload" node --experimental-strip-types --test "$root"/runtime/pippa-tools/*.test.mjs >"$log" 2>&1 || failed+=("pippa-tools (.build/bump-tools.log)")
   log="$root/.build/bump-local-server.log"
   PIPPA_PI_PAYLOAD="$payload" node --experimental-strip-types --test "$root"/runtime/pippa-local-server/test/*.test.mjs >"$log" 2>&1 || failed+=("pippa-local-server (.build/bump-local-server.log)")
-  grep -q '^ℹ skipped 0' "$log" || failed+=("pippa-local-server skipped tests")
+  grep -qE '^(ℹ|#) skipped 0$' "$log" || failed+=("pippa-local-server skipped tests")
   node "$root/scripts/pi-rpc-smoke.mjs" "$payload" "$new" || failed+=("RPC smoke")
   swift build --package-path "$root/app" --product PippaChecks >"$root/.build/bump-swift.log" 2>&1 || failed+=("swift build (.build/bump-swift.log)")
   bin="$(swift build --package-path "$root/app" --show-bin-path)"

@@ -4,8 +4,9 @@ import Foundation
 
 // "Pippa knows the app in front." When the person calls Pippa, the app they were in is remembered before Pippa
 // takes the focus (FrontmostTracker in the app). Only a label goes into Pi's message: app name and window title,
-// 10 to 20 tokens (`FrontApp.label`), once per conversation and again only when the chip changes (`FrontLabelMemo`). The content comes only on request, through Pippa's read tool `front_read`
-// (PippaMCPTools.swift), when the question is about it ("was steht hier?", "fass das zusammen").
+// 10 to 20 tokens (`FrontApp.label`), once per conversation and again only when the chip changes (`FrontLabelMemo`). The content comes only when the question is about it ("was steht hier?",
+// "fass das zusammen"): Pippa reads it itself when the question points at it (`FrontQuestion`), otherwise Pi can ask with
+// `front_read` (PippaMCPTools.swift).
 // The person sees the label as a chip above the input field and can remove it with one click; without the chip,
 // neither the label nor the content goes anywhere, also not with the online model.
 
@@ -61,6 +62,33 @@ public struct FrontLabelMemo: Sendable {
         guard sent[conversation] != label else { return nil }
         sent[conversation] = label
         return label
+    }
+}
+
+/// Does the question mean what is open in front ("Was hältst du hiervon?", "Fass die Seite zusammen", "What is this about?")?
+/// Then Pippa reads it itself before Pi answers: a small local model given only the label answered "Ich kann nicht sehen,
+/// was in Safari angezeigt wird" instead of calling `front_read`. Pointing words only, never a bare "das" ("Wie wird das
+/// Wetter?"): a question about something else costs no read.
+public enum FrontQuestion {
+    static let pointing: [String] = [
+        // German
+        "hier", "hiervon", "hierzu", "hierüber", "hieraus", "hierin", "hierauf", "hiermit",
+        "dies", "diese", "dieser", "dieses", "diesem", "diesen",
+        "seite", "webseite", "website", "artikel", "beitrag", "dokument", "zusammenfassen", "zusammenfassung",
+        // With Mail in front ("Antworte bitte", "Was will sie von mir?" after "Lies die Mail")
+        "mail", "antworte", "antworten", "beantworte", "beantworten",
+        // English
+        "this", "here", "page", "article", "post", "document", "summarize", "summarise", "summary", "email", "reply", "respond",
+    ]
+    static let phrases: [String] = ["tl;dr", "was steht", "worum geht", "was meinst du dazu", "what does it say", "what's it about", "what is it about"]
+
+    public static func meansOpen(_ question: String) -> Bool {
+        let text = question.lowercased()
+        if phrases.contains(where: { text.contains($0) }) { return true }
+        let words = Set(text.split { !$0.isLetter }.map(String.init))
+        // "Fass das zusammen", "Fasse kurz zusammen".
+        if words.contains("zusammen"), words.contains(where: { $0.hasPrefix("fass") }) { return true }
+        return pointing.contains(where: { words.contains($0) })
     }
 }
 
