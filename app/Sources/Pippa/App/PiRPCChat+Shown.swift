@@ -38,15 +38,28 @@ extension PiRPCChat {
         let input = PiShownContext.Input(question: text, files: context.files, newFiles: newFiles, focused: context.focusedFiles,
                                          selectedText: context.selectedText, workflowSummary: context.workflowSummary, language: language,
                                          inlineShortText: Self.inlinesShortText)
-        // Read metadata (and, if the setting is on, short texts): off the main thread. The app in front only as a
-        // label before it (10 to 20 tokens), once per conversation (`FrontLabelMemo`); its content only if Pi asks for
-        // it with `front_read`.
+        // Read metadata (and, if the setting is on, short texts): off the main thread. The app in front as a label
+        // before it (10 to 20 tokens), once per conversation (`FrontLabelMemo`); its content when the question means
+        // it (`FrontQuestion`, read below) or when Pi asks for it with `front_read`.
         let described = await Task.detached(priority: .userInitiated) { PiShownContext.prompt(input) }.value
-        let front = Self.frontLabels.line(for: context.frontApp, conversation: taskID, german: language.hasPrefix("de"))
-        let shown = front.map { $0 + "\n" + described } ?? described
+        let german = language.hasPrefix("de")
+        let front = Self.frontLabels.line(for: context.frontApp, conversation: taskID, german: german)
+        // "Was hältst du hiervon?" with the chip: Pippa reads what is open itself. Left to the model, K2 answered
+        // "Ich kann nicht sehen, was in Safari angezeigt wird" instead of calling `front_read`. Not when the person
+        // showed something else (files, selected text): then "this" means that.
+        var opened: String?
+        var carried: [PippaMCPReadNote] = []
+        if let app = context.frontApp, context.files.isEmpty, context.selectedText.isEmpty, FrontQuestion.meansOpen(text) {
+            let read = await PippaMCPService.readFront()
+            carried = PippaMCPService.readNotes.take()
+            opened = Self.frontReadSection(read, app: app, german: german)
+        }
+        let shown = [front ?? (opened != nil ? context.frontApp?.label(german: german) : nil), opened, described]
+            .compactMap { $0 }.joined(separator: "\n")
         let prompt = skill.map { PiSkillTurn.prompt(for: $0, message: shown, language: language, draftOnly: draftOnly) } ?? shown
         do {
-            let answer = try await chat(prompt, taskID: taskID, onWork: context.onWork, onDelta: onDelta, onSteered: onSteered, onReset: onReset)
+            let answer = try await chat(prompt, taskID: taskID, onWork: context.onWork, onDelta: onDelta, onSteered: onSteered, onReset: onReset,
+                                        carriedReads: carried)
             // Drafts (button "Antwort schreiben", letter line) have their own insert path: no second offer,
             // and as in the old path no source check in the draft text ("bitte prüfen" does not belong in a letter).
             let writesDraft = draftOnly || skill?.writesDraft == true
@@ -106,6 +119,17 @@ extension PiRPCChat {
         }
         Self.pendingMail = nil
         return items.isEmpty ? nil : ActionReceipt(items: items, mailOffer: offer, cards: taken?.cards)
+    }
+
+    /// The `front_read` result Pippa got itself, as a block in the message. Read: the page as data. Not read (no
+    /// permission, nothing open): the sentence for the person, so Pi says what to click instead of "ich sehe nichts".
+    static func frontReadSection(_ read: PippaMCPToolResult, app: FrontApp, german: Bool) -> String {
+        let head = read.isError
+            ? (german ? "[Pippa konnte \(app.name) nicht lesen. Sag der Person in einem Satz, was zu tun ist (tell):]"
+                      : "[Pippa could not read \(app.name). Tell the person in one sentence what to do (tell):]")
+            : (german ? "[Was in \(app.name) offen ist, schon gelesen (front_read). Die Frage meint das:]"
+                      : "[What is open in \(app.name), already read (front_read). The question means this:]")
+        return head + "\n" + read.text
     }
 
     /// Which chip each conversation already named (`FrontLabelMemo`).
