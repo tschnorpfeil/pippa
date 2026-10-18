@@ -137,7 +137,9 @@ final class PiRPCChat {
         // Still "answering" here means the last answer was abandoned without Pi settling (stop timed out): start afresh
         // (the session is on disk) instead of refusing every further message as busy until the app restarts.
         if let client, sessionKey == key, launchKey == route.key, await client.isRunning, await client.isAnswering == false { return client }
-        if let old = client { await old.shutdown(); client = nil }
+        // A small-talk turn's level that a stopped Pi could not set back: the resumed session still has it.
+        var leftLevel: String?
+        if let old = client { leftLevel = await old.thinkingToRestore; await old.shutdown(); client = nil }
         let extensions = URL(fileURLWithPath: Self.extensionsPath(env), isDirectory: true)
         guard FileManager.default.fileExists(atPath: extensions.appendingPathComponent("pippa-tools.ts").path) else {
             throw Failure.setup("Pippas Pi-Erweiterungen fehlen (PIPPA_PI_EXTENSIONS oder Contents/Resources/pippa-tools)")
@@ -175,6 +177,7 @@ final class PiRPCChat {
         let fresh = PiRPCClient(configuration: configuration)
         await fresh.setUIHandler { request in await Self.ask(request) }
         try await fresh.start()
+        await fresh.restoreLater(leftLevel)
         client = fresh; sessionKey = key; launchKey = route.key
         return fresh
     }
@@ -394,7 +397,7 @@ final class PiRPCChat {
     /// ("Ich lese den Brief …") disappears again, so the draft is only the draft.
     func chat(_ text: String, taskID: String, onWork: WorkEventHandler?, onDelta: @escaping @Sendable (String) -> Void,
               onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil,
-              carriedReads: [PippaMCPReadNote] = []) async throws -> String {
+              carriedReads: [PippaMCPReadNote] = [], ownWords: String? = nil) async throws -> String {
         lastActions = nil
         searchFiles = []
         changes = []
@@ -409,6 +412,13 @@ final class PiRPCChat {
         let held = Self.onlineConnection == nil && Self.subscriptionModel == nil ? try await modelLease(onWork: onWork) : nil
         defer { if let held { Task { await held.server.releaseAgentLease(held.lease) } } }
         let client = try await ready(session: taskID)
+        // Small talk on Qwen without thinking (`SmallTalk`), for this turn only.
+        let modelKey = held != nil ? localPlan?.modelID : nil
+        if let ownWords, SmallTalk.matches(ownWords) {
+            await client.useThinkingLevel { SmallTalk.turnThinkingLevel(message: ownWords, modelKey: modelKey, current: $0) }
+        } else {
+            await client.restoreThinkingLevel()
+        }
         var segment = ""
         // Where the text after the last tool call starts (AnswerNarration).
         var afterTools: Int?
@@ -496,7 +506,11 @@ final class PiRPCChat {
                 break
             }
         }
+        } catch {
+            await client.restoreThinkingLevel()
+            throw error
         }
+        await client.restoreThinkingLevel()
         // Files an opened folder or a shell command showed, as far as the answer names them: clickable on the card too.
         adoptListedFiles(answer: segment)
         if let loopStop {

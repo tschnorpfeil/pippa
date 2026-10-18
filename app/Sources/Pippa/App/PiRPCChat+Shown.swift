@@ -59,7 +59,7 @@ extension PiRPCChat {
         let prompt = skill.map { PiSkillTurn.prompt(for: $0, message: shown, language: language, draftOnly: draftOnly) } ?? shown
         do {
             let answer = try await chat(prompt, taskID: taskID, onWork: context.onWork, onDelta: onDelta, onSteered: onSteered, onReset: onReset,
-                                        carriedReads: carried)
+                                        carriedReads: carried, ownWords: skill == nil && !draftOnly && opened == nil ? text : nil)
             // Drafts (button "Antwort schreiben", letter line) have their own insert path: no second offer,
             // and as in the old path no source check in the draft text ("bitte prüfen" does not belong in a letter).
             let writesDraft = draftOnly || skill?.writesDraft == true

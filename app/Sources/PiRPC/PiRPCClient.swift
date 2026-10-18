@@ -268,6 +268,37 @@ public actor PiRPCClient {
         _ = try await send(["type": "abort"])
     }
 
+    /// The session's thinking level (`get_state`), e.g. "medium"; `nil` if Pi does not say.
+    public func thinkingLevel() async throws -> String? {
+        let data = try await send(["type": "get_state"]).data
+        return (data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] })?["thinkingLevel"] as? String
+    }
+
+    /// For this session only (rpc-commands.md `set_thinking_level`); Pi's settings stay as they are.
+    public func setThinkingLevel(_ level: String) async throws {
+        _ = try await send(["type": "set_thinking_level", "level": level])
+    }
+
+    /// The session's level that a turn changed and that is not set back yet. Pi keeps the last level in the session
+    /// file and resumes with it, so a Pi that stopped mid-turn hands it to its successor (`restoreLater`).
+    public private(set) var thinkingToRestore: String?
+
+    public func restoreLater(_ level: String?) { if thinkingToRestore == nil { thinkingToRestore = level } }
+
+    /// Before a prompt: `level(current)` says which thinking level this one turn needs (`nil`: the session's own).
+    /// A level an earlier turn left is set back first. Errors only cost the faster answer.
+    public func useThinkingLevel(forTurn level: @Sendable (String) -> String?) async {
+        await restoreThinkingLevel()
+        guard let current = try? await thinkingLevel(), let wanted = level(current), wanted != current,
+              (try? await setThinkingLevel(wanted)) != nil else { return }
+        thinkingToRestore = current
+    }
+
+    /// After the turn (also stopped or failed): the session's own level again.
+    public func restoreThinkingLevel() async {
+        if let level = thinkingToRestore, (try? await setThinkingLevel(level)) != nil { thinkingToRestore = nil }
+    }
+
     /// Arbitrary command, for trial runs (`get_state`, `get_session_stats`, …). Returns `data` as JSON.
     public func command(_ payload: [String: any Sendable]) async throws -> Data? {
         try await send(payload).data

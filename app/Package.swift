@@ -23,7 +23,7 @@ let package = Package(
         .executableTarget(name: "Pippa", dependencies: ["PippaCore", "PiRPC", .product(name: "Sparkle", package: "Sparkle")],
                           resources: [.copy("Resources/Fonts"), .process("Localization")]),
         // Without Xcode there is neither XCTest nor Swift Testing: checks run as `swift run PippaChecks`.
-        .executableTarget(name: "PippaChecks", dependencies: ["PippaCore"]),
+        .executableTarget(name: "PippaChecks", dependencies: ["PippaCore", "PiRPC"]),
         .executableTarget(name: "PippaUpdateProbe", dependencies: [.product(name: "Sparkle", package: "Sparkle")]),
         // Development only: all flows against a real model (runs only with PIPPA_LIVE=1, see Sources/PippaLive).
         .executableTarget(name: "PippaLive", dependencies: ["PippaCore"]),
