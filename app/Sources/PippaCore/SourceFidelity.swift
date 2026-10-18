@@ -159,7 +159,9 @@ public enum SourceFidelity {
             var text = SourceFidelity.tidy(output)
             let removedOpen = findings.contains { $0.removes && $0.leavesComparisonOpen }
             let removedAny = findings.contains(where: \.removes)
-            let gaps = incomplete
+            // A folder listing is names by design, not a read gap: it is named only when the answer lost a claim about it
+            // (a greeting with the home folder still attached got „Von „remi“ kenne ich nur die Namen“).
+            let gaps = removedAny ? incomplete : incomplete.filter { $0.status != .metadataOnly }
             let mentioned = self.named(in: text)
             let unmentioned = gaps.contains { !mentioned.contains($0.number - 1) }
             if !gaps.isEmpty && (removedAny || unmentioned) {
