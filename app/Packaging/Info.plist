@@ -116,7 +116,7 @@
 	<key>SUFeedURL</key>
 	<string>https://github.com/tschnorpfeil/pippa/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>BM/Djr2FKjYH9JN70SGI8LxeGtSnwB1yfDPPOPl5syw=</string>
+	<string>iapp2ewnuhO1qQZ1NmiV1eLn5OxjykHnHI0/nj+G3Ck=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 	<key>SUVerifyUpdateBeforeExtraction</key>
