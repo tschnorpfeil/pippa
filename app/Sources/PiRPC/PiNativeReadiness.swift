@@ -6,7 +6,7 @@ import Foundation
 public enum PiNativeReadiness {
     public static let command = "pippa-native-ready"
     public static let tools = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection",
-                               "photos_search", "front_read", "read_document", "calendar_add", "reminder_add", "mail_draft"]
+                               "photos_search", "front_read", "read_document", "calendar_add", "reminder_add", "mail_draft", "prepare_files"]
         .map { "mcp__pippa__" + $0 }
 
     public enum Failure: String, Error, Sendable, Equatable {

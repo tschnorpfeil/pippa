@@ -126,6 +126,7 @@ public struct UndoReport: Sendable {
 public actor Executor {
     let db: SQLiteDB
     let fm = FileManager.default
+    private let supportDirectory: URL
     static let nativeProcessSession = UUID()
     let nativeSessionID: UUID
     /// Jobs begun before this launch and still running are interrupted.
@@ -133,6 +134,7 @@ public actor Executor {
 
     /// `nativeRecoverySessionID` lets synthetic checks simulate an app restart without creating native items.
     public init(baseDirectory: URL = Pippa.supportDirectory, nativeRecoverySessionID: UUID? = nil) throws {
+        supportDirectory = baseDirectory.standardizedFileURL.resolvingSymlinksInPath()
         nativeSessionID = nativeRecoverySessionID ?? Self.nativeProcessSession
         try FileManager.default.createDirectory(at: baseDirectory, withIntermediateDirectories: true)
         db = try SQLiteDB(path: baseDirectory.appendingPathComponent("journal.sqlite").path)
@@ -527,18 +529,27 @@ public actor Executor {
         return nil
     }
 
-    /// Undo a result file: in the cache simply remove it (with the empty `Results/<uuid>`), otherwise only move it to the Trash if unchanged.
+    /// Expiring cache files keep their original Undo behavior. Durable results must still match the journal
+    /// before deletion: opening a retained PDF in another app may have changed it since preparation.
     /// `true` if the file is gone.
     private func removeResult(_ target: URL, fp: FileFingerprint?) throws -> Bool {
-        if ResultsFolder.contains(target) {
+        let cache = ResultsFolder.directory.standardizedFileURL.resolvingSymlinksInPath().path + "/"
+        if target.standardizedFileURL.resolvingSymlinksInPath().path.hasPrefix(cache) {
             try fm.removeItem(at: target)
             let parent = target.deletingLastPathComponent()
-            if parent.standardizedFileURL.path != ResultsFolder.directory.standardizedFileURL.path, ResultsFolder.contains(parent) {
+            if parent.standardizedFileURL.resolvingSymlinksInPath().path.hasPrefix(cache) {
                 _ = removeIfEmpty(parent)
             }
             return true
         }
         guard let fp, fp.matches(FileFingerprint.of(target)) else { return false }
+        if ResultsFolder.contains(target, durableBaseDirectory: supportDirectory) {
+            guard (try fm.attributesOfItem(atPath: target.path)[.type]) as? FileAttributeType == .typeRegular else { return false }
+            // unlink never recursively removes a directory swapped into the result's place.
+            guard unlink(target.path) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+            _ = rmdir(target.deletingLastPathComponent().path)
+            return true
+        }
         try fm.trashItem(at: target, resultingItemURL: nil)
         return true
     }

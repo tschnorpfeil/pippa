@@ -38,6 +38,30 @@ if ProcessInfo.processInfo.environment["PIPPA_SOURCE_EXPOSURE_CHECKS"] == "1" {
     exit(failures == 0 ? 0 : 1)
 }
 
+if ProcessInfo.processInfo.environment["PIPPA_DURABLE_JOB_CHECKS"] == "1" {
+    await runDurableJobChecks()
+    print(failures == 0 ? "Durable job checks passed." : "Durable job checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
+if ProcessInfo.processInfo.environment["PIPPA_FILE_PREPARATION_CHECKS"] == "1" {
+    await runFilePreparationChecks()
+    print(failures == 0 ? "File preparation checks passed." : "File preparation checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
+if ProcessInfo.processInfo.environment["PIPPA_MCP_FILE_PREPARATION_CHECKS"] == "1" {
+    await runMCPFilePreparationChecks()
+    print(failures == 0 ? "MCP file preparation checks passed." : "MCP file preparation checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
+if ProcessInfo.processInfo.environment["PIPPA_MORNING_BRIEFING_CHECKS"] == "1" {
+    await runMorningBriefingChecks()
+    print(failures == 0 ? "Morning briefing checks passed." : "Morning briefing checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
 if ProcessInfo.processInfo.environment["PIPPA_PERMISSION_REPAIR_CHECKS"] == "1" {
     await runPermissionRepairChecks()
     print(failures == 0 ? "Permission repair checks passed." : "Permission repair checks failed.")
@@ -1303,6 +1327,10 @@ await runInvoiceChecks()
 runLetterDocumentChecks()
 await runOCRChecks()
 await runTrayChecks()
+await runDurableJobChecks()
+await runFilePreparationChecks()
+await runMCPFilePreparationChecks()
+await runMorningBriefingChecks()
 await runAgentChangeChecks()
 runActionChecks()
 runSuggestionSampleChecks()

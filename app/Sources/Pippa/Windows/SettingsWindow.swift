@@ -311,6 +311,7 @@ struct SettingsView: View {
                         TextSizeControl()
                     }
                 }
+                MorningBriefingSettingsView(controller: model.morningBriefing)
                 if let setup = PiSetupController.shared {
                     AIGroup(model: model, setup: setup)
                 } else if AILoadRow.shows(model) {

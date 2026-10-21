@@ -85,7 +85,7 @@ func runMCPChecks() async {
         let all = list?["tools"] as? [[String: Any]] ?? []
         let names = all.compactMap { $0["name"] as? String }
         // calendar_add/reminder_add/mail_draft change something on the Mac (checked separately in R3Checks).
-        let tools = all.filter { !PippaMCPWriteTools.names.contains($0["name"] as? String ?? "") }
+        let tools = all.filter { !(PippaMCPWriteTools.names + [PippaMCPFilePreparation.name]).contains($0["name"] as? String ?? "") }
         let hintsOK = tools.allSatisfy { tool in
             let a = tool["annotations"] as? [String: Any] ?? [:]
             return a["readOnlyHint"] as? Bool == true && a["destructiveHint"] as? Bool == false && a["openWorldHint"] as? Bool == false

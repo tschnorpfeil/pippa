@@ -10,6 +10,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let mark = MarkNSView(size: 18, monochromeIdle: true)
     private var cancellables: Set<AnyCancellable> = []
     var openSettings: (() -> Void)?
+    var openMorningOverview: (() -> Void)?
 
     init(model: AppModel) {
         self.model = model
@@ -76,6 +77,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         })
         menu.addItem(MenuAction.item(T("Look at a Folder…", table: "App")) { [weak self] in self?.model.chooseFolder() })
         menu.addItem(MenuAction.item(T("Look at Selected Mail", table: "App")) { [weak self] in self?.model.readSelectedMail() })
+        if model.tray.hasPendingPreparationJobs {
+            menu.addItem(MenuAction.item(T("Saved File Tasks…", table: "App")) { [weak self] in
+                self?.model.letter.end()
+                self?.model.sheet.end()
+                self?.model.openLine()
+            })
+        }
+        if model.morningBriefing.configuration.enabled || model.morningBriefing.latest != nil || model.morningBriefing.needsAttention {
+            menu.addItem(MenuAction.item(T("Morning overview", table: "MorningBriefing")) { [weak self] in
+                self?.openMorningOverview?()
+            })
+        }
         if model.parked != nil {
             menu.addItem(MenuAction.item(T("Show Result", table: "App")) { [weak self] in self?.model.resumeParked() })
         }

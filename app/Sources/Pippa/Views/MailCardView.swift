@@ -86,6 +86,7 @@ struct ResultCardsView: View {
                 case .reminders(let reminders) where !reminders.items.isEmpty: ReminderCardView(card: reminders)
                 case .reminders: EmptyView()
                 case .web(let web): WebSourcesCardView(card: web)
+                case .preparedFiles(let prepared): PreparedFilesCardView(card: prepared)
                 }
             }
         }

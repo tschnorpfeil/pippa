@@ -29,7 +29,7 @@ extension AppModel {
     /// In an open conversation they stay conversation attachments. New native product recordings
     /// use the real Give path; only older flow recordings bypass the tray.
     var dropsOnTray: Bool {
-        let snapshotUsesTray = ["scans", "nativefirstuse", "product", "attachments", "mailcards", "ctxsug"]
+        let snapshotUsesTray = ["scans", "nativefirstuse", "everydayhelp", "product", "attachments", "mailcards", "ctxsug"]
             .contains(DevEnvironment.value("PIPPA_SNAPSHOT_ONLY") ?? "")
         guard DevEnvironment.value("PIPPA_SNAPSHOT") == nil || snapshotUsesTray else { return false }
         switch mode {

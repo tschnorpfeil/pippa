@@ -118,7 +118,7 @@ public struct PippaMCPTurnTools: Sendable {
         let string: [String: Any] = ["type": "string"]
         return [
             tool("read_document", "Dokument lesen",
-                 "Read a file as text: PDF, scan, photo, Word, Excel, email. Pages are marked [S. n]; from_page continues there.",
+                 "PDF/scan/photo/Word/Excel/email text. [S. n] pages; from_page resumes.",
                  ["path": string, "from_page": ["type": "integer"]], required: ["path"], readOnly),
         ]
     }

@@ -113,8 +113,8 @@ public struct PiTurnReceipt: Sendable {
         }
     }
 
-    /// Pippa's writing MCP tools (PippaCore/MCP/PippaMCPWrite.swift).
-    public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft"]
+    /// Pippa's native MCP tools that create a local result or change something on the Mac.
+    public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft", "prepare_files"]
 
     // Emitted before an effect by PippaMCPWrite.swift; unknown future statuses stay unconfirmed.
     private static let nativeNoEffect: Set<String> = ["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",

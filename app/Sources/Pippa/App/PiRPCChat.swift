@@ -657,7 +657,7 @@ final class PiRPCChat {
     }
 
     /// Pippa's write tools → the action of their receipt (PippaMCPWriteReceipt).
-    static let writeActions = ["calendar_add": "calendarAdd", "reminder_add": "reminderAdd", "mail_draft": "mailDraft"]
+    static let writeActions = ["calendar_add": "calendarAdd", "reminder_add": "reminderAdd", "mail_draft": "mailDraft", "prepare_files": "create"]
 
     func steer(_ text: String) async -> Bool {
         guard let client else { return false }

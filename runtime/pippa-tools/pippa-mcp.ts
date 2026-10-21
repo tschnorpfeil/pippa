@@ -23,9 +23,9 @@ export const SERVER_NAME = "pippa";
  * anything on the Mac. Web search is not here: it is the Pi package pi-web-access (runtime/pippa-web). */
 export const TOOLS = NATIVE_READERS;
 
-/** PippaMCPWrite.swift: change something on the Mac but never leave it (no sending, no invitation). Events and
- * reminders can be undone, the mail draft stays unsent in Mail. */
-export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft"];
+/** Native changes stay on the Mac (no sending or invitation). Events and reminders can be undone,
+ * mail drafts remain unsent, and prepared PDFs preserve their original files. */
+export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft", "prepare_files"];
 
 /** Entry as in `mcp.json`, or `undefined` if the environment does not fit (then no server, no error). */
 export function serverConfig(env: Record<string, string | undefined>) {
@@ -46,7 +46,7 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		exposure,
 		// Exact reader overrides beat the wildcard. Unknown future native tools also stay hidden in draft tasks.
 		...(actionPolicy(env) === "draftOnly" ? { toolExposure: { "*": "hidden", ...Object.fromEntries(TOOLS.map((name) => [name, "direct"])) } } : {}),
-		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents on this Mac; add events and reminders, unsent Mail drafts.",
+		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and unsent Mail drafts; prepare verified PDFs locally.",
 		// Text recognition on many pages takes a while: 5 minutes instead of 1. The app's server keeps the connection
 		// open accordingly (PippaMCPServer).
 		timeout: 300,

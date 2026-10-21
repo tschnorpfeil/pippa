@@ -66,6 +66,13 @@ enum PippaMCPService {
         if let host { return host }
         var fresh: PippaMCPHost = DevEnvironment.value("PIPPA_DEMO") == "1" ? .demo() : .system()
         fresh.onRead = { note in readNotes.append(note) }
+        fresh.onWrite = { receipt in
+            guard receipt.action == "create", receipt.operationID != nil else { return }
+            Task { @MainActor in
+                AppModel.shared.tray.refreshSavedPreparations()
+                AppModel.shared.refreshJobs()
+            }
+        }
         fresh.requireActiveWriteTurn = true
         fresh.explainAccess = { subject, sentence in await explain(subject, sentence) }
         host = fresh

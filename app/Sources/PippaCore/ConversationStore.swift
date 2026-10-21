@@ -281,7 +281,7 @@ public enum ConversationStoreError: LocalizedError, Sendable {
             throw ConversationStoreError.unknownConversation
         }
         var next = archive
-        guard let operationID = item.operationID, ActionReceipt.Item.appActions.contains(item.action) else { return next.conversations[conversation] }
+        guard let operationID = item.operationID, item.isNativeWrite else { return next.conversations[conversation] }
         let existing = next.conversations[conversation].messages.indices.filter {
             next.conversations[conversation].messages[$0].actions?.items.contains(where: { $0.operationID == operationID }) == true
         }
@@ -306,7 +306,7 @@ public enum ConversationStoreError: LocalizedError, Sendable {
         }
         var next = archive
         for update in updates {
-            guard let operationID = update.item.operationID, ActionReceipt.Item.appActions.contains(update.item.action),
+            guard let operationID = update.item.operationID, update.item.isNativeWrite,
                   let request = next.conversations[conversation].messages.firstIndex(where: { $0.id == update.requestID && $0.role == .user }) else { continue }
             var messages = next.conversations[conversation].messages
             let existing = messages.indices.filter { messages[$0].actions?.items.contains(where: { $0.operationID == operationID }) == true }
@@ -390,6 +390,14 @@ public enum ConversationStoreError: LocalizedError, Sendable {
 
     /// Files a conversation still has attached as context (all conversations, including older ones).
     public func contextFiles() -> [URL] { archive.conversations.flatMap { $0.context?.files ?? [] } }
+
+    /// Native outputs still referenced by visible history, independently of the current model context.
+    public func retainedResultFiles() -> [URL] {
+        archive.conversations.flatMap(\.messages).flatMap { $0.actions?.cards ?? [] }.flatMap { card in
+            if case .preparedFiles(let prepared) = card { return prepared.files }
+            return []
+        }
+    }
 
     /// Removes a conversation from the history. If it was selected, none is selected afterwards.
     public func delete(_ id: UUID) throws {

@@ -72,6 +72,12 @@ jobs:
         run: |
           bin=$(swift build --package-path app --scratch-path .build/macos15-swift --show-bin-path)
           bash scripts/check-permission-repair.sh "$bin" "$PWD/.build/macos15-acceptance/reports/permission-repair"
+      - name: Durable everyday help without a model (English and German)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          bin=$(swift build --package-path app --scratch-path .build/macos15-swift --show-bin-path)
+          bash scripts/check-everyday-help.sh "$bin" "$PWD/.build/macos15-acceptance/reports/everyday-help"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

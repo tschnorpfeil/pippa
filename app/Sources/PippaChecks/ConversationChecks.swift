@@ -2,6 +2,29 @@ import Foundation
 import PippaCore
 
 @MainActor func runConversationChecks() {
+    check("Prepared files: late receipts stay with their message and historical artifacts survive context removal") {
+        let store = try ConversationStore(directory: dir("prepared-file-history"))
+        let original = try store.create()
+        let operation = UUID(), output = URL(fileURLWithPath: "/saved/Prepared.pdf")
+        let card = ResultCard.preparedFiles(.init(jobID: operation, files: [output], pageCount: 2, totalBytes: 1024,
+            sizeLimitBytes: 5_000_000, withinLimit: true, note: "Verified locally"))
+        let pending = ActionReceipt.Item(action: "create", outcome: "unclear", operationID: operation, nativeRevision: 1)
+        let message = ConversationMessage(role: .assistant, text: "Prepared", actions: .init(items: [pending], cards: [card]))
+        _ = try store.append(message, to: original.id)
+        _ = try store.setContext(nil, for: original.id)
+        let selected = try store.create()
+        let done = ActionReceipt.Item(action: "create", outcome: "done", name: "Prepared.pdf", reason: "preparedFiles",
+                                      operationID: operation, nativeRevision: 2)
+        _ = try store.recordNativeWrite(done, messageID: message.id, in: original.id)
+        _ = try store.recordNativeWrite(done, messageID: message.id, in: original.id)
+        _ = try store.recordNativeWrite(pending, messageID: message.id, in: original.id)
+        let reopened = try ConversationStore(directory: store.fileURL.deletingLastPathComponent())
+        let saved = try reopened.load(original.id).messages[0]
+        let retained = reopened.retainedResultFiles()
+        try reopened.delete(original.id)
+        return reopened.selectedID == selected.id && saved.actions?.items == [done] && saved.actions?.cards == [card]
+            && retained == [output] && reopened.contextFiles().isEmpty && reopened.retainedResultFiles().isEmpty
+    }
     check("Native receipts: late confirmation updates the original stopped answer exactly once across chat switches") {
         let store = try ConversationStore(directory: dir("late-native-receipt"))
         let original = try store.create()

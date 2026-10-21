@@ -39,7 +39,7 @@ type ExtensionAPI = any;
 /** Files Pi's `read` only returns as raw bytes (or as an image the local model cannot see). */
 const DOCUMENT_TYPES = /\.(pdf|docx?|pages|rtf|odt|xlsx?|numbers|key|pptx?|eml|emlx|msg|png|jpe?g|heic|heif|tiff?|gif|webp|bmp)$/i;
 
-const NATIVE_CHANGES = new Set(["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft"]);
+const NATIVE_CHANGES = new Set(["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__prepare_files"]);
 /** Tools that change something: successful or uncertain changes are not repeated in one answer. */
 const CHANGES = new Set(["write", "edit", "move_files", "move_to_trash", ...NATIVE_CHANGES]);
 

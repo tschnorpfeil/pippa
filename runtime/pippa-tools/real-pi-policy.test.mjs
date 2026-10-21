@@ -33,9 +33,12 @@ for (const mode of ["standard", "draftOnly", "draftOnly-wide-inventory"]) {
 		const nativeFixture = join(root, "native-fixture.ts");
 		await writeFile(nativeFixture, `import { appendFile } from "node:fs/promises";
 export default function(pi) {
-  for (const name of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "web_search"]) {
+  for (const name of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__prepare_files", "web_search"]) {
     pi.registerTool({ name, label: name, description: "Disposable effect counter; never touches a real app or website.",
-      parameters: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+      parameters: name === "mcp__pippa__prepare_files"
+        ? { type: "object", properties: { paths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 50 },
+            quality: { enum: ["original", "balanced", "compact"] }, size_limit_mb: { enum: [5, 10, 20] } }, required: ["paths"] }
+        : { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
       async execute() { await appendFile(${JSON.stringify(effects)}, name + "\\n");
         return { content: [{ type: "text", text: JSON.stringify({ done: true, status: "done", dispatched: true, id: "fixture" }) }] }; }
     });
@@ -51,6 +54,7 @@ export default function(pi) {
 			calendar: { name: "mcp__pippa__calendar_add", args: { title: "Injected event" } },
 			reminder: { name: "mcp__pippa__reminder_add", args: { title: "Injected reminder" } },
 			mail: { name: "mcp__pippa__mail_draft", args: { title: "Injected mail" } },
+			prepareFiles: { name: "mcp__pippa__prepare_files", args: { paths: [join(work, "source.pdf")], quality: "balanced", size_limit_mb: 5 } },
 			web: { name: "web_search", args: { title: "Injected query" } },
 			app: { name: "bash", args: { command: "/usr/bin/osascript -e '1 + 1'" } },
 			indirectApp: { name: "bash", args: { command: "runner=/usr/bin/osascript; \"$runner\" -e '1 + 1'" } },
@@ -140,7 +144,7 @@ export default function(pi) {
 				assert.equal(await readFile(join(work, "moved.txt"), "utf8"), "original\n");
 				assert.equal(existsSync(join(work, "trash.txt")), false);
 				assert.match(await readFile(memory, "utf8"), /Injected fixture fact/);
-				assert.deepEqual((await readFile(effects, "utf8")).trim().split("\n"), ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "web_search"]);
+				assert.deepEqual((await readFile(effects, "utf8")).trim().split("\n"), ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__prepare_files", "web_search"]);
 			} else {
 				for (const name of ["written.txt", "shell.txt", "moved.txt", "native-web-effects.txt"]) assert.equal(existsSync(join(work, name)), false, name);
 				for (const name of ["edit.txt", "move.txt", "trash.txt"]) assert.equal(await readFile(join(work, name), "utf8"), "original\n", name);

@@ -36,6 +36,9 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
     if mode == "missing-registered" { receipt.removeValue(forKey: "registeredTools") }
     if mode == "wrong-nonce" { receipt["nonce"] = UUID().uuidString }
     if mode == "partial" { receipt["tools"] = Array(PiNativeReadiness.tools.dropFirst()) }
+    if mode == "missing-file-preparation" {
+        receipt["registeredTools"] = PiNativeReadiness.tools.filter { $0 != "mcp__pippa__prepare_files" }
+    }
     if mode == "wrong-registration" { receipt["status"] = "registrationMismatch" }
     if mode == "malformed" { receipt["v"] = true }
     if mode != "missing-receipt" {
@@ -70,6 +73,7 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
     for (mode, expected) in [
         ("missing-command", PiNativeReadiness.Failure.commandMissing), ("wrong-source", .commandMissing), ("missing-policy", .commandMissing),
         ("wrong-policy", .invalidReceipt), ("missing-registered", .invalidReceipt),
+        ("missing-file-preparation", .invalidReceipt),
         ("wrong-nonce", .invalidReceipt), ("partial", .invalidReceipt), ("missing-receipt", .invalidReceipt),
         ("malformed", .invalidReceipt), ("wrong-registration", .registrationMismatch),
         ("hang-command", .timedOut), ("hang-prompt", .timedOut)
@@ -105,6 +109,11 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
           scoped.environment[PiActionPolicy.environmentVariable] == "draftOnly"
           && Set(scoped.arguments[toolIndex + 1].split(separator: ",").map(String.init)) == Set(PiActionPolicy.draftLaunchTools)
           && scoped.extensions.first?.lastPathComponent == "pippa-policy.ts")
+    check("Native file preparation is required for registration but cannot write in draft-only scope",
+          PiNativeReadiness.tools.contains("mcp__pippa__prepare_files")
+          && !PiActionPolicy.nativeReaders.contains("mcp__pippa__prepare_files")
+          && !PiActionPolicy.draftTools.contains("mcp__pippa__prepare_files")
+          && PippaPiLaunch.tools.contains("mcp__pippa__*"))
     for mode in ["ready", "wide-draft"] {
         let (draft, _) = make(mode, policy: .draftOnly)
         try await draft.start()

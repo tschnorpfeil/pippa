@@ -15,6 +15,15 @@ final class AppModel: ObservableObject {
     let letter = LetterController()
     /// Call in Excel ("Sheet"): first line from "Check the total", actions, read-only (SheetController.swift).
     let sheet = SheetController()
+    /// A separate, opt-in reader; scheduled work never enters the conversation's agent loop.
+    let morningBriefing = MorningBriefingController(baseDirectory: AppModel.morningBriefingDirectory,
+                                                    demo: DevSnapshot.directory != nil || DevEnvironment.value("PIPPA_DEMO") == "1")
+    private static let morningBriefingDirectory: URL = {
+        if DevSnapshot.directory == nil, DevEnvironment.value("PIPPA_DEMO") == "1" {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("pippa-demo-morning-" + UUID().uuidString)
+        }
+        return PippaCore.Pippa.supportDirectory
+    }()
     @Published var inferenceSettings = InferenceSettings.load(from: AppModel.inferenceSettingsDirectory)
 
     @Published var conversationSize = CGSize(width: Theme.conversationWidth, height: 700)
@@ -137,6 +146,7 @@ final class AppModel: ObservableObject {
     private var trayChanges: AnyCancellable?
     private var letterChanges: AnyCancellable?
     private var sheetChanges: AnyCancellable?
+    private var morningBriefingChanges: AnyCancellable?
 
     weak var shell: ShellController?
     weak var toasts: ToastController?
@@ -178,6 +188,9 @@ final class AppModel: ObservableObject {
         }
         sheet.model = self
         sheetChanges = sheet.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in self?.objectWillChange.send() }
+        }
+        morningBriefingChanges = morningBriefing.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send() }
         }
     }
@@ -505,11 +518,17 @@ final class AppModel: ObservableObject {
         // Sorting, invoices, deadlines and letter suggestions use the one llama-server of the Pi path.
         if PiRPCChat.isLive { PiRPCChat.shared.shareServer(with: engine) }
         tray.load()
+        if DevSnapshot.directory == nil { morningBriefing.start() }
         // Delete tray copies older than 30 days, unless a conversation or the tray on Pippa still has them.
         // Without a readable history (store missing) and in developer recordings (own history) delete nothing.
         if conversations.current != nil, DevEnvironment.value("PIPPA_SNAPSHOT") == nil {
-            let keeping = conversations.contextFiles + tray.items.map(\.url), inbox = Inbox.directory
-            Task.detached(priority: .utility) { InboxCleanup.prune(inbox, keeping: keeping) }
+            let keeping = conversations.contextFiles + conversations.retainedResultFiles + tray.items.map(\.url), inbox = Inbox.directory
+            Task { [weak self] in
+                // A saved task can outlive its tray card. If its journal cannot be read, retain the Inbox.
+                guard let self, let savedInputs = try? await self.tray.retainedPreparationInputs() else { return }
+                await self.tray.pruneDismissedPreparationArtifacts(keeping: keeping)
+                Task.detached(priority: .utility) { InboxCleanup.prune(inbox, keeping: keeping + savedInputs) }
+            }
         }
         // Show the first greeting before the model search: foreign model folders can be large.
         // A call or file task already begun keeps its surface.
