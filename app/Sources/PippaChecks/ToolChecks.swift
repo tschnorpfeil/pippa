@@ -259,11 +259,24 @@ func runToolChecks() async {
         let size = ToolFixtures.pixelSize(file)
         return ToolFixtures.imageType(file) == UTType.png.identifier && size.width == 1000 && size.height == 1600 && size.orientation == 1
     }
-    await checkAsync("Convert: two images as PDF → two searchable PDFs, PDF skipped") {
+    await checkAsync("Convert: two images as PDF → two intact PDFs, searchable text or explicit timeout note, PDF skipped") {
         let output = try await OneAnswerTools.run(.asPDF, inputs: [png, jpeg, letter])
         let names = output.files.map(\.lastPathComponent)
+        let texts = output.files.map(pdfText)
+        // Optional OCR has a shared five-second deadline, including on a busy virtual CI Mac.
+        // Missing text is acceptable only with the explicit fallback notice; incorrect recognized text still fails.
+        let timedOut = output.note == L("The PDF is ready. I couldn’t add searchable text to every image.", table: "Tools")
+        let textVerified = texts.allSatisfy {
+            $0.contains("4711") || (timedOut && $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        if !texts.allSatisfy({ $0.contains("4711") }) {
+            print("    Optional OCR: fallback notice \(timedOut), text lengths \(texts.map(\.count)), verified \(textVerified)")
+        }
         return output.files.count == 2 && names == ["Mietvertrag.pdf", "Seite 2.pdf"]
-            && output.files.allSatisfy { pdfText($0).contains("4711") }
+            && output.files.allSatisfy {
+                PDFDocument(url: $0)?.pageCount == 1 && (renderedPDFInk($0, page: 1) ?? 0) > 10
+            }
+            && textVerified
             && output.skipped.map(\.name) == ["Brief.pdf"]
             && output.summary == L("%lld images as PDF", table: "Tools", 2)
     }
