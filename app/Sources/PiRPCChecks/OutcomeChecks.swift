@@ -22,6 +22,12 @@ import PiRPC
           && PiTurnReceipt.classify(tool: native, isError: false, result: nil) == .unclear)
     check("Only a native boolean confirmation reports success",
           PiTurnReceipt.classify(tool: native, isError: false, result: result("{\"done\":true}")) == .done)
+    let prepare = "mcp__pippa__prepare_files"
+    check("Prepared files require the same native confirmation and uncertainty rules as other changes",
+          PiTurnReceipt.pippaWriters.contains("prepare_files")
+          && PiTurnReceipt.classify(tool: prepare, isError: false, result: result("{\"done\":true,\"path\":\"/fixture/result.pdf\"}")) == .done
+          && PiTurnReceipt.classify(tool: prepare, isError: false, result: result("Connection closed")) == .unclear
+          && PiTurnReceipt.classify(tool: prepare, isError: true, result: result("{\"done\":false,\"status\":\"not_dispatched\",\"dispatched\":false}")) == .blocked)
     check("Native refusals and duplicate blocks remain known pre-dispatch outcomes",
           ["invalid_arguments", "not_dispatched", "busy", "cancelled"].allSatisfy { status in
               PiTurnReceipt.classify(tool: native, isError: status != "busy",

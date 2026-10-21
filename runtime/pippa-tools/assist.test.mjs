@@ -66,7 +66,7 @@ function loopHarness() {
 }
 
 test("uncertain native writes are terminal for this answer and never reported as successful duplicates", async () => {
-	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft"]) {
+	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__prepare_files"]) {
 		for (const isError of [false, true]) {
 			const run = loopHarness();
 			const input = { title: "Fixture", date: "2026-10-22" };
@@ -145,6 +145,16 @@ test("a confirmed native success stays confirmed after multiple blocked duplicat
 		assert.match(JSON.parse(block.reason).tell, /already worked/);
 		assert.doesNotMatch(block.reason, /unclear outcome/);
 	}
+});
+
+test("file preparation does not duplicate a verified result, while a requested change of page order can run", async () => {
+	const run = loopHarness(), tool = "mcp__pippa__prepare_files";
+	const input = { paths: ["/fixture/first.pdf", "/fixture/second.jpg"], quality: "balanced", size_limit_mb: 5 };
+	const content = [{ type: "text", text: JSON.stringify({ done: true, path: "/fixture/result.pdf", bytes: 3_000_000 }) }];
+	assert.equal(await run.call("first", tool, input, { content }), undefined);
+	const duplicate = await run.call("duplicate", tool, { size_limit_mb: 5, quality: "balanced", paths: input.paths });
+	assert.match(JSON.parse(duplicate.reason).tell, /already worked/);
+	assert.equal(await run.call("new-order", tool, { ...input, paths: [...input.paths].reverse() }, { content }), undefined);
 });
 
 test("rejected document reads are bounded even though Pi skips tool_result; a corrected tool still works", async () => {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// What a reading tool returned, as a card under the answer: built in code from Pippa's own result, never from the
+/// What a native tool returned, as a card under the answer: built in code from Pippa's own result, never from the
 /// model's text. Stored with the answer (`ActionReceipt.cards`); missing in older histories. A closed list: every card
 /// has a row limit and a source line (footer), and a card that cannot be read is dropped while the answer text stays.
 public enum ResultCard: Codable, Sendable, Equatable {
@@ -9,6 +9,7 @@ public enum ResultCard: Codable, Sendable, Equatable {
     case photos(PhotoCard)
     case reminders(ReminderCard)
     case web(WebSourcesCard)
+    case preparedFiles(PreparedFilesCard)
 }
 
 /// Mails a search found: sender, subject, date, the start of the text; a click opens the mail in Mail.

@@ -618,6 +618,7 @@ final class ConversationController: ObservableObject {
 
     /// For tray cleanup: what conversations still have attached.
     var contextFiles: [URL] { store?.contextFiles() ?? [] }
+    var retainedResultFiles: [URL] { store?.retainedResultFiles() ?? [] }
 
     private func refresh() { history = store?.list() ?? [] }
 }

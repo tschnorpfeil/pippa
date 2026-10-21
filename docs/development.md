@@ -113,7 +113,10 @@ for, and this Mac's own and local-network addresses are never read. The receipt 
 
 **MCP server (`app/Sources/PippaCore/MCP`).** The app serves MCP over Streamable HTTP on 127.0.0.1. Reading tools: mail,
 calendar, reminders, Excel selection, documents (with text recognition). Writing tools: calendar event, reminder, unsent
-mail draft. Because the app does the work, macOS asks for permission in Pippa's name.
+mail draft and `prepare_files` (ordered PDFs/photos into a verified PDF). File preparation shares its native engine and
+durable job record with the tray, with a result card and the existing turn-scoped cancellation and receipts. Pi retains
+planning, tool choice and follow-up; native tools do not create a second agent loop. Because the app does the work,
+macOS asks for permission in Pippa's name. See [0.3.14 everyday help](0.3.14-everyday-help.md) for persistence and acceptance evidence.
 
 **Local model.** `LlamaServer` runs the pinned llama.cpp `llama-server` on a fixed loopback port with a key file and
 unloads the model when idle (`PIPPA_LLAMA_IDLE_SECONDS`). `ModelSelector.choose` picks the model by memory from the

@@ -1,0 +1,13 @@
+// Local file preparation.
+"Stopped preparing files." = "Dateivorbereitung gestoppt.";
+"I kept the original PDF quality because the smaller version could not be verified." = "Ich habe die ursprüngliche PDF-Qualität beibehalten, weil ich die kleinere Version nicht verifizieren konnte.";
+"I can’t prepare %@. Choose PDFs or single photos, up to 50 files and 500 MB each." = "Ich kann %@ nicht vorbereiten. Wähle PDFs oder einzelne Fotos, bis zu 50 Dateien mit jeweils höchstens 500 MB.";
+"%@ changed since you chose it. Review the files again before continuing." = "%@ wurde seit deiner Auswahl geändert. Prüfe die Dateien erneut, bevor du fortfährst.";
+"I couldn’t verify every page. Your originals are unchanged; no result was accepted." = "Ich konnte nicht alle Seiten prüfen. Deine Originale sind unverändert; es wurde kein Ergebnis übernommen.";
+"Please split this into batches of up to 300 pages." = "Bitte teile die Dateien in Gruppen mit höchstens 300 Seiten auf.";
+"%lld pages · %@. Pages and order checked. Your originals are unchanged." = "%lld Seiten · %@. Seiten und Reihenfolge geprüft. Deine Originale sind unverändert.";
+"Within your %@ size limit." = "Innerhalb deiner Größenbegrenzung von %@.";
+"The %@ limit wasn’t reached at this quality. This is the verified result; try a smaller batch or a lower quality." = "Die Grenze von %@ wurde bei dieser Qualität nicht erreicht. Dies ist das geprüfte Ergebnis. Versuche weniger Dateien oder eine niedrigere Qualität.";
+
+"Ready to send" = "Versandfertig";
+"Files not prepared" = "Dateien nicht vorbereitet";

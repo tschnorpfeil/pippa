@@ -1,0 +1,13 @@
+// Local file preparation.
+"Stopped preparing files." = "Stopped preparing files.";
+"I kept the original PDF quality because the smaller version could not be verified." = "I kept the original PDF quality because the smaller version could not be verified.";
+"I can’t prepare %@. Choose PDFs or single photos, up to 50 files and 500 MB each." = "I can’t prepare %@. Choose PDFs or single photos, up to 50 files and 500 MB each.";
+"%@ changed since you chose it. Review the files again before continuing." = "%@ changed since you chose it. Review the files again before continuing.";
+"I couldn’t verify every page. Your originals are unchanged; no result was accepted." = "I couldn’t verify every page. Your originals are unchanged; no result was accepted.";
+"Please split this into batches of up to 300 pages." = "Please split this into batches of up to 300 pages.";
+"%lld pages · %@. Pages and order checked. Your originals are unchanged." = "%lld pages · %@. Pages and order checked. Your originals are unchanged.";
+"Within your %@ size limit." = "Within your %@ size limit.";
+"The %@ limit wasn’t reached at this quality. This is the verified result; try a smaller batch or a lower quality." = "The %@ limit wasn’t reached at this quality. This is the verified result; try a smaller batch or a lower quality.";
+
+"Ready to send" = "Ready to send";
+"Files not prepared" = "Files not prepared";

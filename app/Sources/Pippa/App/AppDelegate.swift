@@ -1,13 +1,15 @@
 import AppKit
 import PippaCore
+@preconcurrency import UserNotifications
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private let model = AppModel.shared
     private var shell: ShellController?
     private var toasts: ToastController?
     private var status: StatusItemController?
     private var settings: SettingsWindowController?
+    private var morningOverview: MorningBriefingWindowController?
     private let services = ServiceProvider()
     private var shuttingDown = false
 
@@ -16,7 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             SingleInstance.signalRunningInstance()
             exit(0)
         }
-        SingleInstance.listen { [weak self] in self?.model.openInput() }
+        if DevSnapshot.directory == nil {
+            SingleInstance.listen { [weak self] in self?.model.openInput() }
+        }
 
         FrontmostTracker.shared.start()
         DisplayFont.register()
@@ -24,8 +28,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = SettingsWindowController(model: model)
         self.settings = settings
 
+        let morningOverview = MorningBriefingWindowController(controller: model.morningBriefing)
+        self.morningOverview = morningOverview
+
         let status = StatusItemController(model: model)
         status.openSettings = { settings.show() }
+        status.openMorningOverview = { morningOverview.show() }
         self.status = status
 
         let shell = ShellController(model: model)
@@ -56,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         model.start()
+        UNUserNotificationCenter.current().delegate = self
         Updates.shared.start()
         Updates.shared.announceIfUpdated(toasts)
         // Warm up text recognition in the background, shortly after launch.
@@ -143,6 +152,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                            withCompletionHandler completionHandler: @escaping () -> Void) {
+        guard response.notification.request.identifier == "pippa.morning-briefing",
+              response.actionIdentifier == UNNotificationDefaultActionIdentifier else {
+            completionHandler(); return
+        }
+        Task { @MainActor [weak self] in
+            self?.morningOverview?.show()
+        }
+        completionHandler()
+    }
+
     /// "Open with Pippa" / files dropped onto the app icon.
     func application(_ application: NSApplication, open urls: [URL]) {
         let files = urls.filter(\.isFileURL)
@@ -157,6 +178,10 @@ enum SingleInstance {
     nonisolated(unsafe) private static var lockFD: Int32 = -1
 
     static func acquire() -> Bool {
+        #if DEBUG
+        // Synthetic controller fixtures have isolated storage and must not activate or take the installed app's lock.
+        if ProcessInfo.processInfo.environment["PIPPA_SNAPSHOT"]?.isEmpty == false { return true }
+        #endif
         let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("Pippa", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let path = dir.appendingPathComponent("pippa.lock").path

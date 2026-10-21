@@ -124,8 +124,7 @@ struct LineContent: View {
     }
 
     private var isWorking: Bool {
-        if case .working = tray.phase { return true }
-        return false
+        tray.isWorking
     }
 
     // MARK: Dokumente
@@ -183,7 +182,22 @@ struct LineContent: View {
     @ViewBuilder private var phaseContent: some View {
         switch tray.phase {
         case .idle, .given:
-            actions
+            if let preparation = tray.preparation {
+                FilePreparationView(tray: tray, draft: preparation, measuring: measuring)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    if tray.canPrepareFiles {
+                        Button(T("Ready to send", table: "FilePreparationUI")) { tray.prepareFiles() }
+                            .pippa(.primary).accessibilityIdentifier("prepare-files-entry")
+                    }
+                    actions
+                    if let problem = tray.preparationProblem {
+                        Text(problem).font(Fonts.hint).foregroundStyle(Theme.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if tray.hasPendingPreparationJobs { PendingFilePreparationsView(tray: tray) }
+                }
+            }
         case .working(let title, let progress):
             working(title: title, progress: progress)
         case .result(let id):

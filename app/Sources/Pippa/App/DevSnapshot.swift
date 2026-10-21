@@ -123,6 +123,11 @@ enum DevSnapshot {
                 NSApp.terminate(nil)
                 return
             }
+            if only == "everydayhelp" {
+                await EverydayHelpSnapshot.run(model: model, shell: shell, directory: dir) { await snap($0) }
+                NSApp.terminate(nil)
+                return
+            }
             if only == "conversationretry" {
                 await ConversationRetrySnapshot.run(model: model, directory: dir)
                 NSApp.terminate(nil)

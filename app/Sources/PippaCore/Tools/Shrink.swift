@@ -12,6 +12,41 @@ import Quartz
 enum Shrink {
     static let tenMB: Int64 = 10 * 1024 * 1024
 
+    /// The send-ready workflow keeps a verified baseline and makes at most two bounded attempts.
+    /// Text pages stay vector pages; an unreachable target is reported instead of degrading them indefinitely.
+    static func preparedPDF(_ url: URL, quality: FilePreparationPlan.Quality, target: Int64?) throws -> URL {
+        guard quality != .original else { return url }
+        let text = try ToolPDF.open(url, password: nil)
+        // Redrawing a page would drop links, form fields and other annotations. Keep their intact baseline instead.
+        guard (0..<text.pageCount).allSatisfy({ text.page(at: $0)?.annotations.isEmpty == true }) else { return url }
+        guard let document = ToolPDF.openCG(url, password: nil) else { throw FilePreparationFailure.verification }
+        let folder = url.deletingLastPathComponent()
+        var best = url
+        var attempts: [URL] = []
+        defer { for file in attempts where file != best { try? FileManager.default.removeItem(at: file) } }
+        let filteredFile = ResultFile.temp(in: folder)
+        attempts.append(filteredFile)
+        let dpi: CGFloat = quality == .balanced ? 180 : 120
+        let compression = quality == .balanced ? 0.8 : 0.6
+        if try filtered(document, to: filteredFile, dpi: Int(dpi), quality: compression),
+           ToolFiles.size(filteredFile) > 0, ToolFiles.size(filteredFile) < ToolFiles.size(best) {
+            best = filteredFile
+        }
+        try Task.checkCancellation()
+        if target == nil || ToolFiles.size(best) > target! {
+            let rasterFile = ResultFile.temp(in: folder)
+            attempts.append(rasterFile)
+            if try rasterized(document, text: text, dpi: dpi, quality: compression, to: rasterFile,
+                              textBudget: FileTextBudget()), ToolFiles.size(rasterFile) > 0,
+               ToolFiles.size(rasterFile) < ToolFiles.size(best) { best = rasterFile }
+        }
+        try Task.checkCancellation()
+        guard best != url else { return url }
+        let placed = try ResultFile.place(best, as: ResultNaming.name(for: .makeSmaller, inputs: [url], ext: "pdf"), in: folder)
+        best = placed
+        return placed
+    }
+
     /// At least 5 % smaller, otherwise a new file is not worth it.
     static func worthIt(_ size: Int64, than original: Int64) -> Bool {
         size > 0 && size * 20 <= original * 19
@@ -86,9 +121,9 @@ enum Shrink {
     }
 
     /// Redrawn with an own Quartz filter (150 dpi, JPEG 0.65). Apple's "Reduce File Size" is too blurry.
-    static func filtered(_ doc: CGPDFDocument, to url: URL) throws -> Bool {
+    static func filtered(_ doc: CGPDFDocument, to url: URL, dpi: Int = 150, quality: Double = 0.65) throws -> Bool {
         #if canImport(Quartz)
-        guard let filterURL = try? writeFilter() else { return false }
+        guard let filterURL = try? writeFilter(dpi: dpi, quality: quality) else { return false }
         defer { try? FileManager.default.removeItem(at: filterURL) } // our own filter file in the temp folder
         let loaded: QuartzFilter? = QuartzFilter(url: filterURL)
         guard let filter = loaded, let ctx = CGContext(url as CFURL, mediaBox: nil, nil) else { return false }
@@ -109,9 +144,9 @@ enum Shrink {
     }
 
     /// Filter plist: images to 150 dpi and JPEG 0.65.
-    static func writeFilter() throws -> URL {
-        let scale: [String: Any] = ["ImageResolution": 150, "ImageScaleFactor": 0.0]
-        let imageSettings: [String: Any] = ["Compression Quality": 0.65, "ImageCompression": "ImageJPEGCompress", "ImageScaleSettings": scale]
+    static func writeFilter(dpi: Int = 150, quality: Double = 0.65) throws -> URL {
+        let scale: [String: Any] = ["ImageResolution": dpi, "ImageScaleFactor": 0.0]
+        let imageSettings: [String: Any] = ["Compression Quality": quality, "ImageCompression": "ImageJPEGCompress", "ImageScaleSettings": scale]
         let colorSettings: [String: Any] = ["ImageSettings": imageSettings]
         let filterData: [String: Any] = ["ColorSettings": colorSettings]
         let domains: [String: Any] = ["Applications": true, "Printing": true]

@@ -109,7 +109,7 @@ extension AppModel {
         if permissionsPageWaiting { return show(.onboarding) }
         if hasResumableConversation { return openConversationFromPill() }
         if parked != nil { return resumeParked() }
-        if !tray.items.isEmpty { return openLine() }
+        if !tray.items.isEmpty || tray.hasPendingPreparationJobs { return openLine() }
         openInput()
     }
 

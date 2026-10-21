@@ -125,10 +125,20 @@ public enum ResultsFolder {
     }
 
     /// Is `url` in Pippa's results folder (then Undo may delete the file instead of moving it to the Trash)?
-    public static func contains(_ url: URL) -> Bool {
+    public static func contains(_ url: URL, durableBaseDirectory: URL = Pippa.supportDirectory) -> Bool {
         let base = directory.standardizedFileURL.resolvingSymlinksInPath().path
         let path = url.standardizedFileURL.resolvingSymlinksInPath().path
-        return path.hasPrefix(base + "/") && path.count > base.count + 1
+        if path.hasPrefix(base + "/") && path.count > base.count + 1 { return true }
+        // Durable outputs share the native Open / Save / Undo pipeline, but never the cache cleanup.
+        let clean = url.standardizedFileURL
+        let root = DurableJobStore.artifactsDirectory(baseDirectory: durableBaseDirectory)
+        guard clean == clean.resolvingSymlinksInPath().standardizedFileURL,
+              clean.path.hasPrefix(root.path + "/") else { return false }
+        let parts = clean.pathComponents.dropFirst(root.pathComponents.count)
+        guard parts.count == 3 else { return false }
+        let components = Array(parts)
+        return UUID(uuidString: components[0]) != nil && UUID(uuidString: components[1]) != nil
+            && !components[2].isEmpty
     }
 
     /// Deletes Results/<uuid> folders older than `maxAge` that contain no file from `keeping`.

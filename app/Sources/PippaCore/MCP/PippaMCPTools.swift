@@ -38,6 +38,8 @@ public struct PippaMCPHost: Sendable {
     /// Uses the existing execution journal; a system host fails closed if it cannot open the journal.
     public var reminderJournal: Executor?
     public var requiresReminderJournal = false
+    /// The same durable file jobs used by the native tray; unavailable storage blocks preparation.
+    public var filePreparationStore: DurableJobStore?
     /// The app in front at the call, as the chip shows it for the running answer (`front_read`). `nil`: no chip.
     public var shownFront: @Sendable () -> FrontApp? = { FrontAppStage.shared.current }
     /// Reads that app (Safari, Chrome, the front document); Mail and Excel go through their own readers.
@@ -58,6 +60,7 @@ public struct PippaMCPHost: Sendable {
         host.writer = system
         host.requiresReminderJournal = true
         host.reminderJournal = try? Executor()
+        host.filePreparationStore = try? DurableJobStore()
         return host
     }
 
@@ -134,6 +137,7 @@ public struct PippaMCPTools: Sendable {
     public static let toolNames = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "photos_search", "front_read"]
         + PippaMCPTurnTools.names
         + PippaMCPWriteTools.names
+        + [PippaMCPFilePreparation.name]
 
     let host: PippaMCPHost
     public init(host: PippaMCPHost) { self.host = host }
@@ -225,6 +229,14 @@ public struct PippaMCPTools: Sendable {
                 return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
             }
             // Event, reminder, mail draft (PippaMCPWrite.swift); the receipt goes to the app.
+            if name == PippaMCPFilePreparation.name {
+                let outcome = await PippaMCPFilePreparation(host: host, turn: context.turn, scope: context.writes).call(arguments)
+                if let receipt = outcome.receipt { host.onWrite?(receipt) }
+                if !context.writes.snapshot.cancelled, host.turns.active === context.turn {
+                    host.onRead?(PippaMCPFilePreparation.readNote(for: outcome, turnID: context.turn?.id))
+                }
+                return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
+            }
             if PippaMCPWriteTools.names.contains(name) {
                 let outcome = await PippaMCPWriteTools(host: host, scope: context.writes).call(name, arguments)
                 if let receipt = outcome.receipt { host.onWrite?(receipt) }
@@ -260,27 +272,28 @@ public struct PippaMCPTools: Sendable {
                     "annotations": readOnly.merging(["title": title]) { a, _ in a }]
         }
         let string: [String: Any] = ["type": "string"], integer: [String: Any] = ["type": "integer"]
+        // Closed enums already restrict their value types; repeating type adds no validation.
         let readers: [[String: Any]] = [
             tool("calendar_read", "Kalender lesen",
-                 "Read Calendar events. next_days: days; dates: start/end YYYY-MM-DD (max 31 days).",
-                 ["period": ["type": "string", "enum": ["today", "tomorrow", "rest_of_week", "next_week", "weekend", "next_days", "dates"]],
+                 "next_days=days; dates=start/end YYYY-MM-DD (max31d).",
+                 ["period": ["enum": ["today", "tomorrow", "rest_of_week", "next_week", "weekend", "next_days", "dates"]],
                   "days": integer, "start": string, "end": string], required: ["period"]),
             tool("reminders_read", "Erinnerungen lesen",
-                 "Read open reminders; days: due within N days (1=today).", ["days": integer]),
-            tool("mail_selected", "Ausgewählte Mail lesen", "Read Mail's selected email."),
+                 "Open; days=due within N (1=today).", ["days": integer]),
+            tool("mail_selected", "Ausgewählte Mail lesen", "Selected email."),
             tool("mail_search", "Mail suchen",
-                 "Search Mail inbox subjects/senders; newest first.",
+                 "Inbox subject/sender; newest first.",
                  ["query": string, "limit": integer], required: ["query"]),
             tool("excel_selection", "Excel-Auswahl lesen",
-                 "Read Excel around selection: values, [formulas]."),
+                 "Selection values/[formulas]."),
             tool("photos_search", "Fotos suchen",
-                 "Search photos: query=one word in Mac language. Omit query for newest; days=last N days, no query.",
+                 "query=one Mac-language word; omit=newest; days=last N (no query).",
                  ["query": string, "days": integer, "limit": integer]),
             // The message names the app ([Im Vordergrund: …], FrontApp.label); a question that points at it already brings
             // the content (FrontQuestion), this call is for the rest.
-            tool("front_read", "Geöffnetes lesen", "Read the page/document in front when asked about this or here."),
+            tool("front_read", "Geöffnetes lesen", "Front content."),
         ]
-        return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList()
+        return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList() + PippaMCPFilePreparation.toolList()
     }
 
     /// Each reader accepts only its own declared fields and types. An invalid optional filter must never become

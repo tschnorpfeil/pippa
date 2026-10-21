@@ -61,15 +61,15 @@ public struct PippaMCPWriteTools: Sendable {
         let date = text, time = text
         return [
             tool("calendar_add", "Termin eintragen",
-                 "Add Calendar event. date=YYYY-MM-DD/today/tomorrow/weekday; time/end=HH:MM (no time=all day); minutes=60 default; if_free=true only if free.",
+                 "date=YYYY-MM-DD/today/tomorrow/weekday; time/end=HH:MM (omit=all-day); minutes=60 default; if_free=only free.",
                  ["title": text, "date": date, "time": time, "minutes": ["type": "integer"], "end": time,
                   "location": text, "notes": text, "if_free": ["type": "boolean"]],
                  required: ["title", "date"]),
             tool("reminder_add", "Erinnerung anlegen",
-                 "Add reminder. A requested day/time requires date (today/tomorrow/weekday/YYYY-MM-DD); time=HH:MM. Optional list.",
+                 "date=YYYY-MM-DD/today/tomorrow/weekday; time=HH:MM needs date.",
                  ["title": text, "date": date, "time": time, "list": text, "notes": text], required: ["title"]),
             tool("mail_draft", "Mail-Entwurf",
-                 "Create unsent Mail draft. reply_to=exact shown email path or selected (in Mail); omit for new email with subject and to.",
+                 "Unsent Mail; reply_to=exact shown email path/selected; omit=new subject/to.",
                  ["body": text, "reply_to": text, "subject": text, "to": text],
                  required: ["body"]),
         ]
