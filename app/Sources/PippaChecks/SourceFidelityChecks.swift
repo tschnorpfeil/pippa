@@ -224,4 +224,13 @@ func runSourceFidelityChecks() {
         let scoped = S.review(answer: "Im gelesenen Teil von Bestaetigung.txt steht kein Liefertermin; der Rest ist unbekannt.", question: "", snapshots: [offer, partial], fileCount: 2)
         return !review.changed && !scoped.changed
     }
+    check("Source fidelity: a folder still attached adds no „Offen“ to small talk; a missing file still does") {
+        let folder = DocumentSnapshot(name: "remi", text: "Ordnerinhalt (nur Namen):\nDesktop\nDocuments\nDownloads", readStatus: .metadataOnly)
+        let greeting = "Hallo! Mir geht's gut, danke. Und dir?"
+        let chat = S.review(answer: greeting, question: "Hey Pippa, wie gehts?", snapshots: [folder], fileCount: 1)
+        let gap = S.review(answer: greeting, question: "Hey Pippa, wie gehts?", snapshots: [folder, missing], fileCount: 2)
+        return chat.text == greeting && !chat.changed
+            && gap.text.hasSuffix(L("“%@” is not available, so I couldn’t read it.", table: "Core", language: "de", "Bestaetigung.txt"))
+            && !gap.text.contains("remi") && gap.findings == [.unstatedReadGap("Bestaetigung.txt")]
+    }
 }

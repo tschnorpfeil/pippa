@@ -215,8 +215,22 @@ node --test runtime/pippa-auth/*.test.mjs                               # ChatGP
 node --test runtime/pippa-local-server/test/autostart.test.mjs          # terminal autostart with a fake llama-server
 node scripts/check-site.cjs                                             # website drag behaviour
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/tests/test_release.py         # appcast and release metadata
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/tests/test_usability_fixtures.py  # synthetic test files, de and en
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first
 ```
+
+**Synthetic test files.** `scripts/create-usability-fixtures.py` writes a folder of made-up files and a shareable ZIP, so
+a tester can read, dictate and delete them without touching real data. The German set is the default; `--language en`
+writes the equivalent English set with the same amounts and deadlines, so a check does not depend on the language.
+
+```sh
+python3 scripts/create-usability-fixtures.py                                    # dist/Pippa-Testdateien
+python3 scripts/create-usability-fixtures.py dist/English --language en          # an English folder and ZIP
+```
+
+The electricity invoice is for **42,50 EUR**, due **31.10.2026**; the property-management letter asks for **18,00 EUR** by
+**20.11.2026**. Both sets also contain a shopping note, an MP3 that is a filename-only sample and a read-me that says
+everything is invented. The script refuses to overwrite an existing target, so every run needs a new folder.
 
 `real-pi.test.mjs` (local server) runs against a real Pi and is skipped without one; the web access test uses the Pi
 from runtime/pippa-web's own dev dependencies.
