@@ -133,6 +133,11 @@ enum DevSnapshot {
                 NSApp.terminate(nil)
                 return
             }
+            if only == "permissionrepair" {
+                await PermissionRepairSnapshot.run(model: model, directory: dir)
+                NSApp.terminate(nil)
+                return
+            }
 
             if only == "conversationresume" {
                 await ConversationResumeSnapshot.run(model: model, shell: shell, directory: dir)

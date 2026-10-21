@@ -2,6 +2,13 @@ import AppKit
 import PippaCore
 import SwiftUI
 
+#if DEBUG
+/// Only an isolated snapshot may replace opening System Settings. No access or replay callback is involved.
+@MainActor enum PermissionSettingsSnapshotRouting {
+    static var open: ((URL) -> Void)?
+}
+#endif
+
 // Integrations: Reminders, Calendar, Mail (read-only). Every write step goes through preview,
 // confirm and journal; macOS asks for access only on first use.
 extension AppModel {
@@ -44,6 +51,18 @@ extension AppModel {
     func openSettings(for integration: Integration, keepingConversation: Bool = false) {
         NSWorkspace.shared.open(integration.settingsURL)
         if !keepingConversation { collapse() }
+    }
+
+    /// A repair button opens only the closed, code-owned privacy destination. Visiting Settings never means
+    /// access was granted, never resumes a tool, and leaves the conversation and its original request intact.
+    func openPermissionSettings(for target: PermissionRepairTarget) {
+        #if DEBUG
+        if DevSnapshot.directory != nil, engine is StubEngine, let open = PermissionSettingsSnapshotRouting.open {
+            open(target.settingsURL)
+            return
+        }
+        #endif
+        NSWorkspace.shared.open(target.settingsURL)
     }
 
     static func openApp(_ integration: Integration?) {

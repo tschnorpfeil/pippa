@@ -33,6 +33,13 @@ if CommandLine.arguments.contains("--mode") {
         switch command {
         case "prompt":
             switch request["message"] as? String {
+            case "folder-permission-protocol":
+                response("started")
+                emit(["type": "tool_execution_start", "toolCallId": "denied-folder", "toolName": "list_folder", "args": ["path": "/Users/fixture/Documents/Private"]])
+                emit(["type": "tool_execution_end", "toolCallId": "denied-folder", "toolName": "list_folder", "isError": true,
+                      "result": ["content": [["type": "text", "text": String(repeating: "x", count: 30_000)]],
+                                 "details": ["pippaFileAccess": ["schema": 1, "code": "EPERM", "path": "/Users/fixture/Documents/Private"]]]])
+                emit(["type": "agent_settled", "aborted": false])
             case "outcome-protocol":
                 response("started")
                 for (id, fields) in [
@@ -152,6 +159,11 @@ for event in outcomes { outcomeReceipt.observe(event) }
 check("RPC keeps absent and malformed results uncertain, permits valid empty success, and classifies full native JSON",
       outcomeReceipt.records.map(\.outcome) == [.unclear, .unclear, .done, .unclear])
 runOutcomeChecks()
+var folderReceipt = PiTurnReceipt()
+for event in try await collect("folder-permission-protocol") { folderReceipt.observe(event) }
+check("Real RPC decoding retains structured folder denial even when display output is truncated",
+      folderReceipt.records.first?.fileAccessFailure?.code == "EPERM"
+      && folderReceipt.records.first?.fileAccessFailure?.path == "/Users/fixture/Documents/Private")
 try await runNativeReadinessChecks(executable: executable, temporary: temporary)
 await client.shutdown()
 print(failures == 0 ? "Pi RPC checks passed." : "\(failures) Pi RPC check(s) failed.")

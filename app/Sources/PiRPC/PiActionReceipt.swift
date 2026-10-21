@@ -1,5 +1,22 @@
 import Foundation
 
+/// Closed evidence from Pippa's own folder reader, captured before display-text truncation.
+public struct PiFileAccessFailure: Sendable, Equatable {
+    public let path: String
+    public let code: String
+
+    public static func decode(tool: String, isError: Bool, result: [String: Any]?) -> Self? {
+        guard tool == "list_folder", isError,
+              let details = result?["details"] as? [String: Any],
+              let value = details["pippaFileAccess"] as? [String: Any],
+              let schema = value["schema"] as? NSNumber, CFGetTypeID(schema) != CFBooleanGetTypeID(), schema.doubleValue == 1,
+              let code = value["code"] as? String, ["EACCES", "EPERM"].contains(code),
+              let path = value["path"] as? String, path.hasPrefix("/"), path.utf8.count <= 4096,
+              !path.contains("\0"), !path.contains(where: \.isNewline) else { return nil }
+        return Self(path: path, code: code)
+    }
+}
+
 // Receipt "what happened" from Pi's tool events, never from the model text: `tool_execution_start` says what was
 // called with which arguments; `tool_execution_end` carries execution evidence. An error does not prove that a
 // command had no effects. What the model writes about it plays no role.
@@ -24,6 +41,7 @@ public struct PiActionRecord: Sendable, Equatable {
     public var toName: String?
     /// `nothingMatched`: `remember` had nothing to forget (from the tool's own result).
     public var reason: String? = nil
+    public var fileAccessFailure: PiFileAccessFailure? = nil
 }
 
 /// Collects the events of one answer (one `prompt` up to `agent_settled`, including late-delivered messages).
@@ -39,6 +57,7 @@ public struct PiTurnReceipt: Sendable {
     private var ended: [String: PiActionRecord.Outcome] = [:]
     /// `remember` calls whose forget found nothing (the tool says so in its result, without an error).
     private var forgotNothing: Set<String> = []
+    private var fileAccessFailures: [String: PiFileAccessFailure] = [:]
     /// For the sources card (PippaCore `WebSourcesCard`), never from the model's text: addresses of pages Pi read
     /// (`fetch_content`, from the call's arguments) and the results of searches (`web_search`, the tool's own output).
     public private(set) var webPagesRead: [String] = []
@@ -51,11 +70,12 @@ public struct PiTurnReceipt: Sendable {
         case .toolStarted(let id, let name, let arguments):
             if started[id] == nil { order.append(id) }
             started[id] = (name, arguments)
-        case .toolEnded(let id, let name, let isError, let result, let outcome):
+        case .toolEnded(let id, let name, let isError, let result, let outcome, let fileAccessFailure):
             if started[id] == nil { order.append(id); started[id] = (name, "") }
             // Older in-process callers have only text. RPC supplies the full result's classification before truncation.
             let state = outcome ?? Self.classify(tool: name, isError: isError, result: ["content": [["type": "text", "text": result]]])
             ended[id] = state
+            fileAccessFailures[id] = name == "list_folder" && started[id]?.name == name && isError && state == .failed ? fileAccessFailure : nil
             guard state == .done else { break }
             if name == "fetch_content" {
                 let args = (try? JSONSerialization.jsonObject(with: Data((started[id]?.arguments ?? "").utf8))) as? [String: Any]
@@ -74,6 +94,11 @@ public struct PiTurnReceipt: Sendable {
     public var records: [PiActionRecord] {
         order.compactMap { id in
             let tool = started[id]?.name ?? ""
+            if let failure = fileAccessFailures[id] {
+                return PiActionRecord(toolCallId: id, tool: tool, action: "look", outcome: .blocked,
+                                      name: URL(fileURLWithPath: failure.path).lastPathComponent, reason: "denied",
+                                      fileAccessFailure: failure)
+            }
             guard !Self.readOnlyTools.contains(tool), !Self.quietTools.contains(tool) else { return nil }
             let outcome = ended[id] ?? .unclear
             // Pippa's own tools (the app's MCP server): a neutral line; what was read or added is filled in by the

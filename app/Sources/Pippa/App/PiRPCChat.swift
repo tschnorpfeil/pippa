@@ -486,7 +486,7 @@ final class PiRPCChat {
                 if name == "read" || WorkStepPhrase.hasOutcome(tool: name) { toolArguments[id] = arguments }
                 let step = WorkStepPhrase.step(tool: name, arguments: arguments, home: Self.homePath)
                 onWork?(.toolStarted(name: name, source: nil, step: step?.text, kind: step?.kind))
-            case .toolEnded(let id, let name, let isError, let result, let outcome):
+            case .toolEnded(let id, let name, let isError, let result, let outcome, _):
                 // What Pi read with `read`, for this answer's source check (PiReadLedger).
                 let arguments = toolArguments.removeValue(forKey: id)
                 let failed = outcome.map { $0 != .done } ?? isError
@@ -634,7 +634,7 @@ final class PiRPCChat {
             if record.action == "read" {
                 let note = pendingReads.firstIndex { $0.tool == record.name }.map { pendingReads.remove(at: $0) }
                 return ActionReceipt.Item(action: "read", outcome: note.map { $0.read ? "done" : "failed" } ?? record.outcome.rawValue,
-                                          name: note?.line)
+                                          name: note?.line, permissionRepair: note?.permissionRepair)
             }
             if record.action == "write" {
                 let action = Self.writeActions[record.name ?? ""]
@@ -642,10 +642,11 @@ final class PiRPCChat {
                 return ActionReceipt.Item(action: "tool", outcome: record.outcome.rawValue, name: record.name)
             }
             return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName,
-                                      reason: record.reason)
+                                      reason: record.reason,
+                                      permissionRepair: record.fileAccessFailure.flatMap { PermissionRepairTarget.forDeniedFile(at: URL(fileURLWithPath: $0.path)) })
         }
         // App-initiated reads and calls finishing after Pi stopped may have no matching Pi tool event.
-        items += pendingReads.map { ActionReceipt.Item(action: "read", outcome: $0.read ? "done" : "failed", name: $0.line) }
+        items += pendingReads.map { ActionReceipt.Item(action: "read", outcome: $0.read ? "done" : "failed", name: $0.line, permissionRepair: $0.permissionRepair) }
         items += pendingWrites
         // Online sources after Pippa's own cards: from the web tools' arguments and results, never from the model.
         let queries = receipt.records.filter { $0.action == "webSearch" && $0.outcome == .done }

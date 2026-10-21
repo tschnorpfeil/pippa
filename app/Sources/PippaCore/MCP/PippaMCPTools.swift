@@ -106,8 +106,11 @@ public struct PippaMCPReadNote: Sendable, Equatable {
     public var card: ResultCard?
     /// Captured request origin, so late reads cannot appear under a newer answer.
     public var turnID: UUID?
-    public init(tool: String, read: Bool, line: String, mail: MailReplySource? = nil, card: ResultCard? = nil) {
+    public var permissionRepair: PermissionRepairTarget?
+    public init(tool: String, read: Bool, line: String, mail: MailReplySource? = nil, card: ResultCard? = nil,
+                permissionRepair: PermissionRepairTarget? = nil) {
         self.tool = tool; self.read = read; self.line = line; self.mail = mail; self.card = card
+        self.permissionRepair = permissionRepair
     }
 }
 
@@ -119,6 +122,8 @@ public struct PippaMCPToolResult: Sendable, Equatable {
     public var receipt: PippaMCPWriteReceipt? = nil
     /// What a reading tool returned, as a card for the conversation (`PippaMCPReadNote.card`; the model does not see it).
     public var card: ResultCard? = nil
+    /// Kept outside model-visible text; only native access checks can supply a repair destination.
+    public var permissionRepair: PermissionRepairTarget? = nil
 }
 
 public struct PippaMCPTools: Sendable {
@@ -207,6 +212,16 @@ public struct PippaMCPTools: Sendable {
             // Reading a document and looking up online live in PippaMCPTurn.swift (own arguments, own limits).
             if PippaMCPTurnTools.names.contains(name) {
                 let outcome = await PippaMCPTurnTools(turns: host.turns).call(name, arguments, turn: context.turn)
+                // One note per call keeps repeated document reads aligned with Pi's tool events.
+                let filename = URL(fileURLWithPath: arguments["path"] as? String ?? "").lastPathComponent
+                    .split(whereSeparator: \.isNewline).joined(separator: " ")
+                var note = PippaMCPReadNote(tool: name, read: !outcome.isError,
+                                          line: outcome.isError
+                                            ? L("Not read: %@", table: "MCP", String(filename.prefix(80)))
+                                            : L("Read: %@", table: "MCP", String(filename.prefix(80))),
+                                          permissionRepair: outcome.permissionRepair)
+                note.turnID = context.turn?.id
+                host.onRead?(note)
                 return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
             }
             // Event, reminder, mail draft (PippaMCPWrite.swift); the receipt goes to the app.
@@ -341,7 +356,9 @@ public struct PippaMCPTools: Sendable {
         case "front_read": Self.frontAppName(outcome)
         default: ExcelScript.appName
         }
-        guard !outcome.isError else { return PippaMCPReadNote(tool: name, read: false, line: L("Not read: %@", table: "MCP", app)) }
+        guard !outcome.isError else {
+            return PippaMCPReadNote(tool: name, read: false, line: L("Not read: %@", table: "MCP", app), permissionRepair: outcome.permissionRepair)
+        }
         let data = ((try? JSONSerialization.jsonObject(with: Data(outcome.text.utf8))) as? [String: Any])?["data"] as? [String: Any] ?? [:]
         func short(_ text: String) -> String {
             let one = text.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
@@ -373,7 +390,7 @@ public struct PippaMCPTools: Sendable {
         let mail = name == "mail_selected" ? (data["messageID"] as? String).flatMap {
             MailReplySource(messageID: $0, replyTo: data["replyTo"] as? String, subject: data["subject"] as? String ?? "")
         } : nil
-        return PippaMCPReadNote(tool: name, read: true, line: line, mail: mail, card: outcome.card)
+        return PippaMCPReadNote(tool: name, read: true, line: line, mail: mail, card: outcome.card, permissionRepair: outcome.permissionRepair)
     }
 
     /// The chip's app name in a `front_read` result (beside the blocked answer, or under data); the app's own text never.
@@ -418,9 +435,9 @@ public struct PippaMCPTools: Sendable {
     }
 
     /// Never asked before: first Pippa's sentence (if the app shows one), then the system prompt. `false`: "Later".
-    private func mayAsk(_ subject: PippaMCPAccessSubject) async -> Bool {
+    private func mayAsk(_ subject: PippaMCPAccessSubject, explanation: String? = nil) async -> Bool {
         guard let explain = host.explainAccess else { return true }
-        let go = await explain(subject, Self.accessExplanation(subject))
+        let go = await explain(subject, explanation ?? Self.accessExplanation(subject))
         DiagnosticsLog.shared.event("mcp-erklaerung", ["app": subject.appName, "weiter": String(go)])
         return go
     }
@@ -445,7 +462,7 @@ public struct PippaMCPTools: Sendable {
         case .invalidRange:
             return invalid("This period cannot be read. Use a period from the list, or dates (YYYY-MM-DD) with at most 31 days.")
         case .needsAccess: return blocked("needs_access", Self.notYet(.calendar))
-        case .denied: return blocked("denied", Self.denied(.calendar))
+        case .denied: return blocked("denied", Self.denied(.calendar), repair: .calendar)
         case .failed: return blocked("failed", CalendarReadResult.failureText)
         }
     }
@@ -555,7 +572,7 @@ public struct PippaMCPTools: Sendable {
         switch access {
         case .granted: break
         case .notDetermined: return blocked("needs_access", Self.notYet(app: PhotosLibrary.appName))
-        case .denied: return blocked("denied", Self.deniedAutomation(PhotosLibrary.appName))
+        case .denied: return blocked("denied", Self.deniedAutomation(PhotosLibrary.appName), repair: .automation)
         case .unavailable: return blocked("unavailable", L("Open %@ first. Then ask again.", table: "MCP", PhotosLibrary.appName))
         }
         do {
@@ -566,7 +583,16 @@ public struct PippaMCPTools: Sendable {
                 query = word
                 fetch = try await host.hostData.searchPhotos(word, limit: limit)
             }
-            let previews = await host.hostData.photoPreviewAccess(ask: host.askForAccess && explained && !fetch.items.isEmpty)
+            // Automation may already be allowed while PhotoKit has never been asked. Explain once for this call,
+            // and ask only when there are pictures to preview. A known denial always needs Settings instead.
+            var library = await host.hostData.photoLibraryAccess(ask: false)
+            var askForPreviews = false
+            if !fetch.items.isEmpty, library == .notDetermined, host.askForAccess {
+                askForPreviews = explained ? true : await mayAsk(.photos, explanation:
+                    L("To show these pictures here, I need access to your photo library on this Mac. I don’t change anything.", table: "MCP"))
+            }
+            let previews = await host.hostData.photoPreviewAccess(ask: askForPreviews)
+            if askForPreviews { library = await host.hostData.photoLibraryAccess(ask: false) }
             let cal = host.calendar
             let items = fetch.items.map { hit in
                 PhotoCard.Item(id: hit.id, date: hit.date, dateLabel: hit.date.map { Self.dateLabel($0, time: false, calendar: cal) } ?? "",
@@ -584,13 +610,16 @@ public struct PippaMCPTools: Sendable {
             }
             var result = Self.bounded(source: "Photos on this Mac (search by content, place or text)",
                                       data: ["query": query, "photos": photos, "shown": photos.count, "total": fetch.total,
-                                             "truncated": fetch.total > photos.count],
-                                      next: "The person sees these photos as pictures under your answer. Say in one sentence how many were found and from when; do not list them. If photos is empty, Photos found nothing for this word: suggest one other word.")
+                                             "truncated": fetch.total > photos.count, "previews_available": previews],
+                                      next: (previews ? "The person sees these photos as pictures under your answer. "
+                                             : "Photo previews are unavailable. Search results can show names and dates; do not claim the pictures are displayed. ")
+                                        + "Say in one sentence how many were found and from when; do not list them. If photos is empty, Photos found nothing for this word: suggest one other word.")
             // Nothing found: no card, the answer says so (as for mail_search).
             if !items.isEmpty { result.card = .photos(card) }
+            if !items.isEmpty, library == .denied { result.permissionRepair = .photos }
             return result
         } catch PippaError.accessDenied {
-            return blocked("denied", Self.deniedAutomation(PhotosLibrary.appName))
+            return blocked("denied", Self.deniedAutomation(PhotosLibrary.appName), repair: .automation)
         } catch PippaError.appNotOpen {
             return blocked("unavailable", L("Open %@ first. Then ask again.", table: "MCP", PhotosLibrary.appName))
         } catch {
@@ -606,7 +635,7 @@ public struct PippaMCPTools: Sendable {
         }
         switch access {
         case .granted: break
-        case .denied: return blocked("denied", Self.deniedPhotoLibrary)
+        case .denied: return blocked("denied", Self.deniedPhotoLibrary, repair: .photos)
         default: return blocked("needs_access", Self.notYet(app: PhotosLibrary.appName))
         }
         let cal = host.calendar
@@ -628,7 +657,7 @@ public struct PippaMCPTools: Sendable {
             if !items.isEmpty { result.card = .photos(card) }
             return result
         } catch PippaError.accessDenied {
-            return blocked("denied", Self.deniedPhotoLibrary)
+            return blocked("denied", Self.deniedPhotoLibrary, repair: .photos)
         } catch {
             return blocked("failed", L("Pippa couldn’t read %@ just now. Please try again.", table: "MCP", PhotosLibrary.appName))
         }
@@ -679,7 +708,7 @@ public struct PippaMCPTools: Sendable {
         switch access {
         case .granted: break
         case .notDetermined: return blocked("needs_access", Self.notYet(app: ExcelScript.appName))
-        case .denied: return blocked("denied", Self.deniedAutomation(ExcelScript.appName))
+        case .denied: return blocked("denied", Self.deniedAutomation(ExcelScript.appName), repair: .automation)
         case .unavailable(let why): return blocked("unavailable", why)
         }
         do {
@@ -690,7 +719,7 @@ public struct PippaMCPTools: Sendable {
                                 data: ["sheet": sheet.contextText(maxRows: 200), "clipped": sheet.isClipped],
                                 next: "Rows are numbered, columns lettered; formulas are in [brackets]. Use the numbers exactly. Never claim you changed the table.")
         } catch PippaError.accessDenied {
-            return blocked("denied", Self.deniedAutomation(ExcelScript.appName))
+            return blocked("denied", Self.deniedAutomation(ExcelScript.appName), repair: .automation)
         } catch PippaError.appNotOpen {
             return blocked("unavailable", L("First open your table in Excel and select the cells. Then try again.", table: "Sheet"))
         } catch {
@@ -725,7 +754,7 @@ public struct PippaMCPTools: Sendable {
         switch access {
         case .granted: break
         case .notDetermined: return (tagged(blocked("needs_access", Self.notYet(app: app.name))), "front_read")
-        case .denied: return (tagged(blocked("denied", Self.deniedAutomation(app.name))), "front_read")
+        case .denied: return (tagged(blocked("denied", Self.deniedAutomation(app.name), repair: .automation)), "front_read")
         case .unavailable: return (tagged(blocked("unavailable", cannot)), "front_read")
         }
         do {
@@ -744,7 +773,7 @@ public struct PippaMCPTools: Sendable {
             }
             return (Self.bounded(source: "\(app.name) on this Mac (what is open in front)", data: data, next: next), "front_read")
         } catch PippaError.accessDenied {
-            return (tagged(blocked("denied", Self.deniedAutomation(app.name))), "front_read")
+            return (tagged(blocked("denied", Self.deniedAutomation(app.name), repair: .automation)), "front_read")
         } catch {
             return (tagged(blocked("failed", cannot)), "front_read")
         }
@@ -765,14 +794,14 @@ public struct PippaMCPTools: Sendable {
         switch access {
         case .granted: return .open
         case .notDetermined: return .blocked(blocked("needs_access", Self.notYet(integration)))
-        case .denied: return .blocked(blocked("denied", Self.denied(integration)))
+        case .denied: return .blocked(blocked("denied", Self.denied(integration), repair: PermissionRepairTarget(integration: integration)))
         case .unavailable(let why): return .blocked(blocked("unavailable", closed ?? why))
         }
     }
 
     private func failure(_ error: Error, _ integration: Integration) -> PippaMCPToolResult {
         switch error {
-        case PippaError.accessDenied: return blocked("denied", Self.denied(integration))
+        case PippaError.accessDenied: return blocked("denied", Self.denied(integration), repair: PermissionRepairTarget(integration: integration))
         case PippaError.appNotOpen:
             return blocked("unavailable", L("Open %@ first. Then ask again.", table: "MCP", integration.appName))
         default:
@@ -781,10 +810,10 @@ public struct PippaMCPTools: Sendable {
     }
 
     /// Not read: one sentence for the person, which the model passes on. Never says "empty".
-    private func blocked(_ status: String, _ tell: String) -> PippaMCPToolResult {
+    private func blocked(_ status: String, _ tell: String, repair: PermissionRepairTarget? = nil) -> PippaMCPToolResult {
         PippaMCPToolResult(text: Self.json(["read": false, "status": status, "tell": tell,
                                             "next": "Nothing was read. Repeat the sentence in tell word for word: it says exactly what the person can do. Do not guess and never say it is empty."]),
-                           isError: true)
+                           isError: true, permissionRepair: repair)
     }
 
     private func invalid(_ why: String) -> PippaMCPToolResult {
