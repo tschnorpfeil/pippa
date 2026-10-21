@@ -252,6 +252,11 @@
       if (this.state === 'offen' || this.state === 'fehler') this.engine.expression = 0;
       this._wake();
     }
+    // A paused product demo keeps the exact current expression until it resumes.
+    setPaused(paused) {
+      this.paused = paused;
+      if (paused) this._stop(); else this._wake();
+    }
     destroy() {
       this._stop();
       this._theme.disconnect();
@@ -413,7 +418,7 @@
 
     _draw(now) {
       if (!this.canvas.isConnected) { this.destroy(); return; }
-      if (document.hidden || !this.visible) { this._stop(); return; }
+      if (this.paused || document.hidden || !this.visible) { this._stop(); return; }
       const delta = this.lastPaint === null ? 0 : now - this.lastPaint;
       if (this.lastPaint === null || now + 0.5 >= this.nextPaint) {
         this._paint(Math.min(delta / 1000, 0.1));
@@ -425,6 +430,7 @@
       this.frame = requestAnimationFrame(t => this._draw(t));
     }
     _wake() {
+      if (this.paused) return;
       if (this.reduced) { this._paint(0, true); return; }
       this.moving = true;
       if (!document.hidden && this.visible && this.frame === 0) this.frame = requestAnimationFrame(t => this._draw(t));

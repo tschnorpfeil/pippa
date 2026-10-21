@@ -6,7 +6,9 @@ Decision memo and execution plan · 21 October 2026 · Horizon: 21 April 2027
 
 This plan starts with a premortem, then makes explicit product bets, implementation priorities and release gates. It assumes one or two core builders, with recruited testers and occasional specialist help. Dates are planning windows; evidence controls expansion. Targets below are proposed decision thresholds, not measured performance or industry benchmarks.
 
-The code assessment starts from local commit `2e67358`, based on remote main `601583b`; checkpoint `12dbc05` incorporates main through `093ea7d`. Follow-up implementation adds native-tool admission and more accurate partial-effect handling. These branch changes have not been established as released behavior. The [engineering assessment](measurements/agent-readiness-2026-10-21.md) records what was changed and tested. Proposed work below remains distinct from those implemented foundations.
+**Release status, 21 October:** [0.3.12 build 727 is published](https://github.com/tschnorpfeil/pippa/releases/tag/v0.3.12-727) and [PR #123 is merged](https://github.com/tschnorpfeil/pippa/pull/123). Native-tool admission, durable reminder recovery, restricted drafting, source-aware retry and native Photos/PDF first use are now shipped foundations. The [0.3.13 release plan](roadmap-0.3.13.md) supersedes the near-term ordering below: close native-action acceptance and recovery gaps, complete file preparation, then remove interaction friction. The broader jobs and six-month targets remain proposals.
+
+The original code assessment starts from local commit `2e67358`, based on remote main `601583b`; checkpoint `12dbc05` incorporates main through `093ea7d`. Keep the [engineering assessment](measurements/agent-readiness-2026-10-21.md) and [candidate assessment](measurements/release-candidate-0.3.12-2026-10-21.md) as historical evidence; the published release validation governs what was finally verified.
 
 ## 1. Premortem: it is 21 April 2027 and Pippa failed
 
@@ -29,8 +31,8 @@ The most dangerous chain is **overpromise → difficult first session → uncert
 
 ### What the current evidence actually establishes
 
-- The 0.3.12 candidate adds durable recovery for `reminder_add`, enforced reader-only drafting, source-aware explicit retry and a native Photos/PDF entry before model setup. These are implemented foundations for backlog items 1–3 and 6, not completion of the entire three-job roadmap. The [candidate assessment](measurements/release-candidate-0.3.12-2026-10-21.md) records tests, measured file-flow behavior and remaining acceptance gates.
-- The previous implementation passed 743 native checks, 61 runtime tests and 7 RPC checks. That supports the specific fixes described in the engineering assessment. It does not establish signed-app permission reliability, current end-to-end success rates or retention.
+- Released 0.3.12 adds durable recovery for `reminder_add`, enforced reader-only drafting, source-aware explicit retry, attached-source grounding checks and a native Photos/PDF entry before model setup. These are foundations for backlog items 1–3 and 6, not completion of the entire three-job roadmap.
+- The [published validation record](https://github.com/tschnorpfeil/pippa/releases/download/v0.3.12-727/validation.json) records 797 native and 37 RPC checks, macOS 15 first-use checks passing 24/24 in each language, notarization and a real Sparkle upgrade from build 709 to 727. Calendar and reminder native acceptance used signed build 722 on a 24 GB Mac. Physical 8/16 GB Macs, fresh permission grant/deny, manual Mail draft acceptance and real app restart/readback remain unverified. Mail UI automation timed out; it is not a confirmed product failure. These finite checks do not establish product-wide success rates or retention.
 - The [9 October model comparison](measurements/model-compare/README.md) reported 17 complete, 12 partial and 1 failed task across 30 runs for thinking-enabled Qwen3.5-9B. It used older code, Pi 1.1, mocked integrations and one 24 GB Mac. Language mismatches contributed to partial grades. This is historical evidence for improving evaluation, not a score for today's build.
 - Existing [tester issue #104](https://github.com/tschnorpfeil/pippa/issues/104) supplies a useful recruitment script. Its comments were empty when checked on 21 October. This does not establish whether private feedback or other testing exists. The next step needs observed users, not an assumption that demand has already been proven.
 
@@ -166,6 +168,8 @@ The attached quantization document is useful **experimental input**, not an inst
 Evaluate [Underdog Saluki](https://huggingface.co/ConwayResearch/Underdog-Saluki-27B-1.0) separately from [Husky](https://husky.underdog.ai/): they are different model/runtime propositions. Publisher speed and tool benchmarks do not establish Pippa quality. Include serial tool validity, German/English fidelity, stop/retry behavior and normal competing apps. Change one runtime/model variable at a time. See the [model assessment](measurements/agent-readiness-2026-10-21.md#local-model-recommendation) for candidate details and evidence limits.
 
 ## 7. Six-month sequence and gates
+
+The sequence below is the original planning baseline. Some first-phase foundations shipped early in 0.3.12; use the [0.3.13 plan](roadmap-0.3.13.md) for current implementation order and retain the uncompleted validation and broader workflow gates here.
 
 Dates assume the capacity stated above. If a gate fails, narrow the supported workflow or extend the phase; do not lower the honesty bar to meet a calendar date. Observe users from the first week and continue throughout development.
 

@@ -7,14 +7,14 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://heypippa.goatcounter.com; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="robots" content="index, follow, max-image-preview:large">
-<title>Pippa – your personal assistant on the Mac</title>
-<meta name="description" content="Pippa is your personal assistant on the Mac. Drop invoices, letters or whole folders on her. Offline, free and open source.">
+<title>Pippa — Private AI Assistant for Mac · Free & Open Source</title>
+<meta name="description" content="Turn photos into PDFs, understand letters and organize files with Pippa, your private AI assistant for Mac. Free, open source, no account or subscription.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="de_DE">
 <meta property="og:site_name" content="Pippa">
-<meta property="og:title" content="Pippa – your personal assistant on the Mac">
-<meta property="og:description" content="Pippa is your personal assistant on the Mac. Drop invoices, letters or whole folders on her. Offline, free and open source.">
+<meta property="og:title" content="Pippa — Private AI Assistant for Mac · Free & Open Source">
+<meta property="og:description" content="Turn photos into PDFs, understand letters and organize files with Pippa, your private AI assistant for Mac. Free, open source, no account or subscription.">
 <meta property="og:image" content="https://heypippa.app/og-en.jpg?v=2">
 <meta property="og:image:alt" content="“Just drop it on Pippa.” Next to it, Pippa’s window with the preview “Organize Downloads”: 38 files go into Invoices, Photos, Letters and Apps, nothing changed yet.">
 <meta property="og:image:secure_url" content="https://heypippa.app/og-en.jpg?v=2">
@@ -22,8 +22,8 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Pippa – your personal assistant on the Mac">
-<meta name="twitter:description" content="Pippa is your personal assistant on the Mac. Drop invoices, letters or whole folders on her. Offline, free and open source.">
+<meta name="twitter:title" content="Pippa — Private AI Assistant for Mac · Free & Open Source">
+<meta name="twitter:description" content="Turn photos into PDFs, understand letters and organize files with Pippa, your private AI assistant for Mac. Free, open source, no account or subscription.">
 <meta name="twitter:image" content="https://heypippa.app/og-en.jpg?v=2">
 <meta name="twitter:image:alt" content="“Just drop it on Pippa.” Next to it, Pippa’s window with the preview “Organize Downloads”: 38 files go into Invoices, Photos, Letters and Apps, nothing changed yet.">
 <link rel="icon" href="../favicon.ico" sizes="48x48">
@@ -43,40 +43,57 @@
   "@graph": [
     {
       "@type": "WebSite",
-      "@id": "https://heypippa.app/en/#website",
+      "@id": "https://heypippa.app/#website",
       "name": "Pippa",
+      "url": "https://heypippa.app/",
+      "inLanguage": [
+        "de",
+        "en"
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://heypippa.app/en/#page",
       "url": "https://heypippa.app/en/",
-      "inLanguage": "en"
+      "name": "Pippa — Private AI Assistant for Mac · Free & Open Source",
+      "description": "Turn photos into PDFs, understand letters and organize files with Pippa, your private AI assistant for Mac. Free, open source, no account or subscription.",
+      "inLanguage": "en",
+      "isPartOf": {
+        "@id": "https://heypippa.app/#website"
+      },
+      "about": {
+        "@id": "https://heypippa.app/#app"
+      }
     },
     {
       "@type": "SoftwareApplication",
-      "@id": "https://heypippa.app/en/#app",
+      "@id": "https://heypippa.app/#app",
       "name": "Pippa",
-      "url": "https://heypippa.app/en/",
-      "inLanguage": "en",
-      "description": "Pippa is your personal assistant on the Mac. Drop invoices, letters or whole folders on her. Offline, free and open source.",
-      "operatingSystem": "macOS 15 or later",
-      "applicationCategory": "ProductivityApplication",
+      "url": "https://heypippa.app/",
+      "inLanguage": [
+        "de",
+        "en"
+      ],
+      "description": "Turn photos into PDFs, understand letters and organize files with Pippa, your private AI assistant for Mac. Free, open source, no account or subscription.",
+      "operatingSystem": "macOS 15+",
+      "applicationCategory": "UtilitiesApplication",
       "processorRequirements": "Apple silicon (M1 or later)",
+      "isAccessibleForFree": true,
       "offers": {
         "@type": "Offer",
         "price": "0",
-        "priceCurrency": "EUR"
+        "priceCurrency": "EUR",
+        "url": "https://github.com/tschnorpfeil/pippa/releases/latest"
       },
+      "downloadUrl": "https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg",
+      "license": "https://github.com/tschnorpfeil/pippa/blob/main/LICENSE",
+      "image": "https://heypippa.app/icon-512.png",
       "sameAs": "https://github.com/tschnorpfeil/pippa"
     }
   ]
 }
 </script>
-<script>
-document.documentElement.classList.add('js');
-/* Sprache: ein ausdrücklicher Klick auf den Umschalter gewinnt, sonst die Sprache des Browsers. Crawler bleiben auf der angeforderten Seite. */
-(function(){var me='en';try{if(/bot|crawl|spider|slurp|lighthouse|headless|preview/i.test(navigator.userAgent))return;var w;try{w=localStorage.getItem('pippa-lang')}catch(e){}
-if(w!=='de'&&w!=='en'){w='en';var l=navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||''];
-for(var i=0;i<l.length;i++){var c=String(l[i]).toLowerCase();if(c.indexOf('de')===0){w='de';break}if(c.indexOf('en')===0)break}}
-if(w!==me)location.replace('/'+location.hash)}catch(e){}})();
-document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[data-lang]');if(a)try{localStorage.setItem('pippa-lang',a.dataset.lang)}catch(_){}});
-</script>
+<script>document.documentElement.classList.add('js');</script>
 <style>
 @font-face{font-family:"Bagel Fat One";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/bagel-fat-one.ttf") format("truetype")}
 @font-face{font-family:"Gochi Hand";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/gochi-hand.ttf") format("truetype")}
@@ -241,7 +258,6 @@ footer canvas{--pippa-ink:var(--ink)}
 .perm .b:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .perm .b.ok{background:#e6f1e7;color:var(--ok)}.perm .b.tap{transform:scale(.9)}
 header .btn{transition:opacity .3s,transform .3s}
-body:not(.pastcta) header .btn{opacity:0;pointer-events:none;transform:translateY(-6px)}
 .end h2{font-size:clamp(40px,1.6rem + 3.4vw,72px)}
 @media(max-width:760px){.demo .asks{flex-wrap:wrap;overflow:visible;justify-content:center;margin-inline:0;padding:0}}
 /* Vorführung wie ein kleiner Film: links die Aufgaben, rechts ein Mac, auf dem Pippa sie erledigt. Alles nachgebaut nach der App. */
@@ -499,12 +515,24 @@ display:grid;grid-template-columns:30px 1fr auto;gap:2px 10px;align-items:center
 /* Feinschliff 9 */
 header .wrap{position:relative}.langsw{margin-left:auto}
 @media(min-width:861px){.nav{position:absolute;left:50%;transform:translateX(-50%);margin:0}}
-body:not(.pastcta) header .btn{position:absolute;right:var(--gut)}
 .sub{margin-top:34px}
 .perm .b{padding:9px 14px}
 footer p a{display:inline-block;padding:6px 2px}
 @media(max-width:760px){.sec,.end{padding-top:88px}footer{margin-top:80px}.hero{padding-top:56px}.sub{font-size:19px;margin-top:22px}.demo{margin-top:40px}.trust{padding:40px 20px}}
 @media(max-width:600px){.perm{padding:22px 18px 8px}.perm li{grid-template-columns:34px 1fr;align-items:start}.perm li .b{grid-column:2;justify-self:start;margin-top:2px}}
+
+/* Everyday outcomes remain readable without running the illustrated demo. */
+.eyebrow{margin:0 0 22px;color:var(--blue);font-size:14px;font-weight:700;letter-spacing:.04em}
+.sub{max-width:30em}.first-use{margin-top:18px;font-size:15px;font-weight:650;color:var(--ok)}
+.demo-caption{margin:18px auto 0;max-width:58em;font-size:13px;color:var(--grey);text-align:center}
+.jobs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:36px;text-align:left}
+.job{padding:30px;border:1px solid var(--sep);border-radius:26px;background:#fff;display:flex;flex-direction:column;align-items:flex-start;gap:16px}
+.job:first-child{background:var(--lino-l);border-color:transparent}.job small{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.04em}
+.job h3{font-size:24px;line-height:1.15;letter-spacing:-.02em}.job p{font-size:16px;color:var(--ink-2)}.job a{margin-top:auto;padding-top:8px;font-size:15px;font-weight:650}
+.jobs-more{max-width:55em;margin:24px auto 0;color:var(--ink-2);font-size:15px}.release-link{margin-top:14px;font-size:14px}.pn-blue .release-link a{color:#fff}
+@media(max-width:760px){.jobs{grid-template-columns:1fr;gap:16px}.job{padding:24px}.eyebrow{font-size:12px;margin-bottom:20px}}
+@media(max-width:420px){header .wrap{gap:10px}.brand{font-size:20px;gap:6px}.langsw{font-size:13px}header .btn{font-size:13px;padding:0 12px}}
+@media(prefers-reduced-motion:reduce){html,.pw-b{scroll-behavior:auto}}
 </style>
 </head>
 <body>
@@ -512,7 +540,7 @@ footer p a{display:inline-block;padding:6px 2px}
 <header>
   <div class="wrap">
     <a class="brand" href="#top"><canvas data-mark="26" aria-hidden="true"></canvas>Pippa</a>
-    <nav class="nav" aria-label="Page"><a href="#kann">What she does</a><a href="#daten">Your data</a><a href="#fragen">Questions</a></nav>
+    <nav class="nav" aria-label="Page"><a href="#alltag">Everyday help</a><a href="#daten">Your data</a><a href="#fragen">Questions</a></nav>
     <a class="langsw" href="../" hreflang="de" lang="de" data-lang="de">Deutsch</a>
     <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download</a>
   </div>
@@ -522,22 +550,24 @@ footer p a{display:inline-block;padding:6px 2px}
 <section class="hero" id="top" aria-labelledby="h1">
   <span class="blob" aria-hidden="true"></span>
   <div class="wrap">
+    <p class="eyebrow">Your private AI assistant for Mac</p>
     <h1 id="h1">Just drop it<br><span class="nw">on <span class="hw">Pippa</span><span class="dot"><canvas id="dotMark" aria-hidden="true"></canvas><span class="sr">.</span></span></span></h1>
-    <p class="sub">Your personal AI assistant on&nbsp;the&nbsp;Mac.<br>Offline, always there for you.</p>
-    <div class="ctas"><a class="btn dl" id="heroDl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free <span aria-hidden="true">→</span></a></div>
-    <p class="req">No account, no subscription, open source. Still an early version.<br>For Macs with Apple silicon on macOS&nbsp;15 or later. <a href="#passt">Will it run on my Mac?</a></p>
+    <p class="sub">A smaller PDF. A clearer letter. A tidier folder.<br>Drop it on Pippa and choose what you need.</p>
+    <div class="ctas"><a class="btn dl" id="heroDl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free <span aria-hidden="true">→</span></a><a class="btn2" href="#alltag">See what she does</a></div>
+    <p class="first-use">Start with photos and PDFs. No AI download needed.</p>
+    <p class="req">Free, open source, no account or subscription.<br>Apple silicon (M1 or later) · macOS&nbsp;15+ · <a href="#passt">Check your Mac</a></p>
 
     <div class="demo" id="kann">
       <p class="peek" aria-hidden="true">Here’s how it works.</p>
       <div class="show">
         <div class="scen">
           <ol id="scen">
-            <li><button type="button" data-k="dl"><span class="no">01</span><b>Tidy up Downloads</b><span class="d">Drop the folder on Pippa and tap “Tidy Up”. She shows you first where everything goes, and “Undo” puts it all back.</span><span class="bar"><i></i></span></button></li>
+            <li><button type="button" data-k="dl"><span class="no">01</span><b>Tidy up Downloads</b><span class="d">Drop the folder on Pippa and tap “Tidy Up”. Review where the files will go first. Supported moves have Undo.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="brief"><span class="no">02</span><b>Understand letters</b><span class="d">Just ask what you want to know. Pippa answers in plain words and shows you the passage in the letter.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="dateien"><span class="no">03</span><b>Find files again</b><span class="d">You only remember what it was about? Pippa finds the file on your Mac. Press <kbd>⌃⌥ Space</kbd> and she’s right there.</span><span class="bar"><i></i></span></button></li>
-            <li><button type="button" data-k="mail"><span class="no">04</span><b>Answer emails</b><span class="d">Pippa reads the email, checks your calendar and adds the appointment. She puts the reply in Mail as a draft, and you send it.</span><span class="bar"><i></i></span></button></li>
+            <li><button type="button" data-k="mail"><span class="no">04</span><b>Answer emails</b><span class="d">Ask Pippa to check a proposed time, add the appointment and prepare a reply. Review the unsent draft in Apple Mail.</span><span class="bar"><i></i></span></button></li>
             <li><button type="button" data-k="buero"><span class="no">05</span><b>Office work</b><span class="d">Pippa checks totals in Excel, explains spreadsheets and turns invoices into a table that opens in Excel. She doesn’t change your files.</span><span class="bar"><i></i></span></button></li>
-            <li><button type="button" data-k="pdf"><span class="no">06</span><b>PDF tools</b><span class="d">Too big for email? Pippa makes PDFs and photos smaller, combines scans and converts images. No internet needed.</span><span class="bar"><i></i></span></button></li>
+            <li><button type="button" data-k="pdf"><span class="no">06</span><b>PDF tools</b><span class="d">Too big for email? Pippa makes PDFs and photos smaller, combines scans and converts images. No AI download needed.</span><span class="bar"><i></i></span></button></li>
           </ol>
           <button class="pause" type="button" id="pause" aria-pressed="false" aria-label="Pause the demo"><span aria-hidden="true">❙❙</span><em>Pause</em></button>
           <p class="scen-d" id="scenD" aria-live="polite"></p>
@@ -586,7 +616,21 @@ footer p a{display:inline-block;padding:6px 2px}
           <svg class="cur" id="cur" viewBox="0 0 20 24"><path d="M2 1v19l5-5 3.5 7.5 3-1.4L10 13.8h7z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>
       </div>
+      <p class="demo-caption">Illustrated examples with made-up files. This is a website demo, not a live recording; actual results and timings vary.</p>
     </div>
+  </div>
+</section>
+
+<section class="sec center" id="alltag" aria-labelledby="h-alltag">
+  <div class="wrap">
+    <h2 id="h-alltag">A little less work on your Mac.</h2>
+    <p class="lead">Start with a file you already have. Pippa lives in a small pill on your desktop, ready when you need her.</p>
+    <div class="jobs">
+      <article class="job"><small>No AI setup needed</small><h3>Make photos and PDFs useful</h3><p>Combine scans into a PDF, convert images or make an attachment smaller. Open the finished file, save it elsewhere or show it in Finder.</p><a href="#loslegen">Try photos and PDFs <span aria-hidden="true">→</span></a></article>
+      <article class="job"><small>With local AI</small><h3>Make sense of a letter</h3><p>Drop in a letter and ask what it means or what it asks you to do. Review the answer alongside the source before taking your next step.</p><a href="#kann">See the examples <span aria-hidden="true">→</span></a></article>
+      <article class="job"><small>Preview before organizing</small><h3>Bring order to a folder</h3><p>Drop a folder on Pippa and choose Organize. Review where the files would go before you apply the plan. Supported moves have Undo.</p><a href="#kann">See the examples <span aria-hidden="true">→</span></a></article>
+    </div>
+    <p class="jobs-more">Also useful: find a file, extract text from a scan, prepare a reply in Apple Mail or add a requested reminder. Mac app actions use your macOS permissions.</p>
   </div>
 </section>
 
@@ -594,18 +638,18 @@ footer p a{display:inline-block;padding:6px 2px}
   <div class="wrap">
     <div class="trust">
       <div>
-        <h2 id="h-daten" class="rv">Pippa asks before she looks.</h2>
-        <p class="lead rv" style="--d:1">When you first start Pippa, you decide for each area whether she may look inside. You can change that anytime in Settings.</p>
+        <h2 id="h-daten" class="rv">Local AI. Access you control.</h2>
+        <p class="lead rv" style="--d:1">The built-in AI runs on your Mac. You choose which macOS permissions to grant, and can review them in System Settings.</p>
         <ul class="facts">
-          <li class="rv"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>AI on your Mac</h3><p>Pippa’s AI runs on your Mac, even without internet. You don’t need an account.</p></li>
-          <li class="rv" style="--d:1"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Emails only as drafts</h3><p>Pippa drafts replies. You send them.</p></li>
-          <li class="rv" style="--d:2"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>A memory you can read</h3><p>What she remembers is in a text file on your Mac. She doesn’t remember passwords or account numbers.</p></li>
-          <li class="rv" style="--d:3"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Online only when needed</h3><p>Pippa only goes online for downloads, updates and web searches. Before she searches or a command wants to go online, she asks you.</p></li>
-          <li class="rv" style="--d:4"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Open source</h3><p>MIT license. Anyone can check what Pippa does.</p></li>
+          <li class="rv"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>AI on your Mac</h3><p>Once its download is complete, the built-in AI can work offline. Photo and PDF tools can be used before that download.</p></li>
+          <li class="rv" style="--d:1"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Replies you review</h3><p>The Mail drafting tool creates an unsent draft. You review it in Apple Mail and choose whether to send it.</p></li>
+          <li class="rv" style="--d:2"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Memory you can review</h3><p>Review or remove saved facts in Pippa’s Settings. Her memory is stored in a text file on your Mac.</p></li>
+          <li class="rv" style="--d:3"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Clear online choices</h3><p>Downloads, updates and web lookups use the network. An optional online AI service receives the content needed for its requests. Your Mail, Calendar and Reminders accounts may sync through their providers.</p></li>
+          <li class="rv" style="--d:4"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg><h3>Free and open source</h3><p>No Pippa account or subscription. The source code is available under the MIT license.</p></li>
         </ul>
       </div>
       <div class="perm rv" style="--d:2" id="perm">
-        <p class="ph">What Pippa may do</p><p class="pcap">A part of Pippa’s settings. Try it.</p>
+        <p class="ph">What Pippa may do</p><p class="pcap">Illustration only. These buttons do not change permissions on your Mac.</p>
         <ul>
           <li><span class="ic" style="background:#1f7cf2"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><div><b>Desktop, Documents and Downloads</b><span>So Pippa can find, read and tidy your files when you ask her to.</span></div><button class="b" type="button" aria-pressed="false">Allow</button></li>
           <li><span class="ic" style="background:#f04a3e"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><div><b>Calendar</b><span>So Pippa can read your appointments and add deadlines.</span></div><button class="b" type="button" aria-pressed="false">Allow</button></li>
@@ -622,21 +666,24 @@ footer p a{display:inline-block;padding:6px 2px}
   <div class="wrap faq">
     <h2 id="h-faq" class="rv">Any questions?</h2>
     <div class="list">
-      <details><summary>How much does Pippa cost?</summary><p>Nothing. No subscription, no ads.</p></details>
-      <details id="passt"><summary>Will Pippa run on my Mac?</summary><p>On any Mac with Apple silicon (M1 or later), macOS 15 or later and at least 8&nbsp;GB of memory. With 16&nbsp;GB Pippa answers noticeably better. She downloads her AI once, 3 to 6&nbsp;GB depending on your Mac. You can check in the Apple menu under “About This Mac”.</p></details>
-      <details><summary>Do I need internet?</summary><p>Once, to download Pippa’s AI. After that she works offline. For updates Pippa goes online. Before she searches the web, she asks you and shows you the search text.</p></details>
-      <details><summary>Who sees my data?</summary><p>Nobody but you. The AI runs on your Mac, and there is no Pippa server. Only if you add a ChatGPT or other AI account yourself do your conversations go there. More in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p></details>
-      <details><summary>Can Pippa break anything?</summary><p>When tidying up, she shows you her plan first and waits for your okay. Small steps she does right away and notes below the answer what she changed; “Undo” brings your files back. She only creates emails as drafts. Her commands run shielded: Pippa reaches the internet, other apps or your files outside her working folder only when you allow it, and she cannot delete anything there for good. Pippa is still an early version, so keep a backup of important files as always.</p></details>
+      <details><summary>How much does Pippa cost?</summary><p>Nothing. Pippa is free and open source, with no Pippa account, subscription or ads. Optional online AI services have their own terms.</p></details>
+      <details id="passt"><summary>Will Pippa run on my Mac?</summary><p>You need Apple silicon (M1 or later), macOS 15 or later and at least 8&nbsp;GB of memory. Check the Apple menu → About This Mac. Intel Macs are not supported. AI setup downloads about 3&nbsp;GB on an 8&nbsp;GB Mac, or about 6&nbsp;GB with 16&nbsp;GB or more. Allow additional space for the app and your results.</p></details>
+      <details><summary>Can I start without downloading the AI?</summary><p>Yes. Open Pippa and choose photos or PDFs during setup. Combine scans into PDFs, convert images or reduce file size, then save the result. For AI chat and document questions, Pippa asks before downloading her local AI.</p></details>
+      <details><summary>Do I need internet?</summary><p>You need it to download the app and, if you choose, her local AI. After setup, local AI and native file tools can work offline. Updates, web lookups and optional online AI services use the internet.</p></details>
+      <details><summary>Who sees my data?</summary><p>The built-in AI processes your requests on your Mac; there is no Pippa server or app usage tracking. If you connect an online AI service, it receives the content needed for those requests. Mail, Calendar and Reminders may sync through accounts you configured. See the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a> for details.</p></details>
+      <details><summary>What can I undo?</summary><p>Organize shows a plan before moving files. Supported file changes keep backups and offer Undo; later changes to those files can prevent a safe restore. Actions in other apps do not all support Undo. A requested action may run without a second confirmation, so check the result and keep your usual backups.</p></details>
+      <details><summary>What if Pippa cannot finish a task?</summary><p>Pippa is still an early version. Check the result and any reported changes before retrying. You can <a href="https://github.com/tschnorpfeil/pippa/issues">report a problem on GitHub</a>; describe the steps and your macOS version, and leave private documents out.</p></details>
     </div>
   </div>
 </section>
 
-<section class="sec center end" aria-labelledby="h-home">
+<section id="loslegen" class="sec center end" aria-labelledby="h-home">
   <div class="wrap"><div class="panel pn-blue">
-    <h2 id="h-home" class="rv" style="--d:1">Get Pippa.</h2>
-    <ol class="steps"><li class="rv" style="--d:2">Open the downloaded file and drag Pippa into the Applications folder.</li><li class="rv" style="--d:3">Open Pippa. Before she downloads her AI, she asks you and tells you how big it is.</li><li class="rv" style="--d:4">Drop your Downloads folder on Pippa.</li></ol>
+    <h2 id="h-home" class="rv" style="--d:1">Your first useful result starts here.</h2>
+    <ol class="steps"><li>Open <strong>Pippa.dmg</strong> and drag Pippa into Applications.</li><li>Open Pippa and choose <strong>photos or PDFs</strong> during setup.</li><li>Pick a file action, then <strong>open or save the result</strong>. Add local AI chat whenever you are ready.</li></ol>
     <div class="ctas"><a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free <span aria-hidden="true">→</span></a></div>
     <p class="req">For Macs with Apple silicon on macOS&nbsp;15 or later.</p>
+    <p class="release-link"><a href="https://github.com/tschnorpfeil/pippa/releases/latest">Release notes</a></p>
   </div></div>
 </section>
 </main>
@@ -691,16 +738,29 @@ const chip=(n,k,x)=>`<span class="chip">${I[k]}${n}${x?'<u>×</u>':''}</span>`;
 const ANS={brief:`<p><b>By December 31.</b> The notice period is three months to the end of a month. Give notice in writing and sign it yourself.</p><blockquote>The notice period is three months to the end of a calendar month. – Lease § 4</blockquote><div class="rc">${I.doc}Read Lease.pdf · 6 s ${I.cv}</div>`,
   dateien:`<div class="cd"><div class="cd-h">${I.files}Found on this Mac</div>${[['Bike helmet invoice.pdf','Downloads'],['Bike warranty.pdf','Bike'],['Lease.pdf','Home'],['Frame number.jpg','Pictures','ph']].map(([n,o,c])=>`<div class="fr"><span class="ft ${c||''}"></span><div><b>${n}</b><small>${o}</small></div></div>`).join('')}<div class="cd-f">Files on this Mac</div></div>`,
   mail:`<p><b>Yes, Tuesday at 5:30 pm is free.</b> I added the service to your calendar and put a reply saying yes in Mail as a draft.</p><div class="rcpt"><div>${I.cal}<span><b>Bike service</b><small>Tue Oct 21, 5:30 PM · in Calendar</small></span></div><div>${I.mail}<span><b>Draft in Mail</b><small>Just a draft · nothing sent</small></span></div></div>`};
-let job=0,at=0,paused=false;
-const wait=(ms,my)=>new Promise((ok,no)=>setTimeout(()=>my===job?ok():no('stop'),RM?Math.min(ms,40):ms));
+// One clock drives waits and motion; paused time never advances a scene.
+function createDemoClock(now=()=>performance.now(),schedule=setTimeout,clear=clearTimeout){
+  let heldAt=null,heldFor=0;const pending=new Set();
+  const time=()=>(heldAt===null?now():heldAt)-heldFor;
+  const arm=w=>{w.timer=schedule(()=>{w.timer=null;if(heldAt!==null)return;pending.delete(w);w.resolve()},Math.max(0,w.end-time()))};
+  return {time,
+    wait:ms=>new Promise((resolve,reject)=>{const w={end:time()+ms,resolve,reject,timer:null};pending.add(w);if(heldAt===null)arm(w)}),
+    pause(value){if(value===(heldAt!==null))return;if(value){heldAt=now();for(const w of pending){clear(w.timer);w.timer=null}}
+      else{heldFor+=now()-heldAt;heldAt=null;for(const w of pending)arm(w)}},
+    cancel(){for(const w of pending){clear(w.timer);w.reject('stop')}pending.clear()}
+  };
+}
+// End demo playback clock.
+let job=0,at=0,paused=false;const clock=createDemoClock();
+const wait=async(ms,my)=>{if(my!==job)throw 'stop';await clock.wait(ms);if(my!==job)throw 'stop'};
 const rel=el=>{const m=mac.getBoundingClientRect(),r=el.getBoundingClientRect();return{x:r.left-m.left+r.width/2,y:r.top-m.top+r.height/2}};
 /* Der Zeiger läuft in einem einzigen Takt mit dem gezogenen Stapel: ein Wert, ein Frame, kein Nachziehen. */
 let cx=0,cy=0,canim=0;
 const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
 const place=(x,y)=>{cx=x;cy=y;cur.style.transform=`translate3d(${x}px,${y}px,0)`;if(ghost.classList.contains('on'))ghost.style.transform=`translate3d(${x-40}px,${y-44}px,0)`};
 const curTo=(p,ms,via)=>{cancelAnimationFrame(canim);const tx=p.x-3,ty=p.y-2;if(RM||!ms){place(tx,ty);return}
-  const sx=cx,sy=cy,c=via?{x:2*(via.x-3)-(sx+tx)/2,y:2*(via.y-2)-(sy+ty)/2}:null;let t0=0;
-  const step=now=>{if(!t0)t0=now;const k=ease(Math.min(1,Math.max(0,(now-t0)/ms))),j=1-k;place(c?j*j*sx+2*j*k*c.x+k*k*tx:sx+(tx-sx)*k,c?j*j*sy+2*j*k*c.y+k*k*ty:sy+(ty-sy)*k);if(now-t0<ms)canim=requestAnimationFrame(step)};
+  const sx=cx,sy=cy,c=via?{x:2*(via.x-3)-(sx+tx)/2,y:2*(via.y-2)-(sy+ty)/2}:null,t0=clock.time();
+  const step=()=>{if(!paused){const elapsed=clock.time()-t0,k=ease(Math.min(1,Math.max(0,elapsed/ms))),j=1-k;place(c?j*j*sx+2*j*k*c.x+k*k*tx:sx+(tx-sx)*k,c?j*j*sy+2*j*k*c.y+k*k*ty:sy+(ty-sy)*k);if(elapsed>=ms)return}canim=requestAnimationFrame(step)};
   canim=requestAnimationFrame(step)};
 const glide=async(el,ms,my)=>{curTo(rel(el),ms);await wait(ms+60,my)};
 const tap=async(el,my,{press=true}={})=>{await glide(el,700,my);cur.classList.add('down');if(press)el.classList.add('hit');await wait(160,my);cur.classList.remove('down');el.classList.remove('hit');await wait(200,my)};
@@ -746,8 +806,8 @@ const S={
     pwB.innerHTML=`<div class="so"><div class="so-h"><b>Organize Downloads</b><small>38 files get a place · 4 new folders · nothing is deleted</small></div>
 <div class="so-ba"><div class="now"><b>Now</b>38 loose files</div><span class="ar">→</span><ul><li><span class="fo"></span>Invoices<small>14</small></li><li><span class="fo"></span>Photos<small>11 · by year</small></li><li><span class="fo"></span>Letters<small>8</small></li><li><span class="fo"></span>Apps<small>5</small></li></ul></div>
 <div class="so-p" id="soP">Looking at 38 files… <span id="soN">1</span> of 38<div class="b"><i id="soB"></i></div></div><div id="soG"></div></div>`;
-    const t0=performance.now();$('#soB').offsetWidth;$('#soB').style.width='100%';const tick=setInterval(()=>{const n=$('#soN');if(!n||my!==job)return clearInterval(tick);n.textContent=Math.min(38,1+Math.round((performance.now()-t0)/1600*37))},90);
-    await wait(1800,my);clearInterval(tick);$('#soP').remove();pwMark.setState('ruht');
+    const t0=clock.time();$('#soB').offsetWidth;$('#soB').style.width='100%';const tick=setInterval(()=>{const n=$('#soN');if(!n||my!==job)return clearInterval(tick);if(!paused)n.textContent=Math.min(38,1+Math.round((clock.time()-t0)/1600*37))},90);
+    try{await wait(1800,my)}finally{clearInterval(tick)}$('#soP').remove();pwMark.setState('ruht');
     $('#soG').innerHTML=[['Invoices',14],['Photos <span style="color:#5f6368;font-weight:500">› 2025</span>',11],['Letters',8],['Apps',5]].map(([n,c])=>`<div class="so-g"><span class="cb">✓</span><span class="fo"></span>${n} <em>NEW</em><span class="n">${c}</span></div>`).join('');
     $('#soGo').classList.remove('dim');down();await wait(1500,my);await tap($('#soGo'),my);
     pw.classList.remove('on');dp.classList.remove('away');dstate('arbeitet','Organizing 38 files');await wait(1900,my);
@@ -781,18 +841,33 @@ const S={
     const d=rel(out);curTo(d,1000);await wait(1050,my);cur.classList.remove('down');ghost.classList.add('drop');out.classList.add('on')}}
 };
 const EST={dl:17500,brief:13000,dateien:11000,mail:13500,buero:13000,pdf:14500};
-const play=async i=>{const my=++job;at=i;items.forEach((li,n)=>{li.classList.toggle('on',n===i);const b=$('.bar i',li);b.style.transition='none';b.style.width='0';$('button',li).setAttribute('aria-current',n===i?'true':'false')});
+// Reduced motion presents one finished example, with no typing or automatic scene changes.
+const showStatic=k=>{cur.style.opacity='0';
+  if(k==='dl'){toast.classList.add('on');toastMark.setState('offen')}
+  else if(k==='pdf'){openLine([chip('PDF','doc')]);lnX.innerHTML='<div class="rcard"><span class="th"></span><div><b>Tax notice (smaller).pdf</b><small>Finished file · Open, show in Finder or save.</small></div></div>';$('#f-sm').classList.add('on')}
+  else if(k==='buero'){mApp.textContent='Excel';xl.classList.add('on');$('#xlMiss').classList.add('miss');openLine([]);lnX.innerHTML='<div class="lh"><b>This total leaves out one row.</b></div><div class="find"><span>Including the “Trash” row, the total would be 892.39. Nothing in your table was changed.</span></div>'}
+  else{openPanel();pwSub.textContent=$('button b',items[at]).textContent;answer(ANS[k])}
+};
+let frozenAnimations=[];
+const setPaused=value=>{paused=value;clock.pause(value);
+  if(value){frozenAnimations=[...mac.getAnimations({subtree:true}),...scenOl.getAnimations({subtree:true})].filter(a=>a.playState==='running');frozenAnimations.forEach(a=>a.pause())}
+  else{frozenAnimations.forEach(a=>a.play());frozenAnimations=[]}
+  [deskMark,lnMark,pwMark,toastMark].forEach(m=>m.setPaused?.(value));
+  pauseB.setAttribute('aria-pressed',value);pauseB.setAttribute('aria-label',value?'Resume the demo':'Pause the demo');
+  pauseB.innerHTML=value?'<span aria-hidden="true">▶</span><em>Resume</em>':'<span aria-hidden="true">❙❙</span><em>Pause</em>';
+};
+const play=async i=>{clock.cancel();cancelAnimationFrame(canim);const my=++job;at=i;items.forEach((li,n)=>{li.classList.toggle('on',n===i);const b=$('.bar i',li);b.style.transition='none';b.style.width='0';$('button',li).setAttribute('aria-current',n===i?'true':'false')});
   const btn=$('button',items[i]),k=btn.dataset.k,bar=$('.bar i',items[i]);reset(S[k].ids);scenD.innerHTML=$('.d',items[i]).innerHTML;
   if(scenOl.scrollWidth>scenOl.clientWidth)scenOl.scrollTo({left:items[i].offsetLeft-scenOl.offsetLeft-16,behavior:RM?'auto':'smooth'});
+  if(RM){showStatic(k);return}
   bar.offsetWidth;bar.style.transition=`width ${EST[k]}ms linear`;bar.style.width='100%';if(!cx&&!cy)curTo({x:mac.clientWidth*.55,y:mac.clientHeight*.45},0);
-  const t0=performance.now();try{await S[k].run(my);await wait(Math.max(2000,EST[k]-(performance.now()-t0)),my)}catch(e){return}
+  const t0=clock.time();try{await S[k].run(my);await wait(Math.max(2000,EST[k]-(clock.time()-t0)),my)}catch(e){return}
   if(!paused&&my===job)play((i+1)%items.length)};
-items.forEach((li,n)=>$('button',li).addEventListener('click',()=>play(n)));
-pauseB.addEventListener('click',()=>{paused=!paused;pauseB.setAttribute('aria-pressed',paused);pauseB.setAttribute('aria-label',paused?'Resume the demo':'Pause the demo');
-  pauseB.innerHTML=paused?'<span aria-hidden="true">▶</span><em>Play</em>':'<span aria-hidden="true">❙❙</span><em>Pause</em>';
-  const b=$('.bar i',items[at]);if(paused){b.style.width=getComputedStyle(b).width;b.style.transition='none'}else play((at+1)%items.length)});
-narrow.addEventListener('change',()=>play(at));
-new IntersectionObserver((es,o)=>{if(es[0].isIntersecting){o.disconnect();play(0)}},{threshold:.35}).observe(mac);
+items.forEach((li,n)=>$('button',li).addEventListener('click',()=>{setPaused(false);play(n)}));
+pauseB.addEventListener('click',()=>setPaused(!paused));
+narrow.addEventListener('change',()=>{if(!paused)lay(S[$('button',items[at]).dataset.k].ids)});
+if(RM){pauseB.hidden=true;pauseB.style.display='none';play(0)}
+else new IntersectionObserver((es,o)=>{if(es[0].isIntersecting){o.disconnect();if(job===0)play(0)}},{threshold:.35}).observe(mac);
 /* Der Punkt in der Überschrift ist Pippa. Sie lächelt, wenn du zum Laden zeigst. */
 const h1=$('#h1'),dot=mk($('#dotMark'),Math.round(parseFloat(getComputedStyle(h1).fontSize)*.3),{idleAmplitude:1.4});
 const hdl=$('#heroDl');['pointerenter','focus'].forEach(t=>hdl.addEventListener(t,()=>dot.setState('offen')));['pointerleave','blur'].forEach(t=>hdl.addEventListener(t,()=>dot.setState('ruht')));
@@ -815,6 +890,6 @@ a.addEventListener('click',e=>{if(!navigator.share)return;e.preventDefault();nav
 (()=>{if(navigator.doNotTrack==='1'||/^(localhost|127\.)/.test(location.hostname))return;const gc=(p,e)=>{new Image().src='https://heypippa.goatcounter.com/count?p='+encodeURIComponent(p)+'&t='+encodeURIComponent(document.title)+(e?'&e=true':'')+'&rnd='+Math.random().toString(36).slice(2)};
 gc(location.pathname);document.querySelectorAll('a.btn.dl').forEach(a=>a.addEventListener('click',()=>{if(/\.dmg$/.test(a.href))gc('download-'+(a.closest('header')?'header':a.id==='heroDl'?'hero':'end')+'-en',1)}))})();
 </script>
-<script>(()=>{const open=()=>{const d=location.hash&&document.querySelector(location.hash);if(d&&d.tagName==='DETAILS')d.open=true};addEventListener('hashchange',open);open()})();</script>
+<script>(()=>{const open=()=>{let d;try{d=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)))}catch{return}if(d&&d.tagName==='DETAILS')d.open=true};addEventListener('hashchange',open);open()})();</script>
 </body>
 </html>

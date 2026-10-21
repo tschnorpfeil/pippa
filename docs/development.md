@@ -443,14 +443,26 @@ versions, `~/Library/Containers/io.github.tschnorpfeil.pippa`.
 
 ## Website
 
-`site/` is static HTML with self-hosted fonts and no analytics.
+`site/` is static HTML with self-hosted fonts and scripts. Production pages count visits and download clicks
+through a GoatCounter image request; this is disabled on localhost and when Do Not Track is enabled. The app
+does not collect usage analytics. Keep the website's privacy description aligned with this distinction.
 
 ```sh
 python3 -m http.server 8088 --directory site
-node scripts/check-site.cjs           # drag behaviour: attraction, 36 px cap, release, reduced motion, edge grabs
+node scripts/check-site.cjs           # drag behaviour, bilingual content, demo Pause/Resume and static reduced motion
 node scripts/check-site-launch.cjs    # publication gate: required files; fails while the legal pages are unfinished
 ```
 
 Attraction and drop logic are in `site/pippaDrag.js`; rendering and the demo flow are in `site/index.html`. Text
 changes on the German page must be carried over to `site/en/index.html`. Opening `http://localhost:8088/?perf=1` adds a
 local timing diagnostic for the drag; it transmits nothing.
+
+Both language URLs must stay directly accessible. Use explicit language links and reciprocal canonical/hreflang
+metadata, without browser-language redirects. Keep titles, descriptions and app structured data consistent with
+visible, released capabilities. Describe concrete outcomes; do not add invented ratings or promise search rankings.
+The illustrated demo is not a recording of a live AI run. Pause must freeze its scene; reduced motion shows a static
+result selected by the visitor. Inspect both locales at desktop and narrow widths after changing the layout.
+
+References: [Google's multilingual guidance](https://developers.google.com/search/docs/specialty/international/managing-multi-regional-sites),
+[title links](https://developers.google.com/search/docs/appearance/title-link) and
+[software-app structured data](https://developers.google.com/search/docs/appearance/structured-data/software-app).
