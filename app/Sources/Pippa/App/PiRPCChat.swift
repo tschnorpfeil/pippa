@@ -409,6 +409,7 @@ final class PiRPCChat {
         await localServer?.discardSavedSlot()
         let support = Self.installSupport
         await Task.detached { PiLocalServer.discardSavedSlots(support: support) }.value
+        Self.forgetSourceExposure(keys)
         Self.trashSessions(keys)
     }
 

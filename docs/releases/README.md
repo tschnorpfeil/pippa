@@ -9,9 +9,9 @@ and which file to download before the AI download starts:
 ```markdown
 # Pippa <version>
 
-Pippa is a private AI agent that lives on your Mac. Ask her something, or drop a letter, a PDF, a folder or a few photos on her, and she does the work: she explains what a letter wants from you and by when, finds files, drafts replies in Mail and tidies up folders, and she asks before she changes anything. The AI runs on your Mac, so your files stay with you: no account, no subscription.
+Pippa is a private AI agent that lives on your Mac. Ask her something, or drop a letter, a PDF, a folder or a few photos on her, and she does the work: she explains what a letter wants from you and by when, finds files, drafts replies in Mail and tidies up folders. Her built-in AI runs on your Mac: no account, no subscription.
 
-**You need** a Mac with Apple silicon (M1 or later) and macOS 15 or later. **Download** `Pippa.dmg` below, open it and drag Pippa to Applications. On first start she downloads her AI once (about 3 to 6 GB, depending on your Mac's memory).
+**You need** a Mac with Apple silicon (M1 or later) and macOS 15 or later. **Download** `Pippa.dmg` below, open it and drag Pippa to Applications. Photo and PDF actions work before AI setup. For AI chat, Pippa asks before downloading about 3 to 6 GB, depending on your Mac's memory.
 
 **New in Pippa <version>**
 

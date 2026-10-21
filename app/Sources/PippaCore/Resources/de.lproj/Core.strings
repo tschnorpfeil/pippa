@@ -212,3 +212,6 @@
 "%lld files changed" = "%lld Dateien geändert";
 "In the conversation" = "Im Gespräch";
 "The old version is no longer there." = "Die alte Version ist nicht mehr da.";
+
+/* Missing source evidence on the Pi RPC path */
+"I couldn’t read the files needed for this answer: %@. Ask me to read the relevant file." = "Ich konnte die für diese Antwort nötigen Dateien nicht lesen: %@. Bitte mich, die betreffende Datei zu lesen.";
