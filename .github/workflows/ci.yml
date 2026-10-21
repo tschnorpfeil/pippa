@@ -60,8 +60,6 @@ jobs:
         shell: bash {0}
       - name: PippaChecks
         timeout-minutes: 15
-        env:
-          PIPPA_OCR_FAST: '1'
         run: swift run --package-path app PippaChecks 2>&1
         shell: bash -o pipefail {0}
       - name: Pi RPC protocol checks
