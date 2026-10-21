@@ -196,6 +196,13 @@ let contractPages = [
     "§ 8 Kündigung\nDas Mietverhältnis läuft auf unbestimmte Zeit. Es kann von beiden Seiten mit einer Frist von drei Monaten zum Monatsende gekündigt werden.",
 ]
 
+// Sorting uses the shared invoice fixture above, which must be initialized before the focused run.
+if ProcessInfo.processInfo.environment["PIPPA_SORT_CHECKS"] == "1" {
+    await runSortChecks()
+    print(failures == 0 ? "Sorting checks passed." : "Sorting checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
 // MARK: - German patterns
 
 check("Date: DD.MM.YYYY") { GermanText.parseDate("Rechnungsdatum 02.03.2026") == DayDate(year: 2026, month: 3, day: 2) }
