@@ -19,6 +19,12 @@ enum NativeAcceptance {
         let targetID: String
         let item: CreatedItem
         let pid: Int32
+        let interruptAfterSave: Bool
+    }
+    struct ProcessStart: Encodable {
+        let phase: String
+        let launchToken: UUID
+        let pid = getpid()
     }
     struct Report: Encodable {
         let schema = 1
@@ -72,7 +78,7 @@ enum NativeAcceptance {
             let result = try await system.addReminder(reminder, target: target, marker: marker)
             lock.withLock { writes += 1 }
             try NativeAcceptance.write(Proof(operationID: operationID, targetID: target.identifier,
-                                              item: result.item, pid: getpid()), to: directory.appendingPathComponent("after-save.json"))
+                                              item: result.item, pid: getpid(), interruptAfterSave: interrupt), to: directory.appendingPathComponent("after-save.json"))
             if interrupt {
                 // The real native save returned; the production journal still says dispatched.
                 Darwin.kill(getpid(), SIGKILL)
@@ -84,10 +90,11 @@ enum NativeAcceptance {
 
     @MainActor static func run(_ arguments: [String]) async -> Int32 {
         print("PIPPA_NATIVE_ACCEPTANCE_BUILD_1")
-        guard arguments.count == 4, arguments[1] == "--native-acceptance",
+        guard arguments.count == 5, arguments[1] == "--native-acceptance",
               ["create", "interrupt", "readback", "deduplicate", "recover", "cleanup"].contains(arguments[2]),
+              let launchToken = UUID(uuidString: arguments[4]),
               arguments[3].hasPrefix("/"), Bundle.main.object(forInfoDictionaryKey: "PippaNativeAcceptance") as? Bool == true else {
-            fputs("Native acceptance requires a marked candidate, fixed phase and absolute output directory.\n", stderr)
+            fputs("Native acceptance requires a marked candidate, fixed phase, absolute output directory and launch token.\n", stderr)
             return 2
         }
         let phase = arguments[2], directory = URL(fileURLWithPath: arguments[3], isDirectory: true).standardizedFileURL
@@ -109,6 +116,7 @@ enum NativeAcceptance {
                 fixture = Fixture(id: UUID(), origin: PippaMCPOrigin(conversationID: UUID(), requestID: UUID()), creatorPID: getpid())
                 try write(fixture, to: fixtureURL)
             } else { fixture = try read(Fixture.self, from: fixtureURL) }
+            try write(ProcessStart(phase: phase, launchToken: launchToken), to: directory.appendingPathComponent(phase + "-process.json"))
             setenv("PIPPA_LOG_DIR", directory.appendingPathComponent("logs").path, 1)
             let system = SystemIntegrations()
             let access = await system.access(.reminders)
@@ -170,9 +178,8 @@ enum NativeAcceptance {
                             "Recovery must resolve the original operation without a native write.")
             }
             let native = await system.lookupReminder(marker: record.marker, target: target, identifier: proof.item.identifier)
-            if phase == "cleanup", case .notFound = native {
-                report.detail = "Synthetic native identity is already absent."
-            } else {
+            // A missing marker in the original list cannot prove absence: the item may have moved or been edited.
+            do {
                 guard case .found(let found) = native else { throw Failure(message: "Exact native marker and target could not be read back uniquely.") }
                 try require(found.item.identifier == proof.item.identifier && found.containerIdentifier == proof.targetID,
                             "Native identity changed across processes.")
