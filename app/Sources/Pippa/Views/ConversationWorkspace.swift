@@ -424,8 +424,8 @@ struct ConversationWorkspace: View {
                         if !message.attachments.isEmpty {
                             DocumentAttachmentStrip(files: message.attachments, disabled: false)
                         }
-                        if let retry {
-                            Button { model.route(retry) } label: {
+                        if retry != nil {
+                            Button { chat.retryFailed(notice: message.id) } label: {
                                 Label(T("Try Again", table: "Views"), systemImage: "arrow.clockwise")
                             }
                             .pippa(.tinted).disabled(model.isActiveWork)

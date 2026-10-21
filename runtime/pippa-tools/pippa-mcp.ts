@@ -13,13 +13,15 @@
  * terminal Pi never sees the server, and restarting the app makes the old key worthless. The key is deleted from
  * `process.env` afterwards so no bash command inherits it.
  */
+import { actionPolicy, NATIVE_READERS, type ActionPolicy } from "./pippa-policy.ts";
+
 type ExtensionAPI = any;
 
 export const SERVER_NAME = "pippa";
 
 /** Read-only tools of the server (app/Sources/PippaCore/MCP/PippaMCPTools.swift, PippaMCPTurn.swift). None changes
  * anything on the Mac. Web search is not here: it is the Pi package pi-web-access (runtime/pippa-web). */
-export const TOOLS = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "photos_search", "front_read", "read_document"];
+export const TOOLS = NATIVE_READERS;
 
 /** PippaMCPWrite.swift: change something on the Mac but never leave it (no sending, no invitation). Events and
  * reminders can be undone, the mail draft stays unsent in Mail. */
@@ -42,6 +44,8 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		url: parsed.toString(),
 		headers: { Authorization: `Bearer ${token}` },
 		exposure,
+		// Exact reader overrides beat the wildcard. Unknown future native tools also stay hidden in draft tasks.
+		...(actionPolicy(env) === "draftOnly" ? { toolExposure: { "*": "hidden", ...Object.fromEntries(TOOLS.map((name) => [name, "direct"])) } } : {}),
 		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents on this Mac; add events and reminders, unsent Mail drafts.",
 		// Text recognition on many pages takes a while: 5 minutes instead of 1. The app's server keeps the connection
 		// open accordingly (PippaMCPServer).
@@ -49,22 +53,31 @@ export function serverConfig(env: Record<string, string | undefined>) {
 	};
 }
 
+function exposureKey(exposure: Record<string, unknown> | undefined): string {
+	return JSON.stringify(Object.entries(exposure ?? {}).sort(([a], [b]) => a.localeCompare(b)));
+}
+
 export const READINESS_COMMAND = "pippa-native-ready";
 export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
 
 /** Background discovery may still be connecting when RPC starts accepting commands. No model call or mutation. */
 export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<typeof serverConfig>,
-	waitMilliseconds = 8_000, signal?: AbortSignal) {
+	waitMilliseconds = 8_000, signal?: AbortSignal, policy: ActionPolicy = "standard") {
 	const deadline = Date.now() + waitMilliseconds;
 	for (;;) {
 		if (signal?.aborted) return { status: "cancelled" };
 		const registered = pi.getMcpServers().find((server: any) => server.name === SERVER_NAME)?.config;
 		if (!config || config.exposure !== "direct" || registered?.url !== config.url
-			|| registered?.headers?.Authorization !== config.headers.Authorization || registered?.exposure !== "direct") {
+			|| registered?.headers?.Authorization !== config.headers.Authorization || registered?.exposure !== "direct"
+			|| exposureKey(registered?.toolExposure) !== exposureKey(config.toolExposure)) {
 			return { status: "registrationMismatch" };
 		}
-		const tools = pi.getActiveTools();
-		if (REQUIRED_TOOLS.every((name) => tools.includes(name))) return { status: "ready", tools: REQUIRED_TOOLS };
+		const registeredTools = pi.getAllTools().map((tool: any) => tool.name);
+		const tools = policy === "draftOnly" ? TOOLS.map((name) => `mcp__${SERVER_NAME}__${name}`) : REQUIRED_TOOLS;
+		const active = pi.getActiveTools();
+		if (REQUIRED_TOOLS.every((name) => registeredTools.includes(name)) && tools.every((name) => active.includes(name))) {
+			return { status: "ready", tools, registeredTools: REQUIRED_TOOLS };
+		}
 		if (Date.now() >= deadline) return { status: "toolsUnavailable" };
 		await new Promise((resolve) => setTimeout(resolve, Math.min(50, Math.max(1, deadline - Date.now()))));
 	}
@@ -72,6 +85,7 @@ export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<t
 
 export default async function (pi: ExtensionAPI, connectorFactory?: (options: any) => (pi: ExtensionAPI) => unknown) {
 	const config = serverConfig(process.env);
+	const policy = actionPolicy();
 	delete process.env.PIPPA_MCP_TOKEN;
 	if (!config) return;
 	// --no-extensions also disables Pi's built-in MCP connector. Use the same pinned public implementation,
@@ -84,7 +98,7 @@ export default async function (pi: ExtensionAPI, connectorFactory?: (options: an
 		handler: async (args: string, ctx: any) => {
 			// No arbitrary payload in the session journal; one fresh, app-generated UUID binds the receipt.
 			if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args)) return;
-			const result = await discoverNativeTools(pi, config, 8_000, ctx.signal);
+			const result = await discoverNativeTools(pi, config, 8_000, ctx.signal, policy);
 			pi.appendEntry(READINESS_COMMAND, { v: 1, nonce: args, ...result });
 		},
 	});

@@ -102,3 +102,4 @@
 "Text recognition took too long. Nothing was exported." = "Text recognition took too long. Nothing was exported.";
 
 "No readable text was found. No text file was created." = "No readable text was found. No text file was created.";
+"The PDF is ready. I couldn’t add searchable text to every image." = "The PDF is ready. I couldn’t add searchable text to every image.";

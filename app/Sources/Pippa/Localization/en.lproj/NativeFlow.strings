@@ -1,0 +1,21 @@
+/* Immediate native file work and local recovery. */
+"Choose" = "Choose";
+"Choose photos or PDFs. I’ll offer actions that work right away on this Mac." = "Choose photos or PDFs. I’ll offer actions that work right away on this Mac.";
+"Make something useful right away" = "Make something useful right away";
+"Turn photos into a PDF, convert images or extract text. No AI download needed. Your originals stay as they are." = "Turn photos into a PDF, convert images or extract text. No AI download needed. Your originals stay as they are.";
+"Choose Photos or PDFs…" = "Choose Photos or PDFs…";
+"Choose files, then choose what to make. Nothing changes until you pick an action." = "Choose files, then choose what to make. Nothing changes until you pick an action.";
+"File actions work while the download continues." = "File actions work while the download continues.";
+"Ready to use" = "Ready to use";
+"Open it, drag it where you need it, or save a copy." = "Open it, drag it where you need it, or save a copy.";
+"Open" = "Open";
+"Open %@" = "Open %@";
+"Save a copy in a location you choose." = "Save a copy in a location you choose.";
+"Show in Finder" = "Show in Finder";
+"Try Again" = "Try Again";
+"Retry the same action with the same files. Your originals stay unchanged." = "Retry the same action with the same files. Your originals stay unchanged.";
+"Choose Another Action" = "Choose Another Action";
+"Ready: %@. Open it, drag it where you need it, or save a copy." = "Ready: %@. Open it, drag it where you need it, or save a copy.";
+"I couldn’t open this file. You can still save it or show it in Finder." = "I couldn’t open this file. You can still save it or show it in Finder.";
+"This result is no longer available. Your original files are unchanged." = "This result is no longer available. Your original files are unchanged.";
+"I couldn’t save it there. Your result is still here. Choose another location or drag it out." = "I couldn’t save it there. Your result is still here. Choose another location or drag it out.";

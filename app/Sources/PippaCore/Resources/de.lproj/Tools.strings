@@ -102,3 +102,4 @@
 "Text recognition took too long. Nothing was exported." = "Die Texterkennung hat zu lange gedauert. Es wurde nichts exportiert.";
 
 "No readable text was found. No text file was created." = "Es wurde kein lesbarer Text gefunden. Es wurde keine Textdatei erstellt.";
+"The PDF is ready. I couldn’t add searchable text to every image." = "Das PDF ist fertig. Ich konnte nicht zu jedem Bild durchsuchbaren Text hinzufügen.";

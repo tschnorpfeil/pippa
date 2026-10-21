@@ -29,6 +29,7 @@ The most dangerous chain is **overpromise → difficult first session → uncert
 
 ### What the current evidence actually establishes
 
+- The 0.3.12 candidate adds durable recovery for `reminder_add`, enforced reader-only drafting, source-aware explicit retry and a native Photos/PDF entry before model setup. These are implemented foundations for backlog items 1–3 and 6, not completion of the entire three-job roadmap. The [candidate assessment](measurements/release-candidate-0.3.12-2026-10-21.md) records tests, measured file-flow behavior and remaining acceptance gates.
 - The previous implementation passed 743 native checks, 61 runtime tests and 7 RPC checks. That supports the specific fixes described in the engineering assessment. It does not establish signed-app permission reliability, current end-to-end success rates or retention.
 - The [9 October model comparison](measurements/model-compare/README.md) reported 17 complete, 12 partial and 1 failed task across 30 runs for thinking-enabled Qwen3.5-9B. It used older code, Pi 1.1, mocked integrations and one 24 GB Mac. Language mismatches contributed to partial grades. This is historical evidence for improving evaluation, not a score for today's build.
 - Existing [tester issue #104](https://github.com/tschnorpfeil/pippa/issues/104) supplies a useful recruitment script. Its comments were empty when checked on 21 October. This does not establish whether private feedback or other testing exists. The next step needs observed users, not an assumption that demand has already been proven.

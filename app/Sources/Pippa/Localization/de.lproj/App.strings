@@ -245,4 +245,5 @@
 
 /* Native tool admission, before submitting a Pi request. */
 "Pippa’s Mac tools are missing from this installation. Reinstall Pippa to restore them." = "Pippas Mac-Werkzeuge fehlen in dieser Installation. Installiere Pippa erneut, um sie wiederherzustellen.";
+"The source changed or couldn’t be checked. Please check it and send your request again." = "Die Quelle hat sich geändert oder konnte nicht geprüft werden. Prüfe sie und sende deine Anfrage erneut.";
 "I couldn’t connect my Mac tools just now. Please try again." = "Ich konnte meine Mac-Werkzeuge gerade nicht verbinden. Bitte versuche es erneut.";

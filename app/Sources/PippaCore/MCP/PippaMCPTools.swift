@@ -35,6 +35,9 @@ public struct PippaMCPHost: Sendable {
     public var requireActiveWriteTurn = false
     /// Create events and reminders (PippaMCPWrite.swift). `nil`: the three tools say "not available right now".
     public var writer: (any HostWriting)?
+    /// Uses the existing execution journal; a system host fails closed if it cannot open the journal.
+    public var reminderJournal: Executor?
+    public var requiresReminderJournal = false
     /// The app in front at the call, as the chip shows it for the running answer (`front_read`). `nil`: no chip.
     public var shownFront: @Sendable () -> FrontApp? = { FrontAppStage.shared.current }
     /// Reads that app (Safari, Chrome, the front document); Mail and Excel go through their own readers.
@@ -53,6 +56,8 @@ public struct PippaMCPHost: Sendable {
         let system = SystemIntegrations()
         var host = PippaMCPHost(integrations: system, sheets: system, hostData: system)
         host.writer = system
+        host.requiresReminderJournal = true
+        host.reminderJournal = try? Executor()
         return host
     }
 

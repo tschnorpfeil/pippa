@@ -9,41 +9,56 @@ struct OCRLine: Sendable, Equatable {
     var box: CGRect
 }
 
-/// Result slot between the GCD block and the caller.
-private final class OCRBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var lines: [OCRLine] = []
-    func set(_ value: [OCRLine]) { lock.lock(); lines = value; lock.unlock() }
-    func get() -> [OCRLine] { lock.lock(); defer { lock.unlock() }; return lines }
-}
-
-private struct ImageBox: @unchecked Sendable { let image: CGImage }
-
 /// Invisible text layer over scanned pages so the PDF is searchable (Vision, offline).
 enum OCRLayer {
-    /// Text recognition on the page image (at most 2500 px). Errors simply yield no text layer.
-    static func recognize(_ image: CGImage) -> [OCRLine] {
-        // Vision blocks for a long time. Don't compute in the Swift concurrency pool (on Macs with few cores
-        // three simultaneous pages blocked all pool threads), but on GCD, with an upper bound:
-        // if a page takes too long, it simply gets no text layer.
-        let box = OCRBox()
-        let input = ImageBox(image: image)
-        let done = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .userInitiated).async {
-            box.set(recognizeNow(input.image))
-            done.signal()
-        }
-        guard done.wait(timeout: .now() + recognizeTimeout) == .success else { return [] }
-        return box.get()
+    /// Vision cancellation can take time to unwind. Keep at most three outstanding optional requests, including
+    /// those whose caller has already stopped waiting; subsequent conversions can still make their PDF.
+    private static let slots = DispatchSemaphore(value: 3)
+
+    static func recognize(_ image: CGImage, budget: FileTextBudget) throws -> [OCRLine] {
+        try Task.checkCancellation()
+        guard slots.wait(timeout: .now()) == .success else { budget.markSkipped(); return [] }
+        let request = LayerRequest(image)
+        // A request rejected before dispatch must also return its slot. The request owns release once it runs.
+        defer { request.releaseIfNotStarted() }
+        return try budget.run(cancel: { request.cancel() }, work: { request.run() }) ?? []
     }
 
-    /// Seconds per page before Pippa continues without a text layer.
-    static let recognizeTimeout: TimeInterval = 60
+    private final class LayerRequest: @unchecked Sendable {
+        private let image: CGImage
+        private let request: VNRecognizeTextRequest
+        private let lock = NSLock()
+        private var started = false
+        private var released = false
+        private var cancelled = false
 
-    /// Same recognizer as TextReader (`DocumentOCR`); `PIPPA_OCR_FAST=1` (CI runners without a Neural Engine) uses
-    /// the fast classic request.
-    private static func recognizeNow(_ image: CGImage) -> [OCRLine] {
-        DocumentOCR.recognize(image, engine: DocumentOCR.layer).lines
+        init(_ image: CGImage) {
+            self.image = image
+            request = DocumentOCR.classicRequest(level: DocumentOCR.layer == .fast ? .fast : .accurate)
+        }
+
+        func run() -> [OCRLine] {
+            let allowed = lock.withLock { () -> Bool in
+                guard !released, !cancelled else { return false }
+                started = true
+                return true
+            }
+            guard allowed else { releaseIfNotStarted(); return [] }
+            defer { release() }
+            return DocumentOCR.recognizeClassic(image, request: request).lines
+        }
+
+        func cancel() { lock.withLock { cancelled = true }; request.cancel() }
+        func releaseIfNotStarted() {
+            lock.withLock {
+                if !started && !released { released = true; OCRLayer.slots.signal() }
+            }
+        }
+        private func release() {
+            lock.withLock {
+                if !released { released = true; OCRLayer.slots.signal() }
+            }
+        }
     }
 
     /// Draws the lines invisibly over `page` (the same area the image fills).

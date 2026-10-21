@@ -47,9 +47,12 @@ struct PiSetupContent: View {
     private func question(_ bytes: Int64) -> some View {
         VStack(spacing: 0) {
             head(T("Hi, I’m Pippa", table: "Settings"))
+            nativeStart
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
             Text(PiInstaller.downloadQuestion(bytes: bytes))
-                .font(Fonts.lead)
-                .foregroundStyle(Theme.ink)
+                .font(Fonts.body)
+                .foregroundStyle(Theme.ink2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12)
@@ -67,8 +70,7 @@ struct PiSetupContent: View {
             }
             VStack(spacing: 10) {
                 Button(T("Load", table: "Settings")) { setup.load() }
-                    .pippa(.primary, large: true)
-                    .keyboardShortcut(.defaultAction)
+                    .pippa(.secondary)
                     .accessibilityLabel(T("Load", table: "Settings"))
                 // Quiet way out (hotspot, no time): tidying, PDFs and text recognition work without the AI.
                 Button(T("Later", table: "Settings")) { setup.later() }
@@ -77,17 +79,26 @@ struct PiSetupContent: View {
                     .foregroundStyle(Theme.ink3)
                     .accessibilityLabel(T("Later", table: "Settings"))
                     .accessibilityHint(T("Tidying up and overviews already work without it. You can load it any time.", table: "Settings"))
-                Text(T("Tidying up and overviews already work without it. You can load it any time.", table: "Settings"))
-                    .font(Fonts.hint)
-                    .foregroundStyle(Theme.ink3)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 32)
-                    .accessibilityHidden(true)
             }
             .padding(.top, 20)
             .padding(.bottom, 22)
             .stagger(2)
+        }
+    }
+
+    private var nativeStart: some View {
+        Well(padding: 14) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(T("Make something useful right away", table: "NativeFlow"))
+                    .font(Fonts.head).foregroundStyle(Theme.ink)
+                Text(T("Turn photos into a PDF, convert images or extract text. No AI download needed. Your originals stay as they are.", table: "NativeFlow"))
+                    .font(Fonts.body).foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(T("Choose Photos or PDFs…", table: "NativeFlow")) { setup.chooseNativeFiles() }
+                    .pippa(.primary)
+                    .accessibilityHint(T("Choose files, then choose what to make. Nothing changes until you pick an action.", table: "NativeFlow"))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -106,6 +117,10 @@ struct PiSetupContent: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
                 .stagger(3)
+            Button(T("Choose Photos or PDFs…", table: "NativeFlow")) { setup.chooseNativeFiles() }
+                .pippa(.secondary)
+                .padding(.top, 14)
+                .accessibilityHint(T("File actions work while the download continues.", table: "NativeFlow"))
             ActionBar {
                 Button(T("Keep Loading in the Background", table: "Settings")) { setup.later() }.pippa(.quiet)
                 if setup.stalled {
@@ -152,6 +167,9 @@ struct PiSetupContent: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 14)
             }
+            nativeStart
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
             Spacer(minLength: 0).frame(height: 24)
         }
     }

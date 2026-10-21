@@ -23,11 +23,23 @@ final class ConversationController: ObservableObject {
     var recordChanges: (([AgentChange]) async -> UUID?)?
     /// The failed answer's note and the question it answered, for "Try again" on that note (cleared by the next send).
     @Published private(set) var failed: (notice: UUID, question: String)?
+    private struct FailedRequest {
+        let conversationID: UUID
+        let nativeRequestID: UUID?
+        let source: ConversationRetryGuard
+        let workflowSummary: String
+        let modelLabel: String?
+        let skill: PippaSkill?
+        let frontApp: FrontApp?
+        let chat: any ConversationChat
+    }
+    private var failedRequest: FailedRequest?
     private var lastAnnouncedKind: String?
     private var lastAnnouncement: Date?
     private var store: ConversationStore?
     private var request: Task<Void, Never>?
     private var requestID: UUID?
+    private var nativeRecovery: Task<Void, Never>?
     /// Who writes the running answer (Pi, or a stand-in in debug captures).
     private var runningChat: (any ConversationChat)?
     /// "Stop" pressed: the partial answer stays, marked as stopped rather than as an error.
@@ -80,7 +92,41 @@ final class ConversationController: ObservableObject {
             if store.setAside != nil {
                 append(.system, T("I couldn’t read the earlier conversation history. I kept a copy of it and I’m starting fresh here.", table: "App"))
             }
+            recoverNativeReminderHistory()
         } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
+    }
+
+    /// Startup reconciliation is read-only in Reminders and never delays the first-use interface or asks for access.
+    private func recoverNativeReminderHistory() {
+        let base = Pippa.supportDirectory
+        guard DevEnvironment.value("PIPPA_SNAPSHOT") == nil,
+              FileManager.default.fileExists(atPath: base.appendingPathComponent("journal.sqlite").path) else { return }
+        nativeRecovery = Task { [weak self] in
+            defer { self?.nativeRecovery = nil }
+            do {
+                let records = try await Task.detached(priority: .utility) {
+                    let journal = try Executor(baseDirectory: base)
+                    return try await journal.reconcileNativeReminders(using: SystemIntegrations())
+                }.value
+                guard let self, let store = self.store else { return }
+                let groups = Dictionary(grouping: records.filter { $0.origin != nil }) { $0.origin!.conversationID }
+                for (conversationID, records) in groups {
+                    let updates = records.compactMap { record -> (requestID: UUID, item: ActionReceipt.Item)? in
+                        guard let origin = record.origin else { return nil }
+                        return (origin.requestID, record.receipt.item)
+                    }
+                    do {
+                        let updated = try store.recordRecoveredNativeWrites(updates, in: conversationID)
+                        if self.current?.id == conversationID { self.current = updated }
+                    } catch ConversationStoreError.unknownConversation {
+                        // Deleted history stays deleted; the journal cannot recreate it.
+                    }
+                }
+                self.refresh()
+            } catch {
+                DiagnosticsLog.shared.event("native-recovery", ["status": "unavailable"])
+            }
+        }
     }
 
     /// Deletes a conversation together with its agent history. If it was open, continues with the next (or a new one).
@@ -189,11 +235,12 @@ final class ConversationController: ObservableObject {
     /// `chat`: who answers (default: `PiRPCChat.conversation`; debug captures pass a stand-in).
     /// `frontApp`: the app of the chip above the input (only its name and title go along; FrontApp.swift).
     func send(_ text: String, chat: (any ConversationChat)? = nil, workflowSummary: String = "", modelLabel: String? = nil,
-              skill: PippaSkill? = nil, frontApp: FrontApp? = nil) {
+              skill: PippaSkill? = nil, frontApp: FrontApp? = nil, nativeIntentID: UUID? = nil) {
         let chat = chat ?? PiRPCChat.conversation
         guard !isRunning, let id = current?.id, store != nil else { return }
         error = nil
         failed = nil
+        failedRequest = nil
         // A new topic inside the conversation: Pi starts a fresh, small session with a short handover (TopicBoundary).
         // Not while things are handed over here: those belong to the conversation's topic.
         var topicStart = false
@@ -204,9 +251,11 @@ final class ConversationController: ObservableObject {
             current = restarted
             topicStart = true
         }
-        append(.user, text, capturingAttachments: true, topicStart: topicStart)
+        let userMessageID = append(.user, text, capturingAttachments: true, topicStart: topicStart)
         guard error == nil else { return }
         let context = current?.context
+        let nativeRequestID = nativeIntentID ?? userMessageID
+        let retrySource = ConversationRetryGuard(context: context)
         // What is newly shown with this message is spelled out in Pi's message.
         let newFiles = current?.messages.last(where: { $0.role == .user })?.attachments ?? []
         let sessionID = current?.modelSessionRevision.map { id.uuidString + ":" + $0.uuidString } ?? id.uuidString
@@ -260,6 +309,8 @@ final class ConversationController: ObservableObject {
             let nativeHistory = NativeReceiptContext.summary(messages: self?.current?.messages ?? [])
             var chatContext = ChatContext(files: urls, focusedFiles: context?.focusedFiles ?? [], selectedText: context?.selectedText ?? "", workflowSummary: workflowSummary)
             chatContext.nativeReceiptSummary = nativeHistory
+            chatContext.nativeConversationID = id
+            chatContext.nativeRequestID = nativeRequestID
             chatContext.onWork = { event in workSink.yield(event) }
             chatContext.onNativeWrite = { [weak self] receipt in
                 Task { @MainActor [weak self] in
@@ -332,7 +383,12 @@ final class ConversationController: ObservableObject {
                 } else {
                     self.error = PiRPCChat.userText(for: error, context: "gespraech")
                     messageID = self.append(.system, PiRPCChat.userText(for: error, context: "antwort"), notice: true, receipt: recordedUndo, actions: actions)
-                    if let notice = self.current?.messages.last?.id { self.failed = (notice, text) }
+                    if let notice = self.current?.messages.last?.id {
+                        self.failed = (notice, text)
+                        self.failedRequest = FailedRequest(conversationID: id, nativeRequestID: nativeRequestID,
+                            source: retrySource, workflowSummary: workflowSummary, modelLabel: modelLabel,
+                            skill: skill, frontApp: frontApp, chat: chat)
+                    }
                     self.onAnswerFinished?(true)
                 }
                 self.bindNativeWrites(nativeWrites, messageID: messageID, conversationID: id)
@@ -340,6 +396,21 @@ final class ConversationController: ObservableObject {
             }
         }
         steerNext()
+    }
+
+    /// An explicit retry keeps the original native intent and chosen skill; typing a new question creates a new intent.
+    func retryFailed(notice: UUID) {
+        guard !isRunning, let failed, failed.notice == notice, let request = failedRequest,
+              current?.id == request.conversationID else { return }
+        // Live app contents have no immutable snapshot here. Ask for a fresh source instead of silently reading
+        // another tab/document under the original label. File retries require unchanged regular-file identities.
+        guard request.frontApp == nil, request.source.matches(context: current?.context) else {
+            self.failed = nil; failedRequest = nil
+            append(.system, T("The source changed or couldn’t be checked. Please check it and send your request again.", table: "App"))
+            return
+        }
+        send(failed.question, chat: request.chat, workflowSummary: request.workflowSummary, modelLabel: request.modelLabel,
+             skill: request.skill, frontApp: request.frontApp, nativeIntentID: request.nativeRequestID)
     }
 
     /// Streamed text is shown in small batches (~12 per second), not per token: every change re-renders the

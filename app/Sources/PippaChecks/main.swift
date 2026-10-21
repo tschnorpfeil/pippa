@@ -50,6 +50,7 @@ if ProcessInfo.processInfo.environment["PIPPA_MCP_CHECKS"] == "1" {
     await runMCPChecks()
     await runR2Checks()
     await runR3Checks()
+    await runNativeReminderChecks()
     print(failures == 0 ? "MCP checks passed." : "MCP checks failed.")
     exit(failures == 0 ? 0 : 1)
 }
@@ -1252,8 +1253,10 @@ check("Tone: no jargon, no English, no status codes in messages") {
 }
 
 runConversationChecks()
+runConversationRetryChecks()
 runConversationEntryChecks()
 runNativeReceiptContextChecks()
+runNativeRecoveryHistoryChecks()
 runChatContextChecks()
 await runP0ContextChecks()
 runPromptAttachmentChecks()
@@ -1298,6 +1301,7 @@ await runMCPChecks()
 await runR2Checks()
 await runR10Checks()
 await runR3Checks()
+await runNativeReminderChecks()
 await runR6Checks()
 await runR7Checks()
 await runR7bChecks()

@@ -20,21 +20,21 @@ Pippa.app (Swift, SwiftUI)
 | App | `app/Sources/Pippa` | Pill, conversation window, settings, setup UI, hotkey, Sparkle updates |
 | Core | `app/Sources/PippaCore` | Model catalog and selection, downloader, `llama-server`, Pi installer, MCP server, readers for Mail, Calendar and Excel, scan tools, journal |
 | Pi RPC client | `app/Sources/PiRPC` | Starts Pi with Pippa's flags and speaks JSON lines over stdin and stdout |
-| Pi extensions | `runtime/pippa-tools` | Pippa's small file tools, helps for small local models (document reader instead of raw bytes, loop brake) and the MCP registration; no permissions |
+| Pi extensions | `runtime/pippa-tools` | Pippa's action policy, sandboxed shell, file tools, small-model support and scoped MCP connector |
 | Terminal autostart | `runtime/pippa-local-server` | Pi extension for the *terminal* `pi`: starts Pippa's llama-server when provider `pippa-local` is used |
 | Web access | `runtime/pippa-web` | The Pi package pi-web-access with Pippa's settings, loaded into Pi as an extension |
 | Abilities | `runtime/pippa-skills` | 10 Pi skills (`SKILL.md`), bundled with the app and loaded with `--skill` |
 
 **Conversation path.** Pippa starts `pi --mode rpc` with Pippa's Node and the pinned Pi release (`PippaPiLaunch`,
-`PiRPCClient`). Flags: `--extension` for the file tools, the helps, web access and the MCP registration; `--no-context-files` (an
+`PiRPCClient`). Flags: `--no-extensions` disables ambient and built-in extensions; explicit `--extension` loads the action policy, file tools, helps, web access and scoped MCP connector; `--no-context-files` (an
 `AGENTS.md` in a user folder could otherwise inject instructions); `--no-approve` (project-local `.pi/` settings are
 ignored); `--session-dir` in Pippa's support folder and `--session-id` per conversation; `--system-prompt` with Pippa's
 own short prompt; `--tools` with a fixed list (Pi's `read`, `bash`, `edit`, `write`, Pippa's file
 tools, pi-web-access's `web_search` and `fetch_content`, and `mcp__pippa__*`, so the person's
 `defaultTools` change nothing); `--no-skills --skill <bundle>/pippa-skills`
 (only Pippa's skills, a same-named personal skill would otherwise win); `--provider/--model` from the installer. The
-agent directory is the shared `~/.pi/agent`, so the person's own Pi extensions stay active. Pi runs every tool without
-asking, as in the terminal ("YOLO"); Pippa adds no approvals and no undo of its own. `fd` and `rg` remain available through `bash` next to Pippa's Node in `Contents/Helpers`
+agent directory is the shared `~/.pi/agent`, but personal extensions, context files and MCP servers do not join the app session.
+Pippa's native tools and shell enforce their own permissions; supported file changes retain undo copies. `fd` and `rg` remain available through `bash` next to Pippa's Node in `Contents/Helpers`
 (pinned in `app/Packaging/search-tools.json`), which is first in Pi's `PATH`, so Pi never downloads them.
 
 **Thinking and compaction.** Pi steers both. models.json gives each `pippa-local` model `reasoning`, a `thinkingLevelMap`
@@ -49,7 +49,27 @@ Pippa replaces its own earlier default "high" in `settings.json` with the new on
 (`reserveTokens` = min(answer limit, context/4), `keepRecentTokens` = 3/8 of the context), so a 16k model compacts above
 12k instead of before every prompt (`PiModelTuning`).
 
-**Pippa's extensions (`runtime/pippa-tools`).** Nothing here decides what Pi may do.
+**Action boundary.** The app chooses `PiActionPolicy` for each Pi process. Draft-only workflows use an immutable
+`PIPPA_ACTION_POLICY=draftOnly`; switching scope replaces the process. Only `read`, `search_files`, `list_folder`
+and eight native readers are active. Native writers remain registered but hidden using MCP per-tool exposure.
+`pippa-policy.ts` independently blocks every other tool call, including built-in file writes, shell, web access,
+memory changes and native mutations. The app also rejects native writes before obtaining a permission or dispatching
+work. Before the first task, nonce-bound extension commands verify all 11 native registrations, the expected active
+reader inventory and the policy guard. These commands do not call a model or widen authority. Files, messages and
+tool outputs are untrusted data, not permission to change scope. The assistant returns draft text in the answer;
+a draft-only task cannot create a draft in Mail or save a separate artifact.
+
+Standard tasks keep normal file work and the three typed native writes (event, reminder, unsent Mail draft).
+The shell no longer offers a generic app-control grant: explicit `osascript`, `open`, `shortcuts` and `automator`
+calls are refused, and its macOS sandbox denies Apple Events and execution of those system utilities. Pi's direct
+RPC/interactive shell bypass is disabled in both scopes. Network and external-file shell grants still exist for
+standard tasks, and built-in file tools have their own controls. This is **not** a general no-send sandbox for
+standard tasks: arbitrary code and approved network access remain broader than the typed native tools. Only the
+app-selected draft scope makes the enforced local-reader promise; prompt wording alone does not.
+
+**Pippa's extensions (`runtime/pippa-tools`).**
+
+- `pippa-policy.ts` enforces the app-selected tool scope and supplies the read-only policy attestation.
 
 - `pippa-tools.ts` adds `search_files` (Spotlight content search with an optional year in Documents, Desktop,
   Downloads, iCloud Drive and CloudStorage, `search.mjs`; it uses the existing macOS index, so unloaded cloud files and
@@ -75,11 +95,11 @@ Pippa replaces its own earlier default "high" in `settings.json` with the new on
   Pippa starts a new topic by itself after an hour without input or when new things are given to a used
   conversation (`ConversationReopenPolicy`, `AppModel.attach`); the person never presses "New topic".
 - `pippa-mcp.ts` registers Pippa's MCP server for this Pi session from `PIPPA_MCP_URL` and `PIPPA_MCP_TOKEN` (loopback
-  only, new key per app start, removed from `process.env` afterwards).
+  only, new key per Pi process, removed from `process.env` afterwards). It loads Pi's pinned public MCP connector with an empty configuration source, so unrelated configured servers never start. The app admits a task only after native discovery and policy checks succeed.
 - The "what happened" line under an answer comes from Pi's own tool events (`PiTurnReceipt`: what was called with which
   arguments, whether it failed), never from model text. Lines for events, reminders and mail drafts come from Pippa's
   MCP server itself (`PippaMCPHost.onWrite`).
-- An extension question (`extension_ui_request`) from one of the person's own extensions gets a plain Pippa prompt, so
+- An extension question (`extension_ui_request`) from a bundled extension gets a plain Pippa prompt, so
   Pi never waits forever.
 
 **Web access (`runtime/pippa-web`).** `index.ts` loads the pinned Pi package `pi-web-access` (own lockfile) with
@@ -237,6 +257,19 @@ from runtime/pippa-web's own dev dependencies.
 Build a payload with `scripts/bundle-pi-payload.sh .build/pi-payload --with-node` and pass
 `PIPPA_PI_PAYLOAD=$PWD/.build/pi-payload` (or `PIPPA_PI_CLI` plus `PIPPA_PI_NODE`). `scripts/bump-pi.sh` runs all of
 them against a new Pi release.
+
+Validate the signed app's actual Node, Pi and extension files with the same four native-readiness scenarios
+(standard, draft-only, unrelated configuration collision and rejected authentication). This uses synthetic loopback
+MCP endpoints, never a model or personal apps; `PIPPA_PI_EXTENSIONS_DIR` must name a trusted build. The expected tool
+allowlist still comes from this checkout's production launch code.
+
+```sh
+pippaApp="$PWD/dist/Pippa.app"
+PIPPA_PI_NODE="$pippaApp/Contents/Helpers/node" \
+PIPPA_PI_CLI="$pippaApp/Contents/Resources/pi-payload/release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js" \
+PIPPA_PI_EXTENSIONS_DIR="$pippaApp/Contents/Resources/pippa-tools" \
+  "$pippaApp/Contents/Helpers/node" --experimental-strip-types --test runtime/pippa-tools/real-pi-readiness.test.mjs
+```
 
 Some `PippaChecks` groups need extra input and are switched on by environment variables: `PIPPA_SETUP_CHECKS=1` and
 `PIPPA_MCP_CHECKS=1` (installer and MCP server with a real payload from `PIPPA_PI_PAYLOAD`, optionally

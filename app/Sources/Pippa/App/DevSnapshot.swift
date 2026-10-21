@@ -118,6 +118,17 @@ enum DevSnapshot {
             let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
             try? await Task.sleep(for: .seconds(1.0))
 
+            if only == "nativefirstuse" {
+                await NativeFirstUseSnapshot.run(model: model, shell: shell, directory: dir) { await snap($0) }
+                NSApp.terminate(nil)
+                return
+            }
+            if only == "conversationretry" {
+                await ConversationRetrySnapshot.run(model: model, directory: dir)
+                NSApp.terminate(nil)
+                return
+            }
+
             if only == "conversationresume" {
                 await ConversationResumeSnapshot.run(model: model, shell: shell, directory: dir)
                 NSApp.terminate(nil)

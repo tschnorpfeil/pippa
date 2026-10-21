@@ -1,7 +1,7 @@
 /**
- * Pippa's `bash`: the full shell, inside a macOS sandbox the system enforces (`sandbox-exec`), so no command text, quote
- * or detour can get around it. The model keeps every program on the Mac (python, sips, qpdf, ffmpeg, mdfind, …);
- * what a command may touch is decided by the sandbox, not by reading the command. Wired up in pippa-tools.ts.
+ * Pippa's `bash` runs inside a macOS sandbox the system enforces (`sandbox-exec`). The model can use local utilities (python, sips, qpdf, ffmpeg, mdfind, …);
+ * the sandbox bounds ordinary shell execution; explicit app-control calls are refused before execution.
+ * This is not a sandbox around Pi's built-in file tools or all capabilities of a standard task. Wired up in pippa-tools.ts.
  *
  * Always, without asking:
  * - read everything the person can read;
@@ -10,8 +10,6 @@
  * Only after the person's OK (one card per kind and answer, `ctx.ui.confirm`):
  * - `net`: the internet. Asked before a command that plainly goes online (curl, pip, git clone, …), and after one
  *   that failed for lack of it.
- * - `apps`: other apps (Apple Events, `open`, `shortcuts`), e.g. Mail could send. Asked before `osascript`, `open`,
- *   `shortcuts`.
  * - `write`: change files in the person's folders and on external drives. Asked after a command failed because it
  *   was not allowed to write there. The failed command is never replayed: partial effects must be checked before a
  *   later call does the remaining work. Before an approved write call runs, every existing file it names gets a
@@ -19,15 +17,16 @@
  *
  * Never, not even after an OK: delete anything outside the working and temporary folders (the Trash is
  * `move_to_trash`), or write to `~/Library` (except iCloud Drive and cloud folders), dot folders such as `~/.ssh` or
- * `~/.pi`, and Pippa's own folder. So a planted instruction in a letter cannot wipe a folder, send a file or install
- * something that starts with the Mac.
+ * `~/.pi`, and Pippa's own folder. An approved network grant still permits network requests; these rules are not
+ * a universal no-send guarantee for standard tasks. Other executors have their own policies.
  */
+import { actionPolicy } from "./pippa-policy.ts";
 import { existsSync, realpathSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-export type Grant = "net" | "apps" | "write";
+export type Grant = "net" | "write";
 
 export const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
 
@@ -69,10 +68,9 @@ export function sandboxProfile(grants: ReadonlySet<Grant>, where: Places): strin
 	const home = where.home;
 	const lines = ["(version 1)", "(allow default)"];
 	if (!grants.has("net")) lines.push("(deny network*)");
-	if (!grants.has("apps")) {
-		lines.push("(deny appleevent-send)");
-		lines.push(`(deny process-exec (literal "/usr/bin/open") (literal "/usr/bin/shortcuts") (literal "/usr/bin/automator"))`);
-	}
+	// No broad app-control grant: only Pippa's narrow native tools may change apps.
+	lines.push("(deny appleevent-send)");
+	lines.push(`(deny process-exec (literal "/usr/bin/osascript") (literal "/usr/bin/open") (literal "/usr/bin/shortcuts") (literal "/usr/bin/automator"))`);
 	lines.push(`(deny file-write* (subpath ${lit(home)}) (subpath "/Volumes") (subpath "/Users/Shared") (subpath "/Applications") (subpath "/Library"))`);
 	if (grants.has("write")) {
 		lines.push(`(allow file-write* (subpath ${lit(home)}) (subpath "/Volumes") (subpath "/Users/Shared"))`);
@@ -119,19 +117,19 @@ export function neededGrants(command: string): Set<Grant> {
 	const words = programs(command);
 	if (words.some((w) => NETWORK.has(w)) || /\bgit\s+(clone|pull|fetch|push|ls-remote)\b/.test(command)
 		|| /\brsync\b[^|;&]*\s[\w.-]+@?[\w.-]+:/.test(command)) needs.add("net");
-	if (words.some((w) => APPS.has(w))) needs.add("apps");
 	return needs;
 }
 
 const NETWORK_FAILURE = /Could not resolve host|Couldn't connect|Failed to connect|nodename nor servname|Network is unreachable|getaddrinfo|Name or service not known|Temporary failure in name resolution|Failed to establish a new connection|URLError|unable to access '|Connection refused|No route to host/i;
-const APPS_FAILURE = /Not authorized to send Apple events|\(-1743\)|errAEEventNotPermitted|\(-600\)/i;
+const APPS_FAILURE = /Not authorized to send Apple events|\(-1743\)|errAEEventNotPermitted|\(-600\)|\/usr\/bin\/(?:osascript|open|shortcuts|automator): (?:Operation not permitted|Permission denied)/i;
+export const APP_CONTROL_REASON = "Not run: generic app control is not available in Pippa’s shell. Use the dedicated native tools; Mail replies remain unsent drafts. Do not bypass this with another command, script, shortcut or URL.";
 const WRITE_FAILURE = /Operation not permitted/i;
 
 /** Grants a failed command lacked, judged from its output. */
 export function missingGrants(command: string, output: string, grants: ReadonlySet<Grant>): Set<Grant> {
 	const missing = new Set<Grant>();
 	if (!grants.has("net") && NETWORK_FAILURE.test(output)) missing.add("net");
-	if (!grants.has("apps") && (APPS_FAILURE.test(output) || (/Operation not permitted/i.test(output) && programs(command).some((w) => APPS.has(w))))) missing.add("apps");
+	if (APPS_FAILURE.test(output) || programs(command).some((word) => APPS.has(word))) return missing;
 	if (!grants.has("write") && !missing.size && WRITE_FAILURE.test(output)) missing.add("write");
 	return missing;
 }
@@ -173,7 +171,6 @@ export function grantAskText(grants: ReadonlySet<Grant>, command: string, folder
 	const de = language.startsWith("de");
 	const parts: string[] = [];
 	if (grants.has("net")) parts.push(de ? "ins Internet gehen" : "go online");
-	if (grants.has("apps")) parts.push(de ? "andere Programme steuern (zum Beispiel Mail)" : "control other apps (for example Mail)");
 	if (grants.has("write")) {
 		const where = folders.length ? folders.join(", ") : (de ? "deinen Ordnern" : "your folders");
 		parts.push(de ? `Dateien in ${where} ändern (vorher legt Pippa Kopien an)` : `change files in ${where} (Pippa keeps copies first)`);
@@ -181,9 +178,9 @@ export function grantAskText(grants: ReadonlySet<Grant>, command: string, folder
 	const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} ${de ? "und" : "and"} ${parts[parts.length - 1]}` : parts[0];
 	const shown = command.length > 300 ? command.slice(0, 299) + "…" : command;
 	return de
-		? { title: grants.has("net") ? "Darf Pippa ins Internet?" : grants.has("apps") ? "Darf Pippa andere Programme steuern?" : "Darf Pippa deine Dateien ändern?",
+		? { title: grants.has("net") ? "Darf Pippa ins Internet?" : "Darf Pippa deine Dateien ändern?",
 			message: `Für diese Antwort möchte Pippa mit einem Befehl ${list}.\n\nDetails:\n${shown}` }
-		: { title: grants.has("net") ? "May Pippa go online?" : grants.has("apps") ? "May Pippa control other apps?" : "May Pippa change your files?",
+		: { title: grants.has("net") ? "May Pippa go online?" : "May Pippa change your files?",
 			message: `For this answer Pippa wants to use a command to ${list}.\n\nDetails:\n${shown}` };
 }
 
@@ -196,7 +193,7 @@ export function limitsNote(grants: ReadonlySet<Grant>, work: string): string {
 	if (!grants.has("write")) no.push(`write only in ${work} and temporary folders (save results there, then move_files them where they belong; for one text file use write)`);
 	no.push("never delete outside that folder (use move_to_trash)");
 	if (!grants.has("net")) no.push("no internet (use web_search and fetch_content)");
-	if (!grants.has("apps")) no.push("no other apps");
+	no.push("no generic app control (use Pippa’s native tools)");
 	return `Note: bash runs in Pippa's sandbox: ${no.join("; ")}. Do not retry the same command.`;
 }
 
@@ -243,6 +240,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 	const available = deps.available ?? (() => sandboxAvailable(sandbox));
 	const env = deps.env ?? process.env;
 	const home = deps.home ?? homedir();
+	const policy = actionPolicy(env);
 	let grants = new Set<Grant>();
 
 	return {
@@ -257,9 +255,11 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					const notRun = (reason: string) => ({ content: [{ type: "text", text: reason }], isError: true,
 						details: { pippaExecution: "not_dispatched" } });
 					if (signal?.aborted) return notRun("Stopped before running the command.");
+					if (policy === "draftOnly") return notRun("This task prepares draft text only. Read local context and answer; do not run commands or change anything.");
 					if (!available()) return notRun(NO_SANDBOX_REASON);
 					const where = places(cwd, env, home);
 					const command = String(params?.command ?? "");
+					if (programs(command).some((word) => APPS.has(word))) return notRun(APP_CONTROL_REASON);
 					// Retain copies through failures and interruptions as well as successful completion.
 					const kept = new Map<string, string>();
 					const ask = async (need: Set<Grant>): Promise<boolean> => {

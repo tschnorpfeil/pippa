@@ -126,10 +126,14 @@ public struct UndoReport: Sendable {
 public actor Executor {
     let db: SQLiteDB
     let fm = FileManager.default
+    static let nativeProcessSession = UUID()
+    let nativeSessionID: UUID
     /// Jobs begun before this launch and still running are interrupted.
     private let openedAt = Date().timeIntervalSince1970
 
-    public init(baseDirectory: URL = Pippa.supportDirectory) throws {
+    /// `nativeRecoverySessionID` lets synthetic checks simulate an app restart without creating native items.
+    public init(baseDirectory: URL = Pippa.supportDirectory, nativeRecoverySessionID: UUID? = nil) throws {
+        nativeSessionID = nativeRecoverySessionID ?? Self.nativeProcessSession
         try FileManager.default.createDirectory(at: baseDirectory, withIntermediateDirectories: true)
         db = try SQLiteDB(path: baseDirectory.appendingPathComponent("journal.sqlite").path)
         try db.exec("""
@@ -139,6 +143,7 @@ public actor Executor {
             CREATE TABLE IF NOT EXISTS ops(job TEXT, seq INTEGER, op_id TEXT, kind TEXT, source TEXT, target TEXT,
                 state TEXT, fp TEXT, note TEXT, PRIMARY KEY(job, seq));
             """)
+        try db.exec(Self.nativeReminderSchema)
         // Older journals: the folder grant (bookmark) is missing; jobs without it continue with the path.
         let columns = try db.query("PRAGMA table_info(jobs)").compactMap { $0.count > 1 ? $0[1].string : nil }
         if !columns.contains("bookmark") { try db.exec("ALTER TABLE jobs ADD COLUMN bookmark TEXT") }

@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 import PippaCore
 import UniformTypeIdentifiers
 
@@ -9,6 +10,90 @@ func runTrayFlowChecks() async {
     setenv("PIPPA_RESULTS_DIR", dir("trayflow-results").path, 1)
     let now = Date(timeIntervalSince1970: 1_790_000_000)
     let noBookmark: (URL) -> Data? = { _ in nil }
+
+    check("Native file retry belongs to the same ordered selection, never a new or empty request") {
+        let a = UUID(), b = UUID(), other = UUID()
+        let request = NativeFileRequest(tool: .makeOnePDF, inputIDs: [a, b])
+        return request.matches([a, b]) && !request.matches([b, a]) && !request.matches([a])
+            && !request.matches([a, b, other]) && !request.matches([a, other])
+            && !NativeFileRequest(tool: .makeOnePDF, inputIDs: []).matches([])
+    }
+
+    check("Native file caveats remain attached to their artifact through persistence and legacy results still decode") {
+        let first = TrayItem(role: .result, url: URL(fileURLWithPath: "/tmp/first.pdf"))
+        let second = TrayItem(role: .result, url: URL(fileURLWithPath: "/tmp/second.pdf"), note: "Optional text was skipped")
+        let encoded = try JSONEncoder().encode(TrayState(items: [first, second]))
+        let decoded = try JSONDecoder().decode(TrayState.self, from: encoded)
+        guard decoded.items[0].note == nil, decoded.items[1].note == second.note else { return false }
+        var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(second)) as? [String: Any] ?? [:]
+        legacy.removeValue(forKey: "note")
+        let old = try JSONDecoder().decode(TrayItem.self, from: JSONSerialization.data(withJSONObject: legacy))
+        return old.id == second.id && old.note == nil
+    }
+
+    await checkAsync("Optional PDF text: a stalled recognizer is cancelled promptly and later pages cannot restart its budget") {
+        let budget = FileTextBudget(seconds: 0.12)
+        let release = DispatchSemaphore(value: 0), finished = DispatchSemaphore(value: 0)
+        let calls = LockedBox(0), cancellations = LockedBox(0)
+        let began = Date()
+        let first: Int? = try await Task.detached {
+            try budget.run(cancel: { cancellations.mutate { $0 += 1 } }, work: {
+                calls.mutate { $0 += 1 }
+                release.wait()
+                finished.signal()
+                return 42
+            })
+        }.value
+        let elapsed = Date().timeIntervalSince(began)
+        let second: Int? = try budget.run(cancel: {}, work: { calls.mutate { $0 += 1 }; return 99 })
+        release.signal()
+        let workerFinished = waitForFileTextFixture(finished)
+        return first == nil && second == nil && budget.didSkip && calls.value == 1
+            && cancellations.value == 1 && elapsed < 1 && workerFinished
+    }
+
+    await checkAsync("Optional PDF text: Stop cancels an in-flight recognizer without waiting for its deadline") {
+        let budget = FileTextBudget(seconds: 5)
+        let started = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0)
+        let cancelled = LockedBox(false)
+        let work = Task.detached {
+            try budget.run(cancel: { cancelled.mutate { $0 = true } }, work: {
+                started.signal(); release.wait(); return 42
+            })
+        }
+        let didStart = await Task.detached { waitForFileTextFixture(started) }.value
+        let began = Date()
+        work.cancel()
+        var threwCancellation = false
+        do { _ = try await work.value } catch is CancellationError { threwCancellation = true }
+        release.signal()
+        return didStart && threwCancellation && cancelled.value && Date().timeIntervalSince(began) < 1
+    }
+
+    await checkAsync("Optional PDF text: prompt recognition is retained without a skipped-text notice") {
+        let budget = FileTextBudget(seconds: 1)
+        let result = try await Task.detached { try budget.run(cancel: {}, work: { "Recognized text" }) }.value
+        return result == "Recognized text" && !budget.didSkip
+    }
+
+    await checkAsync("Native first result: PDFs combine in chosen order without a model, with originals intact and readable output") {
+        let folder = dir("native-first-pdfs")
+        let a = folder.appendingPathComponent("First.pdf"), b = folder.appendingPathComponent("Second.pdf")
+        makePDF(["FIRST DOCUMENT 4711"], at: a)
+        makePDF(["SECOND DOCUMENT 815"], at: b)
+        let originals = [a, b].map { ToolFixtures.identity($0).sha }
+        let output = try await OneAnswerTools.run(.makeOnePDF, inputs: [a, b])
+        guard let file = output.files.first, let pdf = PDFDocument(url: file) else { return false }
+        let valid = output.files.count == 1 && output.consumedInputs == [a, b] && ResultsFolder.contains(file)
+            && pdf.pageCount == 2 && pdf.page(at: 0)?.string?.contains("FIRST DOCUMENT") == true
+            && pdf.page(at: 1)?.string?.contains("SECOND DOCUMENT") == true
+            && [a, b].map { ToolFixtures.identity($0).sha } == originals
+        let engine = LocalEngine(baseDirectory: dir("native-first-pdf-journal"), modelEnabled: false)
+        let receipt = try await engine.recordResult(output.files, summary: output.summary, detail: output.detailSentence ?? "")
+        try await engine.undo(receipt)
+        return valid && !fm.fileExists(atPath: file.path) && receipt.undoDetail != nil
+            && [a, b].map { ToolFixtures.identity($0).sha } == originals
+    }
 
     check("Tray: a run's results sit at the front in order, skipped items stay; undo brings the sources back") {
         let a = URL(fileURLWithPath: "/Users/test/Desktop/A.heic")
@@ -62,4 +147,9 @@ func runTrayFlowChecks() async {
             && rows.contains { $0.chosen == "make-one-pdf" && $0.target?.kind == .dragged }
             && rows.contains { $0.chosen == nil && $0.offered == ["make-one-pdf"] }
     }
+}
+
+/// This fixture waits for blocking work on a GCD queue; the production budget's caller wait is tested separately.
+private func waitForFileTextFixture(_ semaphore: DispatchSemaphore) -> Bool {
+    semaphore.wait(timeout: .now() + 2) == .success
 }

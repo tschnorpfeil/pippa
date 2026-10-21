@@ -1,5 +1,6 @@
 // Exercises the shipped registration and admission command in the pinned Pi, without a model or personal data.
 // PIPPA_PI_PAYLOAD=<payload> node --experimental-strip-types --test runtime/pippa-tools/real-pi-readiness.test.mjs
+// PIPPA_PI_EXTENSIONS_DIR optionally selects trusted built extensions; see docs/development.md for the signed-app check.
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -9,6 +10,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { DRAFT_TOOLS, DRAFT_LAUNCH_TOOLS, POLICY_COMMAND } from "./pippa-policy.ts";
 import { READINESS_COMMAND, REQUIRED_TOOLS } from "./pippa-mcp.ts";
 
 const payload = process.env.PIPPA_PI_PAYLOAD;
@@ -16,13 +18,14 @@ const cli = process.env.PIPPA_PI_CLI || (payload && join(payload, "release/node_
 const node = process.env.PIPPA_PI_NODE || (payload && existsSync(join(payload, "bin/node")) ? join(payload, "bin/node") : process.execPath);
 const here = fileURLToPath(new URL(".", import.meta.url));
 const build = join(here, "../../.build");
+const extensionsDirectory = process.env.PIPPA_PI_EXTENSIONS_DIR || here;
 // Read the production allowlist so this test also catches changes to dynamic MCP wildcard activation.
 const launchSource = await readFile(join(here, "../../app/Sources/PiRPC/PippaPiLaunch.swift"), "utf8");
 const productionTools = [...launchSource.match(/public static let tools = \[([\s\S]*?)\]/)[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
-const pippaExtensions = ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-context.ts", "pippa-mcp.ts"];
+const pippaExtensions = ["pippa-policy.ts", "pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-context.ts", "pippa-mcp.ts"];
 
 
-for (const scenario of ["ready", "collision", "authentication-failure"]) {
+for (const scenario of ["ready", "draft-only", "collision", "authentication-failure"]) {
 	test(`real Pi native admission: ${scenario}, with no provider request`, {
 		skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 25_000,
 	}, async () => {
@@ -74,10 +77,10 @@ for (const scenario of ["ready", "collision", "authentication-failure"]) {
 				await writeFile(join(work, ".pi/mcp.json"), configured);
 			}
 			child = spawn(node, [cli, "--mode", "rpc", "--no-session", "--no-context-files", "--no-approve", "--no-skills", "--no-extensions",
-				...pippaExtensions.flatMap((name) => ["--extension", join(here, name)]), "--tools", productionTools.join(","),
+				...pippaExtensions.flatMap((name) => ["--extension", join(extensionsDirectory, name)]), "--tools", (scenario === "draft-only" ? DRAFT_LAUNCH_TOOLS : productionTools).join(","),
 				"--provider", "pippa-local", "--model", "test"], {
 				cwd: work, env: { HOME: root, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent,
-					PIPPA_MCP_URL: `${base}/mcp`, PIPPA_MCP_TOKEN: token, PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1", PI_TELEMETRY: "0" },
+					PIPPA_ACTION_POLICY: scenario === "draft-only" ? "draftOnly" : "standard", PIPPA_MCP_URL: `${base}/mcp`, PIPPA_MCP_TOKEN: token, PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1", PI_TELEMETRY: "0" },
 				stdio: ["pipe", "pipe", "pipe"],
 			});
 			let stderr = "", buffer = "", serial = 0;
@@ -113,9 +116,20 @@ for (const scenario of ["ready", "collision", "authentication-failure"]) {
 			const receipts = entries.filter((entry) => entry.customType === READINESS_COMMAND);
 			assert.equal(receipts.length, 1, stderr);
 			assert.equal(receipts[0].data.nonce, nonce);
-			assert.equal(receipts[0].data.status, scenario === "authentication-failure" ? "toolsUnavailable" : "ready", JSON.stringify({ stderr, notices, discoveries, log: await readFile(join(agent, "mcp.log"), "utf8").catch(() => "") }));
+			assert.equal(receipts[0].data.status, scenario === "authentication-failure" ? "toolsUnavailable" : "ready", JSON.stringify({ receipt: receipts[0].data, stderr, notices, discoveries, log: await readFile(join(agent, "mcp.log"), "utf8").catch(() => "") }));
 			assert.equal(providerRequests, 0, "readiness must never call a model");
-			if (scenario !== "authentication-failure") { assert.ok(discoveries > 0); assert.deepEqual(receipts[0].data.tools, REQUIRED_TOOLS); }
+			if (scenario !== "authentication-failure") {
+				assert.ok(discoveries > 0);
+				assert.deepEqual(receipts[0].data.registeredTools, REQUIRED_TOOLS);
+				assert.deepEqual(receipts[0].data.tools, scenario === "draft-only" ? DRAFT_TOOLS.filter((name) => name.startsWith("mcp__")) : REQUIRED_TOOLS);
+				assert.ok(commands.data.commands.some((entry) => entry.name === POLICY_COMMAND && entry.source === "extension"));
+				await command("prompt", { message: `/${POLICY_COMMAND} ${nonce}` });
+				const scope = entries.find((entry) => entry.customType === POLICY_COMMAND).data;
+				assert.equal(scope.status, "ready");
+				assert.equal(scope.policy, scenario === "draft-only" ? "draftOnly" : "standard");
+				if (scenario === "draft-only") assert.deepEqual(new Set(scope.tools), new Set(DRAFT_TOOLS));
+				assert.equal(providerRequests, 0);
+			}
 			if (scenario === "collision") {
 				assert.equal(await readFile(join(agent, "mcp.json"), "utf8"), configured);
 				assert.equal(await readFile(join(work, ".pi/mcp.json"), "utf8"), configured);

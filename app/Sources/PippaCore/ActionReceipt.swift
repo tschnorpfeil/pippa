@@ -23,10 +23,14 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
         public var reason: String?
         /// Stable native call identity, so a late OS confirmation updates its original receipt exactly once.
         public var operationID: UUID?
+        /// Monotonic version of a durable native operation; absent on legacy and non-journal receipts.
+        public var nativeRevision: Int?
 
-        public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, reason: String? = nil, operationID: UUID? = nil) {
+        public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, reason: String? = nil,
+                    operationID: UUID? = nil, nativeRevision: Int? = nil) {
             self.action = action; self.outcome = outcome; self.name = name; self.toName = toName; self.reason = reason
             self.operationID = operationID
+            self.nativeRevision = nativeRevision
         }
 
         public var happened: Bool { outcome == "done" }
@@ -188,8 +192,10 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
     /// Native confirmations may arrive after Stop. Preserve every other action and never offer a duplicate draft.
     public mutating func mergeNativeWrite(_ item: Item) {
         guard let id = item.operationID, Item.appActions.contains(item.action) else { return }
-        if let index = items.firstIndex(where: { $0.operationID == id }) { items[index] = item }
-        else { items.append(item) }
+        let matches = items.indices.filter { items[$0].operationID == id }
+        if let revision = matches.compactMap({ items[$0].nativeRevision }).max(), (item.nativeRevision ?? -1) < revision { return }
+        if matches.isEmpty { items.append(item) }
+        else { for index in matches { items[index] = item } }
         if item.action == "mailDraft", ["done", "unclear"].contains(item.outcome) {
             items.removeAll { $0.action == "mailDraft" && $0.outcome == "notYet" }
             mailOffer = nil

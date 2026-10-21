@@ -19,11 +19,14 @@ enum Shrink {
 
     static func run(_ inputs: [URL], passwords: [URL: String],
                     progress: @escaping @Sendable (ToolProgress) -> Void) async throws -> ToolOutput {
-        try await ToolRun.eachFile(.makeSmaller, inputs: inputs, skipWhy: L("I can only make images and PDFs smaller.", table: "Tools"),
+        let textBudget = FileTextBudget()
+        var output = try await ToolRun.eachFile(.makeSmaller, inputs: inputs, skipWhy: L("I can only make images and PDFs smaller.", table: "Tools"),
                                    progress: progress) { url, folder in
-            if ToolFiles.kind(of: url) == .pdf { return try pdf(url, password: passwords[url], folder: folder) }
+            if ToolFiles.kind(of: url) == .pdf { return try pdf(url, password: passwords[url], folder: folder, textBudget: textBudget) }
             return try image(url, folder: folder)
         }
+        if textBudget.didSkip { output.note = MakePDF.textLayerNote }
+        return output
     }
 
     // MARK: Images
@@ -48,7 +51,7 @@ enum Shrink {
 
     // MARK: PDFs
 
-    static func pdf(_ url: URL, password: String?, folder: URL) throws -> URL {
+    static func pdf(_ url: URL, password: String?, folder: URL, textBudget: FileTextBudget) throws -> URL {
         let text = try ToolPDF.open(url, password: password)
         guard let doc = ToolPDF.openCG(url, password: password), doc.numberOfPages > 0 else {
             throw ToolFailure.unreadable(name: url.lastPathComponent)
@@ -64,11 +67,11 @@ enum Shrink {
         }
         if current == nil {
             let raster = ResultFile.temp(in: folder)
-            if try rasterized(doc, text: text, dpi: 150, quality: 0.65, to: raster) { current = raster }
+            if try rasterized(doc, text: text, dpi: 150, quality: 0.65, to: raster, textBudget: textBudget) { current = raster }
         }
         if let candidate = current, ToolFiles.size(candidate) > tenMB {
             let again = ResultFile.temp(in: folder)
-            if try rasterized(doc, text: text, dpi: 100, quality: 0.5, to: again), ToolFiles.size(again) < ToolFiles.size(candidate) {
+            if try rasterized(doc, text: text, dpi: 100, quality: 0.5, to: again, textBudget: textBudget), ToolFiles.size(again) < ToolFiles.size(candidate) {
                 try? FileManager.default.removeItem(at: candidate) // our own intermediate file
                 current = again
             } else {
@@ -120,7 +123,8 @@ enum Shrink {
     }
 
     /// Fallback: pages without text redone as a JPEG image (with text layer), pages with text taken over unchanged.
-    static func rasterized(_ doc: CGPDFDocument, text: PDFDocument, dpi: CGFloat, quality: Double, to url: URL) throws -> Bool {
+    static func rasterized(_ doc: CGPDFDocument, text: PDFDocument, dpi: CGFloat, quality: Double, to url: URL,
+                           textBudget: FileTextBudget) throws -> Bool {
         guard let ctx = CGContext(url as CFURL, mediaBox: nil, nil) else { return false }
         for number in 1...doc.numberOfPages {
             try Task.checkCancellation()
@@ -133,7 +137,7 @@ enum Shrink {
                let jpeg = ToolImages.jpegData(bitmap, quality: quality),
                let image = ToolImages.jpegImage(jpeg) {
                 ctx.draw(image, in: box)
-                OCRLayer.draw(OCRLayer.recognize(bitmap), in: box, context: ctx)
+                OCRLayer.draw(try OCRLayer.recognize(bitmap, budget: textBudget), in: box, context: ctx)
             } else {
                 ToolPDF.draw(page, in: ctx, box: box)
             }

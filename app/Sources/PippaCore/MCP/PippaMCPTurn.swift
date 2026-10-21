@@ -53,10 +53,10 @@ public actor PippaMCPTurn {
     public private(set) var ledger = PiReadLedger()
     private var documents: [String: Task<DocumentText, Never>] = [:]
 
-    public init(onWork: WorkEventHandler? = nil) {
+    public init(onWork: WorkEventHandler? = nil, origin: PippaMCPOrigin? = nil, allowsNativeWrites: Bool = true) {
         let id = UUID()
         self.id = id
-        self.writes = PippaMCPWriteScope(turnID: id)
+        self.writes = PippaMCPWriteScope(turnID: id, origin: origin, allowsNativeWrites: allowsNativeWrites)
         self.onWork = onWork
     }
 

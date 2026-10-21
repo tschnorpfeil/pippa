@@ -29,7 +29,13 @@ extension PiRPCChat {
                 onDelta: @escaping @Sendable (String) -> Void, onSteered: @escaping @Sendable (String) -> Void,
                 onReset: (@Sendable (String) -> Void)? = nil) async throws -> ShownAnswer {
         try Task.checkCancellation()
-        let turn = PippaMCPTurn(onWork: context.onWork)
+        let writesDraft = draftOnly || skill?.writesDraft == true
+        let actionPolicy: PiActionPolicy = writesDraft ? .draftOnly : .standard
+        let origin: PippaMCPOrigin?
+        if let conversationID = context.nativeConversationID, let requestID = context.nativeRequestID {
+            origin = .init(conversationID: conversationID, requestID: requestID)
+        } else { origin = nil }
+        let turn = PippaMCPTurn(onWork: context.onWork, origin: origin, allowsNativeWrites: !writesDraft)
         activeNativeTurn = turn
         if let onWrite = context.onNativeWrite { turn.writes.observeReceipts(onWrite) }
         PippaMCPTurns.shared.begin(turn)
@@ -67,10 +73,9 @@ extension PiRPCChat {
         let prompt = skill.map { PiSkillTurn.prompt(for: $0, message: shown, language: language, draftOnly: draftOnly) } ?? shown
         do {
             let answer = try await chat(prompt, taskID: taskID, onWork: context.onWork, onDelta: onDelta, onSteered: onSteered, onReset: onReset,
-                                        carriedReads: carried, turn: turn)
+                                        carriedReads: carried, turn: turn, actionPolicy: actionPolicy)
             // Drafts (button "Antwort schreiben", letter line) have their own insert path: no second offer,
             // and as in the old path no source check in the draft text ("bitte prüfen" does not belong in a letter).
-            let writesDraft = draftOnly || skill?.writesDraft == true
             if !writesDraft {
                 // Shown mail (file) or read selected mail → check the offer (takeShownActions).
                 let source = MailDraftOfferRule.shownMail(files: context.files, focused: context.focusedFiles) ?? lastSelectedMail

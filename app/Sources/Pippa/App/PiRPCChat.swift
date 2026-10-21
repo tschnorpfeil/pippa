@@ -124,6 +124,7 @@ final class PiRPCChat {
 
     private var client: PiRPCClient?
     private var startingClient: PiRPCClient?
+    private var clientActionPolicy: PiActionPolicy?
     var activeNativeTurn: PippaMCPTurn?
     private var needsFreshClient = false
     /// The one llama-server for `pippa-local` and what it was started with (if the plan changes, it restarts).
@@ -139,7 +140,7 @@ final class PiRPCChat {
 
     static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
 
-    private func ready(session key: String) async throws -> PiRPCClient {
+    private func ready(session key: String, actionPolicy: PiActionPolicy) async throws -> PiRPCClient {
         let env = ProcessInfo.processInfo.environment
         let nativeTurn = activeNativeTurn
         func checkAdmission() throws {
@@ -150,7 +151,8 @@ final class PiRPCChat {
         let route = try await launchRoute(env)
         // Still "answering" here means the last answer was abandoned without Pi settling (stop timed out): start afresh
         // (the session is on disk) instead of refusing every further message as busy until the app restarts.
-        if !needsFreshClient, let client, sessionKey == key, launchKey == route.key, await client.isRunning, await client.isAnswering == false { return client }
+        if !needsFreshClient, let client, sessionKey == key, launchKey == route.key, clientActionPolicy == actionPolicy,
+           await client.isRunning, await client.isAnswering == false { return client }
         PippaMCPService.invalidateEndpoint()
         if let old = client { await old.shutdown(); client = nil }
         let extensions = URL(fileURLWithPath: Self.extensionsPath(env), isDirectory: true)
@@ -186,7 +188,7 @@ final class PiRPCChat {
             throw Failure.nativeTools(error == .extensionMissing ? "extensionMissing" : "serverUnavailable")
         }
         var configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: key,
-                                                        language: language, environment: extra, mcp: mcp)
+                                                        language: language, environment: extra, mcp: mcp, actionPolicy: actionPolicy)
         // Pi starts with `--no-extensions`, so the terminal extension that restarts a crashed model (PIPPA_APP_PID above)
         // comes explicitly, from the app's own payload.
         if let local = try? Self.installTarget(env).roots.payload.terminalExtension {
@@ -200,9 +202,10 @@ final class PiRPCChat {
             try checkAdmission()
             try await fresh.start()
             try checkAdmission()
-            try await fresh.verifyNativeTools()
+            try await fresh.verifyNativeTools(actionPolicy: actionPolicy)
             try checkAdmission()
             client = fresh; sessionKey = key; launchKey = route.key
+            clientActionPolicy = actionPolicy
             needsFreshClient = false
             return fresh
         } catch {
@@ -429,7 +432,7 @@ final class PiRPCChat {
     /// ("Ich lese den Brief …") disappears again, so the draft is only the draft.
     func chat(_ text: String, taskID: String, onWork: WorkEventHandler?, onDelta: @escaping @Sendable (String) -> Void,
               onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil,
-              carriedReads: [PippaMCPReadNote] = [], turn: PippaMCPTurn) async throws -> String {
+              carriedReads: [PippaMCPReadNote] = [], turn: PippaMCPTurn, actionPolicy: PiActionPolicy = .standard) async throws -> String {
         lastActions = nil
         searchFiles = []
         changes = []
@@ -460,7 +463,7 @@ final class PiRPCChat {
         let held = Self.onlineConnection == nil && Self.subscriptionModel == nil ? try await modelLease(onWork: onWork) : nil
         defer { if let held { Task { await held.server.releaseAgentLease(held.lease) } } }
         guard !turn.writes.snapshot.cancelled, !Task.isCancelled else { throw AnswerFailure.stopped(partial: "") }
-        let client = try await ready(session: taskID)
+        let client = try await ready(session: taskID, actionPolicy: actionPolicy)
         guard !turn.writes.snapshot.cancelled, !Task.isCancelled else { throw AnswerFailure.stopped(partial: "") }
         var segment = ""
         // Where the text after the last tool call starts (AnswerNarration).

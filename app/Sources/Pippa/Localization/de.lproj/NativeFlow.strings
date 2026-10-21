@@ -1,0 +1,21 @@
+/* Immediate native file work and local recovery. */
+"Choose" = "Auswählen";
+"Choose photos or PDFs. I’ll offer actions that work right away on this Mac." = "Wähle Fotos oder PDFs. Ich zeige dir, was ich damit sofort auf diesem Mac machen kann.";
+"Make something useful right away" = "Leg gleich los";
+"Turn photos into a PDF, convert images or extract text. No AI download needed. Your originals stay as they are." = "Mach aus Fotos ein PDF, wandle Bilder um oder hole Text heraus. Dafür brauchst du keine KI zu laden. Deine Originale bleiben, wie sie sind.";
+"Choose Photos or PDFs…" = "Fotos oder PDFs auswählen…";
+"Choose files, then choose what to make. Nothing changes until you pick an action." = "Wähle Dateien und dann, was daraus werden soll. Erst mit deiner Auswahl geht’s los.";
+"File actions work while the download continues." = "Du kannst schon mit Dateien arbeiten, während der Download weiterläuft.";
+"Ready to use" = "Fertig für dich";
+"Open it, drag it where you need it, or save a copy." = "Öffne die Datei, zieh sie dorthin, wo du sie brauchst, oder speichere eine Kopie.";
+"Open" = "Öffnen";
+"Open %@" = "%@ öffnen";
+"Save a copy in a location you choose." = "Speichere eine Kopie an einem Ort deiner Wahl.";
+"Show in Finder" = "Im Finder zeigen";
+"Try Again" = "Nochmal versuchen";
+"Retry the same action with the same files. Your originals stay unchanged." = "Versuche dieselbe Aktion mit denselben Dateien nochmal. Deine Originale bleiben unverändert.";
+"Choose Another Action" = "Etwas anderes machen";
+"Ready: %@. Open it, drag it where you need it, or save a copy." = "Fertig: %@. Öffne die Datei, zieh sie dorthin, wo du sie brauchst, oder speichere eine Kopie.";
+"I couldn’t open this file. You can still save it or show it in Finder." = "Ich konnte die Datei nicht öffnen. Du kannst sie trotzdem speichern oder im Finder zeigen.";
+"This result is no longer available. Your original files are unchanged." = "Dieses Ergebnis ist nicht mehr da. Deine Originaldateien sind unverändert.";
+"I couldn’t save it there. Your result is still here. Choose another location or drag it out." = "Dort konnte ich nicht speichern. Dein Ergebnis ist noch hier. Wähle einen anderen Ort oder zieh es heraus.";

@@ -166,6 +166,9 @@ public struct ChatContext: Sendable {
     public var workflowSummary: String
     /// Bounded persisted Mac-action evidence for follow-ups, independent of the current workflow preview.
     public var nativeReceiptSummary: String = ""
+    /// Host-owned identity of the conversation and original persisted user request. A retry retains this identity.
+    public var nativeConversationID: UUID?
+    public var nativeRequestID: UUID?
     /// Thought Line (ThoughtLine.swift): real phases of this answer, in order. `nil`: nobody listens.
     public var onWork: WorkEventHandler?
     /// Native write confirmations stay bound to this answer, including results arriving after Stop.

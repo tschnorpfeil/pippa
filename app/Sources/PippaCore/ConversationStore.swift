@@ -281,10 +281,57 @@ public enum ConversationStoreError: LocalizedError, Sendable {
             throw ConversationStoreError.unknownConversation
         }
         var next = archive
-        var actions = next.conversations[conversation].messages[message].actions ?? ActionReceipt(items: [])
-        actions.mergeNativeWrite(item)
-        next.conversations[conversation].messages[message].actions = actions
-        try persist(next)
+        guard let operationID = item.operationID, ActionReceipt.Item.appActions.contains(item.action) else { return next.conversations[conversation] }
+        let existing = next.conversations[conversation].messages.indices.filter {
+            next.conversations[conversation].messages[$0].actions?.items.contains(where: { $0.operationID == operationID }) == true
+        }
+        let prior = existing.flatMap { next.conversations[conversation].messages[$0].actions?.items.filter { $0.operationID == operationID } ?? [] }
+        if let revision = prior.compactMap(\.nativeRevision).max(), (item.nativeRevision ?? -1) < revision { return next.conversations[conversation] }
+        if prior.contains(where: { $0.outcome == "done" }), item.outcome != "done" { return next.conversations[conversation] }
+        for target in existing.isEmpty ? [message] : existing {
+            var actions = next.conversations[conversation].messages[target].actions ?? ActionReceipt(items: [])
+            actions.mergeNativeWrite(item)
+            next.conversations[conversation].messages[target].actions = actions
+        }
+        if next.conversations[conversation] != archive.conversations[conversation] { try persist(next) }
+        return next.conversations[conversation]
+    }
+
+    /// Recovery belongs beside the persisted request, even if the app exited before an answer was saved.
+    /// Updating old status never changes the selected conversation or creates a deleted conversation again.
+    @discardableResult public func recordRecoveredNativeWrites(_ updates: [(requestID: UUID, item: ActionReceipt.Item)],
+                                                                in conversationID: UUID) throws -> Conversation {
+        guard let conversation = archive.conversations.firstIndex(where: { $0.id == conversationID }) else {
+            throw ConversationStoreError.unknownConversation
+        }
+        var next = archive
+        for update in updates {
+            guard let operationID = update.item.operationID, ActionReceipt.Item.appActions.contains(update.item.action),
+                  let request = next.conversations[conversation].messages.firstIndex(where: { $0.id == update.requestID && $0.role == .user }) else { continue }
+            var messages = next.conversations[conversation].messages
+            let existing = messages.indices.filter { messages[$0].actions?.items.contains(where: { $0.operationID == operationID }) == true }
+            let priorItems = existing.flatMap { messages[$0].actions?.items.filter { $0.operationID == operationID } ?? [] }
+            let newestRevision = priorItems.compactMap(\.nativeRevision).max()
+            if let newestRevision, (update.item.nativeRevision ?? -1) < newestRevision { continue }
+            if priorItems.contains(where: { $0.outcome == "done" }), update.item.outcome != "done" { continue }
+            let boundary = messages.indices.first { $0 > request && messages[$0].role == .user } ?? messages.endIndex
+            let answer = messages.indices.first { $0 > request && $0 < boundary && messages[$0].role != .user }
+            let targets = existing.isEmpty ? answer.map { [$0] } ?? [] : existing
+            if !targets.isEmpty {
+                for target in targets {
+                    var actions = messages[target].actions ?? ActionReceipt(items: [])
+                    actions.mergeNativeWrite(update.item)
+                    messages[target].actions = actions
+                }
+            } else {
+                var status = ConversationMessage(role: .system, text: L("Reminder status after reopening Pippa", table: "MCP"),
+                                                  notice: true, actions: ActionReceipt(items: [update.item]))
+                status.timestamp = messages[request].timestamp
+                messages.insert(status, at: request + 1)
+            }
+            next.conversations[conversation].messages = messages
+        }
+        if next.conversations[conversation] != archive.conversations[conversation] { try persist(next) }
         return next.conversations[conversation]
     }
 

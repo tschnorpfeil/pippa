@@ -10,7 +10,7 @@ struct PreparedPage: Sendable {
     var lines: [OCRLine]
 }
 
-/// "Make one PDF": images and PDFs in the given order into one searchable PDF.
+/// "Make one PDF": images and PDFs in the given order, with searchable text when recognition finishes promptly.
 enum MakePDF {
     static let a4 = CGSize(width: 595, height: 842)
     static let maxPixel = 2500
@@ -26,19 +26,20 @@ enum MakePDF {
     }
 
     /// Image → JPEG page with text layer. nil if the image cannot be read.
-    static func prepare(_ url: URL) throws -> PreparedPage? {
+    static func prepare(_ url: URL, textBudget: FileTextBudget) throws -> PreparedPage? {
         try Task.checkCancellation()
         guard let thumb = ToolImages.thumbnail(url, maxPixel: maxPixel) else { return nil }
         let image = ToolImages.opaque(thumb)
         guard let jpeg = ToolImages.jpegData(image, quality: 0.75) else { return nil }
         try Task.checkCancellation()
-        let lines = OCRLayer.recognize(image)
+        let lines = try OCRLayer.recognize(image, budget: textBudget)
         try Task.checkCancellation()
         return PreparedPage(jpeg: jpeg, size: pageSize(for: CGSize(width: image.width, height: image.height)), lines: lines)
     }
 
     /// Prepare all images, at most three at a time; progress per finished page. Order is kept.
-    static func prepareAll(_ urls: [URL], total: Int, progress: @escaping @Sendable (ToolProgress) -> Void) async throws -> [PreparedPage?] {
+    static func prepareAll(_ urls: [URL], total: Int, textBudget: FileTextBudget,
+                           progress: @escaping @Sendable (ToolProgress) -> Void) async throws -> [PreparedPage?] {
         guard !urls.isEmpty else { return [] }
         return try await withThrowingTaskGroup(of: (Int, PreparedPage?).self) { group in
             var results = [PreparedPage?](repeating: nil, count: urls.count)
@@ -46,7 +47,7 @@ enum MakePDF {
             while next < min(parallelPages, urls.count) {
                 let index = next, url = urls[index]
                 group.addTask {
-                    let page = try MakePDF.prepare(url)
+                    let page = try MakePDF.prepare(url, textBudget: textBudget)
                     return (index, page)
                 }
                 next += 1
@@ -59,7 +60,7 @@ enum MakePDF {
                 if next < urls.count {
                     let index = next, url = urls[index]
                     group.addTask {
-                        let page = try MakePDF.prepare(url)
+                        let page = try MakePDF.prepare(url, textBudget: textBudget)
                         return (index, page)
                     }
                     next += 1
@@ -86,8 +87,8 @@ enum MakePDF {
     }
 
     /// One image → one PDF (for "As PDF").
-    static func single(_ url: URL, folder: URL) async throws -> URL {
-        guard let page = try prepare(url) else { throw ToolFailure.unreadable(name: url.lastPathComponent) }
+    static func single(_ url: URL, folder: URL, textBudget: FileTextBudget) async throws -> URL {
+        guard let page = try prepare(url, textBudget: textBudget) else { throw ToolFailure.unreadable(name: url.lastPathComponent) }
         let temp = ResultFile.temp(in: folder)
         do {
             try write([page], to: temp)
@@ -124,10 +125,11 @@ enum MakePDF {
         let total = images.count + pdfPages
 
         let folder = try ResultsFolder.fresh()
+        let textBudget = FileTextBudget()
         do {
             try ToolFiles.checkSpace(for: usable.map { $0.url }, in: folder)
             progress(ToolProgress(done: 0, total: total))
-            let prepared = try await prepareAll(images, total: total, progress: progress)
+            let prepared = try await prepareAll(images, total: total, textBudget: textBudget, progress: progress)
             try Task.checkCancellation()
             for (index, url) in images.enumerated() where prepared[index] == nil {
                 skipped.append(FileReason(name: url.lastPathComponent, why: ToolText.unreadableWhy))
@@ -179,11 +181,16 @@ enum MakePDF {
             }
             try Task.checkCancellation()
             let file = try ResultFile.place(temp, as: ResultNaming.name(for: .makeOnePDF, inputs: used), in: folder)
-            return ToolOutput(files: [file], consumedInputs: used, skipped: skipped, summary: file.lastPathComponent)
+            return ToolOutput(files: [file], consumedInputs: used, skipped: skipped, summary: file.lastPathComponent,
+                              note: textBudget.didSkip ? textLayerNote : nil)
         } catch {
             try? FileManager.default.removeItem(at: folder) // only Pippa's own, fresh result folder
             throw error
         }
+    }
+
+    static var textLayerNote: String {
+        L("The PDF is ready. I couldn’t add searchable text to every image.", table: "Tools")
     }
 
     private static func failure(for usable: [URL], skipped: [FileReason]) -> ToolFailure {
