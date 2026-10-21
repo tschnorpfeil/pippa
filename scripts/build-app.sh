@@ -10,6 +10,7 @@
 #   PIPPA_CACHE          download and llama.cpp build cache (default ~/Library/Caches/pippa-build)
 #   PIPPA_CMAKE          cmake to build llama-server with (default: cmake from PATH); PIPPA_NINJA likewise
 #   PIPPA_REQUIRE_DISTRIBUTION=1  Developer ID mandatory (release pipeline)
+#   PIPPA_NATIVE_ACCEPTANCE=1  instrumented signed integration candidate, separate output/scratch; never distribute
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,6 +21,17 @@ APP="$DIST/Pippa.app"
 CACHE="${PIPPA_CACHE:-$HOME/Library/Caches/pippa-build}"
 RELEASE_JSON="$ROOT/app/Packaging/llama-release.json"
 IDENTITY="${PIPPA_SIGN_IDENTITY:-}"
+ACCEPTANCE="${PIPPA_NATIVE_ACCEPTANCE:-0}"
+if [[ "$ACCEPTANCE" != 0 && "$ACCEPTANCE" != 1 ]]; then
+  printf 'Error: PIPPA_NATIVE_ACCEPTANCE must be 0 or 1.\n' >&2; exit 1
+fi
+if [[ "$ACCEPTANCE" == 1 ]]; then
+  if [[ "${PIPPA_REQUIRE_DISTRIBUTION:-0}" == 1 || "${PIPPA_SKIP_BUILD:-0}" == 1 || "$IDENTITY" != "Developer ID Application:"* ]]; then
+    printf 'Error: native acceptance requires Developer ID, a fresh build and no distribution mode.\n' >&2; exit 1
+  fi
+  DIST="$ROOT/dist/native-acceptance"
+  APP="$DIST/Pippa.app"
+fi
 if [[ "${PIPPA_REQUIRE_DISTRIBUTION:-0}" == 1 && "$IDENTITY" != "Developer ID Application:"* ]]; then
   printf 'Error: a release needs PIPPA_SIGN_IDENTITY with a Developer ID Application.\n' >&2
   exit 1
@@ -55,12 +67,26 @@ if ! python3 "$ROOT/scripts/check-default-models.py"; then
 fi
 
 # --- SwiftPM-Release ---------------------------------------------------------
+SWIFT_ARGS=(-c release --arch arm64)
+if [[ "$ACCEPTANCE" == 1 ]]; then
+  SWIFT_ARGS+=(--scratch-path "$ROOT/.build/native-acceptance-swift" -Xswiftc -DPIPPA_NATIVE_ACCEPTANCE)
+  SOURCE_BEFORE="$(python3 "$ROOT/scripts/check-native-acceptance.py" --source-manifest)"
+fi
 if [[ "${PIPPA_SKIP_BUILD:-}" != 1 ]]; then
   say "swift build -c release --arch arm64"
-  (cd "$APP_SRC" && swift build -c release --arch arm64 --product Pippa)
+  (cd "$APP_SRC" && swift build "${SWIFT_ARGS[@]}" --product Pippa)
 fi
-BIN="$(cd "$APP_SRC" && swift build -c release --arch arm64 --show-bin-path)"
+BIN="$(cd "$APP_SRC" && swift build "${SWIFT_ARGS[@]}" --show-bin-path)"
 [[ -x "$BIN/Pippa" ]] || die "no release binary at $BIN/Pippa"
+if [[ "$ACCEPTANCE" == 1 ]]; then
+  SOURCE_AFTER="$(python3 "$ROOT/scripts/check-native-acceptance.py" --source-manifest)"
+  python3 - "$SOURCE_BEFORE" "$SOURCE_AFTER" <<'PY'
+import json, sys
+before, after = map(json.loads, sys.argv[1:])
+if before['appSourceSHA256'] != after['appSourceSHA256'] or before['commit'] != after['commit']:
+    raise SystemExit('Acceptance application source changed during compilation; rerun after edits finish.')
+PY
+fi
 
 # --- llama.cpp (pinned source + Pippa patches, built here) -------------------
 # Not the official binary: the K2 Horizon parser of b11503 needs a patch (app/Packaging/llama-patches).
@@ -187,6 +213,15 @@ printf 'APPL????' > "$APP/Contents/PkgInfo"
 
 sed -e "s/__VERSION__/$VERSION/g" -e "s/__BUILD__/$BUILD/g" -e "s/__YEAR__/$(date +%Y)/g" \
   "$PACKAGING/Info.plist" > "$APP/Contents/Info.plist"
+if [[ "$ACCEPTANCE" == 1 ]]; then
+  plutil -insert PippaNativeAcceptance -bool true "$APP/Contents/Info.plist"
+  python3 - "$SOURCE_BEFORE" "$SOURCE_AFTER" "$APP/Contents/Resources/native-acceptance-source.json" <<'PY'
+import json, sys
+with open(sys.argv[3], 'w') as output:
+    json.dump({'before': json.loads(sys.argv[1]), 'after': json.loads(sys.argv[2])}, output, sort_keys=True, indent=2)
+    output.write('\n')
+PY
+fi
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 # Localized Info.plist texts (permission prompts, copyright, document type) and the
 # Services menu title: Contents/Resources/<language>.lproj/{InfoPlist,ServicesMenu}.strings.

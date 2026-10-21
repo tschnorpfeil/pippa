@@ -4,6 +4,16 @@ Release plan · 21 October 2026 · **Proposed work, not released functionality**
 
 **The next release should make one everyday job excellent: turn photos and PDFs into a file ready to send, while making existing Mac actions easier to recover and inspect.** Judge success by the usable result and the effort required to get it. Keep three priorities; complete their gates before widening the scope.
 
+### Implementation checkpoint: native reliability first
+
+The first 0.3.13 change is an explicit **Check status** action for an unresolved, journaled reminder and **Open Reminders** for inspection. Status checking only reads native state; it does not repeat the request, ask for permission or create a reminder. It stays attached to the original conversation through navigation and concurrent replies. Missing or ambiguous evidence stays unconfirmed.
+
+Skipping onboarding permissions does not disable contextual access requests: the existing chat tools explain and request an undecided permission when needed, then continue the same authorized operation after a grant. A previously denied Calendar, Reminders or Mail write now offers **Open System Settings** on its receipt while keeping the conversation open. This opens the relevant privacy pane only; it does not repeat the task or treat a Settings visit as a grant.
+
+Mail hardening bounds new-compose Apple Events, verifies reply fields after the save attempt and refuses to choose an original from an incomplete search. A new compose window remains distinct from a saved reply draft. Native Mail acceptance is still required before advertising these fixes as verified behavior.
+
+The accompanying signed, instrumented reminder harness exercises real native saves across process exit, after-save interruption, reconciliation, deduplication and guarded cleanup. Its evidence is deliberately separate from exact shipped-build UI acceptance. New permission-resume behavior is deferred until a fresh-profile test can be obtained; the file preparation and contextual-entry priorities below remain upcoming work.
+
 ## Starting point: 0.3.12 is released
 
 [Pippa 0.3.12, build 727](https://github.com/tschnorpfeil/pippa/releases/tag/v0.3.12-727), from source `3dcb738e26d1257ad56eb9114b9583c9696e05d3`, already includes native-tool admission, durable reminder recovery, restricted drafting, source-aware retry, attached-source grounding checks and Photos/PDF actions before model setup. Reuse these foundations rather than introducing another agent loop.

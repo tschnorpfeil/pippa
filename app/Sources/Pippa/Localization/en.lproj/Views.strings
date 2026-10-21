@@ -280,3 +280,14 @@
 "Recognizing text · %@" = "Recognizing text · %@";
 "Reading · %@" = "Reading · %@";
 "Reading %lld of %lld…" = "Reading %lld of %lld…";
+
+"Checking…" = "Checking…";
+"Check status" = "Check status";
+"Checks the earlier reminder without creating another one" = "Checks the earlier reminder without creating another one";
+"Open Reminders" = "Open Reminders";
+"Opens the Reminders app so you can inspect the result" = "Opens the Reminders app so you can inspect the result";
+"Checking Reminders…" = "Checking Reminders…";
+"Reminder creation confirmed." = "Reminder creation confirmed.";
+"Still unconfirmed. Check Reminders before trying again." = "Still unconfirmed. Check Reminders before trying again.";
+"Reminder status updated." = "Reminder status updated.";
+"Status couldn’t be checked. Open Reminders to inspect it." = "Status couldn’t be checked. Open Reminders to inspect it.";

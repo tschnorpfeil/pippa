@@ -41,9 +41,9 @@ extension AppModel {
         }
     }
 
-    func openSettings(for integration: Integration) {
+    func openSettings(for integration: Integration, keepingConversation: Bool = false) {
         NSWorkspace.shared.open(integration.settingsURL)
-        collapse()
+        if !keepingConversation { collapse() }
     }
 
     static func openApp(_ integration: Integration?) {

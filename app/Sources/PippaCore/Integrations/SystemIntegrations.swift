@@ -448,8 +448,8 @@ enum MailScript {
 /// reply and its content reads back empty. `make new paragraph at end of content` does work and reads back;
 /// `save` makes the open window show it (the editor otherwise keeps what it loaded first); threading headers stay.
 /// Mail's own quote is replaced that way, so the script appends a plain quote built from the original.
-/// Order: find the original (captured mailbox first, then a bounded search in steps), reply, fill, read back,
-/// save as an unsent draft. Only failures before `reply` leave nothing in Mail.
+/// Order: find the original (captured mailbox first, then a bounded search in steps), reply, fill, save,
+/// then read the fields back. Only failures before `reply` leave nothing in Mail.
 enum MailReplyScript {
     static let source = """
     on replyAt(theID, mailID, acctName, boxPath, theAddress, theSubject, theBody, quoteHeader)
@@ -506,17 +506,13 @@ enum MailReplyScript {
                     end if
                     tell r to make new paragraph at end of content with data (theBody & linefeed)
                     if quoteText is not "" then tell r to make new paragraph at end of content with data (linefeed & quoteText & linefeed)
-                    set readBody to (content of r) as text
-                    set readSubject to (subject of r) as text
-                    set addresses to {}
-                    repeat with targetRecipient in to recipients of r
-                        set end of addresses to (address of targetRecipient) as text
-                    end repeat
                 end timeout
             on error
                 -- The window is open but its fields are unknown: leave it to the person, never close it.
                 try
-                    activate
+                    with timeout of 5 seconds
+                        activate
+                    end timeout
                 end try
                 return {"shown"}
             end try
@@ -529,8 +525,24 @@ enum MailReplyScript {
                 end timeout
                 set saved to true
             end try
+            -- Saving can change what Mail exposes. Only the fields read after that attempt count;
+            -- an earlier read must never stand in for an unconfirmed post-save result.
             try
-                activate
+                with timeout of 15 seconds
+                    set readBody to (content of r) as text
+                    set readSubject to (subject of r) as text
+                    set addresses to {}
+                    repeat with targetRecipient in to recipients of r
+                        set end of addresses to (address of targetRecipient) as text
+                    end repeat
+                end timeout
+            on error
+                return {"shown"}
+            end try
+            try
+                with timeout of 5 seconds
+                    activate
+                end timeout
             end try
             return {"reply", readSubject, readBody, addresses, saved}
         end tell
@@ -657,20 +669,24 @@ enum MailReplyScript {
 
     on newMessage(theAddress, theName, theSubject, theBody)
         tell application id "com.apple.mail"
-            set nm to make new outgoing message with properties {subject:theSubject, content:theBody, visible:true}
-            if theAddress is not "" then
-                if theName is "" then
-                    tell nm to make new to recipient at end of to recipients with properties {address:theAddress}
-                else
-                    tell nm to make new to recipient at end of to recipients with properties {address:theAddress, name:theName}
+            -- Every native event is bounded, including compose creation and its readback.
+            -- Errors may follow a successful creation: never create another message here.
+            with timeout of 30 seconds
+                set nm to make new outgoing message with properties {subject:theSubject, content:theBody, visible:true}
+                if theAddress is not "" then
+                    if theName is "" then
+                        tell nm to make new to recipient at end of to recipients with properties {address:theAddress}
+                    else
+                        tell nm to make new to recipient at end of to recipients with properties {address:theAddress, name:theName}
+                    end if
                 end if
-            end if
-            activate
-            set recipientAddresses to {}
-            repeat with targetRecipient in to recipients of nm
-                set end of recipientAddresses to (address of targetRecipient) as text
-            end repeat
-            return {(subject of nm) as text, (content of nm) as text, recipientAddresses}
+                activate
+                set recipientAddresses to {}
+                repeat with targetRecipient in to recipients of nm
+                    set end of recipientAddresses to (address of targetRecipient) as text
+                end repeat
+                return {(subject of nm) as text, (content of nm) as text, recipientAddresses}
+            end timeout
         end tell
     end newMessage
     """
@@ -695,8 +711,7 @@ enum MailReplyScript {
     private static func search(_ id: String, hint: MailLocator?) async throws -> MailLocator {
         try Task.checkCancellation()
         let listed = try await run("mailboxList", [])
-        guard listed.first?.text == "ok", listed.count == 2 else { throw MailReplyFailure.notCreated }
-        let boxes = MailOriginalSearch.ordered(listed[1].items.compactMap(locator), preferring: hint)
+        let boxes = MailOriginalSearch.ordered(try searchMailboxes(listed), preferring: hint)
         let clock = ContinuousClock(), deadline = clock.now + MailOriginalSearch.budget
         var matches: [MailLocator] = [], incomplete = false
         for (index, box) in boxes.enumerated() {
@@ -704,16 +719,50 @@ enum MailReplyScript {
             MailOriginalSearch.progress?(index, boxes.count)
             if clock.now > deadline { incomplete = true; break }
             let found = try await run("findIn", [.text(id), .text(box.account), .texts(box.path)])
-            switch found.first?.text {
-            case "ok" where found.count == 2:
-                matches += found[1].items.compactMap { MailLocator(account: box.account, path: box.path, mailID: $0.number) }
-            case "timeout": incomplete = true
-            default: continue
+            do {
+                matches += try searchMatches(found, in: box)
+            } catch {
+                // A skipped, timed-out or malformed mailbox response cannot establish uniqueness.
+                incomplete = true
             }
         }
         MailOriginalSearch.progress?(boxes.count, boxes.count)
         try Task.checkCancellation()
         return try MailOriginalSearch.decide(matches, incomplete: incomplete)
+    }
+
+    /// Search responses must be complete lists. Dropping an unreadable mailbox or message ID could turn an
+    /// ambiguous lookup into a false unique match; malformed data therefore stops admission before a reply.
+    static func searchMailboxes(_ response: [ScriptValue]) throws -> [MailLocator] {
+        guard response.count == 2, response[0].text == "ok", case .list(let entries) = response[1] else {
+            throw MailReplyFailure.searchIncomplete
+        }
+        return try entries.map { entry in
+            guard case .list(let parts) = entry, parts.count == 3,
+                  let account = parts[0].text, case .list(let components) = parts[1], parts[2].text == "" else {
+                throw MailReplyFailure.searchIncomplete
+            }
+            let path = try components.map { component in
+                guard let text = component.text else { throw MailReplyFailure.searchIncomplete }
+                return text
+            }
+            guard let box = MailLocator(account: account, path: path, mailID: nil) else {
+                throw MailReplyFailure.searchIncomplete
+            }
+            return box
+        }
+    }
+
+    static func searchMatches(_ response: [ScriptValue], in box: MailLocator) throws -> [MailLocator] {
+        guard response.count == 2, response[0].text == "ok", case .list(let ids) = response[1] else {
+            throw MailReplyFailure.searchIncomplete
+        }
+        return try ids.map { value in
+            guard let id = value.number, let match = MailLocator(account: box.account, path: box.path, mailID: id) else {
+                throw MailReplyFailure.searchIncomplete
+            }
+            return match
+        }
     }
 
     private static func replyAt(_ box: MailLocator, id: String, draft: MailDraft) async throws -> [ScriptValue] {
@@ -799,6 +848,15 @@ indirect enum ScriptValue: Sendable {
 
 /// For checks only: can the scripts be compiled? (Only reads the apps' dictionaries, sends nothing.)
 public enum IntegrationScripts {
+    /// Pure native-response parser checks: descriptors are supplied by the check, never obtained from Mail.
+    public static func mailSearchMailboxes(_ response: NSAppleEventDescriptor) throws -> [MailLocator] {
+        try MailReplyScript.searchMailboxes(ScriptValue(response).items)
+    }
+
+    public static func mailSearchMatches(_ response: NSAppleEventDescriptor, in box: MailLocator) throws -> [MailLocator] {
+        try MailReplyScript.searchMatches(ScriptValue(response).items, in: box)
+    }
+
     /// Name and text of all scripts, for `compileAll` and the check that none calls `send`.
     public static var sources: [(name: String, source: String)] {
         [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("Excel", ExcelScript.source),

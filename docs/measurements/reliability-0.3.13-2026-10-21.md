@@ -1,0 +1,27 @@
+# Pippa 0.3.13 native reliability checkpoint
+
+This is an unreleased implementation checkpoint for the first priority in the [0.3.13 roadmap](../roadmap-0.3.13.md), not a claim that the whole roadmap or its release gates are complete.
+
+## Changes
+
+- A journaled, uncertain reminder exposes **Check status** and **Open Reminders**. The check reads the exact original operation and destination; it cannot request permission, repeat Pi or write a reminder. Missing, ambiguous or inaccessible evidence remains unconfirmed. A deleted conversation stays deleted; a newer confirmation cannot be overwritten by stale evidence. A new conversational reply may continue while the check completes.
+- Denied native Calendar, Reminders and Mail writes expose **Open System Settings** for their typed integration. Opening Settings preserves the conversation and does not grant access or retry an operation. Completed, canceled, unrelated or uncertain receipts do not acquire that repair action.
+- Permissions skipped in onboarding already have a contextual chat path. The existing host explains an undecided permission, requests it and continues the same operation after a grant. New regression cases verify grant ordering, same-intent deduplication, Later, denial, previous denial and Stop at both explanation and request boundaries. These cases use a synthetic permission adapter; no fresh TCC claim is made.
+- New Mail compose events have explicit timeouts. Reply fields must read back after the save attempt before the existing saved-draft outcome can be reported. Fallback original-message search rejects incomplete results and malformed mailbox/message lists; it cannot silently drop candidates and claim uniqueness. A new compose window remains distinct from a saved reply draft. No message is sent and there is no automatic replay.
+- A compile-time-only, signed [native integration harness](native-integration-acceptance.md) provides a reproducible reminder create/restart/readback/deduplication and after-save interruption/reconciliation sequence. It uses an isolated journal and fingerprint-guarded synthetic cleanup. Distribution checks reject its property-list or executable markers.
+
+## Verification scope
+
+The pinned Pi 1.3.0 runtime suite passed **90/90**, with no failures or skips. Four new scripted-provider cases prove that a useful independent read can finish after a denied, unavailable, confirmed or uncertain native result. The model receives the earlier outcome; a confirmed or uncertain write executes once despite an attempted duplicate. These are lifecycle fixtures, not model-reasoning benchmarks.
+
+The English and German debug-app reminder fixtures passed **11/11 each** at 400 points. They exercise the real conversation controller through a second streaming turn, duplicate clicks and late status updates, and render idle, checking and denied-access states. Captures were visually inspected; German reminder buttons stack when necessary. The macOS 15 workflow runs these fixtures on every matching code change. Synthetic app captures do not establish native permission behavior or VoiceOver completion.
+
+The full native suite passed **812/812** with normal OCR and no system-model dependency, including both new chat permission cases and strict Mail descriptor parsing. Pi RPC checks passed **37/37**. Focused reminder status/Settings checks passed **9/9**. Localization validation passed for **1,436 keys**. The packaging and acceptance runner checks passed **20/20**. The ordinary production build passed and contains no native-acceptance executable marker. Signed integration and matching remote-CI results remain separate acceptance evidence.
+
+The signed, instrumented 0.3.13 (731) native candidate passed both real reminder scenarios on macOS 27.0.1 with 24 GiB RAM, across nine distinct app processes launched through LaunchServices. A completed request survived restart and deduplicated without another save. After process loss immediately following a native save, reconciliation recovered the same item without another save; readback and deduplication passed. Both unchanged synthetic reminders were removed with verified absence. The [native acceptance record](native-integration-acceptance.md) identifies the exact binary, source manifest and evidence limits. Existing access was granted; this does not establish fresh-profile permission behavior.
+
+## Gates that remain distinct
+
+Fresh-profile permission allow/deny/revocation, exact shipped-build interaction, real Mail reply acceptance, physical 8-/16-GB hardware, account synchronization and observed-user usability are not established by synthetic checks or an instrumented reminder candidate. New generic permission continuation remains deferred. The expanded file preparation flow and contextual-entry priorities are still upcoming. A public 0.3.13 release also requires matching green CI, signed/notarized distribution verification and an update installation test.
+
+Contextual permission requests are not yet a uniform inline chat system. Photos, Excel and front-app Automation readers already request undecided access, but their denied results generally provide Settings instructions as text. File reads can trigger the system prompt; generic denied file results still lack a typed chat repair action. Contacts requests belong to the letter flow. Accessibility, screen recording and microphone are not onboarding permission rows. Keep these distinctions when describing the new native-write receipt button.

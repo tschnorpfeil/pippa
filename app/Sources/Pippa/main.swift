@@ -5,6 +5,12 @@ import AppKit
 signal(SIGPIPE, SIG_IGN)
 // Pippa lives in the menu bar and as a pill, without a Dock icon.
 let app = NSApplication.shared
+#if PIPPA_NATIVE_ACCEPTANCE
+// Instrumented candidates cannot fall through to installation, normal settings or ordinary app startup.
+Task { @MainActor in exit(await NativeAcceptance.run(CommandLine.arguments)) }
+app.run()
+exit(1)
+#else
 if CommandLine.arguments.dropFirst().contains("--verify-runtime") {
     do { try BundleVerification.run(); exit(0) }
     catch { FileHandle.standardError.write(Data("Bundle-Prüfung fehlgeschlagen: \(error)\n".utf8)); exit(1) }
@@ -23,3 +29,4 @@ app.delegate = delegate
 // apps can click through it.
 app.setActivationPolicy(ProcessInfo.processInfo.environment["PIPPA_REGULAR_APP"] == "1" ? .regular : .accessory)
 app.run()
+#endif

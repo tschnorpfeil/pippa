@@ -182,8 +182,9 @@ extension Executor {
 
     /// Read-only recovery: no permission prompt and no writes to Reminders. Only a unique native identity resolves
     /// an uncertain dispatch. Absence, permission loss, a missing list and duplicate markers all remain unresolved.
-    public func reconcileNativeReminders(using writer: any HostWriting, conversationID: UUID? = nil) async throws -> [NativeReminderRecord] {
-        let candidates = try nativeReminderRecords(conversationID: conversationID)
+    public func reconcileNativeReminders(using writer: any HostWriting, conversationID: UUID? = nil,
+                                         operationID: UUID? = nil) async throws -> [NativeReminderRecord] {
+        let candidates = try nativeReminderRecords(conversationID: conversationID).filter { operationID == nil || $0.id == operationID }
         let deadline = ContinuousClock.now + .seconds(12)
         for record in candidates.filter({ [.dispatched, .uncertain].contains($0.phase) }).prefix(8) {
             guard !Task.isCancelled, ContinuousClock.now < deadline else { break }
@@ -193,7 +194,7 @@ extension Executor {
                 _ = try completeNativeReminder(id: record.id, result: result, recovered: true)
             }
         }
-        return try nativeReminderRecords(conversationID: conversationID)
+        return try nativeReminderRecords(conversationID: conversationID).filter { operationID == nil || $0.id == operationID }
     }
 
     public func nativeReminder(id: UUID) throws -> NativeReminderRecord {

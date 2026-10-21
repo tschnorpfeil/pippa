@@ -38,9 +38,22 @@ if ProcessInfo.processInfo.environment["PIPPA_SOURCE_EXPOSURE_CHECKS"] == "1" {
     exit(failures == 0 ? 0 : 1)
 }
 
+if ProcessInfo.processInfo.environment["PIPPA_REMINDER_STATUS_CHECKS"] == "1" {
+    await runReminderStatusChecks()
+    print(failures == 0 ? "Reminder status checks passed." : "Reminder status checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
 if ProcessInfo.processInfo.environment["PIPPA_DOWNLOAD_CHECKS"] == "1" {
     await runDownloadChecks()
     print(failures == 0 ? "Download checks passed." : "Download checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
+// Mail identity, readback and insertion decisions, plus letter helpers; no native app actions.
+if ProcessInfo.processInfo.environment["PIPPA_LETTER_CHECKS"] == "1" {
+    await runLetterChecks()
+    print(failures == 0 ? "Letter checks passed." : "Letter checks failed.")
     exit(failures == 0 ? 0 : 1)
 }
 

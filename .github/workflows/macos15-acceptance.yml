@@ -60,6 +60,12 @@ jobs:
         run: |
           bin=$(swift build --package-path app --scratch-path .build/macos15-swift --show-bin-path)
           bash scripts/check-native-first-use.sh "$bin" "$PWD/.build/macos15-acceptance/reports/first-use"
+      - name: Reminder status and concurrent reply (English and German)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 3
+        run: |
+          bin=$(swift build --package-path app --scratch-path .build/macos15-swift --show-bin-path)
+          bash scripts/check-reminder-status.sh "$bin" "$PWD/.build/macos15-acceptance/reports/reminder-status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

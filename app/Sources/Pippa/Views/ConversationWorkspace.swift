@@ -431,6 +431,9 @@ struct ConversationWorkspace: View {
                             .pippa(.tinted).disabled(model.isActiveWork)
                             .accessibilityHint(T("Asks the same question again", table: "Views"))
                         }
+                        if let actions = message.actions, !actions.items.isEmpty {
+                            actionReceipt(actions, message: message)
+                        }
                         receiptUndo(message)
                     }
                     Spacer(minLength: 0)
@@ -443,6 +446,17 @@ struct ConversationWorkspace: View {
         } else {
             plainMessageView(message)
         }
+    }
+
+    private func actionReceipt(_ actions: ActionReceipt, message: ConversationMessage) -> some View {
+        ActionReceiptView(receipt: actions, disabled: chat.isRunning,
+                          onOpenMailDraft: { chat.openMailDraft() }, onSaveMailOffer: { chat.saveMailOffer(messageID: message.id) },
+                          onCopyMailOffer: { chat.copyMailOffer(messageID: message.id) },
+                          onOpenReminders: { chat.openReminders() },
+                          onCheckReminder: { chat.checkReminderStatus(messageID: message.id, operationID: $0) },
+                          onOpenPermissionSettings: { model.openSettings(for: $0, keepingConversation: true) },
+                          reminderCheckDisabled: !chat.canCheckReminderStatus || model.isActiveWork,
+                          reminderCheckState: chat.reminderCheckState.flatMap { $0.request.conversationID == chat.current?.id ? $0 : nil })
     }
 
     /// "Undo" on a receipt in the history, as long as the job can still be undone.
@@ -571,9 +585,7 @@ struct ConversationWorkspace: View {
                     SourceChipsView(cards: webCards).padding(.top, 2)
                 }
                 if let actions = loudActions, !actions.items.isEmpty {
-                    ActionReceiptView(receipt: actions, disabled: chat.isRunning,
-                                      onOpenMailDraft: { chat.openMailDraft() }, onSaveMailOffer: { chat.saveMailOffer(messageID: message.id) },
-                                      onCopyMailOffer: { chat.copyMailOffer(messageID: message.id) })
+                    actionReceipt(actions, message: message)
                 }
                 if message.role == .assistant, let work = message.work {
                     WorkReceiptView(receipt: work, web: webCards, lookedUp: quietLines,

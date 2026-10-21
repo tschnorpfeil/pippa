@@ -340,39 +340,59 @@ struct ActionReceiptView: View {
     var onSaveMailOffer: (() -> Void)? = nil
     /// "Copy text" when the mail was no longer in Mail at the click.
     var onCopyMailOffer: (() -> Void)? = nil
+    var onOpenReminders: (() -> Void)? = nil
+    var onCheckReminder: ((UUID) -> Void)? = nil
+    var onOpenPermissionSettings: ((Integration) -> Void)? = nil
+    var reminderCheckDisabled = false
+    var reminderCheckState: ReminderStatusCheck.State? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             ForEach(Array(receipt.lines.enumerated()), id: \.offset) { _, entry in
-                HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Image(systemName: Self.icon(entry.item))
-                        .font(.scaled(size: 11.5, weight: .semibold))
-                        // Read is neutral: neither success nor warning, only what Pippa looked at.
-                        .foregroundStyle(entry.item.action == "read" ? Theme.ink3 : entry.item.happened ? Theme.ok : Theme.need)
-                        .frame(width: 14)
-                    Text(entry.text)
-                        .font(Fonts.hint.weight(.semibold))
-                        .foregroundStyle(Theme.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
-                    if let onOpenMailDraft, entry.item.canOpenMailDraft {
-                        Spacer(minLength: 6)
-                        Button { onOpenMailDraft() } label: { Label(T("Open draft", table: "Views"), systemImage: "envelope") }
-                            .pippa(.tinted).controlSize(.small)
-                            .accessibilityHint(entry.text)
-                    } else if let onSaveMailOffer, entry.item.action == "mailDraft", entry.item.outcome == "notYet",
-                              let offer = receipt.mailOffer, offer.canSave {
-                        Spacer(minLength: 6)
-                        Button { onSaveMailOffer() } label: { Label(T("Save as draft in Mail", table: "Views"), systemImage: "envelope.badge") }
-                            .pippa(.tinted).controlSize(.small).disabled(disabled)
-                            .accessibilityHint(entry.text)
-                    } else if let onCopyMailOffer, entry.item.action == "mailDraft", entry.item.outcome == "notYet",
-                              receipt.mailOffer?.canCopy == true {
-                        // The mail is no longer in Mail: no draft onto a different mail, only the text to copy.
-                        Spacer(minLength: 6)
-                        Button { onCopyMailOffer() } label: { Label(T("Copy text", table: "Views"), systemImage: "doc.on.doc") }
-                            .pippa(.tinted).controlSize(.small)
-                            .accessibilityHint(entry.text)
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        Image(systemName: Self.icon(entry.item))
+                            .font(.scaled(size: 11.5, weight: .semibold))
+                            // Read is neutral: neither success nor warning, only what Pippa looked at.
+                            .foregroundStyle(entry.item.action == "read" ? Theme.ink3 : entry.item.happened ? Theme.ok : Theme.need)
+                            .frame(width: 14)
+                        Text(entry.text)
+                            .font(Fonts.hint.weight(.semibold))
+                            .foregroundStyle(Theme.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                        if let onOpenMailDraft, entry.item.canOpenMailDraft {
+                            Spacer(minLength: 6)
+                            Button { onOpenMailDraft() } label: { Label(T("Open draft", table: "Views"), systemImage: "envelope") }
+                                .pippa(.tinted).controlSize(.small)
+                                .accessibilityHint(entry.text)
+                        } else if let onSaveMailOffer, entry.item.action == "mailDraft", entry.item.outcome == "notYet",
+                                  let offer = receipt.mailOffer, offer.canSave {
+                            Spacer(minLength: 6)
+                            Button { onSaveMailOffer() } label: { Label(T("Save as draft in Mail", table: "Views"), systemImage: "envelope.badge") }
+                                .pippa(.tinted).controlSize(.small).disabled(disabled)
+                                .accessibilityHint(entry.text)
+                        } else if let onCopyMailOffer, entry.item.action == "mailDraft", entry.item.outcome == "notYet",
+                                  receipt.mailOffer?.canCopy == true {
+                            // The mail is no longer in Mail: no draft onto a different mail, only the text to copy.
+                            Spacer(minLength: 6)
+                            Button { onCopyMailOffer() } label: { Label(T("Copy text", table: "Views"), systemImage: "doc.on.doc") }
+                                .pippa(.tinted).controlSize(.small)
+                                .accessibilityHint(entry.text)
+                        }
+                    }
+                    if entry.item.canOpenReminders || entry.item.canCheckReminderStatus
+                        || reminderCheckState?.request.operationID == entry.item.operationID && entry.item.operationID != nil {
+                        reminderActions(entry.item)
+                    }
+                    if let integration = entry.item.permissionSettingsIntegration, let onOpenPermissionSettings {
+                        Button { onOpenPermissionSettings(integration) } label: {
+                            Label(T("Open System Settings", table: "Settings"), systemImage: "gear")
+                        }
+                        .pippa(.tinted).controlSize(.small)
+                        .padding(.leading, 21)
+                        .accessibilityIdentifier("native-permission-settings-" + integration.rawValue)
+                        .accessibilityHint(entry.text)
                     }
                 }
             }
@@ -381,9 +401,53 @@ struct ActionReceiptView: View {
         .frame(maxWidth: 520, alignment: .leading)
         .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 10))
         .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
-        .accessibilityElement(children: onOpenMailDraft == nil && onSaveMailOffer == nil && onCopyMailOffer == nil ? .combine : .contain)
+        .accessibilityElement(children: onOpenMailDraft == nil && onSaveMailOffer == nil && onCopyMailOffer == nil
+                              && onOpenReminders == nil && onCheckReminder == nil && onOpenPermissionSettings == nil ? .combine : .contain)
         .accessibilityLabel(T("What happened", table: "ThoughtUI"))
         .accessibilityValue(receipt.lines.map(\.text).joined(separator: ". "))
+    }
+
+    @ViewBuilder private func reminderActions(_ item: ActionReceipt.Item) -> some View {
+        let state = reminderCheckState.flatMap { $0.request.operationID == item.operationID ? $0 : nil }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { reminderButtons(item, state: state) }.fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: 7) { reminderButtons(item, state: state) }
+        }
+        .padding(.leading, 21)
+        if let state {
+            Text(reminderFeedback(state.phase))
+                .font(Fonts.hint).foregroundStyle(Theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 21)
+                .accessibilityIdentifier("reminder-check-feedback")
+        }
+    }
+
+    @ViewBuilder private func reminderButtons(_ item: ActionReceipt.Item, state: ReminderStatusCheck.State?) -> some View {
+        if let operationID = item.operationID, item.canCheckReminderStatus, let onCheckReminder {
+            Button { onCheckReminder(operationID) } label: {
+                Label(state?.phase == .checking ? T("Checking…", table: "Views") : T("Check status", table: "Views"), systemImage: "arrow.clockwise")
+            }
+            .pippa(.tinted).controlSize(.small).disabled(disabled || reminderCheckDisabled)
+            .accessibilityIdentifier("reminder-check-" + operationID.uuidString)
+            .accessibilityHint(T("Checks the earlier reminder without creating another one", table: "Views"))
+        }
+        if item.canOpenReminders, let onOpenReminders {
+            Button { onOpenReminders() } label: { Label(T("Open Reminders", table: "Views"), systemImage: "checklist") }
+                .pippa(.tinted).controlSize(.small)
+                .accessibilityIdentifier("reminder-open-" + (item.operationID?.uuidString ?? "legacy"))
+                .accessibilityHint(T("Opens the Reminders app so you can inspect the result", table: "Views"))
+        }
+    }
+
+    private func reminderFeedback(_ phase: ReminderStatusCheck.Phase) -> String {
+        switch phase {
+        case .checking: T("Checking Reminders…", table: "Views")
+        case .confirmed: T("Reminder creation confirmed.", table: "Views")
+        case .unconfirmed: T("Still unconfirmed. Check Reminders before trying again.", table: "Views")
+        case .updated: T("Reminder status updated.", table: "Views")
+        case .unavailable: T("Status couldn’t be checked. Open Reminders to inspect it.", table: "Views")
+        }
     }
 
     private static func icon(_ item: ActionReceipt.Item) -> String {

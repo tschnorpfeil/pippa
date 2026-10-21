@@ -40,6 +40,14 @@ final class ConversationController: ObservableObject {
     private var request: Task<Void, Never>?
     private var requestID: UUID?
     private var nativeRecovery: Task<Void, Never>?
+    @Published private(set) var isRecoveringReminders = false
+    @Published private(set) var reminderCheckState: ReminderStatusCheck.State?
+    private let reminderStatusCheck = ReminderStatusCheck()
+    private var reminderCheckTask: Task<Void, Never>?
+    #if DEBUG
+    /// Synthetic app checks provide journal evidence without opening EventKit or touching personal history.
+    var reminderLookupForSnapshot: (@Sendable (UUID, UUID) async throws -> [NativeReminderRecord])?
+    #endif
     /// Who writes the running answer (Pi, or a stand-in in debug captures).
     private var runningChat: (any ConversationChat)?
     /// "Stop" pressed: the partial answer stays, marked as stopped rather than as an error.
@@ -101,8 +109,9 @@ final class ConversationController: ObservableObject {
         let base = Pippa.supportDirectory
         guard DevEnvironment.value("PIPPA_SNAPSHOT") == nil,
               FileManager.default.fileExists(atPath: base.appendingPathComponent("journal.sqlite").path) else { return }
+        isRecoveringReminders = true
         nativeRecovery = Task { [weak self] in
-            defer { self?.nativeRecovery = nil }
+            defer { self?.nativeRecovery = nil; self?.isRecoveringReminders = false }
             do {
                 let records = try await Task.detached(priority: .utility) {
                     let journal = try Executor(baseDirectory: base)
@@ -507,6 +516,48 @@ final class ConversationController: ObservableObject {
     /// the saved draft is under "Drafts"). Never deletes anything.
     func openMailDraft() {
         Task { await PippaMCPService.showMail() }
+    }
+
+    var canCheckReminderStatus: Bool { !isRunning && !isRecoveringReminders && !reminderStatusCheck.isRunning }
+
+    /// This is a native read, not a conversational retry. It cannot create or resume a reminder.
+    func checkReminderStatus(messageID: UUID, operationID: UUID) {
+        guard canCheckReminderStatus, let store, let conversationID = current?.id,
+              let request = reminderStatusCheck.begin(conversationID: conversationID, messageID: messageID,
+                                                       operationID: operationID, store: store) else { return }
+        reminderCheckState = reminderStatusCheck.state
+        let base = Pippa.supportDirectory
+        let snapshot = DevEnvironment.value("PIPPA_SNAPSHOT") != nil
+        var lookup: @Sendable (UUID, UUID) async throws -> [NativeReminderRecord] = { conversationID, operationID in
+            guard !snapshot, FileManager.default.fileExists(atPath: base.appendingPathComponent("journal.sqlite").path) else {
+                throw NativeReminderJournalError.unreadable
+            }
+            return try await Task.detached(priority: .utility) {
+                let journal = try Executor(baseDirectory: base)
+                return try await journal.reconcileNativeReminders(using: SystemIntegrations(), conversationID: conversationID,
+                                                                  operationID: operationID)
+            }.value
+        }
+        #if DEBUG
+        if snapshot, let synthetic = reminderLookupForSnapshot { lookup = synthetic }
+        #endif
+        reminderCheckTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.reminderCheckTask = nil }
+            _ = await self.reminderStatusCheck.run(request, store: store, lookup: lookup)
+            // A new turn may have started during readback. Reload the latest saved messages rather than assigning
+            // the earlier result snapshot; streamingText and the active request stay untouched.
+            if self.current?.id == conversationID, let latest = try? store.load(conversationID) { self.current = latest }
+            self.reminderCheckState = self.reminderStatusCheck.state
+            self.refresh()
+        }
+    }
+
+    /// There is no supported link to one reminder. Bring the app forward without implying an exact selection.
+    func openReminders() {
+        guard DevEnvironment.value("PIPPA_DEMO") != "1",
+              let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Integration.reminders.bundleIdentifier) else { return }
+        NSWorkspace.shared.openApplication(at: url, configuration: .init())
     }
 
     /// "As draft in Mail" under an answer without a draft. First mark as used (no double click),

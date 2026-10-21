@@ -58,7 +58,8 @@ public struct MailDraft: Sendable, Equatable {
             && zip(recipients, expectedRecipients).allSatisfy { $0.caseInsensitiveCompare($1) == .orderedSame }
     }
 
-    /// Maps what the reply script reported to an outcome. Only a body Mail reads back, in a reply Mail saved
+    /// Maps what the reply script reported to an outcome. Only a body Mail reads back after the save attempt,
+    /// in a reply Mail saved,
     /// (saving is what makes the open window show it), counts as inserted. Otherwise the threaded reply is open
     /// but its text unconfirmed: `.replyNeedsPaste`, never a confirmation.
     public func replyOutcome(status: String, subject: String, body: String, recipients: [String], saved: Bool) throws -> MailInsertResult {
@@ -114,14 +115,16 @@ public enum MailOriginalSearch {
         return unique.enumerated().sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }.map(\.element)
     }
 
-    /// One exact match is the original. None: missing (or unknown if some mailboxes did not answer).
+    /// One exact match after a complete search is the original. An incomplete search cannot rule out another
+    /// matching original, even if one candidate answered. None: missing only after every mailbox answered.
     /// Several distinct messages with this Message-ID: ambiguous, nothing is opened.
     /// Mail's `id` names one stored message, so a mailbox listed twice cannot make a match ambiguous.
     public static func decide(_ matches: [MailLocator], incomplete: Bool) throws -> MailLocator {
         var seen = Set<Int>()
         let unique = matches.filter { $0.mailID.map { seen.insert($0).inserted } ?? false }
         if unique.count > 1 { throw MailReplyFailure.ambiguousOriginal }
-        guard let match = unique.first else { throw incomplete ? MailReplyFailure.searchIncomplete : MailReplyFailure.missingOriginal }
+        guard !incomplete else { throw MailReplyFailure.searchIncomplete }
+        guard let match = unique.first else { throw MailReplyFailure.missingOriginal }
         return match
     }
 
