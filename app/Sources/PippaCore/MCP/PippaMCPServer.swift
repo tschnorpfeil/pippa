@@ -7,7 +7,7 @@ import Network
 //
 // Protection:
 // - loopback only: bound to 127.0.0.1 (`requiredLocalEndpoint`) and `acceptLocalOnly`;
-// - key per app launch (32 random bytes), only in the environment of Pippa's own Pi; without it 401;
+// - key per endpoint (32 random bytes), only in the environment of Pippa's own Pi; without it 401;
 // - no browser: requests with `Origin` -> 403, `Host` must be 127.0.0.1/localhost with our port (DNS rebinding);
 // - requests at most 1 MB, one request per connection (`Connection: close`), connection closes after 330 s.
 // Answers are plain `application/json` answers (the specification allows that); GET (server stream) -> 405.
@@ -90,7 +90,7 @@ public struct PippaHTTPResponse: Sendable, Equatable {
     }
 }
 
-/// The server. One instance per app run; `stop()` on quit.
+/// The server. A stopped or abandoned Pi process loses its endpoint before a replacement starts.
 public final class PippaMCPServer: @unchecked Sendable {
     public let token: String
     private let tools: PippaMCPTools
@@ -98,6 +98,8 @@ public final class PippaMCPServer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "io.github.tschnorpfeil.pippa.mcp")
     private let lock = NSLock()
     private var boundPort: UInt16 = 0
+    private var revoked = false
+    private var requests: [ObjectIdentifier: (scope: PippaMCPWriteScope, count: Int)] = [:]
 
     public init(host: PippaMCPHost, token: String = PippaMCPServer.newToken()) throws {
         self.token = token
@@ -139,7 +141,36 @@ public final class PippaMCPServer: @unchecked Sendable {
         DiagnosticsLog.shared.event("mcp-server", ["port": String(port)])
     }
 
-    public func stop() { listener.cancel() }
+    /// Revoke this Pi process's endpoint synchronously. A replaced/stopped process must get a fresh endpoint.
+    /// Also invalidates already accepted requests, including work whose Task has not started yet.
+    public func revoke() {
+        let scopes = lock.withLock {
+            revoked = true
+            return requests.values.map(\.scope)
+        }
+        scopes.forEach { $0.cancel() }
+        listener.cancel()
+    }
+
+    public func stop() { revoke() }
+
+    private func captureRequest() -> PippaMCPRequestContext? {
+        lock.withLock {
+            guard !revoked else { return nil }
+            let context = tools.captureRequest()
+            let key = ObjectIdentifier(context.writes)
+            requests[key] = (context.writes, (requests[key]?.count ?? 0) + 1)
+            return context
+        }
+    }
+
+    private func finished(_ context: PippaMCPRequestContext) {
+        lock.withLock {
+            let key = ObjectIdentifier(context.writes)
+            if let request = requests[key], request.count > 1 { requests[key] = (request.scope, request.count - 1) }
+            else { requests[key] = nil }
+        }
+    }
 
     // MARK: Connections
 
@@ -161,8 +192,10 @@ public final class PippaMCPServer: @unchecked Sendable {
             case .invalid(let status):
                 self.send(.plain(status, "Bad request"), on: connection)
             case .complete(let request):
+                guard let context = self.captureRequest() else { self.send(.plain(403, "Endpoint revoked"), on: connection); return }
                 Task { [self] in
-                    let response = await self.respond(to: request)
+                    defer { self.finished(context) }
+                    let response = await self.respond(to: request, context: context)
                     self.send(response, on: connection)
                 }
             }
@@ -177,6 +210,13 @@ public final class PippaMCPServer: @unchecked Sendable {
 
     /// Checks origin and key, then JSON-RPC. `port`: only for checks without a running server.
     public func respond(to request: PippaHTTPRequest, port expected: UInt16? = nil) async -> PippaHTTPResponse {
+        guard let context = captureRequest() else { return .plain(403, "Endpoint revoked") }
+        defer { finished(context) }
+        return await respond(to: request, port: expected, context: context)
+    }
+
+    private func respond(to request: PippaHTTPRequest, port expected: UInt16? = nil, context: PippaMCPRequestContext) async -> PippaHTTPResponse {
+        guard lock.withLock({ !revoked }) else { return .plain(403, "Endpoint revoked") }
         let port = expected ?? self.port
         // Browsers always send Origin; Pippa's Pi never does.
         if request.headers["origin"] != nil { return .plain(403, "Forbidden") }
@@ -192,7 +232,7 @@ public final class PippaMCPServer: @unchecked Sendable {
         switch request.method {
         case "POST":
             guard (request.headers["content-type"] ?? "").lowercased().hasPrefix("application/json") else { return .plain(415, "Use application/json") }
-            guard let reply = await tools.handle(request.body) else { return PippaHTTPResponse(status: 202, contentType: nil, body: Data()) }
+            guard let reply = await tools.handle(request.body, context: context) else { return PippaHTTPResponse(status: 202, contentType: nil, body: Data()) }
             return PippaHTTPResponse(status: 200, contentType: "application/json", body: reply)
         default:
             // GET: no server stream (Pippa sends nothing on its own). DELETE: there is no session to end.

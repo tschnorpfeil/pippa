@@ -56,7 +56,7 @@ test("real Pi: the first request stays within Pippa's budget, with no skills sec
 	const tools = launch.match(/public static let tools = \[([\s\S]*?)\]/)[1].match(/"[^"]+"/g).map((x) => JSON.parse(x)).join(",");
 	const env = { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1", PI_TELEMETRY: "0",
 		PIPPA_WEB_DIR: join(root, "web"), PIPPA_MEMORY_FILE: join(root, "memory.md") };
-	const extensions = ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-context.ts"].map((f) => join(here, f)).concat(web);
+	const extensions = ["pippa-policy.ts", "pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-context.ts"].map((f) => join(here, f)).concat(web);
 	const child = spawn(node, [cli, "--mode", "rpc", "--no-session", "--no-context-files", "--no-approve",
 		"--no-skills", "--skill", join(repo, "runtime/pippa-skills"), ...extensions.flatMap((e) => ["--extension", e]),
 		"--tools", tools, "--system-prompt", prompt, "--provider", "pippa-local", "--model", "m"], { cwd: work, env, stdio: ["pipe", "pipe", "pipe"] });

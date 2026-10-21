@@ -35,10 +35,10 @@ public enum DocumentOCR {
         return .accurate
     }
 
-    /// The engine for the searchable text layer: like `preferred`, but `PIPPA_OCR_FAST=1` (CI runners without a Neural
-    /// Engine) uses the fast classic request. Reading stays accurate there: its checks need exact text.
+    /// File output uses cancellable classic requests. `PIPPA_OCR_FAST=1` (CI runners without a Neural Engine)
+    /// selects the fast request; the experimental documents engine remains a reading-only preference.
     static var layer: Engine {
-        ProcessInfo.processInfo.environment["PIPPA_OCR_FAST"] == "1" ? .fast : preferred
+        ProcessInfo.processInfo.environment["PIPPA_OCR_FAST"] == "1" ? .fast : .accurate
     }
 
     /// Seconds per page before the document request is given up (then the classic request runs).
@@ -53,10 +53,20 @@ public enum DocumentOCR {
     // MARK: Classic (macOS 15+)
 
     static func recognizeClassic(_ image: CGImage, level: VNRequestTextRecognitionLevel) -> Page {
+        recognizeClassic(image, request: classicRequest(level: level))
+    }
+
+    static func classicRequest(level: VNRequestTextRecognitionLevel) -> VNRecognizeTextRequest {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = level
         request.recognitionLanguages = ["de-DE", "en-US"]
         request.usesLanguageCorrection = true
+        return request
+    }
+
+    /// Supplying the configured request lets optional file conversion cancel Vision when its budget expires.
+    static func recognizeClassic(_ image: CGImage, request: VNRecognizeTextRequest) -> Page {
+        let level = request.recognitionLevel
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
         do { try handler.perform([request]) } catch { return Page(text: "", lines: [], tables: 0, engine: level == .fast ? .fast : .accurate) }
         let lines: [OCRLine] = (request.results ?? []).compactMap { obs in

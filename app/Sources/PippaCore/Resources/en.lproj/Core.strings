@@ -212,3 +212,6 @@
 "%lld files changed" = "%lld files changed";
 "In the conversation" = "In the conversation";
 "The old version is no longer there." = "The old version is no longer there.";
+
+/* Missing source evidence on the Pi RPC path */
+"I couldn’t read the files needed for this answer: %@. Ask me to read the relevant file." = "I couldn’t read the files needed for this answer: %@. Ask me to read the relevant file.";

@@ -241,3 +241,9 @@
 "I’m not allowed to look into “%@”" = "I’m not allowed to look into “%@”";
 "Your Mac said no to Pippa for this folder. Turn on Pippa in System Settings under “Files & Folders”, then try again." = "Your Mac said no to Pippa for this folder. Turn on Pippa in System Settings under “Files & Folders”, then try again.";
 "Open System Settings" = "Open System Settings";
+"This answer reached its length limit. Ask me to continue from here." = "This answer reached its length limit. Ask me to continue from here.";
+
+/* Native tool admission, before submitting a Pi request. */
+"Pippa’s Mac tools are missing from this installation. Reinstall Pippa to restore them." = "Pippa’s Mac tools are missing from this installation. Reinstall Pippa to restore them.";
+"The source changed or couldn’t be checked. Please check it and send your request again." = "The source changed or couldn’t be checked. Please check it and send your request again.";
+"I couldn’t connect my Mac tools just now. Please try again." = "I couldn’t connect my Mac tools just now. Please try again.";

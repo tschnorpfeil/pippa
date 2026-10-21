@@ -6,8 +6,8 @@
 
 <p align="center">
   <b>Your private AI agent on the Mac.</b><br>
-  Ask her anything, or drop a letter, a folder or a few photos on her. She does the work and asks before she changes anything.<br>
-  The AI runs on your Mac, so your files stay with you. No account, no subscription.
+  Ask her anything, or drop a letter, a folder or a few photos on her. She helps you get the work done.<br>
+  Her built-in AI runs on your Mac. No account, no subscription.
 </p>
 
 <p align="center">
@@ -20,27 +20,27 @@
   <img src="docs/images/demo-tidy.gif" width="960" alt="The Downloads folder is dragged onto Pippa. She shows where 38 files would go (Invoices, Photos, Letters, Apps) before changing anything. One click on 'Organize 38 Files' sorts them, and 'Undo' brings everything back.">
 </p>
 
-Think of ChatGPT, but living in a small pill on your Mac, working with your own files, Mail and Calendar, and keeping all of it on your computer. Pippa doesn't only chat: she reads the letter, sorts the folder, writes the reply into Mail. That is what makes her an agent rather than a chat window.
+Think of ChatGPT, but living in a small pill on your Mac and working with your own files, Mail and Calendar. Pippa doesn't only chat: she reads the letter, sorts the folder, writes the reply into Mail. That is what makes her an agent rather than a chat window.
 
 She is made for people who don't pay for an AI subscription and never open Terminal. Her menus are in English or German, and she answers in the language you write in.
 
 ## Private, because she runs on your Mac
 
-- **The AI runs on your Mac.** No Pippa account, no Pippa server, no usage statistics. Your letters and files are not uploaded anywhere.
-- **She reads only when you ask,** and only what you can open yourself.
-- **She asks before she changes anything,** shows what she is about to do, and Undo puts it back.
-- **What she remembers is one text file on your Mac.** She refuses to store passwords and account, card or ID numbers.
-- **The network is used for** the one-time AI download, updates, web lookups you ask for, and ChatGPT if you connect your own subscription (optional).
+- **The built-in AI runs on your Mac.** No Pippa account, no Pippa server, no usage statistics.
+- **Mac app access uses macOS permissions.** Directly requested actions can run without a second confirmation.
+- **Supported file changes have Undo.** Pippa keeps available backups; changes made elsewhere can prevent a safe restore. Native app actions do not all support Undo.
+- **What she remembers is one text file on your Mac.** You can review and remove saved facts in Settings.
+- **Online routes are optional.** Downloads, updates and web lookups use the network. If you connect an online AI service, it receives the content needed for that request. Mail, Calendar and Reminders can sync through your configured accounts. General tasks can also request network access.
 
 Worth knowing: Pippa runs without the macOS App Sandbox, because a sandboxed app cannot set up her agent. Keep Time Machine on, as you would anyway.
 
 ## What she does for you
 
 - **Ask her anything.** Click the pill and type, like in a chat. She answers on your Mac, and you can add files for her to look at.
-- **Tidy up a folder.** She shows first where everything would go and waits for your OK. Undo puts it all back.
+- **Tidy up a folder.** The Organize action shows where files would go and waits for your OK. Supported moves can be undone.
 - **Understand a letter.** What does it say, what do I have to do, by when? With the passage it came from.
 - **Find files again.** "Where is the invoice for my helmet?" searches your Mac.
-- **Answer emails.** Select a mail in Apple Mail and ask. She checks your calendar and puts a reply into Mail as a draft. She never sends mail.
+- **Answer emails.** Select a mail in Apple Mail and ask. She can check your calendar and put a reply into Mail as a draft for you to review and send.
 - **Office work.** *Check the total* in Excel adds the numbers up again in code and points out rows a total leaves out. Invoices become a CSV table that opens in Excel. Your files stay as they are.
 - **Everyday extras, no AI needed.** Make PDFs and photos smaller, combine scans into one PDF, convert between PDF, JPG and PNG.
 - **Calendar, reminders, the web.** Add an appointment or a reminder, or look something up online.
@@ -58,10 +58,10 @@ Worth knowing: Pippa runs without the macOS App Sandbox, because a sandboxed app
 
 ## Install
 
-You need a Mac with Apple silicon (M1 or later), macOS 15 or later, and 3 to 6 GB of free space.
+You need a Mac with Apple silicon (M1 or later) and macOS 15 or later. Initial AI setup needs about 3 to 6 GB for its download, plus space for the app and your results.
 
 1. Download [Pippa.dmg](https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg) and drag Pippa into Applications.
-2. Open her and say yes to the one-time AI download. Everything else sets itself up, and updates arrive by themselves.
+2. Open her and start with photos or PDFs immediately. For AI chat, choose whether to download her AI; a compatible existing copy can be reused. Pippa checks for app updates.
 
 | Memory | Model | Download |
 |---|---|---|

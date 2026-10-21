@@ -1,6 +1,7 @@
 import Combine
 import PippaCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Setup in the Welcome: no technical questions.
 /// Like PiRPCChat, in every build.
@@ -215,6 +216,32 @@ final class PiSetupController: ObservableObject {
     /// "Probier's aus": a real first step, tidy Downloads with a preview (changes only after approval,
     /// "Rückgängig" restores everything).
     func tryIt() { model?.tidyDownloads() }
+
+    /// A useful first result needs neither a download nor Apple Intelligence. The open panel grants access only
+    /// to the files the person chooses; cancelling it leaves setup exactly where it was.
+    func chooseNativeFiles() {
+        NSApp.activate()
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [.image, .pdf]
+        panel.prompt = T("Choose", table: "NativeFlow")
+        panel.message = T("Choose photos or PDFs. I’ll offer actions that work right away on this Mac.", table: "NativeFlow")
+        panel.begin { [weak self] response in
+            MainActor.assumeIsolated {
+                guard response == .OK else { return }
+                self?.useNativeFiles(panel.urls)
+            }
+        }
+    }
+
+    /// Shared by the chooser and synthetic first-use checks; it never grants download consent.
+    func useNativeFiles(_ urls: [URL]) {
+        guard !urls.isEmpty, let model else { return }
+        if asksDownload { deferred = true; objectWillChange.send() }
+        model.receive(.files(urls), items: urls)
+    }
 
     func showExample(_ index: Int) {
         let count = SetupExample.all.count

@@ -164,8 +164,15 @@ public struct ChatContext: Sendable {
     public var selectedText: String
     /// Native overview/proposal/receipt supplied by the UI, not a new agent action.
     public var workflowSummary: String
+    /// Bounded persisted Mac-action evidence for follow-ups, independent of the current workflow preview.
+    public var nativeReceiptSummary: String = ""
+    /// Host-owned identity of the conversation and original persisted user request. A retry retains this identity.
+    public var nativeConversationID: UUID?
+    public var nativeRequestID: UUID?
     /// Thought Line (ThoughtLine.swift): real phases of this answer, in order. `nil`: nobody listens.
     public var onWork: WorkEventHandler?
+    /// Native write confirmations stay bound to this answer, including results arriving after Stop.
+    public var onNativeWrite: (@Sendable (PippaMCPWriteReceipt) -> Void)?
     /// The app the person called Pippa from, as the chip above the input shows it (FrontApp.swift). `nil`: no chip.
     public var frontApp: FrontApp?
     public init(files: [URL] = [], focusedFiles: [URL] = [], selectedText: String = "", workflowSummary: String = "") {

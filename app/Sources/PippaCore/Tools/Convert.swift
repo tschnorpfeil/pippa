@@ -6,14 +6,17 @@ import UniformTypeIdentifiers
 /// "As JPG" / "As PNG" / "As PDF": one file per image, full size, upright (EXIF applied), first image only.
 enum Convert {
     static func run(_ tool: ToolID, inputs: [URL], progress: @escaping @Sendable (ToolProgress) -> Void) async throws -> ToolOutput {
-        try await ToolRun.eachFile(tool, inputs: inputs, skipWhy: L("I can only convert images.", table: "Tools"),
+        let textBudget = FileTextBudget()
+        var output = try await ToolRun.eachFile(tool, inputs: inputs, skipWhy: L("I can only convert images.", table: "Tools"),
                                    progress: progress) { url, folder in
             switch tool {
-            case .asPDF: return try await MakePDF.single(url, folder: folder)
+            case .asPDF: return try await MakePDF.single(url, folder: folder, textBudget: textBudget)
             case .asPNG: return try image(url, as: .png, folder: folder)
             default: return try image(url, as: .jpeg, folder: folder)
             }
         }
+        if tool == .asPDF && textBudget.didSkip { output.note = MakePDF.textLayerNote }
+        return output
     }
 
     static func image(_ url: URL, as type: UTType, folder: URL) throws -> URL {

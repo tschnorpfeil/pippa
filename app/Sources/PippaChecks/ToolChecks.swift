@@ -20,6 +20,25 @@ private func toolFailure(_ tool: ToolID, _ inputs: [URL], passwords: [URL: Strin
 
 private func pdfText(_ url: URL) -> String { PDFDocument(url: url)?.string ?? "" }
 
+private func renderedPDFInk(_ url: URL, page number: Int) -> Int? {
+    let width = 180, height = 240
+    guard let document = CGPDFDocument(url as CFURL), let page = document.page(at: number),
+          let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+          let data = context.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
+    let bounds = CGRect(x: 0, y: 0, width: width, height: height)
+    context.setFillColor(CGColor(gray: 1, alpha: 1)); context.fill(bounds)
+    context.concatenate(page.getDrawingTransform(.mediaBox, rect: bounds, rotate: 0, preserveAspectRatio: true))
+    return withExtendedLifetime((document, context)) {
+        context.drawPDFPage(page)
+        return (0..<(width * height)).reduce(0) { count, pixel in
+            let offset = pixel * 4
+            return count + ((data[offset] < 240 || data[offset + 1] < 240 || data[offset + 2] < 240) ? 1 : 0)
+        }
+    }
+}
+
 /// One-answer tools: results only in the results folder, originals unchanged.
 func runToolChecks() async {
     // Results go to the check folder instead of ~/Library/Caches (like PIPPA_LOG_DIR).
@@ -62,7 +81,7 @@ func runToolChecks() async {
         let ids = ToolID.allCases.map(\.rawValue)
         let data = try JSONEncoder().encode(ToolID.allCases)
         let back = try JSONDecoder().decode([ToolID].self, from: data)
-        return ids == ["make-one-pdf", "make-smaller", "as-pdf", "as-jpg", "as-png", "invoice-table"] && back == ToolID.allCases
+        return ids == ["make-one-pdf", "make-smaller", "as-pdf", "as-jpg", "as-png", "invoice-table", "extract-text", "remove-location"] && back == ToolID.allCases
             && ToolID.allCases.allSatisfy { !$0.title.isEmpty && !$0.workingTitle.isEmpty }
     }
     check("Tools: what they accept") {
@@ -173,9 +192,13 @@ func runToolChecks() async {
         guard let file = output.files.first, let doc = PDFDocument(url: file) else { return false }
         let firstPage = doc.page(at: 0)?.string ?? ""
         let secondPage = doc.page(at: 1)?.string ?? ""
+        // An invisible OCR layer must not conceal lost image resources in the saved PDF.
+        let imageInk = renderedPDFInk(file, page: 1)
+        if (imageInk ?? 0) <= 100 { print("Mixed PDF image ink pixels (180×240): \(String(describing: imageInk))") }
         return doc.pageCount == 3 && output.skipped.map(\.name) == ["video.mov"]
             && output.skippedSentence?.contains("video.mov") == true
             && firstPage.contains("4711") && secondPage.contains("Brief Seite eins")
+            && (imageInk ?? 0) > 100
     }
     await checkAsync("One PDF: only a video → \"nothingUsable\" with name") {
         await toolFailure(.makeOnePDF, [video]) == .nothingUsable(skipped: [FileReason(name: "video.mov", why: L("I can only turn images and PDFs into a PDF.", table: "Tools"))])
@@ -261,6 +284,8 @@ func runToolChecks() async {
     }
 
     // MARK: Originals and cleanup
+
+    await runNativeToolChecks()
 
     check("Originals: bytes and fingerprint unchanged") {
         let after = inputs.map { ToolFixtures.identity($0) }

@@ -2,6 +2,34 @@ import Foundation
 import PippaCore
 
 @MainActor func runConversationChecks() {
+    check("Native receipts: late confirmation updates the original stopped answer exactly once across chat switches") {
+        let store = try ConversationStore(directory: dir("late-native-receipt"))
+        let original = try store.create()
+        let operation = UUID()
+        let pending = ActionReceipt.Item(action: "calendarAdd", outcome: "unclear", reason: "pending", operationID: operation)
+        let unrelated = ActionReceipt.Item(action: "read", outcome: "done", name: "Read Calendar")
+        let message = ConversationMessage(role: .assistant, text: "Partial answer", stopped: true,
+                                          actions: .init(items: [unrelated, pending]))
+        _ = try store.append(message, to: original.id)
+        let selected = try store.create()
+        let completed = ActionReceipt.Item(action: "calendarAdd", outcome: "done", name: "Appointment", operationID: operation)
+        _ = try store.recordNativeWrite(completed, messageID: message.id, in: original.id)
+        _ = try store.recordNativeWrite(completed, messageID: message.id, in: original.id)
+        let reopened = try ConversationStore(directory: store.fileURL.deletingLastPathComponent())
+        let saved = try reopened.load(original.id).messages[0]
+        let selectedMessages = try reopened.load(selected.id).messages
+        return reopened.selectedID == selected.id && saved.id == message.id && saved.stopped == true
+            && saved.text == "Partial answer" && saved.actions?.items == [unrelated, completed]
+            && selectedMessages.isEmpty
+    }
+    check("Native receipts: unknown outcomes and stopped-before-dispatch are distinct; legacy receipts still decode") {
+        let old = try JSONDecoder().decode(ActionReceipt.Item.self, from: Data(#"{"action":"calendarAdd","outcome":"done","name":"Appointment"}"#.utf8))
+        let stopped = ActionReceipt.Item(action: "calendarAdd", outcome: "cancelled", reason: "stopped")
+        let pending = ActionReceipt.Item(action: "calendarAdd", outcome: "unclear", reason: "pending")
+        return old.operationID == nil && stopped.line(language: "en").contains("Stopped before")
+            && pending.line(language: "en").contains("Check Calendar before trying again")
+            && !stopped.happened && !pending.happened
+    }
     check("Prompt attachments: send and consume persist atomically; followups and re-add keep history") {
         let store = try ConversationStore(directory: dir("prompt-atomic"))
         let topic = try store.create()

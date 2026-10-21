@@ -191,7 +191,7 @@ func runLetterChecks() async {
             && outcome("reply", body: quoted, to: ["other@example.org"]) == "unconfirmed"
             && outcome("reply", subject: "Re: Anderes", body: quoted) == "unconfirmed"
             && outcome("reply", body: quoted, saved: false) == "replyNeedsPaste"
-            && outcome("failed") == "notCreated" && outcome("busy") == "notCreated"
+            && outcome("failed") == "unconfirmed" && outcome("busy") == "notCreated"
             && outcome("uncertain") == "unconfirmed" && outcome("shown") == "unconfirmed" && outcome("timeout") == "unconfirmed"
             && outcome("") == "unconfirmed" && outcome("missing") == "missingOriginal"
     }

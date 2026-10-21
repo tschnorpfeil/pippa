@@ -210,3 +210,15 @@
 "Not remembered" = "Nicht gemerkt";
 "Not forgotten" = "Nicht vergessen";
 "Unclear whether Pippa remembered it" = "Unklar, ob Pippa es sich gemerkt hat";
+"Stopped before adding anything to Calendar" = "Gestoppt, bevor etwas im Kalender eingetragen wurde";
+"Stopped before adding a reminder" = "Gestoppt, bevor eine Erinnerung angelegt wurde";
+"Stopped before creating a draft in Mail" = "Gestoppt, bevor ein Entwurf in Mail angelegt wurde";
+"Calendar hasn’t confirmed the result yet. Check Calendar before trying again." = "Kalender hat das Ergebnis noch nicht bestätigt. Schau vor einem weiteren Versuch in Kalender nach.";
+"Reminders hasn’t confirmed the result yet. Check Reminders before trying again." = "Erinnerungen hat das Ergebnis noch nicht bestätigt. Schau vor einem weiteren Versuch in Erinnerungen nach.";
+"Mail hasn’t confirmed the draft yet. Check Mail before trying again. Nothing was sent." = "Mail hat den Entwurf noch nicht bestätigt. Schau vor einem weiteren Versuch in Mail nach. Es wurde nichts gesendet.";
+
+// A tool error does not establish that no changes happened.
+"result not confirmed" = "Ergebnis nicht bestätigt";
+"Reading was not confirmed" = "Lesen nicht bestätigt";
+"Command failed; changes may have happened" = "Befehl fehlgeschlagen; Änderungen sind möglich";
+"Couldn’t finish: %@ · check the result before trying again" = "Nicht abgeschlossen: %@ · prüfe das Ergebnis vor einem neuen Versuch";

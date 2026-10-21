@@ -5,7 +5,7 @@ import SwiftUI
 // The one line at the pill.
 //
 // Things lie on Pippa: documents on top, below them the figure and the input field,
-// then, depending on state, up to three actions, the progress, the result or a sentence.
+// then, depending on state, two suggestions and an action menu, the progress, the result or a sentence.
 // No window, no conversation. Removing takes a thing off Pippa only; the file stays where it is.
 
 /// Content of the `.line` form. `measuring` = measuring pass (no focus, no animation, no announcement).
@@ -199,19 +199,19 @@ struct LineContent: View {
     }
 
     @ViewBuilder private var actions: some View {
-        let offered = tray.offered
-        if !offered.isEmpty {
+        let choices = tray.actionChoices
+        if !choices.all.isEmpty {
             AdaptiveActions {
-                ForEach(Array(offered.prefix(2))) { action in
+                ForEach(choices.suggestions) { action in
                     Button(action.title) { tray.choose(action) }
                         .pippa(.quiet)
                         .controlSize(.small)
                         .disabled(!tray.canChoose(action))
                         .focused($suggestionFocused, equals: action.id)
                 }
-                if offered.count > 2 {
+                if !choices.overflow.isEmpty {
                     Menu {
-                        ForEach(Array(offered.dropFirst(2))) { action in
+                        ForEach(choices.overflow) { action in
                             Button(action.title) { tray.choose(action) }
                                 .disabled(!tray.canChoose(action))
                         }
@@ -219,6 +219,7 @@ struct LineContent: View {
                     .focused($suggestionFocused, equals: "__more")
                     .menuStyle(.borderlessButton)
                     .fixedSize()
+                    .disabled(!choices.overflow.contains(where: tray.canChoose))
                     .accessibilityLabel(T("More", table: "Line"))
                 }
             }
@@ -265,12 +266,15 @@ struct LineContent: View {
                         .accessibilityLabel(item.name)
                 }
                 VStack(alignment: .leading, spacing: 3) {
+                    Text(T("Ready to use", table: "NativeFlow"))
+                        .font(Fonts.hint.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
                     Text(item.name)
                         .font(Fonts.head)
                         .foregroundStyle(Theme.ink)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    Text(T("Drag it where you need it, or save it.", table: "Line"))
+                    Text(T("Open it, drag it where you need it, or save a copy.", table: "NativeFlow"))
                         .font(Fonts.hint)
                         .foregroundStyle(Theme.ink3)
                         .lineLimit(2)
@@ -280,26 +284,39 @@ struct LineContent: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .paper()
-            HStack(spacing: 8) {
-                if let note = skippedNote(for: item) {
-                    Text(note)
-                        .font(Fonts.hint)
-                        .foregroundStyle(Theme.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                Button(T("Undo", table: "Line")) { tray.undoResult(item.id) }
-                    .pippa(.tinted)
+            if let note = skippedNote(for: item) {
+                Text(note)
+                    .font(Fonts.hint)
+                    .foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let problem = tray.resultProblem {
+                Text(problem)
+                    .font(Fonts.hint)
+                    .foregroundStyle(Theme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            AdaptiveActions {
+                Button(T("Open", table: "NativeFlow")) { tray.openResult(item.id) }
+                    .pippa(.primary)
+                    .accessibilityLabel(T("Open %@", table: "NativeFlow", item.name))
                 Button(T("Save…", table: "Line")) { tray.save(item.id) }
                     .pippa(.secondary)
+                    .accessibilityHint(T("Save a copy in a location you choose.", table: "NativeFlow"))
+            }
+            AdaptiveActions {
+                Button(T("Show in Finder", table: "NativeFlow")) { tray.revealResult(item.id) }
+                    .pippa(.quiet)
+                Button(T("Undo", table: "Line")) { tray.undoResult(item.id) }
+                    .pippa(.tinted)
             }
         }
     }
 
     /// What the tool left behind: things it cannot take stay on Pippa as given.
     private func skippedNote(for result: TrayItem) -> String? {
-        // The tool's own sentence (with the reason) as long as the result is fresh.
-        if let note = tray.resultNote { return note }
+        // The caveat belongs to this artifact, even after showing another result or reopening Pippa.
+        if let note = result.note { return note }
         guard let tool = result.tool else { return nil }
         let names = tray.givenItems.filter { !OneAnswerTools.accepts(tool, $0.url) }.map(\.name)
         guard !names.isEmpty else { return nil }
@@ -321,6 +338,17 @@ struct LineContent: View {
                     Button(T("Continue", table: "Line")) { submitPassword() }
                         .pippa(.primary)
                         .disabled(password.isEmpty)
+                }
+            }
+            AdaptiveActions {
+                if tray.canRetryTool {
+                    Button(T("Try Again", table: "NativeFlow")) { tray.retryTool() }
+                        .pippa(.primary)
+                        .accessibilityHint(T("Retry the same action with the same files. Your originals stay unchanged.", table: "NativeFlow"))
+                }
+                if !tray.givenItems.isEmpty {
+                    Button(T("Choose Another Action", table: "NativeFlow")) { tray.chooseAnotherAction() }
+                        .pippa(.quiet)
                 }
             }
         }
@@ -352,7 +380,7 @@ struct LineContent: View {
         switch phase {
         case .result(let id):
             guard let item = tray.items.first(where: { $0.id == id }) else { return }
-            text = T("Ready: %@. Drag it where you need it, or save it.", table: "Line", item.name)
+            text = T("Ready: %@. Open it, drag it where you need it, or save a copy.", table: "NativeFlow", item.name)
         case .failure(let message, _):
             text = message
         case .idle, .given, .working:

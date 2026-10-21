@@ -118,6 +118,17 @@ enum DevSnapshot {
             let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
             try? await Task.sleep(for: .seconds(1.0))
 
+            if only == "nativefirstuse" {
+                await NativeFirstUseSnapshot.run(model: model, shell: shell, directory: dir) { await snap($0) }
+                NSApp.terminate(nil)
+                return
+            }
+            if only == "conversationretry" {
+                await ConversationRetrySnapshot.run(model: model, directory: dir)
+                NSApp.terminate(nil)
+                return
+            }
+
             if only == "conversationresume" {
                 await ConversationResumeSnapshot.run(model: model, shell: shell, directory: dir)
                 NSApp.terminate(nil)
@@ -292,7 +303,8 @@ enum DevSnapshot {
                     verify(freshID != savedID && controller.current?.id == freshID && controller.current?.messages.isEmpty == true
                            && controller.streamingText.isEmpty && !controller.isRunning, "Stale callbacks affected fresh conversation")
                 }
-                try? (failures.isEmpty ? "PASS: stopped successful returns preserve only accepted partial text; no finished draft, late callbacks ignored, fresh topic isolated." : "FAIL:\n" + failures.joined(separator: "\n"))
+                failures += await ConversationStopSnapshot.run(model: model)
+                try? (failures.isEmpty ? "PASS: stopped returns preserve partial text; no finished draft, late callbacks ignored, fresh topic isolated; early Stop blocks answering and Stop during journaling retains Undo." : "FAIL:\n" + failures.joined(separator: "\n"))
                     .write(to: dir.appendingPathComponent("contextstop.txt"), atomically: true, encoding: .utf8)
                 NSApp.terminate(nil)
                 return

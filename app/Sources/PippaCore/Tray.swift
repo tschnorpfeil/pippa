@@ -22,13 +22,15 @@ public struct TrayItem: Codable, Sendable, Identifiable, Hashable {
     public var sources: [UUID]
     /// Result → which tool made it.
     public var tool: ToolID?
+    /// Result-specific caveat, retained when another result is shown or the app restarts.
+    public var note: String?
 
     public init(id: UUID = UUID(), role: Role, url: URL, bookmark: Data? = nil, name: String? = nil, origin: String? = nil,
-                addedAt: Date = Date(), receipt: UUID? = nil, sources: [UUID] = [], tool: ToolID? = nil) {
+                addedAt: Date = Date(), receipt: UUID? = nil, sources: [UUID] = [], tool: ToolID? = nil, note: String? = nil) {
         self.id = id; self.role = role; self.url = url; self.bookmark = bookmark
         self.name = name ?? url.lastPathComponent
         self.origin = origin; self.addedAt = addedAt; self.touchedAt = nil
-        self.receipt = receipt; self.sources = sources; self.tool = tool
+        self.receipt = receipt; self.sources = sources; self.tool = tool; self.note = note
     }
 
     /// Last added or touched.

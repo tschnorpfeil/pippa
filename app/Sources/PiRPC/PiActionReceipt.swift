@@ -1,17 +1,19 @@
 import Foundation
 
 // Receipt "what happened" from Pi's tool events, never from the model text: `tool_execution_start` says what was
-// called with which arguments, `tool_execution_end` whether it failed. Pi runs every tool without asking, so there is
-// nothing declined. What the model writes about it plays no role.
+// called with which arguments; `tool_execution_end` carries execution evidence. An error does not prove that a
+// command had no effects. What the model writes about it plays no role.
 
 /// What actually happened with a tool call.
 public struct PiActionRecord: Sendable, Equatable {
     public enum Outcome: String, Sendable {
         /// Executed, tool reports no error.
         case done
-        /// The tool failed (or an extension stopped it, e.g. the loop brake).
+        /// The tool reported an error; some effects may already have happened.
         case failed
-        /// Started, but no result (aborted, Pi exited): whether it happened is unknown.
+        /// Authoritative tool evidence says it was stopped before any effect.
+        case blocked
+        /// Missing/malformed result, interruption, or an explicitly unconfirmed native effect.
         case unclear
     }
     public var toolCallId: String
@@ -34,7 +36,7 @@ public struct PiTurnReceipt: Sendable {
 
     private var order: [String] = []
     private var started: [String: (name: String, arguments: String)] = [:]
-    private var ended: [String: Bool] = [:]
+    private var ended: [String: PiActionRecord.Outcome] = [:]
     /// `remember` calls whose forget found nothing (the tool says so in its result, without an error).
     private var forgotNothing: Set<String> = []
     /// For the sources card (PippaCore `WebSourcesCard`), never from the model's text: addresses of pages Pi read
@@ -49,10 +51,12 @@ public struct PiTurnReceipt: Sendable {
         case .toolStarted(let id, let name, let arguments):
             if started[id] == nil { order.append(id) }
             started[id] = (name, arguments)
-        case .toolEnded(let id, let name, let isError, let result):
+        case .toolEnded(let id, let name, let isError, let result, let outcome):
             if started[id] == nil { order.append(id); started[id] = (name, "") }
-            ended[id] = isError
-            guard !isError else { break }
+            // Older in-process callers have only text. RPC supplies the full result's classification before truncation.
+            let state = outcome ?? Self.classify(tool: name, isError: isError, result: ["content": [["type": "text", "text": result]]])
+            ended[id] = state
+            guard state == .done else { break }
             if name == "fetch_content" {
                 let args = (try? JSONSerialization.jsonObject(with: Data((started[id]?.arguments ?? "").utf8))) as? [String: Any]
                 webPagesRead += (args?["urls"] as? [String]) ?? (args?["url"] as? String).map { [$0] } ?? []
@@ -71,11 +75,7 @@ public struct PiTurnReceipt: Sendable {
         order.compactMap { id in
             let tool = started[id]?.name ?? ""
             guard !Self.readOnlyTools.contains(tool), !Self.quietTools.contains(tool) else { return nil }
-            let outcome: PiActionRecord.Outcome = switch ended[id] {
-            case .some(true): .failed
-            case .some(false): .done
-            case .none: .unclear
-            }
+            let outcome = ended[id] ?? .unclear
             // Pippa's own tools (the app's MCP server): a neutral line; what was read or added is filled in by the
             // app from its server's notes (`name` is until then the tool name without prefix).
             if let own = Self.pippaTool(tool) {
@@ -90,6 +90,38 @@ public struct PiTurnReceipt: Sendable {
 
     /// Pippa's writing MCP tools (PippaCore/MCP/PippaMCPWrite.swift).
     public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft"]
+
+    // Emitted before an effect by PippaMCPWrite.swift; unknown future statuses stay unconfirmed.
+    private static let nativeNoEffect: Set<String> = ["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
+        "not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created"]
+
+    /// Interpret the complete tool envelope, not display text or answer prose. Called before the RPC preview is cut.
+    public static func classify(tool: String, isError: Bool, result: [String: Any]?) -> PiActionRecord.Outcome {
+        guard let result, let content = result["content"] as? [[String: Any]],
+              content.allSatisfy({ $0["type"] is String && ($0["type"] as? String != "text" || $0["text"] is String) }) else { return .unclear }
+        if let own = pippaTool(tool), pippaWriters.contains(own) {
+            let text = content.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }.joined(separator: "\n")
+            guard let data = text.data(using: .utf8), let native = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return .unclear }
+            if ["unclear", "dispatched"].contains(native["state"] as? String ?? "")
+                || ["unclear", "dispatched"].contains(native["status"] as? String ?? "") { return .unclear }
+            if native.keys.contains("dispatched"), boolean(native["dispatched"]) == nil { return .unclear }
+            if boolean(native["done"]) == true, !isError { return .done }
+            if boolean(native["done"]) == false, boolean(native["dispatched"]) != true,
+               let status = native["status"] as? String, nativeNoEffect.contains(status) { return .blocked }
+            return .unclear
+        }
+        if tool == "bash", let details = result["details"] as? [String: Any] {
+            if details["pippaExecution"] as? String == "not_dispatched" { return isError ? .blocked : .unclear }
+            if details["pippaExecution"] as? String == "uncertain" { return .unclear }
+        }
+        return isError ? .failed : .done
+    }
+
+    /// JSON numbers such as 1 are not boolean confirmation.
+    private static func boolean(_ value: Any?) -> Bool? {
+        guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+        return number.boolValue
+    }
 
     /// `mcp__pippa__calendar_read` → `calendar_read` (Pippa's MCP server is called `pippa`), otherwise `nil`.
     public static func pippaTool(_ tool: String) -> String? {

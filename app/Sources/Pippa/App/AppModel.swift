@@ -1597,7 +1597,7 @@ final class AppModel: ObservableObject {
         // What is shown (files, folder, mail, table, text) and Pippa's working state go along (PiRPCChat+Shown.swift);
         // the app in front only while its chip is visible.
         conversations.send(q, chat: bridged ? StartupBridgeChat.shared as any ConversationChat : nil, workflowSummary: workflowSummary,
-                           modelLabel: piModelLabel, skill: skill, frontApp: front)
+                           modelLabel: bridged ? nil : piModelLabel, skill: skill, frontApp: front)
         composerFocus += 1
     }
 
@@ -1608,6 +1608,7 @@ final class AppModel: ObservableObject {
     /// so the chat is never a dead end; anything that needs Pippa's AI brings back the download question.
     private func usesStartupBridge(_ text: String, skill: PippaSkill?) -> Bool {
         guard PiRPCChat.isLive else { return false }
+        if canUseQuickText(skill) { return true }
         switch piSetupGate {
         case .wait: return true
         case .open: return conversations.current.map { StartupBridgeChat.shared.hasPending(conversation: $0.id) } ?? false
@@ -1616,6 +1617,14 @@ final class AppModel: ObservableObject {
                 && StartupBridge.route(text, hasFiles: false, selectedText: "", skill: skill != nil,
                                        systemModel: StartupBridgeChat.systemModelAvailable) == .quick
         }
+    }
+
+    /// The same eligibility drives routing and the button: a usable text action stays available during setup.
+    func canUseQuickText(_ skill: PippaSkill?) -> Bool {
+        guard PiRPCChat.isLive else { return false }
+        let context = conversations.current?.context
+        return QuickTextAction.accepts(skill: skill?.name, selectedText: context?.selectedText ?? "",
+                                       hasFiles: !(context?.files.isEmpty ?? true), systemModel: StartupBridgeChat.systemModelAvailable)
     }
 
     /// A message of the start bridge waits for Pi: one calm sentence in the conversation.

@@ -49,6 +49,9 @@ public struct WorkStep: Codable, Sendable, Equatable {
 }
 
 public enum WorkStepPhrase {
+    /// A finished call without enough evidence to confirm what happened.
+    public static var unconfirmedResult: String { L("result not confirmed", table: "Thought") }
+
     /// The phrase for a tool that just started; `nil` for bookkeeping tools that should not show up.
     /// `cwd` resolves relative paths (`nil`: they are shown by their last name or as "on your Mac").
     public static func phrase(tool: String, arguments: String, home: String, cwd: String? = nil, language: String? = nil) -> String? {

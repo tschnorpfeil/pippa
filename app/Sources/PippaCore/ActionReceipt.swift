@@ -21,9 +21,16 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
         public var toName: String?
         /// Why it did not happen or how it happened, e.g. "busy" (calendar), "nothingFound" (web), "reply" (mail).
         public var reason: String?
+        /// Stable native call identity, so a late OS confirmation updates its original receipt exactly once.
+        public var operationID: UUID?
+        /// Monotonic version of a durable native operation; absent on legacy and non-journal receipts.
+        public var nativeRevision: Int?
 
-        public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, reason: String? = nil) {
+        public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, reason: String? = nil,
+                    operationID: UUID? = nil, nativeRevision: Int? = nil) {
             self.action = action; self.outcome = outcome; self.name = name; self.toName = toName; self.reason = reason
+            self.operationID = operationID
+            self.nativeRevision = nativeRevision
         }
 
         public var happened: Bool { outcome == "done" }
@@ -85,7 +92,11 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
         public func line(language: String?) -> String {
             let what = name ?? "?"
             // Read (Pippa's MCP reader): neutral line, already fully worded (PippaMCPReadNote).
-            if action == "read" { return name ?? L("Read something", table: "Thought", language: language) }
+            if action == "read" {
+                if let name { return name }
+                return outcome == "done" ? L("Read something", table: "Thought", language: language)
+                    : L("Reading was not confirmed", table: "Thought", language: language)
+            }
             // Lines of the former undo in older histories.
             if action == "restore" || action == "setAside" || action == "remove" {
                 guard outcome == "done" else {
@@ -136,7 +147,12 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
                 case "tool": L("Used: %@", table: "Thought", language: language, what)
                 default: L("Changed: %@", table: "Thought", language: language, what)
                 }
-            case "declined", "blocked", "failed":
+            case "failed":
+                // A failed tool may have changed a file before returning an error. Preserve that uncertainty.
+                return action == "command"
+                    ? L("Command failed; changes may have happened", table: "Thought", language: language)
+                    : L("Couldn’t finish: %@ · check the result before trying again", table: "Thought", language: language, what)
+            case "declined", "blocked":
                 base = switch action {
                 case "create": L("Not created: %@", table: "Thought", language: language, what)
                 case "createFolder": L("Folder not created: %@", table: "Thought", language: language, what)
@@ -171,6 +187,19 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
     public var cards: [ResultCard]?
     public init(items: [Item], mailOffer: MailDraftOffer? = nil, cards: [ResultCard]? = nil) {
         self.items = items; self.mailOffer = mailOffer; self.cards = cards?.isEmpty == false ? cards : nil
+    }
+
+    /// Native confirmations may arrive after Stop. Preserve every other action and never offer a duplicate draft.
+    public mutating func mergeNativeWrite(_ item: Item) {
+        guard let id = item.operationID, Item.appActions.contains(item.action) else { return }
+        let matches = items.indices.filter { items[$0].operationID == id }
+        if let revision = matches.compactMap({ items[$0].nativeRevision }).max(), (item.nativeRevision ?? -1) < revision { return }
+        if matches.isEmpty { items.append(item) }
+        else { for index in matches { items[index] = item } }
+        if item.action == "mailDraft", ["done", "unclear"].contains(item.outcome) {
+            items.removeAll { $0.action == "mailDraft" && $0.outcome == "notYet" }
+            mailOffer = nil
+        }
     }
 
     /// A card this version does not know (a newer app wrote it) or cannot read is dropped: the answer and its

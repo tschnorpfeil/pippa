@@ -13,7 +13,7 @@ func runSkillChecks() {
     check("Skills: Swift finds every shipped folder from the SKILL.md header, nothing is kept twice") {
         skills.map(\.name) == shipped
             && Set(shipped) == ["text-kuerzen", "dokument-einordnen", "fristen-erkennen", "antwort-schreiben", "brief-verstehen", "tabelle-pruefen", "text-verbessern", "zusammenfassen",
-                                  "online-pruefen", "termin-aus-mail"]
+                                  "online-pruefen", "termin-aus-mail", "text-korrigieren", "checkliste"]
     }
     // One skill acts through Pi's tools on purpose: deadlines (calendar_add). All others change nothing.
     let acting: Set<String> = ["fristen-erkennen"]

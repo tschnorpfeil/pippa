@@ -21,12 +21,15 @@ final class TrayController: ObservableObject {
     @Published private(set) var state: TrayState
     @Published private(set) var phase: TrayPhase = .idle
     @Published private(set) var offered: [ThingAction] = []
+    /// All applicable actions, cached alongside suggestions so rendering never inspects files.
+    @Published private(set) var availableActions: [ThingAction] = []
+    var actionChoices: ThingActionChoices { ThingActionChoices(offered: offered, candidates: availableActions) }
     /// Only after one second of work: before that the line shows no progress.
     @Published private(set) var progressVisible = false
     /// Kept when collapsed.
     @Published var draft = "" { didSet { if !draft.isEmpty { freezeSuggestions() } } }
-    /// A sentence under the fresh result when the tool left something behind (nil otherwise).
-    @Published private(set) var resultNote: String?
+    /// A failed Open or Save keeps the generated file and its Undo beside the recovery message.
+    @Published private(set) var resultProblem: String?
 
     weak var model: AppModel?
 
@@ -56,6 +59,7 @@ final class TrayController: ObservableObject {
     private var clock: Task<Void, Never>?
     /// Waiting for a password: this tool runs once more afterwards.
     private var pendingTool: ToolID?
+    private var pendingRequest: NativeFileRequest?
     /// In memory only, only until the run ends. Never logged, never saved.
     private var passwords: [URL: String] = [:]
     /// Was anything chosen in this opened line? (Otherwise: "passed over" in the log.)
@@ -139,7 +143,6 @@ final class TrayController: ObservableObject {
         case .working: break
         case .failure(_, let url) where url != nil: break
         default:
-            resultNote = nil
             settle()
         }
         changed()
@@ -155,7 +158,6 @@ final class TrayController: ObservableObject {
         model?.removeConversationAttachment(removed.url)
         switch phase {
         case .result(let shown) where shown == id:
-            resultNote = nil
             settle()
         case .idle, .given:
             settle()
@@ -170,7 +172,7 @@ final class TrayController: ObservableObject {
     /// Whether a click on this offer would do something now. Tools run beside a conversation; skills, tidying and
     /// invoices hand the things over to it and wait until its current answer or task is done, like typed text.
     func canChoose(_ action: ThingAction) -> Bool {
-        guard !isWorking, offered.contains(action) else { return false }
+        guard !isWorking, availableActions.contains(action) else { return false }
         if case .tool = action.handler { return true }
         return model?.isActiveWork != true
     }
@@ -182,7 +184,7 @@ final class TrayController: ObservableObject {
         let given = givenItems
         guard !given.isEmpty else { return }
         let urls = given.map { url(for: $0) }
-        let ids = offered.map(\.id)
+        let ids = actionChoices.all.map(\.id)
         let kind = ThingActions.taskKind(for: urls)
         choseSinceOpen = true
         if let kind { records.insert(TaskRecord(kind: kind, offered: ids, chosen: action.id), at: 0) }
@@ -213,15 +215,37 @@ final class TrayController: ObservableObject {
         toolTask = nil
         runID = nil
         pendingTool = nil
+        pendingRequest = nil
         passwords = [:]
         stopClock()
         settle()
     }
 
     func submitPassword(_ password: String) {
-        guard !password.isEmpty, case .failure(_, let url?) = phase, let tool = pendingTool else { return }
+        guard !password.isEmpty, case .failure(_, let url?) = phase, let tool = pendingTool,
+              pendingRequest?.matches(givenItems.map(\.id)) == true else { return }
         passwords[url] = password
         startTool(tool)
+    }
+
+    var canRetryTool: Bool {
+        guard case .failure(_, nil) = phase, let request = pendingRequest, pendingTool == request.tool else { return false }
+        return request.matches(givenItems.map(\.id)) && availableActions.contains(.tool(request.tool))
+    }
+
+    /// Retry is an explicit click, only for the unchanged selection. The file tool reopens every source and creates
+    /// a fresh result folder; no Calendar, Mail, shell, or model request can enter this recovery path.
+    func retryTool() {
+        guard canRetryTool, let tool = pendingTool else { return }
+        passwords = [:]
+        startTool(tool)
+    }
+
+    func chooseAnotherAction() {
+        guard !isWorking else { return }
+        pendingTool = nil; pendingRequest = nil; passwords = [:]
+        settle()
+        recomputeOffered()
     }
 
     /// Take back the result: the file leaves Pippa's cache, the consumed items come back.
@@ -252,8 +276,8 @@ final class TrayController: ObservableObject {
 
     /// "Save…": choose a location, place a copy. Without dragging, for keyboard and VoiceOver.
     func save(_ id: UUID) {
-        guard let item = state.items.first(where: { $0.id == id }) else { return }
-        let source = url(for: item)
+        guard let item = state.items.first(where: { $0.id == id && $0.role == .result }) else { return }
+        guard let source = resultURL(id) else { return resultUnavailable(id) }
         NSApp.activate()
         let panel = NSSavePanel()
         panel.nameFieldStringValue = item.name
@@ -262,9 +286,42 @@ final class TrayController: ObservableObject {
         panel.begin { [weak self] response in
             MainActor.assumeIsolated {
                 guard response == .OK, let target = panel.url else { return }
-                self?.write(source, to: target, id: id)
+                self?.save(id, to: target)
             }
         }
+    }
+
+    /// Resolve an actual retained result, never a source file or a stale thumbnail's URL.
+    func resultURL(_ id: UUID) -> URL? {
+        guard !isWorking, let item = state.items.first(where: { $0.id == id && $0.role == .result }),
+              ResultsFolder.contains(item.url), FileManager.default.isReadableFile(atPath: item.url.path) else { return nil }
+        return item.url
+    }
+
+    func openResult(_ id: UUID) {
+        guard let url = resultURL(id) else { return resultUnavailable(id) }
+        if NSWorkspace.shared.open(url) { resultProblem = nil }
+        else {
+            resultProblem = T("I couldn’t open this file. You can still save it or show it in Finder.", table: "NativeFlow")
+            announce(resultProblem!)
+        }
+    }
+
+    func revealResult(_ id: UUID) {
+        guard let url = resultURL(id) else { return resultUnavailable(id) }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+        resultProblem = nil
+    }
+
+    func save(_ id: UUID, to target: URL) {
+        guard let source = resultURL(id) else { return resultUnavailable(id) }
+        write(source, to: target, id: id)
+    }
+
+    private func resultUnavailable(_ id: UUID) {
+        guard state.items.contains(where: { $0.id == id && $0.role == .result }) else { return }
+        resultProblem = T("This result is no longer available. Your original files are unchanged.", table: "NativeFlow")
+        announce(resultProblem!)
     }
 
     /// An item was successfully dragged out or saved. Results leave Pippa afterwards
@@ -302,6 +359,7 @@ final class TrayController: ObservableObject {
     func showResult(_ id: UUID) {
         guard !isWorking, state.items.contains(where: { $0.id == id && $0.role == .result }) else { return }
         phase = .result(id)
+        resultProblem = nil
         model?.openLine()
     }
 
@@ -309,7 +367,7 @@ final class TrayController: ObservableObject {
     func lineClosed() {
         if !choseSinceOpen {
             let urls = givenItems.map { url(for: $0) }
-            let ids = offered.map(\.id)
+            let ids = actionChoices.all.map(\.id)
             if !ids.isEmpty, let kind = ThingActions.taskKind(for: urls) {
                 model?.taskLog.ignored(offered: ids, kind: kind)
                 records.insert(TaskRecord(kind: kind, offered: ids, chosen: nil), at: 0)
@@ -320,8 +378,8 @@ final class TrayController: ObservableObject {
         switch phase {
         case .result, .failure:
             pendingTool = nil
+            pendingRequest = nil
             passwords = [:]
-            resultNote = nil
             settle()
         default: break
         }
@@ -338,7 +396,8 @@ final class TrayController: ObservableObject {
         let run = UUID()
         runID = run
         pendingTool = tool
-        resultNote = nil
+        pendingRequest = NativeFileRequest(tool: tool, inputIDs: given.map(\.id))
+        resultProblem = nil
         phase = .working(title: tool.workingTitle, progress: nil)
         startClock()
         let report: @Sendable (ToolProgress) -> Void = { [weak self] p in
@@ -394,6 +453,7 @@ final class TrayController: ObservableObject {
         runID = nil
         toolTask = nil
         pendingTool = nil
+        pendingRequest = nil
         passwords = [:]
         stopClock()
         let consumed = Set(output.consumedInputs.map(\.standardizedFileURL))
@@ -403,7 +463,8 @@ final class TrayController: ObservableObject {
         var next = state
         var results: [TrayItem] = []
         for file in output.files.reversed() {
-            let made = TrayItem(role: .result, url: file, receipt: receipt?.id, sources: usedIDs, tool: tool)
+            let made = TrayItem(role: .result, url: file, receipt: receipt?.id, sources: usedIDs, tool: tool,
+                                note: output.detailSentence)
             next = TrayRules.consumed(results.isEmpty ? usedIDs : [], by: made, in: next)
             results.insert(made, at: 0)
         }
@@ -412,7 +473,6 @@ final class TrayController: ObservableObject {
             receipts[receipt.id] = receipt
             model?.taskLog.finished(receipt.id)
         }
-        resultNote = output.detailSentence
         guard let first = results.first else {
             settle()
             changed()
@@ -435,6 +495,7 @@ final class TrayController: ObservableObject {
         stopClock()
         if error is CancellationError {
             pendingTool = nil
+            pendingRequest = nil
             passwords = [:]
             settle()
             return
@@ -446,13 +507,13 @@ final class TrayController: ObservableObject {
                 fail(failure.errorDescription ?? "", passwordFor: url)
                 return
             default:
-                pendingTool = nil
+                // A smaller file cannot be made smaller by repeating the same operation.
+                if failure == .alreadySmall { pendingTool = nil; pendingRequest = nil }
                 passwords = [:]
                 fail(failure.errorDescription ?? T("That didn’t work. Your files are unchanged.", table: "TrayApp"))
                 return
             }
         }
-        pendingTool = nil
         passwords = [:]
         UserMessage.record(error, context: "werkzeug")
         fail(T("That didn’t work. Your files are unchanged.", table: "TrayApp"))
@@ -489,7 +550,7 @@ final class TrayController: ObservableObject {
         let restoring = item.sources.compactMap { consumedItems[$0] }
         state = TrayRules.undone(item.id, in: state, restoring: restoring)
         for source in restoring { consumedItems[source.id] = nil }
-        resultNote = nil
+        resultProblem = nil
         if !isWorking { settle() }
         changed()
         announce(T("Removed.", table: "TrayApp"))
@@ -505,7 +566,6 @@ final class TrayController: ObservableObject {
         guard state.items.contains(where: { $0.id == id }) else { return }
         state.items.removeAll { $0.id == id }
         if phase == .result(id) {
-            resultNote = nil
             settle()
         }
         changed()
@@ -516,7 +576,11 @@ final class TrayController: ObservableObject {
             let copied = await Task.detached(priority: .userInitiated) { TrayController.copy(source, to: target) }.value
             guard let self else { return }
             if copied { self.took(id, target: .file) }
-            else { self.fail(T("I couldn’t save it there. Nothing was changed.", table: "TrayApp")) }
+            else if self.state.items.contains(where: { $0.id == id && $0.role == .result }) {
+                let message = T("I couldn’t save it there. Your result is still here. Choose another location or drag it out.", table: "NativeFlow")
+                if self.phase == .result(id) { self.resultProblem = message }
+                self.announce(message)
+            }
         }
     }
 
@@ -544,7 +608,6 @@ final class TrayController: ObservableObject {
         guard let model else { return }
         model.handOver(urls, then: then)
         state = TrayRules.handedOver(handed.map(\.id), in: state)
-        resultNote = nil
         settle()
         changed()
     }
@@ -585,11 +648,25 @@ final class TrayController: ObservableObject {
                     guard !Task.isCancelled, let self, self.suggestionGeneration == generation,
                           !self.suggestionsFrozen, self.draft.isEmpty, !self.isWorking else { return }
                     self.suggestionRole = role
-                    self.offered = ThingActions.offered(for: urls, records: self.records, role: role)
+                    self.updateActions(for: urls, role: role)
                 }
             }
         } else if suggestionsFrozen { return }
-        let next = ThingActions.offered(for: urls, records: records, role: suggestionRole)
+        updateActions(for: urls, role: suggestionRole)
+    }
+
+    private func updateActions(for urls: [URL], role: DocumentRole) {
+        // Both ranking and availability use the same size snapshot, once per suggestion update.
+        var sizes: [URL: Int64] = [:]
+        func size(_ url: URL) -> Int64 {
+            if let cached = sizes[url] { return cached }
+            let value = ThingActions.fileSize(url)
+            sizes[url] = value
+            return value
+        }
+        let candidates = ThingActions.candidates(for: urls, size: size, role: role)
+        let next = ThingActions.offered(for: urls, records: records, size: size, role: role)
+        if candidates != availableActions { availableActions = candidates }
         if next != offered { offered = next }
     }
 
@@ -604,7 +681,6 @@ final class TrayController: ObservableObject {
         for id in ids { release(id) }
         switch phase {
         case .result(let id) where ids.contains(id):
-            resultNote = nil
             settle()
         case .idle, .given:
             settle()

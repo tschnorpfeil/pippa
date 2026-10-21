@@ -32,6 +32,12 @@ setenv("PIPPA_CHECK_TRASH", root.appendingPathComponent("Papierkorb").path, 1)
 // Checks never depend on this Mac's system model (Apple Intelligence on or off): tidying uses recordings or nothing.
 setenv("PIPPA_NO_SYSTEM_MODEL", "1", 1)
 
+if ProcessInfo.processInfo.environment["PIPPA_SOURCE_EXPOSURE_CHECKS"] == "1" {
+    runSourceExposureChecks()
+    print(failures == 0 ? "Source exposure checks passed." : "Source exposure checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
 if ProcessInfo.processInfo.environment["PIPPA_DOWNLOAD_CHECKS"] == "1" {
     await runDownloadChecks()
     print(failures == 0 ? "Download checks passed." : "Download checks failed.")
@@ -50,6 +56,7 @@ if ProcessInfo.processInfo.environment["PIPPA_MCP_CHECKS"] == "1" {
     await runMCPChecks()
     await runR2Checks()
     await runR3Checks()
+    await runNativeReminderChecks()
     print(failures == 0 ? "MCP checks passed." : "MCP checks failed.")
     exit(failures == 0 ? 0 : 1)
 }
@@ -1252,6 +1259,10 @@ check("Tone: no jargon, no English, no status codes in messages") {
 }
 
 runConversationChecks()
+runConversationRetryChecks()
+runConversationEntryChecks()
+runNativeReceiptContextChecks()
+runNativeRecoveryHistoryChecks()
 runChatContextChecks()
 await runP0ContextChecks()
 runPromptAttachmentChecks()
@@ -1261,6 +1272,7 @@ runTopicBoundaryChecks()
 runPillPlacementChecks()
 await runInferenceChecks()
 runSourceFidelityChecks()
+runSourceExposureChecks()
 runSkillChecks()
 await runProposalChecks()
 runErrorMessageChecks()
@@ -1289,12 +1301,14 @@ runWorkStepChecks()
 runWorkShapeChecks()
 runColdStartChecks()
 runStartupBridgeChecks()
+await runQuickTextChecks()
 runPillStatusChecks()
 await runSetupChecks()
 await runMCPChecks()
 await runR2Checks()
 await runR10Checks()
 await runR3Checks()
+await runNativeReminderChecks()
 await runR6Checks()
 await runR7Checks()
 await runR7bChecks()

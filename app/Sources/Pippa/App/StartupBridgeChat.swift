@@ -14,6 +14,7 @@ final class StartupBridgeChat: ConversationChat {
     private var pending: [String: [StartupBridge.Turn]] = [:]
     /// Pi, once the message went there (for Stop, steering and what the tools did).
     private var delegated: (any ConversationChat)?
+    private var quickTask: Task<String?, Error>?
     private var cancelled = false
     private weak var model: AppModel?
 
@@ -33,6 +34,28 @@ final class StartupBridgeChat: ConversationChat {
         let key = String(taskID.prefix { $0 != ":" })
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         let gate = model?.piSetupGate ?? .open
+        // A selected text button is a complete, bounded job even after setup. Only a finished answer is shown;
+        // unavailable, refused or failed generations fall through to the same Pi skill without another click.
+        if QuickTextAction.accepts(skill: skill?.name, selectedText: context.selectedText,
+                                   hasFiles: !context.files.isEmpty || !newFiles.isEmpty, systemModel: Self.systemModelAvailable),
+           let skill, let instructions = PippaSkill.instructions(named: skill.name), let system = AppleQuickModel.system {
+            context.onWork?(.phase(.writing))
+            let task = Task {
+                try await QuickTextAction.answer(skillInstructions: instructions, selectedText: context.selectedText,
+                                                 language: language, model: system)
+            }
+            quickTask = task
+            defer { quickTask = nil }
+            let result = try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+            if let answer = result {
+                if cancelled { throw CancellationError() }
+                pending[key, default: []].append(StartupBridge.Turn(person: text, pippa: answer))
+                onDelta(answer)
+                DiagnosticsLog.shared.event("text-aktion", ["weg": "apple", "skill": skill.name])
+                return PiRPCChat.ShownAnswer(text: answer, reviewed: false)
+            }
+            if cancelled { throw CancellationError() }
+        }
         if gate != .open {
             let route = StartupBridge.route(text, hasFiles: !context.files.isEmpty || !newFiles.isEmpty, selectedText: context.selectedText,
                                             skill: skill != nil, systemModel: Self.systemModelAvailable)
@@ -126,6 +149,7 @@ final class StartupBridgeChat: ConversationChat {
 
     func cancel() async {
         cancelled = true
+        quickTask?.cancel()
         await delegated?.cancel()
     }
 

@@ -19,7 +19,7 @@ public struct NewCalendarEvent: Sendable, Equatable {
 }
 
 /// A new reminder. `due`: year, month, day and optionally hour/minute (then due at a time of day).
-public struct NewReminder: Sendable, Equatable {
+public struct NewReminder: Sendable, Equatable, Codable {
     public var title: String
     public var due: DateComponents?
     public var list: String?
@@ -30,14 +30,15 @@ public struct NewReminder: Sendable, Equatable {
 }
 
 /// Created: the entry for undo and where it ended up.
-public struct HostWrite: Sendable, Equatable {
+public struct HostWrite: Sendable, Equatable, Codable {
     public var item: CreatedItem
     /// Calendar or list the entry is in.
     public var container: String
+    public var containerIdentifier: String?
     /// `false`: the requested list did not exist, the entry is in the default list.
     public var containerMatched: Bool
-    public init(item: CreatedItem, container: String, containerMatched: Bool = true) {
-        self.item = item; self.container = container; self.containerMatched = containerMatched
+    public init(item: CreatedItem, container: String, containerMatched: Bool = true, containerIdentifier: String? = nil) {
+        self.item = item; self.container = container; self.containerMatched = containerMatched; self.containerIdentifier = containerIdentifier
     }
 }
 
@@ -45,11 +46,28 @@ public struct HostWrite: Sendable, Equatable {
 public protocol HostWriting: Sendable {
     func addEvent(_ event: NewCalendarEvent) async throws -> HostWrite
     func addReminder(_ reminder: NewReminder) async throws -> HostWrite
+    func reminderTarget(for reminder: NewReminder) async throws -> NativeReminderTarget
+    func addReminder(_ reminder: NewReminder, target: NativeReminderTarget, marker: URL) async throws -> HostWrite
+    func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup
+}
+
+extension HostWriting {
+    // Older/custom hosts cannot silently bypass durable target and identity requirements.
+    public func reminderTarget(for reminder: NewReminder) async throws -> NativeReminderTarget { throw PippaError.notAvailable }
+    public func addReminder(_ reminder: NewReminder, target: NativeReminderTarget, marker: URL) async throws -> HostWrite { throw PippaError.notAvailable }
+    public func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup { .unavailable }
 }
 
 extension SystemIntegrations: HostWriting {
     public func addEvent(_ event: NewCalendarEvent) async throws -> HostWrite { try eventKit.addEvent(event) }
     public func addReminder(_ reminder: NewReminder) async throws -> HostWrite { try eventKit.addReminder(reminder) }
+    public func reminderTarget(for reminder: NewReminder) async throws -> NativeReminderTarget { try eventKit.reminderTarget(for: reminder) }
+    public func addReminder(_ reminder: NewReminder, target: NativeReminderTarget, marker: URL) async throws -> HostWrite {
+        try eventKit.addReminder(reminder, target: target, marker: marker)
+    }
+    public func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup {
+        await eventKit.lookupReminder(marker: marker, target: target, identifier: identifier)
+    }
 }
 
 extension EventKitBridge {
@@ -66,6 +84,7 @@ extension EventKitBridge {
         ev.isAllDay = e.allDay
         ev.startDate = e.start
         ev.endDate = e.end
+        try PippaMCPWriteLease.current?.beginDispatch()
         try s.save(ev, span: .thisEvent, commit: true)
         let item = CreatedItem(integration: .calendar, identifier: ev.calendarItemIdentifier, modified: ev.lastModifiedDate, fingerprint: fingerprint(ev))
         return HostWrite(item: item, container: calendar.title)
@@ -73,7 +92,7 @@ extension EventKitBridge {
 
     /// Into the named list (name, case-insensitive), otherwise into the default list. With a time of day: reminder at
     /// that time; with a day only: at 9:00 (like the deadlines in the old flow).
-    func addReminder(_ r: NewReminder) throws -> HostWrite {
+    func reminderTarget(for r: NewReminder) throws -> NativeReminderTarget {
         guard access(.reminders) == .granted else { throw PippaError.accessDenied(Integration.reminders.appName) }
         let s = store
         let wanted = r.list?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -81,8 +100,22 @@ extension EventKitBridge {
         guard let list = named ?? s.defaultCalendarForNewReminders() else {
             throw PippaError.entryFailed(L("I can’t find a reminders list.", table: "Core"))
         }
+        return NativeReminderTarget(identifier: list.calendarIdentifier, title: list.title, matched: wanted == nil || named != nil)
+    }
+
+    func addReminder(_ r: NewReminder) throws -> HostWrite {
+        try addReminder(r, target: reminderTarget(for: r), marker: nil)
+    }
+
+    func addReminder(_ r: NewReminder, target: NativeReminderTarget, marker: URL?) throws -> HostWrite {
+        guard access(.reminders) == .granted else { throw PippaError.accessDenied(Integration.reminders.appName) }
+        let s = store
+        guard let list = s.calendar(withIdentifier: target.identifier), list.allowedEntityTypes.contains(.reminder), list.allowsContentModifications else {
+            throw PippaError.entryFailed(L("I can’t find a reminders list.", table: "Core"))
+        }
         let reminder = EKReminder(eventStore: s)
         reminder.calendar = list
+        reminder.url = marker
         reminder.title = r.title
         reminder.notes = r.notes
         if var due = r.due {
@@ -93,9 +126,10 @@ extension EventKitBridge {
             if alert.hour == nil { alert.hour = 9; alert.minute = 0 }
             if let date = cal.date(from: alert) { reminder.addAlarm(EKAlarm(absoluteDate: date)) }
         }
+        try PippaMCPWriteLease.current?.beginDispatch()
         try s.save(reminder, commit: true)
         let item = CreatedItem(integration: .reminders, identifier: reminder.calendarItemIdentifier, modified: reminder.lastModifiedDate,
                                fingerprint: fingerprint(reminder))
-        return HostWrite(item: item, container: list.title, containerMatched: wanted == nil || named != nil)
+        return HostWrite(item: item, container: list.title, containerMatched: target.matched, containerIdentifier: list.calendarIdentifier)
     }
 }

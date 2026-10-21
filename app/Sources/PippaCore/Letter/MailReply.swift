@@ -67,9 +67,9 @@ public struct MailDraft: Sendable, Equatable {
             guard isConfirmedEnvelope(subject: subject, recipients: recipients) else { throw MailReplyFailure.unconfirmed }
             return saved && isConfirmed(byReadback: body) ? .reply : .replyNeedsPaste
         case "missing": throw MailReplyFailure.missingOriginal
-        // Mail answered before the reply existed (or not at all while looking it up): nothing is in Mail.
-        case "failed", "busy": throw MailReplyFailure.notCreated
-        // "shown": a reply window is open with unknown recipients; "uncertain": Mail may still open one.
+        // Lookup stopped before the reply command: nothing is in Mail.
+        case "busy": throw MailReplyFailure.notCreated
+        // "shown": a reply window is open with unknown recipients; any reply-command error may still create one.
         default: throw MailReplyFailure.unconfirmed
         }
     }

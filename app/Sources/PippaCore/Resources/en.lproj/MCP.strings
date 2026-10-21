@@ -73,3 +73,7 @@
 "Photos on this Mac" = "Photos on this Mac";
 "Showing %lld of %lld. Open Photos to see all of them." = "Showing %lld of %lld. Open Photos to see all of them.";
 "Pippa may not see your photos. To change that, open System Settings → Privacy & Security → Photos and turn on Pippa." = "Pippa may not see your photos. To change that, open System Settings → Privacy & Security → Photos and turn on Pippa.";
+"Stopped before anything was changed." = "Stopped before anything was changed.";
+"This request can only prepare a draft. Nothing was changed." = "This request can only prepare a draft. Nothing was changed.";
+"Reminder status after reopening Pippa" = "Reminder status after reopening Pippa";
+"Pippa couldn’t confirm whether the change in %@ finished. Please check the app before trying again." = "Pippa couldn’t confirm whether the change in %@ finished. Please check the app before trying again.";

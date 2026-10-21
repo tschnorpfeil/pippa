@@ -157,9 +157,11 @@ public enum WorkShapeGeometry {
     /// A ring, with the mark's organic wobble when `wobble` > 0.
     static func ellipse(center: SIMD2<Double>, rx: Double, ry: Double, wobble: Double = 0, time: Double = 0, strand: Int = 0) -> [SIMD2<Double>] {
         let s = Double(strand)
-        return (0..<pointCount).map { i in
+        return (0..<pointCount).map { i -> SIMD2<Double> in
             let a = Double(i) / Double(pointCount) * tau
-            let w = 1 + wobble * (0.035 * sin(3 * a + time / 1.4 + s * 1.2) + 0.026 * sin(2 * a - time / 2.1 + s * 0.84))
+            let firstWave = 0.035 * sin(3 * a + time / 1.4 + s * 1.2)
+            let secondWave = 0.026 * sin(2 * a - time / 2.1 + s * 0.84)
+            let w = 1 + wobble * (firstWave + secondWave)
             return center + SIMD2(rx * cos(a) * w, ry * sin(a) * w)
         }
     }

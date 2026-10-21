@@ -23,13 +23,17 @@ public struct PippaMCPWriteReceipt: Sendable, Equatable, Codable {
     public var name: String
     /// Mail: reply, opened, newMessage; not done: busy, notFound, denied, …
     public var reason: String?
+    /// Origin and operation identity for retaining late native outcomes under the correct answer.
+    public var turnID: UUID?
+    public var operationID: UUID?
+    public var nativeRevision: Int?
 
     public init(action: String, outcome: String, name: String, reason: String? = nil) {
         self.action = action; self.outcome = outcome; self.name = name; self.reason = reason
     }
 
     /// The receipt line.
-    public var item: ActionReceipt.Item { ActionReceipt.Item(action: action, outcome: outcome, name: name, reason: reason) }
+    public var item: ActionReceipt.Item { ActionReceipt.Item(action: action, outcome: outcome, name: name, reason: reason, operationID: operationID, nativeRevision: nativeRevision) }
 }
 
 public struct PippaMCPWriteTools: Sendable {
@@ -37,7 +41,8 @@ public struct PippaMCPWriteTools: Sendable {
     static let mailBodyLimit = 20_000
 
     let host: PippaMCPHost
-    public init(host: PippaMCPHost) { self.host = host }
+    let scope: PippaMCPWriteScope
+    public init(host: PippaMCPHost, scope: PippaMCPWriteScope = PippaMCPWriteScope()) { self.host = host; self.scope = scope }
 
     /// Changes something on the Mac (`readOnlyHint: false`), deletes nothing and is at most a draft
     /// (`destructiveHint: false`), does not leave the Mac (`openWorldHint: false`).
@@ -56,15 +61,15 @@ public struct PippaMCPWriteTools: Sendable {
         let date = text, time = text
         return [
             tool("calendar_add", "Termin eintragen",
-                 "Add a Calendar event. date: YYYY-MM-DD, today, tomorrow or a weekday; time, end: HH:MM (no time = all day); minutes default 60. if_free: true = only if free.",
+                 "Add Calendar event. date=YYYY-MM-DD/today/tomorrow/weekday; time/end=HH:MM (no time=all day); minutes=60 default; if_free=true only if free.",
                  ["title": text, "date": date, "time": time, "minutes": ["type": "integer"], "end": time,
                   "location": text, "notes": text, "if_free": ["type": "boolean"]],
                  required: ["title", "date"]),
             tool("reminder_add", "Erinnerung anlegen",
-                 "Add a reminder. When the person names a day or time, always send date (today, tomorrow, a weekday or YYYY-MM-DD); time (HH:MM) only together with date. Optional: list name.",
+                 "Add reminder. A requested day/time requires date (today/tomorrow/weekday/YYYY-MM-DD); time=HH:MM. Optional list.",
                  ["title": text, "date": date, "time": time, "list": text, "notes": text], required: ["title"]),
             tool("mail_draft", "Mail-Entwurf",
-                 "Create an unsent Mail draft. reply_to: exact path of a shown email file, or selected (the one selected in Mail); otherwise a new email with subject and to.",
+                 "Create unsent Mail draft. reply_to=exact shown email path or selected (in Mail); omit for new email with subject and to.",
                  ["body": text, "reply_to": text, "subject": text, "to": text],
                  required: ["body"]),
         ]
@@ -108,6 +113,30 @@ public struct PippaMCPWriteTools: Sendable {
     }
 
     public func call(_ name: String, _ raw: [String: Any]) async -> PippaMCPToolResult {
+        let action = ["calendar_add": "calendarAdd", "reminder_add": "reminderAdd", "mail_draft": "mailDraft"][name] ?? name
+        return await withLease(action: action) { await callScoped(name, raw) }
+    }
+
+    private func withLease(action: String, _ operation: () async -> PippaMCPToolResult) async -> PippaMCPToolResult {
+        let lease = scope.lease(action: action)
+        var result = await withTaskCancellationHandler {
+            await PippaMCPWriteLease.$current.withValue(lease) {
+                do { try lease.check() }
+                catch is PippaMCPWritePolicyDenied {
+                    return PippaMCPToolResult(text: PippaMCPTools.json([
+                        "done": false, "status": "not_dispatched", "dispatched": false,
+                        "tell": L("This request can only prepare a draft. Nothing was changed.", table: "MCP"),
+                        "next": "This request permits preparing text only. Do not retry through another tool.",
+                    ]), isError: true, receipt: .init(action: action, outcome: "failed", name: "", reason: "draftOnly"))
+                } catch { return Self.stopped(receipt: .init(action: action, outcome: "cancelled", name: "", reason: "stopped")) }
+                return await operation()
+            }
+        } onCancel: { lease.cancel() }
+        result.receipt = lease.finish(result.receipt)
+        return result
+    }
+
+    private func callScoped(_ name: String, _ raw: [String: Any]) async -> PippaMCPToolResult {
         let input = Input(name, raw)
         let started = ContinuousClock.now
         let outcome: PippaMCPToolResult
@@ -254,6 +283,7 @@ public struct PippaMCPWriteTools: Sendable {
         }
         let added: HostWrite
         do {
+            try PippaMCPWriteLease.current?.check()
             added = try await writer.addEvent(NewCalendarEvent(title: title, start: start, end: end, allDay: allDay,
                                                                location: input.text("location").map { Self.singleLine($0, max: 200) },
                                                                notes: input.text("notes").map { String($0.prefix(2000)) }))
@@ -300,9 +330,22 @@ public struct PippaMCPWriteTools: Sendable {
         guard let writer = host.writer else {
             return Self.blocked("unavailable", L("Pippa can’t add to %@ right now.", table: "MCP", Integration.reminders.appName), receipt: notDone("unavailable"))
         }
+        let reminder = NewReminder(title: title, due: due, list: input.text("list").map { Self.singleLine($0, max: 200) },
+                                   notes: input.text("notes").map { String($0.prefix(2000)) })
+        if let journal = host.reminderJournal {
+            var key = input.strings.mapValues { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            key["title"] = title; key["list"] = reminder.list?.lowercased(); key["notes"] = reminder.notes
+            key["date"] = input.text("date")?.lowercased()
+            key["time"] = input.text("time").flatMap(Self.time).map { String(format: "%02d:%02d", $0.hour, $0.minute) }
+            return await durableReminder(reminder, label: short, hash: NativeReminderRecord.requestHash(key), writer: writer, journal: journal)
+        }
+        if host.requiresReminderJournal {
+            return Self.blocked("unavailable", L("Pippa can’t add to %@ right now.", table: "MCP", Integration.reminders.appName), receipt: notDone("journalUnavailable"))
+        }
         if case .blocked(let status, let tell) = await ensure(.reminders) { return Self.blocked(status, tell, receipt: notDone(status)) }
         let added: HostWrite
         do {
+            try PippaMCPWriteLease.current?.check()
             added = try await writer.addReminder(NewReminder(title: title, due: due, list: input.text("list").map { Self.singleLine($0, max: 200) },
                                                              notes: input.text("notes").map { String($0.prefix(2000)) }))
         } catch {
@@ -315,6 +358,95 @@ public struct PippaMCPWriteTools: Sendable {
             "done": true, "added": data,
             "next": "Say in one sentence that the reminder is there, with due as given.",
         ]), isError: false, receipt: PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: short))
+    }
+
+    /// Durable admission is separate from the in-memory cancellation lease. Neither can replace the other:
+    /// the journal survives process loss, while the lease prevents queued work from escaping Stop.
+    private func durableReminder(_ reminder: NewReminder, label: String, hash: String, writer: any HostWriting,
+                                 journal: Executor) async -> PippaMCPToolResult {
+        guard let lease = PippaMCPWriteLease.current else { return Self.invalid("A native action scope is required.") }
+        var record: NativeReminderRecord
+        do {
+            try lease.check()
+            var admission = try await journal.beginNativeReminder(id: lease.id, origin: lease.origin, turnID: lease.turnID,
+                                                                  requestHash: hash, reminder: reminder, label: label)
+            if case .blocked = admission {
+                _ = try await journal.reconcileNativeReminders(using: writer, conversationID: lease.origin?.conversationID)
+                try lease.check()
+                admission = try await journal.beginNativeReminder(id: lease.id, origin: lease.origin, turnID: lease.turnID,
+                                                                  requestHash: hash, reminder: reminder, label: label)
+            }
+            switch admission {
+            case .completed(let prior): return reminderCompleted(prior, repeated: true)
+            case .blocked(let prior): return reminderUnconfirmed(prior)
+            case .execute(let active): record = active; lease.bindOperationID(active.id, nativeRevision: active.revision)
+            }
+        } catch {
+            return failure(error, .reminders, receipt: .init(action: "reminderAdd", outcome: "failed", name: label, reason: "journalUnavailable"))
+        }
+        if case .blocked(let status, let tell) = await ensure(.reminders) {
+            let result = Self.blocked(status, tell, receipt: .init(action: "reminderAdd", outcome: "failed", name: record.label, reason: status))
+            return await finishReminderFailure(result, record: record, journal: journal, lease: lease)
+        }
+        do {
+            try lease.check()
+            let target: NativeReminderTarget
+            if let pinned = record.target { target = pinned } else { target = try await writer.reminderTarget(for: record.reminder) }
+            try lease.check()
+            record = try await journal.prepareNativeReminder(id: record.id, target: target)
+            lease.bindOperationID(record.id, nativeRevision: record.revision)
+            try lease.check()
+            record = try await journal.dispatchNativeReminder(id: record.id)
+            lease.bindOperationID(record.id, nativeRevision: record.revision)
+            // A Stop during the journal commit still prevents the actual native dispatch.
+            try lease.check()
+            let result = try await writer.addReminder(record.reminder, target: target, marker: record.marker)
+            // Do not check cancellation here: the OS result is evidence, including after Stop or a lost Pi reply.
+            record = try await journal.completeNativeReminder(id: record.id, result: result)
+            return reminderCompleted(record, repeated: false)
+        } catch {
+            let result = failure(error, .reminders, receipt: .init(action: "reminderAdd", outcome: "failed", name: record.label, reason: "failed"))
+            return await finishReminderFailure(result, record: record, journal: journal, lease: lease)
+        }
+    }
+
+    private func finishReminderFailure(_ result: PippaMCPToolResult, record: NativeReminderRecord, journal: Executor,
+                                       lease: PippaMCPWriteLease) async -> PippaMCPToolResult {
+        var result = result
+        if let final = try? await journal.finishNativeReminder(id: record.id, dispatched: lease.hasDispatched, receipt: result.receipt) {
+            result.receipt = final.receipt
+        } else {
+            // A failed completion commit keeps the write-ahead row unresolved. Retain the stable operation identity.
+            result.receipt?.operationID = record.id; result.receipt?.turnID = record.originatingTurnID
+            result.receipt?.nativeRevision = record.revision
+        }
+        return result
+    }
+
+    private func reminderUnconfirmed(_ record: NativeReminderRecord) -> PippaMCPToolResult {
+        PippaMCPToolResult(text: PippaMCPTools.json([
+            "done": false, "state": "unclear", "operationID": record.id.uuidString,
+            "tell": L("Pippa couldn’t confirm whether the change in %@ finished. Please check the app before trying again.", table: "MCP", Integration.reminders.appName),
+            "next": "An earlier reminder operation is unresolved. This attempt made no new reminder. Do not retry or use another tool to recreate it.",
+        ]), isError: false, receipt: record.receipt)
+    }
+
+    private func reminderCompleted(_ record: NativeReminderRecord, repeated: Bool) -> PippaMCPToolResult {
+        guard let result = record.result else { return reminderUnconfirmed(record) }
+        var added: [String: Any] = ["title": record.reminder.title, "list": result.container]
+        if let due = record.reminder.due, let date = host.calendar.date(from: due) {
+            added["due"] = format(date, due.hour == nil ? "EEE d MMM y" : "EEE d MMM y HH:mm")
+        }
+        if !result.containerMatched, let wanted = record.reminder.list {
+            added["listNote"] = "There is no list named \(Self.singleLine(wanted, max: 80)); it is in \(result.container)."
+        }
+        return PippaMCPToolResult(text: PippaMCPTools.json([
+            "done": true, "operationID": record.id.uuidString, "already_completed": repeated,
+            "recovered": record.recovered, "added": added,
+            "next": repeated
+                ? "This same request was already recorded as created. Report that prior completion, not a new change. Do not create another reminder."
+                : "Say in one sentence that the reminder was created, with due as given.",
+        ]), isError: false, receipt: record.receipt)
     }
 
     // MARK: mail_draft
@@ -353,7 +485,7 @@ public struct PippaMCPWriteTools: Sendable {
                 guard let found = MailReplySource.capture(from: URL(fileURLWithPath: path)) else {
                     return Self.invalid("reply_to is not an email file Pippa can reply to (.eml with Message-ID). Use the exact path from the message, or selected.")
                 }
-                if case .blocked(let status, let tell) = await ensure(.mail) { return Self.blocked(status, tell, receipt: notDone(status)) }
+                if case .blocked(let status, let tell) = await ensure(.mail, openMail: true) { return Self.blocked(status, tell, receipt: notDone(status)) }
                 source = found
             }
             let address = source.replyTo.map(MailAddress.parse)
@@ -365,7 +497,7 @@ public struct PippaMCPWriteTools: Sendable {
             }
             let to = input.text("to")
             if let to, MailAddress.parse(to).address != to { return Self.invalid("to must be one email address.") }
-            if case .blocked(let status, let tell) = await ensure(.mail) {
+            if case .blocked(let status, let tell) = await ensure(.mail, openMail: true) {
                 return Self.blocked(status, tell, receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: Self.quoted(subject), reason: status))
             }
             draft = MailDraft(messageID: nil, to: to, toName: nil, subject: Self.singleLine(subject, max: 200), body: body, isReply: false, exactSubject: true)
@@ -377,9 +509,13 @@ public struct PippaMCPWriteTools: Sendable {
     /// the result of `mail_selected` of the reply), looked up by message ID in all mailboxes, never via the
     /// current selection. No longer in Mail → nothing created, reason `not_found`. Same states as `mail_draft`.
     public func replyDraft(to source: MailReplySource, body raw: String) async -> PippaMCPToolResult {
+        await withLease(action: "mailDraft") { await replyDraftScoped(to: source, body: raw) }
+    }
+
+    private func replyDraftScoped(to source: MailReplySource, body raw: String) async -> PippaMCPToolResult {
         let body = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty, body.count <= Self.mailBodyLimit else { return Self.invalid("body must be 1 to \(Self.mailBodyLimit) characters.") }
-        if case .blocked(let status, let tell) = await ensure(.mail) {
+        if case .blocked(let status, let tell) = await ensure(.mail, openMail: true) {
             return Self.blocked(status, tell, receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: L("reply", table: "MCP"), reason: status))
         }
         let address = source.replyTo.map(MailAddress.parse)
@@ -394,6 +530,7 @@ public struct PippaMCPWriteTools: Sendable {
         }
         let result: MailInsertResult
         do {
+            try PippaMCPWriteLease.current?.check()
             result = try await host.integrations.insertReply(draft)
         } catch MailReplyFailure.unconfirmed {
             // A reply window may be open, its content is unknown: neither "created" nor "not created".
@@ -434,12 +571,17 @@ public struct PippaMCPWriteTools: Sendable {
     enum Gate { case open, blocked(String, String) }
 
     /// As for reading, but with Pippa's sentence about adding (before the first system prompt).
-    private func ensure(_ integration: Integration) async -> Gate {
-        var access = await host.integrations.access(integration)
+    private func ensure(_ integration: Integration, openMail: Bool = false) async -> Gate {
+        do { try PippaMCPWriteLease.current?.check() } catch { return .blocked("cancelled", Self.stoppedText) }
+        var access = openMail && integration == .mail
+            ? await host.integrations.prepareMailAccess() : await host.integrations.access(integration)
+        do { try PippaMCPWriteLease.current?.check() } catch { return .blocked("cancelled", Self.stoppedText) }
         if access == .notDetermined && host.askForAccess {
             let go = await host.explainAccess?(.integration(integration), Self.writeExplanation(integration)) ?? true
+            do { try PippaMCPWriteLease.current?.check() } catch { return .blocked("cancelled", Self.stoppedText) }
             if go { access = await host.integrations.requestAccess(integration) }
         }
+        do { try PippaMCPWriteLease.current?.check() } catch { return .blocked("cancelled", Self.stoppedText) }
         switch access {
         case .granted: return .open
         case .notDetermined: return .blocked("needs_access", PippaMCPTools.notYet(integration))
@@ -467,6 +609,15 @@ public struct PippaMCPWriteTools: Sendable {
 
     private func failure(_ error: Error, _ integration: Integration, receipt: PippaMCPWriteReceipt) -> PippaMCPToolResult {
         var receipt = receipt
+        if PippaMCPWriteLease.current?.hasDispatched == true {
+            receipt.outcome = "unclear"; receipt.reason = "unconfirmed"
+            return PippaMCPToolResult(text: PippaMCPTools.json([
+                "done": false, "state": "unclear", "sent": false,
+                "tell": L("Pippa couldn’t confirm whether the change in %@ finished. Please check the app before trying again.", table: "MCP", integration.appName),
+                "next": "The native write was dispatched but its outcome is unknown. Repeat tell; do not retry this action automatically.",
+            ]), isError: false, receipt: receipt)
+        }
+        if error is CancellationError { return Self.stopped(receipt: receipt) }
         switch error {
         case PippaError.accessDenied:
             receipt.reason = "denied"
@@ -481,9 +632,20 @@ public struct PippaMCPWriteTools: Sendable {
 
     /// Not done: a sentence for the person, which the model passes on.
     static func blocked(_ status: String, _ tell: String, receipt: PippaMCPWriteReceipt) -> PippaMCPToolResult {
-        PippaMCPToolResult(text: PippaMCPTools.json(["done": false, "status": status, "tell": tell,
+        if status == "cancelled" { return stopped(receipt: receipt) }
+        return PippaMCPToolResult(text: PippaMCPTools.json(["done": false, "status": status, "tell": tell,
                                                      "next": "Nothing was changed. Repeat the sentence in tell word for word."]),
                            isError: true, receipt: receipt)
+    }
+
+    static var stoppedText: String { L("Stopped before anything was changed.", table: "MCP") }
+    static func stopped(receipt: PippaMCPWriteReceipt) -> PippaMCPToolResult {
+        var receipt = receipt
+        receipt.outcome = "cancelled"; receipt.reason = "stopped"
+        return PippaMCPToolResult(text: PippaMCPTools.json([
+            "done": false, "status": "cancelled", "dispatched": false, "tell": stoppedText,
+            "next": "Nothing was changed. The request was stopped; do not retry it automatically.",
+        ]), isError: true, receipt: receipt)
     }
 
     /// Wrong arguments: the model can retry with correct ones; nothing happened, no receipt row

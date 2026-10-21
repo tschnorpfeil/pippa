@@ -13,7 +13,7 @@
  *   model turn per file (r7: 16 turns, 211 s for 15 files); one tool instead of two (fewer declaration tokens).
  * - `move_to_trash`: to the trash, never permanently delete.
  * - `bash`: Pi's own shell tool, run inside a macOS sandbox (shell.ts): every program, but writing outside Pippa's
- *   working folder, the internet and other apps only after the person's OK, and never deleting for good.
+ *   working folder and the internet require the person's OK; generic app control stays blocked. Never deletes for good.
  *
  * Pi runs these tools without asking (as all its tools). They never overwrite and never delete for good; paths always
  * go to programs as a single argument, never into script text.

@@ -74,6 +74,16 @@ func runStartupBridgeChecks() {
             && StartupBridge.handover("Neu", history: many, language: "de").count < 2200
     }
 
+    check("Start bridge: Pi gets the exact newest draft for save-that follow-ups; Apple history stays bounded") {
+        let draft = "First task. " + String(repeating: "More tasks. ", count: 300) + "Last task."
+        let history = [StartupBridge.Turn(person: "Make a checklist.", pippa: draft)]
+        let handover = StartupBridge.handover("Save that checklist.", history: history,
+                                            language: "en")
+        let prompt = StartupBridge.prompt("What now?", selectedText: "", history: history, language: "en")
+        return handover.contains(draft) && handover.hasSuffix("Save that checklist.")
+            && prompt.contains("[…]") && prompt.count < 2200
+    }
+
     check("App location: Applications counts as installed; disk image, Downloads copy and elsewhere do not") {
         let home = URL(fileURLWithPath: "/Users/anna", isDirectory: true)
         return AppLocation.place(of: URL(fileURLWithPath: "/Applications/Pippa.app"), home: home) == .applications

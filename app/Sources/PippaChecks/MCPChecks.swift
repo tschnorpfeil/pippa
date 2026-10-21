@@ -104,6 +104,77 @@ func runMCPChecks() async {
             && extra.isError && extra.json["status"] as? String == "invalid_arguments"
             && wrongType.isError && wrongType.json["status"] as? String == "invalid_arguments"
     }
+    await checkAsync("MCP readers: fields from another tool are rejected before permissions, launching apps or reading") {
+        let s = setup(granted: false, ask: true)
+        let calls: [(String, [String: Any])] = [
+            ("calendar_read", ["period": "today", "query": "Berger"]),
+            ("reminders_read", ["limit": 1]),
+            ("mail_selected", ["query": "Berger"]),
+            ("mail_search", ["query": "Berger", "days": 1]),
+            ("excel_selection", ["limit": 1]),
+            ("photos_search", ["period": "today"]),
+            ("front_read", ["start": "2026-10-07"]),
+        ]
+        for (tool, arguments) in calls {
+            let result = await call(s.tools, tool, arguments)
+            guard result.isError, result.json["status"] as? String == "invalid_arguments", result.json["data"] == nil else { return false }
+        }
+        let calendar = await s.demo.access(.calendar), reminders = await s.demo.access(.reminders), mail = await s.demo.access(.mail)
+        return calendar == .notDetermined && reminders == .notDetermined && mail == .notDetermined
+            && s.demo.calendarReads.isEmpty && s.demo.mailPreparations == 0 && s.data.photoQueries.isEmpty
+    }
+    await checkAsync("MCP photos_search: malformed query never becomes an unfiltered read; omitted query remains valid") {
+        let s = setup(ask: true)
+        s.data.libraryPermission = .notDetermined
+        let badQueries: [Any] = [123, true, NSNull(), ["Fahrrad"], ["text": "Fahrrad"]]
+        for query in badQueries {
+            let result = await call(s.tools, "photos_search", ["query": query])
+            guard result.isError, result.json["status"] as? String == "invalid_arguments",
+                  (result.json["error"] as? String)?.contains("query") == true, result.json["data"] == nil else { return false }
+        }
+        let untouched = s.data.libraryPermission == .notDetermined && s.data.photoQueries.isEmpty
+        let omitted = await call(s.tools, "photos_search", ["limit": 1])
+        return untouched && !omitted.isError && s.data.libraryPermission == .granted
+            && ((omitted.json["data"] as? [String: Any])?["photos"] as? [Any])?.count == 1
+    }
+    await checkAsync("MCP readers: optional means absent, not null; booleans, fractional and overflowing integers are invalid") {
+        let s = setup()
+        let calls: [(String, [String: Any])] = [
+            ("calendar_read", ["period": NSNull()]),
+            ("calendar_read", ["period": "today", "start": false]),
+            ("calendar_read", ["period": "today", "end": NSNull()]),
+            ("calendar_read", ["period": "today", "days": NSNull()]),
+            ("reminders_read", ["days": true]),
+            ("reminders_read", ["days": 1.5]),
+            ("reminders_read", ["days": 1e30]),
+            ("mail_search", ["query": "Berger", "limit": NSNull()]),
+            ("mail_search", ["query": false]),
+            ("photos_search", ["days": NSNull()]),
+            ("photos_search", ["limit": true]),
+        ]
+        for (tool, arguments) in calls {
+            let result = await call(s.tools, tool, arguments)
+            guard result.isError, result.json["status"] as? String == "invalid_arguments" else { return false }
+        }
+        let defaults = await call(s.tools, "reminders_read")
+        let integral = await call(s.tools, "photos_search", ["limit": 1.0])
+        return !defaults.isError && !integral.isError && s.demo.calendarReads.isEmpty && s.demo.mailPreparations == 0
+    }
+    await checkAsync("MCP arguments: non-object and null never become empty arguments; omission is allowed") {
+        let s = setup(ask: true)
+        s.data.libraryPermission = .notDetermined
+        let malformed: [Any] = [NSNull(), [], ["query"], true, 123, "{}"]
+        for arguments in malformed {
+            let reply = await rpc(s.tools, "tools/call", ["name": "photos_search", "arguments": arguments])
+            let result = reply?["result"] as? [String: Any] ?? [:]
+            let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
+            let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] ?? [:]
+            guard result["isError"] as? Bool == true, json["status"] as? String == "invalid_arguments" else { return false }
+        }
+        let untouched = s.data.libraryPermission == .notDetermined
+        let omitted = await rpc(s.tools, "tools/call", ["name": "photos_search"])
+        return untouched && (omitted?["result"] as? [String: Any])?["isError"] as? Bool == false
+    }
 
     // MARK: Calendar
 
@@ -233,6 +304,38 @@ func runMCPChecks() async {
         return !hit.isError && mails.count == 1 && (mails.first?["start"] as? String)?.contains("312,48") == true && hit.json["untrusted"] as? Bool == true
             && !none.isError && ((none.json["data"] as? [String: Any])?["mails"] as? [Any])?.isEmpty == true
             && short.isError && many.isError && closed.isError && closed.json["status"] as? String == "unavailable"
+    }
+    await checkAsync("MCP mail_search: starts closed Mail for the requested search; selected-mail reads never open it") {
+        let s = setup()
+        s.demo.mailRunning = false
+        let selected = await call(s.tools, "mail_selected")
+        let stayedClosed = !s.demo.mailRunning && s.demo.mailPreparations == 0
+        let invalid = await call(s.tools, "mail_search", ["query": "x"])
+        let stillClosed = !s.demo.mailRunning && s.demo.mailPreparations == 0
+        let search = await call(s.tools, "mail_search", ["query": "Berger"])
+        let mails = (search.json["data"] as? [String: Any])?["mails"] as? [Any] ?? []
+        return selected.isError && stayedClosed && invalid.isError && stillClosed
+            && !search.isError && mails.count == 1 && s.demo.mailRunning && s.demo.mailPreparations == 1
+    }
+    await checkAsync("MCP mail_search: opening Mail preserves permission gates and failed launch is never an empty inbox") {
+        let unasked = setup(granted: false)
+        unasked.demo.mailRunning = false
+        let needsAccess = await call(unasked.tools, "mail_search", ["query": "Berger"])
+        let denied = setup()
+        denied.demo.mailRunning = false
+        denied.demo.set(.mail, .denied)
+        let refused = await call(denied.tools, "mail_search", ["query": "Berger"])
+        let cannotLaunch = setup()
+        cannotLaunch.demo.mailRunning = false
+        cannotLaunch.demo.mailCanLaunch = false
+        let unavailable = await call(cannotLaunch.tools, "mail_search", ["query": "Berger"])
+        let firstUse = setup(granted: false, ask: true)
+        firstUse.demo.mailRunning = false
+        let granted = await call(firstUse.tools, "mail_search", ["query": "Berger"])
+        return needsAccess.isError && needsAccess.json["status"] as? String == "needs_access"
+            && refused.isError && refused.json["status"] as? String == "denied"
+            && unavailable.isError && unavailable.json["status"] as? String == "unavailable" && unavailable.json["data"] == nil
+            && !granted.isError && firstUse.demo.mailPreparations == 1
     }
 
     // MARK: Photos

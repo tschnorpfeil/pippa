@@ -29,5 +29,7 @@ let package = Package(
         .executableTarget(name: "PippaLive", dependencies: ["PippaCore"]),
         // Pi's RPC client (`pi --mode rpc`), used by the app.
         .target(name: "PiRPC"),
+        // Protocol regression checks with a fake Pi subprocess; no model, network, or macOS permissions.
+        .executableTarget(name: "PiRPCChecks", dependencies: ["PiRPC"]),
     ]
 )

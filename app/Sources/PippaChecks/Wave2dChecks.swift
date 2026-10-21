@@ -195,15 +195,18 @@ func runWave2dChecks() async {
 
     await runTerminalAutostartChecks(binary: binary, argsLog: argsLog)
 
-    // MARK: 3. Receipt lines for file changes (Pi runs them without asking; nothing to undo)
+    // MARK: 3. Receipt lines for file changes (tool errors do not establish that no changes happened)
 
     check("Receipt lines: folder, move, trash and failure in words, without any undo promise") {
         let folder = ActionReceipt.Item(action: "createFolder", outcome: "done", name: "Belege")
         let failed = ActionReceipt.Item(action: "createFolder", outcome: "failed", name: "Neu")
+        let blocked = ActionReceipt.Item(action: "createFolder", outcome: "blocked", name: "Neu")
         let moved = ActionReceipt.Item(action: "move", outcome: "done", name: "Downloads", toName: "Bilder, PDFs")
         let trashed = ActionReceipt.Item(action: "trash", outcome: "done", name: "Kopie.txt")
         return folder.line(language: "de") == "Ordner angelegt: Belege"
-            && failed.line(language: "de") == "Ordner nicht angelegt: Neu (hat nicht geklappt)"
+            && !failed.happened && failed.outcome == "failed"
+            && failed.line(language: "de") == "Nicht abgeschlossen: Neu · prüfe das Ergebnis vor einem neuen Versuch"
+            && blocked.line(language: "de") == "Ordner nicht angelegt: Neu (hat nicht geklappt)"
             && moved.line(language: "de") == "Verschoben: Downloads → Bilder, PDFs"
             && trashed.line(language: "de") == "In den Papierkorb gelegt: Kopie.txt · du kannst es aus dem Papierkorb zurücklegen"
     }

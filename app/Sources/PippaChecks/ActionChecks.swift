@@ -29,29 +29,29 @@ func runActionChecks() {
     check("Offers: fixture skills read") { skills.count == 7 }
     check("Offers: several images – one PDF, smaller only if large, as PDF") {
         let two = [f("a.jpg"), f("b.HEIC")]
-        let plain: [String] = ["make-one-pdf", "as-pdf"]
-        let large: [String] = ["make-one-pdf", "make-smaller", "as-pdf"]
+        let plain: [String] = ["make-one-pdf", "as-pdf", "extract-text", "remove-location"]
+        let large: [String] = ["make-one-pdf", "make-smaller", "as-pdf", "extract-text", "remove-location"]
         return ids(two, size: small) == plain && ids(two, size: big) == large
     }
     check("Offers: several PDFs – one PDF, smaller if large") {
         let two = [f("a.pdf"), f("b.pdf")]
-        let plain: [String] = ["make-one-pdf"]
-        let large: [String] = ["make-one-pdf", "make-smaller"]
+        let plain: [String] = ["make-one-pdf", "extract-text"]
+        let large: [String] = ["make-one-pdf", "make-smaller", "extract-text"]
         return ids(two, size: small) == plain && ids(two, size: big) == large
     }
     check("Offers: images and PDFs – one PDF, smaller") {
-        let expected: [String] = ["make-one-pdf", "make-smaller"]
+        let expected: [String] = ["make-one-pdf", "make-smaller", "extract-text"]
         return ids([f("a.png"), f("b.pdf")]) == expected
     }
     check("Offers: one image – as PDF, as JPG (as PNG for JPG), smaller") {
-        let heic: [String] = ["as-pdf", "as-jpg", "make-smaller"]
-        let jpeg: [String] = ["as-pdf", "as-png", "make-smaller"]
+        let heic: [String] = ["extract-text", "remove-location", "as-pdf", "as-jpg", "make-smaller"]
+        let jpeg: [String] = ["extract-text", "remove-location", "as-pdf", "as-png", "make-smaller"]
         return ids([f("IMG_0001.HEIC")]) == heic && ids([f("a.png")]) == heic && ids([f("a.JPG")]) == jpeg && ids([f("b.jpeg")]) == jpeg
     }
     check("Offers: one PDF – if large first smaller, then explain letter, reply; no offer without reason; missing skills drop out") {
-        let plain: [String] = []
-        let large: [String] = ["make-smaller"]
-        let bare: [String] = []
+        let plain: [String] = ["extract-text"]
+        let large: [String] = ["make-smaller", "extract-text"]
+        let bare: [String] = ["extract-text"]
         let one = [f("Brief.pdf")]
         let bigOne: (URL) -> Int64 = { _ in ThingActions.largeBytes + 1 }
         return ids(one) == plain && ids(one, size: bigOne) == large && ids(one, with: []) == bare
@@ -90,8 +90,8 @@ func runActionChecks() {
         let pdfs = ThingActions.candidates(for: [f("a.pdf"), f("b.pdf")], size: big, skills: skills)
         let letter = ThingActions.candidates(for: [f("Brief.pdf")], size: small, skills: skills)
         return pdfs.first?.handler == .tool(.makeOnePDF) && pdfs.first?.title == ToolID.makeOnePDF.title
-            && pdfs.last?.handler == .tool(.makeSmaller)
-            && letter.isEmpty
+            && pdfs.contains { $0.handler == .tool(.makeSmaller) }
+            && letter.map(\.id) == ["extract-text"]
     }
     check("Offers: kind for the log – several scans, otherwise by extension") {
         let folder = URL(fileURLWithPath: "/Users/test/Downloads", isDirectory: true)
@@ -147,7 +147,7 @@ func runActionChecks() {
     // MARK: Habits
 
     let scans = [f("a.pdf"), f("b.pdf")]
-    let all: [String] = ["make-one-pdf", "make-smaller"]
+    let all: [String] = ["make-one-pdf", "make-smaller", "extract-text"]
     func record(_ chosen: String?, offered: [String] = ["make-one-pdf", "make-smaller"], kind: TaskKind = .scans, days: Double = 1) -> TaskRecord {
         TaskRecord(at: now.addingTimeInterval(-days * 86_400), kind: kind, offered: offered, chosen: chosen, outcome: chosen == nil ? nil : .kept)
     }
@@ -167,18 +167,19 @@ func runActionChecks() {
         guard let kind = ThingActions.taskKind(for: photo) else { return false }
         let rows = (1...3).map { record("make-smaller", offered: candidates, kind: kind, days: Double($0)) }
         let ranked = offered(photo, rows)
-        return candidates.count == 3 && plain == candidates && ranked.count == 3 && Set(ranked) == Set(candidates)
+        return candidates.count == 5 && plain == Array(candidates.prefix(3)) && ranked.count == 3
+            && ranked.contains("make-smaller") && Set(ranked).isSubset(of: Set(candidates))
     }
     check("Offers: chosen three times moves to the front") {
         let rows = [record("invoice-table"), record("invoice-table", days: 2), record("invoice-table", days: 3)]
-        let expected: [String] = ["make-one-pdf", "make-smaller"]
+        let expected: [String] = ["make-one-pdf", "make-smaller", "extract-text"]
         return offered(scans, rows) == expected
     }
     check("Offers: offered five times and never chosen steps back; other kinds don't count") {
         var rows: [TaskRecord] = []
         for d in 1...5 { rows.append(record(nil, offered: ["make-smaller"], days: Double(d))) }
         let other = (1...5).map { record(nil, offered: ["make-one-pdf"], kind: .letter, days: Double($0)) }
-        let expected: [String] = ["make-one-pdf"]
+        let expected: [String] = ["make-one-pdf", "extract-text"]
         return offered(scans, rows + other) == expected
     }
 }

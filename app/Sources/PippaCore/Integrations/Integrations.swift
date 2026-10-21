@@ -120,6 +120,9 @@ public struct MailMessage: Sendable, Hashable {
 /// calls `add` only after "Anwenden"). No sending, no deleting of others' things.
 public protocol AppIntegrations: Sendable {
     func access(_ integration: Integration) async -> IntegrationAccess
+    /// Prepare Mail for an explicitly requested search or draft, opening it in the background if needed.
+    /// Never shows a permission prompt. Reading the current selection still uses `access(.mail)`.
+    func prepareMailAccess() async -> IntegrationAccess
     /// Shows the system prompt if needed. Only call when the person is using the feature right now.
     func requestAccess(_ integration: Integration) async -> IntegrationAccess
     func add(_ entry: CalendarEntry, tag: URL) async throws -> CreatedItem
@@ -134,6 +137,7 @@ public protocol AppIntegrations: Sendable {
 }
 
 public extension AppIntegrations {
+    func prepareMailAccess() async -> IntegrationAccess { await access(.mail) }
     func insertReply(_ draft: MailDraft) async throws -> MailInsertResult { throw PippaError.notAvailable }
     func events(in interval: DateInterval, limit: Int) async throws -> CalendarFetch { throw PippaError.notAvailable }
 }
@@ -159,6 +163,11 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
     /// Tests: what `insertReply` reports instead of a draft (error) or which result (e.g. `replyNeedsPaste`).
     public var replyFailure: MailReplyFailure?
     public var replyOutcome: MailInsertResult?
+    /// Checks: Mail can be closed independently of its remembered permission.
+    public var mailRunning = true
+    public var mailCanLaunch = true
+    private var preparedMailCount = 0
+    public var mailPreparations: Int { lock.withLock { preparedMailCount } }
 
     public init(granted: Bool = false) {
         state = Dictionary(uniqueKeysWithValues: Integration.allCases.map { ($0, granted ? .granted : .notDetermined) })
@@ -170,7 +179,20 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
 
     public func set(_ integration: Integration, _ access: IntegrationAccess) { lock.withLock { state[integration] = access } }
 
-    public func access(_ integration: Integration) async -> IntegrationAccess { lock.withLock { state[integration] ?? .notDetermined } }
+    public func access(_ integration: Integration) async -> IntegrationAccess {
+        lock.withLock {
+            if integration == .mail && !mailRunning { return .unavailable(L("%@ isn’t open right now.", table: "Core", Integration.mail.appName)) }
+            return state[integration] ?? .notDetermined
+        }
+    }
+
+    public func prepareMailAccess() async -> IntegrationAccess {
+        lock.withLock {
+            preparedMailCount += 1
+            if mailCanLaunch { mailRunning = true }
+        }
+        return await access(.mail)
+    }
 
     public func requestAccess(_ integration: Integration) async -> IntegrationAccess {
         lock.withLock {
@@ -213,6 +235,7 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
         }
         let (failure, outcome) = lock.withLock { (replyFailure, replyOutcome) }
         if let failure { throw failure }
+        try PippaMCPWriteLease.current?.beginDispatch()
         lock.withLock { drafts.append(draft) }
         return outcome ?? (draft.isReply ? .reply : .newMessage)
     }
@@ -264,6 +287,7 @@ extension DemoIntegrations: HostWriting {
         let id = "demo-\(UUID().uuidString)"
         let item = CreatedItem(integration: .calendar, identifier: id, modified: Date(), fingerprint: "demo-\(id)")
         let calendar = calendarNames.last ?? "Privat"
+        try PippaMCPWriteLease.current?.beginDispatch()
         lock.withLock {
             items[id] = (item, event.title)
             addedEvents[id] = CalendarEvent(id: id, title: event.title, start: event.start, end: event.end, allDay: event.allDay,
@@ -278,6 +302,7 @@ extension DemoIntegrations: HostWriting {
         let item = CreatedItem(integration: .reminders, identifier: id, modified: Date(), fingerprint: "demo-\(id)")
         let wanted = reminder.list?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let named = wanted.flatMap { name in reminderLists.first { $0.lowercased() == name } }
+        try PippaMCPWriteLease.current?.beginDispatch()
         lock.withLock { items[id] = (item, reminder.title) }
         return HostWrite(item: item, container: named ?? reminderLists.first ?? "Erinnerungen", containerMatched: wanted == nil || named != nil)
     }

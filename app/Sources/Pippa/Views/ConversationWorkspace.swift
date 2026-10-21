@@ -38,7 +38,10 @@ struct ConversationWorkspace: View {
                         // An open card sits where it arose in the history; follow-up questions come below it.
                         let showsCard = mode.key != "input"
                         let anchor = showsCard ? min(model.cardAnchor, messages.count) : messages.count
-                        if messages.isEmpty && !model.isActiveWork { welcome }
+                        if ConversationEntryPresentation.showsWelcome(messageCount: messages.count,
+                            isWorking: model.isActiveWork, hasWorkflow: showsCard, context: chat.current?.context) {
+                            welcome
+                        }
                         let topicStart = TopicBoundary.latestStart(messages)
                         ForEach(Array(messages.prefix(anchor).enumerated()), id: \.element.id) { index, message in
                             topicRow(message, earlier: topicStart.map { index < $0 } ?? false)
@@ -192,8 +195,10 @@ struct ConversationWorkspace: View {
     /// Selected text, receipt or preview: whatever currently belongs to the conversation.
     @ViewBuilder private var card: some View {
         if case .input = mode {
+            let showsContextActions = ConversationEntryPresentation.showsContextActions(
+                messages: chat.current?.messages ?? [], isWorking: model.isActiveWork)
             if let selected = chat.current?.context?.selectedText,
-               (chat.current?.messages.isEmpty ?? true), !model.isActiveWork {
+               showsContextActions {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(T("Selected Text", table: "Views")).font(Fonts.head)
                     Text(String(selected.prefix(240)) + (selected.count > 240 ? "…" : ""))
@@ -201,7 +206,7 @@ struct ConversationWorkspace: View {
                     SkillActions(model: model, place: .text)
                 }.padding(16).frame(maxWidth: .infinity, alignment: .leading).background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 16))
             } else if let ctx = chat.current?.context, !ctx.files.isEmpty,
-                       (chat.current?.messages.isEmpty ?? true), !model.isActiveWork {
+                       showsContextActions {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) {
                         Image(systemName: ctx.files.count == 1 && ctx.files[0].hasDirectoryPath ? "folder.fill" : "doc.on.doc.fill")
@@ -419,8 +424,8 @@ struct ConversationWorkspace: View {
                         if !message.attachments.isEmpty {
                             DocumentAttachmentStrip(files: message.attachments, disabled: false)
                         }
-                        if let retry {
-                            Button { model.route(retry) } label: {
+                        if retry != nil {
+                            Button { chat.retryFailed(notice: message.id) } label: {
                                 Label(T("Try Again", table: "Views"), systemImage: "arrow.clockwise")
                             }
                             .pippa(.tinted).disabled(model.isActiveWork)

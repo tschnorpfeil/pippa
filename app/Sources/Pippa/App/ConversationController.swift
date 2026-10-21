@@ -23,15 +23,53 @@ final class ConversationController: ObservableObject {
     var recordChanges: (([AgentChange]) async -> UUID?)?
     /// The failed answer's note and the question it answered, for "Try again" on that note (cleared by the next send).
     @Published private(set) var failed: (notice: UUID, question: String)?
+    private struct FailedRequest {
+        let conversationID: UUID
+        let nativeRequestID: UUID?
+        let source: ConversationRetryGuard
+        let workflowSummary: String
+        let modelLabel: String?
+        let skill: PippaSkill?
+        let frontApp: FrontApp?
+        let chat: any ConversationChat
+    }
+    private var failedRequest: FailedRequest?
     private var lastAnnouncedKind: String?
     private var lastAnnouncement: Date?
     private var store: ConversationStore?
     private var request: Task<Void, Never>?
     private var requestID: UUID?
+    private var nativeRecovery: Task<Void, Never>?
     /// Who writes the running answer (Pi, or a stand-in in debug captures).
     private var runningChat: (any ConversationChat)?
     /// "Stop" pressed: the partial answer stays, marked as stopped rather than as an error.
     private var stopRequested = false
+
+    /// Lives with one answer's callback, including native confirmations arriving after the answer has stopped.
+    @MainActor private final class NativeWriteDelivery {
+        var messageID: UUID?
+        var pending: [ActionReceipt.Item] = []
+    }
+
+    private func receiveNativeWrite(_ item: ActionReceipt.Item, delivery: NativeWriteDelivery, conversationID: UUID) {
+        guard let messageID = delivery.messageID else { delivery.pending.append(item); return }
+        guard let store else { return }
+        do {
+            let updated = try store.recordNativeWrite(item, messageID: messageID, in: conversationID)
+            if current?.id == conversationID { current = updated }
+            refresh()
+        } catch ConversationStoreError.unknownConversation {
+            // The person may have deleted the original conversation while macOS was finishing.
+        } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
+    }
+
+    private func bindNativeWrites(_ delivery: NativeWriteDelivery, messageID: UUID?, conversationID: UUID) {
+        guard let messageID else { return }
+        delivery.messageID = messageID
+        let pending = delivery.pending
+        delivery.pending = []
+        for item in pending { receiveNativeWrite(item, delivery: delivery, conversationID: conversationID) }
+    }
 
     /// Written during an answer or file task: comes up next. `handedToPi`: Pi reads it along after the current
     /// step (steering); otherwise AppModel sends it as its own message after the work.
@@ -54,7 +92,41 @@ final class ConversationController: ObservableObject {
             if store.setAside != nil {
                 append(.system, T("I couldn’t read the earlier conversation history. I kept a copy of it and I’m starting fresh here.", table: "App"))
             }
+            recoverNativeReminderHistory()
         } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
+    }
+
+    /// Startup reconciliation is read-only in Reminders and never delays the first-use interface or asks for access.
+    private func recoverNativeReminderHistory() {
+        let base = Pippa.supportDirectory
+        guard DevEnvironment.value("PIPPA_SNAPSHOT") == nil,
+              FileManager.default.fileExists(atPath: base.appendingPathComponent("journal.sqlite").path) else { return }
+        nativeRecovery = Task { [weak self] in
+            defer { self?.nativeRecovery = nil }
+            do {
+                let records = try await Task.detached(priority: .utility) {
+                    let journal = try Executor(baseDirectory: base)
+                    return try await journal.reconcileNativeReminders(using: SystemIntegrations())
+                }.value
+                guard let self, let store = self.store else { return }
+                let groups = Dictionary(grouping: records.filter { $0.origin != nil }) { $0.origin!.conversationID }
+                for (conversationID, records) in groups {
+                    let updates = records.compactMap { record -> (requestID: UUID, item: ActionReceipt.Item)? in
+                        guard let origin = record.origin else { return nil }
+                        return (origin.requestID, record.receipt.item)
+                    }
+                    do {
+                        let updated = try store.recordRecoveredNativeWrites(updates, in: conversationID)
+                        if self.current?.id == conversationID { self.current = updated }
+                    } catch ConversationStoreError.unknownConversation {
+                        // Deleted history stays deleted; the journal cannot recreate it.
+                    }
+                }
+                self.refresh()
+            } catch {
+                DiagnosticsLog.shared.event("native-recovery", ["status": "unavailable"])
+            }
+        }
     }
 
     /// Deletes a conversation together with its agent history. If it was open, continues with the next (or a new one).
@@ -112,20 +184,22 @@ final class ConversationController: ObservableObject {
         catch { self.error = UserMessage.text(for: error, context: "gespraech") }
     }
 
-    func append(_ role: ConversationMessage.Role, _ text: String, attachments: [URL] = [], modelLabel: String? = nil, stopped: Bool = false, notice: Bool = false,
+    @discardableResult func append(_ role: ConversationMessage.Role, _ text: String, attachments: [URL] = [], modelLabel: String? = nil, stopped: Bool = false, notice: Bool = false,
                 previousConversation: UUID? = nil, receipt: UUID? = nil, draft: Bool = false, mailDraft: ConversationMailDraft? = nil, capturingAttachments: Bool = false,
-                calendar: ConversationCalendarRead? = nil, work: WorkReceipt? = nil, actions: ActionReceipt? = nil, topicStart: Bool = false) {
-        guard let store, let current, !text.isEmpty else { return }
+                calendar: ConversationCalendarRead? = nil, work: WorkReceipt? = nil, actions: ActionReceipt? = nil, topicStart: Bool = false) -> UUID? {
+        guard let store, let current, !text.isEmpty else { return nil }
         do {
             if role == .user && !current.messages.contains(where: { $0.role == .user }) {
                 _ = try store.rename(current.id, title: String(text.prefix(60)))
             }
-            self.current = try store.append(ConversationMessage(role: role, text: text, attachments: attachments, modelLabel: modelLabel,
+            let message = ConversationMessage(role: role, text: text, attachments: attachments, modelLabel: modelLabel,
                                                                 stopped: stopped, notice: notice, previousConversation: previousConversation,
                                                                 receipt: receipt, draft: draft, mailDraft: mailDraft, calendar: calendar, work: work, actions: actions,
-                                                                topicStart: topicStart), to: current.id, capturingAttachments: capturingAttachments)
+                                                                topicStart: topicStart)
+            self.current = try store.append(message, to: current.id, capturingAttachments: capturingAttachments)
             refresh()
-        } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
+            return message.id
+        } catch { self.error = UserMessage.text(for: error, context: "gespraech"); return nil }
     }
 
     @discardableResult func updateMailDraft(messageID: UUID, draft: ConversationMailDraft) -> Bool {
@@ -161,11 +235,12 @@ final class ConversationController: ObservableObject {
     /// `chat`: who answers (default: `PiRPCChat.conversation`; debug captures pass a stand-in).
     /// `frontApp`: the app of the chip above the input (only its name and title go along; FrontApp.swift).
     func send(_ text: String, chat: (any ConversationChat)? = nil, workflowSummary: String = "", modelLabel: String? = nil,
-              skill: PippaSkill? = nil, frontApp: FrontApp? = nil) {
+              skill: PippaSkill? = nil, frontApp: FrontApp? = nil, nativeIntentID: UUID? = nil) {
         let chat = chat ?? PiRPCChat.conversation
         guard !isRunning, let id = current?.id, store != nil else { return }
         error = nil
         failed = nil
+        failedRequest = nil
         // A new topic inside the conversation: Pi starts a fresh, small session with a short handover (TopicBoundary).
         // Not while things are handed over here: those belong to the conversation's topic.
         var topicStart = false
@@ -176,9 +251,11 @@ final class ConversationController: ObservableObject {
             current = restarted
             topicStart = true
         }
-        append(.user, text, capturingAttachments: true, topicStart: topicStart)
+        let userMessageID = append(.user, text, capturingAttachments: true, topicStart: topicStart)
         guard error == nil else { return }
         let context = current?.context
+        let nativeRequestID = nativeIntentID ?? userMessageID
+        let retrySource = ConversationRetryGuard(context: context)
         // What is newly shown with this message is spelled out in Pi's message.
         let newFiles = current?.messages.last(where: { $0.role == .user })?.attachments ?? []
         let sessionID = current?.modelSessionRevision.map { id.uuidString + ":" + $0.uuidString } ?? id.uuidString
@@ -201,6 +278,7 @@ final class ConversationController: ObservableObject {
             }
         }
         let record = recordChanges
+        let nativeWrites = NativeWriteDelivery()
         request = Task { [weak self] in
             var scoped: [URL] = []
             defer {
@@ -228,9 +306,20 @@ final class ConversationController: ObservableObject {
             let focusedMail = mailFiles.filter { context?.focusedFiles?.contains($0) == true }
             let replyCandidates = focusedMail.isEmpty ? mailFiles : focusedMail
             let replySource: MailReplySource? = replyCandidates.count == 1 ? MailReplySource.capture(from: replyCandidates[0]) : nil
+            let nativeHistory = NativeReceiptContext.summary(messages: self?.current?.messages ?? [])
             var chatContext = ChatContext(files: urls, focusedFiles: context?.focusedFiles ?? [], selectedText: context?.selectedText ?? "", workflowSummary: workflowSummary)
+            chatContext.nativeReceiptSummary = nativeHistory
+            chatContext.nativeConversationID = id
+            chatContext.nativeRequestID = nativeRequestID
             chatContext.onWork = { event in workSink.yield(event) }
+            chatContext.onNativeWrite = { [weak self] receipt in
+                Task { @MainActor [weak self] in
+                    self?.receiveNativeWrite(receipt.item, delivery: nativeWrites, conversationID: id)
+                }
+            }
             chatContext.frontApp = frontApp
+            var recordedUndo: UUID?
+            var changesRecorded = false
             do {
                 // The real Pi via `pi --mode rpc` (PiRPCChat), a stand-in in debug captures (ConversationChat).
                 let onDelta: @Sendable (String) -> Void = { [weak self] delta in
@@ -249,10 +338,12 @@ final class ConversationController: ObservableObject {
                         }
                     }
                 // With what was shown, source checking and looking things up online (PiRPCChat+Shown.swift); skills.
+                guard self?.stopRequested != true, !Task.isCancelled else { throw CancellationError() }
                 let answer = try await chat.answer(text, taskID: sessionID, context: chatContext, newFiles: newFiles, skill: skill,
                                                    draftOnly: false, onDelta: onDelta, onSteered: onSteered, onReset: nil).text
                 // Recorded even if the person moved on: the menu bar's recent jobs can still undo it.
-                let undo = await record?(chat.takeChanges())
+                recordedUndo = await record?(chat.takeChanges())
+                changesRecorded = true
                 guard let self, self.current?.id == id, self.requestID == requestID else { return }
                 // Some engines finish normally after cancellation. Preserve only
                 // the text accepted before Stop, never a completed draft or plan.
@@ -260,11 +351,12 @@ final class ConversationController: ObservableObject {
                 let work = self.thought.finish(request: requestID, at: Date())
                 // "What happened" from tool events and Pippa's own results, never from the answer text.
                 let actions = chat.takeShownActions()
-                self.append(.assistant, answer, attachments: chat.takeSearchFiles(), modelLabel: modelLabel, receipt: undo, draft: skill?.writesDraft == true,
+                let messageID = self.append(.assistant, answer, attachments: chat.takeSearchFiles(), modelLabel: modelLabel, receipt: recordedUndo, draft: skill?.writesDraft == true,
                             mailDraft: skill?.name == "antwort-schreiben" ? ConversationMailDraft(
                                 to: replySource.flatMap { MailAddress.parse($0.replyTo ?? "").address } ?? "",
                                 subject: replySource.map { MailDraft(messageID: $0.messageID, to: nil, toName: nil, subject: $0.subject, body: "").replySubject } ?? "",
                                 body: answer, replySource: replySource, requiresOriginalReply: !mailFiles.isEmpty) : nil, work: work, actions: actions)
+                self.bindNativeWrites(nativeWrites, messageID: messageID, conversationID: id)
                 self.clearStream()
                 self.onAnswerFinished?(false)
                 // VoiceOver: announce the finished answer once (not every streamed piece).
@@ -272,31 +364,53 @@ final class ConversationController: ObservableObject {
                                      userInfo: [.announcement: "Pippa: " + answer, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
             } catch {
                 // What changed before the stop or error can be undone as well.
-                let undo = await record?(chat.takeChanges())
+                if !changesRecorded { recordedUndo = await record?(chat.takeChanges()) }
                 guard let self, self.current?.id == id, self.requestID == requestID else { return }
                 var partial: String?
                 // Also when stopped or failed: what tools did until then is shown with it.
                 let actions = chat.takeShownActions()
                 let found = chat.takeSearchFiles()
+                let messageID: UUID?
                 if case AnswerFailure.stopped(let text) = error { partial = text }
                 else if self.stopRequested || Task.isCancelled { self.flushDeltas(); partial = self.streamingText }
                 if let partial {
                     // Stopped is not an error: what was already written stays.
                     if partial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        self.append(.system, T("Answer stopped. You can pick up from here.", table: "App"), receipt: undo, actions: actions)
+                        messageID = self.append(.system, T("Answer stopped. You can pick up from here.", table: "App"), receipt: recordedUndo, actions: actions)
                     } else {
-                        self.append(.assistant, partial, attachments: found, modelLabel: modelLabel, stopped: true, receipt: undo, actions: actions)
+                        messageID = self.append(.assistant, partial, attachments: found, modelLabel: modelLabel, stopped: true, receipt: recordedUndo, actions: actions)
                     }
                 } else {
                     self.error = PiRPCChat.userText(for: error, context: "gespraech")
-                    self.append(.system, PiRPCChat.userText(for: error, context: "antwort"), notice: true, receipt: undo, actions: actions)
-                    if let notice = self.current?.messages.last?.id { self.failed = (notice, text) }
+                    messageID = self.append(.system, PiRPCChat.userText(for: error, context: "antwort"), notice: true, receipt: recordedUndo, actions: actions)
+                    if let notice = self.current?.messages.last?.id {
+                        self.failed = (notice, text)
+                        self.failedRequest = FailedRequest(conversationID: id, nativeRequestID: nativeRequestID,
+                            source: retrySource, workflowSummary: workflowSummary, modelLabel: modelLabel,
+                            skill: skill, frontApp: frontApp, chat: chat)
+                    }
                     self.onAnswerFinished?(true)
                 }
+                self.bindNativeWrites(nativeWrites, messageID: messageID, conversationID: id)
                 self.clearStream()
             }
         }
         steerNext()
+    }
+
+    /// An explicit retry keeps the original native intent and chosen skill; typing a new question creates a new intent.
+    func retryFailed(notice: UUID) {
+        guard !isRunning, let failed, failed.notice == notice, let request = failedRequest,
+              current?.id == request.conversationID else { return }
+        // Live app contents have no immutable snapshot here. Ask for a fresh source instead of silently reading
+        // another tab/document under the original label. File retries require unchanged regular-file identities.
+        guard request.frontApp == nil, request.source.matches(context: current?.context) else {
+            self.failed = nil; failedRequest = nil
+            append(.system, T("The source changed or couldn’t be checked. Please check it and send your request again.", table: "App"))
+            return
+        }
+        send(failed.question, chat: request.chat, workflowSummary: request.workflowSummary, modelLabel: request.modelLabel,
+             skill: request.skill, frontApp: request.frontApp, nativeIntentID: request.nativeRequestID)
     }
 
     /// Streamed text is shown in small batches (~12 per second), not per token: every change re-renders the
