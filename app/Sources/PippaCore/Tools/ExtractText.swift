@@ -14,12 +14,13 @@ enum ExtractText {
             var hasText = false
             func append(_ text: String, page: Int, ocr: Bool) throws {
                 size += text.utf8.count
-                hasText = hasText || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                let readable = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                hasText = hasText || readable
                 guard size <= NativeFileLimits.textBytes else {
                     throw ToolFailure.cannotProcess(name: url.lastPathComponent, reason: L("The extracted text exceeds 2 MB. Nothing was exported; no text was cut off.", table: "Tools"))
                 }
                 let method = ocr ? L("Recognized from image (OCR; please check)", table: "Tools") : L("Embedded PDF text", table: "Tools")
-                sections.append(L("Page %lld — %@", table: "Tools", page, method) + "\n" + (text.isEmpty ? L("No readable text was recognized on this page.", table: "Tools") : text))
+                sections.append(L("Page %lld — %@", table: "Tools", page, method) + "\n" + (readable ? text : L("No readable text was recognized on this page.", table: "Tools")))
             }
             if ToolFiles.kind(of: url) == .pdf {
                 let doc = try ToolPDF.open(url, password: passwords[url])

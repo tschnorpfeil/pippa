@@ -114,23 +114,43 @@ func runNativeToolChecks() async {
     await checkAsync("Extract text: mixed PDF keeps native text, OCR page text and an explicit blank-page marker") {
         let mixed = folder.appendingPathComponent("Mixed.pdf")
         let scanned = folder.appendingPathComponent("Scan.pdf")
+        func failed(_ stage: String, text: String? = nil, conditions: [(String, Bool)] = []) -> Bool {
+            func escaped(_ value: String?) -> String {
+                (try? JSONEncoder().encode(value)).map { String(decoding: $0, as: UTF8.self) } ?? "<encoding failed>"
+            }
+            print("Mixed PDF fixture failure: \(stage)")
+            if !conditions.isEmpty { print("Conditions: " + conditions.map { "\($0.0)=\($0.1)" }.joined(separator: ", ")) }
+            print("Synthetic exported text: \(escaped(text))")
+            if let persisted = PDFDocument(url: mixed) {
+                print("Persisted PDF pageCount: \(persisted.pageCount)")
+                for index in 0..<persisted.pageCount {
+                    print("Persisted page \(index + 1) string: \(escaped(persisted.page(at: index)?.string))")
+                }
+            } else { print("Persisted PDF could not be opened.") }
+            return false
+        }
         var bounds = CGRect(x: 0, y: 0, width: 450, height: 600)
-        guard let canvas = CGContext(scanned as CFURL, mediaBox: &bounds, nil) else { return false }
+        guard let canvas = CGContext(scanned as CFURL, mediaBox: &bounds, nil) else { return failed("create scanned PDF context") }
         canvas.beginPDFPage(nil); canvas.draw(image, in: bounds); canvas.endPDFPage()
         canvas.closePDF()
-        guard let document = PDFDocument(url: pdf), let scan = PDFDocument(url: scanned)?.page(at: 0),
-              let scanCopy = scan.copy() as? PDFPage else { return false }
+        guard let document = PDFDocument(url: pdf) else { return failed("open native PDF") }
+        guard let scan = PDFDocument(url: scanned)?.page(at: 0) else { return failed("open scanned page") }
+        guard let scanCopy = scan.copy() as? PDFPage else { return failed("copy scanned page") }
         document.removePage(at: 1)
         document.insert(scanCopy, at: 1)
         let blank = PDFPage(); blank.setBounds(bounds, for: .mediaBox)
         document.insert(blank, at: 2)
-        guard document.write(to: mixed) else { return false }
+        guard document.write(to: mixed) else { return failed("write mixed PDF") }
         let output = try await OneAnswerTools.run(.extractText, inputs: [mixed])
         let text = try String(contentsOf: output.files[0], encoding: .utf8)
-        return text.contains("First page: 84.20 EUR.") && text.contains("4711")
-            && text.contains(L("Embedded PDF text", table: "Tools"))
-            && text.contains(L("Page %lld — %@", table: "Tools", 3, L("Recognized from image (OCR; please check)", table: "Tools")))
-            && text.contains(L("No readable text was recognized on this page.", table: "Tools"))
+        let conditions = [
+            ("native text", text.contains("First page: 84.20 EUR.")),
+            ("scanned identifier", text.contains("4711")),
+            ("embedded provenance", text.contains(L("Embedded PDF text", table: "Tools"))),
+            ("page 3 OCR provenance", text.contains(L("Page %lld — %@", table: "Tools", 3, L("Recognized from image (OCR; please check)", table: "Tools")))),
+            ("blank-page marker", text.contains(L("No readable text was recognized on this page.", table: "Tools"))),
+        ]
+        return conditions.allSatisfy { $0.1 } || failed("export conditions", text: text, conditions: conditions)
     }
     await checkAsync("Extract text: blank images return an explicit no-text reason without a misleading empty artifact") {
         let blank = folder.appendingPathComponent("Blank.png")
