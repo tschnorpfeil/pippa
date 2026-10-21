@@ -177,7 +177,9 @@ enum MakePDF {
                     }
                 }
                 guard out.pageCount > 0 else { throw failure(for: usable.map { $0.url }, skipped: skipped) }
-                guard out.write(to: temp) else { throw CocoaError(.fileWriteUnknown) }
+                // Copied PDF pages can still reference their source document's image resources until serialization.
+                let written = withExtendedLifetime((documents, imageDocument)) { out.write(to: temp) }
+                guard written else { throw CocoaError(.fileWriteUnknown) }
             }
             try Task.checkCancellation()
             let file = try ResultFile.place(temp, as: ResultNaming.name(for: .makeOnePDF, inputs: used), in: folder)

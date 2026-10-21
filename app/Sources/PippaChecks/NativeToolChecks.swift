@@ -114,6 +114,24 @@ func runNativeToolChecks() async {
     await checkAsync("Extract text: mixed PDF keeps native text, OCR page text and an explicit blank-page marker") {
         let mixed = folder.appendingPathComponent("Mixed.pdf")
         let scanned = folder.appendingPathComponent("Scan.pdf")
+        func renderedInk(_ url: URL, page number: Int) -> Int? {
+            let width = 180, height = 240
+            guard let document = CGPDFDocument(url as CFURL), let page = document.page(at: number),
+                  let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+                  let data = context.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
+            let bounds = CGRect(x: 0, y: 0, width: width, height: height)
+            context.setFillColor(CGColor(gray: 1, alpha: 1)); context.fill(bounds)
+            context.concatenate(page.getDrawingTransform(.mediaBox, rect: bounds, rotate: 0, preserveAspectRatio: true))
+            return withExtendedLifetime((document, context)) {
+                context.drawPDFPage(page)
+                return (0..<(width * height)).reduce(0) { count, pixel in
+                    let offset = pixel * 4
+                    return count + ((data[offset] < 240 || data[offset + 1] < 240 || data[offset + 2] < 240) ? 1 : 0)
+                }
+            }
+        }
         func failed(_ stage: String, text: String? = nil, conditions: [(String, Bool)] = []) -> Bool {
             func escaped(_ value: String?) -> String {
                 (try? JSONEncoder().encode(value)).map { String(decoding: $0, as: UTF8.self) } ?? "<encoding failed>"
@@ -121,6 +139,7 @@ func runNativeToolChecks() async {
             print("Mixed PDF fixture failure: \(stage)")
             if !conditions.isEmpty { print("Conditions: " + conditions.map { "\($0.0)=\($0.1)" }.joined(separator: ", ")) }
             print("Synthetic exported text: \(escaped(text))")
+            print("Rendered scan ink pixels (180×240): source=\(String(describing: renderedInk(scanned, page: 1))), persisted page 2=\(String(describing: renderedInk(mixed, page: 2)))")
             if let persisted = PDFDocument(url: mixed) {
                 print("Persisted PDF pageCount: \(persisted.pageCount)")
                 for index in 0..<persisted.pageCount {
@@ -133,14 +152,17 @@ func runNativeToolChecks() async {
         guard let canvas = CGContext(scanned as CFURL, mediaBox: &bounds, nil) else { return failed("create scanned PDF context") }
         canvas.beginPDFPage(nil); canvas.draw(image, in: bounds); canvas.endPDFPage()
         canvas.closePDF()
+        guard let sourceInk = renderedInk(scanned, page: 1), sourceInk > 0 else { return failed("source scanned page has no rendered content") }
         guard let document = PDFDocument(url: pdf) else { return failed("open native PDF") }
-        guard let scan = PDFDocument(url: scanned)?.page(at: 0) else { return failed("open scanned page") }
+        guard let scanDocument = PDFDocument(url: scanned), let scan = scanDocument.page(at: 0) else { return failed("open scanned page") }
         guard let scanCopy = scan.copy() as? PDFPage else { return failed("copy scanned page") }
         document.removePage(at: 1)
         document.insert(scanCopy, at: 1)
         let blank = PDFPage(); blank.setBounds(bounds, for: .mediaBox)
         document.insert(blank, at: 2)
-        guard document.write(to: mixed) else { return failed("write mixed PDF") }
+        // PDFPage keeps a weak document reference; preserve the scan's backing resources through serialization.
+        guard withExtendedLifetime(scanDocument, { document.write(to: mixed) }) else { return failed("write mixed PDF") }
+        guard let persistedInk = renderedInk(mixed, page: 2), persistedInk > 0 else { return failed("persisted scanned page has no rendered content") }
         let output = try await OneAnswerTools.run(.extractText, inputs: [mixed])
         let text = try String(contentsOf: output.files[0], encoding: .utf8)
         let conditions = [
