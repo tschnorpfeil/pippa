@@ -506,8 +506,9 @@ public actor LlamaServer {
         guard pressure == nil else { return }
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .global(qos: .utility))
         source.setEventHandler { [weak self] in
+            guard let self else { return }
             let critical = source.data.contains(.critical)
-            Task { await self?.memoryPressure(critical: critical) }
+            Task { await self.memoryPressure(critical: critical) }
         }
         source.resume()
         pressure = source
