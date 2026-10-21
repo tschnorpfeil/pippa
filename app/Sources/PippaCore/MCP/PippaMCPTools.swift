@@ -31,6 +31,8 @@ public struct PippaMCPHost: Sendable {
     public var onWrite: (@Sendable (PippaMCPWriteReceipt) -> Void)?
     /// The running answer on the Pi RPC path (`read_document`; PippaMCPTurn.swift).
     public var turns: PippaMCPTurns = .shared
+    /// The app requires an active answer for MCP writes. Standalone hosts/checks may use independent actions.
+    public var requireActiveWriteTurn = false
     /// Create events and reminders (PippaMCPWrite.swift). `nil`: the three tools say "not available right now".
     public var writer: (any HostWriting)?
     /// The app in front at the call, as the chip shows it for the running answer (`front_read`). `nil`: no chip.
@@ -97,6 +99,8 @@ public struct PippaMCPReadNote: Sendable, Equatable {
     public var mail: MailReplySource?
     /// What was read, as a card under the answer (calendar, mail search, photos search).
     public var card: ResultCard?
+    /// Captured request origin, so late reads cannot appear under a newer answer.
+    public var turnID: UUID?
     public init(tool: String, read: Bool, line: String, mail: MailReplySource? = nil, card: ResultCard? = nil) {
         self.tool = tool; self.read = read; self.line = line; self.mail = mail; self.card = card
     }
@@ -126,25 +130,37 @@ public struct PippaMCPTools: Sendable {
 
     /// Pippa reads the app in front itself when the question means it (`FrontQuestion`): the same `front_read` as Pi's
     /// call, with the same permission steps and read receipt; the result goes into the message (PiRPCChat+Shown.swift).
-    public func readFront() async -> PippaMCPToolResult { await call("front_read", ToolInput([:])) }
+    public func readFront() async -> PippaMCPToolResult { await call("front_read", ToolInput("front_read", [:]), context: captureRequest()) }
 
     // MARK: JSON-RPC
 
+    /// Capture before scheduling network work, not after an await. A later answer can never inherit this request.
+    public func captureRequest() -> PippaMCPRequestContext {
+        let turn = host.turns.active
+        let writes = turn?.writes ?? PippaMCPWriteScope()
+        if turn == nil && host.requireActiveWriteTurn { writes.cancel() }
+        return PippaMCPRequestContext(turn: turn, writes: writes, front: host.shownFront())
+    }
+
     /// One HTTP message (an object or a list). `nil`: nothing to answer (notifications only) → HTTP 202.
     public func handle(_ body: Data) async -> Data? {
+        await handle(body, context: captureRequest())
+    }
+
+    public func handle(_ body: Data, context: PippaMCPRequestContext) async -> Data? {
         guard let json = try? JSONSerialization.jsonObject(with: body) else {
             return Self.encode(Self.error(id: NSNull(), code: -32700, message: "Parse error"))
         }
         if let batch = json as? [Any] {
             guard !batch.isEmpty else { return Self.encode(Self.error(id: NSNull(), code: -32600, message: "Invalid Request")) }
             var replies: [[String: Any]] = []
-            for item in batch { if let reply = await message(item) { replies.append(reply) } }
+            for item in batch { if let reply = await message(item, context: context) { replies.append(reply) } }
             return replies.isEmpty ? nil : Self.encode(replies)
         }
-        return await message(json).map(Self.encode)
+        return await message(json, context: context).map(Self.encode)
     }
 
-    private func message(_ json: Any) async -> [String: Any]? {
+    private func message(_ json: Any, context: PippaMCPRequestContext) async -> [String: Any]? {
         guard let object = json as? [String: Any], object["jsonrpc"] as? String == "2.0" else {
             return Self.error(id: NSNull(), code: -32600, message: "Invalid Request")
         }
@@ -173,19 +189,29 @@ public struct PippaMCPTools: Sendable {
             guard let name = params["name"] as? String, Self.toolNames.contains(name) else {
                 return Self.error(id: id, code: -32602, message: "Unknown tool")
             }
+            let arguments: [String: Any]
+            if let raw = params["arguments"] {
+                guard let object = raw as? [String: Any] else {
+                    let outcome = invalid("arguments must be an object; omit it when there are no arguments.")
+                    return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": true])
+                }
+                arguments = object
+            } else {
+                arguments = [:]
+            }
             // Reading a document and looking up online live in PippaMCPTurn.swift (own arguments, own limits).
             if PippaMCPTurnTools.names.contains(name) {
-                let outcome = await PippaMCPTurnTools(turns: host.turns).call(name, params["arguments"] as? [String: Any] ?? [:])
+                let outcome = await PippaMCPTurnTools(turns: host.turns).call(name, arguments, turn: context.turn)
                 return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
             }
             // Event, reminder, mail draft (PippaMCPWrite.swift); the receipt goes to the app.
             if PippaMCPWriteTools.names.contains(name) {
-                let outcome = await PippaMCPWriteTools(host: host).call(name, params["arguments"] as? [String: Any] ?? [:])
+                let outcome = await PippaMCPWriteTools(host: host, scope: context.writes).call(name, arguments)
                 if let receipt = outcome.receipt { host.onWrite?(receipt) }
                 return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
             }
-            let input = ToolInput(params["arguments"] as? [String: Any] ?? [:])
-            let outcome = await call(name, input)
+            let input = ToolInput(name, arguments)
+            let outcome = await call(name, input, context: context)
             return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
         default:
             return Self.error(id: id, code: -32601, message: "Method not found")
@@ -204,11 +230,11 @@ public struct PippaMCPTools: Sendable {
 
     static var readOnly: [String: Any] { ["readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false] }
 
-    /// Short descriptions: every word costs prompt time with the local model. Schemas carry only names, types and enums;
-    /// ranges, lengths and unknown arguments are checked here (`ToolInput`, each tool), with an error the model can act on.
+    /// Short descriptions: every word costs prompt time with the local model. Schemas declare fields and types;
+    /// values and unknown arguments are checked here (`ToolInput`, each tool), with an error the model can act on.
     public static func toolList() -> [[String: Any]] {
         func tool(_ name: String, _ title: String, _ description: String, _ properties: [String: Any] = [:], required: [String] = []) -> [String: Any] {
-            var schema: [String: Any] = ["type": "object", "properties": properties]
+            var schema: [String: Any] = ["type": "object", "properties": properties, "additionalProperties": false]
             if !required.isEmpty { schema["required"] = required }
             return ["name": name, "title": title, "description": description, "inputSchema": schema,
                     "annotations": readOnly.merging(["title": title]) { a, _ in a }]
@@ -216,47 +242,61 @@ public struct PippaMCPTools: Sendable {
         let string: [String: Any] = ["type": "string"], integer: [String: Any] = ["type": "integer"]
         let readers: [[String: Any]] = [
             tool("calendar_read", "Kalender lesen",
-                 "Read events from Calendar. next_days needs days; dates needs start and end (YYYY-MM-DD, at most 31 days).",
+                 "Read Calendar events. next_days: days; dates: start/end YYYY-MM-DD (max 31 days).",
                  ["period": ["type": "string", "enum": ["today", "tomorrow", "rest_of_week", "next_week", "weekend", "next_days", "dates"]],
                   "days": integer, "start": string, "end": string], required: ["period"]),
             tool("reminders_read", "Erinnerungen lesen",
-                 "Read open reminders; days: only those due within that many days (1 = today).", ["days": integer]),
-            tool("mail_selected", "Ausgewählte Mail lesen", "Read the email selected in Mail."),
+                 "Read open reminders; days: due within N days (1=today).", ["days": integer]),
+            tool("mail_selected", "Ausgewählte Mail lesen", "Read Mail's selected email."),
             tool("mail_search", "Mail suchen",
-                 "Search Mail inboxes by subject or sender; newest first.",
+                 "Search Mail inbox subjects/senders; newest first.",
                  ["query": string, "limit": integer], required: ["query"]),
             tool("excel_selection", "Excel-Auswahl lesen",
-                 "Read the Excel sheet around the selection: values, formulas [in brackets]."),
+                 "Read Excel around selection: values, [formulas]."),
             tool("photos_search", "Fotos suchen",
-                 "Find photos by content, place or text (query: one word, in the Mac's language). No query: newest; days: last N days.",
+                 "Search photos: query=one word in Mac language. Omit query for newest; days=last N days, no query.",
                  ["query": string, "days": integer, "limit": integer]),
             // The message names the app ([Im Vordergrund: …], FrontApp.label); a question that points at it already brings
             // the content (FrontQuestion), this call is for the rest.
-            tool("front_read", "Geöffnetes lesen", "Read the page or document open in front when the question means it (this, here, the page)."),
+            tool("front_read", "Geöffnetes lesen", "Read the page/document in front when asked about this or here."),
         ]
         return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList()
     }
 
-    /// Arguments as simple values (only what the tools know).
+    /// Each reader accepts only its own declared fields and types. An invalid optional filter must never become
+    /// an omitted filter: `photos_search(query: 123)` must not fall through to reading the newest pictures.
     struct ToolInput: Sendable {
         var period: String?, start: String?, end: String?, query: String?
         var days: Int?, limit: Int?
         var unknown: [String]
-        init(_ raw: [String: Any]) {
+        static let allowed: [String: Set<String>] = [
+            "calendar_read": ["period", "days", "start", "end"],
+            "reminders_read": ["days"],
+            "mail_selected": [],
+            "mail_search": ["query", "limit"],
+            "excel_selection": [],
+            "photos_search": ["query", "days", "limit"],
+            "front_read": [],
+        ]
+
+        init(_ tool: String, _ raw: [String: Any]) {
             func int(_ key: String) -> Int? {
-                guard let n = raw[key] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(), n.doubleValue == n.doubleValue.rounded() else { return nil }
-                return n.intValue
+                guard let n = raw[key] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
+                return Int(exactly: n.doubleValue)
             }
             period = raw["period"] as? String; start = raw["start"] as? String; end = raw["end"] as? String
             query = raw["query"] as? String; days = int("days"); limit = int("limit")
-            unknown = raw.keys.filter { !["period", "start", "end", "query", "days", "limit"].contains($0) }.sorted()
-            // Integer as text ("3") does not count: wrong types are reported as invalid below.
-            if raw["days"] != nil && days == nil { unknown.append("days") }
-            if raw["limit"] != nil && limit == nil { unknown.append("limit") }
+            let allowed = Self.allowed[tool] ?? []
+            unknown = raw.keys.filter { key in
+                guard allowed.contains(key) else { return true }
+                if key == "days" || key == "limit" { return int(key) == nil }
+                // Optional means omitted, not null, a boolean, an array, or another scalar type.
+                return !(raw[key] is String)
+            }.sorted()
         }
     }
 
-    func call(_ name: String, _ input: ToolInput) async -> PippaMCPToolResult {
+    func call(_ name: String, _ input: ToolInput, context: PippaMCPRequestContext) async -> PippaMCPToolResult {
         let started = ContinuousClock.now
         let outcome: PippaMCPToolResult
         // The receipt names what was read: `front_read` in Mail or Excel reads like `mail_selected` and `excel_selection`.
@@ -270,14 +310,16 @@ public struct PippaMCPTools: Sendable {
             case "mail_search": outcome = await mailSearch(input)
             case "photos_search": outcome = await photosSearch(input)
             case "front_read":
-                let read = await frontRead()
+                let read = await frontRead(context.front)
                 outcome = read.result; noted = read.noted
             default: outcome = await excelSelection()
             }
         }
         let ms = (ContinuousClock.now - started).components.seconds * 1000
         DiagnosticsLog.shared.event("mcp-werkzeug", ["name": name, "fehler": String(outcome.isError), "ms": String(ms)])
-        host.onRead?(Self.readNote(noted, input, outcome, calendar: host.calendar))
+        var note = Self.readNote(noted, input, outcome, calendar: host.calendar)
+        note.turnID = context.turn?.id
+        host.onRead?(note)
         return outcome
     }
 
@@ -463,7 +505,8 @@ public struct PippaMCPTools: Sendable {
         guard (2...100).contains(query.count) else { return invalid("query must be 2 to 100 characters.") }
         let limit = input.limit ?? 10
         guard (1...20).contains(limit) else { return invalid("limit must be 1 to 20.") }
-        if case .blocked(let reply) = await ensure(.mail, closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
+        if case .blocked(let reply) = await ensure(.mail, openMail: true,
+                                                   closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
             return reply
         }
         do {
@@ -654,8 +697,8 @@ public struct PippaMCPTools: Sendable {
 
     /// What is open in the app of the chip. Mail and Excel: their own readers (same receipt, same draft offer).
     /// Without a chip nothing is read, whatever is in front now.
-    private func frontRead() async -> (result: PippaMCPToolResult, noted: String) {
-        guard let app = host.shownFront() else {
+    private func frontRead(_ capturedApp: FrontApp?) async -> (result: PippaMCPToolResult, noted: String) {
+        guard let app = capturedApp else {
             return (blocked("nothing_shown", L("I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again.", table: "MCP")),
                     "front_read")
         }
@@ -708,8 +751,9 @@ public struct PippaMCPTools: Sendable {
 
     /// Check permission; on first use (and only with `askForAccess`) show Pippa's sentence first, then the system prompt.
     /// `closed`: own sentence if the app is not open (otherwise the connection's sentence).
-    private func ensure(_ integration: Integration, closed: String? = nil) async -> Gate {
-        var access = await host.integrations.access(integration)
+    private func ensure(_ integration: Integration, openMail: Bool = false, closed: String? = nil) async -> Gate {
+        var access = openMail && integration == .mail
+            ? await host.integrations.prepareMailAccess() : await host.integrations.access(integration)
         if access == .notDetermined && host.askForAccess, await mayAsk(.integration(integration)) {
             access = await host.integrations.requestAccess(integration)
         }

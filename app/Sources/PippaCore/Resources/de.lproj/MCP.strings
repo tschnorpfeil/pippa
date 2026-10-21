@@ -73,3 +73,5 @@
 "Photos on this Mac" = "Fotos auf diesem Mac";
 "Showing %lld of %lld. Open Photos to see all of them." = "%lld von %lld gezeigt. In Fotos siehst du alle.";
 "Pippa may not see your photos. To change that, open System Settings → Privacy & Security → Photos and turn on Pippa." = "Pippa darf deine Fotos nicht sehen. Das änderst du in den Systemeinstellungen unter Datenschutz & Sicherheit → Fotos: dort Pippa einschalten.";
+"Stopped before anything was changed." = "Gestoppt, bevor etwas geändert wurde.";
+"Pippa couldn’t confirm whether the change in %@ finished. Please check the app before trying again." = "Pippa konnte nicht bestätigen, ob die Änderung in %@ abgeschlossen wurde. Schau bitte in der App nach, bevor du es erneut versuchst.";

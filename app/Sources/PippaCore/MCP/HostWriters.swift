@@ -66,6 +66,7 @@ extension EventKitBridge {
         ev.isAllDay = e.allDay
         ev.startDate = e.start
         ev.endDate = e.end
+        try PippaMCPWriteLease.current?.beginDispatch()
         try s.save(ev, span: .thisEvent, commit: true)
         let item = CreatedItem(integration: .calendar, identifier: ev.calendarItemIdentifier, modified: ev.lastModifiedDate, fingerprint: fingerprint(ev))
         return HostWrite(item: item, container: calendar.title)
@@ -93,6 +94,7 @@ extension EventKitBridge {
             if alert.hour == nil { alert.hour = 9; alert.minute = 0 }
             if let date = cal.date(from: alert) { reminder.addAlarm(EKAlarm(absoluteDate: date)) }
         }
+        try PippaMCPWriteLease.current?.beginDispatch()
         try s.save(reminder, commit: true)
         let item = CreatedItem(integration: .reminders, identifier: reminder.calendarItemIdentifier, modified: reminder.lastModifiedDate,
                                fingerprint: fingerprint(reminder))

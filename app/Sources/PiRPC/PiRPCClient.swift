@@ -68,8 +68,9 @@ public enum PiRPCEvent: Sendable, Equatable {
     case assistantEnded(text: String, stopReason: String, error: String?)
     /// `ctx.ui.notify` of an extension.
     case notice(String, kind: String)
-    /// Pi does not continue on its own (`agent_settled`). The stream ends afterwards.
-    case settled
+    /// Pi does not continue on its own (`agent_settled`). Cancellation can happen between assistant messages,
+    /// so `aborted` is authoritative even when the last assistant stopped for tool use or completed normally.
+    case settled(aborted: Bool)
 }
 
 /// A confirmation request from an extension (`extension_ui_request` with `confirm`, `select`, `input` or `editor`).
@@ -366,7 +367,7 @@ public actor PiRPCClient {
         case "compaction_end":
             compacting = false
         case "agent_settled":
-            events?.yield(.settled)
+            events?.yield(.settled(aborted: record["aborted"] as? Bool == true))
             finish(nil)
         case "extension_ui_request":
             uiRequest(record)

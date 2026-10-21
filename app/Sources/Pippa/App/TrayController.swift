@@ -21,6 +21,9 @@ final class TrayController: ObservableObject {
     @Published private(set) var state: TrayState
     @Published private(set) var phase: TrayPhase = .idle
     @Published private(set) var offered: [ThingAction] = []
+    /// All applicable actions, cached alongside suggestions so rendering never inspects files.
+    @Published private(set) var availableActions: [ThingAction] = []
+    var actionChoices: ThingActionChoices { ThingActionChoices(offered: offered, candidates: availableActions) }
     /// Only after one second of work: before that the line shows no progress.
     @Published private(set) var progressVisible = false
     /// Kept when collapsed.
@@ -170,7 +173,7 @@ final class TrayController: ObservableObject {
     /// Whether a click on this offer would do something now. Tools run beside a conversation; skills, tidying and
     /// invoices hand the things over to it and wait until its current answer or task is done, like typed text.
     func canChoose(_ action: ThingAction) -> Bool {
-        guard !isWorking, offered.contains(action) else { return false }
+        guard !isWorking, availableActions.contains(action) else { return false }
         if case .tool = action.handler { return true }
         return model?.isActiveWork != true
     }
@@ -182,7 +185,7 @@ final class TrayController: ObservableObject {
         let given = givenItems
         guard !given.isEmpty else { return }
         let urls = given.map { url(for: $0) }
-        let ids = offered.map(\.id)
+        let ids = actionChoices.all.map(\.id)
         let kind = ThingActions.taskKind(for: urls)
         choseSinceOpen = true
         if let kind { records.insert(TaskRecord(kind: kind, offered: ids, chosen: action.id), at: 0) }
@@ -309,7 +312,7 @@ final class TrayController: ObservableObject {
     func lineClosed() {
         if !choseSinceOpen {
             let urls = givenItems.map { url(for: $0) }
-            let ids = offered.map(\.id)
+            let ids = actionChoices.all.map(\.id)
             if !ids.isEmpty, let kind = ThingActions.taskKind(for: urls) {
                 model?.taskLog.ignored(offered: ids, kind: kind)
                 records.insert(TaskRecord(kind: kind, offered: ids, chosen: nil), at: 0)
@@ -585,11 +588,25 @@ final class TrayController: ObservableObject {
                     guard !Task.isCancelled, let self, self.suggestionGeneration == generation,
                           !self.suggestionsFrozen, self.draft.isEmpty, !self.isWorking else { return }
                     self.suggestionRole = role
-                    self.offered = ThingActions.offered(for: urls, records: self.records, role: role)
+                    self.updateActions(for: urls, role: role)
                 }
             }
         } else if suggestionsFrozen { return }
-        let next = ThingActions.offered(for: urls, records: records, role: suggestionRole)
+        updateActions(for: urls, role: suggestionRole)
+    }
+
+    private func updateActions(for urls: [URL], role: DocumentRole) {
+        // Both ranking and availability use the same size snapshot, once per suggestion update.
+        var sizes: [URL: Int64] = [:]
+        func size(_ url: URL) -> Int64 {
+            if let cached = sizes[url] { return cached }
+            let value = ThingActions.fileSize(url)
+            sizes[url] = value
+            return value
+        }
+        let candidates = ThingActions.candidates(for: urls, size: size, role: role)
+        let next = ThingActions.offered(for: urls, records: records, size: size, role: role)
+        if candidates != availableActions { availableActions = candidates }
         if next != offered { offered = next }
     }
 

@@ -3,7 +3,7 @@ import PiRPC
 import PippaCore
 
 /// Pippa's MCP server for the app's own Pi processes. Starts at the first Pi start,
-/// one server per app run, one key per app run. Reading happens here in the Pippa process, so every
+/// one endpoint and key per Pi process, revoked on Stop or incomplete completion. Reading happens here in the Pippa process, so every
 /// system prompt (calendar, reminders, automation for Mail/Excel) names Pippa.
 ///
 /// With `PIPPA_DEMO=1` only invented data (never real apps). `PIPPA_PI_MCP`: path to the extension, otherwise `pippa-mcp.ts`
@@ -11,11 +11,10 @@ import PippaCore
 @MainActor
 enum PippaMCPService {
     private static var server: PippaMCPServer?
+    private static var generation: UInt64 = 0
 
     /// What Pippa's readers read in this app run, in order; PiRPCChat collects it per answer.
     nonisolated static let readNotes = Notes<PippaMCPReadNote>()
-    /// What Pippa's write tools did (event, reminder, mail draft), in order; PiRPCChat collects it per answer.
-    nonisolated static let writeNotes = Notes<PippaMCPWriteReceipt>()
 
     final class Notes<Note: Sendable>: @unchecked Sendable {
         private let lock = NSLock()
@@ -30,6 +29,13 @@ enum PippaMCPService {
         let file = DevEnvironment.value("PIPPA_PI_MCP") ?? extensions.appendingPathComponent("pippa-mcp.ts").path
         guard FileManager.default.fileExists(atPath: file), let running = await started() else { return nil }
         return (.init(url: running.url, token: running.token), URL(fileURLWithPath: file))
+    }
+
+    /// An abandoned Pi process must never borrow a later answer's authority.
+    static func invalidateEndpoint() {
+        generation &+= 1
+        server?.revoke()
+        server = nil
     }
 
     /// Before the first system prompt when reading, Pippa's own sentence (texts like the permission card of the
@@ -54,7 +60,7 @@ enum PippaMCPService {
         if let host { return host }
         var fresh: PippaMCPHost = DevEnvironment.value("PIPPA_DEMO") == "1" ? .demo() : .system()
         fresh.onRead = { note in readNotes.append(note) }
-        fresh.onWrite = { note in writeNotes.append(note) }
+        fresh.requireActiveWriteTurn = true
         fresh.explainAccess = { subject, sentence in await explain(subject, sentence) }
         host = fresh
         return fresh
@@ -84,10 +90,12 @@ enum PippaMCPService {
 
     private static func started() async -> PippaMCPServer? {
         if let server { return server }
+        let generation = Self.generation
         let host = currentHost
         do {
             let fresh = try PippaMCPServer(host: host)
             try await fresh.start()
+            guard generation == Self.generation else { fresh.revoke(); return nil }
             server = fresh
             return fresh
         } catch {

@@ -5,6 +5,7 @@ import PippaCore
 /// using only stand-in integrations (`DemoIntegrations`: invented events, drafts in memory only). Never real mail,
 /// real calendar or real reminders.
 func runR3Checks() async {
+    await runNativeWriteChecks()
     var berlin = Calendar(identifier: .gregorian)
     berlin.timeZone = TimeZone(identifier: "Europe/Berlin")!; berlin.locale = Locale(identifier: "de_DE"); berlin.firstWeekday = 2
     // Wednesday, 7 October 2026, 9:00 in Berlin.
@@ -160,6 +161,38 @@ func runR3Checks() async {
 
     // MARK: mail_draft
 
+    await checkAsync("R3 mail_draft: new draft and captured reply open closed Mail; selection-based reply requires an open Mail") {
+        let selected = setup()
+        selected.demo.mailRunning = false
+        let noSelection = await call(selected, "mail_draft", ["reply_to": "selected", "body": "Danke."])
+        let fresh = setup()
+        fresh.demo.mailRunning = false
+        let composed = await call(fresh, "mail_draft", ["subject": "Termin", "to": "praxis@beispiel.example", "body": "Hallo."])
+        let captured = setup()
+        captured.demo.mailRunning = false
+        let replied = await call(captured, "mail_draft", ["reply_to": mail.path, "body": "Passt."])
+        return noSelection.isError && selected.demo.mailPreparations == 0 && selected.demo.insertedDrafts.isEmpty
+            && !composed.isError && composed.json["sent"] as? Bool == false && fresh.demo.mailPreparations == 1
+            && fresh.demo.insertedDrafts.count == 1 && fresh.demo.insertedDrafts.first?.isReply == false
+            && !replied.isError && replied.json["sent"] as? Bool == false && captured.demo.mailPreparations == 1
+            && captured.demo.insertedDrafts.first?.messageID == "r3-termin-0001@praxis.example"
+    }
+    await checkAsync("R3 mail_draft: closed Mail still respects denied access, declined explanation and failed launch") {
+        let denied = setup()
+        denied.demo.mailRunning = false
+        denied.demo.set(.mail, .denied)
+        let refused = await call(denied, "mail_draft", ["subject": "Termin", "body": "Hallo."])
+        let later = setup(granted: false, ask: true, explain: { _, _ in false })
+        later.demo.mailRunning = false
+        let deferred = await call(later, "mail_draft", ["subject": "Termin", "body": "Hallo."])
+        let cannotLaunch = setup()
+        cannotLaunch.demo.mailRunning = false
+        cannotLaunch.demo.mailCanLaunch = false
+        let unavailable = await call(cannotLaunch, "mail_draft", ["subject": "Termin", "body": "Hallo."])
+        return refused.isError && refused.json["status"] as? String == "denied" && denied.demo.insertedDrafts.isEmpty
+            && deferred.isError && deferred.json["status"] as? String == "needs_access" && later.demo.insertedDrafts.isEmpty
+            && unavailable.isError && unavailable.json["status"] as? String == "unavailable" && cannotLaunch.demo.insertedDrafts.isEmpty
+    }
     await checkAsync("R3 mail_draft: reply to the mail shown in the conversation, draft only, never sent; receipt 'nicht gesendet'") {
         let s = setup()
         let r = await call(s, "mail_draft", ["reply_to": mail.path, "body": "Guten Tag,\n\nDonnerstag um 9 Uhr passt mir gut.\n\nViele Grüße"])
@@ -288,15 +321,16 @@ func runR3Checks() async {
         return data["messageID"] as? String == "demo-nebenkosten-2025@berger-hv.de"
             && notes.get.first?.mail?.messageID == "demo-nebenkosten-2025@berger-hv.de" && notes.get.first?.mail?.subject == "Nebenkostenabrechnung 2025"
     }
-    await checkAsync("R3+ click: reply to exactly the offer's mail (Message-ID), never to the selection at click time; same receipt") {
+    await checkAsync("R3+ click: open closed Mail and reply to exactly the offer's mail (Message-ID), never to another selection") {
         let s = setup()   // a different mail is selected in Mail (Nebenkosten)
+        s.demo.mailRunning = false
         let offer = MailDraftOfferRule.evaluate(answer: modelAnswer, mailSource: termin, items: []).offer!
         let saved = await MailDraftOfferRule.save(offer, with: PippaMCPWriteTools(host: s.host))
         let draft = s.demo.insertedDrafts.first
         return !saved.missing && saved.item.line(language: "de").hasPrefix("Antwort-Entwurf in Mail angelegt: ") && saved.item.canOpenMailDraft
             && draft?.isReply == true && draft?.messageID == "r3-termin-0001@praxis.example" && draft?.locator == nil
             && draft?.to == "termine@praxis.example" && draft?.replySubject == "Re: Termin am Donnerstag" && draft?.body == offer.body
-            && s.demo.insertedDrafts.count == 1
+            && s.demo.insertedDrafts.count == 1 && s.demo.mailPreparations == 1
     }
     await checkAsync("R3+ click: mail no longer in Mail → nothing created, 'Die Mail finde ich nicht mehr in Mail', no fallback; offer → 'Text kopieren'") {
         let s = setup(); s.demo.replyFailure = .missingOriginal

@@ -77,20 +77,20 @@ public enum ThingActions {
                 var out: [ThingAction] = invoices + [.tool(.makeOnePDF)]
                 if large { out.append(.tool(.makeSmaller)) }
                 if invoices.isEmpty { out.append(.tool(.asPDF)) }
-                return out
+                return out + [.tool(.extractText), .tool(.removeLocation)]
             }
             if pdfs >= 2 && images == 0 {
                 var out: [ThingAction] = invoices + [.tool(.makeOnePDF)]
                 if large { out.append(.tool(.makeSmaller)) }
-                return out
+                return out + [.tool(.extractText)]
             }
             if images >= 1 && pdfs >= 1 {
-                return invoices + [.tool(.makeOnePDF), .tool(.makeSmaller)]
+                return invoices + [.tool(.makeOnePDF), .tool(.makeSmaller), .tool(.extractText)]
             }
             if images == 1 {
                 let ext = urls[0].pathExtension.lowercased()
                 let convert: ToolID = (ext == "jpg" || ext == "jpeg") ? .asPNG : .asJPEG
-                return [.tool(.asPDF), .tool(convert), .tool(.makeSmaller)]
+                return [.tool(.extractText), .tool(.removeLocation), .tool(.asPDF), .tool(convert), .tool(.makeSmaller)]
             }
             // One PDF.
             var out: [ThingAction] = []
@@ -98,7 +98,7 @@ public enum ThingActions {
             if role == .correspondence { out += [skill("brief-verstehen"), skill("antwort-schreiben")].compactMap { $0 } }
             else if role == .report || role == .notes { out += [skill("zusammenfassen")].compactMap { $0 } }
             else if role == .invoice || looksLikeInvoice(urls[0]) { out.append(.tool(.invoiceTable)) }
-            return out
+            return out + [.tool(.extractText)]
         }
 
         // Mixed with at least two images or PDFs: one PDF from them, the rest is skipped with a sentence.

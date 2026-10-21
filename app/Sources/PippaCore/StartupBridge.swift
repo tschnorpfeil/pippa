@@ -100,7 +100,7 @@ public enum StartupBridge {
 
     /// The message for Pi once it is ready: what was answered in between, then the new message.
     public static func handover(_ text: String, history: [Turn], language: String) -> String {
-        let earlier = transcript(history, language: language, limit: handoverLimit)
+        let earlier = transcript(history, language: language, limit: handoverLimit, keepLatestWhole: true)
         guard !earlier.isEmpty else { return text }
         let lead = language.hasPrefix("de")
             ? "Zur Einordnung: Während du noch geladen hast, hat Pippa mit einer kleinen Hilfe auf diesem Mac schon so geantwortet:"
@@ -109,12 +109,23 @@ public enum StartupBridge {
         return lead + "\n\n" + earlier + "\n\n" + now + "\n" + text
     }
 
-    static func transcript(_ history: [Turn], language: String, limit: Int) -> String {
+    static func transcript(_ history: [Turn], language: String, limit: Int, keepLatestWhole: Bool = false) -> String {
         var lines: [String] = []
         var used = 0
         for turn in history.reversed() {
             let block = "Person: \(turn.person)\nPippa: \(turn.pippa)"
-            guard used + block.count <= limit else { break }
+            guard used + block.count <= limit else {
+                // Pi must see the exact newest draft for follow-ups such as "save that". Its input is already
+                // bounded by the quick action. The small Apple model still gets only a marked excerpt as history.
+                if lines.isEmpty {
+                    if keepLatestWhole { lines.append(block); break }
+                    let person = String(turn.person.prefix(limit / 3))
+                    let prefix = "Person: \(person)\nPippa: "
+                    let suffix = " […]"
+                    lines.append(prefix + String(turn.pippa.prefix(max(0, limit - prefix.count - suffix.count))) + suffix)
+                }
+                break
+            }
             lines.insert(block, at: 0)
             used += block.count + 2
         }

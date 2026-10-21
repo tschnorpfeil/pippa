@@ -108,6 +108,6 @@ func runInvoiceChecks() async {
         return ids(["Rechnung Januar.pdf", "Rechnung Februar.pdf"]).first == "invoice-table"
             && ids(["Bon 1.jpg", "Bon 2.jpg"]).first == "invoice-table"
             && !ids(["Seite 1.pdf", "Seite 2.pdf"]).contains("invoice-table")
-            && ids(["Scan.pdf"], role: .invoice) == ["invoice-table"] && ids(["Scan.pdf"]).isEmpty
+            && ids(["Scan.pdf"], role: .invoice) == ["invoice-table", "extract-text"] && ids(["Scan.pdf"]) == ["extract-text"]
     }
 }

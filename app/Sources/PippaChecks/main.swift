@@ -1252,6 +1252,8 @@ check("Tone: no jargon, no English, no status codes in messages") {
 }
 
 runConversationChecks()
+runConversationEntryChecks()
+runNativeReceiptContextChecks()
 runChatContextChecks()
 await runP0ContextChecks()
 runPromptAttachmentChecks()
@@ -1289,6 +1291,7 @@ runWorkStepChecks()
 runWorkShapeChecks()
 runColdStartChecks()
 runStartupBridgeChecks()
+await runQuickTextChecks()
 runPillStatusChecks()
 await runSetupChecks()
 await runMCPChecks()

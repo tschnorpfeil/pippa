@@ -32,6 +32,130 @@ test("loop brake: an identical call stops after two failures or four runs; other
 	assert.equal(loopBrake(c2, k2, "r9", "read", { path: "b.txt" }), undefined);
 });
 
+test("duplicate changes ignore object field order, preserve array order, and wait for pending calls", async () => {
+	const { loopBrake } = await import("./pippa-assist.ts");
+	const counts = new Map(), keys = new Map();
+	const first = { folder: "/fake", groups: [{ into: "Letters", files: ["a.txt", "b.txt"] }] };
+	const reordered = { groups: [{ files: ["a.txt", "b.txt"], into: "Letters" }], folder: "/fake" };
+	assert.equal(loopBrake(counts, keys, "first", "move_files", first, true), undefined);
+	assert.match(loopBrake(counts, keys, "pending", "move_files", reordered, true), /already running/);
+	counts.get(keys.get("first")).failures++;
+	assert.equal(loopBrake(counts, keys, "retry", "move_files", reordered, true), undefined, "a failed change can be retried");
+	counts.get(keys.get("retry")).successes++;
+	assert.match(loopBrake(counts, keys, "duplicate", "move_files", first, true), /would make a duplicate/);
+	assert.equal(loopBrake(counts, keys, "different", "move_files", {
+		folder: "/fake", groups: [{ into: "Letters", files: ["b.txt", "a.txt"] }],
+	}, true), undefined, "arrays can carry meaningful order and are not sorted");
+});
+
+function loopHarness() {
+	const handlers = {}, entries = [];
+	let aborted = 0;
+	assist({ on: (name, fn) => handlers[name] = fn, appendEntry: (type, data) => entries.push({ type, data }) });
+	const ctx = { abort: () => aborted++ };
+	return { handlers, entries, get aborted() { return aborted; }, async call(id, tool, input, { validates = true, isError = false, content = [] } = {}) {
+		const event = { toolName: tool, toolCallId: id, input };
+		await handlers.tool_execution_start({ ...event, args: input }, ctx);
+		const blocked = validates ? await handlers.tool_call(event, ctx) : undefined;
+		const failed = isError || !validates || Boolean(blocked);
+		// Pi does not emit tool_result for unknown tools, invalid arguments or extension-blocked calls.
+		if (validates && !blocked) await handlers.tool_result({ ...event, isError: failed, content }, ctx);
+		await handlers.tool_execution_end({ ...event, isError: failed, result: { content } }, ctx);
+		return blocked;
+	} };
+}
+
+test("uncertain native writes are terminal for this answer and never reported as successful duplicates", async () => {
+	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft"]) {
+		for (const isError of [false, true]) {
+			const run = loopHarness();
+			const input = { title: "Fixture", date: "2026-10-22" };
+			// Actual Pippa MCP payload: an unconfirmed native write is not an MCP error, but was not confirmed done.
+			const content = [{ type: "text", text: JSON.stringify({ done: false, state: "unclear", sent: false,
+				tell: "Please check the app before trying again.", next: "Do not retry this action automatically." }) }];
+			assert.equal(await run.call("first", tool, input, { content, isError }), undefined);
+			const blocked = await run.call("retry", tool, { date: input.date, title: input.title });
+			assert.match(blocked.reason, /outcome is unclear/);
+			assert.match(blocked.reason, /Check the native app before trying again/);
+			assert.doesNotMatch(blocked.reason, /It is done|already worked|already running/);
+			assert.equal(await run.call("different", tool, { ...input, title: "Another fixture" }), undefined);
+			await run.handlers.agent_end({});
+			await run.handlers.agent_start({});
+			assert.equal(await run.call("new-answer", tool, input), undefined, "uncertainty does not persist across answers");
+		}
+	}
+});
+
+test("explicit native dispatched/unclear status blocks retries even when MCP flags an error", async () => {
+	for (const status of [{ status: "unclear" }, { status: "dispatched" }, { state: "dispatched" }, { dispatched: true }]) {
+		const run = loopHarness(), tool = "mcp__pippa__reminder_add", input = { title: "Fixture" };
+		const content = [{ type: "text", text: JSON.stringify({ done: false, ...status }) }];
+		assert.equal(await run.call("first", tool, input, { content, isError: true }), undefined);
+		assert.match((await run.call("retry", tool, input)).reason, /outcome is unclear/);
+	}
+});
+
+test("ordinary failed native writes can retry; prose, nested data, malformed JSON and other tools cannot mark uncertainty", async () => {
+	const payloads = [
+		{ done: false, status: "failed", dispatched: false },
+		{ done: false, status: "invalid_arguments" },
+		{ done: false, status: "failed", tell: "unclear dispatched" },
+		{ done: false, status: "failed", data: { state: "unclear", dispatched: true } },
+		{ done: false, dispatched: "true" },
+		"The outcome is unclear; the action was dispatched.",
+		'{"done":false,"state":"unclear"',
+	];
+	for (const payload of payloads) {
+		const run = loopHarness(), tool = "mcp__pippa__reminder_add", input = { title: "Fixture" };
+		const content = [{ type: "text", text: typeof payload === "string" ? payload : JSON.stringify(payload) }];
+		assert.equal(await run.call("first", tool, input, { content, isError: true }), undefined);
+		assert.equal(await run.call("retry", tool, input, { content, isError: true }), undefined);
+		assert.match((await run.call("third", tool, input)).reason, /already failed 2 times/);
+	}
+	for (const tool of ["write", "mcp__other__reminder_add", "mcp__pippa__read_document"]) {
+		const run = loopHarness(), input = { path: "/fake/fixture.txt" };
+		const content = [{ type: "text", text: JSON.stringify({ done: false, state: "unclear", dispatched: true }) }];
+		assert.equal(await run.call("first", tool, input, { content, isError: true }), undefined);
+		assert.equal(await run.call("retry", tool, input), undefined, "only native mutation result statuses count");
+	}
+});
+
+test("rejected document reads are bounded even though Pi skips tool_result; a corrected tool still works", async () => {
+	const run = loopHarness();
+	const input = { path: "/fake/invoice.pdf" };
+	assert.match((await run.call("first", "read", input)).reason, /mcp__pippa__read_document/);
+	assert.equal(await run.call("corrected", "mcp__pippa__read_document", input), undefined);
+	assert.match((await run.call("retry", "read", input)).reason, /mcp__pippa__read_document/);
+	for (let i = 0; i < 3; i++) {
+		assert.match((await run.call(`repeat${i}`, "read", input)).reason, /already failed 2 times/);
+	}
+	assert.equal(run.aborted, 1);
+	assert.equal(run.entries.filter((entry) => entry.type === "pippa-loop-stop").length, 1);
+	await run.handlers.agent_start({});
+	assert.match((await run.call("new-answer", "read", input)).reason, /mcp__pippa__read_document/);
+});
+
+test("unknown tools and invalid arguments cannot bypass the loop brake before tool_call", async () => {
+	for (const [tool, input] of [["invented_tool", { query: "invoice" }], ["read", { wrong_path: "/fake/invoice.txt" }]]) {
+		const run = loopHarness();
+		for (let i = 0; i < 5; i++) await run.call(`bad${i}`, tool, input, { validates: false });
+		assert.equal(run.aborted, 1, tool);
+		assert.equal(run.entries.find((entry) => entry.type === "pippa-loop-stop")?.data.tool, tool);
+	}
+});
+
+test("executed results count once, and distinct invalid calls consume the same overall budget", async () => {
+	const { MAX_CALLS } = await import("./pippa-assist.ts");
+	const run = loopHarness();
+	assert.equal(await run.call("fail1", "read", { path: "/fake/missing.txt" }, { isError: true }), undefined);
+	assert.equal(await run.call("fail2", "read", { path: "/fake/missing.txt" }, { isError: true }), undefined);
+	assert.match((await run.call("fail3", "read", { path: "/fake/missing.txt" })).reason, /already failed 2 times/);
+	assert.equal(run.aborted, 0);
+	await run.handlers.agent_start({});
+	for (let i = 0; i < MAX_CALLS + 3; i++) await run.call(`invalid${i}`, `invented_${i}`, {}, { validates: false });
+	assert.equal(run.aborted, 1);
+});
+
 test("read on a document is sent to read_document; text files and other tools pass", async () => {
 	const { documentForRead } = await import("./pippa-assist.ts");
 	assert.match(documentForRead("read", { path: "/x/Rechnung Elektro.pdf" }), /mcp__pippa__read_document/);

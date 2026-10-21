@@ -16,14 +16,24 @@ public final class PippaMCPTurns: @unchecked Sendable {
     private var current: PippaMCPTurn?
     public init() {}
 
-    public func begin(_ turn: PippaMCPTurn) { lock.withLock { current = turn } }
+    public func begin(_ turn: PippaMCPTurn) {
+        lock.withLock {
+            if current !== turn { current?.cancelWrites() }
+            current = turn
+        }
+    }
     /// End only its own answer (a later one may have already replaced it).
-    public func end(_ turn: PippaMCPTurn) { lock.withLock { if current === turn { current = nil } } }
+    public func end(_ turn: PippaMCPTurn) {
+        lock.withLock { turn.cancelWrites(); if current === turn { current = nil } }
+    }
     public var active: PippaMCPTurn? { lock.withLock { current } }
 }
 
 /// An answer on the Pi RPC path: who is told about phases, what Pi has read via `read_document`.
 public actor PippaMCPTurn {
+    public nonisolated let id: UUID
+    public nonisolated let writes: PippaMCPWriteScope
+    public nonisolated func cancelWrites() { writes.cancel() }
     public struct DocumentRead: Sendable, Equatable {
         public var path: String
         public var name: String
@@ -44,6 +54,9 @@ public actor PippaMCPTurn {
     private var documents: [String: Task<DocumentText, Never>] = [:]
 
     public init(onWork: WorkEventHandler? = nil) {
+        let id = UUID()
+        self.id = id
+        self.writes = PippaMCPWriteScope(turnID: id)
         self.onWork = onWork
     }
 
@@ -126,10 +139,14 @@ public struct PippaMCPTurnTools: Sendable {
     }
 
     public func call(_ name: String, _ raw: [String: Any]) async -> PippaMCPToolResult {
+        await call(name, raw, turn: turns.active)
+    }
+
+    public func call(_ name: String, _ raw: [String: Any], turn: PippaMCPTurn?) async -> PippaMCPToolResult {
         let input = Input(raw)
         if !input.unknown.isEmpty { return Self.failure("invalid_arguments", "Unknown or invalid arguments: \(input.unknown.joined(separator: ", ")).") }
         let started = ContinuousClock.now
-        let outcome = await readDocument(input)
+        let outcome = await readDocument(input, turn: turn)
         let elapsed = (ContinuousClock.now - started).components
         let ms = elapsed.seconds * 1000 + elapsed.attoseconds / 1_000_000_000_000_000
         var fields = ["name": name, "fehler": String(outcome.isError), "ms": String(ms)]
@@ -143,7 +160,7 @@ public struct PippaMCPTurnTools: Sendable {
 
     // MARK: read_document
 
-    private func readDocument(_ input: Input) async -> PippaMCPToolResult {
+    private func readDocument(_ input: Input, turn: PippaMCPTurn?) async -> PippaMCPToolResult {
         guard var path = input.path?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty else {
             return Self.failure("invalid_arguments", "path is required.")
         }
@@ -189,7 +206,6 @@ public struct PippaMCPTurnTools: Sendable {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         if size > 100_000_000 { return Self.failure("too_large", "This file is larger than 100 MB; Pippa does not read it.") }
 
-        let turn = turns.active
         let window = from - 1 + Self.pagesPerCall
         let document = await turn?.text(of: source, maxPages: window) ?? TextReader.read(source, options: .init(maxPages: window, ocr: true))
         switch document.problem {

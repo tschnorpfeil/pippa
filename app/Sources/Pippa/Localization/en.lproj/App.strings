@@ -241,3 +241,4 @@
 "I’m not allowed to look into “%@”" = "I’m not allowed to look into “%@”";
 "Your Mac said no to Pippa for this folder. Turn on Pippa in System Settings under “Files & Folders”, then try again." = "Your Mac said no to Pippa for this folder. Turn on Pippa in System Settings under “Files & Folders”, then try again.";
 "Open System Settings" = "Open System Settings";
+"This answer reached its length limit. Ask me to continue from here." = "This answer reached its length limit. Ask me to continue from here.";

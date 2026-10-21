@@ -12,6 +12,7 @@ public enum ToolID: String, Sendable, Codable, CaseIterable {
     case makeOnePDF = "make-one-pdf", makeSmaller = "make-smaller", asPDF = "as-pdf"
     case asJPEG = "as-jpg", asPNG = "as-png"
     case invoiceTable = "invoice-table"
+    case extractText = "extract-text", removeLocation = "remove-location"
 
     /// Plain verb for the button.
     public var title: String {
@@ -22,6 +23,8 @@ public enum ToolID: String, Sendable, Codable, CaseIterable {
         case .asJPEG: L("As JPG", table: "Tools")
         case .asPNG: L("As PNG", table: "Tools")
         case .invoiceTable: L("Invoices as a Spreadsheet", table: "Tools")
+        case .extractText: L("Extract Text", table: "Tools")
+        case .removeLocation: L("Remove Location", table: "Tools")
         }
     }
 
@@ -34,6 +37,8 @@ public enum ToolID: String, Sendable, Codable, CaseIterable {
         case .asJPEG: L("Making a JPG", table: "Tools")
         case .asPNG: L("Making a PNG", table: "Tools")
         case .invoiceTable: L("Reading invoices", table: "Tools")
+        case .extractText: L("Extracting text", table: "Tools")
+        case .removeLocation: L("Removing location", table: "Tools")
         }
     }
 }
@@ -80,6 +85,7 @@ public enum ToolFailure: Error, Sendable, Equatable, LocalizedError {
     case alreadySmall
     case notEnoughSpace
     case unreadable(name: String)
+    case cannotProcess(name: String, reason: String)
 
     public var errorDescription: String? {
         switch self {
@@ -89,6 +95,7 @@ public enum ToolFailure: Error, Sendable, Equatable, LocalizedError {
         case .alreadySmall: L("This is already as small as I can make it.", table: "Tools")
         case .notEnoughSpace: L("Not enough space to write this.", table: "Tools")
         case .unreadable(let name): L("I couldn’t open %@.", table: "Tools", name)
+        case .cannotProcess(let name, let reason): L("I skipped %@. %@", table: "Tools", name, reason)
         }
     }
 }
@@ -162,6 +169,10 @@ public enum ResultNaming {
             return compose(base(inputs), ext: "png")
         case .invoiceTable:
             return compose(german ? "Rechnungen" : "Invoices", ext: "xlsx")
+        case .extractText:
+            return compose(base(inputs) + (german ? " (Text)" : " (text)"), ext: "txt")
+        case .removeLocation:
+            return compose(base(inputs) + (german ? " (ohne Standort)" : " (no location)"), ext: "png")
         }
     }
 
@@ -195,6 +206,8 @@ public enum OneAnswerTools {
         case .makeOnePDF, .makeSmaller: return kind != .other
         case .asPDF, .asJPEG, .asPNG: return kind == .image
         case .invoiceTable: return kind != .other || ["docx", "txt", "eml", "rtf", "odt", "md"].contains(url.pathExtension.lowercased())
+        case .extractText: return kind == .image || kind == .pdf
+        case .removeLocation: return kind == .image
         }
     }
 
@@ -206,6 +219,8 @@ public enum OneAnswerTools {
         case .makeOnePDF: return try await MakePDF.combine(inputs, passwords: passwords, progress: progress)
         case .makeSmaller: return try await Shrink.run(inputs, passwords: passwords, progress: progress)
         case .asPDF, .asJPEG, .asPNG: return try await Convert.run(tool, inputs: inputs, progress: progress)
+        case .extractText: return try await ExtractText.run(inputs, passwords: passwords, progress: progress)
+        case .removeLocation: return try await RemoveLocation.run(inputs, progress: progress)
         case .invoiceTable:
             // A dropped folder counts with the files in it (one level, like "Make one PDF" from a folder); what Pippa
             // cannot read as an invoice is named, not dropped silently.
@@ -244,6 +259,8 @@ enum ToolText {
         case .asPNG: return L("%lld images as PNG", table: "Tools", n)
         case .makeSmaller: return L("%lld files made smaller", table: "Tools", n)
         case .invoiceTable: return files[0].lastPathComponent
+        case .extractText: return L("%lld text files extracted", table: "Tools", n)
+        case .removeLocation: return L("%lld photos without location", table: "Tools", n)
         }
     }
 }
@@ -317,6 +334,8 @@ enum ToolRun {
                         skipped.append(FileReason(name: url.lastPathComponent, why: L("This is already as small as I can make it.", table: "Tools")))
                     case .unreadable:
                         skipped.append(FileReason(name: url.lastPathComponent, why: ToolText.unreadableWhy))
+                    case .cannotProcess(_, let reason):
+                        skipped.append(FileReason(name: url.lastPathComponent, why: reason))
                     default:
                         throw failure
                     }
@@ -330,7 +349,7 @@ enum ToolRun {
             try Task.checkCancellation()
             guard !files.isEmpty else {
                 if small == usable.count { throw ToolFailure.alreadySmall }
-                if usable.count == 1 { throw ToolFailure.unreadable(name: usable[0].lastPathComponent) }
+                if usable.count == 1, skipped.allSatisfy({ $0.why == ToolText.unreadableWhy }) { throw ToolFailure.unreadable(name: usable[0].lastPathComponent) }
                 throw ToolFailure.nothingUsable(skipped: skipped)
             }
             return ToolOutput(files: files, consumedInputs: consumedInputs, skipped: skipped, summary: ToolText.summary(tool, files: files))

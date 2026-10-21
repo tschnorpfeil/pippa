@@ -206,6 +206,7 @@ ticket.
 ```sh
 swift build --package-path app                                          # all targets
 swift run --package-path app PippaChecks                                # native checks, no model
+swift run --package-path app PiRPCChecks                                # RPC lifecycle against an isolated fake Pi process
 python3 scripts/check-strings.py                                        # every UI text in en and de
 python3 scripts/check-default-models.py                                 # every model in ModelSelector's table is pinned
 node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs   # Pippa's Pi extensions
@@ -231,7 +232,7 @@ Some `PippaChecks` groups need extra input and are switched on by environment va
 recognizer (CI sets it).
 
 **CI.** `.github/workflows/ci.yml` runs on every pull request, on pushes to `main` (not for documentation-only changes) and
-by hand, on a `macos-26` runner: string check, release script tests, `swift build`, `PippaChecks`, the web access tests and
+by hand, on a `macos-26` runner: string check, release script tests, `swift build`, `PippaChecks`, `PiRPCChecks`, the web access tests and
 the tests of Pippa's Pi extensions. Started by hand with *app* ticked it also builds an ad-hoc signed `Pippa.app` and
 uploads it as an artifact. `.github/workflows/pages.yml` runs the site checks on changes to `site/` and publishes it to
 GitHub Pages from `main`.

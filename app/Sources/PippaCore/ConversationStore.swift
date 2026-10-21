@@ -274,6 +274,20 @@ public enum ConversationStoreError: LocalizedError, Sendable {
         return next.conversations[conversation]
     }
 
+    /// A late native result belongs to its original message even when another conversation is selected.
+    @discardableResult public func recordNativeWrite(_ item: ActionReceipt.Item, messageID: UUID, in conversationID: UUID) throws -> Conversation {
+        guard let conversation = archive.conversations.firstIndex(where: { $0.id == conversationID }),
+              let message = archive.conversations[conversation].messages.firstIndex(where: { $0.id == messageID }) else {
+            throw ConversationStoreError.unknownConversation
+        }
+        var next = archive
+        var actions = next.conversations[conversation].messages[message].actions ?? ActionReceipt(items: [])
+        actions.mergeNativeWrite(item)
+        next.conversations[conversation].messages[message].actions = actions
+        try persist(next)
+        return next.conversations[conversation]
+    }
+
     /// Only change the "Save as draft in Mail" offer of a receipt (used / free again). Rows stay.
     @discardableResult public func updateMailOffer(messageID: UUID, in conversationID: UUID, offer: MailDraftOffer) throws -> Conversation {
         guard let conversation = archive.conversations.firstIndex(where: { $0.id == conversationID }),

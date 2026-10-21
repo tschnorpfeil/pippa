@@ -5,7 +5,7 @@ import SwiftUI
 // The one line at the pill.
 //
 // Things lie on Pippa: documents on top, below them the figure and the input field,
-// then, depending on state, up to three actions, the progress, the result or a sentence.
+// then, depending on state, two suggestions and an action menu, the progress, the result or a sentence.
 // No window, no conversation. Removing takes a thing off Pippa only; the file stays where it is.
 
 /// Content of the `.line` form. `measuring` = measuring pass (no focus, no animation, no announcement).
@@ -199,19 +199,19 @@ struct LineContent: View {
     }
 
     @ViewBuilder private var actions: some View {
-        let offered = tray.offered
-        if !offered.isEmpty {
+        let choices = tray.actionChoices
+        if !choices.all.isEmpty {
             AdaptiveActions {
-                ForEach(Array(offered.prefix(2))) { action in
+                ForEach(choices.suggestions) { action in
                     Button(action.title) { tray.choose(action) }
                         .pippa(.quiet)
                         .controlSize(.small)
                         .disabled(!tray.canChoose(action))
                         .focused($suggestionFocused, equals: action.id)
                 }
-                if offered.count > 2 {
+                if !choices.overflow.isEmpty {
                     Menu {
-                        ForEach(Array(offered.dropFirst(2))) { action in
+                        ForEach(choices.overflow) { action in
                             Button(action.title) { tray.choose(action) }
                                 .disabled(!tray.canChoose(action))
                         }
@@ -219,6 +219,7 @@ struct LineContent: View {
                     .focused($suggestionFocused, equals: "__more")
                     .menuStyle(.borderlessButton)
                     .fixedSize()
+                    .disabled(!choices.overflow.contains(where: tray.canChoose))
                     .accessibilityLabel(T("More", table: "Line"))
                 }
             }

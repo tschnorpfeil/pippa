@@ -62,7 +62,7 @@ func runToolChecks() async {
         let ids = ToolID.allCases.map(\.rawValue)
         let data = try JSONEncoder().encode(ToolID.allCases)
         let back = try JSONDecoder().decode([ToolID].self, from: data)
-        return ids == ["make-one-pdf", "make-smaller", "as-pdf", "as-jpg", "as-png", "invoice-table"] && back == ToolID.allCases
+        return ids == ["make-one-pdf", "make-smaller", "as-pdf", "as-jpg", "as-png", "invoice-table", "extract-text", "remove-location"] && back == ToolID.allCases
             && ToolID.allCases.allSatisfy { !$0.title.isEmpty && !$0.workingTitle.isEmpty }
     }
     check("Tools: what they accept") {
@@ -261,6 +261,8 @@ func runToolChecks() async {
     }
 
     // MARK: Originals and cleanup
+
+    await runNativeToolChecks()
 
     check("Originals: bytes and fingerprint unchanged") {
         let after = inputs.map { ToolFixtures.identity($0) }

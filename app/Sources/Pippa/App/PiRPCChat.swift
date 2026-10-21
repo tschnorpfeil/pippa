@@ -117,6 +117,8 @@ final class PiRPCChat {
     }
 
     private var client: PiRPCClient?
+    var activeNativeTurn: PippaMCPTurn?
+    private var needsFreshClient = false
     /// The one llama-server for `pippa-local` and what it was started with (if the plan changes, it restarts).
     private var localServer: LlamaServer?
     private var localPlan: PiLocalServer.Plan?
@@ -136,7 +138,8 @@ final class PiRPCChat {
         let route = try await launchRoute(env)
         // Still "answering" here means the last answer was abandoned without Pi settling (stop timed out): start afresh
         // (the session is on disk) instead of refusing every further message as busy until the app restarts.
-        if let client, sessionKey == key, launchKey == route.key, await client.isRunning, await client.isAnswering == false { return client }
+        if !needsFreshClient, let client, sessionKey == key, launchKey == route.key, await client.isRunning, await client.isAnswering == false { return client }
+        PippaMCPService.invalidateEndpoint()
         if let old = client { await old.shutdown(); client = nil }
         let extensions = URL(fileURLWithPath: Self.extensionsPath(env), isDirectory: true)
         guard FileManager.default.fileExists(atPath: extensions.appendingPathComponent("pippa-tools.ts").path) else {
@@ -176,6 +179,7 @@ final class PiRPCChat {
         await fresh.setUIHandler { request in await Self.ask(request) }
         try await fresh.start()
         client = fresh; sessionKey = key; launchKey = route.key
+        needsFreshClient = false
         return fresh
     }
 
@@ -394,35 +398,47 @@ final class PiRPCChat {
     /// ("Ich lese den Brief …") disappears again, so the draft is only the draft.
     func chat(_ text: String, taskID: String, onWork: WorkEventHandler?, onDelta: @escaping @Sendable (String) -> Void,
               onSteered: @escaping @Sendable (String) -> Void, onReset: (@Sendable (String) -> Void)? = nil,
-              carriedReads: [PippaMCPReadNote] = []) async throws -> String {
+              carriedReads: [PippaMCPReadNote] = [], turn: PippaMCPTurn) async throws -> String {
         lastActions = nil
         searchFiles = []
         changes = []
         listedFiles = []
         // Read and write receipts belong to the answer that triggered them.
         _ = PippaMCPService.readNotes.take()
-        _ = PippaMCPService.writeNotes.take()
         // What Pippa read for this message before Pi started (the app in front, PiRPCChat+Shown.swift).
         for note in carriedReads { PippaMCPService.readNotes.append(note) }
+        var receipt = PiTurnReceipt()
+        lastSelectedMail = nil
+        defer {
+            let reads = PippaMCPService.readNotes.take().filter { $0.turnID == turn.id }
+            lastSelectedMail = reads.last { $0.tool == "mail_selected" && $0.read }?.mail
+            turn.cancelWrites()
+            lastActions = Self.actions(receipt, reads: reads, writes: turn.writes.snapshot.items)
+        }
         // First the model, then Pi: Pi starts only if the server responds.
         // If the own online service works, no local model is needed.
+        var settledCleanly = false
+        defer {
+            turn.cancelWrites()
+            if !settledCleanly {
+                PippaMCPService.invalidateEndpoint()
+                needsFreshClient = true
+            }
+        }
+        guard !turn.writes.snapshot.cancelled, !Task.isCancelled else { throw AnswerFailure.stopped(partial: "") }
         let held = Self.onlineConnection == nil && Self.subscriptionModel == nil ? try await modelLease(onWork: onWork) : nil
         defer { if let held { Task { await held.server.releaseAgentLease(held.lease) } } }
+        guard !turn.writes.snapshot.cancelled, !Task.isCancelled else { throw AnswerFailure.stopped(partial: "") }
         let client = try await ready(session: taskID)
+        guard !turn.writes.snapshot.cancelled, !Task.isCancelled else { throw AnswerFailure.stopped(partial: "") }
         var segment = ""
         // Where the text after the last tool call starts (AnswerNarration).
         var afterTools: Int?
         var lastStop = ""
         var lastError: String?
+        var aborted = false
+        var sawSettlement = false
         var loopStop: String?
-        var receipt = PiTurnReceipt()
-        lastSelectedMail = nil
-        defer {
-            let reads = PippaMCPService.readNotes.take()
-            // Did this answer read the selected mail? (offer "Als Entwurf in Mail", PiRPCChat+Shown.)
-            lastSelectedMail = reads.last { $0.tool == "mail_selected" && $0.read }?.mail
-            lastActions = Self.actions(receipt, reads: reads, writes: PippaMCPService.writeNotes.take())
-        }
         var toolArguments: [String: String] = [:]
         do {
         for try await event in try await subscriptionChecked({ try await client.prompt(text) }) {
@@ -439,7 +455,7 @@ final class PiRPCChat {
                 // What Pi read with `read`, for this answer's source check (PiReadLedger).
                 let arguments = toolArguments.removeValue(forKey: id)
                 if name == "read", !isError, let arguments {
-                    await PippaMCPTurns.shared.active?.notePiRead(arguments: arguments, result: result)
+                    await turn.notePiRead(arguments: arguments, result: result)
                 }
                 let ending = arguments.map {
                     WorkStepPhrase.ending(tool: name, arguments: $0, isError: isError, result: result, home: Self.homePath,
@@ -492,8 +508,9 @@ final class PiRPCChat {
                     }
                     loopStop = reason
                 }
-            case .settled:
-                break
+            case .settled(let wasAborted):
+                aborted = wasAborted
+                sawSettlement = true
             }
         }
         }
@@ -502,7 +519,13 @@ final class PiRPCChat {
         if let loopStop {
             throw AnswerFailure.stopped(partial: segment.trimmingCharacters(in: .whitespacesAndNewlines) + (segment.isEmpty ? "" : "\n\n") + loopStop)
         }
-        if lastStop == "aborted" { throw AnswerFailure.stopped(partial: segment) }
+        if aborted || lastStop == "aborted" || turn.writes.snapshot.cancelled || Task.isCancelled {
+            settledCleanly = false
+            throw AnswerFailure.stopped(partial: segment)
+        }
+        if lastStop == "length" {
+            throw AnswerFailure.stopped(partial: segment + "\n\n" + T("This answer reached its length limit. Ask me to continue from here.", table: "App"))
+        }
         if lastStop == "error" {
             // Through the subscription: say what is wrong (sign-in, limit); never switch to another service by itself.
             if launchKey?.hasPrefix("chatgpt|") == true, let problem = PiSubscriptionAuth.problem(in: lastError ?? "") {
@@ -512,7 +535,10 @@ final class PiRPCChat {
         }
         if held != nil, let plan = localPlan { Self.removeSupersededModels(after: plan) }
         // "Ich suche jetzt mal …" before the tools drops out once a real answer follows them.
-        return AnswerNarration.finished(segment, afterTools: afterTools)
+        let answer = AnswerNarration.finished(segment, afterTools: afterTools)
+        guard !answer.isEmpty else { throw Failure.model("empty answer") }
+        settledCleanly = sawSettlement && turn.writes.snapshot.pending.isEmpty
+        return answer
     }
 
     /// After the first local answer with the table's model in this app run: delete models it replaced (SupersededModels),
@@ -563,10 +589,10 @@ final class PiRPCChat {
     /// PiRPC (without PippaCore) → history. Events only, no model text. Read and write lines get their text from the
     /// notes of Pippa's MCP server, one per tool in call order; a read without note shows "Etwas gelesen", a write without
     /// note "Benutzt: …" (what happened is then known only to Pi).
-    static func actions(_ receipt: PiTurnReceipt, reads: [PippaMCPReadNote] = [], writes: [PippaMCPWriteReceipt] = []) -> ActionReceipt? {
+    static func actions(_ receipt: PiTurnReceipt, reads: [PippaMCPReadNote] = [], writes: [ActionReceipt.Item] = []) -> ActionReceipt? {
         var pendingReads = reads
         var pendingWrites = writes
-        let items = receipt.records.map { record -> ActionReceipt.Item in
+        var items = receipt.records.map { record -> ActionReceipt.Item in
             if record.action == "read" {
                 let note = pendingReads.firstIndex { $0.tool == record.name }.map { pendingReads.remove(at: $0) }
                 return ActionReceipt.Item(action: "read", outcome: note.map { $0.read ? "done" : "failed" } ?? record.outcome.rawValue,
@@ -574,12 +600,15 @@ final class PiRPCChat {
             }
             if record.action == "write" {
                 let action = Self.writeActions[record.name ?? ""]
-                if let index = pendingWrites.firstIndex(where: { $0.action == action }) { return pendingWrites.remove(at: index).item }
+                if let index = pendingWrites.firstIndex(where: { $0.action == action }) { return pendingWrites.remove(at: index) }
                 return ActionReceipt.Item(action: "tool", outcome: record.outcome.rawValue, name: record.name)
             }
             return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName,
                                       reason: record.reason)
         }
+        // App-initiated reads and calls finishing after Pi stopped may have no matching Pi tool event.
+        items += pendingReads.map { ActionReceipt.Item(action: "read", outcome: $0.read ? "done" : "failed", name: $0.line) }
+        items += pendingWrites
         // Online sources after Pippa's own cards: from the web tools' arguments and results, never from the model.
         let queries = receipt.records.filter { $0.action == "webSearch" && $0.outcome == .done }
             .flatMap { ($0.name ?? "").components(separatedBy: " · ") }
@@ -598,6 +627,9 @@ final class PiRPCChat {
     }
 
     func cancel() async {
+        activeNativeTurn?.cancelWrites()
+        needsFreshClient = true
+        PippaMCPService.invalidateEndpoint()
         try? await client?.abort()
     }
 

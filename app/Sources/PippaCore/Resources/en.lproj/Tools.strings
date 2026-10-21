@@ -54,3 +54,51 @@
 "[Recipient]" = "[Recipient]";
 "Page %lld of %lld" = "Page %lld of %lld";
 "I can only read invoices as PDFs, photos or text." = "I can only read invoices as PDFs, photos or text.";
+
+"Extract Text" = "Extract Text";
+
+"Remove Location" = "Remove Location";
+
+"Extracting text" = "Extracting text";
+
+"Removing location" = "Removing location";
+
+"%lld text files extracted" = "%lld text files extracted";
+
+"%lld photos without location" = "%lld photos without location";
+
+"I can only remove location from photos." = "I can only remove location from photos.";
+
+"New PNG copies without location or camera metadata. The originals are unchanged." = "New PNG copies without location or camera metadata. The originals are unchanged.";
+
+"Download this file to the Mac first." = "Download this file to the Mac first.";
+
+"This file exceeds the 200 MB limit. Nothing was exported." = "This file exceeds the 200 MB limit. Nothing was exported.";
+
+"This image has multiple frames or pages. Export a single image first." = "This image has multiple frames or pages. Export a single image first.";
+
+"This image exceeds the 60 megapixel limit or has invalid dimensions." = "This image exceeds the 60 megapixel limit or has invalid dimensions.";
+
+"I can only extract text from PDFs and photos." = "I can only extract text from PDFs and photos.";
+
+"Source: %@" = "Source: %@";
+
+"The extracted text exceeds 2 MB. Nothing was exported; no text was cut off." = "The extracted text exceeds 2 MB. Nothing was exported; no text was cut off.";
+
+"Recognized from image (OCR; please check)" = "Recognized from image (OCR; please check)";
+
+"Embedded PDF text" = "Embedded PDF text";
+
+"Page %lld — %@" = "Page %lld — %@";
+
+"No readable text was recognized on this page." = "No readable text was recognized on this page.";
+
+"This PDF does not allow text copying." = "This PDF does not allow text copying.";
+
+"Text extraction supports 1–200 pages. Nothing was exported." = "Text extraction supports 1–200 pages. Nothing was exported.";
+
+"Each page names its source: PDF text or OCR. Check recognized text against the original; layout may differ." = "Each page names its source: PDF text or OCR. Check recognized text against the original; layout may differ.";
+
+"Text recognition took too long. Nothing was exported." = "Text recognition took too long. Nothing was exported.";
+
+"No readable text was found. No text file was created." = "No readable text was found. No text file was created.";

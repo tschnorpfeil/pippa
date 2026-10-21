@@ -21,9 +21,12 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
         public var toName: String?
         /// Why it did not happen or how it happened, e.g. "busy" (calendar), "nothingFound" (web), "reply" (mail).
         public var reason: String?
+        /// Stable native call identity, so a late OS confirmation updates its original receipt exactly once.
+        public var operationID: UUID?
 
-        public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, reason: String? = nil) {
+        public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, reason: String? = nil, operationID: UUID? = nil) {
             self.action = action; self.outcome = outcome; self.name = name; self.toName = toName; self.reason = reason
+            self.operationID = operationID
         }
 
         public var happened: Bool { outcome == "done" }
@@ -171,6 +174,17 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
     public var cards: [ResultCard]?
     public init(items: [Item], mailOffer: MailDraftOffer? = nil, cards: [ResultCard]? = nil) {
         self.items = items; self.mailOffer = mailOffer; self.cards = cards?.isEmpty == false ? cards : nil
+    }
+
+    /// Native confirmations may arrive after Stop. Preserve every other action and never offer a duplicate draft.
+    public mutating func mergeNativeWrite(_ item: Item) {
+        guard let id = item.operationID, Item.appActions.contains(item.action) else { return }
+        if let index = items.firstIndex(where: { $0.operationID == id }) { items[index] = item }
+        else { items.append(item) }
+        if item.action == "mailDraft", ["done", "unclear"].contains(item.outcome) {
+            items.removeAll { $0.action == "mailDraft" && $0.outcome == "notYet" }
+            mailOffer = nil
+        }
     }
 
     /// A card this version does not know (a newer app wrote it) or cannot read is dropped: the answer and its

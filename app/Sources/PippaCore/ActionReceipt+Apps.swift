@@ -11,6 +11,20 @@ extension ActionReceipt.Item {
     public var canOpenMailDraft: Bool { action == "mailDraft" && (outcome == "done" || outcome == "unclear") }
 
     func appLine(language: String?) -> String {
+        if outcome == "cancelled" {
+            return switch action {
+            case "calendarAdd": L("Stopped before adding anything to Calendar", table: "Thought", language: language)
+            case "reminderAdd": L("Stopped before adding a reminder", table: "Thought", language: language)
+            default: L("Stopped before creating a draft in Mail", table: "Thought", language: language)
+            }
+        }
+        if reason == "pending" {
+            return switch action {
+            case "calendarAdd": L("Calendar hasn’t confirmed the result yet. Check Calendar before trying again.", table: "Thought", language: language)
+            case "reminderAdd": L("Reminders hasn’t confirmed the result yet. Check Reminders before trying again.", table: "Thought", language: language)
+            default: L("Mail hasn’t confirmed the draft yet. Check Mail before trying again. Nothing was sent.", table: "Thought", language: language)
+            }
+        }
         let what = name ?? "?"
         if action == "mailDraft" {
             switch outcome {

@@ -23,11 +23,20 @@ public final class SystemIntegrations: AppIntegrations, @unchecked Sendable {
         }
     }
 
+    public func prepareMailAccess() async -> IntegrationAccess {
+        guard !Task.isCancelled, await AppleEvents.launchHidden(.mail), !Task.isCancelled else {
+            return .unavailable(L("%@ isn’t open right now.", table: "Core", Integration.mail.appName))
+        }
+        return await AppleEvents.permission(.mail, ask: false)
+    }
+
     public func requestAccess(_ integration: Integration) async -> IntegrationAccess {
         switch integration {
         case .reminders, .calendar: return await eventKit.request(integration)
         case .mail:
-            _ = await AppleEvents.launchHidden(integration)
+            guard await AppleEvents.launchHidden(integration) else {
+                return .unavailable(L("%@ isn’t open right now.", table: "Core", integration.appName))
+            }
             return await AppleEvents.permission(integration, ask: true)
         }
     }
@@ -199,6 +208,16 @@ public enum AppleEventsConsentCheck {
     }
 }
 
+/// Deterministic checks of the real serial queue and dispatch boundary, without scripting any app.
+public enum AppleEventsExecutionCheck {
+    public static func perform<T: Sendable>(mutation: Bool = false, _ body: @escaping @Sendable () throws -> T) async throws -> T {
+        try await AppleEvents.perform {
+            if mutation { try PippaMCPWriteLease.current?.beginDispatch() }
+            return try body()
+        }
+    }
+}
+
 enum AppleEvents {
     static func isRunning(_ i: Integration) -> Bool { isRunning(bundle: i.bundleIdentifier) }
 
@@ -218,13 +237,17 @@ enum AppleEvents {
     static func launchHidden(bundle: String) async -> Bool {
         if isRunning(bundle: bundle) { return true }
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else { return false }
-        let config = NSWorkspace.OpenConfiguration()
-        config.activates = false
-        config.hides = true
-        config.addsToRecentItems = false
-        _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: config)
-        for _ in 0..<25 where !isRunning(bundle: bundle) { try? await Task.sleep(for: .milliseconds(200)) }
-        return isRunning(bundle: bundle)
+        // LaunchServices can leave its completion pending. Bound the whole launch, not just the running-state poll,
+        // so a requested Mail search/draft (and the permission page) always gets an answer.
+        return await firstAnswer(within: 5, fallback: false) {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = false
+            config.hides = true
+            config.addsToRecentItems = false
+            _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: config)
+            for _ in 0..<25 where !isRunning(bundle: bundle) { try? await Task.sleep(for: .milliseconds(200)) }
+            return isRunning(bundle: bundle)
+        }
     }
 
     /// May Pippa ask the app via Apple Events? `ask: true` shows the system prompt and waits for the answer.
@@ -288,8 +311,9 @@ enum AppleEvents {
     /// Calls a handler of an AppleScript with parameters. Texts go in as parameters,
     /// never into the script text, so nothing can be injected.
     /// Only inside `perform`.
-    static func call(_ source: String, handler: String, _ args: [NSAppleEventDescriptor] = [], app: Integration) throws -> NSAppleEventDescriptor {
-        try call(source, handler: handler, args, appName: app.appName)
+    static func call(_ source: String, handler: String, _ args: [NSAppleEventDescriptor] = [], app: Integration,
+                     mutation: Bool = false) throws -> NSAppleEventDescriptor {
+        try call(source, handler: handler, args, appName: app.appName, mutation: mutation)
     }
 
     /// AppleScript runs on its own serial queue, not the main thread: a slow Mail or Excel (up to 20 s) never freezes
@@ -297,8 +321,16 @@ enum AppleEvents {
     private static let queue = DispatchQueue(label: "app.pippa.applescript", qos: .userInitiated)
 
     static func perform<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
-        try await withCheckedThrowingContinuation { continuation in
-            queue.async { continuation.resume(with: Result { try body() }) }
+        let lease = PippaMCPWriteLease.current
+        return try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                continuation.resume(with: Result {
+                    try PippaMCPWriteLease.$current.withValue(lease) {
+                        try lease?.check()
+                        return try body()
+                    }
+                })
+            }
         }
     }
 
@@ -307,7 +339,8 @@ enum AppleEvents {
     nonisolated(unsafe) private static var compiled: [String: NSAppleScript] = [:]
 
     /// As above; `appName` only for the error message (no permission, app not open). Only inside `perform`.
-    static func call(_ source: String, handler: String, _ args: [NSAppleEventDescriptor] = [], appName: String) throws -> NSAppleEventDescriptor {
+    static func call(_ source: String, handler: String, _ args: [NSAppleEventDescriptor] = [], appName: String,
+                     mutation: Bool = false) throws -> NSAppleEventDescriptor {
         var error: NSDictionary?
         let script: NSAppleScript
         if let known = compiled[source] {
@@ -324,6 +357,8 @@ enum AppleEvents {
         let list = NSAppleEventDescriptor.list()
         for (i, a) in args.enumerated() { list.insert(a, at: i + 1) }
         event.setParam(list, forKeyword: AEKeyword(keyDirectObject))
+        try PippaMCPWriteLease.current?.check()
+        if mutation { try PippaMCPWriteLease.current?.beginDispatch() }
         let result = script.executeAppleEvent(event, error: &error)
         if let error {
             let code = (error[NSAppleScript.errorNumber] as? Int) ?? 0
@@ -458,10 +493,9 @@ enum MailReplyScript {
                 with timeout of 30 seconds
                     set r to reply m
                 end timeout
-            on error number errNum
-                -- A stalled Mail may still open the reply later.
-                if errNum is -1712 then return {"uncertain"}
-                return {"failed"}
+            on error
+                -- After dispatch, even a non-timeout error cannot prove that Mail created no reply.
+                return {"uncertain"}
             end try
             try
                 with timeout of 30 seconds
@@ -686,8 +720,11 @@ enum MailReplyScript {
         guard let mailID = box.mailID else { return [.text("notHere")] }
         try Task.checkCancellation()
         let header = L("On {date}, {sender} wrote:", table: "Core")
-        return try await run("replyAt", [.text(id), .number(Int32(mailID)), .text(box.account), .texts(box.path),
-                                         .text(draft.to ?? ""), .text(draft.replySubject), .text(draft.body), .text(header)])
+        let result = try await run("replyAt", [.text(id), .number(Int32(mailID)), .text(box.account), .texts(box.path),
+                                             .text(draft.to ?? ""), .text(draft.replySubject), .text(draft.body), .text(header)], mutation: true)
+        // These script statuses are returned before opening a reply. A later cancellation can still promise no change.
+        if ["notHere", "busy"].contains(result.first?.text ?? "") { PippaMCPWriteLease.current?.confirmNoMutation() }
+        return result
     }
 
     private static func outcome(_ response: [ScriptValue], draft: MailDraft) throws -> MailInsertResult {
@@ -701,7 +738,7 @@ enum MailReplyScript {
     }
 
     private static func newMessage(_ draft: MailDraft) async throws -> MailInsertResult {
-        let created = try await run("newMessage", [.text(draft.to ?? ""), .text(draft.toName ?? ""), .text(draft.replySubject), .text(draft.body)])
+        let created = try await run("newMessage", [.text(draft.to ?? ""), .text(draft.toName ?? ""), .text(draft.replySubject), .text(draft.body)], mutation: true)
         guard created.count == 3,
               draft.isConfirmed(subject: created[0].text ?? "", body: created[1].text ?? "",
                                 recipients: created[2].items.map { $0.text ?? "" }) else { throw PippaError.notAvailable }
@@ -709,9 +746,9 @@ enum MailReplyScript {
     }
 
     /// One short step on the AppleScript queue.
-    private static func run(_ handler: String, _ args: [ScriptArgument]) async throws -> [ScriptValue] {
+    private static func run(_ handler: String, _ args: [ScriptArgument], mutation: Bool = false) async throws -> [ScriptValue] {
         let result = try await AppleEvents.perform {
-            ScriptValue(try AppleEvents.call(source, handler: handler, args.map(\.descriptor), app: .mail))
+            ScriptValue(try AppleEvents.call(source, handler: handler, args.map(\.descriptor), app: .mail, mutation: mutation))
         }.items
         await Task.yield()
         return result

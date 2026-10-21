@@ -37,10 +37,11 @@ struct SkillActions: View {
         let skills = PippaSkill.suggestions(for: place)
         AdaptiveActions {
             ForEach(skills) { skill in
+                let blocked = model.canUseQuickText(skill) ? nil : model.chatBlockedReason
                 Button(skill.title ?? skill.name) { model.runSkill(skill, offered: skills, place: place) }
                     .pippa(.quiet)
-                    .disabled(model.isActiveWork || model.chatBlockedReason != nil)
-                    .help(model.chatBlockedReason ?? skill.prompt)
+                    .disabled(model.isActiveWork || blocked != nil)
+                    .help(blocked ?? skill.prompt)
             }
         }
     }

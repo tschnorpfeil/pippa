@@ -28,12 +28,19 @@ extension PiRPCChat {
     func answer(_ text: String, taskID: String, context: ChatContext, newFiles: [URL], skill: PippaSkill? = nil, draftOnly: Bool = false,
                 onDelta: @escaping @Sendable (String) -> Void, onSteered: @escaping @Sendable (String) -> Void,
                 onReset: (@Sendable (String) -> Void)? = nil) async throws -> ShownAnswer {
+        try Task.checkCancellation()
         let turn = PippaMCPTurn(onWork: context.onWork)
+        activeNativeTurn = turn
+        if let onWrite = context.onNativeWrite { turn.writes.observeReceipts(onWrite) }
         PippaMCPTurns.shared.begin(turn)
         Self.pendingMail = nil
         // The chip's app for this answer: `front_read` reads only this one, and nothing without a chip.
         FrontAppStage.shared.current = context.frontApp
-        defer { PippaMCPTurns.shared.end(turn); FrontAppStage.shared.current = nil }
+        defer {
+            PippaMCPTurns.shared.end(turn)
+            if activeNativeTurn === turn { activeNativeTurn = nil }
+            FrontAppStage.shared.current = nil
+        }
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         let input = PiShownContext.Input(question: text, files: context.files, newFiles: newFiles, focused: context.focusedFiles,
                                          selectedText: context.selectedText, workflowSummary: context.workflowSummary, language: language,
@@ -51,15 +58,16 @@ extension PiRPCChat {
         var carried: [PippaMCPReadNote] = []
         if let app = context.frontApp, context.files.isEmpty, context.selectedText.isEmpty, FrontQuestion.meansOpen(text) {
             let read = await PippaMCPService.readFront()
-            carried = PippaMCPService.readNotes.take()
+            carried = PippaMCPService.readNotes.take().filter { $0.turnID == turn.id }
             opened = Self.frontReadSection(read, app: app, german: german)
         }
-        let shown = [front ?? (opened != nil ? context.frontApp?.label(german: german) : nil), opened, described]
+        let nativeHistory = context.nativeReceiptSummary.isEmpty ? nil : context.nativeReceiptSummary
+        let shown = [nativeHistory, front ?? (opened != nil ? context.frontApp?.label(german: german) : nil), opened, described]
             .compactMap { $0 }.joined(separator: "\n")
         let prompt = skill.map { PiSkillTurn.prompt(for: $0, message: shown, language: language, draftOnly: draftOnly) } ?? shown
         do {
             let answer = try await chat(prompt, taskID: taskID, onWork: context.onWork, onDelta: onDelta, onSteered: onSteered, onReset: onReset,
-                                        carriedReads: carried)
+                                        carriedReads: carried, turn: turn)
             // Drafts (button "Antwort schreiben", letter line) have their own insert path: no second offer,
             // and as in the old path no source check in the draft text ("bitte prüfen" does not belong in a letter).
             let writesDraft = draftOnly || skill?.writesDraft == true

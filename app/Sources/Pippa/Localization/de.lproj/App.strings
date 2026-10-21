@@ -241,3 +241,4 @@
 "I’m not allowed to look into “%@”" = "Ich darf nicht in „%@“ schauen";
 "Your Mac said no to Pippa for this folder. Turn on Pippa in System Settings under “Files & Folders”, then try again." = "Dein Mac hat Pippa diesen Ordner nicht erlaubt. Schalte Pippa in den Systemeinstellungen unter „Dateien und Ordner“ ein und versuch es dann noch mal.";
 "Open System Settings" = "Systemeinstellungen öffnen";
+"This answer reached its length limit. Ask me to continue from here." = "Diese Antwort hat ihre Längengrenze erreicht. Bitte mich, hier weiterzumachen.";

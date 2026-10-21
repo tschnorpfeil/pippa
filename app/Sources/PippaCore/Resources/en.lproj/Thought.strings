@@ -210,3 +210,9 @@
 "Not remembered" = "Not remembered";
 "Not forgotten" = "Not forgotten";
 "Unclear whether Pippa remembered it" = "Unclear whether Pippa remembered it";
+"Stopped before adding anything to Calendar" = "Stopped before adding anything to Calendar";
+"Stopped before adding a reminder" = "Stopped before adding a reminder";
+"Stopped before creating a draft in Mail" = "Stopped before creating a draft in Mail";
+"Calendar hasn’t confirmed the result yet. Check Calendar before trying again." = "Calendar hasn’t confirmed the result yet. Check Calendar before trying again.";
+"Reminders hasn’t confirmed the result yet. Check Reminders before trying again." = "Reminders hasn’t confirmed the result yet. Check Reminders before trying again.";
+"Mail hasn’t confirmed the draft yet. Check Mail before trying again. Nothing was sent." = "Mail hasn’t confirmed the draft yet. Check Mail before trying again. Nothing was sent.";
