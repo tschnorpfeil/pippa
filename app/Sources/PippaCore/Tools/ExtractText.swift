@@ -93,7 +93,7 @@ private final class TextRecognition: @unchecked Sendable {
                     self?.request.cancel()
                 }
                 let early = lock.withLock { () -> Result<String, Error>? in
-                    if let result { return result }
+                    if let result = self.result { return result }
                     self.continuation = continuation
                     timeout = timer
                     return nil
