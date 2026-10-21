@@ -5,96 +5,104 @@
 <h1 align="center">Pippa</h1>
 
 <p align="center">
-  <b>Your private AI agent on the Mac.</b><br>
-  Ask her anything, or drop a letter, a folder or a few photos on her. She helps you get the work done.<br>
-  Her built-in AI runs on your Mac. No account, no subscription.
+  <b>Your private AI assistant for everyday Mac tasks.</b><br>
+  Turn photos into a PDF. Understand a letter. Find a file. Prepare a reply.<br>
+  Drop something on Pippa or tell her what you need.
 </p>
 
 <p align="center">
   <a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download for Mac</b></a> ·
-  <a href="https://heypippa.app">heypippa.app</a> ·
-  free and open source (MIT)
+  <a href="https://heypippa.app/en/">Website &amp; interactive demo</a> ·
+  <a href="https://github.com/tschnorpfeil/pippa/releases/tag/v0.3.12-727">What's new in 0.3.12</a>
 </p>
 
 <p align="center">
-  <img src="docs/images/demo-tidy.gif" width="960" alt="The Downloads folder is dragged onto Pippa. She shows where 38 files would go (Invoices, Photos, Letters, Apps) before changing anything. One click on 'Organize 38 Files' sorts them, and 'Undo' brings everything back.">
+  Apple silicon · macOS 15 or later · English &amp; German<br>
+  Free and open source · No Pippa account or subscription
 </p>
 
-Think of ChatGPT, but living in a small pill on your Mac and working with your own files, Mail and Calendar. Pippa doesn't only chat: she reads the letter, sorts the folder, writes the reply into Mail. That is what makes her an agent rather than a chat window.
-
-She is made for people who don't pay for an AI subscription and never open Terminal. Her menus are in English or German, and she answers in the language you write in.
-
-## Private, because she runs on your Mac
-
-- **The built-in AI runs on your Mac.** No Pippa account, no Pippa server, no usage statistics.
-- **Mac app access uses macOS permissions.** Directly requested actions can run without a second confirmation.
-- **Supported file changes have Undo.** Pippa keeps available backups; changes made elsewhere can prevent a safe restore. Native app actions do not all support Undo.
-- **What she remembers is one text file on your Mac.** You can review and remove saved facts in Settings.
-- **Online routes are optional.** Downloads, updates and web lookups use the network. If you connect an online AI service, it receives the content needed for that request. Mail, Calendar and Reminders can sync through your configured accounts. General tasks can also request network access.
-
-Worth knowing: Pippa runs without the macOS App Sandbox, because a sandboxed app cannot set up her agent. Keep Time Machine on, as you would anyway.
-
-## What she does for you
-
-- **Ask her anything.** Click the pill and type, like in a chat. She answers on your Mac, and you can add files for her to look at.
-- **Tidy up a folder.** The Organize action shows where files would go and waits for your OK. Supported moves can be undone.
-- **Understand a letter.** What does it say, what do I have to do, by when? With the passage it came from.
-- **Find files again.** "Where is the invoice for my helmet?" searches your Mac.
-- **Answer emails.** Select a mail in Apple Mail and ask. She can check your calendar and put a reply into Mail as a draft for you to review and send.
-- **Office work.** *Check the total* in Excel adds the numbers up again in code and points out rows a total leaves out. Invoices become a CSV table that opens in Excel. Your files stay as they are.
-- **Everyday extras, no AI needed.** Make PDFs and photos smaller, combine scans into one PDF, convert between PDF, JPG and PNG.
-- **Calendar, reminders, the web.** Add an appointment or a reminder, or look something up online.
+Pippa is a personal AI agent for macOS, living in a small pill on your desktop. She works with your files, Apple Mail, Calendar, Reminders and Excel. Her built-in AI runs on your Mac. Photo and PDF tools work before AI setup.
 
 <p align="center">
-  <img src="docs/images/demo-letter.gif" width="480" alt="Lease.pdf is dropped on Pippa with the question 'I'm moving out at the end of March. When do I have to give notice?' She answers 'By December 31' and quotes § 4 of the lease.">
-  <img src="docs/images/demo-excel.gif" width="480" alt="In Excel, Pippa checks a total and finds that it leaves out the row 'Trash'. Nothing in the table is changed.">
+  <img src="docs/images/demo-tidy.gif" width="960" alt="Illustrative demo: Pippa previews a Downloads folder organized into Invoices, Photos, Letters and Apps, then shows Organize and Undo controls.">
 </p>
+
+<sub>These animations record the scripted website demo with fictional files, rather than live AI sessions.</sub>
+
+## Your first useful result
+
+1. Download [Pippa.dmg](https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg), open it and drag Pippa to Applications.
+2. Open Pippa and choose photos or PDFs from setup. Combine scans into a PDF, make a file smaller or extract its text. These actions need neither an AI download nor Apple Intelligence.
+3. Open the result, show it in Finder or save it where you need it. If saving fails, your result stays available so you can try again.
+
+For AI conversations, Pippa asks before downloading her local AI. No Terminal, API key or separate AI app needed. Updates arrive through Pippa.
+
+## Everyday work, with fewer steps
+
+| What you need | How Pippa helps |
+|---|---|
+| **A PDF ready to share** | Combine photos or scans, reduce file size, convert images to PDF, JPG or PNG, or extract text from images and PDFs. |
+| **A folder you can navigate again** | Drop a folder and choose Organize. Review the proposed destinations before moving files; supported moves have Undo. |
+| **A letter you can act on** | Ask what it says, what it asks you to do and which passage supports the answer. Letter and deadline extraction is currently tuned for German documents. |
+| **A file you cannot find** | Ask “Where is the invoice for my helmet?” Pippa searches the Mac's existing index and links to the files she finds. |
+| **A reply ready to review** | Work from a message in Apple Mail. Prepare reply text, or ask Pippa in chat to create an unsent draft in Mail for you to review and send. |
+| **Less spreadsheet busywork** | Check an Excel total with code, identify omitted rows or turn invoices into a CSV table. These actions leave the source files unchanged. |
+| **An appointment or a reminder** | Ask Pippa to add it to Calendar or Reminders. macOS controls app access, and Pippa shows the reported action in the conversation. |
+| **A clearer piece of writing** | Shorten text, fix spelling or turn a selection into a checklist. Eligible short selections use Apple's on-device intelligence when available. |
+
+File utilities run in code; open-ended tasks use AI. Answer quality and speed vary, so review important names, amounts and dates against the source. File search uses Spotlight; files that are not indexed or downloaded may be missing.
 
 <p align="center">
-  <img src="docs/images/demo-pdf-tools.gif" width="480" alt="Tax notice.pdf is dropped on Pippa. After 'Make smaller' she offers 'Tax notice (smaller).pdf' to drag where it is needed, with Undo.">
+  <img src="docs/images/demo-letter.gif" width="480" alt="Scripted demo: a question about a lease receives a proposed deadline and a supporting passage.">
+  <img src="docs/images/demo-excel.gif" width="480" alt="Scripted demo: Pippa checks an Excel total and highlights an omitted row without changing the spreadsheet.">
 </p>
 
-<sub>Recorded from the demo on [heypippa.app/en](https://heypippa.app/en/). Names and files are made up.</sub>
+## Local by default, clear about access
 
-## Install
+- **Local AI, no Pippa server.** Pippa's built-in model processes your requests on your Mac. Pippa has no account requirement or usage analytics.
+- **Permissions belong to you.** Mac integrations use macOS permissions. A directly requested action can run without another confirmation; folder organization has a preview before changes.
+- **Undo where supported.** Supported file changes keep backups, including after errors or Stop. Changes made elsewhere can prevent a safe restore. Not every native app action supports Undo.
+- **Memory you can inspect.** Review or remove saved facts in Settings. Facts, conversation history and task records are stored locally.
+- **Network use has a purpose.** Model downloads, updates and web lookups use the network. An optional online AI service receives the content needed for its requests. General tasks can request network access, and Mail, Calendar and Reminders may sync through your configured accounts.
 
-You need a Mac with Apple silicon (M1 or later) and macOS 15 or later. Initial AI setup needs about 3 to 6 GB for its download, plus space for the app and your results.
+Pippa runs outside the macOS App Sandbox, with her own controls for agent tools and macOS permissions for connected apps. Details: [privacy policy (German)](https://heypippa.app/datenschutz.html) and [architecture](docs/development.md).
 
-1. Download [Pippa.dmg](https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg) and drag Pippa into Applications.
-2. Open her and start with photos or PDFs immediately. For AI chat, choose whether to download her AI; a compatible existing copy can be reused. Pippa checks for app updates.
+## Will it run on my Mac?
 
-| Memory | Model | Download |
+You need **Apple silicon (M1 or later)** and **macOS 15 or later**. Intel Macs are not supported. Photo and PDF actions are available without downloading a language model.
+
+For local AI, Pippa chooses a default based on your Mac's memory:
+
+| Mac memory | Default local model | Download size |
 |---|---|---|
-| 8 GB | Qwen3.5 4B | about 2.7 GB |
-| 16 GB or more | Qwen3.5 9B | about 5.7 GB |
+| 8 GB | Qwen3.5 4B | About 2.7 GB |
+| 16 GB or more | Qwen3.5 9B | About 5.7 GB |
 
-A matching model from LM Studio, Ollama or the Hugging Face cache is reused.
+Allow additional disk space for the app and your results. Pippa can reuse an exact supported model file found in an LM Studio, Ollama or Hugging Face cache; other models or quantizations may still require a download. Apple Intelligence is optional; eligible features use it on macOS 26 or later when it is enabled and available.
 
-## How it works
+See the [0.3.12 release notes](https://github.com/tschnorpfeil/pippa/releases/tag/v0.3.12-727) for tested environments and validation limits.
 
-The Swift app draws the pill and connects to Mail, Calendar, Reminders and Excel. Behind it, the [Pi](https://github.com/earendil-works/pi) agent does the work with a local model run by [llama.cpp](https://github.com/ggml-org/llama.cpp). Pippa's abilities are Pi skills in [`runtime/pippa-skills`](runtime/pippa-skills): plain text files, not app code.
+## What's next
 
-```
-Pippa.app (Swift)      pill, cards, settings, MCP server for Mail, Calendar, Excel
- ├─ llama-server       the local model, on 127.0.0.1 only
- └─ pi --mode rpc      the agent, with Pippa's skills and pi-web-access
-```
+[The 0.3.13 roadmap](docs/roadmap-0.3.13.md) prioritizes completed everyday tasks, dependable Mac actions and less friction from first launch to finished result.
 
-## Building from source
+Found a task Pippa could not finish? [Report it](https://github.com/tschnorpfeil/pippa/issues) with the version, what you asked, what happened and what you expected. Use fictional examples and remove personal content from screenshots or logs.
 
-Apple silicon, macOS 15+, Command Line Tools with Swift 6 and `cmake`.
+## Build and contribute
+
+Native Swift code handles the interface, file utilities and Mac integrations. [Pi](https://github.com/earendil-works/pi) coordinates model-driven tasks with Pippa's scoped tools and [bundled skills](runtime/pippa-skills). [llama.cpp](https://github.com/ggml-org/llama.cpp) runs the local model on a loopback-only server.
+
+Building requires Apple silicon, macOS 15+, Command Line Tools with Swift 6 and `cmake`:
 
 ```sh
 scripts/build-app.sh                        # dist/Pippa.app
 swift run --package-path app PippaChecks    # checks, no model needed
 ```
 
-More in [docs/development.md](docs/development.md) and [docs/updating-pi.md](docs/updating-pi.md).
+See [development and architecture](docs/development.md), [updating Pi](docs/updating-pi.md) and [contributing](CONTRIBUTING.md).
 
 ## Credits and license
 
 Built on [Pi](https://github.com/earendil-works/pi), [llama.cpp](https://github.com/ggml-org/llama.cpp), [pi-web-access](https://github.com/nicobailon/pi-web-access), [Node.js](https://nodejs.org), [Sparkle](https://sparkle-project.org) and the open [Qwen](https://huggingface.co/Qwen) models. Full list: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-[MIT](LICENSE). Contributions welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-<sub>Pippa is an independent project, not affiliated with Apple, Microsoft, OpenAI, Alibaba Cloud or Earendil Works. Mac and macOS are trademarks of Apple Inc., Excel of Microsoft Corporation, ChatGPT of OpenAI.</sub>
+[MIT licensed](LICENSE). Pippa is an independent project, not affiliated with Apple, Microsoft, OpenAI, Alibaba Cloud or Earendil Works. Mac and macOS are trademarks of Apple Inc.; Excel is a trademark of Microsoft Corporation.
