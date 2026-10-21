@@ -175,13 +175,29 @@ func runR2Checks() async {
     await checkAsync("read_document: scan without text layer → text recognition, amount readable, marked as recognised") {
         let scan = base.appendingPathComponent("scan.pdf")
         renderedScan("Stadtwerke Musterstadt\nAbschlag Oktober\nBetrag: 84,20 EUR\nFällig am 15.10.2026", at: scan)
-        guard (PDFDocument(url: scan)?.page(at: 0)?.string ?? "").isEmpty else { return false }
+        guard let document = PDFDocument(url: scan), let page = document.page(at: 0) else {
+            print("  read_document scan fixture: generated PDF could not be opened")
+            return false
+        }
+        let embedded = page.string ?? ""
+        // Whitespace alone is not a readable text layer; the tool must still return OCR provenance and the amount.
+        guard embedded.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("  read_document scan fixture has unexpected PDF text: \(String(reflecting: embedded))")
+            return false
+        }
+        if !embedded.isEmpty { print("  read_document scan fixture PDF whitespace: \(String(reflecting: embedded))") }
         let r = await call(tools(PippaMCPTurns()), "read_document", ["path": scan.path])
         let data = r.json["data"] as? [String: Any] ?? [:]
         let text = data["text"] as? String ?? ""
         let line = PiShownContext.describe(scan, german: true)
-        if r.isError || !text.contains("84,20") { print("  read_document (Scan): \(r.text.prefix(400))") }
-        return !r.isError && data["recognizedText"] as? Bool == true && text.contains("84,20") && line.contains("gescannt")
+        let conditions = [("successful read", !r.isError), ("OCR provenance", data["recognizedText"] as? Bool == true),
+                          ("amount", text.contains("84,20")), ("scan description", line.contains("gescannt"))]
+        if !conditions.allSatisfy({ $0.1 }) {
+            print("  read_document scan conditions: " + conditions.map { "\($0.0)=\($0.1)" }.joined(separator: ", "))
+            print("  read_document synthetic scan result: \(String(reflecting: r.text))")
+            print("  read_document synthetic scan description: \(String(reflecting: line))")
+        }
+        return conditions.allSatisfy { $0.1 }
     }
 
     // MARK: Online lookup (pi-web-access): no card; the receipt line comes from the call's own arguments

@@ -46,13 +46,16 @@ jobs:
           swift --version | tee -a .build/macos15-acceptance/reports/host.txt
           xcrun --sdk macosx --show-sdk-version | tee -a .build/macos15-acceptance/reports/host.txt
       - name: Build all targets against the supported runtime
+        id: build
         run: swift build --package-path app --scratch-path .build/macos15-swift 2>&1 | tee .build/macos15-acceptance/reports/build.log
       - name: Native checks with production OCR
         timeout-minutes: 15
         run: swift run --skip-build --package-path app --scratch-path .build/macos15-swift PippaChecks 2>&1 | tee .build/macos15-acceptance/reports/native.log
       - name: Pi RPC protocol checks
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: swift run --skip-build --package-path app --scratch-path .build/macos15-swift PiRPCChecks 2>&1 | tee .build/macos15-acceptance/reports/rpc.log
       - name: Native first use without a model (English and German)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           bin=$(swift build --package-path app --scratch-path .build/macos15-swift --show-bin-path)
