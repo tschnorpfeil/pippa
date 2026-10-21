@@ -278,7 +278,11 @@ Some `PippaChecks` groups need extra input and are switched on by environment va
 `PIPPA_MCP_CHECKS=1` (installer and MCP server with a real payload from `PIPPA_PI_PAYLOAD`, optionally
 `PIPPA_PI_PAYLOAD_PREVIOUS` for the old-to-new install), `PIPPA_R6_CHECKS`, `PIPPA_R7_CHECKS`, `PIPPA_R7B_CHECKS`,
 `PIPPA_R10_CHECKS`, `PIPPA_W4A_CHECKS`, `PIPPA_THOUGHT_CHECKS`, `PIPPA_DOWNLOAD_CHECKS` and `PIPPA_LEGACY_CHECKS`.
-`PIPPA_PERF=1` enables the slow speed checks. `PIPPA_OCR_FAST=1` makes the searchable text layer use the fast
+`PIPPA_PERF=1` enables the slow speed checks. For the sorting benchmark alone, run
+`PIPPA_SORT_CHECKS=1 PIPPA_PERF=1 swift run --package-path app PippaChecks` on a physical development Mac. The strict
+three-second first-preview and twenty-second 300-file targets remain enabled there; shared CI VMs always check
+complete results and intermediate/final progress, and log speed without treating host load as a functional failure.
+`PIPPA_OCR_FAST=1` makes the searchable text layer use the fast
 recognizer (CI sets it).
 
 **CI.** `.github/workflows/ci.yml` runs on every pull request, on pushes to `main` (not for documentation-only changes) and
