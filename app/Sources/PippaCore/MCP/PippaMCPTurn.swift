@@ -175,13 +175,21 @@ public struct PippaMCPTurnTools: Sendable {
         let url = URL(fileURLWithPath: path)
         let granted = url.startAccessingSecurityScopedResource()
         defer { if granted { url.stopAccessingSecurityScopedResource() } }
-        var isFolder: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isFolder) else {
+        let attributes: [FileAttributeKey: Any]
+        do {
+            // `fileExists` collapses access errors into absence. Keep denied parent folders distinct from missing files.
+            attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        } catch let error as NSError where Self.isDenied(error) {
+            return Self.filePermissionFailure(at: url)
+        } catch let error as NSError where error.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(error.code)
+            || error.domain == NSPOSIXErrorDomain && error.code == Int(ENOENT) {
             // Small models miscopy long names ("DWG" → "DNG"): name the close match so the next call can succeed.
             if let match = Self.closeMatch(for: url) {
                 return Self.failure("not_found", "There is no file at this path. Did you mean \(match.path)? Use that exact path.")
             }
             return Self.failure("not_found", "There is no file at this path. Use the exact path from the message.")
+        } catch {
+            return Self.failure("failed", "Pippa could not open this file just now. Nothing was read.")
         }
         // A Numbers file can be a package folder. With Numbers installed, Numbers saves an Excel copy that is read
         // instead (the person's file stays untouched); otherwise say what to do with it instead of "folder".
@@ -190,18 +198,18 @@ public struct PippaMCPTurnTools: Sendable {
             do {
                 source = try await NumbersExport.excelCopy(of: url)
             } catch PippaError.accessDenied {
-                return Self.failure("no_access", "Pippa may not use Numbers to read this table. Tell the person in one sentence: allow Numbers for Pippa in System Settings > Privacy & Security > Automation, or save the table as an Excel file (.xlsx).")
+                return Self.failure("no_access", "Pippa may not use Numbers to read this table. Tell the person in one sentence: allow Numbers for Pippa in System Settings > Privacy & Security > Automation, or save the table as an Excel file (.xlsx).", repair: .automation)
             } catch {
                 return Self.failure("unsupported", SheetFileCheck.unreadableNote(fileExtension: "numbers") ?? "")
             }
         } else if let note = SheetFileCheck.unreadableNote(fileExtension: url.pathExtension) {
             return Self.failure("unsupported", note)
         }
-        if isFolder.boolValue && source == url { return Self.failure("is_folder", "This is a folder. Use list_folder to see what is in it.") }
+        if attributes[.type] as? FileAttributeType == .typeDirectory && source == url { return Self.failure("is_folder", "This is a folder. Use list_folder to see what is in it.") }
         // macOS privacy settings (Downloads, Desktop, Documents) can deny the app while the file exists; say that
         // instead of "damaged", so the model tells the person rather than trying other ways.
         do { try FileHandle(forReadingFrom: url).close() } catch let error as NSError where Self.isDenied(error) {
-            return Self.failure("no_access", "Pippa is not allowed to open files in this folder (macOS Privacy & Security). Tell the person in one sentence; do not try other ways.")
+            return Self.filePermissionFailure(at: url)
         } catch {}
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         if size > 100_000_000 { return Self.failure("too_large", "This file is larger than 100 MB; Pippa does not read it.") }
@@ -300,12 +308,16 @@ public struct PippaMCPTurnTools: Sendable {
     }
 
     static func isDenied(_ error: NSError) -> Bool {
-        let posix = (error.userInfo[NSUnderlyingErrorKey] as? NSError).flatMap { $0.domain == NSPOSIXErrorDomain ? $0.code : nil }
-        return error.code == NSFileReadNoPermissionError || posix == Int(EPERM) || posix == Int(EACCES)
+        PermissionRepairTarget.isFileAccessDenied(error)
     }
 
-    static func failure(_ status: String, _ why: String) -> PippaMCPToolResult {
-        PippaMCPToolResult(text: PippaMCPTools.json(["read": false, "status": status, "error": why]), isError: true)
+    private static func filePermissionFailure(at url: URL) -> PippaMCPToolResult {
+        failure("no_access", "Pippa is not allowed to open this file. Tell the person in one sentence; do not try other ways.",
+                repair: PermissionRepairTarget.forDeniedFile(at: url))
+    }
+
+    static func failure(_ status: String, _ why: String, repair: PermissionRepairTarget? = nil) -> PippaMCPToolResult {
+        PippaMCPToolResult(text: PippaMCPTools.json(["read": false, "status": status, "error": why]), isError: true, permissionRepair: repair)
     }
 }
 

@@ -342,7 +342,7 @@ struct ActionReceiptView: View {
     var onCopyMailOffer: (() -> Void)? = nil
     var onOpenReminders: (() -> Void)? = nil
     var onCheckReminder: ((UUID) -> Void)? = nil
-    var onOpenPermissionSettings: ((Integration) -> Void)? = nil
+    var onOpenPermissionSettings: ((PermissionRepairTarget) -> Void)? = nil
     var reminderCheckDisabled = false
     var reminderCheckState: ReminderStatusCheck.State? = nil
 
@@ -385,14 +385,9 @@ struct ActionReceiptView: View {
                         || reminderCheckState?.request.operationID == entry.item.operationID && entry.item.operationID != nil {
                         reminderActions(entry.item)
                     }
-                    if let integration = entry.item.permissionSettingsIntegration, let onOpenPermissionSettings {
-                        Button { onOpenPermissionSettings(integration) } label: {
-                            Label(T("Open System Settings", table: "Settings"), systemImage: "gear")
-                        }
-                        .pippa(.tinted).controlSize(.small)
+                    if let target = entry.item.permissionRepairTarget, let onOpenPermissionSettings {
+                        PermissionRepairControl(item: entry.item, target: target, onOpen: onOpenPermissionSettings)
                         .padding(.leading, 21)
-                        .accessibilityIdentifier("native-permission-settings-" + integration.rawValue)
-                        .accessibilityHint(entry.text)
                     }
                 }
             }
@@ -460,4 +455,51 @@ struct ActionReceiptView: View {
         default: "questionmark.circle"
         }
     }
+}
+
+/// One repair action for a verified access denial. Its explanation comes from the typed result, never model prose.
+struct PermissionRepairControl: View {
+    var item: ActionReceipt.Item
+    var target: PermissionRepairTarget
+    var onOpen: (PermissionRepairTarget) -> Void
+
+    var explanation: String {
+        switch target {
+        case .filesAndFolders:
+            T("macOS blocked access to these files. Check Pippa’s access under Files & Folders.", table: "Views")
+        case .removableVolumes:
+            T("macOS blocked access to this drive. Check Pippa’s access to removable volumes.", table: "Views")
+        case .photos where item.action == "read" && item.happened:
+            T("The photo search worked, but previews need Photos access. You can change that in System Settings.", table: "Views")
+        case .photos:
+            T("Photos access is off for Pippa. You can change that in System Settings.", table: "Views")
+        case .automation:
+            T("macOS blocked Pippa from controlling this app. Check its access under Automation.", table: "Views")
+        case .calendar:
+            T("Calendar access is off for Pippa. You can change that in System Settings.", table: "Views")
+        case .reminders:
+            T("Reminders access is off for Pippa. You can change that in System Settings.", table: "Views")
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(explanation)
+                .font(Fonts.hint).foregroundStyle(Theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(action: openSettings) {
+                Label(T("Open System Settings", table: "Settings"), systemImage: "gear")
+            }
+            .pippa(.tinted).controlSize(.small)
+            .accessibilityIdentifier("permission-repair-settings-" + target.rawValue)
+            .accessibilityHint(T("Opens the matching privacy setting. Your request stays here and is not retried automatically.", table: "Views"))
+            Text(T("Your request stays here. Nothing is retried automatically.", table: "Views"))
+                .font(Fonts.hint).foregroundStyle(Theme.ink3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Shared with the real-controller fixture: exercise the same button action without opening real Settings.
+    func openSettings() { onOpen(target) }
 }

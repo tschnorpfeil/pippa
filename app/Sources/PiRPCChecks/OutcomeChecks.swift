@@ -54,4 +54,28 @@ import PiRPC
     next.observe(.toolStarted(id: "again", name: native, arguments: "{}"))
     next.observe(.toolEnded(id: "again", name: native, isError: false, result: "{\"done\":true}"))
     check("A new turn collects its own confirmed result", next.records.map(\.outcome) == [.done])
+
+    let denied: [String: Any] = ["schema": 1, "code": "EACCES", "path": "/Users/fixture/Documents/Private"]
+    let envelope = result("Access denied", details: ["pippaFileAccess": denied])
+    let failure = PiFileAccessFailure.decode(tool: "list_folder", isError: true, result: envelope)
+    check("Folder repair requires typed denial from the dedicated reader, never output text or another tool",
+          failure?.code == "EACCES" && failure?.path == "/Users/fixture/Documents/Private"
+          && PiFileAccessFailure.decode(tool: "read", isError: true, result: envelope) == nil
+          && PiFileAccessFailure.decode(tool: "list_folder", isError: false, result: envelope) == nil
+          && PiFileAccessFailure.decode(tool: "list_folder", isError: true, result: result("EACCES: /Users/fixture/Documents")) == nil)
+    let invalid: [[String: Any]] = [denied.merging(["schema": true]) { _, b in b },
+        denied.merging(["code": "ENOENT"]) { _, b in b }, denied.merging(["path": "relative"]) { _, b in b },
+        denied.merging(["path": "/fixture\nforged"]) { _, b in b }, denied.merging(["schema": 2]) { _, b in b }]
+    check("Malformed or future folder permission evidence is ignored",
+          invalid.allSatisfy { PiFileAccessFailure.decode(tool: "list_folder", isError: true,
+              result: result("Denied", details: ["pippaFileAccess": $0])) == nil })
+    var deniedReceipt = PiTurnReceipt()
+    deniedReceipt.observe(.toolStarted(id: "denied-folder", name: "list_folder", arguments: "{}"))
+    deniedReceipt.observe(.toolEnded(id: "denied-folder", name: "list_folder", isError: true, result: "Denied",
+                                    outcome: .failed, fileAccessFailure: failure))
+    check("Denied folder reads stay visible with their own target and no claimed mutation",
+          deniedReceipt.records.count == 1 && deniedReceipt.records.first?.action == "look"
+          && deniedReceipt.records.first?.outcome == .blocked && deniedReceipt.records.first?.fileAccessFailure == failure)
+    deniedReceipt.observe(.toolEnded(id: "denied-folder", name: "list_folder", isError: false, result: "Read", outcome: .done))
+    check("A later successful read does not retain stale permission repair", deniedReceipt.records.isEmpty)
 }

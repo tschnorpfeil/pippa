@@ -38,6 +38,12 @@ if ProcessInfo.processInfo.environment["PIPPA_SOURCE_EXPOSURE_CHECKS"] == "1" {
     exit(failures == 0 ? 0 : 1)
 }
 
+if ProcessInfo.processInfo.environment["PIPPA_PERMISSION_REPAIR_CHECKS"] == "1" {
+    await runPermissionRepairChecks()
+    print(failures == 0 ? "Permission repair checks passed." : "Permission repair checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
 if ProcessInfo.processInfo.environment["PIPPA_REMINDER_STATUS_CHECKS"] == "1" {
     await runReminderStatusChecks()
     print(failures == 0 ? "Reminder status checks passed." : "Reminder status checks failed.")
@@ -1328,6 +1334,7 @@ await runR7bChecks()
 await runW4aChecks()
 await runTextScaleChecks()
 await runPermissionChecks()
+await runPermissionRepairChecks()
 runLegacyMigrationChecks()
 await runDownloadHangChecks()
 

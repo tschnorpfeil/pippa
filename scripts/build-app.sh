@@ -281,7 +281,7 @@ echo "    Resources: pippa-skills ($(find "$APP/Contents/Resources/pippa-skills"
 # Pippa's Pi extensions (file tools, helps for small models, MCP connection) for the Pi RPC path.
 # Only the sources Pi loads; tests stay out.
 mkdir -p "$APP/Contents/Resources/pippa-tools"
-for f in pippa-policy.ts pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-context.ts pippa-mcp.ts files.ts shell.ts budget.ts search.mjs; do
+for f in pippa-policy.ts pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-context.ts pippa-mcp.ts files.ts list-folder.ts shell.ts budget.ts search.mjs; do
   cp "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f"
 done
 # ChatGPT sign-in through Pi's own sign-in (PiSubscriptionAuth.swift); tests stay out.

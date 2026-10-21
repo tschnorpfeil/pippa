@@ -26,7 +26,7 @@
  * (`BUILTIN_DESCRIPTIONS`); their parameter descriptions stay as Pi delivers them.
  */
 import { execFile } from "node:child_process";
-import { mkdir, readdir, rename, stat } from "node:fs/promises";
+import { mkdir, rename } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
 import { createBashToolDefinition } from "@earendil-works/pi-coding-agent";
@@ -35,10 +35,10 @@ import { capResult, resultLimit, shortenParameters } from "./budget.ts";
 import { exists, folderLabel, moveOne, planMoves, resolvePath } from "./files.ts";
 import { search } from "./search.mjs";
 import { shellTool } from "./shell.ts";
+import { listFolder } from "./list-folder.ts";
 
 type ExtensionAPI = any;
 
-const LIST_LIMIT = 200;
 
 /** Short versions for Pi's built-in tools (Pi 1.1.0: read 303, bash 270, edit 330, write 141 characters). */
 export const BUILTIN_DESCRIPTIONS: Record<string, string> = {
@@ -67,12 +67,6 @@ export async function moveToTrash(path: string): Promise<string | undefined> {
 		});
 	});
 	return output.match(/Moved ".*" to "(.*)"\s*$/m)?.[1];
-}
-
-function size(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-	return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export default function (pi: ExtensionAPI) {
@@ -125,21 +119,7 @@ export default function (pi: ExtensionAPI) {
 		}),
 		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
 			const folder = resolvePath(params?.path || ".", ctx?.cwd ?? process.cwd());
-			// A wrongly shortened path must not be retried ten times in a row (seen with a 12B model).
-			if (!(await exists(folder))) throw new Error(`There is no folder at ${folder}. Use the exact path from the message (starting with / or ~), not a shortened one.`);
-			const names = (await readdir(folder)).filter((name) => !name.startsWith(".")).sort((a, b) => a.localeCompare(b));
-			const lines: string[] = [];
-			for (const name of names.slice(0, LIST_LIMIT)) {
-				try {
-					const info = await stat(join(folder, name));
-					lines.push(info.isDirectory() ? `${name}/` : `${name} (${size(info.size)}, ${info.mtime.toISOString().slice(0, 10)})`);
-				} catch {
-					lines.push(name);
-				}
-			}
-			const more = names.length > LIST_LIMIT ? `\n… and ${names.length - LIST_LIMIT} more` : "";
-			const text = names.length === 0 ? `${folder} is empty.` : `${folder}:\n${lines.join("\n")}${more}`;
-			return { content: [{ type: "text", text }], details: { folder, count: names.length } };
+			return listFolder(folder);
 		},
 	});
 

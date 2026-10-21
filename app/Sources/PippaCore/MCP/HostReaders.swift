@@ -166,7 +166,8 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
     public func photoPreviewAccess(ask: Bool) async -> Bool {
         lock.withLock {
             if ask { previewAsked = true }
-            return previewsAllowed
+            if ask, libraryPermission == .notDetermined { libraryPermission = previewsAllowed ? .granted : .denied }
+            return previewsAllowed && libraryPermission == .granted
         }
     }
 

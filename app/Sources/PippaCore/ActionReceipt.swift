@@ -25,19 +25,35 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
         public var operationID: UUID?
         /// Monotonic version of a durable native operation; absent on legacy and non-journal receipts.
         public var nativeRevision: Int?
+        /// A typed denial from a native reader or validated filesystem result; never derived from model text.
+        public var permissionRepair: PermissionRepairTarget?
 
         public init(action: String, outcome: String, name: String? = nil, toName: String? = nil, reason: String? = nil,
-                    operationID: UUID? = nil, nativeRevision: Int? = nil) {
+                    operationID: UUID? = nil, nativeRevision: Int? = nil, permissionRepair: PermissionRepairTarget? = nil) {
             self.action = action; self.outcome = outcome; self.name = name; self.toName = toName; self.reason = reason
             self.operationID = operationID
             self.nativeRevision = nativeRevision
+            self.permissionRepair = permissionRepair
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            action = try c.decode(String.self, forKey: .action)
+            outcome = try c.decode(String.self, forKey: .outcome)
+            name = try c.decodeIfPresent(String.self, forKey: .name)
+            toName = try c.decodeIfPresent(String.self, forKey: .toName)
+            reason = try c.decodeIfPresent(String.self, forKey: .reason)
+            operationID = try c.decodeIfPresent(UUID.self, forKey: .operationID)
+            nativeRevision = try c.decodeIfPresent(Int.self, forKey: .nativeRevision)
+            // Newer optional destinations must not make the whole conversation unreadable.
+            permissionRepair = try? c.decodeIfPresent(PermissionRepairTarget.self, forKey: .permissionRepair)
         }
 
         public var happened: Bool { outcome == "done" }
 
         /// Only looked something up, and it worked (Pippa's reader, a web search, a page read online): the line folds
         /// into the receipt under the answer. Everything that changed something, was declined or failed stays in view.
-        public var isQuiet: Bool { happened && ["read", "webSearch", "webPage"].contains(action) }
+        public var isQuiet: Bool { happened && permissionRepairTarget == nil && ["read", "webSearch", "webPage"].contains(action) }
 
         /// Pippa's memory (`remember`): `name` what was kept, `toName` what was let go ("*": everything).
         func memoryLine(language: String?) -> String {

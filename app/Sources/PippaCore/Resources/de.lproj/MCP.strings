@@ -14,6 +14,8 @@
 "Pippa may not read your reminders. To change that, open System Settings → Privacy & Security → Reminders and turn on Pippa." = "Pippa darf deine Erinnerungen nicht lesen. Das änderst du in den Systemeinstellungen unter Datenschutz & Sicherheit → Erinnerungen: dort Pippa einschalten.";
 /* Welle 2d: Lesequittung und Pippas Satz vor der ersten Systemabfrage. */
 "Not read: %@" = "Nicht gelesen: %@";
+"Read: %@" = "Gelesen: %@";
+"To show these pictures here, I need access to your photo library on this Mac. I don’t change anything." = "Damit ich diese Bilder hier zeigen kann, brauche ich Zugriff auf deine Fotomediathek auf diesem Mac. Ich ändere nichts.";
 "Read Calendar: %@" = "Kalender gelesen: %@";
 "Read Reminders: open ones" = "Erinnerungen gelesen: offene";
 "Read Reminders: due today" = "Erinnerungen gelesen: heute fällig";

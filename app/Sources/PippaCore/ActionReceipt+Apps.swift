@@ -29,6 +29,14 @@ extension ActionReceipt.Item {
         }
     }
 
+    /// Preserve legacy native-write receipts; a successful Photos search can still have denied library previews.
+    public var permissionRepairTarget: PermissionRepairTarget? {
+        if let permissionRepair,
+           ["failed", "blocked", "declined"].contains(outcome)
+            || (action == "read" && outcome == "done" && permissionRepair == .photos) { return permissionRepair }
+        return permissionSettingsIntegration.map(PermissionRepairTarget.init(integration:))
+    }
+
     func appLine(language: String?) -> String {
         if outcome == "cancelled" {
             return switch action {

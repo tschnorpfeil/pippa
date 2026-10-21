@@ -396,6 +396,7 @@ func runMCPChecks() async {
         let demo = DemoIntegrations(granted: true)
         let data = DemoHostData(integrations: demo, now: now)
         data.photosPermission = .notDetermined
+        data.libraryPermission = .notDetermined
         let host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: data, askForAccess: true, now: { now },
                                 calendar: berlin, explainAccess: { subject, sentence in asked.append("\(subject.appName)|\(sentence)"); return true },
                                 onRead: { notes.append($0) })

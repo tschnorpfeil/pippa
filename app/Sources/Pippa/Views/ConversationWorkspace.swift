@@ -454,7 +454,7 @@ struct ConversationWorkspace: View {
                           onCopyMailOffer: { chat.copyMailOffer(messageID: message.id) },
                           onOpenReminders: { chat.openReminders() },
                           onCheckReminder: { chat.checkReminderStatus(messageID: message.id, operationID: $0) },
-                          onOpenPermissionSettings: { model.openSettings(for: $0, keepingConversation: true) },
+                          onOpenPermissionSettings: { model.openPermissionSettings(for: $0) },
                           reminderCheckDisabled: !chat.canCheckReminderStatus || model.isActiveWork,
                           reminderCheckState: chat.reminderCheckState.flatMap { $0.request.conversationID == chat.current?.id ? $0 : nil })
     }

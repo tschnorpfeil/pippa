@@ -62,7 +62,8 @@ public enum PiRPCEvent: Sendable, Equatable {
     case textDelta(String)
     /// Pi calls a tool. `arguments`: JSON, truncated.
     case toolStarted(id: String, name: String, arguments: String)
-    case toolEnded(id: String, name: String, isError: Bool, result: String, outcome: PiActionRecord.Outcome? = nil)
+    case toolEnded(id: String, name: String, isError: Bool, result: String, outcome: PiActionRecord.Outcome? = nil,
+                   fileAccessFailure: PiFileAccessFailure? = nil)
     /// Pi picked up another message from the person (delivered via `steer` or `followUp`).
     case userMessage(String)
     /// A model response is done. `stopReason`: "stop", "toolUse", "aborted", "error", …
@@ -390,7 +391,8 @@ public actor PiRPCClient {
             let limit = name == "read" ? Self.readResultLimit : Self.listingTools.contains(name) ? Self.listingResultLimit : 400
             events?.yield(.toolEnded(id: record["toolCallId"] as? String ?? "", name: name,
                                      isError: isError, result: String(result.prefix(limit)),
-                                     outcome: PiTurnReceipt.classify(tool: name, isError: isError, result: validResult ? payload : nil)))
+                                     outcome: PiTurnReceipt.classify(tool: name, isError: isError, result: validResult ? payload : nil),
+                                     fileAccessFailure: PiFileAccessFailure.decode(tool: name, isError: isError, result: validResult ? payload : nil)))
         case "entry_appended":
             if let entry = record["entry"] as? [String: Any], entry["type"] as? String == "custom",
                let kind = entry["customType"] as? String, ["pippa-loop-stop", "pippa-search-result", "pippa-listed-files", "pippa-change", PiNativeReadiness.command, PiActionPolicy.command].contains(kind), let data = entry["data"],
