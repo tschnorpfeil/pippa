@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import Synchronization
 
 // Pippa drives the real Pi via `pi --mode rpc`. Protocol: JSONL on stdin/stdout,
@@ -61,7 +62,7 @@ public enum PiRPCEvent: Sendable, Equatable {
     case textDelta(String)
     /// Pi calls a tool. `arguments`: JSON, truncated.
     case toolStarted(id: String, name: String, arguments: String)
-    case toolEnded(id: String, name: String, isError: Bool, result: String)
+    case toolEnded(id: String, name: String, isError: Bool, result: String, outcome: PiActionRecord.Outcome? = nil)
     /// Pi picked up another message from the person (delivered via `steer` or `followUp`).
     case userMessage(String)
     /// A model response is done. `stopReason`: "stop", "toolUse", "aborted", "error", …
@@ -118,6 +119,7 @@ public actor PiRPCClient {
     private var userMessagesInRun = 0
     /// A summary runs between answers (pippa-context.ts compacts while the person reads). Pi refuses a prompt meanwhile.
     private var compacting = false
+    private var nativeReadinessAttempt: UUID?
 
     struct Response: Sendable { let success: Bool; let error: String?; let data: Data? }
 
@@ -219,6 +221,33 @@ public actor PiRPCClient {
         try? stdin?.close()
         for _ in 0..<20 where child.isRunning { try? await Task.sleep(for: .milliseconds(100)) }
         if child.isRunning { child.terminate() }
+    }
+
+    // Startup admission has its own cancellation path: an unanswered command must not retain its continuation.
+    func beginNativeReadiness() throws -> UUID {
+        guard nativeReadinessAttempt == nil, events == nil else { throw PiRPCError.busy }
+        let attempt = UUID()
+        nativeReadinessAttempt = attempt
+        return attempt
+    }
+
+    func finishNativeReadiness(_ attempt: UUID) {
+        if nativeReadinessAttempt == attempt { nativeReadinessAttempt = nil }
+    }
+
+    func rejectNativeReadiness(_ attempt: UUID, error: PiNativeReadiness.Failure) {
+        guard nativeReadinessAttempt == attempt else { return }
+        nativeReadinessAttempt = nil
+        let waiting = pending.values; pending.removeAll()
+        for continuation in waiting { continuation.resume(throwing: error) }
+        finish(error)
+        try? stdin?.close(); stdin = nil
+        if process?.isRunning == true { process?.terminate() }
+    }
+
+    /// Stop during startup must end discovery even before a user prompt has been submitted.
+    public func cancelNativeReadiness() {
+        if let attempt = nativeReadinessAttempt { rejectNativeReadiness(attempt, error: .cancelled) }
     }
 
     /// Process ID, for logs and targeted termination.
@@ -348,17 +377,23 @@ public actor PiRPCClient {
             events?.yield(.toolStarted(id: record["toolCallId"] as? String ?? "", name: record["toolName"] as? String ?? "",
                                        arguments: Self.json(record["args"], limit: 400)))
         case "tool_execution_end":
-            let result = (record["result"] as? [String: Any]).map { Self.text(of: $0) } ?? ""
+            let payload = record["result"] as? [String: Any]
+            let flag = record["isError"] as? NSNumber
+            let validFlag = flag.map { CFGetTypeID($0) == CFBooleanGetTypeID() } == true
+            let validResult = payload?["content"] is [[String: Any]] && validFlag
+            let isError = validResult ? flag?.boolValue == true : true
+            let result = payload.map { Self.text(of: $0) } ?? ""
             let name = record["toolName"] as? String ?? ""
             // Pi's own `read` in full (up to 200,000 characters; Pi itself returns at most 50 KB per call): the
             // source check checks against exactly what Pi read (PiReadLedger). Everything else only the beginning.
             // Searches and listings: enough to count result lines for the everyday step summary ("3 matches").
             let limit = name == "read" ? Self.readResultLimit : Self.listingTools.contains(name) ? Self.listingResultLimit : 400
             events?.yield(.toolEnded(id: record["toolCallId"] as? String ?? "", name: name,
-                                     isError: record["isError"] as? Bool == true, result: String(result.prefix(limit))))
+                                     isError: isError, result: String(result.prefix(limit)),
+                                     outcome: PiTurnReceipt.classify(tool: name, isError: isError, result: validResult ? payload : nil)))
         case "entry_appended":
             if let entry = record["entry"] as? [String: Any], entry["type"] as? String == "custom",
-               let kind = entry["customType"] as? String, ["pippa-loop-stop", "pippa-search-result", "pippa-listed-files", "pippa-change"].contains(kind), let data = entry["data"],
+               let kind = entry["customType"] as? String, ["pippa-loop-stop", "pippa-search-result", "pippa-listed-files", "pippa-change", PiNativeReadiness.command].contains(kind), let data = entry["data"],
                let json = try? JSONSerialization.data(withJSONObject: data) {
                 events?.yield(.notice(String(decoding: json, as: UTF8.self), kind: kind))
             }

@@ -20,6 +20,24 @@ The initial checkout was `release/0.2.1` at `af8327d`, with 103 commits on remot
 
 These fixes address reproduced failure paths. They do not establish that every user report had the same cause.
 
+## Follow-up: native tool admission and partial effects
+
+The first implementation and evolution plan were committed and pushed on `codex/agent-reliability`; checkpoint `12dbc05` also incorporates remote main through `093ea7d`, including the source-fidelity and English usability-fixture updates.
+
+**A missing MCP connector was a concrete cause of unavailable Mac actions.** Pippa starts Pi with `--no-extensions`. In the pinned Pi 1.3.0, that also disables the built-in MCP connector. Registering Pippa's server alone therefore did not make its tools available. A real Pi subprocess reproduced the missing-tool state.
+
+Pippa now loads the pinned SDK's public MCP connector with an empty shared configuration and registers only its own endpoint. Before admitting a user prompt to a fresh Pi process, it confirms the extension command's ownership and requires a nonce-bound receipt proving all 11 native tools are active. Startup has bounded deadlines and cancellation cleanup. Missing tools produce an actionable localized failure. Direct native utilities remain independent; admission currently checks the full native inventory, not the subset needed by an individual task.
+
+The real Pi fixture includes colliding and unrelated global/project MCP configurations. It confirms that these files remain unchanged, unrelated HTTP and stdio servers never start, and readiness sends no model request. This establishes discovery and isolation, not real macOS permission or application behavior.
+
+**An error is not evidence that nothing changed.** Receipts now distinguish confirmed completion, a known block before execution, failure after an attempt, and an unconfirmed result. Missing, malformed or contradictory native replies remain unconfirmed, and identical mutations are blocked within that turn. Classification uses the full result before display truncation and accepts actual JSON booleans only.
+
+Shell errors, timeouts and Stop now preserve available original-file copies and emit restoration records even when execution failed. Real Pi tests change a synthetic file before each failure and verify both the changed file and its original backup. This extends the existing bounded backup coverage; it does not provide transactional rollback for arbitrary shell effects or durable duplicate prevention across turns or app restarts.
+
+The independent review also identified an existing automatic-replay hazard: after a permission error, granting access reran the entire shell command, including any earlier successful clauses. That replay is removed. The tool preserves the original failure, retains the grant for the current answer, and instructs the agent to inspect partial effects before issuing only the remaining work. A real sandbox test verifies one append, an unchanged denied destination, and a separate successful remaining write with its backup and no repeated permission question. This prevents the wrapper's automatic replay; it does not mechanically prove arbitrary model-generated follow-up commands safe.
+
+The companion [Rakazo assessment](rakazo-assessment-2026-10-21.md) identifies useful memory, reusable-routine and evaluation patterns. Those are sequenced in the [evolution plan](../pippa-next-evolution-2026-10-21.md); neither source inspection nor a stored routine establishes measured self-improvement.
+
 ## Fast everyday actions
 
 Two new bilingual text actions are available: **Fix Spelling** and **Make a Checklist**. Alongside **Make Shorter**, **Improve Text**, and **Summarize**, they can run on Apple's on-device model when the user explicitly chooses the action and supplies a small text selection.
@@ -87,7 +105,7 @@ The document's discipline is appropriate: fixed artifacts, 16K compatibility smo
 
 The UI should lead with the task and result: a few relevant actions, progress from real tool events, an inspectable result, and an obvious next step. Model selection and implementation details belong in diagnostics or settings, not the everyday workflow.
 
-## Verification
+## Initial implementation verification (`2e67358`)
 
 - Exact pinned Pi 1.3.0: 61 runtime tests passed, none failed or skipped, including four real RPC loop/recovery scenarios and native uncertainty handling.
 - PiRPCChecks: 7 protocol checks passed using a subprocess fixture, including cancellation between messages and successful reuse afterward.
@@ -98,3 +116,12 @@ The UI should lead with the task and result: a few relevant actions, progress fr
 - No production model download, real Mail delivery, release, deployment, or model-default change occurred.
 
 Apple documents the response-limit behavior used by the new completion guard: [maximumResponseTokens](https://developer.apple.com/documentation/foundationmodels/generationoptions/maximumresponsetokens).
+
+## Follow-up verification
+
+- Full runtime suite against the exact Pi 1.3.0 payload: **75 passed, zero failures or skips**. Includes native discovery with the production tool allowlist and extensions, conflicting configuration, authentication failure, lost native replies, and real sandbox partial-effect/exit/timeout/Stop scenarios.
+- PiRPCChecks: **30 passed**, including absent or malformed result envelopes, strict boolean evidence, full native replies before truncation, startup deadlines, cancellation and a fresh successful request after earlier admission failures.
+- Full native suite with the normal OCR engine: **745 passed, zero failures**. The first follow-up run caught one older receipt assertion that still expected failure to mean no effect; it was updated to preserve the distinction between failed and blocked outcomes, and the complete suite passed again.
+- Full app debug build, English/German string validation (1,404 keys), whitespace checks and local document links passed. The seven upstream Python usability-fixture tests also passed before the checkpoint push.
+- Independent source review covered outcome handling and native-tool admission. Its additional finding about shell permission replay was fixed and covered by an actual partial-effect regression test.
+- Signed-app TCC flows, live Mail/EventKit mutations, restart reconciliation, the proposed model matrix and observed-user acceptance remain unvalidated by this follow-up. No release or model-default change was made.

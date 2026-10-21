@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,7 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 const build = join(here, "../../.build");
 
 for (const scenario of [
+	{ name: "native write followed by a lost reply", tool: "mcp__pippa__reminder_add", args: () => ({ title: "Fixture" }), attempts: 4, native: true },
 	{ name: "rejected document reads", tool: "read", args: () => ({ path: "/fake/invoice.pdf" }), attempts: 5 },
 	{ name: "unknown tools", tool: "invented_tool", args: () => ({ query: "invoice" }), attempts: 5 },
 	{ name: "invalid arguments", tool: "read", args: () => ({ wrong_path: "/fake/invoice.txt" }), attempts: 5 },
@@ -32,6 +33,17 @@ for (const scenario of [
 		const root = await mkdtemp(join(build, "pippa-loop-realpi-"));
 		const agent = join(root, ".pi/agent"), work = join(root, "work");
 		await Promise.all([agent, work].map((path) => mkdir(path, { recursive: true })));
+		const fixture = join(root, "native-fixture.ts"), effects = join(work, "native-effects.txt");
+		if (scenario.native) await writeFile(fixture, `import { appendFile } from "node:fs/promises";
+export default function (pi) {
+  pi.registerTool({ name: "mcp__pippa__reminder_add", label: "Fixture reminder", description: "Test native effect followed by a lost response",
+    parameters: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+    async execute() {
+      await appendFile(${JSON.stringify(effects)}, "created\\n");
+      throw new Error("Connection closed before the native app replied");
+    }
+  });
+}`);
 		let requests = 0;
 		const server = createServer((req, res) => {
 			let body = "";
@@ -62,7 +74,7 @@ for (const scenario of [
 				models: [{ id: "test", name: "Test", contextWindow: 16384, maxTokens: 1024 }],
 			} } }));
 			child = spawn(node, [cli, "--mode", "rpc", "--no-session", "--no-context-files", "--no-approve", "--no-skills",
-				"--extension", join(here, "pippa-assist.ts"), "--tools", "read,write", "--system-prompt", "You are a test.",
+				"--extension", join(here, "pippa-assist.ts"), ...(scenario.native ? ["--extension", fixture] : []), "--tools", scenario.native ? "read,write,mcp__pippa__reminder_add" : "read,write", "--system-prompt", "You are a test.",
 				"--provider", "pippa-local", "--model", "test"], {
 				cwd: work, env: { HOME: root, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent,
 					PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1", PI_TELEMETRY: "0" }, stdio: ["pipe", "pipe", "pipe"],
@@ -96,12 +108,23 @@ for (const scenario of [
 			};
 			const stopped = await prompt("Run the scripted loop.");
 			assert.equal(stopped.aborted, true);
-			assert.equal(requests, scenario.attempts);
+			assert.equal(requests, scenario.attempts, JSON.stringify(events.filter((event) => event.type === "tool_execution_end")) + stderr);
 			const receipts = events.filter((event) => event.type === "entry_appended" && event.entry?.customType === "pippa-loop-stop");
 			assert.equal(receipts.length, 1, "the app receives one explicit incomplete-task receipt");
 			assert.equal(receipts[0].entry.data.tool, scenario.tool);
 			if (scenario.tool === "write") {
 				assert.equal(events.filter((event) => event.type === "tool_execution_end" && !event.isError).length, 1);
+			}
+			if (scenario.native) {
+				assert.equal(await readFile(effects, "utf8"), "created\n", "native effect happens once despite a lost reply and repeated model requests");
+				const ends = events.filter((event) => event.type === "tool_execution_end");
+				assert.equal(ends.length, 4);
+				assert.match(ends[0].result.content[0].text, /Connection closed/);
+				for (const end of ends.slice(1, 3)) {
+					const blocked = JSON.parse(end.result.content[0].text);
+					assert.equal(blocked.status, "not_dispatched");
+					assert.match(blocked.tell, /an unclear outcome/);
+				}
 			}
 			const recovered = await prompt("RECOVER");
 			assert.equal(recovered.aborted, false);

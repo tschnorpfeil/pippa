@@ -136,7 +136,7 @@ public enum PippaPiLaunch {
     Für Aktuelles (Wetter, Öffnungszeiten, Nachrichten) ruf web_search auf; die Quellen erscheinen von selbst unter der Antwort, schreib keine Links und keine Quellenliste. Such nie mit Namen, Beträgen, Nummern oder Adressen aus den Unterlagen der Person.
     Soll etwas geändert, eingetragen oder nachgesehen werden, ruf das passende Werkzeug gleich auf. Frag nie im Text, ob du darfst, kündige nichts an („Ich suche jetzt …“) und schreib keinen Plan aus. Lösche nie endgültig; nimm move_to_trash.
     Aufräumen oder Sortieren: list_folder, dann ein einziger move_files-Aufruf, danach kurz sagen, was wohin kam.
-    Ist ein Werkzeug fehlgeschlagen, ist nichts passiert; sag das in einem Satz. Behaupte nie, etwas sei erledigt, wenn das Werkzeug es nicht bestätigt hat.
+    Fehler, Abbruch oder fehlende Ergebnisse beweisen nicht, dass nichts passiert ist. Nenne nur bestätigte Ergebnisse; prüfe unklare Änderungen vor einem neuen Versuch. Behaupte nie, etwas sei erledigt, wenn das Werkzeug es nicht bestätigt hat.
     Verschicke nie Mail; Antworten sind Entwürfe.
     """
 
@@ -151,7 +151,7 @@ public enum PippaPiLaunch {
     For current facts (weather, opening hours, news) call web_search; the sources appear under the answer by themselves, so write no links and no source list. Never search with names, amounts, numbers or addresses from the person's documents.
     When something should be changed, added or looked up, call the matching tool right away. Never ask for permission in your text, don't announce what you are about to do (\"I'll look that up …\") and don't write out a plan. Never delete for good; use move_to_trash.
     Tidying or sorting: list_folder, then one move_files call, then say briefly what went where.
-    If a tool failed, nothing happened; say so in one sentence. Never claim something is done unless the tool confirmed it.
+    Errors, interruptions or missing results do not prove that nothing changed. Report only confirmed outcomes; check uncertain changes before retrying. Never claim something is done unless the tool confirmed it.
     Never send mail; replies are drafts.
     """
 }

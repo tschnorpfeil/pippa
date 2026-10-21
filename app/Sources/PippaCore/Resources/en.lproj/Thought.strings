@@ -216,3 +216,9 @@
 "Calendar hasn’t confirmed the result yet. Check Calendar before trying again." = "Calendar hasn’t confirmed the result yet. Check Calendar before trying again.";
 "Reminders hasn’t confirmed the result yet. Check Reminders before trying again." = "Reminders hasn’t confirmed the result yet. Check Reminders before trying again.";
 "Mail hasn’t confirmed the draft yet. Check Mail before trying again. Nothing was sent." = "Mail hasn’t confirmed the draft yet. Check Mail before trying again. Nothing was sent.";
+
+// A tool error does not establish that no changes happened.
+"result not confirmed" = "result not confirmed";
+"Reading was not confirmed" = "Reading was not confirmed";
+"Command failed; changes may have happened" = "Command failed; changes may have happened";
+"Couldn’t finish: %@ · check the result before trying again" = "Couldn’t finish: %@ · check the result before trying again";

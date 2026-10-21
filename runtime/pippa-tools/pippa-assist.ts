@@ -62,14 +62,21 @@ export function overBudget(calls: number): string | undefined {
 
 export interface LoopCount { runs: number; failures: number; successes: number; uncertain: number }
 
-/** Pippa's native write result is JSON text in MCP content. Only its top-level status counts, never prose or data. */
-function uncertainNativeChange(tool: string, content: any[]): boolean {
-	if (!NATIVE_CHANGES.has(tool) || !Array.isArray(content)) return false;
+// These statuses are emitted before any effect by PippaMCPWrite.swift. Unknown/new statuses fail closed.
+const NATIVE_NO_EFFECT = new Set(["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
+	"not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created"]);
+
+/** Only Pippa's top-level native write result establishes an effect. A lost/malformed reply proves neither outcome. */
+function nativeChangeOutcome(tool: string, content: any[], isError: boolean): "success" | "failure" | "uncertain" | undefined {
+	if (!NATIVE_CHANGES.has(tool)) return undefined;
 	try {
 		const result = JSON.parse(content.filter((part) => part?.type === "text").map((part) => part.text).join("\n"));
-		return result?.done === false && (result.state === "unclear" || result.status === "unclear"
-			|| result.state === "dispatched" || result.status === "dispatched" || result.dispatched === true);
-	} catch { return false; }
+		if (result?.state === "unclear" || result?.status === "unclear" || result?.state === "dispatched" || result?.status === "dispatched") return "uncertain";
+		if (result && Object.hasOwn(result, "dispatched") && typeof result.dispatched !== "boolean") return "uncertain";
+		if (result?.done === true && !isError) return "success";
+		if (result?.done === false && result.dispatched !== true && NATIVE_NO_EFFECT.has(result.status)) return "failure";
+	} catch { /* No structured confirmation: a transport error may arrive after the native app changed. */ }
+	return "uncertain";
 }
 
 /**
@@ -87,7 +94,7 @@ export function loopBrake(counts: Map<string, LoopCount>, keys: Map<string, stri
 	} catch { return undefined; }
 	const count = counts.get(key) ?? { runs: 0, failures: 0, successes: 0, uncertain: 0 };
 	if (changes && count.uncertain >= 1) {
-		return `Stopped: this exact '${tool}' call was dispatched, but its outcome is unclear. Repeating it could make a duplicate. Check the native app before trying again; do not repeat this action in this answer or claim it succeeded.`;
+		return `Stopped: this exact '${tool}' call has an unclear outcome; the native app may already have changed. Repeating it could make a duplicate. Check the native app before trying again; do not repeat this action in this answer or claim it succeeded.`;
 	}
 	if (changes && count.successes >= 1) {
 		return `Stopped: this exact '${tool}' call already worked in this answer; doing it again would make a duplicate. It is done. Do not call it again; tell the user in one short sentence what was done.`;
@@ -218,9 +225,14 @@ export type Change =
 /** What a finished tool call changed, from its own result (never from the model's text). `before`: what `tool_call`
  * saw, the copy of an existing file or that the file was new. */
 export function changesOf(tool: string, details: any, isError: boolean, before?: { file: string; copy?: string; created?: boolean }): Change[] {
+	// A failed or interrupted command can already have overwritten files. Keeping its backups is independent of exit status.
+	if (tool === "bash" && Array.isArray(details?.pippaKept)) {
+		return details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
+			.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }));
+	}
+	if ((tool === "edit" || tool === "write") && before?.copy) return [{ kind: "restore", file: before.file, copy: before.copy }];
 	if (isError) return [];
 	if ((tool === "edit" || tool === "write") && before) {
-		if (before.copy) return [{ kind: "restore", file: before.file, copy: before.copy }];
 		return before.created ? [{ kind: "create", file: before.file }] : [];
 	}
 	if (tool === "move_files") {
@@ -229,10 +241,6 @@ export function changesOf(tool: string, details: any, isError: boolean, before?:
 	}
 	if (tool === "move_to_trash" && typeof details?.path === "string" && typeof details?.trashedTo === "string") {
 		return [{ kind: "trash", from: details.path, to: details.trashedTo }];
-	}
-	if (tool === "bash" && Array.isArray(details?.pippaKept)) {
-		return details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
-			.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }));
 	}
 	return [];
 }
@@ -265,11 +273,11 @@ export default function (pi: ExtensionAPI) {
 		if (reason) recordStop(event.toolName, ctx);
 		return reason;
 	};
-	const outcome = (id: string, isError: boolean, uncertain = false) => {
+	const outcome = (id: string, isError: boolean, native?: "success" | "failure" | "uncertain") => {
 		const key = keys.get(id);
 		keys.delete(id);
 		const count = key ? counts.get(key) : undefined;
-		if (count) { if (uncertain) count.uncertain++; else if (isError) count.failures++; else count.successes++; }
+		if (count) { if (native === "uncertain") count.uncertain++; else if (native === "failure" || isError) count.failures++; else count.successes++; }
 	};
 	// Only a new message; a message sent while Pi is still working (steering) is shown back as typed.
 	pi.on("input", async (event: any) => {
@@ -286,14 +294,16 @@ export default function (pi: ExtensionAPI) {
 		unhandled.delete(event.toolCallId);
 		if (missed) attempt(missed, ctx);
 		// tool_result already recorded executed calls; only rejected calls still have a key. Never count twice.
-		outcome(event.toolCallId, event.isError === true, uncertainNativeChange(event.toolName, event.result?.content));
+		// A call that never reached tool_call was rejected by Pi's validation; no native request was attempted.
+		outcome(event.toolCallId, event.isError === true, missed ? undefined : nativeChangeOutcome(event.toolName, event.result?.content, event.isError === true));
 	});
 
 	pi.on("tool_call", async (event: any, ctx: any) => {
 		const tool: string = event.toolName;
 		unhandled.delete(event.toolCallId);
 		const loop = attempt(event, ctx);
-		if (loop) return { block: true, reason: loop };
+		if (loop) return { block: true, reason: NATIVE_CHANGES.has(tool)
+			? JSON.stringify({ done: false, status: "not_dispatched", dispatched: false, tell: loop }) : loop };
 		const document = documentForRead(tool, event.input);
 		if (document) return { block: true, reason: document };
 		if (tool === "bash") commands.set(event.toolCallId, String(event.input?.command ?? ""));
@@ -333,10 +343,10 @@ export default function (pi: ExtensionAPI) {
 				truncated ||= JSON.parse(text).truncated === true;
 			} catch { /* Plain mdfind results have no structured truncation flag. */ }
 		}
-		outcome(event.toolCallId, event.isError === true, uncertainNativeChange(event.toolName, event.content));
+		outcome(event.toolCallId, event.isError === true, nativeChangeOutcome(event.toolName, event.content, event.isError === true));
 		const changes = changesOf(event.toolName, event.details, event.isError === true, backup);
 		if (changes.length) pi.appendEntry("pippa-change", { v: 1, changes });
-		if (backup?.copy && !event.isError) {
+		if (backup?.copy) {
 			const note = `The previous version of ${basename(backup.file)} is kept at ${backup.copy}. To undo, copy it back over ${backup.file}.`;
 			return { content: [...(event.content ?? []), { type: "text", text: note }] };
 		}

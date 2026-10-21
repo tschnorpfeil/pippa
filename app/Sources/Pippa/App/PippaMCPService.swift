@@ -7,10 +7,11 @@ import PippaCore
 /// system prompt (calendar, reminders, automation for Mail/Excel) names Pippa.
 ///
 /// With `PIPPA_DEMO=1` only invented data (never real apps). `PIPPA_PI_MCP`: path to the extension, otherwise `pippa-mcp.ts`
-/// in Pippa's extensions folder. If the extension is missing or the server does not start, Pi continues without these tools.
+/// in Pippa's extensions folder. Pi conversations require this endpoint; direct native utilities do not.
 @MainActor
 enum PippaMCPService {
     private static var server: PippaMCPServer?
+    private static var startingServer: PippaMCPServer?
     private static var generation: UInt64 = 0
 
     /// What Pippa's readers read in this app run, in order; PiRPCChat collects it per answer.
@@ -23,11 +24,15 @@ enum PippaMCPService {
         func take() -> [Note] { lock.withLock { defer { notes = [] }; return notes } }
     }
 
+    enum EndpointFailure: Error, Equatable { case extensionMissing, serverUnavailable }
+
     /// Only entry point from `PiRPCChat`: starts the server if needed; address, key and extension for
-    /// `PippaPiLaunch.configuration(…, mcp:)`, which turns them into `addMCP`. `nil`: Pi runs without these tools.
-    static func endpoint(extensions: URL) async -> (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL)? {
+    /// `PippaPiLaunch.configuration(…, mcp:)`, which turns them into `addMCP`. Failure stops Pi admission before any user prompt.
+    static func endpoint(extensions: URL) async throws -> (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL) {
         let file = DevEnvironment.value("PIPPA_PI_MCP") ?? extensions.appendingPathComponent("pippa-mcp.ts").path
-        guard FileManager.default.fileExists(atPath: file), let running = await started() else { return nil }
+        try Task.checkCancellation()
+        guard FileManager.default.fileExists(atPath: file) else { throw EndpointFailure.extensionMissing }
+        let running = try await started()
         return (.init(url: running.url, token: running.token), URL(fileURLWithPath: file))
     }
 
@@ -35,7 +40,8 @@ enum PippaMCPService {
     static func invalidateEndpoint() {
         generation &+= 1
         server?.revoke()
-        server = nil
+        startingServer?.revoke()
+        server = nil; startingServer = nil
     }
 
     /// Before the first system prompt when reading, Pippa's own sentence (texts like the permission card of the
@@ -88,19 +94,33 @@ enum PippaMCPService {
         _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: config)
     }
 
-    private static func started() async -> PippaMCPServer? {
+    private static func started() async throws -> PippaMCPServer {
         if let server { return server }
         let generation = Self.generation
         let host = currentHost
         do {
             let fresh = try PippaMCPServer(host: host)
-            try await fresh.start()
-            guard generation == Self.generation else { fresh.revoke(); return nil }
+            startingServer = fresh
+            defer { if startingServer === fresh { startingServer = nil } }
+            try await withTaskCancellationHandler {
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    group.addTask { try await fresh.start() }
+                    group.addTask {
+                        try await Task.sleep(for: .seconds(5))
+                        fresh.revoke()
+                        throw EndpointFailure.serverUnavailable
+                    }
+                    defer { group.cancelAll() }
+                    try await group.next()
+                }
+            } onCancel: { fresh.revoke() }
+            guard generation == Self.generation, !Task.isCancelled else { fresh.revoke(); throw CancellationError() }
             server = fresh
             return fresh
         } catch {
-            DiagnosticsLog.shared.event("mcp-server-fehler", ["fehler": String(describing: error)])
-            return nil
+            if Task.isCancelled || generation != Self.generation { throw CancellationError() }
+            DiagnosticsLog.shared.event("mcp-server-fehler", ["fehler": "listener unavailable"])
+            throw EndpointFailure.serverUnavailable
         }
     }
 }

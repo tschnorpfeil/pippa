@@ -122,7 +122,7 @@ test("tool: Pi's bash runs through the sandbox; the transcript keeps the command
 	assert.match(result.content[0].text, /hallo/);
 	assert.match(readFileSync(join(root, "profile.sb"), "utf8"), /\(deny network\*\)/);
 	const none = shellTool(createBashToolDefinition, { available: () => false }).definition(work);
-	assert.deepEqual(await none.execute("t2", { command: "ls" }, undefined, undefined, plain(work)), { content: [{ type: "text", text: NO_SANDBOX_REASON }], isError: true });
+	assert.deepEqual(await none.execute("t2", { command: "ls" }, undefined, undefined, plain(work)), { content: [{ type: "text", text: NO_SANDBOX_REASON }], isError: true, details: { pippaExecution: "not_dispatched" } });
 });
 
 test("tool: asks once per answer before going online; no means not run; without a person nothing is granted", { skip: !piIndex && "PIPPA_PI_CLI not set" }, async () => {
@@ -132,7 +132,7 @@ test("tool: asks once per answer before going online; no means not run; without 
 	const bash = tool.definition(work);
 	const no = ui([false]);
 	assert.deepEqual(await bash.execute("a1", { command: "curl --version >/dev/null; echo ok" }, undefined, undefined, no.ctx(work)),
-		{ content: [{ type: "text", text: SHELL_DECLINED_REASON }], isError: true });
+		{ content: [{ type: "text", text: SHELL_DECLINED_REASON }], isError: true, details: { pippaExecution: "not_dispatched" } });
 	assert.deepEqual(no.asked, ["Darf Pippa ins Internet?"]);
 	const yes = ui([true]);
 	await bash.execute("a2", { command: "curl --version >/dev/null; echo ok" }, undefined, undefined, yes.ctx(work));
@@ -146,7 +146,7 @@ test("tool: asks once per answer before going online; no means not run; without 
 		"no one to ask: not run");
 });
 
-test("tool: a write the sandbox stopped is asked for, copies are kept, and it runs again", { skip: !piIndex && "PIPPA_PI_CLI not set" }, async () => {
+test("tool: permission after a blocked write allows a later call, never an automatic replay", { skip: !piIndex && "PIPPA_PI_CLI not set" }, async () => {
 	const { createBashToolDefinition } = await import(piIndex);
 	const { root, home, work } = scratch("write");
 	const letter = join(home, "Documents", "Brief.txt");
@@ -159,8 +159,17 @@ test("tool: a write the sandbox stopped is asked for, copies are kept, and it ru
 	const tool = shellTool(createBashToolDefinition, { sandbox, available: () => true, home, env: { PIPPA_LANGUAGE: "de" },
 		keep: async (file) => { const copy = join(root, `copy-${copies.length}`); writeFileSync(copy, readFileSync(file)); copies.push(file); return copy; } });
 	const person = ui([true]);
-	const result = await tool.definition(work).execute("w1", { command: `echo neu > ${letter}` }, undefined, undefined, person.ctx(work));
+	const first = await tool.definition(work).execute("w1", { command: `echo neu > ${letter}` }, undefined, undefined, person.ctx(work));
 	assert.deepEqual(person.asked, ["Darf Pippa deine Dateien ändern?"]);
+	assert.equal(first.isError, true);
+	assert.equal(first.details.pippaExecution, "attempted");
+	assert.match(first.content.map((part) => part.text).join("\n"), /failed command was not rerun/);
+	assert.equal(readFileSync(letter, "utf8"), "alt");
+	assert.deepEqual(copies, []);
+	// The caller checks the failed operation and issues only the remaining work as a separate call.
+	const result = await tool.definition(work).execute("w-next", { command: `echo neu > ${letter}` }, undefined, undefined, person.ctx(work));
+	assert.equal(result.isError, undefined);
+	assert.equal(person.asked.length, 1, "the existing permission covers the rest of the answer");
 	assert.equal(readFileSync(letter, "utf8"), "neu\n");
 	assert.deepEqual(copies, [letter]);
 	assert.deepEqual(result.details.pippaKept.map((k) => k.file), [letter]);
@@ -169,6 +178,38 @@ test("tool: a write the sandbox stopped is asked for, copies are kept, and it ru
 	const stopped = await declined.definition(work).execute("w2", { command: `echo neu > ${letter}` }, undefined, undefined, ui([false]).ctx(work));
 	assert.equal(stopped.isError, true);
 	assert.match(stopped.content.at(-1).text, /bash runs in Pippa's sandbox: write only in/);
+});
+
+test("real shell: permission after a partial compound command never repeats an earlier append", {
+	skip: !piIndex ? "PIPPA_PI_CLI not set" : !onMac ? "macOS sandbox only" : false,
+}, async () => {
+	const { createBashToolDefinition } = await import(piIndex);
+	const { root, home, work } = scratch("partial-permission");
+	const letter = join(home, "Documents", "Brief.txt"), counter = join(work, "effects.txt");
+	writeFileSync(letter, "before");
+	const copies = [];
+	const tool = shellTool(createBashToolDefinition, { home, env: {}, keep: async (file) => {
+		const copy = join(root, `copy-${copies.length}`);
+		writeFileSync(copy, readFileSync(file)); copies.push({ file, copy }); return copy;
+	} });
+	const person = ui([true]);
+	const failed = await tool.definition(work).execute("partial", {
+		command: `printf 'effect\\n' >> ${counter}; printf after > ${letter}`,
+	}, undefined, undefined, person.ctx(work));
+	assert.equal(failed.isError, true, "approval does not turn the partially completed attempt into success");
+	assert.equal(failed.details.pippaExecution, "attempted");
+	assert.equal(readFileSync(counter, "utf8"), "effect\n", "the earlier side effect happens exactly once");
+	assert.equal(readFileSync(letter, "utf8"), "before", "the denied operation was not automatically replayed");
+	assert.ok(tool.grants.has("write"));
+	assert.equal(person.asked.length, 1);
+	assert.deepEqual(copies, []);
+	const finished = await tool.definition(work).execute("remaining", { command: `printf after > ${letter}` }, undefined, undefined, person.ctx(work));
+	assert.equal(finished.isError, undefined);
+	assert.equal(readFileSync(letter, "utf8"), "after");
+	assert.equal(readFileSync(counter, "utf8"), "effect\n");
+	assert.equal(person.asked.length, 1);
+	assert.deepEqual(finished.details.pippaKept, copies);
+	assert.equal(readFileSync(copies[0].copy, "utf8"), "before");
 });
 
 // The real sandbox. Every command below tries to do harm to the fake home folder; afterwards everything must be there.
@@ -227,10 +268,15 @@ test("real sandbox: everyday work still runs (reading, computing, converting int
 	assert.equal(readFileSync(join(home, "Documents", "neu.txt"), "utf8"), "neu\n");
 });
 
-test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain one", { skip: !cli && "PIPPA_PI_CLI not set", timeout: 60_000 }, async () => {
+for (const failure of [undefined, "exit", "timeout", "abort"]) {
+test(failure ? `real Pi: an overwrite followed by ${failure} retains its undo copy and effect evidence` : "real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain one", {
+	skip: !cli ? "PIPPA_PI_CLI not set" : failure && !onMac ? "macOS sandbox only" : false, timeout: 60_000,
+}, async () => {
 	const { spawn } = await import("node:child_process");
 	const { createServer } = await import("node:http");
 	const { root, home, work } = scratch("realpi");
+	const letter = join(home, "Documents", "Brief.txt");
+	writeFileSync(letter, "before");
 	const agent = join(home, ".pi/agent");
 	mkdirSync(agent, { recursive: true });
 	let turn = 0, toolResult;
@@ -241,10 +287,19 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 		req.on("end", () => {
 			const request = JSON.parse(body);
 			res.writeHead(200, { "Content-Type": "text/event-stream" });
-			if (turn++ === 0) {
+			const step = turn++;
+			if (failure && step === 0) {
+				// Establish the write grant with a separate, known no-effect attempt. The real mutation is a later call.
+				res.end(chunk({ role: "assistant", tool_calls: [{ index: 0, id: "grant", type: "function", function: {
+					name: "bash", arguments: JSON.stringify({ command: `: >> ${letter}` }),
+				} }] }, "tool_calls") + "data: [DONE]\n\n");
+			} else if (step === (failure ? 1 : 0)) {
 				res.end(chunk({ role: "assistant", tool_calls: [
-					{ index: 0, id: "call_1", type: "function", function: { name: "bash", arguments: JSON.stringify({ command: "echo sandboxed > made.txt; cat made.txt" }) } },
-					{ index: 1, id: "call_2", type: "function", function: { name: "write", arguments: JSON.stringify({ path: "neu.txt", content: "neu" }) } },
+					{ index: 0, id: "call_1", type: "function", function: { name: "bash", arguments: JSON.stringify({
+						command: failure ? `printf after > ${letter} && { printf effect_ready; ${failure === "exit" ? "exit 1" : "sleep 30"}; }` : "echo sandboxed > made.txt; cat made.txt",
+						...(failure === "timeout" ? { timeout: 0.3 } : {}),
+					}) } },
+					...(!failure ? [{ index: 1, id: "call_2", type: "function", function: { name: "write", arguments: JSON.stringify({ path: "neu.txt", content: "neu" }) } }] : []),
 				] }, "tool_calls") + "data: [DONE]\n\n");
 			} else {
 				toolResult = request.messages.filter((m) => m.role === "tool").map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))).join("\n");
@@ -261,7 +316,8 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 		"--extension", join(here, "pippa-tools.ts"), "--extension", join(here, "pippa-assist.ts"),
 		"--tools", "read,bash,edit,write,list_folder", "--provider", "pippa-local", "--model", "m"], { cwd: work, env, stdio: ["pipe", "pipe", "pipe"] });
 	let err = "", buffer = "";
-	const changes = [];
+	const changes = [], endings = [];
+	let abortSent = false;
 	child.stderr.on("data", (d) => (err += d));
 	try {
 		await new Promise((done, fail) => {
@@ -274,6 +330,14 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 					let event;
 					try { event = JSON.parse(line); } catch { continue; }
 					if (event.type === "extension_error") { clearTimeout(timer); fail(new Error(line)); }
+					if (event.type === "extension_ui_request" && event.method === "confirm") {
+						child.stdin.write(JSON.stringify({ type: "extension_ui_response", id: event.id, confirmed: true }) + "\n");
+					}
+					if (event.type === "tool_execution_update" && failure === "abort" && !abortSent && readFileSync(letter, "utf8") === "after") {
+						abortSent = true;
+						child.stdin.write(JSON.stringify({ type: "abort" }) + "\n");
+					}
+					if (event.type === "tool_execution_end") endings.push(event);
 					if (event.type === "entry_appended" && event.entry?.customType === "pippa-change") changes.push(...event.entry.data.changes);
 					if (event.type === "agent_settled") { clearTimeout(timer); done(); }
 				}
@@ -283,6 +347,21 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 	} finally {
 		child.kill();
 		server.close();
+	}
+	if (failure) {
+		const grant = endings.find((event) => event.toolCallId === "grant");
+		assert.equal(grant?.isError, true, "permission alone never replays the first command or marks it successful");
+		const end = endings.find((event) => event.toolCallId === "call_1");
+		assert.equal(end?.isError, true, JSON.stringify(end));
+		assert.equal(end.result.details?.pippaExecution, failure === "exit" ? "attempted" : "uncertain");
+		assert.equal(readFileSync(letter, "utf8"), "after", "the file changed despite the error");
+		assert.equal(changes.length, 1, "Pi forwards one undo entry even after Abort");
+		assert.equal(changes[0].kind, "restore");
+		assert.equal(changes[0].file, letter);
+		assert.equal(readFileSync(changes[0].copy, "utf8"), "before");
+		assert.deepEqual(end.result.details.pippaKept, [{ file: letter, copy: changes[0].copy }]);
+		if (failure === "abort") assert.equal(abortSent, true);
+		return;
 	}
 	assert.ok(toolResult, "Pi sent the tool result back");
 	assert.deepEqual(changes, [{ kind: "create", file: join(work, "neu.txt") }], "the app hears of the new file, so Undo can take it back");
@@ -294,3 +373,5 @@ test("real Pi: the model's bash call runs Pippa's sandboxed bash, not Pi's plain
 		assert.ok(!existsSync(join(work, "made.txt")));
 	}
 });
+
+}

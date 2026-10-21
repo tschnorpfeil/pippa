@@ -24,6 +24,7 @@ if CommandLine.arguments.contains("--mode") {
           let request = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
         let id = request["id"] as? String ?? ""
         let command = request["type"] as? String ?? ""
+        if handleReadinessFixture(request) { continue }
         func response(_ disposition: String? = nil) {
             var record: [String: Any] = ["type": "response", "id": id, "command": command, "success": true]
             if let disposition { record["data"] = ["disposition": disposition] }
@@ -32,6 +33,19 @@ if CommandLine.arguments.contains("--mode") {
         switch command {
         case "prompt":
             switch request["message"] as? String {
+            case "outcome-protocol":
+                response("started")
+                for (id, fields) in [
+                    ("missing", ["isError": false]),
+                    ("numeric", ["isError": 0, "result": ["content": [["type": "text", "text": "Done"]]]]),
+                    ("empty", ["isError": false, "result": ["content": []]]),
+                    ("native", ["isError": false, "result": ["content": [["type": "text", "text": "{\"padding\":\"" + String(repeating: "x", count: 800) + "\",\"done\":false,\"state\":\"unclear\"}"]]]])
+                ] as [(String, [String: Any])] {
+                    let tool = id == "native" ? "mcp__pippa__mail_draft" : "write"
+                    emit(["type": "tool_execution_start", "toolCallId": id, "toolName": tool, "args": [:]])
+                    emit(["type": "tool_execution_end", "toolCallId": id, "toolName": tool].merging(fields) { _, new in new })
+                }
+                emit(["type": "agent_settled", "aborted": false])
             case "handled":
                 response("handled")
             case "immediate":
@@ -124,7 +138,7 @@ for try await event in try await client.prompt("abort-during-tool") {
 }
 check("Abort during tool execution preserves cancellation without an aborted assistant", cancelled.last == .settled(aborted: true)
       && cancelled.contains(.assistantEnded(text: "Working", stopReason: "toolUse", error: nil))
-      && cancelled.contains(.toolEnded(id: "pending-tool", name: "fixture", isError: true, result: "Cancelled")))
+      && cancelled.contains(.toolEnded(id: "pending-tool", name: "fixture", isError: true, result: "Cancelled", outcome: .failed)))
 
 let between = try await collect("abort-between-turns")
 check("Cancellation after a completed assistant is not reported as successful settlement", between.last == .settled(aborted: true)
@@ -132,6 +146,13 @@ check("Cancellation after a completed assistant is not reported as successful se
 let recovered = try await collect("next-prompt")
 check("A cancelled run releases the client for the next prompt", recovered.last == .settled(aborted: false))
 
+let outcomes = try await collect("outcome-protocol")
+var outcomeReceipt = PiTurnReceipt()
+for event in outcomes { outcomeReceipt.observe(event) }
+check("RPC keeps absent and malformed results uncertain, permits valid empty success, and classifies full native JSON",
+      outcomeReceipt.records.map(\.outcome) == [.unclear, .unclear, .done, .unclear])
+runOutcomeChecks()
+try await runNativeReadinessChecks(executable: executable, temporary: temporary)
 await client.shutdown()
 print(failures == 0 ? "Pi RPC checks passed." : "\(failures) Pi RPC check(s) failed.")
 exit(failures == 0 ? 0 : 1)

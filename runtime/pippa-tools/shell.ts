@@ -13,7 +13,8 @@
  * - `apps`: other apps (Apple Events, `open`, `shortcuts`), e.g. Mail could send. Asked before `osascript`, `open`,
  *   `shortcuts`.
  * - `write`: change files in the person's folders and on external drives. Asked after a command failed because it
- *   was not allowed to write there; the command then runs again. Before it does, every existing file it names gets a
+ *   was not allowed to write there. The failed command is never replayed: partial effects must be checked before a
+ *   later call does the remaining work. Before an approved write call runs, every existing file it names gets a
  *   copy (pippa-assist.ts `backUp`), so it can be undone.
  *
  * Never, not even after an OK: delete anything outside the working and temporary folders (the Trash is
@@ -253,9 +254,14 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 				...base,
 				async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: unknown, ctx: any) {
 					const cwd = ctx?.cwd || defaultCwd;
-					if (!available()) return { content: [{ type: "text", text: NO_SANDBOX_REASON }], isError: true };
+					const notRun = (reason: string) => ({ content: [{ type: "text", text: reason }], isError: true,
+						details: { pippaExecution: "not_dispatched" } });
+					if (signal?.aborted) return notRun("Stopped before running the command.");
+					if (!available()) return notRun(NO_SANDBOX_REASON);
 					const where = places(cwd, env, home);
 					const command = String(params?.command ?? "");
+					// Retain copies through failures and interruptions as well as successful completion.
+					const kept = new Map<string, string>();
 					const ask = async (need: Set<Grant>): Promise<boolean> => {
 						if (!ctx?.hasUI || !ctx?.ui?.confirm) return false;
 						const outside = namedPaths(command, cwd, where.home).filter((p) => !(p === where.work || p.startsWith(where.work + "/")));
@@ -264,34 +270,50 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					};
 					const run = async () => {
 						const now = new Set(grants);
-						const kept: { file: string; copy: string }[] = [];
+						if (signal?.aborted) return notRun("Stopped before running the command.");
 						if (now.has("write") && deps.keep) {
 							for (const file of await filesToKeep(namedPaths(command, cwd, where.home), where)) {
+								if (kept.has(file)) continue;
 								const copy = await deps.keep(file);
-								if (copy) kept.push({ file, copy });
+								if (copy) kept.set(file, copy);
 							}
 						}
-						const tool = create(cwd, { spawnHook: (spawn: any) => ({ ...spawn, command: sandboxedCommand(spawn.command, now, where, sandbox) }) });
-						return { result: await tool.execute(id, params, signal, onUpdate, ctx), kept };
+						let dispatched = false;
+						const tool = create(cwd, { spawnHook: (spawn: any) => {
+							dispatched = true;
+							return { ...spawn, command: sandboxedCommand(spawn.command, now, where, sandbox) };
+						} });
+						try {
+							const result = await tool.execute(id, params, signal, onUpdate, ctx);
+							return { ...result, details: { ...(result.details ?? {}), pippaExecution: "attempted" } };
+						} catch (error) {
+							// Pi throws on abort/timeout after a command may have changed files. Return the error together
+							// with our effect evidence instead of letting Pi replace it and lose the undo copies.
+							return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+								isError: true, details: { pippaExecution: dispatched ? "uncertain" : "not_dispatched" } };
+						}
 					};
 
 					const before = new Set([...neededGrants(command)].filter((g) => !grants.has(g)));
 					if (before.size) {
-						if (!(await ask(before))) return { content: [{ type: "text", text: SHELL_DECLINED_REASON }], isError: true };
+						if (!(await ask(before))) return notRun(SHELL_DECLINED_REASON);
 						for (const g of before) grants.add(g);
 					}
-					let { result, kept } = await run();
+					let result = await run();
 					if (result?.isError) {
 						const missing = missingGrants(command, textOf(result), grants);
-						if (missing.size && (await ask(missing))) {
+						if (!signal?.aborted && result.details?.pippaExecution !== "uncertain" && missing.size && (await ask(missing))) {
 							for (const g of missing) grants.add(g);
-							({ result, kept } = await run());
+							// A compound command can have completed earlier steps before the permission error.
+							// Granting access cannot make replay safe; return the original failure for recovery.
+							result = withNote(result, "Permission is now available for this answer, but the failed command was not rerun. It may already have changed something before failing. Check its effects, then use a separate, narrowly scoped call for only the remaining work. Do not repeat completed steps.");
 						}
 						if (result?.isError) result = withNote(result, limitsNote(grants, where.work));
 					}
-					if (kept.length) {
-						result = withNote(result, kept.map(({ file, copy }) => `The previous version of ${file} is kept at ${copy}.`).join("\n"));
-						result = { ...result, details: { ...(result.details ?? {}), pippaKept: kept } };
+					if (kept.size) {
+						const copies = [...kept].map(([file, copy]) => ({ file, copy }));
+						result = withNote(result, copies.map(({ file, copy }) => `The previous version of ${file} is kept at ${copy}.`).join("\n"));
+						result = { ...result, details: { ...(result.details ?? {}), pippaKept: copies } };
 					}
 					return result;
 				},

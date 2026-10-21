@@ -75,7 +75,7 @@ test("uncertain native writes are terminal for this answer and never reported as
 				tell: "Please check the app before trying again.", next: "Do not retry this action automatically." }) }];
 			assert.equal(await run.call("first", tool, input, { content, isError }), undefined);
 			const blocked = await run.call("retry", tool, { date: input.date, title: input.title });
-			assert.match(blocked.reason, /outcome is unclear/);
+			assert.match(blocked.reason, /an unclear outcome/);
 			assert.match(blocked.reason, /Check the native app before trying again/);
 			assert.doesNotMatch(blocked.reason, /It is done|already worked|already running/);
 			assert.equal(await run.call("different", tool, { ...input, title: "Another fixture" }), undefined);
@@ -91,19 +91,16 @@ test("explicit native dispatched/unclear status blocks retries even when MCP fla
 		const run = loopHarness(), tool = "mcp__pippa__reminder_add", input = { title: "Fixture" };
 		const content = [{ type: "text", text: JSON.stringify({ done: false, ...status }) }];
 		assert.equal(await run.call("first", tool, input, { content, isError: true }), undefined);
-		assert.match((await run.call("retry", tool, input)).reason, /outcome is unclear/);
+		assert.match((await run.call("retry", tool, input)).reason, /an unclear outcome/);
 	}
 });
 
-test("ordinary failed native writes can retry; prose, nested data, malformed JSON and other tools cannot mark uncertainty", async () => {
+test("structured native refusals can retry; result prose and nested data do not override their top-level status", async () => {
 	const payloads = [
 		{ done: false, status: "failed", dispatched: false },
 		{ done: false, status: "invalid_arguments" },
 		{ done: false, status: "failed", tell: "unclear dispatched" },
 		{ done: false, status: "failed", data: { state: "unclear", dispatched: true } },
-		{ done: false, dispatched: "true" },
-		"The outcome is unclear; the action was dispatched.",
-		'{"done":false,"state":"unclear"',
 	];
 	for (const payload of payloads) {
 		const run = loopHarness(), tool = "mcp__pippa__reminder_add", input = { title: "Fixture" };
@@ -117,6 +114,36 @@ test("ordinary failed native writes can retry; prose, nested data, malformed JSO
 		const content = [{ type: "text", text: JSON.stringify({ done: false, state: "unclear", dispatched: true }) }];
 		assert.equal(await run.call("first", tool, input, { content, isError: true }), undefined);
 		assert.equal(await run.call("retry", tool, input), undefined, "only native mutation result statuses count");
+	}
+});
+
+test("lost or malformed native replies block repeats, while validation rejects remain retryable", async () => {
+	for (const payload of ["Connection closed", '{"done":false,"state":"unclear"', {}, { done: 1 },
+		{ done: false, status: "failed", dispatched: "true" }, { done: false, status: "failed", dispatched: 1 },
+		{ done: false, status: "failed", dispatched: null }]) {
+		const run = loopHarness(), tool = "mcp__pippa__reminder_add", input = { title: "Fixture" };
+		const content = [{ type: "text", text: typeof payload === "string" ? payload : JSON.stringify(payload) }];
+		assert.equal(await run.call("first", tool, input, { content, isError: true }), undefined);
+		for (let n = 0; n < 3; n++) {
+			const blocked = await run.call(`retry${n}`, tool, input);
+			assert.match(blocked.reason, /an unclear outcome/);
+			assert.equal(JSON.parse(blocked.reason).status, "not_dispatched", "a blocked retry is distinct from the original uncertain effect");
+		}
+		assert.equal(run.aborted, 1);
+	}
+	const run = loopHarness(), tool = "mcp__pippa__reminder_add", input = { wrong_title: "Fixture" };
+	assert.equal(await run.call("invalid", tool, input, { validates: false }), undefined);
+	assert.equal(await run.call("retry", tool, input, { validates: false }), undefined);
+	assert.match((await run.call("third", tool, input)).reason, /already failed 2 times/);
+});
+
+test("a confirmed native success stays confirmed after multiple blocked duplicate calls", async () => {
+	const run = loopHarness(), tool = "mcp__pippa__reminder_add", input = { title: "Fixture" };
+	await run.call("first", tool, input, { content: [{ type: "text", text: '{"done":true}' }] });
+	for (let n = 0; n < 3; n++) {
+		const block = await run.call(`duplicate${n}`, tool, input);
+		assert.match(JSON.parse(block.reason).tell, /already worked/);
+		assert.doesNotMatch(block.reason, /unclear outcome/);
 	}
 });
 
@@ -328,11 +355,13 @@ test("what an answer changed is told to the app from the tools' own results, so 
 	const { changesOf } = await import("./pippa-assist.ts");
 	assert.deepEqual(changesOf("edit", undefined, false, { file: "/u/a.txt", copy: "/b/a.txt" }), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("write", undefined, false, { file: "/u/new.txt", created: true }), [{ kind: "create", file: "/u/new.txt" }]);
-	assert.deepEqual(changesOf("write", undefined, true, { file: "/u/new.txt", created: true }), [], "failed: nothing changed");
+	assert.deepEqual(changesOf("write", undefined, true, { file: "/u/new.txt", created: true }), [], "failed: no confirmed new file to remove");
 	assert.deepEqual(changesOf("move_files", { moved: [{ from: "/d/a.pdf", to: "/d/X/a.pdf" }], failed: [] }, false), [{ kind: "move", from: "/d/a.pdf", to: "/d/X/a.pdf" }]);
 	assert.deepEqual(changesOf("move_files", { from: "/d/a.pdf", to: "/e/a.pdf" }, false), [{ kind: "move", from: "/d/a.pdf", to: "/e/a.pdf" }]);
 	assert.deepEqual(changesOf("move_to_trash", { path: "/d/a.pdf", trashedTo: "/T/a.pdf" }, false), [{ kind: "trash", from: "/d/a.pdf", to: "/T/a.pdf" }]);
 	assert.deepEqual(changesOf("move_to_trash", { path: "/d/a.pdf" }, false), [], "unknown place in the Trash: nothing to take back");
 	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, false), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
+	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
+	assert.deepEqual(changesOf("write", {}, true, { file: "/u/a.txt", copy: "/b/a.txt" }), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("read", {}, false), []);
 });

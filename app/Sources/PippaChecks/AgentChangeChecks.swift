@@ -4,6 +4,19 @@ import PippaCore
 /// Undo of what Pi changed in a conversation (AgentChange, Executor.recordAgentChanges): entries from pippa-assist.ts
 /// `pippa-change`, one job per answer, undo like after tidying up.
 func runAgentChangeChecks() async {
+    check("Failed action receipts preserve possible effects; pre-dispatch blocks remain distinct") {
+        let failed = ActionReceipt.Item(action: "command", outcome: "failed")
+        let blocked = ActionReceipt.Item(action: "command", outcome: "blocked")
+        let changed = ActionReceipt.Item(action: "change", outcome: "failed", name: "Fixture.txt")
+        let missingRead = ActionReceipt.Item(action: "read", outcome: "unclear")
+        return !failed.happened && !changed.happened && !missingRead.isQuiet
+            && failed.line(language: "en").contains("changes may have happened")
+            && failed.line(language: "de").contains("Änderungen sind möglich")
+            && blocked.line(language: "en").contains("Command not run")
+            && !changed.line(language: "en").contains("Not changed")
+            && missingRead.line(language: "en").contains("not confirmed")
+    }
+
     check("Changes from Pi: entries are read, incomplete or relative ones dropped, per file only the state before the answer") {
         let parsed = AgentChange.parse(#"{"v":1,"changes":[{"kind":"restore","file":"/u/a.txt","copy":"/b/1 a.txt"},{"kind":"restore","file":"/u/a.txt","copy":"/b/2 a.txt"},{"kind":"create","file":"/u/neu.txt"},{"kind":"move","from":"/d/x.pdf","to":"/d/X/x.pdf"},{"kind":"trash","from":"/d/y.pdf","to":"/T/y.pdf"},{"kind":"move","from":"rel.pdf","to":"/d/z.pdf"},{"kind":"other","file":"/u/b"}]}"#)
         let merged = AgentChange.merged(parsed)

@@ -10,7 +10,7 @@ extension PippaPiLaunch {
     public struct MCPEndpoint: Sendable, Equatable {
         /// `http://127.0.0.1:<port>/mcp`
         public var url: URL
-        /// Key per app launch (64 hex characters).
+        /// Key per Pi process (64 hex characters).
         public var token: String
         /// `direct` (default: tools are available to the model like built-in ones) or `codemode` (measurement only).
         public var exposure: String

@@ -242,3 +242,7 @@
 "Your Mac said no to Pippa for this folder. Turn on Pippa in System Settings under “Files & Folders”, then try again." = "Your Mac said no to Pippa for this folder. Turn on Pippa in System Settings under “Files & Folders”, then try again.";
 "Open System Settings" = "Open System Settings";
 "This answer reached its length limit. Ask me to continue from here." = "This answer reached its length limit. Ask me to continue from here.";
+
+/* Native tool admission, before submitting a Pi request. */
+"Pippa’s Mac tools are missing from this installation. Reinstall Pippa to restore them." = "Pippa’s Mac tools are missing from this installation. Reinstall Pippa to restore them.";
+"I couldn’t connect my Mac tools just now. Please try again." = "I couldn’t connect my Mac tools just now. Please try again.";

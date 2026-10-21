@@ -6,7 +6,7 @@
  * The app serves MCP itself on 127.0.0.1 (Calendar, Reminders, Mail, Excel, Photos, the app in front read; TCC asks for "Pippa") and passes
  * address and key only in the environment of this Pi process:
  * - `PIPPA_MCP_URL`   e.g. http://127.0.0.1:53124/mcp (only loopback is accepted)
- * - `PIPPA_MCP_TOKEN` 64 hex characters, new on every app start
+ * - `PIPPA_MCP_TOKEN` 64 hex characters, new for every Pi process
  * - `PIPPA_MCP_EXPOSURE` optional, `direct` (default) or `codemode` (for measuring only)
  *
  * `pi.registerMcpServer` instead of `~/.pi/agent/mcp.json`: nothing is written into the person's configuration, a
@@ -49,9 +49,43 @@ export function serverConfig(env: Record<string, string | undefined>) {
 	};
 }
 
-export default function (pi: ExtensionAPI) {
+export const READINESS_COMMAND = "pippa-native-ready";
+export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
+
+/** Background discovery may still be connecting when RPC starts accepting commands. No model call or mutation. */
+export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<typeof serverConfig>,
+	waitMilliseconds = 8_000, signal?: AbortSignal) {
+	const deadline = Date.now() + waitMilliseconds;
+	for (;;) {
+		if (signal?.aborted) return { status: "cancelled" };
+		const registered = pi.getMcpServers().find((server: any) => server.name === SERVER_NAME)?.config;
+		if (!config || config.exposure !== "direct" || registered?.url !== config.url
+			|| registered?.headers?.Authorization !== config.headers.Authorization || registered?.exposure !== "direct") {
+			return { status: "registrationMismatch" };
+		}
+		const tools = pi.getActiveTools();
+		if (REQUIRED_TOOLS.every((name) => tools.includes(name))) return { status: "ready", tools: REQUIRED_TOOLS };
+		if (Date.now() >= deadline) return { status: "toolsUnavailable" };
+		await new Promise((resolve) => setTimeout(resolve, Math.min(50, Math.max(1, deadline - Date.now()))));
+	}
+}
+
+export default async function (pi: ExtensionAPI, connectorFactory?: (options: any) => (pi: ExtensionAPI) => unknown) {
 	const config = serverConfig(process.env);
 	delete process.env.PIPPA_MCP_TOKEN;
 	if (!config) return;
+	// --no-extensions also disables Pi's built-in MCP connector. Use the same pinned public implementation,
+	// scoped to extension registrations: never start unrelated servers from shared or project mcp.json files.
+	const createConnector = connectorFactory ?? (await import("@earendil-works/pi-coding-agent")).createMcpExtension;
+	await createConnector({ loadConfig: () => ({ servers: [], errors: [], autoEnableCodemode: false }) })(pi);
 	pi.registerMcpServer(SERVER_NAME, config);
+	pi.registerCommand(READINESS_COMMAND, {
+		description: "Check Pippa's native tools before starting a conversation.",
+		handler: async (args: string, ctx: any) => {
+			// No arbitrary payload in the session journal; one fresh, app-generated UUID binds the receipt.
+			if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args)) return;
+			const result = await discoverNativeTools(pi, config, 8_000, ctx.signal);
+			pi.appendEntry(READINESS_COMMAND, { v: 1, nonce: args, ...result });
+		},
+	});
 }

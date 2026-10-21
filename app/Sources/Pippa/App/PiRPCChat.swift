@@ -51,12 +51,17 @@ final class PiRPCChat {
     enum Failure: LocalizedError {
         case setup(String)
         case model(String)
+        case nativeTools(String)
         /// ChatGPT subscription (PiSubscriptionAuth): signed out or expired, or the subscription's limit is reached.
         case subscription(PiSubscriptionAuth.Problem)
         var errorDescription: String? {
             switch self {
             case .setup: T("I’m not fully set up yet. Open Pippa’s setup and choose “Try Again”.", table: "App")
             case .model: T("The answer didn’t come through just now. Please try again in a moment.", table: "App")
+            case .nativeTools("extensionMissing"), .nativeTools("commandMissing"):
+                T("Pippa’s Mac tools are missing from this installation. Reinstall Pippa to restore them.", table: "App")
+            case .nativeTools:
+                T("I couldn’t connect my Mac tools just now. Please try again.", table: "App")
             case .subscription(.signedOut):
                 T("Your ChatGPT sign-in has run out. Sign in again in Pippa’s settings, or switch back to the AI on this Mac.", table: "App")
             case .subscription(.limit):
@@ -68,6 +73,7 @@ final class PiRPCChat {
             switch self {
             case .setup(let what): "setup: " + what
             case .model: "model"   // Pi's error text may contain content: not into the log
+            case .nativeTools(let reason): "native tools: " + reason
             case .subscription(let problem): "subscription: " + problem.rawValue
             }
         }
@@ -117,6 +123,7 @@ final class PiRPCChat {
     }
 
     private var client: PiRPCClient?
+    private var startingClient: PiRPCClient?
     var activeNativeTurn: PippaMCPTurn?
     private var needsFreshClient = false
     /// The one llama-server for `pippa-local` and what it was started with (if the plan changes, it restarts).
@@ -134,6 +141,11 @@ final class PiRPCChat {
 
     private func ready(session key: String) async throws -> PiRPCClient {
         let env = ProcessInfo.processInfo.environment
+        let nativeTurn = activeNativeTurn
+        func checkAdmission() throws {
+            guard !Task.isCancelled, nativeTurn?.writes.snapshot.cancelled == false else { throw CancellationError() }
+        }
+        try checkAdmission()
         // Local model or own online service (only via Pippa's broker). If the path changes, Pi restarts.
         let route = try await launchRoute(env)
         // Still "answering" here means the last answer was abandoned without Pi settling (stop timed out): start afresh
@@ -167,7 +179,12 @@ final class PiRPCChat {
         let cwd = PiSessionFiles.pinnedWorkingDirectory(id: PippaPiLaunch.piSessionID(key), in: Self.sessionDirectory)
             ?? work
         // Pippa's MCP server (calendar, reminders, mail, read Excel), see PippaMCPService.
-        let mcp = await PippaMCPService.endpoint(extensions: extensions)
+        try checkAdmission()
+        let mcp: (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL)
+        do { mcp = try await PippaMCPService.endpoint(extensions: extensions) }
+        catch let error as PippaMCPService.EndpointFailure {
+            throw Failure.nativeTools(error == .extensionMissing ? "extensionMissing" : "serverUnavailable")
+        }
         var configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: key,
                                                         language: language, environment: extra, mcp: mcp)
         // Pi starts with `--no-extensions`, so the terminal extension that restarts a crashed model (PIPPA_APP_PID above)
@@ -177,10 +194,24 @@ final class PiRPCChat {
         }
         let fresh = PiRPCClient(configuration: configuration)
         await fresh.setUIHandler { request in await Self.ask(request) }
-        try await fresh.start()
-        client = fresh; sessionKey = key; launchKey = route.key
-        needsFreshClient = false
-        return fresh
+        startingClient = fresh
+        defer { startingClient = nil }
+        do {
+            try checkAdmission()
+            try await fresh.start()
+            try checkAdmission()
+            try await fresh.verifyNativeTools()
+            try checkAdmission()
+            client = fresh; sessionKey = key; launchKey = route.key
+            needsFreshClient = false
+            return fresh
+        } catch {
+            PippaMCPService.invalidateEndpoint()
+            await fresh.shutdown()
+            try checkAdmission()
+            if let failure = error as? PiNativeReadiness.Failure { throw Failure.nativeTools(failure.rawValue) }
+            throw error
+        }
     }
 
     /// What the running Pi was started with (provider, model, broker); if it changes, Pi restarts.
@@ -451,17 +482,20 @@ final class PiRPCChat {
                 if name == "read" || WorkStepPhrase.hasOutcome(tool: name) { toolArguments[id] = arguments }
                 let step = WorkStepPhrase.step(tool: name, arguments: arguments, home: Self.homePath)
                 onWork?(.toolStarted(name: name, source: nil, step: step?.text, kind: step?.kind))
-            case .toolEnded(let id, let name, let isError, let result):
+            case .toolEnded(let id, let name, let isError, let result, let outcome):
                 // What Pi read with `read`, for this answer's source check (PiReadLedger).
                 let arguments = toolArguments.removeValue(forKey: id)
-                if name == "read", !isError, let arguments {
+                let failed = outcome.map { $0 != .done } ?? isError
+                if name == "read", !failed, let arguments {
                     await turn.notePiRead(arguments: arguments, result: result)
                 }
                 let ending = arguments.map {
                     WorkStepPhrase.ending(tool: name, arguments: $0, isError: isError, result: result, home: Self.homePath,
                                           resultWasCut: result.count >= PiRPCClient.listingResultLimit)
                 }
-                onWork?(.toolEnded(name: name, outcome: ending?.outcome, failed: ending?.failed ?? isError))
+                onWork?(.toolEnded(name: name,
+                                  outcome: outcome == .unclear ? WorkStepPhrase.unconfirmedResult : ending?.outcome,
+                                  failed: failed || ending?.failed == true))
             case .userMessage:
                 onSteered(segment)
                 segment = ""; afterTools = nil
@@ -630,6 +664,7 @@ final class PiRPCChat {
         activeNativeTurn?.cancelWrites()
         needsFreshClient = true
         PippaMCPService.invalidateEndpoint()
+        await startingClient?.cancelNativeReadiness()
         try? await client?.abort()
     }
 

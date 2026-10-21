@@ -216,3 +216,9 @@
 "Calendar hasn’t confirmed the result yet. Check Calendar before trying again." = "Kalender hat das Ergebnis noch nicht bestätigt. Schau vor einem weiteren Versuch in Kalender nach.";
 "Reminders hasn’t confirmed the result yet. Check Reminders before trying again." = "Erinnerungen hat das Ergebnis noch nicht bestätigt. Schau vor einem weiteren Versuch in Erinnerungen nach.";
 "Mail hasn’t confirmed the draft yet. Check Mail before trying again. Nothing was sent." = "Mail hat den Entwurf noch nicht bestätigt. Schau vor einem weiteren Versuch in Mail nach. Es wurde nichts gesendet.";
+
+// A tool error does not establish that no changes happened.
+"result not confirmed" = "Ergebnis nicht bestätigt";
+"Reading was not confirmed" = "Lesen nicht bestätigt";
+"Command failed; changes may have happened" = "Befehl fehlgeschlagen; Änderungen sind möglich";
+"Couldn’t finish: %@ · check the result before trying again" = "Nicht abgeschlossen: %@ · prüfe das Ergebnis vor einem neuen Versuch";

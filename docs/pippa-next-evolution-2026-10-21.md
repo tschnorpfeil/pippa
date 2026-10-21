@@ -6,7 +6,7 @@ Decision memo and execution plan · 21 October 2026 · Horizon: 21 April 2027
 
 This plan starts with a premortem, then makes explicit product bets, implementation priorities and release gates. It assumes one or two core builders, with recruited testers and occasional specialist help. Dates are planning windows; evidence controls expansion. Targets below are proposed decision thresholds, not measured performance or industry benchmarks.
 
-The code assessment uses local commit `2e67358`, based on remote main `601583b`. The reliability changes on this branch have not been established as released behavior. The [engineering assessment](measurements/agent-readiness-2026-10-21.md) records what was changed and tested. This memo adds a strategy; it does not implement or release its proposed features.
+The code assessment starts from local commit `2e67358`, based on remote main `601583b`; checkpoint `12dbc05` incorporates main through `093ea7d`. Follow-up implementation adds native-tool admission and more accurate partial-effect handling. These branch changes have not been established as released behavior. The [engineering assessment](measurements/agent-readiness-2026-10-21.md) records what was changed and tested. Proposed work below remains distinct from those implemented foundations.
 
 ## 1. Premortem: it is 21 April 2027 and Pippa failed
 
@@ -16,8 +16,8 @@ People liked the demonstration. They downloaded Pippa, waited through setup, gav
 |---|---|---|---|
 | The promise exceeded the experience | The README leads with asking anything; capability availability varies by model, permission and execution path | Broad requests fail in the first session; users describe Pippa as a chatbot | Lead with three complete, demonstrable jobs. Expand the advertised scope only after it passes outcome tests |
 | Setup consumed the first impression | Model downloads are multi-GB; the permissions page can appear even when the download is deferred | People leave before producing a useful result | Make a native file task usable immediately. Request access when the chosen task needs it |
-| One false completion destroyed trust | Receipt handling improved, but uncertain native writes lack durable cross-turn reconciliation; system-prompt wording still equates failure with no effect | “It said done,” duplicate entries, fear of retrying | Persist execution state, verify actual outcomes, preserve uncertainty and resume unfinished steps |
-| The Mac still felt inaccessible | Pi can start without native tools when their endpoint cannot be prepared; permission repair does not preserve a resumable operation | Generic “can't do that” replies; retyping after visiting Settings | Check actual capability readiness and provide a task-specific repair that resumes safely |
+| One false completion destroyed trust | Failure wording and receipts now preserve partial-effect uncertainty; native writes still lack durable cross-turn reconciliation | “It said done,” duplicate entries, fear of retrying | Persist execution state, verify actual outcomes, preserve uncertainty and resume unfinished steps |
+| The Mac still felt inaccessible | The branch now checks native-tool discovery; task-specific app/permission repair still lacks a persisted resumable operation | Generic “can't do that” replies; retyping after visiting Settings | Extend readiness into a task-specific repair that resumes safely |
 | Simple work was too slow | A full model is unnecessary for many file operations; Apple-model acceleration is not available on every supported Mac | A user completes the task manually while Pippa is thinking | Route exact work through code; benchmark total task time, cold starts and memory pressure |
 | Convenience never became a habit | Many existing utilities solve occasional tasks; chat history does not itself preserve unfinished work | Downloads rise, weekly completed jobs do not | Keep user-selected tasks and offer a short, user-invoked paperwork review |
 | Privacy and action promises conflicted with behavior | Blanket approval, Undo and draft-only claims span tools with different enforcement; a broad shell app grant can reach additional app actions | Users discover access or effects they did not expect | One enforced action contract across native tools, Pi, shell and optional online routes |
@@ -96,7 +96,7 @@ Keep Pi as the general coordinator. Extend Pippa's existing execution infrastruc
 
 ### A. Tell the truth about actions
 
-Use one result vocabulary from executor to tool response to persisted task to UI: not dispatched, running, confirmed, partial, failed before effect, and uncertain after dispatch. Replace the contradictory failure wording in [PippaPiLaunch.swift](../app/Sources/PiRPC/PippaPiLaunch.swift). An error alone never establishes that no change occurred.
+Use one result vocabulary from executor to tool response to persisted task to UI: not dispatched, running, confirmed, partial, failed before effect, and uncertain after dispatch. The branch now corrects failure wording in [PippaPiLaunch.swift](../app/Sources/PiRPC/PippaPiLaunch.swift), classifies missing native replies as uncertain, and preserves available backups after shell failure or Stop. Carry these distinctions into durable task recovery. An error alone never establishes that no change occurred.
 
 Retain native target IDs and verify postconditions where APIs permit. [PippaMCPWrite.swift](../app/Sources/PippaCore/MCP/PippaMCPWrite.swift) currently drops useful created-item identity from some results. The UI should make the result inspectable, and Pi should receive the same authoritative state.
 
@@ -112,7 +112,7 @@ The existing [NativeReceiptContext](../app/Sources/PippaCore/NativeReceiptContex
 
 ### C. Know what can actually run
 
-Add a capability handshake covering loaded tools, schema version, required app availability and actionable permission state. [PippaMCPService.endpoint](../app/Sources/Pippa/App/PippaMCPService.swift) can currently return nil and leave Pi without native tools. A task requiring missing tools needs a precise repair; unaffected native utilities should remain usable.
+The branch now connects the pinned Pi MCP implementation and verifies all 11 native tools before a fresh Pi process receives user work. [PippaMCPService.endpoint](../app/Sources/Pippa/App/PippaMCPService.swift) throws typed failures rather than silently leaving Pi without native tools; timeout and Stop clean up admission. Direct native utilities remain usable independently. Extend this foundation to schema compatibility, task-specific app availability and actionable permission state, with a precise repair for the capability the task needs.
 
 A shared catalog should declare accepted input, required capabilities, effects, verification and recovery. Use it for suggestions, task admission and selective tool exposure. Preserve the current Pi lifecycle and loop-guard tests. Bound repeated failures, but retain meaningful progress and provide a clear recovery rather than merely terminating the answer.
 
@@ -137,6 +137,8 @@ Self-improvement has three concrete layers, delivered in order:
 Task content and model self-reflection are not trustworthy instructions for future runs. Do not promote an unverified attempt into a skill, treat repeated behavior as standing authorization, change security rules, install tools, rewrite the application or train on personal content autonomously. Learned preferences remain subordinate to the current request and action policy. General model-weight training is a separate research project, not a promised effect of using Pippa.
 
 Acceptance tests must show that a corrected preference is applied only in its intended scope, a forgotten preference stops affecting behavior, adversarial document text cannot become memory, a reusable routine repeats the verified result without additional access, and an updated skill can be rolled back. Measure recurrence of the original failure and held-out task quality, not the amount of stored memory.
+
+The [Rakazo source assessment](measurements/rakazo-assessment-2026-10-21.md) supplies concrete Pi-based examples of versioned memory, user skills and outcome evaluation. Pippa's current habit ranking and short fact store are useful starting points, but selection frequency is not verified success and stored facts are not automatically authorized routines. Improve outcome provenance before using those records as learning signals.
 
 ### F. Enforce the same boundaries on every route
 
@@ -254,6 +256,7 @@ Checked 21 October 2026. These are official project/vendor descriptions, not ind
 | [Dia 1.53, 15 October](https://www.diabrowser.com/changelog/mac/1-53-0) | Immediate reading of referenced page context and deliberation matched to task complexity | Avoid unnecessary thinking and context-fetch delay for simple work |
 | [Alter documentation](https://docs.alterhq.com/) and [workspaces/actions](https://docs.alterhq.com/getting-started/automate-with-workspaces-and-actions) | QuickHub, app context and reusable workspaces/actions | A convenient overlay is already a category; deliver the result back into the person's work |
 | [OpenClaw repository](https://github.com/openclaw/openclaw/blob/main/README.md) | Local state, model choice, tools and extensibility | Ownership alone is not unique; reduce setup and operational responsibility |
+| [Rakazo](https://github.com/elie222/rakazo) and [source assessment](measurements/rakazo-assessment-2026-10-21.md) | Pi-based persistent agents, versioned memory, user skills, teaching and outcome tests; native host graphical access is absent in the reviewed adapter | Adapt scoped learning and evaluation patterns; retain Pippa's native architecture and verify improvements |
 | [Pi 1.3.0](https://github.com/earendil-works/pi/releases/tag/v1.3.0) and [RPC contract](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md) | Tool validation and lifecycle details relevant to execution | Keep one pinned core and real protocol regression coverage |
 | [Peekaboo automation](https://github.com/openclaw/Peekaboo/blob/main/docs/automation.md) | Explicit treatment of dispatch, partial effects and uncertainty | Reuse these principles before expanding GUI control |
 | [MacAgentBench](https://github.com/JetAstra/MacAgentBench) | Outcome-oriented Mac task evaluation | Borrow the evaluation approach; maintain a smaller Pippa-specific suite tied to advertised jobs |

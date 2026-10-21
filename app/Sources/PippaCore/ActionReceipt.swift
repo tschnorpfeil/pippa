@@ -88,7 +88,11 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
         public func line(language: String?) -> String {
             let what = name ?? "?"
             // Read (Pippa's MCP reader): neutral line, already fully worded (PippaMCPReadNote).
-            if action == "read" { return name ?? L("Read something", table: "Thought", language: language) }
+            if action == "read" {
+                if let name { return name }
+                return outcome == "done" ? L("Read something", table: "Thought", language: language)
+                    : L("Reading was not confirmed", table: "Thought", language: language)
+            }
             // Lines of the former undo in older histories.
             if action == "restore" || action == "setAside" || action == "remove" {
                 guard outcome == "done" else {
@@ -139,7 +143,12 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
                 case "tool": L("Used: %@", table: "Thought", language: language, what)
                 default: L("Changed: %@", table: "Thought", language: language, what)
                 }
-            case "declined", "blocked", "failed":
+            case "failed":
+                // A failed tool may have changed a file before returning an error. Preserve that uncertainty.
+                return action == "command"
+                    ? L("Command failed; changes may have happened", table: "Thought", language: language)
+                    : L("Couldn’t finish: %@ · check the result before trying again", table: "Thought", language: language, what)
+            case "declined", "blocked":
                 base = switch action {
                 case "create": L("Not created: %@", table: "Thought", language: language, what)
                 case "createFolder": L("Folder not created: %@", table: "Thought", language: language, what)
