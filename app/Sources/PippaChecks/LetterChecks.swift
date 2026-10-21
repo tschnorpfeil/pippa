@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import PippaCore
 
@@ -163,20 +164,38 @@ func runLetterChecks() async {
               let open = source.range(of: "return my openReply(m", range: reply.upperBound..<source.endIndex) else { return false }
         return append.lowerBound > find.upperBound && replyGuard.lowerBound < open.lowerBound
     }
-    check("Mail: reply is filled, read back and saved; Pippa never closes open windows; every Mail step has a timeout") {
+    check("Mail: reply fields are read after saving; Pippa never closes an unconfirmed window") {
         guard let source = IntegrationScripts.sources.first(where: { $0.name == "MailReply" })?.source,
               let open = source.range(of: "on openReply"),
               let create = source.range(of: "set r to reply m\n", range: open.upperBound..<source.endIndex),
               let fill = source.range(of: "tell r to make new paragraph at end of content with data (theBody", range: create.upperBound..<source.endIndex),
-              let read = source.range(of: "set readBody to (content of r) as text", range: fill.upperBound..<source.endIndex),
-              let save = source.range(of: "save r\n", range: read.upperBound..<source.endIndex),
-              let report = source.range(of: "return {\"reply\", readSubject, readBody, addresses, saved}", range: save.upperBound..<source.endIndex)
+              let save = source.range(of: "save r\n", range: fill.upperBound..<source.endIndex),
+              let read = source.range(of: "set readBody to (content of r) as text", range: save.upperBound..<source.endIndex),
+              let envelope = source.range(of: "set readSubject to (subject of r) as text", range: read.upperBound..<source.endIndex),
+              let recipients = source.range(of: "repeat with targetRecipient in to recipients of r", range: envelope.upperBound..<source.endIndex),
+              let unconfirmed = source.range(of: "return {\"shown\"}", range: recipients.upperBound..<source.endIndex),
+              let report = source.range(of: "return {\"reply\", readSubject, readBody, addresses, saved}", range: unconfirmed.upperBound..<source.endIndex)
         else { return false }
         // `set content` has no effect on replies in Mail 16 ; `save` makes the window show the text.
         let noDeadEnds = !source.contains("set content of r") && !source.contains("with opening window")
         let neverCloses = !source.contains("close r") && !source.contains("close candidate") && !source.contains("delete r")
         let timeouts = source.components(separatedBy: "with timeout of").count - 1 >= 7 && source.contains("errNum is -1712")
-        return report.lowerBound > save.lowerBound && noDeadEnds && neverCloses && timeouts
+        let noStaleReadback = !source[fill.upperBound..<save.lowerBound].contains("set readBody")
+        return report.lowerBound > read.lowerBound && noStaleReadback && noDeadEnds && neverCloses && timeouts
+    }
+    check("Mail: new compose creation and field verification have an explicit timeout; no save, send or retry") {
+        guard let source = IntegrationScripts.sources.first(where: { $0.name == "MailReply" })?.source,
+              let start = source.range(of: "on newMessage("),
+              let end = source.range(of: "end newMessage", range: start.upperBound..<source.endIndex) else { return false }
+        let handler = String(source[start.upperBound..<end.lowerBound])
+        guard let timeout = handler.range(of: "with timeout of 30 seconds"),
+              let create = handler.range(of: "set nm to make new outgoing message", range: timeout.upperBound..<handler.endIndex),
+              let recipients = handler.range(of: "repeat with targetRecipient in to recipients of nm", range: create.upperBound..<handler.endIndex),
+              let read = handler.range(of: "return {(subject of nm) as text, (content of nm) as text, recipientAddresses}", range: recipients.upperBound..<handler.endIndex),
+              let endTimeout = handler.range(of: "end timeout", range: read.upperBound..<handler.endIndex) else { return false }
+        return endTimeout.lowerBound > read.lowerBound
+            && handler.components(separatedBy: "make new outgoing message").count == 2
+            && !handler.contains("save nm") && !handler.contains("send nm") && !handler.contains("delete nm")
     }
     check("Mail: only text read back counts as inserted; otherwise paste via ⌘V, never a false confirmation") {
         let draft = MailDraft(messageID: "a@b", to: "amt@example.org", toName: nil, subject: "Bescheid", body: "Hiermit lege ich Einspruch ein.")
@@ -215,8 +234,61 @@ func runLetterChecks() async {
         return order == [box, inbox, local, other] && noHint == [local, other, inbox]
             && decided([a]) == "7" && decided([a, aAgain]) == "7" && decided([a, b]) == "ambiguousOriginal"
             && decided([]) == "missingOriginal" && decided([], incomplete: true) == "searchIncomplete"
-            && decided([a], incomplete: true) == "7" && invalid
+            && decided([a], incomplete: true) == "searchIncomplete"
+            && decided([a, aAgain], incomplete: true) == "searchIncomplete"
+            && decided([a, b], incomplete: true) == "ambiguousOriginal" && invalid
             && MailOriginalSearch.budget <= .seconds(120)
+    }
+    check("Mail: malformed mailbox responses never become a smaller complete search") {
+        func list(_ values: [NSAppleEventDescriptor]) -> NSAppleEventDescriptor {
+            let result = NSAppleEventDescriptor.list()
+            for (index, value) in values.enumerated() { result.insert(value, at: index + 1) }
+            return result
+        }
+        func text(_ value: String) -> NSAppleEventDescriptor { NSAppleEventDescriptor(string: value) }
+        func response(_ payload: NSAppleEventDescriptor) -> NSAppleEventDescriptor { list([text("ok"), payload]) }
+        let valid = list([text("Work"), list([text("Inbox"), text("Pippa QA")]), text("")])
+        let malformed: [NSAppleEventDescriptor] = [
+            text("not a response list"), response(text("not a mailbox list")),
+            response(list([valid, text("not a mailbox")])),
+            response(list([list([text("Work"), text("Inbox"), text("")])])),
+            response(list([list([text("Work"), list([text("Inbox"), NSAppleEventDescriptor(int32: 7)]), text("")])])),
+            response(list([list([text("Work"), list([text("")]), text("")])])),
+            response(list([list([text("Work"), list([text("Inbox")]), NSAppleEventDescriptor(int32: 7)])]))
+        ]
+        let decoded = try IntegrationScripts.mailSearchMailboxes(response(list([valid])))
+        let empty = try IntegrationScripts.mailSearchMailboxes(response(list([])))
+        return decoded == [MailLocator(account: "Work", path: ["Inbox", "Pippa QA"], mailID: nil)!] && empty.isEmpty
+            && malformed.allSatisfy { value in
+                do { _ = try IntegrationScripts.mailSearchMailboxes(value); return false }
+                catch MailReplyFailure.searchIncomplete { return true }
+                catch { return false }
+            }
+    }
+    check("Mail: malformed match responses never become no match or one apparently unique match") {
+        func list(_ values: [NSAppleEventDescriptor]) -> NSAppleEventDescriptor {
+            let result = NSAppleEventDescriptor.list()
+            for (index, value) in values.enumerated() { result.insert(value, at: index + 1) }
+            return result
+        }
+        func text(_ value: String) -> NSAppleEventDescriptor { NSAppleEventDescriptor(string: value) }
+        func number(_ value: Int32) -> NSAppleEventDescriptor { NSAppleEventDescriptor(int32: value) }
+        func response(_ payload: NSAppleEventDescriptor) -> NSAppleEventDescriptor { list([text("ok"), payload]) }
+        guard let box = MailLocator(account: "Work", path: ["Inbox"], mailID: nil) else { return false }
+        let malformed: [NSAppleEventDescriptor] = [
+            response(text("not an ID list")), response(number(7)),
+            response(list([number(7), text("8")])), response(list([number(7), number(0)])),
+            response(list([number(-1)])), response(list([NSAppleEventDescriptor(boolean: true)])),
+            response(list([list([number(7)])])), list([text("skip")]), list([text("timeout")])
+        ]
+        let decoded = try IntegrationScripts.mailSearchMatches(response(list([number(7), number(8)])), in: box)
+        let empty = try IntegrationScripts.mailSearchMatches(response(list([])), in: box)
+        return decoded.map(\.mailID) == [7, 8] && empty.isEmpty
+            && malformed.allSatisfy { value in
+                do { _ = try IntegrationScripts.mailSearchMatches(value, in: box); return false }
+                catch MailReplyFailure.searchIncomplete { return true }
+                catch { return false }
+            }
     }
     check("Mail: call captures mailbox and mail ID as a hint, not as identity") {
         guard let source = IntegrationScripts.sources.first(where: { $0.name == "Mail" })?.source else { return false }

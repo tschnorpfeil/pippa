@@ -33,6 +33,12 @@ fail() { printf '  \033[31mFAIL\033[0m  %s\n' "$*" >&2; exit 1; }
 
 entitlements() { codesign -d --entitlements - --xml "$1" 2>/dev/null; }
 plutil -lint "$APP/Contents/Info.plist" >/dev/null || fail "Info.plist invalid"
+if /usr/libexec/PlistBuddy -c 'Print :PippaNativeAcceptance' "$APP/Contents/Info.plist" >/dev/null 2>&1; then
+  fail "instrumented native acceptance bundles must never be distributed"
+fi
+if LC_ALL=C strings -a "$APP/Contents/MacOS/Pippa" | grep -F 'PIPPA_NATIVE_ACCEPTANCE_BUILD_1' >/dev/null; then
+  fail "native acceptance code is present in the executable; rebuild without instrumentation"
+fi
 ok "Info.plist (plutil -lint)"
 codesign --verify --deep --strict "$APP" || fail "codesign --verify --deep --strict"
 ok "codesign --verify --deep --strict"

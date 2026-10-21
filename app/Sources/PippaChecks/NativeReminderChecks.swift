@@ -5,6 +5,7 @@ import SQLite3
 /// Synthetic Reminders store. No EventKit instance, system permission request, or personal reminder is involved.
 private actor ReminderJournalWriter: HostWriting {
     var writes = 0
+    var lookups: [URL] = []
     var target = NativeReminderTarget(identifier: "fixture-list-a", title: "Fixture list")
     var stored: [URL: [HostWrite]] = [:]
     var lookupUnavailable = false
@@ -27,6 +28,7 @@ private actor ReminderJournalWriter: HostWriting {
         return result
     }
     func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup {
+        lookups.append(marker)
         if lookupUnavailable { return .unavailable }
         let matches = (stored[marker] ?? []).filter { $0.containerIdentifier == target.identifier }
         if matches.count > 1 { return .ambiguous }
@@ -45,6 +47,30 @@ private actor ReminderPendingProbe {
     }
 }
 
+/// Models the system permission boundary; no EventKit, TCC reset or system prompt is involved.
+private actor ReminderPermissionIntegrations: AppIntegrations {
+    var state: IntegrationAccess
+    let answer: IntegrationAccess
+    var trace: [String] = []
+    var explanations: [String] = []
+    let stopAtRequest: PippaMCPWriteScope?
+    init(state: IntegrationAccess = .notDetermined, answer: IntegrationAccess = .granted, stopAtRequest: PippaMCPWriteScope? = nil) {
+        self.state = state; self.answer = answer; self.stopAtRequest = stopAtRequest
+    }
+    func explain(_ subject: PippaMCPAccessSubject, _ sentence: String) {
+        trace.append("explain"); explanations.append(subject.appName + "|" + sentence)
+    }
+    func access(_ integration: Integration) async -> IntegrationAccess { trace.append("access"); return state }
+    func requestAccess(_ integration: Integration) async -> IntegrationAccess {
+        trace.append("request"); state = answer; stopAtRequest?.cancel(); return state
+    }
+    func add(_ entry: CalendarEntry, tag: URL) async throws -> CreatedItem { throw PippaError.notAvailable }
+    func remove(_ item: CreatedItem) async throws -> RemoveResult { throw PippaError.notAvailable }
+    func selectedMail() async throws -> MailMessage? { throw PippaError.notAvailable }
+    func insertReply(_ draft: MailDraft) async throws -> MailInsertResult { throw PippaError.notAvailable }
+    func events(in interval: DateInterval, limit: Int) async throws -> CalendarFetch { throw PippaError.notAvailable }
+}
+
 private struct ReminderFixture {
     let directory: URL
     let journal: Executor
@@ -53,12 +79,12 @@ private struct ReminderFixture {
     let scope: PippaMCPWriteScope
     var host: PippaMCPHost
     var tools: PippaMCPWriteTools { .init(host: host, scope: scope) }
-    init() throws {
+    init(origin: PippaMCPOrigin? = nil) throws {
         directory = root.appendingPathComponent("native-reminder-" + UUID().uuidString)
         journal = try Executor(baseDirectory: directory)
         writer = ReminderJournalWriter()
-        origin = .init(conversationID: UUID(), requestID: UUID())
-        scope = .init(turnID: UUID(), origin: origin)
+        self.origin = origin ?? .init(conversationID: UUID(), requestID: UUID())
+        scope = .init(turnID: UUID(), origin: self.origin)
         host = .demo()
         host.writer = writer; host.reminderJournal = journal; host.requiresReminderJournal = true
     }
@@ -73,6 +99,47 @@ private func reminderFixtureSQL(_ directory: URL, _ sql: String) throws {
 }
 
 func runNativeReminderChecks() async {
+    await checkAsync("Skipped onboarding permissions: chat explains Reminders access, requests it, then completes the original intent once") {
+        var f = try ReminderFixture()
+        let permissions = ReminderPermissionIntegrations()
+        f.host.integrations = permissions; f.host.askForAccess = true
+        f.host.explainAccess = { subject, sentence in await permissions.explain(subject, sentence); return true }
+        let first = await f.tools.call("reminder_add", ["title": "Contextual access fixture"])
+        let replay = await PippaMCPWriteTools(host: f.host, scope: .init(turnID: UUID(), origin: f.origin))
+            .call("reminder_add", ["title": "Contextual access fixture"])
+        let trace = await permissions.trace, explanations = await permissions.explanations, writes = await f.writer.writes
+        let records = try await f.journal.nativeReminderRecords(conversationID: f.origin.conversationID)
+        return trace == ["access", "explain", "request"]
+            && explanations == [Integration.reminders.appName + "|" + PippaMCPWriteTools.writeExplanation(.reminders)]
+            && first.receipt?.outcome == "done" && replay.receipt?.operationID == first.receipt?.operationID && writes == 1
+            && records.count == 1 && records.first?.origin == f.origin && records.first?.phase == .completed
+    }
+
+    await checkAsync("Chat permission Later, denial and Stop never dispatch the pending reminder or silently replay it") {
+        for decision in ["later", "denied", "previously-denied", "stop-explanation", "stop-request"] {
+            var f = try ReminderFixture()
+            let scope = f.scope
+            let permissions = ReminderPermissionIntegrations(state: decision == "previously-denied" ? .denied : .notDetermined,
+                answer: decision == "denied" ? .denied : .granted, stopAtRequest: decision == "stop-request" ? scope : nil)
+            f.host.integrations = permissions; f.host.askForAccess = true
+            f.host.explainAccess = { subject, sentence in
+                await permissions.explain(subject, sentence)
+                if decision == "stop-explanation" { scope.cancel() }
+                return decision != "later"
+            }
+            let result = await f.tools.call("reminder_add", ["title": "Permission boundary fixture"])
+            let writes = await f.writer.writes, trace = await permissions.trace
+            let records = try await f.journal.nativeReminderRecords(conversationID: f.origin.conversationID)
+            let expectedTrace = decision == "previously-denied" ? ["access"]
+                : ["later", "stop-explanation"].contains(decision) ? ["access", "explain"] : ["access", "explain", "request"]
+            let expectedReason = decision.hasPrefix("stop-") ? "stopped" : decision == "later" ? "needs_access" : "denied"
+            guard writes == 0, trace == expectedTrace, result.receipt?.reason == expectedReason,
+                  records.count == 1, records.first?.phase == .notDispatched, records.first?.origin == f.origin,
+                  records.first?.id == result.receipt?.operationID else { return false }
+        }
+        return true
+    }
+
     await checkAsync("Reminder journal keeps native identity, target, original request and stable receipt across restart") {
         let f = try ReminderFixture()
         let result = await f.tools.call("reminder_add", ["title": "Synthetic reminder", "notes": "Made-up fixture only"])
@@ -320,5 +387,183 @@ func runNativeReminderChecks() async {
     check("Reminder intent fingerprint ignores argument order and retains relative date spelling") {
         NativeReminderRecord.requestHash(["title": "Fixture", "date": "tomorrow"])
             == NativeReminderRecord.requestHash(["date": "tomorrow", "title": "Fixture"])
+    }
+    await runReminderStatusChecks()
+}
+
+@MainActor private struct ReminderStatusFixture {
+    let native: ReminderFixture
+    let store: ConversationStore
+    let conversationID: UUID
+    let messageID = UUID()
+    init() throws {
+        store = try ConversationStore(directory: root.appendingPathComponent("reminder-status-" + UUID().uuidString))
+        conversationID = try store.create().id
+        let question = ConversationMessage(role: .user, text: "Create a synthetic reminder")
+        try store.append(question, to: conversationID)
+        native = try ReminderFixture(origin: .init(conversationID: conversationID, requestID: question.id))
+    }
+    func interrupted() async throws -> NativeReminderRecord {
+        let reminder = NewReminder(title: "Status fixture")
+        guard case .execute(let planned) = try await native.journal.beginNativeReminder(id: UUID(), origin: native.origin,
+            turnID: native.scope.turnID, requestHash: "status", reminder: reminder, label: reminder.title) else {
+            throw NativeReminderJournalError.invalidState
+        }
+        let target = try await native.writer.reminderTarget(for: reminder)
+        _ = try await native.journal.prepareNativeReminder(id: planned.id, target: target)
+        let record = try await native.journal.dispatchNativeReminder(id: planned.id)
+        _ = try await native.writer.addReminder(reminder, target: target, marker: record.marker)
+        try store.append(.init(id: messageID, role: .system, text: "Unconfirmed reminder", notice: true,
+                               actions: .init(items: [record.receipt.item])), to: conversationID)
+        return record
+    }
+    func start(_ check: ReminderStatusCheck, _ record: NativeReminderRecord) throws -> ReminderStatusCheck.Request {
+        guard let request = check.begin(conversationID: conversationID, messageID: messageID, operationID: record.id, store: store) else {
+            throw NativeReminderJournalError.invalidState
+        }
+        return request
+    }
+}
+
+private actor ReminderStatusLookupGate {
+    var calls = 0
+    var continuation: CheckedContinuation<[NativeReminderRecord], Never>?
+    var started: CheckedContinuation<Void, Never>?
+    func read() async -> [NativeReminderRecord] {
+        calls += 1
+        started?.resume(); started = nil
+        return await withCheckedContinuation { continuation = $0 }
+    }
+    func waitUntilStarted() async {
+        if calls > 0 { return }
+        await withCheckedContinuation { started = $0 }
+    }
+    func finish(_ records: [NativeReminderRecord]) { continuation?.resume(returning: records); continuation = nil }
+}
+
+@MainActor private func checkReminderStatus(_ name: String, _ body: @MainActor () async throws -> Bool) async {
+    do { let passed = try await body(); check(name) { passed } }
+    catch { check(name) { throw error } }
+}
+
+@MainActor func runReminderStatusChecks() async {
+    check("Permission Settings repair is limited to known denied native actions, never uncertain or completed work") {
+        for (action, integration) in [("calendarAdd", Integration.calendar), ("reminderAdd", .reminders), ("mailDraft", .mail)] {
+            for outcome in ["failed", "blocked", "declined"] {
+                guard ActionReceipt.Item(action: action, outcome: outcome, reason: "denied").permissionSettingsIntegration == integration else { return false }
+            }
+            for outcome in ["done", "unclear", "cancelled"] {
+                guard ActionReceipt.Item(action: action, outcome: outcome, reason: "denied").permissionSettingsIntegration == nil else { return false }
+            }
+            guard ActionReceipt.Item(action: action, outcome: "failed", reason: "needs_access").permissionSettingsIntegration == nil else { return false }
+        }
+        return ActionReceipt.Item(action: "command", outcome: "failed", reason: "denied").permissionSettingsIntegration == nil
+            && ActionReceipt.Item(action: "read", outcome: "failed", reason: "denied").permissionSettingsIntegration == nil
+    }
+    check("Reminder status controls distinguish durable uncertainty, legacy receipts and confirmed results") {
+        let pending = ActionReceipt.Item(action: "reminderAdd", outcome: "unclear", operationID: UUID(), nativeRevision: 2)
+        var legacy = pending; legacy.nativeRevision = nil
+        var noID = pending; noID.operationID = nil
+        var completed = pending; completed.outcome = "done"
+        var cancelled = pending; cancelled.outcome = "cancelled"
+        var mail = pending; mail.action = "mailDraft"
+        return pending.canCheckReminderStatus && pending.canOpenReminders
+            && !legacy.canCheckReminderStatus && legacy.canOpenReminders && !noID.canCheckReminderStatus
+            && !completed.canCheckReminderStatus && completed.canOpenReminders
+            && !cancelled.canCheckReminderStatus && !cancelled.canOpenReminders
+            && !mail.canCheckReminderStatus && !mail.canOpenReminders
+    }
+    await checkReminderStatus("Reminder status recheck confirms a lost reply without another native save or changing selected history") {
+        let f = try ReminderStatusFixture(), check = ReminderStatusCheck()
+        let record = try await f.interrupted()
+        let request = try f.start(check, record)
+        guard check.state?.phase == .checking, check.isRunning else { return false }
+        let selected = try f.store.create()
+        let journal = f.native.journal, writer = f.native.writer
+        let updated = await check.run(request, store: f.store) { conversation, operation in
+            try await journal.reconcileNativeReminders(using: writer, conversationID: conversation, operationID: operation)
+        }
+        let saved = try f.store.load(f.conversationID)
+        let selectedSaved = try f.store.load(selected.id)
+        let writes = await writer.writes, lookups = await writer.lookups
+        return updated?.id == f.conversationID && saved.messages.last?.actions?.items.first?.outcome == "done"
+            && f.store.selectedID == selected.id && selectedSaved.messages.isEmpty
+            && writes == 1 && lookups == [record.marker] && check.state?.phase == .confirmed && !check.isRunning
+    }
+    await checkReminderStatus("Reminder status recheck preserves missing, ambiguous and inaccessible evidence without native writes") {
+        for evidence in ["missing", "ambiguous", "unavailable"] {
+            let f = try ReminderStatusFixture(), check = ReminderStatusCheck()
+            let record = try await f.interrupted()
+            if evidence == "missing" { await f.native.writer.forget(record.marker) }
+            if evidence == "ambiguous" { await f.native.writer.duplicate(record.marker) }
+            if evidence == "unavailable" { await f.native.writer.setUnavailable(true) }
+            let request = try f.start(check, record)
+            let journal = f.native.journal, writer = f.native.writer
+            _ = await check.run(request, store: f.store) { conversation, operation in
+                try await journal.reconcileNativeReminders(using: writer, conversationID: conversation, operationID: operation)
+            }
+            let saved = try f.store.load(f.conversationID), writes = await writer.writes
+            guard saved.messages.last?.actions?.items.first?.outcome == "unclear", writes == 1,
+                  check.state?.phase == .unconfirmed, !check.isRunning else { return false }
+        }
+        return true
+    }
+    await checkReminderStatus("Reminder status recheck cannot recreate history deleted during readback") {
+        let f = try ReminderStatusFixture(), check = ReminderStatusCheck()
+        let record = try await f.interrupted(), request = try f.start(check, record)
+        let store = f.store, conversationID = f.conversationID
+        let result = await check.run(request, store: store) { _, _ in
+            try await MainActor.run { try store.delete(conversationID) }
+            return [record]
+        }
+        return result == nil && store.list().isEmpty && check.state == nil && !check.isRunning
+    }
+    await checkReminderStatus("Reminder status feedback follows newer persisted confirmation instead of a stale lookup result") {
+        let f = try ReminderStatusFixture(), check = ReminderStatusCheck()
+        let record = try await f.interrupted(), request = try f.start(check, record)
+        let store = f.store, conversationID = f.conversationID, messageID = f.messageID
+        let completed = ActionReceipt.Item(action: "reminderAdd", outcome: "done", name: "Status fixture",
+                                           operationID: record.id, nativeRevision: record.revision + 1)
+        _ = await check.run(request, store: store) { _, _ in
+            _ = try await MainActor.run { try store.recordNativeWrite(completed, messageID: messageID, in: conversationID) }
+            return [record]
+        }
+        let saved = try store.load(conversationID)
+        return check.state?.phase == .confirmed && saved.messages.last?.actions?.items == [completed]
+    }
+    await checkReminderStatus("Reminder status recheck permits only one active lookup and exposes progress until completion") {
+        let f = try ReminderStatusFixture(), check = ReminderStatusCheck(), gate = ReminderStatusLookupGate()
+        let record = try await f.interrupted(), request = try f.start(check, record)
+        let store = f.store
+        let task = Task { await check.run(request, store: store) { _, _ in await gate.read() } }
+        await gate.waitUntilStarted()
+        let second = check.begin(conversationID: f.conversationID, messageID: f.messageID, operationID: record.id, store: store)
+        let duplicate = await check.run(request, store: store) { _, _ in await gate.read() }
+        let running = check.state?.phase == .checking && check.isRunning
+        await gate.finish([record])
+        _ = await task.value
+        let calls = await gate.calls
+        return second == nil && duplicate == nil && calls == 1 && running && !check.isRunning
+            && check.state?.phase == .unconfirmed
+    }
+    await checkReminderStatus("Reminder status recheck rejects unrelated evidence and safely permits a later read-only check") {
+        let f = try ReminderStatusFixture(), other = try ReminderStatusFixture(), check = ReminderStatusCheck()
+        let record = try await f.interrupted(), unrelated = try await other.interrupted()
+        let request = try f.start(check, record)
+        _ = await check.run(request, store: f.store) { _, _ in [unrelated] }
+        guard check.state?.phase == .unavailable, !check.isRunning else { return false }
+        let saved = try f.store.load(f.conversationID)
+        let next = try f.start(check, record)
+        _ = await check.run(next, store: f.store) { _, _ in throw NativeReminderJournalError.unreadable }
+        return saved.messages.last?.actions?.items == [record.receipt.item]
+            && check.state?.phase == .unavailable && !check.isRunning
+    }
+    await checkReminderStatus("Targeted reminder reconciliation does not inspect another conversation or operation") {
+        let f = try ReminderStatusFixture()
+        let record = try await f.interrupted()
+        let wrong = try await f.native.journal.reconcileNativeReminders(using: f.native.writer, conversationID: UUID(), operationID: record.id)
+        let other = try await f.native.journal.reconcileNativeReminders(using: f.native.writer, conversationID: f.conversationID, operationID: UUID())
+        let lookups = await f.native.writer.lookups, writes = await f.native.writer.writes
+        return wrong.isEmpty && other.isEmpty && lookups.isEmpty && writes == 1
     }
 }

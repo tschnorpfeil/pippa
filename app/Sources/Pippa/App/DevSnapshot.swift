@@ -128,6 +128,11 @@ enum DevSnapshot {
                 NSApp.terminate(nil)
                 return
             }
+            if only == "reminderstatus" {
+                await ReminderStatusSnapshot.run(model: model, directory: dir)
+                NSApp.terminate(nil)
+                return
+            }
 
             if only == "conversationresume" {
                 await ConversationResumeSnapshot.run(model: model, shell: shell, directory: dir)

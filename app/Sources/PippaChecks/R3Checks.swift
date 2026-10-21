@@ -217,6 +217,7 @@ func runR3Checks() async {
         let drafts = Array(s.demo.insertedDrafts.dropLast())
         return selected.json["state"] as? String == "draft_saved" && drafts.first?.messageID == "demo-nebenkosten-2025@berger-hv.de"
             && fresh.json["state"] as? String == "new_mail_open" && fresh.receipt?["reason"] as? String == "newMessage"
+            && !(fresh.json["next"] as? String ?? "").contains("saved")
             && drafts.last?.isReply == false && drafts.last?.replySubject == "Frage zum Termin" && drafts.count == 2
             && item(fresh).line(language: "de").hasPrefix("Neue Mail in Mail geöffnet: ")
             && escaped.json["done"] as? Bool == true && fixed
@@ -234,6 +235,14 @@ func runR3Checks() async {
             && item(b).line(language: "de").hasSuffix("· nichts gesendet") && item(b).canOpenMailDraft
             && c.isError && c.json["status"] as? String == "not_found" && item(c).line(language: "de").hasPrefix("Kein Entwurf in Mail angelegt: ")
             && !item(c).canOpenMailDraft && missing.demo.insertedDrafts.isEmpty
+    }
+    await checkAsync("R3 mail_draft: incomplete original search reports no creation and preserves the failure reason") {
+        let incomplete = setup(); incomplete.demo.replyFailure = .searchIncomplete
+        let result = await call(incomplete, "mail_draft", ["reply_to": mail.path, "body": "Passt."])
+        return result.isError && result.json["status"] as? String == "search_incomplete"
+            && result.receipt?["outcome"] as? String == "failed"
+            && result.receipt?["reason"] as? String == "search_incomplete"
+            && !item(result).canOpenMailDraft && incomplete.demo.insertedDrafts.isEmpty
     }
     check("R3 receipt: English lines; declined (the Mac's permission) with the name from the call") {
         let cal = ActionReceipt.Item(action: "calendarAdd", outcome: "done", name: "Thu 8 Oct, 09:00 – Dentist")

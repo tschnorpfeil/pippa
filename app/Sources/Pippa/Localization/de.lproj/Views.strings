@@ -280,3 +280,14 @@
 "Recognizing text · %@" = "Erkenne Text · %@";
 "Reading · %@" = "Lese · %@";
 "Reading %lld of %lld…" = "Lese %lld von %lld …";
+
+"Checking…" = "Wird geprüft …";
+"Check status" = "Status prüfen";
+"Checks the earlier reminder without creating another one" = "Prüft die frühere Erinnerung, ohne eine weitere anzulegen";
+"Open Reminders" = "Erinnerungen öffnen";
+"Opens the Reminders app so you can inspect the result" = "Öffnet die App Erinnerungen, damit du das Ergebnis prüfen kannst";
+"Checking Reminders…" = "Status wird geprüft …";
+"Reminder creation confirmed." = "Erinnerung bestätigt.";
+"Still unconfirmed. Check Reminders before trying again." = "Weiterhin unbestätigt. Prüfe die App Erinnerungen, bevor du es erneut versuchst.";
+"Reminder status updated." = "Status der Erinnerung aktualisiert.";
+"Status couldn’t be checked. Open Reminders to inspect it." = "Der Status konnte nicht geprüft werden. Öffne Erinnerungen und sieh dort nach.";
