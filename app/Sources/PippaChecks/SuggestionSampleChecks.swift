@@ -109,7 +109,8 @@ func storedZip(_ entries: [String: Data]) -> Data {
         out += le32(0x0403_4B50) + le16(20) + le16(0) + le16(0) + le16(0) + le16(0) + le32(sum)
         out += le32(size) + le32(size) + le16(nameData.count) + le16(0) + nameData + body
         central += le32(0x0201_4B50) + le16(20) + le16(20) + le16(0) + le16(0) + le16(0) + le16(0) + le32(sum)
-        central += le32(size) + le32(size) + le16(nameData.count) + le16(0) + le16(0) + le16(0) + le16(0) + le32(0) + le32(offset) + nameData
+        central += le32(size) + le32(size) + le16(nameData.count) + le16(0)
+        central += le16(0) + le16(0) + le16(0) + le32(0) + le32(offset) + nameData
     }
     let start = UInt32(out.count)
     out += central

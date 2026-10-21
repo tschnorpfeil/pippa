@@ -124,8 +124,10 @@ func runNativeReminderChecks() async {
         async let right = second.completeNativeReminder(id: planned.id, result: native, recovered: true)
         let completed = try await [left, right]
         let saved = try await f.reopened().nativeReminder(id: planned.id)
-        return [planned.revision, prepared.revision, dispatched.revision, uncertain.revision] == [0, 1, 2, 3]
-            && completed.map(\.revision).sorted() == [4, 5] && saved.revision == 5 && saved.phase == .completed
+        let revisions: [Int] = [planned.revision, prepared.revision, dispatched.revision, uncertain.revision]
+        let completedRevisions: [Int] = completed.map(\.revision).sorted()
+        return revisions == [0, 1, 2, 3]
+            && completedRevisions == [4, 5] && saved.revision == 5 && saved.phase == .completed
             && saved.receipt.nativeRevision == 5 && saved.receipt.item.nativeRevision == 5
     }
 
