@@ -16,7 +16,7 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 test("real Pi preserves folder permission evidence and stops without inventing an empty listing", {
 	skip: !cli && "PIPPA_PI_CLI or PIPPA_PI_PAYLOAD not set", timeout: 30_000,
 }, async () => {
-	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.3\./);
+	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.4\./);
 	const build = join(here, "../../.build"); await mkdir(build, { recursive: true });
 	const root = await mkdtemp(join(build, "pippa-permission-realpi-"));
 	const agent = join(root, "agent"), denied = join(root, "denied");

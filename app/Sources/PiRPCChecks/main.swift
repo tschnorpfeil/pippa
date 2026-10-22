@@ -4,7 +4,7 @@ import PiRPC
 // The check executable also serves as a deterministic Pi stand-in. This exercises the actual process, JSONL,
 // command correlation, and event-stream path without loading a model or reading the person's Pi configuration.
 if CommandLine.arguments.contains("--version") {
-    print("1.3.0")
+    print("1.4.0")
     exit(0)
 }
 
