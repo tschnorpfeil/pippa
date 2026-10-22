@@ -21,7 +21,7 @@ for (const outcome of ["denied", "unavailable", "completed", "unclear"]) {
 	test(`real Pi recovery: ${outcome} native action preserves a useful remaining read`, {
 		skip: !cli && "PIPPA_PI_CLI or PIPPA_PI_PAYLOAD not set", timeout: 30_000,
 	}, async () => {
-		assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.3\./);
+		assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.4\./);
 		await mkdir(build, { recursive: true });
 		const root = await mkdtemp(join(build, "pippa-recovery-realpi-"));
 		const agent = join(root, "agent"), work = join(root, "work");

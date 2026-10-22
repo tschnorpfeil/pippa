@@ -34,7 +34,7 @@ for (const scenario of ["ready", "draft-only", "collision", "missing-file-prepar
 	test(`real Pi native admission: ${scenario}, ${scenario === "file-preparation-enums" ? "then enum-only MCP arguments reach the tool" : "with no provider request"}`, {
 		skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 25_000,
 	}, async () => {
-		assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.3\./);
+		assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.4\./);
 		await mkdir(build, { recursive: true });
 		const root = await mkdtemp(join(build, "pippa-readiness-realpi-"));
 		const agent = join(root, "agent"), work = join(root, "work");

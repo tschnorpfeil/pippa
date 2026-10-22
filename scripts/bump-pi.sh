@@ -81,9 +81,12 @@ prefix="$(sed -n -e 's/.*supportedVersionPrefix = "\([0-9.]*\)".*/\1/p' -- "$roo
 if [[ $gates == 1 ]]; then
   echo "== Gates"
   failed=()
+  export PIPPA_PI_CLI="$payload/release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"
+  export PIPPA_PI_NODE="$payload/bin/node"
   (cd "$root/runtime/pippa-web" && npm ci --ignore-scripts --no-fund --no-audit --loglevel=error && npm test >"$root/.build/bump-web-test.log" 2>&1) || failed+=("runtime/pippa-web npm test (.build/bump-web-test.log)")
   log="$root/.build/bump-tools.log"
   PIPPA_PI_PAYLOAD="$payload" node --experimental-strip-types --test "$root"/runtime/pippa-tools/*.test.mjs >"$log" 2>&1 || failed+=("pippa-tools (.build/bump-tools.log)")
+  grep -qE '^(ℹ|#) skipped 0$' "$log" || failed+=("pippa-tools skipped tests")
   log="$root/.build/bump-local-server.log"
   PIPPA_PI_PAYLOAD="$payload" node --experimental-strip-types --test "$root"/runtime/pippa-local-server/test/*.test.mjs >"$log" 2>&1 || failed+=("pippa-local-server (.build/bump-local-server.log)")
   grep -qE '^(ℹ|#) skipped 0$' "$log" || failed+=("pippa-local-server skipped tests")

@@ -22,7 +22,7 @@ for (const mode of ["standard", "draftOnly", "draftOnly-wide-inventory"]) {
 	test(`real Pi action scope: ${mode} controls effects despite hostile document instructions`, {
 		skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 40_000,
 	}, async () => {
-		assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.3\./);
+		assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.4\./);
 		const root = await mkdtemp(join(here, "../../.build/pippa-policy-realpi-"));
 		const agent = join(root, "agent"), work = join(root, "work"), effects = join(work, "native-web-effects.txt"), memory = join(root, "memory.txt");
 		await Promise.all([agent, work].map((path) => mkdir(path, { recursive: true })));
