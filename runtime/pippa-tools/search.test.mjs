@@ -18,6 +18,10 @@ const corpus = {
 	"projects/Kinderbuch/LayoutSketch.pdf": "",
 	"Documents/Kinderbuch/Verläge.md": "Kinderbuch an Verlage schicken, PDF anhängen.",
 	"Documents/a.pdf": "Zahnarzt Rechnung 2023",
+	"Documents/invoices/scan.txt": "Zahnarzt 2023",
+	"Documents/Rechnungen/beleg.txt": "Zahnarzt 2023",
+	"Documents/insurance/policy.txt": "2026",
+	"Documents/Versicherungen/police.txt": "2026",
 	"Downloads/2023.pdf": "Urlaub 2026, kein Zahnarzt",
 	"Library/Caches/Kinderbuch.pdf": "Kinderbuch",
 	"Library/Mobile Documents/com~apple~CloudDocs/Kinderbuch Notizen.txt": "Ideen",
@@ -42,10 +46,9 @@ function fakeMdfind(args) {
 		if (query === 'kMDItemFSName == "*"') return true;
 		if (query.startsWith('kMDItemContentType == "public.folder"')) return item.folder && [...query.matchAll(/FSName == "\*(.+?)\*"cd/g)].some((m) => name(item).includes(m[1]));
 		return query.split(" && ").every((part) => {
-			const [, word] = part.match(/TextContent == "([^"*]+)\*?"cd/) ?? [];
 			const words = item.text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-			const content = words.some((w) => part.includes(`"${word}*"`) ? w.startsWith(word) : w === word);
-			const inName = part.includes("FSName") && name(item).includes(word);
+			const content = [...part.matchAll(/TextContent == "([^"*]+)(\*?)"cd/g)].some(([, word, prefix]) => words.some(w => prefix ? w.startsWith(word) : w === word));
+			const inName = [...part.matchAll(/FSName == "\*(.+?)\*"cd/g)].some(([, word]) => name(item).includes(word));
 			return !item.folder && (content || inName);
 		});
 	});
@@ -90,7 +93,19 @@ test("the children's book: PDFs in a folder named like the topic, the named type
 
 test("year stays a content condition; a file name with the year is no hit", async () => {
 	const result = await search("Zahnarzt", "2023", home, { run: fakeMdfind });
-	assert.deepEqual(result.files.map((f) => f.name), ["a.pdf"]);
+	assert.deepEqual(result.files.map((f) => f.name).sort(), ["a.pdf", "beleg.txt", "scan.txt"]);
+});
+
+test("invoice and insurance categories cross languages while the other words and year still constrain results", async () => {
+	const paths = async (query, year) => (await search(query, year, home, { run: fakeMdfind })).files.map(f => f.path.slice(home.length + 1)).sort();
+	const invoices = ["Documents/Rechnungen/beleg.txt", "Documents/a.pdf", "Documents/invoices/scan.txt"];
+	for (const query of ["invoice Zahnarzt", "invoices Zahnarzt", "Rechnungen Zahnarzt"])
+		assert.deepEqual(await paths(query, "2023"), invoices, query);
+	assert.deepEqual(await paths("invoice Zahnarzt", "2024"), []);
+	assert.deepEqual(await paths("invoice Kinderbuch", "2023"), []);
+	assert.deepEqual(await paths("insurance"), await paths("Versicherung"));
+	assert.equal((await paths("insurance")).length, 2);
+	assert.ok(!predicate("Bill").includes("invoice"), "ambiguous words and names remain literal");
 });
 
 test("no home folder: unavailable, nothing searched", async () => {

@@ -86,7 +86,7 @@ export default function (pi: ExtensionAPI) {
 		label: "Dateien suchen",
 		description: "Find the person's own files by content, file name or folder name (Spotlight), anywhere in their home folder and iCloud Drive.",
 		parameters: Type.Object({
-			query: Type.String({ description: "1-3 topic words from the question, e.g. Zahnarzt; without Rechnung, Dokument, PDF, Unterlagen." }),
+			query: Type.String({ description: "1-3 topic words, e.g. Zahnarzt or Rechnung/invoice; omit generic words like Dokument and PDF." }),
 			year: Type.Optional(Type.String({ description: "Only when the person names a year; never guess one." })),
 			kind: Type.Optional(Type.String({ description: "Only when the person names a file type: pdf, image, word, excel, presentation, text, video, audio." })),
 		}),

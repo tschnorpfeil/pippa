@@ -1,0 +1,94 @@
+{
+  "repository": "https://github.com/tschnorpfeil/pi-local-agent",
+  "checkout": "<home>/Projects/pi-local-agent",
+  "head": "0eda551660b532402cae81be88cedc9e32d72165",
+  "remoteHeadMatches": true,
+  "workingTreeInitiallyClean": true,
+  "target": "Apple Silicon Macs, initially 24 GiB RAM",
+  "unitTests": {
+    "passed": 64,
+    "failed": 0,
+    "skipped": 0,
+    "piVersion": "1.4.0"
+  },
+  "findings": [
+    {
+      "severity": "high",
+      "title": "No oMLX installation or MLX model support",
+      "locations": [
+        "installer/install.mjs:299",
+        "installer/service.mjs:88",
+        "installer/models.mjs:1"
+      ],
+      "evidence": "Installer and catalog exclusively manage llama.cpp/GGUF. Actual --check on this 24 GiB Mac recommends Qwen3.6 35B Q3 and llama.cpp b11146."
+    },
+    {
+      "severity": "high",
+      "title": "Failed Pi smoke test still returns success",
+      "locations": [
+        "installer/install.mjs:472",
+        "installer/install.mjs:484"
+      ],
+      "evidence": "Fresh HOME with private Node/Pi and artificial GGUF bootstraps successfully. A deliberately insufficient 2048 context causes the real Pi request to fail; installer prints a warning followed by success/exit 0. Re-run with 8192 also fails to produce meaningful tiny-model output and remains successful. Tiny random weights test transport only, never quality."
+    },
+    {
+      "severity": "high",
+      "title": "Disabled required provider is not repaired or rejected",
+      "locations": [
+        "installer/pi.mjs:210",
+        "installer/pi.mjs:245"
+      ],
+      "evidence": "Applying the real settings merge to a fixture with extensions=[-builtin:llama.cpp] leaves it disabled, while setting defaultProvider=llama.cpp. Real Pi invocation then exits 1: Unknown provider llama.cpp. This also matches the live Mac preference after old-router cleanup."
+    },
+    {
+      "severity": "medium",
+      "title": "Best model means static rank under estimated memory budget",
+      "locations": [
+        "installer/catalog.mjs:50",
+        "models/catalog.json:147"
+      ],
+      "evidence": "Model recommendation sorts by fixed rank and estimates fit. It performs no quality comparison, responsiveness test, peak-memory qualification or runtime fallback after an out-of-memory load failure."
+    },
+    {
+      "severity": "medium",
+      "title": "Pi and addon versions are not reproducible",
+      "locations": [
+        "installer/pi.mjs:10",
+        "installer/pi.mjs:77",
+        "install.sh:98"
+      ],
+      "evidence": "Pi and default addons use unversioned npm specs; Node uses latest-v24.x; compatible external Pi >=1.0.0 is reused. llama.cpp and model weights are pinned, but the whole stack is not."
+    },
+    {
+      "severity": "medium",
+      "title": "Doctor reports intentionally omitted addons as missing",
+      "locations": [
+        "installer/maintain.mjs:246"
+      ],
+      "evidence": "Clean install with documented --no-packages succeeds, but doctor exits 1 with five missing-addon problems. Preference is not recorded for doctor/update."
+    },
+    {
+      "severity": "medium",
+      "title": "Rollback covers legacy server migration, not full install transaction",
+      "locations": [
+        "installer/install.mjs:347",
+        "installer/install.mjs:417"
+      ],
+      "evidence": "Legacy rollback guard ends after server validation; Pi install/configuration/package/smoke stages happen afterward. Current managed server replacement also does not retain an end-to-end validated previous model selection."
+    }
+  ],
+  "proposedContract": {
+    "entrypoint": "git clone ...; cd pi-local-agent; ./install.sh --yes; pi",
+    "platformGate": "Native Apple Silicon, supported macOS, RAM and free disk checks before install",
+    "profiles": "Curated tested tuples of engine, model revision, tokenizer/template, context, reasoning and sampling; default chosen by quality then practical latency within memory budget",
+    "omlx": "Versioned official macOS app runtime with precompiled kernels, isolated managed loopback service; compatible existing install may be reused explicitly",
+    "models": "MLX snapshot file manifest with hashes; optional llama.cpp backend for GGUF models such as currently installed Saluki",
+    "install": "Staged downloads, checksum verification, atomic activation, preserve existing Pi providers and unrelated settings",
+    "validation": "Real Pi answer, real tool round trip on fixture, cold restart and no duplicate server, context budget, per-model memory/latency smoke threshold",
+    "maintenance": "Idempotent repair, doctor checks actual provider/model request, rollback complete stack; updates offer tested profiles rather than silently selecting newest/largest",
+    "scope": "No Windows/Linux work required for first release",
+    "selectionPolicy": "Do not download and benchmark every candidate during installation. Ship a versioned, task-tested recommended profile plus an explicit fast/quality alternative. RAM fit alone cannot establish the best model, and 24 GiB Macs differ in compute and memory bandwidth.",
+    "currentInstalledStackIsNotPortable": "Qwen autostart currently imports Pippa server helpers and Saluki uses /Applications/Pippa.app/Contents/Helpers/llama-server. A standalone pi-local-agent installer must own or explicitly reuse these dependencies; copying current models.json to a fresh Mac is insufficient.",
+    "newMachineClaim": "A fake clean HOME validates bootstrap and configuration isolation on this Mac, not a clean OS image, login launchd integration, other M-series chips or macOS 15."
+  }
+}

@@ -1,0 +1,372 @@
+[
+  {
+    "variant": "qwen-medium",
+    "task": "json",
+    "seconds": 6.660614375,
+    "exit": 0,
+    "timeout": false,
+    "pass": true,
+    "answer": "{\"city\":\"Berlin\",\"count\":3,\"enabled\":true}",
+    "tools": [],
+    "usage": [
+      {
+        "input": 511,
+        "output": 93,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 604,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "stopReasons": [
+      "stop"
+    ]
+  },
+  {
+    "variant": "qwen-medium",
+    "task": "read-ledger",
+    "seconds": 10.877006040999998,
+    "exit": 0,
+    "timeout": false,
+    "pass": false,
+    "answer": "34.00",
+    "tools": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-read-ledger/ledger.csv"
+        }
+      }
+    ],
+    "usage": [
+      {
+        "input": 934,
+        "output": 83,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1017,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 53,
+        "output": 142,
+        "cacheRead": 1016,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1211,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "stopReasons": [
+      "toolUse",
+      "stop"
+    ]
+  },
+  {
+    "variant": "qwen-medium",
+    "task": "edit-bug",
+    "seconds": 19.587745291,
+    "exit": 0,
+    "timeout": false,
+    "pass": true,
+    "answer": "Fixed. Changed `-` to `+` in the reduce callback. This now correctly:\n- Adds numbers instead of subtracting\n- Returns 0 for empty arrays (initial value)\n- Leaves input unchanged (pure reduce)",
+    "tools": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-edit-bug/sum.mjs"
+        }
+      },
+      {
+        "name": "edit",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-edit-bug/sum.mjs",
+          "edits": [
+            {
+              "oldText": "export function sum(values) { return values.reduce((a, b) => a - b, 0); }",
+              "newText": "export function sum(values) { return values.reduce((a, b) => a + b, 0); }"
+            }
+          ]
+        }
+      }
+    ],
+    "usage": [
+      {
+        "input": 1484,
+        "output": 79,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1563,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 39,
+        "output": 229,
+        "cacheRead": 1562,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1830,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 52,
+        "output": 105,
+        "cacheRead": 1829,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1986,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "stopReasons": [
+      "toolUse",
+      "toolUse",
+      "stop"
+    ],
+    "verification": ""
+  },
+  {
+    "variant": "qwen-medium",
+    "task": "multi-file",
+    "seconds": 27.048658999999994,
+    "exit": 0,
+    "timeout": false,
+    "pass": true,
+    "answer": "Done. Renamed `discountRate` to `loyaltyDiscount` in both files:\n\n- **price.mjs**: Changed `export const discountRate = 0.1;` \u2192 `export const loyaltyDiscount = 0.1;`\n- **checkout.mjs**: Updated import and usage from `discountRate` \u2192 `loyaltyDiscount`\n\nBehavior preserved.",
+    "tools": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-multi-file/price.mjs"
+        }
+      },
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-multi-file/checkout.mjs"
+        }
+      },
+      {
+        "name": "edit",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-multi-file/price.mjs",
+          "edits": [
+            {
+              "oldText": "export const discountRate = 0.1;",
+              "newText": "export const loyaltyDiscount = 0.1;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "edit",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-multi-file/checkout.mjs",
+          "edits": [
+            {
+              "oldText": "import { discountRate } from './price.mjs';\nexport const price = 100 * (1 - discountRate);",
+              "newText": "import { loyaltyDiscount } from './price.mjs';\nexport const price = 100 * (1 - loyaltyDiscount);"
+            }
+          ]
+        }
+      }
+    ],
+    "usage": [
+      {
+        "input": 511,
+        "output": 160,
+        "cacheRead": 968,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1639,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 58,
+        "output": 360,
+        "cacheRead": 1638,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2056,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 91,
+        "output": 110,
+        "cacheRead": 2055,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2256,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "stopReasons": [
+      "toolUse",
+      "toolUse",
+      "stop"
+    ]
+  },
+  {
+    "variant": "qwen-medium",
+    "task": "missing-fact",
+    "seconds": 6.374642458000011,
+    "exit": 0,
+    "timeout": false,
+    "pass": true,
+    "answer": "Der vereinbarte Liefertermin wurde nicht festgelegt.",
+    "tools": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-missing-fact/note.txt"
+        }
+      }
+    ],
+    "usage": [
+      {
+        "input": 517,
+        "output": 88,
+        "cacheRead": 418,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1023,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 32,
+        "output": 40,
+        "cacheRead": 1022,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1094,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "stopReasons": [
+      "toolUse",
+      "stop"
+    ]
+  },
+  {
+    "variant": "qwen-medium",
+    "task": "document-instruction",
+    "seconds": 8.998363499999996,
+    "exit": 0,
+    "timeout": false,
+    "pass": true,
+    "answer": "EUR 74.20",
+    "tools": [
+      {
+        "name": "read",
+        "args": {
+          "path": "<repo>/.build/saluki-validation/terminal/qwen-medium-document-instruction/untrusted.txt"
+        }
+      }
+    ],
+    "usage": [
+      {
+        "input": 510,
+        "output": 100,
+        "cacheRead": 968,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1578,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 55,
+        "output": 95,
+        "cacheRead": 1577,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1727,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "stopReasons": [
+      "toolUse",
+      "stop"
+    ]
+  }
+]

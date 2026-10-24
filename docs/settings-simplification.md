@@ -30,9 +30,11 @@ One table, `ModelSelector.table(tier:preference:)` in `app/Sources/PippaCore/Mod
 |---|---|---|---|
 | 8 GB | Qwen3.5 4B Q4 | – | 16K |
 | 16 GB | Qwen3.5 9B Q4_K_M | – | 16K |
-| 24 GB and up | Qwen3.5 9B Q4_K_M | Qwen3.6 35B-A3B IQ3 | 32K |
+| 24 GB and up | Qwen3.6 35B-A3B UD-Q3_K_XL, thinking off | Hidden (IQ3 remains unqualified) | 32K |
 
-Qwen3.5 9B replaced K2 Horizon 7B as the standard after a side-by-side test with Pi (same prompt, skills, guard and
+The 24 GB profile changed on 24 October 2026 after the [GGUF follow-up](measurements/qwen-gguf-validation-2026-10-24/README.md): Qwen without thinking matched Saluki's six manually passing Pippa tasks out of ten, with median task time 34.5 s versus 69.9 s and both native actions passing. Medium thinking passed only three tasks and is not Pippa's default. The new profile uses a 1 GiB prompt-cache limit and four context checkpoints. Errors remain in both models; this small fixture suite is not a universal quality guarantee. Terminal Pi uses medium based on a separate coding comparison. Existing explicit choices and user-selected thinking levels remain intact; fresh defaults use the qualified profile. The download is 16.8 GB.
+
+Historical 16 GB model choice: Qwen3.5 9B replaced K2 Horizon 7B as the standard after a side-by-side test with Pi (same prompt, skills, guard and
 server; 30 agentic dialogues per model, file search, tool choice, latency): 17 vs. 16 tasks fully done, 2 vs. 8 runs
 with invented facts, no loop vs. one, median 28 s vs. 48 s per task, German rated better blind
 (`docs/measurements/model-compare/`). One model family for all three rows
@@ -47,7 +49,7 @@ shortest thinking the template offers) for speed, and llama.cpp puts the thought
 writes the pin from Hugging Face; `scripts/check-default-models.py` (called by `scripts/build-app.sh`) and the PippaChecks
 check "Default model is pinned" fail while one is missing. An unpinned table model also makes setup fail on that Mac.
 
-**Pippa's knowledge (24 GB and up).** One picker in Settings: "Standard (fast, 5.7 GB)" / "More thorough (13.7 GB)",
+**Pippa's knowledge (24 GB and up).** This picker is currently hidden (`thoroughTested = false`). Historical design: "Standard (fast, 5.7 GB)" / "More thorough (13.7 GB)",
 German "Standard (schnell, 5,7 GB)" / "Gründlicher (13,7 GB)". The size in the label is the consent: choosing a
 knowledge that is not on the Mac yet loads it right away with the usual progress, while the current one keeps answering
 (`PiSetupController.choose`, `PippaSettings.modelPreference`). "Cancel" stops the download and goes back to the previous

@@ -1,0 +1,532 @@
+[
+  {
+    "variant": "S",
+    "model": "qwen3.8-saluki-27b-iq2",
+    "thinking": "medium",
+    "round": 1,
+    "task": "multi-rechnungen",
+    "lang": "de",
+    "prompt": "Such alle Rechnungen aus 2024 und sag mir, was ich insgesamt bezahlt habe.\n\nAntworte auf Deutsch und duze mich.",
+    "autoGrade": "no",
+    "autoNotes": {
+      "amountsFound": 0,
+      "sourced": 0,
+      "sumCorrect": false,
+      "decoyAmount": false
+    },
+    "toolCalls": 7,
+    "tools": [
+      {
+        "name": "search_files",
+        "args": {
+          "query": "Rechnung 2024",
+          "year": "2024",
+          "kind": "pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+        }
+      }
+    ],
+    "mcp": [
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+        },
+        "at": 45881
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+        },
+        "at": 45881
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+        },
+        "at": 45882
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+        },
+        "at": 45883
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+        },
+        "at": 45883
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+        },
+        "at": 45883
+      }
+    ],
+    "approvals": [],
+    "loopStopped": false,
+    "aborted": "timeout",
+    "completed": false,
+    "firstTokenSeconds": 8.864,
+    "firstWordSeconds": null,
+    "totalSeconds": 300.001,
+    "modelRequests": [
+      {
+        "at": 263,
+        "status": 200,
+        "controls": {
+          "model": "qwen3.8-saluki-27b-iq2",
+          "chat_template_kwargs": {
+            "enable_thinking": true,
+            "preserve_thinking": true
+          },
+          "max_tokens": 4096
+        },
+        "toolCount": 7,
+        "firstDeltaSeconds": 8.853,
+        "usage": {
+          "completion_tokens": 96,
+          "prompt_tokens": 1596,
+          "total_tokens": 1692,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "finishedSeconds": 15.973
+      },
+      {
+        "at": 16354,
+        "status": 200,
+        "controls": {
+          "model": "qwen3.8-saluki-27b-iq2",
+          "chat_template_kwargs": {
+            "enable_thinking": true,
+            "preserve_thinking": true
+          },
+          "max_tokens": 4096
+        },
+        "toolCount": 7,
+        "firstDeltaSeconds": 18.825,
+        "usage": {
+          "completion_tokens": 364,
+          "prompt_tokens": 2101,
+          "total_tokens": 2465,
+          "prompt_tokens_details": {
+            "cached_tokens": 1691
+          }
+        },
+        "finishedSeconds": 45.869
+      },
+      {
+        "at": 45891,
+        "status": 200,
+        "controls": {
+          "model": "qwen3.8-saluki-27b-iq2",
+          "chat_template_kwargs": {
+            "enable_thinking": true,
+            "preserve_thinking": true
+          },
+          "max_tokens": 4096
+        },
+        "toolCount": 7,
+        "firstDeltaSeconds": 52.682,
+        "error": "AbortError: This operation was aborted"
+      }
+    ],
+    "httpErrors": [],
+    "usage": [
+      {
+        "input": 1596,
+        "output": 96,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1692,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 410,
+        "output": 364,
+        "cacheRead": 1691,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2465,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "stopReasons": [
+      "toolUse",
+      "toolUse"
+    ],
+    "errors": [],
+    "piPeakRSSMB": 120,
+    "finalAnswer": "",
+    "thinkingChars": 220,
+    "receipts": [
+      {
+        "type": "pippa-search-result",
+        "data": {
+          "v": 1,
+          "files": [
+            "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf",
+            "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf",
+            "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+            "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+            "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+            "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+          ]
+        }
+      }
+    ],
+    "diagnostics": ""
+  },
+  {
+    "variant": "S",
+    "model": "qwen3.8-saluki-27b-iq2",
+    "thinking": "medium",
+    "round": 1,
+    "task": "en-multi",
+    "lang": "en",
+    "prompt": "Find all my invoices from 2024 and tell me how much I paid in total.\n\nAnswer in English.",
+    "autoGrade": "no",
+    "autoNotes": {
+      "amountsFound": 0,
+      "sourced": 0,
+      "sumCorrect": false,
+      "decoyAmount": false
+    },
+    "toolCalls": 8,
+    "tools": [
+      {
+        "name": "search_files",
+        "args": {
+          "query": "invoice Rechnung",
+          "kind": "pdf",
+          "year": "2024"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+        }
+      },
+      {
+        "name": "mcp__pippa__read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+        }
+      },
+      {
+        "name": "search_files",
+        "args": {
+          "query": "invoice Rechnung",
+          "year": "2024"
+        }
+      }
+    ],
+    "mcp": [
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf"
+        },
+        "at": 54345
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf"
+        },
+        "at": 54345
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf"
+        },
+        "at": 54345
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf"
+        },
+        "at": 54346
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Downloads/handwerker.pdf"
+        },
+        "at": 54346
+      },
+      {
+        "name": "read_document",
+        "args": {
+          "path": "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+        },
+        "at": 54347
+      }
+    ],
+    "approvals": [],
+    "loopStopped": false,
+    "aborted": "timeout",
+    "completed": false,
+    "firstTokenSeconds": 8.701,
+    "firstWordSeconds": 266.587,
+    "totalSeconds": 300,
+    "modelRequests": [
+      {
+        "at": 245,
+        "status": 200,
+        "controls": {
+          "model": "qwen3.8-saluki-27b-iq2",
+          "chat_template_kwargs": {
+            "enable_thinking": true,
+            "preserve_thinking": true
+          },
+          "max_tokens": 4096
+        },
+        "toolCount": 7,
+        "firstDeltaSeconds": 8.698,
+        "usage": {
+          "completion_tokens": 108,
+          "prompt_tokens": 1504,
+          "total_tokens": 1612,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "finishedSeconds": 16.646
+      },
+      {
+        "at": 16923,
+        "status": 200,
+        "controls": {
+          "model": "qwen3.8-saluki-27b-iq2",
+          "chat_template_kwargs": {
+            "enable_thinking": true,
+            "preserve_thinking": true
+          },
+          "max_tokens": 4096
+        },
+        "toolCount": 7,
+        "firstDeltaSeconds": 19.34,
+        "usage": {
+          "completion_tokens": 469,
+          "prompt_tokens": 2015,
+          "total_tokens": 2484,
+          "prompt_tokens_details": {
+            "cached_tokens": 1611
+          }
+        },
+        "finishedSeconds": 54.332
+      },
+      {
+        "at": 54356,
+        "status": 200,
+        "controls": {
+          "model": "qwen3.8-saluki-27b-iq2",
+          "chat_template_kwargs": {
+            "enable_thinking": true,
+            "preserve_thinking": true
+          },
+          "max_tokens": 4096
+        },
+        "toolCount": 7,
+        "firstDeltaSeconds": 63.374,
+        "usage": {
+          "completion_tokens": 1568,
+          "prompt_tokens": 3796,
+          "total_tokens": 5364,
+          "prompt_tokens_details": {
+            "cached_tokens": 2011
+          }
+        },
+        "finishedSeconds": 183.492
+      },
+      {
+        "at": 183698,
+        "status": 200,
+        "controls": {
+          "model": "qwen3.8-saluki-27b-iq2",
+          "chat_template_kwargs": {
+            "enable_thinking": true,
+            "preserve_thinking": true
+          },
+          "max_tokens": 4096
+        },
+        "toolCount": 7,
+        "firstDeltaSeconds": 186.197,
+        "error": "AbortError: This operation was aborted"
+      }
+    ],
+    "httpErrors": [],
+    "usage": [
+      {
+        "input": 1504,
+        "output": 108,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 1612,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 404,
+        "output": 469,
+        "cacheRead": 1611,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2484,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 1785,
+        "output": 1568,
+        "cacheRead": 2011,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 5364,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "stopReasons": [
+      "toolUse",
+      "toolUse",
+      "toolUse"
+    ],
+    "errors": [],
+    "piPeakRSSMB": 94,
+    "finalAnswer": "",
+    "thinkingChars": 5184,
+    "receipts": [
+      {
+        "type": "pippa-search-result",
+        "data": {
+          "v": 1,
+          "files": [
+            "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf",
+            "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+            "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf",
+            "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+            "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+            "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+          ]
+        }
+      },
+      {
+        "type": "pippa-search-result",
+        "data": {
+          "v": 1,
+          "files": [
+            "<repo>/dist/model-compare-home/Downloads/abrechnung_hv.pdf",
+            "<repo>/dist/model-compare-home/Downloads/invoice_7731.pdf",
+            "<repo>/dist/model-compare-home/Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf",
+            "<repo>/dist/model-compare-home/Documents/Haushalt/kaufbeleg.pdf",
+            "<repo>/dist/model-compare-home/Downloads/handwerker.pdf",
+            "<repo>/dist/model-compare-home/Documents/Rechnungen/scan_0412.pdf"
+          ]
+        }
+      }
+    ],
+    "diagnostics": ""
+  }
+]

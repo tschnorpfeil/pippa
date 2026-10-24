@@ -74,7 +74,7 @@ jobs:
           cp app/Packaging/pi-release/package.json app/Packaging/pi-release/package-lock.json .build/pi-release/
           (cd .build/pi-release && npm ci --ignore-scripts --no-fund --no-audit --loglevel=error)
           export PIPPA_PI_CLI="$PWD/.build/pi-release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"
-          node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs 2>&1 | tail -n 200
+          node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs scripts/quality/tool-scope*.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
       - name: ChatGPT sign-in helper tests (runtime/pippa-auth)
         run: node --test runtime/pippa-auth/pi-auth.test.mjs 2>&1 | tail -n 200

@@ -1,4 +1,4 @@
-// Full Pi dialogues for the model comparison: Pi 1.1.0 over RPC with Pippa's prompt, tools, skills, guard and MCP
+// Full Pi dialogues for the model comparison: the selected Pi payload over RPC with Pippa's prompt, tools, skills, guard and MCP
 // extension, as tool-choice.mjs starts it. Pippa's MCP server is a deterministic mock (documents from the generated
 // corpus, one selected mail, saved web pages, calendar/reminders/mail draft only recorded). Approvals are answered
 // "allow" (test policy) and recorded.
@@ -14,7 +14,9 @@ import { rssMB } from './server.mjs';
 
 const root = resolve(import.meta.dirname, '../../..');
 const [payload, upstream, variantName, round, outFile, ...ids] = process.argv.slice(2);
-const variant = VARIANTS[variantName];
+const variant = process.env.PIPPA_MC_VARIANTS_FILE
+ ? JSON.parse(await readFile(process.env.PIPPA_MC_VARIANTS_FILE, 'utf8'))[variantName] : VARIANTS[variantName];
+const upstreamKey = process.env.PIPPA_MC_API_KEY_FILE ? (await readFile(process.env.PIPPA_MC_API_KEY_FILE, 'utf8')).trim() : '';
 if (!payload || !upstream || !variant || !outFile) throw Error('payload, llama URL, variant, round, out required');
 const home = resolve(process.env.CFFIXED_USER_HOME ?? '');
 if (!home.endsWith('/dist/model-compare-home')) throw Error('Use the generated dist/model-compare-home fixture');
@@ -89,6 +91,7 @@ function call(name, args) {
 const mcp = createServer(async (req, res) => {
  let body = ''; for await (const c of req) body += c;
  let q; try { q = JSON.parse(body); } catch { res.writeHead(400).end(); return; }
+ if (req.url === '/fixture-web') { res.setHeader('content-type', 'application/json'); res.end(json(call(q.name, q.args))); return; }
  if (q.id === undefined) { res.writeHead(202).end(); return; }
  const result = q.method === 'initialize' ? { protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'pippa', version: 'model-compare' } }
   : q.method === 'tools/list' ? { tools: schemas } : q.method === 'tools/call' ? call(q.params?.name, q.params?.arguments) : {};
@@ -101,14 +104,30 @@ const proxy = createServer(async (req, res) => {
  let raw = ''; for await (const c of req) raw += c;
  const entry = { at: Date.now() - current.start, status: 0 };
  current.requests.push(entry);
- if (current.requests.length === 1) current.firstPayload = JSON.parse(raw);
+ const parsed = JSON.parse(raw);
+ entry.controls = { model: parsed.model, reasoning_effort: parsed.reasoning_effort, chat_template_kwargs: parsed.chat_template_kwargs, temperature: parsed.temperature, max_tokens: parsed.max_tokens ?? parsed.max_completion_tokens };
+ if (current.requests.length === 1) {
+  current.firstPayload = parsed;
+  await writeFile(outFile.replace(/\.json$/, `-${current.task.id}-payload.json`), json(parsed));
+ }
+ entry.toolCount = parsed.tools?.length ?? 0;
  const controller = new AbortController(); res.on('close', () => { if (!res.writableEnded) controller.abort(); });
  try {
-  const r = await fetch(upstream + req.url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: raw, signal: controller.signal });
+  const r = await fetch(upstream + req.url, { method: 'POST', headers: { 'content-type': 'application/json', ...(upstreamKey ? { authorization: `Bearer ${upstreamKey}` } : {}) }, body: raw, signal: controller.signal });
   entry.status = r.status;
   res.writeHead(r.status, { 'content-type': r.headers.get('content-type') });
   if (r.status !== 200) { const t = await r.text(); entry.error = t.slice(0, 2000); res.end(t); return; }
-  for await (const c of r.body) res.write(c); res.end();
+  let stream = ''; const decoder = new TextDecoder();
+  for await (const c of r.body) {
+   res.write(c); stream += decoder.decode(c, { stream: true });
+   let n; while ((n = stream.indexOf('\n')) >= 0) {
+    const line = stream.slice(0, n).trim(); stream = stream.slice(n + 1);
+    if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+    try { const chunk = JSON.parse(line.slice(6)); if (chunk.usage) entry.usage = chunk.usage;
+     if (chunk.choices?.some(c => c.delta && Object.values(c.delta).some(Boolean)) && entry.firstDeltaSeconds === undefined) entry.firstDeltaSeconds = (Date.now() - current.start) / 1000;
+    } catch {}
+   }
+  } entry.finishedSeconds = (Date.now() - current.start) / 1000; res.end();
  } catch (e) { entry.error = String(e); if (!res.headersSent) res.writeHead(500); res.end(String(e)); }
 });
 await new Promise(ok => proxy.listen(0, '127.0.0.1', ok));
@@ -122,8 +141,10 @@ await symlink(join(payload, 'bin/node'), join(home, 'bin/node')).catch(e => { if
 
 const launch = await readFile(join(root, 'app/Sources/PiRPC/PippaPiLaunch.swift'), 'utf8');
 const prompts = { de: launch.match(/static let german = """\n([\s\S]*?)\n    """/)[1].replace(/^    /gm, ''), en: launch.match(/static let english = """\n([\s\S]*?)\n    """/)[1].replace(/^    /gm, '') };
-const tools = launch.match(/public static let tools = \[([\s\S]*?)\]/)[1].match(/"[^"]+"/g).map(x => JSON.parse(x)).join(',');
+if (process.env.PIPPA_MC_PROMPT_BASELINE === '1') for (const lang of Object.keys(prompts)) prompts[lang] = prompts[lang].split('\n').filter(line => !line.startsWith('Compare deadlines with') && !line.startsWith('Vergleiche Fristen mit')).join('\n');
+const tools = launch.match(/public static let tools = \[([\s\S]*?)\]/)[1].match(/"[^"]+"/g).map(x => JSON.parse(x)).filter(x => process.env.PIPPA_MC_TOOL_SCOPE !== 'off' || x !== 'pippa_more_tools').join(',');
 const skills = join(root, 'runtime/pippa-skills');
+if (process.env.PIPPA_MC_CACHE_TAG) for (const lang of Object.keys(prompts)) prompts[lang] = `[Benchmark ${process.env.PIPPA_MC_CACHE_TAG}]\n` + prompts[lang];
 const tasks = TASKS.filter(t => !ids.length || ids.includes(t.id));
 const results = [];
 try {
@@ -134,13 +155,15 @@ try {
   const events = []; let err = ''; let abort = null; let firstWord = null, firstToken = null, piPeak = 0;
   const env = { HOME: home, CFFIXED_USER_HOME: home, PI_CODING_AGENT_DIR: agent, PI_OFFLINE: '1', PI_TELEMETRY: '0', PI_SKIP_VERSION_CHECK: '1',
    PATH: join(home, 'bin') + ':/Applications/Pippa.app/Contents/Helpers:/usr/bin:/bin:/usr/sbin:/sbin', PIPPA_FIXTURE_SKILLS: skills,
-   PIPPA_GUARD_POLICY: 'undo-first', PIPPA_UNDO_DIR: join(home, 'undo'), PIPPA_TRASH_DIR: join(home, 'trash'),
+   PIPPA_TOOL_SCOPE: process.env.PIPPA_MC_TOOL_SCOPE ?? 'on', PIPPA_GUARD_POLICY: 'undo-first', PIPPA_LANGUAGE: task.lang, PIPPA_FIXTURE_WEB_SCHEMA: process.env.PIPPA_MC_WEB_SCHEMA ?? '', PIPPA_UNDO_DIR: join(home, 'undo'), PIPPA_TRASH_DIR: join(home, 'trash'),
    PIPPA_MCP_URL: `http://127.0.0.1:${mcp.address().port}/mcp`, PIPPA_MCP_TOKEN: 'a'.repeat(64) };
   const child = spawn(join(payload, 'bin/node'), [join(payload, 'release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'),
-   '--mode', 'rpc', '--no-session', '--no-context-files', '--no-approve', '--no-skills', '--skill', skills,
+   '--mode', 'rpc', '--no-extensions', '--no-session', '--no-context-files', '--no-approve', '--no-skills', '--skill', skills,
    // Extensions as PippaPiLaunch.extensions loads them.
-   '--extension', join(root, 'runtime/pippa-tools/pippa-tools.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-assist.ts'),
+   '--extension', join(root, 'runtime/pippa-tools/pippa-policy.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-tools.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-assist.ts'),
+   '--extension', join(root, 'runtime/pippa-tools/pippa-memory.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-context.ts'),
    '--extension', join(root, 'runtime/pippa-tools/pippa-mcp.ts'),
+   ...(process.env.PIPPA_MC_WEB_SCHEMA ? ['--extension', join(root, 'scripts/quality/model-compare/fixture-web.ts')] : []),
    '--extension', join(root, 'scripts/quality/model-compare/agentic-isolation.ts'),
    '--tools', tools, '--system-prompt', prompts[task.lang], '--provider', 'pippa-local', '--model', variant.key, '--thinking', variant.thinking],
    { cwd: work, env, stdio: ['pipe', 'pipe', 'pipe'] });
@@ -180,6 +203,7 @@ try {
   const toolsUsed = events.filter(x => x.type === 'tool_execution_start').map(x => ({ name: x.toolName, args: x.args }));
   const loopStopped = events.some(x => x.type === 'entry_appended' && x.entry?.customType === 'pippa-loop-stop');
   const run = { tools: toolsUsed, mcp: current.mcp };
+  await writeFile(outFile.replace(/\.json$/, `-${task.id}-events.json`), json(events));
   const auto = task.check(run, finalAnswer);
   const thinking = assistant.flatMap(m => m.content?.filter(p => p.type === 'thinking').map(p => p.thinking) ?? []).join('\n');
   const result = {

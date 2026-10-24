@@ -11,7 +11,9 @@ export default function(pi: any) {
   const path = (p = '.') => resolve(ctx.cwd, p === '~' ? home : p.startsWith('~/') ? home + p.slice(1) : p);
   const inside = (p: string) => path(p).startsWith(home + '/');
   const args = event.input ?? {};
+  if (event.toolName === 'pippa_more_tools') return;
   if (event.toolName.startsWith('mcp__pippa__')) return;
+  if (process.env.PIPPA_FIXTURE_WEB_SCHEMA && ['web_search', 'fetch_content'].includes(event.toolName)) return;
   if (event.toolName === 'read' && (inside(args.path) || path(args.path).startsWith(skills + '/'))) return;
   if (['find', 'ls', 'grep', 'list_folder'].includes(event.toolName) && inside(args.path ?? '.')) return;
   if (event.toolName === 'search_files') return;

@@ -1,0 +1,14 @@
+{
+  "midRun": {
+    "note": "Spot check during medium round two, recorded shortly after sampling; absence of warnings is not proof of no throttling.",
+    "loadAverage": [
+      5.29,
+      4.74,
+      4.2
+    ],
+    "swapUsedMiB": 5444.44,
+    "thermalStatus": "pmset reports no recorded thermal or performance warning",
+    "recordedAt": "2026-10-23T21:31:21.249574+00:00"
+  },
+  "originalSwapUsedMiB": 6172.5
+}

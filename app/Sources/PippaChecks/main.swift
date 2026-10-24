@@ -552,15 +552,16 @@ check("Model: K2 Horizon 7B does not fit 8 GB; low thinking via the template, XM
     return (k2?.memGiB ?? 0) > ModelSelector.budgetGiB(physicalMemory: 8 * GB)
         && k2?.extra?["chat-template-kwargs"]?.description == #"{"reasoning_effort":"low","tool_call_format":"xml"}"#
 }
-check("Model: 24 GB → qwen3.5-9b-q4, ctx 32768; \"More thorough\" → qwen3.6-35b-a3b-iq3 within the memory budget") {
+check("Model: 24 GB → qwen3.6-35b-a3b-q3, ctx 32768; \"More thorough\" → qwen3.6-35b-a3b-iq3 within the memory budget") {
     let c = pick(24), t = pick(24, .thorough)
-    return c?.model.key == "qwen3.5-9b-q4" && c?.ctx == 32768 && ModelSelector.offersThorough(physicalMemory: 24 * GB) == ModelSelector.thoroughTested
+    return c?.model.key == "qwen3.6-35b-a3b-q3" && c?.ctx == 32768 && ModelSelector.offersThorough(physicalMemory: 24 * GB) == ModelSelector.thoroughTested
+        && c?.model.thinking == "off" && c?.extra["cache-ram"] == "1024" && c?.extra["ctx-checkpoints"] == "4"
         && t?.model.key == "qwen3.6-35b-a3b-iq3" && t?.ctx == 32768
         && (t?.model.memGiB ?? 99) <= ModelSelector.budgetGiB(physicalMemory: 24 * GB)
 }
-check("Model: 32 and 64 GB → qwen3.5-9b-q4; \"More thorough\" → qwen3.6-35b-a3b-iq3") {
+check("Model: 32 and 64 GB → qwen3.6-35b-a3b-q3; \"More thorough\" → qwen3.6-35b-a3b-iq3") {
     [32, 64].allSatisfy { gb in
-        pick(UInt64(gb))?.model.key == "qwen3.5-9b-q4" && pick(UInt64(gb), .thorough)?.model.key == "qwen3.6-35b-a3b-iq3"
+        pick(UInt64(gb))?.model.key == "qwen3.6-35b-a3b-q3" && pick(UInt64(gb), .thorough)?.model.key == "qwen3.6-35b-a3b-iq3"
             && ModelSelector.offersThorough(physicalMemory: UInt64(gb) * GB) == ModelSelector.thoroughTested
     }
 }
@@ -614,11 +615,11 @@ check("Model: \"Pippa's knowledge\" is saved in settings.json; old files and unk
         && back.preference == .standard && back.modelPreference == nil && back.llamaPort == 41_234
         && unknown.preference == .standard && unknown.llamaPort == 41_234
 }
-await checkAsync("Model: old stock (24 GB, Qwen3.6 35B Q3) is no longer adopted but left untouched") {
+await checkAsync("Model: old stock (24 GB, Qwen3.5 9B) is no longer adopted but left untouched") {
     let base = dir("adopt-installed")
     let models = LocalEngine.modelsDirectory(base: base)
     try fm.createDirectory(at: models, withIntermediateDirectories: true)
-    let file = ModelCatalog.bundled().model("qwen3.6-35b-a3b-q3")!.pinned!.files[0]
+    let file = ModelCatalog.bundled().model("qwen3.5-9b-q4")!.pinned!.files[0]
     let url = models.appendingPathComponent(file.path)
     fm.createFile(atPath: url.path, contents: nil)
     let handle = try FileHandle(forWritingTo: url)
@@ -628,13 +629,13 @@ await checkAsync("Model: old stock (24 GB, Qwen3.6 35B Q3) is no longer adopted 
     try PippaSettings().save(to: base)
     let engine = LocalEngine(baseDirectory: base, physicalMemory: 24 * GB, integrations: DemoIntegrations())
     defer { Task { await engine.shutdown() } }
-    let size = await engine.modelDownloadSize      // Qwen3.5 9B missing: the one download question
+    let size = await engine.modelDownloadSize      // Qwen3.6 Q3 missing: the one download question
     let kept = fm.fileExists(atPath: url.path) && fm.fileExists(atPath: url.appendingPathExtension("ok").path)
     let settings = String(decoding: (try? Data(contentsOf: base.appendingPathComponent("settings.json"))) ?? Data(), as: UTF8.self)
     try? fm.removeItem(at: url)
     // Without a pin there is no size (and no download at all); "Default model is pinned" reports that on its own.
-    let pinned = ModelCatalog.bundled().model("qwen3.5-9b-q4")?.pinned != nil
-    return (size != nil || !pinned) && kept && !settings.contains("qwen3.6")
+    let pinned = ModelCatalog.bundled().model("qwen3.6-35b-a3b-q3")?.pinned != nil
+    return (size != nil || !pinned) && kept && !settings.contains("qwen3.5")
 }
 await checkAsync("Existing models: LM Studio, Ollama, Hugging Face detected, adopted without network, source stays") {
     let home = dir("existing-home")

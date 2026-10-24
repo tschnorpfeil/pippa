@@ -1,0 +1,91 @@
+variant,round,task,grade,unsupported,totalSeconds,firstWordSeconds,firstTokenSeconds,toolCalls,aborted,reviewNote
+L,1,multi-rechnungen,no,True,48.284,2.964,1.05,15,,"Wrong central total (EUR 4,886.20); includes service charges, omits the EUR 249 invoice and misadds its own listed amounts."
+L,1,vergleich,no,False,1.515,0.823,0.676,0,,Only promises to inspect files; no tools or comparison.
+L,1,zusammenfassen,yes,False,14.291,3.109,0.624,1,,"Correct window works, form deadline, preparations and rent change; preserves the receipt-relative cancellation rule."
+L,1,ordner-ueberblick,no,False,1.984,0.736,0.588,0,,No search or inventory; incoherent statement about looking for files.
+L,1,web-recherche,no,True,32.348,0.738,0.592,0,,"No search. Invented fees and procedures, with nonsensical repeated terminology."
+L,1,web-plus-datei,no,False,4.286,0.968,0.767,0,,No tools; asks the user to provide documents instead of searching and checking cancellation.
+L,1,mail-antwort,no,False,2.962,2.169,0.787,1,,Reads selected mail but does not create the requested draft; only repeats the supplied reading.
+L,1,termin,yes,False,9.751,3.432,0.72,2,,Reads the letter and creates one confirmed reminder on the correct date.
+L,1,en-multi,no,True,38.691,1.328,1.158,9,,"Wrong central total EUR 4,115.30; includes service charges and misadds the displayed rows (EUR 4,135.30). Attempts an unrelated edit outside the fixture, which is blocked."
+L,1,en-summary,partial,True,12.46,3.195,0.585,1,,"Correct principal dates and actions, but changes no furniture dismantling into no furniture moving, an unsupported instruction."
+L,2,multi-rechnungen,no,True,50.017,3.447,2.186,12,,"Wrong central total EUR 4,986.30, arithmetic error, includes service charges, duplicates an invoice and falsely says a file is gone after using the wrong path; attempts outside-fixture folder listing are blocked."
+L,2,vergleich,no,False,180.001,0.924,0.733,4,timeout,Reads both correct documents but reaches the 180-second timeout without the comparison; early text is only a progress statement.
+L,2,zusammenfassen,partial,True,16.469,4.015,0.782,1,,"Correct main actions, but invents an end-October cancellation deadline and changes Herr Kurz to Frau Kurz."
+L,2,ordner-ueberblick,partial,True,55.379,2.714,0.64,11,,"Reads five policies and gives useful details, but all generated file links change pippa to nonexistent pippy; also alters insurer names."
+L,2,web-recherche,no,False,2.319,1.153,0.989,0,,Only announces a search; no tool call or answer.
+L,2,web-plus-datei,partial,True,16.505,7.008,0.917,2,,"Reads policy and gives the annual date, but describes the rule as three months before contract start rather than expiry, and performs no web lookup."
+L,2,mail-antwort,partial,False,11.88,9.779,0.679,2,,"Saves a new message with the correct reading and recipient, not a reply to the selected mail; the body adds an incoherent line about the source deadline."
+L,2,termin,yes,False,15.988,2.427,0.659,2,,"One confirmed reminder on the correct date, with accurate supporting details."
+L,2,en-multi,no,True,11.546,9.152,1.029,3,,"English-only search finds one invoice and reports EUR 95 as the overall total, missing the four other invoices."
+L,2,en-summary,partial,True,15.752,3.696,0.622,1,,"Correct main action, but invents 31 January 2027 as the cancellation deadline from an October notice and states the right is then lost."
+L,3,multi-rechnungen,no,False,38.593,3.52,1.946,17,,Makes 17 tool calls but final answer is only a stray closing tool-call tag; no usable invoice result.
+L,3,vergleich,partial,True,96.293,77.798,0.636,10,,"Final comparison is correct, but makes an unrequested edit attempt on the lease PDF with a false EUR 320 monthly advance annotation. The edit fails; fixture hashes remain unchanged."
+L,3,zusammenfassen,partial,True,22.361,3.803,0.804,1,,"Core dates and amounts correct, but says furniture stays rather than only that it need not be dismantled; added advice to find an appointment is confusing."
+L,3,ordner-ueberblick,no,False,56.939,1.865,0.632,10,,Reads policies but returns no requested overview.
+L,3,web-recherche,no,True,10.038,0.837,0.659,0,,No web lookup; wrong fee and unsupported application methods.
+L,3,web-plus-datei,partial,False,16.146,5.429,0.706,2,,"Reads policy and gives cancellation terms, but omits requested web lookup and recognition that the 2026 deadline has passed."
+L,3,mail-antwort,partial,True,16.138,9.881,0.77,2,,Creates a new draft without reply_to selected; final answer incorrectly says the reading was transmitted before deadline.
+L,3,termin,no,False,10.879,10.876,0.695,0,,Emits tool-call JSON as final text; no document read or reminder actually created.
+L,3,en-multi,no,True,64.54,2.784,1.017,18,,Includes annual service-charge statement; arithmetic and total are incorrect.
+L,3,en-summary,partial,True,18.915,6.383,0.861,2,,"Core summary correct, but says no need to move furniture, stronger than source saying no need to dismantle it."
+M,1,multi-rechnungen,no,True,110.398,72.45,0.997,12,,"Finds all five invoices but adds EUR 3,270 service charges to the central total, contrary to the fixed invoice rubric; also describes the 2023 electrical inspection as socket replacement."
+M,1,vergleich,yes,False,42.499,2.753,0.685,5,,"Reads both correct documents; correctly compares EUR 250 monthly/EUR 3,000 annual payments and explains the EUR 270 balance."
+M,1,zusammenfassen,partial,True,30.299,1.841,0.624,1,,"Correct main actions and dates, but invents a 1 March 2027 cancellation deadline and uses formal address despite the user asking for du."
+M,1,ordner-ueberblick,yes,False,44.793,4.598,0.597,7,,"Reads and accurately summarizes five policies, satisfying the existing five-of-six threshold; notes their synthetic nature."
+M,1,web-recherche,no,True,22.685,15.638,0.693,0,,"No search; invents EUR 30/60 prices, a credit-card variant, booking website and photo requirements."
+M,1,web-plus-datei,partial,False,29.885,3.116,0.634,2,,"Reads the policy and correctly gives deadline/form, but does not perform the requested web lookup or decide whether this year's deadline has passed."
+M,1,mail-antwort,partial,False,28.028,17.948,0.664,2,,"Creates a new draft with the correct reading, but not a reply to selected mail; addresses Frau Beispiel (the user), reversing the recipient role. The mock incorrectly describes any accepted draft as in-thread, so the final thread claim is not counted as model fabrication."
+M,1,termin,yes,False,27.121,2.023,0.679,2,,Reads letter and creates one confirmed reminder for the correct date; selects the documented opening time and explains it.
+M,1,en-multi,no,True,96.326,2.991,1.013,13,,"Wrong central paid total; adds EUR 3,270 service charges to the five invoices."
+M,1,en-summary,partial,True,31.137,20.096,0.801,1,,"Correct main actions, but substitutes the notice date for the unknown receipt date to derive an unconditional cancellation deadline; also broadens no dismantling into no furniture removal."
+M,2,multi-rechnungen,no,True,164.23,4.4,1.86,19,,"Finds the five invoices but again includes EUR 3,270 service charges in the central total (EUR 4,135.30); extra searches and reads do not correct classification."
+M,2,vergleich,yes,False,117.887,3.54,0.926,5,,"Correct amounts and comparison; distinguishes matching credited advances from insufficient cost coverage, with an accurate optional 2023 comparison."
+M,2,zusammenfassen,partial,True,40.472,24.883,0.971,1,,"Correct main task dates, but confuses the contractor with the property manager and derives an unsupported December cancellation date from the notice issue date."
+M,2,ordner-ueberblick,partial,True,93.053,2.626,0.769,9,,"Reads and correctly lists five policies, but invents an annual total of EUR 960.20; the displayed premiums annualize to EUR 1,032.10."
+M,2,web-recherche,partial,True,53.387,45.484,1.419,5,,"Eventually uses saved evidence for correct fees, but invents a cash-only payment instruction, 3x4 cm photo size and specific birth-certificate conditions."
+M,2,web-plus-datei,partial,False,74.151,3.816,0.959,3,,"Correctly reads the policy, explains text form and that the 2026 deadline has passed, but does not do the requested web lookup."
+M,2,mail-antwort,partial,False,41.892,39.054,0.771,3,,"Recovers to selected reply and saves one draft with correct reading/date, but addresses the user Frau Beispiel rather than the property manager; roles are reversed in the reply body."
+M,2,termin,no,True,27.646,2.788,0.711,1,,Claims a reminder was created at noon without calling reminder_add; also falsely calls Friday 27 November 2026 a Saturday. Only reads the source document.
+M,2,en-multi,yes,False,111.087,2.661,0.992,13,,Finds the correct five invoices and EUR 865.30 total; explicitly excludes the service-charge statement and other years. Automatic decoy detection mistakes discussed exclusions for inclusions.
+M,2,en-summary,partial,True,29.267,18.275,0.643,1,,"Correct principal facts and receipt-relative cancellation rule, but broadens no furniture dismantling into no furniture removal."
+M,3,multi-rechnungen,no,True,137.527,6.061,1.321,10,,Includes the annual service-charge statement as a 2024 paid invoice; total 4135.30 rather than 865.30.
+M,3,vergleich,yes,False,67.401,3.954,0.74,5,,"Reads the lease and correct bill; correct monthly and yearly advance, cost total, balance, due date and recommended advance."
+M,3,zusammenfassen,partial,True,32.394,2.282,0.635,1,,"Core summary correct, but invents an October cancellation deadline and wrongly says it has passed; furniture wording is also stronger than the source."
+M,3,ordner-ueberblick,partial,True,115.59,1.727,0.62,21,,"Identifies five file names but invents invalid paths and mislabels personal liability as compulsory motor insurance; document reads fail. Outside-fixture native reads use the mock, and folder/bash attempts are blocked."
+M,3,web-recherche,no,True,128.587,20.809,0.63,8,,"Recognizes the placeholder nature of the saved web pages and rejects them; then supplies unsupported EUR 29 for all ages, online application and 1–2 week production. This is a fixture-grounding failure, with synthetic-web sensitivity noted as a limitation."
+M,3,web-plus-datei,partial,True,70.599,4.022,0.64,3,,"Reads policy and eventually correctly explains that 31 August has passed, but opening says deadline remains available, no requested web lookup occurs, and it introduces an unsupported two-month standard period while caveating possible negotiation."
+M,3,mail-antwort,partial,False,51.188,48.529,0.629,2,,"Creates a new draft without reply_to selected or recipient; correct reading and date, but not the requested reply. Final thread claim follows the inaccurate legacy mock receipt and is not counted independently."
+M,3,termin,yes,False,27.236,4.583,0.661,2,,Reads letter and creates one confirmed reminder for the correct date and a documented opening hour. Final list name follows the mock receipt.
+M,3,en-multi,partial,True,102.425,87.835,0.991,15,,"Correct five invoices, exclusions and central EUR 865.30 total, but changes hallway painting into garden painting. Under the strict grounded-answer rubric this is partial despite the correct requested calculation."
+M,3,en-summary,partial,True,29.562,17.106,0.635,1,,"Correct main dates and actions, but invents end of March 2027 as a cancellation deadline and broadens no furniture dismantling into no removal."
+Q,1,multi-rechnungen,no,True,43.385,38.027,4.754,7,,"Correctly adds the five invoices but also includes the EUR 270 service-charge balance due in 2025, yielding EUR 1,135.30 rather than the fixed rubric's EUR 865.30."
+Q,1,vergleich,yes,False,37.055,3.613,0.391,4,,Correct comparison using both source documents and correct amounts.
+Q,1,zusammenfassen,yes,False,17.59,7.469,0.546,1,,"Correct main actions and dates, with no invented deadline. Uses formal address despite the tone instruction."
+Q,1,ordner-ueberblick,partial,True,10.97,1.661,0.395,1,,"Finds five real policy files, but invents their locations: TestDrive is not iCloud and zzv.pdf is not in Downloads."
+Q,1,web-recherche,yes,False,16.059,8.432,0.423,1,,"Uses saved web evidence and accurately gives fees and application steps. Formal address and redundant citations are style violations, not task failures."
+Q,1,web-plus-datei,partial,False,14.779,2.775,0.41,2,,"Reads policy and states correct deadline/form, but skips requested web lookup and does not resolve whether the current deadline has passed."
+Q,1,mail-antwort,yes,False,26.973,25.82,0.392,3,,Recovers from a rejected reply_to value and creates exactly one accepted selected-mail reply draft with the correct reading.
+Q,1,termin,yes,False,17.817,15.688,0.584,2,,Reads the source and creates exactly one confirmed reminder for 27 November 2026.
+Q,1,en-multi,no,True,81.963,74.398,4.88,9,,"Includes the EUR 270 service-charge balance due in 2025 in the 2024 invoice total, giving EUR 1,135.30 instead of EUR 865.30."
+Q,1,en-summary,partial,True,26.149,16.873,0.519,1,,"Correct main actions/dates and receipt-relative termination rule, but changes no furniture dismantling into no furniture moving, the same unsupported instruction penalized for K2-low."
+Q,2,multi-rechnungen,no,True,50.703,42.579,4.593,7,,Again includes the EUR 270 service-charge balance due in 2025 in the invoice total.
+Q,2,vergleich,yes,False,37.879,3.91,0.452,4,,"Correctly confirms matching EUR 250 monthly/EUR 3,000 annual advances and the EUR 270 balance; sufficient to answer the comparison."
+Q,2,zusammenfassen,partial,True,26.683,16.73,0.59,1,,"Correct principal actions, but conflates the receipt-relative notice deadline with the effective termination month, saying the user can cancel until the end of the month after next."
+Q,2,ordner-ueberblick,yes,False,19.747,2.537,0.411,1,,Lists five matching policy files with accurate paths; satisfies the existing inventory rubric without inventing unread policy details.
+Q,2,web-recherche,yes,False,20.029,1.974,0.42,1,,Searches and accurately reports saved fees and application steps.
+Q,2,web-plus-datei,partial,False,44.727,4.22,0.406,2,,"Correct policy deadline, passed-deadline conclusion and cancellation instructions, but no requested web lookup."
+Q,2,mail-antwort,no,False,13.009,9.199,0.471,1,,Produces a usable reply in chat but never saves the requested Mail reply draft; does not falsely claim it was saved.
+Q,2,termin,yes,False,23.607,21.16,0.533,2,,"Creates one confirmed reminder on the correct date, with a time within the documented opening hours."
+Q,2,en-multi,no,True,26.548,23.395,6.664,2,,"Searches only the English word invoice, reads one file and reports EUR 95 as the total, missing four German-language invoices."
+Q,2,en-summary,yes,False,37.591,26.987,0.458,1,,"Accurate concise summary of required action, work dates and rent change, without adding an unsupported cancellation date."
+Q,3,multi-rechnungen,no,True,58.127,50.82,4.976,7,,"Again includes the EUR 270 balance due in 2025 in the invoice total, reporting EUR 1,135.30."
+Q,3,vergleich,yes,False,40.536,32.004,0.421,4,,"Correctly reads and compares the lease and 2024 statement, with matching advances and correct balance."
+Q,3,zusammenfassen,partial,True,33.752,20.189,0.541,1,,"Correct principal dates/actions, but again conflates the receipt-relative cancellation notice deadline with the effective termination month."
+Q,3,ordner-ueberblick,yes,False,11.849,2.016,0.396,1,,Lists five matching policies with accurate locations and no invented unread contents.
+Q,3,web-recherche,yes,False,19.75,2.871,0.4,1,,Searches and accurately answers the saved fee/application task.
+Q,3,web-plus-datei,partial,False,20.811,4.34,0.409,2,,"Correct policy deadline and text-form instructions, but no web lookup or current-year deadline assessment."
+Q,3,mail-antwort,partial,True,104.606,100.732,0.381,9,,"After three rejected attempts, saves a new draft with to=selected instead of replying to selected mail. The body is usable, but routing is wrong and the final claimed recipient is not the submitted recipient. The legacy mock accepts that new-message recipient without validation."
+Q,3,termin,yes,False,25.056,3.543,0.551,2,,Reads letter and creates one confirmed reminder on the correct date.
+Q,3,en-multi,no,True,86.055,78.714,4.807,8,,"Includes the entire EUR 3,270 service-charge statement in the central total (EUR 4,135.30), contrary to the fixed invoice rubric."
+Q,3,en-summary,partial,True,24.413,15.523,0.67,1,,"Accurate main actions and dates, but again says furniture need not be moved instead of need not be dismantled."

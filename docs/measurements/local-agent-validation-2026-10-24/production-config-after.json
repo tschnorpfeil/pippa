@@ -1,0 +1,11 @@
+{
+  "<home>/.pi/agent/settings.json": {
+    "unchanged": true
+  },
+  "<home>/.pi/agent/models.json": {
+    "unchanged": true
+  },
+  "<home>/Library/Application Support/Pippa/settings.json": {
+    "unchanged": true
+  }
+}

@@ -90,6 +90,30 @@ private func linkCount(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: u
 
 func runSetupChecks() async {
     await runPiPivotChecks()
+    check("Settings: explicit local model survives port updates; table preference clears it") {
+        let home = fakeHome("local-model"); defer { discard(home) }
+        let key = "qwen3.8-saluki-27b-iq2"
+        try PippaSettings(llamaPort: 65070, localModelKey: key).save(to: home)
+        var saved = PippaSettings.load(from: home)
+        saved.llamaIdleMinutes = 3
+        try saved.save(to: home)
+        let selected = PiSetupFlow.choice(override: PippaSettings.load(from: home).localModelKey)
+        let memory: UInt64 = 24 * 1024 * 1024 * 1024
+        let fallback = PiSetupFlow.choice(override: "missing-model", physicalMemory: memory)
+        let standard = PiSetupFlow.choice(override: nil, physicalMemory: memory)
+        try PippaSettings.savePreference(.standard, to: home)
+        let cleared = PippaSettings.load(from: home)
+        return selected?.model.key == key && selected?.ctx == 16384
+            && fallback?.model.key == standard?.model.key
+            && cleared.localModelKey == nil && cleared.llamaPort == 65070 && cleared.llamaIdleMinutes == 3
+    }
+    check("Settings: saved Qwen standard selection retains the tested 32K, bounded-cache, thinking-off profile") {
+        let memory: UInt64 = 24 * 1024 * 1024 * 1024
+        let selected = PiSetupFlow.choice(override: "qwen3.6-35b-a3b-q3", physicalMemory: memory)
+        let standard = PiSetupFlow.choice(override: nil, physicalMemory: memory)
+        return selected == standard && selected?.ctx == 32768 && selected?.model.thinking == "off"
+            && selected?.extra["cache-ram"] == "1024" && selected?.extra["ctx-checkpoints"] == "4"
+    }
     check("Installer: fresh HOME gets the official layout (marker, current-version, launcher, ~/.local/bin/pi, Node)") {
         let home = fakeHome("fresh"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))

@@ -62,11 +62,17 @@ public final class PiSetupFlow: @unchecked Sendable {
     }
 
     /// The model for this Mac: the table by memory size (`ModelSelector.choose`); `preference` is the one setting
-    /// "Standard" / "Gründlicher" (24 GB and up, docs/settings-simplification.md). `override`: developers only (`PIPPA_PI_MODEL`).
+    /// "Standard" / "Gründlicher" (24 GB and up, docs/settings-simplification.md). `override`: an explicitly configured
+    /// pinned model (`localModelKey` or `PIPPA_PI_MODEL`); invalid keys safely fall back to the table.
     public static func choice(override: String?, preference: ModelPreference = .standard,
                               physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory,
                               catalog: ModelCatalog = .bundled()) -> ModelChoice? {
         if let override, let model = catalog.model(override), model.pinned != nil {
+            // A saved standard-model selection must use the same tested profile as a fresh setup.
+            let standard = ModelSelector.table(tier: ModelSelector.tierGB(physicalMemory: physicalMemory))
+            if override == standard.key {
+                return ModelSelector.choice(model, ctx: standard.ctx, overrides: standard.extra, catalog: catalog)
+            }
             return ModelSelector.choice(model, ctx: min(model.ctx, 16384), overrides: [:], catalog: catalog)
         }
         return try? ModelSelector.choose(physicalMemory: physicalMemory, preference: preference, catalog: catalog).get()

@@ -1,0 +1,17 @@
+{
+  "scoredRuns": 90,
+  "uniqueTaskRunIDs": 90,
+  "manualGrades": 90,
+  "correctReasoningAndTokenLimits": true,
+  "matchingToolDeclarations": true,
+  "scoredHTTPErrors": 0,
+  "fixturePDFsUnchanged": 20,
+  "additionalUnpooledDiagnosticRuns": 6,
+  "diagnosticPrefixAbsent": true,
+  "credentialsAbsent": true,
+  "personalHomeAndRepositoryPathsRedacted": true,
+  "allSavedJSONParseable": true,
+  "evidenceFilesChecked": 263,
+  "originalK2LoadedStateRestored": true,
+  "benchmarkQwenPortClosed": true
+}

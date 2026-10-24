@@ -1,0 +1,711 @@
+{
+  "generated": "2026-10-24T09:40:10.968234+00:00",
+  "pippa": {
+    "F": {
+      "runs": 10,
+      "grades": {
+        "yes": 5,
+        "partial": 2,
+        "no": 3,
+        "unreviewed": 0
+      },
+      "medianSeconds": 27.585500000000003,
+      "timeouts": 0,
+      "httpErrors": 0
+    },
+    "S": {
+      "runs": 10,
+      "grades": {
+        "yes": 5,
+        "partial": 3,
+        "no": 2,
+        "unreviewed": 0
+      },
+      "medianSeconds": 87.5295,
+      "timeouts": 2,
+      "httpErrors": 0
+    }
+  },
+  "terminal": {
+    "k2-low": {
+      "runs": 6,
+      "passed": 5,
+      "medianSeconds": 3.8902495834999997,
+      "timeouts": 0
+    },
+    "k2-medium": {
+      "runs": 6,
+      "passed": 6,
+      "medianSeconds": 11.218050875499998,
+      "timeouts": 0
+    },
+    "qwen-medium": {
+      "runs": 6,
+      "passed": 5,
+      "medianSeconds": 9.937684770499997,
+      "timeouts": 0
+    },
+    "saluki-medium": {
+      "runs": 6,
+      "passed": 6,
+      "medianSeconds": 22.59755595799999,
+      "timeouts": 0
+    },
+    "saluki-off": {
+      "runs": 6,
+      "passed": 5,
+      "medianSeconds": 23.451651771500025,
+      "timeouts": 1
+    }
+  },
+  "lifecycle": {
+    "beforeColdStart": {
+      "stoppedPID": 48162
+    },
+    "simultaneousColdStart": [
+      {
+        "exit": 0,
+        "answer": "COLD_ALPHA_OK",
+        "expected": "COLD_ALPHA_OK",
+        "pass": true,
+        "seconds": 7.300508250016719,
+        "stderr": "Starting the local model\u2026\n"
+      },
+      {
+        "exit": 0,
+        "answer": "COLD_BETA_OK",
+        "expected": "COLD_BETA_OK",
+        "pass": true,
+        "seconds": 8.072283332934603,
+        "stderr": "Starting the local model\u2026\n"
+      }
+    ],
+    "afterColdStart": {
+      "owner": "pi",
+      "holder": 93652,
+      "pid": 93654,
+      "port": 65070
+    },
+    "listenerCount": 1,
+    "beforeRecovery": {
+      "stoppedPID": 93654
+    },
+    "recovery": {
+      "exit": 0,
+      "answer": "RECOVERY_OK",
+      "expected": "RECOVERY_OK",
+      "pass": true,
+      "seconds": 4.34306383295916,
+      "stderr": "Starting the local model\u2026\n"
+    },
+    "k2OriginallyLoaded": false,
+    "restoredSaluki": {
+      "exit": 0,
+      "answer": "FINAL_SALUKI_OK",
+      "expected": "FINAL_SALUKI_OK",
+      "pass": true,
+      "seconds": 3.574179708957672,
+      "stderr": ""
+    }
+  },
+  "repoReview": {
+    "repository": "https://github.com/tschnorpfeil/pi-local-agent",
+    "checkout": "<home>/Projects/pi-local-agent",
+    "head": "0eda551660b532402cae81be88cedc9e32d72165",
+    "remoteHeadMatches": true,
+    "workingTreeInitiallyClean": true,
+    "target": "Apple Silicon Macs, initially 24 GiB RAM",
+    "unitTests": {
+      "passed": 64,
+      "failed": 0,
+      "skipped": 0,
+      "piVersion": "1.4.0"
+    },
+    "findings": [
+      {
+        "severity": "high",
+        "title": "No oMLX installation or MLX model support",
+        "locations": [
+          "installer/install.mjs:299",
+          "installer/service.mjs:88",
+          "installer/models.mjs:1"
+        ],
+        "evidence": "Installer and catalog exclusively manage llama.cpp/GGUF. Actual --check on this 24 GiB Mac recommends Qwen3.6 35B Q3 and llama.cpp b11146."
+      },
+      {
+        "severity": "high",
+        "title": "Failed Pi smoke test still returns success",
+        "locations": [
+          "installer/install.mjs:472",
+          "installer/install.mjs:484"
+        ],
+        "evidence": "Fresh HOME with private Node/Pi and artificial GGUF bootstraps successfully. A deliberately insufficient 2048 context causes the real Pi request to fail; installer prints a warning followed by success/exit 0. Re-run with 8192 also fails to produce meaningful tiny-model output and remains successful. Tiny random weights test transport only, never quality."
+      },
+      {
+        "severity": "high",
+        "title": "Disabled required provider is not repaired or rejected",
+        "locations": [
+          "installer/pi.mjs:210",
+          "installer/pi.mjs:245"
+        ],
+        "evidence": "Applying the real settings merge to a fixture with extensions=[-builtin:llama.cpp] leaves it disabled, while setting defaultProvider=llama.cpp. Real Pi invocation then exits 1: Unknown provider llama.cpp. This also matches the live Mac preference after old-router cleanup."
+      },
+      {
+        "severity": "medium",
+        "title": "Best model means static rank under estimated memory budget",
+        "locations": [
+          "installer/catalog.mjs:50",
+          "models/catalog.json:147"
+        ],
+        "evidence": "Model recommendation sorts by fixed rank and estimates fit. It performs no quality comparison, responsiveness test, peak-memory qualification or runtime fallback after an out-of-memory load failure."
+      },
+      {
+        "severity": "medium",
+        "title": "Pi and addon versions are not reproducible",
+        "locations": [
+          "installer/pi.mjs:10",
+          "installer/pi.mjs:77",
+          "install.sh:98"
+        ],
+        "evidence": "Pi and default addons use unversioned npm specs; Node uses latest-v24.x; compatible external Pi >=1.0.0 is reused. llama.cpp and model weights are pinned, but the whole stack is not."
+      },
+      {
+        "severity": "medium",
+        "title": "Doctor reports intentionally omitted addons as missing",
+        "locations": [
+          "installer/maintain.mjs:246"
+        ],
+        "evidence": "Clean install with documented --no-packages succeeds, but doctor exits 1 with five missing-addon problems. Preference is not recorded for doctor/update."
+      },
+      {
+        "severity": "medium",
+        "title": "Rollback covers legacy server migration, not full install transaction",
+        "locations": [
+          "installer/install.mjs:347",
+          "installer/install.mjs:417"
+        ],
+        "evidence": "Legacy rollback guard ends after server validation; Pi install/configuration/package/smoke stages happen afterward. Current managed server replacement also does not retain an end-to-end validated previous model selection."
+      }
+    ],
+    "proposedContract": {
+      "entrypoint": "git clone ...; cd pi-local-agent; ./install.sh --yes; pi",
+      "platformGate": "Native Apple Silicon, supported macOS, RAM and free disk checks before install",
+      "profiles": "Curated tested tuples of engine, model revision, tokenizer/template, context, reasoning and sampling; default chosen by quality then practical latency within memory budget",
+      "omlx": "Versioned official macOS app runtime with precompiled kernels, isolated managed loopback service; compatible existing install may be reused explicitly",
+      "models": "MLX snapshot file manifest with hashes; optional llama.cpp backend for GGUF models such as currently installed Saluki",
+      "install": "Staged downloads, checksum verification, atomic activation, preserve existing Pi providers and unrelated settings",
+      "validation": "Real Pi answer, real tool round trip on fixture, cold restart and no duplicate server, context budget, per-model memory/latency smoke threshold",
+      "maintenance": "Idempotent repair, doctor checks actual provider/model request, rollback complete stack; updates offer tested profiles rather than silently selecting newest/largest",
+      "scope": "No Windows/Linux work required for first release",
+      "selectionPolicy": "Do not download and benchmark every candidate during installation. Ship a versioned, task-tested recommended profile plus an explicit fast/quality alternative. RAM fit alone cannot establish the best model, and 24 GiB Macs differ in compute and memory bandwidth.",
+      "currentInstalledStackIsNotPortable": "Qwen autostart currently imports Pippa server helpers and Saluki uses /Applications/Pippa.app/Contents/Helpers/llama-server. A standalone pi-local-agent installer must own or explicitly reuse these dependencies; copying current models.json to a fresh Mac is insufficient.",
+      "newMachineClaim": "A fake clean HOME validates bootstrap and configuration isolation on this Mac, not a clean OS image, login launchd integration, other M-series chips or macOS 15."
+    }
+  },
+  "pippaVsPi": {
+    "question": "Does Pippa degrade terminal Pi responsiveness or correctness?",
+    "observedDefaults": {
+      "terminal": "K2 7B / oMLX / low",
+      "pippa": "Saluki 27B IQ2 / llama.cpp / medium"
+    },
+    "sourceFindings": [
+      {
+        "finding": "The first text chunk is displayed immediately; subsequent chunks are batched for 80 ms. This does not explain multi-second model latency by itself.",
+        "source": "app/Sources/Pippa/App/ConversationController.swift:425"
+      },
+      {
+        "finding": "Pippa replaces the base coding prompt, selects its own extensions and skills, and uses separate per-conversation sessions.",
+        "source": "app/Sources/PiRPC/PippaPiLaunch.swift:8"
+      },
+      {
+        "finding": "Pippa discourages progress preambles; progress-like text is not equivalent to a completed answer.",
+        "source": "app/Sources/PiRPC/PippaPiLaunch.swift"
+      },
+      {
+        "finding": "Memory and recent conversation handover may add context; idle summarization starts after 20 seconds above 60% context use. These features were not active in the fresh-session fixture comparison.",
+        "source": "runtime/pippa-tools/pippa-context.ts:31"
+      },
+      {
+        "finding": "A loop brake stops repeated failed or identical calls and caps calls per answer. Terminal baseline has no such brake. In the Saluki-off terminal ledger test, the model read the same successful result 39 times before the 180-second timeout.",
+        "source": "runtime/pippa-tools/pippa-assist.ts:8"
+      },
+      {
+        "finding": "Pippa disables repository AGENTS.md/CLAUDE.md context and uses its own working directory and bundled skills. A normal terminal session can have relevant project instructions that are absent in Pippa. The controlled fixture runs disable project context in every arm.",
+        "source": "app/Sources/PiRPC/PippaPiLaunch.swift:8"
+      }
+    ],
+    "experiment": {
+      "engine": "Same installed Saluki server on port 65070",
+      "thinking": "off in all arms",
+      "sampling": "Identical installed server defaults; not optimized for off",
+      "tasks": [
+        "zusammenfassen",
+        "web-plus-datei"
+      ],
+      "repeats": 2,
+      "profiles": {
+        "pippa": "Pippa base prompt and all 23 tools",
+        "stock": "Stock Pi base prompt, same Pippa extensions, skills, and all 23 tools",
+        "lean-stock": "Stock Pi base prompt, same extensions/skills, only five relevant tools exposed"
+      },
+      "order": "Pippa/stock/lean in repeat 1; lean/stock/Pippa in repeat 2, per task",
+      "scope": "Prompt/tool ablation over RPC, not a timing comparison of the macOS GUI against the terminal renderer. Stock arm retains Pippa helpers and is not an unmodified terminal session.",
+      "limits": [
+        "Two tasks with two repeats are diagnostic only, not a general quality benchmark.",
+        "No clean-cache reset between requests; live desktop background load persists.",
+        "Native/document/web responses use deterministic fixtures; no personal app writes.",
+        "This isolates base prompt and advertised tools, not memory, conversation history, application startup, or rendering."
+      ]
+    },
+    "runs": [
+      {
+        "id": "pippa-2-web-plus-datei",
+        "profile": "pippa",
+        "round": 2,
+        "task": "web-plus-datei",
+        "grade": {
+          "grade": "partial",
+          "reason": "Gives the contractual deadline correctly but does not answer whether it is still open and omits the requested web lookup."
+        },
+        "seconds": 32.945,
+        "firstTextSeconds": 23.867,
+        "toolsAdvertised": 23,
+        "systemCharacters": 2383,
+        "schemaCharacters": 8227,
+        "initialPromptTokens": 3185,
+        "initialCachedTokens": 0,
+        "toolCalls": 2,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Deine Hausratversicherung l\u00e4uft bis zum 30.11. eines Jahres. Die K\u00fcndigungsfrist ist drei Monate vorher, also muss die K\u00fcndigung bis zum 31.08. bei der Versicherung eingegangen sein.\n\nSo k\u00fcndigst du:\n- K\u00fcndigungsfrist: bis zum 31.08. eines Jahres.\n- Textform erforderlich: Brief, Fax oder E-Mail.\n- E-Mail-Adresse f\u00fcr die K\u00fcndigung: kuendigung@beispiel-versicherung.example.\n\nFalls du m\u00f6chtest, kann ich dir einen K\u00fcndigungs-Entwurf schreiben.",
+        "tools": [
+          {
+            "name": "search_files",
+            "args": {
+              "query": "Hausratversicherung"
+            }
+          },
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "pippa-1-web-plus-datei",
+        "profile": "pippa",
+        "round": 1,
+        "task": "web-plus-datei",
+        "grade": {
+          "grade": "no",
+          "reason": "Says 31 August 2026 deadline is still open on 24 October 2026, despite current date in the request. Omits requested web lookup."
+        },
+        "seconds": 37.101,
+        "firstTextSeconds": 15.583,
+        "toolsAdvertised": 23,
+        "systemCharacters": 2383,
+        "schemaCharacters": 8227,
+        "initialPromptTokens": 3185,
+        "initialCachedTokens": 0,
+        "toolCalls": 2,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Ja, die K\u00fcndigungsfrist ist drin: Du musst die K\u00fcndigung sp\u00e4testens drei Monate vor Ablauf, also bis zum 31.08., bei der Versicherung einreichen.\n\nWie man k\u00fcndigt:\n\n- Textform ist Pflicht (Brief, Fax oder E-Mail).\n- E-Mail-Adresse f\u00fcr die K\u00fcndigung: kuendigung@beispiel-versicherung.example\n- Der Vertrag l\u00e4uft j\u00e4hrlich bis zum 30.11. eines Jahres.\n\nDeine aktuelle K\u00fcndigungsfrist ist also am 31.08.2026. Falls du k\u00fcndigen m\u00f6chtest, solltest du den Brief oder die E-Mail jetzt vorbereiten.",
+        "tools": [
+          {
+            "name": "search_files",
+            "args": {
+              "query": "Hausratversicherung",
+              "kind": "pdf"
+            }
+          },
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "pippa-1-zusammenfassen",
+        "profile": "pippa",
+        "round": 1,
+        "task": "zusammenfassen",
+        "grade": {
+          "grade": "yes",
+          "reason": "All required dates and actions are grounded; no invented receipt date or furniture instruction."
+        },
+        "seconds": 40.205,
+        "firstTextSeconds": 22.009,
+        "toolsAdvertised": 23,
+        "systemCharacters": 2383,
+        "schemaCharacters": 8227,
+        "initialPromptTokens": 3257,
+        "initialCachedTokens": 0,
+        "toolCalls": 1,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Die Hausverwaltung k\u00fcndigt an, dass deine Wohnung vom 12. bis 16.01.2027 neue dreifach verglaste Fenster bekommt; bei dir sind die Arbeiten am 13.01.2027 zwischen 8 und 16 Uhr.\n\nWas du tun musst:\n- Den beiliegenden R\u00fcckmeldebogen bis sp\u00e4testens 20.11.2026 ausgef\u00fcllt zur\u00fccksenden (angabe, ob du selbst zu Hause bist oder wer die Wohnung \u00f6ffnet).\n- Am 13.01.2027 die Fensterb\u00e4nke freir\u00e4umen und etwa einen Meter vor den Fenstern frei halten. M\u00f6bel m\u00fcssen nicht abgebaut werden.\n\nHinweis zur Miete: Nach Abschluss der Arbeiten steigt deine Grundmiete ab 01.04.2027 um 38,50 EUR monatlich. Du hast au\u00dferdem ein Sonderk\u00fcndigungsrecht (au\u00dferordentliche K\u00fcndigung bis zum Ablauf des Monats nach Zugang, zum Ablauf des \u00fcbern\u00e4chsten Monats). Bei Fragen: Herr Kurz, 01234 567890.",
+        "tools": [
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "pippa-2-zusammenfassen",
+        "profile": "pippa",
+        "round": 2,
+        "task": "zusammenfassen",
+        "grade": {
+          "grade": "partial",
+          "reason": "Required dates/actions correct; says furniture need not be moved, while the source only says no dismantling is required."
+        },
+        "seconds": 40.339,
+        "firstTextSeconds": 21.652,
+        "toolsAdvertised": 23,
+        "systemCharacters": 2383,
+        "schemaCharacters": 8227,
+        "initialPromptTokens": 3257,
+        "initialCachedTokens": 0,
+        "toolCalls": 1,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Die Hausverwaltung k\u00fcndigt an, dass deine Wohnung vom 13.01.2027 (8\u201316 Uhr) neue dreifach verglaste Fenster bekommt \u2013 die Arbeiten laufen insgesamt vom 12. bis 16.01.2027.\n\nWas du tun musst:\n- R\u00fcckmeldebogen bis sp\u00e4testens 20.11.2026 zur\u00fccksenden. Darin angeben, ob du am 13.01.2027 selbst zu Hause bist oder wer die Wohnung \u00f6ffnet.\n- Am Arbeitstag die Fensterb\u00e4nke frei r\u00e4umen und etwa einen Meter vor den Fenstern frei halten. M\u00f6bel m\u00fcssen nicht weg, B\u00f6den werden abgedeckt.\n\nGut zu wissen:\n- Ab 01.04.2027 steigt deine Grundmiete um 38,50 EUR; die Betriebskosten bleiben gleich.\n- Du hast ein Sonderk\u00fcndigungsrecht: Du kannst au\u00dferordentlich zum Ablauf des \u00fcbern\u00e4chsten Monats k\u00fcndigen (Frist: bis zum Ende des Monats nach Zugang des Briefes).\n- Bei Fragen: Herr Kurz, 01234 567890.",
+        "tools": [
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "lean-stock-2-zusammenfassen",
+        "profile": "lean-stock",
+        "round": 2,
+        "task": "zusammenfassen",
+        "grade": {
+          "grade": "partial",
+          "reason": "Correct main dates/actions, but says furniture stays in place instead of merely not requiring dismantling."
+        },
+        "seconds": 31.299,
+        "firstTextSeconds": 7.722,
+        "toolsAdvertised": 5,
+        "systemCharacters": 1992,
+        "schemaCharacters": 2216,
+        "initialPromptTokens": 1439,
+        "initialCachedTokens": 1303,
+        "toolCalls": 1,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Hier die Zusammenfassung:\n\n**Was passiert:** Die Hausverwaltung k\u00fcndigt an, dass in deiner Wohnung alle Fenster gegen neue, dreifach verglaste ausgetauscht werden (Modernisierung nach \u00a7 555c BGB). Die Arbeiten laufen vom 12.\u201316.01.2027; bei dir ist der **13.01.2027** vorgesehen, jeweils 8\u201316 Uhr, durch die Firma Glasbau Beispiel.\n\n**Was du tun musst:**\n1. **R\u00fcckmeldebogen bis 20.11.2026** ausgef\u00fcllt an die Hausverwaltung zur\u00fccksenden (Anlage im Brief). Darin angeben, ob du am 13.01.2027 selbst zu Hause bist oder wer die Wohnung \u00f6ffnet.\n2. **Am 13.01.2027:** Fensterb\u00e4nke frei r\u00e4umen und ca. einen Meter vor den Fenstern freihalten. M\u00f6bel bleiben stehen, B\u00f6den werden abgedeckt.\n\n**Mieteffekt:** Ab **01.04.2027** steigt deine Grundmiete um **38,50 EUR/Monat**; die Betriebskosten bleiben unver\u00e4ndert.\n\n**Dein Recht:** Du hast ein Sonderk\u00fcndigungsrecht \u2013 du kannst bis zum Ablauf des Monats nach Zugang des Briefs au\u00dferordentlich zum Ablauf des \u00fcbern\u00e4chsten Monats k\u00fcndigen.\n\nBei Fragen erreichst du Herrn Kurz unter 01234 567890.",
+        "tools": [
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "stock-2-zusammenfassen",
+        "profile": "stock",
+        "round": 2,
+        "task": "zusammenfassen",
+        "grade": {
+          "grade": "yes",
+          "reason": "Grounded dates, actions and conditional cancellation rule; no unsupported fixed cancellation date."
+        },
+        "seconds": 33.568,
+        "firstTextSeconds": 8.34,
+        "toolsAdvertised": 23,
+        "systemCharacters": 2878,
+        "schemaCharacters": 8227,
+        "initialPromptTokens": 3338,
+        "initialCachedTokens": 3202,
+        "toolCalls": 1,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Kurz zusammengefasst:\n\n**Der Brief** (Hausverwaltung Beispiel GmbH, 02.10.2026) k\u00fcndigt an, dass in deiner Wohnung alle Fenster gegen neue, dreifach verglaste ausgetauscht werden.\n\n- **Termin:** Arbeiten 12.\u201316.01.2027; deine Wohnung ist am **13.01.2027 zwischen 8 und 16 Uhr** dran (Firma Glasbau Beispiel).\n- **Mieteffekt:** Ab **01.04.2027** steigt die Grundmiete um **38,50 EUR/Monat**; die Betriebskosten bleiben gleich.\n\n**Was du tun musst:**\n1. **R\u00fcckmeldebogen** bis sp\u00e4testens **20.11.2026** ausgef\u00fcllt zur\u00fccksenden \u2013 darin angeben, ob du am 13.01.2027 selbst zu Hause bist oder wer die Wohnung \u00f6ffnet.\n2. Am Arbeitstag **Fensterb\u00e4nke freir\u00e4umen** und ca. **1 Meter vor den Fenstern** freihalten. M\u00f6bel m\u00fcssen nicht abgebaut werden, B\u00f6den werden abgedeckt.\n\n**Hinweis:** Du hast ein Sonderk\u00fcndigungsrecht \u2013 du kannst au\u00dferordentlich bis zum Ablauf des Monats k\u00fcndigen, der auf den Zugang des Briefes folgt, zum Ablauf des \u00fcbern\u00e4chsten Monats. Bei Fragen: Herr Kurz, 01234 567890.\n\nSoll ich dir den R\u00fcckmeldebogen im Kalender als Termin/Erinnerung eintragen?",
+        "tools": [
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "stock-1-zusammenfassen",
+        "profile": "stock",
+        "round": 1,
+        "task": "zusammenfassen",
+        "grade": {
+          "grade": "yes",
+          "reason": "Grounded summary and actions. Asks for receipt date before calculating cancellation dates."
+        },
+        "seconds": 50.808,
+        "firstTextSeconds": 22.44,
+        "toolsAdvertised": 23,
+        "systemCharacters": 2878,
+        "schemaCharacters": 8227,
+        "initialPromptTokens": 3338,
+        "initialCachedTokens": 0,
+        "toolCalls": 1,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Der Brief ist eine **Ank\u00fcndigung von Modernisierungsma\u00dfnahmen** (\u00a7 555c BGB) der Hausverwaltung Beispiel GmbH.\n\n**Was passiert:**\n- Alle Fenster in deiner Wohnung werden gegen neue, dreifach verglaste Fenster ausgetauscht (Firma Glasbau Beispiel).\n- Arbeiten: 12.\u201316.01.2027; f\u00fcr deine Wohnung ist der **13.01.2027, 8\u201316 Uhr** vorgesehen.\n\n**Was du tun musst:**\n1. **R\u00fcckmeldebogen** aus dem Brief bis sp\u00e4testens **20.11.2026** zur\u00fccksenden \u2013 dort angeben, ob du am 13.01.2027 selbst zu Hause bist oder wer die Wohnung \u00f6ffnet.\n2. Am Arbeitstag die **Fensterb\u00e4nke freir\u00e4umen** und ca. **1 Meter vor den Fenstern** frei halten. M\u00f6bel m\u00fcssen nicht abgebaut werden, B\u00f6den werden abgedeckt.\n\n**Mieteffekt:**\n- Ab **01.04.2027** steigt deine monatliche Grundmiete um **38,50 EUR**; die Betriebskostenvorauszahlung bleibt unver\u00e4ndert.\n\n**Wichtig \u2013 Sonderk\u00fcndigungsrecht:**\nDu kannst **au\u00dferordentlich k\u00fcndigen**, bis zum Ablauf des Monats, der auf den Zugang des Briefes folgt, mit Wirkung zum Ablauf des \u00fcbern\u00e4chsten Monats. Wenn du das pr\u00fcfen willst, sag mir, wann der Brief bei dir angekommen ist \u2013 dann berechnen wir das Datum.\n\nBei Fragen erreichst du Herr Kurz unter 01234 567890.\n\nSoll ich dir einen Reminder f\u00fcr den 20.11.2026 (R\u00fcckmeldebogen) anlegen?",
+        "tools": [
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "lean-stock-1-zusammenfassen",
+        "profile": "lean-stock",
+        "round": 1,
+        "task": "zusammenfassen",
+        "grade": {
+          "grade": "partial",
+          "reason": "Main dates/actions correct, but says furniture stays in place; source only says it need not be dismantled."
+        },
+        "seconds": 36.811,
+        "firstTextSeconds": 13.674,
+        "toolsAdvertised": 5,
+        "systemCharacters": 1992,
+        "schemaCharacters": 2216,
+        "initialPromptTokens": 1439,
+        "initialCachedTokens": 0,
+        "toolCalls": 1,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Der Brief der Hausverwaltung (Beispiel GmbH) k\u00fcndigt dir die **Modernisierung nach \u00a7 555c BGB** an \u2013 ein **Fensteraustausch** in deiner Wohnung:\n\n- **Termin:** 12.\u201316.01.2027, f\u00fcr deine Wohnung **13.01.2027, 8\u201316 Uhr** (Firma Glasbau Beispiel)\n- **Mietanpassung:** Die Grundmiete steigt ab **01.04.2027 um 38,50 \u20ac/Monat**; die Betriebskosten bleiben gleich.\n\n**Was du tun musst:**\n\n1. **R\u00fcckmeldebogen** aus dem Brief **bis sp\u00e4testens 20.11.2026** ausgef\u00fcllt zur\u00fccksenden \u2013 dort angibt, ob du am 13.01.2027 selbst zu Hause bist oder wer die Wohnung \u00f6ffnet.\n2. **Am 13.01.2027:** Fensterb\u00e4nke freir\u00e4umen und ca. **1 Meter vor den Fenstern** frei halten. M\u00f6bel bleiben stehen, B\u00f6den werden abgedeckt.\n\nAu\u00dferdem hast du ein **Sonderk\u00fcndigungsrecht**: Du kannst au\u00dferordentlich zum Ablauf des \u00fcbern\u00e4chsten Monats k\u00fcndigen, wenn du dich bis zum Ende des Monats nach Zugang des Briefs entscheidest. Bei Fragen: Herr Kurz, Tel. 01234 567890.",
+        "tools": [
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Downloads/Brief_Hausverwaltung.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "stock-1-web-plus-datei",
+        "profile": "stock",
+        "round": 1,
+        "task": "web-plus-datei",
+        "grade": {
+          "grade": "no",
+          "reason": "Says 31 August 2026 deadline is still open on 24 October 2026, despite current date in the request. Omits requested web lookup."
+        },
+        "seconds": 34.885,
+        "firstTextSeconds": 25.277,
+        "toolsAdvertised": 23,
+        "systemCharacters": 2878,
+        "schemaCharacters": 8227,
+        "initialPromptTokens": 3266,
+        "initialCachedTokens": 0,
+        "toolCalls": 2,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Deine Hausratversicherung (Beispiel Versicherung AG, Nr. HR-4471-0815) l\u00e4uft bis zum 30.11. eines Jahres und verl\u00e4ngert sich j\u00e4hrlich.\n\n**K\u00fcndigungsfrist:** Bis zum **31.08.2026** \u2013 also noch drin! Du hast gerade gut 4 Wochen Zeit. \u23f0\n\n**So k\u00fcndigt du:**\n- Textform ist Pflicht (Brief, Fax oder E-Mail)\n- E-Mail an: kuendigung@beispiel-versicherung.example\n\nSoll ich dir jetzt eine K\u00fcndigungsmail entwerfen?",
+        "tools": [
+          {
+            "name": "search_files",
+            "args": {
+              "query": "Hausratversicherung"
+            }
+          },
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "lean-stock-1-web-plus-datei",
+        "profile": "lean-stock",
+        "round": 1,
+        "task": "web-plus-datei",
+        "grade": {
+          "grade": "no",
+          "reason": "Says 31 August 2026 deadline is still open on 24 October 2026, despite current date in the request. Omits requested web lookup."
+        },
+        "seconds": 25.182,
+        "firstTextSeconds": 10.172,
+        "toolsAdvertised": 5,
+        "systemCharacters": 1992,
+        "schemaCharacters": 2216,
+        "initialPromptTokens": 1367,
+        "initialCachedTokens": 1303,
+        "toolCalls": 2,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Dein Hausratvertrag (Beispiel Versicherung AG, Versicherungsnummer HR-4471-0815, Jahresbeitrag 96,00 \u20ac) l\u00e4uft j\u00e4hrlich mit Ablauf zum 30.11.\n\n**K\u00fcndigungsfrist:** Ja, sie ist noch drin. Du musst die K\u00fcndigung **sp\u00e4testens bis 31.08.2026** bei der Versicherung einlassen \u2013 also noch rund 5 Wochen Zeit. Danach wird der Vertrag automatisch um ein weiteres Jahr verl\u00e4ngert.\n\n**So k\u00fcndigst du:**\n- Textform ist Pflicht: per Brief, Fax oder E-Mail an **kuendigung@beispiel-versicherung.example**\n- Wichtig: Die K\u00fcndigung muss *eingegangen* sein, nicht nur abgeschickt \u2013 also rechtzeitig genug vor dem 31.08.2026 rausgehen, damit sie vorher bei der Versicherung ankommt.\n\nM\u00f6chtest du, dass ich dir den K\u00fcndigungstext f\u00fcr die E-Mail formuliere?",
+        "tools": [
+          {
+            "name": "search_files",
+            "args": {
+              "query": "Hausratversicherung"
+            }
+          },
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "lean-stock-2-web-plus-datei",
+        "profile": "lean-stock",
+        "round": 2,
+        "task": "web-plus-datei",
+        "grade": {
+          "grade": "no",
+          "reason": "Claims deadline 31 August 2026 is still open on 24 October 2026 and invents remaining time. No web lookup."
+        },
+        "seconds": 25.89,
+        "firstTextSeconds": 10.141,
+        "toolsAdvertised": 5,
+        "systemCharacters": 1992,
+        "schemaCharacters": 2216,
+        "initialPromptTokens": 1367,
+        "initialCachedTokens": 1303,
+        "toolCalls": 2,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Deine Hausratversicherung l\u00e4uft bei der **Beispiel Versicherung AG** (Versicherungsnummer HR-4471-0815) mit Jahresbeitrag 96,00 \u20ac und verl\u00e4ngert sich j\u00e4hrlich bis zum **30.11.**\n\n- **K\u00fcndigungsfrist:** Sp\u00e4testens **3 Monate vor Ablauf**, also bis zum **31.08.2026** muss die K\u00fcndigung bei der Versicherung eingegangen sein.\n- **Frist ist noch offen:** Heute ist der 24.10.2026 \u2013 du hast also noch rund **14 Tage** Zeit.\n- **So k\u00fcndigst du:** Textform ist Pflicht (Brief, Fax oder E-Mail). Am einfachsten per E-Mail an **kuendigung@beispiel-versicherung.example**. Wichtig: Nicht nur \u201eabsenden\", sondern dass die K\u00fcndigung **bis zum 31.08. bei der Versicherung eingeht** \u2013 am besten mit Lieferschein oder Empfangsbest\u00e4tigung.",
+        "tools": [
+          {
+            "name": "search_files",
+            "args": {
+              "query": "Hausratversicherung"
+            }
+          },
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+            }
+          }
+        ]
+      },
+      {
+        "id": "stock-2-web-plus-datei",
+        "profile": "stock",
+        "round": 2,
+        "task": "web-plus-datei",
+        "grade": {
+          "grade": "no",
+          "reason": "Claims deadline 31 August 2026 is still open on 24 October 2026 and invents remaining time. No web lookup."
+        },
+        "seconds": 38.235,
+        "firstTextSeconds": 25.461,
+        "toolsAdvertised": 23,
+        "systemCharacters": 2878,
+        "schemaCharacters": 8227,
+        "initialPromptTokens": 3266,
+        "initialCachedTokens": 0,
+        "toolCalls": 2,
+        "aborted": null,
+        "httpErrors": [],
+        "finalAnswer": "Deine Hausratversicherung bei der Beispiel Versicherung AG l\u00e4uft bis zum 30.11.2026.\n\n**K\u00fcndigungsfrist:** Ja, die ist noch offen. Du musst die K\u00fcndigung sp\u00e4testens **drei Monate vor Ablauf**, also **bis zum 31.08.2026**, bei der Versicherung einreichen. Das hei\u00dft: Du hast noch knapp 1,5 Monate Zeit.\n\n**So k\u00fcndigt du:**\n- Die K\u00fcndigung muss in **Textform** erfolgen (Brief, Fax oder E-Mail).\n- Am einfachsten per E-Mail an: **kuendigung@beispiel-versicherung.example**\n- Versicherungsnummer: **HR-4471-0815**\n\nWenn du m\u00f6chtest, kann ich dir einen K\u00fcndigungstext mit diesen Angaben entwerfen \u2013 sag einfach Bescheid.",
+        "tools": [
+          {
+            "name": "search_files",
+            "args": {
+              "query": "Hausratversicherung"
+            }
+          },
+          {
+            "name": "mcp__pippa__read_document",
+            "args": {
+              "path": "<repo>/dist/model-compare-home/Documents/Versicherungen/hausrat_police.pdf"
+            }
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "pippa": {
+        "runs": 4,
+        "grades": {
+          "yes": 1,
+          "partial": 2,
+          "no": 1,
+          "unreviewed": 0
+        },
+        "medianSeconds": 38.653,
+        "medianFirstTextSeconds": 21.8305,
+        "initialPromptTokens": [
+          3185,
+          3257
+        ]
+      },
+      "stock": {
+        "runs": 4,
+        "grades": {
+          "yes": 2,
+          "partial": 0,
+          "no": 2,
+          "unreviewed": 0
+        },
+        "medianSeconds": 36.56,
+        "medianFirstTextSeconds": 23.8585,
+        "initialPromptTokens": [
+          3266,
+          3338
+        ]
+      },
+      "lean-stock": {
+        "runs": 4,
+        "grades": {
+          "yes": 0,
+          "partial": 2,
+          "no": 2,
+          "unreviewed": 0
+        },
+        "medianSeconds": 28.5945,
+        "medianFirstTextSeconds": 10.156500000000001,
+        "initialPromptTokens": [
+          1367,
+          1439
+        ]
+      }
+    },
+    "conclusion": [
+      "Current startup defaults differ: K2 low in terminal versus Saluki medium in Pippa. They cannot establish an application-layer speed difference.",
+      "The 12-run ablation does not show a general quality regression from Pippa base prompt. Both full-tool prompt variants remain fallible.",
+      "Reducing advertised tools reduces prompt tokens and practical latency in these tasks, but does not improve factual reliability. No production tool pruning was applied.",
+      "Pippa rendering introduces an 80 ms update batch after immediate first text. No evidence here attributes multi-second response delay to that rendering path.",
+      "Long-session memory/compaction, GUI cold-start latency and real native-app tool duration remain outside this fresh-session fixture experiment."
+    ]
+  },
+  "limitations": [
+    "Single repetition per task/profile; small correlated synthetic sample, not a general intelligence benchmark.",
+    "Pippa tests use real Pi and file search, with deterministic document/web/native-action fixtures; no personal mail/calendar changes.",
+    "Pippa task limit is 180 seconds. An interrupted response is not a completed answer.",
+    "The current desktop had background load and swap; timing is practical latency, not a controlled engine benchmark.",
+    "Reasoning-off uses the currently installed sampling configuration, not separately optimized sampling.",
+    "Terminal tasks are separate from Pippa tasks and their scores must not be pooled.",
+    "Fresh HOME test is not a clean macOS installation or an actual computer reboot."
+  ]
+}

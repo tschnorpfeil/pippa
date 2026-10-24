@@ -1,0 +1,60 @@
+[
+  {
+    "query": "invoice",
+    "status": "ok",
+    "files": [
+      "Downloads/abrechnung_hv.pdf",
+      "Downloads/invoice_7731.pdf",
+      "Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf",
+      "Documents/Haushalt/kaufbeleg.pdf",
+      "Downloads/handwerker.pdf",
+      "Documents/Rechnungen/scan_0412.pdf"
+    ]
+  },
+  {
+    "query": "invoices",
+    "status": "ok",
+    "files": [
+      "Downloads/abrechnung_hv.pdf",
+      "Downloads/invoice_7731.pdf",
+      "Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf",
+      "Documents/Haushalt/kaufbeleg.pdf",
+      "Downloads/handwerker.pdf",
+      "Documents/Rechnungen/scan_0412.pdf"
+    ]
+  },
+  {
+    "query": "Rechnungen",
+    "status": "ok",
+    "files": [
+      "Downloads/abrechnung_hv.pdf",
+      "Downloads/invoice_7731.pdf",
+      "Library/Mobile Documents/com~apple~CloudDocs/Belege/r-2024-11.pdf",
+      "Documents/Haushalt/kaufbeleg.pdf",
+      "Downloads/handwerker.pdf",
+      "Documents/Rechnungen/scan_0412.pdf"
+    ]
+  },
+  {
+    "query": "insurance",
+    "status": "ok",
+    "files": [
+      "Library/CloudStorage/TestDrive/rs_2025.pdf",
+      "Library/Mobile Documents/com~apple~CloudDocs/Versicherung/zzv.pdf",
+      "Downloads/kfz_beitrag_2026.pdf",
+      "Documents/Versicherungen/phv.pdf",
+      "Documents/Versicherungen/hausrat_police.pdf"
+    ]
+  },
+  {
+    "query": "Versicherung",
+    "status": "ok",
+    "files": [
+      "Library/CloudStorage/TestDrive/rs_2025.pdf",
+      "Library/Mobile Documents/com~apple~CloudDocs/Versicherung/zzv.pdf",
+      "Downloads/kfz_beitrag_2026.pdf",
+      "Documents/Versicherungen/phv.pdf",
+      "Documents/Versicherungen/hausrat_police.pdf"
+    ]
+  }
+]

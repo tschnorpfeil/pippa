@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-10-23T22:17:22.000304+00:00",
+  "status": {
+    "version": "0.7.0",
+    "active_requests": 0,
+    "waiting_requests": 0,
+    "total_requests": 281
+  },
+  "models": [
+    {
+      "id": "K2-Horizon-3.7B-MLX-4bit",
+      "loaded": false
+    },
+    {
+      "id": "K2-Horizon-7B-MLX-4bit",
+      "loaded": true
+    }
+  ],
+  "benchmarkQwenPortListening": false
+}

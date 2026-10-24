@@ -1,0 +1,79 @@
+KEEP completed block l-r1
+KEEP completed block m-r1
+START q-r1 2026-10-23T21:19:12.187Z
+Q r1 multi-rechnungen: partial tools=7 first=38.027s total=43.385s
+Q r1 vergleich: yes tools=4 first=3.613s total=37.055s
+Q r1 zusammenfassen: yes tools=1 first=7.469s total=17.59s
+Q r1 ordner-ueberblick: yes tools=1 first=1.661s total=10.97s
+Q r1 web-recherche: yes tools=1 first=8.432s total=16.059s
+Q r1 web-plus-datei: no tools=2 first=2.775s total=14.779s
+Q r1 mail-antwort: yes tools=3 first=25.82s total=26.973s
+Q r1 termin: yes tools=2 first=15.688s total=17.817s
+Q r1 en-multi: partial tools=9 first=74.398s total=81.963s
+Q r1 en-summary: yes tools=1 first=16.873s total=26.149s
+START m-r2 2026-10-23T21:24:08.711Z
+M r2 multi-rechnungen: partial tools=19 first=4.4s total=164.23s
+M r2 vergleich: yes tools=5 first=3.54s total=117.887s
+M r2 zusammenfassen: yes tools=1 first=24.883s total=40.472s
+M r2 ordner-ueberblick: yes tools=9 first=2.626s total=93.053s
+M r2 web-recherche: partial tools=5 first=45.484s total=53.387s
+M r2 web-plus-datei: partial tools=3 first=3.816s total=74.151s
+M r2 mail-antwort: yes tools=3 first=39.054s total=41.892s
+M r2 termin: no tools=1 first=2.788s total=27.646s
+M r2 en-multi: partial tools=13 first=2.661s total=111.087s
+M r2 en-summary: yes tools=1 first=18.275s total=29.267s
+START q-r2 2026-10-23T21:36:44.567Z
+Q r2 multi-rechnungen: partial tools=7 first=42.579s total=50.703s
+Q r2 vergleich: yes tools=4 first=3.91s total=37.879s
+Q r2 zusammenfassen: yes tools=1 first=16.73s total=26.683s
+Q r2 ordner-ueberblick: yes tools=1 first=2.537s total=19.747s
+Q r2 web-recherche: yes tools=1 first=1.974s total=20.029s
+Q r2 web-plus-datei: partial tools=2 first=4.22s total=44.727s
+Q r2 mail-antwort: no tools=1 first=9.199s total=13.009s
+Q r2 termin: yes tools=2 first=21.16s total=23.607s
+Q r2 en-multi: no tools=2 first=23.395s total=26.548s
+Q r2 en-summary: yes tools=1 first=26.987s total=37.591s
+START l-r2 2026-10-23T21:41:49.906Z
+L r2 multi-rechnungen: partial tools=12 first=3.447s total=50.017s
+L r2 vergleich: no tools=4 first=0.924s total=180.001s ABORT timeout
+L r2 zusammenfassen: yes tools=1 first=4.015s total=16.469s
+L r2 ordner-ueberblick: yes tools=11 first=2.714s total=55.379s
+L r2 web-recherche: no tools=0 first=1.153s total=2.319s
+L r2 web-plus-datei: partial tools=2 first=7.008s total=16.505s
+L r2 mail-antwort: partial tools=2 first=9.779s total=11.88s
+L r2 termin: yes tools=2 first=2.427s total=15.988s
+L r2 en-multi: no tools=3 first=9.152s total=11.546s
+L r2 en-summary: yes tools=1 first=3.696s total=15.752s
+START q-r3 2026-10-23T21:48:08.613Z
+Q r3 multi-rechnungen: partial tools=7 first=50.82s total=58.127s
+Q r3 vergleich: yes tools=4 first=32.004s total=40.536s
+Q r3 zusammenfassen: yes tools=1 first=20.189s total=33.752s
+Q r3 ordner-ueberblick: yes tools=1 first=2.016s total=11.849s
+Q r3 web-recherche: yes tools=1 first=2.871s total=19.75s
+Q r3 web-plus-datei: partial tools=2 first=4.34s total=20.811s
+Q r3 mail-antwort: partial tools=9 first=100.732s total=104.606s
+Q r3 termin: yes tools=2 first=3.543s total=25.056s
+Q r3 en-multi: partial tools=8 first=78.714s total=86.055s
+Q r3 en-summary: yes tools=1 first=15.523s total=24.413s
+START l-r3 2026-10-23T21:55:17.439Z
+L r3 multi-rechnungen: no tools=17 first=3.52s total=38.593s
+L r3 vergleich: yes tools=10 first=77.798s total=96.293s
+L r3 zusammenfassen: yes tools=1 first=3.803s total=22.361s
+L r3 ordner-ueberblick: no tools=10 first=1.865s total=56.939s
+L r3 web-recherche: no tools=0 first=0.837s total=10.038s
+L r3 web-plus-datei: partial tools=2 first=5.429s total=16.146s
+L r3 mail-antwort: partial tools=2 first=9.881s total=16.138s
+L r3 termin: no tools=0 first=10.876s total=10.879s
+L r3 en-multi: partial tools=18 first=2.784s total=64.54s
+L r3 en-summary: yes tools=2 first=6.383s total=18.915s
+START m-r3 2026-10-23T22:01:08.557Z
+M r3 multi-rechnungen: partial tools=10 first=6.061s total=137.527s
+M r3 vergleich: yes tools=5 first=3.954s total=67.401s
+M r3 zusammenfassen: yes tools=1 first=2.282s total=32.394s
+M r3 ordner-ueberblick: yes tools=21 first=1.727s total=115.59s
+M r3 web-recherche: partial tools=8 first=20.809s total=128.587s
+M r3 web-plus-datei: partial tools=3 first=4.022s total=70.599s
+M r3 mail-antwort: partial tools=2 first=48.529s total=51.188s
+M r3 termin: yes tools=2 first=4.583s total=27.236s
+M r3 en-multi: yes tools=15 first=87.835s total=102.425s
+M r3 en-summary: partial tools=1 first=17.106s total=29.562s

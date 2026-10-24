@@ -104,7 +104,7 @@ public enum PippaPiLaunch {
     /// (pi-web-access: search, read a page), Pippa's memory (pippa-memory.ts) and Pippa's
     /// MCP server. Names Pi does not know are ignored.
     public static let tools = ["read", "bash", "edit", "write",
-                               "search_files", "list_folder", "move_files", "move_to_trash", "remember",
+                               "pippa_more_tools", "search_files", "list_folder", "move_files", "move_to_trash", "remember",
                                "web_search", "fetch_content", "mcp__pippa__*"]
 
     /// Pi allows only letters, digits, `.`, `_`, `-` in session IDs, and a letter or digit at start and end

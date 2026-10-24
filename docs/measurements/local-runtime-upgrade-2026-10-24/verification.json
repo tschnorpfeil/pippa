@@ -1,0 +1,25 @@
+{
+  "installerTests": 71,
+  "pippaRuntimeTests": 106,
+  "signedBundleNativeTests": 7,
+  "pippaCoreChecks": 887,
+  "piRPCChecks": 45,
+  "signedBundleVerificationPassed": true,
+  "installedExecutableSHA256": "1ec37e84675928b655aa275489268d687ff96ba2e41457793c4b541f34047c8c",
+  "installedMatchesVerifiedBuild": true,
+  "modelConfigurationsUnchanged": true,
+  "installerPullRequest": "https://github.com/tschnorpfeil/pi-local-agent/pull/1",
+  "installerCommit": "4b0a6010db8bcbc6116ed6617132373be794941e",
+  "githubChecks": [
+    "test: success",
+    "catalog: success",
+    "e2e (ubuntu-latest): success"
+  ],
+  "sourceSHA256": {
+    "app/Sources/PiRPC/PippaPiLaunch.swift": "2d149efe2e950d6df8611616448f45b9ca9e352bf93ab5533058d7fabb7c1bcd",
+    "runtime/pippa-tools/tool-scope.mjs": "4c4b655d00ea28dbc559c7a5d0b908bee4ceb276151e3e3c1c44ce979d71899b",
+    "runtime/pippa-tools/search.mjs": "35d63b5f4846ca7efb43ac2edcc2da9a91fa1353b9bae8fc0cbd8cdb9ecaba88",
+    "runtime/pippa-tools/pippa-tools.ts": "e9bb54b67854ce0cef267b92e955cb126cb29245f3d599b7ce4bd152f7821869",
+    "runtime/pippa-tools/pippa-assist.ts": "0f44ac3e1ec09acab688a03759dcd62a021f552d065c90ce81e3714599843402"
+  }
+}

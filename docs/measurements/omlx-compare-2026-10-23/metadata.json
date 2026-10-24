@@ -1,0 +1,458 @@
+{
+  "runID": "85a6376e-3cbf-4634-ba20-2e6f0c0fd039",
+  "started": "2026-10-23T21:19:09.880Z",
+  "machine": {
+    "chip": "Apple M6",
+    "memory": "25769803776",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+    "load": "{ 3.57 3.63 3.88 }",
+    "swap": "total = 7168.00M  used = 5764.50M  free = 1403.50M  (encrypted)"
+  },
+  "omlx": {
+    "status": "ok",
+    "version": "0.7.0",
+    "uptime_seconds": 1009883.5,
+    "models_discovered": 2,
+    "models_loaded": 1,
+    "models_loading": 0,
+    "default_model": "K2-Horizon-3.7B-MLX-4bit",
+    "loaded_models": [
+      "K2-Horizon-7B-MLX-4bit"
+    ],
+    "total_requests": 127,
+    "active_requests": 0,
+    "waiting_requests": 0,
+    "total_prompt_tokens": 1197347,
+    "total_completion_tokens": 20697,
+    "total_cached_tokens": 1113088,
+    "cache_efficiency": 93,
+    "avg_prefill_tps": 403.7,
+    "avg_generation_tps": 22.4,
+    "model_memory_used": 5315691257,
+    "model_memory_max": 12884901888,
+    "model_memory_used_formatted": "4.95GB",
+    "model_memory_max_formatted": "12.00GB",
+    "custom_kernels": {
+      "bonsai": {
+        "available": true,
+        "import_error": null
+      },
+      "decode_fast": {
+        "available": true,
+        "import_error": null
+      },
+      "glm_moe_dsa": {
+        "available": true,
+        "import_error": null
+      },
+      "minimax_m3": {
+        "available": true,
+        "import_error": null
+      },
+      "qwen35_prefill": {
+        "available": true,
+        "import_error": null
+      }
+    },
+    "ane_prefill": {
+      "patch_available": true,
+      "configured_models": 0,
+      "models": []
+    }
+  },
+  "initialModels": {
+    "final_ceiling": 12884901888,
+    "current_model_memory": 5315691257,
+    "model_count": 2,
+    "loaded_count": 1,
+    "load_seconds_per_gb_estimate": 0.79041181383129,
+    "load_time_observations": 2,
+    "models": [
+      {
+        "id": "K2-Horizon-3.7B-MLX-4bit",
+        "model_path": "<home>/.local/share/pi-k2/models/K2-Horizon-3.7B-MLX-4bit",
+        "loaded": false,
+        "is_loading": false,
+        "loading_started_at": null,
+        "estimated_size": 2987914114,
+        "resident_estimated_size": 2987914114,
+        "distributed": false,
+        "cluster": null,
+        "actual_size": null,
+        "pinned": false,
+        "engine_type": "batched",
+        "model_type": "llm",
+        "config_model_type": "k2_horizon",
+        "realtime_stt": false,
+        "model_context_length": 524288,
+        "is_helper": false,
+        "thinking_default": null,
+        "preserve_thinking_default": null,
+        "source_type": "local",
+        "source_repo_id": null,
+        "last_access": null,
+        "max_context_window": 32768,
+        "is_favorite": false,
+        "is_hidden": false,
+        "max_tokens": 8192
+      },
+      {
+        "id": "K2-Horizon-7B-MLX-4bit",
+        "model_path": "<home>/.local/share/pi-k2/models/K2-Horizon-7B-MLX-4bit",
+        "loaded": true,
+        "is_loading": false,
+        "loading_started_at": null,
+        "estimated_size": 5315691257,
+        "resident_estimated_size": 5315691257,
+        "distributed": false,
+        "cluster": null,
+        "actual_size": 5744611072,
+        "pinned": false,
+        "engine_type": "batched",
+        "model_type": "llm",
+        "config_model_type": "k2_horizon",
+        "realtime_stt": false,
+        "model_context_length": 524288,
+        "is_helper": false,
+        "thinking_default": null,
+        "preserve_thinking_default": null,
+        "source_type": "local",
+        "source_repo_id": null,
+        "last_access": 1792790329.523019,
+        "max_context_window": 32768,
+        "is_favorite": false,
+        "is_hidden": false,
+        "max_tokens": 8192
+      }
+    ]
+  },
+  "piVersion": "1.4.0",
+  "variants": {
+    "L": {
+      "key": "K2-Horizon-7B-MLX-4bit",
+      "label": "L",
+      "thinking": "low",
+      "maxTokens": 4096,
+      "fields": {
+        "reasoning": true,
+        "thinkingLevelMap": {
+          "low": "low",
+          "medium": "medium"
+        },
+        "compat": {
+          "thinkingFormat": "chat-template",
+          "chatTemplateKwargs": {
+            "reasoning_effort": {
+              "$var": "thinking.effort"
+            },
+            "tool_call_format": "xml"
+          }
+        }
+      }
+    },
+    "M": {
+      "key": "K2-Horizon-7B-MLX-4bit",
+      "label": "M",
+      "thinking": "medium",
+      "maxTokens": 4096,
+      "fields": {
+        "reasoning": true,
+        "thinkingLevelMap": {
+          "low": "low",
+          "medium": "medium"
+        },
+        "compat": {
+          "thinkingFormat": "chat-template",
+          "chatTemplateKwargs": {
+            "reasoning_effort": {
+              "$var": "thinking.effort"
+            },
+            "tool_call_format": "xml"
+          }
+        }
+      }
+    },
+    "Q": {
+      "key": "qwen3.5-9b-q4",
+      "label": "Q",
+      "thinking": "medium",
+      "file": "<home>/pi-bench-models/Qwen3.5-9B-Q4_K_M.gguf",
+      "serverExtra": [
+        "--min-p",
+        "0",
+        "--temp",
+        "0.6",
+        "--top-k",
+        "20",
+        "--top-p",
+        "0.95"
+      ],
+      "fields": {
+        "reasoning": true,
+        "thinkingLevelMap": {
+          "high": null,
+          "low": null,
+          "max": null,
+          "medium": "medium",
+          "minimal": null,
+          "off": "off",
+          "xhigh": null
+        },
+        "compat": {
+          "thinkingFormat": "qwen-chat-template"
+        }
+      }
+    }
+  },
+  "rounds": 3,
+  "taskIDs": [],
+  "order": [
+    "LMQ",
+    "MQL",
+    "QLM"
+  ],
+  "cacheProtocol": "Unique prefix per block prevents earlier benchmark prefix reuse; subsequent tasks share that prefix. Models preloaded before task timing. No user cache is cleared.",
+  "outputBudget": 4096,
+  "taskTimeoutSeconds": 180,
+  "previousAttempt": {
+    "runID": "93f0e315-7fb6-463f-bf6e-3f4eb06ef82c",
+    "started": "2026-10-23T21:07:09.694Z",
+    "machine": {
+      "chip": "Apple M6",
+      "memory": "25769803776",
+      "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+      "load": "{ 4.49 4.00 4.24 }",
+      "swap": "total = 7168.00M  used = 6172.50M  free = 995.50M  (encrypted)"
+    },
+    "omlx": {
+      "status": "ok",
+      "version": "0.7.0",
+      "uptime_seconds": 1009163.3,
+      "models_discovered": 2,
+      "models_loaded": 1,
+      "models_loading": 0,
+      "default_model": "K2-Horizon-3.7B-MLX-4bit",
+      "loaded_models": [
+        "K2-Horizon-7B-MLX-4bit"
+      ],
+      "total_requests": 65,
+      "active_requests": 0,
+      "waiting_requests": 0,
+      "total_prompt_tokens": 991598,
+      "total_completion_tokens": 5856,
+      "total_cached_tokens": 945664,
+      "cache_efficiency": 95.4,
+      "avg_prefill_tps": 293.3,
+      "avg_generation_tps": 19.9,
+      "model_memory_used": 5315691257,
+      "model_memory_max": 12884901888,
+      "model_memory_used_formatted": "4.95GB",
+      "model_memory_max_formatted": "12.00GB",
+      "custom_kernels": {
+        "bonsai": {
+          "available": true,
+          "import_error": null
+        },
+        "decode_fast": {
+          "available": true,
+          "import_error": null
+        },
+        "glm_moe_dsa": {
+          "available": true,
+          "import_error": null
+        },
+        "minimax_m3": {
+          "available": true,
+          "import_error": null
+        },
+        "qwen35_prefill": {
+          "available": true,
+          "import_error": null
+        }
+      },
+      "ane_prefill": {
+        "patch_available": true,
+        "configured_models": 0,
+        "models": []
+      }
+    },
+    "initialModels": {
+      "final_ceiling": 12884901888,
+      "current_model_memory": 5315691257,
+      "model_count": 2,
+      "loaded_count": 1,
+      "load_seconds_per_gb_estimate": 0.795333510633761,
+      "load_time_observations": 1,
+      "models": [
+        {
+          "id": "K2-Horizon-3.7B-MLX-4bit",
+          "model_path": "<home>/.local/share/pi-k2/models/K2-Horizon-3.7B-MLX-4bit",
+          "loaded": false,
+          "is_loading": false,
+          "loading_started_at": null,
+          "estimated_size": 2987914114,
+          "resident_estimated_size": 2987914114,
+          "distributed": false,
+          "cluster": null,
+          "actual_size": null,
+          "pinned": false,
+          "engine_type": "batched",
+          "model_type": "llm",
+          "config_model_type": "k2_horizon",
+          "realtime_stt": false,
+          "model_context_length": 524288,
+          "is_helper": false,
+          "thinking_default": null,
+          "preserve_thinking_default": null,
+          "source_type": "local",
+          "source_repo_id": null,
+          "last_access": null,
+          "max_context_window": 32768,
+          "is_favorite": false,
+          "is_hidden": false,
+          "max_tokens": 8192
+        },
+        {
+          "id": "K2-Horizon-7B-MLX-4bit",
+          "model_path": "<home>/.local/share/pi-k2/models/K2-Horizon-7B-MLX-4bit",
+          "loaded": true,
+          "is_loading": false,
+          "loading_started_at": null,
+          "estimated_size": 5315691257,
+          "resident_estimated_size": 5315691257,
+          "distributed": false,
+          "cluster": null,
+          "actual_size": 5717872840,
+          "pinned": false,
+          "engine_type": "batched",
+          "model_type": "llm",
+          "config_model_type": "k2_horizon",
+          "realtime_stt": false,
+          "model_context_length": 524288,
+          "is_helper": false,
+          "thinking_default": null,
+          "preserve_thinking_default": null,
+          "source_type": "local",
+          "source_repo_id": null,
+          "last_access": 1792789594.1285498,
+          "max_context_window": 32768,
+          "is_favorite": false,
+          "is_hidden": false,
+          "max_tokens": 8192
+        }
+      ]
+    },
+    "piVersion": "1.4.0",
+    "variants": {
+      "L": {
+        "key": "K2-Horizon-7B-MLX-4bit",
+        "label": "L",
+        "thinking": "low",
+        "maxTokens": 4096,
+        "fields": {
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "low": "low",
+            "medium": "medium"
+          },
+          "compat": {
+            "thinkingFormat": "chat-template",
+            "chatTemplateKwargs": {
+              "reasoning_effort": {
+                "$var": "thinking.effort"
+              },
+              "tool_call_format": "xml"
+            }
+          }
+        }
+      },
+      "M": {
+        "key": "K2-Horizon-7B-MLX-4bit",
+        "label": "M",
+        "thinking": "medium",
+        "maxTokens": 4096,
+        "fields": {
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "low": "low",
+            "medium": "medium"
+          },
+          "compat": {
+            "thinkingFormat": "chat-template",
+            "chatTemplateKwargs": {
+              "reasoning_effort": {
+                "$var": "thinking.effort"
+              },
+              "tool_call_format": "xml"
+            }
+          }
+        }
+      },
+      "Q": {
+        "key": "qwen3.5-9b-q4",
+        "label": "Q",
+        "thinking": "medium",
+        "file": "<home>/pi-bench-models/Qwen3.5-9B-Q4_K_M.gguf",
+        "serverExtra": [
+          "--min-p",
+          "0",
+          "--temp",
+          "0.6",
+          "--top-k",
+          "20",
+          "--top-p",
+          "0.95"
+        ],
+        "fields": {
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "high": null,
+            "low": null,
+            "max": null,
+            "medium": "medium",
+            "minimal": null,
+            "off": "off",
+            "xhigh": null
+          },
+          "compat": {
+            "thinkingFormat": "qwen-chat-template"
+          }
+        }
+      }
+    },
+    "rounds": 3,
+    "taskIDs": [],
+    "order": [
+      "LMQ",
+      "MQL",
+      "QLM"
+    ],
+    "cacheProtocol": "Unique prefix per block prevents earlier benchmark prefix reuse; subsequent tasks share that prefix. Models preloaded before task timing. No user cache is cleared.",
+    "outputBudget": 4096,
+    "taskTimeoutSeconds": 180
+  },
+  "completed": "2026-10-23T22:13:51.290Z",
+  "finalMachine": {
+    "chip": "Apple M6",
+    "memory": "25769803776",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+    "load": "{ 1.66 1.99 3.01 }",
+    "swap": "total = 7168.00M  used = 5559.81M  free = 1608.19M  (encrypted)"
+  },
+  "observedCacheState": {
+    "firstRequestK2CachedTokens": [
+      1536,
+      1536,
+      1536,
+      1536,
+      1536,
+      1536
+    ],
+    "firstRequestQwenCachedTokens": [
+      0,
+      0,
+      0
+    ],
+    "note": "Shared tools precede the supplied system message in K2 chat template; see protocol.md. Original cacheProtocol string records intended strategy, not proof of zero cached tokens."
+  }
+}

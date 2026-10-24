@@ -51,7 +51,7 @@ test("duplicate changes ignore object field order, preserve array order, and wai
 function loopHarness() {
 	const handlers = {}, entries = [];
 	let aborted = 0;
-	assist({ on: (name, fn) => handlers[name] = fn, appendEntry: (type, data) => entries.push({ type, data }) });
+	assist({ registerTool: () => {},  on: (name, fn) => handlers[name] = fn, appendEntry: (type, data) => entries.push({ type, data }) });
 	const ctx = { abort: () => aborted++ };
 	return { handlers, entries, get aborted() { return aborted; }, async call(id, tool, input, { validates = true, isError = false, content = [] } = {}) {
 		const event = { toolName: tool, toolCallId: id, input };
@@ -206,7 +206,7 @@ test("read on a document is sent to read_document; text files and other tools pa
 test('call budget: different calls still stop after MAX_CALLS per answer, then the answer ends; a new answer starts fresh', async () => {
  const { MAX_CALLS } = await import('./pippa-assist.ts');
  const handlers={},entries=[];let aborted=0;
- assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+ assist({ registerTool: () => {}, on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
  const ctx={abort:()=>aborted++};
  await handlers.agent_start({});
  const blocked=[];
@@ -225,7 +225,7 @@ test('call budget: different calls still stop after MAX_CALLS per answer, then t
 
 test('loop stop is distinct from manual Stop and preserves actual search locations', async () => {
  const handlers={},entries=[];let aborted=0;
-  assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+  assist({ registerTool: () => {}, on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
  const ctx={abort:()=>aborted++};
  await handlers.agent_start({});
  const input={command:'mdfind -onlyin ~/Documents Kaution'};
@@ -249,7 +249,7 @@ test('loop stop is distinct from manual Stop and preserves actual search locatio
 
 test('verified search results are signalled only for search_files, not model-written JSON', async () => {
  const handlers={},entries=[];
-  assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+  assist({ registerTool: () => {}, on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
  const ctx={};
  const result={isError:false,content:[{type:'text',text:JSON.stringify({files:[{path:'/fake/Documents/beleg.pdf'}]})}]};
  await handlers.tool_call({toolName:'search_files',toolCallId:'real',input:{query:'Kaution'}},ctx);
@@ -270,7 +270,7 @@ test('files a folder listing or shell command showed become pippa-listed-files',
  assert.deepEqual(listedFiles('bash',[{type:'text',text:'b.pdf\nc.pdf'}],'ls -1 "/a/x y"'),['/a/x y/b.pdf','/a/x y/c.pdf']);
  assert.deepEqual(listedFiles('bash',[{type:'text',text:'-rw-r--r-- 1 b.pdf'}],'ls -la /a'),[]);
  const handlers={},entries=[];
- assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+ assist({ registerTool: () => {}, on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
  await handlers.tool_call({toolName:'list_folder',toolCallId:'l',input:{path:'/Users/remi/projects/Kinderbuch'}},{});
  await handlers.tool_result({toolName:'list_folder',toolCallId:'l',isError:false,content:[{type:'text',text:listing}]},{});
  const listed=entries.filter(e=>e.type==='pippa-listed-files');
@@ -280,7 +280,7 @@ test('files a folder listing or shell command showed become pippa-listed-files',
 
 test('loop stop preserves the search truncation flag with exactly 200 returned files', async () => {
  const handlers={},entries=[];
-  assist({on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
+  assist({ registerTool: () => {}, on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:(type,data)=>entries.push({type,data})});
  const ctx={abort:()=>{}};
  const input={query:'Steuer'};
  for(const truncated of [true,false]){
@@ -306,7 +306,7 @@ test("today's date goes in front of each new message, a skill command stays firs
 	assert.equal(withToday("/skill:stichpunkte", line), `/skill:stichpunkte ${line}`);
 	assert.equal(withToday("/andere Vorlage", line), "/andere Vorlage");
 	const handlers = {};
-	assist({ on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
+	assist({ registerTool: () => {},  on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
 	const sent = await handlers.input({ type: "input", text: "Hallo", source: "rpc" });
 	assert.equal(sent.action, "transform");
 	assert.match(sent.text, /^\[\d{4}-\d\d-\d\d, \w+day\]\nHallo$/);
@@ -322,7 +322,7 @@ test("edit and write keep the old version first; the result says where; a new fi
 	try {
 		const { default: fresh } = await import(`./pippa-assist.ts?backup=${Date.now()}`);
 		const handlers = {};
-		fresh({ on: (name, fn) => (handlers[name] = fn), getAllTools: () => tools, appendEntry: () => {} });
+		fresh({ registerTool: () => {},  on: (name, fn) => (handlers[name] = fn), getAllTools: () => tools, appendEntry: () => {} });
 		await handlers.agent_start({});
 		await writeFile(join(dir, "Brief.txt"), "alt");
 		const { utimes } = await import("node:fs/promises");

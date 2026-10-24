@@ -37,6 +37,21 @@ agent directory is the shared `~/.pi/agent`, but personal extensions, context fi
 Pippa's native tools and shell enforce their own permissions; supported file changes retain undo copies. `fd` and `rg` remain available through `bash` next to Pippa's Node in `Contents/Helpers`
 (pinned in `app/Packaging/search-tools.json`), which is first in Pi's `PATH`, so Pi never downloads them.
 
+**Tool declarations and local responsiveness.** For clearly read-only document and web questions, Pippa's
+`tool-scope.mjs` filters the final OpenAI chat-completions payload to the relevant readers/search tools and
+`pippa_more_tools`. Calling that tool restores the original permitted declarations. Unknown or mixed tasks,
+file changes, native actions, skills and steering keep the full set; follow-ups retain previously exposed tools.
+This changes the model's input, not Pi's registered tools or the immutable action policy. Draft-only launches do
+not include the expansion tool and keep all their approved readers. Filtering at `before_provider_request`
+avoids MCP discovery rebuilding the active list after a preliminary selection. Other provider payload formats
+remain unfiltered. `PIPPA_TOOL_SCOPE=off` is a development comparison switch. The real-Pi readiness tests exercise
+MCP discovery, narrowed initial declarations, expansion, and repeated native admission.
+
+**Bilingual file categories.** Spotlight queries for invoice/Rechnung and insurance/Versicherung also match
+the equivalent category in the other app language, including enclosing folders. Other query words, year
+constraints, personal-folder boundaries and result limits remain in force. This is a bounded lexical mapping,
+not semantic search or a completeness guarantee; unindexed scans can still be absent.
+
 **Thinking and compaction.** Pi steers both. models.json gives each `pippa-local` model `reasoning`, a `thinkingLevelMap`
 and the template switch (`chat-template` with `reasoning_effort` for K2, `qwen-chat-template` for Qwen); Pi's llama-server
 no longer starts with `--reasoning off`. K2 thinks at "medium" by default. The official b11503 K2 parser only accepted
