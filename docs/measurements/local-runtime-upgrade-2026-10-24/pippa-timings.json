@@ -1,0 +1,222 @@
+[
+  {
+    "arm": "before",
+    "task": "en-multi",
+    "autoGrade": "no",
+    "firstWord": 52.192,
+    "total": 59.265,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3123,
+    "outputTokens": 562
+  },
+  {
+    "arm": "before",
+    "task": "en-summary",
+    "autoGrade": "yes",
+    "firstWord": 41.543,
+    "total": 64.861,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3198,
+    "outputTokens": 758
+  },
+  {
+    "arm": "before",
+    "task": "mail-antwort",
+    "autoGrade": "yes",
+    "firstWord": 61.324,
+    "total": 67.923,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3234,
+    "outputTokens": 899
+  },
+  {
+    "arm": "before",
+    "task": "multi-rechnungen",
+    "autoGrade": "no",
+    "firstWord": null,
+    "total": 180.004,
+    "timeout": true,
+    "tools": 23,
+    "promptTokens": 3215,
+    "outputTokens": 1396
+  },
+  {
+    "arm": "before",
+    "task": "ordner-ueberblick",
+    "autoGrade": "yes",
+    "firstWord": 128.516,
+    "total": 159.002,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3208,
+    "outputTokens": 1939
+  },
+  {
+    "arm": "before",
+    "task": "termin",
+    "autoGrade": "yes",
+    "firstWord": 30.389,
+    "total": 33.563,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3295,
+    "outputTokens": 339
+  },
+  {
+    "arm": "before",
+    "task": "vergleich",
+    "autoGrade": "yes",
+    "firstWord": 70.13,
+    "total": 87.83,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3219,
+    "outputTokens": 1034
+  },
+  {
+    "arm": "before",
+    "task": "web-plus-datei",
+    "autoGrade": "partial",
+    "firstWord": 39.506,
+    "total": 52.767,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3221,
+    "outputTokens": 632
+  },
+  {
+    "arm": "before",
+    "task": "web-recherche",
+    "autoGrade": "partial",
+    "firstWord": 39.161,
+    "total": 51.364,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3210,
+    "outputTokens": 616
+  },
+  {
+    "arm": "before",
+    "task": "zusammenfassen",
+    "autoGrade": "yes",
+    "firstWord": 43.118,
+    "total": 60.872,
+    "timeout": false,
+    "tools": 23,
+    "promptTokens": 3293,
+    "outputTokens": 722
+  },
+  {
+    "arm": "after",
+    "task": "en-multi",
+    "autoGrade": "no",
+    "firstWord": 172.058,
+    "total": 180.001,
+    "timeout": true,
+    "tools": 7,
+    "promptTokens": 1531,
+    "outputTokens": 1118
+  },
+  {
+    "arm": "after",
+    "task": "en-summary",
+    "autoGrade": "yes",
+    "firstWord": 43.46,
+    "total": 66.302,
+    "timeout": false,
+    "tools": 7,
+    "promptTokens": 1606,
+    "outputTokens": 815
+  },
+  {
+    "arm": "after",
+    "task": "mail-antwort",
+    "autoGrade": "yes",
+    "firstWord": 67.182,
+    "total": 71.076,
+    "timeout": false,
+    "tools": 24,
+    "promptTokens": 3343,
+    "outputTokens": 700
+  },
+  {
+    "arm": "after",
+    "task": "multi-rechnungen",
+    "autoGrade": "no",
+    "firstWord": null,
+    "total": 180.007,
+    "timeout": true,
+    "tools": 7,
+    "promptTokens": 1629,
+    "outputTokens": 545
+  },
+  {
+    "arm": "after",
+    "task": "ordner-ueberblick",
+    "autoGrade": "yes",
+    "firstWord": 123.536,
+    "total": 151.19,
+    "timeout": false,
+    "tools": 7,
+    "promptTokens": 1622,
+    "outputTokens": 1865
+  },
+  {
+    "arm": "after",
+    "task": "termin",
+    "autoGrade": "yes",
+    "firstWord": 47.684,
+    "total": 53.331,
+    "timeout": false,
+    "tools": 24,
+    "promptTokens": 3404,
+    "outputTokens": 687
+  },
+  {
+    "arm": "after",
+    "task": "vergleich",
+    "autoGrade": "yes",
+    "firstWord": 59.015,
+    "total": 76.307,
+    "timeout": false,
+    "tools": 7,
+    "promptTokens": 1633,
+    "outputTokens": 895
+  },
+  {
+    "arm": "after",
+    "task": "web-plus-datei",
+    "autoGrade": "partial",
+    "firstWord": 59.111,
+    "total": 71.612,
+    "timeout": false,
+    "tools": 7,
+    "promptTokens": 1635,
+    "outputTokens": 808
+  },
+  {
+    "arm": "after",
+    "task": "web-recherche",
+    "autoGrade": "partial",
+    "firstWord": 85.841,
+    "total": 97.106,
+    "timeout": false,
+    "tools": 4,
+    "promptTokens": 1290,
+    "outputTokens": 1100
+  },
+  {
+    "arm": "after",
+    "task": "zusammenfassen",
+    "autoGrade": "yes",
+    "firstWord": 70.451,
+    "total": 92.083,
+    "timeout": false,
+    "tools": 7,
+    "promptTokens": 1707,
+    "outputTokens": 1126
+  }
+]

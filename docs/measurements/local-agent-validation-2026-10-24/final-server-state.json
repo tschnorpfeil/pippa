@@ -1,0 +1,16 @@
+{
+  "65070": {
+    "modelIDs": [
+      "qwen3.8-saluki-27b-iq2"
+    ]
+  },
+  "65068": {
+    "status": "<urlopen error [Errno 61] Connection refused>"
+  },
+  "8012": {
+    "modelIDs": [
+      "K2-Horizon-7B-MLX-4bit"
+    ],
+    "loadedCount": 0
+  }
+}

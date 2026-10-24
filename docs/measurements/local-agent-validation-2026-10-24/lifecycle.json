@@ -1,0 +1,50 @@
+{
+  "beforeColdStart": {
+    "stoppedPID": 48162
+  },
+  "simultaneousColdStart": [
+    {
+      "exit": 0,
+      "answer": "COLD_ALPHA_OK",
+      "expected": "COLD_ALPHA_OK",
+      "pass": true,
+      "seconds": 7.300508250016719,
+      "stderr": "Starting the local model\u2026\n"
+    },
+    {
+      "exit": 0,
+      "answer": "COLD_BETA_OK",
+      "expected": "COLD_BETA_OK",
+      "pass": true,
+      "seconds": 8.072283332934603,
+      "stderr": "Starting the local model\u2026\n"
+    }
+  ],
+  "afterColdStart": {
+    "owner": "pi",
+    "holder": 93652,
+    "pid": 93654,
+    "port": 65070
+  },
+  "listenerCount": 1,
+  "beforeRecovery": {
+    "stoppedPID": 93654
+  },
+  "recovery": {
+    "exit": 0,
+    "answer": "RECOVERY_OK",
+    "expected": "RECOVERY_OK",
+    "pass": true,
+    "seconds": 4.34306383295916,
+    "stderr": "Starting the local model\u2026\n"
+  },
+  "k2OriginallyLoaded": false,
+  "restoredSaluki": {
+    "exit": 0,
+    "answer": "FINAL_SALUKI_OK",
+    "expected": "FINAL_SALUKI_OK",
+    "pass": true,
+    "seconds": 3.574179708957672,
+    "stderr": ""
+  }
+}

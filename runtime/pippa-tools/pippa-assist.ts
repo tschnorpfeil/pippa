@@ -29,6 +29,7 @@
  * - Undo: every change the app can take back (an old version kept, a new file, a move, the Trash) becomes a session
  *   entry `pippa-change`; the app keeps them in its journal, so "Rückgängig" under the answer undoes them.
  */
+import { installToolScope } from "./tool-scope.mjs";
 import { constants } from "node:fs";
 import { access, copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
 import { basename, isAbsolute, join, dirname, resolve } from "node:path";
@@ -246,6 +247,7 @@ export function changesOf(tool: string, details: any, isError: boolean, before?:
 }
 
 export default function (pi: ExtensionAPI) {
+	installToolScope(pi);
 	const backups = backupDirectory();
 	const kept = new Map<string, { file: string; copy?: string; created?: boolean }>();
 	if (backups) void pruneBackups(backups);

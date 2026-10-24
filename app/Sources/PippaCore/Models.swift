@@ -107,10 +107,11 @@ public enum ModelSelector {
 
     /// The one table of which model a Mac gets (docs/settings-simplification.md). A change is one line here.
     /// - 8 GB → Qwen3.5 4B (the 9B needs 7 GiB, the 8 GB budget is 4.8 GiB).
-    /// - 16 GB and up → Qwen3.5 9B (5.7 GB download): the default for every Mac that fits it. It replaced K2 Horizon 7B
-    ///   after a side-by-side test with Pi (docs/measurements/model-compare): as reliable, fewer invented facts, ~40 % faster.
-    /// - 24 GB and up, "Gründlicher" in settings → Qwen3.6 35B-A3B IQ3 (13.7 GB download, 14.5 GiB of an 18 GiB budget).
-    ///   Not the default: the download is too large for first launch.
+    /// - 16 GB → Qwen3.5 9B (5.7 GB download).
+    /// - 24 GB and up → Qwen3.6 35B-A3B Q3, without thinking: six of ten Pippa tasks passed,
+    ///   matching Saluki at roughly half its median task time (docs/measurements/qwen-gguf-validation-2026-10-24).
+    ///   The separate terminal coding profile uses medium; it is not Pippa's default.
+    /// - The unqualified "More thorough" IQ3 profile remains hidden.
     /// `preference` counts only where `offersThorough` holds; below, `.thorough` falls back to the standard row.
     /// Keys between the `table` markers are read by scripts/build-app.sh: each must be pinned in catalog.json.
     public static func table(tier: Int, preference: ModelPreference = .standard) -> (key: String, ctx: Int, extra: [String: String]) {
@@ -119,7 +120,7 @@ public enum ModelSelector {
         case (8, _): ("qwen3.5-4b-q4", 16384, [:])
         case (16, _): ("qwen3.5-9b-q4", 16384, ["ctx-checkpoints": "4", "cache-ram": "0"])
         case (_, .thorough): ("qwen3.6-35b-a3b-iq3", 32768, [:])
-        default: ("qwen3.5-9b-q4", 32768, [:])
+        default: ("qwen3.6-35b-a3b-q3", 32768, [:])
         }
         // table:end
     }
@@ -232,8 +233,9 @@ public struct DownloadStallWatch: Sendable {
 
 /// Small settings file (settings.json) in the support folder.
 public struct PippaSettings: Codable, Sendable, Equatable {
-    // Formerly `modelOverride`, `automaticChosen` (old path) and `piModel`: the free model choice no longer exists. Old
-    // settings.json files with these keys still load (unknown keys ignored); the table's model applies.
+    // Legacy `modelOverride`, `automaticChosen` and `piModel` remain ignored.
+    /// Explicitly configured pinned catalog model; nil uses the memory table. Unknown keys fall back to the table.
+    public var localModelKey: String?
     /// Fixed llama-server port for Pi's models.json (installer, `PiInstaller.stablePort`); chosen once.
     public var llamaPort: Int?
     /// Minutes without a request until Pippa unloads the `pippa-local` model; `nil` = 10
@@ -257,15 +259,17 @@ public struct PippaSettings: Codable, Sendable, Equatable {
         set { modelPreference = newValue == .standard ? nil : newValue.rawValue }
     }
     public init(llamaPort: Int? = nil, llamaIdleMinutes: Int? = nil, onlinePort: Int? = nil, piInlineShortText: Bool? = nil,
-                modelPreference: String? = nil) {
+                modelPreference: String? = nil, localModelKey: String? = nil) {
         self.llamaPort = llamaPort; self.llamaIdleMinutes = llamaIdleMinutes; self.onlinePort = onlinePort
         self.piInlineShortText = piInlineShortText; self.modelPreference = modelPreference
+        self.localModelKey = localModelKey
     }
 
     /// Change only the model preference (load, change, save), so other values written meanwhile stay.
     public static func savePreference(_ preference: ModelPreference, to base: URL) throws {
         var settings = load(from: base)
         settings.preference = preference
+        settings.localModelKey = nil
         try settings.save(to: base)
     }
 

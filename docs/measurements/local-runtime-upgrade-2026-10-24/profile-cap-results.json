@@ -1,0 +1,82 @@
+[
+  {
+    "label": "qwen36",
+    "model": "Qwen3.6-35B-A3B-3bit",
+    "task": "T6",
+    "rep": 1,
+    "passed": false,
+    "check_rc": 1,
+    "check_msg": "visible tests fail",
+    "workdir": "<repo>/.build/local-agent-upgrade/profile-cap-work/qwen36/T6-1",
+    "wall_s": 333.1,
+    "timed_out": false,
+    "exit_code": 0,
+    "turns": 11,
+    "tool_calls": 16,
+    "tool_errors": 7,
+    "malformed_calls": 0,
+    "slashless_paths": 0,
+    "tools": {
+      "read": 9,
+      "bash": 7
+    },
+    "out_tokens": 9540,
+    "in_tokens": 5647,
+    "thinking_chars": 27409,
+    "text_chars": 52,
+    "stop_reasons": [
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "length"
+    ],
+    "errors": [],
+    "max_turn_out": 8192
+  },
+  {
+    "label": "k2",
+    "model": "K2-Horizon-7B-MLX-4bit",
+    "task": "T6",
+    "rep": 1,
+    "passed": false,
+    "check_rc": 1,
+    "check_msg": "visible tests fail",
+    "workdir": "<repo>/.build/local-agent-upgrade/profile-cap-work/k2/T6-1",
+    "wall_s": 600.0,
+    "timed_out": true,
+    "exit_code": -9,
+    "turns": 8,
+    "tool_calls": 10,
+    "tool_errors": 1,
+    "malformed_calls": 0,
+    "slashless_paths": 0,
+    "tools": {
+      "bash": 5,
+      "read": 4,
+      "write": 1
+    },
+    "out_tokens": 10728,
+    "in_tokens": 12116,
+    "thinking_chars": 34907,
+    "text_chars": 836,
+    "stop_reasons": [
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse",
+      "toolUse"
+    ],
+    "errors": [],
+    "max_turn_out": 6960
+  }
+]

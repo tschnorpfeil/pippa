@@ -1,0 +1,485 @@
+{
+  "L": {
+    "label": "K2 / oMLX low",
+    "runs": 30,
+    "grades": {
+      "yes": 3,
+      "partial": 11,
+      "no": 16
+    },
+    "unsupported": 16,
+    "medianTotalSeconds": 16.142,
+    "medianSuccessfulTotalSeconds": 14.291,
+    "medianFirstAnswerTextSeconds": 3.152,
+    "medianFirstTokenSeconds": 0.726,
+    "totalSuiteSeconds": 893.27,
+    "minTotalSeconds": 1.515,
+    "maxTotalSeconds": 180.001,
+    "medianToolCalls": 2.0,
+    "zeroToolRuns": 7,
+    "unrequestedFileMutationRuns": 2,
+    "timeouts": 1,
+    "httpErrors": 0,
+    "providerErrors": 0,
+    "lengthStops": 0,
+    "outputTokens": 13330,
+    "promptTokens": 292796,
+    "cachedPromptTokens": 243968,
+    "perTask": {
+      "multi-rechnungen": {
+        "medianSeconds": 48.284,
+        "grades": [
+          "no",
+          "no",
+          "no"
+        ],
+        "seconds": [
+          48.284,
+          50.017,
+          38.593
+        ]
+      },
+      "vergleich": {
+        "medianSeconds": 96.293,
+        "grades": [
+          "no",
+          "no",
+          "partial"
+        ],
+        "seconds": [
+          1.515,
+          180.001,
+          96.293
+        ]
+      },
+      "zusammenfassen": {
+        "medianSeconds": 16.469,
+        "grades": [
+          "yes",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          14.291,
+          16.469,
+          22.361
+        ]
+      },
+      "ordner-ueberblick": {
+        "medianSeconds": 55.379,
+        "grades": [
+          "no",
+          "partial",
+          "no"
+        ],
+        "seconds": [
+          1.984,
+          55.379,
+          56.939
+        ]
+      },
+      "web-recherche": {
+        "medianSeconds": 10.038,
+        "grades": [
+          "no",
+          "no",
+          "no"
+        ],
+        "seconds": [
+          32.348,
+          2.319,
+          10.038
+        ]
+      },
+      "web-plus-datei": {
+        "medianSeconds": 16.146,
+        "grades": [
+          "no",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          4.286,
+          16.505,
+          16.146
+        ]
+      },
+      "mail-antwort": {
+        "medianSeconds": 11.88,
+        "grades": [
+          "no",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          2.962,
+          11.88,
+          16.138
+        ]
+      },
+      "termin": {
+        "medianSeconds": 10.879,
+        "grades": [
+          "yes",
+          "yes",
+          "no"
+        ],
+        "seconds": [
+          9.751,
+          15.988,
+          10.879
+        ]
+      },
+      "en-multi": {
+        "medianSeconds": 38.691,
+        "grades": [
+          "no",
+          "no",
+          "no"
+        ],
+        "seconds": [
+          38.691,
+          11.546,
+          64.54
+        ]
+      },
+      "en-summary": {
+        "medianSeconds": 15.752,
+        "grades": [
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          12.46,
+          15.752,
+          18.915
+        ]
+      }
+    },
+    "reportedGenerationTokensPerSecond": 20.91,
+    "generationTimingSource": "oMLX streamed usage"
+  },
+  "M": {
+    "label": "K2 / oMLX medium",
+    "runs": 30,
+    "grades": {
+      "yes": 7,
+      "partial": 16,
+      "no": 7
+    },
+    "unsupported": 18,
+    "medianTotalSeconds": 47.99,
+    "medianSuccessfulTotalSeconds": 44.793,
+    "medianFirstAnswerTextSeconds": 4.492,
+    "medianFirstTokenSeconds": 0.702,
+    "totalSuiteSeconds": 1978.752,
+    "minTotalSeconds": 22.685,
+    "maxTotalSeconds": 164.23,
+    "medianToolCalls": 3.0,
+    "zeroToolRuns": 1,
+    "unrequestedFileMutationRuns": 0,
+    "timeouts": 0,
+    "httpErrors": 0,
+    "providerErrors": 0,
+    "lengthStops": 0,
+    "outputTokens": 38606,
+    "promptTokens": 390875,
+    "cachedPromptTokens": 315392,
+    "perTask": {
+      "multi-rechnungen": {
+        "medianSeconds": 137.527,
+        "grades": [
+          "no",
+          "no",
+          "no"
+        ],
+        "seconds": [
+          110.398,
+          164.23,
+          137.527
+        ]
+      },
+      "vergleich": {
+        "medianSeconds": 67.401,
+        "grades": [
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "seconds": [
+          42.499,
+          117.887,
+          67.401
+        ]
+      },
+      "zusammenfassen": {
+        "medianSeconds": 32.394,
+        "grades": [
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          30.299,
+          40.472,
+          32.394
+        ]
+      },
+      "ordner-ueberblick": {
+        "medianSeconds": 93.053,
+        "grades": [
+          "yes",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          44.793,
+          93.053,
+          115.59
+        ]
+      },
+      "web-recherche": {
+        "medianSeconds": 53.387,
+        "grades": [
+          "no",
+          "partial",
+          "no"
+        ],
+        "seconds": [
+          22.685,
+          53.387,
+          128.587
+        ]
+      },
+      "web-plus-datei": {
+        "medianSeconds": 70.599,
+        "grades": [
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          29.885,
+          74.151,
+          70.599
+        ]
+      },
+      "mail-antwort": {
+        "medianSeconds": 41.892,
+        "grades": [
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          28.028,
+          41.892,
+          51.188
+        ]
+      },
+      "termin": {
+        "medianSeconds": 27.236,
+        "grades": [
+          "yes",
+          "no",
+          "yes"
+        ],
+        "seconds": [
+          27.121,
+          27.646,
+          27.236
+        ]
+      },
+      "en-multi": {
+        "medianSeconds": 102.425,
+        "grades": [
+          "no",
+          "yes",
+          "partial"
+        ],
+        "seconds": [
+          96.326,
+          111.087,
+          102.425
+        ]
+      },
+      "en-summary": {
+        "medianSeconds": 29.562,
+        "grades": [
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          31.137,
+          29.267,
+          29.562
+        ]
+      }
+    },
+    "reportedGenerationTokensPerSecond": 20.81,
+    "generationTimingSource": "oMLX streamed usage"
+  },
+  "Q": {
+    "label": "Qwen / llama.cpp thinking",
+    "runs": 30,
+    "grades": {
+      "yes": 14,
+      "partial": 9,
+      "no": 7
+    },
+    "unsupported": 12,
+    "medianTotalSeconds": 26.349,
+    "medianSuccessfulTotalSeconds": 21.818,
+    "medianFirstAnswerTextSeconds": 15.605,
+    "medianFirstTokenSeconds": 0.465,
+    "totalSuiteSeconds": 1018.218,
+    "minTotalSeconds": 10.97,
+    "maxTotalSeconds": 104.606,
+    "medianToolCalls": 2.0,
+    "zeroToolRuns": 0,
+    "unrequestedFileMutationRuns": 0,
+    "timeouts": 0,
+    "httpErrors": 0,
+    "providerErrors": 0,
+    "lengthStops": 0,
+    "outputTokens": 18960,
+    "promptTokens": 345986,
+    "cachedPromptTokens": 300535,
+    "perTask": {
+      "multi-rechnungen": {
+        "medianSeconds": 50.703,
+        "grades": [
+          "no",
+          "no",
+          "no"
+        ],
+        "seconds": [
+          43.385,
+          50.703,
+          58.127
+        ]
+      },
+      "vergleich": {
+        "medianSeconds": 37.879,
+        "grades": [
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "seconds": [
+          37.055,
+          37.879,
+          40.536
+        ]
+      },
+      "zusammenfassen": {
+        "medianSeconds": 26.683,
+        "grades": [
+          "yes",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          17.59,
+          26.683,
+          33.752
+        ]
+      },
+      "ordner-ueberblick": {
+        "medianSeconds": 11.849,
+        "grades": [
+          "partial",
+          "yes",
+          "yes"
+        ],
+        "seconds": [
+          10.97,
+          19.747,
+          11.849
+        ]
+      },
+      "web-recherche": {
+        "medianSeconds": 19.75,
+        "grades": [
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "seconds": [
+          16.059,
+          20.029,
+          19.75
+        ]
+      },
+      "web-plus-datei": {
+        "medianSeconds": 20.811,
+        "grades": [
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "seconds": [
+          14.779,
+          44.727,
+          20.811
+        ]
+      },
+      "mail-antwort": {
+        "medianSeconds": 26.973,
+        "grades": [
+          "yes",
+          "no",
+          "partial"
+        ],
+        "seconds": [
+          26.973,
+          13.009,
+          104.606
+        ]
+      },
+      "termin": {
+        "medianSeconds": 23.607,
+        "grades": [
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "seconds": [
+          17.817,
+          23.607,
+          25.056
+        ]
+      },
+      "en-multi": {
+        "medianSeconds": 81.963,
+        "grades": [
+          "no",
+          "no",
+          "no"
+        ],
+        "seconds": [
+          81.963,
+          26.548,
+          86.055
+        ]
+      },
+      "en-summary": {
+        "medianSeconds": 26.149,
+        "grades": [
+          "partial",
+          "yes",
+          "partial"
+        ],
+        "seconds": [
+          26.149,
+          37.591,
+          24.413
+        ]
+      }
+    },
+    "reportedGenerationTokensPerSecond": 20.41,
+    "generationTimingSource": "llama.cpp server log"
+  }
+}

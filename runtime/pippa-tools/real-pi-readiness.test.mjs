@@ -30,7 +30,7 @@ const preparationSchema = { type: "object", additionalProperties: false, require
 } };
 
 
-for (const scenario of ["ready", "draft-only", "collision", "missing-file-preparation", "authentication-failure", "file-preparation-enums"]) {
+for (const scenario of ["ready", "draft-only", "collision", "missing-file-preparation", "authentication-failure", "file-preparation-enums", "scoped-documents"]) {
 	test(`real Pi native admission: ${scenario}, ${scenario === "file-preparation-enums" ? "then enum-only MCP arguments reach the tool" : "with no provider request"}`, {
 		skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 25_000,
 	}, async () => {
@@ -46,7 +46,7 @@ for (const scenario of ["ready", "draft-only", "collision", "missing-file-prepar
 		const server = createServer((req, res) => {
 			if (req.url !== "/mcp") {
 				providerRequests++;
-				if (scenario !== "file-preparation-enums") { res.writeHead(500); res.end(); return; }
+				if (!["file-preparation-enums", "scoped-documents"].includes(scenario)) { res.writeHead(500); res.end(); return; }
 				let body = "";
 				req.on("data", (chunk) => { body += chunk; });
 				req.on("end", () => {
@@ -56,7 +56,7 @@ for (const scenario of ["ready", "draft-only", "collision", "missing-file-prepar
 						model: "test", choices: [{ index: 0, delta, finish_reason }] })}\n\n`;
 					if (providerRequests === 1) {
 						res.write(chunk({ role: "assistant", tool_calls: [{ index: 0, id: "prepare_fixture", type: "function",
-							function: { name: "mcp__pippa__prepare_files", arguments: JSON.stringify(preparationInput) } }] }, null));
+							function: { name: scenario === "scoped-documents" ? "pippa_more_tools" : "mcp__pippa__prepare_files", arguments: JSON.stringify(scenario === "scoped-documents" ? {} : preparationInput) } }] }, null));
 						res.write(chunk({}, "tool_calls"));
 					} else { res.write(chunk({ role: "assistant", content: "Fixture PDF prepared." }, "stop")); }
 					res.end("data: [DONE]\n\n");
@@ -167,20 +167,30 @@ for (const scenario of ["ready", "draft-only", "collision", "missing-file-prepar
 				assert.equal(await readFile(join(work, ".pi/mcp.json"), "utf8"), configured);
 				assert.equal(existsSync(marker), false, "unrelated configured stdio server must never start");
 			}
-			if (scenario === "file-preparation-enums") {
+			if (["file-preparation-enums", "scoped-documents"].includes(scenario)) {
 				let timer;
 				try {
 					const finished = new Promise((resolve, reject) => { settled = { resolve, reject };
 						timer = setTimeout(() => reject(new Error(`No enum-schema completion: ${stderr}`)), 8_000); });
-					await command("prompt", { message: "Prepare the fixture PDFs/photos in the specified order, balanced quality and a 5 MB goal." });
+					await command("prompt", { message: scenario === "scoped-documents" ? "Summarize this document." : "Prepare the fixture PDFs/photos in the specified order, balanced quality and a 5 MB goal." });
 					assert.equal((await finished).aborted, false);
 				} finally { clearTimeout(timer); settled = undefined; }
 				assert.equal(providerRequests, 2, "one scripted tool call and one final response");
+                if (scenario === "scoped-documents") {
+                    const names = (i) => providerBodies[i].tools.map(tool => tool.function.name);
+                    assert.deepEqual(new Set(names(0)), new Set(["read", "search_files", "list_folder", "mcp__pippa__read_document", "pippa_more_tools"]));
+                    assert.ok(names(1).includes("mcp__pippa__mail_draft"));
+                    assert.ok(names(1).includes("write"));
+                    assert.equal(nativeCalls.length, 0, "expanding declarations does not perform a native action");
+                    await command("prompt", { message: `/${READINESS_COMMAND} ${randomUUID()}` });
+                    assert.equal(entries.filter(entry => entry.customType === READINESS_COMMAND).at(-1).data.status, "ready");
+                } else {
 				const declared = providerBodies[0].tools.find((tool) => tool.function.name === "mcp__pippa__prepare_files").function.parameters;
 				assert.deepEqual(declared.properties.quality.enum, preparationSchema.properties.quality.enum);
 				assert.deepEqual(declared.properties.size_limit_mb.enum, preparationSchema.properties.size_limit_mb.enum);
 				assert.deepEqual(nativeCalls.map(({ name, arguments: args }) => ({ name, arguments: args })),
 					[{ name: "prepare_files", arguments: preparationInput }], "MCP forwards ordered paths and enum arguments unchanged");
+                }
 			}
 		} finally {
 			if (child && child.exitCode === null && child.signalCode === null) { child.kill("SIGKILL"); await new Promise((resolve) => child.once("exit", resolve)); }

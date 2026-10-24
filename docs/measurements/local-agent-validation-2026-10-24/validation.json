@@ -1,0 +1,26 @@
+{
+  "fixtures": {
+    "files": 20,
+    "mismatches": []
+  },
+  "requestChecks": {
+    "S": {
+      "tasks": 10,
+      "requests": 27,
+      "allHTTP200": true,
+      "thinkingControlCorrect": true,
+      "outputCapCorrect": true,
+      "modelErrors": [],
+      "unexpectedFileMutationAttempts": []
+    },
+    "F": {
+      "tasks": 10,
+      "requests": 27,
+      "allHTTP200": true,
+      "thinkingControlCorrect": true,
+      "outputCapCorrect": true,
+      "modelErrors": [],
+      "unexpectedFileMutationAttempts": []
+    }
+  }
+}

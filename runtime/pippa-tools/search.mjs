@@ -60,7 +60,12 @@ export function parseQuery(query, kind) {
  return { words: [...new Set(words)], kind: named };
 }
 
-const clause = word => `(kMDItemTextContent == "${word}*"cd || kMDItemFSName == "*${word}*"cd)`;
+// Two unambiguous document categories in Pippa's supported languages. Keep every other query word literal;
+// broad translations (for example "bill") could silently change the subject or a person's name.
+const CATEGORY_TERMS = [['rechnung', 'invoice', 'invoic'], ['versicherung', 'insurance']];
+const terms = word => CATEGORY_TERMS.find(group => group.includes(word)) ?? [word];
+const named = (name, word) => terms(word).some(term => name.includes(term));
+const clause = word => `(${terms(word).flatMap(term => [`kMDItemTextContent == "${term}*"cd`, `kMDItemFSName == "*${term}*"cd`]).join(' || ')})`;
 const yearClause = year => `kMDItemTextContent == "${year}"cd`;
 
 function checkYear(year) {
@@ -76,7 +81,7 @@ export function predicate(query, year, kind) {
 
 /** Spotlight query for folders whose name holds at least one of the words. */
 export function folderPredicate(words) {
- return `kMDItemContentType == "public.folder" && (${words.map(w => `kMDItemFSName == "*${w}*"cd`).join(' || ')})`;
+ return `kMDItemContentType == "public.folder" && (${[...new Set(words.flatMap(terms))].map(w => `kMDItemFSName == "*${w}*"cd`).join(' || ')})`;
 }
 
 /** Inside home and meant for the person: no hidden parts, no Library outside the cloud drives, no package insides. */
@@ -122,7 +127,7 @@ export async function search(query, year, home = process.env.CFFIXED_USER_HOME |
   .filter((f, i, all) => !all.slice(0, i).some(o => f.startsWith(o + '/'))).slice(0, MAX_FOLDERS);
  const inside = await Promise.all(folders.map(folder => {
   const name = basename(folder).toLowerCase();
-  const rest = words.filter(w => !name.includes(w));
+  const rest = words.filter(w => !named(name, w));
   return find(folder, [...rest.map(clause), ...extra].join(' && ') || 'kMDItemFSName == "*"');
  }));
  const paths = [...new Set([...direct, ...inside.flat()])];
@@ -133,7 +138,7 @@ export async function search(query, year, home = process.env.CFFIXED_USER_HOME |
    const info = await stat(path);
    if (!info.isFile()) continue;
    const name = basename(path).toLowerCase();
-   files.push({ name: basename(path), path, kind: kindExt.includes(extname(name).slice(1)) ? 1 : 0, named: words.filter(w => name.includes(w)).length, time: info.mtimeMs });
+   files.push({ name: basename(path), path, kind: kindExt.includes(extname(name).slice(1)) ? 1 : 0, named: words.filter(w => named(name, w)).length, time: info.mtimeMs });
   } catch { unavailable.push({ folder: path, reason: 'Treffer nicht mehr zugänglich' }); }
  }
  // Named type first, then the more words in the name, then the newest.

@@ -56,7 +56,7 @@ export function withTemplate(variant, template) {
 }
 
 export function modelEntry(v) {
- return { id: v.key, name: v.key, contextWindow: CTX, maxTokens: 4096, ...v.fields };
+ return { id: v.key, name: v.key, contextWindow: v.contextWindow ?? CTX, maxTokens: v.maxTokens ?? 4096, ...v.fields };
 }
 
 export function modelsJson(v, baseUrl) {
@@ -66,9 +66,10 @@ export function modelsJson(v, baseUrl) {
 /** Pi settings as PiModelTuning.merge writes them for this model (32k: reserve 4096, keep 12288). */
 export function piSettings(v) {
  const key = `pippa-local/${v.key}`;
+ const ctx = v.contextWindow ?? CTX;
  return {
   defaultProjectTrust: 'never', quietStartup: true,
-  compaction: { modelOverrides: { [key]: { reserveTokens: Math.min(4096, CTX / 4), keepRecentTokens: CTX * 3 / 8 } } },
+  compaction: { modelOverrides: { [key]: { reserveTokens: Math.min(4096, ctx / 4), keepRecentTokens: ctx * 3 / 8 } } },
   modelThinkingLevels: { [key]: v.thinking },
  };
 }

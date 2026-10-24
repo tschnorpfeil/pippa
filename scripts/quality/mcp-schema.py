@@ -3,15 +3,17 @@
 import pathlib, subprocess, os
 root = pathlib.Path(__file__).resolve().parents[2]
 parts = ['import Foundation']
-for name, file in [('PippaMCPTurnTools', 'PippaMCPTurn.swift'), ('PippaMCPWriteTools', 'PippaMCPWrite.swift'), ('PippaMCPTools', 'PippaMCPTools.swift')]:
+for name, file in [('PippaMCPTurnTools', 'PippaMCPTurn.swift'), ('PippaMCPWriteTools', 'PippaMCPWrite.swift'), ('PippaMCPFilePreparation', 'PippaMCPFilePreparation.swift'), ('PippaMCPTools', 'PippaMCPTools.swift')]:
     text = (root / 'app/Sources/PippaCore/MCP' / file).read_text()
     start = text.index('    public static func toolList()')
-    end = text.index('\n    /// Arguments', start)
-    # toolList is followed by unrelated methods in the readers file.
+    # The next member starts after this function's four-space closing brace.
+    end = text.index('\n    }', start) + len('\n    }')
     function = text[start:end]
     extra = 'static let readOnly: [String: Any] = ["readOnlyHint": true, "destructiveHint": false, "openWorldHint": false]\n'
     if name == 'PippaMCPWriteTools':
         extra = 'static let hints: [String: Any] = ["readOnlyHint": false, "destructiveHint": false, "openWorldHint": false]\n'
+    if name == 'PippaMCPFilePreparation':
+        extra = 'static let name = "prepare_files"\n'
     parts.append('struct ' + name + ' {\n' + extra + function + '\n}')
 parts.append('let data = try JSONSerialization.data(withJSONObject: PippaMCPTools.toolList(), options: [.sortedKeys]); print(String(decoding: data, as: UTF8.self))')
 home = root / '.build/tool-choice-home'

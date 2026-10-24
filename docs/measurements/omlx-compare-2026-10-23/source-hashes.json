@@ -1,0 +1,38 @@
+{
+  "baseCommit": "b0d08961736340c2b0ee486b42377f74775e4c7e",
+  "files": {
+    "scripts/quality/model-compare/agentic.mjs": "b657fa358bdeb1d5e88e1eb08a45b7966c14f3189ec202e85bc4ec6a0db993e0",
+    "scripts/quality/model-compare/agentic-isolation.ts": "1da74caafb5098cdb50e0571e8fea30348ff59e8310e7a50fefc68253af53fb4",
+    "scripts/quality/model-compare/fixture-web.ts": "0a7d0f3e0bb9393e8601cd12daa43b782e96a0c82d79b27ca8655ee9581dd343",
+    "scripts/quality/model-compare/run-omlx.mjs": "8aecf474086b917a5248af50174b8039f019893d41595492988410336b22a4ad",
+    "scripts/quality/model-compare/tasks.mjs": "d35218f6877271cf2c03834af5e242805c964a150e7d11ac285193eebd20aeda",
+    "scripts/quality/model-compare/variants.mjs": "ff033342567db8116e0a3799bf4cb5e73599d4591083431c88f40153aecc9635",
+    "scripts/quality/model-compare/make-agentic-corpus.swift": "2435c0ef11ec186b0aa70fcd90d0cb6a3efdedb3ef691181d941db8941b44d12",
+    "scripts/quality/mcp-schema.py": "4284a9db2ea7ab3b61f8cfeac4655acdbe8862cb7ce9aeca8a8df88fb48100f0",
+    "app/Sources/PiRPC/PippaPiLaunch.swift": "5e6ecb30327bcc1f3572df9fd8c2d521a96f346e09f6d5423770ac445cdb2b92",
+    ".build/mcp-tools.json": "898e4dd99c114e771bed5402331624d2e94fca2ebc4726d13e8853a9aa85e5ac",
+    ".build/omlx-compare/web-schema.json": "d91c146245038e91e5622ece6010634d157ce76ae8c4ddc13999a52b8c1e16a3",
+    ".build/omlx-compare/variants.json": "1e59e238f052ae41a5bf8001c07fbbbf4e34e2cb81bb9212e759e04733e9df48"
+  },
+  "resumeFix": {
+    "scripts/quality/model-compare/server.mjs": "056d0a28bafe0d52150a944a3a049bae5e78a8e2ec70699ae2021c7a7efbcfd2",
+    "scripts/quality/model-compare/run-omlx.mjs": "b930b9f93d0f73755975c600d59fa3ac0e919068f99088d6a4311451b81906e0"
+  },
+  "finalHarnessFiles": {
+    "scripts/quality/model-compare/agentic.mjs": "b657fa358bdeb1d5e88e1eb08a45b7966c14f3189ec202e85bc4ec6a0db993e0",
+    "scripts/quality/model-compare/agentic-isolation.ts": "1da74caafb5098cdb50e0571e8fea30348ff59e8310e7a50fefc68253af53fb4",
+    "scripts/quality/model-compare/fixture-web.ts": "0a7d0f3e0bb9393e8601cd12daa43b782e96a0c82d79b27ca8655ee9581dd343",
+    "scripts/quality/model-compare/run-omlx.mjs": "9a771ab826b460e6509a552d34afa769a419716de936c2f35edd9a49efb34b34",
+    "scripts/quality/model-compare/tasks.mjs": "d35218f6877271cf2c03834af5e242805c964a150e7d11ac285193eebd20aeda",
+    "scripts/quality/model-compare/variants.mjs": "ff033342567db8116e0a3799bf4cb5e73599d4591083431c88f40153aecc9635",
+    "scripts/quality/model-compare/make-agentic-corpus.swift": "2435c0ef11ec186b0aa70fcd90d0cb6a3efdedb3ef691181d941db8941b44d12",
+    "scripts/quality/mcp-schema.py": "4284a9db2ea7ab3b61f8cfeac4655acdbe8862cb7ce9aeca8a8df88fb48100f0",
+    "app/Sources/PiRPC/PippaPiLaunch.swift": "5e6ecb30327bcc1f3572df9fd8c2d521a96f346e09f6d5423770ac445cdb2b92",
+    ".build/mcp-tools.json": "898e4dd99c114e771bed5402331624d2e94fca2ebc4726d13e8853a9aa85e5ac",
+    ".build/omlx-compare/web-schema.json": "d91c146245038e91e5622ece6010634d157ce76ae8c4ddc13999a52b8c1e16a3",
+    ".build/omlx-compare/variants.json": "1e59e238f052ae41a5bf8001c07fbbbf4e34e2cb81bb9212e759e04733e9df48",
+    "scripts/quality/model-compare/server.mjs": "056d0a28bafe0d52150a944a3a049bae5e78a8e2ec70699ae2021c7a7efbcfd2",
+    "scripts/quality/model-compare/summarize-omlx.py": "bf4e58072ccefef2bea15ba3a4ad54dfa56590ff3913feced56530927f8f5163"
+  },
+  "finalHarnessNote": "After main runner launch, added the optional no-prefix diagnostic switch and clarified cache-protocol wording; default main-matrix behavior was unchanged. Earlier execution hashes remain above."
+}

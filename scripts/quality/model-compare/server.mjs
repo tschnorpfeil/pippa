@@ -38,7 +38,10 @@ export async function startServer(bin, variant, port, logFile) {
  await waitForMac();
  const t0 = Date.now();
  const out = createWriteStream(logFile);
- const child = spawn(bin, serverArgs(variant, port), { stdio: ['ignore', 'pipe', 'pipe'] });
+ // This isolated loopback server is configured by serverArgs. A terminal's provider credential must not
+ // silently enable server authentication and turn every benchmark request into a 401.
+ const env = { ...process.env }; delete env.LLAMA_API_KEY; delete env.LLAMA_BASE_URL;
+ const child = spawn(bin, serverArgs(variant, port), { env, stdio: ['ignore', 'pipe', 'pipe'] });
  child.stdout.pipe(out); child.stderr.pipe(out);
  let exited = false; child.on('exit', () => { exited = true; });
  for (;;) {

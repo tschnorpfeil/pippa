@@ -1,0 +1,8 @@
+{
+  "app/Sources/PiRPC/PippaPiLaunch.swift": "5e6ecb30327bcc1f3572df9fd8c2d521a96f346e09f6d5423770ac445cdb2b92",
+  "app/Sources/Pippa/App/ConversationController.swift": "76f7155bdd6d2cff54dc12ab863f9ae446077f8e353c263a7e16a41b93a9b007",
+  "runtime/pippa-tools/pippa-assist.ts": "625ae2c6bb4ed2046d0c032ad078a91a92a013e835b64e285963c844c77c2d03",
+  "runtime/pippa-tools/pippa-context.ts": "14260663cea214bb847110018de8b7095806e122211ccd917e4dcb9730f789cf",
+  "scripts/quality/model-compare/agentic.mjs": "b657fa358bdeb1d5e88e1eb08a45b7966c14f3189ec202e85bc4ec6a0db993e0",
+  "scripts/quality/model-compare/variants.mjs": "52ceab40b1e3fed6b65e44b9752a8f0e722efc5547ad2214ca099943525bec1b"
+}

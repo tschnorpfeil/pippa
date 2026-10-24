@@ -146,7 +146,7 @@
     {
       "key": "qwen3.6-35b-a3b-q3",
       "label": "Qwen3.6 35B-A3B (Q3)",
-      "description": "Tested on the 24 GB Mac mini: 20 of 21 agent tasks, ~45 tokens/s",
+      "description": "Pippa on 24 GB: tested with thinking off, 32K context and bounded prompt cache; large download",
       "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
       "quant": "UD-Q3_K_XL",
       "approxBytes": 16845511648,
@@ -154,7 +154,7 @@
       "ctx": 65536,
       "moe": true,
       "rank": 75,
-      "thinking": "medium",
+      "thinking": "off",
       "pinned": {
         "revision": "a483e9e6cbd595906af30beda3187c2663a1118c",
         "files": [
@@ -166,7 +166,11 @@
         ]
       },
       "license": "Apache-2.0",
-      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE"
+      "licenseUrl": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE",
+      "extra": {
+        "cache-ram": 1024,
+        "ctx-checkpoints": 4
+      }
     },
     {
       "key": "qwen3.8-27b-q4",
@@ -400,6 +404,37 @@
             "sha256": "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597"
           }
         ]
+      }
+    },
+    {
+      "key": "qwen3.8-saluki-27b-iq2",
+      "label": "Underdog Saluki 27B (IQ2 mix)",
+      "description": "Qwen-derived 27B model compressed for local agents; optional alternative, not the default",
+      "repo": "ConwayResearch/Underdog-Saluki-27B-1.0",
+      "quant": "IQ2-mix",
+      "approxBytes": 7898369152,
+      "memGiB": 11,
+      "ctx": 32768,
+      "moe": false,
+      "rank": 65,
+      "thinking": "medium",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/ConwayResearch/Underdog-Saluki-27B-1.0/blob/5acfd9218fa54731f237eea8b3243d430dd85a69/LICENSE",
+      "pinned": {
+        "revision": "5acfd9218fa54731f237eea8b3243d430dd85a69",
+        "files": [
+          {
+            "path": "Underdog-Saluki-27B-1.0-IQ2-mix.gguf",
+            "size": 7898369152,
+            "sha256": "4a673518b11b1c4445f9b9a9d3c40356f5ba39f6a6260dcb25f3fbfd475d9efb"
+          }
+        ]
+      },
+      "sampling": {
+        "temp": 0.6,
+        "top-p": 0.95,
+        "top-k": 20,
+        "min-p": 0
       }
     }
   ]

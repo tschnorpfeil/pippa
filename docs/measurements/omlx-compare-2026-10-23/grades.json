@@ -1,0 +1,452 @@
+{
+  "L-r1-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Wrong central total (EUR 4,886.20); includes service charges, omits the EUR 249 invoice and misadds its own listed amounts."
+  },
+  "L-r1-vergleich": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "Only promises to inspect files; no tools or comparison."
+  },
+  "L-r1-zusammenfassen": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Correct window works, form deadline, preparations and rent change; preserves the receipt-relative cancellation rule."
+  },
+  "L-r1-ordner-ueberblick": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "No search or inventory; incoherent statement about looking for files."
+  },
+  "L-r1-web-recherche": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "No search. Invented fees and procedures, with nonsensical repeated terminology."
+  },
+  "L-r1-web-plus-datei": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "No tools; asks the user to provide documents instead of searching and checking cancellation."
+  },
+  "L-r1-mail-antwort": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "Reads selected mail but does not create the requested draft; only repeats the supplied reading."
+  },
+  "L-r1-termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Reads the letter and creates one confirmed reminder on the correct date."
+  },
+  "L-r1-en-multi": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Wrong central total EUR 4,115.30; includes service charges and misadds the displayed rows (EUR 4,135.30). Attempts an unrelated edit outside the fixture, which is blocked."
+  },
+  "L-r1-en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct principal dates and actions, but changes no furniture dismantling into no furniture moving, an unsupported instruction."
+  },
+  "M-r1-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Finds all five invoices but adds EUR 3,270 service charges to the central total, contrary to the fixed invoice rubric; also describes the 2023 electrical inspection as socket replacement."
+  },
+  "M-r1-vergleich": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Reads both correct documents; correctly compares EUR 250 monthly/EUR 3,000 annual payments and explains the EUR 270 balance."
+  },
+  "M-r1-zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct main actions and dates, but invents a 1 March 2027 cancellation deadline and uses formal address despite the user asking for du."
+  },
+  "M-r1-ordner-ueberblick": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Reads and accurately summarizes five policies, satisfying the existing five-of-six threshold; notes their synthetic nature."
+  },
+  "M-r1-web-recherche": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "No search; invents EUR 30/60 prices, a credit-card variant, booking website and photo requirements."
+  },
+  "M-r1-web-plus-datei": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Reads the policy and correctly gives deadline/form, but does not perform the requested web lookup or decide whether this year's deadline has passed."
+  },
+  "M-r1-mail-antwort": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Creates a new draft with the correct reading, but not a reply to selected mail; addresses Frau Beispiel (the user), reversing the recipient role. The mock incorrectly describes any accepted draft as in-thread, so the final thread claim is not counted as model fabrication."
+  },
+  "M-r1-termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Reads letter and creates one confirmed reminder for the correct date; selects the documented opening time and explains it."
+  },
+  "M-r1-en-multi": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Wrong central paid total; adds EUR 3,270 service charges to the five invoices."
+  },
+  "M-r1-en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct main actions, but substitutes the notice date for the unknown receipt date to derive an unconditional cancellation deadline; also broadens no dismantling into no furniture removal."
+  },
+  "Q-r1-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Correctly adds the five invoices but also includes the EUR 270 service-charge balance due in 2025, yielding EUR 1,135.30 rather than the fixed rubric's EUR 865.30."
+  },
+  "Q-r1-vergleich": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Correct comparison using both source documents and correct amounts."
+  },
+  "Q-r1-zusammenfassen": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Correct main actions and dates, with no invented deadline. Uses formal address despite the tone instruction."
+  },
+  "Q-r1-ordner-ueberblick": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Finds five real policy files, but invents their locations: TestDrive is not iCloud and zzv.pdf is not in Downloads."
+  },
+  "Q-r1-web-recherche": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Uses saved web evidence and accurately gives fees and application steps. Formal address and redundant citations are style violations, not task failures."
+  },
+  "Q-r1-web-plus-datei": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Reads policy and states correct deadline/form, but skips requested web lookup and does not resolve whether the current deadline has passed."
+  },
+  "Q-r1-mail-antwort": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Recovers from a rejected reply_to value and creates exactly one accepted selected-mail reply draft with the correct reading."
+  },
+  "Q-r1-termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Reads the source and creates exactly one confirmed reminder for 27 November 2026."
+  },
+  "Q-r1-en-multi": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Includes the EUR 270 service-charge balance due in 2025 in the 2024 invoice total, giving EUR 1,135.30 instead of EUR 865.30."
+  },
+  "Q-r1-en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct main actions/dates and receipt-relative termination rule, but changes no furniture dismantling into no furniture moving, the same unsupported instruction penalized for K2-low."
+  },
+  "M-r2-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Finds the five invoices but again includes EUR 3,270 service charges in the central total (EUR 4,135.30); extra searches and reads do not correct classification."
+  },
+  "M-r2-vergleich": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Correct amounts and comparison; distinguishes matching credited advances from insufficient cost coverage, with an accurate optional 2023 comparison."
+  },
+  "M-r2-zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct main task dates, but confuses the contractor with the property manager and derives an unsupported December cancellation date from the notice issue date."
+  },
+  "M-r2-ordner-ueberblick": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Reads and correctly lists five policies, but invents an annual total of EUR 960.20; the displayed premiums annualize to EUR 1,032.10."
+  },
+  "M-r2-web-recherche": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Eventually uses saved evidence for correct fees, but invents a cash-only payment instruction, 3x4 cm photo size and specific birth-certificate conditions."
+  },
+  "M-r2-web-plus-datei": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Correctly reads the policy, explains text form and that the 2026 deadline has passed, but does not do the requested web lookup."
+  },
+  "M-r2-mail-antwort": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Recovers to selected reply and saves one draft with correct reading/date, but addresses the user Frau Beispiel rather than the property manager; roles are reversed in the reply body."
+  },
+  "M-r2-termin": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Claims a reminder was created at noon without calling reminder_add; also falsely calls Friday 27 November 2026 a Saturday. Only reads the source document."
+  },
+  "M-r2-en-multi": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Finds the correct five invoices and EUR 865.30 total; explicitly excludes the service-charge statement and other years. Automatic decoy detection mistakes discussed exclusions for inclusions."
+  },
+  "M-r2-en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct principal facts and receipt-relative cancellation rule, but broadens no furniture dismantling into no furniture removal."
+  },
+  "Q-r2-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Again includes the EUR 270 service-charge balance due in 2025 in the invoice total."
+  },
+  "Q-r2-vergleich": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Correctly confirms matching EUR 250 monthly/EUR 3,000 annual advances and the EUR 270 balance; sufficient to answer the comparison."
+  },
+  "Q-r2-zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct principal actions, but conflates the receipt-relative notice deadline with the effective termination month, saying the user can cancel until the end of the month after next."
+  },
+  "Q-r2-ordner-ueberblick": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Lists five matching policy files with accurate paths; satisfies the existing inventory rubric without inventing unread policy details."
+  },
+  "Q-r2-web-recherche": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Searches and accurately reports saved fees and application steps."
+  },
+  "Q-r2-web-plus-datei": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Correct policy deadline, passed-deadline conclusion and cancellation instructions, but no requested web lookup."
+  },
+  "Q-r2-mail-antwort": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "Produces a usable reply in chat but never saves the requested Mail reply draft; does not falsely claim it was saved."
+  },
+  "Q-r2-termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Creates one confirmed reminder on the correct date, with a time within the documented opening hours."
+  },
+  "Q-r2-en-multi": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Searches only the English word invoice, reads one file and reports EUR 95 as the total, missing four German-language invoices."
+  },
+  "Q-r2-en-summary": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Accurate concise summary of required action, work dates and rent change, without adding an unsupported cancellation date."
+  },
+  "L-r2-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Wrong central total EUR 4,986.30, arithmetic error, includes service charges, duplicates an invoice and falsely says a file is gone after using the wrong path; attempts outside-fixture folder listing are blocked."
+  },
+  "L-r2-vergleich": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "Reads both correct documents but reaches the 180-second timeout without the comparison; early text is only a progress statement."
+  },
+  "L-r2-zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct main actions, but invents an end-October cancellation deadline and changes Herr Kurz to Frau Kurz."
+  },
+  "L-r2-ordner-ueberblick": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Reads five policies and gives useful details, but all generated file links change pippa to nonexistent pippy; also alters insurer names."
+  },
+  "L-r2-web-recherche": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "Only announces a search; no tool call or answer."
+  },
+  "L-r2-web-plus-datei": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Reads policy and gives the annual date, but describes the rule as three months before contract start rather than expiry, and performs no web lookup."
+  },
+  "L-r2-mail-antwort": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Saves a new message with the correct reading and recipient, not a reply to the selected mail; the body adds an incoherent line about the source deadline."
+  },
+  "L-r2-termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "One confirmed reminder on the correct date, with accurate supporting details."
+  },
+  "L-r2-en-multi": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "English-only search finds one invoice and reports EUR 95 as the overall total, missing the four other invoices."
+  },
+  "L-r2-en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct main action, but invents 31 January 2027 as the cancellation deadline from an October notice and states the right is then lost."
+  },
+  "Q-r3-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Again includes the EUR 270 balance due in 2025 in the invoice total, reporting EUR 1,135.30."
+  },
+  "Q-r3-vergleich": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Correctly reads and compares the lease and 2024 statement, with matching advances and correct balance."
+  },
+  "Q-r3-zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct principal dates/actions, but again conflates the receipt-relative cancellation notice deadline with the effective termination month."
+  },
+  "Q-r3-ordner-ueberblick": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Lists five matching policies with accurate locations and no invented unread contents."
+  },
+  "Q-r3-web-recherche": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Searches and accurately answers the saved fee/application task."
+  },
+  "Q-r3-web-plus-datei": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Correct policy deadline and text-form instructions, but no web lookup or current-year deadline assessment."
+  },
+  "Q-r3-mail-antwort": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "After three rejected attempts, saves a new draft with to=selected instead of replying to selected mail. The body is usable, but routing is wrong and the final claimed recipient is not the submitted recipient. The legacy mock accepts that new-message recipient without validation."
+  },
+  "Q-r3-termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Reads letter and creates one confirmed reminder on the correct date."
+  },
+  "L-r3-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "Makes 17 tool calls but final answer is only a stray closing tool-call tag; no usable invoice result."
+  },
+  "Q-r3-en-multi": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Includes the entire EUR 3,270 service-charge statement in the central total (EUR 4,135.30), contrary to the fixed invoice rubric."
+  },
+  "Q-r3-en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Accurate main actions and dates, but again says furniture need not be moved instead of need not be dismantled."
+  },
+  "L-r3-vergleich": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Final comparison is correct, but makes an unrequested edit attempt on the lease PDF with a false EUR 320 monthly advance annotation. The edit fails; fixture hashes remain unchanged."
+  },
+  "L-r3-zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Core dates and amounts correct, but says furniture stays rather than only that it need not be dismantled; added advice to find an appointment is confusing."
+  },
+  "L-r3-ordner-ueberblick": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "Reads policies but returns no requested overview."
+  },
+  "L-r3-web-recherche": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "No web lookup; wrong fee and unsupported application methods."
+  },
+  "L-r3-web-plus-datei": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Reads policy and gives cancellation terms, but omits requested web lookup and recognition that the 2026 deadline has passed."
+  },
+  "L-r3-mail-antwort": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Creates a new draft without reply_to selected; final answer incorrectly says the reading was transmitted before deadline."
+  },
+  "L-r3-termin": {
+    "grade": "no",
+    "unsupported": false,
+    "note": "Emits tool-call JSON as final text; no document read or reminder actually created."
+  },
+  "L-r3-en-multi": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Includes annual service-charge statement; arithmetic and total are incorrect."
+  },
+  "L-r3-en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Core summary correct, but says no need to move furniture, stronger than source saying no need to dismantle it."
+  },
+  "M-r3-multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Includes the annual service-charge statement as a 2024 paid invoice; total 4135.30 rather than 865.30."
+  },
+  "M-r3-vergleich": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Reads the lease and correct bill; correct monthly and yearly advance, cost total, balance, due date and recommended advance."
+  },
+  "M-r3-zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Core summary correct, but invents an October cancellation deadline and wrongly says it has passed; furniture wording is also stronger than the source."
+  },
+  "M-r3-ordner-ueberblick": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Identifies five file names but invents invalid paths and mislabels personal liability as compulsory motor insurance; document reads fail. Outside-fixture native reads use the mock, and folder/bash attempts are blocked."
+  },
+  "M-r3-web-recherche": {
+    "grade": "no",
+    "unsupported": true,
+    "note": "Recognizes the placeholder nature of the saved web pages and rejects them; then supplies unsupported EUR 29 for all ages, online application and 1–2 week production. This is a fixture-grounding failure, with synthetic-web sensitivity noted as a limitation."
+  },
+  "M-r3-web-plus-datei": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Reads policy and eventually correctly explains that 31 August has passed, but opening says deadline remains available, no requested web lookup occurs, and it introduces an unsupported two-month standard period while caveating possible negotiation."
+  },
+  "M-r3-mail-antwort": {
+    "grade": "partial",
+    "unsupported": false,
+    "note": "Creates a new draft without reply_to selected or recipient; correct reading and date, but not the requested reply. Final thread claim follows the inaccurate legacy mock receipt and is not counted independently."
+  },
+  "M-r3-termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "note": "Reads letter and creates one confirmed reminder for the correct date and a documented opening hour. Final list name follows the mock receipt."
+  },
+  "M-r3-en-multi": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct five invoices, exclusions and central EUR 865.30 total, but changes hallway painting into garden painting. Under the strict grounded-answer rubric this is partial despite the correct requested calculation."
+  },
+  "M-r3-en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "note": "Correct main dates and actions, but invents end of March 2027 as a cancellation deadline and broadens no furniture dismantling into no removal."
+  }
+}

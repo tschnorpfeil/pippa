@@ -1,0 +1,77 @@
+{
+  "L": {
+    "key": "K2-Horizon-7B-MLX-4bit",
+    "label": "L",
+    "thinking": "low",
+    "maxTokens": 4096,
+    "fields": {
+      "reasoning": true,
+      "thinkingLevelMap": {
+        "low": "low",
+        "medium": "medium"
+      },
+      "compat": {
+        "thinkingFormat": "chat-template",
+        "chatTemplateKwargs": {
+          "reasoning_effort": {
+            "$var": "thinking.effort"
+          },
+          "tool_call_format": "xml"
+        }
+      }
+    }
+  },
+  "M": {
+    "key": "K2-Horizon-7B-MLX-4bit",
+    "label": "M",
+    "thinking": "medium",
+    "maxTokens": 4096,
+    "fields": {
+      "reasoning": true,
+      "thinkingLevelMap": {
+        "low": "low",
+        "medium": "medium"
+      },
+      "compat": {
+        "thinkingFormat": "chat-template",
+        "chatTemplateKwargs": {
+          "reasoning_effort": {
+            "$var": "thinking.effort"
+          },
+          "tool_call_format": "xml"
+        }
+      }
+    }
+  },
+  "Q": {
+    "key": "qwen3.5-9b-q4",
+    "label": "Q",
+    "thinking": "medium",
+    "file": "<home>/pi-bench-models/Qwen3.5-9B-Q4_K_M.gguf",
+    "serverExtra": [
+      "--min-p",
+      "0",
+      "--temp",
+      "0.6",
+      "--top-k",
+      "20",
+      "--top-p",
+      "0.95"
+    ],
+    "fields": {
+      "reasoning": true,
+      "thinkingLevelMap": {
+        "high": null,
+        "low": null,
+        "max": null,
+        "medium": "medium",
+        "minimal": null,
+        "off": "off",
+        "xhigh": null
+      },
+      "compat": {
+        "thinkingFormat": "qwen-chat-template"
+      }
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "S/multi-rechnungen": {
+    "grade": "no",
+    "unsupported": false,
+    "reason": "Timed out at 180 seconds without a final answer; seven tool calls."
+  },
+  "S/vergleich": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "Correct documents and monthly/annual advances, total costs and balance. Advice about accepting the increase is an interpretation of the stated recommendation."
+  },
+  "S/zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "reason": "Main event and return deadline correct, but furniture is said to remain in place; the document only says it need not be dismantled. Same rubric as prior comparison."
+  },
+  "S/ordner-ueberblick": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "Five relevant insurance documents with grounded amounts, meets the predeclared five-of-six completeness threshold."
+  },
+  "S/web-recherche": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "Used the saved web source; main prices and procedure grounded. Missing inline links are allowed by Pippa source UI protocol. Synthetic facts are not current real-world advice."
+  },
+  "S/web-plus-datei": {
+    "grade": "partial",
+    "unsupported": false,
+    "reason": "Correct policy deadline and text-form cancellation, but did not perform the requested web research. No completed web call in events."
+  },
+  "S/mail-antwort": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "One accepted unsent reply draft, correct selected message and meter reading, no invented sender/date."
+  },
+  "S/termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "One accepted reminder for 2026-11-27, correct pickup and document details."
+  },
+  "S/en-multi": {
+    "grade": "no",
+    "unsupported": false,
+    "reason": "Timed out at 180 seconds before a completed answer, despite nine tool calls."
+  },
+  "S/en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "reason": "Correct main event and response deadline, but invents receipt-based November/December cancellation dates and says furniture need not be removed rather than dismantled."
+  },
+  "F/multi-rechnungen": {
+    "grade": "no",
+    "unsupported": true,
+    "reason": "Includes the annual service-charge statement as an invoice and gives EUR 4135.30 instead of the predeclared five-invoice EUR 865.30 total. Same invoice/statement rubric as prior comparison; natural-language boundary has some ambiguity."
+  },
+  "F/vergleich": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "Correct lease and bill, annual advance and balance, with consistent calculation."
+  },
+  "F/zusammenfassen": {
+    "grade": "partial",
+    "unsupported": true,
+    "reason": "Main dates and response deadline correct; unsupported claim that furniture stays in place, plus confused phrasing of cancellation deadline versus effective date."
+  },
+  "F/ordner-ueberblick": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "Lists five relevant insurance files and their locations without inventing policy facts; meets existing overview threshold."
+  },
+  "F/web-recherche": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "Saved web evidence used and main prices/procedure correct. Inline links not required by Pippa UI protocol."
+  },
+  "F/web-plus-datei": {
+    "grade": "no",
+    "unsupported": true,
+    "reason": "Says the August 31, 2026 deadline is still open on October 24, 2026 and omits requested web lookup. Wrong central conclusion."
+  },
+  "F/mail-antwort": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "Initial invalid reply_to is rejected; model corrects it to selected. Exactly one valid unsent reply draft, correct meter reading."
+  },
+  "F/termin": {
+    "grade": "yes",
+    "unsupported": false,
+    "reason": "Accepted reminder with correct due date and pickup details."
+  },
+  "F/en-multi": {
+    "grade": "no",
+    "unsupported": true,
+    "reason": "Again includes the annual service-charge statement and reports EUR 4135.30 instead of EUR 865.30. Makes additional unsupported invoice-detail claims; central total already fails the fixed rubric."
+  },
+  "F/en-summary": {
+    "grade": "partial",
+    "unsupported": true,
+    "reason": "Main event and form deadline correct. Invents October/December cancellation dates from an unknown receipt date, and says furniture need not be removed."
+  }
+}
