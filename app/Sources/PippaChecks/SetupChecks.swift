@@ -661,6 +661,80 @@ func runSetupFlowChecks() async {
         if !bad.isEmpty { print("   ", bad) }
         return bad.isEmpty
     }
+
+    check("Setup: \"Picked for your Mac\" names chip and memory in plain words") {
+        let named = MacHardware.summary(chip: "Apple M2 Pro", physicalMemory: 17_179_869_184)
+        let unnamed = MacHardware.summary(chip: nil, physicalMemory: 8_589_934_592)
+        let live = MacHardware.chipName()
+        // Separate parts keep the type checker fast (a closure inside one long chain can time out).
+        let memoryOK = MacHardware.memoryGB(physicalMemory: 17_179_869_184) == 16 && MacHardware.memoryGB(physicalMemory: 25_769_803_776) == 24
+        let brandOK = MacHardware.chipName(brand: " Apple M1 (Virtual)\u{0}\n") == "Apple M1 (Virtual)" && MacHardware.chipName(brand: " ") == nil
+        let textOK = named.contains("Apple M2 Pro") && named.contains("16") && unnamed.contains("8") && !unnamed.contains("·")
+        let liveOK: Bool = live.map { !$0.isEmpty } ?? true
+        let ok = memoryOK && brandOK && textOK && liveOK
+        if !ok { print("   ", named, unnamed, live ?? "-") }
+        return ok
+    }
+
+    check("Setup: free space is checked before the download, by the downloader's rule") {
+        let home = fakeHome("flow-space"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (model, data) = dummyModel()
+        let flow = PiSetupFlow(roots: r, model: model, contextWindow: 4096, searchRoots: [], port: 18_471, download: stubDownload(data))
+        _ = flow.prepare()
+        guard let available = ModelDownloader.availableSpace(at: r.pippaModels), available > 0 else { print("    no free-space value"); return false }
+        // Everything that is free can never fit (2 GB to spare); nothing to load never asks; a small download fits
+        // wherever more than the buffer is free (not asserted on an almost full disk).
+        let short = flow.spaceShortfall(remaining: available)
+        let ok = short != nil && flow.spaceShortfall(remaining: 0) == nil
+            && (available < ModelDownloader.spaceBuffer + 1_000_000_000 || flow.spaceShortfall(remaining: 1_000_000) == nil)
+        if !ok { print("   ", available, short ?? -1) }
+        return ok
+    }
+
+    check("Setup: an interrupted download asks only for what is still missing; a complete .part is not \"ready\"") {
+        let home = fakeHome("flow-partial"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (model, data) = dummyModel()
+        let flow = PiSetupFlow(roots: r, model: model, contextWindow: 4096, searchRoots: [], port: 18_471, download: stubDownload(data))
+        let full = flow.prepare()
+        let part = r.pippaModels.appendingPathComponent("Dummy-1B-Q4_K_M.gguf.part")
+        try data.prefix(400_000).write(to: part)
+        let partial = flow.prepare()
+        try data.write(to: part)
+        let complete = flow.prepare()
+        let ok = full == .askDownload(bytes: Int64(data.count)) && partial == .askDownload(bytes: Int64(data.count - 400_000))
+            && complete == .askDownload(bytes: 0)
+        if !ok { print("   ", full, partial, complete) }
+        return ok
+    }
+
+    check("Setup: download consent is kept across restarts, leaves other settings alone, and can be cleared") {
+        let base = dir("download-consent")
+        try PippaSettings(llamaPort: 18_471, modelPreference: "thorough").save(to: base)
+        try PippaSettings.saveDownloadConsent("qwen3.5-9b-q4", to: base)
+        let kept = PippaSettings.load(from: base)
+        try PippaSettings.saveDownloadConsent(nil, to: base)
+        let cleared = PippaSettings.load(from: base)
+        write(#"{"llamaPort":18471}"#, base.appendingPathComponent("settings.json"))
+        let older = PippaSettings.load(from: base)
+        let ok = kept.downloadConsent == "qwen3.5-9b-q4" && kept.llamaPort == 18_471 && kept.preference == .thorough
+            && cleared.downloadConsent == nil && cleared.llamaPort == 18_471 && cleared.preference == .thorough
+            && older.llamaPort == 18_471 && older.downloadConsent == nil
+        if !ok { print("   ", kept, cleared, older) }
+        return ok
+    }
+
+    check("Setup: the AI goes into memory only right after setting up, not on every start") {
+        let ready = PiSetupState.ready(adoptedFrom: nil)
+        return PiSetupState.justSetUp(from: .downloading(progress: 1, remaining: nil), to: ready)
+            && PiSetupState.justSetUp(from: .preparing(adoptingFrom: "LM Studio"), to: .ready(adoptedFrom: "LM Studio"))
+            && !PiSetupState.justSetUp(from: .preparing(adoptingFrom: nil), to: ready)
+            && !PiSetupState.justSetUp(from: ready, to: ready)
+            && !PiSetupState.justSetUp(from: .downloading(progress: 0.5, remaining: nil), to: .askDownload(bytes: 1))
+    }
 }
 
 // Pi switch with a Pippa update (docs/updating-pi.md "Existing installs"): new pin next to the old one, the

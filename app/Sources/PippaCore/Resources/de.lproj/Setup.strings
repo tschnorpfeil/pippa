@@ -15,3 +15,5 @@
 "Pippa’s AI arrived damaged. Try Again loads it once more." = "Pippas KI ist beschädigt angekommen. „Erneut versuchen“ lädt sie noch einmal.";
 "There isn’t enough free space on this Mac. About %@ more is needed." = "Auf diesem Mac ist nicht genug Platz frei. Es fehlen etwa %@. Leer den Papierkorb oder lösch große Dateien, die du nicht mehr brauchst, und klick dann auf „Erneut versuchen“.";
 "Loading stopped because the connection dropped. It picks up where it left off." = "Das Laden hat aufgehört, weil die Verbindung weg war. Es geht dort weiter, wo es stand.";
+"%1$@ · %2$lld GB memory" = "%1$@ · %2$lld GB Arbeitsspeicher";
+"%lld GB memory" = "%lld GB Arbeitsspeicher";

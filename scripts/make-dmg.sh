@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Packs dist/Pippa.app into dist/Pippa.dmg (ULMO, volume "Pippa") with an
-# Applications link (named "Programme"), background image and, if Finder plays
+# Applications link (named "Applications"), background image and, if Finder plays
 # along, window layout. Optionally notarizes and staples.
 #
 #   scripts/make-dmg.sh
@@ -49,7 +49,7 @@ say "Assembling contents"
 STAGE="$WORK/stage"
 mkdir -p "$STAGE/.background"
 cp -R "$APP" "$STAGE/"
-ln -s /Applications "$STAGE/Programme"
+ln -s /Applications "$STAGE/Applications"
 # Background: 640×400 pt, @1x and @2x in one TIFF (sharp on Retina), with the website's fonts.
 swift "$ROOT/app/Packaging/make-icon.swift" --dmg-background "$WORK/bg.png" 640x400 "$ROOT/site/fonts"
 swift "$ROOT/app/Packaging/make-icon.swift" --dmg-background "$WORK/bg@2x.png" 1280x800 "$ROOT/site/fonts"
@@ -83,7 +83,7 @@ tell application "Finder"
     set text size of viewOptions to 13
     set background picture of viewOptions to file ".background:background.tiff"
     set position of item "Pippa.app" of container window to {160, 190}
-    set position of item "Programme" of container window to {480, 190}
+    set position of item "Applications" of container window to {480, 190}
     update without registering applications
     delay 1
     close

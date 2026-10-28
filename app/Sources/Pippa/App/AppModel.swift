@@ -1330,6 +1330,14 @@ final class AppModel: ObservableObject {
         startSort(in: downloads)
     }
 
+    /// "Get Started" on the ready step: setup is done; the empty conversation with its examples, ready to type.
+    func startFromOnboarding() {
+        finishOnboarding()
+        // The examples show only in an empty conversation without files (ConversationEntryPresentation.showsWelcome).
+        if let current = conversations.current, !current.messages.isEmpty || current.context != nil { newConversation() }
+        openInput()
+    }
+
     private func startSort(in folder: URL) {
         guard let ctx = context else { return askForContext() }
         let items = ctx.isFolder || ctx.items.contains(where: { $0.standardizedFileURL == folder.standardizedFileURL }) ? nil : ctx.items

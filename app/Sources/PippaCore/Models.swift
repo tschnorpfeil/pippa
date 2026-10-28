@@ -258,6 +258,9 @@ public struct PippaSettings: Codable, Sendable, Equatable {
         get { modelPreference.flatMap(ModelPreference.init(rawValue:)) ?? .standard }
         set { modelPreference = newValue == .standard ? nil : newValue.rawValue }
     }
+    /// The model whose first download the person agreed to ("Set Up"): an interrupted download goes on by itself at
+    /// the next start. Cleared once that model is in use. `nil`: no consent kept.
+    public var downloadConsent: String?
     public init(llamaPort: Int? = nil, llamaIdleMinutes: Int? = nil, onlinePort: Int? = nil, piInlineShortText: Bool? = nil,
                 modelPreference: String? = nil, localModelKey: String? = nil) {
         self.llamaPort = llamaPort; self.llamaIdleMinutes = llamaIdleMinutes; self.onlinePort = onlinePort
@@ -270,6 +273,14 @@ public struct PippaSettings: Codable, Sendable, Equatable {
         var settings = load(from: base)
         settings.preference = preference
         settings.localModelKey = nil
+        try settings.save(to: base)
+    }
+
+    /// Change only the kept download consent (load, change, save); nothing is written when it is already so.
+    public static func saveDownloadConsent(_ key: String?, to base: URL) throws {
+        var settings = load(from: base)
+        guard settings.downloadConsent != key else { return }
+        settings.downloadConsent = key
         try settings.save(to: base)
     }
 

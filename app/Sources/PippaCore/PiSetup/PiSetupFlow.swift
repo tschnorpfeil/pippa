@@ -12,13 +12,23 @@ import Foundation
 public enum PiSetupState: Sendable, Equatable {
     /// Setting up silently (Thought Line). `adoptingFrom`: currently adopting the AI from another program.
     case preparing(adoptingFrom: String?)
-    /// The only question: "Pippa lädt jetzt ihre KI: 6,7 GB, etwa 10 Minuten …" · "Laden" · "Später".
+    /// The only question: "May I load my AI now? 6.7 GB, about 10 minutes …" · "Set Up Pippa's AI" · "Later".
     case askDownload(bytes: Int64)
-    /// After "Laden". `progress` 0…1, `remaining` in seconds (once estimable).
+    /// After "Set Up". `progress` 0…1, `remaining` in seconds (once estimable).
     case downloading(progress: Double, remaining: TimeInterval?)
     case failed(PiSetupProblem)
     /// Done. `adoptedFrom`: the AI came without download from another program (for a calm sentence).
     case ready(adoptedFrom: String?)
+
+    /// Setup has just put the AI in place (loaded, or adopted from another program), not merely found it at launch.
+    /// Only then is it loaded into memory ahead of the first question and the ready step offered.
+    public static func justSetUp(from previous: PiSetupState, to next: PiSetupState) -> Bool {
+        guard case .ready = next else { return false }
+        switch previous {
+        case .downloading, .preparing(.some): return true
+        default: return false
+        }
+    }
 }
 
 /// An error for the UI: one sentence, technical details behind "Details".
@@ -111,6 +121,13 @@ public final class PiSetupFlow: @unchecked Sendable {
         return model.pinned?.files.lazy.compactMap { found[$0.sha256]?.source }.first
     }
 
+    /// Before "Set Up": how much more free space the download needs, by the downloader's own rule (2 GB to spare).
+    /// `nil`: enough, or unknown. Measured where the model will go once `prepare` has chosen the folder.
+    public func spaceShortfall(remaining: Int64) -> Int64? {
+        let folder = installer.state.modelsFolder.map { URL(fileURLWithPath: $0, isDirectory: true) } ?? installer.roots.pippaModels
+        return ModelDownloader.spaceShortfall(available: ModelDownloader.availableSpace(at: folder), remaining: remaining)
+    }
+
     /// All without network. Stops only at the download question or an error. If the model is missing but the previous one
     /// is there, setup is `.ready` with the previous one and `pendingDownload` says what the switch still needs.
     public func prepare() -> PiSetupState {
@@ -137,7 +154,7 @@ public final class PiSetupFlow: @unchecked Sendable {
         return .ready(adoptedFrom: lock.withLock { adopted })
     }
 
-    /// After "Laden": downloads (resumable), verifies, then the rest as in `prepare`.
+    /// After "Set Up": downloads (resumable), verifies, then the rest as in `prepare`.
     public func download(progress: @escaping @Sendable (Double, TimeInterval?) -> Void) async -> PiSetupState {
         let result = await installer.downloadModel(model, using: download, progress: progress)
         if case .failed(let failure) = result.outcome { return .failed(PiSetupProblem(failure)) }
