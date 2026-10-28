@@ -1,10 +1,18 @@
 # Developing Pippa
 
 How Pippa is put together, how to build, check and release it, and where it keeps things. The [README](../README.md)
-covers what Pippa does and how it works at a glance; [Updating Pi](updating-pi.md) covers moving to a new Pi release;
-[Settings simplification](settings-simplification.md) records which settings exist and why.
+covers what Pippa does; [What Pippa can do](what-pippa-can-do.md), [Pippa's local AI](models.md) and
+[Privacy and permissions](privacy-and-permissions.md) give users the details. [Updating Pi](updating-pi.md) covers moving
+to a new Pi release; [Settings simplification](settings-simplification.md) records which settings exist and why.
+Product planning lives in [Pippa's next evolution](pippa-next-evolution-2026-10-21.md) and the
+[0.3.13 release plan](roadmap-0.3.13.md), which has since shipped.
 
 ## Architecture
+
+In short: native Swift code handles the interface, file utilities and Mac integrations.
+[Pi](https://github.com/earendil-works/pi) is the agent core; it coordinates model-driven tasks with Pippa's scoped tools
+and [bundled skills](../runtime/pippa-skills). [llama.cpp](https://github.com/ggml-org/llama.cpp) runs the local model on
+a loopback-only server, which the Terminal `pi` can reuse through provider `pippa-local` (see "Terminal autostart" below).
 
 ```
 Pippa.app (Swift, SwiftUI)
@@ -444,6 +452,7 @@ file first.
 | What | Where |
 |---|---|
 | Journal, task log (`tasklog.sqlite`), conversations, Pi sessions, web settings (`pi-web`), models, settings, `install-state.json` | `~/Library/Application Support/Pippa/` |
+| Tool results (`Results/`), dropped mails, images and text (`Inbox/`), Numbers copies (`Numbers/`), `pippa.lock` | `~/Library/Caches/Pippa/` |
 | Preferences | `~/Library/Preferences/io.github.tschnorpfeil.pippa.plist` |
 | Log `pippa.log` (version and events, no file contents; `PIPPA_LOG_DIR` overrides) | `~/Library/Logs/Pippa/` |
 | Pi release, settings, `models.json`, the person's Pi extensions | `~/.pi/agent` |
@@ -460,8 +469,8 @@ optional online model the person switches on (Pi's own provider `pippa-online`, 
 conversations, journal and the model stay on the Mac.
 
 **Uninstall.** Quit Pippa, move `Pippa.app` to the Trash, then remove `~/Library/Application Support/Pippa`, the
-preferences file above, `~/Library/Caches/io.github.tschnorpfeil.pippa`, `~/Library/Logs/Pippa` and, from older
-versions, `~/Library/Containers/io.github.tschnorpfeil.pippa`.
+preferences file above, `~/Library/Caches/Pippa`, `~/Library/Caches/io.github.tschnorpfeil.pippa`, `~/Library/Logs/Pippa`
+and, from older versions, `~/Library/Containers/io.github.tschnorpfeil.pippa`.
 
 ## Website
 
