@@ -331,7 +331,7 @@ end-to-end run in the real Pippa window. Both only read the model files in `~/Li
 
 **Native UI fixtures.** The debug build renders scripted scenarios without a model:
 `PIPPA_DEMO=1 PIPPA_SNAPSHOT=<fresh dir> PIPPA_SNAPSHOT_ONLY=<scenario> app/.build/debug/Pippa` writes screenshots and a
-text report and quits (for example `settings`, `scans`, `calendar`, `ctxsug`, `thoughtline`; see
+text report and quits (for example `settings`, `scans`, `calendar`, `ctxsug`, `thoughtline`, `rails`; see
 `app/Sources/Pippa/App/DevSnapshot.swift`). Vary with `PIPPA_SNAPSHOT_WIDTH`, `PIPPA_APPEARANCE=light|dark` and
 `PIPPA_REDUCE_MOTION=1`. The bare debug executable shows English strings; run it from a bundle with
 `app/Packaging/Info.plist` to see German. These fixtures check state and layout, not model quality.

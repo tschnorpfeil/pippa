@@ -119,6 +119,9 @@ public struct ConversationSummary: Sendable, Identifiable, Equatable {
     public var createdAt: Date
     public var updatedAt: Date
     public var messageCount: Int
+    public init(id: UUID, title: String, createdAt: Date, updatedAt: Date, messageCount: Int) {
+        self.id = id; self.title = title; self.createdAt = createdAt; self.updatedAt = updatedAt; self.messageCount = messageCount
+    }
 }
 
 public enum ConversationStoreError: LocalizedError, Sendable {
@@ -378,12 +381,14 @@ public enum ConversationStoreError: LocalizedError, Sendable {
         return next.conversations[index]
     }
 
-    @discardableResult public func rename(_ id: UUID, title: String) throws -> Conversation {
+    /// `touch`: the rename counts as activity (the first message names the conversation). A name the person chooses
+    /// later keeps the conversation's place in the history.
+    @discardableResult public func rename(_ id: UUID, title: String, touch: Bool = true) throws -> Conversation {
         guard let index = archive.conversations.firstIndex(where: { $0.id == id }) else { throw ConversationStoreError.unknownConversation }
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         var next = archive
         next.conversations[index].title = trimmed.isEmpty ? ConversationStore.defaultTitle : trimmed
-        next.conversations[index].updatedAt = max(Date(), next.conversations[index].updatedAt)
+        if touch { next.conversations[index].updatedAt = max(Date(), next.conversations[index].updatedAt) }
         try persist(next)
         return next.conversations[index]
     }

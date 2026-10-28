@@ -300,3 +300,35 @@
 "Reminders access is off for Pippa. You can change that in System Settings." = "Reminders access is off for Pippa. You can change that in System Settings.";
 "Opens the matching privacy setting. Your request stays here and is not retried automatically." = "Opens the matching privacy setting. Your request stays here and is not retried automatically.";
 "Your request stays here. Nothing is retried automatically." = "Your request stays here. Nothing is retried automatically.";
+
+/* Conversation rails (ConversationWindow.swift, ConversationSessionRail.swift, ConversationDetailRail.swift) */
+"Conversations" = "Conversations";
+"Today" = "Today";
+"Yesterday" = "Yesterday";
+"Previous 7 Days" = "Previous 7 Days";
+"Older" = "Older";
+"Rename…" = "Rename…";
+"Delete…" = "Delete…";
+"Pippa is working" = "Pippa is working";
+"You can switch when Pippa is done." = "You can switch when Pippa is done.";
+"Show Conversations" = "Show Conversations";
+"Hide Conversations" = "Hide Conversations";
+"Show Details" = "Show Details";
+"Hide Details" = "Hide Details";
+"Files in use" = "Files in use";
+"Made here" = "Made here";
+"Waiting for your message" = "Waiting for your message";
+"Drop files on Pippa or onto this window to work with them here." = "Drop files on Pippa or onto this window to work with them here.";
+"Files, drafts and entries Pippa makes in this conversation show up here." = "Files, drafts and entries Pippa makes in this conversation show up here.";
+"Web pages Pippa reads for this conversation show up here." = "Web pages Pippa reads for this conversation show up here.";
+"Prepared file" = "Prepared file";
+"Created by Pippa" = "Created by Pippa";
+"Changed by Pippa" = "Changed by Pippa";
+"Task result" = "Task result";
+"Email draft · not sent" = "Email draft · not sent";
+"Draft in Mail · not sent" = "Draft in Mail · not sent";
+"In Calendar" = "In Calendar";
+"In Reminders" = "In Reminders";
+"Show in Conversation" = "Show in Conversation";
+"Copy Link" = "Copy Link";
+"Email without subject" = "Email without subject";

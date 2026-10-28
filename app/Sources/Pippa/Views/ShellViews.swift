@@ -30,7 +30,7 @@ struct ShellContentView: View {
     var body: some View {
         let mode = measuring ? model.mode : (frozen ?? model.mode)
         if mode.isConversation {
-            ConversationWorkspace(model: model, chat: model.conversations, mode: mode, measuring: measuring)
+            ConversationWindow(model: model, chat: model.conversations, mode: mode, measuring: measuring)
         } else {
             WorkflowContentView(model: model, measuring: measuring, frozen: mode)
         }

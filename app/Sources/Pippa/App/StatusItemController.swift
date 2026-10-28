@@ -92,7 +92,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if model.parked != nil {
             menu.addItem(MenuAction.item(T("Show Result", table: "App")) { [weak self] in self?.model.resumeParked() })
         }
-        // The only way to earlier conversations: the chat itself has no history button (Pippa starts new conversations itself).
+        // Also in the conversation rail (ConversationSessionRail); the menu bar stays a second way in.
         let earlier = model.conversations.history.filter { $0.id != model.conversations.current?.id && $0.messageCount > 0 }
         let currentHasMessages = model.conversations.current?.messages.isEmpty == false
         if !earlier.isEmpty || currentHasMessages {

@@ -248,3 +248,7 @@
 "The source changed or couldn’t be checked. Please check it and send your request again." = "The source changed or couldn’t be checked. Please check it and send your request again.";
 "I couldn’t connect my Mac tools just now. Please try again." = "I couldn’t connect my Mac tools just now. Please try again.";
 "Saved File Tasks…" = "Saved File Tasks…";
+
+/* Conversation rails: renaming a conversation from the conversation rail (AppModel.swift) */
+"Rename Conversation" = "Rename Conversation";
+"Rename" = "Rename";

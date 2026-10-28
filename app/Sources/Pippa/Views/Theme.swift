@@ -149,6 +149,15 @@ enum ShellTokens {
     static var workspaceMax: CGSize { CGSize(width: max(Theme.sheetWidth, Theme.conversationWidth), height: 700) }
     /// Smallest conversation window when dragging the corner (the views are checked down to 400 pt).
     static let workspaceMin = CGSize(width: 400, height: 440)
+    /// Opening cap of a conversation with both rails (ConversationRailLayout); dragging the corner still goes beyond.
+    static var workspaceWideMax: CGSize {
+        CGSize(width: ConversationRailLayout.preferredWidth(rails: .both, scale: Theme.widthScale), height: 760)
+    }
+    /// Opening size of the conversation for these rails; without rails 760 × 700 as before.
+    static func conversationSize(rails: ConversationRails) -> CGSize {
+        CGSize(width: ConversationRailLayout.preferredWidth(rails: rails, scale: Theme.widthScale),
+               height: rails.isEmpty ? workspaceMax.height : workspaceWideMax.height)
+    }
 
     // Radien (kontinuierliche Ecken)
     static func radius(_ shape: ShellMode.Shape, height: CGFloat) -> CGFloat {

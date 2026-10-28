@@ -300,3 +300,35 @@
 "Reminders access is off for Pippa. You can change that in System Settings." = "Pippa darf nicht auf Erinnerungen zugreifen. Du kannst das in den Systemeinstellungen ändern.";
 "Opens the matching privacy setting. Your request stays here and is not retried automatically." = "Öffnet die passende Datenschutzeinstellung. Dein Auftrag bleibt hier und wird nicht automatisch wiederholt.";
 "Your request stays here. Nothing is retried automatically." = "Dein Auftrag bleibt hier. Nichts wird automatisch wiederholt.";
+
+/* Conversation rails (ConversationWindow.swift, ConversationSessionRail.swift, ConversationDetailRail.swift) */
+"Conversations" = "Gespräche";
+"Today" = "Heute";
+"Yesterday" = "Gestern";
+"Previous 7 Days" = "Letzte 7 Tage";
+"Older" = "Älter";
+"Rename…" = "Umbenennen …";
+"Delete…" = "Löschen …";
+"Pippa is working" = "Pippa arbeitet";
+"You can switch when Pippa is done." = "Du kannst wechseln, sobald Pippa fertig ist.";
+"Show Conversations" = "Gespräche einblenden";
+"Hide Conversations" = "Gespräche ausblenden";
+"Show Details" = "Details einblenden";
+"Hide Details" = "Details ausblenden";
+"Files in use" = "Verwendete Dateien";
+"Made here" = "Hier entstanden";
+"Waiting for your message" = "Wartet auf deine Nachricht";
+"Drop files on Pippa or onto this window to work with them here." = "Leg Dateien auf Pippa oder in dieses Fenster, um hier mit ihnen zu arbeiten.";
+"Files, drafts and entries Pippa makes in this conversation show up here." = "Dateien, Entwürfe und Einträge, die Pippa in diesem Gespräch anlegt, erscheinen hier.";
+"Web pages Pippa reads for this conversation show up here." = "Webseiten, die Pippa für dieses Gespräch liest, erscheinen hier.";
+"Prepared file" = "Vorbereitete Datei";
+"Created by Pippa" = "Von Pippa angelegt";
+"Changed by Pippa" = "Von Pippa geändert";
+"Task result" = "Ergebnis einer Aufgabe";
+"Email draft · not sent" = "E-Mail-Entwurf · nicht gesendet";
+"Draft in Mail · not sent" = "Entwurf in Mail · nicht gesendet";
+"In Calendar" = "Im Kalender";
+"In Reminders" = "In Erinnerungen";
+"Show in Conversation" = "Im Gespräch zeigen";
+"Copy Link" = "Link kopieren";
+"Email without subject" = "E-Mail ohne Betreff";

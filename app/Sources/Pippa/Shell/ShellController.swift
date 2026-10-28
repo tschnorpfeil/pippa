@@ -38,6 +38,8 @@ final class ShellController: NSObject {
     private var markRect: CGRect = .zero
     private var lastModeKey = ""
     private var workspace: WorkspacePlacement?
+    /// Size cap `workspace` was placed with: a conversation with rails opens wider than every other surface.
+    private var workspaceCap: CGSize?
     private var generation = 0
     private var revealGeneration = 0
     /// Time of the last trigger (click/shortcut), for measuring up to the first frame.
@@ -155,7 +157,8 @@ final class ShellController: NSObject {
                     // New text size: widths change too, so forget the old placement and default width.
                     self.workspace = nil
                     if self.customWorkspace == nil {
-                        self.model.conversationSize = CGSize(width: Theme.conversationWidth, height: self.model.conversationSize.height)
+                        let width = ShellTokens.conversationSize(rails: self.model.activeRails).width
+                        self.model.conversationSize = CGSize(width: width, height: self.model.conversationSize.height)
                     }
                     self.layout(animated: false, force: true)
                 }
@@ -204,7 +207,7 @@ final class ShellController: NSObject {
 
     private func prewarm() {
         let size = CGSize(width: 2000, height: 4000)
-        _ = NSHostingController(rootView: ConversationWorkspace(model: model, chat: model.conversations, mode: .input, measuring: true)).sizeThatFits(in: size)
+        _ = NSHostingController(rootView: ConversationWindow(model: model, chat: model.conversations, mode: .input, measuring: true)).sizeThatFits(in: size)
         _ = NSHostingController(rootView: WorkingContent(model: model, title: "…", writes: nil)).sizeThatFits(in: size)
         _ = NSHostingController(rootView: MessageContent(model: model, title: "…", message: "…")).sizeThatFits(in: size)
     }
@@ -476,9 +479,14 @@ final class ShellController: NSObject {
                 if workspace == nil || workspace?.visibleFrame != customVis {
                     workspace = WorkspacePlacement(frame: custom, visibleFrame: customVis, minimumSize: ShellTokens.workspaceMin, inset: inset)
                 }
-            } else if workspace == nil || workspace?.visibleFrame != vis {
-                workspace = WorkspacePlacement(anchor: anchor, visibleFrame: vis,
-                                               maximumSize: DevSnapshot.workspaceSize, inset: inset)
+            } else {
+                // A conversation with rails opens wider (ConversationRailLayout); onboarding, the line and resume keep
+                // their cap, and so does the room they report (panelRoom).
+                let cap = model.mode.isConversation && !model.activeRails.isEmpty ? DevSnapshot.wideWorkspaceSize : DevSnapshot.workspaceSize
+                if workspace == nil || workspace?.visibleFrame != vis || workspaceCap != cap {
+                    workspace = WorkspacePlacement(anchor: anchor, visibleFrame: vis, maximumSize: cap, inset: inset)
+                    workspaceCap = cap
+                }
             }
             let place = workspace!
             Self.panelRoom = place.bounds.height
@@ -904,6 +912,25 @@ final class ShellController: NSObject {
         let frame = shellScreenRect
         customWorkspace = frame
         UserDefaults.standard.set(NSStringFromRect(frame), forKey: "workspace.frame")
+    }
+
+    /// A rail was switched on or off (AppModel.toggleRail). Not moved or resized in this opening, the window takes the
+    /// default size of its rails; moved or resized by the person, it keeps its size and only grows to `minimumWidth`, so
+    /// the new rail fits beside 400 points of conversation. The screen still clamps it; ConversationRailLayout then
+    /// drops a rail.
+    func railsChanged(minimumWidth: CGFloat?) {
+        guard model.mode.isConversation else { return }
+        if var custom = customWorkspace, DevSnapshot.directory == nil {
+            if let minimumWidth, custom.width < minimumWidth {
+                custom.size.width = minimumWidth
+                customWorkspace = custom
+            }
+        } else {
+            let preferred = ShellTokens.conversationSize(rails: model.activeRails)
+            if model.conversationSize != preferred { model.conversationSize = preferred }
+        }
+        workspace = nil
+        layout(animated: false, force: true)
     }
 
     // MARK: Move the pill (no animation)

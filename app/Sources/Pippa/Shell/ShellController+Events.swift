@@ -182,6 +182,9 @@ extension ShellController {
             let window = event.window.map(ObjectIdentifier.init)
             let chars = event.characters ?? ""
             let plain = event.modifierFlags.intersection([.command, .control]).isEmpty
+            let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+            let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            let isRepeat = event.isARepeat
             let handled: Bool = MainActor.assumeIsolated {
                 guard let self, window == ObjectIdentifier(self.panel) else { return false }
                 // ⌘↩ applies an open preview, but only with an empty input field: someone typing a
@@ -194,6 +197,11 @@ extension ShellController {
                         if typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { self.model.confirmPreview() } else { self.model.route(typed) }
                     }
                     return true
+                }
+                // ⌃⌘S conversation rail, ⌥⌘I detail rail (ConversationWindow). ⌘N is the main menu's.
+                if self.model.mode.isConversation {
+                    if modifiers == [.control, .command] && key == "s" { if !isRepeat { self.model.toggleRail(.sessions) }; return true }
+                    if modifiers == [.option, .command] && key == "i" { if !isRepeat { self.model.toggleRail(.details) }; return true }
                 }
                 if code == 53 { self.model.escape(); return true }  // Esc
                 return plain && self.bufferTyping(chars)
