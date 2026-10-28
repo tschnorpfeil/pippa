@@ -5,7 +5,8 @@ covers what Pippa does; [What Pippa can do](what-pippa-can-do.md), [Pippa's loca
 [Privacy and permissions](privacy-and-permissions.md) give users the details. [Updating Pi](updating-pi.md) covers moving
 to a new Pi release; [Settings simplification](settings-simplification.md) records which settings exist and why.
 Product planning lives in [Pippa's next evolution](pippa-next-evolution-2026-10-21.md) and the
-[0.3.13 release plan](roadmap-0.3.13.md), which has since shipped.
+[0.3.13 release plan](roadmap-0.3.13.md), which has since shipped. The current plan is [Pippa 0.4](roadmap-0.4.md);
+how Pippa is described in public is decided in [Positioning](positioning.md).
 
 ## Architecture
 
