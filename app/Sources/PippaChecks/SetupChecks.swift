@@ -666,10 +666,12 @@ func runSetupFlowChecks() async {
         let named = MacHardware.summary(chip: "Apple M2 Pro", physicalMemory: 17_179_869_184)
         let unnamed = MacHardware.summary(chip: nil, physicalMemory: 8_589_934_592)
         let live = MacHardware.chipName()
-        let ok = MacHardware.memoryGB(physicalMemory: 17_179_869_184) == 16 && MacHardware.memoryGB(physicalMemory: 25_769_803_776) == 24
-            && MacHardware.chipName(brand: " Apple M1 (Virtual)\u{0}\n") == "Apple M1 (Virtual)" && MacHardware.chipName(brand: " ") == nil
-            && named.contains("Apple M2 Pro") && named.contains("16") && unnamed.contains("8") && !unnamed.contains("·")
-            && (live.map { !$0.isEmpty } ?? true)
+        // Separate parts keep the type checker fast (a closure inside one long chain can time out).
+        let memoryOK = MacHardware.memoryGB(physicalMemory: 17_179_869_184) == 16 && MacHardware.memoryGB(physicalMemory: 25_769_803_776) == 24
+        let brandOK = MacHardware.chipName(brand: " Apple M1 (Virtual)\u{0}\n") == "Apple M1 (Virtual)" && MacHardware.chipName(brand: " ") == nil
+        let textOK = named.contains("Apple M2 Pro") && named.contains("16") && unnamed.contains("8") && !unnamed.contains("·")
+        let liveOK: Bool = live.map { !$0.isEmpty } ?? true
+        let ok = memoryOK && brandOK && textOK && liveOK
         if !ok { print("   ", named, unnamed, live ?? "-") }
         return ok
     }
