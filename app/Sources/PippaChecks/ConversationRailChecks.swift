@@ -120,13 +120,16 @@ import PippaCore
         guard sources.map(\.host) == ["dwd.de", "tagesschau.de", "a.org"] else { return false }
         return sources[0].messageID == third.id && sources[2].messageID == second.id
     }
-    check("Conversation artifacts: files in use list waiting documents first and keep the selected text") {
+    check("Conversation artifacts: files in use list waiting documents first, keep the selected text and are never found files") {
         let a = URL(fileURLWithPath: "/fixture/a.pdf"), b = URL(fileURLWithPath: "/fixture/b.pdf")
         let context = ConversationContext(name: "2 files", files: [a, b], selectedText: "Hallo", pendingFiles: [b])
-        let artifacts = ConversationArtifacts(Conversation(title: "Files", context: context), exists: { _ in true })
+        // An answer that carries the person's own document is not a search result.
+        let echoed = ConversationMessage(role: .assistant, text: "Read it.", attachments: [a], modelLabel: "On this Mac", receipt: UUID())
+        let artifacts = ConversationArtifacts(Conversation(title: "Files", messages: [echoed], context: context), exists: { _ in true })
         let urls: [URL] = artifacts.filesInUse.map(\.url)
         let pending: [Bool] = artifacts.filesInUse.map(\.pending)
-        return urls == [b, a] && pending == [true, false] && artifacts.selectedText == "Hallo" && ConversationArtifacts(nil).isEmpty
+        return urls == [b, a] && pending == [true, false] && artifacts.selectedText == "Hallo" && artifacts.made.isEmpty
+            && ConversationArtifacts(nil).isEmpty
     }
     check("Conversation artifacts: a created file is found next to its answer's reveal location, or not at all") {
         let reveal = URL(fileURLWithPath: "/fixture/out/Notes.md")

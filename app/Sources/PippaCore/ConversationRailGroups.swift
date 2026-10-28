@@ -17,9 +17,11 @@ public struct ConversationRailSection: Equatable, Sendable, Identifiable {
 /// (newest change first) stays; an empty open conversation leads Today.
 public enum ConversationRailGroups {
     public static func sections(_ history: [ConversationSummary], current: UUID?, now: Date, calendar: Calendar) -> [ConversationRailSection] {
+        // The day boundaries once per list, not per row: the rail redraws while an answer streams.
+        let days = Days(now: now, calendar: calendar)
         var buckets: [ConversationRailGroup: [ConversationSummary]] = [:]
         for summary in history where summary.messageCount > 0 || summary.id == current {
-            let bucket: ConversationRailGroup = summary.messageCount == 0 ? .today : Self.group(of: summary.updatedAt, now: now, calendar: calendar)
+            let bucket: ConversationRailGroup = summary.messageCount == 0 ? .today : days.group(of: summary.updatedAt)
             buckets[bucket, default: []].append(summary)
         }
         return ConversationRailGroup.allCases.compactMap { group -> ConversationRailSection? in
@@ -30,12 +32,28 @@ public enum ConversationRailGroups {
 
     /// Days in `calendar` (its time zone, summer time included). A date ahead of `now` counts as today.
     public static func group(of date: Date, now: Date, calendar: Calendar) -> ConversationRailGroup {
-        let today = calendar.startOfDay(for: now)
-        if date >= today { return .today }
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
-              let week = calendar.date(byAdding: .day, value: -7, to: today) else { return .older }
-        if date >= yesterday { return .yesterday }
-        if date >= week { return .previousWeek }
-        return .older
+        Days(now: now, calendar: calendar).group(of: date)
+    }
+
+    /// Start of today, yesterday and the day a week ago, by the calendar rather than in 24-hour steps.
+    private struct Days {
+        let today: Date
+        let yesterday: Date?
+        let week: Date?
+
+        init(now: Date, calendar: Calendar) {
+            let start = calendar.startOfDay(for: now)
+            today = start
+            yesterday = calendar.date(byAdding: .day, value: -1, to: start)
+            week = calendar.date(byAdding: .day, value: -7, to: start)
+        }
+
+        func group(of date: Date) -> ConversationRailGroup {
+            if date >= today { return .today }
+            guard let yesterdayStart = yesterday, let weekStart = week else { return .older }
+            if date >= yesterdayStart { return .yesterday }
+            if date >= weekStart { return .previousWeek }
+            return .older
+        }
     }
 }

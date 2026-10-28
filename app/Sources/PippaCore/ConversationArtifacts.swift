@@ -55,13 +55,15 @@ public struct ConversationArtifacts: Equatable, Sendable {
         var made: [Made] = [], sources: [Source] = []
         var seenMade = Set<String>(), seenSources = Set<String>()
         func add(_ item: Made) { if seenMade.insert(item.id).inserted { made.append(item) } }
+        // The person's own documents are files in use, never files Pippa found (append copies waiting ones onto a result).
+        let ownFiles = Set((conversation.context?.files ?? []).map { Self.key($0) })
         for message in conversation.messages.reversed() where message.role != .user {
             let cards = message.actions?.cards ?? []
             let items = message.actions?.items ?? []
             // Pippa's own task result: its text is her notice, never an answer, and its attachments are the documents
             // it used (ConversationStore.append), not files it found.
-            let taskResult = message.role == .assistant && message.receipt != nil && items.isEmpty
-                && message.work == nil && message.modelLabel == nil
+            let noticeOnly: Bool = message.work == nil && message.modelLabel == nil
+            let taskResult: Bool = message.role == .assistant && message.receipt != nil && items.isEmpty && noticeOnly
             var preparedJobs = Set<UUID>()
             for card in cards {
                 guard case .preparedFiles(let prepared) = card else { continue }
@@ -78,24 +80,28 @@ public struct ConversationArtifacts: Equatable, Sendable {
             }
             for item in items where item.happened {
                 let name = item.name ?? ""
-                let kind: Made.Kind?
+                // The native line of a prepared file: its card above already stands for it.
+                let preparedLine: Bool = item.reason == "preparedFiles" || item.operationID.map({ preparedJobs.contains($0) }) == true
+                let matched: Made.Kind?
                 switch item.action {
-                case "calendarAdd": kind = .calendarEvent
-                case "reminderAdd": kind = .reminder
-                case "mailDraft": kind = .draftInMail
-                case "create" where item.reason != "preparedFiles" && !(item.operationID.map { preparedJobs.contains($0) } ?? false):
-                    kind = .created
-                case "overwrite": kind = .updated
-                default: kind = nil
+                case "calendarAdd": matched = .calendarEvent
+                case "reminderAdd": matched = .reminder
+                case "mailDraft": matched = .draftInMail
+                case "create": matched = preparedLine ? nil : .created
+                case "overwrite": matched = .updated
+                default: matched = nil
                 }
-                guard let kind, !name.isEmpty else { continue }
+                guard let kind = matched, !name.isEmpty else { continue }
                 let onDisk = kind == .created || kind == .updated
-                let id = item.operationID.map { "op:" + $0.uuidString } ?? (onDisk ? "name:" + name : kind.rawValue + ":" + name)
+                let id: String
+                if let operation = item.operationID { id = "op:" + operation.uuidString }
+                else if onDisk { id = "name:" + name }
+                else { id = kind.rawValue + ":" + name }
                 add(Made(id: id, kind: kind, title: name, file: nil, preparedCard: nil,
                          receipt: onDisk ? message.receipt : nil, messageID: message.id, date: message.timestamp))
             }
             if message.role == .assistant, !taskResult, message.mailDraft == nil, message.calendar == nil {
-                for file in message.attachments where !file.hasDirectoryPath && exists(file) {
+                for file in message.attachments where !file.hasDirectoryPath && !ownFiles.contains(Self.key(file)) && exists(file) {
                     add(Made(id: "file:" + Self.key(file), kind: .found, title: file.lastPathComponent, file: file,
                              preparedCard: nil, receipt: nil, messageID: message.id, date: message.timestamp))
                 }
