@@ -300,3 +300,8 @@
 "Reminders access is off for Pippa. You can change that in System Settings." = "Pippa darf nicht auf Erinnerungen zugreifen. Du kannst das in den Systemeinstellungen ändern.";
 "Opens the matching privacy setting. Your request stays here and is not retried automatically." = "Öffnet die passende Datenschutzeinstellung. Dein Auftrag bleibt hier und wird nicht automatisch wiederholt.";
 "Your request stays here. Nothing is retried automatically." = "Dein Auftrag bleibt hier. Nichts wird automatisch wiederholt.";
+
+// Chart card under an answer (ChartCardView.swift).
+"Save as PNG…" = "Als PNG speichern …";
+"Couldn’t save the picture. Please try again." = "Das Bild konnte nicht gespeichert werden. Versuch es bitte noch einmal.";
+"Chart of %@" = "Diagramm zu %@";

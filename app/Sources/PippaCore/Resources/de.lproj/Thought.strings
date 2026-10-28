@@ -227,3 +227,6 @@
 "Saved as a skill: %@" = "Als Ablauf gemerkt: %@";
 "Not saved as a skill: %@" = "Nicht als Ablauf gemerkt: %@";
 "Saving a skill" = "Merke mir den Ablauf";
+
+// make_chart: a chart card computed from a table file (PippaMCPChart.swift).
+"Drawing a chart" = "Zeichne ein Diagramm";

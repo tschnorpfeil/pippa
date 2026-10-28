@@ -219,16 +219,16 @@ func runR2Checks() async {
         let bytes = (try? JSONSerialization.data(withJSONObject: list))?.count ?? .max
         return doc["readOnlyHint"] as? Bool == true && doc["openWorldHint"] as? Bool == false
             && !names.contains("web_search") && !names.contains("read_web_page")
-            // Three app writers plus local file preparation; no tool is hidden to meet the prompt budget.
-            && names == PippaMCPTools.toolNames && list.count == 12 && bytes < 5400
+            // Three app writers, local file preparation and the chart card; no tool is hidden to meet the prompt budget.
+            && names == PippaMCPTools.toolNames && list.count == 13 && bytes < 5650
     }
-    // The other share (prompt, Pi's, Pippa's and the web tools) is runtime/pippa-tools/real-pi-budget.test.mjs, 6,400
-    // characters; both together about 3,000 tokens, prefilled cold on every new conversation.
-    check("First request budget: Pippa's MCP declarations as Pi sends them (name, description, schema) stay under 3,100 characters") {
+    // The other share (prompt, Pi's, Pippa's and the web tools) is runtime/pippa-tools/real-pi-budget.test.mjs, 6,880
+    // characters; both together about 3,000 tokens, prefilled cold on every new conversation. make_chart added 419 here.
+    check("First request budget: Pippa's MCP declarations as Pi sends them (name, description, schema) stay under 3,600 characters") {
         let declared = PippaMCPTools.toolList().map { tool in tool.filter { ["name", "description", "inputSchema"].contains($0.key) } }
         let bytes = (try? JSONSerialization.data(withJSONObject: declared, options: [.withoutEscapingSlashes]))?.count ?? .max
-        if bytes >= 3100 { print("    MCP declarations: \(bytes) characters") }
-        return bytes < 3100
+        if bytes >= 3600 { print("    MCP declarations: \(bytes) characters") }
+        return bytes < 3600
     }
     check("Work line: Pippa's MCP tools show the same phases as the old path") {
         WorkPhase.tool("web_search", source: nil) == .lookingUpOnline && WorkPhase.tool("fetch_content", source: nil) == .lookingUpOnline

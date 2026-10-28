@@ -138,7 +138,10 @@ for, and this Mac's own and local-network addresses are never read. The receipt 
 calendar, reminders, Excel selection, documents (with text recognition). Writing tools: calendar event, reminder, unsent
 mail draft and `prepare_files` (ordered PDFs/photos into a verified PDF). File preparation shares its native engine and
 durable job record with the tray, with a result card and the existing turn-scoped cancellation and receipts. Pi retains
-planning, tool choice and follow-up; native tools do not create a second agent loop. Because the app does the work,
+planning, tool choice and follow-up; native tools do not create a second agent loop. `make_chart` draws a chart card
+from a .csv, .tsv or .xlsx file: Pi names the file and the columns, Pippa reads the cells and computes every value
+(`ChartBuilder`, sums, counts or averages per label, total rows left out) and returns the computed rows for Pi to quote.
+It only reads, but it is not offered in draft-only tasks. Because the app does the work,
 macOS asks for permission in Pippa's name. See [0.3.14 everyday help](0.3.14-everyday-help.md) for persistence and acceptance evidence.
 
 **Local model.** `LlamaServer` runs the pinned llama.cpp `llama-server` on a fixed loopback port with a key file and

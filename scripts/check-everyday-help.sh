@@ -46,7 +46,7 @@ for language, locale in [("en", "en_US"), ("de", "de_DE")]:
         raise SystemExit(f"FAIL: {language} everyday help fixture:\n{report}")
     for name in ("everyday-01-preview", "everyday-02-result", "everyday-03-save-failure",
                  "morning-settings-off", "morning-settings", "morning-result", "morning-denied",
-                 "prepared-files-card", "prepared-files-changed"):
+                 "prepared-files-card", "prepared-files-changed", "chart-card", "chart-export"):
         if (folder / f"{name}.png").stat().st_size == 0:
             raise SystemExit(f"FAIL: empty {language} everyday help capture {name}")
     print(f"{language}: {assertions} everyday-help assertions passed at 400 points.")

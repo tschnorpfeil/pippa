@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { default: register, serverConfig, SERVER_NAME, TOOLS, WRITE_TOOLS, discoverNativeTools, REQUIRED_TOOLS, READINESS_COMMAND } = await import("./pippa-mcp.ts");
+const { default: register, serverConfig, SERVER_NAME, TOOLS, WRITE_TOOLS, VIEW_TOOLS, discoverNativeTools, REQUIRED_TOOLS, READINESS_COMMAND } = await import("./pippa-mcp.ts");
 
 const token = "ab".repeat(32);
 
@@ -59,6 +59,20 @@ test("tool names as in the Swift server, none writes or sends", () => {
 test("writing tools as in the Swift server, none sends or deletes", () => {
 	assert.deepEqual(WRITE_TOOLS, ["calendar_add", "reminder_add", "mail_draft", "prepare_files"]);
 	assert.ok(WRITE_TOOLS.every((name) => !/send|delete|remove|invite/.test(name)));
+});
+
+test("the chart view is read-only, required for standard admission and hidden in draft scope", async () => {
+	assert.deepEqual(VIEW_TOOLS, ["make_chart"]);
+	assert.ok(!TOOLS.includes("make_chart") && !WRITE_TOOLS.includes("make_chart"));
+	const name = "mcp__pippa__make_chart", f = fixture();
+	assert.ok(REQUIRED_TOOLS.includes(name));
+	f.pi.getActiveTools = () => REQUIRED_TOOLS.filter((tool) => tool !== name);
+	assert.equal((await discoverNativeTools(f.pi, f.config, 0)).status, "toolsUnavailable");
+	const draft = fixture("draftOnly");
+	assert.equal(draft.config.toolExposure.make_chart, undefined);
+	assert.equal(draft.config.toolExposure["*"], "hidden");
+	draft.pi.getActiveTools = () => TOOLS.map((tool) => `mcp__pippa__${tool}`);
+	assert.equal((await discoverNativeTools(draft.pi, draft.config, 0, undefined, "draftOnly")).status, "ready");
 });
 
 function fixture(policy = "standard") {
