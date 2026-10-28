@@ -65,6 +65,9 @@ extension AppModel {
         case .pill:
             // An explicit Give takes precedence over ambient Mail/Excel selection.
             if !tray.givenItems.isEmpty || tray.isWorking { return openLine() }
+            // Setup finished while Pippa was folded: once, the ready step (shortcut, open at login) comes first.
+            if !isActiveWork, pillOutcome == nil, parked == nil,
+               PiSetupController.shared?.takeReadyStep() == true { return show(.onboarding) }
             if hasResumableConversation { return openConversationFromPill() }
             if fromMail { return callMail() }
             if fromExcel { return callExcel() }

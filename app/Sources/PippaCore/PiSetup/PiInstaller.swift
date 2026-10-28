@@ -457,7 +457,7 @@ public final class PiInstaller: @unchecked Sendable {
         let folder = URL(fileURLWithPath: path, isDirectory: true)
         let downloader = ModelDownloader(directory: folder)
         let found = ExistingModels.find(ModelCatalog(sampling: [:], models: [model]), roots: modelSearchRoots(folder: folder, extra: searchRoots))
-        var lastMethod: PiAdoptionMethod?, lastSource: String?, missing: Int64 = 0
+        var lastMethod: PiAdoptionMethod?, lastSource: String?, missing: Int64 = 0, incomplete = false
         do {
             for file in files where !downloader.isInstalled(file) {
                 let dest = downloader.localURL(file)
@@ -477,18 +477,21 @@ public final class PiInstaller: @unchecked Sendable {
                     state.adopted.removeAll { $0.file == dest.path }
                     save()
                 }
-                guard let source = found[file.sha256] else { missing += file.size; continue }
+                // A started download (.part) counts with what is still missing, as in ModelDownloader.downloadSize.
+                let rest = max(0, file.size - max(0, ModelDownloader.fileSize(dest.appendingPathExtension("part"))))
+                guard let source = found[file.sha256] else { missing += rest; incomplete = true; continue }
                 switch try adopt(file, from: source, into: folder) {
                 case .adopted(let method): lastMethod = method; lastSource = source.source
-                case .unavailable: missing += file.size
+                case .unavailable: missing += rest; incomplete = true
                 case .mismatch:
                     // Same name and size, other content (e.g. an older upload in LM Studio): load the right one instead.
                     DiagnosticsLog.shared.event("modell-uebernahme-passt-nicht", ["quelle": source.source])
-                    missing += file.size
+                    missing += rest; incomplete = true
                 }
             }
         } catch { return finish(.model, .failed(failure(error, path: folder))) }
-        if missing > 0 { return finish(.model, .needsDownload(bytes: missing)) }
+        // Also when every byte is in but not yet checked: the download step verifies and renames the .part file.
+        if incomplete { return finish(.model, .needsDownload(bytes: missing)) }
         return finish(.model, .modelReady(file: downloader.primaryFile(model) ?? folder, method: lastMethod, source: lastSource))
     }
 

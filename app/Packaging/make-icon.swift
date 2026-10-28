@@ -121,7 +121,7 @@ func brandFont(_ fontsDir: String?, file: String, name: String, size: CGFloat) -
     return NSFont(name: name, size: size) ?? NSFont.systemFont(ofSize: size, weight: .bold)
 }
 
-/// DMG window in the style of the website: soft colour clouds, "Hol dir Pippa." in Bagel Fat One,
+/// DMG window in the style of the website: soft colour clouds, "Get Pippa." in Bagel Fat One,
 /// a hand-drawn arrow with a Gochi Hand note and sparkles at the Applications folder.
 /// Coordinates are Finder points from the top-left of a 640×400 window; icons sit at (160, 190) and (480, 190).
 func dmgBackground(width: Int, height: Int, fontsDir: String?) -> CGImage {
@@ -162,7 +162,7 @@ func dmgBackground(width: Int, height: Int, fontsDir: String?) -> CGImage {
     // Name tags under the icons. The background is the same in light and dark mode, while Finder may draw
     // the names black or white: a mid blue keeps either readable (about 4.5:1).
     ctx.setFillColor(rgb(61, 118, 204))
-    for (x, width) in [(160, 56), (480, 92)] as [(CGFloat, CGFloat)] {
+    for (x, width) in [(160, 56), (480, 104)] as [(CGFloat, CGFloat)] {
         // Finder draws the label about 255–275 pt from the top (measured on a mounted DMG).
         let tag = CGRect(x: (x - width / 2) * scale, y: h - 275 * scale, width: width * scale, height: 20 * scale)
         ctx.addPath(CGPath(roundedRect: tag, cornerWidth: 6 * scale, cornerHeight: 6 * scale, transform: nil))
@@ -173,7 +173,7 @@ func dmgBackground(width: Int, height: Int, fontsDir: String?) -> CGImage {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
     let bagel = brandFont(fontsDir, file: "bagel-fat-one.ttf", name: "BagelFatOne-Regular", size: 34 * scale)
-    let headline = NSMutableAttributedString(string: "Hol dir ", attributes: [.font: bagel, .foregroundColor: NSColor(cgColor: ink)!])
+    let headline = NSMutableAttributedString(string: "Get ", attributes: [.font: bagel, .foregroundColor: NSColor(cgColor: ink)!])
     headline.append(NSAttributedString(string: "Pippa", attributes: [.font: bagel, .foregroundColor: NSColor(cgColor: blue)!]))
     let size = headline.size()
     let ring = 12 * scale
@@ -191,13 +191,13 @@ func dmgBackground(width: Int, height: Int, fontsDir: String?) -> CGImage {
     ctx.saveGState()
     ctx.translateBy(x: 262 * scale, y: h - 160 * scale)
     ctx.rotate(by: 5 * .pi / 180)
-    NSAttributedString(string: "rüber damit!", attributes: [.font: gochi(21), .foregroundColor: NSColor(cgColor: blue)!])
+    NSAttributedString(string: "drag me over!", attributes: [.font: gochi(21), .foregroundColor: NSColor(cgColor: blue)!])
         .draw(at: .zero)
     ctx.restoreGState()
 
     let paragraph = NSMutableParagraphStyle()
     paragraph.alignment = .center
-    NSAttributedString(string: "Danach öffnen. Alles bleibt auf deinem Mac.", attributes: [
+    NSAttributedString(string: "Then open Pippa from Applications.", attributes: [
         .font: gochi(17), .foregroundColor: NSColor(srgbRed: 0.30, green: 0.35, blue: 0.32, alpha: 1),
         .paragraphStyle: paragraph,
     ]).draw(in: CGRect(x: 0, y: h - 372 * scale, width: w, height: 30 * scale))

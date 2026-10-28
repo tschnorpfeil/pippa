@@ -1,5 +1,6 @@
 import Combine
 import PippaCore
+import ServiceManagement
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -7,8 +8,11 @@ import UniformTypeIdentifiers
 /// Like PiRPCChat, in every build.
 ///
 /// Quiet: Pi, Node, model folder, adopting existing models, models.json (`PiSetupFlow`, off the
-/// main thread). The only question is the download ("Laden" · "Später"). Then a calm progress with examples,
-/// at the end "Probier's aus". Errors: one sentence, "Nochmal versuchen", technical detail behind "Details".
+/// main thread). The only question is the download: "Set Up Pippa's AI · N GB" or "Later", with the free space
+/// checked before the click (`checkSpace`). The consent is kept (`PippaSettings.downloadConsent`): an interrupted
+/// download goes on by itself at the next start, and "Stop Loading" pauses it and asks again. Then a calm progress
+/// with examples, and at the end one ready step: the shortcut, "Open at login" and "Get Started" into the conversation.
+/// Errors: one sentence, "Try again", technical detail behind "Details".
 ///
 /// Environment like PiRPCChat: `PIPPA_PI_PAYLOAD` (otherwise the payload in the app), `PIPPA_PI_HOME` (fake HOME for
 /// test runs), `PIPPA_PI_MODEL` (otherwise by memory like LocalEngine).
@@ -42,6 +46,16 @@ final class PiSetupController: ObservableObject {
     /// "Standard" or "Gründlicher" (settings.json); the control shows only where `offersThorough` holds.
     @Published private(set) var preference: ModelPreference = .standard
     let offersThorough = ModelSelector.offersThorough(physicalMemory: ProcessInfo.processInfo.physicalMemory)
+    /// "Picked for your Mac · Apple M2 · 16 GB memory" on the download question.
+    let hardware = MacHardware.summary()
+    /// Free space checked before "Set Up" (`checkSpace`); `nil` = enough or unknown. Recordings set it directly.
+    @Published var spaceShortfall: Int64?
+    /// Ready step: "Open at login" only where a login item makes sense (Applications), as in Settings (SMAppService).
+    let canOpenAtLogin = AppLocation.place(of: Bundle.main.bundleURL, home: FileManager.default.homeDirectoryForCurrentUser) == .applications
+    @Published private(set) var opensAtLogin = false
+    @Published private(set) var loginProblem: String?
+    /// Setup finished while the Welcome was closed: the ready step comes once, at the next click on the pill.
+    private var readyStepPending = false
     private var updateTask: Task<Void, Never>?
     private var updateID: UUID?
     /// After a switch in settings: load right away (choosing counts as consent), and on "Cancel" go back to this.
@@ -50,8 +64,10 @@ final class PiSetupController: ObservableObject {
     private weak var model: AppModel?
     private var task: Task<Void, Never>?
     private var forward: AnyCancellable?
-    /// "Laden" was already said: do not ask again after "Nochmal versuchen".
+    /// "Set Up" was already said: do not ask again after "Try again".
     private var downloadChosen = false
+    /// Consent kept from an earlier run (`PippaSettings.downloadConsent`): the question is skipped, the download goes on.
+    private var resumesDownload = false
     private var lastProgressAt = Date.distantPast
     /// No new bytes for 30 s, or no network, while loading. The downloader keeps retrying by itself; the views say so
     /// in one calm sentence with "Try Again" instead of a progress bar that silently stands still.
@@ -60,7 +76,7 @@ final class PiSetupController: ObservableObject {
     private var stallTask: Task<Void, Never>?
     /// Latest progress as reported (before the display throttle), so slow but moving downloads never count as stuck.
     private var rawProgress = 0.0
-    /// The running "Laden": a restart ("Try Again") ignores the result of the attempt it replaced.
+    /// The running "Set Up": a restart ("Try Again") ignores the result of the attempt it replaced.
     private var loadID: UUID?
     /// The first setup result after app start may bring back "What Pippa may do" (`PermissionOnboarding.remindsAtStart`).
     private var remindsPermissions = false
@@ -96,6 +112,7 @@ final class PiSetupController: ObservableObject {
         let setup = PiSetupController(flow: PiSetupFlow(roots: roots, model: choice.model, contextWindow: choice.ctx))
         setup.roots = roots
         setup.preference = preference
+        setup.resumesDownload = saved.downloadConsent == choice.model.key
         return setup
     }
 
@@ -111,15 +128,19 @@ final class PiSetupController: ObservableObject {
             // After the change has landed: the mark follows the download (AppModel.markState).
             Task { @MainActor [weak model] in model?.updateMark() }
         }
+        // The network is watched from now on, so a hotspot is already known when setup decides to resume (finish).
+        _ = NetworkWatch.shared
         begin()
     }
 
     /// Everything without network; stops only at the download question or an error.
-    func begin() {
+    /// `previous`: a stopped download that must have let go of the part file first (`stopDownload`).
+    func begin(after previous: Task<Void, Never>? = nil) {
         guard let flow, task == nil else { return }
         showsDetails = false
         state = .preparing(adoptingFrom: nil)
         task = Task { [weak self] in
+            await previous?.value
             let source = await Task.detached(priority: .userInitiated) { flow.adoptionSource() }.value
             if let source { self?.state = .preparing(adoptingFrom: source) }
             let result = await Task.detached(priority: .userInitiated) { flow.prepare() }.value
@@ -127,11 +148,14 @@ final class PiSetupController: ObservableObject {
         }
     }
 
-    /// "Laden": the only consent. Downloads resumably, then the rest of setup.
+    /// "Set Up": the only consent. Downloads resumably, then the rest of setup.
     /// `previous`: a cancelled attempt that must have let go of the part file before this one opens it.
     func load(after previous: Task<Void, Never>? = nil) {
         guard let flow, task == nil else { return }
         downloadChosen = true
+        spaceShortfall = nil
+        // Kept across restarts: an interrupted download goes on by itself at the next start (`resumesDownload`).
+        if let roots { try? PippaSettings.saveDownloadConsent(flow.model.key, to: roots.support) }
         showsDetails = false
         state = .downloading(progress: 0, remaining: nil)
         let id = UUID()
@@ -165,7 +189,7 @@ final class PiSetupController: ObservableObject {
         model?.collapse()
     }
 
-    /// "Nochmal versuchen": from scratch (idempotent); if "Laden" was already said, continues without a question.
+    /// "Try again": from scratch (idempotent); if "Set Up" was already said, continues without a question.
     func retry() { begin() }
 
     /// "Try Again" while a download hangs: stop the attempt and start a fresh one right away. It continues where the
@@ -184,6 +208,22 @@ final class PiSetupController: ObservableObject {
             stopUpdate()
             loadUpdate(after: previous)
         }
+    }
+
+    /// "Stop Loading": pauses the download (what came stays for later), forgets the kept consent and asks again.
+    /// Not while every byte is in and being checked.
+    func stopDownload() {
+        guard case .downloading(let progress, _) = state, !DownloadProgress.isFinishing(progress) else { return }
+        let previous = task
+        previous?.cancel()
+        task = nil
+        loadID = nil
+        downloadChosen = false
+        resumesDownload = false
+        stallTask?.cancel()
+        if stalled { stalled = false; model?.downloadStallChanged() }
+        if let roots { try? PippaSettings.saveDownloadConsent(nil, to: roots.support) }
+        begin(after: previous)
     }
 
     private func watchStall() {
@@ -213,9 +253,28 @@ final class PiSetupController: ObservableObject {
         }
     }
 
-    /// "Probier's aus": a real first step, tidy Downloads with a preview (changes only after approval,
-    /// "Rückgängig" restores everything).
-    func tryIt() { model?.tidyDownloads() }
+    func refreshLogin() {
+        let on = SMAppService.mainApp.status == .enabled
+        if opensAtLogin != on { opensAtLogin = on }
+    }
+
+    func setOpensAtLogin(_ on: Bool) {
+        do {
+            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            loginProblem = nil
+        } catch {
+            UserMessage.record(error, context: "autostart")
+            loginProblem = T("That didn’t work just now. Is Pippa in your Applications folder?", table: "Settings")
+        }
+        opensAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    /// The pill was clicked: `true` once after setup finished in the background.
+    func takeReadyStep() -> Bool {
+        guard readyStepPending, isReady else { return false }
+        readyStepPending = false
+        return true
+    }
 
     /// A useful first result needs neither a download nor Apple Intelligence. The open panel grants access only
     /// to the files the person chooses; cancelling it leaves setup exactly where it was.
@@ -248,6 +307,16 @@ final class PiSetupController: ObservableObject {
         exampleIndex = ((index % count) + count) % count
     }
 
+    /// Before the click: a download that cannot fit never starts. Again on "Try Again" under the disabled button.
+    func checkSpace() {
+        guard let flow, case .askDownload(let bytes) = state else { return }
+        Task { [weak self] in
+            let shortfall = await Task.detached(priority: .userInitiated) { flow.spaceShortfall(remaining: bytes) }.value
+            guard let self, case .askDownload = self.state, self.spaceShortfall != shortfall else { return }
+            self.spaceShortfall = shortfall
+        }
+    }
+
     private func progress(_ value: Double, _ remaining: TimeInterval?) {
         guard case .downloading(let shown, _) = state else { return }
         rawProgress = value
@@ -258,19 +327,40 @@ final class PiSetupController: ObservableObject {
     }
 
     private func finish(_ result: PiSetupState) {
+        let previous = state
         task = nil
         stallTask?.cancel()
         if stalled { stalled = false; model?.downloadStallChanged() }
         let wantsUpdate = loadsUpdate
         loadsUpdate = false
         if case .askDownload = result, downloadChosen { return load() }
+        // Consent from an earlier run: an interrupted download goes on by itself, never over a phone hotspot, and
+        // nothing opens by itself when it is done (the permissions reminder waits for the next start).
+        if case .askDownload = result, resumesDownload, !NetworkWatch.shared.expensive {
+            remindsPermissions = false
+            return load()
+        }
         state = result
+        if case .askDownload = result { checkSpace() }
         if case .ready = result {
             DiagnosticsLog.shared.event("pi-setup", ["stand": "bereit", "modell": flow?.activeModelKey ?? ""])
             PiRPCChat.refreshLaunchFile()
             if updateTask == nil { update = flow?.pendingDownload.map { .offer(bytes: $0) } }
-            if flow?.pendingDownload == nil { switchedFrom = nil }
+            if flow?.pendingDownload == nil {
+                switchedFrom = nil
+                // In use now: a kept consent must never reload it by itself should its file go away later.
+                if downloadChosen || resumesDownload, let roots {
+                    try? PippaSettings.saveDownloadConsent(nil, to: roots.support)
+                    resumesDownload = false
+                }
+            }
             if wantsUpdate { loadUpdate() }
+            if PiSetupState.justSetUp(from: previous, to: result) {
+                // Loaded or adopted just now: into memory already, so the first question does not wait (PiRPCChat+ColdStart).
+                PiRPCChat.shared.preloadIfCold()
+                // Setup finished while the Welcome was closed: the ready step comes once, at the next click on the pill.
+                readyStepPending = model?.mode.key != "onboarding"
+            }
         } else if case .failed(let problem) = result {
             DiagnosticsLog.shared.event("pi-setup", ["stand": "fehler", "details": problem.details])
         }
@@ -279,7 +369,7 @@ final class PiSetupController: ObservableObject {
         guard let model, DevSnapshot.directory == nil, model.mode.key == "pill", !model.isActiveWork else { return }
         // Ready, but "What Pippa may do" was closed or never seen: the Welcome brings it back (at most twice).
         if isReady {
-            if remind, model.permissions.remindsAtStart { model.show(.onboarding) }
+            if remind, model.permissions.remindsAtStart { readyStepPending = false; model.show(.onboarding) }
             return
         }
         // Not done yet (e.g. earlier "Später"): show the Welcome once at start. Not in recordings.

@@ -69,6 +69,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(MenuAction.item(T("Load Pippa’s AI Now (%@)", table: "App", ModelDownloadSize.gigabytes(bytes))) {
                 PiSetupController.shared?.loadUpdate()
             })
+        } else if case .downloading(let progress, _)? = PiSetupController.shared?.state, !DownloadProgress.isFinishing(progress) {
+            // The kept consent resumes the download at every start: here it can be stopped while Pippa is folded away.
+            menu.addItem(MenuAction.item(T("Stop Loading Pippa’s AI", table: "App")) { PiSetupController.shared?.stopDownload() })
         }
         menu.addItem(.separator())
         let hotkey = Hotkey.current
