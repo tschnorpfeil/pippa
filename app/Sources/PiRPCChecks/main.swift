@@ -53,6 +53,22 @@ if CommandLine.arguments.contains("--mode") {
                     emit(["type": "tool_execution_end", "toolCallId": id, "toolName": tool].merging(fields) { _, new in new })
                 }
                 emit(["type": "agent_settled", "aborted": false])
+            case "skill-protocol":
+                response("started")
+                // Long steps: in sorted JSON the skill's name comes after them.
+                let args: [String: Any] = ["name": "rechnungen-prufen", "description": "Wenn eine Rechnung kommt",
+                                           "instructions": String(repeating: "Betrag prüfen. ", count: 100)]
+                let calls: [(id: String, text: String, details: [String: String], isError: Bool)] = [
+                    ("declined", "Not saved: the person said no. Do not try again in this answer.", ["pippaSkill": "not_saved"], true),
+                    ("saved", "Saved. Pippa can use this skill from the next conversation on.",
+                     ["pippaSkill": "saved", "file": "/fixture/skills/rechnungen-prufen/SKILL.md"], false),
+                ]
+                for call in calls {
+                    emit(["type": "tool_execution_start", "toolCallId": call.id, "toolName": "save_skill", "args": args])
+                    emit(["type": "tool_execution_end", "toolCallId": call.id, "toolName": "save_skill", "isError": call.isError,
+                          "result": ["content": [["type": "text", "text": call.text]], "details": call.details]])
+                }
+                emit(["type": "agent_settled", "aborted": false])
             case "handled":
                 response("handled")
             case "immediate":
@@ -159,6 +175,12 @@ for event in outcomes { outcomeReceipt.observe(event) }
 check("RPC keeps absent and malformed results uncertain, permits valid empty success, and classifies full native JSON",
       outcomeReceipt.records.map(\.outcome) == [.unclear, .unclear, .done, .unclear])
 runOutcomeChecks()
+runSkillLaunchChecks()
+var skillReceipt = PiTurnReceipt()
+for event in try await collect("skill-protocol") { skillReceipt.observe(event) }
+check("Real RPC keeps a saved skill's name behind long steps, and the person's no stays theirs",
+      skillReceipt.records.map(\.name) == ["rechnungen-prufen", "rechnungen-prufen"]
+      && skillReceipt.records.map(\.outcome) == [.blocked, .done] && skillReceipt.records.map(\.reason) == ["declined", nil])
 var folderReceipt = PiTurnReceipt()
 for event in try await collect("folder-permission-protocol") { folderReceipt.observe(event) }
 check("Real RPC decoding retains structured folder denial even when display output is truncated",

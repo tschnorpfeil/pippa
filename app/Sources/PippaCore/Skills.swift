@@ -1,8 +1,10 @@
 import Foundation
 
-/// What Pippa can do with paperwork, texts and Office files: Pi skills, only from the app bundle
+/// What Pippa can do with paperwork, texts and Office files: Pi skills from the app bundle
 /// (runtime/pippa-skills -> Contents/Resources/pippa-skills). Pi loads them with `--skill` (PippaPiLaunch); a button sends
 /// `/skill:<name>` (`PiSkillTurn`) and Pi puts the instructions before the message.
+/// Bundled skills come first (Pi keeps the first of two same-named skills); skills the person saved with save_skill
+/// follow from `<support>/skills`, standard scope only. Swift never reads those; everything here is bundled-only.
 /// Swift keeps no list of its own: button and suggestion are in the header of the respective SKILL.md.
 /// A new skill is a new folder, no Swift. The action skills use `disable-model-invocation: true`; file discovery is advertised automatically.
 ///

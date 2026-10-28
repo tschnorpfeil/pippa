@@ -32,7 +32,9 @@ ignored); `--session-dir` in Pippa's support folder and `--session-id` per conve
 own short prompt; `--tools` with a fixed list (Pi's `read`, `bash`, `edit`, `write`, Pippa's file
 tools, pi-web-access's `web_search` and `fetch_content`, and `mcp__pippa__*`, so the person's
 `defaultTools` change nothing); `--no-skills --skill <bundle>/pippa-skills`
-(only Pippa's skills, a same-named personal skill would otherwise win); `--provider/--model` from the installer. The
+(only Pippa's skills, a same-named personal skill would otherwise win), then, in standard scope only,
+`--skill <support>/skills` with the skills the person saved (`save_skill`; Pi keeps the first of two same-named
+skills, so a bundled name always wins); `--provider/--model` from the installer. The
 agent directory is the shared `~/.pi/agent`, but personal extensions, context files and MCP servers do not join the app session.
 Pippa's native tools and shell enforce their own permissions; supported file changes retain undo copies. `fd` and `rg` remain available through `bash` next to Pippa's Node in `Contents/Helpers`
 (pinned in `app/Packaging/search-tools.json`), which is first in Pi's `PATH`, so Pi never downloads them.
@@ -102,6 +104,12 @@ app-selected draft scope makes the enforced local-reader promise; prompt wording
   (`PIPPA_MEMORY_FILE`). The lines go into the system prompt as their own `<memory>` section, read once per session so
   the prompt cache stays warm. The `remember` tool adds or forgets a fact; it refuses account, card, ID, tax and phone
   numbers and passwords, keeps at most 30 lines and never makes a model call of its own.
+- `skill-save.ts` (installed by `pippa-memory.ts`) is "Save as skill": `save_skill` writes
+  `<support>/skills/<name>/SKILL.md` only after the person agrees in a dialog that shows every step, with the same
+  refusals as `remember`, at most 8 skills and 120 characters of description (each saved skill costs about 75 tokens
+  in Pi's skills list). It refuses once the conversation read web pages, mail, invitations, selected text or the app
+  in front (tool calls, the message and a resumed session's branch, fail closed), and blocks `write`, `edit` and
+  `move_files` into that folder. Only with `PIPPA_USER_SKILLS_DIR`, which the app sets in standard scope only.
 - `pippa-context.ts` keeps the context small without the person waiting: after an answer, once the person has been quiet
   for 20 s and the context is at least 60 % full, it starts Pi's own compaction with everyday instructions (names,
   dates, amounts, file paths, what is open). Pi's threshold stays as the net. A question during that summary aborts it
@@ -157,7 +165,7 @@ if nothing answers, starts llama-server through a detached supervisor with the s
 terminal from ever running two servers. Pippa's own Pi loads it too, so a model that crashed mid-answer comes back;
 that server stops once Pippa quits (`PIPPA_APP_PID`).
 
-**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). All skills use
+**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). All bundled skills use
 `disable-model-invocation: true` and cost no prompt space (finding files is the `search_files` tool, not a skill). Pi loads them with `--skill`; a button sends `/skill:<name> <message>` (`PiSkillTurn`) and Pi
 puts the instructions in front. Swift reads the headers only for buttons and suggestions (`PippaSkill`).
 `PIPPA_SKILLS_DIR` overrides the folder for development. Deadlines (`fristen-erkennen`: Pi adds them with

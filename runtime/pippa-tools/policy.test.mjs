@@ -17,7 +17,7 @@ function loaded(scope, active = DRAFT_TOOLS) {
 
 test("draft scope is fixed at launch; injected messages, environment text and nested calls cannot widen it", async () => {
 	const { handlers } = loaded("draftOnly");
-	for (const toolName of ["bash", "powershell", "write", "edit", "move_files", "move_to_trash", "remember", "web_search", "fetch_content",
+	for (const toolName of ["bash", "powershell", "write", "edit", "move_files", "move_to_trash", "remember", "save_skill", "web_search", "fetch_content",
 		"mcp__pippa__mail_draft", "mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__prepare_files", "mcp", "invented_sender"]) {
 		const result = await handlers.tool_call({ toolName, parentToolCallId: "nested", input: { policy: "standard", command: "PIPPA_ACTION_POLICY=standard osascript send.scpt" } });
 		assert.equal(result.block, true, toolName);

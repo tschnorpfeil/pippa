@@ -42,7 +42,7 @@ const DOCUMENT_TYPES = /\.(pdf|docx?|pages|rtf|odt|xlsx?|numbers|key|pptx?|eml|e
 
 const NATIVE_CHANGES = new Set(["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__prepare_files"]);
 /** Tools that change something: successful or uncertain changes are not repeated in one answer. */
-const CHANGES = new Set(["write", "edit", "move_files", "move_to_trash", ...NATIVE_CHANGES]);
+const CHANGES = new Set(["write", "edit", "move_files", "move_to_trash", "save_skill", ...NATIVE_CHANGES]);
 
 /** `read` on a document: the reason that sends Pi to Pippa's document reader instead (text, OCR for scans). */
 export function documentForRead(tool: string, input: any): string | undefined {
@@ -233,6 +233,7 @@ export function changesOf(tool: string, details: any, isError: boolean, before?:
 	}
 	if ((tool === "edit" || tool === "write") && before?.copy) return [{ kind: "restore", file: before.file, copy: before.copy }];
 	if (isError) return [];
+	if (tool === "save_skill" && details?.pippaSkill === "saved" && typeof details?.file === "string") return [{ kind: "create", file: details.file }];
 	if ((tool === "edit" || tool === "write") && before) {
 		return before.created ? [{ kind: "create", file: before.file }] : [];
 	}

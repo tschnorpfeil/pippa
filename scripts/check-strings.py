@@ -70,6 +70,7 @@ DYNAMIC_KEYS: dict[tuple[str, str], frozenset[str]] = {
         "Reading a web page",
         "Reading the selected mail",
         "Remembering that",
+        "Saving a skill",
         "Searching Spotlight for %@",
         "Searching Spotlight for %@ %@",
         "Searching for %@",

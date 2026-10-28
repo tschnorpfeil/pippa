@@ -374,4 +374,8 @@ test("what an answer changed is told to the app from the tools' own results, so 
 	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("write", {}, true, { file: "/u/a.txt", copy: "/b/a.txt" }), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("read", {}, false), []);
+	// A saved skill (skill-save.ts) is a new file: undo moves its SKILL.md to the Trash.
+	assert.deepEqual(changesOf("save_skill", { pippaSkill: "saved", file: "/s/x/SKILL.md" }, false), [{ kind: "create", file: "/s/x/SKILL.md" }]);
+	assert.deepEqual(changesOf("save_skill", { pippaSkill: "not_saved" }, true), []);
+	assert.deepEqual(changesOf("save_skill", { pippaSkill: "saved", file: "/s/x/SKILL.md" }, true), [], "an error proves no saved file");
 });
