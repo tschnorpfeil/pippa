@@ -99,7 +99,8 @@ export function checkSkill(params: any, refusal: (text: string) => string | unde
 	if (!instructions) return { error: "Not saved: give the steps as plain text." };
 	if (description.length > MAX_DESCRIPTION) return { error: `Too long: keep the description under ${MAX_DESCRIPTION} characters.` };
 	if (instructions.length > MAX_INSTRUCTIONS) return { error: `Too long: keep the steps under ${MAX_INSTRUCTIONS} characters.` };
-	const reason = refusal(description + "\n" + instructions);
+	// The name too: it becomes the folder and the receipt line.
+	const reason = refusal(String(params?.name ?? "")) ?? refusal(description + "\n" + instructions);
 	if (reason) return { error: reason };
 	return { name, description, instructions };
 }

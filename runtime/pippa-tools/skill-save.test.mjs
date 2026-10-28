@@ -77,6 +77,7 @@ test("checkSkill: lengths, one line of description, and the same refusals as rem
 		assert.match(skills.checkSkill({ ...steps, instructions: secret }, memory.refusal).error, /never keeps/, secret);
 		assert.match(skills.checkSkill({ ...steps, description: secret }, memory.refusal).error, /never keeps/, secret);
 	}
+	assert.match(skills.checkSkill({ ...steps, name: "Konto 1234567890" }, memory.refusal).error, /never keeps/, "the name becomes a folder");
 });
 
 test("renderSkill: frontmatter that parses, description quoted on one line, listed for the model, language line last", async () => {
