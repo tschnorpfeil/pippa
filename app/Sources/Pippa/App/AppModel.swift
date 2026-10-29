@@ -11,6 +11,8 @@ final class AppModel: ObservableObject {
     let conversations = ConversationController()
     /// The tray on Pippa: given things and results, with the one line (TrayController.swift).
     let tray = TrayController()
+    /// Speaking instead of typing in the composer, hidden behind `dictation.enabled` (Dictation.swift).
+    let dictation = Dictation()
     /// Call in Mail ("Letter"): first line, actions, draft, insert (LetterController.swift).
     let letter = LetterController()
     /// Call in Excel ("Sheet"): first line from "Check the total", actions, read-only (SheetController.swift).
@@ -193,6 +195,7 @@ final class AppModel: ObservableObject {
             }
         }
         tray.model = self
+        dictation.onInsert = { [weak self] in self?.insertDictation($0) }
         trayChanges = tray.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark() }
         }
@@ -673,6 +676,12 @@ final class AppModel: ObservableObject {
         composerFocus += 1
     }
 
+    /// What was dictated goes after what is typed; nothing is sent yet.
+    func insertDictation(_ text: String) {
+        query = DictationGate.inserting(text, into: query)
+        composerFocus += 1
+    }
+
     func openConversationFromPill(now: Date = Date()) {
         guard hasResumableConversation, let current = conversations.current else { return openInput() }
         switch reopenDestination(current, now: now) {
@@ -746,6 +755,7 @@ final class AppModel: ObservableObject {
 
     /// Back to the pill. An open result waits silently (no number; preview image from R1).
     func collapse() {
+        dictation.cancel()
         if mode.isConversation { recordConversationActivity() }
         if mode.key == "line" {
             if sheet.isActive { sheet.lineClosed() } else if letter.isActive { letter.lineClosed() } else { tray.lineClosed() }
@@ -757,6 +767,8 @@ final class AppModel: ObservableObject {
 
     /// Esc: one step back in the sheet, otherwise to the pill.
     func escape() {
+        // Esc while dictating discards what was heard; the window stays (also ShellPanel.cancelOperation).
+        if dictation.isActive { dictation.cancel(); return }
         switch mode {
         case .sortSheet, .deadlines:
             stopSortFilling()

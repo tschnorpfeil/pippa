@@ -663,6 +663,7 @@ struct ConversationWorkspace: View {
                     }
                 }
             }
+            if UserDefaults.standard.bool(forKey: Dictation.enabledKey) { DictationStrip(dictation: model.dictation) }
             HStack(alignment: .bottom, spacing: 10) {
                 Button { model.chooseFolder() } label: { Image(systemName: "plus").foregroundStyle(Theme.accent).frame(width: 28, height: 32) }
                     .buttonStyle(.plain).accessibilityLabel(T("Add Files", table: "Views"))
@@ -675,6 +676,7 @@ struct ConversationWorkspace: View {
                         return .handled
                     }
                     .onSubmit { model.route(model.query) }.padding(.vertical, 8)
+                if UserDefaults.standard.bool(forKey: Dictation.enabledKey) { DictationButton(dictation: model.dictation) }
                 if chat.isRunning {
                     Button { model.stopChat() } label: { Image(systemName: "stop.fill").frame(width: 32, height: 32) }
                         .buttonStyle(.plain).accessibilityLabel(T("Stop Answering", table: "Views"))
