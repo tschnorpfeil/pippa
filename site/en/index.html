@@ -7,25 +7,25 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://heypippa.goatcounter.com; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="robots" content="index, follow, max-image-preview:large">
-<title>Pippa: free Mac helper for paperwork, with local AI</title>
+<title>Pippa: the free AI assistant for Mac that actually gets things done</title>
 <meta name="description" content="Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Pippa’s built-in AI runs on your Mac.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="de_DE">
 <meta property="og:site_name" content="Pippa">
-<meta property="og:title" content="Pippa: free Mac helper for paperwork, with local AI">
+<meta property="og:title" content="Pippa: the free AI assistant for Mac that actually gets things done">
 <meta property="og:description" content="Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Pippa’s built-in AI runs on your Mac.">
-<meta property="og:image" content="https://heypippa.app/og-en.jpg?v=4">
-<meta property="og:image:alt" content="“Paperwork on your Mac? Done.” Next to it, Pippa’s answer: a photographed letter from the German tax office is explained, with the amount, the deadline and the sentence that states it.">
-<meta property="og:image:secure_url" content="https://heypippa.app/og-en.jpg?v=4">
+<meta property="og:image" content="https://heypippa.app/og-en.jpg?v=5">
+<meta property="og:image:alt" content="“The AI assistant that actually gets things done.” Below it, Pippa’s window: a photographed letter from the German tax office is explained, with the amount, the deadline and the sentence that states it.">
+<meta property="og:image:secure_url" content="https://heypippa.app/og-en.jpg?v=5">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Pippa: free Mac helper for paperwork, with local AI">
+<meta name="twitter:title" content="Pippa: the free AI assistant for Mac that actually gets things done">
 <meta name="twitter:description" content="Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Pippa’s built-in AI runs on your Mac.">
-<meta name="twitter:image" content="https://heypippa.app/og-en.jpg?v=4">
-<meta name="twitter:image:alt" content="“Paperwork on your Mac? Done.” Next to it, Pippa’s answer: a photographed letter from the German tax office is explained, with the amount, the deadline and the sentence that states it.">
+<meta name="twitter:image" content="https://heypippa.app/og-en.jpg?v=5">
+<meta name="twitter:image:alt" content="“The AI assistant that actually gets things done.” Below it, Pippa’s window: a photographed letter from the German tax office is explained, with the amount, the deadline and the sentence that states it.">
 <link rel="icon" href="../favicon.ico" sizes="48x48">
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
@@ -53,7 +53,7 @@
       "@type": "WebPage",
       "@id": "https://heypippa.app/en/#page",
       "url": "https://heypippa.app/en/",
-      "name": "Pippa: free Mac helper for paperwork, with local AI",
+      "name": "Pippa: the free AI assistant for Mac that actually gets things done",
       "description": "Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Pippa’s built-in AI runs on your Mac.",
       "inLanguage": "en",
       "isPartOf": {
@@ -91,419 +91,1150 @@
   ]
 }
 </script>
+<script>
+/* The hero tells its stories only when it can move: without JS or with reduced motion the window shows the first one finished. */
+(()=>{const r=document.documentElement;r.classList.add('js');if(matchMedia('(prefers-reduced-motion: reduce)').matches||!('IntersectionObserver' in window)||!Element.prototype.animate)return;
+r.classList.add('fx');addEventListener('load',()=>setTimeout(()=>{if(!r.classList.contains('fx-ok'))r.classList.remove('fx')},300))})();
+</script>
 <style>
-/* Hallmark · shape: Feature Stack · genre: editorial · theme: Atelier (deal: manual, picked over Dose and Studio for its calm limewash paper and one cool signal that matches Pippa's blue) · job: try · redesign: full
- * hero: Settled, the headline across the container over a split: sentence and download left, Pippa's letter answer right · nav: edge-aligned, wordmark left, language and a quiet download right · footer: colophon, wordmark and legal links over the small print · imagery: the product, built (one answer card, data-kind product) · signature: Pippa's answer to a tax letter with the deadline sentence quoted, her rings turning once and smiling at the download · posture: restrained
- * axes: light warm paper, roman serif display over the system sans, cool brand blue as the only signal · contrast: pass · fold: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H5 E4 S5 R5 V4 · weakest: P, a quiet page argues less, so the hero shows the one result only Pippa gives: what a German letter wants, by when, and the sentence that says so */
-/* Hallmark · dropped the scripted Finder demo, its six scenes and the pause control · a hand-drawn OS window (47a) and the main source of noise; the letter answer card carries the hero instead */
-/* Hallmark · dropped the nav links, the eyebrow, the second hero action and two comparison rows · fewer words per screen for a calm page; every fact stays in the FAQ or the table */
-/* Hallmark · answered F18 · the one built slot is Pippa's own answer card, replaced by a real capture once the app can be recorded; no image files to swap, so no slot script */
-
+/* Pippa's homepage: a white page, one idea per section, one built visual each.
+ * The window under the hero is Pippa's own, rebuilt from Theme.swift and the conversation rails (1 pt = 1 px). */
 :root {
-  --color-paper: oklch(96.6% 0.009 80);
-  --color-paper-2: oklch(93.6% 0.012 84);
-  --color-card: oklch(98.9% 0.005 85);
-  --color-ink: oklch(22% 0.022 55);
-  --color-ink-2: oklch(35% 0.018 57);
-  --color-muted: oklch(47% 0.014 62);
-  --color-rule: oklch(85% 0.012 72);
-  --color-rule-strong: oklch(30% 0.02 55);
-  --color-accent: oklch(49.9% 0.192 258.8);
-  --color-accent-ink: oklch(98.5% 0.005 85);
-  --color-focus: oklch(52% 0.2 258.8);
-  --color-selection: oklch(88% 0.06 258);
-  --shadow-card: 0 1px 1px oklch(30% 0.03 55 / 0.06), 0 22px 48px -22px oklch(30% 0.03 55 / 0.30);
+  --bg: #fff;
+  --stage: #f6f7f9;
+  --ink: #111318;
+  --ink-2: #3a3f48;
+  --muted: #676c75;
+  --faint: #8c9099;
+  --line: #ebecef;
+  --line-2: #dfe1e6;
+  --accent: #005bcd;
+  --accent-hover: #004cad;
+  --accent-soft: #c9dcf7;
+  --accent-wash: #eef4fd;
+  --ok: #0d712c;
+  --sys: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --lift: 0 0 0 1px rgb(17 24 39 / .07), 0 2px 4px rgb(17 24 39 / .03), 0 22px 44px -22px rgb(17 24 39 / .26);
+  --lift-sm: 0 0 0 1px rgb(17 24 39 / .07), 0 12px 28px -18px rgb(17 24 39 / .24);
   /* PippaMark reads these at runtime; hex keeps older canvas engines on the brand blue. */
   --pippa-ink: #005bcd;
   --pippa-ink-offen: #0d712c;
-
-  --font-display: ui-serif, "New York", Charter, "Iowan Old Style", Cambria, Caladea, Georgia, serif;
-  --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --weight-regular: 400;
-  --weight-strong: 600;
-
-  --text-display: clamp(2.375rem, 1rem + 4.9vw, 5rem);
-  --text-section: clamp(2rem, 1.25rem + 2vw, 2.875rem);
-  --text-title: clamp(1.3125rem, 1.15rem + 0.45vw, 1.5625rem);
-  --text-lead: clamp(1.125rem, 1rem + 0.4vw, 1.3125rem);
-  --text-md: 1.0625rem;
-  --text-sm: 0.9375rem;
-
-  --space-3xs: 0.125rem;
-  --space-2xs: 0.25rem;
-  --space-xs: 0.5rem;
-  --space-sm: 0.75rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2.5rem;
-  --space-2xl: 4rem;
-  --space-3xl: 6rem;
-  --section-gap-s: clamp(4.5rem, 2rem + 6vw, 7.5rem);
-  --section-gap: clamp(5rem, 2rem + 7.5vw, 9rem);
-  --section-gap-l: clamp(5.5rem, 2rem + 9vw, 11rem);
-
-  --container: 75rem;
-  --gutter: clamp(1rem, 0.25rem + 3.5vw, 3rem);
-  --gap-columns: clamp(1rem, 0.5rem + 1.5vw, 2rem);
-  --head-h: 4.75rem;
-
-  --radius-card: 18px;
-  --radius-bubble: 14px;
-  --radius-cell: 8px;
-  --radius-pill: 999px;
-  --radius-kbd: 6px;
-
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --dur-micro: 120ms;
-  --dur-short: 220ms;
+  color-scheme: light;
 }
-
 *, *::before, *::after { box-sizing: border-box; }
-html {
-  overflow-x: clip;
-  -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
-  scrollbar-color: var(--color-rule) var(--color-paper);
-  caret-color: var(--color-accent);
-}
-body {
-  margin: 0;
-  overflow-x: clip;
-  background: var(--color-paper);
-  color: var(--color-ink-2);
-  font: var(--weight-regular) var(--text-md)/1.6 var(--font-body);
-  font-synthesis: none;
-  -webkit-font-smoothing: antialiased;
-}
-::selection { background: var(--color-selection); color: var(--color-ink); }
-h1, h2, h3 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-weight: var(--weight-regular);
-  color: var(--color-ink);
-  text-wrap: balance;
-  overflow-wrap: break-word;
-  min-width: 0;
-}
-h1 { font-size: var(--text-display); line-height: 1.04; letter-spacing: -0.022em; }
-h2 { font-size: var(--text-section); line-height: 1.1; letter-spacing: -0.016em; max-width: 22ch; }
-h3 { font-size: var(--text-title); line-height: 1.2; letter-spacing: -0.008em; max-width: 30ch; }
-p { margin: 0; text-wrap: pretty; }
-strong { font-weight: var(--weight-strong); color: var(--color-ink); }
-a {
-  color: inherit;
-  text-decoration-line: underline;
-  text-decoration-color: var(--color-accent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.22em;
-}
-a:hover { color: var(--color-ink); text-decoration-thickness: 2px; }
-:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; border-radius: var(--radius-kbd); }
-kbd {
-  font: var(--weight-strong) 0.875em/1 var(--font-body);
-  padding: var(--space-3xs) var(--space-xs);
-  border-radius: var(--radius-kbd);
-  background: var(--color-card);
-  box-shadow: inset 0 0 0 1px var(--color-rule), 0 1px 0 var(--color-rule);
-  color: var(--color-ink);
-  white-space: nowrap;
-}
-.skip {
-  position: absolute; left: var(--space-md); top: var(--space-md); z-index: 10;
-  padding: var(--space-xs) var(--space-md); border-radius: var(--radius-pill);
-  background: var(--color-ink); color: var(--color-paper); text-decoration: none;
-  transform: translateY(-300%);
-}
-.skip:focus-visible { transform: none; }
-
-.container { width: 100%; max-width: calc(var(--container) + 2 * var(--gutter)); margin-inline: auto; padding-inline: var(--gutter); }
-.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap-columns); }
-
-/* Controls: one filled button, a quiet outline in the header. */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-height: 52px; padding-inline: var(--space-lg);
-  border-radius: var(--radius-pill);
-  background: var(--color-ink); color: var(--color-paper);
-  font: var(--weight-strong) var(--text-md)/1 var(--font-body);
-  text-decoration: none; white-space: nowrap;
-  transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out);
-}
-.btn:hover { background: var(--color-accent); color: var(--color-accent-ink); }
-.btn:active { transform: translateY(1px); }
-.btn.quiet { min-height: 44px; padding-inline: var(--space-md); background: transparent; color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-rule-strong); font-size: var(--text-sm); }
-.btn.quiet:hover { background: var(--color-ink); color: var(--color-paper); }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sys); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+main { overflow-x: clip; }
+h1, h2, h3, h4, p, ol, ul, dl, dd, blockquote, figure { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+a { color: inherit; text-decoration: none; }
+strong, b { font-weight: 600; }
+::selection { background: #d3e3fa; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.skip { position: absolute; left: 12px; top: -60px; z-index: 50; background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 14px; }
+.skip:focus { top: 10px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.wrap { width: min(1120px, calc(100% - 64px)); margin-inline: auto; }
+.nw { white-space: nowrap; }
+.ic { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Header */
-.site-head .container { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); min-height: var(--head-h); }
-.brand { display: inline-flex; align-items: center; gap: var(--space-xs); color: var(--color-ink); text-decoration: none; font: var(--weight-regular) var(--text-title)/1 var(--font-display); }
-.brand canvas { flex-shrink: 0; }
-.head-act { display: flex; align-items: center; gap: var(--space-lg); }
-.langsw { font-size: var(--text-sm); color: var(--color-ink-2); text-decoration-color: transparent; padding-block: var(--space-sm); }
-.langsw:hover { text-decoration-color: var(--color-accent); }
+.site-head { position: sticky; top: 0; z-index: 20; background: rgb(255 255 255 / .92); -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px); border-bottom: 1px solid transparent; transition: border-color .18s ease; }
+.site-head[data-scrolled] { border-bottom-color: rgb(0 0 0 / .06); }
+.head-in { display: flex; align-items: center; gap: 26px; min-height: 58px; }
+.brand { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; font-size: 19px; font-weight: 700; letter-spacing: -.025em; }
+.brand canvas { width: 26px; height: 26px; }
+.head-nav { display: flex; align-items: center; gap: 24px; font-size: 13.5px; font-weight: 500; color: var(--ink-2); }
+.head-nav a:not(.btn) { padding-block: 10px; }
+.head-nav a:not(.btn):hover { color: var(--ink); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 46px; padding: 0 20px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .16), 0 1px 2px rgb(0 40 110 / .22), 0 8px 18px -10px rgb(0 91 205 / .6); transition: background .16s ease, transform .16s cubic-bezier(.23, 1, .32, 1); }
+.btn:hover { background: var(--accent-hover); }
+.btn:active { transform: scale(.97); }
+.btn .ic { width: 15px; height: 15px; stroke-width: 2; }
+.btn.quiet { min-height: 34px; padding: 0 13px; border-radius: 8px; font-size: 13px; gap: 7px; box-shadow: inset 0 1px 0 rgb(255 255 255 / .16), 0 1px 2px rgb(0 40 110 / .2); }
+.btn.quiet .ic { width: 13px; height: 13px; }
+.link2 { display: inline-flex; align-items: center; gap: 6px; min-height: 46px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.link2:hover { color: var(--ink); }
+.link2 .ic { width: 12px; height: 12px; stroke-width: 2; }
 
 /* Hero */
-.hero { min-height: calc(100svh - var(--head-h)); display: grid; align-content: center; padding-block: var(--space-xl) var(--space-2xl); }
-.hero-in { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap-columns); row-gap: var(--space-xl); align-items: start; }
-.hero h1 { grid-column: 1 / -1; }
-.hero-copy { grid-column: 1 / span 5; display: grid; gap: var(--space-lg); justify-items: start; padding-top: var(--space-lg); }
-.lede { font-size: var(--text-lead); line-height: 1.5; color: var(--color-ink-2); max-width: 34ch; }
-.meta { font-size: var(--text-sm); color: var(--color-muted); max-width: 40ch; }
-.mob-note { display: none; font-size: var(--text-sm); color: var(--color-ink-2); max-width: 40ch; }
+.hero { position: relative; text-align: center; padding: 76px 0 0; }
+.badge { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; padding: 4px 12px 4px 5px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 12.5px; font-weight: 500; color: var(--ink-2); background: #fff; box-shadow: 0 1px 2px rgb(17 24 39 / .04); }
+.badge i { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-wash); color: var(--accent); }
+.badge .ic { width: 11px; height: 11px; stroke-width: 2.4; }
+.hero h1 { margin-top: 26px; font-size: clamp(40px, 5.2vw, 64px); font-weight: 700; line-height: 1.06; letter-spacing: -.042em; }
+.hero h1 span { display: block; }
+.lede { max-width: 600px; margin: 24px auto 0; font-size: 18px; line-height: 1.6; color: var(--muted); text-wrap: balance; }
+.act { display: flex; justify-content: center; align-items: center; gap: 22px; margin-top: 32px; flex-wrap: wrap; }
+.mob-note { display: none; max-width: 34ch; margin: 14px auto 0; font-size: 13px; color: var(--muted); }
 .mob .mob-note { display: block; }
-.hero-visual { grid-column: 7 / span 6; justify-self: end; width: 100%; max-width: 32rem; display: grid; gap: var(--space-sm); justify-items: start; }
 
-/* Pippa's answer card, built from the app's letter answer. */
-.answer {
-  width: 100%; max-width: 32rem;
-  display: grid; gap: var(--space-md);
-  padding: var(--space-lg);
-  border-radius: var(--radius-card);
-  background: var(--color-card);
-  box-shadow: var(--shadow-card);
-  color: var(--color-ink-2);
+/* The product under the hero */
+.product { position: relative; isolation: isolate; width: min(1180px, calc(100% - 64px)); margin: 60px auto 0; }
+/* Light spilling from under the window, breathing slowly; it drifts a little against the window's tilt. */
+.glow { position: absolute; z-index: -1; inset: -80px -96px -120px; pointer-events: none; }
+.glow::before, .glow::after { content: ""; position: absolute; inset: 0; will-change: opacity, transform; }
+.glow::before { background: radial-gradient(58% 48% at 50% 58%, rgb(0 91 205 / .11), rgb(0 91 205 / .045) 50%, transparent 74%); animation: breathe 9s ease-in-out infinite; }
+.glow::after { background: radial-gradient(40% 15% at 50% 88%, rgb(24 118 232 / .26), rgb(24 118 232 / .08) 52%, transparent 82%), radial-gradient(62% 26% at 50% 84%, rgb(0 91 205 / .07), transparent 70%); animation: breathe 9s ease-in-out -4.5s infinite; }
+@keyframes breathe { 0%, 100% { opacity: .6; transform: scale(.975); } 50% { opacity: 1; transform: scale(1.015); } }
+.caption { margin-top: 18px; font-size: 12.5px; color: var(--faint); text-align: center; }
+
+.pw {
+  --ink: #202735; --ink2: rgb(32 39 53 / .78); --ink3: rgb(32 39 53 / .62); --hair: rgb(32 39 53 / .10);
+  --fill: rgb(32 39 53 / .035); --fill2: rgb(32 39 53 / .07); --accent: #005BCD; --accentTint2: rgb(0 91 205 / .14);
+  --chatCard: #fff; --chatBorder: rgb(39 61 96 / .10); --chatUser: #E5EEFF;
+  position: relative; height: 680px; display: flex; flex-direction: column; overflow: hidden; isolation: isolate;
+  border-radius: 26px; background: #f8f9fb; color: var(--ink); text-align: left; letter-spacing: -.003em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
+  box-shadow: 0 0 0 1px rgb(22 34 56 / .11), 0 3px 8px rgb(22 34 56 / .04), 0 30px 70px -18px rgb(22 34 56 / .30);
+  transform-origin: 50% 60%;
 }
-.a-head { display: flex; align-items: center; gap: var(--space-sm); }
-.a-head canvas { flex-shrink: 0; }
-.a-head b { display: block; color: var(--color-ink); font-weight: var(--weight-strong); line-height: 1.3; }
-.a-head small { display: block; font-size: var(--text-sm); color: var(--color-muted); line-height: 1.3; }
-.a-ask { justify-self: end; max-width: 85%; padding: var(--space-xs) var(--space-md); border-radius: var(--radius-bubble); border-bottom-right-radius: var(--radius-kbd); background: var(--color-paper-2); color: var(--color-ink); }
-.a-facts { margin: 0; display: grid; gap: var(--space-md); }
-.a-facts div { display: grid; gap: var(--space-3xs); }
-.a-facts dt { font-size: var(--text-sm); color: var(--color-muted); }
-.a-facts dd { margin: 0; font: var(--weight-regular) var(--text-title)/1.25 var(--font-display); color: var(--color-ink); }
-.a-quote { margin: 0; padding-top: var(--space-md); border-top: 1px solid var(--color-rule); font: italic var(--weight-regular) var(--text-md)/1.5 var(--font-display); color: var(--color-ink); }
-.a-quote small { display: block; margin-top: var(--space-2xs); font: var(--weight-regular) var(--text-sm)/1.5 var(--font-body); color: var(--color-muted); }
-.chip { justify-self: start; display: inline-flex; align-items: center; gap: var(--space-xs); min-height: 2.25rem; padding-inline: var(--space-sm); border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px var(--color-rule); font-size: var(--text-sm); color: var(--color-ink); }
-.chip svg, .qa summary svg { flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.caption { font-size: var(--text-sm); color: var(--color-muted); padding-left: var(--space-lg); }
+.pw::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .6); z-index: 5; }
+.pw .ic { stroke-width: 1.6; }
+.pw-head { position: relative; height: 64px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 20px; }
+.pw-head::after, .pw-sessions::after, .pw-detail::before { content: ""; position: absolute; background: var(--hair); }
+.pw-head::after { left: 0; right: 0; bottom: 0; height: 1px; transform: scaleY(.5); transform-origin: bottom; }
+.pw-head canvas { width: 32px; height: 32px; flex: none; }
+.pw-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.pw-title b { font: 600 14px/1.2 ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+.pw-title small { font-size: 12px; line-height: 1.25; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pw-tog { width: 28px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: var(--accent); background: rgb(0 91 205 / .10); font-size: 14px; flex: none; }
+.pw-close { width: 26px; height: 26px; display: grid; place-items: center; color: var(--ink3); font-size: 11px; flex: none; }
+.pw-close .ic { stroke-width: 2.2; }
+.pw-body { flex: 1; display: flex; min-height: 0; }
+.pw-sessions { position: relative; width: 232px; flex: none; background: var(--fill); padding: 10px 10px 14px; }
+.pw-sessions::after { right: 0; top: 0; bottom: 0; width: 1px; transform: scaleX(.5); }
+.pw-new { height: 32px; border-radius: 8px; background: var(--fill2); display: flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.pw-group { font-size: 11.5px; font-weight: 500; color: var(--ink3); padding: 12px 10px 4px; }
+.pw-row { height: 30px; border-radius: 8px; display: flex; align-items: center; padding: 0 10px; font-size: 13px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
+.pw-row.sel { background: var(--accentTint2); color: var(--ink); justify-content: space-between; }
+.pw-row .dots { color: var(--ink2); font-size: 11px; letter-spacing: .5px; }
+.pw-chat { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pw-scroll { flex: 1; min-height: 0; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+.pw-user { align-self: flex-end; max-width: 78%; background: var(--chatUser); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.pw-user p { font-size: 14.5px; line-height: 1.32; }
+.pw-attach { display: flex; gap: 6px; }
+.pw-attach .thumb { width: 38px; height: 50px; border-radius: 5px; }
+.pw-answer { font-size: 15px; line-height: 1.45; display: flex; flex-direction: column; gap: 10px; max-width: 540px; }
+.pw-quote { display: flex; gap: 12px; color: var(--ink2); }
+.pw-quote::before { content: ""; width: 2px; border-radius: 1px; background: var(--hair); flex: none; }
+.pw-quote small { display: block; margin-top: 2px; font-size: 13px; color: var(--ink3); }
+.pw-card { max-width: 540px; background: var(--chatCard); border-radius: 12px; box-shadow: inset 0 0 0 1px var(--chatBorder); padding: 14px; display: flex; flex-direction: column; gap: 9px; }
+.ct { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.ct .ic { color: var(--accent); font-size: 15px; stroke-width: 1.8; }
+.meta { display: flex; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-top: -4px; }
+.meta span + span::before { content: "\00b7"; margin: 0 .35em; }
+.fit { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #0d712c; }
+.fit .ic { font-size: 13px; stroke-width: 2.2; }
+.pw-file { display: flex; gap: 10px; align-items: center; font-size: 13px; font-weight: 500; }
+.links { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; font-weight: 500; color: var(--accent); }
+.foot { font-size: 11.5px; color: var(--ink3); }
+.pw-composer { padding: 10px 24px 18px; flex: none; }
+.pw-field { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--chatCard); border-radius: 18px; box-shadow: inset 0 0 0 1px var(--chatBorder), 0 1px 2px rgb(22 34 56 / .04); }
+.pw-field .add { width: 28px; height: 32px; display: grid; place-items: center; color: var(--accent); font-size: 15px; }
+.pw-field .ph { flex: 1; font-size: 14.5px; color: var(--ink3); }
+.pw-field .send { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 14px; opacity: .4; }
+.pw-field .send .ic { stroke-width: 2.2; }
+.pw-detail { position: relative; width: 288px; flex: none; background: var(--fill); padding: 16px 12px 30px; display: flex; flex-direction: column; gap: 22px; }
+.pw-detail::before { left: 0; top: 0; bottom: 0; width: 1px; transform: scaleX(.5); }
+.pw-sec { display: flex; flex-direction: column; gap: 4px; }
+.pw-sec .h { padding: 0 6px 2px; font-size: 12.5px; font-weight: 600; display: flex; gap: 6px; align-items: baseline; }
+.pw-sec .h span { font-size: 11.5px; font-weight: 500; color: var(--ink3); }
+.pw-item { display: flex; gap: 10px; padding: 5px 6px; align-items: flex-start; }
+.pw-item > i { width: 20px; height: 24px; display: grid; place-items: center; color: var(--accent); font-size: 13px; flex: none; }
+.pw-item .tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pw-item .tx b { font-size: 13px; font-weight: 400; line-height: 1.3; }
+.pw-item .tx small { display: flex; font-size: 11.5px; color: var(--ink3); }
+.pw-item .tx small span + span::before { content: "\00b7"; margin: 0 .35em; }
+.pw-empty { font-size: 12px; color: var(--ink3); padding: 0 6px; line-height: 1.4; }
+
+/* A phone photo of a page, and a PDF file icon */
+.thumb { position: relative; flex: none; overflow: hidden; box-shadow: 0 0 0 .5px rgb(0 0 0 / .16), 0 1px 2px rgb(0 0 0 / .12);
+  background: linear-gradient(115deg, transparent 40%, rgb(80 60 30 / .16)),
+    repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .26) 3px 4px) 18% 36% / 64% 46% no-repeat,
+    linear-gradient(rgb(60 60 70 / .55), rgb(60 60 70 / .55)) 18% 14% / 34% 3px no-repeat, #f4efe4; }
+/* Phone photos of a page lying on a desk, and a PDF page */
+.thumb.ph { background: linear-gradient(160deg, #b2a48e, #776c5c); }
+.thumb.ph.b { background: linear-gradient(200deg, #a7aab0, #6c7079); }
+.thumb.ph::before { content: ""; position: absolute; inset: 12% 15% 10% 13%; border-radius: 1px; transform: rotate(-5deg); box-shadow: 0 1px 3px rgb(0 0 0 / .32);
+  background: linear-gradient(115deg, transparent 45%, rgb(80 60 30 / .14)),
+    repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .28) 3px 4px) 18% 40% / 64% 42% no-repeat,
+    linear-gradient(rgb(60 60 70 / .55), rgb(60 60 70 / .55)) 18% 14% / 36% 2px no-repeat, #f6f1e6; }
+.thumb.ph.b::before { transform: rotate(4deg); inset: 10% 13% 12% 15%; }
+.thumb.pd { font-size: 6px; background: repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .2) 3px 4px) 20% 34% / 60% 36% no-repeat,
+    linear-gradient(rgb(60 60 70 / .5), rgb(60 60 70 / .5)) 20% 14% / 40% 2px no-repeat, #fff; }
+.thumb.pd::after { content: "PDF"; position: absolute; left: 0; right: 0; bottom: 13%; padding: .25em 0; font: 700 1em/1 -apple-system, system-ui, sans-serif; color: #fff; background: #e5372b; text-align: center; }
+.doc20 { position: relative; display: block; width: 16px; height: 20px; border-radius: 2.5px; background: #fff; box-shadow: 0 0 0 .5px rgb(0 0 0 / .22), 0 1px 1.5px rgb(0 0 0 / .14); }
+.doc20::after { content: "PDF"; position: absolute; left: 0; right: 0; bottom: 3px; padding: 1px 0; font: 700 5px/1 -apple-system, system-ui, sans-serif; color: #fff; background: #e5372b; text-align: center; }
+
+/* Six short scenes in the one window. Scene 1 is in the markup as shown; JS switches scenes (.on) and,
+ * with motion, plays each one: files drop in or a question is typed (.u-in), Pippa works, her answer appears (.rv-go). */
+.pw-scroll { display: grid; }
+.sc { grid-area: 1 / 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.pw-detail { display: grid; align-content: start; }
+.rs { grid-area: 1 / 1; display: flex; flex-direction: column; gap: 22px; }
+.sc:not(.on), .rs:not(.on) { opacity: 0; visibility: hidden; }
+.fx .sc, .fx .rs { transition: opacity .2s ease, visibility 0s linear .2s; }
+.fx .sc.on, .fx .rs.on { transition: opacity .32s ease .06s; }
+.pw-row { transition: background-color .35s ease, color .35s ease; }
+.pw-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pw-row.sel::after { content: "\2022\2022\2022"; flex: none; margin-left: 8px; color: var(--ink2); font-size: 11px; letter-spacing: .5px; }
+.pw-title small { display: block; }
+
+/* Pippa's answer appears once per scene */
+.fx .sc:not(.rv-go) .rv, .fx .rs:not(.rv-go) .rv { opacity: 0; transform: translateY(6px); }
+.rv-go .rv { opacity: 1; transform: none; transition: opacity .5s ease var(--d, 0s), transform .7s cubic-bezier(.2, .8, .2, 1) var(--d, 0s); }
+.fx .pw-user, .fx .pw-used .pw-item, .fx .pw-used .pw-empty { transition: opacity .45s ease, transform .55s cubic-bezier(.2, .8, .2, 1); }
+.fx .sc:not(.u-in) .pw-user { opacity: 0; transform: translateY(8px) scale(.985); transform-origin: 100% 100%; }
+.fx .rs:not(.u-in) .pw-used .pw-item, .fx .rs:not(.u-in) .pw-used .pw-empty { opacity: 0; }
+.fx .pw-attach .thumb.wait { opacity: 0; }
+
+/* The example switcher: a slim segmented control over the window */
+.scn-wrap { display: none; position: relative; z-index: 2; margin: -6px auto 22px; max-width: 100%; }
+.js .scn-wrap { display: flex; justify-content: center; }
+.scn { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: #f1f2f5; box-shadow: inset 0 0 0 1px rgb(17 24 39 / .05); }
+.seg { position: relative; overflow: hidden; min-height: 32px; padding: 0 15px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: 500 13px/1 var(--sys); letter-spacing: -.005em; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+.seg:hover { color: var(--ink); }
+.seg[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 0 0 .5px rgb(17 24 39 / .08), 0 1px 2px rgb(17 24 39 / .08), 0 2px 6px -2px rgb(17 24 39 / .08); }
+.seg:focus-visible { outline-offset: 1px; border-radius: 9px; }
+.seg i { position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 1px; background: var(--accent); opacity: .85; transform: scaleX(0); transform-origin: 0 50%; pointer-events: none; }
+.seg[aria-pressed="false"] i { visibility: hidden; }
+
+/* Composer: the selected Mail message as context, a typed question, a drop landing */
+.pw-composer { position: relative; }
+.pw-chip { position: absolute; left: 24px; bottom: calc(100% - 4px); display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 48px); height: 26px; padding: 0 10px 0 5px; border-radius: 13px; background: #fff; box-shadow: inset 0 0 0 1px var(--chatBorder); font-size: 12.5px; white-space: nowrap; overflow: hidden; opacity: 0; transform: translateY(4px); pointer-events: none; }
+.pw-chip.on { opacity: 1; transform: none; }
+.fx .pw-chip { transition: opacity .3s ease, transform .4s cubic-bezier(.2, .8, .2, 1); }
+.pw-chip i { width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; background: var(--accentTint2); color: var(--accent); font-size: 10px; flex: none; }
+.pw-chip i .ic { stroke-width: 2; }
+.pw-chip b { font-weight: 600; }
+.pw-chip span { color: var(--ink3); overflow: hidden; text-overflow: ellipsis; }
+.pw-chip span::before { content: "\00b7"; margin: 0 .35em 0 0; }
+.pw-field { position: relative; }
+.pw-field .ph { position: relative; min-width: 0; white-space: nowrap; overflow: hidden; }
+.pw-field .typed { position: absolute; left: 0; top: 0; color: var(--ink); }
+.pw-field.typing .ph0 { opacity: 0; }
+.pw-field.typing .typed::after { content: ""; display: inline-block; width: 1.5px; height: 1.05em; margin-left: 1px; vertical-align: -.15em; background: var(--accent); animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+.pw-field .send { transition: opacity .2s ease; }
+.pw-field.ready .send { opacity: 1; }
+.pw-field .ring { position: absolute; inset: -1px; border-radius: 19px; box-shadow: 0 0 0 2px rgb(0 91 205 / .5), 0 0 0 6px rgb(0 91 205 / .1); opacity: 0; pointer-events: none; }
+
+/* What happened: Pippa's receipt line, and a small button inside cards */
+.pw-rcpt { max-width: 540px; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 9px 11px 11px; border-radius: 10px; background: var(--chatCard); box-shadow: inset 0 0 0 .5px var(--chatBorder), inset 0 0 0 1px rgb(39 61 96 / .05); }
+.pw-rcpt p { display: flex; gap: 7px; font-size: 12.5px; font-weight: 600; line-height: 1.4; }
+.pw-rcpt p .ic { width: 14px; height: 14px; margin-top: 2px; color: var(--ok); stroke-width: 2.4; }
+.tbtn, .qbtn, .pbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; white-space: nowrap; flex: none; }
+.tbtn { margin-left: 21px; background: rgb(0 91 205 / .1); color: var(--accent); }
+.tbtn .ic { width: 12px; height: 12px; stroke-width: 1.8; }
+.qbtn { background: var(--fill2); color: var(--ink); }
+.pbtn { background: var(--accent); color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / .16); }
+.cf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cf .tbtn { margin-left: 0; }
+.ct .tag { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #eaf5ee; color: var(--ok); font-size: 11px; font-weight: 600; }
+.fit7 { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ok); }
+.fit7 .ic { font-size: 13px; stroke-width: 2.2; }
+
+/* Excel: a spreadsheet file, and the chart card Pippa computes from it */
+.thumb.xl { background: linear-gradient(rgb(16 124 65 / .55), rgb(16 124 65 / .55)) 0 0 / 100% 18% no-repeat,
+  repeating-linear-gradient(90deg, transparent 0 7px, rgb(30 40 50 / .14) 7px 8px) 0 18% / 100% 66% no-repeat,
+  repeating-linear-gradient(180deg, transparent 0 4px, rgb(30 40 50 / .14) 4px 5px) 0 18% / 100% 66% no-repeat, #fff; font-size: 6px; }
+.thumb.xl::after { content: "XLSX"; position: absolute; left: 0; right: 0; bottom: 9%; padding: .25em 0; font: 700 1em/1 -apple-system, system-ui, sans-serif; color: #fff; background: #107c41; text-align: center; }
+.pw-item > i .thumb.xl::after { font-size: 4px; }
+.chart { gap: 12px; }
+.chart .ct .ic { stroke-width: 2; }
+.bars { position: relative; display: flex; align-items: flex-end; gap: 11px; height: 118px; margin: 2px 2px 18px; border-bottom: 1px solid var(--hair); }
+.bars span { position: relative; flex: 1; height: var(--h); border-radius: 3px 3px 0 0; background: linear-gradient(#3b88e6, #0a63d2); transform-origin: 50% 100%; }
+.bars span b { position: absolute; left: 50%; top: 100%; margin-top: 4px; transform: translateX(-50%); font-size: 10.5px; font-weight: 400; color: var(--ink3); }
+.fx .sc:not(.rv-go) .bars span { transform: scaleY(0); }
+.rv-go .bars span { transition: transform .7s cubic-bezier(.2, .8, .2, 1) calc(.85s + var(--i) * 35ms); }
+.chart .cf .foot { font-size: 11px; }
+
+/* Mail: the reply draft */
+.mail { gap: 8px; }
+.mf { display: flex; gap: 10px; font-size: 12.5px; padding-bottom: 8px; border-bottom: 1px solid #eef0f3; }
+.mf span { color: var(--ink3); min-width: 22px; }
+.mf b { font-weight: 500; }
+.mbody { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--ink2); padding: 2px 0 4px; }
+.mail .cf .meta { margin: 0; font-size: 11.5px; color: var(--ink3); }
+
+/* Downloads: the tidy preview, before and after */
+.tidy7 { gap: 10px; max-width: 600px; }
+.tidy7 .meta { color: var(--ink3); }
+.ba { display: flex; align-items: center; gap: 12px; padding: 14px 14px 12px; border-radius: 10px; background: var(--fill); }
+.ba-now { display: flex; flex-direction: column; gap: 1px; width: 104px; flex: none; font-size: 12px; }
+.ba-now b { font-weight: 600; margin-top: 6px; }
+.ba-now small { color: var(--ink3); font-size: 12px; }
+.heap { position: relative; height: 40px; }
+.heap i { position: absolute; top: 4px; width: 26px; height: 33px; border-radius: 3px; background: #fff; box-shadow: 0 0 0 .5px rgb(0 0 0 / .18), 0 1px 2px rgb(0 0 0 / .1); }
+.heap i:nth-child(1) { left: 2px; transform: rotate(-12deg); }
+.heap i:nth-child(2) { left: 26px; top: 0; transform: rotate(8deg); background: linear-gradient(160deg, #b2a48e, #776c5c); }
+.heap i:nth-child(3) { left: 52px; top: 6px; transform: rotate(-4deg); background: repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .2) 3px 4px) 20% 30% / 60% 40% no-repeat, #fff; }
+.ba-arr { width: 16px; height: 16px; color: var(--ink3); flex: none; }
+.ba-to { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ba-to li { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center; }
+.ba-to svg { width: 38px; height: 32px; }
+.ba-to b { max-width: 100%; font-size: 11.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ba-to small { font-size: 11px; color: var(--ink3); }
+.fx .sc:not(.rv-go) .ba-to li { opacity: 0; transform: translateY(6px) scale(.92); }
+.rv-go .ba-to li { transition: opacity .4s ease calc(.75s + var(--i) * 90ms), transform .6s cubic-bezier(.2, .8, .2, 1) calc(.75s + var(--i) * 90ms); }
+.undo7 { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink3); min-width: 0; }
+.undo7 .ic { width: 12px; height: 12px; flex: none; }
+.acts { display: flex; gap: 6px; }
+.fold { position: relative; display: grid; place-items: center; width: 50px; height: 50px; flex: none; }
+.fold svg, .fold-s { width: 100%; height: 100%; }
+.fold-s { width: 20px; height: 18px; }
+
+/* Calendar: the receipt with the event it added */
+.cal .ev { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; margin-left: 21px; min-width: 250px; padding: 8px 12px 9px 13px; border-radius: 8px; background: rgb(0 91 205 / .07); box-shadow: inset 3px 0 0 var(--accent); }
+.cal .ev b { font-size: 13.5px; font-weight: 600; }
+.cal .ev .meta { grid-column: 1; margin: 0; font-size: 12px; color: var(--ink2); }
+.cal .ev small { grid-column: 2; grid-row: 1 / 3; align-self: center; font-size: 11.5px; color: var(--ink3); }
+
+/* Files gliding in: from around the headline for the first scene, from just above the window for the others.
+ * Only with .fx (set before first paint when motion is allowed); every moving part uses transform and opacity. */
+.fx-drop { display: none; position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.fx .fx-drop { display: block; }
+.fi { position: absolute; left: 0; top: 0; width: 124px; display: flex; flex-direction: column; align-items: center; gap: 7px; opacity: 0; will-change: transform, opacity; }
+.fi .thumb { width: 60px; height: 79px; border-radius: 8px; box-shadow: 0 0 0 .5px rgb(0 0 0 / .16), 0 1px 2px rgb(0 0 0 / .1), 0 12px 24px -12px rgb(17 24 39 / .45); }
+.fi .thumb.pd, .fi .thumb.xl { font-size: 9.5px; }
+.fi .fold { width: 76px; height: 66px; filter: drop-shadow(0 10px 12px rgb(17 24 39 / .22)); }
+.fi b { padding: 1px 7px; border-radius: 5px; background: rgb(255 255 255 / .9); font-size: 11.5px; font-weight: 500; line-height: 1.45; color: var(--ink-2); white-space: nowrap; will-change: opacity; }
+
+/* Benefits */
+.benefits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; width: min(1040px, calc(100% - 64px)); margin: 0 auto; padding: 96px 0 8px; text-align: center; }
+.benefits h3 { font-size: 23px; font-weight: 700; line-height: 1.2; letter-spacing: -.03em; }
+.benefits p { margin-top: 9px; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.benefits a { text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.benefits a:hover { text-decoration-color: currentColor; }
 
 /* Sections */
-.head-block { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap-columns); row-gap: var(--space-md); align-items: end; margin-bottom: var(--space-2xl); }
-.head-block h2 { grid-column: 1 / span 6; }
-.head-block .lead { grid-column: 8 / span 5; font-size: var(--text-lead); line-height: 1.5; max-width: 34ch; }
-.lead { font-size: var(--text-lead); line-height: 1.5; }
+.feature { padding: 136px 0 0; }
+.sh { max-width: 720px; margin: 0 auto; text-align: center; }
+.sh h2 { font-size: clamp(30px, 3.4vw, 42px); font-weight: 700; line-height: 1.1; letter-spacing: -.038em; text-wrap: balance; }
+.sh h2 span { display: block; }
+.sh p { max-width: 560px; margin: 20px auto 0; font-size: 17px; line-height: 1.65; color: var(--muted); text-wrap: balance; }
+.note { margin: 28px auto 0; font-size: 12.5px; line-height: 1.6; color: var(--faint); text-align: center; max-width: 560px; }
+.note a { color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
 
-#alltag { padding-block: var(--section-gap-s) var(--section-gap); }
-.rows { border-top: 1px solid var(--color-rule-strong); }
-.job { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap-columns); row-gap: var(--space-xs); align-items: baseline; padding-block: var(--space-xl); border-bottom: 1px solid var(--color-rule); }
-.job h3 { grid-column: 1 / span 4; }
-.job p { grid-column: 5 / span 5; max-width: 50ch; }
-.job .fact { grid-column: 10 / span 3; font-size: var(--text-sm); color: var(--color-muted); }
-.more { margin-top: var(--space-lg); color: var(--color-muted); font-size: var(--text-sm); max-width: 60ch; }
+/* 1: Pippa picks the AI */
+.tiers { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 52px auto 0; min-height: 170px; }
+.tier { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 168px; height: 100px; border-radius: 14px; background: linear-gradient(#fff, #fafbfc); box-shadow: var(--lift-sm); color: var(--faint); }
+.tier small { font-size: 12px; }
+.tier b { font-size: 21px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.tier.l { transform: rotate(-4deg) translateY(6px); }
+.tier.r { transform: rotate(4deg) translateY(6px); }
+.tier.pick { position: relative; z-index: 1; width: 214px; height: 158px; gap: 4px; background: #fff; color: var(--ink); box-shadow: 0 0 0 1px var(--accent-soft), 0 2px 4px rgb(17 24 39 / .04), 0 26px 50px -22px rgb(0 50 120 / .35); }
+.tier.pick small { color: var(--muted); }
+.tier.pick b { font-size: 34px; font-weight: 700; letter-spacing: -.04em; }
+.tier.pick em { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 3px 9px 3px 7px; border-radius: 999px; background: var(--accent-wash); color: var(--accent); font-size: 12px; font-style: normal; font-weight: 600; }
+.tier.pick em .ic { stroke-width: 2.4; }
+.ready { display: flex; justify-content: center; margin-top: 40px; }
+.ready p { display: inline-flex; align-items: center; gap: 10px; padding: 10px 18px 10px 12px; border-radius: 999px; background: #f2f8f4; color: #1c3a26; font-size: 14px; font-weight: 500; }
+.ready .ic { font-size: 18px; color: var(--ok); stroke-width: 2; }
 
-#warum { padding-block: 0 var(--section-gap); }
-.cmp { width: 100%; border-collapse: collapse; font-size: var(--text-sm); line-height: 1.45; }
-.cmp th, .cmp td { text-align: left; vertical-align: top; padding: var(--space-md) var(--space-lg) var(--space-md) 0; }
-.cmp thead th, .cmp thead td { padding-block: 0 var(--space-sm); font-weight: var(--weight-regular); color: var(--color-muted); border-bottom: 1px solid var(--color-rule-strong); }
-.cmp tbody tr { border-bottom: 1px solid var(--color-rule); }
-.cmp tbody th { width: 19%; font-weight: var(--weight-strong); color: var(--color-ink); }
-.cmp td { color: var(--color-ink-2); }
-.cmp .me { width: 24%; padding-inline: var(--space-md); background: var(--color-paper-2); color: var(--color-ink); }
-.cmp thead .me { color: var(--color-ink); font-weight: var(--weight-strong); padding-top: var(--space-sm); border-radius: var(--radius-cell) var(--radius-cell) 0 0; }
-.cmp-note { margin-top: var(--space-md); font-size: var(--text-sm); color: var(--color-muted); }
+/* 2: photos to PDF, letters to plain words */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 56px; }
+.stage { position: relative; height: 420px; border-radius: 18px; background: var(--stage); box-shadow: inset 0 0 0 1px #eef0f3; overflow: hidden; }
+.pair h3 { margin-top: 26px; font-size: 22px; font-weight: 700; letter-spacing: -.03em; }
+.pair h3 + p { margin-top: 8px; max-width: 440px; font-size: 15.5px; line-height: 1.65; color: var(--muted); }
+.paper { position: absolute; background: #fff; border-radius: 10px; box-shadow: var(--lift-sm); }
+.src { left: 30px; top: 30px; width: 200px; padding: 16px 18px 10px; transform: rotate(-3deg); }
+.src-cap { font-size: 11px; color: var(--faint); margin-bottom: 6px; }
+.src li { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 12.5px; color: var(--ink-2); }
+.src li .thumb { width: 22px; height: 29px; border-radius: 3px; }
+.src li small { margin-left: auto; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.card { position: absolute; background: #fff; border-radius: 14px; box-shadow: var(--lift); color: #202735; }
+.pdf { right: 26px; bottom: 30px; width: 300px; padding: 18px; display: flex; flex-direction: column; gap: 10px; --ink2: rgb(32 39 53 / .78); --ink3: rgb(32 39 53 / .62); --accent: #005bcd; }
+.pdf .fit { margin-top: -2px; }
+.pdf .pw-file { padding: 10px 0; border-top: 1px solid #eef0f3; border-bottom: 1px solid #eef0f3; }
+.letter { left: 26px; top: 28px; width: 214px; padding: 20px 20px 22px; transform: rotate(-2.5deg); font-size: 9.5px; line-height: 1.5; color: #4a4f58; }
+.letter .from { font-size: 8.5px; color: var(--faint); }
+.letter .to { margin-top: 10px; display: grid; gap: 4px; }
+.letter .ln { display: block; height: 4px; border-radius: 2px; background: #e6e8ec; }
+.letter .subj { margin-top: 14px; font-weight: 700; font-size: 10px; color: #2a2f38; }
+.letter .body { margin-top: 10px; display: grid; gap: 5px; }
+.letter mark { display: block; margin: 4px -4px; padding: 4px; border-radius: 4px; background: #fff2b8; color: #2a2f38; font-size: 10px; line-height: 1.45; }
+.ans { right: 24px; bottom: 26px; width: 292px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.ans-h { display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgb(32 39 53 / .62); }
+.ans-h b { color: #202735; font-size: 13px; }
+.ans dl { display: grid; gap: 8px; }
+.ans dl div { display: grid; grid-template-columns: 70px 1fr; gap: 10px; align-items: baseline; }
+.ans dt { font-size: 11.5px; color: rgb(32 39 53 / .62); }
+.ans dd { font-size: 14px; font-weight: 600; line-height: 1.35; letter-spacing: -.01em; }
+.ans blockquote { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid #eef0f3; font-size: 12.5px; line-height: 1.45; color: rgb(32 39 53 / .78); }
+.ans blockquote::before { content: ""; width: 2px; border-radius: 1px; background: rgb(32 39 53 / .14); flex: none; }
+.ans blockquote small { display: block; margin-top: 3px; font-size: 11.5px; color: rgb(32 39 53 / .55); }
+.chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: rgb(0 91 205 / .09); color: var(--accent); font-size: 12px; font-weight: 600; }
+.chip .ic { stroke-width: 2; }
 
-.band { background: var(--color-paper-2); }
-#daten { padding-block: var(--section-gap-s); }
-#daten h2 { max-width: 18ch; }
-#daten .lead { margin-top: var(--space-md); max-width: 44ch; }
-.facts { list-style: none; margin: var(--space-2xl) 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-xl) var(--gap-columns); }
-.facts li { display: grid; gap: var(--space-sm); align-content: start; padding-top: var(--space-lg); border-top: 1px solid var(--color-rule-strong); }
-.facts p { max-width: 40ch; }
-.privacy-link { margin-top: var(--space-xl); font-size: var(--text-sm); }
+/* 3: Mac apps */
+.apps { display: flex; justify-content: center; gap: 34px; margin-top: 56px; }
+.apps li { display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: 12.5px; color: var(--muted); }
+.tile { position: relative; display: grid; place-items: center; width: 84px; height: 84px; border-radius: 20px; overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .06), inset 0 1px 0 rgb(255 255 255 / .4), 0 1px 2px rgb(17 24 39 / .08), 0 14px 22px -12px rgb(17 24 39 / .35); }
+.tile svg { width: 52px; height: 52px; }
+.t-mail { background: linear-gradient(#52aefc, #1673ea); }
+.t-cal { background: linear-gradient(#fff, #f3f4f6); display: flex; flex-direction: column; justify-content: center; gap: 0; line-height: 1; }
+.t-cal small { font-size: 11px; font-weight: 600; color: #e5372b; letter-spacing: .04em; }
+.t-cal b { font-size: 40px; font-weight: 400; color: #1d1d1f; letter-spacing: -.04em; margin-top: 2px; }
+.t-rem { background: linear-gradient(#fff, #f3f4f6); }
+.t-find { background: linear-gradient(#e8f1fd, #c9ddf8); }
+.t-xls { background: linear-gradient(#2fb06a, #12733f); }
+.t-pho { background: linear-gradient(160deg, #ffe08a, #ff9f6b 55%, #f2668b); }
 
-#fragen { padding-block: var(--section-gap-l) var(--section-gap); }
-.faq h2 { grid-column: 1 / span 4; align-self: start; }
-.qa { grid-column: 6 / span 7; border-top: 1px solid var(--color-rule-strong); }
-.qa details { border-bottom: 1px solid var(--color-rule); }
-.qa summary {
-  list-style: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
-  padding-block: var(--space-lg);
-  font: var(--weight-regular) var(--text-title)/1.25 var(--font-display); color: var(--color-ink);
-  transition: color var(--dur-short) var(--ease-out);
-}
-.qa summary::-webkit-details-marker { display: none; }
-.qa summary:hover { color: var(--color-accent); }
-.qa summary svg { transition: transform var(--dur-short) var(--ease-out); }
-.qa details[open] summary svg { transform: rotate(45deg); }
-.qa details p { padding-bottom: var(--space-lg); max-width: 62ch; }
-.qa details a { white-space: nowrap; }
+/* 4: permissions */
+.access { position: relative; max-width: 640px; height: 380px; margin: 52px auto 0; }
+.tidy { left: 0; top: 0; width: 380px; padding: 18px 20px 16px; transform: rotate(-1.5deg); background: #fbfbfc; }
+.tidy-cap { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #202735; }
+.tidy-cap .ic { color: var(--ok); stroke-width: 2.2; }
+.tidy ul { margin-top: 8px; }
+.tidy li { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: 13px; color: #3a3f48; border-bottom: 1px solid #eef0f3; }
+.tidy li:last-child { border-bottom: 0; }
+.tidy li .ic { font-size: 18px; color: #4a8fe7; stroke-width: 1.5; }
+.tidy li small { margin-left: auto; font-size: 11.5px; color: var(--faint); }
+.tidy-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.undo { padding: 5px 11px; border-radius: 7px; background: rgb(32 39 53 / .07); font-size: 12px; font-weight: 500; color: #202735; }
+.ask { right: 0; bottom: 0; width: 290px; padding: 22px 20px 18px; text-align: center; border-radius: 16px; background: rgb(250 250 251 / .97); box-shadow: 0 0 0 1px rgb(17 24 39 / .1), 0 3px 6px rgb(17 24 39 / .05), 0 30px 60px -24px rgb(17 24 39 / .4); }
+.ask .appic { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 2px 5px rgb(0 0 0 / .1); }
+.ask .appic svg { width: 36px; height: 36px; }
+.ask b { display: block; font-size: 13px; line-height: 1.35; color: #1d1d1f; }
+.ask p { margin-top: 6px; font-size: 11.5px; line-height: 1.45; color: #5d6168; }
+.ask-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+.ask-btns span { padding: 6px 0; border-radius: 7px; font-size: 12.5px; font-weight: 500; background: rgb(0 0 0 / .06); color: #1d1d1f; }
+.ask-btns span.on { background: var(--accent); color: #fff; }
 
-#loslegen { padding-block: 0 var(--section-gap); }
-.steps { list-style: none; counter-reset: s; margin: var(--space-2xl) 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-xl) var(--gap-columns); }
-.steps li { counter-increment: s; padding-top: var(--space-lg); border-top: 1px solid var(--color-rule-strong); max-width: 34ch; }
-.steps li::before { content: counter(s); display: block; margin-bottom: var(--space-md); font: var(--weight-regular) var(--text-section)/1 var(--font-display); color: var(--color-accent); font-variant-numeric: lining-nums tabular-nums; }
-.end-act { margin-top: var(--space-2xl); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-md) var(--space-xl); }
-.req { font-size: var(--text-sm); color: var(--color-muted); max-width: 52ch; }
+/* FAQ */
+.faq { width: min(700px, calc(100% - 48px)); margin: 0 auto; padding-top: 136px; }
+.faq h2 { text-align: center; font-size: 34px; font-weight: 700; letter-spacing: -.035em; margin-bottom: 36px; }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq details:first-of-type { border-top: 1px solid var(--line); }
+.faq summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 21px 0; font-size: 16px; font-weight: 500; letter-spacing: -.01em; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary svg { flex: none; width: 16px; height: 16px; stroke: var(--faint); stroke-width: 1.6; fill: none; stroke-linecap: round; }
+.faq summary svg .v { transition: transform .18s ease; transform-origin: center; }
+.faq details[open] summary svg .v { transform: scaleY(0); }
+.faq summary:hover svg { stroke: var(--ink); }
+.faq details p { padding: 0 36px 24px 0; font-size: 15px; line-height: 1.75; color: var(--muted); }
+.faq details a { color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+
+/* Download card */
+.closing { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; width: min(1000px, calc(100% - 64px)); margin: 136px auto 0; padding: 52px 56px; border-radius: 20px; background: #fafbfc; box-shadow: inset 0 0 0 1px var(--line); }
+.closing canvas { width: 44px; height: 44px; display: block; margin-bottom: 18px; }
+.closing h2 { font-size: 40px; font-weight: 700; line-height: 1.08; letter-spacing: -.04em; }
+.closing .act { justify-content: flex-start; margin-top: 26px; }
+.req { margin-top: 18px; font-size: 13px; line-height: 1.6; color: var(--muted); max-width: 400px; }
+.req a { color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.steps { counter-reset: s; display: grid; gap: 4px; }
+.steps li { counter-increment: s; position: relative; padding: 14px 0 14px 46px; font-size: 14.5px; line-height: 1.55; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+.steps li:last-child { border-bottom: 0; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 13px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: inset 0 0 0 1px var(--line-2); font-size: 13px; font-weight: 600; color: var(--accent); }
+.steps strong { color: var(--ink); font-weight: 600; }
 
 /* Footer */
-.site-foot { border-top: 1px solid var(--color-rule); padding-block: var(--space-2xl) var(--space-xl); font-size: var(--text-sm); }
-.foot-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-md) var(--space-xl); }
-.foot-links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-lg); }
-.foot-links a { text-decoration-color: transparent; }
-.foot-links a:hover { text-decoration-color: var(--color-accent); }
-.fine { margin-top: var(--space-lg); color: var(--color-muted); max-width: 75ch; }
-.fine + .fine { margin-top: var(--space-xs); }
+.site-foot { width: min(1000px, calc(100% - 64px)); margin: 0 auto; padding: 40px 0 64px; }
+.foot-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.site-foot .brand { font-size: 15px; margin: 0; }
+.site-foot .brand canvas { width: 20px; height: 20px; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 6px 24px; font-size: 13px; color: var(--muted); }
+.foot-links a:hover { color: var(--ink); }
+.fine { margin-top: 18px; font-size: 11.5px; line-height: 1.6; color: var(--faint); max-width: 760px; }
+.fine + .fine { margin-top: 6px; }
+.fine a { text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 2px; }
 
-@media (min-width: 40rem) { .hero h1 span { white-space: nowrap; } }
-
-@media (max-width: 60rem) {
-  .hero { min-height: 0; padding-block: var(--space-xl) var(--section-gap-s); }
-  .hero-in { row-gap: var(--space-xl); }
-  .hero-copy, .hero-visual { grid-column: 1 / -1; }
-  .hero-copy { padding-top: 0; }
-  .head-block h2, .head-block .lead, .faq h2, .qa { grid-column: 1 / -1; }
-  .faq { row-gap: var(--space-xl); }
-  .job h3, .job p, .job .fact { grid-column: 1 / -1; }
-  .facts, .steps { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1060px) {
+  .pw-detail { display: none; }
+  .tog-r { display: none; }
 }
-
-@media (max-width: 47.99rem) {
-  .head-act { gap: var(--space-md); }
-  .caption { padding-left: 0; }
-  .answer { padding: var(--space-md); }
-  .cmp thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .cmp, .cmp tbody, .cmp tr, .cmp th, .cmp td { display: block; }
-  .cmp tbody th, .cmp .me { width: auto; }
-  .cmp tbody tr { padding-block: var(--space-lg); }
-  .cmp tbody th { padding: 0 0 var(--space-sm); font: var(--weight-regular) var(--text-title)/1.25 var(--font-display); }
-  .cmp td { display: grid; grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr); gap: var(--space-sm); padding: var(--space-xs) 0; }
-  .cmp td::before { content: attr(data-label); color: var(--color-muted); }
-  .cmp .me { padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-cell); }
+@media (max-width: 900px) {
+  .benefits { grid-template-columns: repeat(2, 1fr); row-gap: 40px; }
+  .pair { grid-template-columns: 1fr; max-width: 560px; margin-inline: auto; }
+  .apps { flex-wrap: wrap; gap: 26px 30px; max-width: 420px; margin-inline: auto; }
+  .closing { grid-template-columns: 1fr; gap: 32px; padding: 44px 40px; }
 }
-
+@media (max-width: 720px) {
+  .pw-sessions, .pw-tog { display: none; }
+  .pw { height: 620px; }
+  .pw-scroll { padding: 18px 16px; }
+  .pw-composer { padding: 6px 16px 16px; }
+}
+@media (max-width: 600px) {
+  .wrap, .product, .benefits, .closing, .site-foot { width: calc(100% - 40px); }
+  .head-in { gap: 18px; min-height: 54px; }
+  .head-nav { gap: 16px; font-size: 13px; }
+  .head-nav .opt { display: none; }
+  .hero { padding-top: 44px; }
+  .hero h1 { margin-top: 22px; font-size: min(38px, 8.8vw); line-height: 1.1; letter-spacing: -.04em; }
+  .hero h1 span { display: inline; }
+  .lede { font-size: 16px; margin-top: 18px; }
+  .act { gap: 6px 20px; margin-top: 26px; }
+  .product { margin-top: 40px; }
+  .pw { border-radius: 20px; }
+  .pw-head { height: 56px; padding: 0 14px; }
+  .pw-answer { font-size: 14.5px; }
+  .glow { inset: -50px -24px -80px; }
+  .fi { width: 56px; }
+  .fi .thumb { width: 44px; height: 58px; border-radius: 6px; }
+  .fi .thumb.pd { font-size: 7px; }
+  .fi b { display: none; }
+  .js .scn-wrap { justify-content: flex-start; overflow-x: auto; margin: -4px -20px 16px; padding: 2px 20px 4px; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .scn-wrap::-webkit-scrollbar { display: none; }
+  .js .scn-wrap { -webkit-mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent); }
+  .scn { flex: none; margin: 0 auto; }
+  .seg { min-height: 30px; padding: 0 12px; font-size: 12.5px; }
+  .ds { display: none; }
+  .pw { height: 640px; }
+  .sc { gap: 14px; }
+  .pw-chip { left: 16px; max-width: calc(100% - 32px); }
+  .bars { gap: 5px; height: 72px; }
+  .bars span b { font-size: 9px; }
+  .ba { padding: 12px 10px 10px; }
+  .ba-now, .ba-arr { display: none; }
+  .ba-to { gap: 4px; }
+  .ba-to svg { width: 32px; height: 27px; }
+  .ba-to b { font-size: 10.5px; }
+  .cf { flex-wrap: wrap; row-gap: 8px; }
+  .undo7 { order: 2; }
+  .cal .ev { min-width: 0; align-self: stretch; margin-left: 0; }
+  .cal .ev small { grid-column: 1; grid-row: auto; margin-top: 2px; }
+  .fi .fold { width: 50px; height: 44px; }
+  .benefits { grid-template-columns: 1fr; gap: 26px; padding-top: 64px; }
+  .benefits h3 { font-size: 20px; }
+  .benefits p { font-size: 13.5px; }
+  .feature, .faq { padding-top: 96px; }
+  .sh p { font-size: 16px; }
+  .tiers { gap: 6px; margin-top: 36px; min-height: 140px; }
+  .tier { width: 92px; height: 78px; border-radius: 12px; }
+  .tier small { font-size: 10.5px; }
+  .tier b { font-size: 15px; }
+  .tier.pick { width: 138px; height: 128px; }
+  .tier.pick b { font-size: 26px; }
+  .tier.pick em { font-size: 10.5px; padding: 3px 7px 3px 5px; }
+  .ready p { font-size: 13px; text-align: left; border-radius: 16px; text-wrap: balance; }
+  .pair { margin-top: 40px; }
+  .stage { height: auto; padding: 22px 14px 22px; }
+  .stage .paper, .stage .card, .access .card { position: relative; inset: auto; }
+  .src { width: 210px; margin-left: 6px; }
+  .pdf { width: auto; max-width: 320px; margin: -10px 0 0 auto; }
+  .letter { width: 220px; margin-left: 4px; }
+  .ans { width: auto; max-width: 310px; margin: -14px 0 0 auto; }
+  .apps { gap: 22px 26px; max-width: 320px; margin-top: 40px; }
+  .tile { width: 72px; height: 72px; border-radius: 17px; }
+  .tile svg { width: 44px; height: 44px; }
+  .t-cal b { font-size: 34px; }
+  .access { height: auto; margin-top: 40px; }
+  .tidy { width: auto; max-width: 92%; }
+  .tidy-cap { font-size: 12.5px; }
+  .ask { width: 270px; max-width: 88%; margin: -10px 0 0 auto; }
+  .faq h2 { font-size: 29px; margin-bottom: 24px; }
+  .faq summary { font-size: 15.5px; padding: 19px 0; }
+  .faq details p { padding-right: 0; font-size: 14.5px; }
+  .closing { margin-top: 96px; padding: 34px 24px; border-radius: 16px; }
+  .closing h2 { font-size: 32px; }
+  .foot-top { flex-direction: column; align-items: flex-start; }
+}
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after { transition-duration: 0s !important; animation: none !important; }
+  .btn, .site-head, .faq summary svg .v { transition: none; }
+  .glow::before, .glow::after { animation: none; opacity: .85; }
 }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="s-check" viewBox="0 0 16 16"><path d="M3.2 8.6l3 3L12.8 5"/></symbol>
+  <symbol id="s-checkc" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3"/><path d="M5.3 8.2l1.9 1.9 3.6-3.9"/></symbol>
+  <symbol id="s-dl" viewBox="0 0 16 16"><path d="M8 2.5v8M4.4 7.2 8 10.8l3.6-3.6M3 13.5h10"/></symbol>
+  <symbol id="s-chev" viewBox="0 0 16 16"><path d="M3.8 6.2 8 10.2l4.2-4"/></symbol>
+  <symbol id="s-sidebar-l" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2.6"/><path d="M6.2 2.8v10.4"/></symbol>
+  <symbol id="s-sidebar-r" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2.6"/><path d="M9.8 2.8v10.4"/></symbol>
+  <symbol id="s-compose" viewBox="0 0 16 16"><path d="M13 9v3.6a1.6 1.6 0 0 1-1.6 1.6H3.6A1.6 1.6 0 0 1 2 12.6V4.8a1.6 1.6 0 0 1 1.6-1.6h4"/><path d="M12.4 1.9a1.2 1.2 0 0 1 1.7 1.7L8.3 9.4l-2.4.7.7-2.4z"/></symbol>
+  <symbol id="s-plus" viewBox="0 0 16 16"><path d="M8 2.6v10.8M2.6 8h10.8"/></symbol>
+  <symbol id="s-up" viewBox="0 0 16 16"><path d="M8 13.2V3.2M3.6 7.4 8 3l4.4 4.4"/></symbol>
+  <symbol id="s-checklist" viewBox="0 0 16 16"><path d="M1.8 4.2l1.3 1.3 2.3-2.4M1.8 10.6l1.3 1.3 2.3-2.4M8 4.4h6.2M8 10.8h6.2"/></symbol>
+  <symbol id="s-env" viewBox="0 0 16 16"><rect x="1.6" y="3.4" width="12.8" height="9.4" rx="1.8"/><path d="M2.2 4.4 8 8.8l5.8-4.4"/></symbol>
+  <symbol id="s-doc" viewBox="0 0 16 16"><path d="M4.1 1.7h5.1l3.3 3.3v8.3a1 1 0 0 1-1 1H4.1a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z"/><path d="M9 1.9v3.3h3.3M5.6 8.3h4.8M5.6 10.9h3.4"/></symbol>
+  <symbol id="s-folder" viewBox="0 0 20 20"><path d="M2.5 5.5a1.5 1.5 0 0 1 1.5-1.5h3.6l1.7 1.8H16a1.5 1.5 0 0 1 1.5 1.5v7.2a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M2.5 8h15"/></symbol>
+  <symbol id="s-bell" viewBox="0 0 16 16"><path d="M4 11.5V7.2a4 4 0 0 1 8 0v4.3l1.2 1.3H2.8zM6.6 14.2a1.5 1.5 0 0 0 2.8 0"/></symbol>
+  <symbol id="s-chart" viewBox="0 0 16 16"><path d="M2.2 13.6h11.6M4.4 11.2V8.4M7.1 11.2V4.6M9.8 11.2V6.8M12.5 11.2V3.2"/></symbol>
+  <symbol id="s-cal" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2.3 6.6h11.4M5.2 1.8v2.6M10.8 1.8v2.6"/></symbol>
+  <symbol id="s-undo" viewBox="0 0 16 16"><path d="M5.6 3.8 2.6 6.8l3 3"/><path d="M2.9 6.8h6.6a3.6 3.6 0 0 1 0 7.2H7.2"/></symbol>
+  <symbol id="s-arrow" viewBox="0 0 16 16"><path d="M2.5 8h11M9.5 4l4 4-4 4"/></symbol>
+  <symbol id="s-fold" viewBox="0 0 40 34"><path d="M2 5.6A3.6 3.6 0 0 1 5.6 2h8.9l3.7 3.5h16.2A3.6 3.6 0 0 1 38 9.1V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#4f9be6"/><path d="M2 11.2a3 3 0 0 1 3-3h30a3 3 0 0 1 3 3V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#7cbaf4"/><path d="M2.4 9.8a3 3 0 0 1 2.6-1.6h30a3 3 0 0 1 2.6 1.6z" fill="#a5d1fb"/></symbol>
+  <symbol id="s-rings" viewBox="0 0 40 40"><g fill="none" stroke="#005bcd" stroke-width="2.2"><ellipse cx="20" cy="20" rx="12.6" ry="12.2"/><ellipse cx="21.3" cy="19" rx="12" ry="12.6" opacity=".5"/><ellipse cx="18.8" cy="21" rx="12.4" ry="11.8" opacity=".32"/></g></symbol>
+</svg>
 <a class="skip" href="#main">Skip to content</a>
-<header class="site-head">
-  <div class="container">
-    <a class="brand" href="#top" aria-label="Pippa, back to the top"><canvas data-mark="24" width="24" height="24" aria-hidden="true"></canvas>Pippa</a>
-    <div class="head-act">
+<header class="site-head" id="head">
+  <div class="wrap head-in">
+    <a class="brand" href="#top" aria-label="Pippa, back to the top"><canvas data-mark="26" width="26" height="26" aria-hidden="true"></canvas>Pippa</a>
+    <nav class="head-nav" aria-label="Page">
+      <a class="opt" href="#fragen">FAQ</a>
+      <a class="opt" href="https://github.com/tschnorpfeil/pippa">GitHub</a>
       <a class="langsw" href="../" hreflang="de" lang="de" data-lang="de">Deutsch</a>
-      <a class="btn dl quiet" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download</a>
-    </div>
+      <a class="btn dl quiet" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download<svg class="ic" aria-hidden="true"><use href="#s-dl"/></svg></a>
+    </nav>
   </div>
 </header>
 
 <main id="main">
 <section class="hero" id="top" aria-labelledby="h1">
-  <div class="container hero-in">
-    <h1 id="h1"><span>Paperwork on your Mac?</span> <span>Done.</span></h1>
-    <div class="hero-copy">
-      <p class="lede">Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order.</p>
-      <a class="btn dl" id="heroDl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free for Mac</a>
-      <p class="meta">For Macs with Apple silicon (M1 or later) on macOS&nbsp;15 or later. Download under 100&nbsp;MB, no account.</p>
-      <p class="mob-note">Pippa is a Mac app. Send yourself the link and download it there.</p>
+  <div class="wrap">
+    <p class="badge"><i aria-hidden="true"><svg class="ic"><use href="#s-check"/></svg></i>Free and open source</p>
+    <h1 id="h1"><span>The AI assistant</span> <span>that actually gets things done.</span></h1>
+    <p class="lede">Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Her AI runs on your Mac.</p>
+    <div class="act">
+      <a class="btn dl" id="heroDl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free for Mac<svg class="ic" aria-hidden="true"><use href="#s-dl"/></svg></a>
+      <a class="link2" href="#passt">Will it run on my Mac?<svg class="ic" aria-hidden="true"><use href="#s-chev"/></svg></a>
     </div>
-    <div class="hero-visual">
-      <div class="answer" id="answer" role="img" aria-label="Example with a made-up letter: Pippa’s answer to a photo of a letter from the German tax office. What: pay €412.00 in income tax for 2025. By when: Monday, November 16. Below it, the sentence from the letter that states the deadline, with an English translation, and a button to add it to Reminders." data-slot="hero" data-kind="product" data-alt="A real screen capture of Pippa’s answer to a letter, once one is recorded">
-        <div class="a-head"><canvas id="cardMark" width="36" height="36" aria-hidden="true"></canvas><span><b>Pippa</b><small>Finanzamt.jpg, 1 page</small></span></div>
-        <p class="a-ask">What do they want from me?</p>
-        <dl class="a-facts"><div><dt>What</dt><dd>Pay €412.00 in income tax for 2025</dd></div><div><dt>By when</dt><dd>Monday, November 16</dd></div></dl>
-        <blockquote class="a-quote"><span lang="de">„Bitte zahlen Sie den Betrag von 412,00 € spätestens bis zum 16.11.2026.“</span><small lang="en">Please pay the amount of €412.00 by November 16, 2026 at the latest.</small></blockquote>
-        <span class="chip"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.2 2.4 2.4 4.6-5"/></svg>Add to Reminders</span>
+    <p class="mob-note">Pippa is a Mac app. Send yourself the link and download it there.</p>
+  </div>
+
+  <div class="product">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="scn-wrap">
+      <div class="scn" role="group" aria-label="Choose an example">
+        <button type="button" class="seg" data-s="0" aria-pressed="true" aria-controls="win">Letter<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="1" aria-pressed="false" aria-controls="win">Excel<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="2" aria-pressed="false" aria-controls="win">Mail<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="3" aria-pressed="false" aria-controls="win">Downloads<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="4" aria-pressed="false" aria-controls="win">Calendar<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="5" aria-pressed="false" aria-controls="win">PDF<i aria-hidden="true"></i></button>
       </div>
-      <p class="caption">Example with a made-up letter.</p>
+    </div>
+    <div class="pw" id="win" role="img" aria-label="Example with made-up files: Pippa’s window. To photos of a letter from the German tax office and a bank statement, Pippa answers: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. She also adds a reminder.">
+      <div class="pw-head" aria-hidden="true">
+        <canvas id="winMark" width="32" height="32"></canvas>
+        <div class="pw-title"><b>Pippa</b><small id="winTitle">Letter from the tax office</small></div>
+        <span class="pw-tog"><svg class="ic"><use href="#s-sidebar-l"/></svg></span>
+        <span class="pw-tog tog-r"><svg class="ic"><use href="#s-sidebar-r"/></svg></span>
+        <span class="pw-close"><svg class="ic"><use href="#s-chev"/></svg></span>
+      </div>
+      <div class="pw-body" aria-hidden="true">
+        <div class="pw-sessions">
+          <div class="pw-new"><svg class="ic"><use href="#s-compose"/></svg>New Conversation</div>
+          <div class="pw-group">Today</div>
+          <div class="pw-row sel" data-s="0"><span>Letter from the tax office</span></div>
+          <div class="pw-row" data-s="1"><span>Check 2025 revenue</span></div>
+          <div class="pw-row" data-s="2"><span>Reply to the property manager</span></div>
+          <div class="pw-group">Yesterday</div>
+          <div class="pw-row" data-s="3"><span>Tidy up Downloads</span></div>
+          <div class="pw-row" data-s="4"><span>Add the dentist</span></div>
+          <div class="pw-row" data-s="5"><span>Lease as a PDF</span></div>
+          <div class="pw-group">Previous 7 Days</div>
+          <div class="pw-row"><span>Daycare sign-up</span></div>
+          <div class="pw-row"><span>Electricity bill explained</span></div>
+        </div>
+        <div class="pw-chat">
+          <div class="pw-scroll">
+            <div class="sc on" data-s="0" data-desc="Example with made-up files: Pippa’s window. To photos of a letter from the German tax office and a bank statement, Pippa answers: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. She also adds a reminder.">
+              <div class="pw-user">
+                <div class="pw-attach"><span class="thumb" style="transform:rotate(-2deg)"></span><span class="thumb ph" style="transform:rotate(1.5deg)"></span><span class="thumb ph b" style="transform:rotate(-1deg)"></span><span class="thumb pd" style="transform:rotate(2deg)"></span></div>
+                <p>What do they want from me?</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">The tax office wants <strong>€412.00 in income tax for 2025</strong>, due <strong>by Monday, November&nbsp;16</strong>. This is the sentence in the letter:</p>
+                <blockquote class="pw-quote rv" style="--d:.4s"><span><span lang="de">„Bitte zahlen Sie den Betrag von 412,00&nbsp;€ spätestens bis zum 16.11.2026.“</span><small>Please pay the amount of €412.00 by November 16, 2026 at the latest.</small></span></blockquote>
+                <p class="rv ds" style="--d:.7s">Your bank statement shows no payment to the tax office yet. So the deadline doesn’t slip by, I added a reminder.</p>
+              </div>
+              <div class="pw-rcpt rv" style="--d:1s">
+                <p><svg class="ic"><use href="#s-check"/></svg><span>Reminder added: Pay €412.00 to the tax office (due Fri, Nov&nbsp;13)</span></p>
+                <span class="tbtn"><svg class="ic"><use href="#s-checklist"/></svg>Open Reminders</span>
+              </div>
+            </div>
+            <div class="sc" data-s="1" data-desc="Example with a made-up spreadsheet: Pippa checks Revenue-2025.xlsx. The total for Revenue leaves out October, November and December; with them it would be 144,000. She changes nothing in the table. Below, a bar chart of revenue by month that can be saved as a picture.">
+              <div class="pw-user">
+                <div class="pw-attach"><span class="thumb xl"></span></div>
+                <p>Does the total add up? And show me revenue by month.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">The total for “Revenue” leaves out “October”, “November”, and “December”. With them, the total would be <strong>144,000</strong>.</p>
+                <p class="rv" style="--d:.4s">The sheet says 105,580, so 38,420 is missing. Nothing in your table was changed.</p>
+              </div>
+              <div class="pw-card chart rv" style="--d:.7s">
+                <div class="ct"><svg class="ic"><use href="#s-chart"/></svg>Revenue by Month</div>
+                <div class="bars"><span style="--h:69.5%;--i:0"><b>Jan</b></span><span style="--h:72.2%;--i:1"><b>Feb</b></span><span style="--h:82.2%;--i:2"><b>Mar</b></span><span style="--h:85.4%;--i:3"><b>Apr</b></span><span style="--h:94.8%;--i:4"><b>May</b></span><span style="--h:91.2%;--i:5"><b>Jun</b></span><span style="--h:79.5%;--i:6"><b>Jul</b></span><span style="--h:74.1%;--i:7"><b>Aug</b></span><span style="--h:97.2%;--i:8"><b>Sep</b></span><span style="--h:87.1%;--i:9"><b>Oct</b></span><span style="--h:84.4%;--i:10"><b>Nov</b></span><span style="--h:100.0%;--i:11"><b>Dec</b></span></div>
+                <div class="cf"><span class="foot">Computed by Pippa from Revenue-2025.xlsx</span><span class="qbtn">Save as Picture…</span></div>
+              </div>
+            </div>
+            <div class="sc" data-s="2" data-desc="Example with a made-up email: the message “Heating service on Tuesday” is selected in Mail. Asked to tell the property manager that Tuesday works, Pippa puts a reply in Mail as a draft. Nothing is sent." data-chip="">
+              <div class="pw-user">
+                <p>Reply to the property manager that Tuesday works.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">Your reply is waiting as a draft in Mail. Nothing is sent; you send it yourself.</p>
+              </div>
+              <div class="pw-card mail rv" style="--d:.4s">
+                <div class="ct"><svg class="ic"><use href="#s-env"/></svg>Re: Heating service on Tuesday</div>
+                <div class="mf"><span>To</span><b>Berger Property Management</b></div>
+                <div class="mbody"><p>Hello Ms Berger,</p><p>thank you for your message. Tuesday works well for me.</p><p>Best regards</p></div>
+                <div class="cf"><span class="meta"><span>Draft in Mail</span><span>not sent</span></span><span class="tbtn"><svg class="ic"><use href="#s-env"/></svg>Open draft</span></div>
+              </div>
+            </div>
+            <div class="sc" data-s="3" data-desc="Example with a made-up Downloads folder: Pippa suggests putting 38 loose files into four new folders: Invoices, Photos, Screenshots and Archives. Nothing is deleted, nothing moves until you click, and one click undoes it all.">
+              <div class="pw-user">
+                <div class="pw-attach"><span class="fold"><svg><use href="#s-fold"/></svg></span></div>
+                <p>Tidy up my Downloads folder.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">Here’s my plan. Nothing moves until you click “Organize 38 Files”.</p>
+              </div>
+              <div class="pw-card tidy7 rv" style="--d:.4s">
+                <div class="ct"><svg class="ic"><use href="#s-folder"/></svg>Organize Downloads</div>
+                <div class="meta"><span>38 files get a place</span><span class="ds">4 new folders</span><span>nothing is deleted</span></div>
+                <div class="ba">
+                  <div class="ba-now"><span class="heap"><i></i><i></i><i></i></span><b>Now</b><small>38 loose files</small></div>
+                  <svg class="ic ba-arr"><use href="#s-arrow"/></svg>
+                  <ul class="ba-to">
+                    <li style="--i:0"><svg><use href="#s-fold"/></svg><b>Invoices</b><small>9</small></li>
+                    <li style="--i:1"><svg><use href="#s-fold"/></svg><b>Photos</b><small>14</small></li>
+                    <li style="--i:2"><svg><use href="#s-fold"/></svg><b>Screenshots</b><small>11</small></li>
+                    <li style="--i:3"><svg><use href="#s-fold"/></svg><b>Archives</b><small>4</small></li>
+                  </ul>
+                </div>
+                <div class="cf"><span class="undo7"><svg class="ic"><use href="#s-undo"/></svg>Undo with one click</span><span class="acts"><span class="qbtn">Not Now</span><span class="pbtn">Organize 38 Files</span></span></div>
+              </div>
+            </div>
+            <div class="sc" data-s="4" data-desc="Example with a made-up appointment: asked to put the dentist in for Thursday at 3 pm, Pippa checks that the time is free and adds it to Calendar: Thursday, November 5, 15:00 to 16:00.">
+              <div class="pw-user">
+                <p>Put the dentist in for Thursday at 3 pm.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">Thursday at 3 pm was still free. The appointment is now in your Calendar.</p>
+              </div>
+              <div class="pw-rcpt cal rv" style="--d:.4s">
+                <p><svg class="ic"><use href="#s-check"/></svg><span>Added to Calendar: Thu, Nov&nbsp;5, 15:00 – Dentist</span></p>
+                <div class="ev"><b>Dentist</b><span class="meta"><span>Thursday, November&nbsp;5</span><span>15:00–16:00</span></span><small>In Calendar</small></div>
+              </div>
+            </div>
+            <div class="sc" data-s="5" data-desc="Example with made-up photos: from three phone photos of a lease, Pippa makes one PDF with three pages and 2.1 MB, within the 10 MB size target. This needs no AI download, and the originals stay unchanged.">
+              <div class="pw-user">
+                <div class="pw-attach"><span class="thumb ph" style="transform:rotate(-1.5deg)"></span><span class="thumb ph b" style="transform:rotate(1deg)"></span><span class="thumb ph" style="transform:rotate(-.5deg)"></span></div>
+                <p>Make one PDF from these photos.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">Done: three pages in one PDF, small enough to upload.</p>
+              </div>
+              <div class="pw-card rv" style="--d:.4s">
+                <div class="ct"><svg class="ic"><use href="#s-doc"/></svg>Your PDF is ready<span class="tag">No AI download</span></div>
+                <div class="meta"><span>3 pages</span><span>2.1&nbsp;MB</span></div>
+                <div class="fit7"><svg class="ic"><use href="#s-checkc"/></svg>Within the 10&nbsp;MB size target</div>
+                <div class="pw-file"><span class="doc20"></span>Lease.pdf</div>
+                <div class="links"><span>Open PDF</span><span>Save a copy…</span><span>Show in Finder</span></div>
+                <div class="foot">Your originals are unchanged. Nothing has been sent.</div>
+              </div>
+            </div>
+          </div>
+          <div class="pw-composer">
+            <span class="pw-chip"><i><svg class="ic"><use href="#s-env"/></svg></i><b>Mail</b><span>Heating service on Tuesday</span></span>
+            <div class="pw-field"><span class="add"><svg class="ic"><use href="#s-plus"/></svg></span><span class="ph"><span class="ph0">Ask Pippa…</span><span class="typed"></span></span><span class="send"><svg class="ic"><use href="#s-up"/></svg></span><span class="ring"></span></div>
+          </div>
+        </div>
+        <div class="pw-detail">
+          <div class="rs on" data-s="0">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>4</span></div>
+              <div class="pw-item"><i><span class="thumb" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Tax-letter.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2041.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="thumb ph b" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2042.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="doc20"></span></i><div class="tx"><b>Bank-statement.pdf</b><span class="links"><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:1s"><i><svg class="ic"><use href="#s-checklist"/></svg></i><div class="tx"><b>Pay €412.00 to the tax office</b><small>In Reminders</small><span class="links"><span>Open</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+          <div class="rs" data-s="1">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>1</span></div>
+              <div class="pw-item"><i><span class="thumb xl" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Revenue-2025.xlsx</b><span class="links"><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:.7s"><i><svg class="ic"><use href="#s-chart"/></svg></i><div class="tx"><b>Revenue by Month</b><small>Chart</small></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+          <div class="rs" data-s="2">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>0</span></div>
+              <p class="pw-empty">Drop files here to use them in this conversation.</p>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:.4s"><i><svg class="ic"><use href="#s-env"/></svg></i><div class="tx"><b>Re: Heating service on Tuesday</b><small><span>Draft in Mail</span><span>not sent</span></small><span class="links"><span>Open</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+          <div class="rs" data-s="3">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>1</span></div>
+              <div class="pw-item"><i><svg class="fold-s"><use href="#s-fold"/></svg></i><div class="tx"><b>Downloads</b><span class="links"><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>0</span></div>
+              <p class="pw-empty">Files, drafts, events and reminders Pippa makes in this conversation show up here.</p>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+          <div class="rs" data-s="4">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>0</span></div>
+              <p class="pw-empty">Drop files here to use them in this conversation.</p>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:.4s"><i><svg class="ic"><use href="#s-cal"/></svg></i><div class="tx"><b>Thu, Nov&nbsp;5, 15:00 – Dentist</b><small>In Calendar</small><span class="links"><span>Open</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+          <div class="rs" data-s="5">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>3</span></div>
+              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3101.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="thumb ph b" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3102.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3103.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:.4s"><i><span class="doc20"></span></i><div class="tx"><b>Lease.pdf</b><small>Prepared file</small><span class="links"><span>Open</span><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Examples with made-up files</p>
+    <p class="vh" id="sceneLive" aria-live="polite"></p>
+  </div>
+  <div class="fx-drop" aria-hidden="true">
+    <div class="fset" data-s="0">
+      <div class="fi"><span class="thumb"></span><b>Tax-letter.jpg</b></div>
+      <div class="fi"><span class="thumb ph"></span><b>IMG_2041.jpg</b></div>
+      <div class="fi"><span class="thumb ph b"></span><b>IMG_2042.jpg</b></div>
+      <div class="fi"><span class="thumb pd"></span><b>Bank-statement.pdf</b></div>
+    </div>
+    <div class="fset" data-s="1">
+      <div class="fi"><span class="thumb xl"></span><b>Revenue-2025.xlsx</b></div>
+    </div>
+    <div class="fset" data-s="3">
+      <div class="fi"><span class="fold"><svg><use href="#s-fold"/></svg></span><b>Downloads</b></div>
+    </div>
+    <div class="fset" data-s="5">
+      <div class="fi"><span class="thumb ph"></span><b>IMG_3101.jpg</b></div>
+      <div class="fi"><span class="thumb ph b"></span><b>IMG_3102.jpg</b></div>
+      <div class="fi"><span class="thumb ph"></span><b>IMG_3103.jpg</b></div>
     </div>
   </div>
 </section>
 
-<section id="alltag" aria-labelledby="h-alltag">
-  <div class="container">
-    <div class="head-block"><h2 id="h-alltag">Three jobs Pippa finishes for you.</h2><p class="lead">Drop files on Pippa, or bring her up with <kbd>⌃⌥ Space</kbd>.</p></div>
-    <div class="rows">
-      <article class="job"><h3>Ready to send.</h3><p>Photos and scans become one PDF in your order. She checks that every page made it in and shows whether it fits your size limit, say 10&nbsp;MB.</p><p class="fact">No AI download needed</p></article>
-      <article class="job"><h3>Letter explained.</h3><p>What a German letter wants from you, by when, and the sentence that says so. A phone photo works. Check amounts and dates against the original.</p><p class="fact">With Pippa’s AI</p></article>
-      <article class="job"><h3>Downloads tidied.</h3><p>See the new folders before anything moves. Changed your mind? Undo, as long as you haven’t changed those files elsewhere.</p><p class="fact">Preview first</p></article>
+<section aria-labelledby="h-kurz">
+  <h2 class="vh" id="h-kurz">At a glance</h2>
+  <ul class="benefits">
+    <li class="benefit"><h3>Free.</h3><p>No subscription, no trial.<br>Updates are free too.</p></li>
+    <li class="benefit"><h3>No account.</h3><p>No Pippa account,<br>no Pippa server.</p></li>
+    <li class="benefit"><h3>On your Mac.</h3><p>Her built-in AI runs on your Mac.<br>Online AI only if you want it.</p></li>
+    <li class="benefit"><h3>Open source.</h3><p>MIT licensed.<br>The code is <a href="https://github.com/tschnorpfeil/pippa">on GitHub</a>.</p></li>
+  </ul>
+</section>
+
+<section class="feature" id="einrichten" aria-labelledby="h-setup">
+  <div class="wrap">
+    <div class="sh">
+      <h2 id="h-setup">Pippa sets everything up.</h2>
+      <p>She picks the AI that fits your Mac, tells you the download size and waits for your OK.</p>
     </div>
-    <p class="more">Also: reply drafts in Mail (you send them; she never does), calendar entries, reminders, file search and Excel totals.</p>
+    <div class="tiers" role="img" aria-label="Three cards: Mac with 8 GB of memory, 2.7 GB AI download. Mac with 16 GB, 5.7 GB, highlighted with “Fits your Mac”. Mac with 24 GB or more, 16.8 GB.">
+      <div class="tier l" aria-hidden="true"><small>Mac with 8&nbsp;GB</small><b>2.7&nbsp;GB</b></div>
+      <div class="tier pick" aria-hidden="true"><small>Mac with 16&nbsp;GB</small><b>5.7&nbsp;GB</b><em><svg class="ic"><use href="#s-check"/></svg>Fits your Mac</em></div>
+      <div class="tier r" aria-hidden="true"><small>Mac with 24&nbsp;GB+</small><b>16.8&nbsp;GB</b></div>
+    </div>
+    <div class="ready"><p><svg class="ic" aria-hidden="true"><use href="#s-checkc"/></svg>Photos and PDFs work before that, with no AI download.</p></div>
+    <p class="note">If LM Studio or Ollama already has the same model file, Pippa uses it instead of downloading it again.</p>
   </div>
 </section>
 
-<section id="warum" aria-labelledby="h-warum">
-  <div class="container">
-    <div class="head-block"><h2 id="h-warum">How Pippa compares</h2><p class="lead">Keep ChatGPT if you like it: Pippa can use your subscription as her online AI.</p></div>
-    <table class="cmp" role="table" aria-labelledby="h-warum">
-      <thead role="rowgroup"><tr role="row"><td role="cell"></td><th scope="col" role="columnheader" class="me">Pippa</th><th scope="col" role="columnheader">ChatGPT &amp; <span class="nw">Claude apps</span></th><th scope="col" role="columnheader">Local AI chat apps</th><th scope="col" role="columnheader">Apple Intelligence</th></tr></thead>
-      <tbody role="rowgroup">
-          <tr role="row"><th scope="row" role="rowheader">What you get back</th><td role="cell" class="me" data-label="Pippa">One PDF, a tidied folder, a reminder, an unsent Mail draft</td><td role="cell" data-label="ChatGPT &amp; Claude">Answers; agent modes can also work on files</td><td role="cell" data-label="Local AI chats">Mostly chat answers; a few also edit files</td><td role="cell" data-label="Apple Intelligence">Rewrites and summaries</td></tr>
-          <tr role="row"><th scope="row" role="rowheader">First useful result</th><td role="cell" class="me" data-label="Pippa">Photo and PDF jobs right after install, before any AI download</td><td role="cell" data-label="ChatGPT &amp; Claude">Mostly after you sign in</td><td role="cell" data-label="Local AI chats">After an AI download</td><td role="cell" data-label="Apple Intelligence">After you turn it on in System Settings</td></tr>
-          <tr role="row"><th scope="row" role="rowheader">Where your letter is read</th><td role="cell" class="me" data-label="Pippa">On your Mac by default; online AI only if you turn it on</td><td role="cell" data-label="ChatGPT &amp; Claude">On the provider’s servers</td><td role="cell" data-label="Local AI chats">On your computer by default</td><td role="cell" data-label="Apple Intelligence">On the device, or on Apple’s Private Cloud Compute</td></tr>
-          <tr role="row"><th scope="row" role="rowheader">Cost and account</th><td role="cell" class="me" data-label="Pippa">Free, no account, open source (MIT)</td><td role="cell" data-label="ChatGPT &amp; Claude">Account for most features; paid plans for more</td><td role="cell" data-label="Local AI chats">Mostly free, no account</td><td role="cell" data-label="Apple Intelligence">Included with supported Macs</td></tr>
-      </tbody>
-    </table>
-    <p class="cmp-note">As of October 2026; other apps change quickly.</p>
+<section class="feature" id="ergebnisse" aria-labelledby="h-results">
+  <div class="wrap">
+    <div class="sh">
+      <h2 id="h-results"><span>Photos become a PDF.</span> <span>Letters become plain words.</span></h2>
+      <p>Drop files on Pippa or call her with <span class="nw">⌃⌥ Space</span>. You get a result back, not an essay.</p>
+    </div>
+    <div class="pair">
+      <div>
+        <div class="stage" role="img" aria-label="Three phone photos of a lease, 12.6 MB together. In front, Pippa’s card: Your PDF is ready, 3 pages, 2.1 MB, within the 10 MB size target, with buttons to open it, save a copy and show it in Finder.">
+          <div class="paper src" aria-hidden="true">
+            <p class="src-cap">Your photos</p>
+            <ul><li><span class="thumb"></span>IMG_2041.jpg<small>4.2 MB</small></li><li><span class="thumb"></span>IMG_2042.jpg<small>4.1 MB</small></li><li><span class="thumb"></span>IMG_2043.jpg<small>4.3 MB</small></li></ul>
+          </div>
+          <div class="card pdf" aria-hidden="true">
+            <div class="ct"><svg class="ic"><use href="#s-doc"/></svg>Your PDF is ready</div>
+            <div class="meta"><span>3 pages</span><span>2.1&nbsp;MB</span></div>
+            <div class="fit"><svg class="ic"><use href="#s-check"/></svg>Within the 10&nbsp;MB size target</div>
+            <div class="pw-file"><span class="doc20"></span>Lease.pdf</div>
+            <div class="links"><span>Open PDF</span><span>Save a copy…</span><span>Show in Finder</span></div>
+            <div class="foot">Your originals are unchanged. Nothing has been sent.</div>
+          </div>
+        </div>
+        <h3>Ready to send.</h3>
+        <p>Photos and scans become one PDF in your order, within your size target. No AI download needed.</p>
+      </div>
+      <div>
+        <div class="stage" role="img" aria-label="A made-up German letter from a property manager with one sentence highlighted. In front, Pippa’s answer: What, pay 186.40 euros in service charges. By when, Monday, November 30. Below it the highlighted sentence as a quote with its translation, and a button to add the deadline to Reminders.">
+          <div class="paper letter" aria-hidden="true">
+            <p class="from" lang="de">Hausverwaltung Berger, Lindenstraße 4</p>
+            <div class="to"><span class="ln" style="width:44%"></span><span class="ln" style="width:58%"></span><span class="ln" style="width:36%"></span></div>
+            <p class="subj" lang="de">Nebenkostenabrechnung 2025</p>
+            <div class="body"><span class="ln"></span><span class="ln" style="width:92%"></span><span class="ln" style="width:96%"></span></div>
+            <mark lang="de">Den Nachzahlungsbetrag von 186,40&nbsp;€ überweisen Sie bitte bis zum 30.11.2026.</mark>
+            <div class="body"><span class="ln" style="width:88%"></span><span class="ln" style="width:64%"></span></div>
+          </div>
+          <div class="card ans" aria-hidden="true">
+            <div class="ans-h"><svg class="ic" viewBox="0 0 40 40" style="font-size:18px"><use href="#s-rings"/></svg><b>Pippa</b>Brief-Hausverwaltung.jpg</div>
+            <dl><div><dt>What</dt><dd>Pay €186.40 in service charges</dd></div><div><dt>By when</dt><dd>Monday, November&nbsp;30</dd></div></dl>
+            <blockquote><span><span lang="de">„Den Nachzahlungsbetrag von 186,40&nbsp;€ überweisen Sie bitte bis zum 30.11.2026.“</span><small>Please transfer the balance of €186.40 by November 30, 2026.</small></span></blockquote>
+            <span class="chip"><svg class="ic"><use href="#s-bell"/></svg>Add to Reminders</span>
+          </div>
+        </div>
+        <h3>Letter explained.</h3>
+        <p>What the letter wants, by when, and the sentence that says so. A phone photo is enough. Check amounts and dates against the original.</p>
+      </div>
+    </div>
   </div>
 </section>
 
-<section class="band" id="daten" aria-labelledby="h-daten">
-  <div class="container">
-    <h2 id="h-daten">Pippa’s AI runs on your Mac.</h2>
-    <p class="lead">No Pippa account, no Pippa server, no tracking in the app. She goes online only where she has to.</p>
-    <ul class="facts">
-      <li><h3>ChatGPT only if you want.</h3><p>Sign in with ChatGPT, or add your own OpenAI or Anthropic key. While it’s on, your conversations with Pippa go to that service.</p></li>
-      <li><h3>She never sends your mail.</h3><p>Replies wait as unsent drafts in Apple Mail, and events go into Calendar. Those apps may sync through your accounts, such as iCloud.</p></li>
-      <li><h3>Online only where needed.</h3><p>For the AI download, updates, web lookups and commands that need the internet. She asks before a web search and before such a command.</p></li>
+<section class="feature" id="apps" aria-labelledby="h-apps">
+  <div class="wrap">
+    <div class="sh">
+      <h2 id="h-apps">Works with your Mac apps.</h2>
+      <p>Deadlines go to Reminders, appointments to Calendar, replies to Mail as drafts. She finds your files and adds up columns in Excel.</p>
+    </div>
+    <ul class="apps" role="img" aria-label="Six app symbols in a row: Mail, Calendar, Reminders, Finder, Excel and Photos.">
+      <li aria-hidden="true"><span class="tile t-mail"><svg viewBox="0 0 52 52"><rect x="9" y="14" width="34" height="24" rx="4" fill="#fff"/><path d="M10.5 16.5 26 28l15.5-11.5" fill="none" stroke="#2a82ef" stroke-width="2.2" stroke-linejoin="round"/></svg></span>Mail</li>
+      <li aria-hidden="true"><span class="tile t-cal"><small>MON</small><b>16</b></span>Calendar</li>
+      <li aria-hidden="true"><span class="tile t-rem"><svg viewBox="0 0 52 52"><g stroke-width="2"><circle cx="15" cy="16" r="4.2" fill="#ff9500"/><circle cx="15" cy="26" r="4.2" fill="#0a84ff"/><circle cx="15" cy="36" r="4.2" fill="none" stroke="#c7cad0"/></g><g stroke="#d5d8dd" stroke-width="2.4" stroke-linecap="round"><path d="M24 16h16M24 26h13M24 36h15"/></g></svg></span>Reminders</li>
+      <li aria-hidden="true"><span class="tile t-find"><svg viewBox="0 0 52 52"><path d="M9 17a3 3 0 0 1 3-3h9l3 3.4h16a3 3 0 0 1 3 3V36a3 3 0 0 1-3 3H12a3 3 0 0 1-3-3z" fill="#3d8bf0"/><path d="M9 22.5a3 3 0 0 1 3-3h28a3 3 0 0 1 3 3V36a3 3 0 0 1-3 3H12a3 3 0 0 1-3-3z" fill="#66a6f6"/></svg></span>Finder</li>
+      <li aria-hidden="true"><span class="tile t-xls"><svg viewBox="0 0 52 52"><rect x="11" y="12" width="30" height="28" rx="3.5" fill="#fff" opacity=".96"/><g stroke="#1e8a50" stroke-width="1.6"><path d="M11 21h30M11 30.5h30M22 12v28"/></g><path d="M11 12h30v9H11z" fill="#c9ecd8" opacity=".7"/></svg></span>Excel</li>
+      <li aria-hidden="true"><span class="tile t-pho"><svg viewBox="0 0 52 52"><circle cx="35" cy="17" r="4.5" fill="#fff"/><path d="M8 38 20 23l8 9 5-5 11 11z" fill="#fff" opacity=".95"/></svg></span>Photos</li>
     </ul>
-    <p class="privacy-link">The details are in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p>
+    <p class="note">Calendar and Reminders sync through your accounts, such as iCloud.</p>
   </div>
 </section>
 
-<section id="fragen" aria-labelledby="h-faq">
-  <div class="container grid faq">
-    <h2 id="h-faq">Any questions?</h2>
-    <div class="qa">
-      <details id="passt"><summary>Will it run on my Mac?<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary><p>You need a Mac with Apple silicon (M1 or later), macOS 15 or later and at least 8&nbsp;GB of memory. Check under Apple menu, About This Mac. Intel Macs are not supported. The download is under 100&nbsp;MB; installed, Pippa takes about 0.5&nbsp;GB. Pippa picks the AI that fits your Mac and asks before downloading it: about 3&nbsp;GB with 8&nbsp;GB of memory, about 6&nbsp;GB with 16 or 18&nbsp;GB, about 17&nbsp;GB with 24&nbsp;GB or more. If LM Studio, Ollama or the Hugging Face cache already has the same model file, she uses it instead of downloading it again. Leave some room for your results, too.</p></details>
-      <details><summary>Can I start without the AI download?<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary><p>Yes. Turning photos and PDFs into one PDF, making files smaller and converting images work right after you install her, and so does tidying a folder. For letters and questions she loads her AI, but only after your OK, and she tells you the size first.</p></details>
-      <details><summary>Do I need internet?<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary><p>To download the app and her AI, for updates and for web lookups. After that, her AI and the PDF tools work without a connection. If a command needs the internet, she asks you first. An online AI, if you turn one on, needs the internet, of course.</p></details>
-      <details><summary>What can Pippa access on my Mac?<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary><p>macOS asks you before she can reach your Desktop, Documents, Downloads, Calendar, Reminders or Photos, or control Mail. You can review and change these permissions in System Settings under Privacy &amp; Security. Pippa runs outside Apple’s App Sandbox so she can work with your folders and Mac apps; a sandboxed app could do that only in part.</p></details>
-      <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. Tidying shows you the plan first, and Undo works as long as you haven’t changed those files elsewhere. When you ask for a specific action, she carries it out, so look at the result. Pippa keeps getting better, and updates arrive inside the app. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
+<section class="feature" id="daten" aria-labelledby="h-access">
+  <div class="wrap">
+    <div class="sh">
+      <h2 id="h-access"><span>You decide</span> <span>what Pippa can do.</span></h2>
+      <p>macOS asks you before Pippa can reach your folders, calendar or photos. When she tidies up, you see the plan first, and Undo puts the files back.</p>
     </div>
+    <div class="access" role="img" aria-label="Pippa’s card after tidying up: 17 files moved into three folders, Invoices, Photos and Installers, with an Undo button. In front, the macOS question: “Pippa” would like to access files in your Downloads folder, with Don’t Allow and Allow.">
+      <div class="card tidy" aria-hidden="true">
+        <div class="tidy-top"><p class="tidy-cap"><svg class="ic"><use href="#s-checkc"/></svg>17 files moved into 3 folders</p><span class="undo">Undo</span></div>
+        <ul>
+          <li><svg class="ic"><use href="#s-folder"/></svg>Invoices<small>9 files</small></li>
+          <li><svg class="ic"><use href="#s-folder"/></svg>Photos<small>5 files</small></li>
+          <li><svg class="ic"><use href="#s-folder"/></svg>Installers<small>3 files</small></li>
+        </ul>
+      </div>
+      <div class="card ask" aria-hidden="true">
+        <span class="appic"><svg viewBox="0 0 40 40"><use href="#s-rings"/></svg></span>
+        <b>“Pippa” would like to access files in your Downloads folder.</b>
+        <p>So Pippa can find, read and tidy your files when you ask.</p>
+        <div class="ask-btns"><span>Don’t Allow</span><span class="on">Allow</span></div>
+      </div>
+    </div>
+    <p class="note">Pippa uses an online AI such as ChatGPT only if you turn it on. She never sends Mail drafts herself. More in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p>
   </div>
 </section>
 
-<section id="loslegen" aria-labelledby="h-home">
-  <div class="container">
-    <h2 id="h-home">Your first useful result starts here.</h2>
-    <ol class="steps"><li>Open <strong>Pippa.dmg</strong> and drag Pippa onto the Applications folder.</li><li>Drop photos or PDFs on Pippa (or pick them during setup) and choose <strong>“Ready to send”</strong>.</li><li>Load her AI when you’re ready. She asks first and tells you the size.</li></ol>
-    <div class="end-act">
-      <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free for Mac</a>
-      <p class="req">Free and open source (MIT). Her AI (3 to 17&nbsp;GB) waits for your OK. <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What’s new?</a></p>
+<section class="faq" id="fragen" aria-labelledby="h-faq">
+  <h2 id="h-faq">Questions?</h2>
+  <details id="passt"><summary>Will it run on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>You need a Mac with Apple silicon (M1 or later), macOS 15 or later and at least 8&nbsp;GB of memory. Check under Apple menu, About This Mac. Intel Macs are not supported. The download is under 100&nbsp;MB; installed, Pippa takes about 0.5&nbsp;GB. She picks the AI that fits your Mac and asks before downloading it: 3 to 17&nbsp;GB, depending on memory. If LM Studio, Ollama or the Hugging Face cache already has the same model file, she uses it instead of downloading it again.</p></details>
+  <details><summary>Can I start without the AI download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Turning photos and PDFs into one PDF, making files smaller and converting images work right after you install her, and so does tidying a folder. For letters and questions she loads her AI, but only after your OK, and she tells you the size first.</p></details>
+  <details><summary>Do I need internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>To download the app and her AI, for updates and for web lookups. After that, her AI and the PDF tools work without a connection. If a command needs the internet, she asks you first. An online AI, if you turn one on, needs the internet, of course.</p></details>
+  <details><summary>Can I keep using ChatGPT?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Sign in with ChatGPT in Pippa or enter your own key from OpenAI or Anthropic, and she uses that service as her online AI. While that is on, your conversations go to it. You can turn it off any time in Settings.</p></details>
+  <details><summary>What can Pippa access on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>macOS asks you before she can reach your Desktop, Documents, Downloads, Calendar, Reminders or Photos, or control Mail. You can review and change these permissions in System Settings under Privacy &amp; Security. Pippa runs outside Apple’s App Sandbox so she can work with your folders and Mac apps; a sandboxed app couldn’t do that in full.</p></details>
+  <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. Tidying shows you the plan first, and Undo works as long as you haven’t changed those files elsewhere. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
+</section>
+
+<section class="closing" id="loslegen" aria-labelledby="h-home">
+  <div>
+    <canvas id="endMark" width="44" height="44" aria-hidden="true"></canvas>
+    <h2 id="h-home">Get Pippa.</h2>
+    <div class="act">
+      <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free for Mac<svg class="ic" aria-hidden="true"><use href="#s-dl"/></svg></a>
     </div>
+    <p class="req">For Macs with Apple silicon on macOS&nbsp;15 or later. The download is under 100&nbsp;MB; her AI (3 to 17&nbsp;GB) waits for your OK. <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What’s new?</a></p>
   </div>
+  <ol class="steps"><li>Open <strong>Pippa.dmg</strong> and drag Pippa onto the Applications folder.</li><li>Drop photos or PDFs on Pippa and choose <strong>“Ready to send”</strong>.</li><li>Load her AI when you’re ready. She asks first and tells you the size.</li></ol>
 </section>
 </main>
 
 <footer class="site-foot">
-  <div class="container">
-    <div class="foot-top">
-      <a class="brand" href="#top" aria-label="Pippa, back to the top"><canvas data-mark="20" width="20" height="20" aria-hidden="true"></canvas>Pippa</a>
-      <ul class="foot-links"><li><a href="../impressum.html" hreflang="de">Legal notice (German)</a></li><li><a href="../datenschutz.html" hreflang="de">Privacy policy (German)</a></li><li><a href="https://github.com/tschnorpfeil/pippa">Source code on GitHub</a></li><li><a href="../" hreflang="de" lang="de" data-lang="de">Deutsch</a></li></ul>
-    </div>
-    <p class="fine">An independent open-source project, not affiliated with Apple, Microsoft, OpenAI, Anthropic or any other provider named here. Mac, macOS and Apple Intelligence are trademarks of Apple Inc., Microsoft Excel is a trademark of Microsoft Corporation, ChatGPT is a trademark of OpenAI and Claude is a trademark of Anthropic.</p>
-    <p class="fine">Pippa uses open models via llama.cpp and the open-source agent <a href="https://github.com/earendil-works/pi">Pi</a> (MIT).</p>
+  <div class="foot-top">
+    <a class="brand" href="#top" aria-label="Pippa, back to the top"><canvas data-mark="20" width="20" height="20" aria-hidden="true"></canvas>Pippa</a>
+    <ul class="foot-links"><li><a href="../impressum.html" hreflang="de">Legal notice (German)</a></li><li><a href="../datenschutz.html" hreflang="de">Privacy policy (German)</a></li><li><a href="https://github.com/tschnorpfeil/pippa">Source code on GitHub</a></li><li><a href="../" hreflang="de" lang="de" data-lang="de">Deutsch</a></li></ul>
   </div>
+  <p class="fine">An independent open-source project, not affiliated with Apple, Microsoft, OpenAI, Anthropic or any other provider named here. Mac, macOS and Apple Intelligence are trademarks of Apple Inc., Microsoft Excel is a trademark of Microsoft Corporation, ChatGPT is a trademark of OpenAI and Claude is a trademark of Anthropic.</p>
+  <p class="fine">Pippa uses open models via llama.cpp and the open-source agent <a href="https://github.com/earendil-works/pi">Pi</a> (MIT).</p>
 </footer>
 <script src="../pippaMark.js"></script>
 <script>
-/* Pippa's rings: still marks in the header and footer. In the answer card she turns her rings once
-   when the answer comes into view, and smiles while you point at the download. */
+/* Pippa's rings: still marks in the header and footer. In the window she works while her answer appears,
+   smiles when it is there, and smiles again while you point at a download. */
 (()=>{'use strict';
-const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const mk=(c,size,o)=>window.PippaMark?new PippaMark(c,{size,state:'ruht',alive:false,...o}):{setState(){}};
+const mk=(c,size,o)=>c&&window.PippaMark?new PippaMark(c,{size,state:'ruht',alive:false,...o}):{setState(){}};
 document.querySelectorAll('canvas[data-mark]').forEach(c=>mk(c,+c.dataset.mark));
-const c=document.getElementById('cardMark');if(!c)return;const m=mk(c,36);
-if(!RM&&'IntersectionObserver' in window)new IntersectionObserver((es,o)=>{if(!es[0].isIntersecting)return;o.disconnect();m.setState('arbeitet');setTimeout(()=>m.setState('ruht'),1700)},{threshold:.6}).observe(c);
-const dl=document.getElementById('heroDl');
-['pointerenter','focus'].forEach(t=>dl.addEventListener(t,()=>m.setState('offen')));
-['pointerleave','blur'].forEach(t=>dl.addEventListener(t,()=>m.setState('ruht')));
+const w=mk(document.getElementById('winMark'),32),e=mk(document.getElementById('endMark'),44);
+const head=document.getElementById('head'),sc=()=>head.toggleAttribute('data-scrolled',scrollY>8);sc();addEventListener('scroll',sc,{passive:true});
+const win=document.getElementById('win'),root=document.documentElement;
+if(win){const FX=root.classList.contains('fx');if(FX)root.classList.add('fx-ok');
+const hero=win.closest('.hero'),product=win.parentElement,drop=hero.querySelector('.fx-drop'),glow=hero.querySelector('.glow');
+const segs=[...product.querySelectorAll('.seg')],bar=product.querySelector('.scn-wrap');
+const scenes=[...win.querySelectorAll('.sc')],rails=[...win.querySelectorAll('.rs')],rows=[...win.querySelectorAll('.pw-row[data-s]')];
+const title=document.getElementById('winTitle'),live=document.getElementById('sceneLive');
+const field=win.querySelector('.pw-field'),typed=field.querySelector('.typed'),ring=field.querySelector('.ring'),chip=win.querySelector('.pw-chip');
+const N=scenes.length,DWELL=6500,HOLD=15000;
+let cur=0,timers=[],flights=[];
+const later=(f,ms)=>timers.push(setTimeout(f,ms));
+const both=i=>[scenes[i],rails[i]];
+const state=(i,c,on)=>both(i).forEach(el=>el.classList.toggle(c,on));
+/* Stop whatever the current scene is still doing: timers, gliding files, typing. */
+const halt=()=>{timers.forEach(clearTimeout);timers=[];flights.forEach(a=>a.cancel());flights=[];
+  if(drop)drop.querySelectorAll('.fi').forEach(f=>f.style.visibility='hidden');
+  field.classList.remove('typing','ready');typed.textContent='';
+  win.querySelectorAll('.pw-attach .thumb.wait').forEach(t=>t.classList.remove('wait'))};
+/* The window shows scene i: its conversation selected on the left, its title, its rails, its description. */
+const select=i=>{cur=i;
+  segs.forEach((b,k)=>b.setAttribute('aria-pressed',String(k===i)));
+  rows.forEach(r=>r.classList.toggle('sel',+r.dataset.s===i));
+  scenes.forEach((s,k)=>s.classList.toggle('on',k===i));rails.forEach((s,k)=>s.classList.toggle('on',k===i));
+  const row=rows.find(r=>+r.dataset.s===i);if(row)title.textContent=row.textContent;
+  win.setAttribute('aria-label',scenes[i].dataset.desc);
+  chip.classList.toggle('on','chip' in scenes[i].dataset);
+  /* Keep the chosen segment in view where the control scrolls (phones), without moving the page. */
+  if(bar&&bar.scrollWidth>bar.clientWidth){const b=segs[i],x=b.offsetLeft-(bar.clientWidth-b.offsetWidth)/2;bar.scrollTo({left:Math.max(0,x),behavior:FX?'smooth':'auto'})}};
+const done=i=>{state(i,'u-in',true);state(i,'rv-go',true)};
+const spring=t=>{const k=6.2;return(1-(1+k*t)*Math.exp(-k*t))/(1-(1+k)*Math.exp(-k))};
+const bez=(a,b,c,d,u)=>{const v=1-u;return v*v*v*a+3*v*v*u*b+3*v*u*u*c+u*u*u*d};
+const f=(x,y,r,s,o,off,ox,oy)=>({transform:`translate(${(x-ox).toFixed(1)}px,${(y-oy).toFixed(1)}px) rotate(${r.toFixed(2)}deg) scale(${s.toFixed(4)})`,opacity:o,offset:off});
+const prep=el=>{el.getAnimations().forEach(a=>a.cancel());el.style.visibility='';const th=el.firstElementChild,ox=el.offsetWidth/2,oy=th.offsetTop+th.offsetHeight/2;el.style.transformOrigin=ox+'px '+oy+'px';return{th,lab:el.lastElementChild,ox,oy}};
+/* A scene's own drop: its files appear just above the window and glide into the composer. Returns when they land. */
+const fly=i=>{const set=drop&&drop.querySelector(`.fset[data-s="${i}"]`);if(!set)return 0;
+  const items=[...set.children],H=hero.getBoundingClientRect(),phone=H.width<=600,F=field.getBoundingClientRect(),W=win.getBoundingClientRect();
+  const E={x:F.left+F.width*(phone?.5:.42)-H.left,y:F.top+F.height/2-H.top},y0=W.top-H.top+(phone?18:34),sp=phone?52:96,n=items.length;
+  const T0=80,GAP=90,DUR=phone?860:980;let land=0;
+  items.forEach((el,k)=>{const{lab,ox,oy}=prep(el);
+    const S={x:W.left-H.left+W.width/2+(k-(n-1)/2)*sp,y:y0+(k%2?10:0),r:[-7,6,-4,8][k%4]},app=T0+k*GAP,go=app+360,end=go+DUR;land=Math.max(land,end);
+    const side=Math.sign(S.x-E.x)||1,P1={x:S.x+side*(phone?10:30),y:S.y+40},P2={x:E.x+side*(phone?6:40),y:E.y-90},ex=E.x+(k-(n-1)/2)*(phone?8:14);
+    const kf=[f(S.x,S.y-14,S.r,.9,0,0,ox,oy),f(S.x,S.y-14,S.r,.9,0,app/end,ox,oy),f(S.x,S.y,S.r,1,1,(app+240)/end,ox,oy),f(S.x,S.y,S.r,1,1,go/end,ox,oy)];
+    for(let m=1;m<=20;m++){const t=m/20,u=spring(t),s=1-.5*u*u;kf.push(f(bez(S.x,P1.x,P2.x,ex,u),bez(S.y,P1.y,P2.y,E.y,u),S.r*(1-u),s,t<.72?1:Math.max(0,1-(t-.72)/.28),(go+DUR*t)/end,ox,oy))}
+    flights.push(el.animate(kf,{duration:end,fill:'both',easing:'linear'}));
+    flights.push(lab.animate([{opacity:1},{opacity:1,offset:.55},{opacity:0}],{duration:go+DUR*.3,fill:'both'}))});
+  later(()=>flights.push(ring.animate([{opacity:0},{opacity:1,offset:.25},{opacity:0}],{duration:700,easing:'ease-out'})),land-260);
+  return land};
+/* A typed question: letter by letter into the composer, then sent. Returns when it is sent. */
+const type=i=>{const q=scenes[i].querySelector('.pw-user p').textContent,t0=260,step=q.length>44?24:30;
+  later(()=>{typed.textContent='';field.classList.add('typing')},t0-60);
+  for(let k=1;k<=q.length;k++)later(()=>{typed.textContent=q.slice(0,k)},t0+k*step);
+  const end=t0+q.length*step;later(()=>field.classList.add('ready'),end+120);
+  later(()=>{field.classList.remove('typing','ready');typed.textContent=''},end+420);return end+420};
+/* One scene with motion: cross-fade, its own drop or question, Pippa works, the answer appears, she smiles. */
+const play=i=>{halt();w.setState('ruht');both(i).forEach(el=>el.classList.remove('u-in','rv-go'));select(i);
+  const t=scenes[i].querySelector('.pw-attach')?fly(i):type(i);
+  later(()=>state(i,'u-in',true),t+40);later(()=>w.setState('arbeitet'),t+160);
+  later(()=>state(i,'rv-go',true),t+1050);later(()=>w.setState('offen'),t+2250)};
+const show=i=>{if(FX)play(i);else{halt();select(i);done(i)}};
+
+/* Autoplay: only with motion, after the first scene's story, while the window is on screen, the tab is visible,
+   and nobody points at or focuses it. A click picks a scene and holds still for 15 seconds. */
+let prog=null,hover=false,focus=false,seen=false,hold=0,holdT=0,started=false;
+const paused=()=>hover||focus||!seen||document.hidden||hold;
+const sync=()=>{if(prog)paused()?prog.pause():prog.play()};
+const run=ms=>{if(!FX)return;if(prog)prog.cancel();const b=segs[cur]&&segs[cur].querySelector('i');if(!b)return;
+  prog=b.animate([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:ms,fill:'forwards',easing:'linear'});
+  prog.onfinish=()=>{prog.cancel();prog=null;show((cur+1)%N);run(DWELL)};sync()};
+segs.forEach((b,i)=>b.addEventListener('click',()=>{if(prog){prog.cancel();prog=null}
+  started=true;startTilt();show(i);live.textContent=scenes[i].dataset.desc;
+  if(FX){clearTimeout(holdT);hold=1;holdT=setTimeout(()=>{hold=0;run(DWELL-2500)},HOLD)}}));
+if(FX){
+  win.addEventListener('pointerenter',()=>{hover=true;sync()});win.addEventListener('pointerleave',()=>{hover=false;sync()});
+  product.addEventListener('focusin',ev=>{focus=ev.target.matches(':focus-visible');sync()});product.addEventListener('focusout',()=>{focus=false;sync()});
+  document.addEventListener('visibilitychange',sync);
+  new IntersectionObserver(es=>{seen=es[0].isIntersecting;sync()},{threshold:.25}).observe(win)}
+
+/* The first scene's story, once, when the window comes into view: four files glide on curved paths from around
+   the headline into the message, Pippa works, her answer appears and she smiles. Then autoplay begins. */
+const intro=()=>{if(started)return;started=true;
+  const H=hero.getBoundingClientRect(),W=H.width,phone=W<=600;
+  const items=[...drop.querySelector('.fset[data-s="0"]').children],slots=[...scenes[0].querySelectorAll('.pw-attach .thumb')];
+  slots.forEach(s=>s.classList.add('wait'));both(0).forEach(el=>el.classList.remove('u-in','rv-go'));
+  const c=r=>({x:r.left+r.width/2-H.left,y:r.top+r.height/2-H.top});
+  const ink=el=>{const g=document.createRange();g.selectNodeContents(el);return g.getBoundingClientRect()},h1=ink(hero.querySelector('h1')),lede=ink(hero.querySelector('.lede')),act=hero.querySelector('.act').getBoundingClientRect(),wt=win.getBoundingClientRect().top-H.top;
+  const clampX=x=>Math.max(phone?52:74,Math.min(W-(phone?52:74),x));
+  const starts=phone
+    ?[.09,.25,.75,.91].map((q,i)=>({x:W*q,y:wt-84-(i%3?16:0),r:[-9,7,-6,8][i]}))
+    :[{x:clampX(h1.left-H.left-92),y:h1.top-H.top+h1.height*.42,r:-9},{x:clampX(h1.right-H.left+86),y:h1.top-H.top+6,r:8},
+      {x:clampX(lede.right-H.left+118),y:act.top-H.top+18,r:-6},{x:clampX(lede.left-H.left-124),y:act.top-H.top+44,r:7}];
+  const T0=phone?420:640,GAP=phone?120:140,DUR=phone?1000:1120;let last=0;
+  items.forEach((el,i)=>{const slot=slots[i];if(!slot)return;const{th,lab,ox,oy}=prep(el);
+    const E=c(slot.getBoundingClientRect()),S=starts[i],s1=slot.offsetWidth/th.offsetWidth,r1=+(slot.style.transform.match(/-?[\d.]+/)||[0])[0];
+    const side=Math.sign(S.x-E.x)||1,dy=E.y-S.y;
+    const P1=phone?{x:S.x+side*8,y:S.y-30}:{x:S.x+side*46,y:S.y-46},P2={x:E.x+(phone?0:-side*18),y:E.y-Math.min(phone?90:230,Math.max(60,dy*.62))};
+    const appear=i*70,go=T0+i*GAP,end=go+DUR;last=Math.max(last,end);
+    const k=[f(S.x,S.y+10,S.r,.88,0,0,ox,oy),f(S.x,S.y,S.r,1,1,Math.min(appear+300,go-40)/end,ox,oy),f(S.x,S.y,S.r,1,1,go/end,ox,oy)];
+    for(let n=1;n<=24;n++){const t=n/24,u=spring(t),lift=1+.07*Math.sin(Math.PI*Math.min(1,t*2.2));
+      const g=Math.min(1,Math.max(0,(u-.08)/.92)),s=(1+(s1-1)*g*g*(3-2*g))*lift;
+      k.push(f(bez(S.x,P1.x,P2.x,E.x,u),bez(S.y,P1.y,P2.y,E.y,u),S.r+(r1-S.r)*u,t===1?s1:s,1,(go+DUR*t)/end,ox,oy))}
+    const a=el.animate(k,{duration:end,fill:'both',easing:'linear'});flights.push(a);
+    a.finished.then(()=>{slot.classList.remove('wait');el.style.visibility='hidden'},()=>{});
+    flights.push(lab.animate([{opacity:1},{opacity:1,offset:(go+DUR*.08)/(go+DUR*.36)},{opacity:0}],{duration:go+DUR*.36,fill:'both'}))});
+  later(()=>state(0,'u-in',true),T0+DUR*.62);
+  later(()=>w.setState('arbeitet'),last-60);
+  later(()=>state(0,'rv-go',true),last+120);
+  later(()=>w.setState('offen'),last+1950);
+  later(()=>startTilt(),last+200);
+  later(()=>run(DWELL),last+600)};
+/* A slab of glass under a lamp: at most about 3 degrees, mouse and trackpad only, eased toward the pointer. */
+let tilted=false;
+const startTilt=()=>{if(tilted||!FX||!matchMedia('(hover: hover) and (pointer: fine)').matches)return;tilted=true;
+  let tx=0,ty=0,cx=0,cy=0,raf=0,box=null;
+  const step=()=>{cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;const fin=Math.abs(tx-cx)<.004&&Math.abs(ty-cy)<.004;if(fin){cx=tx;cy=ty}
+    win.style.transform=cx||cy?`perspective(1800px) rotateX(${cy.toFixed(3)}deg) rotateY(${cx.toFixed(3)}deg)`:'';
+    if(glow)glow.style.transform=cx||cy?`translate(${(-cx*7).toFixed(1)}px,${(cy*7).toFixed(1)}px)`:'';
+    raf=fin?0:requestAnimationFrame(step)};
+  const go=()=>{if(!raf)raf=requestAnimationFrame(step)};
+  addEventListener('scroll',()=>{box=null},{passive:true});addEventListener('resize',()=>{box=null});
+  hero.addEventListener('pointermove',ev=>{if(ev.pointerType!=='mouse')return;
+    if(!box){const r=win.getBoundingClientRect();box={x:r.left+r.width/2,y:r.top+r.height/2,w:r.width/2,h:r.height/2}}
+    const cl=v=>Math.max(-1,Math.min(1,v));tx=cl((ev.clientX-box.x)/box.w)*2.8;ty=-cl((ev.clientY-box.y)/box.h)*2.2;go()},{passive:true});
+  hero.addEventListener('pointerleave',()=>{tx=ty=0;go()})};
+if(FX)new IntersectionObserver((es,o)=>{if(!es[0].isIntersecting)return;o.disconnect();requestAnimationFrame(intro)},{threshold:.2}).observe(win)}
+document.querySelectorAll('a.btn.dl:not(.quiet)').forEach(a=>{const m=a.id==='heroDl'?w:e;
+['pointerenter','focus'].forEach(t=>a.addEventListener(t,()=>m.setState('offen')));
+['pointerleave','blur'].forEach(t=>a.addEventListener(t,()=>m.setState('ruht')))});
 })();
 </script>
 <script>

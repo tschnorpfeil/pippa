@@ -1,7 +1,7 @@
 <p align="center"><img src="site/icon-512.png" width="112" height="112" alt="Pippa's app icon: three wobbly blue rings on a light tile"></p>
 <h1 align="center">Pippa</h1>
-<p align="center"><b>Paperwork on your Mac? Done.</b><br>
-The free Mac helper for people who'd rather not learn AI. Her built-in AI runs on your Mac.</p>
+<p align="center"><b>The AI assistant that actually gets things done.</b><br>
+Free for the Mac: photos to one PDF, letters explained, folders tidied. Her AI runs on your Mac.</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white" alt="macOS 15 or later">

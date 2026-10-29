@@ -496,18 +496,18 @@ does not collect usage analytics. Keep the website's privacy description aligned
 
 ```sh
 python3 -m http.server 8088 --directory site
-node scripts/check-site.cjs           # drag geometry, bilingual content, static answer card and paused mark rendering
+node scripts/check-site.cjs           # drag geometry, bilingual content, the six hero scenes and paused mark rendering
 node scripts/check-site-launch.cjs    # publication gate: required files; fails while the legal pages are unfinished
 ```
 
-The homepage demo is scripted: rendering and the demo flow are in `site/index.html`. `site/pippaDrag.js` holds the drag
+The homepage is plain HTML and CSS in `site/index.html`; the window under the hero is Pippa's real window rebuilt in CSS from `Theme.swift`, with made-up example content. `site/pippaDrag.js` holds the drag
 geometry model that `check-site.cjs` tests; the pages no longer load it. Text changes on the German page must be
 carried over to `site/en/index.html`.
 
 Both language URLs must stay directly accessible. Use explicit language links and reciprocal canonical/hreflang
 metadata, without browser-language redirects. Keep titles, descriptions and app structured data consistent with
 visible, released capabilities. Describe concrete outcomes; do not add invented ratings or promise search rankings.
-The illustrated answer is not a recording of a live AI run. Reduced motion keeps the marks static. Inspect both locales
+The hero scenes are illustrations with made-up files, not recordings of live AI runs. Reduced motion and no-JS show the first scene finished without autoplay. Inspect both locales
 at desktop and narrow widths after changing the layout.
 
 References: [Google's multilingual guidance](https://developers.google.com/search/docs/specialty/international/managing-multi-regional-sites),
