@@ -133,3 +133,10 @@ test("a scope without the expansion tool retains all of its approved readers", (
   ];
   assert.deepEqual(scopedTools("Summarize this letter.", readers), readers);
 });
+
+test("remembering document workflows retains save_skill without an expansion round trip", () => {
+  for (const prompt of ["Merk dir diesen Ablauf für Rechnungen", "Remember how to compare these documents", "Diesen Rechnungsablauf als Skill behalten"]) {
+    const tools = ["read", "save_skill", "remember", "pippa_more_tools"];
+    assert.deepEqual(scopedTools(prompt, tools), tools);
+  }
+});

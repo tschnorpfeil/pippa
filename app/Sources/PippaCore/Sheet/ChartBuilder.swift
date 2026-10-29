@@ -63,7 +63,14 @@ public enum ChartBuilder {
 
     public static func build(_ grid: SheetGrid, x: String, y: [String], aggregate: ChartAggregate?, kind: ChartCard.Kind,
                              source: String, truncated: Bool = false, locale: Locale = .current) -> Result<ChartCard, ChartBuildFailure> {
-        let layout = SheetLayout.detect(grid)
+        let agg = resolved(aggregate, y: y)
+        var layout = SheetLayout.detect(grid)
+        // Counting categories needs no numeric column. The requested heading still has to identify a column in
+        // the first row, so a text-only status or category table can be counted without inventing numbers.
+        if layout.headerRow == nil, agg == .count, grid.firstRow < grid.lastRow {
+            let candidate = SheetLayout(headerRow: grid.firstRow, labelColumn: nil)
+            if column(named: x, in: grid, layout: candidate) != nil { layout = candidate }
+        }
         guard layout.headerRow != nil else { return .failure(.noHeadings) }
         guard y.count <= maxSeries else { return .failure(.tooManySeries(limit: maxSeries)) }
         let available = grid.columnNumbers.compactMap { layout.heading(column: $0, in: grid) }
@@ -73,7 +80,6 @@ public enum ChartBuilder {
             guard let found = column(named: name, in: grid, layout: layout) else { return .failure(.unknownColumn(name, available: available)) }
             if !yColumns.contains(found) { yColumns.append(found) }
         }
-        let agg = resolved(aggregate, y: y)
         if yColumns.isEmpty && agg != .count { return .failure(.noNumbers("y")) }
         func title(_ column: Int) -> String { layout.heading(column: column, in: grid) ?? CellRef.columnName(column) }
         let xTitle = title(xColumn)

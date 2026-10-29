@@ -62,6 +62,14 @@ func runChartChecks() async {
             && (try? JSONEncoder().encode(distinct)) != nil
     }
 
+    check("Chart: text-only category tables count rows without requiring a number column") {
+        let statuses = grid([[t("Status")], [t("Open")], [t("Done")], [t("Open")]])
+        guard let counted = card(build(statuses, x: "Status", y: [])) else { return false }
+        return counted.labels == ["Open", "Done"] && counted.series[0].values == [2, 1]
+            && card(build(statuses, x: "Status", y: [], agg: .count, kind: .pie))?.series[0].values == [2, 1]
+            && failure(build(statuses, x: "Unknown", y: [])) == .noHeadings
+    }
+
     // MARK: Columns, dates, limits
 
     check("Chart: an unknown column names every heading; a column letter works; headings match without case and accents") {
