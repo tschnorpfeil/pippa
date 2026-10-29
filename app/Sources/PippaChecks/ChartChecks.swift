@@ -165,7 +165,8 @@ func runChartChecks() async {
             }
         }
         let fromXLSX = try await call(["path": xlsx.path, "x": "Monat", "y": ["Betrag"]])
-        let fromCSV = try await call(["path": csv.path, "x": "Monat", "type": "line"])
+        // Without y the rows would be counted (ChartBuilder.resolved); the sums need the number column.
+        let fromCSV = try await call(["path": csv.path, "x": "Monat", "y": ["Betrag"], "type": "line"])
         let charted = notes.value
         guard charted.count == 2, charted.allSatisfy({ $0.read && $0.tool == PippaMCPChart.name && $0.turnID == turn.id }),
               case .chart(let xlsxCard)? = charted[0].card, case .chart(let csvCard)? = charted[1].card else { return false }
