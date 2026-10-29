@@ -170,9 +170,13 @@ final class PiRPCChat {
         // Test scripts only (scripts/pi-rpc-spike.sh app): own Pi folder instead of ~/.pi, test trash under .build.
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR"] { if let value = env[key] { extra[key] = value } }
         let web = Self.webPath(env).flatMap { FileManager.default.fileExists(atPath: $0) ? URL(fileURLWithPath: $0) : nil }
+        // Skills the person saved (save_skill): Pi loads the folder after the bundled skills, so it must exist.
+        let userSkills = PiConversationDefault.userSkillsDirectory(support: Pippa.supportDirectory)
+        try? FileManager.default.createDirectory(at: userSkills, withIntermediateDirectories: true)
         let paths = PippaPiLaunch.Paths(extensionsDirectory: extensions, webExtension: web,
                                         sessionDirectory: Self.sessionDirectory, skillsDirectory: PippaSkill.bundledDirectory(),
-                                        memoryFile: PiConversationDefault.memoryFile(support: Pippa.supportDirectory))
+                                        memoryFile: PiConversationDefault.memoryFile(support: Pippa.supportDirectory),
+                                        userSkillsDirectory: userSkills)
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         var launcher = try await Self.launcher(env)
         if let online = route.online { launcher.piArguments = PiOnlineProvider.launchArguments(online.connection) }
@@ -641,8 +645,9 @@ final class PiRPCChat {
                 if let index = pendingWrites.firstIndex(where: { $0.action == action }) { return pendingWrites.remove(at: index) }
                 return ActionReceipt.Item(action: "tool", outcome: record.outcome.rawValue, name: record.name)
             }
-            return ActionReceipt.Item(action: record.action, outcome: record.outcome.rawValue, name: record.name, toName: record.toName,
-                                      reason: record.reason,
+            // The person's no to save_skill reads as theirs, not as a failure (PiTurnReceipt `declined`).
+            return ActionReceipt.Item(action: record.action, outcome: record.reason == "declined" ? "declined" : record.outcome.rawValue,
+                                      name: record.name, toName: record.toName, reason: record.reason,
                                       permissionRepair: record.fileAccessFailure.flatMap { PermissionRepairTarget.forDeniedFile(at: URL(fileURLWithPath: $0.path)) })
         }
         // App-initiated reads and calls finishing after Pi stopped may have no matching Pi tool event.

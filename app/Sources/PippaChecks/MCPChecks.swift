@@ -84,8 +84,9 @@ func runMCPChecks() async {
         let list = (await rpc(s.tools, "tools/list"))?["result"] as? [String: Any]
         let all = list?["tools"] as? [[String: Any]] ?? []
         let names = all.compactMap { $0["name"] as? String }
-        // calendar_add/reminder_add/mail_draft change something on the Mac (checked separately in R3Checks).
-        let tools = all.filter { !(PippaMCPWriteTools.names + [PippaMCPFilePreparation.name]).contains($0["name"] as? String ?? "") }
+        // calendar_add/reminder_add/mail_draft change something on the Mac (checked separately in R3Checks); make_chart is
+        // read-only but not a reader for draft tasks (ChartChecks).
+        let tools = all.filter { !(PippaMCPWriteTools.names + [PippaMCPFilePreparation.name, PippaMCPChart.name]).contains($0["name"] as? String ?? "") }
         let hintsOK = tools.allSatisfy { tool in
             let a = tool["annotations"] as? [String: Any] ?? [:]
             return a["readOnlyHint"] as? Bool == true && a["destructiveHint"] as? Bool == false && a["openWorldHint"] as? Bool == false

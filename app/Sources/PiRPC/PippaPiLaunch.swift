@@ -12,7 +12,8 @@ import Foundation
 ///   the counterpart of `defaultProjectTrust: "never"`, without touching the person's settings.
 /// - `--session-dir` in Pippa's support folder and `--session-id` per conversation (one Pi session per Pippa conversation).
 /// - `--system-prompt`: Pippa's own short prompt instead of "expert coding assistant"; fixed per language (prompt cache).
-/// - `--tools`: a fixed list (`tools`); `--no-skills --skill <bundle>`: only Pippa's skills.
+/// - `--tools`: a fixed list (`tools`); `--no-skills --skill <bundle>`: bundled skills come first (Pi keeps the first of
+///   two same-named skills); skills the person saved with save_skill follow from `<support>/skills`, standard scope only.
 /// - Memory and context (pippa-memory.ts, pippa-context.ts): what Pippa knows about the person from `Paths.memoryFile`
 ///   as its own prompt section, the `remember` tool, a quiet summary while the person reads, and a short handover into
 ///   the session of a new topic. Without `memoryFile` (trial runs) nothing is kept beyond the process.
@@ -29,9 +30,13 @@ public enum PippaPiLaunch {
         public var skillsDirectory: URL?
         /// "Was Pippa über dich weiß", e.g. ~/Library/Application Support/Pippa/memory.md; `nil`: kept only per process.
         public var memoryFile: URL?
-        public init(extensionsDirectory: URL, webExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil, memoryFile: URL? = nil) {
+        /// Skills the person saved (save_skill, skill-save.ts), e.g. ~/Library/Application Support/Pippa/skills;
+        /// loaded after `skillsDirectory`, standard scope only. `nil`: no saving.
+        public var userSkillsDirectory: URL?
+        public init(extensionsDirectory: URL, webExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil, memoryFile: URL? = nil,
+                    userSkillsDirectory: URL? = nil) {
             self.extensionsDirectory = extensionsDirectory; self.webExtension = webExtension; self.sessionDirectory = sessionDirectory
-            self.skillsDirectory = skillsDirectory; self.memoryFile = memoryFile
+            self.skillsDirectory = skillsDirectory; self.memoryFile = memoryFile; self.userSkillsDirectory = userSkillsDirectory
         }
     }
 
@@ -62,6 +67,11 @@ public enum PippaPiLaunch {
                                      mcp: (endpoint: MCPEndpoint, extension: URL)? = nil, actionPolicy: PiActionPolicy = .standard) -> PiRPCConfiguration {
         var env = launcher.environment.merging(environment) { $1 }
         if let memory = paths.memoryFile { env[memoryVariable] = memory.path }
+        // save_skill only in standard scope: without the folder skill-save.ts registers nothing.
+        if actionPolicy == .standard, let user = paths.userSkillsDirectory {
+            env[userSkillsVariable] = user.path
+            if let bundled = paths.skillsDirectory { env[bundledSkillsVariable] = bundled.path }
+        }
         // The app's language for the questions the shell (shell.ts) and web access ask before going further.
         env["PIPPA_LANGUAGE"] = language
         env[PiActionPolicy.environmentVariable] = actionPolicy.rawValue
@@ -76,6 +86,9 @@ public enum PippaPiLaunch {
 
     /// Where pippa-memory.ts keeps the person's facts.
     public static let memoryVariable = "PIPPA_MEMORY_FILE"
+    /// Where save_skill writes (skill-save.ts), and the bundled skills whose names it must not take.
+    public static let userSkillsVariable = "PIPPA_USER_SKILLS_DIR"
+    public static let bundledSkillsVariable = "PIPPA_BUNDLED_SKILLS_DIR"
 
     /// Extensions in load order. Only these load: `arguments` passes `--no-extensions`, which keeps explicit `--extension`s.
     public static func extensions(_ paths: Paths) -> [URL] {
@@ -89,8 +102,12 @@ public enum PippaPiLaunch {
         // Without the person's own Pi extensions and packages: one that registers a tool of the same name (pi-web-access's
         // web_search) makes Pi exit at startup, and every message failed.
         var args = ["--no-context-files", "--no-extensions", "--no-approve", "--tools", (actionPolicy == .draftOnly ? PiActionPolicy.draftLaunchTools : tools).joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
-        // Only Pippa's skills, so a same-named skill of the person never replaces the one a button means (PiSkillTurn).
-        if let skills = paths.skillsDirectory { args += ["--no-skills", "--skill", skills.path] }
+        // Bundled skills come first (Pi keeps the first of two same-named skills), so a button always means Pippa's
+        // (PiSkillTurn); skills the person saved with save_skill follow from `<support>/skills`, standard scope only.
+        if let skills = paths.skillsDirectory {
+            args += ["--no-skills", "--skill", skills.path]
+            if actionPolicy == .standard, let user = paths.userSkillsDirectory { args += ["--skill", user.path] }
+        }
         if let sessionID {
             args += ["--session-dir", paths.sessionDirectory.path, "--session-id", piSessionID(sessionID)]
         } else {
@@ -101,10 +118,10 @@ public enum PippaPiLaunch {
 
     /// The tools Pi declares to the model, named explicitly so the person's `defaultTools` cannot widen or narrow
     /// them (cli.md "Tools"). Pi's read/bash/edit/write tools, Pippa's file tools (pippa-tools.ts), the web
-    /// (pi-web-access: search, read a page), Pippa's memory (pippa-memory.ts) and Pippa's
+    /// (pi-web-access: search, read a page), Pippa's memory and saved skills (pippa-memory.ts, skill-save.ts) and Pippa's
     /// MCP server. Names Pi does not know are ignored.
     public static let tools = ["read", "bash", "edit", "write",
-                               "pippa_more_tools", "search_files", "list_folder", "move_files", "move_to_trash", "remember",
+                               "pippa_more_tools", "search_files", "list_folder", "move_files", "move_to_trash", "remember", "save_skill",
                                "web_search", "fetch_content", "mcp__pippa__*"]
 
     /// Pi allows only letters, digits, `.`, `_`, `-` in session IDs, and a letter or digit at start and end

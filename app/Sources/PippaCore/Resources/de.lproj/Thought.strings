@@ -222,3 +222,11 @@
 "Reading was not confirmed" = "Lesen nicht bestätigt";
 "Command failed; changes may have happened" = "Befehl fehlgeschlagen; Änderungen sind möglich";
 "Couldn’t finish: %@ · check the result before trying again" = "Nicht abgeschlossen: %@ · prüfe das Ergebnis vor einem neuen Versuch";
+
+// Skills the person saved with save_skill (skill-save.ts).
+"Saved as a skill: %@" = "Als Ablauf gemerkt: %@";
+"Not saved as a skill: %@" = "Nicht als Ablauf gemerkt: %@";
+"Saving a skill" = "Merke mir den Ablauf";
+
+// make_chart: a chart card computed from a table file (PippaMCPChart.swift).
+"Drawing a chart" = "Zeichne ein Diagramm";

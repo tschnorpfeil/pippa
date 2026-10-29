@@ -332,3 +332,8 @@
 "Show in Conversation" = "Show in Conversation";
 "Copy Link" = "Copy Link";
 "Email without subject" = "Email without subject";
+
+// Chart card under an answer (ChartCardView.swift).
+"Save as PNG…" = "Save as PNG…";
+"Couldn’t save the picture. Please try again." = "Couldn’t save the picture. Please try again.";
+"Chart of %@" = "Chart of %@";

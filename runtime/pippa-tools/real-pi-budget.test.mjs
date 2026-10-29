@@ -25,8 +25,9 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = join(here, "../..");
 const web = join(repo, "runtime/pippa-web/index.ts");
 
-/** Characters of system text (without `<cwd>`) and non-MCP tool declarations; MCP adds at most 3,100 (Swift). */
-const BUDGET = 6_400;
+/** Characters of system text (without `<cwd>`) and non-MCP tool declarations; MCP adds at most 3,600 (Swift).
+ * save_skill (skill-save.ts) added 480 (2026-10-28: 6,334 → 6,814); each skill the person saves adds ~300 more. */
+const BUDGET = 6_880;
 
 test("real Pi: the first request stays within Pippa's budget, with no skills section", {
 	skip: (!cli && "PIPPA_PI_CLI not set") || (!existsSync(join(repo, "runtime/pippa-web/node_modules")) && "npm ci in runtime/pippa-web first"),
@@ -55,10 +56,12 @@ test("real Pi: the first request stays within Pippa's budget, with no skills sec
 	const prompt = launch.match(/static let german = """\n([\s\S]*?)\n    """/)[1].replace(/^    /gm, "");
 	const tools = launch.match(/public static let tools = \[([\s\S]*?)\]/)[1].match(/"[^"]+"/g).map((x) => JSON.parse(x)).join(",");
 	const env = { HOME: home, PATH: process.env.PATH, PI_CODING_AGENT_DIR: agent, PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1", PI_TELEMETRY: "0",
-		PIPPA_WEB_DIR: join(root, "web"), PIPPA_MEMORY_FILE: join(root, "memory.md") };
+		PIPPA_WEB_DIR: join(root, "web"), PIPPA_MEMORY_FILE: join(root, "memory.md"), PIPPA_USER_SKILLS_DIR: join(root, "skills") };
+	// The person saved no skill yet: Pi starts with the empty folder and still sends no skills section.
+	mkdirSync(join(root, "skills"));
 	const extensions = ["pippa-policy.ts", "pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-context.ts"].map((f) => join(here, f)).concat(web);
 	const child = spawn(node, [cli, "--mode", "rpc", "--no-session", "--no-context-files", "--no-approve",
-		"--no-skills", "--skill", join(repo, "runtime/pippa-skills"), ...extensions.flatMap((e) => ["--extension", e]),
+		"--no-skills", "--skill", join(repo, "runtime/pippa-skills"), "--skill", join(root, "skills"), ...extensions.flatMap((e) => ["--extension", e]),
 		"--tools", tools, "--system-prompt", prompt, "--provider", "pippa-local", "--model", "m"], { cwd: work, env, stdio: ["pipe", "pipe", "pipe"] });
 	let err = "", buffer = "";
 	child.stderr.on("data", (d) => (err += d));
@@ -91,8 +94,9 @@ test("real Pi: the first request stays within Pippa's budget, with no skills sec
 	const names = declared.map((t) => t.function.name).sort();
 	const size = text.replace(/<cwd>[\s\S]*?<\/cwd>/, "").length + JSON.stringify(declared).length;
 	assert.ok(text.startsWith("Du bist Pippa"), "Pippa's own prompt replaces Pi's");
-	assert.ok(!text.includes("<skills>"), "every skill is button-only (disable-model-invocation), so no skills section");
-	assert.deepEqual(names, ["bash", "edit", "fetch_content", "list_folder", "move_files", "move_to_trash", "read", "remember", "search_files", "web_search", "write"]);
+	assert.ok(!text.includes("<skills>") && !text.includes("<available_skills>"),
+		"every bundled skill is button-only (disable-model-invocation) and none is saved yet, so no skills section");
+	assert.deepEqual(names, ["bash", "edit", "fetch_content", "list_folder", "move_files", "move_to_trash", "read", "remember", "save_skill", "search_files", "web_search", "write"]);
 	assert.ok(size <= BUDGET, `first request: ${size} characters of prompt and tool declarations, budget ${BUDGET}`);
 	console.log(`first request: ${size} of ${BUDGET} characters (without MCP)`);
 });

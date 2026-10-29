@@ -15,9 +15,12 @@
  *
  * The file stays plain text (`- fact` per line), so Pippa's settings can show it and the person can delete it. Without
  * PIPPA_MEMORY_FILE (trial runs, spikes) the facts live only as long as the process, so no run touches the real file.
+ *
+ * Steps the person wants to keep go to `save_skill` (skill-save.ts), with the same refusals as facts.
  */
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { installSkillSave } from "./skill-save.ts";
 
 type ExtensionAPI = any;
 
@@ -141,4 +144,5 @@ export default function (pi: ExtensionAPI) {
 			return { content: [{ type: "text", text: parts.join(" ") }], details: { count: change.facts.length, forgotten: change.forgotten.length, dropped: change.dropped.length } };
 		},
 	});
+	installSkillSave(pi, { refusal });
 }

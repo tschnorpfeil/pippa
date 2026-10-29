@@ -79,3 +79,14 @@
 "This request can only prepare a draft. Nothing was changed." = "This request can only prepare a draft. Nothing was changed.";
 "Reminder status after reopening Pippa" = "Reminder status after reopening Pippa";
 "Pippa couldn’t confirm whether the change in %@ finished. Please check the app before trying again." = "Pippa couldn’t confirm whether the change in %@ finished. Please check the app before trying again.";
+
+// make_chart: the chart card under an answer (ChartBuilder.swift, PippaMCPChart.swift).
+"Chart: %@" = "Chart: %@";
+"No chart: %@" = "No chart: %@";
+"Computed by Pippa from %@" = "Computed by Pippa from %@";
+"%@ by %@" = "%@ by %@";
+"Count" = "Count";
+"Other" = "Other";
+"Only the first part of the table was read." = "Only the first part of the table was read.";
+"One row without a number was left out." = "One row without a number was left out.";
+"%lld rows without a number were left out." = "%lld rows without a number were left out.";

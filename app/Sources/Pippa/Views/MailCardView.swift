@@ -87,6 +87,7 @@ struct ResultCardsView: View {
                 case .reminders: EmptyView()
                 case .web(let web): WebSourcesCardView(card: web)
                 case .preparedFiles(let prepared): PreparedFilesCardView(card: prepared)
+                case .chart(let chart): ChartCardView(card: chart)
                 }
             }
         }

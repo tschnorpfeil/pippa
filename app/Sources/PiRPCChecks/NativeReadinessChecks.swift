@@ -114,6 +114,11 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
           && !PiActionPolicy.nativeReaders.contains("mcp__pippa__prepare_files")
           && !PiActionPolicy.draftTools.contains("mcp__pippa__prepare_files")
           && PippaPiLaunch.tools.contains("mcp__pippa__*"))
+    check("The native chart card is required for standard registration but is not a draft-only reader",
+          PiNativeReadiness.tools.last == "mcp__pippa__make_chart"
+          && !PiActionPolicy.nativeReaders.contains("mcp__pippa__make_chart")
+          && !PiActionPolicy.draftTools.contains("mcp__pippa__make_chart")
+          && !PiTurnReceipt.pippaWriters.contains("make_chart"))
     for mode in ["ready", "wide-draft"] {
         let (draft, _) = make(mode, policy: .draftOnly)
         try await draft.start()

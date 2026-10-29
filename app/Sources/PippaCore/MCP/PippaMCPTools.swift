@@ -138,6 +138,7 @@ public struct PippaMCPTools: Sendable {
         + PippaMCPTurnTools.names
         + PippaMCPWriteTools.names
         + [PippaMCPFilePreparation.name]
+        + [PippaMCPChart.name]
 
     let host: PippaMCPHost
     public init(host: PippaMCPHost) { self.host = host }
@@ -237,6 +238,12 @@ public struct PippaMCPTools: Sendable {
                 }
                 return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
             }
+            // A chart card from a table file (PippaMCPChart.swift): read only, the card comes with the read note.
+            if name == PippaMCPChart.name {
+                let outcome = await PippaMCPChart(turn: context.turn).call(arguments)
+                host.onRead?(PippaMCPChart.readNote(for: outcome, path: arguments["path"] as? String ?? "", turnID: context.turn?.id))
+                return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
+            }
             if PippaMCPWriteTools.names.contains(name) {
                 let outcome = await PippaMCPWriteTools(host: host, scope: context.writes).call(name, arguments)
                 if let receipt = outcome.receipt { host.onWrite?(receipt) }
@@ -294,6 +301,7 @@ public struct PippaMCPTools: Sendable {
             tool("front_read", "Geöffnetes lesen", "Front content."),
         ]
         return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList() + PippaMCPFilePreparation.toolList()
+            + PippaMCPChart.toolList()
     }
 
     /// Each reader accepts only its own declared fields and types. An invalid optional filter must never become
@@ -893,6 +901,11 @@ public struct PippaMCPTools: Sendable {
                 list.removeLast(); data[key] = list; data["shown"] = list.count; data["truncated"] = true
                 return true
             }
+        }
+        // make_chart: fewer computed rows for the model; the card still shows all of them.
+        if var rows = data["rows"] as? [Any], rows.count > 1 {
+            rows.removeLast(); data["rows"] = rows; data["rows_shown"] = rows.count
+            return true
         }
         for key in ["body", "sheet", "text"] {
             if let text = data[key] as? String, text.count > 200 {
