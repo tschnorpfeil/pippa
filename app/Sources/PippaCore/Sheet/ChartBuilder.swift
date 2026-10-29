@@ -107,9 +107,9 @@ public enum ChartBuilder {
             var sums: [[Double]] = [], counts: [[Int]] = [], rowCounts: [Int] = []
             for row in rows {
                 let i: Int
-                if let known = index[row.label.text] { i = known } else {
+                if let known = index[row.label.identity] { i = known } else {
                     i = labels.count
-                    index[row.label.text] = i
+                    index[row.label.identity] = i
                     labels.append(row.label)
                     sums.append(Array(repeating: 0, count: row.values.count))
                     counts.append(Array(repeating: 0, count: row.values.count))
@@ -148,7 +148,7 @@ public enum ChartBuilder {
             series = series.map { values in order.map { values[$0] } }
         }
 
-        var shownLabels = labels.map(\.text)
+        var shownLabels = uniqueLabels(labels.map(\.text))
         switch kind {
         case .bar:
             guard shownLabels.count <= maxBars else { return .failure(.tooManyPoints(shownLabels.count, limit: maxBars)) }
@@ -158,7 +158,8 @@ public enum ChartBuilder {
             guard series.count == 1 else { return .failure(.pieNeedsOneSeries) }
             var slices: [(label: String, value: Double)] = []
             for (i, value) in series[0].enumerated() { if let value { slices.append((label: shownLabels[i], value: value)) } }
-            guard slices.allSatisfy({ $0.value >= 0 }), slices.reduce(0, { $0 + $1.value }) > 0 else { return .failure(.pieNeedsPositive) }
+            let total = slices.reduce(0, { $0 + $1.value })
+            guard slices.allSatisfy({ $0.value >= 0 }), total.isFinite, total > 0 else { return .failure(.pieNeedsPositive) }
             // Largest first; past `maxSlices` the smallest share one slice.
             slices = slices.enumerated().sorted { a, b in
                 a.element.value != b.element.value ? a.element.value > b.element.value : a.offset < b.offset
@@ -169,7 +170,7 @@ public enum ChartBuilder {
                 merged.append((label: L("Other", table: "MCP"), value: clean(rest)))
                 slices = merged
             }
-            shownLabels = slices.map { $0.label }
+            shownLabels = uniqueLabels(slices.map { $0.label })
             series = [slices.map { Optional($0.value) }]
         }
 
@@ -217,6 +218,20 @@ public enum ChartBuilder {
     /// Float noise from adding ("0.30000000000000004") never reaches the card or the model.
     static func clean(_ value: Double) -> Double { Double(String(format: "%.12g", value)) ?? value }
 
+    /// Shortened labels and repeated unaggregated rows must retain distinct positions in Swift Charts.
+    private static func uniqueLabels(_ labels: [String]) -> [String] {
+        var used = Set<String>()
+        return labels.map { label in
+            var shown = label, suffix = 2
+            while used.contains(shown) {
+                shown = "\(label) (\(suffix))"
+                suffix += 1
+            }
+            used.insert(shown)
+            return shown
+        }
+    }
+
     private static func chartLabel(_ value: SheetValue, locale: Locale, dates: DateFormatter) -> ChartLabel? {
         switch value {
         case .empty:
@@ -225,12 +240,12 @@ public enum ChartBuilder {
             let one = raw.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
             guard !one.isEmpty else { return nil }
             let text = one.count > maxLabel ? String(one.prefix(maxLabel - 1)) + "…" : one
-            if let day = textDate(one) { return ChartLabel(text: text, kind: .date, key: day) }
-            if let year = Int(one), SheetLayout.isYear(Double(year)) { return ChartLabel(text: text, kind: .year, key: Double(year)) }
-            return ChartLabel(text: text, kind: .plain, key: 0)
+            if let day = textDate(one) { return ChartLabel(text: text, kind: .date, key: day, identity: one) }
+            if let year = Int(one), SheetLayout.isYear(Double(year)) { return ChartLabel(text: text, kind: .year, key: Double(year), identity: one) }
+            return ChartLabel(text: text, kind: .plain, key: 0, identity: one)
         case .number(let n):
             if SheetLayout.isYear(n) { return ChartLabel(text: String(Int(n)), kind: .year, key: n) }
-            return ChartLabel(text: n.formatted(.number.locale(locale)), kind: .plain, key: 0)
+            return ChartLabel(text: n.formatted(.number.locale(locale)), kind: .plain, key: 0, identity: String(n))
         case .date(let date):
             // XLSXReader gives day numbers as midnight UTC: shown in UTC, the day stays the same everywhere.
             return ChartLabel(text: dates.string(from: date), kind: .date, key: date.timeIntervalSince1970)
@@ -268,4 +283,9 @@ private struct ChartLabel {
     var text: String
     var kind: Kind
     var key: Double
+    /// Full category before display shortening; distinct source cells never aggregate because their prefixes match.
+    var identity: String
+    init(text: String, kind: Kind, key: Double, identity: String? = nil) {
+        self.text = text; self.kind = kind; self.key = key; self.identity = identity ?? text
+    }
 }

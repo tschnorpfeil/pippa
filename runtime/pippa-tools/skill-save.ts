@@ -14,8 +14,9 @@
  * - Only this tool writes there: `write`, `edit` and `move_files` into the folder are blocked (bash cannot write in
  *   Pippa's folder anyway, shell.ts).
  */
+import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { access, mkdir, readdir, rename, writeFile } from "node:fs/promises";
+import { access, link, mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { targetPath } from "./pippa-assist.ts";
@@ -222,8 +223,9 @@ export function installSkillSave(pi: any, deps: { refusal: (text: string) => str
 		},
 		annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 		executionMode: "sequential",
-		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
+		async execute(_id: string, params: any, signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
 			const notSaved = (text: string) => ({ content: [{ type: "text", text }], isError: true, details: { pippaSkill: "not_saved" } });
+			if (signal?.aborted) return notSaved("Not saved: the request was cancelled.");
 			if (tainted) return notSaved(TAINT_REASON);
 			const skill = checkSkill(params, deps.refusal);
 			if ("error" in skill) return notSaved(skill.error);
@@ -237,12 +239,23 @@ export function installSkillSave(pi: any, deps: { refusal: (text: string) => str
 			if (!ctx?.hasUI || !ctx?.ui?.confirm) return notSaved("Not saved: there is no one to ask right now.");
 			const { title, message } = askText(skill, env.PIPPA_LANGUAGE ?? "");
 			if (!(await ctx.ui.confirm(title, message))) return notSaved(DECLINED_REASON);
+			if (signal?.aborted) return notSaved("Not saved: the request was cancelled.");
+			if (tainted) return notSaved(TAINT_REASON);
 			// Written whole, never half, and never over a skill that appeared while the person decided.
 			if (await taken()) return notSaved(`Not saved: a skill named “${skill.label}” already exists. Choose another name.`);
 			await mkdir(folder, { recursive: true });
-			const temp = `${file}.${process.pid}.tmp`;
-			await writeFile(temp, renderSkill(skill), { mode: 0o600 });
-			await rename(temp, file);
+			const temp = `${file}.${randomUUID()}.tmp`;
+			try {
+				await writeFile(temp, renderSkill(skill), { mode: 0o600, flag: "wx" });
+				if (signal?.aborted) return notSaved("Not saved: the request was cancelled.");
+				// Atomic, exclusive publication: another Pi process may have saved this name meanwhile.
+				try { await link(temp, file); } catch (error: any) {
+					if (error?.code === "EEXIST") return notSaved(`Not saved: a skill named “${skill.label}” already exists. Choose another name.`);
+					throw error;
+				}
+			} finally {
+				await unlink(temp).catch(() => {});
+			}
 			return { content: [{ type: "text", text: "Saved. Pippa can use this skill from the next conversation on." }], details: { pippaSkill: "saved", file } };
 		},
 	});

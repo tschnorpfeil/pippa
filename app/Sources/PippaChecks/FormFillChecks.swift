@@ -176,24 +176,48 @@ func runFormFillChecks() async {
         return ok
     }
 
-    check("Form fill: real form fields get their values; a checkbox is on and exactly one radio option is") {
+    check("Form fill: saved text and checkbox values round-trip; unverifiable radio copies are removed") {
         guard let analysis = PDFForm.analyze(club, pages: 1...40) else { return false }
         let kinds = Dictionary(analysis.fields.map { ($0.name, $0.kind) }, uniquingKeysWith: { a, _ in a })
         let options = Set(analysis.fields.first(where: { $0.name == "membership" })?.options ?? [])
         guard kinds == ["full_name": .text, "newsletter": .checkbox, "membership": .radio], options == ["Monthly", "Yearly"],
               analysis.blanks.isEmpty, analysis.pages.allSatisfy({ $0.blanks.isEmpty }),
               case .success(let plan) = PDFForm.plan(["f:full_name": "Ada Lovelace", "f:newsletter": "yes", "f:membership": "yearly"], analysis: analysis)
-        else { return false }
+        else {
+            explain("field kinds \(kinds), options \(options), fields \(analysis.fields)")
+            return false
+        }
+        // Text and checkbox fields must work independently of PDFKit's radio serialization.
+        guard case .success(let basic) = PDFForm.plan(["f:full_name": "Ada Lovelace", "f:newsletter": "yes"], analysis: analysis) else { return false }
+        let basicCopy = folder.appendingPathComponent("Club basic.pdf")
+        guard try PDFForm.write(basic, source: club, to: basicCopy) == 2,
+              let basicRead = PDFForm.analyze(basicCopy, pages: 1...1),
+              basicRead.fields.first(where: { $0.name == "full_name" })?.value == "Ada Lovelace",
+              basicRead.fields.first(where: { $0.name == "newsletter" })?.value == "on" else { return false }
         let copy = folder.appendingPathComponent("Club filled.pdf")
-        let count = try PDFForm.write(plan, source: club, to: copy)
-        guard let page = PDFDocument(url: copy)?.page(at: 0) else { return false }
+        let original = try Data(contentsOf: club)
+        let count: Int
+        do { count = try PDFForm.write(plan, source: club, to: copy) }
+        catch PDFForm.WriteProblem.unverifiedFields(let names) {
+            explain("PDFKit could not preserve the radio value; the invalid copy was removed.")
+            let unchanged = try Data(contentsOf: club) == original
+            return names == ["membership"] && !fm.fileExists(atPath: copy.path) && unchanged
+        }
+        guard let document = PDFDocument(url: copy), let page = document.page(at: 0) else { return false }
         let widgets = page.annotations.filter { $0.type == "Widget" }
         let name = widgets.first(where: { $0.fieldName == "full_name" })?.widgetStringValue
         let box = widgets.first(where: { $0.fieldName == "newsletter" })?.buttonWidgetState
         let on = widgets.filter { $0.fieldName == "membership" && $0.buttonWidgetState == .onState }
         let back = PDFForm.analyze(copy, pages: 1...1)?.fields.first(where: { $0.name == "membership" })?.value
-        return count == 3 && plan.fields["membership"] == "Yearly" && name == "Ada Lovelace" && box == .onState
+        let ok = count == 3 && plan.fields["membership"] == "Yearly" && name == "Ada Lovelace" && box == .onState
             && on.count == 1 && on.first?.buttonWidgetStateString == "Yearly" && back == "Yearly"
+        if !ok {
+            explain("filled \(count), name \(String(describing: name)), checkbox \(String(describing: box)), radio on \(on.map { $0.buttonWidgetStateString }), read back \(String(describing: back))")
+            for widget in widgets {
+                explain("widget \(widget.fieldName ?? ""): type \(widget.widgetControlType), state \(widget.buttonWidgetState), value \(widget.buttonWidgetStateString)")
+            }
+        }
+        return ok
     }
 
     check("Form fill: the list for read_document names ids, labels and kinds; a letter gets none") {
@@ -534,31 +558,37 @@ private func germanForm(at url: URL) {
 
 /// Hob's fillable form (make-fixtures.swift) with a two-option radio group added.
 private func fieldForm(at url: URL) {
-    drawPDF(at: url, pages: [{ p in
-        p.text("Club Membership Form", 60, 56, size: 16, bold: true)
-        p.text("Full name", 60, 111)
-        p.text("Send me the newsletter", 80, 151)
-        p.text("Membership", 60, 191)
-        p.text("Monthly", 180, 191)
-        p.text("Yearly", 280, 191)
-    }])
-    guard let document = PDFDocument(url: url), let page = document.page(at: 0) else { return }
-    let name = PDFAnnotation(bounds: CGRect(x: 140, y: 665, width: 220, height: 20), forType: .widget, withProperties: nil)
-    name.widgetFieldType = .text
-    name.fieldName = "full_name"
-    page.addAnnotation(name)
-    let box = PDFAnnotation(bounds: CGRect(x: 60, y: 628, width: 14, height: 14), forType: .widget, withProperties: nil)
-    box.widgetFieldType = .button
-    box.widgetControlType = .checkBoxControl
-    box.fieldName = "newsletter"
-    page.addAnnotation(box)
-    for (x, option) in [(CGFloat(160), "Monthly"), (CGFloat(260), "Yearly")] {
-        let radio = PDFAnnotation(bounds: CGRect(x: x, y: 588, width: 14, height: 14), forType: .widget, withProperties: nil)
-        radio.widgetFieldType = .button
-        radio.widgetControlType = .radioButtonControl
-        radio.fieldName = "membership"
-        radio.buttonWidgetStateString = option
-        page.addAnnotation(radio)
+    // Write an actual AcroForm with named appearance states and a shared radio parent. PDFKit's generated widgets
+    // can silently replace buttonWidgetStateString with "Yes" on serialization, losing the fixture's two options.
+    func stream(_ body: String, dictionary: String = "") -> String {
+        "<< \(dictionary) /Length \(body.utf8.count) >>\nstream\n\(body)\nendstream"
     }
-    _ = document.write(to: url)
+    let content = "BT /Helv 16 Tf 60 720 Td (Club Membership Form) Tj /Helv 12 Tf 0 -48 Td (Full name) Tj 0 -40 Td (Send me the newsletter) Tj 0 -40 Td (Membership: Monthly or Yearly) Tj ET"
+    let objects = [
+        "<< /Type /Catalog /Pages 2 0 R /AcroForm 3 0 R >>",
+        "<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        "<< /Fields [6 0 R 7 0 R 8 0 R] /DA (/Helv 12 Tf 0 g) /DR << /Font << /Helv 5 0 R >> >> >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /Helv 5 0 R >> >> /Contents 9 0 R /Annots [6 0 R 7 0 R 10 0 R 11 0 R] >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        "<< /Type /Annot /Subtype /Widget /FT /Tx /T (full_name) /Rect [140 665 360 685] /P 4 0 R /F 4 >>",
+        "<< /Type /Annot /Subtype /Widget /FT /Btn /T (newsletter) /Rect [60 628 74 642] /P 4 0 R /F 4 /V /Off /AS /Off /AP << /N << /Off 12 0 R /Yes 13 0 R >> >> >>",
+        "<< /FT /Btn /Ff 32768 /T (membership) /Kids [10 0 R 11 0 R] /V /Off >>",
+        stream(content),
+        "<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [160 588 174 602] /P 4 0 R /F 4 /AS /Off /AP << /N << /Off 12 0 R /Monthly 13 0 R >> >> >>",
+        "<< /Type /Annot /Subtype /Widget /Parent 8 0 R /Rect [260 588 274 602] /P 4 0 R /F 4 /AS /Off /AP << /N << /Off 12 0 R /Yearly 13 0 R >> >> >>",
+        stream("0 G 1 w 0 0 14 14 re S", dictionary: "/Type /XObject /Subtype /Form /BBox [0 0 14 14] /Resources << >>"),
+        stream("0 G 1 w 0 0 14 14 re S 2 2 m 12 12 l 2 12 m 12 2 l S", dictionary: "/Type /XObject /Subtype /Form /BBox [0 0 14 14] /Resources << >>"),
+    ]
+    var pdf = Data("%PDF-1.7\n".utf8)
+    var offsets = [0]
+    for (index, object) in objects.enumerated() {
+        offsets.append(pdf.count)
+        pdf.append(Data("\(index + 1) 0 obj\n\(object)\nendobj\n".utf8))
+    }
+    let xref = pdf.count
+    var trailer = "xref\n0 \(offsets.count)\n0000000000 65535 f \n"
+    for offset in offsets.dropFirst() { trailer += String(format: "%010d 00000 n \n", offset) }
+    trailer += "trailer\n<< /Size \(offsets.count) /Root 1 0 R >>\nstartxref\n\(xref)\n%%EOF\n"
+    pdf.append(Data(trailer.utf8))
+    try? pdf.write(to: url)
 }

@@ -45,10 +45,21 @@ func runChartChecks() async {
         let countOK = counted.series.map(\.name) == [L("Count", table: "MCP")] && counted.series[0].values == counts && counted.note == nil
         let averageOK = average.labels == ["Jan", "Feb"] && average.series[0].values == averages
             && average.note == L("One row without a number was left out.", table: "MCP")
-        let plainOK = plain.labels == ["Jan", "Feb", "Jan", "Jan"] && plain.series[0].values == rows && added.series[0].values == sum
+        let plainOK = plain.labels == ["Jan", "Feb", "Jan (2)", "Jan (3)"] && plain.series[0].values == rows && added.series[0].values == sum
         let text = grid([[t("Monat"), t("Betrag"), t("Notiz")], [t("Jan"), n(1), t("offen")]])
         let refused = failure(build(g, y: [], agg: .sum)) == .noNumbers("y") && failure(build(text, y: ["Notiz"])) == .noNumbers("Notiz")
         return countOK && averageOK && plainOK && refused
+    }
+
+    check("Chart: long category prefixes stay separate, repeated rows get distinct positions, and pie totals stay finite") {
+        let prefix = String(repeating: "A", count: 70)
+        let long = grid([[t("Monat"), t("Betrag")], [t(prefix + "1"), n(10)], [t(prefix + "2"), n(20)], [t(prefix + "1"), n(5)]])
+        let huge = grid([[t("Monat"), t("Betrag")], [t("A"), n(1e308)], [t("B"), n(1e308)]])
+        guard let distinct = card(build(long)) else { return false }
+        return distinct.labels.count == 2 && Set(distinct.labels).count == 2
+            && distinct.series[0].values == [15, 20]
+            && failure(build(huge, kind: .pie)) == .pieNeedsPositive
+            && (try? JSONEncoder().encode(distinct)) != nil
     }
 
     // MARK: Columns, dates, limits
