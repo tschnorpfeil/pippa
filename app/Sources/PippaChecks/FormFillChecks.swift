@@ -232,13 +232,16 @@ func runFormFillChecks() async {
                   result.receipt?.outcome == "blocked" else { return false }
             statuses.append(status)
         }
+        // An id of a page the form does not have still lists the form's real blanks.
+        let elsewhere = await tool.call(["path": german.path, "answers": ["p9:nope": "x"]])
+        let listed = (facts(elsewhere)["error"] as? String ?? "").contains("p2:telefon-tagsuber")
         host.turns.end(turn)
         let stopped = await tool.call(["path": german.path, "answers": answers])
         statuses.append(facts(stopped)["status"] as? String ?? "")
         let noEffect: Set<String> = ["not_dispatched", "failed", "invalid_arguments", "denied", "not_found"]
         let refusedFirst = facts(drafted)["status"] as? String == "not_dispatched" && drafted.receipt?.reason == "draftOnly"
             && stopped.receipt?.outcome == "cancelled" && !PippaMCPFormFill.readNote(for: stopped, turnID: turn.id).read
-        return refusedFirst && statuses.allSatisfy { noEffect.contains($0) } && copies() == before
+        return refusedFirst && listed && statuses.allSatisfy { noEffect.contains($0) } && copies() == before
     }
 
     await runFormFillStorageCheck(folder: folder)

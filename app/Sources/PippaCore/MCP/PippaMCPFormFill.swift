@@ -134,7 +134,14 @@ public struct PippaMCPFormFill: Sendable {
         let plan: PDFForm.FillPlan
         switch PDFForm.plan(PDFForm.spreadLines(request.answers, blanks: analysis.blanks), analysis: analysis) {
         case .success(let value): plan = value
-        case .failure(let problem):
+        case .failure(let found):
+            var problem = found
+            // Only the named pages were analyzed: an id of another page ("p9:" in a 3-page form) lists the blanks of the
+            // whole form, never "no blanks", so the call can be fixed.
+            if case .unknownIDs(let ids, _) = found, analysis.pages.count < min(analysis.pageCount, PDFForm.maxPages),
+               let whole = await Task.detached(priority: .userInitiated, operation: { PDFForm.analyze(url, pages: 1...PDFForm.maxPages) }).value {
+                problem = .unknownIDs(ids, valid: PDFForm.validIDs(whole))
+            }
             return Self.failure("invalid_arguments", Self.sentence(problem, file: url.lastPathComponent), reason: "invalid", outcome: "blocked", name: name)
         }
 
