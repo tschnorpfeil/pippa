@@ -188,7 +188,7 @@ func runActionChecks() {
         return line("done") == "Als Ablauf gemerkt: x"
             && line("blocked") == "Nicht als Ablauf gemerkt: x (hat nicht geklappt)"
             && line("declined") == "Nicht als Ablauf gemerkt: x (du hast abgelehnt)"
-            && ActionReceipt.Item(action: "skill", outcome: "done", name: "x").line(language: "en") == "Saved as a skill: x"
+            && ActionReceipt.Item(action: "skill", outcome: "done", name: "x").line(language: "en") == "Steps remembered: x"
     }
     check("Work step: saving a skill is said in everyday words") {
         let step = WorkStepPhrase.step(tool: "save_skill", arguments: "{\"name\":\"x\"}", home: "/Users/test", language: "de")

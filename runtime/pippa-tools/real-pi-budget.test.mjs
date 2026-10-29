@@ -26,7 +26,8 @@ const repo = join(here, "../..");
 const web = join(repo, "runtime/pippa-web/index.ts");
 
 /** Characters of system text (without `<cwd>`) and non-MCP tool declarations; MCP adds at most 3,600 (Swift).
- * save_skill (skill-save.ts) added 480 (2026-10-28: 6,334 → 6,814); each skill the person saves adds ~300 more. */
+ * save_skill (skill-save.ts) added 480 (2026-10-28: 6,334 → 6,814), its description for the person's dialog 36 more
+ * (2026-10-29: 6,850); each skill the person saves adds ~300 more. */
 const BUDGET = 6_880;
 
 test("real Pi: the first request stays within Pippa's budget, with no skills section", {

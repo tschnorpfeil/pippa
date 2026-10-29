@@ -625,6 +625,7 @@ struct LinkButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .pointerStyle(.link)
     }
 }
 

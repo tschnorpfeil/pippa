@@ -180,7 +180,7 @@ public enum WorkStepPhrase {
             case "mail_selected": return Described(text: l("Reading the selected mail"), result: .none)
             case "photos_search": return Described(text: l("Searching your photos"), result: .none)
             case "remember": return Described(text: l("Remembering that"), result: .none)
-            case "save_skill": return Described(text: l("Saving a skill"), result: .none)
+            case "save_skill": return Described(text: l("Remembering the steps"), result: .none)
             case "make_chart": return Described(text: l("Drawing a chart"), result: .none)
             case "mail_draft": return Described(text: l("Writing a mail draft"), result: .none)
             case "reminders_read": return Described(text: l("Looking at your reminders"), result: .none)

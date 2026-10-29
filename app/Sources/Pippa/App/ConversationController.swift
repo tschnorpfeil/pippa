@@ -11,7 +11,7 @@ final class ConversationController: ObservableObject {
         // Built once per change of the conversation, never per streamed word (ConversationDetailRail reads it).
         didSet { artifacts = ConversationArtifacts(current) }
     }
-    /// Files in use, what Pippa made here and the pages she read, for the detail rail.
+    /// Files in use, what Pippa made or found here and the pages she read, for the detail rail.
     @Published private(set) var artifacts = ConversationArtifacts(nil)
     @Published private(set) var history: [ConversationSummary] = []
     @Published private(set) var isRunning = false

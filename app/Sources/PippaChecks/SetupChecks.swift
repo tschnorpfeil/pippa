@@ -662,7 +662,7 @@ func runSetupFlowChecks() async {
         return bad.isEmpty
     }
 
-    check("Setup: \"Picked for your Mac\" names chip and memory in plain words") {
+    check("Setup: \"Picked to fit your Mac\" names chip and memory in plain words") {
         let named = MacHardware.summary(chip: "Apple M2 Pro", physicalMemory: 17_179_869_184)
         let unnamed = MacHardware.summary(chip: nil, physicalMemory: 8_589_934_592)
         let live = MacHardware.chipName()

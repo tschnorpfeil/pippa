@@ -69,7 +69,7 @@ struct ConversationWindow: View {
                            label: layout.showsSessions ? T("Hide Conversations", table: "Views") : T("Show Conversations", table: "Views"),
                            shortcut: "⌃⌘S") { model.toggleRail(.sessions) }
                 RailToggle(symbol: "sidebar.right", on: layout.showsDetails,
-                           label: layout.showsDetails ? T("Hide Details", table: "Views") : T("Show Details", table: "Views"),
+                           label: layout.showsDetails ? T("Hide Conversation Details", table: "Views") : T("Show Conversation Details", table: "Views"),
                            shortcut: "⌥⌘I") { model.toggleRail(.details) }
             }
             CloseButton { model.collapse() }

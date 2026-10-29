@@ -214,10 +214,15 @@
 "Your Mac didn’t answer. Try again." = "Dein Mac hat nicht geantwortet. Versuch es nochmal.";
 "1 not answered yet. You can allow it later in Settings." = "1 Punkt ist noch offen. Du kannst ihn später in den Einstellungen erlauben.";
 "%lld not answered yet. You can allow them later in Settings." = "%lld Punkte sind noch offen. Du kannst sie später in den Einstellungen erlauben.";
-"Set Up Pippa’s AI · %@" = "Pippas KI einrichten · %@";
-"Picked for your Mac · %@" = "Passend für deinen Mac · %@";
-"Free Up %@ First" = "Zuerst %@ freigeben";
-"Empty the Trash or delete large files you no longer need, then try again." = "Leer den Papierkorb oder lösch große Dateien, die du nicht mehr brauchst, und versuch es dann erneut.";
+"Load Pippa’s AI · %@" = "Pippas KI laden · %@";
+"Picked to fit your Mac: %@" = "Passend zu deinem Mac: %@";
+"Empty the Trash or delete large files you no longer need, then click “Check Again”." = "Leer den Papierkorb oder lösch große Dateien, die du nicht mehr brauchst, und klick dann auf „Erneut prüfen“.";
 "Stop Loading" = "Laden anhalten";
 "Call me from anywhere" = "Ruf mich von überall aus";
-"Press %@ in any app to call me." = "Drück %@ in jeder App, dann bin ich da.";
+"Press %@ in any app and I’m there." = "Drück %@ in jeder App, dann bin ich da.";
+
+/* Setup: not enough space, loading and ready steps (PiSetupViews.swift) */
+"I need about %@ more free space for my AI." = "Für meine KI fehlen noch etwa %@ Speicherplatz.";
+"Check Again" = "Erneut prüfen";
+"What has loaded stays. You can go on later." = "Was schon geladen ist, bleibt. Du kannst später weitermachen.";
+"Not Now" = "Nicht jetzt";

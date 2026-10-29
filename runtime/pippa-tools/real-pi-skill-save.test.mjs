@@ -109,7 +109,7 @@ test("real Pi: save_skill asks, saves privately, refuses after foreign content (
 		const file = join(user, "rechnungen-prufen", "SKILL.md");
 		assert.equal(one.asked.length, 1);
 		assert.equal(one.asked[0].title, "May Pippa remember these steps?");
-		assert.match(one.asked[0].message, /^“rechnungen-prufen”: When a bill arrives/);
+		assert.match(one.asked[0].message, /^“Rechnungen prüfen”: When a bill arrives/);
 		const end = ended(saved, "save_skill");
 		assert.equal(end.isError, false, JSON.stringify(end));
 		assert.deepEqual(end.result.details, { pippaSkill: "saved", file });

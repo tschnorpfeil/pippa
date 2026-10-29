@@ -167,7 +167,7 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
                 case "look": L("Looked in %@", table: "Thought", language: language, what)
                 case "command": L("Ran a command", table: "Thought", language: language)
                 case "tool": L("Used: %@", table: "Thought", language: language, what)
-                case "skill": L("Saved as a skill: %@", table: "Thought", language: language, what)
+                case "skill": L("Steps remembered: %@", table: "Thought", language: language, what)
                 default: L("Changed: %@", table: "Thought", language: language, what)
                 }
             case "failed":
@@ -187,7 +187,7 @@ public struct ActionReceipt: Codable, Sendable, Equatable {
                 case "look": L("Didn’t look in %@", table: "Thought", language: language, what)
                 case "command": L("Command not run", table: "Thought", language: language)
                 case "tool": L("Not used: %@", table: "Thought", language: language, what)
-                case "skill": L("Not saved as a skill: %@", table: "Thought", language: language, what)
+                case "skill": L("Steps not remembered: %@", table: "Thought", language: language, what)
                 default: L("Not changed: %@", table: "Thought", language: language, what)
                 }
             default:

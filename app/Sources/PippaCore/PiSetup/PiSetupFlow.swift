@@ -12,9 +12,9 @@ import Foundation
 public enum PiSetupState: Sendable, Equatable {
     /// Setting up silently (Thought Line). `adoptingFrom`: currently adopting the AI from another program.
     case preparing(adoptingFrom: String?)
-    /// The only question: "May I load my AI now? 6.7 GB, about 10 minutes …" · "Set Up Pippa's AI" · "Later".
+    /// The only question: "May I load my AI now? 6.7 GB, about 10 minutes …" · "Load Pippa's AI" · "Later".
     case askDownload(bytes: Int64)
-    /// After "Set Up". `progress` 0…1, `remaining` in seconds (once estimable).
+    /// After "Load". `progress` 0…1, `remaining` in seconds (once estimable).
     case downloading(progress: Double, remaining: TimeInterval?)
     case failed(PiSetupProblem)
     /// Done. `adoptedFrom`: the AI came without download from another program (for a calm sentence).

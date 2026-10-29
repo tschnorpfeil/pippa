@@ -15,5 +15,5 @@
 "Pippa’s AI arrived damaged. Try Again loads it once more." = "Pippa’s AI arrived damaged. Try Again loads it once more.";
 "There isn’t enough free space on this Mac. About %@ more is needed." = "There isn’t enough free space on this Mac. About %@ more is needed. Empty the Trash or delete large files you no longer need, then click “Try Again”.";
 "Loading stopped because the connection dropped. It picks up where it left off." = "Loading stopped because the connection dropped. It picks up where it left off.";
-"%1$@ · %2$lld GB memory" = "%1$@ · %2$lld GB memory";
+"%1$@ with %2$lld GB memory" = "%1$@ with %2$lld GB memory";
 "%lld GB memory" = "%lld GB memory";

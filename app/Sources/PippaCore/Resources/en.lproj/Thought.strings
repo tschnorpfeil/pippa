@@ -224,9 +224,9 @@
 "Couldn’t finish: %@ · check the result before trying again" = "Couldn’t finish: %@ · check the result before trying again";
 
 // Skills the person saved with save_skill (skill-save.ts).
-"Saved as a skill: %@" = "Saved as a skill: %@";
-"Not saved as a skill: %@" = "Not saved as a skill: %@";
-"Saving a skill" = "Saving a skill";
+"Steps remembered: %@" = "Steps remembered: %@";
+"Steps not remembered: %@" = "Steps not remembered: %@";
+"Remembering the steps" = "Remembering the steps";
 
 // make_chart: a chart card computed from a table file (PippaMCPChart.swift).
 "Drawing a chart" = "Drawing a chart";

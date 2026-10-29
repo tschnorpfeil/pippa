@@ -25,8 +25,8 @@ extension PiInstaller {
         }
     }
 
-    /// The installer's only question, with size and approximate duration: "Pippa lädt jetzt ihre KI: 6,7 GB, etwa
-    /// 10 Minuten. Danach läuft sie ohne Internet." Answers: "Laden" · "Später".
+    /// The installer's only question, with size and approximate duration: "May I load my AI now? 6.7 GB, about
+    /// 10 minutes. After that I run without the internet." Answers: "Load Pippa's AI · 6.7 GB" · "Later".
     public static func downloadQuestion(bytes: Int64) -> String {
         L("May I load my AI now? %1$@, %2$@. After that I run without the internet.", table: "Setup",
           ModelDownloadSize.gigabytes(bytes), ModelDownloadSize.durationText(bytes))

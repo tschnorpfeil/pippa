@@ -65,7 +65,9 @@ test("skill names follow Pi's rule: umlauts and ß, spaces, hyphens, length, not
 
 test("checkSkill: lengths, one line of description, and the same refusals as remember", () => {
 	assert.deepEqual(skills.checkSkill(steps, memory.refusal),
-		{ name: "rechnungen-prufen", description: steps.description, instructions: steps.instructions });
+		{ name: "rechnungen-prufen", label: "Rechnungen prüfen", description: steps.description, instructions: steps.instructions });
+	assert.equal(skills.checkSkill({ ...steps, name: "  Rechnungen\n\tprüfen  " }, memory.refusal).label, "Rechnungen prüfen", "one line");
+	assert.equal(skills.checkSkill({ ...steps, name: "x".repeat(70) }, memory.refusal).label, "x".repeat(64), "cut like the receipt");
 	assert.equal(skills.checkSkill({ ...steps, description: "Zwei\nZeilen" }, memory.refusal).description, "Zwei Zeilen");
 	assert.match(skills.checkSkill({ ...steps, description: "x".repeat(skills.MAX_DESCRIPTION + 1) }, memory.refusal).error, /Too long/);
 	assert.ok(!("error" in skills.checkSkill({ ...steps, description: "x".repeat(skills.MAX_DESCRIPTION) }, memory.refusal)));
@@ -100,12 +102,14 @@ test("renderSkill: frontmatter that parses, description quoted on one line, list
 	}
 });
 
-test("the question shows name, description and every step, in the app's language", () => {
+test("the question shows the person's own name, the description and every step, in the app's language", () => {
 	const skill = skills.checkSkill(steps, memory.refusal);
 	assert.deepEqual(skills.askText(skill, "de"), { title: "Darf sich Pippa diesen Ablauf merken?",
-		message: `„rechnungen-prufen“: ${steps.description}\n\nPippa kann ihn in späteren Gesprächen wieder benutzen.\n\n${steps.instructions}` });
+		message: `„Rechnungen prüfen“: ${steps.description}\n\nPippa kann ihn in späteren Gesprächen wieder benutzen.\n\n${steps.instructions}` });
 	assert.deepEqual(skills.askText(skill, "en"), { title: "May Pippa remember these steps?",
-		message: `“rechnungen-prufen”: ${steps.description}\n\nPippa can use them again in later conversations.\n\n${steps.instructions}` });
+		message: `“Rechnungen prüfen”: ${steps.description}\n\nPippa can use them again in later conversations.\n\n${steps.instructions}` });
+	// Without a label (older callers) the folder name stands in.
+	assert.match(skills.askText({ ...skill, label: "" }, "en").message, /^“rechnungen-prufen”: /);
 });
 
 test("save_skill: written only after the person's OK, privately and whole", async () => {
@@ -145,7 +149,7 @@ test("save_skill: bundled names, existing names and a full folder are refused be
 	const asked = person([true, true, true]);
 	const bundled = await tool.execute("b1", { ...steps, name: "Brief verstehen" }, undefined, undefined, asked.ctx);
 	assert.equal(bundled.details.pippaSkill, "not_saved");
-	assert.match(textOf(bundled), /already exists/);
+	assert.match(textOf(bundled), /a skill named “Brief verstehen” already exists/);
 	assert.ok((await tool.execute("b2", steps, undefined, undefined, asked.ctx)).details.file);
 	const twice = await tool.execute("b3", { ...steps, name: "rechnungen-prufen" }, undefined, undefined, asked.ctx);
 	assert.match(textOf(twice), /already exists/);

@@ -13,11 +13,12 @@ public struct ConversationArtifacts: Equatable, Sendable {
 
     public struct Made: Equatable, Sendable, Identifiable {
         public enum Kind: String, Sendable {
-            case prepared, found, created, updated, result, mailDraft, draftInMail, calendarEvent, reminder
+            case prepared, found, created, updated, result, mailDraft, draftInMail, calendarEvent, reminder, chart
         }
         public var id: String
         public var kind: Kind
-        /// File name, draft subject, entry line ("Fri, Nov 6, 09:00 – Tax advisor") or the task result's first line.
+        /// File name, draft subject, entry line ("Fri, Nov 6, 09:00 – Tax advisor"), chart title or the task result's first
+        /// line.
         public var title: String
         /// A file Pippa's own records point to (prepared, found); `nil` for names only.
         public var file: URL?
@@ -44,8 +45,8 @@ public struct ConversationArtifacts: Equatable, Sendable {
 
     public var isEmpty: Bool { filesInUse.isEmpty && selectedText == nil && made.isEmpty && sources.isEmpty }
 
-    /// Newest first, each thing once. Per message: prepared files, the draft card, native results, found files, then a
-    /// task result (Pippa's own notice: tidying, invoice table). `exists` drops found files that are gone.
+    /// Newest first, each thing once. Per message: charts and prepared files, the draft card, native results, found files,
+    /// then a task result (Pippa's own notice: tidying, invoice table). `exists` drops found files that are gone.
     public init(_ conversation: Conversation?, exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) {
         guard let conversation else { return }
         let pending = ConversationPromptAttachments.pendingFiles(in: conversation).map { FileInUse(url: $0, pending: true) }
@@ -66,6 +67,15 @@ public struct ConversationArtifacts: Equatable, Sendable {
             let taskResult: Bool = message.role == .assistant && message.receipt != nil && items.isEmpty && noticeOnly
             var preparedJobs = Set<UUID>()
             for card in cards {
+                // A chart card: its title, shown in the conversation (it has no file of its own).
+                if case .chart(let chart) = card {
+                    let title = chart.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !title.isEmpty {
+                        add(Made(id: "chart:" + message.id.uuidString + ":" + title, kind: .chart, title: title, file: nil,
+                                 preparedCard: nil, receipt: nil, messageID: message.id, date: message.timestamp))
+                    }
+                    continue
+                }
                 guard case .preparedFiles(let prepared) = card else { continue }
                 preparedJobs.insert(prepared.jobID)
                 for file in prepared.files {

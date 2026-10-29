@@ -56,7 +56,7 @@ struct PiSetupContent: View {
                 .padding(.horizontal, 32)
                 .stagger(1)
             // What the choice is based on: this Mac's chip and memory, in plain words.
-            Text(T("Picked for your Mac · %@", table: "Settings", setup.hardware))
+            Text(T("Picked to fit your Mac: %@", table: "Settings", setup.hardware))
                 .font(Fonts.hint)
                 .foregroundStyle(Theme.ink3)
                 .multilineTextAlignment(.center)
@@ -76,21 +76,25 @@ struct PiSetupContent: View {
             }
             VStack(spacing: 10) {
                 if let shortfall = setup.spaceShortfall {
-                    // Checked before the click: a download that cannot fit never starts.
-                    Button(T("Free Up %@ First", table: "Settings", ModelDownloadSize.gigabytes(max(shortfall, 100_000_000)))) {}
-                        .pippa(.primary, large: true)
-                        .disabled(true)
-                    Text(T("Empty the Trash or delete large files you no longer need, then try again.", table: "Settings"))
+                    // Checked before the click: a download that cannot fit never starts. The number is a sentence, not
+                    // a dimmed button, so it reads clearly (also to VoiceOver).
+                    Text(T("I need about %@ more free space for my AI.", table: "Settings", ModelDownloadSize.gigabytes(max(shortfall, 100_000_000))))
+                        .font(Fonts.lead)
+                        .foregroundStyle(Theme.need)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 32)
+                    Text(T("Empty the Trash or delete large files you no longer need, then click “Check Again”.", table: "Settings"))
                         .font(Fonts.hint)
                         .foregroundStyle(Theme.ink2)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 32)
-                    Button(T("Try Again", table: "Settings")) { setup.checkSpace() }
-                        .pippa(.quiet)
+                    Button(T("Check Again", table: "Settings")) { setup.checkSpace() }
+                        .pippa(.secondary)
                 } else {
                     // The one primary action. No Return shortcut: several GB are a deliberate click.
-                    Button(T("Set Up Pippa’s AI · %@", table: "Settings", ModelDownloadSize.gigabytes(bytes))) { setup.load() }
+                    Button(T("Load Pippa’s AI · %@", table: "Settings", ModelDownloadSize.gigabytes(bytes))) { setup.load() }
                         .pippa(.primary, large: true)
                 }
                 // Quiet way out (hotspot, no time): tidying, PDFs and text recognition work without the AI.
@@ -148,9 +152,13 @@ struct PiSetupContent: View {
                 .accessibilityHint(T("File actions work while the download continues.", table: "NativeFlow"))
             ActionBar {
                 if progress != nil, !setup.stalled {
+                    // The part already loaded is kept (resumable download), and the question comes back.
                     Button(T("Stop Loading", table: "Settings")) { setup.stopDownload() }.pippa(.quiet)
+                        .help(T("What has loaded stays. You can go on later.", table: "Settings"))
+                        .accessibilityHint(T("What has loaded stays. You can go on later.", table: "Settings"))
                 }
-                Button(T("Keep Loading in the Background", table: "Settings")) { setup.later() }.pippa(.quiet)
+                // The safe choice stands out from "Stop Loading".
+                Button(T("Keep Loading in the Background", table: "Settings")) { setup.later() }.pippa(.secondary)
                 if setup.stalled {
                     Button(T("Try Again", table: "Settings")) { setup.retryDownload() }.pippa(.primary)
                 }
@@ -222,12 +230,13 @@ struct PiSetupContent: View {
                     VStack(alignment: .leading, spacing: 14) {
                         if let hotkey {
                             readyRow(icon: "keyboard", title: T("Call me from anywhere", table: "Settings"),
-                                     detail: T("Press %@ in any app to call me.", table: "Settings", hotkey))
+                                     detail: T("Press %@ in any app and I’m there.", table: "Settings", hotkey))
                         }
                         if setup.canOpenAtLogin {
                             HStack(alignment: .top, spacing: 12) {
                                 readyRow(icon: "power", title: T("Open at login", table: "Settings"),
-                                         detail: setup.loginProblem ?? T("Pippa is there as soon as your Mac is on.", table: "Settings"))
+                                         detail: setup.loginProblem ?? T("Pippa is there as soon as your Mac is on.", table: "Settings"),
+                                         detailColor: setup.loginProblem == nil ? Theme.ink2 : Theme.need)
                                 Toggle("", isOn: Binding(get: { setup.opensAtLogin }, set: { setup.setOpensAtLogin($0) }))
                                     .labelsHidden()
                                     .toggleStyle(.switch)
@@ -242,7 +251,8 @@ struct PiSetupContent: View {
                 .stagger(2)
             }
             ActionBar {
-                Button(T("Later", table: "Settings")) { setup.later() }.pippa(.quiet)
+                // Nothing is left to do here, so not "Later".
+                Button(T("Not Now", table: "Settings")) { setup.later() }.pippa(.quiet)
                 // Straight into the empty conversation: its examples (ConversationWorkspace.examples) are the first steps.
                 Button(T("Get Started", table: "Settings")) { model.startFromOnboarding() }
                     .pippa(.primary)
@@ -251,7 +261,7 @@ struct PiSetupContent: View {
         }
     }
 
-    private func readyRow(icon: String, title: String, detail: String) -> some View {
+    private func readyRow(icon: String, title: String, detail: String, detailColor: Color = Theme.ink2) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.scaled(size: 17, weight: .medium))
@@ -259,7 +269,7 @@ struct PiSetupContent: View {
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
-                Text(detail).font(Fonts.body).foregroundStyle(Theme.ink2)
+                Text(detail).font(Fonts.body).foregroundStyle(detailColor)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)

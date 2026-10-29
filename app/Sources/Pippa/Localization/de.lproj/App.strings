@@ -107,7 +107,7 @@
 "I’m looking at %lld files. Nothing gets changed." = "Ich schaue in %lld Dateien. Nichts wird geändert.";
 "Can’t answer right now" = "Gerade keine Antwort möglich";
 "Almost everything is back as it was" = "Fast alles wie vorher";
-"Delete this conversation?" = "Dieses Gespräch löschen?";
+"Delete “%@”?" = "„%@“ löschen?";
 "The messages will be removed from this Mac. Your files stay as they are." = "Die Nachrichten verschwinden von diesem Mac. Deine Dateien bleiben, wie sie sind.";
 "Delete" = "Löschen";
 "Reading the invoices…" = "Ich lese die Rechnungen aus …";

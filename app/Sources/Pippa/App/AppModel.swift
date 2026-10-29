@@ -1177,8 +1177,12 @@ final class AppModel: ObservableObject {
     func deleteConversation(_ id: UUID) {
         guard !isActiveWork, conversations.current?.id == id || conversations.history.contains(where: { $0.id == id }) else { return }
         NSApp.activate()
-        guard confirm(T("Delete this conversation?", table: "App"), T("The messages will be removed from this Mac. Your files stay as they are.", table: "App"),
-                      button: T("Delete", table: "App"), destructive: true), !isActiveWork else { return }
+        // By name: from the rail this may be another conversation than the open one.
+        let title = conversations.history.first(where: { $0.id == id })?.title ?? conversations.current?.title ?? ""
+        let shown = title.count > 60 ? String(title.prefix(59)) + "…" : title
+        // Return does not delete: the messages are gone for good.
+        guard confirm(T("Delete “%@”?", table: "App", shown), T("The messages will be removed from this Mac. Your files stay as they are.", table: "App"),
+                      button: T("Delete", table: "App"), destructive: true, returnConfirms: false), !isActiveWork else { return }
         let wasCurrent = conversations.current?.id == id
         conversations.delete(id)
         savedWork[id] = nil
@@ -1792,12 +1796,15 @@ final class AppModel: ObservableObject {
         route(skill.prompt, skill: skill)
     }
 
-    /// Question with Confirm and Cancel; true if confirmed.
-    private func confirm(_ title: String, _ text: String, button: String, destructive: Bool = false) -> Bool {
+    /// Question with Confirm and Cancel; true if confirmed. `returnConfirms: false` takes Return off the confirm button;
+    /// Cancel keeps Escape.
+    private func confirm(_ title: String, _ text: String, button: String, destructive: Bool = false, returnConfirms: Bool = true) -> Bool {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = text
-        alert.addButton(withTitle: button).hasDestructiveAction = destructive
+        let confirmButton = alert.addButton(withTitle: button)
+        confirmButton.hasDestructiveAction = destructive
+        if !returnConfirms { confirmButton.keyEquivalent = "" }
         alert.addButton(withTitle: T("Cancel", table: "App"))
         return alert.runModal() == .alertFirstButtonReturn
     }

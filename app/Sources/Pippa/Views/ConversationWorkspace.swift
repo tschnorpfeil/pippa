@@ -282,8 +282,8 @@ struct ConversationWorkspace: View {
     /// Shown as cards with a picture each (UI-FIXPLAN 5.2): easier to hit and to scan than a list of links.
     struct Example: Hashable { let text: String; let symbol: String }
     static var examples: [Example] {
-        [Example(text: T("Where is my rental agreement?", table: "Views"), symbol: "magnifyingglass"),
-         Example(text: T("What’s on my calendar tomorrow?", table: "Views"), symbol: "calendar"),
+        [Example(text: T("Explain a letter for me: what it wants and by when", table: "Views"), symbol: "envelope.open"),
+         Example(text: T("Where is my rental agreement?", table: "Views"), symbol: "magnifyingglass"),
          Example(text: T("Tidy up my Downloads folder", table: "Views"), symbol: "folder"),
          Example(text: T("Remind me tomorrow morning to take out the paper recycling", table: "Views"), symbol: "bell")]
     }

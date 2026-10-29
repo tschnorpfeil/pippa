@@ -72,7 +72,7 @@ struct ChartCanvas: View {
 }
 
 /// A chart Pippa computed from a table file, under the answer: title, chart, what was left out, where it comes from,
-/// and "Save as PNG…".
+/// and "Save as Picture…" (a PNG file). Right-click copies the picture, to paste it into Mail or Pages.
 struct ChartCardView: View {
     var card: ChartCard
     private let problemState = State<String?>(initialValue: nil)
@@ -95,13 +95,17 @@ struct ChartCardView: View {
             HStack(alignment: .center, spacing: 0) {
                 Text(verbatim: card.footer).font(.scaled(size: 11)).foregroundStyle(Theme.ink3).lineLimit(2)
                 Spacer(minLength: 8)
-                Button(T("Save as PNG…", table: "Views")) { save() }.pippa(.quiet).fixedSize()
+                Button(T("Save as Picture…", table: "Views")) { save() }.pippa(.quiet).fixedSize()
             }
             if let problem {
                 Text(problem).font(.scaled(size: 12)).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(14).resultCard()
+        .contextMenu {
+            Button(T("Copy Picture", table: "Views")) { copy() }
+            Button(T("Save as Picture…", table: "Views")) { save() }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(T("Chart of %@", table: "Views", card.title))
     }
@@ -131,7 +135,21 @@ struct ChartCardView: View {
         return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
     }
 
-    /// "Save as PNG…": choose a place, write the picture there. Like the tray's "Save…" (TrayController.save).
+    /// The same picture on the clipboard, as PNG and TIFF (apps that do not take PNG paste the TIFF).
+    private func copy() {
+        guard let data = Self.png(card) else {
+            problem = T("Couldn’t copy the picture. Please try again.", table: "Views")
+            return
+        }
+        problem = nil
+        let item = NSPasteboardItem()
+        item.setData(data, forType: .png)
+        if let tiff = NSImage(data: data)?.tiffRepresentation { item.setData(tiff, forType: .tiff) }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([item])
+    }
+
+    /// "Save as Picture…": choose a place, write the PNG there. Like the tray's "Save…" (TrayController.save).
     private func save() {
         NSApp.activate()
         let panel = NSSavePanel()

@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 /// Like PiRPCChat, in every build.
 ///
 /// Quiet: Pi, Node, model folder, adopting existing models, models.json (`PiSetupFlow`, off the
-/// main thread). The only question is the download: "Set Up Pippa's AI · N GB" or "Later", with the free space
+/// main thread). The only question is the download: "Load Pippa's AI · N GB" or "Later", with the free space
 /// checked before the click (`checkSpace`). The consent is kept (`PippaSettings.downloadConsent`): an interrupted
 /// download goes on by itself at the next start, and "Stop Loading" pauses it and asks again. Then a calm progress
 /// with examples, and at the end one ready step: the shortcut, "Open at login" and "Get Started" into the conversation.
@@ -46,7 +46,7 @@ final class PiSetupController: ObservableObject {
     /// "Standard" or "Gründlicher" (settings.json); the control shows only where `offersThorough` holds.
     @Published private(set) var preference: ModelPreference = .standard
     let offersThorough = ModelSelector.offersThorough(physicalMemory: ProcessInfo.processInfo.physicalMemory)
-    /// "Picked for your Mac · Apple M2 · 16 GB memory" on the download question.
+    /// "Picked to fit your Mac: Apple M2 with 16 GB memory" on the download question.
     let hardware = MacHardware.summary()
     /// Free space checked before "Set Up" (`checkSpace`); `nil` = enough or unknown. Recordings set it directly.
     @Published var spaceShortfall: Int64?

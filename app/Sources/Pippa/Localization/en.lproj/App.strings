@@ -107,7 +107,7 @@
 "I’m looking at %lld files. Nothing gets changed." = "I’m looking at %lld files. Nothing gets changed.";
 "Can’t answer right now" = "Can’t answer right now";
 "Almost everything is back as it was" = "Almost everything is back as it was";
-"Delete this conversation?" = "Delete this conversation?";
+"Delete “%@”?" = "Delete “%@”?";
 "The messages will be removed from this Mac. Your files stay as they are." = "The messages will be removed from this Mac. Your files stay as they are.";
 "Delete" = "Delete";
 "Reading the invoices…" = "Reading the invoices…";

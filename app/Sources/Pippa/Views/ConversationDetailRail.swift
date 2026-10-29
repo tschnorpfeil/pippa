@@ -2,7 +2,7 @@ import AppKit
 import PippaCore
 import SwiftUI
 
-/// Right rail of the open conversation: the files it works with, what Pippa made here and the pages she read.
+/// Right rail of the open conversation: the files it works with, what Pippa made or found here and the pages she read.
 /// Lists come from Pippa's own records (ConversationController.artifacts), never from answer text. Prepared files open
 /// only through the tray's check, like their card in the conversation. Rows get plain values, so typing in the
 /// composer doesn't redraw them.
@@ -15,24 +15,30 @@ struct ConversationDetailRail: View {
         let busy = model.isActiveWork
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                section(T("Files in use", table: "Views"), count: artifacts.filesInUse.count + (artifacts.selectedText == nil ? 0 : 1)) {
+                section(T("Files in Use", table: "Views"), count: artifacts.filesInUse.count + (artifacts.selectedText == nil ? 0 : 1)) {
                     if artifacts.filesInUse.isEmpty && artifacts.selectedText == nil {
-                        empty(T("Drop files on Pippa or onto this window to work with them here.", table: "Views"))
+                        empty(T("Drop files here to use them in this conversation.", table: "Views"))
+                        // Like the welcome's drop zone: files chosen while Pippa works wait for her (AppModel.receive).
+                        LinkButton(title: T("Choose Files…", table: "Views"), icon: nil) { model.chooseFolder() }
+                            .padding(.horizontal, 6)
                     }
                     ForEach(artifacts.filesInUse) { file in RailFileInUseRow(file: file, busy: busy, model: model) }
                     if let text = artifacts.selectedText { selectedTextRow(text, busy: busy) }
                 }
-                section(T("Made here", table: "Views"), count: artifacts.made.count) {
-                    if artifacts.made.isEmpty {
-                        empty(T("Files, drafts and entries Pippa makes in this conversation show up here.", table: "Views"))
+                // An empty conversation shows one short block, not three headers with three hints.
+                if !artifacts.isEmpty {
+                    section(T("Results", table: "Views"), count: artifacts.made.count) {
+                        if artifacts.made.isEmpty {
+                            empty(T("Files, drafts, events and reminders Pippa makes in this conversation show up here.", table: "Views"))
+                        }
+                        ForEach(artifacts.made) { item in RailMadeRow(item: item, job: job(item.receipt), model: model) }
                     }
-                    ForEach(artifacts.made) { item in RailMadeRow(item: item, job: job(item.receipt), model: model) }
-                }
-                section(T("Sources", table: "Views"), count: artifacts.sources.count) {
-                    if artifacts.sources.isEmpty {
-                        empty(T("Web pages Pippa reads for this conversation show up here.", table: "Views"))
+                    section(T("Sources", table: "Views"), count: artifacts.sources.count) {
+                        if artifacts.sources.isEmpty {
+                            empty(T("Web pages Pippa reads for this conversation show up here.", table: "Views"))
+                        }
+                        ForEach(artifacts.sources) { source in RailSourceRow(source: source, model: model) }
                     }
-                    ForEach(artifacts.sources) { source in RailSourceRow(source: source, model: model) }
                 }
             }
             .padding(.horizontal, 12).padding(.top, 14).padding(.bottom, 30)
@@ -91,6 +97,8 @@ private struct RailFileInUseRow: View {
     var file: ConversationArtifacts.FileInUse
     var busy: Bool
     let model: AppModel
+    private let hoverState = State<Bool>(initialValue: false)
+    private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
 
     var body: some View {
         let name = file.url.lastPathComponent
@@ -98,10 +106,11 @@ private struct RailFileInUseRow: View {
             FileThumbnail(url: file.url, width: 20)
             VStack(alignment: .leading, spacing: 3) {
                 Button { NSWorkspace.shared.open(file.url) } label: {
-                    Text(verbatim: name).font(.scaled(size: 13)).foregroundStyle(Theme.ink)
+                    Text(verbatim: name).font(.scaled(size: 13)).foregroundStyle(hover ? Theme.accent : Theme.ink)
                         .lineLimit(2).truncationMode(.middle).multilineTextAlignment(.leading)
                 }
                 .buttonStyle(.plain).help(file.url.path)
+                .pointerStyle(.link).onHover { hover = $0 }
                 if file.pending {
                     Text(T("Waiting for your message", table: "Views")).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3)
                 }
@@ -126,16 +135,22 @@ private struct RailMadeRow: View {
     var job: JobReceipt?
     let model: AppModel
     private let problemState = State<String?>(initialValue: nil)
+    private let hoverState = State<Bool>(initialValue: false)
+    private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
 
     var body: some View {
+        // The name opens the thing, as in Files in Use; without one it shows where it came up.
+        let primary = primaryAction
         HStack(alignment: .top, spacing: 10) {
             icon
             VStack(alignment: .leading, spacing: 3) {
-                Button { model.showInConversation(item.messageID) } label: {
-                    Text(verbatim: title).font(.scaled(size: 13)).foregroundStyle(Theme.ink)
+                Button { if let primary { primary() } else { model.showInConversation(item.messageID) } } label: {
+                    Text(verbatim: title).font(.scaled(size: 13)).foregroundStyle(hover ? Theme.accent : Theme.ink)
                         .lineLimit(2).truncationMode(.middle).multilineTextAlignment(.leading)
                 }
-                .buttonStyle(.plain).help(T("Show in Conversation", table: "Views"))
+                .buttonStyle(.plain)
+                .help(primary == nil ? T("Show in Conversation", table: "Views") : T("Open", table: "Views"))
+                .pointerStyle(.link).onHover { hover = $0 }
                 Text(Self.label(item.kind)).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1)
                 HStack(spacing: 12) { actions }
                 if let problem = problemState.wrappedValue {
@@ -146,9 +161,34 @@ private struct RailMadeRow: View {
         }
         .padding(.horizontal, 6).padding(.vertical, 5)
         .contextMenu {
+            if let primary { Button(T("Open", table: "Views"), action: primary) }
             Button(T("Show in Conversation", table: "Views")) { model.showInConversation(item.messageID) }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    /// What clicking the name does: the row's first link (prepared files through the tray's check); `nil` shows where it
+    /// came up in the conversation.
+    private var primaryAction: (() -> Void)? {
+        switch item.kind {
+        case .prepared:
+            guard let file = item.file, let card = item.preparedCard else { return nil }
+            return { actOnPrepared(.open, card: card, file: file) }
+        case .found:
+            guard let file = item.file else { return nil }
+            return { _ = NSWorkspace.shared.open(file) }
+        case .created, .updated:
+            guard let reveal = job?.revealURL else { return nil }
+            return { openCreated(near: reveal) }
+        case .result:
+            if let integration = job?.integration { return { AppModel.openApp(integration) } }
+            if let reveal = job?.revealURL { return { AppModel.reveal(reveal) } }
+            return nil
+        case .draftInMail: return { model.conversations.openMailDraft() }
+        case .calendarEvent: return { AppModel.openApp(.calendar) }
+        case .reminder: return { model.conversations.openReminders() }
+        case .mailDraft, .chart: return nil
+        }
     }
 
     private var title: String {
@@ -187,12 +227,17 @@ private struct RailMadeRow: View {
                 LinkButton(title: T("Show in Finder", table: "Views"), icon: nil) {
                     AppModel.reveal(ConversationArtifacts.file(named: item.title, near: reveal) ?? reveal)
                 }
+            } else {
+                // The job is no longer among the recent ones: at least the way back to where it came up.
+                LinkButton(title: T("Show in Conversation", table: "Views"), icon: nil) { model.showInConversation(item.messageID) }
             }
         case .result:
             if let integration = job?.integration {
                 LinkButton(title: T("Open", table: "Views"), icon: nil) { AppModel.openApp(integration) }
             } else if let reveal = job?.revealURL {
                 LinkButton(title: T("Show in Finder", table: "Views"), icon: nil) { AppModel.reveal(reveal) }
+            } else {
+                LinkButton(title: T("Show in Conversation", table: "Views"), icon: nil) { model.showInConversation(item.messageID) }
             }
         case .draftInMail:
             LinkButton(title: T("Open", table: "Views"), icon: nil) { model.conversations.openMailDraft() }
@@ -200,7 +245,7 @@ private struct RailMadeRow: View {
             LinkButton(title: T("Open", table: "Views"), icon: nil) { AppModel.openApp(.calendar) }
         case .reminder:
             LinkButton(title: T("Open", table: "Views"), icon: nil) { model.conversations.openReminders() }
-        case .mailDraft:
+        case .mailDraft, .chart:
             EmptyView()
         }
     }
@@ -223,11 +268,12 @@ private struct RailMadeRow: View {
         case .found: T("Found on this Mac", table: "Views")
         case .created: T("Created by Pippa", table: "Views")
         case .updated: T("Changed by Pippa", table: "Views")
-        case .result: T("Task result", table: "Views")
-        case .mailDraft: T("Email draft · not sent", table: "Views")
+        case .result: T("From a task", table: "Views")
+        case .mailDraft: T("Draft in Pippa · not sent", table: "Views")
         case .draftInMail: T("Draft in Mail · not sent", table: "Views")
         case .calendarEvent: T("In Calendar", table: "Views")
         case .reminder: T("In Reminders", table: "Views")
+        case .chart: T("Chart", table: "Views")
         }
     }
 
@@ -237,6 +283,7 @@ private struct RailMadeRow: View {
         case .calendarEvent: "calendar"
         case .reminder: "checklist"
         case .result: "checkmark.circle"
+        case .chart: "chart.bar"
         default: "doc"
         }
     }
@@ -245,6 +292,8 @@ private struct RailMadeRow: View {
 private struct RailSourceRow: View {
     var source: ConversationArtifacts.Source
     let model: AppModel
+    private let hoverState = State<Bool>(initialValue: false)
+    private var hover: Bool { get { hoverState.wrappedValue } nonmutating set { hoverState.wrappedValue = newValue } }
 
     var body: some View {
         Button { NSWorkspace.shared.open(source.url) } label: {
@@ -260,9 +309,12 @@ private struct RailSourceRow: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 6).padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hover ? Theme.fill2 : .clear))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .pointerStyle(.link)
+        .onHover { hover = $0 }
         .help(source.url.absoluteString)
         .contextMenu {
             Button(T("Open", table: "Views")) { NSWorkspace.shared.open(source.url) }

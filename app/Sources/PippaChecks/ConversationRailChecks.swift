@@ -120,6 +120,15 @@ import PippaCore
         guard sources.map(\.host) == ["dwd.de", "tagesschau.de", "a.org"] else { return false }
         return sources[0].messageID == third.id && sources[2].messageID == second.id
     }
+    check("Conversation artifacts: a chart shows up under the results by its title") {
+        let chart = ChartCard(kind: .bar, title: "Strom 2026", xTitle: "Monat", labels: ["Jan"],
+                              series: [.init(name: "Strom", values: [1])], footer: "x.csv")
+        let answer = ConversationMessage(role: .assistant, text: "Here is the chart.", modelLabel: "On this Mac",
+            actions: ActionReceipt(items: [.init(action: "read", outcome: "done", name: "x.csv")], cards: [.chart(chart)]))
+        let made = ConversationArtifacts(Conversation(title: "Chart", messages: [answer]), exists: { _ in true }).made
+        let kinds: [ConversationArtifacts.Made.Kind] = made.map(\.kind)
+        return kinds == [.chart] && made.first?.title == "Strom 2026" && made.first?.messageID == answer.id
+    }
     check("Conversation artifacts: files in use list waiting documents first, keep the selected text and are never found files") {
         let a = URL(fileURLWithPath: "/fixture/a.pdf"), b = URL(fileURLWithPath: "/fixture/b.pdf")
         let context = ConversationContext(name: "2 files", files: [a, b], selectedText: "Hallo", pendingFiles: [b])

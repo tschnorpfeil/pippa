@@ -78,10 +78,10 @@ import PippaCore
         let artifacts = model.conversations.artifacts
         let fileNames: [String] = artifacts.filesInUse.map(\.url.lastPathComponent)
         check(fileNames == [receipts.lastPathComponent, letter.lastPathComponent]
-              && artifacts.filesInUse.first?.pending == true, "Files in use: the waiting file first, then the one already used")
+              && artifacts.filesInUse.first?.pending == true, "Files in Use: the waiting file first, then the one already used")
         let madeKinds: [ConversationArtifacts.Made.Kind] = artifacts.made.map(\.kind)
         check(madeKinds == [.mailDraft, .prepared, .calendarEvent, .reminder, .found],
-              "Made here: draft, prepared PDF, appointment, reminder and found file, newest first, each once")
+              "Results: draft, prepared PDF, appointment, reminder and found file, newest first, each once")
         let hosts: [String] = artifacts.sources.map(\.host)
         check(hosts == ["bundesfinanzministerium.de", "elster.de"], "Sources: the two pages read")
         let sections = ConversationRailGroups.sections(model.conversations.history, current: current, now: Date(), calendar: .autoupdatingCurrent)

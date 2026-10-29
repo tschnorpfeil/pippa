@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// This Mac in plain words for "Picked for your Mac": the chip as macOS names it and the memory in GB.
+/// This Mac in plain words for "Picked to fit your Mac": the chip as macOS names it and the memory in GB.
 public enum MacHardware {
     /// "Apple M2 Pro" (sysctl machdep.cpu.brand_string); `nil` if macOS does not say.
     public static func chipName() -> String? {
@@ -23,10 +23,10 @@ public enum MacHardware {
         Int((Double(physicalMemory) / 1_073_741_824).rounded())
     }
 
-    /// "Apple M2 Pro · 16 GB memory", or only the memory when the chip is unknown.
+    /// "Apple M2 Pro with 16 GB memory", or only the memory when the chip is unknown.
     public static func summary(chip: String? = chipName(), physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory) -> String {
         let memory = memoryGB(physicalMemory: physicalMemory)
         guard let chip else { return L("%lld GB memory", table: "Setup", memory) }
-        return L("%1$@ · %2$lld GB memory", table: "Setup", chip, memory)
+        return L("%1$@ with %2$lld GB memory", table: "Setup", chip, memory)
     }
 }

@@ -242,7 +242,7 @@
 "Copy text" = "Copy text";
 "For example:" = "For example:";
 "Tidy up my Downloads folder" = "Tidy up my Downloads folder";
-"What’s on my calendar tomorrow?" = "What’s on my calendar tomorrow?";
+"Explain a letter for me: what it wants and by when" = "Explain a letter for me: what it wants and by when";
 "Where is my rental agreement?" = "Where is my rental agreement?";
 "Remind me tomorrow morning to take out the paper recycling" = "Remind me tomorrow morning to take out the paper recycling";
 "Puts this sentence into the input field" = "Puts this sentence into the input field";
@@ -313,19 +313,19 @@
 "You can switch when Pippa is done." = "You can switch when Pippa is done.";
 "Show Conversations" = "Show Conversations";
 "Hide Conversations" = "Hide Conversations";
-"Show Details" = "Show Details";
-"Hide Details" = "Hide Details";
-"Files in use" = "Files in use";
-"Made here" = "Made here";
+"Show Conversation Details" = "Show Conversation Details";
+"Hide Conversation Details" = "Hide Conversation Details";
+"Files in Use" = "Files in Use";
+"Results" = "Results";
 "Waiting for your message" = "Waiting for your message";
-"Drop files on Pippa or onto this window to work with them here." = "Drop files on Pippa or onto this window to work with them here.";
-"Files, drafts and entries Pippa makes in this conversation show up here." = "Files, drafts and entries Pippa makes in this conversation show up here.";
+"Drop files here to use them in this conversation." = "Drop files here to use them in this conversation.";
+"Files, drafts, events and reminders Pippa makes in this conversation show up here." = "Files, drafts, events and reminders Pippa makes in this conversation show up here.";
 "Web pages Pippa reads for this conversation show up here." = "Web pages Pippa reads for this conversation show up here.";
 "Prepared file" = "Prepared file";
 "Created by Pippa" = "Created by Pippa";
 "Changed by Pippa" = "Changed by Pippa";
-"Task result" = "Task result";
-"Email draft · not sent" = "Email draft · not sent";
+"From a task" = "From a task";
+"Draft in Pippa · not sent" = "Draft in Pippa · not sent";
 "Draft in Mail · not sent" = "Draft in Mail · not sent";
 "In Calendar" = "In Calendar";
 "In Reminders" = "In Reminders";
@@ -334,6 +334,14 @@
 "Email without subject" = "Email without subject";
 
 // Chart card under an answer (ChartCardView.swift).
-"Save as PNG…" = "Save as PNG…";
+"Save as Picture…" = "Save as Picture…";
 "Couldn’t save the picture. Please try again." = "Couldn’t save the picture. Please try again.";
 "Chart of %@" = "Chart of %@";
+
+// Conversation rails and chart card: the more menu on a rail row, first-run hints, charts under Results, copying a chart.
+"More" = "More";
+"Your conversations will show up here." = "Your conversations will show up here.";
+"Choose Files…" = "Choose Files…";
+"Chart" = "Chart";
+"Copy Picture" = "Copy Picture";
+"Couldn’t copy the picture. Please try again." = "Couldn’t copy the picture. Please try again.";
