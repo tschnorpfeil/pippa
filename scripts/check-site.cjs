@@ -46,7 +46,7 @@ const text = html => html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/st
 const count = (html, re) => (html.match(re) || []).length;
 
 // Same structure in both languages.
-for (const re of [/<section\b/g, /<h2\b/g, /<h3\b/g, /<article class="job"/g, /<li\b/g, /<tr\b/g, /<td\b/g, /<details\b/g, /role="img"/g, /class="btn[^"]*dl/g, /<canvas\b/g, /<script\b/g]) {
+for (const re of [/<section\b/g, /<h2\b/g, /<h3\b/g, /<li\b/g, /class="benefit"/g, /class="stage"/g, /class="tile /g, /class="[^"]*\brv\b/g, /<details\b/g, /role="img"/g, /class="btn[^"]*dl/g, /<canvas\b/g, /<script\b/g]) {
   assert.equal(count(pages.de, re), count(pages.en, re), `DE and EN differ in ${re}`);
 }
 const ids = html => [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]).filter(id => id !== 'language').sort();
@@ -81,10 +81,22 @@ for (const [lang, html] of Object.entries(pages)) {
   assert.ok(head.includes(`<a class="langsw" href="${other[0]}" hreflang="${other[1]}" lang="${other[1]}" data-lang="${other[1]}">`), `${lang}: header language toggle missing`);
   assert.doesNotMatch(html, /location\.(replace|assign)\(/, `${lang}: requested locale is redirected`);
   assert.match(html, /<ol class="steps">(?:<li\b[^>]*>[\s\S]*?<\/li>){3}<\/ol>/, `${lang}: getting-started steps missing`);
-  // The three jobs, and the hero's answer card: what the letter wants, by when, and the quoted sentence.
-  assert.equal(count(html, /<article class="job">/g), 3, `${lang}: expected three jobs`);
-  const card = html.match(/<div class="answer"[\s\S]*?<\/blockquote>/);
-  assert.ok(card && /<dl class="a-facts">/.test(card[0]) && /„[^“]+“/.test(card[0]), `${lang}: hero answer card incomplete`);
+  // The hero: one badge, the download and the quiet "will it run" link that opens its FAQ answer.
+  assert.equal(count(html, /<p class="badge">/g), 1, `${lang}: hero badge missing`);
+  assert.match(html, /<a class="link2" href="#passt">/, `${lang}: hero link to the requirements missing`);
+  assert.match(html, /<details id="passt">/, `${lang}: requirements answer missing`);
+  // Pippa's window under the hero: the quoted sentence from the letter, the finished PDF, and the made-up-example caption.
+  const win = html.match(/<div class="pw" id="win" role="img"[\s\S]*?<p class="caption">[^<]+<\/p>/);
+  assert.ok(win && /<blockquote class="pw-quote rv"[^>]*>[\s\S]*?„[^“]+“/.test(win[0]) && /class="pw-card rv"/.test(win[0]), `${lang}: hero window incomplete`);
+  assert.match(win[0], /<p class="caption">[^<]*(erfunden|made-up)[^<]*<\/p>/, `${lang}: hero window not marked as an example`);
+  // Four benefits with two lines each, the PDF card keeps its size target, six app tiles, a short FAQ.
+  const benefits = [...html.matchAll(/<li class="benefit"><h3>[^<]+<\/h3><p>([\s\S]*?)<\/p><\/li>/g)];
+  assert.equal(benefits.length, 4, `${lang}: expected four benefits`);
+  for (const b of benefits) assert.equal(count(b[1], /<br>/g), 1, `${lang}: a benefit needs exactly two lines`);
+  assert.match(html, /<div class="fit">[\s\S]*?10&nbsp;MB/, `${lang}: PDF card without its size target`);
+  assert.equal(count(html, /<span class="tile /g), 6, `${lang}: expected six app tiles`);
+  const faqs = count(html, /<details\b/g);
+  assert.ok(faqs >= 5 && faqs <= 7, `${lang}: FAQ should have five to seven answers`);
   // Every download button fetches the DMG; the hero one keeps its id for the visit count.
   for (const m of html.matchAll(/<a class="btn[^"]*\bdl\b[^"]*"[^>]*>/g)) assert.match(m[0], /href="https:\/\/github\.com\/tschnorpfeil\/pippa\/releases\/latest\/download\/Pippa\.dmg"/, `${lang}: download button without the DMG`);
   assert.match(html, /<a class="btn dl" id="heroDl" /, `${lang}: hero download missing`);

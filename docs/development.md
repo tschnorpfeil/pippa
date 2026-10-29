@@ -500,7 +500,7 @@ node scripts/check-site.cjs           # drag behaviour, bilingual content, demo 
 node scripts/check-site-launch.cjs    # publication gate: required files; fails while the legal pages are unfinished
 ```
 
-The homepage demo is scripted: rendering and the demo flow are in `site/index.html`. `site/pippaDrag.js` holds the drag
+The homepage is plain HTML and CSS in `site/index.html`; the window under the hero is Pippa's real window rebuilt in CSS from `Theme.swift`, with made-up example content. `site/pippaDrag.js` holds the drag
 geometry model that `check-site.cjs` tests; the pages no longer load it. Text changes on the German page must be
 carried over to `site/en/index.html`.
 
