@@ -2,7 +2,7 @@
 
 Decision record · 28 October 2026 · Applies to the README, heypippa.app, release notes and launch posts
 
-**Promise: "Paperwork on your Mac? Done." / „Papierkram am Mac? Erledigt."** Pippa is the free Mac helper that turns
+**Headline: "The AI assistant that actually gets things done." / „Die KI-Assistentin, die wirklich was erledigt."** (chosen 29 October 2026, replacing "Paperwork on your Mac? Done."; the promise below is unchanged) Pippa is the free Mac helper that turns
 paperwork into a finished result: photos become one PDF ready to send, a German letter is explained with what it wants,
 by when and the sentence that says so, Downloads get a tidy folder, a reply waits as a draft in Mail. The PDF jobs work
 before any AI download, and her built-in AI runs on the Mac with no account.
@@ -40,8 +40,8 @@ The site's banned-phrase list in `scripts/check-site.cjs` stays the source of tr
 | | English | German |
 |---|---|---|
 | Eyebrow | Your free helper for the Mac | Deine kostenlose Helferin für den Mac |
-| H1 | Paperwork on your Mac? Done. | Papierkram am Mac? Erledigt. |
-| Subhead | Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Her built-in AI runs on your Mac. | Aus Fotos wird ein versandfertiges PDF, aus Amtsdeutsch Klartext samt Frist, aus Download-Chaos Ordnung. Pippas KI läuft auf deinem Mac. |
+| H1 | The AI assistant that actually gets things done. | Die KI-Assistentin, die wirklich was erledigt. |
+| Subhead | Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Her AI runs on your Mac. | Aus Fotos wird ein versandfertiges PDF, aus Amtsdeutsch Klartext samt Frist, aus Download-Chaos Ordnung. Pippas KI läuft auf deinem Mac. |
 | First use | Give Pippa a few photos: the PDF is ready before you download any AI. | Gib Pippa ein paar Fotos: Das PDF steht, bevor du überhaupt eine KI lädst. |
 | Product Hunt | Paperwork on your Mac? Drop it on Pippa. Done. | |
 | GitHub description | Free Mac helper with local AI: photos to one PDF, German letters explained, tidy folders, Mail drafts. MIT, no account | |
