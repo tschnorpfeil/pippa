@@ -55,7 +55,7 @@ struct ConversationSessionRail: View {
             }
             .scrollIndicators(.automatic)
         }
-        .background(Theme.fill)
+        .background(Theme.chatSidebar)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(T("Conversations", table: "Views"))
     }

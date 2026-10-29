@@ -48,7 +48,7 @@ struct ConversationWindow: View {
     private func header(_ layout: ConversationRailLayout) -> some View {
         let toggles = layout.showsToggles && DevSnapshot.showsRails
         return HStack(spacing: 10) {
-            MarkSlot(size: 32)
+            MarkSlot(size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Pippa").font(Fonts.head)
                 // Only a real topic: "New Conversation" says nothing (the empty chat shows that already).
@@ -73,7 +73,7 @@ struct ConversationWindow: View {
                            shortcut: "⌥⌘I") { model.toggleRail(.details) }
             }
             CloseButton { model.collapse() }
-        }.foregroundStyle(Theme.ink).padding(.horizontal, 20).frame(height: 64)
+        }.foregroundStyle(Theme.ink).padding(.horizontal, 20).frame(height: 56)
             .contentShape(Rectangle())
             // The conversation can be moved by its header.
             .gesture(DragGesture(minimumDistance: 3)

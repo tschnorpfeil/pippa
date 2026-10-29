@@ -1254,12 +1254,12 @@ final class AppModel: ObservableObject {
         conversationJump += 1
     }
 
-    /// Both rails until the person switches one off. Scripted captures start plain and save nothing.
+    /// Conversation navigation by default; details open on demand. Explicit saved choices stay unchanged.
     private static func savedRails() -> ConversationRails {
         guard DevSnapshot.directory == nil else { return .plain }
         let d = UserDefaults.standard
         return ConversationRails(sessions: d.object(forKey: "conversation.rail.sessions") as? Bool ?? true,
-                                 details: d.object(forKey: "conversation.rail.details") as? Bool ?? true,
+                                 details: d.object(forKey: "conversation.rail.details") as? Bool ?? false,
                                  prefersDetails: d.bool(forKey: "conversation.rail.prefersDetails"))
     }
 

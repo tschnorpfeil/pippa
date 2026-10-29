@@ -50,11 +50,12 @@ enum Theme {
     static let bad = dynamic(light: hex(0xC4001D), dark: hex(0xF89DA4))
     static let badTint = dynamic(light: hex(0xC4001D, 0.10), dark: hex(0xF89DA4, 0.14))
     // Calm chat surfaces. Color marks interaction, not the whole work area.
-    static let chatTint = dyn(hex(0xF7F8FB, 0.98), hex(0x191D25, 0.98))
+    static let chatTint = dyn(hex(0xFCFBF9, 0.98), hex(0x1B1B1D, 0.98))
+    static let chatSidebar = dynamic(light: hex(0xF1F0ED), dark: hex(0x222224))
     static let chatCard = dynamic(light: hex(0xFFFFFF), dark: hex(0x232833))
     static let chatInset = dynamic(light: hex(0xF2F5FA), dark: hex(0x1B202A))
-    static let chatBorder = dynamic(light: hex(0x273D60, 0.09), dark: hex(0xB8C9E4, 0.12))
-    static let chatUser = dynamic(light: hex(0xE5EEFF), dark: hex(0x243A5B))
+    static let chatBorder = dynamic(light: hex(0x202735, 0.10), dark: hex(0xEDF1F7, 0.12))
+    static let chatUser = dynamic(light: hex(0xEEEDEA), dark: hex(0x303033))
 
     // Sage outside the chat
     static let well = dynamic(light: hex(0x86AD94, 0.20), dark: hex(0x86AD94, 0.11))
@@ -86,6 +87,8 @@ enum Theme {
     static var toastWidth: CGFloat { 360 * widthScale }
     static var welcomeWidth: CGFloat { 560 * widthScale }
     static var conversationWidth: CGFloat { 760 * widthScale }
+    /// A readable conversation and matching composer, even when the window is stretched wide.
+    static var conversationContentWidth: CGFloat { 700 * widthScale }
     static var sheetWidth: CGFloat { 720 * widthScale }
 }
 
