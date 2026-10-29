@@ -20,7 +20,7 @@ export function scopedTools(prompt, allowed) {
     .normalize("NFKD")
     .replace(/\p{M}/gu, "");
   if (
-    /\/skill:|\b(mail|email|e-mail|entwurf|draft|reply|remind\w*|erinner\w*|termin\w*|kalender|calendar|schedule|verschieb\w*|sortier\w*|losch\w*|delete|move|rename|umbenenn\w*|schreib\w*|write|edit|ander\w*|change|update|revise|copy|kopier\w*|combine|merge|prepare|convert|konvertier\w*|zusammenfug\w*|versandfertig|komprimier\w*|offne\w*|open|save|speicher\w*|erstell\w*|create|code|script|python|javascript|excel|foto\w*|photo\w*)\b/u.test(
+    /\/skill:|\b(mail|email|e-mail|entwurf|draft|reply|remind\w*|erinner\w*|termin\w*|kalender|calendar|schedule|verschieb\w*|sortier\w*|losch\w*|delete|move|rename|umbenenn\w*|schreib\w*|write|edit|ander\w*|change|update|revise|copy|kopier\w*|combine|merge|prepare|convert|konvertier\w*|zusammenfug\w*|versandfertig|komprimier\w*|offne\w*|open|save|speicher\w*|remember|memor\w*|merk\w*|ablauf\w*|workflow\w*|skill\w*|erstell\w*|create|code|script|python|javascript|excel|foto\w*|photo\w*|diagramm\w*|chart\w*|grafik\w*|schaubild\w*|plot\w*|visuali\w*)\b/u.test(
       text,
     )
   )

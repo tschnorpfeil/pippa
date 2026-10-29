@@ -29,6 +29,12 @@ public enum PiConversationDefault {
         support.appendingPathComponent("memory.md")
     }
 
+    /// Skills the person saved, one folder with a SKILL.md each, written only by Pi's `save_skill` after their OK
+    /// (runtime/pippa-tools/skill-save.ts). Swift never reads them; Pi loads them after the bundled ones.
+    public static func userSkillsDirectory(support: URL) -> URL {
+        support.appendingPathComponent("skills", isDirectory: true)
+    }
+
     /// What a conversation shows while setup is not finished. Pi then does not start at all, instead of failing with
     /// a technical error.
     public enum SetupGate: Equatable, Sendable {

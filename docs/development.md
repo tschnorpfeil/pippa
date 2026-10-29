@@ -1,10 +1,19 @@
 # Developing Pippa
 
 How Pippa is put together, how to build, check and release it, and where it keeps things. The [README](../README.md)
-covers what Pippa does and how it works at a glance; [Updating Pi](updating-pi.md) covers moving to a new Pi release;
-[Settings simplification](settings-simplification.md) records which settings exist and why.
+covers what Pippa does; [What Pippa can do](what-pippa-can-do.md), [Pippa's local AI](models.md) and
+[Privacy and permissions](privacy-and-permissions.md) give users the details. [Updating Pi](updating-pi.md) covers moving
+to a new Pi release; [Settings simplification](settings-simplification.md) records which settings exist and why.
+Product planning lives in [Pippa's next evolution](pippa-next-evolution-2026-10-21.md) and the
+[0.3.13 release plan](roadmap-0.3.13.md), which has since shipped. The current plan is [Pippa 0.4](roadmap-0.4.md);
+how Pippa is described in public is decided in [Positioning](positioning.md).
 
 ## Architecture
+
+In short: native Swift code handles the interface, file utilities and Mac integrations.
+[Pi](https://github.com/earendil-works/pi) is the agent core; it coordinates model-driven tasks with Pippa's scoped tools
+and [bundled skills](../runtime/pippa-skills). [llama.cpp](https://github.com/ggml-org/llama.cpp) runs the local model on
+a loopback-only server, which the Terminal `pi` can reuse through provider `pippa-local` (see "Terminal autostart" below).
 
 ```
 Pippa.app (Swift, SwiftUI)
@@ -32,7 +41,9 @@ ignored); `--session-dir` in Pippa's support folder and `--session-id` per conve
 own short prompt; `--tools` with a fixed list (Pi's `read`, `bash`, `edit`, `write`, Pippa's file
 tools, pi-web-access's `web_search` and `fetch_content`, and `mcp__pippa__*`, so the person's
 `defaultTools` change nothing); `--no-skills --skill <bundle>/pippa-skills`
-(only Pippa's skills, a same-named personal skill would otherwise win); `--provider/--model` from the installer. The
+(only Pippa's skills, a same-named personal skill would otherwise win), then, in standard scope only,
+`--skill <support>/skills` with the skills the person saved (`save_skill`; Pi keeps the first of two same-named
+skills, so a bundled name always wins); `--provider/--model` from the installer. The
 agent directory is the shared `~/.pi/agent`, but personal extensions, context files and MCP servers do not join the app session.
 Pippa's native tools and shell enforce their own permissions; supported file changes retain undo copies. `fd` and `rg` remain available through `bash` next to Pippa's Node in `Contents/Helpers`
 (pinned in `app/Packaging/search-tools.json`), which is first in Pi's `PATH`, so Pi never downloads them.
@@ -102,6 +113,12 @@ app-selected draft scope makes the enforced local-reader promise; prompt wording
   (`PIPPA_MEMORY_FILE`). The lines go into the system prompt as their own `<memory>` section, read once per session so
   the prompt cache stays warm. The `remember` tool adds or forgets a fact; it refuses account, card, ID, tax and phone
   numbers and passwords, keeps at most 30 lines and never makes a model call of its own.
+- `skill-save.ts` (installed by `pippa-memory.ts`) is "Save as skill": `save_skill` writes
+  `<support>/skills/<name>/SKILL.md` only after the person agrees in a dialog that shows every step, with the same
+  refusals as `remember`, at most 8 skills and 120 characters of description (each saved skill costs about 75 tokens
+  in Pi's skills list). It refuses once the conversation read web pages, mail, invitations, selected text or the app
+  in front (tool calls, the message and a resumed session's branch, fail closed), and blocks `write`, `edit` and
+  `move_files` into that folder. Only with `PIPPA_USER_SKILLS_DIR`, which the app sets in standard scope only.
 - `pippa-context.ts` keeps the context small without the person waiting: after an answer, once the person has been quiet
   for 20 s and the context is at least 60 % full, it starts Pi's own compaction with everyday instructions (names,
   dates, amounts, file paths, what is open). Pi's threshold stays as the net. A question during that summary aborts it
@@ -130,7 +147,13 @@ for, and this Mac's own and local-network addresses are never read. The receipt 
 calendar, reminders, Excel selection, documents (with text recognition). Writing tools: calendar event, reminder, unsent
 mail draft and `prepare_files` (ordered PDFs/photos into a verified PDF). File preparation shares its native engine and
 durable job record with the tray, with a result card and the existing turn-scoped cancellation and receipts. Pi retains
-planning, tool choice and follow-up; native tools do not create a second agent loop. Because the app does the work,
+planning, tool choice and follow-up; native tools do not create a second agent loop. `make_chart` draws a chart card
+from a .csv, .tsv or .xlsx file: Pi names the file and the columns, Pippa reads the cells and computes every value
+(`ChartBuilder`, sums, counts or averages per label, total rows left out) and returns the computed rows for Pi to quote.
+It only reads, but it is not offered in draft-only tasks. `PippaMCPFormFill` (`fill_pdf`) writes answers into a copy
+of a PDF form in the results folder (`PDFForm` in `Tools/FormFill.swift`, ported from Hob: blanks found in the page
+image, labels from the words around them, real form fields); it is built and checked but not registered yet, so Pi
+cannot call it until `read_document` lists a form's blanks. Because the app does the work,
 macOS asks for permission in Pippa's name. See [0.3.14 everyday help](0.3.14-everyday-help.md) for persistence and acceptance evidence.
 
 **Local model.** `LlamaServer` runs the pinned llama.cpp `llama-server` on a fixed loopback port with a key file and
@@ -157,7 +180,7 @@ if nothing answers, starts llama-server through a detached supervisor with the s
 terminal from ever running two servers. Pippa's own Pi loads it too, so a model that crashed mid-answer comes back;
 that server stops once Pippa quits (`PIPPA_APP_PID`).
 
-**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). All skills use
+**Abilities (`runtime/pippa-skills`).** One Pi skill per folder (`SKILL.md`). All bundled skills use
 `disable-model-invocation: true` and cost no prompt space (finding files is the `search_files` tool, not a skill). Pi loads them with `--skill`; a button sends `/skill:<name> <message>` (`PiSkillTurn`) and Pi
 puts the instructions in front. Swift reads the headers only for buttons and suggestions (`PippaSkill`).
 `PIPPA_SKILLS_DIR` overrides the folder for development. Deadlines (`fristen-erkennen`: Pi adds them with
@@ -227,12 +250,13 @@ everything from the inside out. Of `runtime/pippa-tools` only the sources Pi loa
 and helpers from the unmodified signed bundle and loads no user data.
 
 **Signing and entitlements.** Pippa runs without the App Sandbox because a sandboxed app cannot set up and start Pi in
-the home folder. `Pippa.entitlements` holds only the Hardened Runtime rights it needs (Apple Events, and Calendars for
-EventKit, which also covers Reminders). `Node.entitlements` adds JIT and turns library validation off, because the
-terminal Pi loads add-ons the person installs. `llama-server` and esbuild carry no entitlements. Desktop, Documents and
-Downloads are protected by TCC prompts (texts in `Info.plist`). With a Developer ID all dylibs are signed with one team
-ID, so library validation holds; ad-hoc builds have no team ID and run without Hardened Runtime. `verify-app.sh` asserts
-all of this.
+the home folder. `Pippa.entitlements` holds only the Hardened Runtime rights it needs (Apple Events, Calendars for
+EventKit, which also covers Reminders, Contacts, Photos, and the microphone for dictation in the input field, which is
+hidden until `defaults write io.github.tschnorpfeil.pippa dictation.enabled -bool YES`). `Node.entitlements` adds JIT
+and turns library validation off, because the terminal Pi loads add-ons the person installs. `llama-server` and esbuild
+carry no entitlements. Desktop, Documents and Downloads are protected by TCC prompts (texts in `Info.plist`). With a
+Developer ID all dylibs are signed with one team ID, so library validation holds; ad-hoc builds have no team ID and run
+without Hardened Runtime. `verify-app.sh` asserts all of this.
 
 **Distributing.** An ad-hoc build runs on your own Mac. Elsewhere, macOS 15 and later requires *System Settings →
 Privacy & Security → Open Anyway*. To avoid that you need an Apple Developer ID Application certificate and a notary
@@ -331,7 +355,7 @@ end-to-end run in the real Pippa window. Both only read the model files in `~/Li
 
 **Native UI fixtures.** The debug build renders scripted scenarios without a model:
 `PIPPA_DEMO=1 PIPPA_SNAPSHOT=<fresh dir> PIPPA_SNAPSHOT_ONLY=<scenario> app/.build/debug/Pippa` writes screenshots and a
-text report and quits (for example `settings`, `scans`, `calendar`, `ctxsug`, `thoughtline`; see
+text report and quits (for example `settings`, `scans`, `calendar`, `ctxsug`, `thoughtline`, `rails`; see
 `app/Sources/Pippa/App/DevSnapshot.swift`). Vary with `PIPPA_SNAPSHOT_WIDTH`, `PIPPA_APPEARANCE=light|dark` and
 `PIPPA_REDUCE_MOTION=1`. The bare debug executable shows English strings; run it from a bundle with
 `app/Packaging/Info.plist` to see German. These fixtures check state and layout, not model quality.
@@ -444,6 +468,7 @@ file first.
 | What | Where |
 |---|---|
 | Journal, task log (`tasklog.sqlite`), conversations, Pi sessions, web settings (`pi-web`), models, settings, `install-state.json` | `~/Library/Application Support/Pippa/` |
+| Tool results (`Results/`), dropped mails, images and text (`Inbox/`), Numbers copies (`Numbers/`), `pippa.lock` | `~/Library/Caches/Pippa/` |
 | Preferences | `~/Library/Preferences/io.github.tschnorpfeil.pippa.plist` |
 | Log `pippa.log` (version and events, no file contents; `PIPPA_LOG_DIR` overrides) | `~/Library/Logs/Pippa/` |
 | Pi release, settings, `models.json`, the person's Pi extensions | `~/.pi/agent` |
@@ -460,8 +485,8 @@ optional online model the person switches on (Pi's own provider `pippa-online`, 
 conversations, journal and the model stay on the Mac.
 
 **Uninstall.** Quit Pippa, move `Pippa.app` to the Trash, then remove `~/Library/Application Support/Pippa`, the
-preferences file above, `~/Library/Caches/io.github.tschnorpfeil.pippa`, `~/Library/Logs/Pippa` and, from older
-versions, `~/Library/Containers/io.github.tschnorpfeil.pippa`.
+preferences file above, `~/Library/Caches/Pippa`, `~/Library/Caches/io.github.tschnorpfeil.pippa`, `~/Library/Logs/Pippa`
+and, from older versions, `~/Library/Containers/io.github.tschnorpfeil.pippa`.
 
 ## Website
 
@@ -475,9 +500,9 @@ node scripts/check-site.cjs           # drag behaviour, bilingual content, demo 
 node scripts/check-site-launch.cjs    # publication gate: required files; fails while the legal pages are unfinished
 ```
 
-Attraction and drop logic are in `site/pippaDrag.js`; rendering and the demo flow are in `site/index.html`. Text
-changes on the German page must be carried over to `site/en/index.html`. Opening `http://localhost:8088/?perf=1` adds a
-local timing diagnostic for the drag; it transmits nothing.
+The homepage demo is scripted: rendering and the demo flow are in `site/index.html`. `site/pippaDrag.js` holds the drag
+geometry model that `check-site.cjs` tests; the pages no longer load it. Text changes on the German page must be
+carried over to `site/en/index.html`.
 
 Both language URLs must stay directly accessible. Use explicit language links and reciprocal canonical/hreflang
 metadata, without browser-language redirects. Keep titles, descriptions and app structured data consistent with

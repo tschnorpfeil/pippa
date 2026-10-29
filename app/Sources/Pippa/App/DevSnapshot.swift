@@ -7,7 +7,7 @@ import SwiftUI
 /// sample engine, photographs the real window (with alpha, via `screencapture -l`)
 /// and saves one PNG per form, plus frame sequences of every morph (in slow motion) and a
 /// check of the corners (`corners.txt`). `PIPPA_APPEARANCE=dark|light` forces the appearance.
-/// `PIPPA_SNAPSHOT_ONLY=morph|states|pillstatus|workspace|chat|natural|keyboard|byom|settings|permissions|welcome|setup-*` restricts the run. Exits afterwards.
+/// `PIPPA_SNAPSHOT_ONLY=morph|states|pillstatus|workspace|chat|natural|keyboard|byom|settings|permissions|welcome|rails|setup-*` restricts the run. Exits afterwards.
 /// `setup-*`: setup without technical questions (PiSetupSnapshot).
 /// `welcome` needs `PIPPA_DEMO_MODEL=missing` (sample engine without knowledge, as on first launch);
 /// and also runs without consent to download (`-model.download.allowed NO` as an argument), best with `PIPPA_SNAPSHOT_HEIGHT=700`.
@@ -31,6 +31,8 @@ enum DevEnvironment {
 enum DevSnapshot {
     static var directory: URL? { nil }
     static var workspaceSize: CGSize { ShellTokens.workspaceMax }
+    static var showsRails: Bool { true }
+    static var wideWorkspaceSize: CGSize { ShellTokens.workspaceWideMax }
     static var testsKeyboard: Bool { false }
     static func run(model: AppModel, shell: ShellController) {}
 }
@@ -82,6 +84,25 @@ enum DevSnapshot {
         let env = ProcessInfo.processInfo.environment
         var size = ShellTokens.workspaceMax
         if let raw = env["PIPPA_SNAPSHOT_WIDTH"], let width = Double(raw), width.isFinite, width >= 400, width <= Double(ShellTokens.workspaceMax.width) {
+            size.width = width
+        }
+        if let raw = env["PIPPA_SNAPSHOT_HEIGHT"], let height = Double(raw), height.isFinite, height >= 400 {
+            size.height = min(size.height, height)
+        }
+        return size
+    }
+
+    /// Rails show in production and in the `rails` scenario only: every other capture keeps the plain conversation
+    /// (its frames, PNGs and accessibility tree), whatever this Mac saved.
+    static let showsRails: Bool = DevEnvironment.value("PIPPA_SNAPSHOT") == nil
+        || DevEnvironment.value("PIPPA_SNAPSHOT_ONLY") == "rails"
+
+    /// Like `workspaceSize`, for a conversation with rails: up to ShellTokens.workspaceWideMax (1180 × 760).
+    static var wideWorkspaceSize: CGSize {
+        guard directory != nil else { return ShellTokens.workspaceWideMax }
+        let env = ProcessInfo.processInfo.environment
+        var size = ShellTokens.workspaceWideMax
+        if let raw = env["PIPPA_SNAPSHOT_WIDTH"], let width = Double(raw), width.isFinite, width >= 400, width <= Double(size.width) {
             size.width = width
         }
         if let raw = env["PIPPA_SNAPSHOT_HEIGHT"], let height = Double(raw), height.isFinite, height >= 400 {
@@ -146,6 +167,11 @@ enum DevSnapshot {
 
             if only == "conversationresume" {
                 await ConversationResumeSnapshot.run(model: model, shell: shell, directory: dir)
+                NSApp.terminate(nil)
+                return
+            }
+            if only == "rails" {
+                await ConversationRailsSnapshot.run(model: model, shell: shell, directory: dir) { await snap($0) }
                 NSApp.terminate(nil)
                 return
             }

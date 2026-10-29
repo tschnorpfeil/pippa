@@ -5,10 +5,11 @@ import PippaCore
 #if DEBUG
 /// Setup in the real window.
 ///
-/// `PIPPA_SNAPSHOT=<fresh folder> PIPPA_SNAPSHOT_ONLY=setup-<state>` with `welcome` (the only question),
-/// `progress` (loading with examples), `adopted` (existing model adopted, no question), `error` (sentence,
-/// "Nochmal versuchen", details), `done` ("Probier's aus") or `all`. Without installer and without network: the state is
-/// set (`PiSetupController(flow: nil, state:)`). `PIPPA_APPEARANCE=light|dark`, `PIPPA_REDUCE_MOTION=1`.
+/// `PIPPA_SNAPSHOT=<fresh folder> PIPPA_SNAPSHOT_ONLY=setup-<state>` with `welcome` (the only question; also records
+/// `welcome-space`, the question when the free space is short), `progress` (loading with examples), `adopted` (existing
+/// model adopted, no question), `error` (sentence, "Try again", details), `done` (the ready step: shortcut, open at
+/// login, "Get Started") or `all`. Without installer and without network: the state is set
+/// (`PiSetupController(flow: nil, state:)`). `PIPPA_APPEARANCE=light|dark`, `PIPPA_REDUCE_MOTION=1`.
 ///
 /// `setup-e2e`: the real flow with `PIPPA_PI_RPC=1` and `PIPPA_PI_HOME=<fake HOME>` (scripts/pi-setup-ui.sh):
 /// setup until "ready" (existing model is adopted), then a question to Pippa via the real Pi.
@@ -41,6 +42,7 @@ import PippaCore
         } else {
             let fixtures: [(String, PiSetupState, Int, Bool)] = [
                 ("setup-welcome", .askDownload(bytes: 6_716_356_800), 0, false),
+                ("setup-welcome-space", .askDownload(bytes: 6_716_356_800), 0, false),
                 ("setup-progress", .downloading(progress: 0.42, remaining: 330), 0, false),
                 ("setup-progress-example3", .downloading(progress: 0.81, remaining: 110), 2, false),
                 ("setup-adopted", .preparing(adoptingFrom: "LM Studio"), 3, false),
@@ -57,6 +59,7 @@ import PippaCore
                 setup.showsDetails = details
                 PiSetupController.shared = setup
                 setup.attach(to: model)
+                if name.hasSuffix("-space") { setup.spaceShortfall = 3_100_000_000 }
                 model.show(.pill)
                 try? await Task.sleep(for: .milliseconds(300))
                 model.show(.onboarding)
@@ -106,7 +109,7 @@ import PippaCore
         verify(setup.stalled, "nach Neustart wieder als hängend erkannt")
     }
 
-    /// Real first download in a fake HOME without a model: question, "Laden", progress, ready. Logs progress every 15 s.
+    /// Real first download in a fake HOME without a model: question, "Load", progress, ready. Logs progress every 15 s.
     private static func download(model: AppModel, note: (String) -> Void, verify: (Bool, String) -> Void,
                                  snap: (String, Double) async -> Void) async {
         guard let setup = PiSetupController.shared, PiRPCChat.isLive else {

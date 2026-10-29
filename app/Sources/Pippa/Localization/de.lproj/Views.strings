@@ -242,7 +242,7 @@
 "Copy text" = "Text kopieren";
 "For example:" = "Zum Beispiel:";
 "Tidy up my Downloads folder" = "Räum meinen Download-Ordner auf";
-"What’s on my calendar tomorrow?" = "Was steht morgen in meinem Kalender?";
+"Explain a letter for me: what it wants and by when" = "Erklär mir einen Brief: was er will und bis wann";
 "Where is my rental agreement?" = "Wo ist mein Mietvertrag?";
 "Remind me tomorrow morning to take out the paper recycling" = "Erinnere mich morgen früh ans Altpapier";
 "Puts this sentence into the input field" = "Schreibt diesen Satz ins Eingabefeld";
@@ -300,3 +300,66 @@
 "Reminders access is off for Pippa. You can change that in System Settings." = "Pippa darf nicht auf Erinnerungen zugreifen. Du kannst das in den Systemeinstellungen ändern.";
 "Opens the matching privacy setting. Your request stays here and is not retried automatically." = "Öffnet die passende Datenschutzeinstellung. Dein Auftrag bleibt hier und wird nicht automatisch wiederholt.";
 "Your request stays here. Nothing is retried automatically." = "Dein Auftrag bleibt hier. Nichts wird automatisch wiederholt.";
+
+/* Conversation rails (ConversationWindow.swift, ConversationSessionRail.swift, ConversationDetailRail.swift) */
+"Conversations" = "Gespräche";
+"Today" = "Heute";
+"Yesterday" = "Gestern";
+"Previous 7 Days" = "Vorherige 7 Tage";
+"Older" = "Älter";
+"Rename…" = "Umbenennen …";
+"Delete…" = "Löschen …";
+"Pippa is working" = "Pippa arbeitet";
+"You can switch when Pippa is done." = "Du kannst wechseln, sobald Pippa fertig ist.";
+"Show Conversations" = "Gespräche einblenden";
+"Hide Conversations" = "Gespräche ausblenden";
+"Show Conversation Details" = "Gesprächsdetails einblenden";
+"Hide Conversation Details" = "Gesprächsdetails ausblenden";
+"Files in Use" = "Verwendete Dateien";
+"Results" = "Ergebnisse";
+"Waiting for your message" = "Wartet auf deine Nachricht";
+"Drop files here to use them in this conversation." = "Zieh Dateien hierher, um sie in diesem Gespräch zu verwenden.";
+"Files, drafts, events and reminders Pippa makes in this conversation show up here." = "Dateien, Entwürfe, Termine und Erinnerungen, die Pippa in diesem Gespräch anlegt, erscheinen hier.";
+"Web pages Pippa reads for this conversation show up here." = "Webseiten, die Pippa für dieses Gespräch liest, erscheinen hier.";
+"Prepared file" = "Vorbereitete Datei";
+"Created by Pippa" = "Von Pippa angelegt";
+"Changed by Pippa" = "Von Pippa geändert";
+"From a task" = "Aus einem Auftrag";
+"Draft in Pippa · not sent" = "Entwurf in Pippa · nicht gesendet";
+"Draft in Mail · not sent" = "Entwurf in Mail · nicht gesendet";
+"In Calendar" = "Im Kalender";
+"In Reminders" = "In Erinnerungen";
+"Show in Conversation" = "Im Gespräch zeigen";
+"Copy Link" = "Link kopieren";
+"Email without subject" = "Mail ohne Betreff";
+
+// Chart card under an answer (ChartCardView.swift).
+"Save as Picture…" = "Als Bild speichern …";
+"Couldn’t save the picture. Please try again." = "Das Bild konnte nicht gespeichert werden. Versuch es bitte noch einmal.";
+"Chart of %@" = "Diagramm zu %@";
+
+// Conversation rails and chart card: the more menu on a rail row, first-run hints, charts under Results, copying a chart.
+"More" = "Mehr";
+"Your conversations will show up here." = "Deine Gespräche erscheinen hier.";
+"Choose Files…" = "Dateien auswählen …";
+"Chart" = "Diagramm";
+"Copy Picture" = "Bild kopieren";
+"Couldn’t copy the picture. Please try again." = "Das Bild konnte nicht kopiert werden. Versuch es bitte noch einmal.";
+
+// Filled form card under an answer (FilledFormCardView.swift).
+"Your form is filled in" = "Dein Formular ist ausgefüllt";
+"Answers filled in: %lld" = "Ausgefüllte Angaben: %lld";
+"Still empty: %@" = "Noch leer: %@";
+"Please check every answer before you sign and send it. The original is unchanged." = "Prüf bitte jede Angabe, bevor du unterschreibst und es abschickst. Das Original bleibt unverändert.";
+"This file is no longer available. Ask me to fill in the form again." = "Diese Datei gibt es nicht mehr. Bitte mich, das Formular noch einmal auszufüllen.";
+"Couldn’t save the copy there. Please choose another place." = "Die Kopie konnte dort nicht gespeichert werden. Wähl bitte einen anderen Ort.";
+"Dictate" = "Diktieren";
+"Stop Dictating and Insert" = "Diktat beenden und einfügen";
+"Listening…" = "Ich höre zu …";
+"⏎ inserts · esc discards" = "⏎ fügt ein · esc verwirft";
+"Speak instead of typing. Everything stays on this Mac." = "Sprich, statt zu tippen. Alles bleibt auf diesem Mac.";
+"Pippa may not use the microphone. You can allow it in System Settings → Privacy & Security → Microphone." = "Pippa darf das Mikrofon nicht benutzen. Du kannst es in den Systemeinstellungen unter Datenschutz & Sicherheit → Mikrofon erlauben.";
+"Pippa may not use speech recognition. You can allow it in System Settings → Privacy & Security → Speech Recognition." = "Pippa darf die Spracherkennung nicht benutzen. Du kannst sie in den Systemeinstellungen unter Datenschutz & Sicherheit → Spracherkennung erlauben.";
+"Your Mac can’t understand this language offline yet. Turn on Dictation in System Settings → Keyboard, then try again." = "Dein Mac versteht diese Sprache noch nicht ohne Internet. Schalte in den Systemeinstellungen unter Tastatur das Diktieren ein und versuch es dann noch einmal.";
+"No microphone found." = "Kein Mikrofon gefunden.";
+"Dictation stopped. Please try again." = "Das Diktat wurde unterbrochen. Versuch es bitte noch einmal.";

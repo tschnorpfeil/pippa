@@ -182,8 +182,17 @@ extension ShellController {
             let window = event.window.map(ObjectIdentifier.init)
             let chars = event.characters ?? ""
             let plain = event.modifierFlags.intersection([.command, .control]).isEmpty
+            let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+            let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            let isRepeat = event.isARepeat
             let handled: Bool = MainActor.assumeIsolated {
                 guard let self, window == ObjectIdentifier(self.panel) else { return false }
+                // While dictating, Return inserts what was heard and Esc discards it; neither sends nor closes the
+                // window. Here rather than in the composer: Return also works after clicking the mic.
+                if self.model.dictation.isActive, code == 36 || code == 76 || code == 53 {
+                    if !event.isARepeat { if code == 53 { self.model.dictation.cancel() } else { self.model.dictation.finish() } }
+                    return true
+                }
                 // ⌘↩ applies an open preview, but only with an empty input field: someone typing a
                 // follow-up to the preview and submitting with ⌘↩ wants to send, not organize.
                 if (code == 36 || code == 76),
@@ -194,6 +203,11 @@ extension ShellController {
                         if typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { self.model.confirmPreview() } else { self.model.route(typed) }
                     }
                     return true
+                }
+                // ⌃⌘S conversation rail, ⌥⌘I detail rail (ConversationWindow). ⌘N is the main menu's.
+                if self.model.mode.isConversation {
+                    if modifiers == [.control, .command] && key == "s" { if !isRepeat { self.model.toggleRail(.sessions) }; return true }
+                    if modifiers == [.option, .command] && key == "i" { if !isRepeat { self.model.toggleRail(.details) }; return true }
                 }
                 if code == 53 { self.model.escape(); return true }  // Esc
                 return plain && self.bufferTyping(chars)

@@ -11,6 +11,8 @@ final class AppModel: ObservableObject {
     let conversations = ConversationController()
     /// The tray on Pippa: given things and results, with the one line (TrayController.swift).
     let tray = TrayController()
+    /// Speaking instead of typing in the composer, hidden behind `dictation.enabled` (Dictation.swift).
+    let dictation = Dictation()
     /// Call in Mail ("Letter"): first line, actions, draft, insert (LetterController.swift).
     let letter = LetterController()
     /// Call in Excel ("Sheet"): first line from "Check the total", actions, read-only (SheetController.swift).
@@ -26,7 +28,21 @@ final class AppModel: ObservableObject {
     }()
     @Published var inferenceSettings = InferenceSettings.load(from: AppModel.inferenceSettingsDirectory)
 
-    @Published var conversationSize = CGSize(width: Theme.conversationWidth, height: 700)
+    /// Size of the open conversation; it opens wider when rails are wanted (ShellTokens.conversationSize).
+    @Published var conversationSize = ShellTokens.conversationSize(rails: AppModel.savedRails())
+    /// Rails the person wants beside the conversation, saved per Mac; ConversationRailLayout decides what fits.
+    @Published var conversationRails = AppModel.savedRails() {
+        didSet {
+            guard DevSnapshot.directory == nil, conversationRails != oldValue else { return }
+            let d = UserDefaults.standard
+            d.set(conversationRails.sessions, forKey: "conversation.rail.sessions")
+            d.set(conversationRails.details, forKey: "conversation.rail.details")
+            d.set(conversationRails.prefersDetails, forKey: "conversation.rail.prefersDetails")
+        }
+    }
+    /// The detail rail asks the conversation to show one of its messages (ConversationWorkspace scrolls there).
+    @Published private(set) var conversationJump = 0
+    private(set) var conversationJumpTarget: UUID?
     @Published var compactInputWidth: CGFloat = Theme.inputWidth
     var conversationViewports: [UUID: ConversationViewport] = [:]
     private var conversationActivity: [UUID: Date] = [:]
@@ -179,6 +195,7 @@ final class AppModel: ObservableObject {
             }
         }
         tray.model = self
+        dictation.onInsert = { [weak self] in self?.insertDictation($0) }
         trayChanges = tray.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.objectWillChange.send(); self?.updateMark() }
         }
@@ -659,6 +676,12 @@ final class AppModel: ObservableObject {
         composerFocus += 1
     }
 
+    /// What was dictated goes after what is typed; nothing is sent yet.
+    func insertDictation(_ text: String) {
+        query = DictationGate.inserting(text, into: query)
+        composerFocus += 1
+    }
+
     func openConversationFromPill(now: Date = Date()) {
         guard hasResumableConversation, let current = conversations.current else { return openInput() }
         switch reopenDestination(current, now: now) {
@@ -732,6 +755,7 @@ final class AppModel: ObservableObject {
 
     /// Back to the pill. An open result waits silently (no number; preview image from R1).
     func collapse() {
+        dictation.cancel()
         if mode.isConversation { recordConversationActivity() }
         if mode.key == "line" {
             if sheet.isActive { sheet.lineClosed() } else if letter.isActive { letter.lineClosed() } else { tray.lineClosed() }
@@ -743,6 +767,8 @@ final class AppModel: ObservableObject {
 
     /// Esc: one step back in the sheet, otherwise to the pill.
     func escape() {
+        // Esc while dictating discards what was heard; the window stays (also ShellPanel.cancelOperation).
+        if dictation.isActive { dictation.cancel(); return }
         switch mode {
         case .sortSheet, .deadlines:
             stopSortFilling()
@@ -1154,13 +1180,87 @@ final class AppModel: ObservableObject {
 
     /// Menu bar ("Recent conversations"): delete the open conversation, after confirmation. Files stay untouched.
     func deleteCurrentConversation() {
-        guard !isActiveWork, let id = conversations.current?.id else { return }
+        guard let id = conversations.current?.id else { return }
+        deleteConversation(id)
+    }
+
+    /// Conversation rail and menu bar: delete one conversation after confirmation. Files stay untouched; the open
+    /// conversation stays open unless it was this one.
+    func deleteConversation(_ id: UUID) {
+        guard !isActiveWork, conversations.current?.id == id || conversations.history.contains(where: { $0.id == id }) else { return }
         NSApp.activate()
-        guard confirm(T("Delete this conversation?", table: "App"), T("The messages will be removed from this Mac. Your files stay as they are.", table: "App"),
-                      button: T("Delete", table: "App"), destructive: true), !isActiveWork else { return }
+        // By name: from the rail this may be another conversation than the open one.
+        let title = conversations.history.first(where: { $0.id == id })?.title ?? conversations.current?.title ?? ""
+        let shown = title.count > 60 ? String(title.prefix(59)) + "…" : title
+        // Return does not delete: the messages are gone for good.
+        guard confirm(T("Delete “%@”?", table: "App", shown), T("The messages will be removed from this Mac. Your files stay as they are.", table: "App"),
+                      button: T("Delete", table: "App"), destructive: true, returnConfirms: false), !isActiveWork else { return }
+        let wasCurrent = conversations.current?.id == id
         conversations.delete(id)
         savedWork[id] = nil
-        resetConversationPresentation()
+        conversationPresentations[id] = nil
+        conversationViewports[id] = nil
+        if wasCurrent { resetConversationPresentation() }
+    }
+
+    /// Conversation rail: a name the person chooses. Empty or unchanged keeps the old one.
+    func renameConversation(_ id: UUID) {
+        guard let summary = conversations.history.first(where: { $0.id == id }) else { return }
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = T("Rename Conversation", table: "App")
+        let field = NSTextField(string: summary.title)
+        field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: T("Rename", table: "App"))
+        alert.addButton(withTitle: T("Cancel", table: "App"))
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let title = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title != summary.title else { return }
+        conversations.rename(id, title: String(title.prefix(120)))
+    }
+
+    // MARK: Conversation rails
+
+    /// The rails this window may show. Scripted captures keep the plain conversation, except the `rails` scenario.
+    var activeRails: ConversationRails { DevSnapshot.showsRails ? conversationRails : .plain }
+
+    /// Header switches, ⌃⌘S and ⌥⌘I: a rail that shows goes; one that does not show comes and gets the room.
+    func toggleRail(_ rail: ConversationRail) {
+        guard mode.isConversation, DevSnapshot.showsRails else { return }
+        let scale = Theme.widthScale
+        let before = ConversationRailLayout.resolve(width: conversationSize.width, rails: conversationRails, scale: scale)
+        let showing = !before.shows(rail)
+        conversationRails.set(rail, shown: showing)
+        shell?.railsChanged(minimumWidth: showing ? ConversationRailLayout.width(toShow: rail, beside: before, scale: scale) : nil)
+    }
+
+    /// ⌘N and the rail's button. An untouched empty conversation is shown fresh instead of piling up empty ones.
+    func startNewConversation() {
+        guard !isActiveWork else { return }
+        if let current = conversations.current, current.messages.isEmpty, current.context == nil {
+            stashFileWork()
+            resetConversationPresentation()
+            return
+        }
+        newConversation()
+    }
+
+    /// Detail rail: show where something came up in the conversation.
+    func showInConversation(_ messageID: UUID) {
+        guard mode.isConversation else { return }
+        conversationJumpTarget = messageID
+        conversationJump += 1
+    }
+
+    /// Both rails until the person switches one off. Scripted captures start plain and save nothing.
+    private static func savedRails() -> ConversationRails {
+        guard DevSnapshot.directory == nil else { return .plain }
+        let d = UserDefaults.standard
+        return ConversationRails(sessions: d.object(forKey: "conversation.rail.sessions") as? Bool ?? true,
+                                 details: d.object(forKey: "conversation.rail.details") as? Bool ?? true,
+                                 prefersDetails: d.bool(forKey: "conversation.rail.prefersDetails"))
     }
 
     private func resetConversationPresentation() {
@@ -1244,6 +1344,14 @@ final class AppModel: ObservableObject {
         context = WorkContext(name: name, items: [downloads], payload: .files([downloads]))
         conversations.setContext(name: name, files: [downloads], selectedText: nil)
         startSort(in: downloads)
+    }
+
+    /// "Get Started" on the ready step: setup is done; the empty conversation with its examples, ready to type.
+    func startFromOnboarding() {
+        finishOnboarding()
+        // The examples show only in an empty conversation without files (ConversationEntryPresentation.showsWelcome).
+        if let current = conversations.current, !current.messages.isEmpty || current.context != nil { newConversation() }
+        openInput()
     }
 
     private func startSort(in folder: URL) {
@@ -1700,12 +1808,15 @@ final class AppModel: ObservableObject {
         route(skill.prompt, skill: skill)
     }
 
-    /// Question with Confirm and Cancel; true if confirmed.
-    private func confirm(_ title: String, _ text: String, button: String, destructive: Bool = false) -> Bool {
+    /// Question with Confirm and Cancel; true if confirmed. `returnConfirms: false` takes Return off the confirm button;
+    /// Cancel keeps Escape.
+    private func confirm(_ title: String, _ text: String, button: String, destructive: Bool = false, returnConfirms: Bool = true) -> Bool {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = text
-        alert.addButton(withTitle: button).hasDestructiveAction = destructive
+        let confirmButton = alert.addButton(withTitle: button)
+        confirmButton.hasDestructiveAction = destructive
+        if !returnConfirms { confirmButton.keyEquivalent = "" }
         alert.addButton(withTitle: T("Cancel", table: "App"))
         return alert.runModal() == .alertFirstButtonReturn
     }

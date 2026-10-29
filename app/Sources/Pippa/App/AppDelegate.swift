@@ -92,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             MenuAction.item(T("Quit Pippa", table: "App"), key: "q", modifiers: [.command]) { NSApp.terminate(nil) },
         ])
         submenu(T("File", table: "App"), [
-            MenuAction.item(T("New Conversation", table: "App"), key: "n", modifiers: [.command]) { [weak self] in self?.model.newConversation() },
+            MenuAction.item(T("New Conversation", table: "App"), key: "n", modifiers: [.command]) { [weak self] in self?.model.startNewConversation() },
             MenuAction.item(T("Show Attachments", table: "Shelf"), key: "a", modifiers: [.command, .shift]) { [weak self] in
                 if self?.model.shell?.focusAttachments() != true { NSSound.beep() }
             },

@@ -375,8 +375,10 @@ public actor PiRPCClient {
             events?.yield(.assistantEnded(text: Self.text(of: message), stopReason: message["stopReason"] as? String ?? "",
                                           error: message["errorMessage"] as? String))
         case "tool_execution_start":
-            events?.yield(.toolStarted(id: record["toolCallId"] as? String ?? "", name: record["toolName"] as? String ?? "",
-                                       arguments: Self.json(record["args"], limit: 400)))
+            let name = record["toolName"] as? String ?? ""
+            // save_skill's receipt takes the name from its arguments, and in sorted JSON it follows the long steps.
+            events?.yield(.toolStarted(id: record["toolCallId"] as? String ?? "", name: name,
+                                       arguments: Self.json(record["args"], limit: name == "save_skill" ? 8_000 : 400)))
         case "tool_execution_end":
             let payload = record["result"] as? [String: Any]
             let flag = record["isError"] as? NSNumber

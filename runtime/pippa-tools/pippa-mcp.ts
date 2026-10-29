@@ -27,6 +27,10 @@ export const TOOLS = NATIVE_READERS;
  * mail drafts remain unsent, and prepared PDFs preserve their original files. */
 export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft", "prepare_files"];
 
+/** Read-only, but not for draft-only tasks: a chart card Pippa computes from a table file (PippaMCPChart.swift). Not a
+ * native reader, so draft exposure hides it through the wildcard. */
+export const VIEW_TOOLS = ["make_chart"];
+
 /** Entry as in `mcp.json`, or `undefined` if the environment does not fit (then no server, no error). */
 export function serverConfig(env: Record<string, string | undefined>) {
 	const url = env.PIPPA_MCP_URL ?? "";
@@ -46,7 +50,7 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		exposure,
 		// Exact reader overrides beat the wildcard. Unknown future native tools also stay hidden in draft tasks.
 		...(actionPolicy(env) === "draftOnly" ? { toolExposure: { "*": "hidden", ...Object.fromEntries(TOOLS.map((name) => [name, "direct"])) } } : {}),
-		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and unsent Mail drafts; prepare verified PDFs locally.",
+		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and unsent Mail drafts; prepare verified PDFs locally; chart tables.",
 		// Text recognition on many pages takes a while: 5 minutes instead of 1. The app's server keeps the connection
 		// open accordingly (PippaMCPServer).
 		timeout: 300,
@@ -58,7 +62,7 @@ function exposureKey(exposure: Record<string, unknown> | undefined): string {
 }
 
 export const READINESS_COMMAND = "pippa-native-ready";
-export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
+export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS, ...VIEW_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
 
 /** Background discovery may still be connecting when RPC starts accepting commands. No model call or mutation. */
 export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<typeof serverConfig>,

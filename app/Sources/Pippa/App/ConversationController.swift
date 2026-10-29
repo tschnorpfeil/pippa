@@ -7,7 +7,12 @@ import PippaCore
 /// files, context and visible messages belong to the respective conversation.
 @MainActor
 final class ConversationController: ObservableObject {
-    @Published private(set) var current: Conversation?
+    @Published private(set) var current: Conversation? = nil {
+        // Built once per change of the conversation, never per streamed word (ConversationDetailRail reads it).
+        didSet { artifacts = ConversationArtifacts(current) }
+    }
+    /// Files in use, what Pippa made or found here and the pages she read, for the detail rail.
+    @Published private(set) var artifacts = ConversationArtifacts(nil)
     @Published private(set) var history: [ConversationSummary] = []
     @Published private(set) var isRunning = false
     @Published private(set) var streamingText = ""
@@ -102,6 +107,8 @@ final class ConversationController: ObservableObject {
             }
             recoverNativeReminderHistory()
         } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
+        // Observers don't run for assignments in the initializer.
+        artifacts = ConversationArtifacts(current)
     }
 
     /// Startup reconciliation is read-only in Reminders and never delays the first-use interface or asks for access.
@@ -167,6 +174,16 @@ final class ConversationController: ObservableObject {
         guard !isRunning, let store else { return }
         do { current = try store.select(id); error = nil; clearStream(); refresh() }
         catch { self.error = UserMessage.text(for: error, context: "gespraech") }
+    }
+
+    /// A name the person chose in the conversation rail. It keeps the conversation's place in the list.
+    func rename(_ id: UUID, title: String) {
+        guard let store else { return }
+        do {
+            let renamed = try store.rename(id, title: title, touch: false)
+            if current?.id == id { current = renamed }
+            refresh()
+        } catch { self.error = UserMessage.text(for: error, context: "gespraech") }
     }
 
     func setContext(name: String, files: [URL], selectedText: String?, focusedFiles: [URL]? = nil, announce: Bool = true, addingFiles: [URL] = []) {
@@ -620,5 +637,5 @@ final class ConversationController: ObservableObject {
     var contextFiles: [URL] { store?.contextFiles() ?? [] }
     var retainedResultFiles: [URL] { store?.retainedResultFiles() ?? [] }
 
-    private func refresh() { history = store?.list() ?? [] }
+    private func refresh() { history = store?.list(limit: 200) ?? [] }
 }

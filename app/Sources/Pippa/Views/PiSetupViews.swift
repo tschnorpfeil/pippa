@@ -47,15 +47,21 @@ struct PiSetupContent: View {
     private func question(_ bytes: Int64) -> some View {
         VStack(spacing: 0) {
             head(T("Hi, I’m Pippa", table: "Settings"))
-            nativeStart
-                .padding(.horizontal, 24)
-                .padding(.top, 18)
             Text(PiInstaller.downloadQuestion(bytes: bytes))
                 .font(Fonts.body)
                 .foregroundStyle(Theme.ink2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12)
+                .padding(.horizontal, 32)
+                .stagger(1)
+            // What the choice is based on: this Mac's chip and memory, in plain words.
+            Text(T("Picked to fit your Mac: %@", table: "Settings", setup.hardware))
+                .font(Fonts.hint)
+                .foregroundStyle(Theme.ink3)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
                 .padding(.horizontal, 32)
                 .stagger(1)
             // A phone hotspot or Low Data Mode: say so before 5+ GB go over it.
@@ -69,9 +75,28 @@ struct PiSetupContent: View {
                     .padding(.horizontal, 32)
             }
             VStack(spacing: 10) {
-                Button(T("Load", table: "Settings")) { setup.load() }
-                    .pippa(.secondary)
-                    .accessibilityLabel(T("Load", table: "Settings"))
+                if let shortfall = setup.spaceShortfall {
+                    // Checked before the click: a download that cannot fit never starts. The number is a sentence, not
+                    // a dimmed button, so it reads clearly (also to VoiceOver).
+                    Text(T("I need about %@ more free space for my AI.", table: "Settings", ModelDownloadSize.gigabytes(max(shortfall, 100_000_000))))
+                        .font(Fonts.lead)
+                        .foregroundStyle(Theme.need)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 32)
+                    Text(T("Empty the Trash or delete large files you no longer need, then click “Check Again”.", table: "Settings"))
+                        .font(Fonts.hint)
+                        .foregroundStyle(Theme.ink2)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 32)
+                    Button(T("Check Again", table: "Settings")) { setup.checkSpace() }
+                        .pippa(.secondary)
+                } else {
+                    // The one primary action. No Return shortcut: several GB are a deliberate click.
+                    Button(T("Load Pippa’s AI · %@", table: "Settings", ModelDownloadSize.gigabytes(bytes))) { setup.load() }
+                        .pippa(.primary, large: true)
+                }
                 // Quiet way out (hotspot, no time): tidying, PDFs and text recognition work without the AI.
                 Button(T("Later", table: "Settings")) { setup.later() }
                     .buttonStyle(.plain)
@@ -80,9 +105,13 @@ struct PiSetupContent: View {
                     .accessibilityLabel(T("Later", table: "Settings"))
                     .accessibilityHint(T("Tidying up and overviews already work without it. You can load it any time.", table: "Settings"))
             }
-            .padding(.top, 20)
-            .padding(.bottom, 22)
+            .padding(.top, 18)
             .stagger(2)
+            nativeStart
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+                .padding(.bottom, 22)
+                .stagger(3)
         }
     }
 
@@ -95,7 +124,7 @@ struct PiSetupContent: View {
                     .font(Fonts.body).foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
                 Button(T("Choose Photos or PDFs…", table: "NativeFlow")) { setup.chooseNativeFiles() }
-                    .pippa(.primary)
+                    .pippa(.secondary)
                     .accessibilityHint(T("Choose files, then choose what to make. Nothing changes until you pick an action.", table: "NativeFlow"))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -122,7 +151,14 @@ struct PiSetupContent: View {
                 .padding(.top, 14)
                 .accessibilityHint(T("File actions work while the download continues.", table: "NativeFlow"))
             ActionBar {
-                Button(T("Keep Loading in the Background", table: "Settings")) { setup.later() }.pippa(.quiet)
+                if progress != nil, !setup.stalled {
+                    // The part already loaded is kept (resumable download), and the question comes back.
+                    Button(T("Stop Loading", table: "Settings")) { setup.stopDownload() }.pippa(.quiet)
+                        .help(T("What has loaded stays. You can go on later.", table: "Settings"))
+                        .accessibilityHint(T("What has loaded stays. You can go on later.", table: "Settings"))
+                }
+                // The safe choice stands out from "Stop Loading".
+                Button(T("Keep Loading in the Background", table: "Settings")) { setup.later() }.pippa(.secondary)
                 if setup.stalled {
                     Button(T("Try Again", table: "Settings")) { setup.retryDownload() }.pippa(.primary)
                 }
@@ -176,6 +212,7 @@ struct PiSetupContent: View {
 
     // MARK: Fertig
 
+    /// One step: how to call Pippa, open at login, then straight into the conversation with its examples.
     private func ready(adoptedFrom source: String?) -> some View {
         VStack(spacing: 0) {
             head(T("I’m ready", table: "Settings"))
@@ -188,31 +225,61 @@ struct PiSetupContent: View {
                     .padding(.top, 6)
                     .padding(.horizontal, 32)
             }
-            Well(padding: 14) {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "folder")
-                        .font(.scaled(size: 17, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                        .frame(width: 22)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(T("Try it: your Downloads folder", table: "Settings"))
-                            .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
-                        Text(T("I’ll suggest some order first. Nothing moves until you say so, and Undo puts everything back.", table: "Settings"))
-                            .font(Fonts.body).foregroundStyle(Theme.ink2)
-                            .fixedSize(horizontal: false, vertical: true)
+            if hotkey != nil || setup.canOpenAtLogin {
+                Well(padding: 14) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        if let hotkey {
+                            readyRow(icon: "keyboard", title: T("Call me from anywhere", table: "Settings"),
+                                     detail: T("Press %@ in any app and I’m there.", table: "Settings", hotkey))
+                        }
+                        if setup.canOpenAtLogin {
+                            HStack(alignment: .top, spacing: 12) {
+                                readyRow(icon: "power", title: T("Open at login", table: "Settings"),
+                                         detail: setup.loginProblem ?? T("Pippa is there as soon as your Mac is on.", table: "Settings"),
+                                         detailColor: setup.loginProblem == nil ? Theme.ink2 : Theme.need)
+                                Toggle("", isOn: Binding(get: { setup.opensAtLogin }, set: { setup.setOpensAtLogin($0) }))
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                                    .accessibilityLabel(T("Open at login", table: "Settings"))
+                                    .onAppear { setup.refreshLogin() }
+                            }
+                        }
                     }
                 }
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+                .stagger(2)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
-            .stagger(2)
             ActionBar {
-                Button(T("Later", table: "Settings")) { setup.later() }.pippa(.quiet)
-                Button(T("Try It", table: "Settings")) { setup.tryIt() }
+                // Nothing is left to do here, so not "Later".
+                Button(T("Not Now", table: "Settings")) { setup.later() }.pippa(.quiet)
+                // Straight into the empty conversation: its examples (ConversationWorkspace.examples) are the first steps.
+                Button(T("Get Started", table: "Settings")) { model.startFromOnboarding() }
                     .pippa(.primary)
                     .keyboardShortcut(.defaultAction)
             }
         }
+    }
+
+    private func readyRow(icon: String, title: String, detail: String, detailColor: Color = Theme.ink2) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.scaled(size: 17, weight: .medium))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(detail).font(Fonts.body).foregroundStyle(detailColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// The shortcut as Settings names it ("⌃⌥ Space"); `nil` when it is off or macOS or another app has it.
+    private var hotkey: String? {
+        let key = Hotkey.current
+        return key == .off || HotkeyCenter.shared.mainTaken ? nil : key.display
     }
 
     private func head(_ title: String) -> some View {

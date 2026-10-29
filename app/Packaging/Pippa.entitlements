@@ -12,6 +12,9 @@
   - personal-information.photos-library: Hardened Runtime right for PhotoKit (NSPhotoLibraryUsageDescription): previews
     of the photos Pippa's Photos search found. The search itself goes through Apple Events (automation for Photos).
   - personal-information.addressbook: Hardened Runtime right for Contacts (read only, "What Pippa may do").
+  - device.audio-input: Hardened Runtime right for the microphone (dictation in the input field,
+    NSMicrophoneUsageDescription; speech recognition stays on this Mac, NSSpeechRecognitionUsageDescription).
+    Without it a Developer ID build hears nothing; ad-hoc CI builds have no Hardened Runtime and cannot show that.
 
   Dropped with the sandbox (effective only inside it): app-sandbox, files.user-selected.read-write,
   files.bookmarks.app-scope, files.downloads.read-write, network.client, network.server,
@@ -31,6 +34,8 @@
 	<key>com.apple.security.personal-information.photos-library</key>
 	<true/>
 	<key>com.apple.security.personal-information.addressbook</key>
+	<true/>
+	<key>com.apple.security.device.audio-input</key>
 	<true/>
 </dict>
 </plist>

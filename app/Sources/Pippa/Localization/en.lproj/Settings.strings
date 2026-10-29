@@ -90,16 +90,12 @@
 "Pippa is loading her AI" = "Pippa is loading her AI";
 "I’m loading my AI …" = "I’m loading my AI …";
 "Hi, I’m Pippa" = "Hi, I’m Pippa";
-"Load" = "Load";
 "Details" = "Details";
 "Hide Details" = "Hide Details";
 "Details shown" = "Details shown";
 "Details hidden" = "Details hidden";
 "I’m ready" = "I’m ready";
 "I’m using the AI that was already in %@, without extra space." = "I’m using the AI that was already in %@, without extra space.";
-"Try it: your Downloads folder" = "Try it: your Downloads folder";
-"I’ll suggest some order first. Nothing moves until you say so, and Undo puts everything back." = "I’ll suggest some order first. Nothing moves until you say so, and Undo puts everything back.";
-"Try It" = "Try It";
 "What I can do for you" = "What I can do for you";
 "Previous Example" = "Previous Example";
 "Next Example" = "Next Example";
@@ -218,3 +214,15 @@
 "Your Mac didn’t answer. Try again." = "Your Mac didn’t answer. Try again.";
 "1 not answered yet. You can allow it later in Settings." = "1 not answered yet. You can allow it later in Settings.";
 "%lld not answered yet. You can allow them later in Settings." = "%lld not answered yet. You can allow them later in Settings.";
+"Load Pippa’s AI · %@" = "Load Pippa’s AI · %@";
+"Picked to fit your Mac: %@" = "Picked to fit your Mac: %@";
+"Empty the Trash or delete large files you no longer need, then click “Check Again”." = "Empty the Trash or delete large files you no longer need, then click “Check Again”.";
+"Stop Loading" = "Stop Loading";
+"Call me from anywhere" = "Call me from anywhere";
+"Press %@ in any app and I’m there." = "Press %@ in any app and I’m there.";
+
+/* Setup: not enough space, loading and ready steps (PiSetupViews.swift) */
+"I need about %@ more free space for my AI." = "I need about %@ more free space for my AI.";
+"Check Again" = "Check Again";
+"What has loaded stays. You can go on later." = "What has loaded stays. You can go on later.";
+"Not Now" = "Not Now";

@@ -71,10 +71,10 @@ has_runtime() {
 ents="$(entitlements "$APP")"
 ! grep -q 'com.apple.security.app-sandbox' <<<"$ents" || fail "App Sandbox still on"
 ! grep -q 'com.apple.security.inherit' <<<"$ents" || fail "app carries com.apple.security.inherit"
-# Only what the Hardened Runtime itself requires: Apple Events (Mail, Excel, Photos search), EventKit (Calendar +
-# Reminders), Contacts and PhotoKit (photo previews), see app/Packaging/Pippa.entitlements.
-expect_entitlements "$APP" "Pippa.app" "com.apple.security.automation.apple-events com.apple.security.personal-information.addressbook com.apple.security.personal-information.calendars com.apple.security.personal-information.photos-library"
-ok "no App Sandbox; app entitlements exactly Apple Events + Calendars/Reminders + Contacts + Photos"
+# Only what the Hardened Runtime itself requires: Apple Events (Mail, Excel, Photos search), the microphone (dictation),
+# EventKit (Calendar + Reminders), Contacts and PhotoKit (photo previews), see app/Packaging/Pippa.entitlements.
+expect_entitlements "$APP" "Pippa.app" "com.apple.security.automation.apple-events com.apple.security.device.audio-input com.apple.security.personal-information.addressbook com.apple.security.personal-information.calendars com.apple.security.personal-information.photos-library"
+ok "no App Sandbox; app entitlements exactly Apple Events + Microphone + Calendars/Reminders + Contacts + Photos"
 if ((DEVELOPER_ID)); then
   has_runtime "$APP" || fail "Hardened Runtime missing on Pippa.app"
   ok "Hardened Runtime on Pippa.app (Developer ID, team $team)"
@@ -83,7 +83,8 @@ else
 fi
 # Permission prompt texts: without the sandbox TCC asks for the folders.
 usage_keys=(NSCalendarsFullAccessUsageDescription NSRemindersFullAccessUsageDescription NSAppleEventsUsageDescription
-  NSContactsUsageDescription NSPhotoLibraryUsageDescription NSDesktopFolderUsageDescription NSDocumentsFolderUsageDescription NSDownloadsFolderUsageDescription)
+  NSContactsUsageDescription NSPhotoLibraryUsageDescription NSDesktopFolderUsageDescription NSDocumentsFolderUsageDescription NSDownloadsFolderUsageDescription
+  NSMicrophoneUsageDescription NSSpeechRecognitionUsageDescription)
 for key in "${usage_keys[@]}"; do
   /usr/libexec/PlistBuddy -c "Print :$key" "$APP/Contents/Info.plist" >/dev/null 2>&1 || fail "Info.plist: $key missing"
   for lang in en de; do
@@ -91,7 +92,7 @@ for key in "${usage_keys[@]}"; do
       fail "$lang.lproj/InfoPlist.strings: $key missing"
   done
 done
-ok "Info.plist + en/de: texts for Calendar, Reminders, Apple Events, Contacts, Photos, Desktop, Documents, Downloads"
+ok "Info.plist + en/de: texts for Calendar, Reminders, Apple Events, Contacts, Photos, Desktop, Documents, Downloads, Microphone, Speech Recognition"
 
 # Helpers: run without a sandbox, also outside the bundle (the installer copies Node and esbuild to the home folder).
 [[ -x "$APP/Contents/Helpers/node" ]] || fail "bundled Node runtime missing"
@@ -116,7 +117,7 @@ ok "Pippa's abilities: $found_skills in Contents/Resources/pippa-skills, same as
 # The old conversation core is gone and must not come along from an old build.
 [[ ! -e "$APP/Contents/Resources/pi-runtime" ]] || fail "old conversation core (Contents/Resources/pi-runtime) still in the bundle"
 # The Pi RPC path starts Pi with Pippa's extensions from the bundle.
-for f in pippa-policy.ts pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-context.ts pippa-mcp.ts files.ts list-folder.ts shell.ts budget.ts search.mjs tool-scope.mjs; do
+for f in pippa-policy.ts pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-context.ts pippa-mcp.ts skill-save.ts files.ts list-folder.ts shell.ts budget.ts search.mjs tool-scope.mjs; do
   cmp -s "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f" || fail "pippa-tools/$f missing or stale (Pi extensions)"
 done
 [[ ! -e "$APP/Contents/Resources/pippa-guard" ]] || fail "old guard (Contents/Resources/pippa-guard) still in the bundle"

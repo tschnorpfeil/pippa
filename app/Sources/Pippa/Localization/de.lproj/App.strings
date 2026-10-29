@@ -107,7 +107,7 @@
 "I’m looking at %lld files. Nothing gets changed." = "Ich schaue in %lld Dateien. Nichts wird geändert.";
 "Can’t answer right now" = "Gerade keine Antwort möglich";
 "Almost everything is back as it was" = "Fast alles wie vorher";
-"Delete this conversation?" = "Dieses Gespräch löschen?";
+"Delete “%@”?" = "„%@“ löschen?";
 "The messages will be removed from this Mac. Your files stay as they are." = "Die Nachrichten verschwinden von diesem Mac. Deine Dateien bleiben, wie sie sind.";
 "Delete" = "Löschen";
 "Reading the invoices…" = "Ich lese die Rechnungen aus …";
@@ -248,3 +248,8 @@
 "The source changed or couldn’t be checked. Please check it and send your request again." = "Die Quelle hat sich geändert oder konnte nicht geprüft werden. Prüfe sie und sende deine Anfrage erneut.";
 "I couldn’t connect my Mac tools just now. Please try again." = "Ich konnte meine Mac-Werkzeuge gerade nicht verbinden. Bitte versuche es erneut.";
 "Saved File Tasks…" = "Gespeicherte Dateiaufträge …";
+"Stop Loading Pippa’s AI" = "Laden von Pippas KI anhalten";
+
+/* Conversation rails: renaming a conversation from the conversation rail (AppModel.swift) */
+"Rename Conversation" = "Gespräch umbenennen";
+"Rename" = "Umbenennen";

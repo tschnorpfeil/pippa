@@ -28,9 +28,8 @@ struct ConversationWorkspace: View {
     private var copied: UUID? { get { copiedState.wrappedValue } nonmutating set { copiedState.wrappedValue = newValue } }
 
     var body: some View {
+        // Header, size, resize grip and drop frame belong to ConversationWindow: they span the rails.
         VStack(spacing: 0) {
-            header
-            Theme.hair.frame(height: 0.5)
             ScrollViewReader { reader in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -106,6 +105,13 @@ struct ConversationWorkspace: View {
                     restoreViewport(reader)
                 }
                 .onAppear { restoreViewport(reader) }
+                .onChange(of: model.conversationJump) { _, _ in
+                    // The detail rail points at a message: show it from its top and stop following the latest line.
+                    guard !measuring, let id = model.conversationJumpTarget else { return }
+                    followLatest = false
+                    if reduceMotion { reader.scrollTo(id, anchor: .top) }
+                    else { withAnimation(.smooth(duration: 0.28)) { reader.scrollTo(id, anchor: .top) } }
+                }
                 // Lines slide softly under the header and the composer instead of being cut off at a hard edge.
                 // The padding inside covers the fade, so nothing is faded at the very top or bottom.
                 .mask {
@@ -135,22 +141,9 @@ struct ConversationWorkspace: View {
             }
             composer
         }
-        .frame(width: model.conversationSize.width, height: model.conversationSize.height)
-        .overlay(alignment: .bottomTrailing) { resizeGrip.padding(4) }
         .onAppear { if !measuring { focused = true } }
         .onChange(of: model.composerFocus) { _, _ in if !measuring { focused = true } }
         .onChange(of: model.query) { _, value in if !measuring && !value.isEmpty { focused = true } }
-        .overlay {
-            if model.dropTargeted {
-                RoundedRectangle(cornerRadius: 26).stroke(Theme.accent, lineWidth: 2)
-                    .overlay {
-                        Label(model.isActiveWork ? T("Drop here · I’ll add it next", table: "Views") : T("Add to Conversation", table: "Views"), systemImage: "plus.circle.fill")
-                            .font(Fonts.head).padding(20)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-                    }
-                    .padding(6).allowsHitTesting(false)
-            }
-        }
     }
 
     /// New rows and streaming stay visible as long as nobody has scrolled up, and a hand on the trackpad is never pulled away.
@@ -250,27 +243,6 @@ struct ConversationWorkspace: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 10) {
-            MarkSlot(size: 32)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Pippa").font(Fonts.head)
-                // Only a real topic: "New Conversation" says nothing (the empty chat shows that already).
-                if let title = chat.current?.title, title != ConversationStore.defaultTitle {
-                    Text(title).font(Fonts.hint).foregroundStyle(Theme.ink3).lineLimit(1)
-                }
-            }
-            Spacer()
-            // History lives in the menu bar; new topics also start automatically.
-            CloseButton { model.collapse() }
-        }.foregroundStyle(Theme.ink).padding(.horizontal, 20).frame(height: 64)
-            .contentShape(Rectangle())
-            // The conversation can be moved by its header.
-            .gesture(DragGesture(minimumDistance: 3)
-                .onChanged { _ in if !measuring { model.shell?.dragWorkspace(resize: false) } }
-                .onEnded { _ in model.shell?.endWorkspaceDrag() })
-    }
-
     /// New documents wait at the composer; used sources stay reachable without repeating their names.
     @ViewBuilder private var composerAttachments: some View {
         let pending = chat.current.map { ConversationPromptAttachments.pendingFiles(in: $0) } ?? []
@@ -306,25 +278,12 @@ struct ConversationWorkspace: View {
         }
     }
 
-    /// Handle at the bottom right: resize.
-    private var resizeGrip: some View {
-        // Invisible, like any Mac window: in the rounded corner an arrow symbol looked like a stray mouse pointer.
-        Color.clear
-            .frame(width: 22, height: 22).contentShape(Rectangle())
-            .pointerStyle(.frameResize(position: .bottomTrailing))
-            .gesture(DragGesture(minimumDistance: 1)
-                .onChanged { _ in if !measuring { model.shell?.dragWorkspace(resize: true) } }
-                .onEnded { _ in model.shell?.endWorkspaceDrag() })
-            .help(T("Resize", table: "Views"))
-            .accessibilityHidden(true)
-    }
-
     /// Everyday starters for the empty conversation (keys in Views.strings).
     /// Shown as cards with a picture each (UI-FIXPLAN 5.2): easier to hit and to scan than a list of links.
     struct Example: Hashable { let text: String; let symbol: String }
     static var examples: [Example] {
-        [Example(text: T("Where is my rental agreement?", table: "Views"), symbol: "magnifyingglass"),
-         Example(text: T("What’s on my calendar tomorrow?", table: "Views"), symbol: "calendar"),
+        [Example(text: T("Explain a letter for me: what it wants and by when", table: "Views"), symbol: "envelope.open"),
+         Example(text: T("Where is my rental agreement?", table: "Views"), symbol: "magnifyingglass"),
          Example(text: T("Tidy up my Downloads folder", table: "Views"), symbol: "folder"),
          Example(text: T("Remind me tomorrow morning to take out the paper recycling", table: "Views"), symbol: "bell")]
     }
@@ -704,6 +663,7 @@ struct ConversationWorkspace: View {
                     }
                 }
             }
+            if UserDefaults.standard.bool(forKey: Dictation.enabledKey) { DictationStrip(dictation: model.dictation) }
             HStack(alignment: .bottom, spacing: 10) {
                 Button { model.chooseFolder() } label: { Image(systemName: "plus").foregroundStyle(Theme.accent).frame(width: 28, height: 32) }
                     .buttonStyle(.plain).accessibilityLabel(T("Add Files", table: "Views"))
@@ -716,6 +676,7 @@ struct ConversationWorkspace: View {
                         return .handled
                     }
                     .onSubmit { model.route(model.query) }.padding(.vertical, 8)
+                if UserDefaults.standard.bool(forKey: Dictation.enabledKey) { DictationButton(dictation: model.dictation) }
                 if chat.isRunning {
                     Button { model.stopChat() } label: { Image(systemName: "stop.fill").frame(width: 32, height: 32) }
                         .buttonStyle(.plain).accessibilityLabel(T("Stop Answering", table: "Views"))

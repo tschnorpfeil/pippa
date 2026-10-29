@@ -45,6 +45,13 @@ test("mixed requests, skills, native writes and unknown requests retain all capa
   ])
     assert.deepEqual(scopedTools(text, all), all, text);
 });
+test("chart requests retain every tool, so make_chart stays declared", () => {
+  for (const text of [
+    "Mach aus den Rechnungen ein Diagramm.",
+    "Draw a chart of this table.",
+  ])
+    assert.deepEqual(scopedTools(text, all), all, text);
+});
 test("requesting an online lookup alongside a document retains both tools", () => {
   const names = scopedTools(
     "Meine Hausratversicherung: ist die Kündigungsfrist noch drin? Schau auch nach, wie man kündigt.",
@@ -125,4 +132,11 @@ test("a scope without the expansion tool retains all of its approved readers", (
     "mcp__pippa__mail_search",
   ];
   assert.deepEqual(scopedTools("Summarize this letter.", readers), readers);
+});
+
+test("remembering document workflows retains save_skill without an expansion round trip", () => {
+  for (const prompt of ["Merk dir diesen Ablauf für Rechnungen", "Remember how to compare these documents", "Diesen Rechnungsablauf als Skill behalten"]) {
+    const tools = ["read", "save_skill", "remember", "pippa_more_tools"];
+    assert.deepEqual(scopedTools(prompt, tools), tools);
+  }
 });

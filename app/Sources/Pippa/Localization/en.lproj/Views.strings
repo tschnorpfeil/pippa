@@ -242,7 +242,7 @@
 "Copy text" = "Copy text";
 "For example:" = "For example:";
 "Tidy up my Downloads folder" = "Tidy up my Downloads folder";
-"What’s on my calendar tomorrow?" = "What’s on my calendar tomorrow?";
+"Explain a letter for me: what it wants and by when" = "Explain a letter for me: what it wants and by when";
 "Where is my rental agreement?" = "Where is my rental agreement?";
 "Remind me tomorrow morning to take out the paper recycling" = "Remind me tomorrow morning to take out the paper recycling";
 "Puts this sentence into the input field" = "Puts this sentence into the input field";
@@ -300,3 +300,66 @@
 "Reminders access is off for Pippa. You can change that in System Settings." = "Reminders access is off for Pippa. You can change that in System Settings.";
 "Opens the matching privacy setting. Your request stays here and is not retried automatically." = "Opens the matching privacy setting. Your request stays here and is not retried automatically.";
 "Your request stays here. Nothing is retried automatically." = "Your request stays here. Nothing is retried automatically.";
+
+/* Conversation rails (ConversationWindow.swift, ConversationSessionRail.swift, ConversationDetailRail.swift) */
+"Conversations" = "Conversations";
+"Today" = "Today";
+"Yesterday" = "Yesterday";
+"Previous 7 Days" = "Previous 7 Days";
+"Older" = "Older";
+"Rename…" = "Rename…";
+"Delete…" = "Delete…";
+"Pippa is working" = "Pippa is working";
+"You can switch when Pippa is done." = "You can switch when Pippa is done.";
+"Show Conversations" = "Show Conversations";
+"Hide Conversations" = "Hide Conversations";
+"Show Conversation Details" = "Show Conversation Details";
+"Hide Conversation Details" = "Hide Conversation Details";
+"Files in Use" = "Files in Use";
+"Results" = "Results";
+"Waiting for your message" = "Waiting for your message";
+"Drop files here to use them in this conversation." = "Drop files here to use them in this conversation.";
+"Files, drafts, events and reminders Pippa makes in this conversation show up here." = "Files, drafts, events and reminders Pippa makes in this conversation show up here.";
+"Web pages Pippa reads for this conversation show up here." = "Web pages Pippa reads for this conversation show up here.";
+"Prepared file" = "Prepared file";
+"Created by Pippa" = "Created by Pippa";
+"Changed by Pippa" = "Changed by Pippa";
+"From a task" = "From a task";
+"Draft in Pippa · not sent" = "Draft in Pippa · not sent";
+"Draft in Mail · not sent" = "Draft in Mail · not sent";
+"In Calendar" = "In Calendar";
+"In Reminders" = "In Reminders";
+"Show in Conversation" = "Show in Conversation";
+"Copy Link" = "Copy Link";
+"Email without subject" = "Email without subject";
+
+// Chart card under an answer (ChartCardView.swift).
+"Save as Picture…" = "Save as Picture…";
+"Couldn’t save the picture. Please try again." = "Couldn’t save the picture. Please try again.";
+"Chart of %@" = "Chart of %@";
+
+// Conversation rails and chart card: the more menu on a rail row, first-run hints, charts under Results, copying a chart.
+"More" = "More";
+"Your conversations will show up here." = "Your conversations will show up here.";
+"Choose Files…" = "Choose Files…";
+"Chart" = "Chart";
+"Copy Picture" = "Copy Picture";
+"Couldn’t copy the picture. Please try again." = "Couldn’t copy the picture. Please try again.";
+
+// Filled form card under an answer (FilledFormCardView.swift).
+"Your form is filled in" = "Your form is filled in";
+"Answers filled in: %lld" = "Answers filled in: %lld";
+"Still empty: %@" = "Still empty: %@";
+"Please check every answer before you sign and send it. The original is unchanged." = "Please check every answer before you sign and send it. The original is unchanged.";
+"This file is no longer available. Ask me to fill in the form again." = "This file is no longer available. Ask me to fill in the form again.";
+"Couldn’t save the copy there. Please choose another place." = "Couldn’t save the copy there. Please choose another place.";
+"Dictate" = "Dictate";
+"Stop Dictating and Insert" = "Stop Dictating and Insert";
+"Listening…" = "Listening…";
+"⏎ inserts · esc discards" = "⏎ inserts · esc discards";
+"Speak instead of typing. Everything stays on this Mac." = "Speak instead of typing. Everything stays on this Mac.";
+"Pippa may not use the microphone. You can allow it in System Settings → Privacy & Security → Microphone." = "Pippa may not use the microphone. You can allow it in System Settings → Privacy & Security → Microphone.";
+"Pippa may not use speech recognition. You can allow it in System Settings → Privacy & Security → Speech Recognition." = "Pippa may not use speech recognition. You can allow it in System Settings → Privacy & Security → Speech Recognition.";
+"Your Mac can’t understand this language offline yet. Turn on Dictation in System Settings → Keyboard, then try again." = "Your Mac can’t understand this language offline yet. Turn on Dictation in System Settings → Keyboard, then try again.";
+"No microphone found." = "No microphone found.";
+"Dictation stopped. Please try again." = "Dictation stopped. Please try again.";

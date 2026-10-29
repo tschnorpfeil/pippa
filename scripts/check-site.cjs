@@ -1,5 +1,5 @@
 // Run with node scripts/check-site.cjs. No packages or browser required.
-// Drag geometry of the hero demo (site/pippaDrag.js), then the content gate for the homepage:
+// Drag geometry model (site/pippaDrag.js; the scripted homepage demo does not load it), then the content gate for the homepage:
 // German and English stay in step, promises stay honest, nothing external is loaded.
 const assert = require('node:assert/strict');
 const { sample } = require('../site/pippaDrag.js');
@@ -46,7 +46,7 @@ const text = html => html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/st
 const count = (html, re) => (html.match(re) || []).length;
 
 // Same structure in both languages.
-for (const re of [/<section\b/g, /<h2\b/g, /<h3\b/g, /<li class="sit"/g, /<details\b/g, /role="img"/g, /class="btn[^"]*dl/g, /<dt>/g]) {
+for (const re of [/<section\b/g, /<h2\b/g, /<h3\b/g, /<article class="job"/g, /data-play="/g, /data-k="/g, /<tr\b/g, /<details\b/g, /role="img"/g, /class="btn[^"]*dl/g]) {
   assert.equal(count(pages.de, re), count(pages.en, re), `DE and EN differ in ${re}`);
 }
 const ids = html => [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]).filter(id => id !== 'language').sort();
@@ -60,6 +60,7 @@ for (const [lang, html] of Object.entries(pages)) {
   levels.reduce((prev, l) => { assert.ok(l <= prev + 1, `${lang}: heading level skipped (h${prev} → h${l})`); return l; }, 1);
   // Every illustration has a description.
   for (const m of html.matchAll(/<figure[^>]*>/g)) assert.match(m[0], /role="img" aria-label="[^"]{20,}"/, `${lang}: figure without description`);
+  for (const m of html.matchAll(/<[a-z]+\b[^>]*\brole="img"[^>]*>/g)) assert.match(m[0], /aria-label="[^"]{20,}"/, `${lang}: illustration without description`);
   // Nothing is loaded from elsewhere; only links point outward.
   assert.doesNotMatch(html, /\bsrc="(https?:)?\/\//, `${lang}: external script or image`);
   for (const m of html.matchAll(/<link\b[^>]*href="(https?:)?\/\/[^>]*>/g)) {

@@ -32,6 +32,18 @@ setenv("PIPPA_CHECK_TRASH", root.appendingPathComponent("Papierkorb").path, 1)
 // Checks never depend on this Mac's system model (Apple Intelligence on or off): tidying uses recordings or nothing.
 setenv("PIPPA_NO_SYSTEM_MODEL", "1", 1)
 
+if ProcessInfo.processInfo.environment["PIPPA_FORM_FILL_CHECKS"] == "1" {
+    await runFormFillChecks()
+    print(failures == 0 ? "Form fill checks passed." : "Form fill checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
+if ProcessInfo.processInfo.environment["PIPPA_CHART_CHECKS"] == "1" {
+    await runChartChecks()
+    print(failures == 0 ? "Chart checks passed." : "Chart checks failed.")
+    exit(failures == 0 ? 0 : 1)
+}
+
 if ProcessInfo.processInfo.environment["PIPPA_SOURCE_EXPOSURE_CHECKS"] == "1" {
     runSourceExposureChecks()
     print(failures == 0 ? "Source exposure checks passed." : "Source exposure checks failed.")
@@ -1318,7 +1330,9 @@ runChatContextChecks()
 await runP0ContextChecks()
 runPromptAttachmentChecks()
 runPasteChecks()
+runDictationChecks()
 runConversationReopenChecks()
+runConversationRailChecks()
 runTopicBoundaryChecks()
 runPillPlacementChecks()
 await runInferenceChecks()
@@ -1338,6 +1352,7 @@ await runTrayChecks()
 await runDurableJobChecks()
 await runFilePreparationChecks()
 await runMCPFilePreparationChecks()
+await runFormFillChecks()
 await runMorningBriefingChecks()
 await runAgentChangeChecks()
 runActionChecks()
@@ -1346,6 +1361,7 @@ runAnswerChecks()
 await runTrayFlowChecks()
 await runLetterChecks()
 await runSheetChecks()
+await runChartChecks()
 await runSubscriptionChecks()
 await runAgentBridgeChecks()
 await runCalendarChecks()

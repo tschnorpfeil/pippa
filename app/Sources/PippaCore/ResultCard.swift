@@ -10,6 +10,8 @@ public enum ResultCard: Codable, Sendable, Equatable {
     case reminders(ReminderCard)
     case web(WebSourcesCard)
     case preparedFiles(PreparedFilesCard)
+    case chart(ChartCard)
+    case filledForm(FilledFormCard)
 }
 
 /// Mails a search found: sender, subject, date, the start of the text; a click opens the mail in Mail.

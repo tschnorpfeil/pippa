@@ -182,4 +182,16 @@ func runActionChecks() {
         let expected: [String] = ["make-one-pdf", "extract-text"]
         return offered(scans, rows + other) == expected
     }
+    // Skills the person saved (save_skill, runtime/pippa-tools/skill-save.ts): what happened, and the person's no as theirs.
+    check("Receipt: a saved skill, a refused one and a declined one each read honestly") {
+        func line(_ outcome: String) -> String { ActionReceipt.Item(action: "skill", outcome: outcome, name: "x").line(language: "de") }
+        return line("done") == "Als Ablauf gemerkt: x"
+            && line("blocked") == "Nicht als Ablauf gemerkt: x (hat nicht geklappt)"
+            && line("declined") == "Nicht als Ablauf gemerkt: x (du hast abgelehnt)"
+            && ActionReceipt.Item(action: "skill", outcome: "done", name: "x").line(language: "en") == "Steps remembered: x"
+    }
+    check("Work step: saving a skill is said in everyday words") {
+        let step = WorkStepPhrase.step(tool: "save_skill", arguments: "{\"name\":\"x\"}", home: "/Users/test", language: "de")
+        return step?.text == "Merke mir den Ablauf" && step?.kind == .memory
+    }
 }
