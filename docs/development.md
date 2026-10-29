@@ -275,7 +275,7 @@ node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs   # Pippa'
 node --test runtime/pippa-auth/*.test.mjs                               # ChatGPT sign-in helper (no network)
 (cd runtime/pippa-web && npm ci --ignore-scripts && npm test)           # web access (loads pi-web-access in the real Pi)
 node --test runtime/pippa-local-server/test/autostart.test.mjs          # terminal autostart with a fake llama-server
-node scripts/check-site.cjs                                             # website drag behaviour
+node scripts/check-site.cjs                                             # website content and mark behavior
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/tests/test_release.py         # appcast and release metadata
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/tests/test_usability_fixtures.py  # synthetic test files, de and en
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first
@@ -496,7 +496,7 @@ does not collect usage analytics. Keep the website's privacy description aligned
 
 ```sh
 python3 -m http.server 8088 --directory site
-node scripts/check-site.cjs           # drag behaviour, bilingual content, demo Pause/Resume and static reduced motion
+node scripts/check-site.cjs           # drag geometry, bilingual content, static answer card and paused mark rendering
 node scripts/check-site-launch.cjs    # publication gate: required files; fails while the legal pages are unfinished
 ```
 
@@ -507,8 +507,8 @@ carried over to `site/en/index.html`.
 Both language URLs must stay directly accessible. Use explicit language links and reciprocal canonical/hreflang
 metadata, without browser-language redirects. Keep titles, descriptions and app structured data consistent with
 visible, released capabilities. Describe concrete outcomes; do not add invented ratings or promise search rankings.
-The illustrated demo is not a recording of a live AI run. Pause must freeze its scene; reduced motion shows a static
-result selected by the visitor. Inspect both locales at desktop and narrow widths after changing the layout.
+The illustrated answer is not a recording of a live AI run. Reduced motion keeps the marks static. Inspect both locales
+at desktop and narrow widths after changing the layout.
 
 References: [Google's multilingual guidance](https://developers.google.com/search/docs/specialty/international/managing-multi-regional-sites),
 [title links](https://developers.google.com/search/docs/appearance/title-link) and
