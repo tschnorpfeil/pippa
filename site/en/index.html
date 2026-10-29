@@ -91,6 +91,11 @@
   ]
 }
 </script>
+<script>
+/* The hero tells its story only when it can move: without JS or with reduced motion the window shows its final state. */
+(()=>{const r=document.documentElement;if(matchMedia('(prefers-reduced-motion: reduce)').matches||!('IntersectionObserver' in window)||!Element.prototype.animate)return;
+r.classList.add('fx');addEventListener('load',()=>setTimeout(()=>{if(!r.classList.contains('fx-ok'))r.classList.remove('fx')},300))})();
+</script>
 <style>
 /* Pippa's homepage: a white page, one idea per section, one built visual each.
  * The window under the hero is Pippa's own, rebuilt from Theme.swift and the conversation rails (1 pt = 1 px). */
@@ -156,7 +161,7 @@ strong, b { font-weight: 600; }
 .link2 .ic { width: 12px; height: 12px; stroke-width: 2; }
 
 /* Hero */
-.hero { text-align: center; padding: 76px 0 0; }
+.hero { position: relative; text-align: center; padding: 76px 0 0; }
 .badge { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; padding: 4px 12px 4px 5px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 12.5px; font-weight: 500; color: var(--ink-2); background: #fff; box-shadow: 0 1px 2px rgb(17 24 39 / .04); }
 .badge i { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-wash); color: var(--accent); }
 .badge .ic { width: 11px; height: 11px; stroke-width: 2.4; }
@@ -169,7 +174,12 @@ strong, b { font-weight: 600; }
 
 /* The product under the hero */
 .product { position: relative; isolation: isolate; width: min(1180px, calc(100% - 64px)); margin: 60px auto 0; }
-.glow { position: absolute; z-index: -1; left: 50%; top: -40px; width: 140%; height: 520px; transform: translateX(-50%); pointer-events: none; background: radial-gradient(50% 50% at 50% 50%, rgb(0 91 205 / .10), rgb(0 91 205 / .03) 55%, transparent 75%); }
+/* Light spilling from under the window, breathing slowly; it drifts a little against the window's tilt. */
+.glow { position: absolute; z-index: -1; inset: -80px -96px -120px; pointer-events: none; }
+.glow::before, .glow::after { content: ""; position: absolute; inset: 0; will-change: opacity, transform; }
+.glow::before { background: radial-gradient(58% 48% at 50% 58%, rgb(0 91 205 / .11), rgb(0 91 205 / .045) 50%, transparent 74%); animation: breathe 9s ease-in-out infinite; }
+.glow::after { background: radial-gradient(40% 15% at 50% 88%, rgb(24 118 232 / .26), rgb(24 118 232 / .08) 52%, transparent 82%), radial-gradient(62% 26% at 50% 84%, rgb(0 91 205 / .07), transparent 70%); animation: breathe 9s ease-in-out -4.5s infinite; }
+@keyframes breathe { 0%, 100% { opacity: .6; transform: scale(.975); } 50% { opacity: 1; transform: scale(1.015); } }
 .caption { margin-top: 18px; font-size: 12.5px; color: var(--faint); text-align: center; }
 
 .pw {
@@ -180,6 +190,7 @@ strong, b { font-weight: 600; }
   border-radius: 26px; background: #f8f9fb; color: var(--ink); text-align: left; letter-spacing: -.003em;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
   box-shadow: 0 0 0 1px rgb(22 34 56 / .11), 0 3px 8px rgb(22 34 56 / .04), 0 30px 70px -18px rgb(22 34 56 / .30);
+  transform-origin: 50% 60%;
 }
 .pw::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .6); z-index: 5; }
 .pw .ic { stroke-width: 1.6; }
@@ -245,12 +256,35 @@ strong, b { font-weight: 600; }
   background: linear-gradient(115deg, transparent 40%, rgb(80 60 30 / .16)),
     repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .26) 3px 4px) 18% 36% / 64% 46% no-repeat,
     linear-gradient(rgb(60 60 70 / .55), rgb(60 60 70 / .55)) 18% 14% / 34% 3px no-repeat, #f4efe4; }
+/* Phone photos of a page lying on a desk, and a PDF page */
+.thumb.ph { background: linear-gradient(160deg, #b2a48e, #776c5c); }
+.thumb.ph.b { background: linear-gradient(200deg, #a7aab0, #6c7079); }
+.thumb.ph::before { content: ""; position: absolute; inset: 12% 15% 10% 13%; border-radius: 1px; transform: rotate(-5deg); box-shadow: 0 1px 3px rgb(0 0 0 / .32);
+  background: linear-gradient(115deg, transparent 45%, rgb(80 60 30 / .14)),
+    repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .28) 3px 4px) 18% 40% / 64% 42% no-repeat,
+    linear-gradient(rgb(60 60 70 / .55), rgb(60 60 70 / .55)) 18% 14% / 36% 2px no-repeat, #f6f1e6; }
+.thumb.ph.b::before { transform: rotate(4deg); inset: 10% 13% 12% 15%; }
+.thumb.pd { font-size: 6px; background: repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .2) 3px 4px) 20% 34% / 60% 36% no-repeat,
+    linear-gradient(rgb(60 60 70 / .5), rgb(60 60 70 / .5)) 20% 14% / 40% 2px no-repeat, #fff; }
+.thumb.pd::after { content: "PDF"; position: absolute; left: 0; right: 0; bottom: 13%; padding: .25em 0; font: 700 1em/1 -apple-system, system-ui, sans-serif; color: #fff; background: #e5372b; text-align: center; }
 .doc20 { position: relative; display: block; width: 16px; height: 20px; border-radius: 2.5px; background: #fff; box-shadow: 0 0 0 .5px rgb(0 0 0 / .22), 0 1px 1.5px rgb(0 0 0 / .14); }
 .doc20::after { content: "PDF"; position: absolute; left: 0; right: 0; bottom: 3px; padding: 1px 0; font: 700 5px/1 -apple-system, system-ui, sans-serif; color: #fff; background: #e5372b; text-align: center; }
 
 /* The one reveal: Pippa's answer appears once */
-.rv-wait .rv { opacity: 0; transform: translateY(6px); }
+.fx .pw:not(.rv-go) .rv { opacity: 0; transform: translateY(6px); }
 .rv-go .rv { opacity: 1; transform: none; transition: opacity .5s ease var(--d, 0s), transform .7s cubic-bezier(.2, .8, .2, 1) var(--d, 0s); }
+
+/* The hero story: four files glide into Pippa's window and become the attachments of the message she answers.
+ * Only with .fx (set before first paint when motion is allowed); every moving part uses transform and opacity. */
+.fx-drop { display: none; position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.fx .fx-drop { display: block; }
+.fi { position: absolute; left: 0; top: 0; width: 124px; display: flex; flex-direction: column; align-items: center; gap: 7px; opacity: 0; will-change: transform, opacity; }
+.fi .thumb { width: 60px; height: 79px; border-radius: 8px; box-shadow: 0 0 0 .5px rgb(0 0 0 / .16), 0 1px 2px rgb(0 0 0 / .1), 0 12px 24px -12px rgb(17 24 39 / .45); }
+.fi .thumb.pd { font-size: 9.5px; }
+.fi b { padding: 1px 7px; border-radius: 5px; background: rgb(255 255 255 / .9); font-size: 11.5px; font-weight: 500; line-height: 1.45; color: var(--ink-2); white-space: nowrap; will-change: opacity; }
+.fx .pw-user, .fx .pw-used .pw-item { transition: opacity .45s ease; }
+.fx .pw:not(.u-in) .pw-user, .fx .pw:not(.u-in) .pw-used .pw-item { opacity: 0; }
+.fx .pw-attach .thumb:not(.got) { opacity: 0; }
 
 /* Benefits */
 .benefits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; width: min(1040px, calc(100% - 64px)); margin: 0 auto; padding: 96px 0 8px; text-align: center; }
@@ -423,6 +457,11 @@ strong, b { font-weight: 600; }
   .pw { border-radius: 20px; }
   .pw-head { height: 56px; padding: 0 14px; }
   .pw-answer { font-size: 14.5px; }
+  .glow { inset: -50px -24px -80px; }
+  .fi { width: 56px; }
+  .fi .thumb { width: 44px; height: 58px; border-radius: 6px; }
+  .fi .thumb.pd { font-size: 7px; }
+  .fi b { display: none; }
   .benefits { grid-template-columns: 1fr; gap: 26px; padding-top: 64px; }
   .benefits h3 { font-size: 20px; }
   .benefits p { font-size: 13.5px; }
@@ -461,7 +500,7 @@ strong, b { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .btn, .site-head, .faq summary svg .v { transition: none; }
-  .rv-wait .rv { opacity: 1; transform: none; }
+  .glow::before, .glow::after { animation: none; opacity: .85; }
 }
 </style>
 </head>
@@ -511,7 +550,7 @@ strong, b { font-weight: 600; }
 
   <div class="product">
     <div class="glow" aria-hidden="true"></div>
-    <div class="pw" id="win" role="img" aria-label="Example with a made-up letter: Pippa’s window. On the left her conversations, in the middle her answer to two photos of a letter from the German tax office: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. Below it the finished PDF. On the right the results: the PDF, a reminder and a reply drafted in Mail.">
+    <div class="pw" id="win" role="img" aria-label="Example with a made-up letter: Pippa’s window. On the left her conversations, in the middle her answer to photos of a letter from the German tax office and a bank statement: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. Below it the finished PDF. On the right the results: the PDF, a reminder and a reply drafted in Mail.">
       <div class="pw-head" aria-hidden="true">
         <canvas id="winMark"></canvas>
         <div class="pw-title"><b>Pippa</b><small>Letter from the tax office</small></div>
@@ -536,7 +575,7 @@ strong, b { font-weight: 600; }
         <div class="pw-chat">
           <div class="pw-scroll">
             <div class="pw-user">
-              <div class="pw-attach"><span class="thumb" style="transform:rotate(-2deg)"></span><span class="thumb" style="transform:rotate(1.5deg)"></span></div>
+              <div class="pw-attach"><span class="thumb" style="transform:rotate(-2deg)"></span><span class="thumb ph" style="transform:rotate(1.5deg)"></span><span class="thumb ph b" style="transform:rotate(-1deg)"></span><span class="thumb pd" style="transform:rotate(2deg)"></span></div>
               <p>What do they want from me? And please make a PDF of it.</p>
             </div>
             <div class="pw-answer">
@@ -557,10 +596,12 @@ strong, b { font-weight: 600; }
           </div>
         </div>
         <div class="pw-detail">
-          <div class="pw-sec">
-            <div class="h">Files in Use <span>2</span></div>
-            <div class="pw-item"><i><span class="thumb" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Brief-Seite-1.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-            <div class="pw-item"><i><span class="thumb" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Brief-Seite-2.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+          <div class="pw-sec pw-used">
+            <div class="h">Files in Use <span>4</span></div>
+            <div class="pw-item"><i><span class="thumb" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Tax-letter.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+            <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2041.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+            <div class="pw-item"><i><span class="thumb ph b" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2042.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+            <div class="pw-item"><i><span class="doc20"></span></i><div class="tx"><b>Bank-statement.pdf</b><span class="links"><span>Show in Finder</span></span></div></div>
           </div>
           <div class="pw-sec">
             <div class="h">Results <span>3</span></div>
@@ -576,6 +617,12 @@ strong, b { font-weight: 600; }
       </div>
     </div>
     <p class="caption">Example with a made-up letter</p>
+  </div>
+  <div class="fx-drop" aria-hidden="true">
+    <div class="fi"><span class="thumb"></span><b>Tax-letter.jpg</b></div>
+    <div class="fi"><span class="thumb ph"></span><b>IMG_2041.jpg</b></div>
+    <div class="fi"><span class="thumb ph b"></span><b>IMG_2042.jpg</b></div>
+    <div class="fi"><span class="thumb pd"></span><b>Bank-statement.pdf</b></div>
   </div>
 </section>
 
@@ -739,11 +786,59 @@ const mk=(c,size,o)=>c&&window.PippaMark?new PippaMark(c,{size,state:'ruht',aliv
 document.querySelectorAll('canvas[data-mark]').forEach(c=>mk(c,+c.dataset.mark));
 const w=mk(document.getElementById('winMark'),32),e=mk(document.getElementById('endMark'),44);
 const head=document.getElementById('head'),sc=()=>head.toggleAttribute('data-scrolled',scrollY>8);sc();addEventListener('scroll',sc,{passive:true});
-const win=document.getElementById('win');
-if(win&&!RM&&'IntersectionObserver' in window){win.classList.add('rv-wait');
-new IntersectionObserver((es,o)=>{if(!es[0].isIntersecting)return;o.disconnect();w.setState('arbeitet');
-requestAnimationFrame(()=>requestAnimationFrame(()=>win.classList.add('rv-go')));
-setTimeout(()=>w.setState('offen'),1900);setTimeout(()=>w.setState('ruht'),3600)},{threshold:.3}).observe(win)}
+const win=document.getElementById('win'),root=document.documentElement;
+/* The hero story, once, when the window comes into view: four files glide on curved paths into the message,
+   Pippa works, her answer appears and she smiles. Then the window leans a little toward a mouse pointer. */
+if(win&&root.classList.contains('fx')){root.classList.add('fx-ok');
+const hero=win.closest('.hero'),drop=hero.querySelector('.fx-drop'),glow=hero.querySelector('.glow');
+const items=[...drop.children],slots=[...win.querySelectorAll('.pw-attach .thumb')];
+const spring=t=>{const k=6.2;return(1-(1+k*t)*Math.exp(-k*t))/(1-(1+k)*Math.exp(-k))};
+const bez=(a,b,c,d,u)=>{const v=1-u;return v*v*v*a+3*v*v*u*b+3*v*u*u*c+u*u*u*d};
+const play=()=>{
+  const H=hero.getBoundingClientRect(),W=H.width,phone=W<=600;
+  const c=r=>({x:r.left+r.width/2-H.left,y:r.top+r.height/2-H.top});
+  const ink=el=>{const g=document.createRange();g.selectNodeContents(el);return g.getBoundingClientRect()},h1=ink(hero.querySelector('h1')),lede=ink(hero.querySelector('.lede')),act=hero.querySelector('.act').getBoundingClientRect(),wt=win.getBoundingClientRect().top-H.top;
+  const clampX=x=>Math.max(phone?52:74,Math.min(W-(phone?52:74),x));
+  const starts=phone
+    ?[.09,.25,.75,.91].map((f,i)=>({x:W*f,y:wt-34-(i%3?16:0),r:[-9,7,-6,8][i]}))
+    :[{x:clampX(h1.left-H.left-92),y:h1.top-H.top+h1.height*.42,r:-9},{x:clampX(h1.right-H.left+86),y:h1.top-H.top+6,r:8},
+      {x:clampX(lede.right-H.left+118),y:act.top-H.top+18,r:-6},{x:clampX(lede.left-H.left-124),y:act.top-H.top+44,r:7}];
+  const T0=phone?420:640,GAP=phone?120:140,DUR=phone?1000:1120;let last=0;
+  items.forEach((el,i)=>{
+    const th=el.firstElementChild,lab=el.lastElementChild,slot=slots[i];if(!slot)return;
+    const ox=el.offsetWidth/2,oy=th.offsetTop+th.offsetHeight/2;el.style.transformOrigin=ox+'px '+oy+'px';
+    const E=c(slot.getBoundingClientRect()),S=starts[i],s1=slot.offsetWidth/th.offsetWidth,r1=+(slot.style.transform.match(/-?[\d.]+/)||[0])[0];
+    const side=Math.sign(S.x-E.x)||1,dy=E.y-S.y;
+    const P1=phone?{x:S.x+side*8,y:S.y-30}:{x:S.x+side*46,y:S.y-46},P2={x:E.x+(phone?0:-side*18),y:E.y-Math.min(phone?90:230,Math.max(60,dy*.62))};
+    const appear=i*70,go=T0+i*GAP,end=go+DUR;last=Math.max(last,end);
+    const f=(x,y,r,s,o,off)=>({transform:`translate(${(x-ox).toFixed(1)}px,${(y-oy).toFixed(1)}px) rotate(${r.toFixed(2)}deg) scale(${s.toFixed(4)})`,opacity:o,offset:off});
+    const k=[f(S.x,S.y+10,S.r,.88,0,0),f(S.x,S.y,S.r,1,1,Math.min(appear+300,go-40)/end),f(S.x,S.y,S.r,1,1,go/end)];
+    for(let n=1;n<=24;n++){const t=n/24,u=spring(t),lift=1+.07*Math.sin(Math.PI*Math.min(1,t*2.2));
+      const g=Math.min(1,Math.max(0,(u-.08)/.92)),s=(1+(s1-1)*g*g*(3-2*g))*lift;
+      k.push(f(bez(S.x,P1.x,P2.x,E.x,u),bez(S.y,P1.y,P2.y,E.y,u),S.r+(r1-S.r)*u,t===1?s1:s,1,(go+DUR*t)/end))}
+    el.animate(k,{duration:end,fill:'both',easing:'linear'}).finished.then(()=>{slot.classList.add('got');el.style.visibility='hidden'});
+    lab.animate([{opacity:1},{opacity:1,offset:(go+DUR*.08)/(go+DUR*.36)},{opacity:0}],{duration:go+DUR*.36,fill:'both'})});
+  setTimeout(()=>win.classList.add('u-in'),T0+DUR*.62);
+  setTimeout(()=>w.setState('arbeitet'),last-60);
+  setTimeout(()=>win.classList.add('rv-go'),last+120);
+  setTimeout(()=>w.setState('offen'),last+1950);
+  setTimeout(()=>{drop.remove();tilt()},last+200);
+  setTimeout(()=>w.setState('ruht'),last+5200);
+};
+/* A slab of glass under a lamp: at most about 3 degrees, mouse and trackpad only, eased toward the pointer. */
+const tilt=()=>{if(!matchMedia('(hover: hover) and (pointer: fine)').matches)return;
+  let tx=0,ty=0,cx=0,cy=0,raf=0,box=null;
+  const step=()=>{cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;const done=Math.abs(tx-cx)<.004&&Math.abs(ty-cy)<.004;if(done){cx=tx;cy=ty}
+    win.style.transform=cx||cy?`perspective(1800px) rotateX(${cy.toFixed(3)}deg) rotateY(${cx.toFixed(3)}deg)`:'';
+    if(glow)glow.style.transform=cx||cy?`translate(${(-cx*7).toFixed(1)}px,${(cy*7).toFixed(1)}px)`:'';
+    raf=done?0:requestAnimationFrame(step)};
+  const go=()=>{if(!raf)raf=requestAnimationFrame(step)};
+  addEventListener('scroll',()=>{box=null},{passive:true});addEventListener('resize',()=>{box=null});
+  hero.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;
+    if(!box){const r=win.getBoundingClientRect();box={x:r.left+r.width/2,y:r.top+r.height/2,w:r.width/2,h:r.height/2}}
+    const cl=v=>Math.max(-1,Math.min(1,v));tx=cl((e.clientX-box.x)/box.w)*2.8;ty=-cl((e.clientY-box.y)/box.h)*2.2;go()},{passive:true});
+  hero.addEventListener('pointerleave',()=>{tx=ty=0;go()})};
+new IntersectionObserver((es,o)=>{if(!es[0].isIntersecting)return;o.disconnect();requestAnimationFrame(play)},{threshold:.2}).observe(win)}
 document.querySelectorAll('a.btn.dl:not(.quiet)').forEach(a=>{const m=a.id==='heroDl'?w:e;
 ['pointerenter','focus'].forEach(t=>a.addEventListener(t,()=>m.setState('offen')));
 ['pointerleave','blur'].forEach(t=>a.addEventListener(t,()=>m.setState('ruht')))});
