@@ -49,8 +49,9 @@ final class Dictation: ObservableObject {
             cancel()
         case .listening:
             phase = .finishing
-            request?.endAudio()
+            // The tap goes first, so no buffer reaches the request after its end.
             stopAudio()
+            request?.endAudio()
             let attempt = generation
             // The final result usually arrives sooner; otherwise the last partial text is inserted.
             Task { [weak self] in
