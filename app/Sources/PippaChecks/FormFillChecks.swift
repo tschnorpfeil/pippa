@@ -60,7 +60,10 @@ func runFormFillChecks() async {
     let antrag = PDFForm.analyze(german, pages: 1...3)
 
     check("Form fill: blanks of drawn forms get the ids Hob gives them; the boxes are boxes, signatures are marked") {
-        guard let leave, let antrag else { return false }
+        guard let leave, let antrag else {
+            describeForm("Leave request.pdf", leave, at: english); describeForm("Antrag.pdf", antrag, at: german)
+            return false
+        }
         let ids = Set(leave.blanks.map(\.id)), germanIDs = Set(antrag.blanks.map(\.id))
         let expected: Set<String> = ["p1:name-last-name", "p1:name-first-name", "p1:phone", "p1:medical-leave-date-leave-to-begin",
                                      "p1:medical-leave-date-leave-to-end", "p1:intermittent-date-leave-to-begin", "p1:intermittent-date-leave-to-end",
@@ -71,17 +74,31 @@ func runFormFillChecks() async {
         let signatures = Set((leave.blanks + antrag.blanks).filter(\.isSignature).map(\.label))
         let shape = leave.pageCount == 1 && antrag.pageCount == 3 && leave.fields.isEmpty && antrag.fields.isEmpty
             && leave.pages.allSatisfy { !$0.recognized } && antrag.pages.map(\.number) == [1, 2, 3]
-        return shape && ids == expected && germanIDs == expectedGerman && boxes == ["p1:i-agree-to-the-terms", "p1:ich-stimme-zu"]
+        let ok = shape && ids == expected && germanIDs == expectedGerman && boxes == ["p1:i-agree-to-the-terms", "p1:ich-stimme-zu"]
             && signatures == ["Employee Signature", "Unterschrift"]
+        if !ok {
+            explain("pages \(leave.pageCount) and \(antrag.pageCount), fields \(leave.fields.count) and \(antrag.fields.count), recognized \(leave.pages.map(\.recognized)), analyzed \(antrag.pages.map(\.number))")
+            explain("leave request ids missing \(expected.subtracting(ids).sorted()), extra \(ids.subtracting(expected).sorted())")
+            explain("Antrag ids missing \(expectedGerman.subtracting(germanIDs).sorted()), extra \(germanIDs.subtracting(expectedGerman).sorted())")
+            explain("boxes \(boxes), signatures \(signatures.sorted())")
+            describeForm("Leave request.pdf", leave, at: english)
+            describeForm("Antrag.pdf", antrag, at: german)
+        }
+        return ok
     }
 
     check("Form fill: an underlined heading and table borders are not blanks; a page-wide rule is a divider") {
-        guard let leave, let page = leave.pages.first else { return false }
+        guard let leave, let page = leave.pages.first else { describeForm("Leave request.pdf", leave, at: english); return false }
         let heading = page.blanks.contains { $0.kind == .line && abs($0.y - 123) < 3 }
         let borders = page.blanks.contains { $0.kind == .line && (abs($0.y - 270) < 2 || abs($0.y - 380) < 2) }
         let rule = page.blanks.contains { $0.kind == .line && abs($0.y - 600) < 2 && $0.w > 500 }
         let labeledRule = leave.blanks.contains { abs($0.blank.y - 600) < 2 }
-        return !heading && !borders && rule && !labeledRule
+        let ok = !heading && !borders && rule && !labeledRule
+        if !ok {
+            explain("heading found \(heading), borders found \(borders), rule found \(rule), rule labeled \(labeledRule)")
+            describeForm("Leave request.pdf", leave, at: english)
+        }
+        return ok
     }
 
     check("Form fill: ids come from the page alone (another analysis, pages 1...1 or 1...3)") {
@@ -97,41 +114,66 @@ func runFormFillChecks() async {
     // MARK: Answers
 
     check("Form fill: unknown ids, yes on a line, signatures and empty answers are refused; yes ticks a box; an address spreads") {
-        guard let antrag else { return false }
+        guard let antrag else { describeForm("Antrag.pdf", antrag, at: german); return false }
         func plan(_ answers: [String: String]) -> Result<PDFForm.FillPlan, PDFForm.FillProblem> {
             PDFForm.plan(PDFForm.spreadLines(answers, blanks: antrag.blanks), analysis: antrag)
         }
         let valid = antrag.blanks.map(\.id)
-        let unknown = plan(["p9:nope": "x", "p1:name-vorname": "Mustermann, Max"]) == .failure(.unknownIDs(["p9:nope"], valid: valid))
-        let wrong = plan(["p1:geburtsdatum": "ja"]) == .failure(.wrongKind(["p1:geburtsdatum"]))
-        let signature = plan(["p1:unterschrift": "Max Mustermann"]) == .failure(.signature(["p1:unterschrift"]))
-        let empty = plan(["p1:name-vorname": "  ", "p1:geburtsdatum": ""]) == .failure(.nothingToFill)
-        guard case .success(let ticked) = plan(["[p1:ich-stimme-zu]": "ja", "p1:name-vorname": "Mustermann, Max"]),
-              case .success(let declined) = plan(["p1:ich-stimme-zu": "nein", "p1:name-vorname": "Mustermann,\nMax"]) else { return false }
-        let box = ticked.marks.count == 2 && ticked.marks.contains { $0.check && $0.text == "X" && $0.page == 1 }
-            && ticked.stillEmpty.contains("Unterschrift") && !ticked.stillEmpty.contains("Ich stimme zu")
-            && !ticked.stillEmpty.contains("Telefon (tagsüber)")
-        let no = declined.marks.count == 1 && declined.marks.first?.text == "Mustermann, Max" && !declined.stillEmpty.contains("Ich stimme zu")
-        let spread = PDFForm.spreadLines(["p1:strasse-hausnummer": "Musterweg 1, 12345 Köln"], blanks: antrag.blanks)
-            == ["p1:strasse-hausnummer": "Musterweg 1", "p1:strasse-hausnummer-line-2": "12345 Köln"]
-        return unknown && wrong && signature && empty && box && no && spread
+        let unknownPlan = plan(["p9:nope": "x", "p1:name-vorname": "Mustermann, Max"]), wrongPlan = plan(["p1:geburtsdatum": "ja"])
+        let signaturePlan = plan(["p1:unterschrift": "Max Mustermann"]), emptyPlan = plan(["p1:name-vorname": "  ", "p1:geburtsdatum": ""])
+        let unknown = unknownPlan == .failure(.unknownIDs(["p9:nope"], valid: valid))
+        let wrong = wrongPlan == .failure(.wrongKind(["p1:geburtsdatum"]))
+        let signature = signaturePlan == .failure(.signature(["p1:unterschrift"]))
+        let empty = emptyPlan == .failure(.nothingToFill)
+        let tickedPlan = plan(["[p1:ich-stimme-zu]": "ja", "p1:name-vorname": "Mustermann, Max"])
+        let declinedPlan = plan(["p1:ich-stimme-zu": "nein", "p1:name-vorname": "Mustermann,\nMax"])
+        let spreadAnswers = PDFForm.spreadLines(["p1:strasse-hausnummer": "Musterweg 1, 12345 Köln"], blanks: antrag.blanks)
+        let spread = spreadAnswers == ["p1:strasse-hausnummer": "Musterweg 1", "p1:strasse-hausnummer-line-2": "12345 Köln"]
+        var box = false, no = false
+        if case .success(let ticked) = tickedPlan, case .success(let declined) = declinedPlan {
+            box = ticked.marks.count == 2 && ticked.marks.contains { $0.check && $0.text == "X" && $0.page == 1 }
+                && ticked.stillEmpty.contains("Unterschrift") && !ticked.stillEmpty.contains("Ich stimme zu")
+                && !ticked.stillEmpty.contains("Telefon (tagsüber)")
+            no = declined.marks.count == 1 && declined.marks.first?.text == "Mustermann, Max" && !declined.stillEmpty.contains("Ich stimme zu")
+        }
+        let ok = unknown && wrong && signature && empty && box && no && spread
+        if !ok {
+            for (name, passed, result) in [("unknown id", unknown, unknownPlan), ("yes on a line", wrong, wrongPlan),
+                                           ("signature", signature, signaturePlan), ("empty", empty, emptyPlan),
+                                           ("yes in the box", box, tickedPlan), ("no in the box", no, declinedPlan)] where !passed {
+                explain("\(name): \(result)")
+            }
+            if !spread { explain("spread address: \(spreadAnswers.sorted { $0.key < $1.key })") }
+            describeForm("Antrag.pdf", antrag, at: german)
+        }
+        return ok
     }
 
     // MARK: Writing
 
     check("Form fill: the copy has the answers as text boxes; the original's bytes stay the same") {
-        guard let antrag, case .success(let plan) = PDFForm.plan(PDFForm.spreadLines(
+        guard let antrag else { describeForm("Antrag.pdf", antrag, at: german); return false }
+        let planned = PDFForm.plan(PDFForm.spreadLines(
             ["p1:name-vorname": "Mustermann, Max", "p1:geburtsdatum": "01.02.1980", "p1:strasse-hausnummer": "Musterweg 1, 12345 Köln",
-             "p1:ich-stimme-zu": "ja"], blanks: antrag.blanks), analysis: antrag) else { return false }
+             "p1:ich-stimme-zu": "ja"], blanks: antrag.blanks), analysis: antrag)
+        guard case .success(let plan) = planned else {
+            explain("plan: \(planned)")
+            describeForm("Antrag.pdf", antrag, at: german)
+            return false
+        }
         let before = SHA256.hash(data: try Data(contentsOf: german))
         let copy = folder.appendingPathComponent("Antrag gefüllt.pdf")
         let count = try PDFForm.write(plan, source: german, to: copy)
-        guard let filled = PDFDocument(url: copy), let original = PDFDocument(url: german) else { return false }
+        guard let filled = PDFDocument(url: copy), let original = PDFDocument(url: german) else { explain("the copy or the original does not open"); return false }
         let texts = (0..<filled.pageCount).flatMap { filled.page(at: $0)?.annotations ?? [] }.compactMap(\.contents)
         let untouched = (0..<original.pageCount).allSatisfy { original.page(at: $0)?.annotations.isEmpty ?? false }
         let answers = ["Mustermann, Max", "01.02.1980", "Musterweg 1", "12345 Köln", "X"].allSatisfy { texts.contains($0) }
         let after = SHA256.hash(data: try Data(contentsOf: german))
-        return count == 5 && filled.pageCount == 3 && answers && untouched && before == after
+        let ok = count == 5 && filled.pageCount == 3 && answers && untouched && before == after
+        if !ok {
+            explain("placed \(count), pages \(filled.pageCount), texts \(texts), original without annotations \(untouched), same bytes \(before == after)")
+        }
+        return ok
     }
 
     check("Form fill: real form fields get their values; a checkbox is on and exactly one radio option is") {
@@ -155,14 +197,24 @@ func runFormFillChecks() async {
     }
 
     check("Form fill: the list for read_document names ids, labels and kinds; a letter gets none") {
-        guard let leave, let fields = PDFForm.analyze(club, pages: 1...1), let plain = PDFForm.analyze(letter, pages: 1...1) else { return false }
+        let clubAnalysis = PDFForm.analyze(club, pages: 1...1), letterAnalysis = PDFForm.analyze(letter, pages: 1...1)
+        guard let leave, let fields = clubAnalysis, let plain = letterAnalysis else {
+            explain("analyzed: leave request \(leave != nil), club \(clubAnalysis != nil), letter \(letterAnalysis != nil)")
+            return false
+        }
         let blanks = PDFForm.modelSummary(leave)?["blanks"] as? [String] ?? []
         let listed = PDFForm.modelSummary(fields)?["fields"] as? [String] ?? []
         let named = blanks.contains("p1:i-agree-to-the-terms: I agree to the terms (box)")
             && blanks.contains("p1:employee-signature: Employee Signature (signature, leave empty)")
             && blanks.contains("p1:name-last-name: Name / Last name") && listed.contains("f:full_name: Full name (text)")
         let cut = PDFForm.modelSummary(leave, limit: 3)?["truncated"] as? Bool == true
-        return named && cut && plain.blanks.isEmpty && PDFForm.modelSummary(plain) == nil && PDFForm.instructions.contains("mcp__pippa__fill_pdf")
+        let ok = named && cut && plain.blanks.isEmpty && PDFForm.modelSummary(plain) == nil && PDFForm.instructions.contains("mcp__pippa__fill_pdf")
+        if !ok {
+            explain("blanks listed \(blanks), fields listed \(listed), truncated \(cut)")
+            if !plain.blanks.isEmpty { describeForm("Brief.pdf", plain, at: letter) }
+            describeForm("Leave request.pdf", leave, at: english)
+        }
+        return ok
     }
 
     // MARK: MCP, called directly (fill_pdf is not registered until read_document lists blanks)
@@ -186,7 +238,10 @@ func runFormFillChecks() async {
         let result = await PippaMCPFormFill(host: host, turn: turn, scope: turn.writes).call(["path": german.path, "answers": [
             "p1:name-vorname": "Mustermann, Max", "p1:geburtsdatum": "01.02.1980", "p1:ich-stimme-zu": "ja"]])
         let payload = facts(result)
-        guard !result.isError, case .filledForm(let card)? = result.card else { return false }
+        guard !result.isError, case .filledForm(let card)? = result.card else {
+            explain("result \(result.text), receipt \(String(describing: result.receipt))")
+            return false
+        }
         let note = PippaMCPFormFill.readNote(for: result, turnID: turn.id)
         let reported = payload["done"] as? Bool == true && payload["dispatched"] as? Bool == true
             && (payload["data"] as? [String: Any])?["path"] as? String == card.file.path
@@ -196,7 +251,12 @@ func runFormFillChecks() async {
         let receipt = result.receipt?.action == "create" && result.receipt?.outcome == "done" && result.receipt?.turnID == turn.id
             && result.receipt?.name == card.file.lastPathComponent
         let noted = note.turnID == turn.id && note.read && note.card == result.card && note.line == L("Form filled in", table: "MCP")
-        return reported && kept && described && receipt && noted
+        let ok = reported && kept && described && receipt && noted
+        if !ok {
+            explain("reported \(reported), kept \(kept), described \(described), receipt \(receipt), noted \(noted): \(result.text)")
+            explain("card \(card), receipt \(String(describing: result.receipt))")
+        }
+        return ok
     }
 
     await checkAsync("fill_pdf: drafts-only, stopped and refused requests write nothing and report a status read as no effect") {
@@ -254,9 +314,99 @@ func runFormFillChecks() async {
         let back = try JSONDecoder().decode(ResultCard.self, from: JSONEncoder().encode(card))
         let store = try ConversationStore(directory: dir("form-fill-history"))
         let conversation = try store.create()
-        _ = try store.append(ConversationMessage(role: .assistant, text: "Filled in", actions: .init(items: [], cards: [card])), to: conversation.id)
+        // As fill_pdf answers: the card comes with its create receipt (a message keeps no receipt without items).
+        let created = ActionReceipt.Item(action: "create", outcome: "done", name: file.lastPathComponent, reason: "filledForm")
+        _ = try store.append(ConversationMessage(role: .assistant, text: "Filled in", actions: .init(items: [created], cards: [card])),
+                             to: conversation.id)
         let reopened = try ConversationStore(directory: store.fileURL.deletingLastPathComponent())
-        return back == card && reopened.retainedResultFiles() == [file]
+        let retained = reopened.retainedResultFiles()
+        if back != card || retained != [file] { explain("decoded \(back), retained \(retained)") }
+        return back == card && retained == [file]
+    }
+}
+
+// MARK: Diagnostics (printed above a failed check's ✗ line)
+
+/// Forms already described in this run, so a form several failed checks share is printed once.
+nonisolated(unsafe) private var describedForms = Set<String>()
+
+private func explain(_ text: String) { print("    " + text) }
+
+/// What the analysis of a drawn form found, in points with a top-left origin as in PDFForm: labeled blanks, then per
+/// page the text lines, the blanks, and the dark runs the blank detection starts from.
+private func describeForm(_ name: String, _ analysis: PDFForm.Analysis?, at url: URL) {
+    guard describedForms.insert(name).inserted else { explain("\(name): described above"); return }
+    guard let analysis else { explain("\(name): no analysis"); return }
+    explain("\(name): \(analysis.pageCount) page(s), \(analysis.fields.count) field(s), \(analysis.blanks.count) labeled blank(s)")
+    for blank in analysis.blanks {
+        let b = blank.blank
+        explain("  \(blank.id) \"\(blank.label)\"\(blank.isSignature ? " (signature)" : "") \(b.kind.rawValue) \(formRect(b.x, b.y, b.w, b.h))")
+    }
+    let document = PDFDocument(url: url)
+    for page in analysis.pages {
+        explain("  page \(page.number), \(formPoint(page.width)) x \(formPoint(page.height))\(page.recognized ? ", recognized" : "")")
+        for line in page.lines { explain("    text \"\(line.text)\" \(formRect(line.x, line.y, line.w, line.h))") }
+        for blank in page.blanks { explain("    \(blank.kind.rawValue) \(formRect(blank.x, blank.y, blank.w, blank.h))") }
+        if let pdfPage = document?.page(at: page.number - 1) {
+            for segment in darkSegments(pdfPage) { explain("    dark \(segment)") }
+        }
+    }
+}
+
+private func formPoint(_ value: Double) -> String {
+    value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
+}
+
+private func formRect(_ x: Double, _ y: Double, _ w: Double, _ h: Double) -> String {
+    "x \(formPoint(x)) y \(formPoint(y)) w \(formPoint(w)) h \(formPoint(h))"
+}
+
+/// Dark horizontal runs of 28 points or more, with rows stacked, in the page drawn as PDFForm draws it (2 pixels per
+/// point, dark below R+G+B 525, gaps of up to 2 pixels): what line blanks are found from, before borders, underlined
+/// words and labels are sorted out.
+private func darkSegments(_ page: PDFPage) -> [String] {
+    let box = page.bounds(for: .mediaBox), scale = 2.0
+    let w = Int(Double(box.width) * scale), h = Int(Double(box.height) * scale)
+    guard w > 0, h > 0, let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    else { return ["no bitmap"] }
+    ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+    ctx.scaleBy(x: scale, y: scale)
+    ctx.translateBy(x: -box.minX, y: -box.minY)
+    page.draw(with: .mediaBox, to: ctx)
+    guard let data = ctx.data else { return ["no pixels"] }
+    let rowBytes = ctx.bytesPerRow
+    let bytes = data.bindMemory(to: UInt8.self, capacity: rowBytes * h)
+    func level(_ x: Int, _ y: Int) -> Int {
+        let i = y * rowBytes + x * 4
+        return Int(bytes[i]) + Int(bytes[i + 1]) + Int(bytes[i + 2])
+    }
+    var segments: [(y0: Int, y1: Int, x0: Int, x1: Int, darkest: Int)] = []
+    for y in 0..<h {
+        var x = 0
+        while x < w {
+            guard level(x, y) < 525 else { x += 1; continue }
+            let start = x
+            var end = x, gap = 0, darkest = level(x, y)
+            x += 1
+            while x < w {
+                let value = level(x, y)
+                if value < 525 { end = x; gap = 0; darkest = min(darkest, value) } else { gap += 1; if gap > 2 { break } }
+                x += 1
+            }
+            guard end - start >= 56 else { continue }
+            if let i = segments.lastIndex(where: { y - $0.y1 == 1 && abs($0.x0 - start) <= 4 && abs($0.x1 - end) <= 4 }) {
+                segments[i].y1 = y
+                segments[i].darkest = min(segments[i].darkest, darkest)
+            } else {
+                segments.append((y, y, start, end, darkest))
+            }
+        }
+    }
+    let points = { (pixels: Int) in formPoint(Double(pixels) / scale) }
+    return ["bitmap \(w) x \(h), \(rowBytes) bytes per row, \(segments.count) segment(s)"] + segments.map {
+        "y \(points($0.y0))-\(points($0.y1 + 1)) x \(points($0.x0))-\(points($0.x1 + 1)), darkest \($0.darkest)"
     }
 }
 
