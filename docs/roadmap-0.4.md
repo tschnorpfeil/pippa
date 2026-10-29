@@ -58,3 +58,5 @@ product: no Pi or llama-server, smaller AI, App Store review. The proportionate 
 iPhone camera or share sheet sends a photographed letter or receipt to Pippa on the Mac (Continuity Camera already
 inserts photos into Mac apps; a share extension or iCloud Drive inbox folder would cover the rest). Decide after the
 launch gates, based on what testers actually photograph.
+
+PDF form validation during the 0.3.17 review found that PDFKit can serialize a selected radio button with an incompatible appearance state. The core now reopens each filled copy and verifies every requested form-field value; a mismatch removes the copy and returns a failure. Radio-button forms must pass this round trip on the supported macOS versions before `fill_pdf` is enabled. The fixture uses a directly encoded AcroForm with distinct export states so the check is independent of PDFKit's fixture writer.

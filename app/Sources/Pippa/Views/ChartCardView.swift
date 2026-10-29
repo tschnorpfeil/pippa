@@ -123,6 +123,7 @@ struct ChartCardView: View {
         let content = VStack(alignment: .leading, spacing: 12) {
             Text(verbatim: card.title).font(.system(size: 18, weight: .semibold))
             ChartCanvas(card: card).frame(height: 420)
+            if let note = card.note { Text(verbatim: note).font(.system(size: 12)) }
             Text(verbatim: card.footer).font(.system(size: 12))
         }
         .frame(width: 720, alignment: .leading)

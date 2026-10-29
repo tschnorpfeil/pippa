@@ -79,6 +79,9 @@ public enum PDFForm {
         public var stillEmpty: [String]
     }
 
+    /// PDFKit may serialize a button with a different export state. Never report that copy as filled.
+    public enum WriteProblem: Error, Sendable, Equatable { case unverifiedFields([String]) }
+
     public enum FillProblem: Error, Sendable, Equatable {
         case unknownIDs([String], valid: [String]), wrongKind([String]), signature([String]), nothingToFill
     }
@@ -716,6 +719,7 @@ public enum PDFForm {
         guard let document = PDFDocument(url: source),
               !(document.isLocked || document.isEncrypted && !document.unlock(withPassword: "")) else { throw CocoaError(.fileReadCorruptFile) }
         var filled = 0
+        var expectedCheckboxes: [String: Bool] = [:]
         for (name, value) in plan.fields.sorted(by: { $0.key < $1.key }) {
             var hit = false
             for index in 0..<document.pageCount {
@@ -727,6 +731,7 @@ public enum PDFForm {
                             annotation.buttonWidgetState = annotation.buttonWidgetStateString == value ? .onState : .offState
                         case .checkBoxControl:
                             let on = truthy.contains(value.lowercased()) || value == annotation.buttonWidgetStateString
+                            expectedCheckboxes[name] = on
                             annotation.buttonWidgetState = on ? .onState : .offState
                         default: continue
                         }
@@ -768,7 +773,25 @@ public enum PDFForm {
             page.addAnnotation(annotation)
             filled += 1
         }
-        guard document.write(to: destination) else { throw CocoaError(.fileWriteUnknown) }
+        guard document.write(to: destination) else {
+            try? FileManager.default.removeItem(at: destination)
+            throw CocoaError(.fileWriteUnknown)
+        }
+        // Verify the serialized fields, not the in-memory widgets: PDFKit can regenerate a radio's appearance with
+        // "Yes" while its selected value remains "Yearly", leaving every option unchecked in the saved document.
+        let written = PDFDocument(url: destination).map(formFields) ?? []
+        let unverified = plan.fields.keys.sorted().filter { name in
+            guard let field = written.first(where: { $0.name == name }), let expected = plan.fields[name] else { return true }
+            if field.kind == .checkbox {
+                guard let expectedOn = expectedCheckboxes[name] else { return true }
+                return field.value != (expectedOn ? "on" : "off")
+            }
+            return field.value != expected
+        }
+        guard unverified.isEmpty else {
+            try? FileManager.default.removeItem(at: destination)
+            throw WriteProblem.unverifiedFields(unverified)
+        }
         return filled
     }
 

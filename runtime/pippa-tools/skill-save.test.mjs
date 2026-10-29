@@ -144,6 +144,41 @@ test("save_skill: written only after the person's OK, privately and whole", asyn
 	assert.deepEqual(await readdir(dir), ["rechnungen-prufen"]);
 });
 
+test("save_skill: cancellation before or during confirmation never publishes a skill", async () => {
+    for (const during of [false, true]) {
+        const { tool, dir } = await setup();
+        const controller = new AbortController();
+        let asked = 0;
+        if (!during) controller.abort();
+        const result = await tool.execute("cancel", steps, controller.signal, undefined, {
+            hasUI: true, ui: { confirm: async () => { asked++; controller.abort(); return true; } },
+        });
+        assert.equal(result.details.pippaSkill, "not_saved");
+        assert.match(textOf(result), /cancelled/);
+        assert.equal(asked, during ? 1 : 0);
+        assert.deepEqual(await readdir(dir), []);
+    }
+});
+
+test("save_skill: simultaneous processes cannot overwrite an approved skill", async () => {
+    const { tool, dir } = await setup();
+    const other = standIn();
+    skills.installSkillSave(other, { refusal: memory.refusal, env: { PIPPA_USER_SKILLS_DIR: dir } });
+    let confirmed = 0, release;
+    const ready = new Promise((resolve) => { release = resolve; });
+    const ctx = { hasUI: true, ui: { confirm: async () => { if (++confirmed === 2) release(); await ready; return true; } } };
+    const results = await Promise.all([
+        tool.execute("a", steps, undefined, undefined, ctx),
+        other.tools[skills.SAVE_SKILL].execute("b", { ...steps, instructions: "Different approved steps." }, undefined, undefined, ctx),
+    ]);
+    assert.equal(results.filter((result) => result.details.pippaSkill === "saved").length, 1);
+    assert.equal(results.filter((result) => result.details.pippaSkill === "not_saved").length, 1);
+    const saved = results.findIndex((result) => result.details.pippaSkill === "saved");
+    const contents = await readFile(join(dir, "rechnungen-prufen", "SKILL.md"), "utf8");
+    assert.ok(contents.includes(saved === 0 ? steps.instructions : "Different approved steps."));
+    assert.deepEqual(await readdir(join(dir, "rechnungen-prufen")), ["SKILL.md"]);
+});
+
 test("save_skill: bundled names, existing names and a full folder are refused before asking", async () => {
 	const { tool, dir } = await setup();
 	const asked = person([true, true, true]);
