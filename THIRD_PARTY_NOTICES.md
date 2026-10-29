@@ -16,6 +16,7 @@ Pippa itself is MIT-licensed (see [LICENSE](LICENSE)). `Pippa.app` ships the thi
 | Dependencies of pi-web-access (defuddle, @mozilla/readability, turndown, linkedom, unpdf, p-limit, undici and their own dependencies) | Page reading inside pi-web-access | MIT, Apache 2.0, ISC and others; each licence shipped in `Contents/Resources/pippa-web/node_modules/<package>/` |
 | Other npm packages used by Pi (about 320 in `pi-payload/release/node_modules`) | Pi dependencies | MIT, ISC, Apache 2.0, BSD-2/3-Clause, BlueOak-1.0.0, 0BSD, Unlicense, CC0-1.0, CC-BY-3.0; each package's licence shipped in its folder, exceptions listed below |
 | [Bagel Fat One](https://fonts.google.com/specimen/Bagel+Fat+One) | App font for the welcome headline | SIL Open Font License 1.1, Copyright 2022 The Bagel Fat Project Authors; shipped as `OFL.txt` next to the font |
+| [Hob](https://github.com/FrigadeHQ/hob) | PDF blank detection, labels and filled copies, ported into `app/Sources/PippaCore/Tools/FormFill.swift` | MIT, Copyright (c) 2026 Frigade, see below |
 
 Language models are not part of the app or this repository. Pippa downloads them from Hugging Face only after you agree (or reuses a copy already on the Mac), and each model comes under its own licence, named with a link in the model catalogue (`app/Sources/PippaCore/Resources/catalog.json`). All installable catalogue models are currently Apache 2.0: K2 Horizon 7B by MBZUAI and IFM, the default from 16 GB on ([model card](https://huggingface.co/IFM/K2-Horizon-7B)), and the Qwen models ([Qwen licence files](https://huggingface.co/Qwen)), among them Qwen3.5 4B for 8 GB Macs and Qwen3.6 35B-A3B for "More thorough" on 24 GB and up.
 
@@ -101,6 +102,32 @@ SOFTWARE.
 MIT License
 
 Copyright (c) 2025 Nico Bailon
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Hob
+
+The approach and parts of Pippa's PDF form filling (`app/Sources/PippaCore/Tools/FormFill.swift`) and its check fixtures are ported from Hob (`app/native/hob-pdf`, `app/src/main/tools/pdf.ts`).
+
+MIT License
+
+Copyright (c) 2026 Frigade
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

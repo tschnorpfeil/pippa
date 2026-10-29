@@ -90,3 +90,8 @@
 "Only the first part of the table was read." = "Only the first part of the table was read.";
 "One row without a number was left out." = "One row without a number was left out.";
 "%lld rows without a number were left out." = "%lld rows without a number were left out.";
+
+// fill_pdf: a filled copy of a PDF form (PippaMCPFormFill.swift); not offered to Pi yet.
+"%@ (filled in)" = "%@ (filled in)";
+"Form filled in" = "Form filled in";
+"Form not filled in" = "Form not filled in";

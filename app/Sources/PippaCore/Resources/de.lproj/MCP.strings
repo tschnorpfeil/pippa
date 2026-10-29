@@ -90,3 +90,8 @@
 "Only the first part of the table was read." = "Pippa hat nur den ersten Teil der Tabelle gelesen.";
 "One row without a number was left out." = "Eine Zeile ohne Zahl wurde weggelassen.";
 "%lld rows without a number were left out." = "%lld Zeilen ohne Zahl wurden weggelassen.";
+
+// fill_pdf: a filled copy of a PDF form (PippaMCPFormFill.swift); not offered to Pi yet.
+"%@ (filled in)" = "%@ (ausgefüllt)";
+"Form filled in" = "Formular ausgefüllt";
+"Form not filled in" = "Formular nicht ausgefüllt";
