@@ -121,7 +121,7 @@ public final class PiSetupFlow: @unchecked Sendable {
         return model.pinned?.files.lazy.compactMap { found[$0.sha256]?.source }.first
     }
 
-    /// Before "Set Up": how much more free space the download needs, by the downloader's own rule (2 GB to spare).
+    /// Before "Load": how much more free space the download needs, by the downloader's own rule (2 GB to spare).
     /// `nil`: enough, or unknown. Measured where the model will go once `prepare` has chosen the folder.
     public func spaceShortfall(remaining: Int64) -> Int64? {
         let folder = installer.state.modelsFolder.map { URL(fileURLWithPath: $0, isDirectory: true) } ?? installer.roots.pippaModels
@@ -154,7 +154,7 @@ public final class PiSetupFlow: @unchecked Sendable {
         return .ready(adoptedFrom: lock.withLock { adopted })
     }
 
-    /// After "Set Up": downloads (resumable), verifies, then the rest as in `prepare`.
+    /// After "Load": downloads (resumable), verifies, then the rest as in `prepare`.
     public func download(progress: @escaping @Sendable (Double, TimeInterval?) -> Void) async -> PiSetupState {
         let result = await installer.downloadModel(model, using: download, progress: progress)
         if case .failed(let failure) = result.outcome { return .failed(PiSetupProblem(failure)) }

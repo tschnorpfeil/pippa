@@ -109,7 +109,7 @@ import PippaCore
         verify(setup.stalled, "nach Neustart wieder als hängend erkannt")
     }
 
-    /// Real first download in a fake HOME without a model: question, "Set Up", progress, ready. Logs progress every 15 s.
+    /// Real first download in a fake HOME without a model: question, "Load", progress, ready. Logs progress every 15 s.
     private static func download(model: AppModel, note: (String) -> Void, verify: (Bool, String) -> Void,
                                  snap: (String, Double) async -> Void) async {
         guard let setup = PiSetupController.shared, PiRPCChat.isLive else {

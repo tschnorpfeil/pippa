@@ -48,7 +48,7 @@ final class PiSetupController: ObservableObject {
     let offersThorough = ModelSelector.offersThorough(physicalMemory: ProcessInfo.processInfo.physicalMemory)
     /// "Picked to fit your Mac: Apple M2 with 16 GB memory" on the download question.
     let hardware = MacHardware.summary()
-    /// Free space checked before "Set Up" (`checkSpace`); `nil` = enough or unknown. Recordings set it directly.
+    /// Free space checked before "Load" (`checkSpace`); `nil` = enough or unknown. Recordings set it directly.
     @Published var spaceShortfall: Int64?
     /// Ready step: "Open at login" only where a login item makes sense (Applications), as in Settings (SMAppService).
     let canOpenAtLogin = AppLocation.place(of: Bundle.main.bundleURL, home: FileManager.default.homeDirectoryForCurrentUser) == .applications
@@ -64,7 +64,7 @@ final class PiSetupController: ObservableObject {
     private weak var model: AppModel?
     private var task: Task<Void, Never>?
     private var forward: AnyCancellable?
-    /// "Set Up" was already said: do not ask again after "Try again".
+    /// "Load" was already said: do not ask again after "Try again".
     private var downloadChosen = false
     /// Consent kept from an earlier run (`PippaSettings.downloadConsent`): the question is skipped, the download goes on.
     private var resumesDownload = false
@@ -76,7 +76,7 @@ final class PiSetupController: ObservableObject {
     private var stallTask: Task<Void, Never>?
     /// Latest progress as reported (before the display throttle), so slow but moving downloads never count as stuck.
     private var rawProgress = 0.0
-    /// The running "Set Up": a restart ("Try Again") ignores the result of the attempt it replaced.
+    /// The running "Load": a restart ("Try Again") ignores the result of the attempt it replaced.
     private var loadID: UUID?
     /// The first setup result after app start may bring back "What Pippa may do" (`PermissionOnboarding.remindsAtStart`).
     private var remindsPermissions = false
@@ -148,7 +148,7 @@ final class PiSetupController: ObservableObject {
         }
     }
 
-    /// "Set Up": the only consent. Downloads resumably, then the rest of setup.
+    /// "Load": the only consent. Downloads resumably, then the rest of setup.
     /// `previous`: a cancelled attempt that must have let go of the part file before this one opens it.
     func load(after previous: Task<Void, Never>? = nil) {
         guard let flow, task == nil else { return }
@@ -189,7 +189,7 @@ final class PiSetupController: ObservableObject {
         model?.collapse()
     }
 
-    /// "Try again": from scratch (idempotent); if "Set Up" was already said, continues without a question.
+    /// "Try again": from scratch (idempotent); if "Load" was already said, continues without a question.
     func retry() { begin() }
 
     /// "Try Again" while a download hangs: stop the attempt and start a fresh one right away. It continues where the
@@ -307,7 +307,7 @@ final class PiSetupController: ObservableObject {
         exampleIndex = ((index % count) + count) % count
     }
 
-    /// Before the click: a download that cannot fit never starts. Again on "Try Again" under the disabled button.
+    /// Before the click: a download that cannot fit never starts. Again on "Check Again" below the missing amount.
     func checkSpace() {
         guard let flow, case .askDownload(let bytes) = state else { return }
         Task { [weak self] in
