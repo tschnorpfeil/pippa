@@ -305,3 +305,11 @@
 "Save as PNG…" = "Als PNG speichern …";
 "Couldn’t save the picture. Please try again." = "Das Bild konnte nicht gespeichert werden. Versuch es bitte noch einmal.";
 "Chart of %@" = "Diagramm zu %@";
+
+// Filled form card under an answer (FilledFormCardView.swift).
+"Your form is filled in" = "Dein Formular ist ausgefüllt";
+"Answers filled in: %lld" = "Ausgefüllte Angaben: %lld";
+"Still empty: %@" = "Noch leer: %@";
+"Please check every answer before you sign and send it. The original is unchanged." = "Prüf bitte jede Angabe, bevor du unterschreibst und es abschickst. Das Original bleibt unverändert.";
+"This file is no longer available. Ask me to fill in the form again." = "Diese Datei gibt es nicht mehr. Bitte mich, das Formular noch einmal auszufüllen.";
+"Couldn’t save the copy there. Please choose another place." = "Die Kopie konnte dort nicht gespeichert werden. Wähl bitte einen anderen Ort.";

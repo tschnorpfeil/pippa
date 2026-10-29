@@ -305,3 +305,11 @@
 "Save as PNG…" = "Save as PNG…";
 "Couldn’t save the picture. Please try again." = "Couldn’t save the picture. Please try again.";
 "Chart of %@" = "Chart of %@";
+
+// Filled form card under an answer (FilledFormCardView.swift).
+"Your form is filled in" = "Your form is filled in";
+"Answers filled in: %lld" = "Answers filled in: %lld";
+"Still empty: %@" = "Still empty: %@";
+"Please check every answer before you sign and send it. The original is unchanged." = "Please check every answer before you sign and send it. The original is unchanged.";
+"This file is no longer available. Ask me to fill in the form again." = "This file is no longer available. Ask me to fill in the form again.";
+"Couldn’t save the copy there. Please choose another place." = "Couldn’t save the copy there. Please choose another place.";

@@ -116,7 +116,8 @@ final class TrayController: ObservableObject {
         })
         let kept = Set(state.items.map(\.id))
         for id in Array(resolved.keys) where !kept.contains(id) { release(id) }
-        let keep = state.items.filter { $0.role == .result }.map(\.url)
+        // Filled forms under an answer live in the results folder too; their cards keep them.
+        let keep = state.items.filter { $0.role == .result }.map(\.url) + (model?.conversations.retainedResultFiles ?? [])
         Task.detached(priority: .utility) { _ = ResultsFolder.prune(keeping: keep) }
         settle()
         changed()

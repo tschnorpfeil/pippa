@@ -119,6 +119,7 @@ import SwiftUI
         } catch { check(false, "Controller fixture: \(error)") }
         assertions += await MorningBriefingSnapshot.run(directory: directory)
         assertions += await ChartCardSnapshot.run(directory: directory)
+        assertions += await FilledFormCardSnapshot.run(directory: directory)
     }
 
     private static func makePDF(_ text: String, at url: URL) throws {
