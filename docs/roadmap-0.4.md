@@ -14,7 +14,7 @@ assistant apps. Setup asks for one decision instead of several. The README and t
 | Setup | One primary action ("Load Pippa's AI · N GB") with "Picked to fit your Mac: chip with memory"; free space checked before the click; download consent kept across restarts and the download resumes asking only for the missing bytes; "Stop Loading"; a ready step that teaches ⌃⌥ Space and offers Open at Login; the local AI is loaded right after setup so the first answer has no cold start; English DMG with an "Applications" link. | 5 new setup checks; existing first-use acceptance |
 | README and docs | New README; [What Pippa can do](what-pippa-can-do.md), [Pippa's local AI](models.md), [Privacy and permissions](privacy-and-permissions.md); release-notes intro rule. | relative-link check |
 | Website | New hero with the demo above the fold, "Why Pippa?" comparison, honest privacy block, rewritten FAQ and start steps. | `check-site.cjs`, `check-site-launch.cjs`, screenshots at 1280×800 and 390 pt |
-| Ideas from Hob | "Save as skill" after explicit approval; chart cards whose numbers Pippa computes from the table file; see the status table below for PDF forms and dictation. | node tests, PippaChecks |
+| Ideas from Hob | "Save as skill" after explicit approval, refused after web pages, mail or selected text; chart cards whose numbers Pippa computes from the table file, listed under Results and saved or copied as a picture; the PDF form-filling core (blank detection, filling a copy, card) without offering it to the AI yet; on-device dictation in the composer, built but switched off (`dictation.enabled`). | node tests incl. real Pi, PiRPCChecks, PippaChecks (skill, chart, form fill, dictation gate), macOS 15 acceptance |
 
 ## Next, in order
 
