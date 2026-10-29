@@ -46,7 +46,8 @@ const text = html => html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/st
 const count = (html, re) => (html.match(re) || []).length;
 
 // Same structure in both languages.
-for (const re of [/<section\b/g, /<h2\b/g, /<h3\b/g, /<li\b/g, /class="benefit"/g, /class="stage"/g, /class="tile /g, /class="[^"]*\brv\b/g, /<details\b/g, /role="img"/g, /class="btn[^"]*dl/g, /<canvas\b/g, /<script\b/g]) {
+for (const re of [/<section\b/g, /<h2\b/g, /<h3\b/g, /<li\b/g, /class="benefit"/g, /class="stage"/g, /class="tile /g, /class="[^"]*\brv\b/g, /<details\b/g, /role="img"/g, /class="btn[^"]*dl/g, /<canvas\b/g, /<script\b/g,
+  /class="sc\b/g, /class="rs\b/g, /class="seg"/g, /class="pw-row[^"]*" data-s=/g, /class="fset"/g, /class="fi"/g, /class="(pw-card|pw-rcpt)\b/g, /data-s="/g]) {
   assert.equal(count(pages.de, re), count(pages.en, re), `DE and EN differ in ${re}`);
 }
 const ids = html => [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]).filter(id => id !== 'language').sort();
@@ -89,6 +90,22 @@ for (const [lang, html] of Object.entries(pages)) {
   const win = html.match(/<div class="pw" id="win" role="img"[\s\S]*?<p class="caption">[^<]+<\/p>/);
   assert.ok(win && /<blockquote class="pw-quote rv"[^>]*>[\s\S]*?„[^“]+“/.test(win[0]) && /class="pw-card rv"/.test(win[0]), `${lang}: hero window incomplete`);
   assert.match(win[0], /<p class="caption">[^<]*(erfunden|made-up)[^<]*<\/p>/, `${lang}: hero window not marked as an example`);
+  // Six scenes in that window, each a described made-up example with its own rail and conversation row; scene 1 is
+  // the one shown without JS and its description is the window's. Six segment buttons switch them; a polite status
+  // announces a switch the visitor made.
+  const scenes = [...win[0].matchAll(/<div class="sc( on)?" data-s="(\d)" data-desc="([^"]{40,})"/g)];
+  assert.deepEqual(scenes.map(m => +m[2]), [0, 1, 2, 3, 4, 5], `${lang}: expected exactly six hero scenes in order`);
+  assert.deepEqual(scenes.map(m => !!m[1]), [true, false, false, false, false, false], `${lang}: only scene 1 is shown without JS`);
+  for (const m of scenes) assert.match(m[3], /erfunden|made-up/, `${lang}: hero scene ${+m[2] + 1} is not described as a made-up example`);
+  assert.equal(win[0].match(/<div class="pw" id="win" role="img" aria-label="([^"]+)"/)[1], scenes[0][3], `${lang}: window description is not scene 1's`);
+  assert.equal(count(win[0], /<div class="rs( on)?" data-s="\d">/g), 6, `${lang}: each scene needs its rail`);
+  assert.equal(count(win[0], /<div class="pw-row[^"]*" data-s="\d">/g), 6, `${lang}: each scene needs its conversation row`);
+  const segs = [...html.matchAll(/<button type="button" class="seg" data-s="(\d)" aria-pressed="(true|false)" aria-controls="win">([^<]+)<i aria-hidden="true"><\/i><\/button>/g)];
+  assert.deepEqual(segs.map(m => +m[1]), [0, 1, 2, 3, 4, 5], `${lang}: expected six scene buttons in order`);
+  assert.deepEqual(segs.map(m => m[2]), ['true', 'false', 'false', 'false', 'false', 'false'], `${lang}: scene 1 button must start pressed`);
+  for (const m of segs) assert.doesNotMatch(m[3], /·|\//, `${lang}: scene button label joins several labels`);
+  assert.match(html, /<div class="scn" role="group" aria-label="[^"]+">/, `${lang}: scene buttons without a group label`);
+  assert.match(html, /<p class="vh" id="sceneLive" aria-live="polite"><\/p>/, `${lang}: scene status for screen readers missing`);
   // Four benefits with two lines each, the PDF card keeps its size target, six app tiles, a short FAQ.
   const benefits = [...html.matchAll(/<li class="benefit"><h3>[^<]+<\/h3><p>([\s\S]*?)<\/p><\/li>/g)];
   assert.equal(benefits.length, 4, `${lang}: expected four benefits`);

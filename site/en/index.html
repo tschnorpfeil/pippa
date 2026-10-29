@@ -92,8 +92,8 @@
 }
 </script>
 <script>
-/* The hero tells its story only when it can move: without JS or with reduced motion the window shows its final state. */
-(()=>{const r=document.documentElement;if(matchMedia('(prefers-reduced-motion: reduce)').matches||!('IntersectionObserver' in window)||!Element.prototype.animate)return;
+/* The hero tells its stories only when it can move: without JS or with reduced motion the window shows the first one finished. */
+(()=>{const r=document.documentElement;r.classList.add('js');if(matchMedia('(prefers-reduced-motion: reduce)').matches||!('IntersectionObserver' in window)||!Element.prototype.animate)return;
 r.classList.add('fx');addEventListener('load',()=>setTimeout(()=>{if(!r.classList.contains('fx-ok'))r.classList.remove('fx')},300))})();
 </script>
 <style>
@@ -270,21 +270,140 @@ strong, b { font-weight: 600; }
 .doc20 { position: relative; display: block; width: 16px; height: 20px; border-radius: 2.5px; background: #fff; box-shadow: 0 0 0 .5px rgb(0 0 0 / .22), 0 1px 1.5px rgb(0 0 0 / .14); }
 .doc20::after { content: "PDF"; position: absolute; left: 0; right: 0; bottom: 3px; padding: 1px 0; font: 700 5px/1 -apple-system, system-ui, sans-serif; color: #fff; background: #e5372b; text-align: center; }
 
-/* The one reveal: Pippa's answer appears once */
-.fx .pw:not(.rv-go) .rv { opacity: 0; transform: translateY(6px); }
-.rv-go .rv { opacity: 1; transform: none; transition: opacity .5s ease var(--d, 0s), transform .7s cubic-bezier(.2, .8, .2, 1) var(--d, 0s); }
+/* Six short scenes in the one window. Scene 1 is in the markup as shown; JS switches scenes (.on) and,
+ * with motion, plays each one: files drop in or a question is typed (.u-in), Pippa works, her answer appears (.rv-go). */
+.pw-scroll { display: grid; }
+.sc { grid-area: 1 / 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.pw-detail { display: grid; align-content: start; }
+.rs { grid-area: 1 / 1; display: flex; flex-direction: column; gap: 22px; }
+.sc:not(.on), .rs:not(.on) { opacity: 0; visibility: hidden; }
+.fx .sc, .fx .rs { transition: opacity .2s ease, visibility 0s linear .2s; }
+.fx .sc.on, .fx .rs.on { transition: opacity .32s ease .06s; }
+.pw-row { transition: background-color .35s ease, color .35s ease; }
+.pw-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pw-row.sel::after { content: "\2022\2022\2022"; flex: none; margin-left: 8px; color: var(--ink2); font-size: 11px; letter-spacing: .5px; }
+.pw-title small { display: block; }
 
-/* The hero story: four files glide into Pippa's window and become the attachments of the message she answers.
+/* Pippa's answer appears once per scene */
+.fx .sc:not(.rv-go) .rv, .fx .rs:not(.rv-go) .rv { opacity: 0; transform: translateY(6px); }
+.rv-go .rv { opacity: 1; transform: none; transition: opacity .5s ease var(--d, 0s), transform .7s cubic-bezier(.2, .8, .2, 1) var(--d, 0s); }
+.fx .pw-user, .fx .pw-used .pw-item, .fx .pw-used .pw-empty { transition: opacity .45s ease, transform .55s cubic-bezier(.2, .8, .2, 1); }
+.fx .sc:not(.u-in) .pw-user { opacity: 0; transform: translateY(8px) scale(.985); transform-origin: 100% 100%; }
+.fx .rs:not(.u-in) .pw-used .pw-item, .fx .rs:not(.u-in) .pw-used .pw-empty { opacity: 0; }
+.fx .pw-attach .thumb.wait { opacity: 0; }
+
+/* The example switcher: a slim segmented control over the window */
+.scn-wrap { display: none; position: relative; z-index: 2; margin: -6px auto 22px; max-width: 100%; }
+.js .scn-wrap { display: flex; justify-content: center; }
+.scn { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: #f1f2f5; box-shadow: inset 0 0 0 1px rgb(17 24 39 / .05); }
+.seg { position: relative; overflow: hidden; min-height: 32px; padding: 0 15px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: 500 13px/1 var(--sys); letter-spacing: -.005em; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+.seg:hover { color: var(--ink); }
+.seg[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 0 0 .5px rgb(17 24 39 / .08), 0 1px 2px rgb(17 24 39 / .08), 0 2px 6px -2px rgb(17 24 39 / .08); }
+.seg:focus-visible { outline-offset: 1px; border-radius: 9px; }
+.seg i { position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 1px; background: var(--accent); opacity: .85; transform: scaleX(0); transform-origin: 0 50%; pointer-events: none; }
+.seg[aria-pressed="false"] i { visibility: hidden; }
+
+/* Composer: the selected Mail message as context, a typed question, a drop landing */
+.pw-composer { position: relative; }
+.pw-chip { position: absolute; left: 24px; bottom: calc(100% - 4px); display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 48px); height: 26px; padding: 0 10px 0 5px; border-radius: 13px; background: #fff; box-shadow: inset 0 0 0 1px var(--chatBorder); font-size: 12.5px; white-space: nowrap; overflow: hidden; opacity: 0; transform: translateY(4px); pointer-events: none; }
+.pw-chip.on { opacity: 1; transform: none; }
+.fx .pw-chip { transition: opacity .3s ease, transform .4s cubic-bezier(.2, .8, .2, 1); }
+.pw-chip i { width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; background: var(--accentTint2); color: var(--accent); font-size: 10px; flex: none; }
+.pw-chip i .ic { stroke-width: 2; }
+.pw-chip b { font-weight: 600; }
+.pw-chip span { color: var(--ink3); overflow: hidden; text-overflow: ellipsis; }
+.pw-chip span::before { content: "\00b7"; margin: 0 .35em 0 0; }
+.pw-field { position: relative; }
+.pw-field .ph { position: relative; min-width: 0; white-space: nowrap; overflow: hidden; }
+.pw-field .typed { position: absolute; left: 0; top: 0; color: var(--ink); }
+.pw-field.typing .ph0 { opacity: 0; }
+.pw-field.typing .typed::after { content: ""; display: inline-block; width: 1.5px; height: 1.05em; margin-left: 1px; vertical-align: -.15em; background: var(--accent); animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+.pw-field .send { transition: opacity .2s ease; }
+.pw-field.ready .send { opacity: 1; }
+.pw-field .ring { position: absolute; inset: -1px; border-radius: 19px; box-shadow: 0 0 0 2px rgb(0 91 205 / .5), 0 0 0 6px rgb(0 91 205 / .1); opacity: 0; pointer-events: none; }
+
+/* What happened: Pippa's receipt line, and a small button inside cards */
+.pw-rcpt { max-width: 540px; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 9px 11px 11px; border-radius: 10px; background: var(--chatCard); box-shadow: inset 0 0 0 .5px var(--chatBorder), inset 0 0 0 1px rgb(39 61 96 / .05); }
+.pw-rcpt p { display: flex; gap: 7px; font-size: 12.5px; font-weight: 600; line-height: 1.4; }
+.pw-rcpt p .ic { width: 14px; height: 14px; margin-top: 2px; color: var(--ok); stroke-width: 2.4; }
+.tbtn, .qbtn, .pbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; white-space: nowrap; flex: none; }
+.tbtn { margin-left: 21px; background: rgb(0 91 205 / .1); color: var(--accent); }
+.tbtn .ic { width: 12px; height: 12px; stroke-width: 1.8; }
+.qbtn { background: var(--fill2); color: var(--ink); }
+.pbtn { background: var(--accent); color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / .16); }
+.cf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cf .tbtn { margin-left: 0; }
+.ct .tag { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #eaf5ee; color: var(--ok); font-size: 11px; font-weight: 600; }
+.fit7 { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ok); }
+.fit7 .ic { font-size: 13px; stroke-width: 2.2; }
+
+/* Excel: a spreadsheet file, and the chart card Pippa computes from it */
+.thumb.xl { background: linear-gradient(rgb(16 124 65 / .55), rgb(16 124 65 / .55)) 0 0 / 100% 18% no-repeat,
+  repeating-linear-gradient(90deg, transparent 0 7px, rgb(30 40 50 / .14) 7px 8px) 0 18% / 100% 66% no-repeat,
+  repeating-linear-gradient(180deg, transparent 0 4px, rgb(30 40 50 / .14) 4px 5px) 0 18% / 100% 66% no-repeat, #fff; font-size: 6px; }
+.thumb.xl::after { content: "XLSX"; position: absolute; left: 0; right: 0; bottom: 9%; padding: .25em 0; font: 700 1em/1 -apple-system, system-ui, sans-serif; color: #fff; background: #107c41; text-align: center; }
+.pw-item > i .thumb.xl::after { font-size: 4px; }
+.chart { gap: 12px; }
+.chart .ct .ic { stroke-width: 2; }
+.bars { position: relative; display: flex; align-items: flex-end; gap: 11px; height: 118px; margin: 2px 2px 18px; border-bottom: 1px solid var(--hair); }
+.bars span { position: relative; flex: 1; height: var(--h); border-radius: 3px 3px 0 0; background: linear-gradient(#3b88e6, #0a63d2); transform-origin: 50% 100%; }
+.bars span b { position: absolute; left: 50%; top: 100%; margin-top: 4px; transform: translateX(-50%); font-size: 10.5px; font-weight: 400; color: var(--ink3); }
+.fx .sc:not(.rv-go) .bars span { transform: scaleY(0); }
+.rv-go .bars span { transition: transform .7s cubic-bezier(.2, .8, .2, 1) calc(.85s + var(--i) * 35ms); }
+.chart .cf .foot { font-size: 11px; }
+
+/* Mail: the reply draft */
+.mail { gap: 8px; }
+.mf { display: flex; gap: 10px; font-size: 12.5px; padding-bottom: 8px; border-bottom: 1px solid #eef0f3; }
+.mf span { color: var(--ink3); min-width: 22px; }
+.mf b { font-weight: 500; }
+.mbody { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--ink2); padding: 2px 0 4px; }
+.mail .cf .meta { margin: 0; font-size: 11.5px; color: var(--ink3); }
+
+/* Downloads: the tidy preview, before and after */
+.tidy7 { gap: 10px; max-width: 600px; }
+.tidy7 .meta { color: var(--ink3); }
+.ba { display: flex; align-items: center; gap: 12px; padding: 14px 14px 12px; border-radius: 10px; background: var(--fill); }
+.ba-now { display: flex; flex-direction: column; gap: 1px; width: 104px; flex: none; font-size: 12px; }
+.ba-now b { font-weight: 600; margin-top: 6px; }
+.ba-now small { color: var(--ink3); font-size: 12px; }
+.heap { position: relative; height: 40px; }
+.heap i { position: absolute; top: 4px; width: 26px; height: 33px; border-radius: 3px; background: #fff; box-shadow: 0 0 0 .5px rgb(0 0 0 / .18), 0 1px 2px rgb(0 0 0 / .1); }
+.heap i:nth-child(1) { left: 2px; transform: rotate(-12deg); }
+.heap i:nth-child(2) { left: 26px; top: 0; transform: rotate(8deg); background: linear-gradient(160deg, #b2a48e, #776c5c); }
+.heap i:nth-child(3) { left: 52px; top: 6px; transform: rotate(-4deg); background: repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .2) 3px 4px) 20% 30% / 60% 40% no-repeat, #fff; }
+.ba-arr { width: 16px; height: 16px; color: var(--ink3); flex: none; }
+.ba-to { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ba-to li { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center; }
+.ba-to svg { width: 38px; height: 32px; }
+.ba-to b { max-width: 100%; font-size: 11.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ba-to small { font-size: 11px; color: var(--ink3); }
+.fx .sc:not(.rv-go) .ba-to li { opacity: 0; transform: translateY(6px) scale(.92); }
+.rv-go .ba-to li { transition: opacity .4s ease calc(.75s + var(--i) * 90ms), transform .6s cubic-bezier(.2, .8, .2, 1) calc(.75s + var(--i) * 90ms); }
+.undo7 { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink3); min-width: 0; }
+.undo7 .ic { width: 12px; height: 12px; flex: none; }
+.acts { display: flex; gap: 6px; }
+.fold { position: relative; display: grid; place-items: center; width: 50px; height: 50px; flex: none; }
+.fold svg, .fold-s { width: 100%; height: 100%; }
+.fold-s { width: 20px; height: 18px; }
+
+/* Calendar: the receipt with the event it added */
+.cal .ev { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; margin-left: 21px; min-width: 250px; padding: 8px 12px 9px 13px; border-radius: 8px; background: rgb(0 91 205 / .07); box-shadow: inset 3px 0 0 var(--accent); }
+.cal .ev b { font-size: 13.5px; font-weight: 600; }
+.cal .ev .meta { grid-column: 1; margin: 0; font-size: 12px; color: var(--ink2); }
+.cal .ev small { grid-column: 2; grid-row: 1 / 3; align-self: center; font-size: 11.5px; color: var(--ink3); }
+
+/* Files gliding in: from around the headline for the first scene, from just above the window for the others.
  * Only with .fx (set before first paint when motion is allowed); every moving part uses transform and opacity. */
 .fx-drop { display: none; position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .fx .fx-drop { display: block; }
 .fi { position: absolute; left: 0; top: 0; width: 124px; display: flex; flex-direction: column; align-items: center; gap: 7px; opacity: 0; will-change: transform, opacity; }
 .fi .thumb { width: 60px; height: 79px; border-radius: 8px; box-shadow: 0 0 0 .5px rgb(0 0 0 / .16), 0 1px 2px rgb(0 0 0 / .1), 0 12px 24px -12px rgb(17 24 39 / .45); }
-.fi .thumb.pd { font-size: 9.5px; }
+.fi .thumb.pd, .fi .thumb.xl { font-size: 9.5px; }
+.fi .fold { width: 76px; height: 66px; filter: drop-shadow(0 10px 12px rgb(17 24 39 / .22)); }
 .fi b { padding: 1px 7px; border-radius: 5px; background: rgb(255 255 255 / .9); font-size: 11.5px; font-weight: 500; line-height: 1.45; color: var(--ink-2); white-space: nowrap; will-change: opacity; }
-.fx .pw-user, .fx .pw-used .pw-item { transition: opacity .45s ease; }
-.fx .pw:not(.u-in) .pw-user, .fx .pw:not(.u-in) .pw-used .pw-item { opacity: 0; }
-.fx .pw-attach .thumb:not(.got) { opacity: 0; }
 
 /* Benefits */
 .benefits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; width: min(1040px, calc(100% - 64px)); margin: 0 auto; padding: 96px 0 8px; text-align: center; }
@@ -439,7 +558,7 @@ strong, b { font-weight: 600; }
 }
 @media (max-width: 720px) {
   .pw-sessions, .pw-tog { display: none; }
-  .pw { height: auto; }
+  .pw { height: 620px; }
   .pw-scroll { padding: 18px 16px; }
   .pw-composer { padding: 6px 16px 16px; }
 }
@@ -462,6 +581,27 @@ strong, b { font-weight: 600; }
   .fi .thumb { width: 44px; height: 58px; border-radius: 6px; }
   .fi .thumb.pd { font-size: 7px; }
   .fi b { display: none; }
+  .js .scn-wrap { justify-content: flex-start; overflow-x: auto; margin: -4px -20px 16px; padding: 2px 20px 4px; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .scn-wrap::-webkit-scrollbar { display: none; }
+  .js .scn-wrap { -webkit-mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent); }
+  .scn { flex: none; margin: 0 auto; }
+  .seg { min-height: 30px; padding: 0 12px; font-size: 12.5px; }
+  .ds { display: none; }
+  .pw { height: 640px; }
+  .sc { gap: 14px; }
+  .pw-chip { left: 16px; max-width: calc(100% - 32px); }
+  .bars { gap: 5px; height: 72px; }
+  .bars span b { font-size: 9px; }
+  .ba { padding: 12px 10px 10px; }
+  .ba-now, .ba-arr { display: none; }
+  .ba-to { gap: 4px; }
+  .ba-to svg { width: 32px; height: 27px; }
+  .ba-to b { font-size: 10.5px; }
+  .cf { flex-wrap: wrap; row-gap: 8px; }
+  .undo7 { order: 2; }
+  .cal .ev { min-width: 0; align-self: stretch; margin-left: 0; }
+  .cal .ev small { grid-column: 1; grid-row: auto; margin-top: 2px; }
+  .fi .fold { width: 50px; height: 44px; }
   .benefits { grid-template-columns: 1fr; gap: 26px; padding-top: 64px; }
   .benefits h3 { font-size: 20px; }
   .benefits p { font-size: 13.5px; }
@@ -520,6 +660,11 @@ strong, b { font-weight: 600; }
   <symbol id="s-doc" viewBox="0 0 16 16"><path d="M4.1 1.7h5.1l3.3 3.3v8.3a1 1 0 0 1-1 1H4.1a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z"/><path d="M9 1.9v3.3h3.3M5.6 8.3h4.8M5.6 10.9h3.4"/></symbol>
   <symbol id="s-folder" viewBox="0 0 20 20"><path d="M2.5 5.5a1.5 1.5 0 0 1 1.5-1.5h3.6l1.7 1.8H16a1.5 1.5 0 0 1 1.5 1.5v7.2a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M2.5 8h15"/></symbol>
   <symbol id="s-bell" viewBox="0 0 16 16"><path d="M4 11.5V7.2a4 4 0 0 1 8 0v4.3l1.2 1.3H2.8zM6.6 14.2a1.5 1.5 0 0 0 2.8 0"/></symbol>
+  <symbol id="s-chart" viewBox="0 0 16 16"><path d="M2.2 13.6h11.6M4.4 11.2V8.4M7.1 11.2V4.6M9.8 11.2V6.8M12.5 11.2V3.2"/></symbol>
+  <symbol id="s-cal" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2.3 6.6h11.4M5.2 1.8v2.6M10.8 1.8v2.6"/></symbol>
+  <symbol id="s-undo" viewBox="0 0 16 16"><path d="M5.6 3.8 2.6 6.8l3 3"/><path d="M2.9 6.8h6.6a3.6 3.6 0 0 1 0 7.2H7.2"/></symbol>
+  <symbol id="s-arrow" viewBox="0 0 16 16"><path d="M2.5 8h11M9.5 4l4 4-4 4"/></symbol>
+  <symbol id="s-fold" viewBox="0 0 40 34"><path d="M2 5.6A3.6 3.6 0 0 1 5.6 2h8.9l3.7 3.5h16.2A3.6 3.6 0 0 1 38 9.1V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#4f9be6"/><path d="M2 11.2a3 3 0 0 1 3-3h30a3 3 0 0 1 3 3V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#7cbaf4"/><path d="M2.4 9.8a3 3 0 0 1 2.6-1.6h30a3 3 0 0 1 2.6 1.6z" fill="#a5d1fb"/></symbol>
   <symbol id="s-rings" viewBox="0 0 40 40"><g fill="none" stroke="#005bcd" stroke-width="2.2"><ellipse cx="20" cy="20" rx="12.6" ry="12.2"/><ellipse cx="21.3" cy="19" rx="12" ry="12.6" opacity=".5"/><ellipse cx="18.8" cy="21" rx="12.4" ry="11.8" opacity=".32"/></g></symbol>
 </svg>
 <a class="skip" href="#main">Skip to content</a>
@@ -550,10 +695,20 @@ strong, b { font-weight: 600; }
 
   <div class="product">
     <div class="glow" aria-hidden="true"></div>
-    <div class="pw" id="win" role="img" aria-label="Example with a made-up letter: Pippa’s window. On the left her conversations, in the middle her answer to photos of a letter from the German tax office and a bank statement: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. Below it the finished PDF. On the right the results: the PDF, a reminder and a reply drafted in Mail.">
+    <div class="scn-wrap">
+      <div class="scn" role="group" aria-label="Choose an example">
+        <button type="button" class="seg" data-s="0" aria-pressed="true" aria-controls="win">Letter<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="1" aria-pressed="false" aria-controls="win">Excel<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="2" aria-pressed="false" aria-controls="win">Mail<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="3" aria-pressed="false" aria-controls="win">Downloads<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="4" aria-pressed="false" aria-controls="win">Calendar<i aria-hidden="true"></i></button>
+        <button type="button" class="seg" data-s="5" aria-pressed="false" aria-controls="win">PDF<i aria-hidden="true"></i></button>
+      </div>
+    </div>
+    <div class="pw" id="win" role="img" aria-label="Example with made-up files: Pippa’s window. To photos of a letter from the German tax office and a bank statement, Pippa answers: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. She also adds a reminder.">
       <div class="pw-head" aria-hidden="true">
         <canvas id="winMark"></canvas>
-        <div class="pw-title"><b>Pippa</b><small>Letter from the tax office</small></div>
+        <div class="pw-title"><b>Pippa</b><small id="winTitle">Letter from the tax office</small></div>
         <span class="pw-tog"><svg class="ic"><use href="#s-sidebar-l"/></svg></span>
         <span class="pw-tog tog-r"><svg class="ic"><use href="#s-sidebar-r"/></svg></span>
         <span class="pw-close"><svg class="ic"><use href="#s-chev"/></svg></span>
@@ -562,67 +717,236 @@ strong, b { font-weight: 600; }
         <div class="pw-sessions">
           <div class="pw-new"><svg class="ic"><use href="#s-compose"/></svg>New Conversation</div>
           <div class="pw-group">Today</div>
-          <div class="pw-row sel"><span>Letter from the tax office</span><span class="dots">•••</span></div>
-          <div class="pw-row">Lease as a PDF</div>
+          <div class="pw-row sel" data-s="0"><span>Letter from the tax office</span></div>
+          <div class="pw-row" data-s="1"><span>Check 2025 revenue</span></div>
+          <div class="pw-row" data-s="2"><span>Reply to the property manager</span></div>
           <div class="pw-group">Yesterday</div>
-          <div class="pw-row">Tidy up Downloads</div>
-          <div class="pw-row">Reply to the landlord</div>
+          <div class="pw-row" data-s="3"><span>Tidy up Downloads</span></div>
+          <div class="pw-row" data-s="4"><span>Add the dentist</span></div>
+          <div class="pw-row" data-s="5"><span>Lease as a PDF</span></div>
           <div class="pw-group">Previous 7 Days</div>
-          <div class="pw-row">Daycare sign-up</div>
-          <div class="pw-row">Electricity bill explained</div>
-          <div class="pw-row">Appointment at the town hall</div>
+          <div class="pw-row"><span>Daycare sign-up</span></div>
+          <div class="pw-row"><span>Electricity bill explained</span></div>
         </div>
         <div class="pw-chat">
           <div class="pw-scroll">
-            <div class="pw-user">
-              <div class="pw-attach"><span class="thumb" style="transform:rotate(-2deg)"></span><span class="thumb ph" style="transform:rotate(1.5deg)"></span><span class="thumb ph b" style="transform:rotate(-1deg)"></span><span class="thumb pd" style="transform:rotate(2deg)"></span></div>
-              <p>What do they want from me? And please make a PDF of it.</p>
+            <div class="sc on" data-s="0" data-desc="Example with made-up files: Pippa’s window. To photos of a letter from the German tax office and a bank statement, Pippa answers: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. She also adds a reminder.">
+              <div class="pw-user">
+                <div class="pw-attach"><span class="thumb" style="transform:rotate(-2deg)"></span><span class="thumb ph" style="transform:rotate(1.5deg)"></span><span class="thumb ph b" style="transform:rotate(-1deg)"></span><span class="thumb pd" style="transform:rotate(2deg)"></span></div>
+                <p>What do they want from me?</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">The tax office wants <strong>€412.00 in income tax for 2025</strong>, due <strong>by Monday, November&nbsp;16</strong>. This is the sentence in the letter:</p>
+                <blockquote class="pw-quote rv" style="--d:.4s"><span><span lang="de">„Bitte zahlen Sie den Betrag von 412,00&nbsp;€ spätestens bis zum 16.11.2026.“</span><small>Please pay the amount of €412.00 by November 16, 2026 at the latest.</small></span></blockquote>
+                <p class="rv ds" style="--d:.7s">Your bank statement shows no payment to the tax office yet. So the deadline doesn’t slip by, I added a reminder.</p>
+              </div>
+              <div class="pw-rcpt rv" style="--d:1s">
+                <p><svg class="ic"><use href="#s-check"/></svg><span>Reminder added: Pay €412.00 to the tax office (due Fri, Nov&nbsp;13)</span></p>
+                <span class="tbtn"><svg class="ic"><use href="#s-checklist"/></svg>Open Reminders</span>
+              </div>
             </div>
-            <div class="pw-answer">
-              <p class="rv" style="--d:.1s">The tax office wants <strong>€412.00 in income tax for 2025</strong>, due <strong>by Monday, November&nbsp;16</strong>. This is the sentence in the letter:</p>
-              <blockquote class="pw-quote rv" style="--d:.4s"><span><span lang="de">„Bitte zahlen Sie den Betrag von 412,00&nbsp;€ spätestens bis zum 16.11.2026.“</span><small>Please pay the amount of €412.00 by November 16, 2026 at the latest.</small></span></blockquote>
-              <p class="rv" style="--d:.7s">The deadline is now in your Reminders, and a short reply is waiting as a draft in Mail.</p>
+            <div class="sc" data-s="1" data-desc="Example with a made-up spreadsheet: Pippa checks Revenue-2025.xlsx. The total for Revenue leaves out October, November and December; with them it would be 144,000. She changes nothing in the table. Below, a bar chart of revenue by month that can be saved as a picture.">
+              <div class="pw-user">
+                <div class="pw-attach"><span class="thumb xl"></span></div>
+                <p>Does the total add up? And show me revenue by month.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">The total for “Revenue” leaves out “October”, “November”, and “December”. With them, the total would be <strong>144,000</strong>.</p>
+                <p class="rv" style="--d:.4s">The sheet says 105,580, so 38,420 is missing. Nothing in your table was changed.</p>
+              </div>
+              <div class="pw-card chart rv" style="--d:.7s">
+                <div class="ct"><svg class="ic"><use href="#s-chart"/></svg>Revenue by Month</div>
+                <div class="bars"><span style="--h:69.5%;--i:0"><b>Jan</b></span><span style="--h:72.2%;--i:1"><b>Feb</b></span><span style="--h:82.2%;--i:2"><b>Mar</b></span><span style="--h:85.4%;--i:3"><b>Apr</b></span><span style="--h:94.8%;--i:4"><b>May</b></span><span style="--h:91.2%;--i:5"><b>Jun</b></span><span style="--h:79.5%;--i:6"><b>Jul</b></span><span style="--h:74.1%;--i:7"><b>Aug</b></span><span style="--h:97.2%;--i:8"><b>Sep</b></span><span style="--h:87.1%;--i:9"><b>Oct</b></span><span style="--h:84.4%;--i:10"><b>Nov</b></span><span style="--h:100.0%;--i:11"><b>Dec</b></span></div>
+                <div class="cf"><span class="foot">Computed by Pippa from Revenue-2025.xlsx</span><span class="qbtn">Save as Picture…</span></div>
+              </div>
             </div>
-            <div class="pw-card rv" style="--d:1s">
-              <div class="ct"><svg class="ic"><use href="#s-doc"/></svg>Your PDF is ready</div>
-              <div class="meta"><span>2 pages</span><span>1.4&nbsp;MB</span></div>
-              <div class="pw-file"><span class="doc20"></span>Steuerbescheid-2025.pdf</div>
-              <div class="links"><span>Open PDF</span><span>Save a copy…</span><span>Show in Finder</span></div>
-              <div class="foot">Your originals are unchanged. Nothing has been sent.</div>
+            <div class="sc" data-s="2" data-desc="Example with a made-up email: the message “Heating service on Tuesday” is selected in Mail. Asked to tell the property manager that Tuesday works, Pippa puts a reply in Mail as a draft. Nothing is sent." data-chip="">
+              <div class="pw-user">
+                <p>Reply to the property manager that Tuesday works.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">Your reply is waiting as a draft in Mail. Nothing is sent; you send it yourself.</p>
+              </div>
+              <div class="pw-card mail rv" style="--d:.4s">
+                <div class="ct"><svg class="ic"><use href="#s-env"/></svg>Re: Heating service on Tuesday</div>
+                <div class="mf"><span>To</span><b>Berger Property Management</b></div>
+                <div class="mbody"><p>Hello Ms Berger,</p><p>thank you for your message. Tuesday works well for me.</p><p>Best regards</p></div>
+                <div class="cf"><span class="meta"><span>Draft in Mail</span><span>not sent</span></span><span class="tbtn"><svg class="ic"><use href="#s-env"/></svg>Open draft</span></div>
+              </div>
+            </div>
+            <div class="sc" data-s="3" data-desc="Example with a made-up Downloads folder: Pippa suggests putting 38 loose files into four new folders: Invoices, Photos, Screenshots and Archives. Nothing is deleted, nothing moves until you click, and one click undoes it all.">
+              <div class="pw-user">
+                <div class="pw-attach"><span class="fold"><svg><use href="#s-fold"/></svg></span></div>
+                <p>Tidy up my Downloads folder.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">Here’s my plan. Nothing moves until you click “Organize 38 Files”.</p>
+              </div>
+              <div class="pw-card tidy7 rv" style="--d:.4s">
+                <div class="ct"><svg class="ic"><use href="#s-folder"/></svg>Organize Downloads</div>
+                <div class="meta"><span>38 files get a place</span><span class="ds">4 new folders</span><span>nothing is deleted</span></div>
+                <div class="ba">
+                  <div class="ba-now"><span class="heap"><i></i><i></i><i></i></span><b>Now</b><small>38 loose files</small></div>
+                  <svg class="ic ba-arr"><use href="#s-arrow"/></svg>
+                  <ul class="ba-to">
+                    <li style="--i:0"><svg><use href="#s-fold"/></svg><b>Invoices</b><small>9</small></li>
+                    <li style="--i:1"><svg><use href="#s-fold"/></svg><b>Photos</b><small>14</small></li>
+                    <li style="--i:2"><svg><use href="#s-fold"/></svg><b>Screenshots</b><small>11</small></li>
+                    <li style="--i:3"><svg><use href="#s-fold"/></svg><b>Archives</b><small>4</small></li>
+                  </ul>
+                </div>
+                <div class="cf"><span class="undo7"><svg class="ic"><use href="#s-undo"/></svg>Undo with one click</span><span class="acts"><span class="qbtn">Not Now</span><span class="pbtn">Organize 38 Files</span></span></div>
+              </div>
+            </div>
+            <div class="sc" data-s="4" data-desc="Example with a made-up appointment: asked to put the dentist in for Thursday at 3 pm, Pippa checks that the time is free and adds it to Calendar: Thursday, November 5, 15:00 to 16:00.">
+              <div class="pw-user">
+                <p>Put the dentist in for Thursday at 3 pm.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">Thursday at 3 pm was still free. The appointment is now in your Calendar.</p>
+              </div>
+              <div class="pw-rcpt cal rv" style="--d:.4s">
+                <p><svg class="ic"><use href="#s-check"/></svg><span>Added to Calendar: Thu, Nov&nbsp;5, 15:00 – Dentist</span></p>
+                <div class="ev"><b>Dentist</b><span class="meta"><span>Thursday, November&nbsp;5</span><span>15:00–16:00</span></span><small>In Calendar</small></div>
+              </div>
+            </div>
+            <div class="sc" data-s="5" data-desc="Example with made-up photos: from three phone photos of a lease, Pippa makes one PDF with three pages and 2.1 MB, within the 10 MB size target. This needs no AI download, and the originals stay unchanged.">
+              <div class="pw-user">
+                <div class="pw-attach"><span class="thumb ph" style="transform:rotate(-1.5deg)"></span><span class="thumb ph b" style="transform:rotate(1deg)"></span><span class="thumb ph" style="transform:rotate(-.5deg)"></span></div>
+                <p>Make one PDF from these photos.</p>
+              </div>
+              <div class="pw-answer">
+                <p class="rv" style="--d:.1s">Done: three pages in one PDF, small enough to upload.</p>
+              </div>
+              <div class="pw-card rv" style="--d:.4s">
+                <div class="ct"><svg class="ic"><use href="#s-doc"/></svg>Your PDF is ready<span class="tag">No AI download</span></div>
+                <div class="meta"><span>3 pages</span><span>2.1&nbsp;MB</span></div>
+                <div class="fit7"><svg class="ic"><use href="#s-checkc"/></svg>Within the 10&nbsp;MB size target</div>
+                <div class="pw-file"><span class="doc20"></span>Lease.pdf</div>
+                <div class="links"><span>Open PDF</span><span>Save a copy…</span><span>Show in Finder</span></div>
+                <div class="foot">Your originals are unchanged. Nothing has been sent.</div>
+              </div>
             </div>
           </div>
           <div class="pw-composer">
-            <div class="pw-field"><span class="add"><svg class="ic"><use href="#s-plus"/></svg></span><span class="ph">Ask Pippa…</span><span class="send"><svg class="ic"><use href="#s-up"/></svg></span></div>
+            <span class="pw-chip"><i><svg class="ic"><use href="#s-env"/></svg></i><b>Mail</b><span>Heating service on Tuesday</span></span>
+            <div class="pw-field"><span class="add"><svg class="ic"><use href="#s-plus"/></svg></span><span class="ph"><span class="ph0">Ask Pippa…</span><span class="typed"></span></span><span class="send"><svg class="ic"><use href="#s-up"/></svg></span><span class="ring"></span></div>
           </div>
         </div>
         <div class="pw-detail">
-          <div class="pw-sec pw-used">
-            <div class="h">Files in Use <span>4</span></div>
-            <div class="pw-item"><i><span class="thumb" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Tax-letter.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-            <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2041.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-            <div class="pw-item"><i><span class="thumb ph b" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2042.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-            <div class="pw-item"><i><span class="doc20"></span></i><div class="tx"><b>Bank-statement.pdf</b><span class="links"><span>Show in Finder</span></span></div></div>
+          <div class="rs on" data-s="0">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>4</span></div>
+              <div class="pw-item"><i><span class="thumb" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Tax-letter.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2041.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="thumb ph b" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2042.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="doc20"></span></i><div class="tx"><b>Bank-statement.pdf</b><span class="links"><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:1s"><i><svg class="ic"><use href="#s-checklist"/></svg></i><div class="tx"><b>Pay €412.00 to the tax office</b><small>In Reminders</small><span class="links"><span>Open</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
           </div>
-          <div class="pw-sec">
-            <div class="h">Results <span>3</span></div>
-            <div class="pw-item rv" style="--d:1s"><i><span class="doc20"></span></i><div class="tx"><b>Steuerbescheid-2025.pdf</b><small>Prepared file</small><span class="links"><span>Open</span><span>Show in Finder</span></span></div></div>
-            <div class="pw-item rv" style="--d:1.2s"><i><svg class="ic"><use href="#s-checklist"/></svg></i><div class="tx"><b>Pay €412.00 to the tax office</b><small>In Reminders</small><span class="links"><span>Open</span></span></div></div>
-            <div class="pw-item rv" style="--d:1.35s"><i><svg class="ic"><use href="#s-env"/></svg></i><div class="tx"><b>Re: Einkommensteuer 2025</b><small><span>Draft in Mail</span><span>not sent</span></small><span class="links"><span>Open</span></span></div></div>
+          <div class="rs" data-s="1">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>1</span></div>
+              <div class="pw-item"><i><span class="thumb xl" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Revenue-2025.xlsx</b><span class="links"><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:.7s"><i><svg class="ic"><use href="#s-chart"/></svg></i><div class="tx"><b>Revenue by Month</b><small>Chart</small></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
           </div>
-          <div class="pw-sec">
-            <div class="h">Sources</div>
-            <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+          <div class="rs" data-s="2">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>0</span></div>
+              <p class="pw-empty">Drop files here to use them in this conversation.</p>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:.4s"><i><svg class="ic"><use href="#s-env"/></svg></i><div class="tx"><b>Re: Heating service on Tuesday</b><small><span>Draft in Mail</span><span>not sent</span></small><span class="links"><span>Open</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+          <div class="rs" data-s="3">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>1</span></div>
+              <div class="pw-item"><i><svg class="fold-s"><use href="#s-fold"/></svg></i><div class="tx"><b>Downloads</b><span class="links"><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>0</span></div>
+              <p class="pw-empty">Files, drafts, events and reminders Pippa makes in this conversation show up here.</p>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+          <div class="rs" data-s="4">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>0</span></div>
+              <p class="pw-empty">Drop files here to use them in this conversation.</p>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:.4s"><i><svg class="ic"><use href="#s-cal"/></svg></i><div class="tx"><b>Thu, Nov&nbsp;5, 15:00 – Dentist</b><small>In Calendar</small><span class="links"><span>Open</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
+          </div>
+          <div class="rs" data-s="5">
+            <div class="pw-sec pw-used">
+              <div class="h">Files in Use <span>3</span></div>
+              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3101.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="thumb ph b" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3102.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3103.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Results <span>1</span></div>
+              <div class="pw-item rv" style="--d:.4s"><i><span class="doc20"></span></i><div class="tx"><b>Lease.pdf</b><small>Prepared file</small><span class="links"><span>Open</span><span>Show in Finder</span></span></div></div>
+            </div>
+            <div class="pw-sec">
+              <div class="h">Sources</div>
+              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
-    <p class="caption">Example with a made-up letter</p>
+    <p class="caption">Examples with made-up files</p>
+    <p class="vh" id="sceneLive" aria-live="polite"></p>
   </div>
   <div class="fx-drop" aria-hidden="true">
-    <div class="fi"><span class="thumb"></span><b>Tax-letter.jpg</b></div>
-    <div class="fi"><span class="thumb ph"></span><b>IMG_2041.jpg</b></div>
-    <div class="fi"><span class="thumb ph b"></span><b>IMG_2042.jpg</b></div>
-    <div class="fi"><span class="thumb pd"></span><b>Bank-statement.pdf</b></div>
+    <div class="fset" data-s="0">
+      <div class="fi"><span class="thumb"></span><b>Tax-letter.jpg</b></div>
+      <div class="fi"><span class="thumb ph"></span><b>IMG_2041.jpg</b></div>
+      <div class="fi"><span class="thumb ph b"></span><b>IMG_2042.jpg</b></div>
+      <div class="fi"><span class="thumb pd"></span><b>Bank-statement.pdf</b></div>
+    </div>
+    <div class="fset" data-s="1">
+      <div class="fi"><span class="thumb xl"></span><b>Revenue-2025.xlsx</b></div>
+    </div>
+    <div class="fset" data-s="3">
+      <div class="fi"><span class="fold"><svg><use href="#s-fold"/></svg></span><b>Downloads</b></div>
+    </div>
+    <div class="fset" data-s="5">
+      <div class="fi"><span class="thumb ph"></span><b>IMG_3101.jpg</b></div>
+      <div class="fi"><span class="thumb ph b"></span><b>IMG_3102.jpg</b></div>
+      <div class="fi"><span class="thumb ph"></span><b>IMG_3103.jpg</b></div>
+    </div>
   </div>
 </section>
 
@@ -778,67 +1102,136 @@ strong, b { font-weight: 600; }
 </footer>
 <script src="../pippaMark.js"></script>
 <script>
-/* Pippa's rings: still marks in the header and footer. In the window she works while her answer appears once,
+/* Pippa's rings: still marks in the header and footer. In the window she works while her answer appears,
    smiles when it is there, and smiles again while you point at a download. */
 (()=>{'use strict';
-const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const mk=(c,size,o)=>c&&window.PippaMark?new PippaMark(c,{size,state:'ruht',alive:false,...o}):{setState(){}};
 document.querySelectorAll('canvas[data-mark]').forEach(c=>mk(c,+c.dataset.mark));
 const w=mk(document.getElementById('winMark'),32),e=mk(document.getElementById('endMark'),44);
 const head=document.getElementById('head'),sc=()=>head.toggleAttribute('data-scrolled',scrollY>8);sc();addEventListener('scroll',sc,{passive:true});
 const win=document.getElementById('win'),root=document.documentElement;
-/* The hero story, once, when the window comes into view: four files glide on curved paths into the message,
-   Pippa works, her answer appears and she smiles. Then the window leans a little toward a mouse pointer. */
-if(win&&root.classList.contains('fx')){root.classList.add('fx-ok');
-const hero=win.closest('.hero'),drop=hero.querySelector('.fx-drop'),glow=hero.querySelector('.glow');
-const items=[...drop.children],slots=[...win.querySelectorAll('.pw-attach .thumb')];
+if(win){const FX=root.classList.contains('fx');if(FX)root.classList.add('fx-ok');
+const hero=win.closest('.hero'),product=win.parentElement,drop=hero.querySelector('.fx-drop'),glow=hero.querySelector('.glow');
+const segs=[...product.querySelectorAll('.seg')],bar=product.querySelector('.scn-wrap');
+const scenes=[...win.querySelectorAll('.sc')],rails=[...win.querySelectorAll('.rs')],rows=[...win.querySelectorAll('.pw-row[data-s]')];
+const title=document.getElementById('winTitle'),live=document.getElementById('sceneLive');
+const field=win.querySelector('.pw-field'),typed=field.querySelector('.typed'),ring=field.querySelector('.ring'),chip=win.querySelector('.pw-chip');
+const N=scenes.length,DWELL=6500,HOLD=15000;
+let cur=0,timers=[],flights=[];
+const later=(f,ms)=>timers.push(setTimeout(f,ms));
+const both=i=>[scenes[i],rails[i]];
+const state=(i,c,on)=>both(i).forEach(el=>el.classList.toggle(c,on));
+/* Stop whatever the current scene is still doing: timers, gliding files, typing. */
+const halt=()=>{timers.forEach(clearTimeout);timers=[];flights.forEach(a=>a.cancel());flights=[];
+  if(drop)drop.querySelectorAll('.fi').forEach(f=>f.style.visibility='hidden');
+  field.classList.remove('typing','ready');typed.textContent='';
+  win.querySelectorAll('.pw-attach .thumb.wait').forEach(t=>t.classList.remove('wait'))};
+/* The window shows scene i: its conversation selected on the left, its title, its rails, its description. */
+const select=i=>{cur=i;
+  segs.forEach((b,k)=>b.setAttribute('aria-pressed',String(k===i)));
+  rows.forEach(r=>r.classList.toggle('sel',+r.dataset.s===i));
+  scenes.forEach((s,k)=>s.classList.toggle('on',k===i));rails.forEach((s,k)=>s.classList.toggle('on',k===i));
+  const row=rows.find(r=>+r.dataset.s===i);if(row)title.textContent=row.textContent;
+  win.setAttribute('aria-label',scenes[i].dataset.desc);
+  chip.classList.toggle('on','chip' in scenes[i].dataset);
+  /* Keep the chosen segment in view where the control scrolls (phones), without moving the page. */
+  if(bar&&bar.scrollWidth>bar.clientWidth){const b=segs[i],x=b.offsetLeft-(bar.clientWidth-b.offsetWidth)/2;bar.scrollTo({left:Math.max(0,x),behavior:FX?'smooth':'auto'})}};
+const done=i=>{state(i,'u-in',true);state(i,'rv-go',true)};
 const spring=t=>{const k=6.2;return(1-(1+k*t)*Math.exp(-k*t))/(1-(1+k)*Math.exp(-k))};
 const bez=(a,b,c,d,u)=>{const v=1-u;return v*v*v*a+3*v*v*u*b+3*v*u*u*c+u*u*u*d};
-const play=()=>{
+const f=(x,y,r,s,o,off,ox,oy)=>({transform:`translate(${(x-ox).toFixed(1)}px,${(y-oy).toFixed(1)}px) rotate(${r.toFixed(2)}deg) scale(${s.toFixed(4)})`,opacity:o,offset:off});
+const prep=el=>{el.getAnimations().forEach(a=>a.cancel());el.style.visibility='';const th=el.firstElementChild,ox=el.offsetWidth/2,oy=th.offsetTop+th.offsetHeight/2;el.style.transformOrigin=ox+'px '+oy+'px';return{th,lab:el.lastElementChild,ox,oy}};
+/* A scene's own drop: its files appear just above the window and glide into the composer. Returns when they land. */
+const fly=i=>{const set=drop&&drop.querySelector(`.fset[data-s="${i}"]`);if(!set)return 0;
+  const items=[...set.children],H=hero.getBoundingClientRect(),phone=H.width<=600,F=field.getBoundingClientRect(),W=win.getBoundingClientRect();
+  const E={x:F.left+F.width*(phone?.5:.42)-H.left,y:F.top+F.height/2-H.top},y0=W.top-H.top+(phone?18:34),sp=phone?52:96,n=items.length;
+  const T0=80,GAP=90,DUR=phone?860:980;let land=0;
+  items.forEach((el,k)=>{const{lab,ox,oy}=prep(el);
+    const S={x:W.left-H.left+W.width/2+(k-(n-1)/2)*sp,y:y0+(k%2?10:0),r:[-7,6,-4,8][k%4]},app=T0+k*GAP,go=app+360,end=go+DUR;land=Math.max(land,end);
+    const side=Math.sign(S.x-E.x)||1,P1={x:S.x+side*(phone?10:30),y:S.y+40},P2={x:E.x+side*(phone?6:40),y:E.y-90},ex=E.x+(k-(n-1)/2)*(phone?8:14);
+    const kf=[f(S.x,S.y-14,S.r,.9,0,0,ox,oy),f(S.x,S.y-14,S.r,.9,0,app/end,ox,oy),f(S.x,S.y,S.r,1,1,(app+240)/end,ox,oy),f(S.x,S.y,S.r,1,1,go/end,ox,oy)];
+    for(let m=1;m<=20;m++){const t=m/20,u=spring(t),s=1-.5*u*u;kf.push(f(bez(S.x,P1.x,P2.x,ex,u),bez(S.y,P1.y,P2.y,E.y,u),S.r*(1-u),s,t<.72?1:Math.max(0,1-(t-.72)/.28),(go+DUR*t)/end,ox,oy))}
+    flights.push(el.animate(kf,{duration:end,fill:'both',easing:'linear'}));
+    flights.push(lab.animate([{opacity:1},{opacity:1,offset:.55},{opacity:0}],{duration:go+DUR*.3,fill:'both'}))});
+  later(()=>flights.push(ring.animate([{opacity:0},{opacity:1,offset:.25},{opacity:0}],{duration:700,easing:'ease-out'})),land-260);
+  return land};
+/* A typed question: letter by letter into the composer, then sent. Returns when it is sent. */
+const type=i=>{const q=scenes[i].querySelector('.pw-user p').textContent,t0=260,step=q.length>44?24:30;
+  later(()=>{typed.textContent='';field.classList.add('typing')},t0-60);
+  for(let k=1;k<=q.length;k++)later(()=>{typed.textContent=q.slice(0,k)},t0+k*step);
+  const end=t0+q.length*step;later(()=>field.classList.add('ready'),end+120);
+  later(()=>{field.classList.remove('typing','ready');typed.textContent=''},end+420);return end+420};
+/* One scene with motion: cross-fade, its own drop or question, Pippa works, the answer appears, she smiles. */
+const play=i=>{halt();w.setState('ruht');both(i).forEach(el=>el.classList.remove('u-in','rv-go'));select(i);
+  const t=scenes[i].querySelector('.pw-attach')?fly(i):type(i);
+  later(()=>state(i,'u-in',true),t+40);later(()=>w.setState('arbeitet'),t+160);
+  later(()=>state(i,'rv-go',true),t+1050);later(()=>w.setState('offen'),t+2250)};
+const show=i=>{if(FX)play(i);else{halt();select(i);done(i)}};
+
+/* Autoplay: only with motion, after the first scene's story, while the window is on screen, the tab is visible,
+   and nobody points at or focuses it. A click picks a scene and holds still for 15 seconds. */
+let prog=null,hover=false,focus=false,seen=false,hold=0,holdT=0,started=false;
+const paused=()=>hover||focus||!seen||document.hidden||hold;
+const sync=()=>{if(prog)paused()?prog.pause():prog.play()};
+const run=ms=>{if(!FX)return;if(prog)prog.cancel();const b=segs[cur]&&segs[cur].querySelector('i');if(!b)return;
+  prog=b.animate([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:ms,fill:'forwards',easing:'linear'});
+  prog.onfinish=()=>{prog.cancel();prog=null;show((cur+1)%N);run(DWELL)};sync()};
+segs.forEach((b,i)=>b.addEventListener('click',()=>{if(prog){prog.cancel();prog=null}
+  started=true;startTilt();show(i);live.textContent=scenes[i].dataset.desc;
+  if(FX){clearTimeout(holdT);hold=1;holdT=setTimeout(()=>{hold=0;run(DWELL-2500)},HOLD)}}));
+if(FX){
+  win.addEventListener('pointerenter',()=>{hover=true;sync()});win.addEventListener('pointerleave',()=>{hover=false;sync()});
+  product.addEventListener('focusin',ev=>{focus=ev.target.matches(':focus-visible');sync()});product.addEventListener('focusout',()=>{focus=false;sync()});
+  document.addEventListener('visibilitychange',sync);
+  new IntersectionObserver(es=>{seen=es[0].isIntersecting;sync()},{threshold:.25}).observe(win)}
+
+/* The first scene's story, once, when the window comes into view: four files glide on curved paths from around
+   the headline into the message, Pippa works, her answer appears and she smiles. Then autoplay begins. */
+const intro=()=>{if(started)return;started=true;
   const H=hero.getBoundingClientRect(),W=H.width,phone=W<=600;
+  const items=[...drop.querySelector('.fset[data-s="0"]').children],slots=[...scenes[0].querySelectorAll('.pw-attach .thumb')];
+  slots.forEach(s=>s.classList.add('wait'));both(0).forEach(el=>el.classList.remove('u-in','rv-go'));
   const c=r=>({x:r.left+r.width/2-H.left,y:r.top+r.height/2-H.top});
   const ink=el=>{const g=document.createRange();g.selectNodeContents(el);return g.getBoundingClientRect()},h1=ink(hero.querySelector('h1')),lede=ink(hero.querySelector('.lede')),act=hero.querySelector('.act').getBoundingClientRect(),wt=win.getBoundingClientRect().top-H.top;
   const clampX=x=>Math.max(phone?52:74,Math.min(W-(phone?52:74),x));
   const starts=phone
-    ?[.09,.25,.75,.91].map((f,i)=>({x:W*f,y:wt-34-(i%3?16:0),r:[-9,7,-6,8][i]}))
+    ?[.09,.25,.75,.91].map((q,i)=>({x:W*q,y:wt-84-(i%3?16:0),r:[-9,7,-6,8][i]}))
     :[{x:clampX(h1.left-H.left-92),y:h1.top-H.top+h1.height*.42,r:-9},{x:clampX(h1.right-H.left+86),y:h1.top-H.top+6,r:8},
       {x:clampX(lede.right-H.left+118),y:act.top-H.top+18,r:-6},{x:clampX(lede.left-H.left-124),y:act.top-H.top+44,r:7}];
   const T0=phone?420:640,GAP=phone?120:140,DUR=phone?1000:1120;let last=0;
-  items.forEach((el,i)=>{
-    const th=el.firstElementChild,lab=el.lastElementChild,slot=slots[i];if(!slot)return;
-    const ox=el.offsetWidth/2,oy=th.offsetTop+th.offsetHeight/2;el.style.transformOrigin=ox+'px '+oy+'px';
+  items.forEach((el,i)=>{const slot=slots[i];if(!slot)return;const{th,lab,ox,oy}=prep(el);
     const E=c(slot.getBoundingClientRect()),S=starts[i],s1=slot.offsetWidth/th.offsetWidth,r1=+(slot.style.transform.match(/-?[\d.]+/)||[0])[0];
     const side=Math.sign(S.x-E.x)||1,dy=E.y-S.y;
     const P1=phone?{x:S.x+side*8,y:S.y-30}:{x:S.x+side*46,y:S.y-46},P2={x:E.x+(phone?0:-side*18),y:E.y-Math.min(phone?90:230,Math.max(60,dy*.62))};
     const appear=i*70,go=T0+i*GAP,end=go+DUR;last=Math.max(last,end);
-    const f=(x,y,r,s,o,off)=>({transform:`translate(${(x-ox).toFixed(1)}px,${(y-oy).toFixed(1)}px) rotate(${r.toFixed(2)}deg) scale(${s.toFixed(4)})`,opacity:o,offset:off});
-    const k=[f(S.x,S.y+10,S.r,.88,0,0),f(S.x,S.y,S.r,1,1,Math.min(appear+300,go-40)/end),f(S.x,S.y,S.r,1,1,go/end)];
+    const k=[f(S.x,S.y+10,S.r,.88,0,0,ox,oy),f(S.x,S.y,S.r,1,1,Math.min(appear+300,go-40)/end,ox,oy),f(S.x,S.y,S.r,1,1,go/end,ox,oy)];
     for(let n=1;n<=24;n++){const t=n/24,u=spring(t),lift=1+.07*Math.sin(Math.PI*Math.min(1,t*2.2));
       const g=Math.min(1,Math.max(0,(u-.08)/.92)),s=(1+(s1-1)*g*g*(3-2*g))*lift;
-      k.push(f(bez(S.x,P1.x,P2.x,E.x,u),bez(S.y,P1.y,P2.y,E.y,u),S.r+(r1-S.r)*u,t===1?s1:s,1,(go+DUR*t)/end))}
-    el.animate(k,{duration:end,fill:'both',easing:'linear'}).finished.then(()=>{slot.classList.add('got');el.style.visibility='hidden'});
-    lab.animate([{opacity:1},{opacity:1,offset:(go+DUR*.08)/(go+DUR*.36)},{opacity:0}],{duration:go+DUR*.36,fill:'both'})});
-  setTimeout(()=>win.classList.add('u-in'),T0+DUR*.62);
-  setTimeout(()=>w.setState('arbeitet'),last-60);
-  setTimeout(()=>win.classList.add('rv-go'),last+120);
-  setTimeout(()=>w.setState('offen'),last+1950);
-  setTimeout(()=>{drop.remove();tilt()},last+200);
-  setTimeout(()=>w.setState('ruht'),last+5200);
-};
+      k.push(f(bez(S.x,P1.x,P2.x,E.x,u),bez(S.y,P1.y,P2.y,E.y,u),S.r+(r1-S.r)*u,t===1?s1:s,1,(go+DUR*t)/end,ox,oy))}
+    const a=el.animate(k,{duration:end,fill:'both',easing:'linear'});flights.push(a);
+    a.finished.then(()=>{slot.classList.remove('wait');el.style.visibility='hidden'},()=>{});
+    flights.push(lab.animate([{opacity:1},{opacity:1,offset:(go+DUR*.08)/(go+DUR*.36)},{opacity:0}],{duration:go+DUR*.36,fill:'both'}))});
+  later(()=>state(0,'u-in',true),T0+DUR*.62);
+  later(()=>w.setState('arbeitet'),last-60);
+  later(()=>state(0,'rv-go',true),last+120);
+  later(()=>w.setState('offen'),last+1950);
+  later(()=>startTilt(),last+200);
+  later(()=>run(DWELL),last+600)};
 /* A slab of glass under a lamp: at most about 3 degrees, mouse and trackpad only, eased toward the pointer. */
-const tilt=()=>{if(!matchMedia('(hover: hover) and (pointer: fine)').matches)return;
+let tilted=false;
+const startTilt=()=>{if(tilted||!FX||!matchMedia('(hover: hover) and (pointer: fine)').matches)return;tilted=true;
   let tx=0,ty=0,cx=0,cy=0,raf=0,box=null;
-  const step=()=>{cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;const done=Math.abs(tx-cx)<.004&&Math.abs(ty-cy)<.004;if(done){cx=tx;cy=ty}
+  const step=()=>{cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;const fin=Math.abs(tx-cx)<.004&&Math.abs(ty-cy)<.004;if(fin){cx=tx;cy=ty}
     win.style.transform=cx||cy?`perspective(1800px) rotateX(${cy.toFixed(3)}deg) rotateY(${cx.toFixed(3)}deg)`:'';
     if(glow)glow.style.transform=cx||cy?`translate(${(-cx*7).toFixed(1)}px,${(cy*7).toFixed(1)}px)`:'';
-    raf=done?0:requestAnimationFrame(step)};
+    raf=fin?0:requestAnimationFrame(step)};
   const go=()=>{if(!raf)raf=requestAnimationFrame(step)};
   addEventListener('scroll',()=>{box=null},{passive:true});addEventListener('resize',()=>{box=null});
-  hero.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;
+  hero.addEventListener('pointermove',ev=>{if(ev.pointerType!=='mouse')return;
     if(!box){const r=win.getBoundingClientRect();box={x:r.left+r.width/2,y:r.top+r.height/2,w:r.width/2,h:r.height/2}}
-    const cl=v=>Math.max(-1,Math.min(1,v));tx=cl((e.clientX-box.x)/box.w)*2.8;ty=-cl((e.clientY-box.y)/box.h)*2.2;go()},{passive:true});
+    const cl=v=>Math.max(-1,Math.min(1,v));tx=cl((ev.clientX-box.x)/box.w)*2.8;ty=-cl((ev.clientY-box.y)/box.h)*2.2;go()},{passive:true});
   hero.addEventListener('pointerleave',()=>{tx=ty=0;go()})};
-new IntersectionObserver((es,o)=>{if(!es[0].isIntersecting)return;o.disconnect();requestAnimationFrame(play)},{threshold:.2}).observe(win)}
+if(FX)new IntersectionObserver((es,o)=>{if(!es[0].isIntersecting)return;o.disconnect();requestAnimationFrame(intro)},{threshold:.2}).observe(win)}
 document.querySelectorAll('a.btn.dl:not(.quiet)').forEach(a=>{const m=a.id==='heroDl'?w:e;
 ['pointerenter','focus'].forEach(t=>a.addEventListener(t,()=>m.setState('offen')));
 ['pointerleave','blur'].forEach(t=>a.addEventListener(t,()=>m.setState('ruht')))});
