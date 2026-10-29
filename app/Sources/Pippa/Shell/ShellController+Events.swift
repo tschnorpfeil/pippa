@@ -184,6 +184,12 @@ extension ShellController {
             let plain = event.modifierFlags.intersection([.command, .control]).isEmpty
             let handled: Bool = MainActor.assumeIsolated {
                 guard let self, window == ObjectIdentifier(self.panel) else { return false }
+                // While dictating, Return inserts what was heard and Esc discards it; neither sends nor closes the
+                // window. Here rather than in the composer: Return also works after clicking the mic.
+                if self.model.dictation.isActive, code == 36 || code == 76 || code == 53 {
+                    if !event.isARepeat { if code == 53 { self.model.dictation.cancel() } else { self.model.dictation.finish() } }
+                    return true
+                }
                 // ⌘↩ applies an open preview, but only with an empty input field: someone typing a
                 // follow-up to the preview and submitting with ⌘↩ wants to send, not organize.
                 if (code == 36 || code == 76),

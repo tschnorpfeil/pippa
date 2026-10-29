@@ -14,4 +14,6 @@
 "NSRemovableVolumesUsageDescription" = "Pippa reads and tidies files on your USB sticks and external disks when you ask her to. You can undo her changes.";
 "NSFileProviderDomainUsageDescription" = "Pippa reads and tidies files in your cloud folders (iCloud Drive, OneDrive, Dropbox, Google Drive) when you ask her to. You can undo her changes.";
 "NSContactsUsageDescription" = "When you ask, Pippa looks up addresses and phone numbers in your contacts. She doesn’t change them.";
+"NSMicrophoneUsageDescription" = "When you click the microphone, Pippa listens so you can speak instead of typing. What you say becomes text on this Mac and is not sent anywhere.";
+"NSSpeechRecognitionUsageDescription" = "Pippa turns what you say into text on this Mac when you click the microphone. Nothing is sent to Apple or anyone else.";
 "File or Folder" = "File or Folder";

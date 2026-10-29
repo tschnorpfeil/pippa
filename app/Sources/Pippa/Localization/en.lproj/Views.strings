@@ -313,3 +313,13 @@
 "Please check every answer before you sign and send it. The original is unchanged." = "Please check every answer before you sign and send it. The original is unchanged.";
 "This file is no longer available. Ask me to fill in the form again." = "This file is no longer available. Ask me to fill in the form again.";
 "Couldn’t save the copy there. Please choose another place." = "Couldn’t save the copy there. Please choose another place.";
+"Dictate" = "Dictate";
+"Stop Dictating and Insert" = "Stop Dictating and Insert";
+"Listening…" = "Listening…";
+"⏎ inserts · esc discards" = "⏎ inserts · esc discards";
+"Speak instead of typing. Everything stays on this Mac." = "Speak instead of typing. Everything stays on this Mac.";
+"Pippa may not use the microphone. You can allow it in System Settings → Privacy & Security → Microphone." = "Pippa may not use the microphone. You can allow it in System Settings → Privacy & Security → Microphone.";
+"Pippa may not use speech recognition. You can allow it in System Settings → Privacy & Security → Speech Recognition." = "Pippa may not use speech recognition. You can allow it in System Settings → Privacy & Security → Speech Recognition.";
+"Your Mac can’t understand this language offline yet. Turn on Dictation in System Settings → Keyboard, then try again." = "Your Mac can’t understand this language offline yet. Turn on Dictation in System Settings → Keyboard, then try again.";
+"No microphone found." = "No microphone found.";
+"Dictation stopped. Please try again." = "Dictation stopped. Please try again.";

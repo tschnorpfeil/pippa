@@ -241,12 +241,13 @@ everything from the inside out. Of `runtime/pippa-tools` only the sources Pi loa
 and helpers from the unmodified signed bundle and loads no user data.
 
 **Signing and entitlements.** Pippa runs without the App Sandbox because a sandboxed app cannot set up and start Pi in
-the home folder. `Pippa.entitlements` holds only the Hardened Runtime rights it needs (Apple Events, and Calendars for
-EventKit, which also covers Reminders). `Node.entitlements` adds JIT and turns library validation off, because the
-terminal Pi loads add-ons the person installs. `llama-server` and esbuild carry no entitlements. Desktop, Documents and
-Downloads are protected by TCC prompts (texts in `Info.plist`). With a Developer ID all dylibs are signed with one team
-ID, so library validation holds; ad-hoc builds have no team ID and run without Hardened Runtime. `verify-app.sh` asserts
-all of this.
+the home folder. `Pippa.entitlements` holds only the Hardened Runtime rights it needs (Apple Events, Calendars for
+EventKit, which also covers Reminders, Contacts, Photos, and the microphone for dictation in the input field, which is
+hidden until `defaults write io.github.tschnorpfeil.pippa dictation.enabled -bool YES`). `Node.entitlements` adds JIT
+and turns library validation off, because the terminal Pi loads add-ons the person installs. `llama-server` and esbuild
+carry no entitlements. Desktop, Documents and Downloads are protected by TCC prompts (texts in `Info.plist`). With a
+Developer ID all dylibs are signed with one team ID, so library validation holds; ad-hoc builds have no team ID and run
+without Hardened Runtime. `verify-app.sh` asserts all of this.
 
 **Distributing.** An ad-hoc build runs on your own Mac. Elsewhere, macOS 15 and later requires *System Settings →
 Privacy & Security → Open Anyway*. To avoid that you need an Apple Developer ID Application certificate and a notary

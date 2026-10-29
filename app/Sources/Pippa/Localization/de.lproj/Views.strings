@@ -313,3 +313,13 @@
 "Please check every answer before you sign and send it. The original is unchanged." = "Prüf bitte jede Angabe, bevor du unterschreibst und es abschickst. Das Original bleibt unverändert.";
 "This file is no longer available. Ask me to fill in the form again." = "Diese Datei gibt es nicht mehr. Bitte mich, das Formular noch einmal auszufüllen.";
 "Couldn’t save the copy there. Please choose another place." = "Die Kopie konnte dort nicht gespeichert werden. Wähl bitte einen anderen Ort.";
+"Dictate" = "Diktieren";
+"Stop Dictating and Insert" = "Diktat beenden und einfügen";
+"Listening…" = "Ich höre zu …";
+"⏎ inserts · esc discards" = "⏎ fügt ein · esc verwirft";
+"Speak instead of typing. Everything stays on this Mac." = "Sprich, statt zu tippen. Alles bleibt auf diesem Mac.";
+"Pippa may not use the microphone. You can allow it in System Settings → Privacy & Security → Microphone." = "Pippa darf das Mikrofon nicht benutzen. Du kannst es in den Systemeinstellungen unter Datenschutz & Sicherheit → Mikrofon erlauben.";
+"Pippa may not use speech recognition. You can allow it in System Settings → Privacy & Security → Speech Recognition." = "Pippa darf die Spracherkennung nicht benutzen. Du kannst sie in den Systemeinstellungen unter Datenschutz & Sicherheit → Spracherkennung erlauben.";
+"Your Mac can’t understand this language offline yet. Turn on Dictation in System Settings → Keyboard, then try again." = "Dein Mac versteht diese Sprache noch nicht ohne Internet. Schalte in den Systemeinstellungen unter Tastatur das Diktieren ein und versuch es dann noch einmal.";
+"No microphone found." = "Kein Mikrofon gefunden.";
+"Dictation stopped. Please try again." = "Das Diktat wurde unterbrochen. Versuch es bitte noch einmal.";

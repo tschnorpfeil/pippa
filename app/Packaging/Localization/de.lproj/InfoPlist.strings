@@ -14,4 +14,6 @@
 "NSRemovableVolumesUsageDescription" = "Pippa liest und ordnet Dateien auf deinen USB-Sticks und externen Festplatten, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
 "NSFileProviderDomainUsageDescription" = "Pippa liest und ordnet Dateien in deinen Cloud-Ordnern (iCloud Drive, OneDrive, Dropbox, Google Drive), wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
 "NSContactsUsageDescription" = "Wenn du fragst, sucht Pippa Adressen und Telefonnummern in deinen Kontakten. Sie ändert nichts daran.";
+"NSMicrophoneUsageDescription" = "Wenn du auf das Mikrofon klickst, hört Pippa zu, damit du sprechen statt tippen kannst. Was du sagst, wird auf diesem Mac zu Text und nirgendwohin geschickt.";
+"NSSpeechRecognitionUsageDescription" = "Pippa macht aus dem, was du sagst, Text – auf diesem Mac, wenn du auf das Mikrofon klickst. Nichts wird an Apple oder andere geschickt.";
 "File or Folder" = "Datei oder Ordner";
