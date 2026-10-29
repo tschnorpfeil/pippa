@@ -163,54 +163,68 @@ public enum PDFForm {
         return out
     }
 
-    /// Parts of one row from the page's character boxes; the whole row when PDFKit gives no usable character boxes.
+    /// Parts of one row: its words, joined while they sit close together, with runs of underscores ("Name: ______") as
+    /// parts of their own; the whole row when PDFKit gives no usable ranges. Positions come from selections of the
+    /// words' ranges, never from `characterBounds(at:)`: that index does not count the line breaks `page.string` and
+    /// the selection ranges have, so it slips one character further with every line.
     private static func pieces(of row: PDFSelection, page: PDFPage, text: NSString) -> [(text: String, rect: CGRect)] {
         let whole = [(text: row.string ?? "", rect: row.bounds(for: page))]
-        struct Glyph { var index: Int; var rect: CGRect; var underscore: Bool }
-        var groups: [[Glyph]] = []
-        var last: Glyph?
+        struct Word { var range: NSRange; var rect: CGRect; var underscore: Bool }
+        var words: [Word] = []
+        var inStep = true
+        func isSpace(_ unit: unichar) -> Bool {
+            Unicode.Scalar(unit).map { CharacterSet.whitespacesAndNewlines.contains($0) } ?? false
+        }
+        func add(_ range: NSRange, underscore: Bool) {
+            guard range.length > 0 else { return }
+            // The selection must hold the same characters as the page text, or the positions are not what they seem.
+            guard let selection = page.selection(for: range),
+                  selection.string?.trimmingCharacters(in: .whitespacesAndNewlines) == text.substring(with: range) else { inStep = false; return }
+            let rect = selection.bounds(for: page)
+            if rect.width > 0, rect.height > 0 { words.append(Word(range: range, rect: rect, underscore: underscore)) }
+        }
         for r in 0..<row.numberOfTextRanges(on: page) {
             let range = row.range(at: r, on: page)
             guard range.location != NSNotFound, range.length > 0, NSMaxRange(range) <= text.length else { return whole }
-            for index in range.location..<NSMaxRange(range) {
-                let unit = text.character(at: index)
-                if let scalar = Unicode.Scalar(unit), CharacterSet.whitespacesAndNewlines.contains(scalar) { continue }
-                let rect = page.characterBounds(at: index)
-                guard rect.width > 0, rect.height > 0 else { continue }
-                let glyph = Glyph(index: index, rect: rect, underscore: unit == 0x5F)
-                if let previous = last, !groups.isEmpty,
-                   rect.minX - previous.rect.maxX <= max(8, 1.5 * min(rect.height, previous.rect.height)),
-                   abs(rect.midY - previous.rect.midY) < max(rect.height, previous.rect.height) / 2 {
-                    groups[groups.count - 1].append(glyph)
-                } else {
-                    groups.append([glyph])
+            let end = NSMaxRange(range)
+            var index = range.location
+            while index < end {
+                if isSpace(text.character(at: index)) { index += 1; continue }
+                var wordEnd = index
+                while wordEnd < end && !isSpace(text.character(at: wordEnd)) { wordEnd += 1 }
+                // "Name:______" is two parts: two or more underscores are the blank, the word before them its label.
+                var start = index, i = index
+                while i < wordEnd {
+                    var run = i
+                    while run < wordEnd && text.character(at: run) == 0x5F { run += 1 }
+                    if run - i >= 2 {
+                        add(NSRange(location: start, length: i - start), underscore: false)
+                        add(NSRange(location: i, length: run - i), underscore: true)
+                        start = run
+                        i = run
+                    } else {
+                        i = max(run, i + 1)
+                    }
                 }
-                last = glyph
+                add(NSRange(location: start, length: wordEnd - start), underscore: false)
+                index = wordEnd
             }
         }
-        // "Name: ______": the underscores are the blank, the words before them its label.
-        var parts: [[Glyph]] = []
-        for group in groups {
-            var current: [Glyph] = []
-            var start = 0
-            while start < group.count {
-                var end = start
-                while end < group.count && group[end].underscore { end += 1 }
-                if end - start >= 2 {
-                    if !current.isEmpty { parts.append(current); current = [] }
-                    parts.append(Array(group[start..<end]))
-                    start = end
-                } else {
-                    current.append(group[start])
-                    start += 1
-                }
+        guard inStep else { return whole }
+        var parts: [[Word]] = []
+        for word in words {
+            if let previous = parts.last?.last, !word.underscore, !previous.underscore,
+               word.rect.minX - previous.rect.maxX <= max(8, 1.5 * min(word.rect.height, previous.rect.height)),
+               abs(word.rect.midY - previous.rect.midY) < max(word.rect.height, previous.rect.height) / 2 {
+                parts[parts.count - 1].append(word)
+            } else {
+                parts.append([word])
             }
-            if !current.isEmpty { parts.append(current) }
         }
         guard parts.count > 1 else { return whole }
         let split = parts.compactMap { part -> (text: String, rect: CGRect)? in
-            guard let first = part.first, let end = part.last else { return nil }
-            let range = NSRange(location: first.index, length: end.index - first.index + 1)
+            guard let first = part.first, let last = part.last else { return nil }
+            let range = NSRange(location: first.range.location, length: NSMaxRange(last.range) - first.range.location)
             let string = page.selection(for: range)?.string ?? text.substring(with: range)
             return (string, part.dropFirst().reduce(first.rect) { $0.union($1.rect) })
         }
