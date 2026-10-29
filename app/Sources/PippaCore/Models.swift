@@ -162,7 +162,10 @@ public enum ModelSelector {
     }
 
     static func choice(_ model: CatalogModel, ctx: Int, overrides: [String: String], catalog: ModelCatalog) -> ModelChoice {
-        var extra = (model.extra ?? [:]).mapValues(\.description)
+        // llama.cpp otherwise allows an 8 GiB in-memory prompt cache on top of the model and KV state.
+        // The disk slot cache still preserves conversations when the server unloads.
+        var extra = ["cache-ram": "0"]
+        for (k, v) in model.extra ?? [:] { extra[k] = v.description }
         for (k, v) in overrides { extra[k] = v }
         let sampling = catalog.sampling.merging(model.sampling ?? [:]) { $1 }
         return ModelChoice(model: model, ctx: min(ctx, model.ctx), extra: extra, sampling: sampling)
@@ -180,6 +183,14 @@ public enum ModelSelector {
     public static func named(_ key: String, physicalMemory: UInt64, catalog: ModelCatalog = .bundled()) -> ModelChoice? {
         for preference in ModelPreference.allCases {
             if case .success(let row) = choose(physicalMemory: physicalMemory, preference: preference, catalog: catalog), row.model.key == key { return row }
+        }
+        // An installed smaller model keeps its qualified profile while the larger table model is offered.
+        // More physical memory must not silently double its context or enable llama.cpp's RAM cache.
+        for tier in [8, 16] where tier <= tierGB(physicalMemory: physicalMemory) {
+            let row = table(tier: tier)
+            if row.key == key, let model = catalog.model(key), model.pinned != nil {
+                return choice(model, ctx: row.ctx, overrides: row.extra, catalog: catalog)
+            }
         }
         guard let model = catalog.model(key), model.pinned != nil else { return nil }
         let small = physicalMemory < 20 * 1_073_741_824

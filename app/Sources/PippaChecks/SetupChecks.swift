@@ -89,6 +89,25 @@ private func inode(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: url.p
 private func linkCount(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: url.path)[.referenceCount] as? NSNumber)?.intValue }
 
 func runSetupChecks() async {
+    check("Local server: a stale 32K provider cannot enlarge the smaller model's 16K profile or enable the RAM cache") {
+        let home = fakeHome("server-context-budget"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        try PippaSettings(llamaPort: 18_471).save(to: r.support)
+        try fm.createDirectory(at: r.agentDirectory, withIntermediateDirectories: true)
+        let provider = PiInstaller.providerEntry(models: [PiProviderModel(id: "qwen3.5-9b-q4", name: "Qwen", contextWindow: 32768)],
+                                               port: 18_471, keyFile: r.llamaKeyFile)
+        try JSONSerialization.data(withJSONObject: ["providers": ["pippa-local": provider]]).write(to: r.modelsJSON)
+        let file = home.appendingPathComponent("model.gguf")
+        write("fixture", file)
+        let plan = try PiLocalServer.plan(roots: r, modelID: "qwen3.5-9b-q4", legacySupport: r.support,
+                                          physicalMemory: 24 << 30, binary: URL(fileURLWithPath: "/bin/echo"),
+                                          environment: ["PIPPA_MODEL_FILE": file.path])
+        let args = LlamaServer.arguments(choice: plan.choice, model: file, port: plan.port, supported: nil)
+        return plan.choice.ctx == 16384 && plan.choice.extra["cache-ram"] == "0"
+            && args.joined(separator: " ").contains("--ctx-size 16384")
+            && args.joined(separator: " ").contains("--cache-ram 0")
+    }
     await runPiPivotChecks()
     check("Settings: explicit local model survives port updates; table preference clears it") {
         let home = fakeHome("local-model"); defer { discard(home) }
@@ -613,6 +632,24 @@ func runSetupFlowChecks() async {
             && offlineKind && offline.canRetry && !offline.message.contains("NSURL") && done == .ready(adoptedFrom: nil)
         if !ok { print("   ", problem, question, offline, done) }
         return ok
+    }
+
+    await checkAsync("Setup: migrating an installed 9B fallback publishes its bounded 16K context to Pi") {
+        let home = fakeHome("bounded-fallback"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (fixture, data) = dummyModel(name: "Old-Q4.gguf", key: "qwen3.5-9b-q4")
+        var old = fixture
+        old.ctx = 32768
+        let (new, _) = dummyModel(name: "New-Q4.gguf", key: "new-model")
+        let catalog = ModelCatalog(sampling: [:], models: [old, new])
+        let before = PiSetupFlow(roots: r, model: old, contextWindow: 32768, searchRoots: [], port: 18_471,
+                                 catalog: catalog, download: stubDownload(data))
+        guard case .askDownload = before.prepare(), await before.download(progress: { _, _ in }) == .ready(adoptedFrom: nil) else { return false }
+        let after = PiSetupFlow(roots: r, model: new, contextWindow: 32768, searchRoots: [], port: 18_471, catalog: catalog)
+        return after.prepare() == .ready(adoptedFrom: nil) && after.activeModelKey == old.key
+            && PiInstaller.providerContextWindow(modelsJSON: r.modelsJSON, id: old.key) == 16384
+            && after.pendingDownload != nil && ModelDownloader(directory: r.pippaModels).isInstalled(old)
     }
 
     await checkAsync("Setup: new table model while the old one works (update, \"More thorough\"): ready with the old one, download offered; afterwards the new one, old file kept; switching back is instant") {

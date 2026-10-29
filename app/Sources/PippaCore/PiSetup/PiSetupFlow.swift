@@ -97,14 +97,16 @@ public final class PiSetupFlow: @unchecked Sendable {
 
     /// The model Pippa used so far, kept while `model` still has to be downloaded (e.g. the previous model after the table moved
     /// to Qwen3.5 9B, or the standard model while "Gründlicher" loads): the first `pippa-local` model in models.json that
-    /// is a pinned catalog model, verified in the model folder. Its context stays as listed there. Nothing is deleted.
+    /// is a pinned catalog model, verified in the model folder. Its context is capped by its current profile. Nothing is deleted.
     func fallback() -> (model: CatalogModel, provider: PiProviderModel)? {
         guard let folder = installer.state.modelsFolder else { return nil }
         let downloader = ModelDownloader(directory: URL(fileURLWithPath: folder, isDirectory: true))
         let modelsJSON = installer.roots.modelsJSON
         for id in PiInstaller.providerModelIDs(modelsJSON: modelsJSON) where id != model.key {
             guard let previous = catalog.model(id), previous.pinned != nil, downloader.isInstalled(previous) else { continue }
-            let context = PiInstaller.providerContextWindow(modelsJSON: modelsJSON, id: id) ?? min(previous.ctx, 16384)
+            let limit = ModelSelector.named(id, physicalMemory: ProcessInfo.processInfo.physicalMemory, catalog: catalog)?.ctx
+                ?? min(previous.ctx, 16384)
+            let context = min(PiInstaller.providerContextWindow(modelsJSON: modelsJSON, id: id) ?? limit, limit)
             return (previous, PiProviderModel(id: previous.key, name: previous.label, contextWindow: context))
         }
         return nil
