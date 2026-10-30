@@ -222,7 +222,7 @@ final class MarkNSView: NSView {
         ctx.restoreGState()
     }
 
-    /// The chat's working sign (WorkShapeView) at the mark's size, stroke and ink.
+    /// The working shape (WorkShape) at the mark's size, stroke and ink.
     private func drawShape(_ shape: WorkShape, in ctx: CGContext) {
         let size = renderer.size, half = size / 2
         let target = WorkShapeGeometry.frame(shape, at: shapeClock.truncatingRemainder(dividingBy: 3600), still: renderer.reduced)

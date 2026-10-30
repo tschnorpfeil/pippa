@@ -209,7 +209,7 @@ func runWorkStepChecks() {
         line.apply(.toolStarted(name: "read", source: nil, step: "Lese x.pdf", kind: .file), request: request, at: Date())
         line.apply(.toolEnded(name: "read", outcome: "Datei nicht gefunden", failed: true), request: request, at: Date())
         let old = try JSONDecoder().decode(WorkStep.self, from: Data(#"{"text":"Lese a.md","outcome":"leer"}"#.utf8))
-        return line.doneSteps == [WorkStep(text: "Lese x.pdf", outcome: "Datei nicht gefunden", kind: .file, failed: true)]
+        return line.doneSteps.map { var s = $0; s.seconds = nil; return s } == [WorkStep(text: "Lese x.pdf", outcome: "Datei nicht gefunden", kind: .file, failed: true)]
             && old == WorkStep(text: "Lese a.md", outcome: "leer")
     }
 

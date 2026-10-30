@@ -45,6 +45,7 @@
 "Looked it up online · %@" = "Looked it up online · %@";
 "Checked your calendar · %@" = "Checked your calendar · %@";
 "%lld s" = "%lld s";
+"%@ s" = "%@ s";
 "%lld min" = "%lld min";
 "%lld min %lld s" = "%lld min %lld s";
 "Checking the answer against your documents…" = "Checking the answer against your documents…";

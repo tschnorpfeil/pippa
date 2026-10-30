@@ -13,6 +13,11 @@
 "1 earlier step" = "1 früherer Schritt";
 "%lld earlier steps" = "%lld frühere Schritte";
 "Show All Steps" = "Alle Schritte zeigen";
+"Reasoning" = "Überlegung";
+"Show Reasoning" = "Überlegung zeigen";
+"Hide Reasoning" = "Überlegung ausblenden";
+"Shown" = "Eingeblendet";
+"Hidden" = "Ausgeblendet";
 /* State of one step chip while Pippa works (ThoughtLineView.StepChip), for VoiceOver. */
 "Running" = "Läuft";
 "Didn’t work" = "Hat nicht geklappt";

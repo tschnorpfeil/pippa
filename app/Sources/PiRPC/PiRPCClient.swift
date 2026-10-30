@@ -60,7 +60,9 @@ public struct PiRPCConfiguration: Sendable {
 public enum PiRPCEvent: Sendable, Equatable {
     /// A piece of response text.
     case textDelta(String)
-    /// Pi calls a tool. `arguments`: JSON, truncated.
+    /// A piece of the model's reasoning before or between answers (only when thinking is on).
+    case thinkingDelta(String)
+    /// Pi calls a tool. `arguments`: JSON with long string values shortened, never cut mid-structure.
     case toolStarted(id: String, name: String, arguments: String)
     case toolEnded(id: String, name: String, isError: Bool, result: String, outcome: PiActionRecord.Outcome? = nil,
                    fileAccessFailure: PiFileAccessFailure? = nil)
@@ -363,9 +365,12 @@ public actor PiRPCClient {
             let data = record["data"].flatMap { try? JSONSerialization.data(withJSONObject: $0, options: [.fragmentsAllowed]) }
             continuation.resume(returning: Response(success: record["success"] as? Bool == true, error: record["error"] as? String, data: data))
         case "message_update":
-            guard let update = record["assistantMessageEvent"] as? [String: Any], update["type"] as? String == "text_delta",
-                  let delta = update["delta"] as? String else { return }
-            events?.yield(.textDelta(delta))
+            guard let update = record["assistantMessageEvent"] as? [String: Any], let delta = update["delta"] as? String else { return }
+            switch update["type"] as? String {
+            case "text_delta": events?.yield(.textDelta(delta))
+            case "thinking_delta": events?.yield(.thinkingDelta(delta))
+            default: break
+            }
         case "message_start":
             guard let message = record["message"] as? [String: Any], message["role"] as? String == "user" else { return }
             userMessagesInRun += 1
@@ -378,7 +383,7 @@ public actor PiRPCClient {
             let name = record["toolName"] as? String ?? ""
             // save_skill's receipt takes the name from its arguments, and in sorted JSON it follows the long steps.
             events?.yield(.toolStarted(id: record["toolCallId"] as? String ?? "", name: name,
-                                       arguments: Self.json(record["args"], limit: name == "save_skill" ? 8_000 : 400)))
+                                       arguments: Self.json(record["args"], valueLimit: name == "save_skill" ? 8_000 : Self.argumentValueLimit)))
         case "tool_execution_end":
             let payload = record["result"] as? [String: Any]
             let flag = record["isError"] as? NSNumber
@@ -390,7 +395,7 @@ public actor PiRPCClient {
             // Pi's own `read` in full (up to 200,000 characters; Pi itself returns at most 50 KB per call): the
             // source check checks against exactly what Pi read (PiReadLedger). Everything else only the beginning.
             // Searches and listings: enough to count result lines for the everyday step summary ("3 matches").
-            let limit = name == "read" ? Self.readResultLimit : Self.listingTools.contains(name) ? Self.listingResultLimit : 400
+            let limit = name == "read" ? Self.readResultLimit : Self.listingTools.contains(name) ? Self.listingResultLimit : Self.resultLimit
             events?.yield(.toolEnded(id: record["toolCallId"] as? String ?? "", name: name,
                                      isError: isError, result: String(result.prefix(limit)),
                                      outcome: PiTurnReceipt.classify(tool: name, isError: isError, result: validResult ? payload : nil),
@@ -416,6 +421,10 @@ public actor PiRPCClient {
     }
 
     public static let readResultLimit = 200_000
+    /// Every other tool: enough for a whole error message or a written file's summary.
+    public static let resultLimit = 4_000
+    /// A single argument value (a file's new content, a long command); paths and search words stay whole.
+    public static let argumentValueLimit = 2_000
     public static let listingResultLimit = 20_000
     /// `web_search`: enough to find its result links for the sources card (PiTurnReceipt.webSources).
     static let listingTools: Set<String> = ["bash", "find", "grep", "ls", "web_search"]
@@ -458,9 +467,19 @@ public actor PiRPCClient {
         return (message["content"] as? [[String: Any]] ?? []).compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }.joined()
     }
 
-    private static func json(_ value: Any?, limit: Int) -> String {
-        guard let value, let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .sortedKeys]) else { return "" }
-        return String(String(decoding: data, as: UTF8.self).prefix(limit))
+    /// Sorted JSON of the arguments with each long string shortened, so the JSON stays valid and short values that
+    /// sort after a long one (a `path` after `content`) are never lost.
+    static func json(_ value: Any?, valueLimit: Int) -> String {
+        func shorten(_ value: Any) -> Any {
+            switch value {
+            case let text as String: text.count > valueLimit ? String(text.prefix(valueLimit)) + "…" : text
+            case let object as [String: Any]: object.mapValues(shorten)
+            case let list as [Any]: list.map(shorten)
+            default: value
+            }
+        }
+        guard let value, let data = try? JSONSerialization.data(withJSONObject: shorten(value), options: [.fragmentsAllowed, .sortedKeys]) else { return "" }
+        return String(decoding: data, as: UTF8.self)
     }
 }
 

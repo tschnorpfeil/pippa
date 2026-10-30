@@ -1,12 +1,12 @@
 import PippaCore
 import SwiftUI
 
-/// While an answer is on its way: no generic status text and no seconds. Pippa's rings take the shape of what she does (WorkShapeView); each real step
+/// While an answer is on its way: no generic status text and no seconds. Twelve dots show what she does (DotPulseView); each real step
 /// appears as a small chip (a picture of what it touches, everyday words) and turns into what came of it. Identical
 /// steps in a row count up instead of repeating. Words appear only for something real the host does (reading a file,
 /// waking up, a question) and, after ten seconds, one calm sentence that it takes a little longer.
 /// With Reduce Motion chips appear without moving and the shape stands still. While answer text streams the words
-/// and chips step aside; only the shape stays below the text, writing along as handwriting.
+/// and chips step aside; only the dots stay below the text, running row by row.
 struct ThoughtLineView: View {
     var thought: ThoughtLine
     /// Where no Stop is in reach (compact surfaces), the line carries one.
@@ -16,18 +16,19 @@ struct ThoughtLineView: View {
     private let showsAllState = State<Date?>(initialValue: nil)
 
     private var reduceMotion: Bool { systemReduceMotion || MarkHub.shared.reduced }
+    /// The reasoning was opened for the answer that started then.
+    private let showsReasoningState = State<Date?>(initialValue: nil)
+    private var showsReasoning: Bool { showsReasoningState.wrappedValue != nil && showsReasoningState.wrappedValue == thought.startedAt }
     private var showsAll: Bool { showsAllState.wrappedValue != nil && showsAllState.wrappedValue == thought.startedAt }
     /// How many chips stay in view; older ones fold into one count.
     static let visibleChips = 4
-    /// The handwriting under streaming text is a little larger: it is alone there and the shape seen most.
-    static let writingSide: CGFloat = 22
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let phase = thought.phase {
-                // One shape for the whole answer, so thinking morphs into the handwriting and back.
+                // One sign for the whole answer; its pattern follows the phase.
                 HStack(alignment: .top, spacing: 10) {
-                    WorkShapeView(shape: WorkShape(phase), reduceMotion: reduceMotion, side: thought.isVisible ? WorkShapeView.side : Self.writingSide)
+                    DotPulseView(pulse: DotPulse(phase), reduceMotion: reduceMotion)
                     if thought.isVisible {
                         content(phase)
                         Spacer(minLength: 0)
@@ -60,6 +61,11 @@ struct ThoughtLineView: View {
                 .id(phase.kind)
                 .transition(reduceMotion ? .identity : .opacity)
                 .accessibilityElement(children: .combine)
+            }
+            if !thought.reasoning.isEmpty {
+                ReasoningDisclosure(text: thought.reasoning, open: showsReasoning) {
+                    showsReasoningState.wrappedValue = showsReasoning ? nil : thought.startedAt
+                }
             }
             if hidden > 0 {
                 let count = hidden == 1 ? T("1 earlier step", table: "ThoughtUI") : T("%lld earlier steps", table: "ThoughtUI", hidden)
@@ -98,6 +104,45 @@ struct ThoughtLineView: View {
     }
 }
 
+/// The model's own reasoning while it thinks: one quiet line ("Reasoning ›"), opened it shows the newest text in a small
+/// box that follows along. Only while the answer is on its way; the receipt does not keep it.
+struct ReasoningDisclosure: View {
+    var text: String
+    var open: Bool
+    var toggle: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button(action: toggle) {
+                HStack(spacing: 5) {
+                    Image(systemName: "lightbulb").font(.scaled(size: 10.5, weight: .medium))
+                    Text(T("Reasoning", table: "ThoughtUI"))
+                    Image(systemName: "chevron.down").font(.scaled(size: 8.5, weight: .semibold))
+                        .rotationEffect(.degrees(open ? 180 : 0))
+                }
+                .font(Fonts.hint).foregroundStyle(Theme.ink3).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(open ? T("Hide Reasoning", table: "ThoughtUI") : T("Show Reasoning", table: "ThoughtUI"))
+            .accessibilityValue(open ? T("Shown", table: "ThoughtUI") : T("Hidden", table: "ThoughtUI"))
+            if open {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        Text(text).font(Fonts.hint).foregroundStyle(Theme.ink3).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Color.clear.frame(height: 1).id("end")
+                    }
+                    .frame(maxHeight: 140)
+                    .padding(.leading, 10)
+                    .overlay(alignment: .leading) { Theme.hair.frame(width: 1) }
+                    .onAppear { proxy.scrollTo("end", anchor: .bottom) }
+                    .onChange(of: text) { proxy.scrollTo("end", anchor: .bottom) }
+                }
+            }
+        }
+    }
+}
+
 /// One step while Pippa works, the same object as the thought bubble at the pill (PillAura.ThoughtBubble): a small
 /// picture, the everyday words, a count for repeated steps, and once done what came of it with a green check.
 /// A step that did not work is marked, so a gap is never mistaken for "nothing there".
@@ -123,6 +168,9 @@ struct StepChip: View {
                     .background(Theme.accentTint, in: Capsule())
                     .contentTransition(reduceMotion ? .identity : .numericText())
             }
+            if !bubble.running, let duration = WorkStep.duration(bubble.seconds) {
+                Text(duration).font(Fonts.hint.monospacedDigit()).foregroundStyle(Theme.ink3).lineLimit(1).fixedSize()
+            }
             if found {
                 Image(systemName: "checkmark").font(.scaled(size: 10, weight: .heavy)).foregroundStyle(Theme.ok)
                     .transition(reduceMotion ? .opacity : .scale(scale: 0.1).combined(with: .opacity))
@@ -138,7 +186,7 @@ struct StepChip: View {
         .shadow(color: Theme.shadowInk.opacity(0.06), radius: 4, y: 1)
         .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: bubble)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(bubble.spoken)
+        .accessibilityLabel([bubble.spoken, bubble.running ? nil : WorkStep.duration(bubble.seconds)].compactMap { $0 }.joined(separator: ", "))
         .accessibilityValue(bubble.running ? T("Running", table: "ThoughtUI") : bubble.failed ? T("Didn’t work", table: "ThoughtUI") : T("Done", table: "ThoughtUI"))
     }
 }
@@ -161,6 +209,9 @@ struct StepRow: View {
             }
             if let repeats = step.repeats, repeats > 1 {
                 Text(verbatim: "\(repeats)×").foregroundStyle(Theme.ink3).monospacedDigit().lineLimit(1).fixedSize()
+            }
+            if let duration = WorkStep.duration(step.seconds) {
+                Text(duration).foregroundStyle(Theme.ink3).monospacedDigit().lineLimit(1).fixedSize()
             }
         }
         .font(Fonts.hint)

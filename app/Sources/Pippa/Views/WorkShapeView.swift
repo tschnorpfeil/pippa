@@ -1,53 +1,7 @@
 import PippaCore
 import SwiftUI
 
-/// Pippa's working sign beside the thought line: the rings of her mark in the shape of what she is doing
-/// (PippaCore/WorkShape.swift). A new shape morphs out of the old one point by point. Decorative: VoiceOver skips it.
-/// It only animates while it is on screen (the line removes it when the answer is done), at a low frame rate, and under
-/// Reduce Motion shows each shape as a still picture that changes without morphing.
-struct WorkShapeView: View {
-    var shape: WorkShape
-    var reduceMotion: Bool
-    var side: CGFloat = Self.side
-
-    static let side: CGFloat = 16
-    /// Points per second the drawn shape follows its target; high enough to feel immediate, low enough to morph.
-    private static let follow = 9.0
-    private let morphState = State(initialValue: WorkShapeMorph())
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            let morph = morphState.wrappedValue
-            Canvas { gc, size in
-                let target = WorkShapeGeometry.frame(shape, at: t.truncatingRemainder(dividingBy: 3600), still: reduceMotion)
-                let strokes = morph.step(toward: target, at: t, follow: Self.follow, snap: reduceMotion)
-                let half = Double(min(size.width, size.height)) / 2
-                let style = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                for stroke in strokes where stroke.alpha > 0.01 {
-                    var path = Path()
-                    for (i, p) in stroke.points.enumerated() {
-                        let point = CGPoint(x: half + p.x * half, y: half + p.y * half)
-                        if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
-                    }
-                    path.closeSubpath()
-                    gc.stroke(path, with: .color(Self.color(stroke.ink).opacity(stroke.alpha)), style: style)
-                }
-            }
-        }
-        .frame(width: side, height: side)
-        .accessibilityHidden(true)
-    }
-
-    private static func color(_ ink: WorkShapeFrame.Ink) -> Color {
-        switch ink {
-        case .accent: Theme.accent
-        case .need: Theme.needDot
-        }
-    }
-}
-
-/// What is drawn right now. Follows the target shape a little behind it each frame, which is the morph between
+/// The mark's working shape (MarkView) as drawn right now. Follows the target shape a little behind it each frame, which is the morph between
 /// shapes; snaps when there is nothing to follow from or under Reduce Motion.
 final class WorkShapeMorph {
     private var strokes: [WorkShapeFrame.Stroke] = []
