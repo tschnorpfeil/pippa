@@ -57,19 +57,10 @@ public struct MemoryHeadroom: Sendable, Equatable {
     }
 }
 
-/// Pure decisions about memory and loading (docs/next-level-plan-2026-10-30.md §3): whether a load may start, whether
-/// a preload may start, and what a pressure event does to the server. Inputs only, no system calls, so PippaChecks
+/// Pure decisions about memory and loading (docs/next-level-plan-2026-10-30.md §3): whether a load may start (a preload
+/// follows the same rule) and what a pressure event does to the server. Inputs only, no system calls, so PippaChecks
 /// cover every branch without real memory pressure.
 public enum MemoryGate {
-    /// Headroom a preload needs per memory class (`ModelSelector.tierGB`). 24 GB runs the 9B like 16 GB since 0.3.18.
-    public static func preloadGiB(tier: Int) -> Double {
-        switch tier {
-        case ..<12: 6
-        case ..<28: 10
-        default: 22
-        }
-    }
-
     /// Below this a load is only logged as tight (log-only in 0.3.18; 0.3.19 sets refusals from the logged data).
     /// 32 GB+ keeps the 35B's former 24 GB value: its weights alone are 17.5 GiB.
     public static func tightGiB(tier: Int) -> Double {
@@ -88,26 +79,6 @@ public enum MemoryGate {
     public static func load(pressure: PressureLevel, headroomGiB: Double, tier: Int) -> LoadVerdict {
         if pressure == .critical { return .refuse }
         return headroomGiB < tightGiB(tier: tier) ? .tight : .ok
-    }
-
-    /// No preload this long after a pressure unload (hysteresis: loading again would only cause the next unload).
-    public static let pressureCooldown: TimeInterval = 600
-
-    public enum PreloadVerdict: Equatable, Sendable {
-        case go
-        case skip(String)
-    }
-
-    /// Loading ahead of time is a guess, so it needs every condition: normal pressure, the tier's headroom, a cool Mac,
-    /// no Low Power Mode, and no pressure unload in the last ten minutes.
-    public static func preload(pressure: PressureLevel, headroomGiB: Double, tier: Int, thermal: ProcessInfo.ThermalState,
-                               lowPower: Bool, lastPressureUnload: Date?, now: Date) -> PreloadVerdict {
-        if pressure != .normal { return .skip("druck-\(pressure.logName)") }
-        if headroomGiB < preloadGiB(tier: tier) { return .skip("wenig-speicher") }
-        if thermal.rawValue >= ProcessInfo.ThermalState.serious.rawValue { return .skip("warm") }
-        if lowPower { return .skip("stromsparen") }
-        if let lastPressureUnload, now.timeIntervalSince(lastPressureUnload) < pressureCooldown { return .skip("kuerzlich-entladen") }
-        return .go
     }
 
     public enum ServerKind: Sendable, Equatable {

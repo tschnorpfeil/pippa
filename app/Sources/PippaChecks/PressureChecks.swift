@@ -2,11 +2,9 @@ import Foundation
 import PippaCore
 
 /// Memory pressure and the memory check before loading (PippaCore/MemoryHeadroom.swift, docs/next-level-plan-2026-10-30.md
-/// §2 rows 3–4 and §3): refusal only under critical pressure, the preload conditions per tier, what a pressure event does
+/// §2 rows 3–4 and §3): refusal only under critical pressure (a preload follows the same rule), what a pressure event does
 /// in each server state, and which PID a pressure unload of the terminal's server may signal. Pure inputs, no real pressure.
 func runPressureChecks() {
-    let now = Date(timeIntervalSince1970: 1_800_000_000)
-
     check("Memory check: a load is refused only under critical pressure, tight headroom is only logged") {
         MemoryGate.load(pressure: .critical, headroomGiB: 40, tier: 32) == .refuse
             && MemoryGate.load(pressure: .warning, headroomGiB: 0.5, tier: 8) == .tight
@@ -15,31 +13,6 @@ func runPressureChecks() {
             && MemoryGate.load(pressure: .normal, headroomGiB: 7.9, tier: 16) == .tight
             && MemoryGate.load(pressure: .normal, headroomGiB: 8, tier: 24) == .ok
             && MemoryGate.load(pressure: .normal, headroomGiB: 18, tier: 32) == .tight
-    }
-
-    check("Memory check: preload headroom per tier (8 GB 6 GiB, 16/24 GB 10 GiB, 32 GB+ 22 GiB)") {
-        MemoryGate.preloadGiB(tier: 8) == 6 && MemoryGate.preloadGiB(tier: 16) == 10
-            && MemoryGate.preloadGiB(tier: 24) == 10 && MemoryGate.preloadGiB(tier: 32) == 22 && MemoryGate.preloadGiB(tier: 64) == 22
-    }
-
-    func preload(_ pressure: PressureLevel = .normal, gib: Double = 12, tier: Int = 16, thermal: ProcessInfo.ThermalState = .nominal,
-                 lowPower: Bool = false, unloaded: Date? = nil) -> MemoryGate.PreloadVerdict {
-        MemoryGate.preload(pressure: pressure, headroomGiB: gib, tier: tier, thermal: thermal, lowPower: lowPower, lastPressureUnload: unloaded, now: now)
-    }
-
-    check("Preload: runs only when every condition holds") {
-        preload() == .go && preload(thermal: .fair) == .go
-            && preload(gib: 6, tier: 8) == .go && preload(gib: 22, tier: 32) == .go
-            && preload(unloaded: now.addingTimeInterval(-600)) == .go
-    }
-
-    check("Preload: skipped at warning or critical pressure, below the tier's headroom, hot, in Low Power Mode, or soon after a pressure unload") {
-        func skipped(_ v: MemoryGate.PreloadVerdict) -> Bool { if case .skip = v { true } else { false } }
-        return skipped(preload(.warning)) && skipped(preload(.critical))
-            && skipped(preload(gib: 5.9, tier: 8)) && skipped(preload(gib: 9.9, tier: 24)) && skipped(preload(gib: 21.9, tier: 32))
-            && skipped(preload(thermal: .serious)) && skipped(preload(thermal: .critical))
-            && skipped(preload(lowPower: true))
-            && skipped(preload(unloaded: now.addingTimeInterval(-599))) && skipped(preload(unloaded: now))
     }
 
     check("Pressure: critical acts in every state, also on a load under way and on the terminal's server") {
