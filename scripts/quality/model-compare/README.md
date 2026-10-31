@@ -4,7 +4,7 @@ Results and method notes: `docs/measurements/model-compare/README.md`.
 
 | File | What |
 |---|---|
-| `variants.mjs` | Variants A/B/C: server arguments (as `LlamaServer.arguments`), models.json entry (as `PiReasoningStyle.modelFields`), Pi settings (as `PiModelTuning.merge`), ctx 32768 |
+| `variants.mjs` | Variants A/B/C, plus S (B's model and sampling on stock Pi: no Pippa prompt, extensions, skills or tool list): server arguments (as `LlamaServer.arguments`), models.json entry (as `PiReasoningStyle.modelFields`), Pi settings (as `PiModelTuning.merge`), ctx 32768 |
 | `server.mjs` | One llama-server per block; waits while another llama-server runs or load ≥ 10; RSS/footprint sampling |
 | `make-agentic-corpus.swift` | 20 invented PDFs in `dist/model-compare-home` (fake HOME, Spotlight-indexed) |
 | `tasks.mjs` | Ten agentic tasks: prompt, mock mail/web data, automatic first-pass rubric |

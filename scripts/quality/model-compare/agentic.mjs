@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir, rm, chmod, symlink } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { VARIANTS, modelsJson, piSettings } from './variants.mjs';
+import { VARIANTS, modelsJson, piArmArgs, piSettings } from './variants.mjs';
 import { TASKS, WEB, taskPrompt } from './tasks.mjs';
 import { rssMB } from './server.mjs';
 
@@ -158,14 +158,16 @@ try {
    PIPPA_TOOL_SCOPE: process.env.PIPPA_MC_TOOL_SCOPE ?? 'on', PIPPA_GUARD_POLICY: 'undo-first', PIPPA_LANGUAGE: task.lang, PIPPA_FIXTURE_WEB_SCHEMA: process.env.PIPPA_MC_WEB_SCHEMA ?? '', PIPPA_UNDO_DIR: join(home, 'undo'), PIPPA_TRASH_DIR: join(home, 'trash'),
    PIPPA_MCP_URL: `http://127.0.0.1:${mcp.address().port}/mcp`, PIPPA_MCP_TOKEN: 'a'.repeat(64) };
   const child = spawn(join(payload, 'bin/node'), [join(payload, 'release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'),
-   '--mode', 'rpc', '--no-extensions', '--no-session', '--no-context-files', '--no-approve', '--no-skills', '--skill', skills,
-   // Extensions as PippaPiLaunch.extensions loads them.
-   '--extension', join(root, 'runtime/pippa-tools/pippa-policy.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-tools.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-assist.ts'),
-   '--extension', join(root, 'runtime/pippa-tools/pippa-memory.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-context.ts'),
-   '--extension', join(root, 'runtime/pippa-tools/pippa-mcp.ts'),
-   ...(process.env.PIPPA_MC_WEB_SCHEMA ? ['--extension', join(root, 'scripts/quality/model-compare/fixture-web.ts')] : []),
-   '--extension', join(root, 'scripts/quality/model-compare/agentic-isolation.ts'),
-   '--tools', tools, '--system-prompt', prompts[task.lang], '--provider', 'pippa-local', '--model', variant.key, '--thinking', variant.thinking],
+   '--mode', 'rpc', '--no-extensions', '--no-session', '--no-context-files', '--no-approve',
+   ...piArmArgs(variant, ['--no-skills', '--skill', skills,
+    // Extensions as PippaPiLaunch.extensions loads them.
+    '--extension', join(root, 'runtime/pippa-tools/pippa-policy.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-tools.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-assist.ts'),
+    '--extension', join(root, 'runtime/pippa-tools/pippa-memory.ts'), '--extension', join(root, 'runtime/pippa-tools/pippa-context.ts'),
+    '--extension', join(root, 'runtime/pippa-tools/pippa-mcp.ts'),
+    ...(process.env.PIPPA_MC_WEB_SCHEMA ? ['--extension', join(root, 'scripts/quality/model-compare/fixture-web.ts')] : []),
+    '--tools', tools, '--system-prompt', prompts[task.lang]],
+    ['--extension', join(root, 'scripts/quality/model-compare/agentic-isolation.ts')]),
+   '--provider', 'pippa-local', '--model', variant.key, '--thinking', variant.thinking],
    { cwd: work, env, stdio: ['pipe', 'pipe', 'pipe'] });
   const sampler = setInterval(() => { piPeak = Math.max(piPeak, rssMB(child.pid)); }, 1000);
   child.stderr.on('data', d => err += d);
