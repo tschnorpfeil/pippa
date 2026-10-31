@@ -1,0 +1,17 @@
+[pippa-local-server] 2026-10-13T06:46:11.383Z starting llama-server
+0.05.011.746 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+0.05.012.312 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.35.963.559 I slot print_timing: id  0 | task 0 | prompt eval time =   23960.43 ms /  1592 tokens (   15.02 ms per token,    66.57 tokens per second)
+0.35.963.565 I slot print_timing: id  0 | task 0 |        eval time =    6990.76 ms /    10 tokens (  194.19 ms per token,     5.15 tokens per second)
+0.35.963.566 I slot print_timing: id  0 | task 0 |       total time =   30951.19 ms /  1602 tokens
+0.35.973.000 I slot      release: id  0 | task 0 | stop processing: n_tokens = 1601, truncated = 0
+2.03.400.506 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.955 (> 0.100 thold), f_keep = 1.000
+2.03.400.772 I slot launch_slot_: id  0 | task 181 | processing task, is_child = 0
+2.20.727.796 I slot print_timing: id  0 | task 181 | n_gen =    100, tg =   6.10 t/s, tg_3s =   6.17 t/s
+2.26.992.655 I slot print_timing: id  0 | task 181 | prompt eval time =    1107.40 ms /    40 tokens (   12.04 ms per token,    83.08 tokens per second)
+2.26.995.657 I slot      release: id  0 | task 181 | stop processing: n_tokens = 1740, truncated = 0
+2.27.254.810 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.685 (> 0.100 thold), f_keep = 0.669
+2.27.255.557 I slot launch_slot_: id  0 | task 331 | processing task, is_child = 0
+3.13.423.391 I slot print_timing: id  0 | task 331 | prompt eval time =   11173.50 ms /   900 tokens (   12.03 ms per token,    83.14 tokens per second)
+3.13.423.395 I slot print_timing: id  0 | task 331 |        eval time =    9429.42 ms /    50 tokens (  116.41 ms per token,     8.59 tokens per second)
+3.13.430.000 I slot      release: id  0 | task 331 | stop processing: n_tokens = 1600, truncated = 0
