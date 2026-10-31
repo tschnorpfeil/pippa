@@ -25,7 +25,7 @@ Drop files on Pippa or bring her up with ⌃⌥ Space (she lives in the menu bar
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 
-<p align="center"><sub>Apple silicon (M1 or later), macOS 15 or later. Photo and PDF jobs work right away. For the rest, Pippa picks the AI that fits your Mac and asks before downloading it: about 2.7 GB with 8 GB of memory, 5.7 GB with 16 or 18 GB, 16.8 GB with 24 GB or more (<a href="#will-it-run-on-my-mac">details</a>). If LM Studio, Ollama or Hugging Face already has the same file, she uses it instead of downloading it again. Prefer an online AI? Sign in with ChatGPT or add your own key.</sub></p>
+<p align="center"><sub>Apple silicon (M1 or later), macOS 15 or later. Photo and PDF jobs work right away. For the rest, Pippa picks the AI that fits your Mac and asks before downloading it: about 2.7 GB with 8 GB of memory, 5.7 GB with 16 to 24 GB, 16.8 GB with 32 GB or more (<a href="#will-it-run-on-my-mac">details</a>). If LM Studio, Ollama or Hugging Face already has the same file, she uses it instead of downloading it again. Prefer an online AI? Sign in with ChatGPT or add your own key.</sub></p>
 
 <p align="center"><img src="docs/images/demo-letter.gif" width="960" alt="Scripted website demo with made-up files: asked when notice is due before moving out at the end of March, Pippa answers 'By December 31', explains the three-month notice period and quotes the passage from the lease"><br>
 <sub>Scripted demo from an earlier version of the website, with made-up files. Not a live AI session.</sub></p>
@@ -67,8 +67,8 @@ Photo and PDF jobs work without any AI download. For everything else, Pippa pick
 | Your Mac's memory | Pippa's AI download |
 |---|---|
 | 8 GB | About 2.7 GB |
-| 16 GB or 18 GB | About 5.7 GB |
-| 24 GB or more | About 16.8 GB |
+| 16, 18 or 24 GB | About 5.7 GB |
+| 32 GB or more | About 16.8 GB |
 
 Leave some extra disk space for the app and your results. If the same file is already on your Mac from LM Studio, Ollama or Hugging Face, Pippa uses it instead of downloading it again. Apple Intelligence is optional: on macOS 26, when it is turned on, Pippa lets Apple Intelligence handle a few quick jobs, such as short text selections and sorting unclear files while tidying. Which AI each Mac gets, and why: [Pippa's local AI](docs/models.md).
 
