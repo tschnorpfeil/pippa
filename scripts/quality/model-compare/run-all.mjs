@@ -33,15 +33,18 @@ for (let round = 1; round <= Number(roundsArg); round++) {
    let t = Date.now();
    await run([join(import.meta.dirname, 'agentic.mjs'), payload, server.url, name, String(round), join(rawDir, `agentic-${tag}.json`)]);
    block.steps.agentic = (Date.now() - t) / 1000; block.footprintAfterAgentic = server.footprint();
-   t = Date.now();
-   await run([join(root, 'scripts/quality/tool-choice.mjs'), payload, server.url, `mc-${tag}-search`, 'tax', 'document', 'pdf', 'invoice', 'info', 'where'],
-    { PIPPA_SEARCH_FLOW: '1', PIPPA_MC_VARIANT: name, HOME: process.env.PIPPA_MC_SEARCH_HOME, CFFIXED_USER_HOME: process.env.PIPPA_MC_SEARCH_HOME });
-   await copyFile(join(root, `.build/tool-choice-mc-${tag}-search.json`), join(rawDir, `search-${tag}.json`));
-   block.steps.search = (Date.now() - t) / 1000;
-   t = Date.now();
-   await run([join(root, 'scripts/quality/tool-choice.mjs'), payload, server.url, `mc-${tag}-choice`], { PIPPA_MC_VARIANT: name, PIPPA_SEARCH_FLOW: '' });
-   await copyFile(join(root, `.build/tool-choice-mc-${tag}-choice.json`), join(rawDir, `choice-${tag}.json`));
-   block.steps.choice = (Date.now() - t) / 1000;
+   // File search and tool choice grade Pippa's own tools; a stock-Pi arm has none, so it runs the dialogues only.
+   if (!v.stock) {
+    t = Date.now();
+    await run([join(root, 'scripts/quality/tool-choice.mjs'), payload, server.url, `mc-${tag}-search`, 'tax', 'document', 'pdf', 'invoice', 'info', 'where'],
+     { PIPPA_SEARCH_FLOW: '1', PIPPA_MC_VARIANT: name, HOME: process.env.PIPPA_MC_SEARCH_HOME, CFFIXED_USER_HOME: process.env.PIPPA_MC_SEARCH_HOME });
+    await copyFile(join(root, `.build/tool-choice-mc-${tag}-search.json`), join(rawDir, `search-${tag}.json`));
+    block.steps.search = (Date.now() - t) / 1000;
+    t = Date.now();
+    await run([join(root, 'scripts/quality/tool-choice.mjs'), payload, server.url, `mc-${tag}-choice`], { PIPPA_MC_VARIANT: name, PIPPA_SEARCH_FLOW: '' });
+    await copyFile(join(root, `.build/tool-choice-mc-${tag}-choice.json`), join(rawDir, `choice-${tag}.json`));
+    block.steps.choice = (Date.now() - t) / 1000;
+   }
   } finally {
    block.peakRSSMB = server.peakRSS; block.footprintEndMB = server.footprint(); block.peakFootprintMB = server.peakFootprint;
    block.loadAvgEnd = load1(); block.endedAt = new Date().toISOString();

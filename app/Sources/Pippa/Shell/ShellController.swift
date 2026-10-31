@@ -30,6 +30,10 @@ final class ShellController: NSObject {
     let reveal = RevealState()
     private var cancellables: Set<AnyCancellable> = []
     private var layoutScheduled = false
+    /// Key of the last model-driven layout pass; `nil` lays out on the next change regardless.
+    private var lastLayoutKey: LayoutKey?
+    /// Counts passes in shapes whose size SwiftUI measures from their content, so those never repeat a key.
+    private var contentPasses = 0
 
     // Geometry in stage coordinates (origin at the panel's bottom left).
     private(set) var shellRect: CGRect = .zero      // target frame of the shape
@@ -273,13 +277,63 @@ final class ShellController: NSObject {
         layoutScheduled = true
         DispatchQueue.main.async { [weak self] in
             MainActor.assumeIsolated {
-                self?.layoutScheduled = false
-                self?.layout(animated: true)
-                // The drop target can change without the shape moving.
-                self?.updateStack(animated: true)
-                self?.updateAura()
+                guard let self else { return }
+                self.layoutScheduled = false
+                // Streaming text and reasoning change the model many times a second without moving the shape:
+                // only a changed layout key runs `layout`. A pass skipped by a pill drag is not remembered.
+                let key = self.layoutKey()
+                if key != self.lastLayoutKey {
+                    self.lastLayoutKey = self.isDraggingPill ? nil : key
+                    self.layout(animated: true)
+                }
+                // The drop target can change without the shape moving; both dedupe their own state.
+                self.updateStack(animated: true)
+                self.updateAura()
             }
         }
+    }
+
+    /// Every input `layout`/`target` reads from outside this controller. The controller's own state (custom
+    /// workspace, saved pill, caches, text size, appearance, screen changes, drags) lays out through its own calls.
+    private struct LayoutKey: Equatable {
+        var mode: String
+        var expanded: Bool
+        var conversation: Bool
+        var rails: ConversationRails
+        var conversationSize: CGSize
+        var conversationOnTop: Bool
+        var pillVisible: Bool
+        /// Menu bar icon while the pill is hidden.
+        var menuAnchor: NSRect?
+        /// Frame and visible frame of every screen (a Dock or display change can arrive without a notification pass).
+        var screens: [NSRect]
+        /// What `pillMeasure` caches the pill's width by (only in the pill shape; other shapes reuse that cache).
+        var pillLabel: String
+        var pillTone: String
+        var pillProgress: Bool
+        var parked: Bool
+        var dropTargeted: Bool
+        var pendingDrops: Int
+        var toastShowing: Bool
+        /// Changes on every pass while the shape is measured from its content (drop target, onboarding, line, resume).
+        var contentPass: Int
+    }
+
+    private func layoutKey() -> LayoutKey {
+        let mode = model.mode
+        let status = mode.shape == .pill ? model.pillStatus : PillStatus(tone: .rest, label: "")
+        // `target()` measures SwiftUI content for these, which reads arbitrary model state: never skip them.
+        let measured = !mode.isConversation && mode.shape != .pill
+        if measured { contentPasses &+= 1 }
+        return LayoutKey(mode: mode.key, expanded: model.isExpanded, conversation: mode.isConversation,
+                         rails: model.activeRails, conversationSize: model.conversationSize,
+                         conversationOnTop: model.conversationOnTop, pillVisible: model.pillVisible,
+                         menuAnchor: model.pillVisible ? nil : statusAnchor?(),
+                         screens: NSScreen.screens.flatMap { [$0.frame, $0.visibleFrame] },
+                         pillLabel: status.label, pillTone: status.tone.rawValue, pillProgress: status.progress != nil,
+                         parked: mode.shape == .pill && model.parked != nil, dropTargeted: model.dropTargeted,
+                         pendingDrops: model.pendingDrops.count, toastShowing: model.toastShowing,
+                         contentPass: measured ? contentPasses : 0)
     }
 
     // MARK: Geometry (screen coordinates)
@@ -595,6 +649,21 @@ final class ShellController: NSObject {
         return (view.layer?.position ?? .zero, view.layer?.bounds ?? .zero)
     }
 
+    /// Pill, line and cards float above every app. The open conversation is an ordinary window unless pinned, so a
+    /// clicked app comes in front of it and Pippa's own windows (Settings) open above it.
+    func applyLevel() {
+        let floats = !model.mode.isConversation || model.conversationOnTop
+        if panel.isFloatingPanel != floats { panel.isFloatingPanel = floats }
+        let level: NSWindow.Level = floats ? .floating : .normal
+        if panel.level != level { panel.level = level }
+    }
+
+    /// The shortcut while another app covers the unpinned conversation: bring it back instead of closing it.
+    func bringConversationForward() {
+        NSApp.activate()
+        panel.makeKeyAndOrderFront(nil)
+    }
+
     func layout(animated: Bool, force: Bool = false) {
         guard !isDraggingPill else { return }
         if model.mode.shape == .pill { workspace = nil; customWorkspace = nil }
@@ -632,6 +701,7 @@ final class ShellController: NSObject {
 
         // Window and focus
         let expanded = model.isExpanded
+        applyLevel()
         if wantVisible && !panel.isVisible { panel.orderFrontRegardless() }
         stageVisible = wantVisible
         interaction.isHidden = expanded

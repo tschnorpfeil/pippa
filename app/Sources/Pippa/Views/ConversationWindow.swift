@@ -48,7 +48,7 @@ struct ConversationWindow: View {
     private func header(_ layout: ConversationRailLayout) -> some View {
         let toggles = layout.showsToggles && DevSnapshot.showsRails
         return HStack(spacing: 10) {
-            MarkSlot(size: 32)
+            MarkSlot(size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Pippa").font(Fonts.head)
                 // Only a real topic: "New Conversation" says nothing (the empty chat shows that already).
@@ -72,8 +72,13 @@ struct ConversationWindow: View {
                            label: layout.showsDetails ? T("Hide Conversation Details", table: "Views") : T("Show Conversation Details", table: "Views"),
                            shortcut: "⌥⌘I") { model.toggleRail(.details) }
             }
+            // At every width: without the pin the conversation is an ordinary window behind the app clicked last.
+            if DevSnapshot.showsRails {
+                RailToggle(symbol: model.conversationOnTop ? "pin.fill" : "pin", on: model.conversationOnTop,
+                           label: T("Float on Top", table: "Views"), shortcut: "") { model.conversationOnTop.toggle() }
+            }
             CloseButton { model.collapse() }
-        }.foregroundStyle(Theme.ink).padding(.horizontal, 20).frame(height: 64)
+        }.foregroundStyle(Theme.ink).padding(.horizontal, 20).frame(height: 56)
             .contentShape(Rectangle())
             // The conversation can be moved by its header.
             .gesture(DragGesture(minimumDistance: 3)
@@ -116,7 +121,7 @@ private struct RailToggle: View {
         }
         .buttonStyle(.plain)
         .onHover { hover = $0 }
-        .help(label + "  " + shortcut)
+        .help(shortcut.isEmpty ? label : label + "  " + shortcut)
         .accessibilityLabel(label)
         .accessibilityAddTraits(on ? .isSelected : [])
     }

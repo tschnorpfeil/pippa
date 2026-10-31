@@ -75,7 +75,7 @@ public struct ModelChoice: Sendable, Hashable {
 /// The one model setting in Pippa's settings ("Pippas Wissen"), only on Macs with 24 GB or more
 /// (`ModelSelector.offersThorough`). Plain words in the UI, never model names or quantizations.
 public enum ModelPreference: String, Codable, Sendable, CaseIterable {
-    /// The table's default (Qwen3.5 9B from 16 GB on).
+    /// The table's default (Qwen3.5 9B on 16 and 24 GB, Qwen3.6 35B-A3B Q3 from 32 GB).
     case standard
     /// The larger model (Qwen3.6 35B-A3B IQ3), 24 GB and up.
     case thorough
@@ -107,10 +107,12 @@ public enum ModelSelector {
 
     /// The one table of which model a Mac gets (docs/settings-simplification.md). A change is one line here.
     /// - 8 GB → Qwen3.5 4B (the 9B needs 7 GiB, the 8 GB budget is 4.8 GiB).
-    /// - 16 GB → Qwen3.5 9B (5.7 GB download).
-    /// - 24 GB and up → Qwen3.6 35B-A3B Q3, without thinking: six of ten Pippa tasks passed,
-    ///   matching Saluki at roughly half its median task time (docs/measurements/qwen-gguf-validation-2026-10-24).
-    ///   The separate terminal coding profile uses medium; it is not Pippa's default.
+    /// - 16 and 24 GB → Qwen3.5 9B (5.7 GB download), the same measured profile: 16K context, medium thinking,
+    ///   no RAM prompt cache. Best result on the ten Pippa tasks (17 yes / 12 partial / 1 no of 30), ~8 GB peak RSS
+    ///   (docs/measurements/model-compare). 24 GB moved here from the 35B in 0.3.18: the 35B needs 17.5 GiB, and a 30K
+    ///   request took 164 s with 8.2 GiB of swap in use (docs/measurements/24gb-tier-9b-2026-10-31.md).
+    /// - 32 GB and up → Qwen3.6 35B-A3B Q3, without thinking: six of ten Pippa tasks passed
+    ///   (docs/measurements/qwen-gguf-validation-2026-10-24). The separate terminal coding profile uses medium.
     /// - The unqualified "More thorough" IQ3 profile remains hidden.
     /// `preference` counts only where `offersThorough` holds; below, `.thorough` falls back to the standard row.
     /// Keys between the `table` markers are read by scripts/build-app.sh: each must be pinned in catalog.json.
@@ -118,7 +120,7 @@ public enum ModelSelector {
         // table:begin
         switch (tier, preference) {
         case (8, _): ("qwen3.5-4b-q4", 16384, [:])
-        case (16, _): ("qwen3.5-9b-q4", 16384, ["ctx-checkpoints": "4", "cache-ram": "0"])
+        case (16, _), (24, .standard): ("qwen3.5-9b-q4", 16384, ["ctx-checkpoints": "4", "cache-ram": "0"])
         case (_, .thorough): ("qwen3.6-35b-a3b-iq3", 32768, [:])
         default: ("qwen3.6-35b-a3b-q3", 32768, [:])
         }
@@ -134,6 +136,15 @@ public enum ModelSelector {
 
     /// Settings show "Standard" / "Gründlicher" only on Macs with 24 GB or more, and only once `thoroughTested`.
     public static func offersThorough(physicalMemory: UInt64) -> Bool { thoroughTested && tierGB(physicalMemory: physicalMemory) >= 24 }
+
+    /// A table model that this Mac's memory class no longer gets but a larger one does (Qwen3.6 35B-A3B Q3 on a 24 GB Mac
+    /// since 0.3.18). Setup does not keep such a model as the fallback while the table model loads (`PiSetupFlow.fallback`):
+    /// the table moved this Mac off it for memory reasons. Its file stays on disk; deleting it is the person's call.
+    public static func isForLargerMacs(_ key: String, physicalMemory: UInt64) -> Bool {
+        let own = tierGB(physicalMemory: physicalMemory)
+        func hands(_ tier: Int) -> Bool { ModelPreference.allCases.contains { table(tier: tier, preference: $0).key == key } }
+        return !hands(own) && tiers.contains { $0 > own && hands($0) }
+    }
 
     /// Every catalog key the table can hand out. A release must have all of them pinned (PippaChecks, build-app.sh).
     public static var tableKeys: [String] {
@@ -162,7 +173,10 @@ public enum ModelSelector {
     }
 
     static func choice(_ model: CatalogModel, ctx: Int, overrides: [String: String], catalog: ModelCatalog) -> ModelChoice {
-        var extra = (model.extra ?? [:]).mapValues(\.description)
+        // llama.cpp otherwise allows an 8 GiB in-memory prompt cache on top of the model and KV state.
+        // The disk slot cache still preserves conversations when the server unloads.
+        var extra = ["cache-ram": "0"]
+        for (k, v) in model.extra ?? [:] { extra[k] = v.description }
         for (k, v) in overrides { extra[k] = v }
         let sampling = catalog.sampling.merging(model.sampling ?? [:]) { $1 }
         return ModelChoice(model: model, ctx: min(ctx, model.ctx), extra: extra, sampling: sampling)
@@ -180,6 +194,14 @@ public enum ModelSelector {
     public static func named(_ key: String, physicalMemory: UInt64, catalog: ModelCatalog = .bundled()) -> ModelChoice? {
         for preference in ModelPreference.allCases {
             if case .success(let row) = choose(physicalMemory: physicalMemory, preference: preference, catalog: catalog), row.model.key == key { return row }
+        }
+        // An installed smaller model keeps its qualified profile while the larger table model is offered.
+        // More physical memory must not silently double its context or enable llama.cpp's RAM cache.
+        for tier in [8, 16] where tier <= tierGB(physicalMemory: physicalMemory) {
+            let row = table(tier: tier)
+            if row.key == key, let model = catalog.model(key), model.pinned != nil {
+                return choice(model, ctx: row.ctx, overrides: row.extra, catalog: catalog)
+            }
         }
         guard let model = catalog.model(key), model.pinned != nil else { return nil }
         let small = physicalMemory < 20 * 1_073_741_824

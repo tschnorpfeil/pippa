@@ -57,7 +57,11 @@ struct ConversationWorkspace: View {
                         ForEach(chat.queued) { entry in queuedView(entry) }
                         if !showsCard { card }
                         Color.clear.frame(height: 1).id("latest")
-                    }.padding(20)
+                    }
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: Theme.conversationContentWidth, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity)
                 }
                 .scrollPosition(scrollState.projectedValue)
                 // The bar crowded the bubbles; scrolling stays, the round button below leads back down.
@@ -678,8 +682,14 @@ struct ConversationWorkspace: View {
                     .onSubmit { model.route(model.query) }.padding(.vertical, 8)
                 if UserDefaults.standard.bool(forKey: Dictation.enabledKey) { DictationButton(dictation: model.dictation) }
                 if chat.isRunning {
-                    Button { model.stopChat() } label: { Image(systemName: "stop.fill").frame(width: 32, height: 32) }
+                    Button { model.stopChat() } label: {
+                        Label(T("Stop Answering", table: "Views"), systemImage: "stop.fill")
+                            .font(.scaled(size: 12, weight: .medium))
+                            .padding(.horizontal, 10).frame(height: 32)
+                            .background(Theme.fill2, in: Capsule())
+                    }
                         .buttonStyle(.plain).accessibilityLabel(T("Stop Answering", table: "Views"))
+                        .help(T("Stop Answering", table: "Views") + "  ⌘.")
                         .keyboardShortcut(".", modifiers: .command)
                 } else {
                     // While Pippa is working: queue it, the message is handled afterwards.
@@ -710,7 +720,11 @@ struct ConversationWorkspace: View {
                     Text(status).font(Fonts.hint).foregroundStyle(Theme.ink3).lineLimit(2)
                 }
             }
-        }.padding(.horizontal, 20).padding(.bottom, 16).padding(.top, 10)
+        }
+        .padding(.bottom, 20).padding(.top, 12)
+        .frame(maxWidth: Theme.conversationContentWidth, alignment: .leading)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
     }
 }
 

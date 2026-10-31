@@ -11,6 +11,8 @@
 #   PIPPA_CMAKE          cmake to build llama-server with (default: cmake from PATH); PIPPA_NINJA likewise
 #   PIPPA_REQUIRE_DISTRIBUTION=1  Developer ID mandatory (release pipeline)
 #   PIPPA_NATIVE_ACCEPTANCE=1  instrumented signed integration candidate, separate output/scratch; never distribute
+#   PIPPA_BUILD_JOBS     parallel compile jobs for swift build and llama.cpp (default: cores - 2, at least 1),
+#                        so a build leaves the Mac usable
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -46,6 +48,11 @@ for tool in swift codesign iconutil sips plutil install_name_tool otool shasum c
   command -v "$tool" >/dev/null || die "$tool missing (Command Line Tools installed?)"
 done
 
+CORES="$(sysctl -n hw.ncpu)"
+JOBS="${PIPPA_BUILD_JOBS:-$(( CORES - 2 ))}"
+[[ "$JOBS" =~ ^[0-9]+$ ]] || die "PIPPA_BUILD_JOBS must be a whole number, got '$JOBS'"
+(( JOBS >= 1 )) || JOBS=1
+
 # --- Version -----------------------------------------------------------------
 VERSION="$(sed -n 's/.*static let version = "\([^"]*\)".*/\1/p' "$APP_SRC/Sources/PippaCore/PippaCore.swift" | head -1)"
 [[ -n "$VERSION" ]] || die "Pippa.version not found in app/Sources/PippaCore/PippaCore.swift"
@@ -73,8 +80,8 @@ if [[ "$ACCEPTANCE" == 1 ]]; then
   SOURCE_BEFORE="$(python3 "$ROOT/scripts/check-native-acceptance.py" --source-manifest)"
 fi
 if [[ "${PIPPA_SKIP_BUILD:-}" != 1 ]]; then
-  say "swift build -c release --arch arm64"
-  (cd "$APP_SRC" && swift build "${SWIFT_ARGS[@]}" --product Pippa)
+  say "swift build -c release --arch arm64 ($JOBS jobs)"
+  (cd "$APP_SRC" && swift build "${SWIFT_ARGS[@]}" --jobs "$JOBS" --product Pippa)
 fi
 BIN="$(cd "$APP_SRC" && swift build "${SWIFT_ARGS[@]}" --show-bin-path)"
 [[ -x "$BIN/Pippa" ]] || die "no release binary at $BIN/Pippa"
@@ -166,11 +173,11 @@ if [[ ! -f "$LLAMA_DIR/.patched" ]]; then
   done
   touch "$LLAMA_DIR/.patched"
 fi
-say "Building llama-server $LLAMA_TAG (cmake: $CMAKE)"
+say "Building llama-server $LLAMA_TAG (cmake: $CMAKE, $JOBS jobs)"
 "$CMAKE" -S "$LLAMA_SRC" -B "$LLAMA_BUILD" "${GENERATOR[@]}" \
   -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
   "${LLAMA_CMAKE_ARGS[@]}" >"$LLAMA_DIR/configure.log" 2>&1 || { tail -30 "$LLAMA_DIR/configure.log" >&2; die "llama.cpp configure failed (log: $LLAMA_DIR/configure.log)"; }
-"$CMAKE" --build "$LLAMA_BUILD" --target llama-server -j "$(sysctl -n hw.ncpu)" >"$LLAMA_DIR/build.log" 2>&1 ||
+"$CMAKE" --build "$LLAMA_BUILD" --target llama-server -j "$JOBS" >"$LLAMA_DIR/build.log" 2>&1 ||
   { tail -30 "$LLAMA_DIR/build.log" >&2; die "llama.cpp build failed (log: $LLAMA_DIR/build.log)"; }
 LLAMA_BIN="$LLAMA_BUILD/bin/llama-server"
 [[ -x "$LLAMA_BIN" ]] || die "no llama-server at $LLAMA_BIN"

@@ -40,6 +40,15 @@ final class AppModel: ObservableObject {
             d.set(conversationRails.prefersDetails, forKey: "conversation.rail.prefersDetails")
         }
     }
+    /// The header pin: the open conversation floats above other apps only when pinned, otherwise it is an ordinary
+    /// window (ShellController.applyLevel). Saved per Mac; scripted captures never float.
+    @Published var conversationOnTop = DevSnapshot.directory == nil && UserDefaults.standard.bool(forKey: "conversation.onTop") {
+        didSet {
+            guard conversationOnTop != oldValue else { return }
+            if DevSnapshot.directory == nil { UserDefaults.standard.set(conversationOnTop, forKey: "conversation.onTop") }
+            shell?.applyLevel()
+        }
+    }
     /// The detail rail asks the conversation to show one of its messages (ConversationWorkspace scrolls there).
     @Published private(set) var conversationJump = 0
     private(set) var conversationJumpTarget: UUID?
@@ -1254,12 +1263,12 @@ final class AppModel: ObservableObject {
         conversationJump += 1
     }
 
-    /// Both rails until the person switches one off. Scripted captures start plain and save nothing.
+    /// Conversation navigation by default; details open on demand. Explicit saved choices stay unchanged.
     private static func savedRails() -> ConversationRails {
         guard DevSnapshot.directory == nil else { return .plain }
         let d = UserDefaults.standard
         return ConversationRails(sessions: d.object(forKey: "conversation.rail.sessions") as? Bool ?? true,
-                                 details: d.object(forKey: "conversation.rail.details") as? Bool ?? true,
+                                 details: d.object(forKey: "conversation.rail.details") as? Bool ?? false,
                                  prefersDetails: d.bool(forKey: "conversation.rail.prefersDetails"))
     }
 

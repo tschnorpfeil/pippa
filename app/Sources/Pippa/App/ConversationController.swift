@@ -293,12 +293,20 @@ final class ConversationController: ObservableObject {
         let requestID = UUID()
         self.requestID = requestID
         thought.begin(requestID, at: Date())
+        clearReasoning()
         lastAnnouncedKind = nil; lastAnnouncement = nil
         // Phase events arrive from any thread; one ordered stream keeps their order, the request ID drops late ones.
         let (workEvents, workSink) = AsyncStream<WorkEvent>.makeStream()
         let phases = Task { [weak self] in
             for await event in workEvents {
                 guard let self, self.isRunning, self.current?.id == id, self.requestID == requestID else { continue }
+                if case .thinking(let delta) = event {
+                    if let text = self.reasoning.add(delta, at: Date()) { self.thought.apply(.thinking(text), request: requestID, at: Date()) }
+                    else { self.scheduleReasoningFlush(request: requestID) }
+                    continue
+                }
+                // Tool start and end and answer text (`.phase(.writing)`) come after the reasoning before them.
+                self.flushReasoning(request: requestID)
                 if event == .phase(.writing), self.thought.phase == .writing { continue }
                 if self.thought.apply(event, request: requestID, at: Date()) { self.announcePhase() }
             }
@@ -309,6 +317,7 @@ final class ConversationController: ObservableObject {
             var scoped: [URL] = []
             defer {
                 workSink.finish(); phases.cancel()
+                if self?.requestID == requestID { self?.clearReasoning() }
                 self?.thought.end(request: requestID)
                 scoped.forEach { $0.stopAccessingSecurityScopedResource() }
                 // What Pi no longer accepted goes out afterwards as its own message (AppModel.sendQueued).
@@ -374,6 +383,7 @@ final class ConversationController: ObservableObject {
                 // Some engines finish normally after cancellation. Preserve only
                 // the text accepted before Stop, never a completed draft or plan.
                 if self.stopRequested || Task.isCancelled { throw CancellationError() }
+                self.flushReasoning(request: requestID)
                 let work = self.thought.finish(request: requestID, at: Date())
                 // "What happened" from tool events and Pippa's own results, never from the answer text.
                 let actions = chat.takeShownActions()
@@ -468,6 +478,33 @@ final class ConversationController: ObservableObject {
         guard !pendingDelta.isEmpty else { return }
         streamingText += pendingDelta
         pendingDelta = ""
+    }
+
+    /// Reasoning is applied in batches as well (PippaCore `ReasoningBatch`, ~10 per second): each token used to publish
+    /// `thought`, re-render the conversation and lay out the shell again.
+    private var reasoning = ReasoningBatch()
+    private var reasoningFlushTask: Task<Void, Never>?
+
+    private func scheduleReasoningFlush(request: UUID) {
+        guard reasoningFlushTask == nil, let due = reasoning.due else { return }
+        let wait = max(0, due.timeIntervalSinceNow)
+        reasoningFlushTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(Int(wait * 1000)))
+            guard let self, !Task.isCancelled, self.requestID == request else { return }
+            self.reasoningFlushTask = nil
+            self.flushReasoning(request: request)
+        }
+    }
+
+    private func flushReasoning(request: UUID) {
+        reasoningFlushTask?.cancel(); reasoningFlushTask = nil
+        guard let text = reasoning.take(at: Date()) else { return }
+        thought.apply(.thinking(text), request: request, at: Date())
+    }
+
+    private func clearReasoning() {
+        reasoningFlushTask?.cancel(); reasoningFlushTask = nil
+        reasoning = ReasoningBatch()
     }
 
     /// Queues a message. If an answer is running, Pi gets it right after the current step.

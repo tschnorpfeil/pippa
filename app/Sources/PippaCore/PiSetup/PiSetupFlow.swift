@@ -53,6 +53,7 @@ public final class PiSetupFlow: @unchecked Sendable {
     public let options: PiInstallOptions
     private let download: PiInstaller.Download
     private let catalog: ModelCatalog
+    private let physicalMemory: UInt64
     private let lock = NSLock()
     private var adopted: String?
     private var pending: Int64?
@@ -61,10 +62,12 @@ public final class PiSetupFlow: @unchecked Sendable {
     /// `searchRoots`: `nil` = all known places (old container, LM Studio, Ollama, Hugging Face …).
     /// `download`: a stand-in only for tests and recordings; otherwise the real ModelDownloader.
     public init(roots: PiInstallRoots, model: CatalogModel, contextWindow: Int, searchRoots: [ModelLocation]? = nil,
-                port: Int? = nil, catalog: ModelCatalog = .bundled(), download: @escaping PiInstaller.Download = PiInstaller.modelDownloader) {
+                port: Int? = nil, catalog: ModelCatalog = .bundled(), physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory,
+                download: @escaping PiInstaller.Download = PiInstaller.modelDownloader) {
         installer = PiInstaller(roots: roots)
         self.model = model
         self.catalog = catalog
+        self.physicalMemory = physicalMemory
         options = PiInstallOptions(model: model, modelSearchRoots: searchRoots,
                                    providerModels: [PiProviderModel(id: model.key, name: model.label, contextWindow: contextWindow)],
                                    port: port ?? PiInstaller.stablePort(support: roots.support))
@@ -97,14 +100,19 @@ public final class PiSetupFlow: @unchecked Sendable {
 
     /// The model Pippa used so far, kept while `model` still has to be downloaded (e.g. the previous model after the table moved
     /// to Qwen3.5 9B, or the standard model while "Gründlicher" loads): the first `pippa-local` model in models.json that
-    /// is a pinned catalog model, verified in the model folder. Its context stays as listed there. Nothing is deleted.
+    /// is a pinned catalog model, verified in the model folder. Its context is capped by its current profile. Nothing is deleted.
+    /// Not a model the table now reserves for larger Macs (`ModelSelector.isForLargerMacs`, e.g. the 35B on 24 GB since
+    /// 0.3.18): the table moved this Mac off it because it swaps, so setup asks for the download instead of keeping it.
     func fallback() -> (model: CatalogModel, provider: PiProviderModel)? {
         guard let folder = installer.state.modelsFolder else { return nil }
         let downloader = ModelDownloader(directory: URL(fileURLWithPath: folder, isDirectory: true))
         let modelsJSON = installer.roots.modelsJSON
         for id in PiInstaller.providerModelIDs(modelsJSON: modelsJSON) where id != model.key {
-            guard let previous = catalog.model(id), previous.pinned != nil, downloader.isInstalled(previous) else { continue }
-            let context = PiInstaller.providerContextWindow(modelsJSON: modelsJSON, id: id) ?? min(previous.ctx, 16384)
+            guard let previous = catalog.model(id), previous.pinned != nil, downloader.isInstalled(previous),
+                  !ModelSelector.isForLargerMacs(id, physicalMemory: physicalMemory) else { continue }
+            let limit = ModelSelector.named(id, physicalMemory: physicalMemory, catalog: catalog)?.ctx
+                ?? min(previous.ctx, 16384)
+            let context = min(PiInstaller.providerContextWindow(modelsJSON: modelsJSON, id: id) ?? limit, limit)
             return (previous, PiProviderModel(id: previous.key, name: previous.label, contextWindow: context))
         }
         return nil

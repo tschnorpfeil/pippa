@@ -10,11 +10,11 @@ This page is for the curious. The [README](../README.md#will-it-run-on-my-mac) h
 | Mac memory | AI | File (quantization) | Download | Context | Thinking |
 |---|---|---|---|---|---|
 | 8 GB | Qwen3.5 4B | Q4_K_M | 2.74 GB | 16K tokens | Off |
-| 16 GB or 18 GB | Qwen3.5 9B | Q4_K_M | 5.68 GB | 16K tokens | Medium |
-| 24 GB or more | Qwen3.6 35B-A3B (mixture of experts, about 3B active) | UD-Q3_K_XL | 16.85 GB | 32K tokens | Off |
+| 16, 18 or 24 GB | Qwen3.5 9B | Q4_K_M | 5.68 GB | 16K tokens | Medium |
+| 32 GB or more | Qwen3.6 35B-A3B (mixture of experts, about 3B active) | UD-Q3_K_XL | 16.85 GB | 32K tokens | Off |
 
 - **Memory classes.** Pippa rounds your Mac's memory to a class: under 12 GB counts as 8 GB, under 20 GB as 16 GB,
-  and everything above that gets the 24 GB row.
+  under 28 GB as 24 GB, and everything above that gets the 32 GB row.
 - **Where the files come from.** The GGUF files come from Unsloth's repositories on Hugging Face
   (`unsloth/Qwen3.5-4B-GGUF`, `unsloth/Qwen3.5-9B-GGUF`, `unsloth/Qwen3.6-35B-A3B-GGUF`). Each one is pinned to a
   revision, a size and a SHA-256 checksum. Downloads can resume and are verified before use.
@@ -33,7 +33,12 @@ The source of truth is `ModelSelector.table` in
   these Macs get the 4B.
 - **16 GB:** Qwen3.5 9B replaced K2 Horizon 7B after a side-by-side test with Pi: more tasks done, fewer invented facts,
   faster answers and better German ([comparison](measurements/model-compare/README.md), in German).
-- **24 GB and more:** since 24 October 2026, Qwen3.6 35B-A3B without thinking. In Pippa's ten-task check it passed
+- **24 GB:** since 0.3.18, the same Qwen3.5 9B profile as 16 GB. The 35B it replaced needs 17.5 GiB of the Mac's
+  24 GB; with other apps open, a long request took almost three minutes with more than 8 GiB of swap in use. The 9B peaks at about
+  8 GB and had the best results in the side-by-side test
+  ([decision record](measurements/24gb-tier-9b-2026-10-31.md)). It still has to pass a check on a busy 24 GB Mac
+  before the release.
+- **32 GB and more:** Qwen3.6 35B-A3B without thinking. In Pippa's ten-task check it passed
   six tasks, as many as Saluki 27B, the model it was compared with, at about half its median task time (34.5 s
   versus 69.9 s; [GGUF follow-up](measurements/qwen-gguf-validation-2026-10-24/README.md)). Medium thinking passed only three, so it
   is not the default.
@@ -51,8 +56,8 @@ Macs with 24 GB or more have a second choice, "Standard" or "More thorough", but
 |---|---|---|---|---|
 | More thorough (hidden) | Qwen3.6 35B-A3B, UD-IQ3_S | 13.68 GB | 32K tokens | Medium |
 
-- **Designed for the old default.** The option dates from when the 24 GB default was still the 9B (5.7 GB); since the
-  24 GB default became the 35B, it would now be the smaller download.
+- **Designed for the 9B default.** The option dates from when the 24 GB default was the 9B (5.7 GB). Since 0.3.18 it
+  is again; on 32 GB and more, where the default is the 35B Q3, it would be the smaller download.
 - **Saved choices.** While the option is hidden, a saved "More thorough" choice counts as "Standard".
 - **For developers.** The file stays pinned, so developers can still run it with
   `PIPPA_PI_MODEL=qwen3.6-35b-a3b-iq3`.

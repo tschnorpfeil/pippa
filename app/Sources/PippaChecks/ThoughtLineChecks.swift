@@ -201,8 +201,8 @@ func runThoughtLineChecks() async {
             line.apply(.toolStarted(name: "bash", source: nil, step: "Arbeite an deinem Mac", kind: .mac), request: request, at: at(Double(second)))
             line.apply(.toolEnded(name: "bash"), request: request, at: at(Double(second) + 0.5))
         }
-        let merged = line.bubbles == [StepBubble(id: 0, text: "Suche in deinen Mails", kind: .mail, outcome: "3 Treffer"),
-                                      StepBubble(id: 1, text: "Arbeite an deinem Mac", kind: .mac, count: 4)]
+        let merged = line.bubbles == [StepBubble(id: 0, text: "Suche in deinen Mails", kind: .mail, outcome: "3 Treffer", seconds: 1),
+                                      StepBubble(id: 1, text: "Arbeite an deinem Mac", kind: .mac, count: 4, seconds: 2)]
         // One grouping rule: with nothing running, the bubbles count exactly what WorkStep.merged counts.
         let sameRule = line.bubbles.map(\.count) == WorkStep.merged(line.steps).map { $0.repeats ?? 1 }
         let waiting = line.phase == .waitingForAnswer(continuing: false) && line.phaseNote?.title == WorkPhase.waitingForAnswer(continuing: false).title
@@ -249,5 +249,55 @@ func runThoughtLineChecks() async {
         legacy.removeValue(forKey: "work")
         let old = try JSONDecoder().decode(ConversationMessage.self, from: JSONSerialization.data(withJSONObject: legacy))
         return decoded == message && decoded.work?.sources.first?.name == "a.pdf" && old.work == nil
+    }
+
+    check("Thought Line: a burst of reasoning tokens is applied in a few batches, complete and in order") {
+        // 500 thinking deltas within 200 ms, as ConversationController drives ReasoningBatch: apply what `add` returns,
+        // apply on `due` (the trailing timer), and take the rest before a tool step and at the end.
+        let request = UUID()
+        var line = ThoughtLine()
+        line.begin(request, at: at(0))
+        var batch = ReasoningBatch()
+        var flushes = 0
+        var expected = ""
+        func apply(_ text: String?, _ now: Date) {
+            guard let text else { return }
+            flushes += 1
+            line.apply(.thinking(text), request: request, at: now)
+        }
+        for i in 0..<500 {
+            let now = at(Double(i) * 0.0004)
+            if let due = batch.due, due <= now { apply(batch.take(at: now), now) }
+            let delta = i % 7 == 0 ? "ü\(i) " : "t\(i) "
+            expected += delta
+            apply(batch.add(delta, at: now), now)
+            if i == 250 {
+                // A tool starts mid-burst: the reasoning before it is applied first.
+                apply(batch.take(at: now), now)
+                guard line.reasoning == expected else { return false }
+                line.apply(.toolStarted(name: "read", source: nil), request: request, at: now)
+            }
+        }
+        apply(batch.take(at: at(0.2)), at(0.2))
+        guard line.reasoning == expected, batch.pending.isEmpty, batch.due == nil, flushes <= 6 else {
+            print("  flushes: \(flushes), same: \(line.reasoning == expected)"); return false
+        }
+        return true
+    }
+
+    check("Thought Line: reasoning keeps the newest 8 000 UTF-8 bytes, cut at a whole character") {
+        let request = UUID()
+        var line = ThoughtLine()
+        line.begin(request, at: at(0))
+        var all = ""
+        for i in 0..<900 {
+            // Two-, three- and four-byte characters, so the cut lands inside one now and then.
+            let delta = "ä€😀 \(i) "
+            all += delta
+            line.apply(.thinking(delta), request: request, at: at(1))
+        }
+        let kept = line.reasoning
+        return all.utf8.count > ThoughtLine.maxReasoning && kept.utf8.count <= ThoughtLine.maxReasoning
+            && kept.utf8.count > ThoughtLine.maxReasoning - 4 && all.hasSuffix(kept)
     }
 }

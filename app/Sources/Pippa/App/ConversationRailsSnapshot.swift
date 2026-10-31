@@ -62,6 +62,12 @@ import PippaCore
             check(false, "Fixture conversations exist"); return
         }
 
+        // The everyday workspace starts with navigation and keeps results inline; details remain available on demand.
+        model.conversationRails = ConversationRails(sessions: true, details: false)
+        shell.railsChanged(minimumWidth: nil)
+        await snapshot("rails-00-workspace")
+        check(layout().showsSessions && !layout().showsDetails, "The everyday workspace shows navigation without the detail rail")
+
         // 1: both rails beside the conversation.
         model.conversationRails = .both
         shell.railsChanged(minimumWidth: nil)
@@ -136,6 +142,32 @@ import PippaCore
         if let draftID { model.showInConversation(draftID) }
         await snapshot("rails-06-after-changes")
         check(model.conversationJumpTarget == draftID, "Show in Conversation points the conversation at the draft")
+
+        let gate = WorkspaceAnswerGate()
+        let heldAnswer = SnapshotChat(script: { _, _, _, _ in try await gate.wait() }, onCancel: { await gate.stop() })
+        model.conversations.send("A short synthetic question", chat: heldAnswer)
+        await snapshot("rails-07-stoppable")
+        check(model.conversations.isRunning, "A held answer keeps the labeled Stop control available")
+        model.conversationSize = CGSize(width: 400, height: model.conversationSize.height)
+        shell.layout(animated: false, force: true)
+        await snapshot("rails-08-stoppable-compact")
+        model.stopChat()
+        for _ in 0..<20 where model.conversations.isRunning { try? await Task.sleep(for: .milliseconds(50)) }
+        check(!model.conversations.isRunning, "Stop cancels the held answer in the compact workspace")
+    }
+}
+
+private actor WorkspaceAnswerGate {
+    private var waiter: CheckedContinuation<Void, Never>?
+    private var stopped = false
+    func wait() async throws -> String? {
+        if !stopped { await withCheckedContinuation { waiter = $0 } }
+        throw CancellationError()
+    }
+    func stop() {
+        stopped = true
+        waiter?.resume()
+        waiter = nil
     }
 }
 #endif

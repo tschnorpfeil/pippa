@@ -1,0 +1,6 @@
+{"type":"session","version":3,"id":"fixture","timestamp":"2026-10-30T20:18:46.808Z","cwd":"/tmp"}
+{"type":"message","id":"u1","message":{"role":"user","content":[{"type":"text","text":"hi"}]}}
+{"type":"message","id":"a1","message":{"role":"assistant","content":[],"usage":{"input":1592,"output":10,"cacheRead":0,"cacheWrite":0}}}
+{"type":"message","id":"a2","message":{"role":"assistant","content":[],"usage":{"input":40,"output":104,"cacheRead":1588,"cacheWrite":0}}}
+not json at all
+{"type":"message","id":"a3","message":{"role":"assistant","content":[],"usage":{"input":900,"output":50,"cacheRead":700,"cacheWrite":0}}}

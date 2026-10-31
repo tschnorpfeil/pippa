@@ -30,9 +30,12 @@ One table, `ModelSelector.table(tier:preference:)` in `app/Sources/PippaCore/Mod
 |---|---|---|---|
 | 8 GB | Qwen3.5 4B Q4 | – | 16K |
 | 16 GB | Qwen3.5 9B Q4_K_M | – | 16K |
-| 24 GB and up | Qwen3.6 35B-A3B UD-Q3_K_XL, thinking off | Hidden (IQ3 remains unqualified) | 32K |
+| 24 GB | Qwen3.5 9B Q4_K_M (the 16 GB profile) | Hidden (IQ3 remains unqualified) | 16K |
+| 32 GB and up | Qwen3.6 35B-A3B UD-Q3_K_XL, thinking off | Hidden (IQ3 remains unqualified) | 32K |
 
-The 24 GB profile changed on 24 October 2026 after the [GGUF follow-up](measurements/qwen-gguf-validation-2026-10-24/README.md): Qwen without thinking matched Saluki's six manually passing Pippa tasks out of ten, with median task time 34.5 s versus 69.9 s and both native actions passing. Medium thinking passed only three tasks and is not Pippa's default. The new profile uses a 1 GiB prompt-cache limit and four context checkpoints. Errors remain in both models; this small fixture suite is not a universal quality guarantee. Terminal Pi uses medium based on a separate coding comparison. Existing explicit choices and user-selected thinking levels remain intact; fresh defaults use the qualified profile. The download is 16.8 GB.
+The 24 GB row moved back to the 9B in 0.3.18 ([decision record](measurements/24gb-tier-9b-2026-10-31.md)): the 35B needs 17.5 GiB of 24 GB, and a 30K request took 164 s with 8.2 GiB of swap already in use, so it fails Pippa's memory gate. 24 GB Macs now get exactly the measured 16 GB profile (16K context, medium thinking, no RAM prompt cache). The paragraph below describes the 35B profile, which 32 GB and up keep.
+
+The 35B profile changed on 24 October 2026 after the [GGUF follow-up](measurements/qwen-gguf-validation-2026-10-24/README.md): Qwen without thinking matched Saluki's six manually passing Pippa tasks out of ten, with median task time 34.5 s versus 69.9 s and both native actions passing. Medium thinking passed only three tasks and is not Pippa's default. The new profile uses a 1 GiB prompt-cache limit and four context checkpoints. Errors remain in both models; this small fixture suite is not a universal quality guarantee. Terminal Pi uses medium based on a separate coding comparison. Existing explicit choices and user-selected thinking levels remain intact; fresh defaults use the qualified profile. The download is 16.8 GB.
 
 Historical 16 GB model choice: Qwen3.5 9B replaced K2 Horizon 7B as the standard after a side-by-side test with Pi (same prompt, skills, guard and
 server; 30 agentic dialogues per model, file search, tool choice, latency): 17 vs. 16 tasks fully done, 2 vs. 8 runs
@@ -72,7 +75,11 @@ the old file stays on disk until the new model has answered once. Then a model t
 2026-10-09): never the active model, never a table model, never when a developer model (`PIPPA_PI_MODEL`) answered,
 never in a shared `~/models`; an adopted hardlink or clone leaves the LM Studio/Ollama original untouched. If that model is
 missing, the normal single download question appears, unless the model already sits in LM Studio, Ollama, Hugging
-Face and so on (then it is adopted without a download, as before). No other code path deletes model files: an earlier
+Face and so on (then it is adopted without a download, as before). One exception (0.3.18): a model the table now
+reserves for larger Macs (`ModelSelector.isForLargerMacs`, the 35B Q3 on a 24 GB Mac) is not kept as the fallback.
+The table moved that Mac off it because it swaps, so setup writes the new model into `models.json` and asks the one
+download question, as on a fresh Mac. The 35B file stays on disk (it is a table model for 32 GB, so
+`SupersededModels` never touches it); removing it is the person's call. No other code path deletes model files: an earlier
 choice, such as the standard model next to "Gründlicher", stays on disk untouched. The never-called `ModelDownloader.removeOtherModels` was deleted as well.
 
 **`adoptInstalled` removed.** It kept 24 GB Macs on an already downloaded Qwen3.6 35B Q3 after the table moved them to

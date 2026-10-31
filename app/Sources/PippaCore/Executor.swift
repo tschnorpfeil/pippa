@@ -16,6 +16,8 @@ public enum PippaError: LocalizedError, Sendable, Equatable {
     case serverMissing
     /// Not enough space for the download; `bytes` = how much more must be freed at least.
     case notEnoughSpace(bytes: Int64)
+    /// The Mac is under critical memory pressure: the model is not loaded, so the Mac stays usable.
+    case notEnoughMemory
     case writeFailed(String)
     case nothingToExport
     case accessDenied(String)      // app name
@@ -40,6 +42,7 @@ public enum PippaError: LocalizedError, Sendable, Equatable {
         case .serverMissing: L("Part of the app is missing. Please reinstall Pippa.", table: "Core")
         case .notEnoughSpace(let bytes):
             L("Your Mac doesn’t have enough free space. I need %@ more for my AI. Once you free up some space, I’ll pick up where I left off.", table: "Core", ModelDownloadSize.gigabytes(bytes))
+        case .notEnoughMemory: L("Your Mac is short on memory right now. Close a few apps or browser windows, then try again.", table: "Core")
         case .writeFailed(let why): why.isEmpty ? L("I couldn’t create anything.", table: "Core") : L("I couldn’t create anything. %@", table: "Core", why)
         case .nothingToExport: L("There’s nothing for the table.", table: "Core")
         case .accessDenied(let app): L("I don’t have access to %@ yet. You can allow it in System Settings.", table: "Core", app)

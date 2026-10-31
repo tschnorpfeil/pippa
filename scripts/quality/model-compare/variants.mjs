@@ -48,7 +48,18 @@ export const VARIANTS = {
  A: { ...k2, label: 'A', thinking: 'medium', note: 'K2 as in Pippa: reasoning medium, temp 0.6 (server)' },
  B: { ...qwen, label: 'B', thinking: 'medium', note: 'Qwen3.5-9B thinking on: temp 0.6, top_p 0.95, top_k 20 (request)' },
  C: { ...qwen, label: 'C', thinking: 'off', note: 'Qwen3.5-9B thinking off: temp 0.7, top_p 0.8, presence_penalty 1.5 (request)' },
+ // Baseline: what the same model does without Pippa. Same server and sampling as B, but stock Pi: no Pippa prompt,
+ // extensions, skills or tool list, only Pi's default tools (read, bash, edit, write) behind the harness isolation.
+ S: { ...qwen, label: 'S', thinking: 'medium', stock: true, note: 'Qwen3.5-9B thinking on, stock Pi: no Pippa prompt or tools' },
 };
+
+/**
+ * Pi arguments that differ between Pippa and stock arms. `pippa` holds Pippa's skills, extensions, tool list and
+ * system prompt; `isolation` the harness extension that keeps tools inside the fake HOME, which every arm keeps.
+ */
+export function piArmArgs(v, pippa, isolation) {
+ return v.stock ? ['--no-skills', ...isolation] : [...pippa, ...isolation];
+}
 
 /** Fixed template variants, only used if B/C fail on the chat template (labelled separately). */
 export function withTemplate(variant, template) {

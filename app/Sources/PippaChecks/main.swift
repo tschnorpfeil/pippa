@@ -156,6 +156,7 @@ if ProcessInfo.processInfo.environment["PIPPA_THOUGHT_CHECKS"] == "1" {
     await runThoughtLineChecks()
     runWorkStepChecks()
     runWorkShapeChecks()
+    runDotPulseChecks()
     runColdStartChecks()
     runStartupBridgeChecks()
     runPillStatusChecks()
@@ -564,18 +565,31 @@ check("Model: K2 Horizon 7B does not fit 8 GB; low thinking via the template, XM
     return (k2?.memGiB ?? 0) > ModelSelector.budgetGiB(physicalMemory: 8 * GB)
         && k2?.extra?["chat-template-kwargs"]?.description == #"{"reasoning_effort":"low","tool_call_format":"xml"}"#
 }
-check("Model: 24 GB → qwen3.6-35b-a3b-q3, ctx 32768; \"More thorough\" → qwen3.6-35b-a3b-iq3 within the memory budget") {
+check("Model: 24 GB → the 16 GB profile (qwen3.5-9b-q4, ctx 16384, medium, ctx-checkpoints 4, cache-ram 0); \"More thorough\" → qwen3.6-35b-a3b-iq3 within the memory budget") {
     let c = pick(24), t = pick(24, .thorough)
-    return c?.model.key == "qwen3.6-35b-a3b-q3" && c?.ctx == 32768 && ModelSelector.offersThorough(physicalMemory: 24 * GB) == ModelSelector.thoroughTested
-        && c?.model.thinking == "off" && c?.extra["cache-ram"] == "1024" && c?.extra["ctx-checkpoints"] == "4"
+    return c == pick(16) && c?.model.key == "qwen3.5-9b-q4" && c?.ctx == 16384 && c?.model.thinking == "medium"
+        && c?.extra["cache-ram"] == "0" && c?.extra["ctx-checkpoints"] == "4"
+        && ModelSelector.offersThorough(physicalMemory: 24 * GB) == ModelSelector.thoroughTested
         && t?.model.key == "qwen3.6-35b-a3b-iq3" && t?.ctx == 32768
         && (t?.model.memGiB ?? 99) <= ModelSelector.budgetGiB(physicalMemory: 24 * GB)
 }
-check("Model: 32 and 64 GB → qwen3.6-35b-a3b-q3; \"More thorough\" → qwen3.6-35b-a3b-iq3") {
+check("Model: 32 and 64 GB → qwen3.6-35b-a3b-q3, ctx 32768, thinking off; \"More thorough\" → qwen3.6-35b-a3b-iq3") {
     [32, 64].allSatisfy { gb in
-        pick(UInt64(gb))?.model.key == "qwen3.6-35b-a3b-q3" && pick(UInt64(gb), .thorough)?.model.key == "qwen3.6-35b-a3b-iq3"
+        let c = pick(UInt64(gb))
+        return c?.model.key == "qwen3.6-35b-a3b-q3" && c?.ctx == 32768 && c?.model.thinking == "off"
+            && c?.extra["cache-ram"] == "1024" && c?.extra["ctx-checkpoints"] == "4"
+            && pick(UInt64(gb), .thorough)?.model.key == "qwen3.6-35b-a3b-iq3"
             && ModelSelector.offersThorough(physicalMemory: UInt64(gb) * GB) == ModelSelector.thoroughTested
     }
+}
+check("Model: the 35B is for 32 GB and up only; 24 GB keeps no fallback to it, smaller and own models stay usable") {
+    ModelSelector.isForLargerMacs("qwen3.6-35b-a3b-q3", physicalMemory: 24 * GB)
+        && ModelSelector.isForLargerMacs("qwen3.6-35b-a3b-q3", physicalMemory: 16 * GB)
+        && !ModelSelector.isForLargerMacs("qwen3.6-35b-a3b-q3", physicalMemory: 32 * GB)
+        && !ModelSelector.isForLargerMacs("qwen3.5-9b-q4", physicalMemory: 24 * GB)
+        && !ModelSelector.isForLargerMacs("qwen3.6-35b-a3b-iq3", physicalMemory: 24 * GB)
+        && !ModelSelector.isForLargerMacs("k2-horizon-7b", physicalMemory: 24 * GB)
+        && ModelSelector.isForLargerMacs("qwen3.5-9b-q4", physicalMemory: 8 * GB)
 }
 check("Model: an unpinned table model is unavailable (never a download without a SHA256)") {
     var catalog = tableCatalog
@@ -627,27 +641,29 @@ check("Model: \"Pippa's knowledge\" is saved in settings.json; old files and unk
         && back.preference == .standard && back.modelPreference == nil && back.llamaPort == 41_234
         && unknown.preference == .standard && unknown.llamaPort == 41_234
 }
-await checkAsync("Model: old stock (24 GB, Qwen3.5 9B) is no longer adopted but left untouched") {
+await checkAsync("Model: 24 GB with Qwen3.5 9B already on disk needs no download; the 35B beside it is left untouched") {
     let base = dir("adopt-installed")
     let models = LocalEngine.modelsDirectory(base: base)
     try fm.createDirectory(at: models, withIntermediateDirectories: true)
-    let file = ModelCatalog.bundled().model("qwen3.5-9b-q4")!.pinned!.files[0]
-    let url = models.appendingPathComponent(file.path)
-    fm.createFile(atPath: url.path, contents: nil)
-    let handle = try FileHandle(forWritingTo: url)
-    try handle.truncate(atOffset: UInt64(file.size)) // sparse file, takes no space
-    try handle.close()
-    write(file.sha256, url.appendingPathExtension("ok"))
+    func place(_ key: String) throws -> URL {
+        let file = ModelCatalog.bundled().model(key)!.pinned!.files[0]
+        let url = models.appendingPathComponent(file.path)
+        fm.createFile(atPath: url.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.truncate(atOffset: UInt64(file.size)) // sparse file, takes no space
+        try handle.close()
+        write(file.sha256, url.appendingPathExtension("ok"))
+        return url
+    }
+    let nine = try place("qwen3.5-9b-q4"), large = try place("qwen3.6-35b-a3b-q3")
     try PippaSettings().save(to: base)
     let engine = LocalEngine(baseDirectory: base, physicalMemory: 24 * GB, integrations: DemoIntegrations())
     defer { Task { await engine.shutdown() } }
-    let size = await engine.modelDownloadSize      // Qwen3.6 Q3 missing: the one download question
-    let kept = fm.fileExists(atPath: url.path) && fm.fileExists(atPath: url.appendingPathExtension("ok").path)
+    let size = await engine.modelDownloadSize      // the 9B is the table model now: nothing to download
+    let kept = [nine, large].allSatisfy { fm.fileExists(atPath: $0.path) && fm.fileExists(atPath: $0.appendingPathExtension("ok").path) }
     let settings = String(decoding: (try? Data(contentsOf: base.appendingPathComponent("settings.json"))) ?? Data(), as: UTF8.self)
-    try? fm.removeItem(at: url)
-    // Without a pin there is no size (and no download at all); "Default model is pinned" reports that on its own.
-    let pinned = ModelCatalog.bundled().model("qwen3.6-35b-a3b-q3")?.pinned != nil
-    return (size != nil || !pinned) && kept && !settings.contains("qwen3.5")
+    for url in [nine, large] { try? fm.removeItem(at: url) }
+    return size == nil && kept && !settings.contains("qwen3.6")
 }
 await checkAsync("Existing models: LM Studio, Ollama, Hugging Face detected, adopted without network, source stays") {
     let home = dir("existing-home")
@@ -1370,7 +1386,9 @@ await runResultCardChecks()
 await runThoughtLineChecks()
 runWorkStepChecks()
 runWorkShapeChecks()
+runDotPulseChecks()
 runColdStartChecks()
+runPressureChecks()
 runStartupBridgeChecks()
 await runQuickTextChecks()
 runPillStatusChecks()

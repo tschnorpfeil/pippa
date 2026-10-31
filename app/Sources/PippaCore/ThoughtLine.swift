@@ -154,6 +154,8 @@ public enum WorkEvent: Sendable, Equatable {
     case toolStarted(name: String, source: String?, step: String? = nil, kind: WorkStep.Kind? = nil)
     /// `outcome`: a short result such as "3 matches", when cheaply known. `failed`: the step did not work.
     case toolEnded(name: String, outcome: String? = nil, failed: Bool = false)
+    /// A piece of the model's own reasoning (only when thinking is on). Shown folded, never kept in the receipt.
+    case thinking(String)
 }
 
 public typealias WorkEventHandler = @Sendable (WorkEvent) -> Void
@@ -261,13 +263,50 @@ public struct StepBubble: Sendable, Equatable, Identifiable {
     /// How many identical steps in a row this stands for.
     public var count: Int
     public var running: Bool
+    /// How long the finished steps took together, in seconds.
+    public var seconds: Double?
 
-    public init(id: Int, text: String, kind: WorkStep.Kind? = nil, outcome: String? = nil, failed: Bool = false, count: Int = 1, running: Bool = false) {
+    public init(id: Int, text: String, kind: WorkStep.Kind? = nil, outcome: String? = nil, failed: Bool = false, count: Int = 1, running: Bool = false,
+                seconds: Double? = nil) {
         self.id = id; self.text = text; self.kind = kind; self.outcome = outcome; self.failed = failed; self.count = count; self.running = running
+        self.seconds = seconds
     }
 
     /// For VoiceOver: "Suche in deinen Mails, 3 Treffer".
     public var spoken: String { [text, outcome].compactMap { $0 }.joined(separator: ", ") }
+}
+
+/// Reasoning arrives one token at a time; handing each piece to the Thought Line re-rendered the conversation and the
+/// shell per token. The controller collects the pieces here and applies them about ten times a second (the first piece at
+/// once). Before a tool starts or ends, before answer text and at the end it takes what is left, so nothing is lost or
+/// reordered. Pure, with the clock passed in (PippaChecks).
+public struct ReasoningBatch: Sendable, Equatable {
+    public static let interval: TimeInterval = 0.1
+
+    public private(set) var pending = ""
+    private var lastFlush: Date?
+
+    public init() {}
+
+    /// Collects one piece. Returns the text to apply now when a batch is due, else `nil` (it waits for `due`).
+    public mutating func add(_ delta: String, at now: Date) -> String? {
+        pending += delta
+        if let lastFlush, now.timeIntervalSince(lastFlush) < Self.interval { return nil }
+        return take(at: now)
+    }
+
+    /// When the waiting text should be applied if nothing takes it earlier; `nil` when nothing waits.
+    public var due: Date? {
+        guard !pending.isEmpty else { return nil }
+        return lastFlush.map { $0.addingTimeInterval(Self.interval) } ?? .distantPast
+    }
+
+    /// Everything collected so far; `nil` when nothing waits.
+    public mutating func take(at now: Date) -> String? {
+        guard !pending.isEmpty else { return nil }
+        defer { pending = ""; lastFlush = now }
+        return pending
+    }
 }
 
 /// State of the Thought Line for one answer at a time. Pure and deterministic: callers pass the request and the time.
@@ -289,6 +328,11 @@ public struct ThoughtLine: Sendable, Equatable {
     private var openTools: [WorkPhase?] = []
     /// Index into `steps` per open tool (parallel to `openTools`); `nil`: the tool shows no step.
     private var openSteps: [Int?] = []
+    /// When each open tool started (parallel to `openTools`), for the step's duration.
+    private var openStarts: [Date] = []
+    /// The model's reasoning in this answer so far (the newest `maxReasoning` UTF-8 bytes, cut at a character).
+    public private(set) var reasoning = ""
+    public static let maxReasoning = 8_000
     /// Steps so far, oldest first (at most `maxSteps`); the open ones have no `finished` mark.
     public private(set) var steps: [WorkStep] = []
     private var finishedSteps = 0
@@ -350,10 +394,11 @@ public struct ThoughtLine: Sendable, Equatable {
                 last.outcome = step.outcome
                 last.failed = step.failed == true
                 last.running = running
+                last.seconds = WorkStep.sum(last.seconds, step.seconds)
                 result[result.count - 1] = last
             } else {
                 result.append(StepBubble(id: droppedSteps + index, text: step.text, kind: step.kind, outcome: step.outcome,
-                                         failed: step.failed == true, count: 1, running: running))
+                                         failed: step.failed == true, count: 1, running: running, seconds: step.seconds))
             }
         }
         return result
@@ -423,18 +468,29 @@ public struct ThoughtLine: Sendable, Equatable {
                 if mapped == nil { mapped = .working }
             }
             openSteps.append(stepIndex)
+            openStarts.append(now)
             openTools.append(mapped)
             furthest = Int.max
             if let mapped { phase = mapped }
         case .toolEnded(_, let outcome, let failed):
+            let started = openStarts.popLast()
             if let index = openSteps.popLast() ?? nil, steps.indices.contains(index) {
                 steps[index].outcome = outcome
                 if failed { steps[index].failed = true }
+                if let started { steps[index].seconds = max(0, now.timeIntervalSince(started)) }
             }
             // A tool that never changed the line does not change it when it ends either.
             let ended = openTools.popLast() ?? nil
             if let running = openTools.compactMap({ $0 }).last { phase = running }
             else if ended != nil { phase = .waitingForAnswer(continuing: textSeen) }
+        case .thinking(let delta):
+            reasoning += delta
+            // `utf8.count` is constant time on a native string; `count` walked every character per token.
+            if reasoning.utf8.count > Self.maxReasoning {
+                var start = reasoning.utf8.index(reasoning.utf8.endIndex, offsetBy: -Self.maxReasoning)
+                while start < reasoning.endIndex, start.samePosition(in: reasoning) == nil { start = reasoning.utf8.index(after: start) }
+                reasoning = String(reasoning[start...])
+            }
         }
         return phase != before || currentStep != stepBefore
     }

@@ -486,6 +486,8 @@ final class PiRPCChat {
             case .textDelta(let delta):
                 segment += delta
                 onDelta(delta)
+            case .thinkingDelta(let delta):
+                onWork?(.thinking(delta))
             case .toolStarted(let id, let name, let arguments):
                 if name == "read" || WorkStepPhrase.hasOutcome(tool: name) { toolArguments[id] = arguments }
                 let step = WorkStepPhrase.step(tool: name, arguments: arguments, home: Self.homePath)

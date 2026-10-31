@@ -56,3 +56,44 @@ func runWorkShapeChecks() {
             && others.allSatisfy { WorkShapeGeometry.frame($0, at: 1, still: false).strokes.allSatisfy { $0.ink == .accent } }
     }
 }
+
+/// The twelve-dot working sign (PippaCore/DotPulse.swift) and step durations.
+func runDotPulseChecks() {
+    check("Dot pulse: twelve dots, corners empty, each phase has its pattern") {
+        DotPulse.dots.count == 12 && [0, 3, 12, 15].allSatisfy(DotPulse.isCorner)
+            && DotPulse(.starting) == .thinking && DotPulse(.lookingUpOnline) == .working
+            && DotPulse(.reading(name: "A.pdf", index: 1, count: 1)) == .working && DotPulse(.writing) == .writing
+            && DotPulse(.waitingForPerson) == .question && DotPulse(.stopping) == .still
+    }
+    check("Dot pulse: columns, rows and the clockwise orbit run in tenths of the period") {
+        let tenths = { (p: DotPulse) in Set(DotPulse.dots.map { Int((p.delay($0)! / 0.15).rounded()) }) }
+        let orbit = [1, 2, 7, 11, 14, 13, 8, 4].map { DotPulse.thinking.delay($0)! }
+        return tenths(.working) == [0, 1, 2, 3] && tenths(.writing) == [0, 1, 2, 3]
+            && orbit == orbit.sorted() && Set(orbit).count == 8
+            && DotPulse.question.delay(5) == nil && DotPulse.still.delay(5) == nil
+    }
+    check("Dot pulse: lights up and rests again, still under Reduce Motion") {
+        let p = DotPulse.working
+        // Dot 1 sits in column 1 (0.15 s late) and peaks 15 % into its run (another 0.225 s).
+        return p.glow(1, at: 0.375, reduceMotion: false) > 0.99 && p.glow(1, at: 1.2, reduceMotion: false) == 0
+            && p.glow(1, at: 0.375, reduceMotion: true) == 0 && DotPulse.question.glow(5, at: 0.2, reduceMotion: false) == 0
+    }
+    check("Step duration: hidden under half a second, tenths below ten, whole seconds above") {
+        WorkStep.duration(0.3) == nil && WorkStep.duration(nil) == nil
+            && WorkStep.duration(3.24).map { $0.hasPrefix("3") && $0.contains("2") && $0.hasSuffix(" s") } == true
+            && WorkStep.duration(12.6) == L("%lld s", table: "Thought", 13)
+    }
+    check("Step duration: the thought line times each tool and merged steps add up") {
+        let id = UUID(), start = Date(timeIntervalSinceReferenceDate: 0)
+        var line = ThoughtLine()
+        line.begin(id, at: start)
+        line.apply(.toolStarted(name: "read", source: nil, step: "Lese A.pdf", kind: .file), request: id, at: start)
+        line.apply(.toolEnded(name: "read"), request: id, at: start.addingTimeInterval(2))
+        line.apply(.toolStarted(name: "read", source: nil, step: "Lese A.pdf", kind: .file), request: id, at: start.addingTimeInterval(2))
+        line.apply(.toolEnded(name: "read"), request: id, at: start.addingTimeInterval(3.5))
+        line.apply(.thinking("Erst lesen, "), request: id, at: start)
+        line.apply(.thinking("dann antworten."), request: id, at: start)
+        return line.bubbles.count == 1 && line.bubbles[0].seconds == 3.5 && line.doneSteps.first?.seconds == 3.5
+            && line.reasoning == "Erst lesen, dann antworten."
+    }
+}

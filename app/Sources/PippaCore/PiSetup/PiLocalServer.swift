@@ -83,7 +83,7 @@ public enum PiLocalServer {
         // Flags like LocalEngine for this model; context as in models.json so Pi and the server assume the same.
         var choice = ModelSelector.named(modelID, physicalMemory: physicalMemory, catalog: catalog)
             ?? ModelSelector.choice(model, ctx: model.ctx, overrides: [:], catalog: catalog)
-        if let listed = PiInstaller.providerContextWindow(modelsJSON: modelsJSON, id: modelID) { choice.ctx = min(listed, model.ctx) }
+        if let listed = PiInstaller.providerContextWindow(modelsJSON: modelsJSON, id: modelID) { choice.ctx = min(listed, choice.ctx) }
 
         let settings = PippaSettings.load(from: roots.support)
         let idle = environment["PIPPA_LLAMA_IDLE_SECONDS"].flatMap(Double.init)

@@ -89,6 +89,25 @@ private func inode(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: url.p
 private func linkCount(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: url.path)[.referenceCount] as? NSNumber)?.intValue }
 
 func runSetupChecks() async {
+    check("Local server: a stale 32K provider cannot enlarge the smaller model's 16K profile or enable the RAM cache") {
+        let home = fakeHome("server-context-budget"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        try PippaSettings(llamaPort: 18_471).save(to: r.support)
+        try fm.createDirectory(at: r.agentDirectory, withIntermediateDirectories: true)
+        let provider = PiInstaller.providerEntry(models: [PiProviderModel(id: "qwen3.5-9b-q4", name: "Qwen", contextWindow: 32768)],
+                                               port: 18_471, keyFile: r.llamaKeyFile)
+        try JSONSerialization.data(withJSONObject: ["providers": ["pippa-local": provider]]).write(to: r.modelsJSON)
+        let file = home.appendingPathComponent("model.gguf")
+        write("fixture", file)
+        let plan = try PiLocalServer.plan(roots: r, modelID: "qwen3.5-9b-q4", legacySupport: r.support,
+                                          physicalMemory: 24 << 30, binary: URL(fileURLWithPath: "/bin/echo"),
+                                          environment: ["PIPPA_MODEL_FILE": file.path])
+        let args = LlamaServer.arguments(choice: plan.choice, model: file, port: plan.port, supported: nil)
+        return plan.choice.ctx == 16384 && plan.choice.extra["cache-ram"] == "0"
+            && args.joined(separator: " ").contains("--ctx-size 16384")
+            && args.joined(separator: " ").contains("--cache-ram 0")
+    }
     await runPiPivotChecks()
     check("Settings: explicit local model survives port updates; table preference clears it") {
         let home = fakeHome("local-model"); defer { discard(home) }
@@ -107,12 +126,14 @@ func runSetupChecks() async {
             && fallback?.model.key == standard?.model.key
             && cleared.localModelKey == nil && cleared.llamaPort == 65070 && cleared.llamaIdleMinutes == 3
     }
-    check("Settings: saved Qwen standard selection retains the tested 32K, bounded-cache, thinking-off profile") {
+    check("Settings: a saved 9B selection on 24 GB keeps the table's 16K profile; a saved 35B there is an explicit pick, not the standard") {
         let memory: UInt64 = 24 * 1024 * 1024 * 1024
-        let selected = PiSetupFlow.choice(override: "qwen3.6-35b-a3b-q3", physicalMemory: memory)
+        let selected = PiSetupFlow.choice(override: "qwen3.5-9b-q4", physicalMemory: memory)
         let standard = PiSetupFlow.choice(override: nil, physicalMemory: memory)
-        return selected == standard && selected?.ctx == 32768 && selected?.model.thinking == "off"
-            && selected?.extra["cache-ram"] == "1024" && selected?.extra["ctx-checkpoints"] == "4"
+        let large = PiSetupFlow.choice(override: "qwen3.6-35b-a3b-q3", physicalMemory: memory)
+        return selected == standard && selected?.ctx == 16384 && selected?.model.thinking == "medium"
+            && selected?.extra["cache-ram"] == "0" && selected?.extra["ctx-checkpoints"] == "4"
+            && large?.model.key == "qwen3.6-35b-a3b-q3" && large?.ctx == 16384 && large != standard
     }
     check("Installer: fresh HOME gets the official layout (marker, current-version, launcher, ~/.local/bin/pi, Node)") {
         let home = fakeHome("fresh"); defer { discard(home) }
@@ -615,6 +636,27 @@ func runSetupFlowChecks() async {
         return ok
     }
 
+    await checkAsync("Setup: migrating an installed 9B fallback publishes its bounded 16K context to Pi") {
+        let home = fakeHome("bounded-fallback"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (fixture, data) = dummyModel(name: "Old-Q4.gguf", key: "qwen3.5-9b-q4")
+        var old = fixture
+        old.ctx = 32768
+        let (new, _) = dummyModel(name: "New-Q4.gguf", key: "new-model")
+        let catalog = ModelCatalog(sampling: [:], models: [old, new])
+        // A 16 GB Mac, not the host: on 8 GB the 9B is a model for larger Macs and never the fallback.
+        let memory: UInt64 = 16 << 30
+        let before = PiSetupFlow(roots: r, model: old, contextWindow: 32768, searchRoots: [], port: 18_471,
+                                 catalog: catalog, physicalMemory: memory, download: stubDownload(data))
+        guard case .askDownload = before.prepare(), await before.download(progress: { _, _ in }) == .ready(adoptedFrom: nil) else { return false }
+        let after = PiSetupFlow(roots: r, model: new, contextWindow: 32768, searchRoots: [], port: 18_471, catalog: catalog,
+                                physicalMemory: memory)
+        return after.prepare() == .ready(adoptedFrom: nil) && after.activeModelKey == old.key
+            && PiInstaller.providerContextWindow(modelsJSON: r.modelsJSON, id: old.key) == 16384
+            && after.pendingDownload != nil && ModelDownloader(directory: r.pippaModels).isInstalled(old)
+    }
+
     await checkAsync("Setup: new table model while the old one works (update, \"More thorough\"): ready with the old one, download offered; afterwards the new one, old file kept; switching back is instant") {
         let home = fakeHome("flow-fallback"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))
@@ -646,6 +688,48 @@ func runSetupFlowChecks() async {
         let ok = waiting == .ready(adoptedFrom: nil) && keptOld && offered && done == .ready(adoptedFrom: nil) && switched && backOK
             && none == .askDownload(bytes: Int64(newData.count))
         if !ok { print("   ", waiting, keptOld, offered, done, switched, backState, none) }
+        return ok
+    }
+
+    await checkAsync("Setup: 24 GB update from the 35B → the download question for the 9B, models.json names the 9B, the 35B file stays") {
+        let home = fakeHome("flow-24gb-35b"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (large, largeData) = dummyModel(name: "Large-Q3.gguf", key: "qwen3.6-35b-a3b-q3")
+        let (nine, nineData) = dummyModel(name: "Nine-Q4.gguf", bytes: 524_288, key: "qwen3.5-9b-q4")
+        let (k2, k2Data) = dummyModel(name: "K2-Q4.gguf", bytes: 262_144, key: "k2-horizon-7b")
+        let catalog = ModelCatalog(sampling: [:], models: [large, nine, k2])
+        let memory: UInt64 = 24 << 30
+        // 0.3.17 on a 24 GB Mac: the 35B is set up and listed in models.json.
+        let before = PiSetupFlow(roots: r, model: large, contextWindow: 4096, searchRoots: [], port: 18_471, catalog: catalog,
+                                 physicalMemory: memory, download: stubDownload(largeData))
+        guard case .askDownload = before.prepare(), await before.download(progress: { _, _ in }) == .ready(adoptedFrom: nil) else { return false }
+        // 0.3.18: the table names the 9B. No silent fallback to the 35B: the one download question, models.json already moved.
+        let after = PiSetupFlow(roots: r, model: nine, contextWindow: 16384, searchRoots: [], port: 18_471, catalog: catalog,
+                                physicalMemory: memory, download: stubDownload(nineData))
+        let asked = after.prepare()
+        let moved = PiInstaller.providerModelIDs(modelsJSON: r.modelsJSON) == ["qwen3.5-9b-q4"] && after.activeModelKey == "qwen3.5-9b-q4"
+            && after.pendingDownload == nil
+        let done = await after.download { _, _ in }
+        let largeFile = r.pippaModels.appendingPathComponent("Large-Q3.gguf")
+        let kept = fm.fileExists(atPath: largeFile.path) && fm.fileExists(atPath: largeFile.appendingPathExtension("ok").path)
+        // On 32 GB the same 35B is the table model's peer: it still bridges a download (here: a newer table model).
+        try fm.removeItem(at: r.pippaModels.appendingPathComponent("Nine-Q4.gguf"))
+        let bridge = PiSetupFlow(roots: r, model: large, contextWindow: 4096, searchRoots: [], port: 18_471, catalog: catalog,
+                                 physicalMemory: memory, download: stubDownload(largeData))
+        _ = bridge.prepare()  // the 35B is in models.json again
+        let thirtyTwo = PiSetupFlow(roots: r, model: nine, contextWindow: 16384, searchRoots: [], port: 18_471, catalog: catalog,
+                                    physicalMemory: 32 << 30, download: stubDownload(nineData))
+        let bridged = thirtyTwo.prepare() == .ready(adoptedFrom: nil) && thirtyTwo.activeModelKey == "qwen3.6-35b-a3b-q3"
+        // A superseded smaller model (K2) still bridges the 9B download on 24 GB, as before.
+        let k2Setup = PiSetupFlow(roots: r, model: k2, contextWindow: 4096, searchRoots: [], port: 18_471, catalog: catalog,
+                                  physicalMemory: memory, download: stubDownload(k2Data))
+        guard case .askDownload = k2Setup.prepare(), await k2Setup.download(progress: { _, _ in }) == .ready(adoptedFrom: nil) else { return false }
+        let fromK2 = PiSetupFlow(roots: r, model: nine, contextWindow: 16384, searchRoots: [], port: 18_471, catalog: catalog,
+                                 physicalMemory: memory, download: stubDownload(nineData))
+        let k2Bridged = fromK2.prepare() == .ready(adoptedFrom: nil) && fromK2.activeModelKey == "k2-horizon-7b" && fromK2.pendingDownload != nil
+        let ok = asked == .askDownload(bytes: Int64(nineData.count)) && moved && done == .ready(adoptedFrom: nil) && kept && bridged && k2Bridged
+        if !ok { print("   ", asked, moved, done, kept, bridged, k2Bridged) }
         return ok
     }
 

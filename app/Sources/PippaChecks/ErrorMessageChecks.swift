@@ -15,7 +15,7 @@ func runErrorMessageChecks() {
     let receipt = JobReceipt(id: UUID(), summary: "3 Dateien geordnet", detail: "", revealURL: nil, undoDetail: nil)
     let pippa: [PippaError] = [
         .scopeMissing, .outsideScope, .unknownJob, .undoIncomplete(restored: 2, conflicts: 1), .modelUnavailable, .modelFailed,
-        .downloadFailed("intern"), .checksumMismatch, .serverMissing, .notEnoughSpace(bytes: 3_000_000_000), .writeFailed(""), .nothingToExport,
+        .downloadFailed("intern"), .checksumMismatch, .serverMissing, .notEnoughSpace(bytes: 3_000_000_000), .notEnoughMemory, .writeFailed(""), .nothingToExport,
         .accessDenied("Kalender"), .appNotOpen("Mail"), .entryFailed(""), .notAvailable, .partial(receipt: receipt, why: "Abgebrochen."),
     ]
     let pippaTexts = pippa.map { $0.errorDescription ?? "" }
