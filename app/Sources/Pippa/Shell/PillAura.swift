@@ -231,7 +231,7 @@ struct WanderingGlow: View, Animatable {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || start == nil || stopped != nil)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 15, paused: reduceMotion || start == nil || stopped != nil)) { context in
             let t = reduceMotion ? 0 : start.map { max(0, (stopped ?? context.date).timeIntervalSince($0)) } ?? 0
             // A quarter cycle in: the highlights start at the two ends of the pill.
             let a = 2 * Double.pi * (t / Self.cycle + 0.25)

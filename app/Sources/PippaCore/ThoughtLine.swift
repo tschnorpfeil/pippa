@@ -276,6 +276,39 @@ public struct StepBubble: Sendable, Equatable, Identifiable {
     public var spoken: String { [text, outcome].compactMap { $0 }.joined(separator: ", ") }
 }
 
+/// Reasoning arrives one token at a time; handing each piece to the Thought Line re-rendered the conversation and the
+/// shell per token. The controller collects the pieces here and applies them about ten times a second (the first piece at
+/// once). Before a tool starts or ends, before answer text and at the end it takes what is left, so nothing is lost or
+/// reordered. Pure, with the clock passed in (PippaChecks).
+public struct ReasoningBatch: Sendable, Equatable {
+    public static let interval: TimeInterval = 0.1
+
+    public private(set) var pending = ""
+    private var lastFlush: Date?
+
+    public init() {}
+
+    /// Collects one piece. Returns the text to apply now when a batch is due, else `nil` (it waits for `due`).
+    public mutating func add(_ delta: String, at now: Date) -> String? {
+        pending += delta
+        if let lastFlush, now.timeIntervalSince(lastFlush) < Self.interval { return nil }
+        return take(at: now)
+    }
+
+    /// When the waiting text should be applied if nothing takes it earlier; `nil` when nothing waits.
+    public var due: Date? {
+        guard !pending.isEmpty else { return nil }
+        return lastFlush.map { $0.addingTimeInterval(Self.interval) } ?? .distantPast
+    }
+
+    /// Everything collected so far; `nil` when nothing waits.
+    public mutating func take(at now: Date) -> String? {
+        guard !pending.isEmpty else { return nil }
+        defer { pending = ""; lastFlush = now }
+        return pending
+    }
+}
+
 /// State of the Thought Line for one answer at a time. Pure and deterministic: callers pass the request and the time.
 /// Events for another request, after Stop or after the end are dropped, so no stale phase survives a Stop or a switch.
 public struct ThoughtLine: Sendable, Equatable {
@@ -297,7 +330,7 @@ public struct ThoughtLine: Sendable, Equatable {
     private var openSteps: [Int?] = []
     /// When each open tool started (parallel to `openTools`), for the step's duration.
     private var openStarts: [Date] = []
-    /// The model's reasoning in this answer so far (the newest `maxReasoning` characters).
+    /// The model's reasoning in this answer so far (the newest `maxReasoning` UTF-8 bytes, cut at a character).
     public private(set) var reasoning = ""
     public static let maxReasoning = 8_000
     /// Steps so far, oldest first (at most `maxSteps`); the open ones have no `finished` mark.
@@ -452,7 +485,12 @@ public struct ThoughtLine: Sendable, Equatable {
             else if ended != nil { phase = .waitingForAnswer(continuing: textSeen) }
         case .thinking(let delta):
             reasoning += delta
-            if reasoning.count > Self.maxReasoning { reasoning = String(reasoning.suffix(Self.maxReasoning)) }
+            // `utf8.count` is constant time on a native string; `count` walked every character per token.
+            if reasoning.utf8.count > Self.maxReasoning {
+                var start = reasoning.utf8.index(reasoning.utf8.endIndex, offsetBy: -Self.maxReasoning)
+                while start < reasoning.endIndex, start.samePosition(in: reasoning) == nil { start = reasoning.utf8.index(after: start) }
+                reasoning = String(reasoning[start...])
+            }
         }
         return phase != before || currentStep != stepBefore
     }

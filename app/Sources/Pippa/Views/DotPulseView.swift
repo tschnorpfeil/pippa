@@ -11,7 +11,7 @@ struct DotPulseView: View {
     static let side: CGFloat = 16
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || pulse.delay(DotPulse.dots[0]) == nil)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduceMotion || pulse.delay(DotPulse.dots[0]) == nil)) { context in
             let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3600)
             Canvas { gc, size in
                 let unit = min(size.width, size.height) / CGFloat(DotPulse.side * 2 - 1)
