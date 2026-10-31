@@ -315,6 +315,7 @@
 "Hide Conversations" = "Gespräche ausblenden";
 "Show Conversation Details" = "Gesprächsdetails einblenden";
 "Hide Conversation Details" = "Gesprächsdetails ausblenden";
+"Float on Top" = "Immer im Vordergrund";
 "Files in Use" = "Verwendete Dateien";
 "Results" = "Ergebnisse";
 "Waiting for your message" = "Wartet auf deine Nachricht";
