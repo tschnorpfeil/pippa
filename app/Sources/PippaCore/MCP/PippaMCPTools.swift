@@ -289,8 +289,8 @@ public struct PippaMCPTools: Sendable {
                  "Open; days=due within N (1=today).", ["days": integer]),
             tool("mail_selected", "Ausgewählte Mail lesen", "Selected email."),
             tool("mail_search", "Mail suchen",
-                 "Inbox subject/sender; newest first.",
-                 ["query": string, "limit": integer], required: ["query"]),
+                 "Inbox, newest first. query=word in subject/sender; omit=newest; unread=true only unread.",
+                 ["query": string, "unread": ["type": "boolean"], "limit": integer]),
             tool("excel_selection", "Excel-Auswahl lesen",
                  "Selection values/[formulas]."),
             tool("photos_search", "Fotos suchen",
@@ -309,12 +309,13 @@ public struct PippaMCPTools: Sendable {
     struct ToolInput: Sendable {
         var period: String?, start: String?, end: String?, query: String?
         var days: Int?, limit: Int?
+        var unread: Bool?
         var unknown: [String]
         static let allowed: [String: Set<String>] = [
             "calendar_read": ["period", "days", "start", "end"],
             "reminders_read": ["days"],
             "mail_selected": [],
-            "mail_search": ["query", "limit"],
+            "mail_search": ["query", "unread", "limit"],
             "excel_selection": [],
             "photos_search": ["query", "days", "limit"],
             "front_read": [],
@@ -327,10 +328,16 @@ public struct PippaMCPTools: Sendable {
             }
             period = raw["period"] as? String; start = raw["start"] as? String; end = raw["end"] as? String
             query = raw["query"] as? String; days = int("days"); limit = int("limit")
+            func bool(_ key: String) -> Bool? {
+                guard let n = raw[key] as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() else { return nil }
+                return n.boolValue
+            }
+            unread = bool("unread")
             let allowed = Self.allowed[tool] ?? []
             unknown = raw.keys.filter { key in
                 guard allowed.contains(key) else { return true }
                 if key == "days" || key == "limit" { return int(key) == nil }
+                if key == "unread" { return bool(key) == nil }
                 // Optional means omitted, not null, a boolean, an array, or another scalar type.
                 return !(raw[key] is String)
             }.sorted()
@@ -396,7 +403,12 @@ public struct PippaMCPTools: Sendable {
             }
         case "mail_selected": line = L("Read Mail: “%@”", table: "MCP", short(data["subject"] as? String ?? ""))
         case "mail_search":
-            line = L("Searched Mail for “%@”: %lld found", table: "MCP", short(input.query ?? ""), data["total"] as? Int ?? 0)
+            let query = (data["query"] as? String) ?? "", total = data["total"] as? Int ?? 0
+            line = switch (query.isEmpty, data["unread"] as? Bool == true) {
+            case (false, _): L("Searched Mail for “%@”: %lld found", table: "MCP", short(query), total)
+            case (true, true): L("Read Mail: %lld unread", table: "MCP", total)
+            case (true, false): L("Read Mail: newest emails", table: "MCP")
+            }
         case "photos_search":
             line = switch (data["query"] as? String, data["days"] as? Int) {
             case let (query?, _): L("Searched Photos for “%@”: %lld found", table: "MCP", short(query), data["total"] as? Int ?? 0)
@@ -545,7 +557,9 @@ public struct PippaMCPTools: Sendable {
 
     private func mailSearch(_ input: ToolInput) async -> PippaMCPToolResult {
         let query = (input.query ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (2...100).contains(query.count) else { return invalid("query must be 2 to 100 characters.") }
+        // No query: the newest mails ("Habe ich neue Mails?"), not a made-up search word.
+        guard query.isEmpty || (2...100).contains(query.count) else { return invalid("query must be 2 to 100 characters, or omitted for the newest mails.") }
+        let unread = input.unread ?? false
         let limit = input.limit ?? 10
         guard (1...20).contains(limit) else { return invalid("limit must be 1 to 20.") }
         if case .blocked(let reply) = await ensure(.mail, openMail: true,
@@ -553,16 +567,20 @@ public struct PippaMCPTools: Sendable {
             return reply
         }
         do {
-            let fetch = try await host.hostData.searchMail(query, limit: limit)
+            let fetch = try await host.hostData.searchMail(query, unread: unread, limit: limit)
             let mails = fetch.items.map { m -> [String: Any] in
-                var value: [String: Any] = ["subject": m.subject, "from": m.sender, "mailbox": m.mailbox, "start": Self.compact(m.preview)]
+                var value: [String: Any] = ["subject": m.subject, "from": m.sender, "mailbox": m.mailbox, "start": Self.compact(m.preview),
+                                            "unread": m.unread]
                 if let date = m.date { value["date"] = Self.dateLabel(date, time: true, calendar: host.calendar) }
                 return value
             }
-            var result = Self.bounded(source: "Mail on this Mac (inbox search by subject or sender)",
-                                      data: ["query": query, "mails": mails, "shown": mails.count, "total": fetch.total, "truncated": fetch.total > mails.count],
+            var result = Self.bounded(source: query.isEmpty ? "Mail on this Mac (newest in the inbox)" : "Mail on this Mac (inbox search by subject or sender)",
+                                      data: ["query": query, "unread": unread, "mails": mails, "shown": mails.count, "total": fetch.total,
+                                             "truncated": fetch.total > mails.count],
                                       next: "If mails is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences. start is only the beginning of each email. If mails is empty, no email in the inbox matches.")
-            if !fetch.items.isEmpty { result.card = .mail(MailCard(query: query, mails: fetch.items, total: fetch.total, calendar: host.calendar)) }
+            if !fetch.items.isEmpty {
+                result.card = .mail(MailCard(query: query, unread: unread, mails: fetch.items, total: fetch.total, calendar: host.calendar))
+            }
             return result
         } catch {
             return failure(error, .mail)

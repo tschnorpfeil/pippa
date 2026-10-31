@@ -43,7 +43,7 @@ private actor RepairPhotoReader: HostDataReading {
         return try await data.searchPhotos(query, limit: limit)
     }
     func recentPhotos(since: Date?, limit: Int) async throws -> HostFetch<PhotoHit> { try await data.recentPhotos(since: since, limit: limit) }
-    func searchMail(_ query: String, limit: Int) async throws -> HostFetch<MailHeader> { try await data.searchMail(query, limit: limit) }
+    func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> { try await data.searchMail(query, unread: unread, limit: limit) }
     func openReminders(dueBefore: Date?, limit: Int) async throws -> HostFetch<ReminderItem> { try await data.openReminders(dueBefore: dueBefore, limit: limit) }
     func counts() -> (automation: Int, library: Int, searches: Int) { (automationAsks, libraryAsks, searches) }
 }

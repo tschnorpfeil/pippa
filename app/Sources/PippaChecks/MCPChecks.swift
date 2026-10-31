@@ -306,6 +306,20 @@ func runMCPChecks() async {
             && !none.isError && ((none.json["data"] as? [String: Any])?["mails"] as? [Any])?.isEmpty == true
             && short.isError && many.isError && closed.isError && closed.json["status"] as? String == "unavailable"
     }
+    await checkAsync("MCP mail_search: without a query the newest mails, unread=true only unread ones, never a guessed word") {
+        let s = setup()
+        let newest = await call(s.tools, "mail_search")
+        let unread = await call(s.tools, "mail_search", ["unread": true])
+        let both = await call(s.tools, "mail_search", ["query": "Berger", "unread": true])
+        let wrongType = await call(s.tools, "mail_search", ["unread": "yes"])
+        func subjects(_ r: (json: [String: Any], isError: Bool, bytes: Int)) -> [String] {
+            ((r.json["data"] as? [String: Any])?["mails"] as? [[String: Any]] ?? []).compactMap { $0["subject"] as? String }
+        }
+        return !newest.isError && subjects(newest) == ["Elternabend am Donnerstag", "Nebenkostenabrechnung 2025"]
+            && !unread.isError && subjects(unread) == ["Elternabend am Donnerstag"]
+            && !both.isError && subjects(both).isEmpty
+            && wrongType.isError
+    }
     await checkAsync("MCP mail_search: starts closed Mail for the requested search; selected-mail reads never open it") {
         let s = setup()
         s.demo.mailRunning = false

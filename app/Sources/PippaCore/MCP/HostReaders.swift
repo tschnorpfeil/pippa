@@ -14,9 +14,11 @@ public struct MailHeader: Sendable, Equatable {
     public var preview: String
     /// Message-ID header (to open the mail in Mail); never shown to the model.
     public var messageID: String?
-    public init(subject: String, sender: String, date: Date?, mailbox: String, preview: String, messageID: String? = nil) {
+    /// Not read yet in Mail.
+    public var unread: Bool
+    public init(subject: String, sender: String, date: Date?, mailbox: String, preview: String, messageID: String? = nil, unread: Bool = false) {
         self.subject = subject; self.sender = sender; self.date = date; self.mailbox = mailbox; self.preview = preview
-        self.messageID = messageID
+        self.messageID = messageID; self.unread = unread
     }
 }
 
@@ -42,8 +44,8 @@ public struct HostFetch<Item: Sendable & Equatable>: Sendable, Equatable {
 /// Search mail and read open reminders. Never asks for permissions itself (`AppIntegrations` does that);
 /// without permission it throws `PippaError.accessDenied`, without Mail open `PippaError.appNotOpen`.
 public protocol HostDataReading: Sendable {
-    /// Inboxes of all accounts: subject or sender contains `query`.
-    func searchMail(_ query: String, limit: Int) async throws -> HostFetch<MailHeader>
+    /// Inboxes of all accounts: subject or sender contains `query` (empty: every mail); `unread` keeps only unread ones.
+    func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader>
     /// Reminders not done; with `dueBefore` only those due by then (those without a date are dropped).
     func openReminders(dueBefore: Date?, limit: Int) async throws -> HostFetch<ReminderItem>
     /// May Pippa search Photos (automation)? `ask: true` shows the system prompt. Starts Photos invisibly if needed.
@@ -59,9 +61,9 @@ public protocol HostDataReading: Sendable {
 }
 
 extension SystemIntegrations: HostDataReading {
-    public func searchMail(_ query: String, limit: Int) async throws -> HostFetch<MailHeader> {
+    public func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> {
         guard AppleEvents.isRunning(.mail) else { throw PippaError.appNotOpen(Integration.mail.appName) }
-        return try await MailSearchScript.search(query, limit: limit)
+        return try await MailSearchScript.search(query, unread: unread, limit: limit)
     }
 
     /// Own `EKEventStore` per read: after a fresh permission an old store sees nothing.
@@ -187,11 +189,14 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
         return HostFetch(items: Array(found.prefix(limit)), total: found.count)
     }
 
-    public func searchMail(_ query: String, limit: Int) async throws -> HostFetch<MailHeader> {
+    public func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> {
         guard await integrations.access(.mail) == .granted else { throw PippaError.accessDenied(Integration.mail.appName) }
         let (closed, mails) = lock.withLock { (mailClosed, storedMails) }
         if closed { throw PippaError.appNotOpen(Integration.mail.appName) }
-        let found = mails.filter { $0.subject.localizedCaseInsensitiveContains(query) || $0.sender.localizedCaseInsensitiveContains(query) }
+        let found = mails.filter { m in
+            (query.isEmpty || m.subject.localizedCaseInsensitiveContains(query) || m.sender.localizedCaseInsensitiveContains(query))
+                && (!unread || m.unread)
+        }.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
         return HostFetch(items: Array(found.prefix(limit)), total: found.count)
     }
 
@@ -210,7 +215,7 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
         MailHeader(subject: "Elternabend am Donnerstag", sender: "Testschule Musterstadt <sekretariat@testschule.example>",
                    date: DayDate(year: 2026, month: 10, day: 5)?.localNoon, mailbox: "Eingang",
                    preview: "Liebe Eltern, der Elternabend der Klasse 4b findet am Donnerstag um 19:30 Uhr im Raum 12 statt.",
-                   messageID: "elternabend-4b@testschule.example"),
+                   messageID: "elternabend-4b@testschule.example", unread: true),
     ]
 
     /// Freely invented (no real photos): labels as Photos would find them, then the hit.
@@ -240,10 +245,18 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
 /// [assumption] Mail returns a mailbox's messages newest first; the hits are sorted by date in Swift.
 enum MailSearchScript {
     static let source = """
-    on searchInbox(q, maxCount)
+    on searchInbox(q, onlyUnread, maxCount)
         tell application id "com.apple.mail"
             with timeout of 20 seconds
-                set found to (messages of inbox whose subject contains q or sender contains q)
+                if q is "" and onlyUnread then
+                    set found to (messages of inbox whose read status is false)
+                else if q is "" then
+                    set found to (messages of inbox)
+                else if onlyUnread then
+                    set found to (messages of inbox whose (subject contains q or sender contains q) and read status is false)
+                else
+                    set found to (messages of inbox whose subject contains q or sender contains q)
+                end if
             end timeout
             set total to count of found
             set n to total
@@ -264,24 +277,26 @@ enum MailSearchScript {
                 try
                     set mid to (message id of m) as text
                 end try
-                set end of out to {subject of m, sender of m, date received of m, boxName, c, mid}
+                set end of out to {subject of m, sender of m, date received of m, boxName, c, mid, not (read status of m)}
             end repeat
             return {total, out}
         end tell
     end searchInbox
     """
 
-    static func search(_ query: String, limit: Int) async throws -> HostFetch<MailHeader> {
+    static func search(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> {
         try await AppleEvents.perform { () throws -> HostFetch<MailHeader> in
             let reply = try AppleEvents.call(source, handler: "searchInbox",
-                                             [NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(int32: Int32(limit))], app: .mail)
+                                             [NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(boolean: unread),
+                                              NSAppleEventDescriptor(int32: Int32(limit))], app: .mail)
             let parts = AppleEvents.items(reply)
             guard parts.count == 2 else { return HostFetch(items: [], total: 0) }
             let items = AppleEvents.items(parts[1]).compactMap { row -> MailHeader? in
                 let f = AppleEvents.items(row)
                 guard f.count >= 5 else { return nil }
                 return MailHeader(subject: f[0].stringValue ?? "", sender: f[1].stringValue ?? "", date: f[2].dateValue,
-                                  mailbox: f[3].stringValue ?? "", preview: f[4].stringValue ?? "", messageID: f.count > 5 ? f[5].stringValue : nil)
+                                  mailbox: f[3].stringValue ?? "", preview: f[4].stringValue ?? "", messageID: f.count > 5 ? f[5].stringValue : nil,
+                                  unread: f.count > 6 && f[6].booleanValue)
             }
             let sorted = items.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
             return HostFetch(items: sorted, total: Int(parts[0].int32Value))
