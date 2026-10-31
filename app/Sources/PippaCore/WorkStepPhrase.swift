@@ -20,9 +20,23 @@ public struct WorkStep: Codable, Sendable, Equatable {
     public var failed: Bool?
     /// How many identical steps in a row this one stands for (`nil`: just one). Only set by `merged`.
     public var repeats: Int?
-    public init(text: String, outcome: String? = nil, kind: Kind? = nil, failed: Bool? = nil, repeats: Int? = nil) {
-        self.text = text; self.outcome = outcome; self.kind = kind; self.failed = failed; self.repeats = repeats
+    /// How long the step took, in seconds (`nil` in receipts from before durations; summed by `merged`).
+    public var seconds: Double?
+    public init(text: String, outcome: String? = nil, kind: Kind? = nil, failed: Bool? = nil, repeats: Int? = nil, seconds: Double? = nil) {
+        self.text = text; self.outcome = outcome; self.kind = kind; self.failed = failed; self.repeats = repeats; self.seconds = seconds
     }
+
+    /// "3.2 s" / "3,2 s" under ten seconds, whole seconds above, minutes from a minute; `nil` under half a second,
+    /// where a number would only be noise.
+    public static func duration(_ seconds: Double?) -> String? {
+        guard let seconds, seconds >= 0.5 else { return nil }
+        if seconds >= 60 { return WorkReceipt.duration(Int(seconds.rounded())) }
+        if seconds >= 10 { return L("%lld s", table: "Thought", Int(seconds.rounded())) }
+        let tenths = (seconds * 10).rounded() / 10
+        return L("%@ s", table: "Thought", tenths.formatted(.number.precision(.fractionLength(1))))
+    }
+
+    static func sum(_ a: Double?, _ b: Double?) -> Double? { a == nil && b == nil ? nil : (a ?? 0) + (b ?? 0) }
 
     /// "Lese Brief.docx · nichts gefunden", for VoiceOver and receipts.
     public var line: String {
@@ -39,6 +53,7 @@ public struct WorkStep: Codable, Sendable, Equatable {
             if var last = result.last, last.text == step.text, last.kind == step.kind, last.outcome == step.outcome,
                (last.failed == true) == (step.failed == true) {
                 last.repeats = (last.repeats ?? 1) + (step.repeats ?? 1)
+                last.seconds = sum(last.seconds, step.seconds)
                 result[result.count - 1] = last
             } else {
                 result.append(step)

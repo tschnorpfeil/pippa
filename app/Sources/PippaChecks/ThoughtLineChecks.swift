@@ -201,8 +201,8 @@ func runThoughtLineChecks() async {
             line.apply(.toolStarted(name: "bash", source: nil, step: "Arbeite an deinem Mac", kind: .mac), request: request, at: at(Double(second)))
             line.apply(.toolEnded(name: "bash"), request: request, at: at(Double(second) + 0.5))
         }
-        let merged = line.bubbles == [StepBubble(id: 0, text: "Suche in deinen Mails", kind: .mail, outcome: "3 Treffer"),
-                                      StepBubble(id: 1, text: "Arbeite an deinem Mac", kind: .mac, count: 4)]
+        let merged = line.bubbles == [StepBubble(id: 0, text: "Suche in deinen Mails", kind: .mail, outcome: "3 Treffer", seconds: 1),
+                                      StepBubble(id: 1, text: "Arbeite an deinem Mac", kind: .mac, count: 4, seconds: 2)]
         // One grouping rule: with nothing running, the bubbles count exactly what WorkStep.merged counts.
         let sameRule = line.bubbles.map(\.count) == WorkStep.merged(line.steps).map { $0.repeats ?? 1 }
         let waiting = line.phase == .waitingForAnswer(continuing: false) && line.phaseNote?.title == WorkPhase.waitingForAnswer(continuing: false).title
