@@ -56,8 +56,7 @@ private struct RepairSheetReader: SheetReading {
 }
 
 private func repairCall(_ tools: PippaMCPTools, _ name: String, _ arguments: [String: Any] = [:]) async -> [String: Any] {
-    let request: [String: Any] = ["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": name, "arguments": arguments]]
-    guard let input = try? JSONSerialization.data(withJSONObject: request), let reply = await tools.handle(input),
+    guard let reply = await handleReader(tools, name, arguments),
           let wire = try? JSONSerialization.jsonObject(with: reply) as? [String: Any],
           let result = wire["result"] as? [String: Any],
           let text = (result["content"] as? [[String: Any]])?.first?["text"] as? String,

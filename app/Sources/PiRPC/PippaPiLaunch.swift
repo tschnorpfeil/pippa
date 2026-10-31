@@ -117,10 +117,10 @@ public enum PippaPiLaunch {
     }
 
     /// The tools Pi declares to the model, named explicitly so the person's `defaultTools` cannot widen or narrow
-    /// them (cli.md "Tools"). Pi's read/bash/edit/write tools, Pippa's file tools (pippa-tools.ts), the web
+    /// them (cli.md "Tools"). Pi's read/bash/write tools (not `edit`: exact text replacement is a coding tool; `write` and Pippa's document tools cover her tasks), Pippa's file tools (pippa-tools.ts), the web
     /// (pi-web-access: search, read a page), Pippa's memory and saved skills (pippa-memory.ts, skill-save.ts) and Pippa's
     /// MCP server. Names Pi does not know are ignored.
-    public static let tools = ["read", "bash", "edit", "write",
+    public static let tools = ["read", "bash", "write",
                                "pippa_more_tools", "search_files", "list_folder", "move_files", "move_to_trash", "remember", "save_skill",
                                "web_search", "fetch_content", "mcp__pippa__*"]
 

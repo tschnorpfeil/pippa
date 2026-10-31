@@ -134,7 +134,8 @@ public struct PippaMCPTools: Sendable {
     /// Newest first; Pi 1.0.4 knows all four.
     public static let protocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
     public static let maxResultBytes = 8000
-    public static let toolNames = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection", "photos_search", "front_read"]
+    /// The selected mail and Excel selection are read through `front_read` with that app's chip (same readers, same receipts).
+    public static let toolNames = ["calendar_read", "reminders_read", "mail_search", "photos_search", "front_read"]
         + PippaMCPTurnTools.names
         + PippaMCPWriteTools.names
         + [PippaMCPFilePreparation.name]
@@ -287,12 +288,9 @@ public struct PippaMCPTools: Sendable {
                   "days": integer, "start": string, "end": string], required: ["period"]),
             tool("reminders_read", "Erinnerungen lesen",
                  "Open; days=due within N (1=today).", ["days": integer]),
-            tool("mail_selected", "Ausgewählte Mail lesen", "Selected email."),
             tool("mail_search", "Mail suchen",
                  "Inbox, newest first. query=word in subject/sender; omit=newest; unread=true only unread.",
                  ["query": string, "unread": ["type": "boolean"], "limit": integer]),
-            tool("excel_selection", "Excel-Auswahl lesen",
-                 "Selection values/[formulas]."),
             tool("photos_search", "Fotos suchen",
                  "query=one Mac-language word; omit=newest; days=last N (no query).",
                  ["query": string, "days": integer, "limit": integer]),
@@ -314,9 +312,7 @@ public struct PippaMCPTools: Sendable {
         static let allowed: [String: Set<String>] = [
             "calendar_read": ["period", "days", "start", "end"],
             "reminders_read": ["days"],
-            "mail_selected": [],
             "mail_search": ["query", "unread", "limit"],
-            "excel_selection": [],
             "photos_search": ["query", "days", "limit"],
             "front_read": [],
         ]
@@ -354,13 +350,11 @@ public struct PippaMCPTools: Sendable {
             switch name {
             case "calendar_read": outcome = await calendarRead(input)
             case "reminders_read": outcome = await remindersRead(input)
-            case "mail_selected": outcome = await mailSelected()
             case "mail_search": outcome = await mailSearch(input)
             case "photos_search": outcome = await photosSearch(input)
-            case "front_read":
+            default:
                 let read = await frontRead(context.front)
                 outcome = read.result; noted = read.noted
-            default: outcome = await excelSelection()
             }
         }
         let ms = (ContinuousClock.now - started).components.seconds * 1000

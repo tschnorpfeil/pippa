@@ -82,8 +82,7 @@ func runR2Checks() async {
     // MARK: read_document
 
     func call(_ tools: PippaMCPTools, _ name: String, _ arguments: [String: Any]) async -> (json: [String: Any], isError: Bool, text: String) {
-        let body = try! JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": name, "arguments": arguments]])
-        let reply = await tools.handle(body).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let reply = await handleReader(tools, name, arguments).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         let result = reply?["result"] as? [String: Any] ?? [:]
         let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
         return ((try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]) ?? [:], result["isError"] as? Bool ?? true, text)
@@ -220,7 +219,7 @@ func runR2Checks() async {
         return doc["readOnlyHint"] as? Bool == true && doc["openWorldHint"] as? Bool == false
             && !names.contains("web_search") && !names.contains("read_web_page")
             // Three app writers, local file preparation and the chart card; no tool is hidden to meet the prompt budget.
-            && names == PippaMCPTools.toolNames && list.count == 13 && bytes < 5650
+            && names == PippaMCPTools.toolNames && list.count == 11 && bytes < 5650
     }
     // The other share (prompt, Pi's, Pippa's and the web tools) is runtime/pippa-tools/real-pi-budget.test.mjs, 6,880
     // characters; both together about 3,000 tokens, prefilled cold on every new conversation. make_chart added 419 here.

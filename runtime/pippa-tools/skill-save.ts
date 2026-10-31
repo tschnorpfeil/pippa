@@ -32,7 +32,7 @@ const LANGUAGE_LINE = "Answer in the language of the person.";
 
 /** Tools whose results carry other people's words: the web, mail, invitations, whatever is open in front. */
 const UNTRUSTED_TOOLS = new Set(["web_search", "fetch_content", "get_search_content", "codemode",
-	"mcp__pippa__mail_selected", "mcp__pippa__mail_search", "mcp__pippa__front_read", "mcp__pippa__calendar_read"]);
+	"mcp__pippa__mail_search", "mcp__pippa__front_read", "mcp__pippa__calendar_read"]);
 /** Mail and saved web pages, read as files. */
 const FOREIGN_FILE = /\.(eml|emlx|msg|html?|mht|mhtml|webarchive)$/i;
 const FOREIGN_MENTION = /\.(eml|emlx|msg|html?|mht|mhtml|webarchive)\b/i;

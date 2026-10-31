@@ -218,7 +218,6 @@ test("after web pages, mail, selected text or other people's content nothing is 
 	const cases = [
 		["tool_call", { toolName: "web_search", input: { query: "Wetter" } }],
 		["tool_call", { toolName: "fetch_content", input: { url: "https://example.com" } }],
-		["tool_call", { toolName: "mcp__pippa__mail_selected", input: {} }],
 		["tool_call", { toolName: "mcp__pippa__calendar_read", input: {} }],
 		["tool_call", { toolName: "mcp__pippa__front_read", input: {} }],
 		["tool_call", { toolName: "mcp__pippa__read_document", input: { path: "/x/a.eml" } }],
