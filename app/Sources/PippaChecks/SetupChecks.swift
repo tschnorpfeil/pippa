@@ -645,10 +645,13 @@ func runSetupFlowChecks() async {
         old.ctx = 32768
         let (new, _) = dummyModel(name: "New-Q4.gguf", key: "new-model")
         let catalog = ModelCatalog(sampling: [:], models: [old, new])
+        // A 16 GB Mac, not the host: on 8 GB the 9B is a model for larger Macs and never the fallback.
+        let memory: UInt64 = 16 << 30
         let before = PiSetupFlow(roots: r, model: old, contextWindow: 32768, searchRoots: [], port: 18_471,
-                                 catalog: catalog, download: stubDownload(data))
+                                 catalog: catalog, physicalMemory: memory, download: stubDownload(data))
         guard case .askDownload = before.prepare(), await before.download(progress: { _, _ in }) == .ready(adoptedFrom: nil) else { return false }
-        let after = PiSetupFlow(roots: r, model: new, contextWindow: 32768, searchRoots: [], port: 18_471, catalog: catalog)
+        let after = PiSetupFlow(roots: r, model: new, contextWindow: 32768, searchRoots: [], port: 18_471, catalog: catalog,
+                                physicalMemory: memory)
         return after.prepare() == .ready(adoptedFrom: nil) && after.activeModelKey == old.key
             && PiInstaller.providerContextWindow(modelsJSON: r.modelsJSON, id: old.key) == 16384
             && after.pendingDownload != nil && ModelDownloader(directory: r.pippaModels).isInstalled(old)
