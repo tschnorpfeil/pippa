@@ -24,6 +24,8 @@ final class SettingsWindowController {
             w.titlebarAppearsTransparent = true
             w.isMovableByWindowBackground = true
             w.isReleasedWhenClosed = false
+            // The shell (pill and conversation) floats above every app; Settings opened from it must not open beneath it.
+            w.level = .floating
             w.center()
             window = w
         }

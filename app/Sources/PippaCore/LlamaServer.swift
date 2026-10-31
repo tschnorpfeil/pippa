@@ -55,8 +55,6 @@ public actor LlamaServer {
     private var startAborted = false
     /// A stop under way (SIGTERM, up to 2 s, SIGKILL): later callers wait for it instead of signalling twice.
     private var pendingStop: Task<Void, Never>?
-    /// Last unload because of memory pressure (no preloading for a while after it, `MemoryGate.preload`).
-    public private(set) var lastPressureUnload: Date?
 
     /// Prompt cache across idle unloading. When set (only Pi's `pippa-local`):
     /// the server starts with `--slot-save-path <folder>`, `stopIfIdle` saves slot 0 before unloading
@@ -610,7 +608,6 @@ public actor LlamaServer {
         case .terminateAdopted:
             await terminateAdopted()
         }
-        lastPressureUnload = Date()
         DiagnosticsLog.shared.event("llama-druck-entladen", ["stufe": level.logName, "art": Self.logName(action)])
     }
 

@@ -4,7 +4,7 @@
  * Standard mode remains a general agent; this is not a sandbox around every standard-mode executor. */
 export type ActionPolicy = "standard" | "draftOnly";
 export const POLICY_COMMAND = "pippa-action-policy";
-export const NATIVE_READERS = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection",
+export const NATIVE_READERS = ["calendar_read", "reminders_read", "mail_search",
 	"photos_search", "front_read", "read_document"];
 export const DRAFT_TOOLS = ["read", "search_files", "list_folder", ...NATIVE_READERS.map((name) => `mcp__pippa__${name}`)];
 // Keep every native tool registered for readiness; MCP exposure hides every non-reader from the model.

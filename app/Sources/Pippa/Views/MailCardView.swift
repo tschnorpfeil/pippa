@@ -12,7 +12,7 @@ struct MailCardView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "envelope").font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
                     .accessibilityHidden(true)
-                Text(T("“%@” in Mail", table: "Views", card.query)).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(title).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
                     .lineLimit(1)
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
@@ -26,6 +26,11 @@ struct MailCardView: View {
         }
         .resultCard()
         .accessibilityElement(children: .contain)
+    }
+
+    private var title: String {
+        if !card.query.isEmpty { return T("“%@” in Mail", table: "Views", card.query) }
+        return card.unread ? T("Unread in Mail", table: "Views") : T("Newest in Mail", table: "Views")
     }
 }
 

@@ -112,9 +112,7 @@ export default function (pi: ExtensionAPI) {
 		// Applies while list_folder is active: short descriptions through Pi's existing loadout hook.
 		prepareLoadout: (loadout: any) => ({
 			descriptions: Object.fromEntries(
-				Object.entries({...BUILTIN_DESCRIPTIONS,
-                    mcp__pippa__excel_selection: "Read the current selection in open Excel; no file path needed. Values and formulas.",
-                }).filter(([name]) => loadout?.declared?.some((tool: any) => tool.name === name)),
+				Object.entries(BUILTIN_DESCRIPTIONS).filter(([name]) => loadout?.declared?.some((tool: any) => tool.name === name)),
 			),
 		}),
 		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {

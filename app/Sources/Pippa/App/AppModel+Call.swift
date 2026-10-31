@@ -75,8 +75,6 @@ extension AppModel {
         case .shortcut:
             // A second press closes again: letter or table in the line, like the open conversation.
             let callShown = mode.key == "line" && (letter.isActive || sheet.isActive)
-            // The unpinned conversation can sit behind another app: the press brings it back, the next one closes it.
-            if mode.isConversation && !conversationOnTop && !NSApp.isActive, let shell { return shell.bringConversationForward() }
             if callShown || mode.isConversation || mode.key == "resume" { return collapse() }
             if fromMail { return callMail() }
             if fromExcel { return callExcel() }

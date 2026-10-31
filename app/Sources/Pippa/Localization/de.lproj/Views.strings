@@ -266,6 +266,8 @@
 "Pippa knows you came from here. She reads what’s open only if you ask about it." = "Pippa weiß, dass du von hier kommst. Was offen ist, liest sie nur, wenn du danach fragst.";
 "Pippa knows: %@" = "Pippa weiß: %@";
 "Newest in Photos" = "Neueste in Fotos";
+"Newest in Mail" = "Neueste in Mail";
+"Unread in Mail" = "Ungelesen in Mail";
 "New topic · %@" = "Neues Thema · %@";
 "Found on this Mac" = "Gefunden auf diesem Mac";
 "Files on this Mac · %lld of %lld" = "Dateien auf diesem Mac · %lld von %lld";
@@ -315,7 +317,6 @@
 "Hide Conversations" = "Gespräche ausblenden";
 "Show Conversation Details" = "Gesprächsdetails einblenden";
 "Hide Conversation Details" = "Gesprächsdetails ausblenden";
-"Float on Top" = "Immer im Vordergrund";
 "Files in Use" = "Verwendete Dateien";
 "Results" = "Ergebnisse";
 "Waiting for your message" = "Wartet auf deine Nachricht";

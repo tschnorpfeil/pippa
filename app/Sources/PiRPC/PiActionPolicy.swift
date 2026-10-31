@@ -8,7 +8,7 @@ public enum PiActionPolicy: String, Sendable, Equatable {
 
     public static let environmentVariable = "PIPPA_ACTION_POLICY"
     public static let command = "pippa-action-policy"
-    public static let nativeReaders = ["calendar_read", "reminders_read", "mail_selected", "mail_search", "excel_selection",
+    public static let nativeReaders = ["calendar_read", "reminders_read", "mail_search",
                                        "photos_search", "front_read", "read_document"].map { "mcp__pippa__" + $0 }
     /// MCP exposure hides non-readers while the namespace allowlist retains all native registrations.
     public static let draftLaunchTools = ["read", "search_files", "list_folder", "mcp__pippa__*"]

@@ -27,7 +27,9 @@ public struct MailCard: Codable, Sendable, Equatable {
         /// Message-ID without angle brackets, to open the mail; `nil` when Mail gave none.
         public var messageID: String?
     }
+    /// Empty: the newest mails, no search word.
     public var query: String
+    public var unread: Bool
     public var items: [Item]
     public var total: Int
     /// "Mail auf diesem Mac · 3 von 7"
@@ -35,8 +37,9 @@ public struct MailCard: Codable, Sendable, Equatable {
     /// More rows than the search tool ever returns (mail_search allows at most 20).
     public static let maxItems = 20
 
-    public init(query: String, mails: [MailHeader], total: Int, calendar: Calendar) {
+    public init(query: String, unread: Bool = false, mails: [MailHeader], total: Int, calendar: Calendar) {
         self.query = query
+        self.unread = unread
         self.total = total
         let day = DateFormatter(), time = DateFormatter()
         for f in [day, time] { f.calendar = calendar; f.timeZone = calendar.timeZone; f.locale = calendar.locale ?? .autoupdatingCurrent }

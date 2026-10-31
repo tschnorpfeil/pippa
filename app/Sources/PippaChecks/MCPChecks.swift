@@ -6,6 +6,22 @@ import PippaCore
 /// (`DemoIntegrations`, `DemoSheetReader`, `DemoHostData`) with invented data, never real mails, events or sheets.
 /// Checked: tool list and hints, answers per tool, marking as untrusted content, size, plain text when
 /// permission is missing, HTTP protection (key, origin, host) and that the server listens only on 127.0.0.1.
+/// `mail_selected` and `excel_selection` are no longer tools the model sees: the selected mail and the Excel selection are
+/// read through `front_read` with that app's chip staged (same readers, same receipt names). Checks that still name the
+/// old readers reach them that way, so the readers keep their coverage.
+func handleReader(_ tools: PippaMCPTools, _ name: String, _ arguments: [String: Any]) async -> Data? {
+    let chip: FrontApp? = switch name {
+    case "mail_selected": FrontApp(name: "Mail", bundleID: Integration.mail.bundleIdentifier, pid: 3)
+    case "excel_selection": FrontApp(name: "Microsoft Excel", bundleID: ExcelScript.bundleIdentifier, pid: 4)
+    default: nil
+    }
+    let params: [String: Any] = ["name": chip == nil ? name : "front_read", "arguments": arguments]
+    let body = try! JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": params])
+    if let chip { FrontAppStage.shared.current = chip }
+    defer { if chip != nil { FrontAppStage.shared.current = nil } }
+    return await tools.handle(body)
+}
+
 func runMCPChecks() async {
     var berlin = Calendar(identifier: .gregorian)
     berlin.timeZone = TimeZone(identifier: "Europe/Berlin")!; berlin.locale = Locale(identifier: "de_DE"); berlin.firstWeekday = 2
@@ -43,7 +59,7 @@ func runMCPChecks() async {
     }
     /// tools/call → (text as JSON, isError, bytes).
     func call(_ tools: PippaMCPTools, _ name: String, _ arguments: [String: Any] = [:]) async -> (json: [String: Any], isError: Bool, bytes: Int) {
-        let reply = await rpc(tools, "tools/call", ["name": name, "arguments": arguments])
+        let reply = await handleReader(tools, name, arguments).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         let result = reply?["result"] as? [String: Any] ?? [:]
         let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
         let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]) ?? [:]
@@ -79,7 +95,7 @@ func runMCPChecks() async {
             && (unknown?["error"] as? [String: Any])?["code"] as? Int == -32601
             && (broken?["error"] as? [String: Any])?["code"] as? Int == -32700 && batch?.count == 1
     }
-    await checkAsync("MCP: six readers (+ read_document), all read-only (readOnly, non-destructive, closed world), schema as object") {
+    await checkAsync("MCP: four readers and front_read (+ read_document), all read-only (readOnly, non-destructive, closed world), schema as object") {
         let s = setup()
         let list = (await rpc(s.tools, "tools/list"))?["result"] as? [String: Any]
         let all = list?["tools"] as? [[String: Any]] ?? []
@@ -94,7 +110,7 @@ func runMCPChecks() async {
         }
         // Keep the tool list small: with direct approval it goes into every request.
         let bytes = (try? JSONSerialization.data(withJSONObject: tools))?.count ?? .max
-        return names == PippaMCPTools.toolNames && hintsOK && bytes < 3500 && tools.count == 8
+        return names == PippaMCPTools.toolNames && hintsOK && bytes < 3500 && tools.count == 6
     }
     await checkAsync("MCP: unknown tool is a protocol error, unknown arguments a tool error") {
         let s = setup()
@@ -305,6 +321,20 @@ func runMCPChecks() async {
         return !hit.isError && mails.count == 1 && (mails.first?["start"] as? String)?.contains("312,48") == true && hit.json["untrusted"] as? Bool == true
             && !none.isError && ((none.json["data"] as? [String: Any])?["mails"] as? [Any])?.isEmpty == true
             && short.isError && many.isError && closed.isError && closed.json["status"] as? String == "unavailable"
+    }
+    await checkAsync("MCP mail_search: without a query the newest mails, unread=true only unread ones, never a guessed word") {
+        let s = setup()
+        let newest = await call(s.tools, "mail_search")
+        let unread = await call(s.tools, "mail_search", ["unread": true])
+        let both = await call(s.tools, "mail_search", ["query": "Berger", "unread": true])
+        let wrongType = await call(s.tools, "mail_search", ["unread": "yes"])
+        func subjects(_ r: (json: [String: Any], isError: Bool, bytes: Int)) -> [String] {
+            ((r.json["data"] as? [String: Any])?["mails"] as? [[String: Any]] ?? []).compactMap { $0["subject"] as? String }
+        }
+        return !newest.isError && subjects(newest) == ["Elternabend am Donnerstag", "Nebenkostenabrechnung 2025"]
+            && !unread.isError && subjects(unread) == ["Elternabend am Donnerstag"]
+            && !both.isError && subjects(both).isEmpty
+            && wrongType.isError
     }
     await checkAsync("MCP mail_search: starts closed Mail for the requested search; selected-mail reads never open it") {
         let s = setup()
@@ -570,7 +600,9 @@ func runMCPChecks() async {
             return ((response as? HTTPURLResponse)?.statusCode ?? 0, try? JSONSerialization.jsonObject(with: data) as? [String: Any])
         }
         let (initStatus, initReply) = await post(server.url, #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}"#, token: server.token)
-        let (callStatus, callReply) = await post(server.url, #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"excel_selection","arguments":{}}}"#, token: server.token)
+        FrontAppStage.shared.current = FrontApp(name: "Microsoft Excel", bundleID: ExcelScript.bundleIdentifier, pid: 4)
+        let (callStatus, callReply) = await post(server.url, #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"front_read","arguments":{}}}"#, token: server.token)
+        FrontAppStage.shared.current = nil
         let (noTokenStatus, _) = await post(server.url, #"{"jsonrpc":"2.0","id":3,"method":"ping"}"#, token: nil)
         let text = (((callReply?["result"] as? [String: Any])?["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
         // A network address of this Mac (not loopback): nobody may get through there.

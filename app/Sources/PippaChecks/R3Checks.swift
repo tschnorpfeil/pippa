@@ -41,9 +41,8 @@ func runR3Checks() async {
     }
     struct Reply { var json: [String: Any]; var isError: Bool; var receipt: [String: Any]?; var text: String }
     func call(_ s: Setup, _ name: String, _ arguments: [String: Any]) async -> Reply {
-        let body = try! JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": name, "arguments": arguments]])
         let before = s.writes.get.count
-        let reply = await s.tools.handle(body).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let reply = await handleReader(s.tools, name, arguments).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         let result = reply?["result"] as? [String: Any] ?? [:]
         let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
         let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]) ?? [:]
@@ -72,8 +71,8 @@ func runR3Checks() async {
         let allBytes = (try? JSONSerialization.data(withJSONObject: list))?.count ?? .max
         print("    Tool list: 3 new \(writerBytes) B, all \(list.count) together \(allBytes) B")
         let names = writers.compactMap { $0["name"] as? String }
-        return names == ["calendar_add", "reminder_add", "mail_draft"] && hintsOK && list.count == 13 && writerBytes < 1900
-            && PippaMCPTools.toolNames.count == 13 && !names.contains { $0.contains("send") || $0.contains("delete") }
+        return names == ["calendar_add", "reminder_add", "mail_draft"] && hintsOK && list.count == 11 && writerBytes < 1900
+            && PippaMCPTools.toolNames.count == 11 && !names.contains { $0.contains("send") || $0.contains("delete") }
     }
     check("R3 date: weekday = the next one after today, today/tomorrow, ISO; past, invalid and unknown → nil") {
         func d(_ s: String) -> String? {

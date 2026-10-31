@@ -121,9 +121,9 @@
  },
  {
   "id": "mail",
-  "prompt": "Fasse die gerade in Mail ausgewählte Nachricht zusammen.",
+  "prompt": "[Im Vordergrund: Mail – „Angebot“]\nFasse die gerade in Mail ausgewählte Nachricht zusammen.",
   "tools": [
-   "mcp__pippa__mail_selected"
+   "mcp__pippa__front_read"
   ]
  },
  {
@@ -135,9 +135,9 @@
  },
  {
   "id": "excel",
-  "prompt": "Prüfe die markierten Zellen in Excel.",
+  "prompt": "[Im Vordergrund: Microsoft Excel – „Kosten 2026“]\nPrüfe die markierten Zellen in Excel.",
   "tools": [
-   "mcp__pippa__excel_selection"
+   "mcp__pippa__front_read"
   ]
  },
  {

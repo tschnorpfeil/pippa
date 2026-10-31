@@ -43,7 +43,7 @@ private actor RepairPhotoReader: HostDataReading {
         return try await data.searchPhotos(query, limit: limit)
     }
     func recentPhotos(since: Date?, limit: Int) async throws -> HostFetch<PhotoHit> { try await data.recentPhotos(since: since, limit: limit) }
-    func searchMail(_ query: String, limit: Int) async throws -> HostFetch<MailHeader> { try await data.searchMail(query, limit: limit) }
+    func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> { try await data.searchMail(query, unread: unread, limit: limit) }
     func openReminders(dueBefore: Date?, limit: Int) async throws -> HostFetch<ReminderItem> { try await data.openReminders(dueBefore: dueBefore, limit: limit) }
     func counts() -> (automation: Int, library: Int, searches: Int) { (automationAsks, libraryAsks, searches) }
 }
@@ -56,8 +56,7 @@ private struct RepairSheetReader: SheetReading {
 }
 
 private func repairCall(_ tools: PippaMCPTools, _ name: String, _ arguments: [String: Any] = [:]) async -> [String: Any] {
-    let request: [String: Any] = ["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": name, "arguments": arguments]]
-    guard let input = try? JSONSerialization.data(withJSONObject: request), let reply = await tools.handle(input),
+    guard let reply = await handleReader(tools, name, arguments),
           let wire = try? JSONSerialization.jsonObject(with: reply) as? [String: Any],
           let result = wire["result"] as? [String: Any],
           let text = (result["content"] as? [[String: Any]])?.first?["text"] as? String,

@@ -97,7 +97,7 @@ test("real Pi: the first request stays within Pippa's budget, with no skills sec
 	assert.ok(text.startsWith("Du bist Pippa"), "Pippa's own prompt replaces Pi's");
 	assert.ok(!text.includes("<skills>") && !text.includes("<available_skills>"),
 		"every bundled skill is button-only (disable-model-invocation) and none is saved yet, so no skills section");
-	assert.deepEqual(names, ["bash", "edit", "fetch_content", "list_folder", "move_files", "move_to_trash", "read", "remember", "save_skill", "search_files", "web_search", "write"]);
+	assert.deepEqual(names, ["bash", "fetch_content", "list_folder", "move_files", "move_to_trash", "read", "remember", "save_skill", "search_files", "web_search", "write"]);
 	assert.ok(size <= BUDGET, `first request: ${size} characters of prompt and tool declarations, budget ${BUDGET}`);
 	console.log(`first request: ${size} of ${BUDGET} characters (without MCP)`);
 });

@@ -301,7 +301,6 @@ final class ShellController: NSObject {
         var conversation: Bool
         var rails: ConversationRails
         var conversationSize: CGSize
-        var conversationOnTop: Bool
         var pillVisible: Bool
         /// Menu bar icon while the pill is hidden.
         var menuAnchor: NSRect?
@@ -327,7 +326,7 @@ final class ShellController: NSObject {
         if measured { contentPasses &+= 1 }
         return LayoutKey(mode: mode.key, expanded: model.isExpanded, conversation: mode.isConversation,
                          rails: model.activeRails, conversationSize: model.conversationSize,
-                         conversationOnTop: model.conversationOnTop, pillVisible: model.pillVisible,
+                         pillVisible: model.pillVisible,
                          menuAnchor: model.pillVisible ? nil : statusAnchor?(),
                          screens: NSScreen.screens.flatMap { [$0.frame, $0.visibleFrame] },
                          pillLabel: status.label, pillTone: status.tone.rawValue, pillProgress: status.progress != nil,
@@ -649,21 +648,6 @@ final class ShellController: NSObject {
         return (view.layer?.position ?? .zero, view.layer?.bounds ?? .zero)
     }
 
-    /// Pill, line and cards float above every app. The open conversation is an ordinary window unless pinned, so a
-    /// clicked app comes in front of it and Pippa's own windows (Settings) open above it.
-    func applyLevel() {
-        let floats = !model.mode.isConversation || model.conversationOnTop
-        if panel.isFloatingPanel != floats { panel.isFloatingPanel = floats }
-        let level: NSWindow.Level = floats ? .floating : .normal
-        if panel.level != level { panel.level = level }
-    }
-
-    /// The shortcut while another app covers the unpinned conversation: bring it back instead of closing it.
-    func bringConversationForward() {
-        NSApp.activate()
-        panel.makeKeyAndOrderFront(nil)
-    }
-
     func layout(animated: Bool, force: Bool = false) {
         guard !isDraggingPill else { return }
         if model.mode.shape == .pill { workspace = nil; customWorkspace = nil }
@@ -701,7 +685,6 @@ final class ShellController: NSObject {
 
         // Window and focus
         let expanded = model.isExpanded
-        applyLevel()
         if wantVisible && !panel.isVisible { panel.orderFrontRegardless() }
         stageVisible = wantVisible
         interaction.isHidden = expanded

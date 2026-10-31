@@ -22,6 +22,8 @@
 "Read Reminders: due in the next %lld days" = "Read Reminders: due in the next %lld days";
 "Read Mail: “%@”" = "Read Mail: “%@”";
 "Searched Mail for “%@”: %lld found" = "Searched Mail for “%@”: %lld found";
+"Read Mail: %lld unread" = "Read Mail: %lld unread";
+"Read Mail: newest emails" = "Read Mail: newest emails";
 "Read Excel: active sheet" = "Read Excel: active sheet";
 "today" = "today";
 "tomorrow" = "tomorrow";

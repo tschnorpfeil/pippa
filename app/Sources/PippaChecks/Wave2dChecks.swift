@@ -234,8 +234,7 @@ func runWave2dChecks() async {
         return (PippaMCPTools(host: host), demo, sheets)
     }
     func call(_ tools: PippaMCPTools, _ name: String, _ arguments: [String: Any] = [:]) async -> Bool {
-        let body = try! JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": name, "arguments": arguments]])
-        let reply = await tools.handle(body).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let reply = await handleReader(tools, name, arguments).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         return (reply?["result"] as? [String: Any])?["isError"] as? Bool == false
     }
 
