@@ -1,3 +1,4 @@
+import Foundation
 import PippaCore
 
 // Cold start of the local model, seen from the conversation: measured progress while the knowledge loads into memory,
@@ -28,12 +29,25 @@ extension PiRPCChat {
     /// The pill or the conversation opened: if the knowledge is not in memory, start loading it now. Unused, it is
     /// unloaded after the usual idle time. Nothing happens with an online service, before setup is done, or in
     /// debug captures; a question asked meanwhile waits for this same start (`LlamaServer.ensureRunning`).
+    /// Loading ahead is only a guess, so it also waits for a Mac with room to spare (`MemoryGate.preload`: normal
+    /// pressure and the tier's headroom, not hot, no Low Power Mode, no pressure unload in the last ten minutes).
     func preloadIfCold() {
         guard Self.isLive, Self.ownsLocalServer, Self.preload == nil, Self.statusForLocalEngine() == .ready else { return }
         Self.preload = Task {
             defer { Self.preload = nil }
             guard Self.onlineConnection == nil, let server = try? await localModelServer(),
                   await !server.isWarm else { return }
+            let headroom = MemoryHeadroom.current(), host = HostConditions.current()
+            let tier = ModelSelector.tierGB(physicalMemory: ProcessInfo.processInfo.physicalMemory)
+            let verdict = MemoryGate.preload(pressure: headroom.pressure, headroomGiB: headroom.availableGiB, tier: tier, thermal: host.thermal,
+                                             lowPower: host.lowPower, lastPressureUnload: await server.lastPressureUnload, now: Date())
+            guard verdict == .go else {
+                if case .skip(let why) = verdict {
+                    DiagnosticsLog.shared.event("llama-vorladen-ausgelassen", ["grund": why, "frei-gib": String(format: "%.1f", headroom.availableGiB),
+                                                                               "waerme": HostConditions.logName(host.thermal)])
+                }
+                return
+            }
             DiagnosticsLog.shared.event("llama-vorladen")
             try? await server.ensureRunning()
         }

@@ -22,6 +22,7 @@
 "The download arrived damaged. I’ll download it again." = "The download arrived damaged. I’ll download it again.";
 "Part of the app is missing. Please reinstall Pippa." = "Part of the app is missing. Please reinstall Pippa.";
 "Your Mac doesn’t have enough free space. I need %@ more for my AI. Once you free up some space, I’ll pick up where I left off." = "Your Mac doesn’t have enough free space. I need %@ more for my AI. Once you free up some space, I’ll pick up where I left off.";
+"Your Mac is short on memory right now. Close a few apps or browser windows, then try again." = "Your Mac is short on memory right now. Close a few apps or browser windows, then try again.";
 "I couldn’t create anything." = "I couldn’t create anything.";
 "I couldn’t create anything. %@" = "I couldn’t create anything. %@";
 "There’s nothing for the table." = "There’s nothing for the table.";

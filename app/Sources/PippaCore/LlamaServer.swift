@@ -51,6 +51,12 @@ public actor LlamaServer {
     private var supportedFlags: Set<String>?
     /// Until then, idling does not unload the model (`keepWarm`); memory pressure and `stop()` still apply.
     private var warmUntil: Date = .distantPast
+    /// Set by critical pressure while loading: the start under way gives up with `PippaError.notEnoughMemory`.
+    private var startAborted = false
+    /// A stop under way (SIGTERM, up to 2 s, SIGKILL): later callers wait for it instead of signalling twice.
+    private var pendingStop: Task<Void, Never>?
+    /// Last unload because of memory pressure (no preloading for a while after it, `MemoryGate.preload`).
+    public private(set) var lastPressureUnload: Date?
 
     /// Prompt cache across idle unloading. When set (only Pi's `pippa-local`):
     /// the server starts with `--slot-save-path <folder>`, `stopIfIdle` saves slot 0 before unloading
@@ -219,8 +225,10 @@ public actor LlamaServer {
             if await health() == 200 { return }
         }
         if state == .ready, let adoptedPID, PiServerLock.isAlive(adoptedPID), await health() == 200 { touchLock(); return }
-        stop()
+        await stop()
+        try checkHeadroom()
         state = .starting
+        startAborted = false
         loadStartedAt = Date(); lastHealth = .silent
         if loadBytes == 0 { loadBytes = ColdStart.modelBytes(choice, file: modelPath) }
         port = fixedPort ?? Self.freePort()
@@ -229,6 +237,7 @@ public actor LlamaServer {
         // the app waits for it and shares it instead of starting a second one.
         if let lockFile, fixedPort != nil {
             if try await claimOrAdopt(lockFile) {
+                if startAborted { adoptedPID = nil; state = .stopped; throw PippaError.notEnoughMemory }
                 state = .ready
                 lastStartSeconds = nil
                 DiagnosticsLog.shared.event("llama-mitbenutzt", ["port": String(port)])
@@ -243,6 +252,8 @@ public actor LlamaServer {
             DiagnosticsLog.shared.event("llama-port-belegt", ["port": String(port)])
             throw PippaError.modelFailed
         }
+        // Critical pressure arrived while waiting for the lock: start nothing.
+        if startAborted { state = .stopped; releaseLock(); throw PippaError.notEnoughMemory }
         let started = Date()
         let p = Process()
         p.executableURL = binary
@@ -273,6 +284,7 @@ public actor LlamaServer {
 
         let deadline = Date().addingTimeInterval(600)
         while Date() < deadline {
+            if startAborted { await stop(); throw PippaError.notEnoughMemory }
             guard p.isRunning else { state = .stopped; releaseLock(); DiagnosticsLog.shared.event("llama-beendet", ["phase": "start"]); throw PippaError.modelFailed }
             lastHealth = ColdStart.Health(status: await health())
             if lastHealth == .ready {
@@ -282,14 +294,26 @@ public actor LlamaServer {
                 // Restore the saved slot before the first request arrives (lease and Pi wait for this function).
                 slotsActive = p.arguments?.contains("--slot-save-path") == true
                 if slotsActive { await restoreSlot() }
+                if startAborted || !p.isRunning { await stop(); throw startAborted ? PippaError.notEnoughMemory : PippaError.modelFailed }
                 state = .ready
                 scheduleIdle(); return
             }
             try await Task.sleep(for: .milliseconds(250))
         }
         DiagnosticsLog.shared.event("llama-start-zeitueberschreitung", ["dauer-s": "600"])
-        stop()
+        await stop()
         throw PippaError.modelFailed
+    }
+
+    /// Before a load: refuse only under critical pressure (the model would push the Mac into swap and freeze it);
+    /// little headroom is only logged against the tier's value (§3 of docs/next-level-plan-2026-10-30.md, log-only in 0.3.18).
+    private func checkHeadroom() throws {
+        let headroom = MemoryHeadroom.current()
+        let tier = ModelSelector.tierGB(physicalMemory: ProcessInfo.processInfo.physicalMemory)
+        let verdict = MemoryGate.load(pressure: headroom.pressure, headroomGiB: headroom.availableGiB, tier: tier)
+        DiagnosticsLog.shared.event("llama-speicher", ["frei-gib": String(format: "%.1f", headroom.availableGiB), "druck": headroom.pressure.logName,
+                                                       "stufe-gb": String(tier), "ergebnis": verdict.rawValue])
+        if verdict == .refuse { throw PippaError.notEnoughMemory }
     }
 
     /// Take the lock (returns `true`: a terminal-extension server is already running, the app shares it) or
@@ -310,7 +334,13 @@ public actor LlamaServer {
                 DiagnosticsLog.shared.event("llama-port-belegt", ["port": String(port), "besitzer": lock.owner])
                 throw PippaError.modelFailed
             }
-            // The terminal's server is loading or running: wait until it responds.
+            // The terminal's server is loading or running: wait until it responds. Critical pressure meanwhile: stop it
+            // and give up (the same as for an own load under way).
+            if startAborted {
+                await terminateAdopted(lock)
+                state = .stopped
+                throw PippaError.notEnoughMemory
+            }
             lastHealth = ColdStart.Health(status: await health())
             if lastHealth == .ready {
                 adoptedPID = lock.pid ?? lock.holder
@@ -369,24 +399,62 @@ public actor LlamaServer {
         return (response as? HTTPURLResponse)?.statusCode ?? 0
     }
 
-    /// Stops the server safely: SIGTERM, wait up to 2 s, then SIGKILL. Also when the app quits.
-    public func stop() {
+    /// Stops the server safely: SIGTERM, wait up to 2 s, then SIGKILL. Also when the app quits. Waits without blocking
+    /// the actor; a second call while a stop is under way waits for the same one.
+    public func stop() async {
+        if let pendingStop { return await pendingStop.value }
+        let stopping = Task { await self.stopNow() }
+        pendingStop = stopping
+        await stopping.value
+        pendingStop = nil
+    }
+
+    private func stopNow() async {
         idleTask?.cancel(); idleTask = nil
         // Shared: just let go. The server belongs to the terminal extension, its watcher unloads it when idle.
         if adoptedPID != nil { adoptedPID = nil; state = .stopped; return }
+        // Stopped at once for callers: a request arriving during the wait starts afresh (after this stop) instead of
+        // reaching a dying server.
+        state = .stopped
         let owned = process != nil
         if let process, process.isRunning {
             let pid = process.processIdentifier
             process.terminate()
-            let deadline = Date().addingTimeInterval(2)
-            while process.isRunning && Date() < deadline { usleep(20_000) }
-            if process.isRunning { kill(pid, SIGKILL); process.waitUntilExit() }
+            if await !Self.waitForExit(seconds: 2, { process.isRunning }) {
+                kill(pid, SIGKILL)
+                _ = await Self.waitForExit(seconds: 2, { process.isRunning })
+            }
         }
         process = nil
         try? watchdogPipe?.fileHandleForWriting.close()
         watchdogPipe = nil
         if owned { releaseLock() }
         state = .stopped
+    }
+
+    /// Polls `running` every 20 ms for up to `seconds`; `true` once it reports the process gone.
+    static func waitForExit(seconds: Double, _ running: () -> Bool) async -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while running() {
+            guard Date() < deadline else { return false }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return true
+    }
+
+    /// Memory pressure on a server terminal Pi started: SIGTERM its PID from the lock, SIGKILL after 2 s, then remove the
+    /// lock if it is still that one. Terminal Pi starts the server again with its next request.
+    private func terminateAdopted(_ known: PiServerLock? = nil) async {
+        idleTask?.cancel(); idleTask = nil
+        adoptedPID = nil
+        state = .stopped
+        guard let lockFile, let lock = known ?? PiServerLock.read(lockFile), let pid = MemoryGate.adoptedTarget(lock, port: port) else { return }
+        kill(pid, SIGTERM)
+        if await !Self.waitForExit(seconds: 2, { PiServerLock.isAlive(pid) }) {
+            kill(pid, SIGKILL)
+            _ = await Self.waitForExit(seconds: 1, { PiServerLock.isAlive(pid) })
+        }
+        PiServerLock.remove(lockFile) { $0 == lock }
     }
 
     /// Keeps an already running model loaded for at least `seconds`. Starts nothing; if the idle timer is running,
@@ -427,7 +495,7 @@ public actor LlamaServer {
             guard inFlight == 0, state == .ready else { return }
         }
         if fixedPort != nil { DiagnosticsLog.shared.event("llama-entladen", ["leerlauf-s": String(Int(idleAfter))]) }
-        stop()
+        await stop()
     }
 
     // MARK: Save / restore slot
@@ -514,24 +582,52 @@ public actor LlamaServer {
         pressure = source
     }
 
-    /// Never while starting (otherwise the start fails mid-load); on "warning" only without running work
-    /// (an agent lease counts), after saving the conversation's prompt cache; on "critical" always and at once.
+    /// In every state (`MemoryGate.onPressure`): on "critical" at once, also a load under way and a server terminal Pi
+    /// started; on "warning" only without running work (an agent lease, or the terminal's own request on a shared
+    /// server), after saving the conversation's prompt cache, and never a load under way.
     private func memoryPressure(critical: Bool) async {
-        guard state != .starting else { return }
-        if critical { stop(); return }
-        guard inFlight == 0 else { return }
-        if slotsActive, state == .ready, adoptedPID == nil {
-            await saveSlot()
-            guard inFlight == 0, state == .ready else { return }
+        let level: PressureLevel = critical ? .critical : .warning
+        let kind: MemoryGate.ServerKind = switch state {
+        case .stopped: .stopped
+        case .starting: .starting
+        case .ready: adoptedPID != nil ? .adopted : .owned
         }
-        stop()
+        var busy = inFlight > 0
+        if !busy, !critical, kind == .adopted { busy = await slotsBusy() }
+        let action = MemoryGate.onPressure(level, server: kind, busy: busy, slotsActive: slotsActive)
+        switch action {
+        case .none: return
+        case .abortStart:
+            // The start notices the flag (lock wait, health loop, slot restore) and fails with `notEnoughMemory`.
+            startAborted = true
+            if process != nil { await stop() }
+        case .unload(let save):
+            if save {
+                await saveSlot()
+                guard inFlight == 0, state == .ready, adoptedPID == nil else { return }
+            }
+            await stop()
+        case .terminateAdopted:
+            await terminateAdopted()
+        }
+        lastPressureUnload = Date()
+        DiagnosticsLog.shared.event("llama-druck-entladen", ["stufe": level.logName, "art": Self.logName(action)])
+    }
+
+    private static func logName(_ action: MemoryGate.PressureAction) -> String {
+        switch action {
+        case .none: "keine"
+        case .abortStart: "start-abgebrochen"
+        case .unload: "eigener-server"
+        case .terminateAdopted: "terminal-server"
+        }
     }
 
     /// Quitting the app: save the conversation's prompt cache when nothing runs, then stop. The next start reads it back
     /// (`restoreSlot`), so the first answer after a restart does not read the whole conversation again.
     public func stopSavingConversation() async {
         if slotsActive, state == .ready, inFlight == 0, adoptedPID == nil { await saveSlot() }
-        stop()
+        await stop()
     }
 
     /// For development: every request with its response as a JSON line in PIPPA_MODEL_TRACE (recordings for checks).
