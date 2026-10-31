@@ -40,15 +40,6 @@ final class AppModel: ObservableObject {
             d.set(conversationRails.prefersDetails, forKey: "conversation.rail.prefersDetails")
         }
     }
-    /// The header pin: the open conversation floats above other apps only when pinned, otherwise it is an ordinary
-    /// window (ShellController.applyLevel). Saved per Mac; scripted captures never float.
-    @Published var conversationOnTop = DevSnapshot.directory == nil && UserDefaults.standard.bool(forKey: "conversation.onTop") {
-        didSet {
-            guard conversationOnTop != oldValue else { return }
-            if DevSnapshot.directory == nil { UserDefaults.standard.set(conversationOnTop, forKey: "conversation.onTop") }
-            shell?.applyLevel()
-        }
-    }
     /// The detail rail asks the conversation to show one of its messages (ConversationWorkspace scrolls there).
     @Published private(set) var conversationJump = 0
     private(set) var conversationJumpTarget: UUID?

@@ -266,6 +266,8 @@
 "Pippa knows you came from here. She reads what’s open only if you ask about it." = "Pippa knows you came from here. She reads what’s open only if you ask about it.";
 "Pippa knows: %@" = "Pippa knows: %@";
 "Newest in Photos" = "Newest in Photos";
+"Newest in Mail" = "Newest in Mail";
+"Unread in Mail" = "Unread in Mail";
 "New topic · %@" = "New topic · %@";
 "Found on this Mac" = "Found on this Mac";
 "Files on this Mac · %lld of %lld" = "Files on this Mac · %lld of %lld";
@@ -315,7 +317,6 @@
 "Hide Conversations" = "Hide Conversations";
 "Show Conversation Details" = "Show Conversation Details";
 "Hide Conversation Details" = "Hide Conversation Details";
-"Float on Top" = "Float on Top";
 "Files in Use" = "Files in Use";
 "Results" = "Results";
 "Waiting for your message" = "Waiting for your message";
