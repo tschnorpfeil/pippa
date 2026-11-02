@@ -188,7 +188,12 @@ public final class PiInstaller: @unchecked Sendable {
             try fm.removeItem(at: leftover)
         }
         if fm.fileExists(atPath: release.path) {
-            if (try? version(release: release)) == pin { return (release, true) }
+            if (try? version(release: release)) == pin {
+                // A release Pippa installed before the marker existed gains it here, so a later state rewrite
+                // cannot turn it into a permanent stranger.
+                if state.didCreate(release), !Self.hasManagedReleaseMarker(release) { try? markManagedRelease(release) }
+                return (release, true)
+            }
             guard state.didCreate(release) else { throw PiInstallFailure.releaseBroken(release.path) }
             try fm.removeItem(at: release) // Pippa's own, damaged release
         }
@@ -203,6 +208,7 @@ public final class PiInstaller: @unchecked Sendable {
         }
         try makeDirectory(release.deletingLastPathComponent())
         try fm.moveItem(at: temporary, to: release)
+        try markManagedRelease(release)
         state.record(release)
         save()
         return (release, false)
@@ -325,12 +331,39 @@ public final class PiInstaller: @unchecked Sendable {
         let keep = Set([roots.pin, state.previousPin, active].compactMap { $0 })
         var changed = false
         for entry in (try? fm.contentsOfDirectory(at: releases, includingPropertiesForKeys: nil)) ?? []
-        where !keep.contains(entry.lastPathComponent) && state.didCreate(entry) {
+        where !keep.contains(entry.lastPathComponent) && isPippaRelease(entry) {
             guard (try? fm.removeItem(at: entry)) != nil else { continue }
             state.forget(entry)
             changed = true
         }
         if changed { save() }
+    }
+
+    /// Marker file Pippa writes into a release it installed itself. `install-state.json` records that release too,
+    /// but a rewritten state or a layout change can lose the record; the marker inside the release survives it, so
+    /// cleanup still knows the release is Pippa's and may be removed (#139).
+    public static let managedReleaseMarker = ".pippa-installed.json"
+
+    static func hasManagedReleaseMarker(_ release: URL) -> Bool {
+        FileManager.default.fileExists(atPath: release.appendingPathComponent(managedReleaseMarker).path)
+    }
+
+    /// A release Pippa installed: recorded in the state, or carrying the marker that outlives a lost record.
+    func isPippaRelease(_ release: URL) -> Bool {
+        state.didCreate(release) || Self.hasManagedReleaseMarker(release)
+    }
+
+    /// Writes the marker into a release Pippa created. The folder name is the version, so the file states which
+    /// release it belongs to even after it is moved out of the state.
+    func markManagedRelease(_ release: URL) throws {
+        let marker: [String: Any] = [
+            "schemaVersion": 1,
+            "installedBy": "Pippa",
+            "version": release.lastPathComponent,
+            "installedAt": ISO8601DateFormatter().string(from: Date()),
+        ]
+        let data = try JSONSerialization.data(withJSONObject: marker, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: release.appendingPathComponent(Self.managedReleaseMarker), options: .atomic)
     }
 
     /// `a` < `b` for versions of the form x.y.z; anything else (prereleases, unreadable) does not count as older.

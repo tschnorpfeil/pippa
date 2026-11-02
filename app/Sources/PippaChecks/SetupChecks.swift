@@ -756,6 +756,34 @@ func runPiUpgradeChecks() {
         return ok1 && ok2
     }
 
+    check("Pi switch: a release Pippa installed stays Pippa's after the state loses it, so cleanup still removes it (#139)") {
+        let home = fakeHome("upgrade-lost-record"); defer { discard(home) }
+        let first = roots(home, try upgradePayload(home, "1.0.4"))
+        guard PiInstaller(roots: first).installPi().isDone else { return false }
+        let marker = first.release(.official).appendingPathComponent(PiInstaller.managedReleaseMarker)
+        let marked = fm.fileExists(atPath: marker.path)
+        let second = roots(home, try upgradePayload(home, "1.1.0"))
+        guard PiInstaller(roots: second).installPi().isDone else { return false }
+        // The person's own `pi update` release: no marker, no record -- it must survive every cleanup.
+        let foreign = second.managedRoot.appendingPathComponent("releases/1.3.0", isDirectory: true)
+        try fm.copyItem(at: try upgradePayload(home, "1.3.0").release, to: foreign)
+        // What the report describes: the state no longer lists the release Pippa installed, everything else valid.
+        var lost = PiInstallState.load(from: second.stateFile)
+        lost.created.removeAll { $0 == first.release(.official).standardizedFileURL.path }
+        try lost.save(to: second.stateFile)
+        guard !PiInstaller(roots: second).state.didCreate(first.release(.official)) else { return false }
+        let third = roots(home, try upgradePayload(home, "1.2.0"))
+        let pi3 = PiInstaller(roots: third).installPi()
+        let ok = marked && pi3.isDone
+            && !fm.fileExists(atPath: first.release(.official).path)   // pruned by its marker, not by the lost record
+            && fm.fileExists(atPath: second.release(.official).path)   // previous pin, kept as before
+            && fm.fileExists(atPath: third.release(.official).path)    // the pin
+            && fm.fileExists(atPath: foreign.path)                     // the person's release, untouched
+        if !ok { print("   ", marked, pi3.outcome, fm.fileExists(atPath: first.release(.official).path),
+                       fm.fileExists(atPath: foreign.path)) }
+        return ok
+    }
+
     check("Pi switch: if the person moved to a newer version themselves (pi update), it stays; Pippa uses its pin alongside") {
         let home = fakeHome("upgrade-newer"); defer { discard(home) }
         let first = roots(home, try upgradePayload(home, "1.0.4"))
