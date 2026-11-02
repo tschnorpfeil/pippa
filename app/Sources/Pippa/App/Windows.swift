@@ -57,21 +57,36 @@ final class Pill {
             panel.isOpaque = false
             panel.hasShadow = false
             panel.isMovableByWindowBackground = true
-            panel.contentView = NSHostingView(rootView: PillView(chat: .shared, setup: .shared))
+            // Only fit(_:) sizes the panel. The hosting view's own sizing grows it from the left edge, so a longer line
+            // pushed the right edge off the screen before fit(_:) saw a difference.
+            let host = NSHostingView(rootView: PillView(chat: .shared, setup: .shared))
+            host.sizingOptions = []
+            panel.contentView = host
             if let screen = NSScreen.main?.visibleFrame {
                 panel.setFrameOrigin(NSPoint(x: screen.maxX - size.width - 16, y: screen.minY + 16))
             }
             panel.setFrameAutosaveName("PippaPill")
             self.panel = panel
         }
+        if let panel { panel.setFrame(onScreen(panel.frame), display: false) }
         panel?.orderFrontRegardless()
     }
 
-    /// The line grows and shrinks; the pill keeps its right edge where the person put it.
+    /// The line grows and shrinks; the pill keeps its right edge where the person put it, and stays on the screen.
     func fit(_ size: CGSize) {
         guard let panel, size.width > 0, abs(panel.frame.width - size.width) > 0.5 || abs(panel.frame.height - size.height) > 0.5 else { return }
         let frame = panel.frame
-        panel.setFrame(NSRect(x: frame.maxX - size.width, y: frame.minY, width: size.width, height: size.height), display: true)
+        panel.setFrame(onScreen(NSRect(x: frame.maxX - size.width, y: frame.minY, width: size.width, height: size.height)), display: true)
+    }
+
+    /// Moves a frame inside the visible part of its screen (a saved position, another display, a longer line).
+    private func onScreen(_ frame: NSRect) -> NSRect {
+        guard let visible = (NSScreen.screens.first { $0.visibleFrame.intersects(frame) } ?? NSScreen.main)?.visibleFrame
+        else { return frame }
+        var frame = frame
+        frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
+        frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
+        return frame
     }
 }
 
