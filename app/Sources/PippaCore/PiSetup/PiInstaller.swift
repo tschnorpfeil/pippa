@@ -42,7 +42,8 @@ public struct PiInstallOptions: Sendable {
 
 /// The installer: detect -> Pi -> model folder -> model -> models.json -> ready. Every step is idempotent, writes
 /// its state to install-state.json and can be repeated on its own ("Repair"). Foreign things stay untouched:
-/// Pippa deletes and replaces only what is listed in `state.created`.
+/// Pippa deletes and replaces only what is listed in `state.created`, plus releases carrying its own marker
+/// (`managedReleaseMarker`), which outlives a lost record.
 public final class PiInstaller: @unchecked Sendable {
     public static let providerKey = "pippa-local"
     public let roots: PiInstallRoots
@@ -203,6 +204,7 @@ public final class PiInstaller: @unchecked Sendable {
         }
         try makeDirectory(release.deletingLastPathComponent())
         try fm.moveItem(at: temporary, to: release)
+        try markManagedRelease(release)
         state.record(release)
         save()
         return (release, false)
@@ -317,20 +319,52 @@ public final class PiInstaller: @unchecked Sendable {
 
     /// Removes releases that Pippa created itself and nobody needs anymore. Kept: the pin, the previous pin
     /// (running terminal sessions, going back) and whatever `current-version` names. Foreign releases (Pi's
-    /// installer, `pi update`) always stay.
+    /// installer, `pi update`) always stay. A kept release Pippa recorded before the marker existed gains it here,
+    /// so a later state rewrite cannot turn it into a permanent stranger.
     func pruneReleases(root: URL) {
         let releases = root.appendingPathComponent("releases", isDirectory: true)
         let active = (try? String(contentsOf: root.appendingPathComponent("current-version"), encoding: .utf8))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let keep = Set([roots.pin, state.previousPin, active].compactMap { $0 })
         var changed = false
-        for entry in (try? fm.contentsOfDirectory(at: releases, includingPropertiesForKeys: nil)) ?? []
-        where !keep.contains(entry.lastPathComponent) && state.didCreate(entry) {
+        for entry in (try? fm.contentsOfDirectory(at: releases, includingPropertiesForKeys: nil)) ?? [] {
+            if keep.contains(entry.lastPathComponent) {
+                if state.didCreate(entry), !Self.hasManagedReleaseMarker(entry) { try? markManagedRelease(entry) }
+                continue
+            }
+            guard isPippaRelease(entry) else { continue }
             guard (try? fm.removeItem(at: entry)) != nil else { continue }
             state.forget(entry)
             changed = true
         }
         if changed { save() }
+    }
+
+    /// Marker file Pippa writes into a release it installed itself. `install-state.json` records that release too,
+    /// but a rewritten state or a layout change can lose the record; the marker inside the release survives it, so
+    /// cleanup still knows the release is Pippa's and may be removed (#139).
+    public static let managedReleaseMarker = ".pippa-installed.json"
+
+    static func hasManagedReleaseMarker(_ release: URL) -> Bool {
+        FileManager.default.fileExists(atPath: release.appendingPathComponent(managedReleaseMarker).path)
+    }
+
+    /// A release Pippa installed: recorded in the state, or carrying the marker that outlives a lost record.
+    func isPippaRelease(_ release: URL) -> Bool {
+        state.didCreate(release) || Self.hasManagedReleaseMarker(release)
+    }
+
+    /// Writes the marker into a release Pippa created. The folder name is the version, so the file states which
+    /// release it belongs to even after it is moved out of the state.
+    func markManagedRelease(_ release: URL) throws {
+        let marker: [String: Any] = [
+            "schemaVersion": 1,
+            "installedBy": "Pippa",
+            "version": release.lastPathComponent,
+            "installedAt": ISO8601DateFormatter().string(from: Date()),
+        ]
+        let data = try JSONSerialization.data(withJSONObject: marker, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: release.appendingPathComponent(Self.managedReleaseMarker), options: .atomic)
     }
 
     /// `a` < `b` for versions of the form x.y.z; anything else (prereleases, unreadable) does not count as older.
