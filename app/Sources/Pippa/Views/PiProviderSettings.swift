@@ -197,7 +197,8 @@ struct PiProviderSettings: View {
                 }
             }
         }
-        .padding(14)
+        // A row of the settings form: the form already insets it, a second inset made it look nested.
+        .padding(.vertical, Space.xs)
         .onAppear { provider.refresh(selection: active) }
         .onDisappear { provider.cancel() }
         .sheet(isPresented: Binding(get: { provider.connecting }, set: { if !$0 { provider.cancel() } })) {
