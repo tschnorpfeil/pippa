@@ -1,28 +1,35 @@
 import AppKit
+import Combine
 import PippaCore
 import SwiftUI
 
 /// The chat window: a normal, resizable window that remembers its frame.
 @MainActor
-final class ChatWindow {
+final class ChatWindow: NSObject, NSWindowDelegate {
     static let shared = ChatWindow()
     private var window: NSWindow?
 
     func show() {
         if window == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 640),
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 700),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                                   backing: .buffered, defer: false)
             window.title = "Pippa"
             window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false
-            window.minSize = NSSize(width: 560, height: 420)
+            window.delegate = self
+            window.minSize = NSSize(width: 640, height: 460)
+            // One calm bar: toolbar and title in one row, no line between bar and conversation.
+            window.toolbarStyle = .unified
+            window.titlebarSeparatorStyle = .none
             window.contentView = NSHostingView(rootView: ChatView(chat: .shared, setup: .shared))
             window.center()
             window.setFrameAutosaveName("PippaChat")
             self.window = window
         }
+        NSApp.unhide(nil)
         NSApp.activate()
+        if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
         ChatModel.shared.unseen = nil
         PiSession.shared.preload()
@@ -30,29 +37,32 @@ final class ChatWindow {
 
     var isKey: Bool { window?.isKeyWindow == true }
     func hide() { window?.orderOut(nil) }
+    func windowDidBecomeKey(_ notification: Notification) { ChatModel.shared.unseen = nil }
 }
 
 /// The pill: Pippa's living mark and one short line, floating at the edge of the screen. It opens the chat, takes
 /// dropped files and says what Pippa is doing ("Reading Lease.pdf"), and that an answer is ready.
 @MainActor
-final class Pill {
+final class Pill: ObservableObject {
     static let shared = Pill()
     private var panel: NSPanel?
-
-    var isShown: Bool {
-        get { UserDefaults.standard.object(forKey: "showsPill") as? Bool ?? true }
-        set { UserDefaults.standard.set(newValue, forKey: "showsPill"); newValue ? show() : panel?.orderOut(nil) }
+    @Published var isShown = UserDefaults.standard.object(forKey: "showsPill") as? Bool ?? false {
+        didSet {
+            UserDefaults.standard.set(isShown, forKey: "showsPill")
+            isShown ? show() : panel?.orderOut(nil)
+        }
     }
 
     func show() {
         guard isShown else { return }
         if panel == nil {
             let size = NSSize(width: 140, height: 64)
-            let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.nonactivatingPanel, .borderless],
+            let panel = PillPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.nonactivatingPanel, .borderless],
                                 backing: .buffered, defer: false)
             panel.isFloatingPanel = true
+            panel.hidesOnDeactivate = false
             panel.level = .floating
-            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
             panel.backgroundColor = .clear
             panel.isOpaque = false
             panel.hasShadow = false
@@ -88,6 +98,12 @@ final class Pill {
         frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
         return frame
     }
+
+    /// Hovering, dragging, or updating this companion must never take keyboard focus from another window.
+    private final class PillPanel: NSPanel {
+        override var canBecomeKey: Bool { false }
+        override var canBecomeMain: Bool { false }
+    }
 }
 
 struct PillView: View {
@@ -100,10 +116,11 @@ struct PillView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            PippaMark(size: 30, state: markState, hovered: hoverState.wrappedValue)
+            // 28 in a 44 capsule with 8 leading: the mark sits concentric in the round end.
+            PippaMark(size: 28, state: markState, hovered: hoverState.wrappedValue)
             Text(label)
                 .font(.system(size: 13, weight: .semibold)).monospacedDigit()
-                .foregroundStyle(tone == .needsYou ? Theme.accent : Theme.ink)
+                .foregroundStyle(labelColor)
                 .lineLimit(1).truncationMode(.middle)
                 .frame(maxWidth: 240, alignment: .leading)
                 .contentTransition(.opacity)
@@ -116,15 +133,24 @@ struct PillView: View {
         .frame(height: 44)
         .fixedSize()
         .background { Glass().clipShape(Capsule()) }
-        .background { Capsule().fill(.black.opacity(0.18)).blur(radius: 6).offset(y: 2) }
         .overlay { if let wash { Capsule().fill(wash).allowsHitTesting(false) } }
-        .overlay { Capsule().strokeBorder(rim, lineWidth: tone == .rest || tone == .working ? 0.5 : 1) }
+        // A circular capsule stroked inside its edge: `strokeBorder` on the default capsule left 1 pt slivers where the
+        // round ends meet the frame.
+        .overlay { Capsule(style: .circular).inset(by: rimWidth / 2).stroke(rim, lineWidth: rimWidth).allowsHitTesting(false) }
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.16), radius: 8, y: 3)
         .scaleEffect(targetedState.wrappedValue ? 1.06 : 1)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: label)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targetedState.wrappedValue)
         .padding(10)
         .contentShape(Capsule())
         .onTapGesture { AppActions.callPippa() }
+        .contextMenu {
+            Button(T("Ask Pippa", table: "App")) { AppActions.callPippa() }
+            Button(T("Settings…", table: "App")) { SettingsWindow.shared.show() }
+            Divider()
+            Button(T("Hide Pill", table: "App")) { Pill.shared.isShown = false }
+        }
         .onHover { hoverState.wrappedValue = $0 }
         .help(T("Ask Pippa", table: "App"))
         .onDrop(of: [.fileURL], isTargeted: targetedState.projectedValue) { providers in
@@ -158,7 +184,7 @@ struct PillView: View {
     private var label: String {
         if targetedState.wrappedValue { return T("Drop something on me!", table: "App") }
         if chat.isAnswering {
-            let last = chat.current?.messages.last
+            let last = chat.answering?.messages.last
             if let step = last?.steps.last(where: { !$0.done }) { return step.label }
             if let text = last?.text, !text.isEmpty { return T("Writing…", table: "App") }
             return T("Thinking…", table: "App")
@@ -204,11 +230,26 @@ struct PillView: View {
         }
     }
 
-    private var rim: Color {
+    /// Only "needs you" speaks in the accent colour; a working step reads quieter than the name at rest.
+    private var labelColor: Color {
         switch tone {
-        case .rest, .working: return Theme.chatBorder
+        case .needsYou: return Theme.accent
+        case .working: return Theme.ink2
+        default: return Theme.ink
+        }
+    }
+
+    private var rim: Color {
+        if targetedState.wrappedValue { return Theme.accent }
+        switch tone {
+        case .rest, .working: return Theme.hairline
         default: return tint.opacity(0.6)
         }
+    }
+
+    private var rimWidth: CGFloat {
+        if targetedState.wrappedValue { return 1.5 }
+        return tone == .rest || tone == .working ? 0.5 : 1
     }
 
     /// A small sign after the words, so the state does not depend on colour alone.

@@ -5,7 +5,7 @@ import PippaCore
 
 /// Automatic updates (Sparkle 2). Feed, key and behavior are in Info.plist:
 /// check daily, download silently. Installation happens without a dialog, either on quit or,
-/// since Pippa is rarely quit as a menu bar app, as soon as Pippa has nothing to do and
+/// if Pippa stays running after its windows close, as soon as Pippa has nothing to do and
 /// nobody is at the Mac. After the restart Pippa says a friendly word once.
 @MainActor
 final class Updates: NSObject {

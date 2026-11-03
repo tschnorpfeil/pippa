@@ -40,6 +40,16 @@ func focused(_ variable: String, _ label: String, _ body: () async -> Void) asyn
     print(failures == 0 ? "\(label) checks passed." : "\(label) checks failed.")
     exit(failures == 0 ? 0 : 1)
 }
+await focused("PIPPA_PROVIDER_CHECKS", "Provider") {
+    await runInferenceChecks()
+    await runProviderChecks()
+}
+await focused("PIPPA_RELIABILITY_CHECKS", "Reliability") {
+    runSkillChecks()
+    await runSheetChecks()
+    await runPermissionRepairChecks()
+    await runDeadlineChecks()
+}
 await focused("PIPPA_DURABLE_JOB_CHECKS", "Durable job") { await runDurableJobChecks() }
 await focused("PIPPA_FILE_PREPARATION_CHECKS", "File preparation") { await runFilePreparationChecks() }
 await focused("PIPPA_MCP_FILE_PREPARATION_CHECKS", "MCP file preparation") { await runMCPFilePreparationChecks() }
@@ -408,13 +418,14 @@ runSkillChecks()
 await runInferenceChecks()
 await runToolChecks()
 await runOCRChecks()
+await runDeadlineChecks()
 await runJournalChecks()
 await runDurableJobChecks()
 await runFilePreparationChecks()
 await runMCPFilePreparationChecks()
 await runLetterChecks()
 await runSheetChecks()
-await runSubscriptionChecks()
+await runProviderChecks()
 await runCalendarChecks()
 runCalendarStoreChecks()
 await runResultCardChecks()

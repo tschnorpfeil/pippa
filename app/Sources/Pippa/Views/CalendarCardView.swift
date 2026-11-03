@@ -11,17 +11,7 @@ struct CalendarCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "calendar").font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
-                    .accessibilityHidden(true)
-                Text(card.title).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
-                if let range = card.rangeLabel {
-                    Text(range).font(.caption).foregroundStyle(Theme.ink3).lineLimit(1)
-                }
-            }
-            .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 6)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
+            CardHeader(symbol: "calendar", title: card.title, detail: card.rangeLabel)
 
             if let empty = card.emptyText {
                 Text(empty).font(.body).foregroundStyle(Theme.ink2)
@@ -62,14 +52,12 @@ struct CalendarCardView: View {
 private struct CalendarCardRow: View {
     var entry: CalendarCard.Entry
     var showsCalendar: Bool
-    private let hoverState = State<Bool>(initialValue: false)
-
     var body: some View {
-        Button(action: open) {
+        CardRowButton(action: open) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Capsule().fill(color).frame(width: 3, height: 15).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 3 }
                 Text(entry.time)
-                    .font(.caption.monospacedDigit()).foregroundStyle(Theme.ink2)
+                    .font(.scaled(size: 12).monospacedDigit()).foregroundStyle(Theme.ink2)
                     .frame(width: 92, alignment: .leading)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(entry.title)
@@ -86,12 +74,7 @@ private struct CalendarCardRow: View {
                     Text(entry.calendar).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1)
                 }
             }
-            .padding(.horizontal, 14).padding(.vertical, 5)
-            .background(hoverState.wrappedValue ? Theme.chatBorder : .clear)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { hoverState.wrappedValue = $0 }
         .help(T("Open in Calendar", table: "CalendarUI"))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel([entry.time, entry.title, showsCalendar ? entry.calendar : nil, entry.note, entry.location]

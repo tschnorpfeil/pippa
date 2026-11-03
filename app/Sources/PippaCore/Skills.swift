@@ -97,7 +97,7 @@ public struct PippaSkill: Identifiable, Sendable, Hashable {
     public static func instructions(named name: String) -> String? {
         guard isValid(name: name), let markdown = try? String(contentsOf: bundledDirectory().appendingPathComponent(name).appendingPathComponent("SKILL.md"), encoding: .utf8),
               parse(markdown, folder: name) != nil else { return nil }
-        let lines = markdown.components(separatedBy: "\n")
+        let lines = markdown.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
         guard let end = lines.dropFirst().firstIndex(of: "---") else { return nil }
         return lines.dropFirst(end + 1).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }

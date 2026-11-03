@@ -5,7 +5,7 @@ disable-model-invocation: true
 pippa-prompt: Which deadlines are in here? Please add them to my calendar.
 pippa-prompt-de: Welche Fristen stehen hier drin? Bitte trag sie in meinen Kalender ein.
 ---
-Lies jedes gezeigte Dokument ganz, mit mcp__pippa__read_document. Suche alle Fristen und Termine, je Handlung ein Eintrag: zahlen, kündigen, widersprechen, Termin, Abbuchung, Ende der Laufzeit.
+Lies jedes gezeigte Dokument ganz, mit read. Suche alle Fristen und Termine, je Handlung ein Eintrag: zahlen, kündigen, widersprechen, Termin, Abbuchung, Ende der Laufzeit.
 Zu jedem Eintrag:
 - was zu tun ist, in wenigen Wörtern (die Handlung, nicht die Überschrift),
 - das Datum als TT.MM.JJJJ, genau aus dem Satz,

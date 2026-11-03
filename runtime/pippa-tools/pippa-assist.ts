@@ -22,7 +22,7 @@
  * - Undo: every change the app can take back (an old version kept, a new file, a move, the Trash) becomes a session
  *   entry `pippa-change`; the app keeps them in its journal, so "Rückgängig" under the answer undoes them.
  */
-import { constants } from "node:fs";
+import { constants, readFileSync, unlinkSync } from "node:fs";
 import { access, copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
 import { basename, isAbsolute, join, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -178,7 +178,7 @@ export async function backUp(file: string, directory: string, now = new Date()):
 		}
 		catch (error: any) { if (error?.code !== "EEXIST") throw error; }
 	}
-	return undefined;
+	throw new Error(`Could not create backup for ${file}: all backup slots for ${stamp} are taken.`);
 }
 
 /** Does anything exist at `path`? */
@@ -211,7 +211,18 @@ export function changesOf(tool: string, details: any, isError: boolean, before?:
 		return details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
 			.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }));
 	}
-	if ((tool === "edit" || tool === "write") && before?.copy) return [{ kind: "restore", file: before.file, copy: before.copy }];
+	if ((tool === "edit" || tool === "write") && before?.copy) {
+		if (isError) {
+			try {
+				if (readFileSync(before.file).equals(readFileSync(before.copy))) {
+					try { unlinkSync(before.copy); } catch { /* ignore */ }
+					delete before.copy;
+					return [];
+				}
+			} catch { /* if files cannot be compared, keep the backup for safety */ }
+		}
+		return [{ kind: "restore", file: before.file, copy: before.copy }];
+	}
 	if (isError) return [];
 	if ((tool === "edit" || tool === "write") && before) {
 		return before.created ? [{ kind: "create", file: before.file }] : [];

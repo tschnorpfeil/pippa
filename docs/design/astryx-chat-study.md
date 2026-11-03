@@ -260,3 +260,37 @@ Items 1–5, with these deviations from the text above:
   chip keeps its size when the spinner turns into the check. Under Reduce Motion the spinner is a static ellipsis.
 - **Motion:** only `Theme.quick` (the arrival curve, 150 ms) was added, for the send circle, the composer lift and the
   scroll button. `Motion.exit` and the rest of item 8 are still open.
+
+## T3 Code adaptation (0.4.x chat window)
+
+The 0.4 chat window (`Views/ChatView.swift`, split into `Sidebar.swift`, `Composer.swift` and `ContextPanel.swift`)
+takes most of the remaining items, using T3 Code's desktop chat as the second reference for layout and density.
+
+**Tokens (`Views/Theme.swift`).** `Radius` (inner 4, row 6, control 8, card 12, bubble 18, chat 20), `Space`
+(2 to 32) and `Layout` (column 736, gutter 20, inspector 280, sidebar 248, card 560). Surfaces get `hairline`,
+`topLight` (dark only), `rowHover`, `rowSelected` and `sendDisabled`; `chatInset` lost its blue cast and dark
+`chatUser` is calmer. `Theme.quick`, `Theme.arrive` and `Theme.leave` are `nil` under Reduce Motion. The enum `Layout`
+shadows SwiftUI's protocol inside the app module, so layouts conform to `SwiftUI.Layout`.
+
+**Surfaces.** `View.raised(_:lifted:)` is the one raised surface: card colour, 1 pt inset hairline, top light in dark
+mode, a soft shadow that deepens when lifted. The composer, result cards, receipts, file chips and the scroll button
+use it. Hover is always `rowHover`, never a border colour as a fill. Result cards share `CardHeader` (22 pt tinted
+symbol badge) and `CardRowButton` (inset rounded hover, pointing hand).
+
+**Items done:** 6 (bubble 18 pt, 14 pt text, at most 78 % of the column), 8 (all three curves), 9 (two-row composer:
+text on top, attach / AI badge / send below), 10 for files (a drawer tucked 16 pt behind the composer's top edge;
+the front app and dictation are not in it), 11 (sources left, Copy and Ask Again right; always on the last answer,
+on hover otherwise), 13, and 14 in a lighter form: the work line is one 28 pt row ("Worked for 18 s · 3 steps"),
+expanded steps are flat 24 pt rows with a 14 pt state glyph.
+
+**Scroll follow.** The transcript follows new words only while its end is in view. "In view" may turn off only while
+the person scrolls (`onScrollPhaseChange`), so content growing under a programmatic scroll never unpins it. Scrolled
+up, a 32 pt round button appears above the composer and widens to "New answer" while an answer comes in. A new
+question always scrolls to the end.
+
+**Sidebar.** "New Conversation ⌘N" as the first row; one 36 pt line per conversation with a 20 pt trailing slot
+(spinner while that conversation answers, a dot for an answer that arrived while another conversation was open, a pin)
+that turns into the row's menu on hover. Conversations can be switched while an answer runs; it keeps arriving in its
+own conversation, and Stop only shows there.
+
+**Not taken:** centered system notices (7) and dictation (12), as before.

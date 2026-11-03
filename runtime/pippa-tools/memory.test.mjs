@@ -46,8 +46,9 @@ test("remember: add, change, forget, no duplicates, oldest go when full", () => 
 });
 
 test("remember: never numbers like IBAN, account, card, tax or phone, never passwords; dates and amounts are fine", () => {
-	for (const fact of ["IBAN DE89 3704 0044 0532 0130 00", "Konto 1234567890", "Steuer-ID 12 345 678 901", "Karte 4111-1111-1111-1111",
-		"Telefon 0221 1234567", "Passwort für Mail ist sonne", "PIN 1234", "Die TAN kommt per SMS"]) {
+	for (const fact of ["IBAN DE89 3704 0044 0532 0130 00", "iban nl91 abna 0417 1643 00", "Konto 1234567890", "Steuer-ID 12 345 678 901",
+		"Steuer ID ABC", "Ausweisnummer T22000129", "Karte 4111-1111-1111-1111", "Telefon 0221 1234567", "Passwort für Mail ist sonne",
+		"PIN 1234", "Die TAN kommt per SMS", "API key sk-abc", "secret_key=xyz", "Bearer token abc", "seed phrase witch collapse", "recovery code 99"]) {
 		assert.ok(memory.refusal(fact), fact);
 		assert.ok(memory.apply([], { add: fact }).error, fact);
 	}
@@ -68,6 +69,7 @@ test("memory file: plain lines, foreign lines ignored, written whole and private
 });
 
 test("extension: section read once per session and unchanged after remember; tool writes the file", async () => {
+	const { stat } = await import("node:fs/promises");
 	const file = join(root, "ext", "memory.md");
 	process.env.PIPPA_MEMORY_FILE = file;
 	await memory.writeFacts(file, ["Lives in Köln"]);
@@ -80,6 +82,9 @@ test("extension: section read once per session and unchanged after remember; too
 	const result = await pi.tools.remember.execute("t1", { add: "Landlord: Ms Kraus" });
 	assert.match(result.content[0].text, /Remembered: Landlord: Ms Kraus/);
 	assert.deepEqual(await memory.readFacts(file), ["Lives in Köln", "Landlord: Ms Kraus"]);
+	const inoBefore = (await stat(file)).ino;
+	await pi.tools.remember.execute("t1-dup", { add: "landlord: ms kraus" });
+	assert.equal((await stat(file)).ino, inoBefore, "duplicate fact does not rewrite the file");
 	assert.equal((await turn()).memory, first.memory, "same section for the rest of the session (prompt cache)");
 	await pi.emit("session_start", { reason: "startup" }, {});
 	assert.match((await turn()).memory, /Landlord: Ms Kraus/, "next session sees the new fact");

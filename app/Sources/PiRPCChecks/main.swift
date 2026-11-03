@@ -4,7 +4,7 @@ import PiRPC
 // The check executable also serves as a deterministic Pi stand-in. This exercises the actual process, JSONL,
 // command correlation, and event-stream path without loading a model or reading the person's Pi configuration.
 if CommandLine.arguments.contains("--version") {
-    print("1.4.0")
+    print("1.5.0")
     exit(0)
 }
 
@@ -130,6 +130,7 @@ defer { try? FileManager.default.removeItem(at: temporary) }
 let executable = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL
 let client = PiRPCClient(configuration: PiRPCConfiguration(executable: executable, workingDirectory: temporary))
 try await client.start()
+try await runCommandLifetimeChecks(executable: executable, temporary: temporary)
 
 func collect(_ prompt: String) async throws -> [PiRPCEvent] {
     var events: [PiRPCEvent] = []

@@ -37,10 +37,10 @@ const folders = [...new Set(Object.keys(corpus).flatMap((p) => p.split("/").slic
 
 /** A tiny mdfind: understands the queries search.mjs builds (content prefix, name part, folder name, all). */
 function fakeMdfind(args) {
-	const where = args[args.indexOf("-onlyin") + 1];
+	const wheres = args.flatMap((a, i) => (a === "-onlyin" ? [args[i + 1]] : []));
 	const query = args.at(-1);
 	const items = [...Object.keys(corpus).map((p) => ({ path: join(home, p), text: corpus[p], folder: false })),
-		...folders.map((p) => ({ path: join(home, p), text: "", folder: true }))].filter((i) => i.path.startsWith(where + "/"));
+		...folders.map((p) => ({ path: join(home, p), text: "", folder: true }))].filter((i) => wheres.some((where) => i.path.startsWith(where + "/")));
 	const name = (i) => i.path.split("/").at(-1).toLowerCase();
 	const hits = items.filter((item) => {
 		if (query === 'kMDItemFSName == "*"') return true;
@@ -56,7 +56,7 @@ function fakeMdfind(args) {
 }
 
 test("query words: stems, file type words and generic words leave the topic", () => {
-	assert.deepEqual([stem("Kinderbuchs"), stem("Rechnungen"), stem("Haus"), stem("2023")], ["kinderbuch", "rechnung", "haus", "2023"]);
+	assert.deepEqual([stem("Kinderbuchs"), stem("Rechnungen"), stem("Briefe"), stem("Handwerker"), stem("Haus"), stem("2023")], ["kinderbuch", "rechnung", "brief", "handwerk", "haus", "2023"]);
 	assert.deepEqual(parseQuery("PDF Kinderbuchs"), { words: ["kinderbuch"], kind: "pdf" });
 	assert.deepEqual(parseQuery("Dokument Zahnarzt"), { words: ["zahnarzt"], kind: undefined });
 	assert.deepEqual(parseQuery("PDF"), { words: ["pdf"], kind: "pdf" }, "a type alone stays the topic");

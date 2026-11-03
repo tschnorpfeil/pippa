@@ -19,6 +19,12 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
                                                                  "source": mode == "wrong-source" ? "prompt" : "extension"]]])
         return true
     }
+    if command == "abort", mode == "hang-abort" { return true }
+    if command == "prompt", mode == "hang-abort" {
+        emit(["type": "response", "id": id, "command": command, "success": true, "data": ["disposition": "started"]])
+        emit(["type": "message_update", "assistantMessageEvent": ["type": "text_delta", "delta": "Hanging"]])
+        return true
+    }
     guard command == "prompt", let message = request["message"] as? String,
           String(message.split(separator: " ").first?.dropFirst() ?? "") == PiNativeReadiness.command else { return false }
     if mode == "hang-prompt" { return true }

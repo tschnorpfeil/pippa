@@ -91,7 +91,7 @@ if [[ $gates == 1 ]]; then
   PIPPA_PI_PAYLOAD="$payload" node --experimental-strip-types --test "$root"/runtime/pippa-local-server/test/*.test.mjs >"$log" 2>&1 || failed+=("pippa-local-server (.build/bump-local-server.log)")
   grep -qE '^(ℹ|#) skipped 0$' "$log" || failed+=("pippa-local-server skipped tests")
   node "$root/scripts/pi-rpc-smoke.mjs" "$payload" "$new" || failed+=("RPC smoke")
-  swift build --package-path "$root/app" --product PippaChecks >"$root/.build/bump-swift.log" 2>&1 || failed+=("swift build (.build/bump-swift.log)")
+  swift build --package-path "$root/app" --jobs "${PIPPA_BUILD_JOBS:-2}" --product PippaChecks >"$root/.build/bump-swift.log" 2>&1 || failed+=("swift build (.build/bump-swift.log)")
   bin="$(swift build --package-path "$root/app" --show-bin-path)"
   for suite in SETUP MCP; do
     log="$root/.build/bump-checks-$suite.log"

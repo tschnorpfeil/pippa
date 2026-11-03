@@ -24,6 +24,8 @@ final class PiSession {
     }
 
     private var client: PiRPCClient?
+    private var startupTask: Task<(PiRPCClient, LaunchRoute), Error>?
+    private var preloadTask: Task<Void, Never>?
     private var sessionID: String?
     private var launchKey: String?
     private var needsFreshClient = false
@@ -46,19 +48,20 @@ final class PiSession {
         defer { PippaMCPService.end(turn) }
         var settled = false
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
-        let route = try await launchRoute()
-        if route.online == nil && route.subscriptionModel == nil {
-            do { try await localModelServer().ensureRunning() }
-            catch let error as Failure { throw error }
-            catch { throw Failure.setup(T("The AI on this Mac didn’t start. Try again in a moment.", table: "App")) }
-        }
+        let startup = Task { try await prepare(conversation: conversation) }
+        startupTask = startup
+        let client: PiRPCClient
+        let route: LaunchRoute
+        do { (client, route) = try await withTaskCancellationHandler { try await startup.value } onCancel: { startup.cancel() } }
+        catch { startupTask = nil; throw error }
+        startupTask = nil
         try Task.checkCancellation()
-        let client = try await ready(conversation: conversation, route: route)
         let stream: AsyncThrowingStream<PiRPCEvent, Error>
+
         do { stream = try await client.prompt(text) } catch PiRPCError.commandFailed(_, let message) {
-            if route.subscriptionModel != nil, let problem = PiSubscriptionAuth.problem(in: message) {
-                throw Failure.model(problem == .limit ? T("Your ChatGPT limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
-                                                      : T("Sign in to ChatGPT again in Settings.", table: "App"))
+            if route.piModel != nil, let problem = PiProviderClient.problem(in: message) {
+                throw Failure.model(problem == .limit ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
+                                                      : T("Reconnect your online AI in Settings.", table: "App"))
             }
             throw Failure.model(message)
         }
@@ -68,13 +71,35 @@ final class PiSession {
         }
     }
 
+    private func prepare(conversation: String) async throws -> (PiRPCClient, LaunchRoute) {
+        let route = try await launchRoute()
+        if route.online == nil && route.piModel == nil {
+            do { try await localModelServer().ensureRunning() }
+            catch let error as Failure { throw error }
+            catch { throw Failure.setup(T("The AI on this Mac didn’t start. Try again in a moment.", table: "App")) }
+        }
+        try Task.checkCancellation()
+        return (try await ready(conversation: conversation, route: route), route)
+    }
+
     func stop() async {
-        try? await client?.abort()
+        preloadTask?.cancel(); preloadTask = nil
+        if let startupTask {
+            startupTask.cancel()
+            await client?.cancelNativeReadiness()
+            await client?.shutdown()
+            needsFreshClient = true
+        } else if let client {
+            do { try await client.abort() } catch {
+                await client.shutdown()
+                needsFreshClient = true
+            }
+        }
     }
 
     /// How full the current conversation's context is (Pi's `get_session_stats`), for the context panel.
     func contextUsage() async -> ContextUsage? {
-        guard let client, let data = try? await client.command(["type": "get_session_stats"]),
+        guard let client, let data = try? await client.command(["type": "get_session_stats"], timeout: .seconds(2)),
               let stats = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let usage = stats["contextUsage"] as? [String: Any],
               let tokens = usage["tokens"] as? Int, let window = usage["contextWindow"] as? Int else { return nil }
@@ -90,6 +115,9 @@ final class PiSession {
     }
 
     func shutdown() async {
+        startupTask?.cancel()
+        preloadTask?.cancel(); preloadTask = nil
+        await client?.cancelNativeReadiness()
         await client?.shutdown()
         client = nil
     }
@@ -119,9 +147,9 @@ final class PiSession {
         let paths = PippaPiLaunch.Paths(extensionsDirectory: extensions, webExtension: web, sessionDirectory: Self.sessionDirectory,
                                         skillsDirectory: PippaSkill.bundledDirectory(),
                                         memoryFile: PiConversationDefault.memoryFile(support: Pippa.supportDirectory))
-        var launcher = try await Self.launcher(env)
+        var launcher = try await Self.launcher(env, modelID: route.piModel?.modelID ?? route.online?.connection.modelID)
         if let online = route.online { launcher.piArguments = PiOnlineProvider.launchArguments(online.connection) }
-        if let model = route.subscriptionModel { launcher.piArguments = ["--provider", PiSubscriptionAuth.provider, "--model", model] }
+        if let model = route.piModel { launcher.piArguments = model.launchArguments }
         // An existing session must start in the folder it was created in, or Pi doesn't find it.
         let cwd = PiSessionFiles.pinnedWorkingDirectory(id: PippaPiLaunch.piSessionID(conversation), in: Self.sessionDirectory) ?? work
         let mcp: (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL)
@@ -131,10 +159,13 @@ final class PiSession {
         let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: conversation,
                                                         language: language, environment: extra, mcp: mcp)
         let fresh = PiRPCClient(configuration: configuration)
+        try Task.checkCancellation()
+        client = fresh
         await fresh.setUIHandler { request in await Confirmations.ask(request) }
         do {
             try await fresh.start()
             try await fresh.verifyNativeTools()
+            try Task.checkCancellation()
         } catch {
             PippaMCPService.invalidateEndpoint()
             await fresh.shutdown()
@@ -147,21 +178,21 @@ final class PiSession {
     struct LaunchRoute {
         var key: String
         var online: (connection: ModelConnection, key: String)?
-        var subscriptionModel: String?
+        var piModel: PiModelSelection?
     }
 
-    /// The ChatGPT subscription, an own online service, or the model on this Mac, as saved in Settings.
+    /// A Pi provider, an existing Keychain connection, or the model on this Mac, as saved in Settings.
     private func launchRoute() async throws -> LaunchRoute {
-        let target = try Self.installTarget(ProcessInfo.processInfo.environment)
+        let target = try Self.installation(ProcessInfo.processInfo.environment)
         let modelsJSON = target.agent.appendingPathComponent("models.json")
         let settings = InferenceSettings.load(from: Self.settingsDirectory)
-        if let model = settings.subscriptionModel {
+        if let model = settings.activePiModel {
             _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
-            return LaunchRoute(key: "chatgpt|" + model, subscriptionModel: model)
+            return LaunchRoute(key: "pi|" + model.providerID + "|" + model.modelID, piModel: model)
         }
         guard let connection = PiOnlineProvider.activeConnection(settings) else {
             _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
-            return LaunchRoute(key: "local|" + target.model)
+            return LaunchRoute(key: "local|" + (try Self.installTarget(ProcessInfo.processInfo.environment)).model)
         }
         let key = try await Task.detached { try ModelCredentialStore.read(connection.id) }.value ?? ""
         _ = try await Task.detached { try PiOnlineProvider.sync(connection, modelsJSON: modelsJSON) }.value
@@ -192,15 +223,16 @@ final class PiSession {
 
     /// Loads the local model ahead of the first question (the chat window opened).
     func preload() {
-        guard InferenceSettings.load(from: Self.settingsDirectory).subscriptionModel == nil,
+        guard InferenceSettings.load(from: Self.settingsDirectory).activePiModel == nil,
               PiOnlineProvider.activeConnection(InferenceSettings.load(from: Self.settingsDirectory)) == nil,
               SetupModel.shared.isReady else { return }
-        Task { if let server = try? await localModelServer() { try? await server.ensureRunning() } }
+        preloadTask?.cancel()
+        preloadTask = Task { if let server = try? await localModelServer() { try? await server.ensureRunning() } }
     }
 
     // MARK: Paths
 
-    static func installTarget(_ env: [String: String]) throws -> (roots: PiInstallRoots, agent: URL, model: String) {
+    static func installation(_ env: [String: String]) throws -> (roots: PiInstallRoots, agent: URL) {
         guard let payload = PiPayload.locate(environment: env) else { throw Failure.setup("Pi payload missing (PIPPA_PI_PAYLOAD)") }
         let roots: PiInstallRoots
         if let home = env["PIPPA_PI_HOME"] {
@@ -210,14 +242,20 @@ final class PiSession {
             roots = PiInstallRoots(support: Pippa.supportDirectory, payload: payload)
         }
         let agent = env["PI_CODING_AGENT_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) } ?? roots.agentDirectory
+        return (roots, agent)
+    }
+
+    static func installTarget(_ env: [String: String]) throws -> (roots: PiInstallRoots, agent: URL, model: String) {
+        let (roots, agent) = try installation(env)
         guard let model = env["PIPPA_PI_MODEL"] ?? PiInstaller.providerModelIDs(modelsJSON: agent.appendingPathComponent("models.json")).first else {
             throw Failure.setup("pippa-local missing in models.json")
         }
         return (roots, agent, model)
     }
 
-    static func launcher(_ env: [String: String]) async throws -> PippaPiLaunch.Launcher {
-        let (roots, _, model) = try installTarget(env)
+    static func launcher(_ env: [String: String], modelID: String? = nil) async throws -> PippaPiLaunch.Launcher {
+        let (roots, _) = try installation(env)
+        let model = try modelID ?? installTarget(env).model
         let spec: PiLaunchSpec = try await Task.detached {
             let installer = PiInstaller(roots: roots)
             if let spec = installer.launchSpec(modelID: model) { return spec }

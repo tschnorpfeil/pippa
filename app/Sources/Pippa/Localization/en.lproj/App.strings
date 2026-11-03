@@ -3,6 +3,7 @@
 "Add Files…" = "Add Files…";
 "Adding a reminder" = "Adding a reminder";
 "Adding to Calendar" = "Adding to Calendar";
+"After each answer you see here what Pippa read, what she changed on your Mac and which dates she checked." = "After each answer you see here what Pippa read, what she changed on your Mac and which dates she checked.";
 "Allow" = "Allow";
 "Already in use. Choose a different combination." = "Already in use. Choose a different combination.";
 "Ask Pippa" = "Ask Pippa";
@@ -70,7 +71,6 @@
 "Shortcut" = "Shortcut";
 "Show Pill" = "Show Pill";
 "Show in Finder" = "Show in Finder";
-"Sign in to ChatGPT again in Settings." = "Sign in to ChatGPT again in Settings.";
 "Stop" = "Stop";
 "Taking over the AI from %@…" = "Taking over the AI from %@…";
 "Then she stays up to date by herself and can start with your Mac. It only takes a moment." = "Then she stays up to date by herself and can start with your Mac. It only takes a moment.";
@@ -83,7 +83,6 @@
 "What’s on my calendar this week?" = "What’s on my calendar this week?";
 "Writing %@" = "Writing %@";
 "Writing a Mail draft" = "Writing a Mail draft";
-"Your ChatGPT limit is reached for now. Try again later, or switch to the AI on this Mac in Settings." = "Your ChatGPT limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.";
 "Your Mac will ask you in a moment." = "Your Mac will ask you in a moment.";
 "Your PDF is ready" = "Your PDF is ready";
 "⌃⇧ Space" = "⌃⇧ Space";
@@ -100,7 +99,6 @@
 "Copied" = "Copied";
 "Draft in Mail, not sent" = "Draft in Mail, not sent";
 "Drop files for Pippa" = "Drop files for Pippa";
-"Hide" = "Hide";
 "Not set up" = "Not set up";
 "Nothing found" = "Nothing found";
 "Older" = "Older";
@@ -128,7 +126,6 @@
 "Not in what I read: %@. I worked this out myself, so please check it." = "Not in what I read: %@. I worked this out myself, so please check it.";
 "%@. Your conversations stay on this Mac." = "%@. Your conversations stay on this Mac.";
 "That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time." = "That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time.";
-"%lld %% full · %@ of %@" = "%lld %% full · %@ of %@";
 "Almost full: Pippa will soon summarize the start. A new conversation is faster." = "Almost full: Pippa will soon summarize the start. A new conversation is faster.";
 "Beginning only" = "Beginning only";
 "Context" = "Context";
@@ -137,7 +134,6 @@
 "Details" = "Details";
 "Done" = "Done";
 "In what I read" = "In what I read";
-"Name" = "Name";
 "Nothing changed on your Mac" = "Nothing changed on your Mac";
 "Nothing leaves this Mac." = "Nothing leaves this Mac.";
 "Nothing read for this answer" = "Nothing read for this answer";
@@ -147,7 +143,6 @@
 "Pin" = "Pin";
 "Pinned" = "Pinned";
 "Read" = "Read";
-"Rename" = "Rename";
 "Rename Conversation" = "Rename Conversation";
 "Rename…" = "Rename…";
 "Show or hide what Pippa read and did" = "Show or hide what Pippa read and did";
@@ -155,3 +150,53 @@
 "Whole document" = "Whole document";
 "Whole page" = "Whole page";
 "Worked out, please check" = "Worked out, please check";
+"%@ of %@ tokens" = "%@ of %@ tokens";
+"%lld %% full" = "%lld %% full";
+"%lld min %lld s" = "%lld min %lld s";
+"About this answer" = "About this answer";
+"Answering…" = "Answering…";
+"Ask Again" = "Ask Again";
+"Clear Search" = "Clear Search";
+"From there she stays up to date by herself and can open at login." = "From there she stays up to date by herself and can open at login.";
+"Jump to the latest" = "Jump to the latest";
+"Less than a minute left" = "Less than a minute left";
+"More" = "More";
+"Move to Applications…" = "Move to Applications…";
+"New answer" = "New answer";
+"Open Calendar" = "Open Calendar";
+"Open Reminders" = "Open Reminders";
+"Pippa is still answering in another conversation." = "Pippa is still answering in another conversation.";
+"Pippa isn’t in Applications" = "Pippa isn’t in Applications";
+"Remove" = "Remove";
+"Show Pippa at the screen edge" = "Show Pippa at the screen edge";
+"Stopped" = "Stopped";
+"Thought for %@" = "Thought for %@";
+"Worked for %@ · %lld steps" = "Worked for %@ · %lld steps";
+"Worked for %@ · 1 step" = "Worked for %@ · 1 step";
+"Your conversation goes to this online AI." = "Your conversation goes to this online AI.";
+
+"Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings." = "Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.";
+
+"Reconnect your online AI in Settings." = "Reconnect your online AI in Settings.";
+
+"About Pippa" = "About Pippa";
+
+"Hide Pippa" = "Hide Pippa";
+
+"Hide Others" = "Hide Others";
+
+"Show All" = "Show All";
+
+"Window" = "Window";
+
+"Show Pippa" = "Show Pippa";
+
+"Minimize" = "Minimize";
+
+"Zoom" = "Zoom";
+
+"Bring All to Front" = "Bring All to Front";
+
+"Hide Pill" = "Hide Pill";
+
+"Services" = "Services";

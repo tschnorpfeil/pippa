@@ -105,7 +105,7 @@ r.classList.add('fx');addEventListener('load',()=>setTimeout(()=>{if(!r.classLis
   --ink: #111318;
   --ink-2: #3a3f48;
   --muted: #676c75;
-  --faint: #8c9099;
+  --faint: #6e727b;
   --line: #ebecef;
   --line-2: #dfe1e6;
   --accent: #005bcd;
@@ -183,7 +183,7 @@ strong, b { font-weight: 600; }
 .caption { margin-top: 18px; font-size: 12.5px; color: var(--faint); text-align: center; }
 
 .pw {
-  --ink: #202735; --ink2: rgb(32 39 53 / .78); --ink3: rgb(32 39 53 / .62); --hair: rgb(32 39 53 / .10);
+  --ink: #202735; --ink2: rgb(32 39 53 / .78); --ink3: rgb(32 39 53 / .72); --hair: rgb(32 39 53 / .10);
   --fill: rgb(32 39 53 / .035); --fill2: rgb(32 39 53 / .07); --accent: #005BCD; --accentTint2: rgb(0 91 205 / .14);
   --chatCard: #fff; --chatBorder: rgb(39 61 96 / .10); --chatUser: #E5EEFF;
   position: relative; height: 680px; display: flex; flex-direction: column; overflow: hidden; isolation: isolate;
@@ -468,7 +468,7 @@ strong, b { font-weight: 600; }
 .ans dd { font-size: 14px; font-weight: 600; line-height: 1.35; letter-spacing: -.01em; }
 .ans blockquote { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid #eef0f3; font-size: 12.5px; line-height: 1.45; color: rgb(32 39 53 / .78); }
 .ans blockquote::before { content: ""; width: 2px; border-radius: 1px; background: rgb(32 39 53 / .14); flex: none; }
-.ans blockquote small { display: block; margin-top: 3px; font-size: 11.5px; color: rgb(32 39 53 / .55); }
+.ans blockquote small { display: block; margin-top: 3px; font-size: 11.5px; color: rgb(32 39 53 / .75); }
 .chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: rgb(0 91 205 / .09); color: var(--accent); font-size: 12px; font-weight: 600; }
 .chip .ic { stroke-width: 2; }
 
@@ -680,7 +680,7 @@ strong, b { font-weight: 600; }
   </div>
 </header>
 
-<main id="main">
+<main id="main" tabindex="-1">
 <section class="hero" id="top" aria-labelledby="h1">
   <div class="wrap">
     <p class="badge"><i aria-hidden="true"><svg class="ic"><use href="#s-check"/></svg></i>Free and open source</p>
@@ -1074,7 +1074,7 @@ strong, b { font-weight: 600; }
   <details id="passt"><summary>Will it run on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>You need a Mac with Apple silicon (M1 or later), macOS 15 or later. Check under Apple menu, About This Mac. Intel Macs are not supported. The download is under 100&nbsp;MB. Her AI on your Mac needs 16&nbsp;GB of memory; she asks before downloading it, about 5.4&nbsp;GB. If oMLX, LM Studio or the Hugging Face cache already has the same model, she uses it. With less memory, or if you prefer, Pippa uses an online AI: sign in with ChatGPT or add your own key. One PDF from photos always works, without any AI.</p></details>
   <details><summary>Can I start without the AI download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Turning photos and PDFs into one PDF, making files smaller and converting images work right after you install her, and so does tidying a folder. For letters and questions she loads her AI, but only after your OK, and she tells you the size first.</p></details>
   <details><summary>Do I need internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>To download the app and her AI, for updates and for web lookups. After that, her AI and the PDF tools work without a connection. If a command needs the internet, she asks you first. An online AI, if you turn one on, needs the internet, of course.</p></details>
-  <details><summary>Can I keep using ChatGPT?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Sign in with ChatGPT in Pippa or enter your own key from OpenAI or Anthropic, and she uses that service as her online AI. While that is on, your conversations go to it. You can turn it off any time in Settings.</p></details>
+  <details><summary>Can I keep using ChatGPT?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Choose a provider in Pippa’s Settings, sign in or enter an API key, and choose a model. Providers come from the bundled Pi version, including Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. Activate your chosen provider and Pippa uses it as her online AI. While that is on, your conversations go to it. You can turn it off any time in Settings.</p></details>
   <details><summary>What can Pippa access on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>macOS asks you before she can reach your Desktop, Documents, Downloads, Calendar, Reminders or Photos, or control Mail. You can review and change these permissions in System Settings under Privacy &amp; Security. Pippa runs outside Apple’s App Sandbox so she can work with your folders and Mac apps; a sandboxed app couldn’t do that in full.</p></details>
   <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. Tidying shows you the plan first, and Undo works as long as you haven’t changed those files elsewhere. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
 </section>
@@ -1088,7 +1088,7 @@ strong, b { font-weight: 600; }
     </div>
     <p class="req">For Macs with Apple silicon on macOS&nbsp;15 or later. The download is under 100&nbsp;MB; her AI (about 5.4&nbsp;GB, Macs with 16&nbsp;GB of memory) waits for your OK. <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What’s new?</a></p>
   </div>
-  <ol class="steps"><li>Open <strong>Pippa.dmg</strong> and drag Pippa onto the Applications folder.</li><li>Drop photos or PDFs on Pippa and choose <strong>“Ready to send”</strong>.</li><li>Load her AI when you’re ready. She asks first and tells you the size.</li></ol>
+  <ol class="steps"><li>Open <strong>Pippa.dmg</strong> and drag Pippa onto the Applications folder.</li><li>Drop photos or PDFs on Pippa and choose <strong>“One PDF”</strong>.</li><li>Load her AI when you’re ready. She asks first and tells you the size.</li></ol>
 </section>
 </main>
 

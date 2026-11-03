@@ -105,7 +105,7 @@ r.classList.add('fx');addEventListener('load',()=>setTimeout(()=>{if(!r.classLis
   --ink: #111318;
   --ink-2: #3a3f48;
   --muted: #676c75;
-  --faint: #8c9099;
+  --faint: #6e727b;
   --line: #ebecef;
   --line-2: #dfe1e6;
   --accent: #005bcd;
@@ -183,7 +183,7 @@ strong, b { font-weight: 600; }
 .caption { margin-top: 18px; font-size: 12.5px; color: var(--faint); text-align: center; }
 
 .pw {
-  --ink: #202735; --ink2: rgb(32 39 53 / .78); --ink3: rgb(32 39 53 / .62); --hair: rgb(32 39 53 / .10);
+  --ink: #202735; --ink2: rgb(32 39 53 / .78); --ink3: rgb(32 39 53 / .72); --hair: rgb(32 39 53 / .10);
   --fill: rgb(32 39 53 / .035); --fill2: rgb(32 39 53 / .07); --accent: #005BCD; --accentTint2: rgb(0 91 205 / .14);
   --chatCard: #fff; --chatBorder: rgb(39 61 96 / .10); --chatUser: #E5EEFF;
   position: relative; height: 680px; display: flex; flex-direction: column; overflow: hidden; isolation: isolate;
@@ -468,7 +468,7 @@ strong, b { font-weight: 600; }
 .ans dd { font-size: 14px; font-weight: 600; line-height: 1.35; letter-spacing: -.01em; }
 .ans blockquote { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid #eef0f3; font-size: 12.5px; line-height: 1.45; color: rgb(32 39 53 / .78); }
 .ans blockquote::before { content: ""; width: 2px; border-radius: 1px; background: rgb(32 39 53 / .14); flex: none; }
-.ans blockquote small { display: block; margin-top: 3px; font-size: 11.5px; color: rgb(32 39 53 / .55); }
+.ans blockquote small { display: block; margin-top: 3px; font-size: 11.5px; color: rgb(32 39 53 / .75); }
 .chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: rgb(0 91 205 / .09); color: var(--accent); font-size: 12px; font-weight: 600; }
 .chip .ic { stroke-width: 2; }
 
@@ -680,7 +680,7 @@ strong, b { font-weight: 600; }
   </div>
 </header>
 
-<main id="main">
+<main id="main" tabindex="-1">
 <section class="hero" id="top" aria-labelledby="h1">
   <div class="wrap">
     <p class="badge"><i aria-hidden="true"><svg class="ic"><use href="#s-check"/></svg></i>Kostenlos und quelloffen</p>
@@ -1074,7 +1074,7 @@ strong, b { font-weight: 600; }
   <details id="passt"><summary>Passt mein Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Du brauchst einen Mac mit Apple-Chip (M1 oder neuer), macOS 15 oder neuer. Nachsehen kannst du im Apple-Menü unter „Über diesen Mac“. Intel-Macs werden nicht unterstützt. Der Download ist unter 100&nbsp;MB groß. Für ihre KI auf dem Mac braucht Pippa 16&nbsp;GB Arbeitsspeicher und fragt vor dem Download, rund 5,4&nbsp;GB. Liegt dasselbe Modell schon bei oMLX, LM Studio oder im Hugging-Face-Cache, nimmt Pippa das. Mit weniger Arbeitsspeicher, oder wenn du lieber willst, nutzt Pippa eine Online-KI: ChatGPT-Anmeldung oder dein eigener Schlüssel. Ein PDF aus Fotos geht immer, auch ohne KI.</p></details>
   <details><summary>Geht’s auch ohne KI-Download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Ja. Fotos und PDFs zu einem PDF machen, Dateien verkleinern und Bilder umwandeln klappt direkt nach der Installation, einen Ordner aufräumen auch. Für Briefe und Fragen lädt Pippa ihre KI, erst nach deinem Okay, und die Größe sagt sie dir vorher.</p></details>
   <details><summary>Brauche ich Internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Zum Laden der App und ihrer KI, für Updates und für Websuchen. Danach arbeiten Pippas KI und die PDF-Werkzeuge auch ohne Verbindung. Braucht ein Befehl das Internet, fragt Pippa dich vorher. Schaltest du eine Online-KI ein, braucht die natürlich Internet.</p></details>
-  <details><summary>Kann ich ChatGPT weiter nutzen?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Ja. Melde dich in Pippa mit ChatGPT an oder trag einen eigenen Schlüssel von OpenAI oder Anthropic ein, dann nutzt sie diesen Dienst als Online-KI. Solange das an ist, gehen deine Gespräche dorthin. Ausschalten kannst du es jederzeit in den Einstellungen.</p></details>
+  <details><summary>Kann ich ChatGPT weiter nutzen?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Ja. Wähle in Pippas Einstellungen einen Anbieter, melde dich an oder gib einen API-Schlüssel ein und wähle ein Modell. Unterstützt werden die Anbieter der mitgelieferten Pi-Version, etwa Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode und xAI. Aktiviere den gewünschten Anbieter, dann nutzt Pippa ihn als Online-KI. Solange das an ist, gehen deine Gespräche dorthin. Ausschalten kannst du es jederzeit in den Einstellungen.</p></details>
   <details><summary>Was darf Pippa auf meinem Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Bevor Pippa an Schreibtisch, Dokumente, Downloads, Kalender, Erinnerungen oder Fotos kommt oder Mail steuert, fragt macOS dich um Erlaubnis. Deine Freigaben siehst und änderst du in den Systemeinstellungen unter „Datenschutz &amp; Sicherheit“. Pippa läuft außerhalb von Apples App-Sandbox, damit sie mit deinen Ordnern und Mac-Apps arbeiten kann; in einer Sandbox könnte sie das nur eingeschränkt.</p></details>
   <details><summary>Was, wenn Pippa danebenliegt?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Das kann passieren: Auch eine KI übersieht mal ein Detail. Prüf wichtige Beträge und Fristen deshalb im Original. Beim Aufräumen siehst du vorher den Plan, und Rückgängig klappt, solange du die Dateien nicht anderswo änderst. Hakt etwas, <a href="https://github.com/tschnorpfeil/pippa/issues">melde es auf GitHub</a>: Beschreib die Schritte, aber lass private Dokumente weg.</p></details>
 </section>
@@ -1088,7 +1088,7 @@ strong, b { font-weight: 600; }
     </div>
     <p class="req">Für Macs mit Apple-Chip ab macOS&nbsp;15. Download unter 100&nbsp;MB, Pippas KI (rund 5,4&nbsp;GB, ab 16&nbsp;GB Arbeitsspeicher) lädt sie erst nach deinem Okay. <a href="https://github.com/tschnorpfeil/pippa/releases/latest">Was ist neu?</a></p>
   </div>
-  <ol class="steps"><li>Öffne <strong>Pippa.dmg</strong> und zieh Pippa in den Ordner Programme.</li><li>Zieh Fotos oder PDFs auf Pippa und klick auf <strong>„Versandfertig machen“</strong>.</li><li>Lad Pippas KI, wenn du so weit bist. Sie fragt vorher und sagt dir die Größe.</li></ol>
+  <ol class="steps"><li>Öffne <strong>Pippa.dmg</strong> und zieh Pippa in den Ordner Programme.</li><li>Zieh Fotos oder PDFs auf Pippa und klick auf <strong>„Ein PDF“</strong>.</li><li>Lad Pippas KI, wenn du so weit bist. Sie fragt vorher und sagt dir die Größe.</li></ol>
 </section>
 </main>
 

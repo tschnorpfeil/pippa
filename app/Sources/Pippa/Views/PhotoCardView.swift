@@ -12,14 +12,10 @@ struct PhotoCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "photo.on.rectangle").font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
-                    .accessibilityHidden(true)
-                Text(card.query.isEmpty ? T("Newest in Photos", table: "Views") : T("“%@” in Photos", table: "Views", card.query)).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 8)
-            .accessibilityAddTraits(.isHeader)
+            CardHeader(symbol: "photo.on.rectangle",
+                       title: card.query.isEmpty ? T("Newest in Photos", table: "Views") : T("“%@” in Photos", table: "Views", card.query),
+                       detail: nil)
+                .padding(.bottom, 2)
             LazyVGrid(columns: columns, spacing: 4) {
                 ForEach(card.items, id: \.id) { item in
                     PhotoTile(item: item, previews: card.previews)
@@ -64,15 +60,19 @@ private struct PhotoTile: View {
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Theme.chatBorder)
+                        .background(Theme.fill2)
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.accent, lineWidth: hovering ? 2 : 0) }
+                .clipShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                        .strokeBorder(hovering ? Theme.accent : Theme.hairline, lineWidth: hovering ? 2 : 1)
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { hoveringState.wrappedValue = $0 }
+        .onHover { hovering in withAnimation(Theme.quick) { hoveringState.wrappedValue = hovering } }
+        .pointerStyle(.link)
         .help(T("Open in Photos", table: "Views"))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel([item.label, item.dateLabel].filter { !$0.isEmpty }.joined(separator: ", "))

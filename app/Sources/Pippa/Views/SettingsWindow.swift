@@ -28,14 +28,18 @@ final class SettingsWindow {
     func show() {
         if window == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 560),
-                                  styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+                                  styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = T("Pippa Settings", table: "App")
             window.isReleasedWhenClosed = false
+            // Taller for the online-AI form; the width stays (the view is 560 wide).
+            window.minSize = NSSize(width: 560, height: 480)
             window.contentView = NSHostingView(rootView: SettingsView(settings: .shared, setup: .shared))
             window.center()
             self.window = window
         }
+        NSApp.unhide(nil)
         NSApp.activate()
+        if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
     }
 }
@@ -43,8 +47,11 @@ final class SettingsWindow {
 struct SettingsView: View {
     @ObservedObject var settings: SettingsModel
     @ObservedObject var setup: SetupModel
+    @ObservedObject var pill = Pill.shared
     private let hotkeyState = State(initialValue: Hotkey.current)
     private let opensAtLoginState = State(initialValue: SMAppService.mainApp.status == .enabled)
+    /// Asked once: where the app lies does not change while it runs.
+    private static let outsideApplications = Bundle.main.bundleURL.pathExtension == "app" && !AppLocation.isInApplications()
 
     var body: some View {
         Form {
@@ -57,10 +64,13 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    SetupCard(setup: setup)
+                    SetupCard(setup: setup, showsOnlineOption: false)
                 }
-                ChatGPTSubscriptionSettings(model: settings)
-                ModelConnectionSettings(model: settings)
+                PiProviderSettings(settings: settings)
+                // Keep existing Keychain connections usable until the person chooses a Pi provider.
+                if settings.inferenceSettings.activePiModel == nil, settings.inferenceSettings.connection != nil {
+                    ModelConnectionSettings(model: settings)
+                }
             }
             Section(T("Everyday", table: "App")) {
                 Picker(T("Shortcut", table: "App"), selection: hotkeyState.projectedValue) {
@@ -72,6 +82,13 @@ struct SettingsView: View {
                         if on { try? SMAppService.mainApp.register() } else { try? SMAppService.mainApp.unregister() }
                         opensAtLoginState.wrappedValue = SMAppService.mainApp.status == .enabled
                     }
+                Toggle(T("Show Pippa at the screen edge", table: "App"), isOn: Binding(get: { pill.isShown }, set: { pill.isShown = $0 }))
+                if Self.outsideApplications {
+                    SettingsRow(title: T("Pippa isn’t in Applications", table: "App"),
+                                detail: T("From there she stays up to date by herself and can open at login.", table: "App")) {
+                        Button(T("Move to Applications…", table: "App")) { AppMover.moveNow() }
+                    }
+                }
             }
             Section(T("Permissions", table: "App")) {
                 Text(T("Pippa asks the first time she needs Calendar, Reminders, Mail, Photos or your files. You can change that later in System Settings.", table: "App"))
@@ -87,11 +104,13 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .tint(Theme.accent)
         .frame(width: 560)
-        .frame(minHeight: 480)
+        .frame(minHeight: 480, maxHeight: .infinity)
     }
 
-    static var localModelName: String { ModelCatalog.bundled().models.first?.label ?? "" }
+    /// Read once: `ModelCatalog.bundled()` decodes a file, and views ask for the name on every redraw.
+    static let localModelName: String = ModelCatalog.bundled().models.first?.label ?? ""
 }
 
 /// A small green dot before the status text.

@@ -9,18 +9,8 @@ struct WebSourcesCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "globe").font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
-                    .accessibilityHidden(true)
-                Text(T("Looked up online", table: "Views")).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
-                if !card.queries.isEmpty {
-                    Text(card.queries.map { T("“%@”", table: "Views", $0) }.joined(separator: " · ")).font(.scaled(size: 12)).foregroundStyle(Theme.ink3)
-                        .lineLimit(1).truncationMode(.tail)
-                }
-            }
-            .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
+            CardHeader(symbol: "globe", title: T("Looked up online", table: "Views"),
+                       detail: card.queries.isEmpty ? nil : card.queries.map { T("“%@”", table: "Views", $0) }.joined(separator: " · "))
             ForEach(Array(card.items.enumerated()), id: \.offset) { _, item in
                 WebSourceRow(item: item)
             }
@@ -34,10 +24,9 @@ struct WebSourcesCardView: View {
 
 private struct WebSourceRow: View {
     var item: WebSourcesCard.Item
-    private let hoverState = State<Bool>(initialValue: false)
 
     var body: some View {
-        Button { NSWorkspace.shared.open(item.url) } label: {
+        CardRowButton(action: { NSWorkspace.shared.open(item.url) }) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(item.host).font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1).fixedSize()
                 if let path = item.path {
@@ -48,12 +37,7 @@ private struct WebSourceRow: View {
                     Text(T("read", table: "Views")).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink2).fixedSize()
                 }
             }
-            .padding(.horizontal, 14).padding(.vertical, 5)
-            .background(hoverState.wrappedValue ? Theme.chatBorder : .clear)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { hoverState.wrappedValue = $0 }
         .help(item.url.absoluteString)
         .contextMenu {
             Button(T("Open in browser", table: "Views")) { NSWorkspace.shared.open(item.url) }
@@ -91,7 +75,7 @@ struct SourceChipsView: View {
             if more > 0 {
                 Text(verbatim: "+\(more)").font(.scaled(size: 12, weight: .medium)).foregroundStyle(Theme.ink3)
                     .padding(.horizontal, 10).frame(minHeight: 26)
-                    .overlay { Capsule().strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
+                    .overlay { Capsule(style: .circular).inset(by: 0.5).stroke(Theme.hairline, lineWidth: 1) }
                     .accessibilityLabel(T("More sources: %lld", table: "Views", more))
             }
         }
@@ -112,12 +96,14 @@ private struct WebSourceChip: View {
                 Text(chip.host).font(.scaled(size: 12.5, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1).truncationMode(.middle)
             }
             .padding(.leading, 5).padding(.trailing, 11).frame(minHeight: 26)
-            .background(hoverState.wrappedValue ? Theme.chatInset : Theme.chatCard, in: Capsule())
-            .overlay { Capsule().strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
+            .background(Theme.chatCard, in: Capsule())
+            .overlay { if hoverState.wrappedValue { Capsule().fill(Theme.rowHover) } }
+            .overlay { Capsule(style: .circular).inset(by: 0.5).stroke(Theme.hairline, lineWidth: 1) }
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .onHover { hoverState.wrappedValue = $0 }
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+        .pointerStyle(.link)
         .help(chip.title.map { $0 + "\n" + chip.url.absoluteString } ?? chip.url.absoluteString)
         .contextMenu {
             Button(T("Open in browser", table: "Views")) { NSWorkspace.shared.open(chip.url) }

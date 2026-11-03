@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import CoreFoundation
 import Synchronization
 
@@ -105,16 +106,17 @@ public typealias PiUIHandler = @Sendable (PiUIRequest) async -> PiUIResponse
 
 /// Drives a `pi --mode rpc` process. One response at a time; deliver more via `steer`/`followUp`.
 public actor PiRPCClient {
-    /// Tested range: the pinned minor version (app/Packaging/pi-release, currently Pi 1.4.x). `start()` rejects other versions
+    /// Tested range: the pinned minor version (app/Packaging/pi-release, currently Pi 1.5.x). `start()` rejects other versions
     /// with `.versionMismatch`. scripts/bump-pi.sh aborts if that does not match the new pin.
-    public static let supportedVersionPrefix = "1.4."
+    public static let supportedVersionPrefix = "1.5."
     public nonisolated let configuration: PiRPCConfiguration
+    private var generation = UUID()
     private var process: Process?
     private var stdin: FileHandle?
     private var pending: [String: CheckedContinuation<Response, Error>] = [:]
     private var events: AsyncThrowingStream<PiRPCEvent, Error>.Continuation?
     private var uiHandler: PiUIHandler?
-    private let stderrTail = Buffer(limit: 16 * 1024)
+    private var stderrTail = Buffer(limit: 16 * 1024)
     /// The version `start()` found.
     public private(set) var version: String?
     private var nextID = 0
@@ -185,6 +187,11 @@ public actor PiRPCClient {
     /// Check the version and start Pi. Calling it repeatedly is harmless.
     public func start() async throws {
         if process?.isRunning == true { return }
+        let waiting = pending.values; pending.removeAll()
+        pendingTimers.values.forEach { $0.cancel() }; pendingTimers.removeAll()
+        for continuation in waiting { continuation.resume(throwing: PiRPCError.notRunning) }
+        finish(PiRPCError.notRunning)
+        let generation = UUID(); self.generation = generation
         version = try Self.checkedVersion(configuration)
         let child = Process(), input = Pipe(), output = Pipe(), errors = Pipe()
         child.executableURL = configuration.executable
@@ -202,7 +209,8 @@ public actor PiRPCClient {
             // Split on LF only (rpc.md "Framing"): U+2028 in JSON strings is not a line ending.
             for line in splitter.lines(appending: data) { sink.yield(.line(line)) }
         }
-        let tail = stderrTail
+        let tail = Buffer(limit: 16 * 1024)
+        stderrTail = tail
         errors.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             if data.isEmpty { handle.readabilityHandler = nil } else { tail.append(data) }
@@ -215,7 +223,7 @@ public actor PiRPCClient {
         }
         try child.run()
         process = child; stdin = input.fileHandleForWriting
-        Task { [weak self] in for await item in lines { await self?.handle(item) } }
+        Task { [weak self] in for await item in lines { await self?.handle(item, generation: generation) } }
     }
 
     /// Close stdin (orderly shutdown per rpc.md), kill hard after two seconds.
@@ -224,6 +232,8 @@ public actor PiRPCClient {
         try? stdin?.close()
         for _ in 0..<20 where child.isRunning { try? await Task.sleep(for: .milliseconds(100)) }
         if child.isRunning { child.terminate() }
+        for _ in 0..<5 where child.isRunning { try? await Task.sleep(for: .milliseconds(100)) }
+        if child.isRunning, kill(child.processIdentifier, 0) == 0 { kill(child.processIdentifier, SIGKILL) }
     }
 
     // Startup admission has its own cancellation path: an unanswered command must not retain its continuation.
@@ -242,6 +252,7 @@ public actor PiRPCClient {
         guard nativeReadinessAttempt == attempt else { return }
         nativeReadinessAttempt = nil
         let waiting = pending.values; pending.removeAll()
+        pendingTimers.values.forEach { $0.cancel() }; pendingTimers.removeAll()
         for continuation in waiting { continuation.resume(throwing: error) }
         finish(error)
         try? stdin?.close(); stdin = nil
@@ -264,6 +275,11 @@ public actor PiRPCClient {
         guard events == nil else { throw PiRPCError.busy }
         // Listen first, then send (rpc.md "Run lifecycle").
         let (stream, continuation) = AsyncThrowingStream<PiRPCEvent, Error>.makeStream()
+        continuation.onTermination = { [weak self] termination in
+            if case .cancelled = termination {
+                Task { await self?.finish(CancellationError()) }
+            }
+        }
         events = continuation
         userMessagesInRun = 0
         do {
@@ -297,13 +313,13 @@ public actor PiRPCClient {
     }
 
     /// Abort; Pi replies only once the session is idle again.
-    public func abort() async throws {
-        _ = try await send(["type": "abort"])
+    public func abort(timeout: Duration = .seconds(3)) async throws {
+        _ = try await send(["type": "abort"], timeout: timeout)
     }
 
     /// Arbitrary command, for trial runs (`get_state`, `get_session_stats`, …). Returns `data` as JSON.
-    public func command(_ payload: [String: any Sendable]) async throws -> Data? {
-        try await send(payload).data
+    public func command(_ payload: [String: any Sendable], timeout: Duration? = nil) async throws -> Data? {
+        try await send(payload, timeout: timeout).data
     }
 
     /// Pi's answer to a prompt while a summary runs (Pi 1.1: "Cannot submit a prompt while compaction is in progress").
@@ -316,7 +332,7 @@ public actor PiRPCClient {
         response.data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["disposition"] as? String
     }
 
-    private func send(_ payload: [String: any Sendable]) async throws -> Response {
+    private func send(_ payload: [String: any Sendable], timeout: Duration? = nil) async throws -> Response {
         guard let stdin, process?.isRunning == true else { throw PiRPCError.notRunning }
         nextID += 1
         let id = "pippa-\(nextID)"
@@ -324,14 +340,27 @@ public actor PiRPCClient {
         command["id"] = id
         var data = try JSONSerialization.data(withJSONObject: command)
         data.append(10)
-        let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Response, Error>) in
-            pending[id] = continuation
-            do { try stdin.write(contentsOf: data) } catch { pending.removeValue(forKey: id)?.resume(throwing: error) }
-        }
+        let response = try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Response, Error>) in
+                pending[id] = continuation
+                pendingTimers[id] = Task { [weak self] in
+                    do { try await Task.sleep(for: timeout ?? .seconds(300)) } catch { return }
+                    await self?.cancelPending(id, error: PiRPCError.commandFailed(command: payload["type"] as? String ?? "?", message: "Command timed out"))
+                }
+                do { try stdin.write(contentsOf: data) } catch { cancelPending(id, error: error) }
+            }
+        } onCancel: { Task { await self.cancelPending(id, error: CancellationError()) } }
         guard response.success else {
             throw PiRPCError.commandFailed(command: payload["type"] as? String ?? "?", message: response.error ?? "")
         }
         return response
+    }
+
+    private var pendingTimers: [String: Task<Void, Never>] = [:]
+    private func cancelPending(_ id: String, error: Error) {
+        pendingTimers.removeValue(forKey: id)?.cancel()
+        pending.removeValue(forKey: id)?.resume(throwing: error)
     }
 
     private func write(_ object: [String: Any]) {
@@ -344,11 +373,13 @@ public actor PiRPCClient {
 
     enum Incoming: Sendable { case line(Data), exited(Int32) }
 
-    private func handle(_ item: Incoming) {
+    private func handle(_ item: Incoming, generation: UUID) {
+        guard self.generation == generation else { return }
         switch item {
         case .exited(let status):
             let error = PiRPCError.processExited(status: status, diagnostics: stderrTail.text)
             let waiting = pending.values; pending.removeAll()
+            pendingTimers.values.forEach { $0.cancel() }; pendingTimers.removeAll()
             for continuation in waiting { continuation.resume(throwing: error) }
             finish(error)
             process = nil; stdin = nil
@@ -362,6 +393,7 @@ public actor PiRPCClient {
         switch record["type"] as? String {
         case "response":
             guard let id = record["id"] as? String, let continuation = pending.removeValue(forKey: id) else { return }
+            pendingTimers.removeValue(forKey: id)?.cancel()
             let data = record["data"].flatMap { try? JSONSerialization.data(withJSONObject: $0, options: [.fragmentsAllowed]) }
             continuation.resume(returning: Response(success: record["success"] as? Bool == true, error: record["error"] as? String, data: data))
         case "message_update":
@@ -488,16 +520,24 @@ public actor PiRPCClient {
 final class Buffer: @unchecked Sendable {
     private let lock = NSLock()
     private var data = Data()
+    private var discarding = false
     private let limit: Int
     init(limit: Int) { self.limit = limit }
     func lines(appending chunk: Data) -> [Data] {
         lock.lock(); defer { lock.unlock() }
-        data.append(chunk)
         var result: [Data] = []
-        while let end = data.firstIndex(of: 10) {
-            var line = Data(data[data.startIndex..<end])
-            if line.last == 13 { line.removeLast() }
-            result.append(line); data.removeSubrange(data.startIndex...end)
+        // Scan only new bytes and discard oversized frames through the next LF.
+        for byte in chunk {
+            if byte == 10 {
+                if !discarding {
+                    if data.last == 13 { data.removeLast() }
+                    result.append(data)
+                }
+                data.removeAll(keepingCapacity: true); discarding = false
+            } else if !discarding {
+                if data.count >= 16 * 1024 * 1024 { data.removeAll(keepingCapacity: true); discarding = true }
+                else { data.append(byte) }
+            }
         }
         return result
     }

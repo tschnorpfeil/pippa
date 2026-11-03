@@ -3,7 +3,8 @@ import PippaCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The one window: conversations on the left, the chat on the right.
+/// The one window: conversations on the left (`Sidebar`), the chat in the middle, "About this answer" on the right
+/// (`ContextPanel`).
 struct ChatView: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
@@ -15,7 +16,7 @@ struct ChatView: View {
     var body: some View {
         NavigationSplitView {
             Sidebar(chat: chat, search: searchState.projectedValue)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 340)
+                .navigationSplitViewColumnWidth(min: 200, ideal: Layout.sidebarIdeal, max: 340)
         } detail: {
             VStack(spacing: 0) {
                 if let conversation = chat.current, !conversation.messages.isEmpty {
@@ -37,223 +38,50 @@ struct ChatView: View {
                 return true
             }
             .navigationTitle(chat.current?.title ?? "Pippa")
+            .navigationSubtitle(AIBadge.label(setup))
             .inspector(isPresented: panelState.projectedValue) {
                 ContextPanel(chat: chat, setup: setup)
-                    .inspectorColumnWidth(min: 220, ideal: 250, max: 320)
+                    .inspectorColumnWidth(min: 240, ideal: Layout.inspector, max: 340)
             }
             .onChange(of: panelState.wrappedValue) { _, open in UserDefaults.standard.set(open, forKey: "contextPanel") }
             .toolbar {
                 ToolbarItem {
-                    Button { panelState.wrappedValue.toggle() } label: { Label(T("Context", table: "App"), systemImage: "sidebar.right") }
-                        .help(T("Show or hide what Pippa read and did", table: "App"))
-                }
-            }
-        }
-    }
-}
-
-// MARK: Context panel
-
-/// What the latest answer read, did and checked, and how full the conversation is. Facts from tool calls and Pi,
-/// never from the model's text.
-private struct ContextPanel: View {
-    @ObservedObject var chat: ChatModel
-    @ObservedObject var setup: SetupModel
-
-    private var answer: ChatMessage? { chat.current?.messages.last { $0.role == .assistant } }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                section(T("Read", table: "App")) {
-                    if let sources = answer?.sources, !sources.isEmpty {
-                        ForEach(sources, id: \.self) { source in
-                            row(SourceChips.symbol(source.kind), source.name, source.detail, action: source.location.isEmpty ? nil : { SourceChips.open(source) })
-                        }
-                    } else {
-                        empty(chat.isAnswering ? T("Nothing yet", table: "App") : T("Nothing read for this answer", table: "App"))
-                    }
-                }
-                section(T("Done", table: "App")) {
-                    if let receipts = answer?.receipts, !receipts.isEmpty {
-                        ForEach(Array(receipts.enumerated()), id: \.offset) { _, receipt in
-                            row(ReceiptRow.symbol(receipt), ReceiptRow.title(receipt), receipt.name.isEmpty ? nil : receipt.name,
-                                tint: receipt.outcome == "done" ? Theme.ok : Theme.need)
-                        }
-                    } else {
-                        empty(T("Nothing changed on your Mac", table: "App"))
-                    }
-                }
-                let checked = answer?.checkedDates ?? [], unsupported = answer?.unsupportedDates ?? []
-                if !checked.isEmpty || !unsupported.isEmpty {
-                    section(T("Dates checked", table: "App")) {
-                        ForEach(checked, id: \.self) { row("checkmark.circle", $0, T("In what I read", table: "App"), tint: Theme.ok) }
-                        ForEach(unsupported, id: \.self) { row("exclamationmark.triangle", $0, T("Worked out, please check", table: "App"), tint: Theme.need) }
-                    }
-                }
-                if let usage = chat.current?.messages.last(where: { $0.context != nil })?.context {
-                    section(T("Conversation memory", table: "App")) {
-                        GeometryReader { geometry in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Theme.chatBorder)
-                                Capsule().fill(usage.fraction > 0.8 ? Theme.need : Theme.accent)
-                                    .frame(width: max(6, geometry.size.width * usage.fraction))
-                            }
-                        }
-                        .frame(height: 6)
-                        Text(T("%lld %% full · %@ of %@", table: "App", Int((usage.fraction * 100).rounded()),
-                               usage.tokens.formatted(), usage.window.formatted()))
-                            .font(.caption).foregroundStyle(.secondary)
-                        if usage.fraction > 0.8 {
-                            Text(T("Almost full: Pippa will soon summarize the start. A new conversation is faster.", table: "App"))
-                                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
-                Divider()
-                HStack(spacing: 6) {
-                    Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer")
-                    Text(setup.usesOnlineAI ? AIBadge.label(setup) : "\(SettingsView.localModelName) · \(AIBadge.label(setup))")
-                }
-                .font(.caption).foregroundStyle(.secondary)
-                if !setup.usesOnlineAI {
-                    Text(T("Nothing leaves this Mac.", table: "App")).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func section<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            content()
-        }
-    }
-
-    @ViewBuilder
-    private func row(_ symbol: String, _ title: String, _ detail: String?, tint: Color = .secondary, action: (() -> Void)? = nil) -> some View {
-        let content = HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbol).foregroundStyle(tint).frame(width: 16)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).lineLimit(2).truncationMode(.middle)
-                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
-            }
-            Spacer(minLength: 0)
-        }
-        .font(.callout)
-        .contentShape(Rectangle())
-        if let action {
-            Button(action: action) { content }.buttonStyle(.plain).help(T("Open", table: "App"))
-        } else {
-            content
-        }
-    }
-
-    private func empty(_ text: String) -> some View {
-        Text(text).font(.callout).foregroundStyle(.tertiary)
-    }
-}
-
-// MARK: Sidebar
-
-private struct Sidebar: View {
-    @ObservedObject var chat: ChatModel
-    var search: Binding<String>
-    private let renamingState = State<String?>(initialValue: nil)
-    private let nameState = State(initialValue: "")
-
-    var body: some View {
-        List(selection: Binding(get: { chat.currentID }, set: { if let id = $0 { chat.select(id) } })) {
-            ForEach(groups, id: \.title) { group in
-                Section(group.title) {
-                    ForEach(group.items) { conversation in
-                        ConversationRow(conversation: conversation)
-                            .tag(conversation.id)
-                            .contextMenu {
-                                Button(T("Rename…", table: "App")) {
-                                    nameState.wrappedValue = conversation.title
-                                    renamingState.wrappedValue = conversation.id
+                    Button { panelState.wrappedValue.toggle() } label: {
+                        Label { Text(T("Context", table: "App")) } icon: {
+                            Image(systemName: "sidebar.right")
+                                .overlay(alignment: .topTrailing) {
+                                    if contextCount > 0 && !panelState.wrappedValue {
+                                        Text(verbatim: "\(min(contextCount, 99))")
+                                            .font(.system(size: 8, weight: .bold)).monospacedDigit()
+                                            .foregroundStyle(Theme.ink2)
+                                            .padding(.horizontal, 3)
+                                            .frame(minWidth: 12, minHeight: 12)
+                                            .background(Theme.fill3, in: Capsule())
+                                            .offset(x: 7, y: -6)
+                                    }
                                 }
-                                Button(conversation.pinned == true ? T("Unpin", table: "App") : T("Pin", table: "App")) { chat.togglePin(conversation.id) }
-                                Divider()
-                                Button(T("Delete", table: "App"), role: .destructive) { chat.delete(conversation.id) }
-                            }
+                        }
                     }
+                    .help(T("Show or hide what Pippa read and did", table: "App"))
                 }
-            }
-        }
-        .searchable(text: search, placement: .sidebar, prompt: T("Search", table: "App"))
-        .overlay {
-            if groups.isEmpty {
-                Text(search.wrappedValue.isEmpty ? T("Your conversations appear here.", table: "App") : T("Nothing found", table: "App"))
-                    .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(24)
-            }
-        }
-        .alert(T("Rename Conversation", table: "App"), isPresented: Binding(get: { renamingState.wrappedValue != nil },
-                                                                             set: { if !$0 { renamingState.wrappedValue = nil } })) {
-            TextField(T("Name", table: "App"), text: nameState.projectedValue)
-            Button(T("Rename", table: "App")) {
-                if let id = renamingState.wrappedValue { chat.rename(id, to: nameState.wrappedValue) }
-                renamingState.wrappedValue = nil
-            }
-            Button(T("Cancel", table: "App"), role: .cancel) { renamingState.wrappedValue = nil }
-        }
-        .toolbar {
-            ToolbarItem {
-                Button { chat.newConversation() } label: { Label(T("New Conversation", table: "App"), systemImage: "square.and.pencil") }
-                    .disabled(chat.isAnswering)
-                    .help(T("New Conversation", table: "App") + " (⌘N)")
             }
         }
     }
 
-    private var groups: [(title: String, items: [Conversation])] {
-        let query = search.wrappedValue.trimmingCharacters(in: .whitespaces)
-        let found = query.isEmpty ? chat.conversations : chat.conversations.filter { conversation in
-            conversation.title.localizedCaseInsensitiveContains(query)
-                || conversation.messages.contains { $0.text.localizedCaseInsensitiveContains(query) }
-        }
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        func title(_ date: Date) -> String {
-            if calendar.isDateInToday(date) { return T("Today", table: "App") }
-            if calendar.isDateInYesterday(date) { return T("Yesterday", table: "App") }
-            let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: today).day ?? 0
-            if days < 7 { return T("Previous 7 Days", table: "App") }
-            if days < 30 { return T("Previous 30 Days", table: "App") }
-            return T("Older", table: "App")
-        }
-        let pinned = found.filter { $0.pinned == true }
-        var result: [(title: String, items: [Conversation])] = pinned.isEmpty ? [] : [(T("Pinned", table: "App"), pinned)]
-        for conversation in found where conversation.pinned != true {
-            let name = title(conversation.updated)
-            if result.last?.title == name { result[result.count - 1].items.append(conversation) } else { result.append((name, [conversation])) }
-        }
-        return result
+    /// What the latest answer read and did: shown on the panel button while the panel is closed.
+    private var contextCount: Int {
+        guard let answer = chat.current?.messages.last(where: { $0.role == .assistant }) else { return 0 }
+        return (answer.sources?.count ?? 0) + answer.receipts.count
     }
 }
 
-/// Title, the start of the last answer and a symbol for what it was about.
-private struct ConversationRow: View {
-    var conversation: Conversation
+/// Snapshots only: every "Worked for …" row starts open, to check the steps and the thinking.
+private struct ExpandsWorkKey: EnvironmentKey { static let defaultValue = false }
 
-    var body: some View {
-        HStack(alignment: .top, spacing: 9) {
-            Image(systemName: conversation.symbol)
-                .font(.body).foregroundStyle(.secondary)
-                .frame(width: 20, height: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(conversation.title.isEmpty ? T("New conversation", table: "App") : conversation.title)
-                    .lineLimit(1)
-                let preview = conversation.preview
-                if !preview.isEmpty {
-                    Text(preview).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                }
-            }
-        }
-        .padding(.vertical, 3)
+extension EnvironmentValues {
+    var expandsWork: Bool {
+        get { self[ExpandsWorkKey.self] }
+        set { self[ExpandsWorkKey.self] = newValue }
     }
 }
 
@@ -271,28 +99,31 @@ private struct Welcome: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 22) {
-                Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72)
-                VStack(spacing: 6) {
-                    Text(T("What can I do for you?", table: "App")).font(.title.weight(.semibold))
+            VStack(spacing: Space.x3) {
+                PippaMark(size: 56, state: .ruht)
+                VStack(spacing: Space.s) {
+                    Text(T("What can I do for you?", table: "App"))
+                        .font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.ink)
                     Text(T("Ask, or drop files here. I work on your Mac with Mail, Calendar, Reminders, Photos and your files.", table: "App"))
-                        .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 420)
+                        .font(.system(size: 13.5)).foregroundStyle(Theme.ink2).multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 420)
                 }
                 if setup.needsAttention {
                     SetupCard(setup: setup).frame(maxWidth: 480)
                 } else {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: Space.ml), GridItem(.flexible(), spacing: Space.ml)], spacing: Space.ml) {
                         ForEach(suggestions, id: \.text) { suggestion in
                             SuggestionButton(symbol: suggestion.symbol, text: suggestion.text) {
                                 chat.draft = suggestion.text
-                                if setup.canAnswer { chat.send() }
+                                if setup.canAnswer && !chat.isAnswering { chat.send() }
                             }
                         }
                     }
-                    .frame(maxWidth: 540)
+                    .frame(maxWidth: Layout.cardMax)
                 }
             }
-            .padding(32)
+            .padding(Space.x4)
             .frame(maxWidth: .infinity)
             .containerRelativeFrame(.vertical, alignment: .center)
         }
@@ -307,19 +138,26 @@ private struct SuggestionButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: symbol).font(.body.weight(.medium)).foregroundStyle(Theme.accent).frame(width: 20)
-                Text(text).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: Space.ml) {
+                Image(systemName: symbol).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.accent).frame(width: 18)
+                    .padding(.top, 1)
+                Text(text).font(.system(size: 13)).foregroundStyle(Theme.ink)
+                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
             .padding(14)
             .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
-            .background(hoverState.wrappedValue ? Theme.fill2 : Theme.chatCard, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.chatBorder))
-            .contentShape(Rectangle())
+            .background {
+                if hoverState.wrappedValue {
+                    Color.clear.raised(Radius.card, lifted: true)
+                } else {
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Theme.fill)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
         .buttonStyle(.plain)
-        .onHover { hoverState.wrappedValue = $0 }
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
     }
 }
 
@@ -329,28 +167,122 @@ private struct Transcript: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
     var conversation: Conversation
+    /// The end of the conversation is in view: new words keep it there. Scrolled up, they don't pull the person down.
+    private let atBottomState = State(initialValue: true)
+    /// The person is scrolling (wheel, trackpad, scroll bar); only then may "at the bottom" turn off. Content growing
+    /// under a programmatic scroll never does.
+    private let userScrollingState = State(initialValue: false)
+
+    private var answeringHere: Bool { chat.isAnswering && chat.answeringID == conversation.id }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 26) {
-                    if setup.needsAttention { SetupCard(setup: setup) }
-                    ForEach(conversation.messages) { message in
-                        MessageView(chat: chat, message: message,
-                                    live: chat.isAnswering && message.id == conversation.messages.last?.id,
-                                    isLast: message.id == conversation.messages.last?.id)
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    if setup.needsAttention { SetupCard(setup: setup).padding(.bottom, 28) }
+                    ForEach(Array(conversation.messages.enumerated()), id: \.element.id) { index, message in
+                        let last = message.id == conversation.messages.last?.id
+                        MessageView(chat: chat, message: message, live: answeringHere && last, isLast: last)
+                            .padding(.top, index == 0 ? 0 : message.role == .assistant ? 12 : 28)
                             .id(message.id)
                     }
                     Color.clear.frame(height: 1).id("end")
                 }
-                .padding(.horizontal, 32).padding(.top, 20).padding(.bottom, 12)
-                .frame(maxWidth: 760, alignment: .leading)
+                .padding(.top, Space.xxl).padding(.bottom, Space.l)
+                .frame(maxWidth: Layout.column, alignment: .leading)
+                .padding(.horizontal, Layout.gutter)
                 .frame(maxWidth: .infinity)
             }
-            .onAppear { proxy.scrollTo("end", anchor: .bottom) }
-            .onChange(of: conversation.id) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
-            .onChange(of: conversation.messages.last) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
+            // Open at the end of the conversation, not at its top and then a jump.
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .onScrollPhaseChange { _, phase in
+                userScrollingState.wrappedValue = phase == .interacting || phase == .tracking || phase == .decelerating
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.visibleRect.maxY >= geometry.contentSize.height - 48
+            } action: { _, atBottom in
+                if atBottom { atBottomState.wrappedValue = true }
+                else if userScrollingState.wrappedValue { atBottomState.wrappedValue = false }
+            }
+            .onAppear {
+                proxy.scrollTo("end", anchor: .bottom)
+                // Once more after the first layout: lazy rows only know their real height then.
+                Task { @MainActor in proxy.scrollTo("end", anchor: .bottom) }
+            }
+            .onChange(of: conversation.id) { _, _ in
+                atBottomState.wrappedValue = true
+                proxy.scrollTo("end", anchor: .bottom)
+            }
+            // A new question: always to the end, also from further up.
+            .onChange(of: conversation.messages.count) { old, new in
+                guard new > old else { return }
+                atBottomState.wrappedValue = true
+                withAnimation(Theme.arrive) { proxy.scrollTo("end", anchor: .bottom) }
+            }
+            // Words, steps and cards coming in: follow only while the end is in view.
+            .onChange(of: conversation.messages.last) { _, _ in
+                if atBottomState.wrappedValue { proxy.scrollTo("end", anchor: .bottom) }
+            }
+            .overlay(alignment: .bottom) {
+                if !atBottomState.wrappedValue {
+                    JumpToLatest(answering: answeringHere) {
+                        atBottomState.wrappedValue = true
+                        withAnimation(Theme.arrive) { proxy.scrollTo("end", anchor: .bottom) }
+                    }
+                    .padding(.bottom, Space.ml)
+                    .transition(.opacity.combined(with: .scale(scale: 0.85, anchor: .bottom)))
+                }
+            }
+            .animation(Theme.arrive, value: atBottomState.wrappedValue)
+            .overlay(alignment: .top) { BarFade() }
         }
+    }
+}
+
+/// The window's bar is transparent (one calm surface): words scrolled up would run into the title. They fade out under
+/// it into the chat's own colour instead.
+private struct BarFade: View {
+    var body: some View {
+        GeometryReader { geometry in
+            let bar = geometry.safeAreaInsets.top, solid = bar + Space.s, fade = Space.xxl
+            let tint = Color(nsColor: Theme.chatTint)
+            LinearGradient(stops: [.init(color: tint, location: 0), .init(color: tint, location: solid / max(1, solid + fade)),
+                                   .init(color: tint.opacity(0), location: 1)], startPoint: .top, endPoint: .bottom)
+                .frame(width: geometry.size.width, height: solid + fade)
+                .offset(y: -bar)
+        }
+        .frame(height: Space.s + Space.xxl)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Scrolled up: a small round button back to the end; while an answer comes in it says so.
+private struct JumpToLatest: View {
+    var answering: Bool
+    var action: () -> Void
+    private let hoverState = State(initialValue: false)
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.s) {
+                if answering {
+                    Text(T("New answer", table: "App")).font(.system(size: 12.5, weight: .medium))
+                        .transition(.opacity.combined(with: .move(edge: .trailing)))
+                }
+                Image(systemName: "arrow.down").font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, answering ? 14 : 0)
+            .frame(minWidth: 32, minHeight: 32)
+            .raised(16, lifted: hoverState.wrappedValue || answering)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+        .animation(Theme.arrive, value: answering)
+        .help(T("Jump to the latest", table: "App"))
+        .accessibilityLabel(answering ? T("New answer", table: "App") : T("Jump to the latest", table: "App"))
     }
 }
 
@@ -362,89 +294,201 @@ private struct MessageView: View {
     var isLast: Bool
     private let hoverState = State(initialValue: false)
 
+    private var hover: Bool { hoverState.wrappedValue }
+
     var body: some View {
-        switch message.role {
-        case .user: user
-        case .assistant: assistant
+        Group {
+            switch message.role {
+            case .user: user
+            case .assistant: assistant
+            }
         }
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
     }
 
     private var user: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            ForEach(message.files, id: \.self) { path in FileChip(url: URL(fileURLWithPath: path)) }
-            if !message.text.isEmpty {
-                Text(message.text).textSelection(.enabled).lineSpacing(2)
-                    .padding(.horizontal, 14).padding(.vertical, 9)
-                    .background(Theme.chatUser, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        VStack(alignment: .trailing, spacing: Space.s) {
+            if !message.files.isEmpty {
+                FlowRow(spacing: Space.s, maxItemWidth: 240, trailing: true) {
+                    ForEach(message.files, id: \.self) { path in FileChip(url: URL(fileURLWithPath: path)) }
+                }
+                .padding(.leading, 64)
+            }
+            HStack(alignment: .bottom, spacing: Space.xs) {
+                // Quiet actions beside the bubble, shown on hover: no space taken below it.
+                HStack(spacing: Space.xxs) {
+                    if !message.text.isEmpty { CopyButton(text: message.text, compact: true) }
+                    GhostButton(title: T("Edit", table: "App"), symbol: "pencil", compact: true) { chat.edit(message) }
+                        .disabled(chat.isAnswering)
+                }
+                .opacity(hover ? 1 : 0)
+                .allowsHitTesting(hover)
+                if !message.text.isEmpty {
+                    FractionalWidth(fraction: 0.78) {
+                        Text(message.text)
+                            .font(.system(size: 14)).foregroundStyle(Theme.ink).lineSpacing(4)
+                            .textSelection(.enabled)
+                            .padding(.horizontal, 14).padding(.vertical, Space.ml)
+                            .background(Theme.chatUser, in: RoundedRectangle(cornerRadius: Radius.bubble, style: .continuous))
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.leading, 90)
     }
 
     private var assistant: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if live || !message.steps.isEmpty || !(message.thinking ?? "").isEmpty {
+        VStack(alignment: .leading, spacing: Space.l) {
+            if live || !message.steps.isEmpty || !(message.thinking ?? "").isEmpty || message.stopped == true {
                 WorkView(message: message, live: live, started: chat.answerStarted)
             }
-            if !message.text.isEmpty { MarkdownText(text: message.text, highlights: live ? [] : message.unsupportedDates ?? []) }
+            if !message.text.isEmpty {
+                MarkdownText(text: message.text, highlights: live ? [] : message.unsupportedDates ?? [])
+            }
             if !live, let dates = message.unsupportedDates, !dates.isEmpty { DateNote(dates: dates) }
-            if !live, let sources = message.sources, !sources.isEmpty { SourceChips(sources: sources) }
             if !message.cards.isEmpty { ResultCardsView(cards: message.cards) }
-            ForEach(Array(message.receipts.enumerated()), id: \.offset) { _, receipt in ReceiptRow(receipt: receipt) }
+            if !message.receipts.isEmpty {
+                VStack(alignment: .leading, spacing: Space.s) {
+                    ForEach(Array(message.receipts.enumerated()), id: \.offset) { _, receipt in ReceiptRow(receipt: receipt) }
+                }
+            }
             if let error = message.error {
                 ErrorBox(text: error, retry: isLast && !chat.isAnswering ? { chat.retry() } : nil)
             }
-            if !live && !message.text.isEmpty {
-                CopyButton(text: message.text).opacity(hoverState.wrappedValue ? 1 : 0)
-            }
+            if !live { footer }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .onHover { hoverState.wrappedValue = $0 }
+    }
+
+    /// What the answer read on the left, Copy and Ask Again on the right (always on the last answer, on hover else).
+    @ViewBuilder private var footer: some View {
+        let sources = message.sources ?? []
+        let showsActions = hover || isLast
+        if !sources.isEmpty || !message.text.isEmpty {
+            HStack(spacing: Space.m) {
+                if !sources.isEmpty { SourceChips(sources: sources) }
+                Spacer(minLength: Space.m)
+                HStack(spacing: Space.xxs) {
+                    if !message.text.isEmpty { CopyButton(text: message.text) }
+                    if isLast && message.error == nil {
+                        GhostButton(title: T("Ask Again", table: "App"), symbol: "arrow.clockwise") { chat.retry() }
+                            .disabled(chat.isAnswering)
+                    }
+                }
+                .opacity(showsActions ? 1 : 0)
+                .allowsHitTesting(showsActions)
+            }
+            .padding(.top, -Space.xs)
+        }
     }
 }
 
-/// What Pippa did on the way to the answer. While it works: one line with what she is doing right now
-/// ("Reading Lease.pdf · 14 s") that opens the steps and her thinking. Afterwards: one quiet line ("3 steps").
+/// Proposes a share of the offered width to its one child and puts it at the trailing edge (the question bubble).
+private struct FractionalWidth: SwiftUI.Layout {
+    var fraction: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let child = subviews.first else { return .zero }
+        let width = proposal.width.map { $0 * fraction }
+        return child.sizeThatFits(ProposedViewSize(width: width, height: nil))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let child = subviews.first else { return }
+        let size = child.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil))
+        child.place(at: CGPoint(x: bounds.maxX, y: bounds.minY), anchor: .topTrailing, proposal: ProposedViewSize(width: bounds.width, height: size.height))
+    }
+}
+
+/// What Pippa did on the way to the answer, as one row. While she works: her mark, what she is doing right now and the
+/// seconds. Afterwards: "Worked for 18 s · 3 steps". A click opens the steps and her thinking.
 private struct WorkView: View {
     var message: ChatMessage
     var live: Bool
     var started: Date?
+    @Environment(\.expandsWork) private var expandsWork
     private let openState = State(initialValue: false)
+    private let hoverState = State(initialValue: false)
+
+    private var open: Bool { openState.wrappedValue }
+    private var thinking: String? {
+        guard let text = message.thinking?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        return text
+    }
+    private var canOpen: Bool { !message.steps.isEmpty || thinking != nil }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if live {
-                LiveLine(started: started, label: nowLabel) {
-                    if !message.steps.isEmpty || !(message.thinking ?? "").isEmpty {
-                        Button(openState.wrappedValue ? T("Hide", table: "App") : T("Details", table: "App")) { openState.wrappedValue.toggle() }
-                            .buttonStyle(.link).font(.callout)
-                    }
-                }
-                if openState.wrappedValue {
-                    steps.padding(.leading, 4)
-                    thinkingText
-                }
-            } else {
-                Button { withAnimation(.easeOut(duration: 0.15)) { openState.wrappedValue.toggle() } } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
-                            .rotationEffect(.degrees(openState.wrappedValue ? 90 : 0))
-                        Text(summary)
-                        if message.steps.contains(where: \.failed) {
-                            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Theme.need)
-                        }
-                    }
-                    .font(.callout).foregroundStyle(.secondary).contentShape(Rectangle())
-                }
+        VStack(alignment: .leading, spacing: Space.xxs) {
+            Button { withAnimation(Theme.arrive) { openState.wrappedValue.toggle() } } label: { header }
                 .buttonStyle(.plain)
-                if openState.wrappedValue {
-                    steps.padding(.leading, 4)
-                    thinkingText
+                .disabled(!canOpen)
+                .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering && canOpen } }
+                .onAppear { if expandsWork && canOpen { openState.wrappedValue = true } }
+            if open {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(message.steps) { step in stepRow(step) }
+                    if let thinking {
+                        Text(thinking)
+                            .font(.system(size: 12.5)).foregroundStyle(Theme.ink3).lineSpacing(3)
+                            .textSelection(.enabled)
+                            .lineLimit(live ? 6 : nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, Space.ml)
+                            .overlay(alignment: .leading) { Rectangle().fill(Theme.fill3).frame(width: 2) }
+                            .padding(.top, message.steps.isEmpty ? Space.xs : Space.s).padding(.bottom, Space.xs)
+                    }
                 }
+                .padding(.leading, 22)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var header: some View {
+        HStack(spacing: 7) {
+            if live {
+                PippaMark(size: 16, state: .arbeitet).frame(width: 16, height: 16)
+                Text(nowLabel).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle)
+                    .contentTransition(.opacity)
+                if let started {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        let seconds = Int(context.date.timeIntervalSince(started))
+                        if seconds >= 1 { Text(T("%lld s", table: "App", seconds)).monospacedDigit().foregroundStyle(Theme.ink3) }
+                    }
+                }
+            } else {
+                Text(summary).foregroundStyle(hoverState.wrappedValue ? Theme.ink2 : Theme.ink3).lineLimit(1)
+                if message.steps.contains(where: \.failed) {
+                    Image(systemName: "exclamationmark.circle.fill").font(.system(size: 11)).foregroundStyle(Theme.need)
+                }
+            }
+            if canOpen {
+                Image(systemName: "chevron.right").font(.system(size: 9.5, weight: .semibold)).foregroundStyle(Theme.ink3)
+                    .rotationEffect(.degrees(open ? 90 : 0))
+            }
+        }
+        .font(.system(size: 13))
+        .padding(.horizontal, Space.m)
+        .frame(height: 28)
+        .background(hoverState.wrappedValue ? Theme.rowHover : .clear, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+        .contentShape(Rectangle())
+        .padding(.leading, -Space.m)
+    }
+
+    private func stepRow(_ step: ChatStep) -> some View {
+        HStack(spacing: Space.m) {
+            Group {
+                if !step.done && live { SpinRing(size: 11, lineWidth: 1.5) }
+                else if step.failed { Image(systemName: "exclamationmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.need) }
+                else { Image(systemName: "checkmark").font(.system(size: 9.5, weight: .semibold)).foregroundStyle(Theme.ink3) }
+            }
+            .frame(width: 14, height: 14)
+            Text(step.label).lineLimit(1).truncationMode(.middle).foregroundStyle(step.done || !live ? Theme.ink3 : Theme.ink2)
+        }
+        .font(.system(size: 12.5))
+        .frame(height: 24)
     }
 
     /// What she is doing right now: the running step, else thinking or writing.
@@ -454,64 +498,25 @@ private struct WorkView: View {
     }
 
     private var summary: String {
+        if message.stopped == true { return T("Stopped", table: "App") }
         let count = message.steps.count
-        if count == 0 { return T("Thought it through", table: "App") }
-        return count == 1 ? T("1 step", table: "App") : T("%lld steps", table: "App", count)
-    }
-
-    private var steps: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            ForEach(message.steps) { step in
-                HStack(spacing: 7) {
-                    Group {
-                        if !step.done && live { ProgressView().controlSize(.mini) }
-                        else { Image(systemName: step.failed ? "xmark.circle.fill" : "checkmark.circle.fill")
-                                .foregroundStyle(step.failed ? Theme.bad : Theme.ok.opacity(0.8)) }
-                    }
-                    .frame(width: 14)
-                    Text(step.label).lineLimit(1).truncationMode(.middle)
-                }
-                .font(.callout).foregroundStyle(.secondary)
-            }
+        guard let duration = message.duration else {
+            if count == 0 { return T("Thought it through", table: "App") }
+            return count == 1 ? T("1 step", table: "App") : T("%lld steps", table: "App", count)
+        }
+        let time = Self.time(duration)
+        switch count {
+        case 0: return T("Thought for %@", table: "App", time)
+        case 1: return T("Worked for %@ · 1 step", table: "App", time)
+        default: return T("Worked for %@ · %lld steps", table: "App", time, count)
         }
     }
 
-
-    @ViewBuilder private var thinkingText: some View {
-        if let thinking = message.thinking?.trimmingCharacters(in: .whitespacesAndNewlines), !thinking.isEmpty {
-            Text(thinking)
-                .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
-                .lineLimit(live ? 6 : nil)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.leading, 12)
-                .overlay(alignment: .leading) { Rectangle().fill(Theme.chatBorder).frame(width: 2) }
-        }
-    }
-}
-
-/// "Thinking … 12 s": a spinner, what Pippa is doing and how long the answer has been running.
-private struct LiveLine<Trailing: View>: View {
-    var started: Date?
-    var label: String
-    @ViewBuilder var trailing: Trailing
-
-    init(started: Date?, label: String, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
-        self.started = started; self.label = label; self.trailing = trailing()
-    }
-
-    var body: some View {
-        HStack(spacing: 7) {
-            ProgressView().controlSize(.mini).frame(width: 14)
-            Text(label)
-            if let started {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    let seconds = Int(context.date.timeIntervalSince(started))
-                    if seconds >= 3 { Text(T("%lld s", table: "App", seconds)).monospacedDigit() }
-                }
-            }
-            trailing
-        }
-        .font(.callout).foregroundStyle(.secondary)
+    /// "18 s", "2 min 5 s".
+    static func time(_ duration: TimeInterval) -> String {
+        let seconds = max(1, Int(duration.rounded()))
+        if seconds < 60 { return T("%lld s", table: "App", seconds) }
+        return T("%lld min %lld s", table: "App", seconds / 60, seconds % 60)
     }
 }
 
@@ -520,62 +525,74 @@ private struct ErrorBox: View {
     var retry: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.ml) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.bad)
-            Text(text).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-            Spacer(minLength: 8)
-            if let retry { Button(T("Try Again", table: "App"), action: retry).controlSize(.small) }
+            Text(text).font(.system(size: 13)).foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+            Spacer(minLength: Space.m)
+            if let retry { ActionPill(title: T("Try Again", table: "App"), action: retry) }
         }
-        .padding(12)
-        .background(Theme.badTint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(Space.l)
+        .frame(maxWidth: Layout.cardMax, alignment: .leading)
+        .background(Theme.badTint, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+}
+
+/// A quiet text button under a message: no frame, a soft fill on hover.
+private struct GhostButton: View {
+    var title: String
+    var symbol: String
+    /// Only the symbol (the title goes to the tooltip).
+    var compact = false
+    var action: () -> Void
+    private let hoverState = State(initialValue: false)
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.xs) {
+                Image(systemName: symbol).font(.system(size: 11, weight: .medium))
+                if !compact { Text(title) }
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(hoverState.wrappedValue ? Theme.ink2 : Theme.ink3)
+            .padding(.horizontal, compact ? 0 : 7)
+            .frame(minWidth: 24, minHeight: 24)
+            .background(hoverState.wrappedValue ? Theme.rowHover : .clear, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+        .help(title)
+        .accessibilityLabel(title)
     }
 }
 
 private struct CopyButton: View {
     var text: String
+    var compact = false
     private let copiedState = State(initialValue: false)
 
     var body: some View {
-        Button {
+        GhostButton(title: copiedState.wrappedValue ? T("Copied", table: "App") : T("Copy", table: "App"),
+                    symbol: copiedState.wrappedValue ? "checkmark" : "doc.on.doc", compact: compact) {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
             copiedState.wrappedValue = true
             Task { try? await Task.sleep(for: .seconds(1.5)); copiedState.wrappedValue = false }
-        } label: {
-            Label(copiedState.wrappedValue ? T("Copied", table: "App") : T("Copy", table: "App"),
-                  systemImage: copiedState.wrappedValue ? "checkmark" : "doc.on.doc")
-                .font(.caption).foregroundStyle(.secondary)
         }
-        .buttonStyle(.borderless)
     }
 }
 
-/// What a writing tool did: added to Calendar, a reminder, a Mail draft.
 /// What the answer read, as chips; a click opens the file or the page.
-private struct SourceChips: View {
+struct SourceChips: View {
     var sources: [ChatSource]
     private let shown = 3
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(sources.prefix(shown), id: \.self) { source in
-                Button { SourceChips.open(source) } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: SourceChips.symbol(source.kind)).font(.caption)
-                        Text(SourceChips.short(source.name)).lineLimit(1)
-                    }
-                    .fixedSize()
-                    .font(.caption).foregroundStyle(.secondary)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .overlay(Capsule().strokeBorder(Theme.chatBorder))
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(source.location.isEmpty)
-                .help(source.detail.map { "\(source.name) · \($0)" } ?? source.name)
-            }
+        HStack(spacing: Space.s) {
+            ForEach(sources.prefix(shown), id: \.self) { source in SourceChip(source: source) }
             if sources.count > shown {
-                Text("+\(sources.count - shown)").font(.caption).foregroundStyle(.secondary)
+                Text(verbatim: "+\(sources.count - shown)").font(.system(size: 11.5)).foregroundStyle(Theme.ink3)
             }
         }
     }
@@ -603,51 +620,76 @@ private struct SourceChips: View {
     }
 }
 
+private struct SourceChip: View {
+    var source: ChatSource
+    private let hoverState = State(initialValue: false)
+
+    var body: some View {
+        Button { SourceChips.open(source) } label: {
+            HStack(spacing: 5) {
+                Image(systemName: SourceChips.symbol(source.kind)).font(.system(size: 10.5))
+                Text(SourceChips.short(source.name)).lineLimit(1)
+            }
+            .fixedSize()
+            .font(.system(size: 11.5)).foregroundStyle(hoverState.wrappedValue ? Theme.ink : Theme.ink2)
+            .padding(.horizontal, Space.m).frame(height: 24)
+            .background(hoverState.wrappedValue ? Theme.rowHover : .clear, in: Capsule())
+            .overlay(Capsule(style: .circular).inset(by: 0.5).stroke(Theme.hairline, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(source.location.isEmpty)
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering && !source.location.isEmpty } }
+        .help(source.detail.map { "\(source.name) · \($0)" } ?? source.name)
+    }
+}
+
 /// Dates in the answer that nothing Pippa read shows (`DateEvidence`): the model worked them out itself.
 private struct DateNote: View {
     var dates: [String]
 
     var body: some View {
-        Label {
+        HStack(alignment: .firstTextBaseline, spacing: Space.m) {
+            Image(systemName: "calendar.badge.exclamationmark").foregroundStyle(Theme.need)
             Text(T("Not in what I read: %@. I worked this out myself, so please check it.", table: "App",
                    dates.formatted(.list(type: .and))))
-        } icon: {
-            Image(systemName: "calendar.badge.exclamationmark").foregroundStyle(Theme.need)
+                .foregroundStyle(Theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: 520, alignment: .leading)
+        .font(.system(size: 12.5))
+        .padding(.horizontal, Space.ml).padding(.vertical, Space.s)
+        .frame(maxWidth: Layout.cardMax, alignment: .leading)
+        .background(Theme.needTint.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 }
 
-private struct ReceiptRow: View {
+/// What a writing tool did: added to Calendar, a reminder, a Mail draft. Done ones open the app.
+struct ReceiptRow: View {
     var receipt: PippaMCPWriteReceipt
     private var done: Bool { receipt.outcome == "done" }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.body.weight(.medium))
+        HStack(spacing: Space.ml) {
+            Image(systemName: Self.symbol(receipt))
+                .font(.system(size: 12.5, weight: .semibold))
                 .foregroundStyle(done ? Theme.ok : Theme.need)
-                .frame(width: 32, height: 32)
-                .background(done ? Theme.okTint : Theme.needTint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.callout.weight(.semibold))
-                if !receipt.name.isEmpty { Text(receipt.name).font(.callout).foregroundStyle(.secondary).lineLimit(2) }
+                .frame(width: 28, height: 28)
+                .background(done ? Theme.okTint : Theme.needTint, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(Self.title(receipt)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink)
+                if !receipt.name.isEmpty {
+                    Text(receipt.name).font(.system(size: 12)).foregroundStyle(Theme.ink2).lineLimit(2)
+                }
             }
-            Spacer(minLength: 8)
-            if receipt.action == "mailDraft", done {
-                Button(T("Open Mail", table: "App")) { Task { await PippaMCPService.showMail() } }.controlSize(.small)
+            Spacer(minLength: Space.m)
+            if let open = Self.openAction(receipt), let label = Self.openLabel(receipt) {
+                ActionPill(title: label, action: open)
             }
         }
-        .padding(10)
-        .frame(maxWidth: 520, alignment: .leading)
-        .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.chatBorder))
+        .padding(Space.ml)
+        .frame(maxWidth: Layout.cardMax, alignment: .leading)
+        .raised(Radius.card)
     }
-
-    private var symbol: String { Self.symbol(receipt) }
-    private var title: String { Self.title(receipt) }
 
     static func symbol(_ receipt: PippaMCPWriteReceipt) -> String {
         switch receipt.action {
@@ -667,159 +709,56 @@ private struct ReceiptRow: View {
         default: return receipt.name
         }
     }
-}
 
-// MARK: Composer
-
-private struct Composer: View {
-    @ObservedObject var chat: ChatModel
-    @ObservedObject var setup: SetupModel
-    @FocusState private var focused: Bool
-
-    private var canSend: Bool {
-        setup.canAnswer && !(chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && chat.attachments.isEmpty)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if !chat.attachments.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(chat.attachments, id: \.self) { url in
-                            Chip(title: url.lastPathComponent, icon: NSWorkspace.shared.icon(forFile: url.path), symbol: "doc") {
-                                chat.attachments.removeAll { $0 == url }
-                            }
-                        }
-                    }
-                }
-            }
-            TextField(T("Ask Pippa…", table: "App"), text: $chat.draft, axis: .vertical)
-                .textFieldStyle(.plain).font(.system(size: 14)).lineLimit(1...10).focused($focused)
-                .onSubmit { if canSend { chat.send() } }
-            HStack(spacing: 10) {
-                Button { addFiles() } label: { Image(systemName: "paperclip").font(.system(size: 14, weight: .medium)) }
-                    .buttonStyle(.borderless).foregroundStyle(.secondary).help(T("Add Files…", table: "App"))
-                if chat.canMakePDF && !chat.isAnswering {
-                    Button { chat.makePDF() } label: { Label(T("One PDF", table: "App"), systemImage: "doc.richtext") }
-                        .controlSize(.small).help(T("Make one PDF from these files, right here on your Mac", table: "App"))
-                }
-                Spacer()
-                AIBadge(setup: setup)
-                if chat.isAnswering {
-                    RoundButton(symbol: "stop.fill", filled: true, tint: Theme.ink) { chat.stop() }
-                        .help(T("Stop", table: "App"))
-                } else {
-                    RoundButton(symbol: "arrow.up", filled: canSend, tint: Theme.accentFill) { chat.send() }
-                        .keyboardShortcut(.return, modifiers: .command)
-                        .disabled(!canSend)
-                        .help(T("Send", table: "App") + " (↩)")
-                }
-            }
-        }
-        .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 10)
-        .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(focused ? Theme.accent.opacity(0.5) : Theme.chatBorder))
-        .shadow(color: .black.opacity(0.07), radius: 14, y: 4)
-        .padding(.horizontal, 24).padding(.bottom, 18).padding(.top, 6)
-        .frame(maxWidth: 800)
-        .frame(maxWidth: .infinity)
-        .onAppear { focused = true }
-    }
-
-    private func addFiles() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = true
-        guard panel.runModal() == .OK else { return }
-        for url in panel.urls where !chat.attachments.contains(url) { chat.attachments.append(url) }
-    }
-}
-
-/// Which AI answers: on this Mac, or the online one chosen in Settings. A click opens Settings.
-private struct AIBadge: View {
-    @ObservedObject var setup: SetupModel
-
-    var body: some View {
-        Button { SettingsWindow.shared.show() } label: {
-            HStack(spacing: 4) {
-                if case .preparing = setup.state, !setup.usesOnlineAI { ProgressView().controlSize(.mini) }
-                else { Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer") }
-                Text(label).lineLimit(1)
-            }
-            .font(.caption).foregroundStyle(.secondary)
-        }
-        .buttonStyle(.borderless)
-        .help(T("Change in Settings", table: "App"))
-    }
-
-    private var label: String { Self.label(setup) }
-
-    /// Which AI answers: the local model's name, ChatGPT or the connected model.
-    @MainActor static func label(_ setup: SetupModel) -> String {
-        let settings = InferenceSettings.load(from: PiSession.settingsDirectory)
-        if settings.subscriptionModel != nil { return "ChatGPT" }
-        if let connection = PiOnlineProvider.activeConnection(settings) { return connection.modelID }
-        switch setup.state {
-        case .ready: return T("On this Mac", table: "App")
-        case .preparing: return T("Getting ready…", table: "App")
-        case .downloading: return T("Loading AI…", table: "App")
-        default: return T("Not set up", table: "App")
+    private static func openLabel(_ receipt: PippaMCPWriteReceipt) -> String? {
+        switch receipt.action {
+        case "calendarAdd": return T("Open Calendar", table: "App")
+        case "reminderAdd": return T("Open Reminders", table: "App")
+        case "mailDraft": return T("Open Mail", table: "App")
+        default: return nil
         }
     }
-}
 
-private struct RoundButton: View {
-    var symbol: String
-    var filled: Bool
-    var tint: Color
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(filled ? Color(nsColor: .textBackgroundColor) : Color.secondary)
-                .frame(width: 28, height: 28)
-                .background(filled ? tint : Theme.fill3, in: Circle())
+    /// Brings the app with what was added to the front; `nil` when nothing was added.
+    static func openAction(_ receipt: PippaMCPWriteReceipt) -> (() -> Void)? {
+        guard receipt.outcome == "done" else { return nil }
+        switch receipt.action {
+        case "mailDraft": return { Task { await PippaMCPService.showMail() } }
+        case "calendarAdd": return { bringForward(.calendar) }
+        case "reminderAdd": return { bringForward(.reminders) }
+        default: return nil
         }
-        .buttonStyle(.plain)
     }
-}
 
-private struct Chip: View {
-    var title: String
-    var icon: NSImage?
-    var symbol: String
-    var remove: () -> Void
-
-    var body: some View {
-        HStack(spacing: 6) {
-            if let icon { Image(nsImage: icon).resizable().frame(width: 16, height: 16) } else { Image(systemName: symbol) }
-            Text(title).lineLimit(1).truncationMode(.middle).frame(maxWidth: 200, alignment: .leading)
-            Button(action: remove) { Image(systemName: "xmark").font(.system(size: 9, weight: .bold)) }
-                .buttonStyle(.borderless).foregroundStyle(.secondary)
-        }
-        .font(.callout)
-        .padding(.leading, 8).padding(.trailing, 9).padding(.vertical, 5)
-        .background(Theme.fill2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    /// With PIPPA_DEMO=1 nothing (no real apps).
+    private static func bringForward(_ integration: Integration) {
+        guard ProcessInfo.processInfo.environment["PIPPA_DEMO"] != "1",
+              let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: integration.bundleIdentifier) else { return }
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        NSWorkspace.shared.openApplication(at: app, configuration: config)
     }
 }
 
 /// A file the person added to a question; a click opens it.
 private struct FileChip: View {
     var url: URL
+    private let hoverState = State(initialValue: false)
+
     var body: some View {
         Button { NSWorkspace.shared.open(url) } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Space.s) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: url.path)).resizable().frame(width: 16, height: 16)
                 Text(url.lastPathComponent).lineLimit(1).truncationMode(.middle)
             }
-            .font(.callout)
-            .padding(.horizontal, 10).padding(.vertical, 6)
-            .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.chatBorder))
+            .font(.system(size: 12.5)).foregroundStyle(Theme.ink)
+            .padding(.horizontal, Space.ml).frame(height: 30)
+            .raised(Radius.control, lifted: hoverState.wrappedValue)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+        .help(url.path)
     }
 }
 
@@ -829,13 +768,13 @@ private struct DropOverlay: View {
             .fill(Theme.accentTint)
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: [8, 6])))
             .overlay {
-                VStack(spacing: 8) {
+                VStack(spacing: Space.m) {
                     Image(systemName: "arrow.down.doc").font(.system(size: 32, weight: .medium))
                     Text(T("Drop files for Pippa", table: "App")).font(.title3.weight(.semibold))
                 }
                 .foregroundStyle(Theme.accent)
             }
-            .padding(12)
+            .padding(Space.l)
             .allowsHitTesting(false)
     }
 }

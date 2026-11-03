@@ -36,19 +36,19 @@ const CLOUD = ['Library/Mobile Documents/', 'Library/CloudStorage/'];
 const SKIP_PARTS = /^(node_modules|__pycache__)$|\.(app|photoslibrary|musiclibrary|tvlibrary|photolibrary|bundle|framework|plugin|xcodeproj|xcworkspace|xcassets|lproj)$/i;
 const MAX_FOLDERS = 10;
 
-/** "Kinderbuchs" → "kinderbuch", "Rechnungen" → "rechnung": prefix and part matches then also find other forms. */
+/** "Kinderbuchs" → "kinderbuch", "Rechnungen" → "rechnung", "Briefe" → "brief": prefix and part matches then also find other forms. */
 export function stem(word) {
  const w = word.toLowerCase();
  if (/\d/.test(w)) return w;
- if (w.length >= 7 && /(en|es)$/.test(w)) return w.slice(0, -2);
- if (w.length >= 6 && w.endsWith('s')) return w.slice(0, -1);
+ if (w.length >= 7 && /(en|es|er)$/.test(w)) return w.slice(0, -2);
+ if (w.length >= 6 && /[es]$/.test(w)) return w.slice(0, -1);
  return w;
 }
 
 /** The search words (stemmed) and a named file type, from the model's query. */
 export function parseQuery(query, kind) {
  const raw = query.match(/[\p{L}\p{N}]+/gu) ?? [];
- if (!raw.length || raw.length > 8) throw Error('Ein Thema mit 1 bis 8 Wörtern ist nötig.');
+ if (!raw.length || raw.length > 8) throw Error('A query of 1 to 8 words is required.');
  let named = kind ? (KINDS[kind.toLowerCase()] ? kind.toLowerCase() : KIND_WORDS[kind.toLowerCase()]) : undefined;
  const words = [];
  for (const word of raw) {
@@ -63,14 +63,14 @@ export function parseQuery(query, kind) {
 
 // Two unambiguous document categories in Pippa's supported languages. Keep every other query word literal;
 // broad translations (for example "bill") could silently change the subject or a person's name.
-const CATEGORY_TERMS = [['rechnung', 'invoice', 'invoic'], ['versicherung', 'insurance']];
+const CATEGORY_TERMS = [['rechnung', 'invoice', 'invoic'], ['versicherung', 'insurance', 'insuranc']];
 const terms = word => CATEGORY_TERMS.find(group => group.includes(word)) ?? [word];
 const named = (name, word) => terms(word).some(term => name.includes(term));
 const clause = word => `(${terms(word).flatMap(term => [`kMDItemTextContent == "${term}*"cd`, `kMDItemFSName == "*${term}*"cd`]).join(' || ')})`;
 const yearClause = year => `kMDItemTextContent == "${year}"cd`;
 
 function checkYear(year) {
- if (year !== undefined && !/^\d{4}$/.test(year)) throw Error('Das Jahr muss vierstellig sein.');
+ if (year !== undefined && !/^\d{4}$/.test(year)) throw Error('The year must be a 4-digit number.');
 }
 
 /** Spotlight query for files: every word in the content or the name; the year in the content. */
@@ -104,7 +104,7 @@ export async function search(query, year, home = process.env.CFFIXED_USER_HOME |
  const parsed = parseQuery(query, kind);
  const { words } = parsed;
  const searched = [], unavailable = [];
- try { if (!(await stat(home)).isDirectory()) throw Error('kein Ordner'); await access(home, constants.R_OK); searched.push(home); }
+ try { if (!(await stat(home)).isDirectory()) throw Error('not a folder'); await access(home, constants.R_OK); searched.push(home); }
  catch (e) { unavailable.push({ folder: home, reason: e.code === 'ENOENT' ? 'missing' : 'not accessible' }); }
  if (!searched.length) return { status: 'unavailable', query, total: 0, files: [], unavailable };
  // Folders macOS guards separately: say when Pippa may not look inside.
@@ -114,7 +114,8 @@ export async function search(query, year, home = process.env.CFFIXED_USER_HOME |
  const split = stdout => [...new Set(stdout.split('\0').filter(Boolean))].filter(p => personal(p, home));
  const failures = [];
  const find = async (where, query) => {
-  const result = await run(['-0', '-onlyin', where, query]);
+  const scopes = (Array.isArray(where) ? where : [where]).flatMap(f => ['-onlyin', f]);
+  const result = await run(['-0', ...scopes, query]);
   if (result.error) failures.push(result.error);
   return split(result.stdout);
  };
@@ -126,11 +127,16 @@ export async function search(query, year, home = process.env.CFFIXED_USER_HOME |
  // Shallow folders first; a folder inside another hit is covered by it.
  const folders = folderHits.sort((a, b) => a.split('/').length - b.split('/').length || a.localeCompare(b))
   .filter((f, i, all) => !all.slice(0, i).some(o => f.startsWith(o + '/'))).slice(0, MAX_FOLDERS);
- const inside = await Promise.all(folders.map(folder => {
+ const byQuery = new Map();
+ for (const folder of folders) {
   const name = basename(folder).toLowerCase();
   const rest = words.filter(w => !named(name, w));
-  return find(folder, [...rest.map(clause), ...extra].join(' && ') || 'kMDItemFSName == "*"');
- }));
+  const insideQuery = [...rest.map(clause), ...extra].join(' && ') || 'kMDItemFSName == "*"';
+  const group = byQuery.get(insideQuery) ?? [];
+  group.push(folder);
+  byQuery.set(insideQuery, group);
+ }
+ const inside = await Promise.all([...byQuery.entries()].map(([insideQuery, group]) => find(group, insideQuery)));
  const paths = [...new Set([...direct, ...inside.flat()])];
  const kindExt = parsed.kind ? KINDS[parsed.kind] : undefined;
  const found = [];

@@ -182,7 +182,7 @@ export function writeLock(path, data) {
 /** Remove the lock if it still says what `matches` expects (never someone else's newer lock). */
 export function removeLockIf(path, matches) {
 	const lock = readLock(path);
-	if (lock && !matches(lock)) return false;
+	if (!lock || !matches(lock)) return false;
 	try {
 		unlinkSync(path);
 		return true;

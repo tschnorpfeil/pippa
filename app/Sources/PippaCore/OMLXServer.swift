@@ -25,11 +25,11 @@ public actor OMLXServer {
 
     public func ensureRunning() async throws {
         if await health() { return }
-        if let starting { return try await starting.value }
+        if let starting { return try await withTaskCancellationHandler { try await starting.value } onCancel: { starting.cancel() } }
         let task = Task { try await start() }
         starting = task
         defer { starting = nil }
-        try await task.value
+        try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
 
     private func start() async throws {
@@ -38,9 +38,10 @@ public actor OMLXServer {
         let lock = plan.lockFile
         // Someone else holds the lock and is alive: wait for their server instead of starting a second one.
         if let held = PiServerLock.read(lock), held.holder != me, held.isLive {
-            if try await waitForHealth(timeout: 180, while: { held.isLive }) { return }
+            if try await waitForHealth(timeout: 180, while: { PiServerLock.read(lock)?.isLive == true }) { return }
         }
-        _ = PiServerLock.remove(lock) { _ in true }
+        _ = PiServerLock.remove(lock) { !$0.isLive }
+        guard PiServerLock.read(lock)?.isLive != true else { throw PippaError.modelFailed }
         guard PiServerLock.create(lock, PiServerLock(owner: "app", holder: me, pid: nil, port: plan.port)) else {
             // Lost the race to the terminal: use theirs.
             if try await waitForHealth(timeout: 180, while: { true }) { return }

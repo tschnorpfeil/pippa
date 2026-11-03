@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The answer's Markdown as blocks: paragraphs, headings, lists, quotes, code and tables. Small models write all of
@@ -8,44 +9,42 @@ struct MarkdownText: View {
     var highlights: [String] = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.l) {
             ForEach(Array(MarkdownBlock.parse(text).enumerated()), id: \.offset) { _, block in
                 view(for: block)
             }
         }
+        .font(.system(size: 14))
+        .foregroundStyle(Theme.ink)
         .textSelection(.enabled)
     }
 
     @ViewBuilder private func view(for block: MarkdownBlock) -> some View {
         switch block {
         case .paragraph(let text):
-            Text(inline(text)).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+            Text(inline(text)).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
         case .heading(let level, let text):
             Text(inline(text))
-                .font(level <= 1 ? .title3.weight(.semibold) : level == 2 ? .headline : .subheadline.weight(.semibold))
-                .padding(.top, 4)
+                .font(.system(size: level <= 1 ? 17 : level == 2 ? 15.5 : 14.5, weight: .semibold))
+                .padding(.top, Space.xs)
         case .list(let items, let ordered):
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: Space.s) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(ordered ? "\(index + 1)." : "•").foregroundStyle(.secondary).monospacedDigit()
+                        Text(ordered ? "\(index + 1)." : "•").foregroundStyle(Theme.ink3).monospacedDigit()
                             .frame(minWidth: ordered ? 18 : 10, alignment: .trailing)
-                        Text(inline(item.text)).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                        Text(inline(item.text)).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.leading, CGFloat(item.indent) * 18)
                 }
             }
         case .quote(let text):
             HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 1.5).fill(Theme.chatBorder).frame(width: 3)
-                Text(inline(text)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                RoundedRectangle(cornerRadius: 1.5).fill(Theme.fill3).frame(width: 3)
+                Text(inline(text)).foregroundStyle(Theme.ink2).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
             }
         case .code(let text):
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(text).font(.system(.callout, design: .monospaced)).padding(12)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: 8))
+            CodeBlock(text: text)
         case .table(let header, let rows):
             MarkdownTable(header: header, rows: rows)
         case .rule:
@@ -72,31 +71,95 @@ struct MarkdownText: View {
     }
 }
 
+/// Code in a neutral inset with a hairline; Copy appears on hover.
+private struct CodeBlock: View {
+    var text: String
+    private let hoverState = State(initialValue: false)
+    private let copiedState = State(initialValue: false)
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+        ScrollView(.horizontal, showsIndicators: false) {
+            Text(text).font(.system(size: 12.5, design: .monospaced)).foregroundStyle(Theme.ink).lineSpacing(3)
+                .padding(.horizontal, Space.l).padding(.vertical, Space.ml)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.chatInset, in: shape)
+        .overlay { shape.strokeBorder(Theme.hairline, lineWidth: 1) }
+        .overlay(alignment: .topTrailing) {
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                copiedState.wrappedValue = true
+                Task { try? await Task.sleep(for: .seconds(1.5)); copiedState.wrappedValue = false }
+            } label: {
+                Image(systemName: copiedState.wrappedValue ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.ink2)
+                    .frame(width: 26, height: 26)
+                    .raised(Radius.row)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(Space.s)
+            .opacity(hoverState.wrappedValue || copiedState.wrappedValue ? 1 : 0)
+            .allowsHitTesting(hoverState.wrappedValue)
+            .help(copiedState.wrappedValue ? T("Copied", table: "App") : T("Copy", table: "App"))
+            .accessibilityLabel(T("Copy", table: "App"))
+        }
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+    }
+}
+
+/// A table in a hairline frame: a tinted head, every other row softly filled so long rows stay easy to follow, and
+/// columns of amounts, dates or percentages set flush right so their digits line up.
 private struct MarkdownTable: View {
     var header: [String]
     var rows: [[String]]
 
     var body: some View {
+        let numeric = (0..<header.count).map { Self.isNumeric(column: $0, in: rows) }
         ScrollView(.horizontal, showsIndicators: false) {
             Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
-                GridRow { ForEach(Array(header.enumerated()), id: \.offset) { _, cell in self.cell(cell, bold: true) } }
-                    .background(Theme.chatInset)
-                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                    Divider().gridCellUnsizedAxes(.horizontal)
-                    GridRow {
-                        ForEach(0..<header.count, id: \.self) { column in self.cell(column < row.count ? row[column] : "", bold: false) }
+                GridRow {
+                    ForEach(Array(header.enumerated()), id: \.offset) { column, text in
+                        cell(text, bold: true, trailing: numeric[column])
                     }
                 }
+                .background(Theme.chatInset)
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    Rectangle().fill(Theme.hairline).frame(height: 1).gridCellUnsizedAxes(.horizontal)
+                    GridRow {
+                        ForEach(0..<header.count, id: \.self) { column in
+                            cell(column < row.count ? row[column] : "", bold: false, trailing: numeric[column])
+                        }
+                    }
+                    .background(index % 2 == 1 ? Theme.chatInset.opacity(0.5) : .clear)
+                }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.chatBorder))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
         }
     }
 
-    private func cell(_ text: String, bold: Bool) -> some View {
-        Text(MarkdownText.inline(text)).fontWeight(bold ? .semibold : .regular)
-            .padding(.horizontal, 10).padding(.vertical, 6)
-            .frame(maxWidth: 280, alignment: .leading)
+    private func cell(_ text: String, bold: Bool, trailing: Bool) -> some View {
+        Text(MarkdownText.inline(text)).font(.system(size: 13, weight: bold ? .semibold : .regular))
+            .monospacedDigit()
+            .multilineTextAlignment(trailing ? .trailing : .leading)
+            .padding(.horizontal, Space.l).padding(.vertical, 7)
+            .frame(maxWidth: 280, alignment: trailing ? .trailing : .leading)
+            .gridColumnAlignment(trailing ? .trailing : .leading)
+    }
+
+    /// Every filled cell of the column is a number: "184,37 €", "62 %", "−3", "1.200". Dates stay left (they read as text).
+    static func isNumeric(column: Int, in rows: [[String]]) -> Bool {
+        let cells = rows.compactMap { column < $0.count ? $0[column] : nil }
+            .map { $0.replacingOccurrences(of: "*", with: "").trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && $0 != "–" && $0 != "-" }
+        guard !cells.isEmpty else { return false }
+        let allowed = CharacterSet(charactersIn: "0123456789.,+-−%€$£¥ \u{00A0}\u{202F}")
+        return cells.allSatisfy { cell in
+            cell.rangeOfCharacter(from: .decimalDigits) != nil && cell.unicodeScalars.allSatisfy { allowed.contains($0) }
+        }
     }
 }
 

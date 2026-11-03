@@ -283,7 +283,7 @@ func runDurableJobChecks() async {
         return unchanged.state == .running && unchanged.revision == run.revision && unchanged.resultData == nil && done.state == .completed
     }
 
-    await checkAsync("Durable jobs: corrupt or mismatched records block opening and all later mutations without deletion") {
+    await checkAsync("Durable jobs: corrupt historical rows do not block unrelated mutations") {
         let directory = try durableFixtureDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = try DurableJobStore(baseDirectory: directory)
@@ -291,8 +291,8 @@ func runDurableJobChecks() async {
         try durableFixtureSQL(store.databaseURL, "UPDATE durable_jobs SET record='broken';")
         do { _ = try DurableJobStore(baseDirectory: directory); return false }
         catch DurableJobError.unreadable { }
-        do { _ = try await store.create(kind: .morningBriefing, requestKey: "unrelated", title: "Today"); return false }
-        catch DurableJobError.unreadable { }
+        let healthy = try await store.create(kind: .morningBriefing, requestKey: "unrelated", title: "Today")
+        _ = try await store.start(id: healthy.id, expectedRevision: healthy.revision)
         return FileManager.default.fileExists(atPath: store.databaseURL.path)
     }
 

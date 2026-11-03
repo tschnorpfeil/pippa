@@ -9,13 +9,7 @@ struct ReminderCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "checklist").font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
-                    .accessibilityHidden(true)
-                Text(card.title).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
-            }
-            .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
-            .accessibilityAddTraits(.isHeader)
+            CardHeader(symbol: "checklist", title: card.title, detail: nil)
             ForEach(Array(card.items.enumerated()), id: \.offset) { _, item in
                 ReminderCardRow(item: item, showsList: card.showsList)
             }
@@ -30,10 +24,8 @@ struct ReminderCardView: View {
 private struct ReminderCardRow: View {
     var item: ReminderCard.Item
     var showsList: Bool
-    private let hoverState = State<Bool>(initialValue: false)
-
     var body: some View {
-        Button(action: open) {
+        CardRowButton(action: open) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: "circle").font(.scaled(size: 12)).foregroundStyle(item.overdue ? Theme.need : Theme.ink3)
                     .accessibilityHidden(true)
@@ -49,12 +41,7 @@ private struct ReminderCardRow: View {
                     Text(due).font(.scaled(size: 11.5).monospacedDigit()).foregroundStyle(item.overdue ? Theme.need : Theme.ink3).fixedSize()
                 }
             }
-            .padding(.horizontal, 14).padding(.vertical, 5)
-            .background(hoverState.wrappedValue ? Theme.chatBorder : .clear)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { hoverState.wrappedValue = $0 }
         .help(T("Open in Reminders", table: "Views"))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel([item.title, item.dueLabel, item.overdue ? T("overdue", table: "Views") : nil, showsList ? item.list : nil]

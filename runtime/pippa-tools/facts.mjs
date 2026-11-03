@@ -22,7 +22,7 @@ const FRONT_MATTER_LINES = 15;
 
 /** `updated` (or else `date`) from YAML front matter within the first lines of a Markdown text; `undefined` without. */
 export function frontMatterDate(text) {
- const lines = String(text).split(/\r?\n/).slice(0, FRONT_MATTER_LINES);
+ const lines = String(text).replace(/^\uFEFF/, '').split(/\r?\n/).slice(0, FRONT_MATTER_LINES);
  if (lines[0]?.trim() !== '---') return undefined;
  const found = {};
  for (const line of lines.slice(1)) {

@@ -139,7 +139,9 @@ public struct CellRef: Sendable, Hashable, Comparable, CustomStringConvertible {
         var n = 0
         for c in letters.uppercased().unicodeScalars {
             guard (65...90).contains(c.value) else { return nil }
+            guard n <= CellArea.maxColumn / 26 else { return nil }
             n = n * 26 + Int(c.value - 64)
+            guard n <= CellArea.maxColumn else { return nil }
         }
         return (1...CellArea.maxColumn).contains(n) ? n : nil
     }

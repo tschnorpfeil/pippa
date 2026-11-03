@@ -8,8 +8,7 @@ is in German.
 
 - **Her AI runs on your Mac.** By default, her built-in AI reads your letters, PDFs and photos on your Mac. No Pippa
   account, no Pippa server, no tracking in the app.
-- **Online AI only if you turn it on.** Sign in with ChatGPT or add your own OpenAI or Anthropic key, then switch it on
-  in Settings. While it's on, that service receives your conversations and what Pippa reads for them.
+- **Online AI only if you turn it on.** Connect one of Pi’s providers in Settings, choose a model, then press **Use [provider]**. While it's on, that service receives your conversations and what Pippa reads for them.
 - **She never sends your mail.** Replies wait as unsent drafts in Apple Mail, and events and reminders go into Calendar
   and Reminders. Those apps may sync through your accounts, such as iCloud.
 - **Online only where needed.** Downloads, updates and web lookups use the internet, and she asks before searching the
@@ -27,16 +26,20 @@ is in German.
 Online AI is off until you turn it on in Settings. Only one online service can be on at a time: turning one on turns
 the other off. Settings always says where Pippa's AI runs.
 
-**ChatGPT (your subscription).** Choose **Sign in with ChatGPT**; the sign-in happens in your browser. Then switch it
-on. Pippa asks first: "Your conversation and everything Pippa reads for it will be sent to OpenAI. You can switch back
-to the AI on this Mac at any time." Switching it off keeps the sign-in; **Sign Out** ends it. Pi in Terminal shares
-this sign-in, so signing out applies there too.
+**Connect and choose.** Settings lists the providers, chat models, and authentication methods supported by the bundled
+Pi release. Sign in in your browser or enter an API key, choose a model, and press **Use [provider]**. Connecting an
+account alone does not activate online conversations. The screen names the recipient before activation.
+**Use this Mac** turns online conversations off and keeps the provider connected.
 
-**Your own OpenAI or Anthropic account.** Turn on **Use my own online AI**, choose the provider, and enter a model ID
-and your API key. The key is saved in your macOS Keychain. **Test and Save** sends one short test message, with no
-files and nothing from your conversations. While the switch is on, your conversations and what you show Pippa go to
-that service. **Remove** deletes the connection and the key. A custom OpenAI-compatible server set up in an earlier
-version keeps working; new ones can't be added.
+**Credentials.** Pi manages new API keys and OAuth tokens in its credential file (`~/.pi/agent/auth.json`), shared
+with Pi in Terminal. These credentials are not stored in Pippa’s settings or passed in command-line arguments.
+**Disconnect** signs the provider out of Pi too; it does not revoke credentials at the provider or remove credentials
+configured outside Pippa. Model catalogs can be refreshed without sending conversation contents.
+
+**Existing connections.** A ChatGPT connection from an earlier Pippa release keeps working through Pi. Existing
+OpenAI, Anthropic, and compatible-server connections keep their API keys in the macOS Keychain and use the previous
+route until you choose a Pi provider. Pippa does not silently move those keys into Pi’s credential file. The existing
+connection’s **Remove** action deletes its Keychain entry.
 
 Web searches never go through a signed-in online AI.
 
@@ -48,6 +51,7 @@ Web searches never go through a signed-in online AI.
 | Update checks | Once a day, from this repository's releases. Updates install when you quit or after a while without input. |
 | Web searches | The first search in an answer shows you the exact search text and waits for your OK. |
 | Reading web pages | Pages from your own message or from that answer's search results are read without asking again. Any other address is asked for. Addresses on your Mac or your local network are never read. |
+| Provider setup | Browser sign-in, credential setup, and model catalog refresh when requested in Settings. No conversation contents. |
 | Online AI | Only while you have it switched on (see above). |
 | Commands that go online | Pippa's command-line helper asks before a command that goes online, such as downloading a file. |
 | Mail, Calendar, Reminders, Photos | These are Apple's apps. They may sync through your accounts, such as iCloud or your mail server, as usual. |

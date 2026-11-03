@@ -106,7 +106,12 @@ test("pages from the person's message or this answer's search results are read w
 
 test("this Mac and its local network are never read, whatever the model says", async () => {
 	for (const url of ["http://localhost:8080/", "http://127.0.0.1:41234/mcp", "http://192.168.1.1/", "http://10.0.0.2", "http://172.20.0.1",
-		"http://169.254.169.254/latest", "http://[::1]/", "http://drucker.local/", "file:///etc/passwd", "ftp://example.org/x"]) {
+		"http://169.254.169.254/latest", "http://[::1]/", "http://[::]/", "http://[0:0:0:0:0:0:0:1]/",
+		"http://[::ffff:127.0.0.1]:41234/mcp", "http://[0:0:0:0:0:ffff:192.168.1.1]/", "http://[::ffff:10.0.0.1]/",
+		"http://[fe80::1]/", "http://[fe90::1]/", "http://[fea0::1]/", "http://[febf::1]/",
+		"http://100.64.0.1/", "http://100.127.255.254/",
+		"http://drucker.local/", "http://fritz.box/", "http://nas.internal/", "http://router.home.arpa/", "http://box.lan/", "http://intranet:8080/",
+		"file:///etc/passwd", "ftp://example.org/x"]) {
 		assert.ok(localAddress(url), url);
 		const guard = webGuard();
 		guard.input({ text: url });
@@ -114,7 +119,7 @@ test("this Mac and its local network are never read, whatever the model says", a
 		const result = await guard.toolCall({ toolName: "fetch_content", input: { url } }, ui(true).ctx);
 		assert.equal(result?.block, true, url);
 	}
-	for (const url of ["https://www.tagesschau.de/", "https://172.32.0.1/", "https://example.org/a"]) assert.equal(localAddress(url), undefined, url);
+	for (const url of ["https://www.tagesschau.de/", "https://172.32.0.1/", "https://100.63.255.255/", "https://100.128.0.1/", "https://[::ffff:93.184.216.34]/", "https://example.org/a"]) assert.equal(localAddress(url), undefined, url);
 });
 
 test("addresses are taken from text without trailing punctuation; questions are in the app's language", () => {

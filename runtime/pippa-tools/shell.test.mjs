@@ -93,6 +93,19 @@ test("the question names everyday folders, not paths; the command only under Det
 	assert.equal(grantAskText(new Set(["net"]), "curl", [], "en").title, "May Pippa go online?");
 });
 
+test("namedPaths resolves relative files in cwd that exist on disk, and filesToKeep resolves symlinks", async () => {
+	const { symlinkSync } = await import("node:fs");
+	const { root, home, work } = scratch("rel");
+	const docs = join(home, "Documents");
+	const file = join(docs, "Brief.txt");
+	writeFileSync(file, "inhalt");
+	assert.deepEqual(namedPaths("sed -i '' 's/a/b/' Brief.txt", docs, home), [file]);
+	const linkHome = join(root, "home-link");
+	symlinkSync(home, linkHome);
+	const linkFile = join(linkHome, "Documents", "Brief.txt");
+	assert.deepEqual(await shell.filesToKeep([linkFile], places(work, {}, home)), [linkFile]);
+});
+
 /** Stand-in for /usr/bin/sandbox-exec off a Mac: records the profile, runs the command without a sandbox. */
 function fakeSandbox(root) {
 	const path = join(root, "fake-sandbox-exec");

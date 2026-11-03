@@ -291,3 +291,11 @@ test("a hand-made provider (owner's setup): config names it, no key file", async
 	assert.equal(await common.health(port, ""), 200);
 	await stopAll();
 });
+
+test("removeLockIf never unlinks a lock file when readLock returns null", () => {
+	const partial = join(root, "partial.lock");
+	writeFileSync(partial, "{");
+	assert.equal(common.removeLockIf(partial, () => true), false);
+	assert.equal(existsSync(partial), true);
+	rmSync(partial, { force: true });
+});

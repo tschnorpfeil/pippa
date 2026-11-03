@@ -13,6 +13,7 @@
  * `offset`/`limit` count lines of the text, as for any other file.
  */
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { resolvePath } from "./files.ts";
 
@@ -21,6 +22,18 @@ const TEXTUTIL = new Set(["doc", "docx", "rtf", "rtfd", "odt", "wordml", "webarc
 const NEEDS_APP = new Set(["xlsx", "xlsm", "xls", "numbers", "pages", "key", "pptx", "ppt", "odp", "ods", "msg"]);
 const IMAGES = new Set(["png", "jpg", "jpeg", "heic", "heif", "tif", "tiff", "gif", "webp", "bmp"]);
 export const DOCUMENT_READER = "mcp__pippa__read_document";
+
+/** Decodes a `.csv` file as Windows-1252 when its bytes are not valid UTF-8; `undefined` when UTF-8 or unreadable. */
+async function windows1252Csv(path: string): Promise<string | undefined> {
+	let bytes: Buffer;
+	try { bytes = await readFile(path); } catch { return undefined; }
+	try {
+		new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+		return undefined;
+	} catch {
+		return new TextDecoder("windows-1252").decode(bytes).replace(/\r\n/g, "\n");
+	}
+}
 
 /** How `read` handles a path: "pdf" | "textutil" | "app" | "image" | undefined (Pi's own read). */
 export function documentKind(path: string): "pdf" | "textutil" | "app" | "image" | undefined {
@@ -86,6 +99,13 @@ export function readTool(create: (cwd: string, options?: any) => any, exec: Run 
 				description: "Read a file: text, image, or a document (PDF, Word, Excel, RTF, Pages …) as text; long files with offset/limit.",
 				async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: unknown, ctx: any) {
 					const path = resolvePath(params?.path ?? params?.file_path, ctx?.cwd || defaultCwd);
+					if (extname(path).toLowerCase() === ".csv") {
+						const decoded = await windows1252Csv(path);
+						if (decoded !== undefined) {
+							return { content: [{ type: "text", text: lines(decoded, params?.offset, params?.limit) }],
+								details: { pippaDocument: { path, via: "windows-1252" } } };
+						}
+					}
 					const kind = documentKind(path);
 					const sees = Array.isArray(ctx?.model?.input) ? ctx.model.input.includes("image") : false;
 					if (!kind || (kind === "image" && sees)) return base.execute(id, params, signal, onUpdate, ctx);
@@ -109,7 +129,10 @@ export function readTool(create: (cwd: string, options?: any) => any, exec: Run 
 					if (outcome?.isError) {
 						throw new Error(content.filter((part: any) => part?.type === "text").map((part: any) => part.text).join("\n") || `${name} could not be read.`);
 					}
-					return { content, details: { pippaDocument: { path, via: DOCUMENT_READER } } };
+					const sliced = (params?.offset || params?.limit)
+						? content.map((part: any) => part?.type === "text" ? { ...part, text: lines(String(part.text ?? ""), params?.offset, params?.limit) } : part)
+						: content;
+					return { content: sliced, details: { pippaDocument: { path, via: DOCUMENT_READER } } };
 				},
 			};
 		},

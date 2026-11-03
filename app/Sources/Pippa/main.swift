@@ -34,10 +34,16 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.a
     Task { @MainActor in exit(await Snapshots.run(into: folder)) }
     app.run()
 }
+// Isolated acceptance run: the harness clones the app under a different bundle ID to keep real preferences intact.
+if CommandLine.arguments.dropFirst().contains("--check-window-lifecycle") {
+    app.setActivationPolicy(.regular)
+    Task { @MainActor in exit(await WindowLifecycleChecks.run()) }
+    app.run()
+}
 // First launch from the disk image or Downloads: offer once to move to Applications.
 if AppMover.runIfNeeded() { exit(0) }
 let delegate = AppDelegate()
 app.delegate = delegate
-// Pippa lives in the menu bar and as a pill; PIPPA_REGULAR_APP=1 gives a Dock icon for UI automation.
-app.setActivationPolicy(ProcessInfo.processInfo.environment["PIPPA_REGULAR_APP"] == "1" ? .regular : .accessory)
+// Pippa is a regular Mac app. The menu bar shortcut and optional pill supplement its Dock icon and windows.
+app.setActivationPolicy(.regular)
 app.run()

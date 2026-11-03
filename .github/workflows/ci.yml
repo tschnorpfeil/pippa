@@ -63,6 +63,6 @@ jobs:
         # PIPPA_PI_CLI; heavy.yml runs them.
         run: |
           node --experimental-strip-types --test $(ls runtime/pippa-tools/*.test.mjs | grep -v '/real-pi-') 2>&1 | tail -n 200
-          node --test runtime/pippa-auth/pi-auth.test.mjs 2>&1 | tail -n 200
+          node --test runtime/pippa-auth/*.test.mjs 2>&1 | tail -n 200
           node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}

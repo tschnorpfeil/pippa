@@ -31,6 +31,10 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     /// How full the conversation's context was afterwards.
     var context: ContextUsage?
     var error: String?
+    /// How long the answer took, for "Worked for 18 s".
+    var duration: TimeInterval?
+    /// The person stopped the answer.
+    var stopped: Bool?
 }
 
 struct Conversation: Codable, Identifiable, Equatable {
@@ -58,6 +62,10 @@ final class ChatModel: ObservableObject {
     @Published var unseen: Unseen?
     enum Unseen { case answer, failed }
     @Published private(set) var isAnswering = false
+    /// The conversation the running answer belongs to. The person may look at another one meanwhile.
+    @Published private(set) var answeringID: String?
+    /// Conversations whose answer arrived while the person looked at another one: a dot in the sidebar.
+    @Published private(set) var unseenIDs: Set<String> = []
     /// What the current answer read, for its dates.
     private var evidence = DateEvidence()
     /// Sources of tool calls that have started but not ended.
@@ -65,29 +73,39 @@ final class ChatModel: ObservableObject {
     /// When the running answer started, for the live "Thinking … 12 s".
     @Published private(set) var answerStarted: Date?
     private var answer: Task<Void, Never>?
+    private var pdfTask: Task<Void, Never>?
+    /// "Stop" was pressed for the running answer.
+    private var stopRequested = false
+    /// Counts answers, so a late result of an earlier one never lands on a newer one.
+    private var generation = 0
 
     private static var folder: URL { Pippa.supportDirectory.appendingPathComponent("conversations", isDirectory: true) }
 
     var current: Conversation? { conversations.first { $0.id == currentID } }
+    /// The conversation with the running answer (not necessarily the one on screen).
+    var answering: Conversation? { answeringID.flatMap { id in conversations.first { $0.id == id } } }
+    /// The running answer belongs to the conversation on screen (Stop shows there, not elsewhere).
+    var isAnsweringHere: Bool { isAnswering && (answeringID == nil || answeringID == currentID) }
 
     init() { load() }
 
     // MARK: Conversations
 
     func newConversation() {
-        guard !isAnswering else { return }
         if let current, current.messages.isEmpty { return }
         currentID = nil
         draft = ""; attachments = []
     }
 
+    /// Works while an answer runs: it keeps arriving in its own conversation.
     func select(_ id: String) {
-        guard !isAnswering else { return }
         currentID = id
+        unseenIDs.remove(id)
     }
 
     func delete(_ id: String) {
-        guard !isAnswering || id != currentID else { return }
+        guard !isAnswering || id != answeringID else { return }
+        unseenIDs.remove(id)
         conversations.removeAll { $0.id == id }
         if currentID == id { currentID = nil }
         try? FileManager.default.trashItem(at: Self.folder.appendingPathComponent("\(id).json"), resultingItemURL: nil)
@@ -120,24 +138,29 @@ final class ChatModel: ObservableObject {
         }
         let files = attachments.map(\.path)
         append(ChatMessage(role: .user, text: text, files: files), to: id)
-        append(ChatMessage(role: .assistant, text: ""), to: id)
+        // The question is on disk before the answer starts: a crash or quit mid-answer never loses it.
+        save(id)
+        let reply = ChatMessage(role: .assistant, text: "")
+        append(reply, to: id)
         let prompt = Self.prompt(text, files: files, frontApp: frontApp)
         draft = ""; attachments = []; frontApp = nil
-        isAnswering = true
-        answerStarted = Date()
+        let started = Date()
+        begin(started, in: id)
         _ = PippaMCPService.readNotes.take(); _ = PippaMCPService.writeNotes.take()
         evidence = DateEvidence(); pendingSources = [:]
         evidence.add(prompt: prompt)
+        let turn = generation
         answer = Task {
             do {
-                try await PiSession.shared.ask(prompt, conversation: id) { [weak self] event in self?.apply(event, in: id) }
+                try await PiSession.shared.ask(prompt, conversation: id) { event in self.apply(event, in: id) }
             } catch is CancellationError {
             } catch {
-                updateLast(in: id) { $0.error = error.localizedDescription }
+                if !stopRequested { update(reply.id, in: id) { $0.error = error.localizedDescription } }
             }
             let cards = PippaMCPService.readNotes.take().compactMap(\.card)
             let receipts = PippaMCPService.writeNotes.take()
-            updateLast(in: id) { message in
+            let stopped = stopRequested
+            update(reply.id, in: id) { message in
                 message.cards = cards
                 message.receipts = receipts
                 let dates = evidence.unsupported(in: message.text)
@@ -145,13 +168,33 @@ final class ChatModel: ObservableObject {
                 let checked = evidence.supported(in: message.text)
                 message.checkedDates = checked.isEmpty ? nil : checked
                 for index in message.steps.indices where !message.steps[index].done { message.steps[index].done = true }
+                message.duration = Date().timeIntervalSince(started)
+                if stopped {
+                    message.stopped = true
+                    // Pi reports the abort as an error; the person asked for it, so it is no failure.
+                    message.error = nil
+                }
             }
-            if let usage = await PiSession.shared.contextUsage() { updateLast(in: id) { $0.context = usage } }
-            isAnswering = false
-            answerStarted = nil
-            if !ChatWindow.shared.isKey { unseen = current?.messages.last?.error == nil ? .answer : .failed }
+            // Done before the stats: a slow `get_session_stats` never leaves the window stuck in "answering".
+            end()
+            if !stopped {
+                if !ChatWindow.shared.isKey {
+                    unseen = conversations.first(where: { $0.id == id })?.messages.last?.error == nil ? .answer : .failed
+                }
+                if currentID != id { unseenIDs.insert(id) }
+            }
+            save(id)
+            guard let usage = await PiSession.shared.contextUsage(), generation == turn else { return }
+            update(reply.id, in: id) { $0.context = usage }
             save(id)
         }
+    }
+
+    /// The person picks up their question again: its words and files go back into the composer.
+    func edit(_ message: ChatMessage) {
+        guard !isAnswering, message.role == .user else { return }
+        draft = message.text
+        attachments = message.files.map { URL(fileURLWithPath: $0) }
     }
 
     /// The last answer failed: ask the same question again.
@@ -176,16 +219,22 @@ final class ChatModel: ObservableObject {
         }
         let files = attachments
         append(ChatMessage(role: .user, text: T("Make one PDF", table: "App"), files: files.map(\.path)), to: id)
-        append(ChatMessage(role: .assistant, text: ""), to: id)
+        save(id)
+        let reply = ChatMessage(role: .assistant, text: "")
+        append(reply, to: id)
         attachments = []
-        isAnswering = true
-        Task {
+        let started = Date()
+        begin(started, in: id)
+        pdfTask = Task {
             let result = await PippaMCPService.makePDF(files)
-            updateLast(in: id) { message in
+            let stopped = stopRequested
+            update(reply.id, in: id) { message in
+                message.duration = Date().timeIntervalSince(started)
+                if stopped { message.stopped = true; return }
                 if let card = result.card { message.cards = [card] }
                 if result.failed { message.error = result.text } else if result.card == nil { message.text = result.text }
             }
-            isAnswering = false
+            end()
             save(id)
         }
     }
@@ -198,9 +247,35 @@ final class ChatModel: ObservableObject {
         }
     }
 
+    /// "Stop": Pi aborts the answer and settles, the answer is marked as stopped. Should Pi not settle soon after,
+    /// the answer task is cancelled, so the window never stays in "answering".
     func stop() {
-        guard isAnswering else { return }
+        guard isAnswering, !stopRequested else { return }
+        stopRequested = true
+        if let pdfTask { pdfTask.cancel(); return }
+        let running = answer
         Task { await PiSession.shared.stop() }
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            if isAnswering, answer == running { running?.cancel() }
+        }
+    }
+
+    private func begin(_ started: Date, in id: String) {
+        generation += 1
+        stopRequested = false
+        answeringID = id
+        isAnswering = true
+        answerStarted = started
+    }
+
+    private func end() {
+        isAnswering = false
+        answeringID = nil
+        answerStarted = nil
+        answer = nil
+        pdfTask = nil
+        stopRequested = false
     }
 
     /// What Pi receives: the person's words, then the files they added and the app they called Pippa from.
@@ -257,6 +332,7 @@ final class ChatModel: ObservableObject {
         self.conversations = conversations
         currentID = current
         isAnswering = answering
+        answeringID = answering ? current : nil
         answerStarted = answering ? Date().addingTimeInterval(-42) : nil
     }
 
@@ -266,6 +342,13 @@ final class ChatModel: ObservableObject {
         guard let index = conversations.firstIndex(where: { $0.id == id }) else { return }
         conversations[index].messages.append(message)
         conversations[index].updated = Date()
+    }
+
+    /// Changes one message by its id (not "the last one": a new question may have come since).
+    private func update(_ messageID: UUID, in id: String, _ change: (inout ChatMessage) -> Void) {
+        guard let index = conversations.firstIndex(where: { $0.id == id }),
+              let message = conversations[index].messages.firstIndex(where: { $0.id == messageID }) else { return }
+        change(&conversations[index].messages[message])
     }
 
     private func updateLast(in id: String, _ change: (inout ChatMessage) -> Void) {
