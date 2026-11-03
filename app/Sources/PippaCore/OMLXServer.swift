@@ -12,6 +12,7 @@ public actor OMLXServer {
     let logURL: URL
     private var process: Process?
     private var starting: Task<Void, Error>?
+    private var warming: Task<Void, Error>?
     /// Seconds until `/health` answered at the last start, for the diagnostics log.
     public private(set) var lastStartSeconds: Double?
 
@@ -29,6 +30,28 @@ public actor OMLXServer {
         let task = Task { try await start() }
         starting = task
         defer { starting = nil }
+        try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+    }
+
+    /// Loads weights into RAM without a chat request or conversation. A healthy server may have unloaded them.
+    /// Concurrent callers share the load; a later call checks with oMLX again after an idle unload.
+    public func prewarm() async throws {
+        if let warming { return try await warming.value }
+        let task = Task {
+            try await ensureRunning()
+            try Task.checkCancellation()
+            let url = URL(string: "http://127.0.0.1:\(plan.port)")!
+                .appendingPathComponent("v1/models").appendingPathComponent(plan.modelID).appendingPathComponent("load")
+            var request = URLRequest(url: url, timeoutInterval: 120)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(plan.key)", forHTTPHeaderField: "Authorization")
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
+                throw PippaError.modelFailed
+            }
+        }
+        warming = task
+        defer { warming = nil }
         try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
 
@@ -95,6 +118,7 @@ public actor OMLXServer {
 
     /// Stops the server this app started (SIGTERM, then SIGKILL after 3 s) and gives back the lock.
     public func stop() async {
+        warming?.cancel()
         starting?.cancel()
         if let p = process, p.isRunning {
             p.terminate()

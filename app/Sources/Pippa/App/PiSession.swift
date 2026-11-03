@@ -26,6 +26,7 @@ final class PiSession {
     private var client: PiRPCClient?
     private var startupTask: Task<(PiRPCClient, LaunchRoute), Error>?
     private var preloadTask: Task<Void, Never>?
+    private var lastPrewarmAttempt: ContinuousClock.Instant?
     private var sessionID: String?
     private var launchKey: String?
     private var needsFreshClient = false
@@ -83,7 +84,7 @@ final class PiSession {
     }
 
     func stop() async {
-        preloadTask?.cancel(); preloadTask = nil
+        preloadTask?.cancel()
         if let startupTask {
             startupTask.cancel()
             await client?.cancelNativeReadiness()
@@ -116,14 +117,18 @@ final class PiSession {
 
     func shutdown() async {
         startupTask?.cancel()
-        preloadTask?.cancel(); preloadTask = nil
+        preloadTask?.cancel()
         await client?.cancelNativeReadiness()
         await client?.shutdown()
         client = nil
     }
 
     /// The model's or Pi's settings changed: the next question starts Pi afresh.
-    func settingsChanged() { needsFreshClient = true }
+    func settingsChanged() {
+        needsFreshClient = true
+        preloadTask?.cancel()
+        lastPrewarmAttempt = nil
+    }
 
     // MARK: Starting Pi
 
@@ -221,13 +226,27 @@ final class PiSession {
         return server
     }
 
-    /// Loads the local model ahead of the first question (the chat window opened).
-    func preload() {
-        guard InferenceSettings.load(from: Self.settingsDirectory).activePiModel == nil,
-              PiOnlineProvider.activeConnection(InferenceSettings.load(from: Self.settingsDirectory)) == nil,
-              SetupModel.shared.isReady else { return }
-        preloadTask?.cancel()
-        preloadTask = Task { if let server = try? await localModelServer() { try? await server.ensureRunning() } }
+    /// Typing is intent to ask. Never send the draft, start an online provider, or load on merely opening a window.
+    /// Keep typing responsive and coalesce changes, including edits to an already nonempty draft after a long pause.
+    func prewarmForInput() {
+        let settings = SettingsModel.shared.inferenceSettings
+        guard settings.activePiModel == nil, PiOnlineProvider.activeConnection(settings) == nil,
+              SetupModel.shared.isReady, !ChatModel.shared.isAnswering, preloadTask == nil else { return }
+        let now = ContinuousClock.now
+        if let lastPrewarmAttempt, now - lastPrewarmAttempt < .seconds(30) { return }
+        lastPrewarmAttempt = now
+        preloadTask = Task {
+            defer { preloadTask = nil }
+            do {
+                let server = try await localModelServer()
+                try Task.checkCancellation()
+                try await server.prewarm()
+            } catch is CancellationError {
+            } catch {
+                // Best effort: a failed speculative load must not block sending the real question.
+                DiagnosticsLog.shared.event("model-prewarm-failed", [:])
+            }
+        }
     }
 
     // MARK: Paths

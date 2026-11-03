@@ -18,6 +18,11 @@ Pi stays the harness; Pippa still only talks to Pi, and Pi talks to the server a
   Pippa writes `<Support>/omlx/settings.json` (0600): 127.0.0.1, the stable port, the API key, model idle timeout.
   oMLX unloads the model by itself after the idle timeout, so Pippa no longer stops the process when idle and no longer
   saves prompt slots; oMLX keeps its own prefix cache on disk (`<Support>/omlx/cache`).
+- **Prewarm while typing**: editing a nonempty prompt starts the local server if necessary and calls the authenticated
+  `POST /v1/models/{model_id}/load` endpoint, which returns after the weights load into RAM. Opening chat alone does
+  not preload. Online AI and incomplete setup skip this work. Concurrent edits share one task, with at most one
+  attempt per 30 seconds; later edits can reload an idle-unloaded model. The draft is never sent and no answer is
+  generated. This hides model loading behind typing; prompt evaluation and generation still happen on Send.
 - **One server for the app and the terminal**: the lock file stays. The app starts the server on demand and stops it on
   quit if it started it. Pi in the terminal (extension `runtime/pippa-local-server`) starts it from the launch file
   `<Support>/pippa-local-server.json` when the app does not run.

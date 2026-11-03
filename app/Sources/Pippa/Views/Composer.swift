@@ -69,6 +69,11 @@ struct Composer: View {
             TextField(T("Ask Pippa…", table: "App"), text: $chat.draft, axis: .vertical)
                 .textFieldStyle(.plain).font(.system(size: 14)).lineSpacing(4).lineLimit(1...10)
                 .focused($focused)
+                .onChange(of: chat.draft) { _, text in
+                    if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        PiSession.shared.prewarmForInput()
+                    }
+                }
                 .onSubmit { if canSend { chat.send() } }
                 .padding(.horizontal, Space.xs)
             HStack(spacing: Space.m) {

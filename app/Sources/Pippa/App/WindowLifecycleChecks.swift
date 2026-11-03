@@ -70,6 +70,36 @@ enum WindowLifecycleChecks {
         let pill = NSApp.windows.first { $0 is NSPanel && $0.styleMask.contains(.nonactivatingPanel) }
         check("Optional pill stays a non-key companion", pill != nil && pill?.canBecomeKey == false && pill?.canBecomeMain == false)
         foregroundCheck("Showing the pill leaves keyboard focus alone", NSApp.keyWindow === priorKey)
+        if let pill, let surface = pill.contentView {
+            check("Pill receives Mail file promises", NSFilePromiseReceiver.readableDraggedTypes.allSatisfy {
+                surface.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0))
+            })
+            let start = pill.frame.origin
+            func mouse(_ type: NSEvent.EventType, _ point: NSPoint) -> NSEvent {
+                NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
+                                   windowNumber: pill.windowNumber, context: nil, eventNumber: 0,
+                                   clickCount: 1, pressure: 1)!
+            }
+            ChatWindow.shared.hide()
+            surface.mouseDown(with: mouse(.leftMouseDown, NSPoint(x: 20, y: 20)))
+            surface.mouseDragged(with: mouse(.leftMouseDragged, NSPoint(x: 60, y: 40)))
+            surface.mouseUp(with: mouse(.leftMouseUp, NSPoint(x: 20, y: 20)))
+            check("Dragging the pill moves its window", abs(pill.frame.minX - start.x - 40) < 1 && abs(pill.frame.minY - start.y - 20) < 1)
+            check("Moving the pill does not open chat", !chat.isVisible)
+            surface.mouseDown(with: mouse(.leftMouseDown, NSPoint(x: 20, y: 20)))
+            surface.mouseUp(with: mouse(.leftMouseUp, NSPoint(x: 20, y: 20)))
+            check("Clicking the pill still opens chat", chat.isVisible)
+            pill.setFrameOrigin(start)
+        }
+        check("Chat receives Mail file promises", NSFilePromiseReceiver.readableDraggedTypes.allSatisfy {
+            chat.contentView?.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0)) == true
+        })
+        let pasteboard = NSPasteboard.withUniqueName()
+        pasteboard.writeObjects([URL(fileURLWithPath: "/tmp/Pippa-drop-fixture.eml") as NSURL])
+        var dropped: [URL] = []
+        DropReader.read(pasteboard) { dropped = $0?.items ?? [] }
+        check("An existing mail file survives drop decoding", dropped.map(\.path) == ["/tmp/Pippa-drop-fixture.eml"])
+        pasteboard.releaseGlobally()
         Pill.shared.isShown = false
         NSApp.hide(nil)
         await settle()

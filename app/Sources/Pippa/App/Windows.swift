@@ -11,7 +11,11 @@ final class ChatWindow: NSObject, NSWindowDelegate {
 
     func show() {
         if window == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 700),
+            // Leave space around a new window on smaller MacBooks. Saved user frames still take precedence.
+            let available = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1280, height: 900)
+            let size = NSSize(width: min(1200, max(640, available.width - 64)),
+                              height: min(800, max(460, available.height - 80)))
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                                   backing: .buffered, defer: false)
             window.title = "Pippa"
@@ -22,7 +26,9 @@ final class ChatWindow: NSObject, NSWindowDelegate {
             // One calm bar: toolbar and title in one row, no line between bar and conversation.
             window.toolbarStyle = .unified
             window.titlebarSeparatorStyle = .none
-            window.contentView = NSHostingView(rootView: ChatView(chat: .shared, setup: .shared))
+            let host = DropHostingView(rootView: ChatView(chat: .shared, setup: .shared))
+            host.feedback = .chat
+            window.contentView = host
             window.center()
             window.setFrameAutosaveName("PippaChat")
             self.window = window
@@ -32,7 +38,6 @@ final class ChatWindow: NSObject, NSWindowDelegate {
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
         ChatModel.shared.unseen = nil
-        PiSession.shared.preload()
     }
 
     var isKey: Bool { window?.isKeyWindow == true }
@@ -69,7 +74,8 @@ final class Pill: ObservableObject {
             panel.isMovableByWindowBackground = true
             // Only fit(_:) sizes the panel. The hosting view's own sizing grows it from the left edge, so a longer line
             // pushed the right edge off the screen before fit(_:) saw a difference.
-            let host = NSHostingView(rootView: PillView(chat: .shared, setup: .shared))
+            let host = PillHostingView(rootView: PillView(chat: .shared, setup: .shared))
+            host.feedback = .pill
             host.sizingOptions = []
             panel.contentView = host
             if let screen = NSScreen.main?.visibleFrame {
@@ -109,15 +115,14 @@ final class Pill: ObservableObject {
 struct PillView: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
-    private let targetedState = State(initialValue: false)
-    private let hoverState = State(initialValue: false)
+    @ObservedObject private var feedback = DropFeedback.pill
 
     private enum Tone { case rest, working, needsYou, done, failed }
 
     var body: some View {
         HStack(spacing: 8) {
             // 28 in a 44 capsule with 8 leading: the mark sits concentric in the round end.
-            PippaMark(size: 28, state: markState, hovered: hoverState.wrappedValue)
+            PippaMark(size: 28, state: markState, hovered: feedback.hovered)
             Text(label)
                 .font(.system(size: 13, weight: .semibold)).monospacedDigit()
                 .foregroundStyle(labelColor)
@@ -139,29 +144,11 @@ struct PillView: View {
         .overlay { Capsule(style: .circular).inset(by: rimWidth / 2).stroke(rim, lineWidth: rimWidth).allowsHitTesting(false) }
         .compositingGroup()
         .shadow(color: .black.opacity(0.16), radius: 8, y: 3)
-        .scaleEffect(targetedState.wrappedValue ? 1.06 : 1)
+        .scaleEffect(feedback.targeted ? 1.06 : 1)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: label)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targetedState.wrappedValue)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: feedback.targeted)
         .padding(10)
         .contentShape(Capsule())
-        .onTapGesture { AppActions.callPippa() }
-        .contextMenu {
-            Button(T("Ask Pippa", table: "App")) { AppActions.callPippa() }
-            Button(T("Settings…", table: "App")) { SettingsWindow.shared.show() }
-            Divider()
-            Button(T("Hide Pill", table: "App")) { Pill.shared.isShown = false }
-        }
-        .onHover { hoverState.wrappedValue = $0 }
-        .help(T("Ask Pippa", table: "App"))
-        .onDrop(of: [.fileURL], isTargeted: targetedState.projectedValue) { providers in
-            for provider in providers {
-                _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                    guard let url else { return }
-                    Task { @MainActor in AppActions.attach([url]) }
-                }
-            }
-            return true
-        }
         .onGeometryChange(for: CGSize.self) { $0.size } action: { Pill.shared.fit($0) }
     }
 
@@ -182,7 +169,7 @@ struct PillView: View {
     }
 
     private var label: String {
-        if targetedState.wrappedValue { return T("Drop something on me!", table: "App") }
+        if feedback.targeted { return T("Drop something on me!", table: "App") }
         if chat.isAnswering {
             let last = chat.answering?.messages.last
             if let step = last?.steps.last(where: { !$0.done }) { return step.label }
@@ -240,7 +227,7 @@ struct PillView: View {
     }
 
     private var rim: Color {
-        if targetedState.wrappedValue { return Theme.accent }
+        if feedback.targeted { return Theme.accent }
         switch tone {
         case .rest, .working: return Theme.hairline
         default: return tint.opacity(0.6)
@@ -248,7 +235,7 @@ struct PillView: View {
     }
 
     private var rimWidth: CGFloat {
-        if targetedState.wrappedValue { return 1.5 }
+        if feedback.targeted { return 1.5 }
         return tone == .rest || tone == .working ? 0.5 : 1
     }
 

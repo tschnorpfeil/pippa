@@ -9,9 +9,9 @@ struct ChatView: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
     private let searchState = State(initialValue: "")
-    private let dropState = State(initialValue: false)
-    /// The context panel on the right; open unless the person closed it.
-    private let panelState = State(initialValue: UserDefaults.standard.object(forKey: "contextPanel") as? Bool ?? true)
+    @ObservedObject private var dropFeedback = DropFeedback.chat
+    /// Keep the conversation spacious by default; remember an explicit choice to show the inspector.
+    private let panelState = State(initialValue: UserDefaults.standard.object(forKey: "contextPanel") as? Bool ?? false)
 
     var body: some View {
         NavigationSplitView {
@@ -27,16 +27,7 @@ struct ChatView: View {
                 Composer(chat: chat, setup: setup)
             }
             .background(Color(nsColor: Theme.chatTint))
-            .overlay { if dropState.wrappedValue { DropOverlay() } }
-            .onDrop(of: [.fileURL], isTargeted: dropState.projectedValue) { providers in
-                for provider in providers {
-                    _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                        guard let url else { return }
-                        Task { @MainActor in AppActions.attach([url]) }
-                    }
-                }
-                return true
-            }
+            .overlay { if dropFeedback.targeted { DropOverlay() } }
             .navigationTitle(chat.current?.title ?? "Pippa")
             .navigationSubtitle(AIBadge.label(setup))
             .inspector(isPresented: panelState.projectedValue) {

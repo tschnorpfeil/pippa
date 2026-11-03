@@ -294,3 +294,28 @@ that turns into the row's menu on hover. Conversations can be switched while an 
 own conversation, and Stop only shows there.
 
 **Not taken:** centered system notices (7) and dictation (12), as before.
+
+
+## Chat layout follow-up (2026-11-03)
+
+Implemented locally: a new chat window uses up to 1200 × 800 pt, bounded by the screen's visible area with room
+around it. The right inspector starts closed unless the person previously chose to show it. Existing saved window
+frames and explicit inspector preferences remain in force. The reading column stays capped at 736 pt so widening
+the window does not turn answers into long lines.
+
+Next priorities, based on the current implementation and reported use:
+
+1. Validate the basic interactions with real Mail drags, file drops and keyboard input before further styling.
+2. Keep work details collapsed and make the finished result easy to find; avoid presenting internal reasoning as
+   the main content. The current work row already starts collapsed.
+3. Show meaningful progress (what Pippa is reading or preparing), with Stop always reachable. Avoid an elapsed
+   counter as the only feedback during a long wait.
+4. Put the useful action on each result: open the file, reveal it in Finder, open the draft. Sources and changes
+   remain available inline and in the optional inspector.
+5. Keep the pill focused on quick access and drops; use the main window for reading and reviewing longer work.
+6. Keep provider/model identifiers in settings or details; use everyday wording in the main chat.
+
+References: [T3 Code thread interactions](https://github.com/pingdotgg/t3code/blob/main/docs/user/thread-sidebar.md),
+[Apple sidebar guidance](https://developer.apple.com/design/human-interface-guidelines/sidebars), and
+[Type to Siri](https://support.apple.com/en-gb/105020). These are interaction references; proposed Pippa changes
+above are product judgments, not claims that the referenced apps implement every item identically.

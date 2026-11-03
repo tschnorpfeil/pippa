@@ -57,6 +57,7 @@ await focused("PIPPA_DOWNLOAD_CHECKS", "Download") { await runDownloadChecks() }
 // Mail identity, readback and insertion decisions; no native app actions.
 await focused("PIPPA_LETTER_CHECKS", "Letter") { await runLetterChecks() }
 // Installer only (PiSetup, fake HOME under .build/fake-home-*).
+await focused("PIPPA_LOCAL_SERVER_CHECKS", "Local server") { await runTerminalAutostartChecks() }
 await focused("PIPPA_SETUP_CHECKS", "Installer") { await runSetupChecks() }
 // Only Pippa's MCP server (stand-in readers, no real Mail/Calendar/Excel).
 await focused("PIPPA_MCP_CHECKS", "MCP") {

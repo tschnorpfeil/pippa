@@ -282,7 +282,7 @@ final class ChatModel: ObservableObject {
     static func prompt(_ text: String, files: [String], frontApp: String?) -> String {
         var parts = [text]
         if !files.isEmpty { parts.append("Files:\n" + files.map { "- \($0)" }.joined(separator: "\n")) }
-        if let frontApp { parts.append("[In front: \(frontApp)]") }
+        if let frontApp { parts.append("[Background context only: \(frontApp) was in front when Pippa opened. This is not a request to read that app. Use it only if the person asks about its content.]") }
         return parts.filter { !$0.isEmpty }.joined(separator: "\n\n")
     }
 

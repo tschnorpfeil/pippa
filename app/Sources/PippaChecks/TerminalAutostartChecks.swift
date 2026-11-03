@@ -199,6 +199,50 @@ func runTerminalAutostartChecks() async {
             && mode == 0o600
     }
 
+    await checkAsync("Prewarming: healthy server still loads weights, concurrent callers share a load, failure retries and later calls reload") {
+        let script = dir("ta-warm-script").appendingPathComponent("fake-omlx.py")
+        write(#"""
+import json, sys, time
+from http.server import BaseHTTPRequestHandler, HTTPServer
+base = sys.argv[sys.argv.index("--base-path") + 1]
+settings = json.load(open(base + "/settings.json"))
+loads = 0
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200); self.end_headers(); self.wfile.write(b"{}")
+    def do_POST(self):
+        global loads
+        loads += 1
+        authenticated = self.headers.get("Authorization") == "Bearer " + settings["auth"]["api_key"]
+        with open(base + "/requests.jsonl", "a") as log:
+            log.write(json.dumps({"path": self.path, "authenticated": authenticated,
+                                  "body_length": int(self.headers.get("Content-Length", "0"))}) + "\n")
+        time.sleep(0.15)
+        self.send_response(503 if loads == 1 else 200); self.end_headers(); self.wfile.write(b"{}")
+    def log_message(self, *args): pass
+HTTPServer(("127.0.0.1", settings["server"]["port"]), Handler).serve_forever()
+"""#, script)
+        let (roots, env) = try setup("ta-warm", runtimeScript: "#!/bin/sh\nexec /usr/bin/python3 '\(script.path)' \"$@\"\n")
+        let plan = try PiLocalServer.plan(roots: roots, modelID: ornith, physicalMemory: 16 << 30, environment: env)
+        let server = PiLocalServer.server(plan, logDirectory: roots.support)
+        do {
+            try await server.ensureRunning()
+            var failed = false
+            do { try await server.prewarm() } catch { failed = true }
+            async let first: Void = server.prewarm()
+            async let second: Void = server.prewarm()
+            _ = try await (first, second)
+            // A later edit must consult oMLX again: the model could have been idle-unloaded meanwhile.
+            try await server.prewarm()
+            let log = try String(contentsOf: plan.baseDirectory.appendingPathComponent("requests.jsonl"), encoding: .utf8)
+            let requests = try log.split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
+            await server.stop()
+            return failed && requests.count == 3 && requests.allSatisfy {
+                $0["path"] as? String == "/v1/models/\(ornith)/load" && $0["authenticated"] as? Bool == true && $0["body_length"] as? Int == 0
+            }
+        } catch { await server.stop(); throw error }
+    }
+
     await checkAsync("App starts its own server: an orphaned lock is replaced, lock \"app\" with the server's PID, gone after stop") {
         guard fm.isExecutableFile(atPath: "/usr/bin/python3") else { print("    no /usr/bin/python3, skipped"); return true }
         let script = dir("ta-own-script").appendingPathComponent("fake-omlx.py")
