@@ -9,6 +9,14 @@ func runProviderChecks() async {
             && PiProviderClient.problem(in: "429 Too Many Requests: usage limit reached") == .limit
             && PiProviderClient.problem(in: "socket hang up") == nil
     }
+    check("After Sign in with ChatGPT the model in use stays, else Pi's default is preselected, never the oldest on the list") {
+        let models = ["gpt-4", "gpt-5.5", "o3"].map { PiProvider.Model(id: $0, name: $0) }
+        let openai = PiProvider(id: "openai", name: "OpenAI", configured: true, methods: [], models: models, defaultModel: "gpt-5.5")
+        let unknownDefault = PiProvider(id: "x", name: "X", configured: true, methods: [], models: models, defaultModel: "gone")
+        let decoded = try? JSONDecoder().decode(PiProvider.self, from: Data(#"{"id":"a","name":"A","configured":false,"methods":[],"models":[]}"#.utf8))
+        return openai.preselected("o3") == "o3" && openai.preselected(nil) == "gpt-5.5" && openai.preselected("removed") == "gpt-5.5"
+            && unknownDefault.preselected(nil) == "" && decoded?.defaultModel == nil
+    }
     check("Pi routing persists provider/model metadata, defaults to local, and preserves old ChatGPT selections") {
         let base = root.appendingPathComponent("provider-settings")
         let selection = PiModelSelection(providerID: "openrouter", modelID: "anthropic/claude-fixture", providerName: "OpenRouter")
