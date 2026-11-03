@@ -238,9 +238,12 @@ final class PiSession {
         preloadTask = Task {
             defer { preloadTask = nil }
             do {
+                DiagnosticsLog.shared.event("model-prewarm-start")
+                let began = ContinuousClock.now
                 let server = try await localModelServer()
                 try Task.checkCancellation()
                 try await server.prewarm()
+                DiagnosticsLog.shared.event("model-prewarm-ready", ["seconds": String(describing: ContinuousClock.now - began)])
             } catch is CancellationError {
             } catch {
                 // Best effort: a failed speculative load must not block sending the real question.

@@ -106,14 +106,23 @@ enum WindowLifecycleChecks {
             chat.contentView?.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0)) == true
         })
         let pasteboard = NSPasteboard.withUniqueName()
-        pasteboard.writeObjects([URL(fileURLWithPath: "/tmp/Pippa-drop-fixture.eml") as NSURL])
+        let mailFile = FileManager.default.temporaryDirectory.appendingPathComponent("Pippa-drop-" + UUID().uuidString + ".eml")
+        try? Data("Message-ID: <fixture@pippa.test>\r\n\r\nFixture".utf8).write(to: mailFile)
+        defer { try? FileManager.default.removeItem(at: mailFile) }
+        pasteboard.writeObjects([mailFile as NSURL])
         var dropped: [URL] = []
         DropReader.read(pasteboard) { dropped = $0?.items ?? [] }
-        check("An existing mail file survives drop decoding", dropped.map(\.path) == ["/tmp/Pippa-drop-fixture.eml"])
+        check("An existing mail file survives drop decoding", dropped == [mailFile])
         pasteboard.releaseGlobally()
         let promiseFolder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-promises-" + UUID().uuidString)
         try? FileManager.default.createDirectory(at: promiseFolder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: promiseFolder) }
+        let duplicate = promiseFolder.appendingPathComponent("same-message.eml")
+        let distinct = promiseFolder.appendingPathComponent("different-message.eml")
+        try? Data("message-id: <fixture@pippa.test>\nSubject: Same message\n\nAlternate serialization".utf8).write(to: duplicate)
+        try? Data("Message-ID: <other@pippa.test>\nSubject: Same message\n\nDifferent message".utf8).write(to: distinct)
+        let filtered = MailDropIdentity.attachments([duplicate, distinct, promiseFolder.appendingPathComponent("missing.eml")], excluding: [mailFile])
+        check("Mail drops reject temporary placeholders and duplicate Message-IDs, preserving distinct messages", filtered == [distinct])
         var promiseResult: DropReader.Result?
         var promiseCompletions = 0
         DropReader.receivePromises([LegacyPromiseFixture()], into: promiseFolder) {

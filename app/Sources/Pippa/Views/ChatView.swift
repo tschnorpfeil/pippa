@@ -108,6 +108,7 @@ private struct Welcome: View {
                 // Center the complete introduction when there is room; shorter windows scroll naturally.
                 .frame(minHeight: geometry.size.height, alignment: .center)
             }
+            .scrollIndicators(.hidden)
         }
     }
 
@@ -205,6 +206,7 @@ private struct Transcript: View {
                 .frame(maxWidth: .infinity)
             }
             // Open at the end of the conversation, not at its top and then a jump.
+            .scrollIndicators(.hidden)
             .defaultScrollAnchor(.bottom, for: .initialOffset)
             .onScrollPhaseChange { _, phase in
                 userScrollingState.wrappedValue = phase == .interacting || phase == .tracking || phase == .decelerating

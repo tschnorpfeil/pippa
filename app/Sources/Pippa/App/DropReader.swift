@@ -42,15 +42,15 @@ enum DropReader {
 
     @MainActor
     static func read(_ pb: NSPasteboard, imageName: String = "Bild.png", completion: @escaping @MainActor (Result?) -> Void) {
-        // 1. Real files and folders
-        if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
-            return completion(Result(items: urls))
-        }
-        // 2. File promises (e.g. mails from Apple Mail arrive as .eml)
+        // Mail may advertise temporary file URLs alongside a promise. Receive the actual files first.
         if let receivers = pb.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver], !receivers.isEmpty,
            let folder = try? Inbox.freshFolder() {
             receivePromises(receivers, into: folder, completion: completion)
             return
+        }
+        if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+            let files = urls.filter { FileManager.default.fileExists(atPath: $0.path) }
+            if !files.isEmpty { return completion(Result(items: files)) }
         }
         // 3. Images
         if let data = pb.data(forType: .png) ?? pb.data(forType: .tiff).flatMap({ NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:]) }),

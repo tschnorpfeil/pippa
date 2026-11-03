@@ -281,7 +281,7 @@ enum AppActions {
     }
 
     static func attach(_ urls: [URL]) {
-        for url in urls where url.isFileURL && !ChatModel.shared.attachments.contains(url) { ChatModel.shared.attachments.append(url) }
+        ChatModel.shared.attachments += MailDropIdentity.attachments(urls, excluding: ChatModel.shared.attachments)
         ChatWindow.shared.show()
     }
 }
