@@ -84,15 +84,26 @@ test("parameter texts of Pi's built-in tools get shorter in the request; schema,
 	assert.equal(shortenParameters(out), undefined, "already short: nothing to change");
 });
 
-test("move_files with from/to: rename or move one item, never overwriting", async () => {
-	const { moveOne } = await import("./files.ts");
-	const { existsSync, mkdirSync, writeFileSync } = await import("node:fs");
+test("move_files with from/to: rename or move one item, including case-only renames, never overwriting files or broken symlinks", async () => {
+	const { moveOne, exists } = await import("./files.ts");
+	const { existsSync, linkSync, mkdirSync, readdirSync, symlinkSync, writeFileSync } = await import("node:fs");
 	const dir = await mkdtemp(join(root, "move-"));
 	writeFileSync(join(dir, "brief.pdf"), "x");
 	writeFileSync(join(dir, "da.pdf"), "y");
 	mkdirSync(join(dir, "Ablage"));
 	await moveOne("brief.pdf", "Mietvertrag.pdf", dir);
 	assert.ok(existsSync(join(dir, "Mietvertrag.pdf")));
+	// Case-only rename on case-insensitive APFS (or case-sensitive FS)
+	writeFileSync(join(dir, "rechnung.pdf"), "r");
+	await moveOne("rechnung.pdf", "Rechnung.pdf", dir);
+	assert.ok(readdirSync(dir).includes("Rechnung.pdf"));
+	linkSync(join(dir, "Rechnung.pdf"), join(dir, "hard-link.pdf"));
+	await assert.rejects(moveOne("Rechnung.pdf", "hard-link.pdf", dir), /already exists/);
+	assert.ok(existsSync(join(dir, "Rechnung.pdf")));
+	// Broken symlink at destination is detected and never silently overwritten
+	symlinkSync(join(dir, "nowhere-target"), join(dir, "broken-link.pdf"));
+	assert.equal(await exists(join(dir, "broken-link.pdf")), true);
+	await assert.rejects(moveOne("Rechnung.pdf", "broken-link.pdf", dir), /already exists/);
 	await moveOne(join(dir, "Mietvertrag.pdf"), join(dir, "Ablage"), dir);
 	assert.ok(existsSync(join(dir, "Ablage", "Mietvertrag.pdf")));
 	writeFileSync(join(dir, "Mietvertrag.pdf"), "z");
@@ -102,16 +113,19 @@ test("move_files with from/to: rename or move one item, never overwriting", asyn
 
 test("move_files to \"trash\": into the Trash (never deleted), with the place for undo; only that exact word", async () => {
 	const { isTrash, trashOne } = await import("./files.ts");
-	const { existsSync, writeFileSync } = await import("node:fs");
+	const { existsSync, mkdirSync, writeFileSync } = await import("node:fs");
 	const dir = await mkdtemp(join(root, "trash-"));
 	writeFileSync(join(dir, "alt.pdf"), "x");
+	mkdirSync(join(dir, "sub"));
+	writeFileSync(join(dir, "sub", "alt.pdf"), "y");
 	process.env.PIPPA_TRASH_DIR = join(dir, ".Trash");
 	try {
-		const result = await trashOne("alt.pdf", dir);
+		const [result, second] = await Promise.all([trashOne("alt.pdf", dir), trashOne("sub/alt.pdf", dir)]);
 		assert.equal(existsSync(join(dir, "alt.pdf")), false);
 		assert.equal(result.details.from, join(dir, "alt.pdf"));
 		assert.equal(result.details.trash, true);
 		assert.ok(existsSync(result.details.to), "the file is in the Trash, not gone");
+		assert.ok(existsSync(second.details.to) && second.details.to !== result.details.to, "two files trashed in the same millisecond never collide");
 		await assert.rejects(trashOne("alt.pdf", dir), /Not found/);
 	} finally { delete process.env.PIPPA_TRASH_DIR; }
 	assert.ok(isTrash("trash") && isTrash(" Trash "));

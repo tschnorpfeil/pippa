@@ -1,6 +1,7 @@
 /** File helpers for Pippa's narrow file tools (pippa-tools.ts). */
 import { execFile } from "node:child_process";
-import { mkdir, rename, stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { copyFile, lstat, mkdir, readdir, rename, stat, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 
@@ -14,8 +15,20 @@ export function resolvePath(raw: unknown, cwd: string): string {
 
 export async function exists(path: string): Promise<boolean> {
 	try {
-		await stat(path);
+		await lstat(path);
 		return true;
+	} catch {
+		return false;
+	}
+}
+
+export async function sameEntry(a: string, b: string): Promise<boolean> {
+	if (a === b) return false;
+	try {
+		const [sa, sb] = await Promise.all([lstat(a), lstat(b)]);
+		// Distinct hard links share an inode too; rename would silently do nothing.
+		return sa.dev === sb.dev && sa.ino === sb.ino
+			&& !(await readdir(dirname(b))).includes(basename(b));
 	} catch {
 		return false;
 	}
@@ -38,9 +51,12 @@ export async function moveTarget(from: string, rawTo: unknown, cwd: string): Pro
 	const text = String(rawTo ?? "").trim();
 	const plainName = text !== "" && !text.includes("/") && !text.startsWith("~") && !text.startsWith("@");
 	const to = plainName ? join(dirname(from), text) : resolvePath(text, cwd);
-	if (await isFolder(to)) return join(to, basename(from));
+	if ((await isFolder(to)) && !(await sameEntry(from, to))) return join(to, basename(from));
 	// "Move it to Archiv": a folder of that name in the working folder counts too.
-	if (plainName && (await isFolder(resolvePath(text, cwd)))) return join(resolvePath(text, cwd), basename(from));
+	if (plainName) {
+		const inCwd = resolvePath(text, cwd);
+		if ((await isFolder(inCwd)) && !(await sameEntry(from, inCwd))) return join(inCwd, basename(from));
+	}
 	return to;
 }
 
@@ -115,9 +131,15 @@ export async function moveOne(rawFrom: string, rawTo: string, cwd: string) {
 	const from = resolvePath(rawFrom, cwd);
 	const to = await moveTarget(from, rawTo, cwd);
 	if (!(await exists(from))) throw new Error(`Not found: ${from}`);
-	if (await exists(to)) throw new Error(`Something named '${basename(to)}' already exists in ${dirname(to)}. Nothing was changed.`);
+	if (from === to || ((await exists(to)) && !(await sameEntry(from, to)))) throw new Error(`Something named '${basename(to)}' already exists in ${dirname(to)}. Nothing was changed.`);
 	if (!(await exists(dirname(to)))) throw new Error(`The folder ${dirname(to)} does not exist. Nothing was changed.`);
-	await rename(from, to);
+	try {
+		await rename(from, to);
+	} catch (error: any) {
+		if (error?.code !== "EXDEV") throw error;
+		await copyFile(from, to, constants.COPYFILE_EXCL);
+		await unlink(from);
+	}
 	return { content: [{ type: "text", text: `Moved to ${to}.` }], details: { from, to } };
 }
 
@@ -126,12 +148,14 @@ export function isTrash(to: unknown): boolean {
 	return typeof to === "string" && to.trim().toLowerCase() === "trash";
 }
 
+let trashSeq = 0;
+
 /** The Mac's trash via /usr/bin/trash (macOS 15+, FileManager.trashItem; no Finder automation, no system prompt).
  * For tests: `PIPPA_TRASH_DIR` instead of the real trash. Returns the location inside the trash. */
 export async function moveToTrash(path: string): Promise<string | undefined> {
 	const fake = process.env.PIPPA_TRASH_DIR;
 	if (fake) {
-		const dir = join(fake, `${Date.now()}`);
+		const dir = join(fake, `${Date.now()}-${++trashSeq}`);
 		await mkdir(dir, { recursive: true });
 		const target = join(dir, basename(path));
 		await rename(path, target);
@@ -144,7 +168,10 @@ export async function moveToTrash(path: string): Promise<string | undefined> {
 			else done(`${stdout}\n${stderr}`);
 		});
 	});
-	return output.match(/Moved ".*" to "(.*)"\s*$/m)?.[1];
+	const matched = output.match(/Moved ".*" to "(.*)"\s*$/m)?.[1];
+	if (matched) return matched;
+	const fallback = join(homedir(), ".Trash", basename(path));
+	return (await exists(fallback)) ? fallback : undefined;
 }
 
 /** `move_files` with `to: "trash"`: one file or folder to the Trash, never deleted for good. `details.to` is its place

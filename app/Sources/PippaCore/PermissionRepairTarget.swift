@@ -29,11 +29,16 @@ public enum PermissionRepairTarget: String, Codable, Sendable, CaseIterable {
     public static func forDeniedFile(at url: URL, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Self? {
         guard url.isFileURL else { return nil }
         let path = url.standardizedFileURL.path
-        let roots = ["Desktop", "Documents", "Downloads", "Library/Mobile Documents", "Library/CloudStorage", "Dropbox"]
+        let roots = ["Desktop", "Documents", "Downloads", "Library/Mobile Documents", "Library/CloudStorage", "Dropbox", "OneDrive", "Google Drive", "GoogleDrive", "Box", "Box Sync"]
         if roots.contains(where: { relative in
             let root = home.appendingPathComponent(relative, isDirectory: true).standardizedFileURL.path
             return path == root || path.hasPrefix(root + "/")
         }) { return .filesAndFolders }
+        let homePath = home.standardizedFileURL.path
+        if path.hasPrefix(homePath + "/") {
+            let folder = path.dropFirst(homePath.count + 1).split(separator: "/").first.map(String.init) ?? ""
+            if folder.hasPrefix("OneDrive - ") { return .filesAndFolders }
+        }
         if path.hasPrefix("/Volumes/"),
            let volume = try? url.resourceValues(forKeys: [.volumeIsInternalKey, .volumeIsLocalKey]),
            volume.volumeIsInternal == false, volume.volumeIsLocal == true { return .removableVolumes }

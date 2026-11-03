@@ -21,7 +21,7 @@ Cloud assistants read your documents on their servers, and most local AI apps st
 
 Also: unsent reply drafts in Mail (you send them; she never does), Calendar entries, reminders, photos from your library and the web after she asks you.
 
-Drop files on Pippa or bring her up with ⌃⌥ Space (she lives in the menu bar), then just ask. Each conversation stays in the sidebar for later. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is.
+Open Pippa from the Dock or bring her up with ⌃⌥ Space, then just ask. Her menu bar shortcut stays available; an optional floating pill accepts dropped files. Each conversation stays in the sidebar for later. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is.
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 
@@ -30,7 +30,7 @@ Drop files on Pippa or bring her up with ⌃⌥ Space (she lives in the menu bar
 <p align="center"><img src="docs/images/demo-letter.gif" width="960" alt="Scripted website demo with made-up files: asked when notice is due before moving out at the end of March, Pippa answers 'By December 31', explains the three-month notice period and quotes the passage from the lease"><br>
 <sub>Scripted demo from an earlier version of the website, with made-up files. Not a live AI session.</sub></p>
 
-**Private by default.** Her built-in AI runs on your Mac. No account, no tracking in the app. Prefer an online AI? Sign in with ChatGPT or add your own OpenAI or Anthropic API key, then switch it on in Settings. While it's on, your conversations and what Pippa reads for them go to that service. Mail, Calendar and Reminders may sync through your accounts, and she asks before searching the web. More in [Privacy and permissions](docs/privacy-and-permissions.md).
+**Private by default.** Her built-in AI runs on your Mac. No account, no tracking in the app. Prefer an online AI? Connect a provider in Settings, sign in or add an API key, choose a model, and switch it on. Providers and login methods come from the bundled Pi release, including Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. While it's on, your conversations and what Pippa reads for them go to that service. Mail, Calendar and Reminders may sync through your accounts, and she asks before searching the web. More in [Privacy and permissions](docs/privacy-and-permissions.md).
 
 ## Why Pippa
 

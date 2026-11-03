@@ -32,7 +32,7 @@ struct ModelConnectionSettings: View {
             var settings = model.inferenceSettings
             settings.policy = on ? .ask : .localOnly
             // One cloud service at a time: the ChatGPT subscription goes off.
-            if on { settings.subscriptionModel = nil }
+            if on { settings.subscriptionModel = nil; settings.piModel = nil }
             do { try model.saveInferenceSettings(settings); statusState.wrappedValue = nil }
             catch { report(error) }
         })

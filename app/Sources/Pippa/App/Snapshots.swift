@@ -8,54 +8,89 @@ import SwiftUI
 enum Snapshots {
     static func run(into folder: URL) async -> Int32 {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        if ProcessInfo.processInfo.environment["PIPPA_SNAPSHOT_PROVIDERS_ONLY"] == "1" {
+            let setup = SetupModel.shared
+            setup.showForSnapshot(.ready(adoptedFrom: nil))
+            for dark in [false, true] {
+                await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 820), dark: dark,
+                             to: folder.appendingPathComponent("providers-\(dark ? "dark" : "light").png"))
+            }
+            setup.showForSnapshot(.askDownload(bytes: 5_400_000_000))
+            await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 820), dark: false,
+                         to: folder.appendingPathComponent("providers-first-run.png"))
+            let preview = PiProviderSettingsModel()
+            preview.providers = (try? JSONDecoder().decode([PiProvider].self, from: Data(#"[{"id":"openrouter","name":"OpenRouter","configured":false,"methods":[],"models":[]}]"#.utf8))) ?? []
+            preview.selectedID = "openrouter"
+            preview.prompt = try? JSONDecoder().decode(PiProviderEvent.self, from: Data(#"{"event":"prompt","id":"key","type":"secret","message":"API key","placeholder":"Enter API key"}"#.utf8))
+            await render(ProviderLoginSheet(provider: preview), size: NSSize(width: 520, height: 400), dark: false,
+                         to: folder.appendingPathComponent("provider-login.png"))
+            print(folder.path)
+            return 0
+        }
         let chat = ChatModel.shared
         let setup = SetupModel.shared
         setup.showForSnapshot(.ready(adoptedFrom: nil))
-        let scenes: [(String, () -> Void)] = [
-            ("welcome", { chat.showSample([], current: nil, answering: false) }),
-            ("conversation", { chat.showSample(sampleConversations(), current: "c1", answering: false) }),
-            ("answering", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }),
-            ("error", { chat.showSample(sampleConversations(failed: true), current: "c1", answering: false) }),
+        // Name, how to set it up, window height, and whether "Worked for …" starts open.
+        let scenes: [(String, () -> Void, CGFloat, Bool)] = [
+            ("welcome", { chat.showSample([], current: nil, answering: false) }, 760, false),
+            ("conversation", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false),
+            ("answering", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, false),
+            ("steps", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, true),
+            ("error", { chat.showSample(sampleConversations(failed: true), current: "c1", answering: false) }, 760, false),
+            ("cards", { chat.showSample(sampleCards() + sampleConversations(), current: "cards", answering: false) }, 1480, false),
             ("setup", {
                 chat.showSample([], current: nil, answering: false)
                 setup.showForSnapshot(.downloading(progress: 0.42, remaining: 380))
-            }),
+            }, 760, false),
+            ("setup-failed", {
+                chat.showSample([], current: nil, answering: false)
+                setup.showForSnapshot(.failed(PiSetupProblem(message: "This Mac has too little memory to run the AI itself.",
+                                                             details: "No local model fits this Mac", canRetry: false)))
+            }, 760, false),
             ("attachments", {
                 setup.showForSnapshot(.ready(adoptedFrom: nil))
                 chat.showSample(sampleConversations(), current: nil, answering: false)
                 chat.attachments = [URL(fileURLWithPath: "/Users/me/Desktop/Rechnung-Oktober.pdf"), URL(fileURLWithPath: "/Users/me/Desktop/IMG_2041.jpeg")]
-            }),
+            }, 760, false),
         ]
-        for (name, prepare) in scenes {
+        for (name, prepare, height, expandsWork) in scenes {
             prepare()
             for dark in [false, true] {
-                let view = ChatView(chat: chat, setup: setup)
+                let view = ChatView(chat: chat, setup: setup).environment(\.expandsWork, expandsWork)
                 let file = folder.appendingPathComponent("\(name)-\(dark ? "dark" : "light").png")
-                await render(view, size: NSSize(width: 1240, height: 760), dark: dark, to: file)
+                await render(view, size: NSSize(width: 1240, height: height), dark: dark, to: file)
             }
             chat.attachments = []
         }
-        await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 640), dark: false, to: folder.appendingPathComponent("settings-light.png"))
+        setup.showForSnapshot(.ready(adoptedFrom: nil))
+        for dark in [false, true] {
+            await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 640), dark: dark,
+                         to: folder.appendingPathComponent("settings-\(dark ? "dark" : "light").png"))
+        }
         chat.showSample([], current: nil, answering: false)
-        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: false, to: folder.appendingPathComponent("pill-rest.png"))
+        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: false, chrome: false, to: folder.appendingPathComponent("pill-rest.png"))
         chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
-        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: true, to: folder.appendingPathComponent("pill-working.png"))
+        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: true, chrome: false, to: folder.appendingPathComponent("pill-working.png"))
         chat.showSample(sampleConversations(), current: "c1", answering: false)
         chat.unseen = .answer
-        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: false, to: folder.appendingPathComponent("pill.png"))
+        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: false, chrome: false, to: folder.appendingPathComponent("pill.png"))
         print(folder.path)
         return 0
     }
 
-    private static func render<V: View>(_ view: V, size: NSSize, dark: Bool, to file: URL) async {
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
-                              styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+    /// `chrome`: a titled window with its buttons (the chat, Settings); without, just the view (the pill floats alone).
+    private static func render<V: View>(_ view: V, size: NSSize, dark: Bool, chrome: Bool = true, to file: URL) async {
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.activate()
+        let window = SnapshotWindow(contentRect: NSRect(origin: .zero, size: size),
+                              styleMask: chrome ? [.titled, .closable, .resizable, .fullSizeContentView] : [.borderless],
+                              backing: .buffered, defer: false)
         window.titlebarAppearsTransparent = true
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-        let host = NSHostingView(rootView: view)
+        let host = NSHostingView(rootView: view.environment(\.controlActiveState, .key))
         window.contentView = host
         window.setFrameOrigin(NSPoint(x: -4000, y: -4000))
-        window.orderFrontRegardless()
+        window.makeKeyAndOrderFront(nil)
         // Let SwiftUI lay out, load images and run onAppear before drawing.
         for _ in 0..<6 { try? await Task.sleep(for: .milliseconds(120)); host.layoutSubtreeIfNeeded() }
         guard let frameView = window.contentView?.superview,
@@ -65,11 +100,78 @@ enum Snapshots {
         window.orderOut(nil)
     }
 
+    /// Keeps the size it is given, also taller than the screen (a normal window is clamped to it), and draws as key
+    /// so controls keep their active tint in snapshots.
+    private final class SnapshotWindow: NSWindow {
+        override var canBecomeKey: Bool { true }
+        override var isKeyWindow: Bool { true }
+        override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
+    }
+
     private struct PillPreview: View {
         var body: some View {
             HStack { PillView(chat: .shared, setup: .shared) }.frame(width: 300, height: 80)
                 .background(LinearGradient(colors: [.indigo.opacity(0.5), .teal.opacity(0.4)], startPoint: .leading, endPoint: .trailing))
         }
+    }
+
+    /// One answer with a table and every kind of result card that comes from this Mac's apps.
+    private static func sampleCards() -> [Conversation] {
+        let monday = Date(timeIntervalSinceReferenceDate: 815_904_000)
+        func decode<T: Decodable>(_ json: String) -> T? { try? JSONDecoder().decode(T.self, from: Data(json.utf8)) }
+        let calendar: CalendarCard? = decode("""
+        {"title": "Diese Woche", "rangeLabel": "Mo., 3. – So., 9. Nov.", "showsCalendar": true,
+         "footer": "Kalender auf diesem Mac · gelesen um 09:41",
+         "days": [
+          {"label": "Montag, 3. Nov.", "entries": [
+            {"time": "08:30 – 09:15", "title": "Zahnarzt Dr. Weber", "calendar": "Privat", "color": "#E5484D", "inactive": false,
+             "location": "Lindenstraße 12", "eventID": "e1", "start": \(monday.timeIntervalSinceReferenceDate)},
+            {"time": "14:00 – 15:00", "title": "Abstimmung Umzug", "calendar": "Familie", "color": "#30A46C", "inactive": false,
+             "note": "vorläufig", "eventID": "e2", "start": \(monday.timeIntervalSinceReferenceDate)}]},
+          {"label": "Mittwoch, 5. Nov.", "entries": [
+            {"time": "19:30 – 21:00", "title": "Elternabend 3b", "calendar": "Familie", "color": "#30A46C", "inactive": false,
+             "location": "Grundschule am Park", "eventID": "e3", "start": \(monday.timeIntervalSinceReferenceDate)},
+            {"time": "ganztägig", "title": "Werkstatt: Winterreifen", "calendar": "Privat", "color": "#E5484D", "inactive": true,
+             "note": "abgesagt", "eventID": "e4", "start": \(monday.timeIntervalSinceReferenceDate)}]}]}
+        """)
+        let mail: MailCard? = decode("""
+        {"query": "Nebenkosten", "unread": false, "total": 7, "footer": "Mail auf diesem Mac · 3 von 7",
+         "items": [
+          {"subject": "Nebenkostenabrechnung 2025", "sender": "Hausverwaltung Berger", "dateLabel": "Fr., 31. Okt.",
+           "preview": "Sehr geehrte Frau Schneider, anbei erhalten Sie die Abrechnung der Betriebskosten für das Jahr 2025 mit einer Nachzahlung von 184,37 €."},
+          {"subject": "Re: Zählerstand Wasser", "sender": "Stadtwerke Kundenservice", "dateLabel": "Di., 21. Okt.",
+           "preview": "Vielen Dank für Ihre Meldung. Der Zählerstand wurde übernommen."},
+          {"subject": "Termin Ablesung Heizung", "sender": "Techem", "dateLabel": "09:12", "preview": ""}]}
+        """)
+        let reminders: ReminderCard? = decode("""
+        {"title": "Erinnerungen · offen", "total": 3, "showsList": true, "footer": "Erinnerungen auf diesem Mac",
+         "items": [
+          {"title": "Nachzahlung überweisen", "list": "Haushalt", "dueLabel": "Gestern", "overdue": true},
+          {"title": "Sparplan prüfen", "list": "Finanzen", "dueLabel": "Fr., 7. Nov.", "overdue": false},
+          {"title": "Einspruch Finanzamt vorbereiten", "list": "Finanzen", "overdue": false}]}
+        """)
+        let prepared = PreparedFilesCard(jobID: UUID(), files: [URL(fileURLWithPath: "/Users/me/Desktop/Umzug-Fotos.pdf")], pageCount: 12,
+                                         totalBytes: 3_250_000, sizeLimitBytes: nil, withinLimit: nil, note: "")
+        var answer = ChatMessage(role: .assistant, text: """
+        Hier ist der Überblick über die Nebenkosten der letzten drei Jahre:
+
+        | Jahr | Vorauszahlung | Abrechnung | Ergebnis |
+        |---|---|---|---|
+        | 2023 | 1.920,00 € | 1.874,12 € | −45,88 € |
+        | 2024 | 1.920,00 € | 2.010,55 € | 90,55 € |
+        | 2025 | 2.040,00 € | 2.224,37 € | 184,37 € |
+
+        Dazu deine Termine, die passenden Mails und was noch offen ist.
+        """)
+        answer.cards = [calendar.map(ResultCard.calendar), mail.map(ResultCard.mail), reminders.map(ResultCard.reminders),
+                        .preparedFiles(prepared)].compactMap { $0 }
+        answer.steps = [ChatStep(id: "c1", label: "Reading Calendar", done: true), ChatStep(id: "c2", label: "Searching Mail for “Nebenkosten”", done: true),
+                        ChatStep(id: "c3", label: "Reading Reminders", done: true), ChatStep(id: "c4", label: "Making one PDF", done: true)]
+        answer.duration = 24
+        answer.sources = [ChatSource(kind: .mail, name: "Nebenkostenabrechnung 2025", location: "", detail: "Hausverwaltung Berger")]
+        return [Conversation(id: "cards", title: "Nebenkosten und Termine", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Wie haben sich die Nebenkosten entwickelt, und was steht diese Woche an?"), answer,
+        ])]
     }
 
     private static func sampleConversations(answering: Bool = false, failed: Bool = false) -> [Conversation] {
@@ -90,6 +192,7 @@ enum Snapshots {
             ChatStep(id: "3", label: "Reading ETF-Ideen.md", done: true),
         ]
         answer.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Sparplan prüfen · Fr., 7. Nov.")]
+        answer.duration = 18
         if answering {
             answer.text = ""
             answer.receipts = []
@@ -113,6 +216,7 @@ enum Snapshots {
         letter.sources = [ChatSource(kind: .file, name: "Brief-Stadtwerke.pdf", location: "/Users/me/Downloads/Brief-Stadtwerke.pdf", detail: "Ganze Seite")]
         letter.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Nachzahlung überweisen · Fr., 14. Nov.")]
         letter.context = ContextUsage(tokens: 12_431, window: 32_768)
+        letter.duration = 6
         if !answering && !failed {
             answer.sources = [ChatSource(kind: .file, name: "ETF-Portfolio.md", location: "/Users/me/brain/ETF-Portfolio.md", detail: nil),
                               ChatSource(kind: .file, name: "ETF-Ideen.md", location: "/Users/me/brain/ETF-Ideen.md", detail: nil)]

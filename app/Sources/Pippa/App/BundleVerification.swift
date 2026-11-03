@@ -48,8 +48,14 @@ enum BundleVerification {
         let pi = try child(bundle, "node", [release.appendingPathComponent("node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js").path, "--version"],
                            environment: ["HOME": empty.path, "PI_OFFLINE": "1", "PI_SKIP_VERSION_CHECK": "1", "PI_TELEMETRY": "0"])
         guard pi.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix(piVersion) else { throw Failure.piVersion }
+        let providers = try child(bundle, "node", [bundle.appendingPathComponent("Contents/Resources/pippa-auth/pi-providers.mjs").path,
+                                                  release.path, "catalog"],
+                                  environment: ["HOME": empty.path, "PI_CODING_AGENT_DIR": empty.path,
+                                                "PI_OFFLINE": "1", "PI_SKIP_VERSION_CHECK": "1", "PI_TELEMETRY": "0"])
+        let catalog = try JSONDecoder().decode(PiProviderEvent.self, from: Data(providers.utf8))
+        guard catalog.providers?.isEmpty == false else { throw Failure.providers }
         progress("node_ok")
-        print("pippa_bundle_ok skills=\(PippaSkill.bundled.count) node=\(version) pi=\(piVersion) web=ok")
+        print("pippa_bundle_ok skills=\(PippaSkill.bundled.count) node=\(version) pi=\(piVersion) web=ok providers=ok")
     }
 
     private static func progress(_ stage: String) {
@@ -75,5 +81,5 @@ enum BundleVerification {
         return String(decoding: data, as: UTF8.self)
     }
 
-    enum Failure: Error { case missingSkills, nodeVersion, piVersion, web(String), child(String, Int32) }
+    enum Failure: Error { case missingSkills, nodeVersion, piVersion, providers, web(String), child(String, Int32) }
 }

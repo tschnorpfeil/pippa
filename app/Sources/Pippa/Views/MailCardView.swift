@@ -9,16 +9,8 @@ struct MailCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "envelope").font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
-                    .accessibilityHidden(true)
-                Text(title).font(.scaled(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
-            .accessibilityAddTraits(.isHeader)
-            ForEach(Array(card.items.enumerated()), id: \.offset) { index, item in
-                if index > 0 { Divider().padding(.leading, 14) }
+            CardHeader(symbol: "envelope", title: title, detail: nil)
+            ForEach(Array(card.items.enumerated()), id: \.offset) { _, item in
                 MailCardRow(item: item)
             }
             Text(card.footer).font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
@@ -36,10 +28,8 @@ struct MailCardView: View {
 
 private struct MailCardRow: View {
     var item: MailCard.Item
-    private let hoverState = State<Bool>(initialValue: false)
-
     var body: some View {
-        Button(action: open) {
+        CardRowButton(action: open) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(item.sender).font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
@@ -54,12 +44,8 @@ private struct MailCardRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(.horizontal, 14).padding(.vertical, 7)
-            .background(hoverState.wrappedValue ? Theme.chatBorder : .clear)
-            .contentShape(Rectangle())
+            .padding(.vertical, 2)
         }
-        .buttonStyle(.plain)
-        .onHover { hoverState.wrappedValue = $0 }
         .help(T("Open in Mail", table: "Views"))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel([item.sender, item.subject, item.dateLabel, item.preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))

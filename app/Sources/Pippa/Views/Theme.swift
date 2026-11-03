@@ -45,13 +45,66 @@ enum Theme {
     static let bad = dynamic(light: hex(0xC4001D), dark: hex(0xF89DA4))
     static let badTint = dynamic(light: hex(0xC4001D, 0.10), dark: hex(0xF89DA4, 0.14))
     // Calm chat surfaces. Color marks interaction, not the whole work area.
-    static let chatTint = dyn(hex(0xFCFBF9, 0.98), hex(0x1B1B1D, 0.98))
+    static let chatTint = dyn(hex(0xFCFBF9, 1), hex(0x1B1B1D, 1))
     static let chatSidebar = dynamic(light: hex(0xF1F0ED), dark: hex(0x222224))
     // Neutral like the window around it: a blue cast here made the composer, step chips and receipts look bluish.
     static let chatCard = dynamic(light: hex(0xFFFFFF), dark: hex(0x262628))
-    static let chatInset = dynamic(light: hex(0xF2F5FA), dark: hex(0x1B202A))
+    /// Code blocks and table heads: neutral like the cards (the old blue cast is gone).
+    static let chatInset = dynamic(light: hex(0xF3F2EF), dark: hex(0x202022))
     static let chatBorder = dynamic(light: hex(0x202735, 0.10), dark: hex(0xEDF1F7, 0.12))
-    static let chatUser = dynamic(light: hex(0xEEEDEA), dark: hex(0x303033))
+    static let chatUser = dynamic(light: hex(0xEEEDEA), dark: hex(0x2D2D30))
+    // Surface edges and row states (T3-style: hairlines, not borders; hover is a quiet fill, never a border colour).
+    /// The 1 pt edge of a raised surface.
+    static let hairline = dynamic(light: hex(0x000000, 0.08), dark: NSColor(white: 1, alpha: 0.07))
+    /// Light catching the top edge of a raised surface in dark mode.
+    static let topLight = dynamic(light: .clear, dark: NSColor(white: 1, alpha: 0.04))
+    static let rowHover = whiteA(0.045, 0.055)
+    static let rowSelected = dynamic(light: hex(0xFFFFFF), dark: NSColor(white: 1, alpha: 0.08))
+    static let sendDisabled = whiteA(0.12, 0.12)
+
+    // Motion: short and soft; nothing moves with Reduce Motion on.
+    @MainActor static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    /// Hover, press and focus changes.
+    @MainActor static var quick: Animation? { reduceMotion ? nil : .timingCurve(0.24, 1, 0.4, 1, duration: 0.125) }
+    /// Something appears (a drawer, a button, an expanded list).
+    @MainActor static var arrive: Animation? { reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86) }
+    /// Something goes away.
+    @MainActor static var leave: Animation? { reduceMotion ? nil : .easeOut(duration: 0.14) }
+}
+
+/// Corner radii, from the innermost chip to the composer.
+enum Radius {
+    static let inner: CGFloat = 4
+    static let row: CGFloat = 6
+    static let control: CGFloat = 8
+    static let card: CGFloat = 12
+    static let bubble: CGFloat = 18
+    static let chat: CGFloat = 20
+}
+
+/// Spacing steps.
+enum Space {
+    static let xxs: CGFloat = 2
+    static let xs: CGFloat = 4
+    static let s: CGFloat = 6
+    static let m: CGFloat = 8
+    static let ml: CGFloat = 10
+    static let l: CGFloat = 12
+    static let xl: CGFloat = 16
+    static let xxl: CGFloat = 20
+    static let x3: CGFloat = 24
+    static let x4: CGFloat = 32
+}
+
+/// Widths of the chat window's parts. (Not SwiftUI's `Layout` protocol: that one is `SwiftUI.Layout` here.)
+enum Layout {
+    /// The reading column of the conversation and the composer.
+    static let column: CGFloat = 736
+    /// Space left and right of the column.
+    static let gutter: CGFloat = 20
+    static let inspector: CGFloat = 280
+    static let sidebarIdeal: CGFloat = 248
+    static let cardMax: CGFloat = 560
 }
 
 extension Font {
@@ -64,17 +117,135 @@ extension Font {
 extension View {
     /// The frame of a result card under an answer.
     func resultCard() -> some View {
-        frame(maxWidth: 520, alignment: .leading)
-            .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 12))
-            .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.chatBorder, lineWidth: 0.5) }
+        frame(maxWidth: Layout.cardMax, alignment: .leading).raised(Radius.card)
+    }
+
+    /// A raised surface: the card colour, a 1 pt hairline inside the edge and a soft shadow. `lifted` (hover, focus)
+    /// deepens the shadow and brightens the edge a little.
+    func raised(_ radius: CGFloat, lifted: Bool = false) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return background(Theme.chatCard, in: shape)
+            .overlay {
+                shape.strokeBorder(Theme.hairline, lineWidth: 1)
+                    .overlay { if lifted { shape.strokeBorder(Theme.hairline, lineWidth: 1) } }
+                    .overlay { shape.strokeBorder(LinearGradient(colors: [Theme.topLight, .clear], startPoint: .top, endPoint: .center), lineWidth: 1) }
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: .black.opacity(lifted ? 0.10 : 0.05), radius: lifted ? 12 : 6, y: lifted ? 4 : 2)
+    }
+}
+
+/// The head of every result card: a small tinted symbol badge, the title and a quiet detail.
+struct CardHeader: View {
+    var symbol: String
+    var title: String
+    var detail: String?
+
+    var body: some View {
+        HStack(spacing: Space.m) {
+            Image(systemName: symbol)
+                .font(.scaled(size: 11, weight: .semibold)).foregroundStyle(Theme.accent)
+                .frame(width: 22, height: 22)
+                .background(Theme.accentTint, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+                .accessibilityHidden(true)
+            Text(title).font(.scaled(size: 14.5, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+            if let detail, !detail.isEmpty {
+                Text(detail).font(.scaled(size: 12)).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.tail)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14).padding(.top, Space.l).padding(.bottom, Space.s)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A clickable row inside a result card: an inset rounded hover fill and the pointing hand. The label keeps 14 pt
+/// from the card's edge, like the header.
+struct CardRowButton<Label: View>: View {
+    var action: () -> Void
+    @ViewBuilder var label: Label
+    private let hoverState = State(initialValue: false)
+
+    init(action: @escaping () -> Void, @ViewBuilder label: () -> Label) {
+        self.action = action
+        self.label = label()
+    }
+
+    var body: some View {
+        Button(action: action) {
+            label
+                .padding(.horizontal, Space.ml).padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(hoverState.wrappedValue ? Theme.rowHover : .clear,
+                            in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Space.xs)
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+        .pointerStyle(.link)
+    }
+}
+
+/// A crisp 2/3-arc spinner that stays visible in static snapshots and rotates smoothly in live mode.
+struct SpinRing: View {
+    var size: CGFloat = 12
+    var lineWidth: CGFloat = 1.6
+    var color: Color = Theme.accent
+    private let spinningState = State(initialValue: false)
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(color.opacity(0.22), lineWidth: lineWidth)
+            Circle().trim(from: 0, to: 0.68)
+                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(spinningState.wrappedValue ? 270 : -90))
+        }
+        .frame(width: size, height: size)
+        .onAppear {
+            guard !Theme.reduceMotion else { return }
+            withAnimation(.linear(duration: 0.85).repeatForever(autoreverses: false)) {
+                spinningState.wrappedValue = true
+            }
+        }
+    }
+}
+
+/// A compact action pill button ("Open Reminders", "Show in Finder", "Try Again", or primary CTA in `SetupCard`)
+/// that stays crisp in dark mode and unfocused windows instead of collapsing to macOS's flat inactive grey.
+struct ActionPill: View {
+    var title: String
+    var primary = false
+    var action: () -> Void
+    private let hoverState = State(initialValue: false)
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: primary ? Radius.control : Radius.row, style: .continuous)
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: primary ? 13 : 12, weight: primary ? .semibold : .medium))
+                .foregroundStyle(primary ? Color.white : Theme.ink)
+                .padding(.horizontal, primary ? Space.l : Space.ml)
+                .frame(height: primary ? 28 : 24)
+                .background(primary ? (hoverState.wrappedValue ? Theme.accentPress : Theme.accentFill)
+                                    : (hoverState.wrappedValue ? Theme.fill2 : Theme.fill), in: shape)
+                .overlay { if !primary { shape.strokeBorder(Theme.hairline, lineWidth: 1) } }
+                .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
     }
 }
 
 /// Chips that wrap onto the next line.
-struct FlowRow: Layout {
+struct FlowRow: SwiftUI.Layout {
     var spacing: CGFloat = 6
     /// No chip grows wider than this (long names truncate).
     var maxItemWidth: CGFloat = 170
+    /// Rows end at the right edge (the files above a question, which sits on the right).
+    var trailing = false
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         arrangement(width: proposal.width ?? 400, subviews: subviews).size
@@ -95,9 +266,17 @@ struct FlowRow: Layout {
         var x: CGFloat = 0
         var y: CGFloat = 0
         var rowHeight: CGFloat = 0
+        var rowStart = 0
+        func endRow() {
+            guard trailing, rowStart < frames.count else { return }
+            let shift = width - (frames[frames.count - 1].maxX)
+            for index in rowStart..<frames.count { frames[index].origin.x += max(0, shift) }
+        }
         for subview in subviews {
             let size = subview.sizeThatFits(ProposedViewSize(width: min(maxItemWidth, width), height: nil))
             if x > 0 && x + size.width > width {
+                endRow()
+                rowStart = frames.count
                 x = 0
                 y += rowHeight + spacing
                 rowHeight = 0
@@ -106,6 +285,7 @@ struct FlowRow: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
+        endRow()
         return (CGSize(width: width, height: y + rowHeight), frames)
     }
 }

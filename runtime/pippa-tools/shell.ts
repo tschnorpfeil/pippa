@@ -133,15 +133,22 @@ export function missingGrants(command: string, output: string, grants: ReadonlyS
 	return missing;
 }
 
-/** Paths a command names (absolute or `~/…`), resolved. Only for the question and for copies; never for deciding. */
+/** Paths a command names (absolute, `~/…`, or existing relative paths in `cwd`), resolved. Only for the question and for copies; never for deciding. */
 export function namedPaths(command: string, cwd: string, home = homedir()): string[] {
 	const found = new Set<string>();
-	const token = /(["'])((?:~|\/)[^"']*)\1|((?:~|\/)(?:\\ |[^\s;&|<>()"'`$])+)/g;
+	const base = resolve(cwd);
+	const token = /(["'])([^"']*)\1|((?:\\ |[^\s;&|<>()"'`$])+)/g;
 	for (const match of command.matchAll(token)) {
-		let path = (match[2] ?? match[3] ?? "").replace(/\\ /g, " ");
-		if (path === "~" || path.startsWith("~/")) path = join(home, path.slice(1));
-		if (!isAbsolute(path)) path = resolve(cwd, path);
-		found.add(path.replace(/\/+$/, "") || "/");
+		const raw = (match[2] ?? match[3] ?? "").replace(/\\ /g, " ");
+		const cleaned = match[2] !== undefined ? raw : raw.replace(/^(?:--?[\w-]+=|\w+=)@?/, "");
+		if (cleaned === "~" || cleaned.startsWith("~/") || cleaned.startsWith("/")) {
+			const expanded = cleaned === "~" || cleaned.startsWith("~/") ? join(home, cleaned.slice(1)) : cleaned;
+			const full = isAbsolute(expanded) ? expanded : resolve(base, expanded);
+			found.add(full.replace(/\/+$/, "") || "/");
+		} else if (cleaned && cleaned !== "." && cleaned !== ".." && !cleaned.startsWith("-") && !/^[A-Za-z_]\w*=/.test(cleaned) && !cleaned.includes("://")) {
+			const full = resolve(base, cleaned);
+			if (full !== base && existsSync(full)) found.add(full.replace(/\/+$/, "") || "/");
+		}
 	}
 	return [...found];
 }
@@ -199,11 +206,13 @@ export function limitsNote(grants: ReadonlySet<Grant>, work: string): string {
 /** Existing files of up to `limit` bytes among `paths`, under the person's folders: what gets a copy before a `write` run. */
 export async function filesToKeep(paths: string[], where: Places, limit = 1024 ** 3): Promise<string[]> {
 	const keep: string[] = [];
+	const home = real(where.home), work = real(where.work), temps = where.temporary.map(real);
 	for (const path of paths) {
-		const inside = (folder: string) => path === folder || path.startsWith(folder + "/");
-		if (!(inside(where.home) || inside("/Volumes"))) continue;
-		if (inside(where.work) || where.temporary.some(inside)) continue;
-		try { const info = await stat(path); if (info.isFile() && info.size <= limit) keep.push(path); } catch { /* not there yet */ }
+		const resolved = real(path);
+		const inside = (folder: string) => resolved === folder || resolved.startsWith(folder + "/");
+		if (!(inside(home) || inside("/Volumes"))) continue;
+		if (inside(work) || temps.some(inside)) continue;
+		try { const info = await stat(resolved); if (info.isFile() && info.size <= limit) keep.push(path); } catch { /* not there yet */ }
 	}
 	return keep.slice(0, 50);
 }
@@ -261,7 +270,9 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					const kept = new Map<string, string>();
 					const ask = async (need: Set<Grant>): Promise<boolean> => {
 						if (!ctx?.hasUI || !ctx?.ui?.confirm) return false;
-						const outside = namedPaths(command, cwd, where.home).filter((p) => !(p === where.work || p.startsWith(where.work + "/")));
+						const named = namedPaths(command, cwd, where.home);
+						const candidates = named.length ? named : [real(cwd)];
+						const outside = candidates.filter((p) => !(p === where.work || p.startsWith(where.work + "/")));
 						const { title, message } = grantAskText(need, command, folderNames(outside, where.home, env.PIPPA_LANGUAGE ?? ""), env.PIPPA_LANGUAGE ?? "");
 						return Boolean(await ctx.ui.confirm(title, message));
 					};

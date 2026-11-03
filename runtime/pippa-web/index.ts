@@ -140,11 +140,17 @@ export function localAddress(raw: string): string | undefined {
 	let url: URL;
 	try { url = new URL(raw); } catch { return "not a web address"; }
 	if (url.protocol !== "http:" && url.protocol !== "https:") return "not a web page";
-	const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-	if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host === "0.0.0.0" || host === "::" || host === "::1") return "this Mac";
-	const ip = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)?.slice(1).map(Number);
-	if (ip && (ip[0] === 127 || ip[0] === 10 || (ip[0] === 172 && ip[1] >= 16 && ip[1] <= 31) || (ip[0] === 192 && ip[1] === 168) || (ip[0] === 169 && ip[1] === 254) || ip[0] === 0)) return "the local network";
-	if (/^(fc|fd|fe80)/.test(host) && host.includes(":")) return "the local network";
+	const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.+$/, "");
+	if (!host) return "not a web address";
+	if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host === "0.0.0.0" || host === "::" || host === "::1" || /^(?:0+:){7}0*[01]$/.test(host)) return "this Mac";
+	if (host === "fritz.box" || host.endsWith(".fritz.box") || host.endsWith(".internal") || host.endsWith(".home.arpa") || host.endsWith(".lan") || (!host.includes(".") && !host.includes(":"))) return "the local network";
+	const v4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)?.slice(1).map(Number);
+	const mapped = host.match(/^(?:::ffff:|(?:0+:){5}ffff:)(?:(\d+)\.(\d+)\.(\d+)\.(\d+)|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/);
+	const ip = v4 ?? (mapped ? (mapped[1] !== undefined
+		? [Number(mapped[1]), Number(mapped[2]), Number(mapped[3]), Number(mapped[4])]
+		: [parseInt(mapped[5], 16) >> 8, parseInt(mapped[5], 16) & 0xff, parseInt(mapped[6], 16) >> 8, parseInt(mapped[6], 16) & 0xff]) : undefined);
+	if (ip && (ip[0] === 127 || ip[0] === 10 || (ip[0] === 172 && ip[1] >= 16 && ip[1] <= 31) || (ip[0] === 192 && ip[1] === 168) || (ip[0] === 169 && ip[1] === 254) || (ip[0] === 100 && ip[1] >= 64 && ip[1] <= 127) || ip[0] === 0)) return "the local network";
+	if (/^(fc|fd|fe[89ab][0-9a-f]*:)/.test(host) && host.includes(":")) return "the local network";
 	return undefined;
 }
 

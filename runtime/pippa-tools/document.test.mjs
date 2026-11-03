@@ -82,10 +82,33 @@ test("no text layer or no local reader: Pippa's MCP reader in a nested call, or 
 	assert.equal(result.details.pippaDocument.via, DOCUMENT_READER);
 	await scan.execute("s2", { path: "/d/Budget.xlsx" }, undefined, undefined, app(ok));
 	assert.deepEqual(calls.at(-1), [DOCUMENT_READER, { path: "/d/Budget.xlsx" }]);
+	const multiLine = { isError: false, result: { content: [{ type: "text", text: "Row 1\nRow 2\nRow 3\nRow 4" }] } };
+	const paged = await scan.execute("s2p", { path: "/d/Budget.xlsx", offset: 2, limit: 2 }, undefined, undefined, app(multiLine));
+	assert.equal(paged.content[0].text, "Row 2\nRow 3");
 	const failed = { isError: true, result: { content: [{ type: "text", text: "Datei nicht gefunden" }] } };
 	await assert.rejects(scan.execute("s3", { path: "/d/Budget.xlsx" }, undefined, undefined, app(failed)), /Datei nicht gefunden/);
 	await assert.rejects(scan.execute("s4", { path: "/d/Budget.xlsx" }, undefined, undefined, { cwd: "/d", tools: [] }), /only be read to text inside the Pippa app/);
 	await assert.rejects(scan.execute("s5", { path: "/d/Scan.pdf" }, undefined, undefined, { cwd: "/d" }), /no text layer/);
+});
+
+test("Windows-1252 CSV files with German umlauts and Euro sign are decoded cleanly; UTF-8 CSVs stay with Pi", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "pippa-csv-"));
+	try {
+		// Windows-1252: Bäckerei (0xe4), Müller (0xfc), Straße (0xdf), 12,50 € (0x80)
+		const cp1252 = Buffer.from([
+			0x42, 0xe4, 0x63, 0x6b, 0x65, 0x72, 0x65, 0x69, 0x3b, 0x31, 0x32, 0x2c, 0x35, 0x30, 0x20, 0x80, 0x0d, 0x0a,
+			0x4d, 0xfc, 0x6c, 0x6c, 0x65, 0x72, 0x3b, 0x53, 0x74, 0x72, 0x61, 0xdf, 0x65, 0x0d, 0x0a,
+		]);
+		await writeFile(join(dir, "Umsaetze.csv"), cp1252);
+		const res = await tool.execute("c1", { path: "Umsaetze.csv" }, undefined, undefined, { cwd: dir });
+		assert.equal(res.content[0].text, "Bäckerei;12,50 €\nMüller;Straße\n");
+		assert.equal(res.details.pippaDocument.via, "windows-1252");
+		const slice = await tool.execute("c2", { path: "Umsaetze.csv", offset: 2, limit: 1 }, undefined, undefined, { cwd: dir });
+		assert.equal(slice.content[0].text, "Müller;Straße");
+		await writeFile(join(dir, "utf8.csv"), "Bäckerei;12,50 €\n", "utf8");
+		const utf8Res = await tool.execute("c3", { path: "utf8.csv" }, undefined, undefined, { cwd: dir });
+		assert.deepEqual(utf8Res.details, { pi: true });
+	} finally { await rm(dir, { recursive: true, force: true }); }
 });
 
 test("images: Pi's read when the model sees images, otherwise text recognition in the app; text files stay with Pi", async () => {

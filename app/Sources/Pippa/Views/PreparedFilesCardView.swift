@@ -7,22 +7,32 @@ struct PreparedFilesCardView: View {
     var card: PreparedFilesCard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(T("Your PDF is ready", table: "App"), systemImage: "doc.richtext")
-                .font(.scaled(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
-            Text(T("%lld pages · %@", table: "App", card.pageCount, ByteCountFormatter.string(fromByteCount: card.totalBytes, countStyle: .file)))
-                .font(.scaled(size: 12)).foregroundStyle(Theme.ink2)
+        VStack(alignment: .leading, spacing: 0) {
+            CardHeader(symbol: "doc.richtext", title: T("Your PDF is ready", table: "App"),
+                       detail: T("%lld pages · %@", table: "App", card.pageCount,
+                                 ByteCountFormatter.string(fromByteCount: card.totalBytes, countStyle: .file)))
             ForEach(card.files, id: \.self) { file in
-                HStack(spacing: 12) {
-                    Text(verbatim: file.lastPathComponent).font(.scaled(size: 13, weight: .medium)).lineLimit(1).truncationMode(.middle)
-                    Spacer()
-                    Button(T("Open", table: "App")) { NSWorkspace.shared.open(file) }
-                    Button(T("Show in Finder", table: "App")) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+                HStack(spacing: Space.ml) {
+                    CardRowButton(action: { NSWorkspace.shared.open(file) }) {
+                        HStack(spacing: Space.m) {
+                            Image(systemName: "doc.text.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(Theme.accent)
+                                .frame(width: 18)
+                            Text(verbatim: file.lastPathComponent).font(.scaled(size: 13, weight: .medium)).foregroundStyle(Theme.ink)
+                                .lineLimit(1).truncationMode(.middle)
+                        }
+                    }
+                    .help(T("Open", table: "App"))
+                    ActionPill(title: T("Show in Finder", table: "App")) {
+                        NSWorkspace.shared.activateFileViewerSelecting([file])
+                    }
+                    .padding(.trailing, 14)
                 }
             }
+            Spacer().frame(height: Space.ml)
         }
-        .padding(12)
-        .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.chatBorder))
+        .resultCard()
+        .accessibilityElement(children: .contain)
     }
 }

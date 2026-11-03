@@ -316,6 +316,16 @@ test("edit and write keep the old version first; the result says where; a new fi
 		assert.equal(await handlers.tool_call({ toolName: "write", input: { path: join(dir, "Neu.txt"), content: "x" }, toolCallId: "w2" }, ctx), undefined);
 		assert.equal(await handlers.tool_result({ toolName: "write", toolCallId: "w2", isError: false, content: [{ type: "text", text: "ok" }] }, ctx), undefined);
 		assert.equal((await readdir(join(dir, "Backups"))).length, 1);
+		// A failed edit that leaves the file untouched cleans up its backup and emits no backup note or pippa-change entry.
+		const entries = [];
+		const handlers2 = {};
+		fresh({ registerTool: () => {}, on: (name, fn) => (handlers2[name] = fn), getAllTools: () => tools, appendEntry: (type, data) => entries.push({ type, data }) });
+		await handlers2.agent_start({});
+		assert.equal(await handlers2.tool_call({ toolName: "edit", input: { path: "Brief.txt", edits: [] }, toolCallId: "e-fail" }, ctx), undefined);
+		const failedEdit = await handlers2.tool_result({ toolName: "edit", toolCallId: "e-fail", isError: true, content: [{ type: "text", text: "oldText not found" }] }, ctx);
+		assert.equal(failedEdit, undefined, "no false backup note when edit failed without touching the file");
+		assert.equal(entries.filter((e) => e.type === "pippa-change").length, 0, "no false restore entry");
+		assert.deepEqual(await readdir(join(dir, "Backups")), [copy], "untouched backup was cleaned up");
 		const { pruneBackups } = await import("./pippa-assist.ts");
 		await pruneBackups(join(dir, "Backups"));
 		assert.deepEqual(await readdir(join(dir, "Backups")), [copy]);

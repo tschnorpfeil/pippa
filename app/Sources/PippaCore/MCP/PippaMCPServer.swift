@@ -99,6 +99,7 @@ public final class PippaMCPServer: @unchecked Sendable {
     private let lock = NSLock()
     private var boundPort: UInt16 = 0
     private var revoked = false
+    private var active: [ObjectIdentifier: (NWConnection, Task<Void, Never>?)] = [:]
     private var requests: [ObjectIdentifier: (scope: PippaMCPWriteScope, count: Int)] = [:]
 
     public init(host: PippaMCPHost, token: String = PippaMCPServer.newToken()) throws {
@@ -149,6 +150,8 @@ public final class PippaMCPServer: @unchecked Sendable {
             return requests.values.map(\.scope)
         }
         scopes.forEach { $0.cancel() }
+        let connections = lock.withLock { let values = Array(active.values); active.removeAll(); return values }
+        for (connection, task) in connections { task?.cancel(); connection.cancel() }
         listener.cancel()
     }
 
@@ -175,9 +178,22 @@ public final class PippaMCPServer: @unchecked Sendable {
     // MARK: Connections
 
     private func accept(_ connection: NWConnection) {
+        let admitted = lock.withLock {
+            guard !revoked else { return false }
+            active[ObjectIdentifier(connection)] = (connection, nil)
+            return true
+        }
+        guard admitted else { connection.cancel(); return }
+        connection.stateUpdateHandler = { [weak self, weak connection] state in
+            guard let connection else { return }
+            switch state {
+            case .cancelled, .failed: self?.close(connection)
+            default: break
+            }
+        }
         connection.start(queue: queue)
         // "Look online" waits for the person's click; Pi's limit is 300 s (pippa-mcp.ts), a bit more here.
-        queue.asyncAfter(deadline: .now() + 330) { connection.cancel() }
+        queue.asyncAfter(deadline: .now() + 330) { [weak self] in self?.close(connection) }
         receive(connection, Data())
     }
 
@@ -193,13 +209,26 @@ public final class PippaMCPServer: @unchecked Sendable {
                 self.send(.plain(status, "Bad request"), on: connection)
             case .complete(let request):
                 guard let context = self.captureRequest() else { self.send(.plain(403, "Endpoint revoked"), on: connection); return }
-                Task { [self] in
+                let task = Task { [self] in
                     defer { self.finished(context) }
                     let response = await self.respond(to: request, context: context)
-                    self.send(response, on: connection)
+                    if !Task.isCancelled { self.send(response, on: connection) }
                 }
+                let cancel = self.lock.withLock {
+                    let key = ObjectIdentifier(connection)
+                    guard !self.revoked, self.active[key] != nil else { return true }
+                    self.active[key] = (connection, task)
+                    return false
+                }
+                if cancel { task.cancel() }
             }
         }
+    }
+
+    private func close(_ connection: NWConnection) {
+        let task = lock.withLock { active.removeValue(forKey: ObjectIdentifier(connection))?.1 }
+        task?.cancel()
+        connection.cancel()
     }
 
     private func send(_ response: PippaHTTPResponse, on connection: NWConnection) {

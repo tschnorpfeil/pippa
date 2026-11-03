@@ -3,6 +3,7 @@
 "Add Files…" = "Dateien hinzufügen …";
 "Adding a reminder" = "Lege eine Erinnerung an";
 "Adding to Calendar" = "Trage in den Kalender ein";
+"After each answer you see here what Pippa read, what she changed on your Mac and which dates she checked." = "Nach jeder Antwort siehst du hier, was Pippa gelesen, was sie auf deinem Mac geändert und welche Daten sie geprüft hat.";
 "Allow" = "Erlauben";
 "Already in use. Choose a different combination." = "Belegt – wähle eine andere Kombination.";
 "Ask Pippa" = "Pippa fragen";
@@ -70,7 +71,6 @@
 "Shortcut" = "Tastenkürzel";
 "Show Pill" = "Pille zeigen";
 "Show in Finder" = "Im Finder zeigen";
-"Sign in to ChatGPT again in Settings." = "Melde dich in den Einstellungen erneut bei ChatGPT an.";
 "Stop" = "Stoppen";
 "Taking over the AI from %@…" = "Übernehme die KI aus %@ …";
 "Then she stays up to date by herself and can start with your Mac. It only takes a moment." = "Dann hält sie sich selbst aktuell und kann mit deinem Mac starten. Das dauert nur einen Moment.";
@@ -83,7 +83,6 @@
 "What’s on my calendar this week?" = "Was steht diese Woche in meinem Kalender?";
 "Writing %@" = "Schreibe %@";
 "Writing a Mail draft" = "Schreibe einen Mail-Entwurf";
-"Your ChatGPT limit is reached for now. Try again later, or switch to the AI on this Mac in Settings." = "Dein ChatGPT-Limit ist gerade erreicht. Versuch es später noch einmal oder wechsle in den Einstellungen zur KI auf diesem Mac.";
 "Your Mac will ask you in a moment." = "Dein Mac fragt dich gleich.";
 "Your PDF is ready" = "Dein PDF ist fertig";
 "⌃⇧ Space" = "⌃⇧ Leertaste";
@@ -100,7 +99,6 @@
 "Copied" = "Kopiert";
 "Draft in Mail, not sent" = "Entwurf in Mail, nicht gesendet";
 "Drop files for Pippa" = "Dateien für Pippa ablegen";
-"Hide" = "Ausblenden";
 "Not set up" = "Nicht eingerichtet";
 "Nothing found" = "Nichts gefunden";
 "Older" = "Älter";
@@ -128,7 +126,6 @@
 "Not in what I read: %@. I worked this out myself, so please check it." = "Steht nicht in dem, was ich gelesen habe: %@. Das habe ich selbst ausgerechnet – bitte prüf es.";
 "%@. Your conversations stay on this Mac." = "%@. Deine Gespräche bleiben auf diesem Mac.";
 "That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time." = "Das war zu viel auf einmal für die KI auf diesem Mac. Frag nach einem kleineren Teil, zum Beispiel einem Dokument nach dem anderen.";
-"%lld %% full · %@ of %@" = "%lld %% voll · %@ von %@";
 "Almost full: Pippa will soon summarize the start. A new conversation is faster." = "Fast voll: Pippa fasst bald den Anfang zusammen. Ein neues Gespräch ist schneller.";
 "Beginning only" = "Nur der Anfang";
 "Context" = "Kontext";
@@ -137,7 +134,6 @@
 "Details" = "Details";
 "Done" = "Erledigt";
 "In what I read" = "Steht in dem, was ich gelesen habe";
-"Name" = "Name";
 "Nothing changed on your Mac" = "Nichts auf deinem Mac geändert";
 "Nothing leaves this Mac." = "Nichts verlässt diesen Mac.";
 "Nothing read for this answer" = "Für diese Antwort nichts gelesen";
@@ -147,7 +143,6 @@
 "Pin" = "Anheften";
 "Pinned" = "Angeheftet";
 "Read" = "Gelesen";
-"Rename" = "Umbenennen";
 "Rename Conversation" = "Gespräch umbenennen";
 "Rename…" = "Umbenennen …";
 "Show or hide what Pippa read and did" = "Zeigen oder ausblenden, was Pippa gelesen und getan hat";
@@ -155,3 +150,53 @@
 "Whole document" = "Ganzes Dokument";
 "Whole page" = "Ganze Seite";
 "Worked out, please check" = "Errechnet, bitte prüfen";
+"%@ of %@ tokens" = "%@ von %@ Tokens";
+"%lld %% full" = "%lld %% voll";
+"%lld min %lld s" = "%lld Min. %lld s";
+"About this answer" = "Zu dieser Antwort";
+"Answering…" = "Antwortet…";
+"Ask Again" = "Nochmal fragen";
+"Clear Search" = "Suche löschen";
+"From there she stays up to date by herself and can open at login." = "Von dort hält sie sich selbst aktuell und kann beim Anmelden starten.";
+"Jump to the latest" = "Zur neuesten Nachricht";
+"Less than a minute left" = "Noch weniger als eine Minute";
+"More" = "Mehr";
+"Move to Applications…" = "In „Programme“ legen…";
+"New answer" = "Neue Antwort";
+"Open Calendar" = "Kalender öffnen";
+"Open Reminders" = "Erinnerungen öffnen";
+"Pippa is still answering in another conversation." = "Pippa antwortet noch in einem anderen Gespräch.";
+"Pippa isn’t in Applications" = "Pippa liegt nicht in „Programme“";
+"Remove" = "Entfernen";
+"Show Pippa at the screen edge" = "Pippa am Bildschirmrand zeigen";
+"Stopped" = "Gestoppt";
+"Thought for %@" = "%@ nachgedacht";
+"Worked for %@ · %lld steps" = "%@ gearbeitet · %lld Schritte";
+"Worked for %@ · 1 step" = "%@ gearbeitet · 1 Schritt";
+"Your conversation goes to this online AI." = "Dein Gespräch geht an diese Online-KI.";
+
+"Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings." = "Dein Online-KI-Limit ist vorerst erreicht. Versuche es später erneut oder wechsle in den Einstellungen zur KI auf diesem Mac.";
+
+"Reconnect your online AI in Settings." = "Verbinde deine Online-KI in den Einstellungen erneut.";
+
+"About Pippa" = "Über Pippa";
+
+"Hide Pippa" = "Pippa ausblenden";
+
+"Hide Others" = "Andere ausblenden";
+
+"Show All" = "Alle einblenden";
+
+"Window" = "Fenster";
+
+"Show Pippa" = "Pippa anzeigen";
+
+"Minimize" = "Im Dock ablegen";
+
+"Zoom" = "Zoomen";
+
+"Bring All to Front" = "Alle nach vorne bringen";
+
+"Hide Pill" = "Pill ausblenden";
+
+"Services" = "Dienste";

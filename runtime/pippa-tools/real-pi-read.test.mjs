@@ -33,7 +33,7 @@ function pdf(text) {
 test("real Pi: read on a PDF returns its text in the same call; the direct RPC shell is refused", {
 	skip: (!cli && "PIPPA_PI_CLI or PIPPA_PI_PAYLOAD not set") || (process.platform !== "darwin" && "macOS only"), timeout: 30_000,
 }, async () => {
-	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.4\./);
+	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.5\./);
 	const build = join(here, "../../.build"); await mkdir(build, { recursive: true });
 	const root = await mkdtemp(join(build, "pippa-read-realpi-"));
 	const agent = join(root, "agent"), work = join(root, "work");

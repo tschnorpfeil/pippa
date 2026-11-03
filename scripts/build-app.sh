@@ -164,9 +164,9 @@ mkdir -p "$APP/Contents/Resources/pippa-tools"
 for f in pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-mcp.ts files.ts facts.mjs list-folder.ts document.ts shell.ts budget.ts search.mjs; do
   cp "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f"
 done
-# ChatGPT sign-in through Pi's own sign-in (PiSubscriptionAuth.swift); tests stay out.
+# Provider discovery and native sign-in through Pi's public APIs; tests stay out.
 mkdir -p "$APP/Contents/Resources/pippa-auth"
-cp "$ROOT/runtime/pippa-auth/pi-auth.mjs" "$APP/Contents/Resources/pippa-auth/pi-auth.mjs"
+cp "$ROOT/runtime/pippa-auth/pi-providers.mjs" "$APP/Contents/Resources/pippa-auth/pi-providers.mjs"
 
 # --- App icon ----------------------------------------------------------------
 say "App icon"

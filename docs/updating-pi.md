@@ -6,7 +6,7 @@ Pippa ships one exact Pi release inside the app and installs it into Pi's own ma
 ## The bump
 
 ```sh
-scripts/bump-pi.sh 1.1.0
+scripts/bump-pi.sh 1.5.0
 ```
 
 The script:
@@ -31,11 +31,12 @@ The script:
      the new one in a fake HOME (what an app update does on a user's Mac)
 4. Prints Pi's CHANGELOG sections between the old and new version.
 
-Before any of that, the script refuses a version outside the minor line `PiRPCClient.supportedVersionPrefix` accepts
+Before running the gates, the script refuses a version outside the minor line `PiRPCClient.supportedVersionPrefix` accepts
 (a new minor needs a deliberate review of the RPC contract first), and it updates the Pi version named in
 `THIRD_PARTY_NOTICES.md`.
 
-`--no-gates` only updates the pins and builds the payload.
+`--no-gates` only updates the pins and builds the payload. Swift compilation in the bump gates uses two jobs by
+default; set `PIPPA_BUILD_JOBS` to override it.
 
 Then read the printed CHANGELOG for anything touching the contracts below, look at `git diff --stat`, and commit.
 Nothing is pushed. The next app build bundles the new Pi.
@@ -50,8 +51,8 @@ Nothing is pushed. The next app build bundles the new Pi.
 
 If a change breaks a gate, fix Pippa; if it cannot be fixed cleanly, stay on the old pin.
 
-Release flow: read upstream release notes → bump → gates → a short real-model smoke (`scripts/pi-setup-ui.sh e2e`,
-which sets up the new Pi in a fake HOME and answers a question with a real local model) → fresh app build → `scripts/verify-app.sh --verify-runtime` → explicitly authorized
+Release flow: read upstream release notes → bump → gates → `swift run --package-path app PiRPCChecks` and
+`PIPPA_SETUP_CHECKS=1 swift run --package-path app PippaChecks` → fresh app build → `scripts/verify-app.sh --verify-runtime` → explicitly authorized
 release. Pi is never updated on a customer's Mac by itself; it ships with a reviewed Pippa update. There is no Pi fork,
 patched dependency or private import.
 
@@ -86,3 +87,15 @@ When a user installs a new Pippa (Sparkle) that bundles a newer Pi, the installe
 
 `PippaChecks` (`PIPPA_SETUP_CHECKS=1`) covers these cases with fake payloads, and old → new with real payloads when
 `PIPPA_PI_PAYLOAD_PREVIOUS` is set (the bump script sets it).
+
+## Pi 1.5 compatibility review
+
+The 1.5.0 release replaces tool argument validation with pi-schema. Pippa's extension tools use JSON Schema-compatible
+TypeBox schemas; they do not use refinements, codecs, custom formats, BigInt, or Undefined. Pi's extension loader
+continues to support their `Type` import from pi-ai. MCP arguments now receive the same coercion as extension tools.
+The real-Pi tool and MCP gates must pass before shipping this pin.
+
+The upstream changelog does not announce changes to the RPC commands/events, CLI flags, managed release layout, or
+provider configuration used by Pippa. The ChatGPT default changes to `gpt-6.1-sol`; Pippa reads that default from the
+bundled Pi rather than hardcoding it. Streaming argument parsing, process aborts, and session persistence also receive
+fixes. See the [upstream changelog](https://github.com/earendil-works/pi/blob/v1.5.0/packages/coding-agent/CHANGELOG.md).

@@ -45,6 +45,7 @@ jobs:
         run: |
           export PIPPA_PI_CLI="$PWD/.build/pi-release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"
           node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs 2>&1 | tail -n 200
+          node --test runtime/pippa-auth/*.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
       - name: Terminal autostart in the pinned Pi (runtime/pippa-local-server)
         run: |

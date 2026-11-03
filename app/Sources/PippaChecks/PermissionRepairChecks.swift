@@ -65,6 +65,13 @@ private func repairCall(_ tools: PippaMCPTools, _ name: String, _ arguments: [St
 }
 
 func runPermissionRepairChecks() async {
+    check("Permission repair: legacy cloud roots match complete path components") {
+        let home = URL(fileURLWithPath: "/fixture/home")
+        return ["OneDrive", "Google Drive", "GoogleDrive", "Box", "Box Sync"].allSatisfy {
+            PermissionRepairTarget.forDeniedFile(at: home.appendingPathComponent($0 + "/file"), home: home) == .filesAndFolders
+                && PermissionRepairTarget.forDeniedFile(at: home.appendingPathComponent($0 + "Other/file"), home: home) == nil
+        }
+    }
     check("Permission repair: legacy histories and unknown destinations remain readable; known targets round-trip") {
         let decoder = JSONDecoder()
         let legacy = try decoder.decode(ActionReceipt.self, from: Data(#"{"items":[{"action":"read","outcome":"done","name":"Read Calendar"}]}"#.utf8))

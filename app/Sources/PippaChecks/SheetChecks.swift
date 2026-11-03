@@ -5,6 +5,10 @@ import PippaCore
 /// omitted row, number stored as text, everything fine), plus reading from Excel without Excel (area selection,
 /// Apple Event values) and that no script writes to a sheet.
 func runSheetChecks() async {
+    check("Sheet: oversized alphabetic columns are rejected without overflow") {
+        CellRef.columnNumber(String(repeating: "Z", count: 10000)) == nil
+            && CellRef.columnNumber("XFD") == CellArea.maxColumn && CellRef.columnNumber("XFE") == nil
+    }
     let english = Locale(identifier: "en_US")
     func t(_ s: String) -> SheetCell { SheetCell(.text(s)) }
     func n(_ v: Double) -> SheetCell { SheetCell(.number(v)) }

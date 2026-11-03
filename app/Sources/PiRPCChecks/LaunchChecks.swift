@@ -72,3 +72,42 @@ import PiRPC
     check("Only the word trash means the Trash; a folder whose name contains it is a move",
           receipt.records.map(\.action) == ["move", "trash"])
 }
+
+@MainActor func runCommandLifetimeChecks(executable: URL, temporary: URL) async throws {
+    let client = PiRPCClient(configuration: .init(executable: executable, workingDirectory: temporary,
+        environment: ["PIPPA_TEST_NATIVE_READINESS": "hang-command"]))
+    try await client.start()
+    var timedOut = false
+    do { _ = try await client.command(["type": "get_commands"], timeout: .milliseconds(30)) }
+    catch PiRPCError.commandFailed { timedOut = true }
+    check("Unanswered RPC commands expire", timedOut)
+    let task = Task { try await client.command(["type": "get_commands"]) }
+    task.cancel()
+    var cancelled = false
+    do { _ = try await task.value } catch is CancellationError { cancelled = true }
+    check("Cancelled RPC commands release their continuation", cancelled)
+    await client.shutdown()
+    // Restart inside the old process's delayed exit delivery window.
+    try await client.start()
+    try await Task.sleep(for: .milliseconds(250))
+    check("A previous process exit cannot clear its replacement", await client.isRunning)
+    await client.shutdown()
+
+    let hungAbort = PiRPCClient(configuration: .init(executable: executable, workingDirectory: temporary,
+        environment: ["PIPPA_TEST_NATIVE_READINESS": "hang-abort"]))
+    try await hungAbort.start()
+    let streamTask = Task {
+        for try await _ in try await hungAbort.prompt("hang") {}
+    }
+    try await Task.sleep(for: .milliseconds(40))
+    var abortTimedOut = false
+    do { try await hungAbort.abort(timeout: .milliseconds(40)) }
+    catch PiRPCError.commandFailed { abortTimedOut = true }
+    streamTask.cancel()
+    _ = await streamTask.result
+    try await Task.sleep(for: .milliseconds(20))
+    let idleAfterCancel = await hungAbort.isAnswering == false
+    check("Unresponsive abort expires promptly and stream cancellation releases answering state",
+          abortTimedOut && idleAfterCancel)
+    await hungAbort.shutdown()
+}

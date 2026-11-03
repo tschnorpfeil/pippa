@@ -372,7 +372,6 @@ public actor DurableJobStore {
             try db.exec("BEGIN IMMEDIATE")
             var committed = false
             defer { if !committed { try? db.exec("ROLLBACK") } }
-            _ = try Self.readRows(db)
             let result = try body()
             try db.exec("COMMIT"); committed = true
             return result

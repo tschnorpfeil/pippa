@@ -4,17 +4,22 @@ import SwiftUI
 /// First run, one card: load the AI for this Mac, or use an online AI in Settings.
 struct SetupCard: View {
     @ObservedObject var setup: SetupModel
+    var showsOnlineOption = true
+    private let detailsState = State(initialValue: false)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: symbol).font(.body.weight(.semibold)).foregroundStyle(Theme.accent)
-                    .frame(width: 32, height: 32)
-                    .background(Theme.accentTint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                Text(T("Pippa’s AI", table: "App")).font(.headline)
+        VStack(alignment: .leading, spacing: Space.l) {
+            HStack(spacing: Space.ml) {
+                Image(systemName: symbol).font(.system(size: 14, weight: .semibold)).foregroundStyle(tint)
+                    .frame(width: 30, height: 30)
+                    .background(tintFill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                Text(T("Pippa’s AI", table: "App")).font(.system(size: 14.5, weight: .semibold)).foregroundStyle(Theme.ink)
                 Spacer()
                 if case .downloading(let progress, _) = setup.state {
-                    Text(progress, format: .percent.precision(.fractionLength(0))).monospacedDigit().foregroundStyle(.secondary)
+                    let locale = Locale(identifier: Bundle.module.preferredLocalizations.first ?? "en")
+                    Text(progress, format: .percent.precision(.fractionLength(0)).locale(locale))
+                        .font(.system(size: 13, weight: .medium)).monospacedDigit().foregroundStyle(Theme.ink2)
+                        .contentTransition(.numericText())
                 }
             }
             switch setup.state {
@@ -26,31 +31,55 @@ struct SetupCard: View {
             case .askDownload(let bytes):
                 Text(T("Pippa’s AI runs on this Mac. It needs a one-time download of %@.", table: "App",
                        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)))
-                Text(T("Picked to fit your Mac: %@", table: "App", setup.hardware)).font(.caption).foregroundStyle(.secondary)
-                HStack {
-                    Button(T("Load Pippa’s AI", table: "App")) { setup.load() }.buttonStyle(.borderedProminent)
-                    Button(T("Use an Online AI…", table: "App")) { SettingsWindow.shared.show() }
+                Text(T("Picked to fit your Mac: %@", table: "App", setup.hardware)).font(.system(size: 12)).foregroundStyle(Theme.ink3)
+                HStack(spacing: Space.m) {
+                    ActionPill(title: T("Load Pippa’s AI", table: "App"), primary: true) { setup.load() }
+                    if showsOnlineOption {
+                        ActionPill(title: T("Use an Online AI…", table: "App")) { SettingsWindow.shared.show() }
+                    }
                 }
             case .downloading(let progress, let remaining):
-                ProgressView(value: progress).tint(Theme.accent)
+                ProgressBar(value: progress)
                 HStack {
-                    Text(remaining.map { T("About %@ left", table: "App", Self.duration($0)) } ?? T("Loading…", table: "App"))
-                        .font(.caption).foregroundStyle(.secondary)
+                    Text(remaining.map { $0 < 60 ? T("Less than a minute left", table: "App") : T("About %@ left", table: "App", Self.duration($0)) } ?? T("Loading…", table: "App"))
+                        .font(.system(size: 12)).foregroundStyle(Theme.ink3).monospacedDigit()
                     Spacer()
-                    Button(T("Stop", table: "App")) { setup.stopDownload() }
+                    ActionPill(title: T("Stop", table: "App")) { setup.stopDownload() }
                 }
             case .failed(let problem):
-                Text(problem.message)
-                if problem.canRetry { Button(T("Try Again", table: "App")) { setup.begin() } }
+                Text(problem.message).fixedSize(horizontal: false, vertical: true)
+                // Never a dead end: even when this Mac can't run the AI itself (too little memory), an online AI can.
+                HStack(spacing: Space.m) {
+                    if problem.canRetry { ActionPill(title: T("Try Again", table: "App"), primary: true) { setup.begin() } }
+                    if showsOnlineOption {
+                        ActionPill(title: T("Use an Online AI…", table: "App"), primary: !problem.canRetry) { SettingsWindow.shared.show() }
+                    }
+                }
+                if !problem.details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    DisclosureGroup(isExpanded: detailsState.projectedValue) {
+                        Text(problem.details)
+                            .font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Theme.ink2)
+                            .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(Space.m)
+                            .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                            .padding(.top, Space.xs)
+                    } label: {
+                        Text(T("Details", table: "App")).font(.caption).foregroundStyle(Theme.ink3)
+                    }
+                }
             case .ready:
                 Label(T("Ready", table: "App"), systemImage: "checkmark.circle").foregroundStyle(Theme.ok)
             }
         }
-        .padding(18)
+        .font(.system(size: 13))
+        .padding(Space.xl + 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.chatBorder))
+        .raised(Radius.card + 2)
     }
+
+    private var tint: Color { if case .failed = setup.state { Theme.need } else { Theme.accent } }
+    private var tintFill: Color { if case .failed = setup.state { Theme.needTint } else { Theme.accentTint } }
 
     private var symbol: String {
         switch setup.state {
@@ -60,10 +89,34 @@ struct SetupCard: View {
         }
     }
 
+    /// "45 sec", "6 min", "1 hr, 20 min". (Under a minute it says the seconds, never "1 min".)
     static func duration(_ seconds: TimeInterval) -> String {
         let formatter = DateComponentsFormatter()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: Bundle.module.preferredLocalizations.first ?? "en")
+        formatter.calendar = calendar
         formatter.unitsStyle = .short
-        formatter.allowedUnits = seconds > 3600 ? [.hour, .minute] : [.minute]
-        return formatter.string(from: max(seconds, 60)) ?? ""
+        formatter.allowedUnits = seconds < 60 ? [.second] : seconds >= 3600 ? [.hour, .minute] : [.minute]
+        return formatter.string(from: seconds) ?? ""
+    }
+}
+
+/// A thin determinate bar in the accent colour: drawn by hand so it looks the same in every window state (the system
+/// bar turns grey and nearly invisible in a window that is not key).
+private struct ProgressBar: View {
+    var value: Double
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Theme.fill2)
+                Capsule().fill(Theme.accent)
+                    .frame(width: max(6, geometry.size.width * min(1, max(0, value))))
+                    .animation(Theme.arrive, value: value)
+            }
+        }
+        .frame(height: 6)
+        .accessibilityElement()
+        .accessibilityValue(Text(value, format: .percent.precision(.fractionLength(0))))
     }
 }

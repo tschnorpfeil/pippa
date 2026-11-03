@@ -40,19 +40,26 @@ public struct PiServerLock: Sendable, Equatable {
     public static func read(_ url: URL) -> PiServerLock? {
         guard let data = try? Data(contentsOf: url),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let owner = object["owner"] as? String, let holder = object["holder"] as? Int, let port = object["port"] as? Int else { return nil }
-        return PiServerLock(owner: owner, holder: Int32(holder), pid: (object["pid"] as? Int).map(Int32.init), port: port,
+              let owner = object["owner"] as? String, let holder = object["holder"] as? Int,
+              let holderPID = Int32(exactly: holder), let port = object["port"] as? Int else { return nil }
+        let serverPID: Int32?
+        if let value = object["pid"] as? Int {
+            guard let exact = Int32(exactly: value) else { return nil }
+            serverPID = exact
+        } else { serverPID = nil }
+        return PiServerLock(owner: owner, holder: holderPID, pid: serverPID, port: port,
                             startedAt: object["startedAt"] as? String ?? "")
     }
 
     /// Create exclusively; `false` if a lock already exists.
     public static func create(_ url: URL, _ lock: PiServerLock) -> Bool {
-        let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
-        guard fd >= 0 else { return false }
-        let data = lock.json
-        _ = data.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, data.count) }
-        close(fd)
-        return true
+        let temporary = url.deletingLastPathComponent().appendingPathComponent(".lock-\(UUID().uuidString).tmp")
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        do {
+            try lock.json.write(to: temporary, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
+            return link(temporary.path, url.path) == 0
+        } catch { return false }
     }
 
     /// Replace the content of an own lock (temp file + rename).
@@ -65,7 +72,7 @@ public struct PiServerLock: Sendable, Equatable {
     /// Remove if `matches` still recognizes the current lock as the expected one (never a foreign, newer one).
     @discardableResult
     public static func remove(_ url: URL, if matches: (PiServerLock) -> Bool) -> Bool {
-        if let lock = read(url), !matches(lock) { return false }
+        guard let lock = read(url), matches(lock) else { return false }
         return unlink(url.path) == 0
     }
 

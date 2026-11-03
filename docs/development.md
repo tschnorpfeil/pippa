@@ -9,7 +9,7 @@ to a new Pi release. The plan is [Pippa next](pippa-next-architecture.md), where
 ## Architecture
 
 Pi is the harness, Pippa is the window and the hands. [Pi](https://github.com/earendil-works/pi) does the reasoning,
-tool choice, sessions, compaction, skills and memory. Pippa is a native chat front end: menu bar, pill, one chat window
+tool choice, sessions, compaction, skills and memory. Pippa is a regular native Mac app: Dock icon, app menus, one chat window, a menu bar shortcut and an optional pill
 with a conversation sidebar, a first-run card and settings. Mac access (Mail, Calendar, Reminders, Photos, documents,
 PDF building) is one MCP server inside the app process, so macOS asks for "Pippa" and the permission belongs to the app.
 [oMLX](https://github.com/jundot/omlx) (MLX) runs the local model on a loopback-only server; it and the model are
@@ -89,9 +89,16 @@ consent (resumable, SHA256-verified), or the model is cloned from oMLX's or Hugg
 provider into `models.json`. `PiLocalServer` plans the oMLX server for it, `PiModelTuning` sets thinking and
 compaction per model in Pi's `settings.json`. See [Updating Pi](updating-pi.md).
 
-**Online AI.** Two routes, chosen in Settings: the ChatGPT subscription through Pi's own sign-in (`PiSubscriptionAuth`,
-`runtime/pippa-auth/pi-auth.mjs`), or an own service (`PiOnlineProvider`): models.json gets `pippa-online` with
-`apiKey: "$PIPPA_ONLINE_KEY"`, and the key from the Keychain goes only into the environment of Pippa's Pi.
+**Online AI.** `PiProviderSettings` presents the bundled Pi’s provider catalog and authentication methods through
+`PiProviderClient` and `runtime/pippa-auth/pi-providers.mjs`. The helper uses public `ModelRuntime` APIs; interactive
+prompts are correlated JSONL over stdin/stdout. Credentials stay in Pi’s credential store and routing persists only
+provider/model metadata (`InferenceSettings.piModel`). `PiSession` passes the selected provider/model directly to Pi.
+Provider setup and online chat do not require a local model download. The model must be explicitly selected; catalog order is not treated as a recommended default. Browser, device-code, API-key, optional text,
+secret, and select prompts use the same bridge. Pi owns credential refresh and provider-specific behavior.
+
+Older `subscriptionModel` settings map to Pi’s `openai` provider. Existing Keychain connections retain their old
+`pippa-online` route until the person chooses a Pi provider; their keys are not silently migrated. The compatibility
+form appears only for existing connections. Online activation always requires an explicit **Use [provider]** action.
 
 **Terminal autostart (`runtime/pippa-local-server`).** Installed as `~/.pi/agent/extensions/pippa-local-server`. When
 the terminal `pi` uses provider `pippa-local` and nothing answers, it starts the oMLX server through a detached
@@ -105,14 +112,14 @@ terminal from running two.
 
 | Path | Contents |
 |---|---|
-| `app/Sources/Pippa` | The app: menu bar, pill, chat window, settings, first-run card, hotkey, Sparkle updates, `PiSession`, `Pippa --ask` |
+| `app/Sources/Pippa` | The app: Dock/app menus, menu bar shortcut, optional pill, chat window, settings, first-run card, hotkey, Sparkle updates, `PiSession`, `Pippa --ask` |
 | `app/Sources/PippaCore` | Model catalog and download, runtime download, oMLX server, Pi installer, MCP server, Mail/Calendar/Reminders/Photos readers and writers, PDF building, journal |
 | `app/Sources/PiRPC` | Starts Pi with Pippa's flags, speaks JSON lines over stdin and stdout, turns tool events into receipts |
 | `app/Sources/PippaChecks` | Checks without a model |
 | `app/Sources/PiRPCChecks` | RPC lifecycle and receipts against a fake Pi process |
 | `app/Sources/PippaUpdateProbe` | Probe for a real Sparkle update through a loopback feed |
 | `app/Packaging` | `Info.plist` and its translations, entitlements, icon generator, pinned Node, Pi, fd and rg; `mlx-runtime/` (lock file for the runtime builder) |
-| `runtime/` | Pi extensions (`pippa-tools`), web access (`pippa-web`), ChatGPT sign-in helper (`pippa-auth`), terminal autostart (`pippa-local-server`), skills (`pippa-skills`) |
+| `runtime/` | Pi extensions (`pippa-tools`), web access (`pippa-web`), provider discovery/sign-in bridge (`pippa-auth`), terminal autostart (`pippa-local-server`), skills (`pippa-skills`) |
 | `scripts/` | Build, verify, DMG, release and check scripts |
 | `site/` | Static website, German and English, no build step |
 | `docs/` | This guide, user docs, [plan](pippa-next-architecture.md), [tasks](pippa-next-tasks.md), [roadmap](ROADMAP.md), [archive](archive/) |
@@ -171,7 +178,7 @@ python3 scripts/check-strings.py                                        # every 
 python3 scripts/check-default-models.py                                 # the catalog model is pinned
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'            # release and fixture scripts
 node --experimental-strip-types --test $(ls runtime/pippa-tools/*.test.mjs | grep -v /real-pi-)  # extensions, no Pi needed
-node --test runtime/pippa-auth/pi-auth.test.mjs                         # ChatGPT sign-in helper (no network)
+node --test runtime/pippa-auth/*.test.mjs                               # Provider/login bridge (no network)
 node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs   # terminal autostart, fake server
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first
 node scripts/check-site.cjs                                             # website content and behavior
@@ -226,9 +233,10 @@ from a local archive instead of the download; the hash is still checked), `PIPPA
 endpoint), `PIPPA_TRASH_DIR` (a test folder instead of the real Trash), `PIPPA_LOG_DIR` and `PIPPA_RESULTS_DIR`.
 `PI_CODING_AGENT_DIR` is passed through to Pi, so a test can keep `~/.pi` untouched.
 
-**Clicking through the real app.** Pippa is a menu bar app (accessory). `PIPPA_REGULAR_APP=1` gives it a Dock icon for
-UI automation tools. For a clean first start, point Foundation at a fake home and Pi's setup at its own folder:
-`open --env PIPPA_REGULAR_APP=1 --env PIPPA_NO_MOVE=1 --env CFFIXED_USER_HOME=$PWD/.build/fakehome --env HOME=$PWD/.build/fakehome --env PIPPA_PI_HOME=$PWD/.build/fakehome dist/Pippa.app`.
+**Clicking through the real app.** Pippa is a regular app with a Dock icon, app menus, and Command-Tab support.
+The chat opens on launch; closing it keeps Pippa running, and clicking the Dock icon restores it. The pill is optional
+and off unless enabled in Settings; an explicit saved preference is retained. For a clean first start, point Foundation at a fake home and Pi's setup at its own folder:
+`open --env PIPPA_NO_MOVE=1 --env CFFIXED_USER_HOME=$PWD/.build/fakehome --env HOME=$PWD/.build/fakehome --env PIPPA_PI_HOME=$PWD/.build/fakehome dist/Pippa.app`.
 Preferences (`io.github.tschnorpfeil.pippa`) still go to the real account through `cfprefsd`: export them first
 (`defaults export io.github.tschnorpfeil.pippa ~/pippa-prefs.plist`) and import them afterwards. `PIPPA_NO_MOVE=1`
 skips the "move to Applications" question (`AppMover`); debug builds ask only with `PIPPA_TRY_MOVE=1`.
@@ -341,3 +349,28 @@ python3 -m http.server 8088 --directory site
 node scripts/check-site.cjs           # content and behavior checks
 node scripts/check-site-launch.cjs    # publication gate: required files
 ```
+
+### Provider integration checks
+
+```sh
+node --test runtime/pippa-auth/*.test.mjs
+PIPPA_PROVIDER_CHECKS=1 PIPPA_PI_PAYLOAD="$PWD/.build/pi-payload-1.5.0" swift run --package-path app --jobs 2 PippaChecks
+node scripts/provider-setup-smoke.mjs dist/Pippa.app
+```
+
+The focused Swift checks cover settings compatibility and the duplex helper lifecycle. The app smoke uses a fresh
+HOME and a loopback scripted responder to exercise the actual chat route without a local model or real credentials.
+`verify-app.sh --verify-runtime` also checks provider discovery inside the signed bundle. Real account login requires
+a person’s interaction and is not part of these offline checks.
+
+Pi 1.5 includes Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. Its separate `openai-codex` provider is marked
+legacy. Google Antigravity is not built in; Google Gemini and Vertex are listed with their actual Pi capabilities.
+
+### Mac app window checks
+
+After building the app, run `scripts/check-window-lifecycle.sh`. It clones the bundle with APFS, assigns a temporary
+bundle identifier, and launches it through LaunchServices with an isolated HOME, so real preferences and Pi state
+stay untouched. It exercises closing, minimizing, reopening, draft preservation, app menus, hiding/unhiding, and the
+optional non-key pill. Setup, updates, and model servers do not run. If macOS reports `loginwindow` as the frontmost
+app, three checks that need real keyboard focus are explicitly skipped; rerun from an unlocked interactive desktop
+to exercise them. Background replies update a Dock badge and do not activate Pippa.

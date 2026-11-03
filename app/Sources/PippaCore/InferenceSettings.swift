@@ -71,23 +71,50 @@ public struct ModelConnection: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// Only routing metadata. Credentials and provider behavior belong to Pi.
+public struct PiModelSelection: Codable, Sendable, Equatable {
+    public var providerID: String
+    public var modelID: String
+    public var providerName: String
+    public init(providerID: String, modelID: String, providerName: String) {
+        self.providerID = providerID; self.modelID = modelID; self.providerName = providerName
+    }
+    public var isValid: Bool {
+        [providerID, modelID, providerName].allSatisfy {
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.utf8.count <= 512
+                && !$0.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+        }
+    }
+    public var launchArguments: [String] { ["--provider", providerID, "--model", modelID] }
+}
+
 public struct InferenceSettings: Codable, Sendable, Equatable {
     public var policy: InferencePolicy
     public var connection: ModelConnection?
-    /// ChatGPT subscription switched on (PiSubscriptionAuth): the model Pi uses with `--provider openai`. `nil` = off.
+    /// Legacy ChatGPT setting: the model Pi uses with `--provider openai`. `nil` = off.
     /// Takes precedence over `connection` for Pippa's Pi; local stays the default.
     public var subscriptionModel: String?
-    public init(policy: InferencePolicy = .localOnly, connection: ModelConnection? = nil, subscriptionModel: String? = nil) {
+    public var piModel: PiModelSelection?
+    /// Existing ChatGPT selections keep working without copying or changing their credentials.
+    public var activePiModel: PiModelSelection? {
+        piModel ?? subscriptionModel.map { PiModelSelection(providerID: "openai", modelID: $0, providerName: "ChatGPT") }
+    }
+    public var usesOnlineAI: Bool { activePiModel != nil || PiOnlineProvider.activeConnection(self) != nil }
+    public init(policy: InferencePolicy = .localOnly, connection: ModelConnection? = nil, subscriptionModel: String? = nil,
+                piModel: PiModelSelection? = nil) {
         self.policy = policy; self.connection = connection; self.subscriptionModel = subscriptionModel
+        self.piModel = piModel
     }
     public static func load(from base: URL = Pippa.supportDirectory) -> Self {
         guard let data = try? Data(contentsOf: base.appendingPathComponent("inference-settings.json")),
               let value = try? JSONDecoder().decode(Self.self, from: data),
               value.policy == .localOnly || value.connection != nil,
-              value.connection == nil || (try? value.connection?.validated()) != nil else { return Self() }
+              value.connection == nil || (try? value.connection?.validated()) != nil,
+              value.activePiModel?.isValid != false else { return Self() }
         return value
     }
     public func save(to base: URL = Pippa.supportDirectory) throws {
+        guard activePiModel?.isValid != false else { throw InferenceError.invalidResponse }
         if let connection { try connection.validated() }
         guard policy == .localOnly || connection != nil else {
             throw InferenceError.invalidConnection(L("Please connect an online AI first.", table: "Core"))

@@ -18,19 +18,16 @@ enum AppMover {
         let bundle = Bundle.main.bundleURL
         guard bundle.pathExtension == "app",
               Bundle.main.bundleIdentifier == Pippa.bundleID,
-              
               ProcessInfo.processInfo.environment["PIPPA_NO_MOVE"] == nil,
               !defaults.bool(forKey: declinedKey) else { return false }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let place = AppLocation.place(of: bundle, home: home)
+        let place = AppLocation.place(of: bundle, home: FileManager.default.homeDirectoryForCurrentUser)
         if place == .applications { return false }
         // Another Pippa already runs (e.g. the one in Applications): the single-instance check wakes it.
         let mine = ProcessInfo.processInfo.processIdentifier
         guard NSRunningApplication.runningApplications(withBundleIdentifier: Pippa.bundleID)
             .allSatisfy({ $0.processIdentifier == mine }) else { return false }
-        let source = place == .translocated ? (originalURL(ofTranslocated: bundle) ?? bundle) : bundle
 
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate()
         let alert = NSAlert()
         alert.messageText = T("Move Pippa to your Applications folder?", table: "App")
@@ -42,7 +39,23 @@ enum AppMover {
             DiagnosticsLog.shared.event("app-verschieben", ["ergebnis": "abgelehnt"])
             return false
         }
+        return move()
+    }
 
+    /// "Move to Applications…" in Settings: the person asks for it, so no question and an earlier "Not Now" no
+    /// longer counts. On success Pippa quits and the moved copy starts.
+    static func moveNow() {
+        UserDefaults.standard.removeObject(forKey: declinedKey)
+        guard Bundle.main.bundleURL.pathExtension == "app", !AppLocation.isInApplications() else { return }
+        if move() { NSApp.terminate(nil) }
+    }
+
+    /// Copies Pippa to Applications and schedules the restart from there. `false`: it failed (the person was told).
+    private static func move() -> Bool {
+        let bundle = Bundle.main.bundleURL
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let place = AppLocation.place(of: bundle, home: home)
+        let source = place == .translocated ? (originalURL(ofTranslocated: bundle) ?? bundle) : bundle
         let fm = FileManager.default
         let destination = AppLocation.destination(appName: source.lastPathComponent,
                                                   systemApplicationsWritable: fm.isWritableFile(atPath: "/Applications"), home: home)
@@ -102,5 +115,12 @@ enum AppMover {
               let symbol = dlsym(handle, "SecTranslocateCreateOriginalPathForURL") else { return nil }
         let original = unsafeBitCast(symbol, to: Original.self)
         return original(url as CFURL, nil).map { $0.takeRetainedValue() as URL }
+    }
+}
+
+extension AppLocation {
+    /// The running Pippa lies in /Applications or ~/Applications.
+    static func isInApplications(bundle: URL = Bundle.main.bundleURL) -> Bool {
+        place(of: bundle, home: FileManager.default.homeDirectoryForCurrentUser) == .applications
     }
 }

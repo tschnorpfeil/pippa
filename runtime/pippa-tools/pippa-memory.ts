@@ -46,10 +46,10 @@ export function memorySection(facts: string[]): string | undefined {
 /** Why a fact must not be stored, or `undefined`. Nine or more digits in a row (spaces, dots, dashes and slashes between
  * them count as one run) cover IBAN, account, card, ID, tax and phone numbers; dates like 09.10.2026 have eight. */
 export function refusal(fact: string): string | undefined {
-	if (/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b/.test(fact) || /\d(?:[\s./-]?\d){8,}/.test(fact)) {
+	if (/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b/i.test(fact) || /\d(?:[\s./-]?\d){8,}/.test(fact) || /(?:^|[^a-z0-9])(ausweisnummer|steuer[-_\s]?id)(?:$|[^a-z0-9])/i.test(fact)) {
 		return "Not saved: Pippa never keeps account, card, ID, tax or phone numbers. Tell the person in one short sentence that you don't keep such numbers.";
 	}
-	if (/\b(passw(or)?d|passwort|kennwort|pin|puk|tan|zugangsdaten|login)\b/i.test(fact)) {
+	if (/(?:^|[^a-z0-9])(passw(or)?d|passwort|kennwort|pin|puk|tan|zugangsdaten|login|api[-_\s]?key|secret|token|seed[-_\s]?phrase|recovery[-_\s]?code)(?:$|[^a-z0-9])/i.test(fact)) {
 		return "Not saved: Pippa never keeps passwords, PINs or sign-in details. Tell the person in one short sentence that you don't keep those.";
 	}
 	return undefined;
@@ -92,10 +92,12 @@ export async function readFacts(file: string): Promise<string[]> {
 	try { return parseMemory(await readFile(file, "utf8")); } catch { return []; }
 }
 
+let writeSeq = 0;
+
 /** Write whole, never half: temporary file next to it, then rename. Only the person can read it. */
 export async function writeFacts(file: string, facts: string[]): Promise<void> {
 	await mkdir(dirname(file), { recursive: true });
-	const temp = `${file}.${process.pid}.tmp`;
+	const temp = `${file}.${process.pid}.${++writeSeq}.tmp`;
 	await writeFile(temp, renderMemory(facts), { mode: 0o600 });
 	await rename(temp, file);
 }
@@ -131,9 +133,12 @@ export default function (pi: ExtensionAPI) {
 		annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 		executionMode: "sequential",
 		async execute(_id: string, params: any) {
-			const change = apply(await load(), params ?? {});
+			const before = await load();
+			const change = apply(before, params ?? {});
 			if (change.error) throw new Error(change.error);
-			await save(change.facts);
+			const changed = change.forgotten.length > 0 || change.dropped.length > 0 || change.facts.length !== before.length
+				|| change.facts.some((fact, i) => fact !== before[i]);
+			if (changed) await save(change.facts);
 			const parts: string[] = [];
 			if (change.forgotten.length) parts.push(`Forgotten: ${change.forgotten.join("; ")}.`);
 			else if (params?.forget) parts.push("Nothing matched to forget.");

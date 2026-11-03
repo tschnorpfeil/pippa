@@ -34,6 +34,14 @@ fail() { printf '  \033[31mFAIL\033[0m  %s\n' "$*" >&2; exit 1; }
 entitlements() { codesign -d --entitlements - --xml "$1" 2>/dev/null; }
 plutil -lint "$APP/Contents/Info.plist" >/dev/null || fail "Info.plist invalid"
 ok "Info.plist (plutil -lint)"
+python3 - "$APP/Contents/Info.plist" <<'PYMODE'
+import plistlib, sys
+with open(sys.argv[1], "rb") as stream:
+    info = plistlib.load(stream)
+assert not info.get("LSUIElement", False), "Pippa must have a Dock icon and app menus"
+assert not info.get("LSBackgroundOnly", False), "Pippa must be a foreground application"
+PYMODE
+ok "regular Mac app (Dock icon, app menus, Command-Tab)"
 codesign --verify --deep --strict "$APP" || fail "codesign --verify --deep --strict"
 ok "codesign --verify --deep --strict"
 codesign -dv --verbose=2 "$APP" 2>&1 | grep -E '^(Identifier|Signature|Authority|TeamIdentifier|CodeDirectory)' | sed 's/^/    /'

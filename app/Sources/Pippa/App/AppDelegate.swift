@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The menu bar mark: still and single-colour at rest, turning while Pippa works.
     private let menuMark = MarkNSView(size: 18, monochromeIdle: true)
     private var markWatch: AnyCancellable?
+    private var unreadWatch: AnyCancellable?
     private var shuttingDown = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -15,17 +16,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             SingleInstance.signalRunningInstance()
             exit(0)
         }
-        SingleInstance.listen { AppActions.callPippa() }
+        SingleInstance.listen { ChatWindow.shared.show() }
         DiagnosticsLog.shared.event("start", ["version": AppVersion.label, "macos": ProcessInfo.processInfo.operatingSystemVersionString])
         NSApp.mainMenu = mainMenu()
         statusItem = makeStatusItem()
+        unreadWatch = Publishers.CombineLatest(ChatModel.shared.$unseen, ChatModel.shared.$unseenIDs).sink { unseen, conversations in
+            // A quiet Dock badge replaces focus stealing when a background answer is ready.
+            switch unseen {
+            case .failed: NSApp.dockTile.badgeLabel = "!"
+            case .answer: NSApp.dockTile.badgeLabel = "•"
+            case nil: NSApp.dockTile.badgeLabel = conversations.isEmpty ? nil : "•"
+            }
+        }
         HotkeyCenter.shared.onPress = { AppActions.callPippa() }
         HotkeyCenter.shared.apply(Hotkey.current)
         SetupModel.shared.begin()
         Pill.shared.show()
         Updates.shared.start()
-        // First run: open the chat, which shows the setup card.
-        if !SetupModel.shared.canAnswer { ChatWindow.shared.show() }
+        // Ordinary launches show the chat; respect a hidden launch requested by macOS.
+        if !NSApp.isHidden { ChatWindow.shared.show() }
     }
 
     private func makeStatusItem() -> NSStatusItem {
@@ -51,8 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return item
     }
 
-    /// Invisible main menu: without it, a menu bar app has no ⌘C/⌘V/⌘A/⌘Z in text fields and no ⌘N, ⌘W, ⌘,.
-    private func mainMenu() -> NSMenu {
+    /// Standard Mac app menus, including responder-chain editing, hiding, and window management.
+    func mainMenu() -> NSMenu {
         let main = NSMenu()
         func submenu(_ title: String, _ items: [NSMenuItem]) {
             let menu = NSMenu(title: title)
@@ -67,11 +76,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return item
         }
         submenu("Pippa", [
+            MenuAction.item(T("About Pippa", table: "App")) { NSApp.orderFrontStandardAboutPanel(nil) },
+            .separator(),
             MenuAction.item(T("Settings…", table: "App"), key: ",", modifiers: [.command]) { SettingsWindow.shared.show() },
             MenuAction.item(T("Check for Updates…", table: "App")) { Updates.shared.checkNow() },
             .separator(),
+            edit(T("Hide Pippa", table: "App"), #selector(NSApplication.hide(_:)), "h"),
+            edit(T("Hide Others", table: "App"), #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
+            edit(T("Show All", table: "App"), #selector(NSApplication.unhideAllApplications(_:)), ""),
+            .separator(),
             MenuAction.item(T("Quit Pippa", table: "App"), key: "q", modifiers: [.command]) { NSApp.terminate(nil) },
         ])
+        let services = NSMenu(title: T("Services", table: "App"))
+        let servicesItem = NSMenuItem(title: services.title, action: nil, keyEquivalent: "")
+        servicesItem.submenu = services
+        main.items.first?.submenu?.insertItem(servicesItem, at: 5)
+        main.items.first?.submenu?.insertItem(.separator(), at: 6)
+        NSApp.servicesMenu = services
         submenu(T("File", table: "App"), [
             MenuAction.item(T("New Conversation", table: "App"), key: "n", modifiers: [.command]) { ChatModel.shared.newConversation(); ChatWindow.shared.show() },
             edit(T("Close Window", table: "App"), #selector(NSWindow.performClose(_:)), "w"),
@@ -85,6 +106,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             edit(T("Paste", table: "App"), #selector(NSText.paste(_:)), "v"),
             edit(T("Select All", table: "App"), #selector(NSText.selectAll(_:)), "a"),
         ])
+        submenu(T("Window", table: "App"), [
+            MenuAction.item(T("Show Pippa", table: "App")) { ChatWindow.shared.show() },
+            .separator(),
+            edit(T("Minimize", table: "App"), #selector(NSWindow.performMiniaturize(_:)), "m"),
+            edit(T("Zoom", table: "App"), #selector(NSWindow.performZoom(_:)), ""),
+            .separator(),
+            edit(T("Bring All to Front", table: "App"), #selector(NSApplication.arrangeInFront(_:)), ""),
+        ])
+        NSApp.windowsMenu = main.items.last?.submenu
         return main
     }
 
@@ -104,9 +134,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        AppActions.callPippa()
+        // Opening Pippa from the Dock must not attach the previously active app to the next question.
+        ChatWindow.shared.show()
         return false
     }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     /// "Open with Pippa" and files dropped on the app icon.
     func application(_ application: NSApplication, open urls: [URL]) {

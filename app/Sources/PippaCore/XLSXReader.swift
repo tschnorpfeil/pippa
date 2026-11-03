@@ -101,7 +101,7 @@ public enum XLSXReader {
     public static func workbook(_ data: Data) -> (text: String, truncated: Bool, sheets: [Sheet])? {
         guard let zip = ZipReader(data), let workbook = zip.read("xl/workbook.xml") else { return nil }
         guard let relXML = zip.read("xl/_rels/workbook.xml.rels"), let rels = Relationships.parse(relXML),
-              let sheets = SheetList.parse(workbook) else { return nil }
+              let book = SheetList.parse(workbook) else { return nil }
         var strings: [String] = []
         if zip.contains("xl/sharedStrings.xml") {
             guard let xml = zip.read("xl/sharedStrings.xml"), let parsed = SharedStrings.parse(xml) else { return nil }
@@ -112,12 +112,12 @@ public enum XLSXReader {
         var out: [String] = [], cells = 0, truncated = false
         var characters = 0
         var grids: [Sheet] = []
-        for sheet in sheets {
+        for sheet in book.sheets {
             guard let relative = rels[sheet.rid] else { return nil }
             // Relationships are package paths; never access the file system.
             let target = URL(fileURLWithPath: relative, relativeTo: URL(fileURLWithPath: "/xl/", isDirectory: true)).standardizedFileURL.path.dropFirst()
             guard target.hasPrefix("xl/"), let xml = zip.read(String(target)),
-                  let parsed = SheetCells.parse(xml, strings: strings, dateStyles: dateStyles, budget: maxCells - cells,
+                  let parsed = SheetCells.parse(xml, strings: strings, dateStyles: dateStyles, date1904: book.date1904, budget: maxCells - cells,
                                                       characterBudget: maxCharacters - characters) else { return nil }
             cells += parsed.cellCount; truncated = truncated || parsed.truncated
             if !parsed.rows.isEmpty {
@@ -188,9 +188,9 @@ public enum XLSXReader {
     }
 
     /// Day number (1900 system) as a date at midnight UTC, and as "2026-01-01" for the text.
-    static func date(serial: Double) -> (date: Date, text: String)? {
-        guard serial.isFinite, serial >= 1, serial < 2_958_466 else { return nil }
-        let date = Date(timeIntervalSince1970: (serial.rounded(.down) - 25_569) * 86_400)
+    static func date(serial: Double, date1904: Bool = false) -> (date: Date, text: String)? {
+        guard serial.isFinite, serial >= (date1904 ? 0 : 1), serial < (date1904 ? 2_957_004 : 2_958_466) else { return nil }
+        let date = Date(timeIntervalSince1970: (serial.rounded(.down) - (date1904 ? 24_107 : 25_569)) * 86_400)
         var f = Date.ISO8601FormatStyle(timeZone: TimeZone(identifier: "UTC")!)
         f = f.year().month().day()
         return (date, date.formatted(f))
@@ -206,26 +206,29 @@ public enum XLSXReader {
 
     private final class SheetList: NSObject, XMLParserDelegate {
         var sheets: [(name: String, rid: String)] = []
-        static func parse(_ data: Data) -> [(name: String, rid: String)]? { let d = SheetList(); let p = XMLParser(data: data); p.delegate = d; return p.parse() ? d.sheets : nil }
+        var date1904 = false
+        static func parse(_ data: Data) -> SheetList? { let d = SheetList(); let p = XMLParser(data: data); p.delegate = d; return p.parse() ? d : nil }
         func parser(_ p: XMLParser, didStartElement e: String, namespaceURI: String?, qualifiedName: String?, attributes a: [String: String]) {
+            if e == "workbookPr" { date1904 = ["1", "true"].contains(a["date1904"] ?? "") }
             if e == "sheet", let n = a["name"] { sheets.append((n, a["r:id"] ?? "")) }
         }
     }
 
     private final class SheetCells: NSObject, XMLParserDelegate {
+        let date1904: Bool
         let strings: [String]; let dateStyles: Set<Int>; var budget: Int; var characterBudget: Int
         var rows: [String] = [], line: [String] = [], cellCount = 0, truncated = false
         var cells: [CellRef: SheetCell] = [:]
         var ref = "", type = "", formula = "", value = "", inline = "", field = "", style = 0
         var sharedID: String?, sharedFormulas: [String: String] = [:]
         var invalid = false
-        init(strings: [String], dateStyles: Set<Int>, budget: Int, characterBudget: Int) {
-            self.strings = strings; self.dateStyles = dateStyles; self.budget = budget; self.characterBudget = characterBudget
+        init(strings: [String], dateStyles: Set<Int>, date1904: Bool = false, budget: Int, characterBudget: Int) {
+            self.date1904 = date1904; self.strings = strings; self.dateStyles = dateStyles; self.budget = budget; self.characterBudget = characterBudget
         }
         /// A number cell with a date format: the date, else nil.
         var dateValue: (date: Date, text: String)? {
             guard type == "" || type == "n", dateStyles.contains(style), let serial = Double(value) else { return nil }
-            return XLSXReader.date(serial: serial)
+            return XLSXReader.date(serial: serial, date1904: date1904)
         }
         /// The cell's value for the check: text cells stay text (a number typed as text is what the check looks for),
         /// numbers become numbers, error values ("#REF!") stay text.
@@ -238,8 +241,8 @@ public enum XLSXReader {
                 return Double(value).map(SheetValue.number) ?? (shown.isEmpty ? .empty : .text(shown))
             }
         }
-        static func parse(_ data: Data, strings: [String], dateStyles: Set<Int>, budget: Int, characterBudget: Int) -> SheetCells? {
-            let d = SheetCells(strings: strings, dateStyles: dateStyles, budget: budget, characterBudget: characterBudget)
+        static func parse(_ data: Data, strings: [String], dateStyles: Set<Int>, date1904: Bool = false, budget: Int, characterBudget: Int) -> SheetCells? {
+            let d = SheetCells(strings: strings, dateStyles: dateStyles, date1904: date1904, budget: budget, characterBudget: characterBudget)
             let p = XMLParser(data: data); p.delegate = d
             let ok = p.parse()
             return !d.invalid && (ok || d.truncated) ? d : nil

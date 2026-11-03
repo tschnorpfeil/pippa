@@ -4,6 +4,32 @@ import PippaCore
 /// Curated skills: Swift reads them from runtime/pippa-skills (no list of its own), the instructions stay short, suggestions are few and fit the place in the conversation.
 /// Excel files are read with formulas.
 func runSkillChecks() {
+    check("Server lock: oversized PIDs and malformed locks are rejected safely") {
+        let file = root.appendingPathComponent("invalid-server.lock")
+        for fields in ["\"holder\":9223372036854775807,\"pid\":null", "\"holder\":1,\"pid\":9223372036854775807"] {
+            try Data("{\"owner\":\"pi\",\"port\":8191,\(fields)}".utf8).write(to: file)
+            guard PiServerLock.read(file) == nil, !PiServerLock.remove(file, if: { _ in true }),
+                  fm.fileExists(atPath: file.path) else { return false }
+        }
+        return true
+    }
+    check("Read Excel: both 1904 date flags apply the workbook epoch") {
+        func workbook(_ flag: String, serial: Int) -> Data {
+            var zip = ZipWriter()
+            zip.add("xl/workbook.xml", Data("<workbook xmlns:r='r'><workbookPr date1904='\(flag)'/><sheets><sheet name='Dates' r:id='r1'/></sheets></workbook>".utf8))
+            zip.add("xl/_rels/workbook.xml.rels", Data("<Relationships><Relationship Id='r1' Target='worksheets/sheet1.xml'/></Relationships>".utf8))
+            zip.add("xl/styles.xml", Data("<styleSheet><cellXfs><xf numFmtId='14'/></cellXfs></styleSheet>".utf8))
+            zip.add("xl/worksheets/sheet1.xml", Data("<worksheet><row><c r='A1' s='0'><v>\(serial)</v></c></row></worksheet>".utf8))
+            return zip.finish()
+        }
+        let expected = XLSXReader.read(workbook("0", serial: 46023))?.text
+        return expected?.contains("2026-01-01") == true && ["1", "true"].allSatisfy {
+            XLSXReader.read(workbook($0, serial: 44561))?.text == expected
+                && XLSXReader.read(workbook($0, serial: 0))?.text.contains("1904-01-01") == true
+                && XLSXReader.read(workbook($0, serial: 2_957_003))?.text.contains("9999-12-31") == true
+                && XLSXReader.read(workbook($0, serial: 2_957_004))?.text.contains("10000-") == false
+        }
+    }
     let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().appendingPathComponent("runtime/pippa-skills", isDirectory: true)
     let shipped = ((try? fm.contentsOfDirectory(atPath: folder.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()

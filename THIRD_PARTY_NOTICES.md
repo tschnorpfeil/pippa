@@ -4,7 +4,7 @@ Pippa itself is MIT-licensed (see [LICENSE](LICENSE)). `Pippa.app` ships the thi
 
 | Component | Use in Pippa | Licence |
 |---|---|---|
-| [Pi](https://github.com/earendil-works/pi) 1.4.0 (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`, `pi-tui`, `pi-mcp`, `pi-codemode`, `pi-telemetry`, `chord`) | The agent. Shipped as the install payload Pippa copies to `~/.pi/agent` (`Contents/Resources/pi-payload/release`) | MIT, Copyright (c) 2025 Mario Zechner. The npm packages contain no licence file, so the text is reproduced below |
+| [Pi](https://github.com/earendil-works/pi) 1.5.0 (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`, `pi-tui`, `pi-mcp`, `pi-codemode`, `pi-durable`, `pi-schema`, `pi-telemetry`, `chord`) | The agent. Shipped as the install payload Pippa copies to `~/.pi/agent` (`Contents/Resources/pi-payload/release`) | MIT, Copyright (c) 2025 Mario Zechner. The npm packages contain no licence file, so the text is reproduced below |
 | [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk), bundled inside `@earendil-works/pi-mcp` | MCP client in Pi | MIT, Copyright (c) 2024 Anthropic, PBC; shipped in `node_modules/@earendil-works/pi-mcp/LICENSES/` |
 | [fd](https://github.com/sharkdp/fd) 10.3.0 (`Contents/Helpers/fd`) | File search for Pi's `find` tool | MIT or Apache 2.0, Copyright (c) 2017-present The fd developers; see `Contents/Resources/fd-LICENSE-MIT.txt` and `fd-LICENSE-APACHE.txt` |
 | [ripgrep](https://github.com/BurntSushi/ripgrep) 14.1.1 (`Contents/Helpers/rg`) | Content search for Pi's `grep` tool | MIT or Unlicense, Copyright (c) 2015 Andrew Gallant; see `Contents/Resources/rg-LICENSE-MIT.txt` and `rg-UNLICENSE.txt` |

@@ -71,8 +71,9 @@ test("the ETF case: a dated file name is no date; front matter `updated` and the
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("front matter: updated before date, quotes dropped, only at the very top and within the first lines", () => {
+test("front matter: updated before date, quotes dropped, BOM stripped, only at the very top and within the first lines", () => {
 	assert.equal(frontMatterDate("---\ndate: 2026-01-01\nupdated: '2026-10-01'\n---\n"), "2026-10-01");
+	assert.equal(frontMatterDate("\uFEFF---\nupdated: 2026-10-01\n---\n"), "2026-10-01");
 	assert.equal(frontMatterDate("---\nDate: \"2026-03-04 10:00\"\n---\nupdated: 2027-01-01"), "2026-03-04 10:00");
 	assert.equal(frontMatterDate("# Title\n---\nupdated: 2026-10-01\n---"), undefined);
 	assert.equal(frontMatterDate("---\n" + "x: 1\n".repeat(20) + "updated: 2026-10-01\n---"), undefined);
