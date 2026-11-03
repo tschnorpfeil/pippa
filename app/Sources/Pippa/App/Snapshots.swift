@@ -1,11 +1,13 @@
 import AppKit
 import PippaCore
+import PDFKit
 import SwiftUI
 
 /// `Pippa --snapshot <folder>`: renders the chat window with sample conversations, light and dark, as PNGs. For
 /// checking the layout without screen access; nothing is read from or written to the person's conversations.
 @MainActor
 enum Snapshots {
+    private static var fixtureDirectory: URL?
     static func run(into folder: URL) async -> Int32 {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         if ProcessInfo.processInfo.environment["PIPPA_SNAPSHOT_PROVIDERS_ONLY"] == "1" {
@@ -27,6 +29,21 @@ enum Snapshots {
             print(folder.path)
             return 0
         }
+        let fixtures = folder.appendingPathComponent("fixtures", isDirectory: true)
+        try? FileManager.default.createDirectory(at: fixtures, withIntermediateDirectories: true)
+        fixtureDirectory = fixtures
+        let image = NSImage(size: NSSize(width: 480, height: 320))
+        image.lockFocus()
+        NSColor(calibratedRed: 0.82, green: 0.90, blue: 0.96, alpha: 1).setFill()
+        NSRect(x: 0, y: 0, width: 480, height: 320).fill()
+        ("Pippa · Preview" as NSString).draw(at: NSPoint(x: 40, y: 145), withAttributes: [.font: NSFont.systemFont(ofSize: 30), .foregroundColor: NSColor.black])
+        image.unlockFocus()
+        if let data = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: data) {
+            try? bitmap.representation(using: .png, properties: [:])?.write(to: fixtures.appendingPathComponent("IMG-2041.png"))
+        }
+        let pdf = PDFDocument()
+        if let page = PDFPage(image: image) { pdf.insert(page, at: 0) }
+        pdf.write(to: fixtures.appendingPathComponent("Rechnung-Oktober.pdf"))
         let chat = ChatModel.shared
         let setup = SetupModel.shared
         setup.showForSnapshot(.ready(adoptedFrom: nil))
@@ -50,7 +67,7 @@ enum Snapshots {
             ("attachments", {
                 setup.showForSnapshot(.ready(adoptedFrom: nil))
                 chat.showSample(sampleConversations(), current: nil, answering: false)
-                chat.attachments = [URL(fileURLWithPath: "/Users/me/Desktop/Rechnung-Oktober.pdf"), URL(fileURLWithPath: "/Users/me/Desktop/IMG_2041.jpeg")]
+                chat.attachments = [fixtures.appendingPathComponent("Rechnung-Oktober.pdf"), fixtures.appendingPathComponent("IMG-2041.png")]
             }, 760, false),
         ]
         for (name, prepare, height, expandsWork) in scenes {
@@ -62,6 +79,14 @@ enum Snapshots {
             }
             chat.attachments = []
         }
+        chat.showSample([], current: nil, answering: false)
+        setup.showForSnapshot(.ready(adoptedFrom: nil))
+        chat.attachments = [fixtures.appendingPathComponent("Rechnung-Oktober.pdf"), fixtures.appendingPathComponent("IMG-2041.png")]
+        for width: CGFloat in [640, 860] {
+            await render(ChatView(chat: chat, setup: setup), size: NSSize(width: width, height: 520), dark: false,
+                         to: folder.appendingPathComponent("attachments-narrow-\(Int(width)).png"))
+        }
+        chat.attachments = []
         setup.showForSnapshot(.ready(adoptedFrom: nil))
         for dark in [false, true] {
             await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 640), dark: dark,
@@ -150,7 +175,7 @@ enum Snapshots {
           {"title": "Sparplan prüfen", "list": "Finanzen", "dueLabel": "Fr., 7. Nov.", "overdue": false},
           {"title": "Einspruch Finanzamt vorbereiten", "list": "Finanzen", "overdue": false}]}
         """)
-        let prepared = PreparedFilesCard(jobID: UUID(), files: [URL(fileURLWithPath: "/Users/me/Desktop/Umzug-Fotos.pdf")], pageCount: 12,
+        let prepared = PreparedFilesCard(jobID: UUID(), files: [fixtureDirectory?.appendingPathComponent("Rechnung-Oktober.pdf") ?? URL(fileURLWithPath: "/Users/me/Desktop/Umzug-Fotos.pdf")], pageCount: 12,
                                          totalBytes: 3_250_000, sizeLimitBytes: nil, withinLimit: nil, note: "")
         var answer = ChatMessage(role: .assistant, text: """
         Hier ist der Überblick über die Nebenkosten der letzten drei Jahre:

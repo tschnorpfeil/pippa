@@ -319,3 +319,12 @@ References: [T3 Code thread interactions](https://github.com/pingdotgg/t3code/bl
 [Apple sidebar guidance](https://developer.apple.com/design/human-interface-guidelines/sidebars), and
 [Type to Siri](https://support.apple.com/en-gb/105020). These are interaction references; proposed Pippa changes
 above are product judgments, not claims that the referenced apps implement every item identically.
+
+
+## Centered input and native file previews (0.4.3)
+
+New conversations put their single composer below the greeting and any setup card, above the suggestions.
+Existing conversations keep their single composer below the transcript. The introduction scrolls on short windows
+and suggestions adapt to a single column when narrow. Native Quick Look provides asynchronous bounded thumbnails
+for image/PDF attachments and previews for attached and prepared files. Prepared PDFs expose explicit Open and
+Show in Finder actions. No Hob code, fonts or assets were imported.

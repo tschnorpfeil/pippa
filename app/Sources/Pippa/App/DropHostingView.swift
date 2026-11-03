@@ -87,7 +87,7 @@ final class PillHostingView<Content: View>: DropHostingView<Content> {
         guard down != nil else { return }
         defer { down = nil; origin = nil }
         if moved {
-            if let window { window.saveFrame(usingName: "PippaPill") }
+            Pill.shared.finishMoving()
         } else { AppActions.callPippa() }
     }
 

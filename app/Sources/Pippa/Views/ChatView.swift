@@ -21,10 +21,10 @@ struct ChatView: View {
             VStack(spacing: 0) {
                 if let conversation = chat.current, !conversation.messages.isEmpty {
                     Transcript(chat: chat, setup: setup, conversation: conversation)
+                    Composer(chat: chat, setup: setup)
                 } else {
                     Welcome(chat: chat, setup: setup)
                 }
-                Composer(chat: chat, setup: setup)
             }
             .background(Color(nsColor: Theme.chatTint))
             .overlay { if dropFeedback.targeted { DropOverlay() } }
@@ -89,36 +89,56 @@ private struct Welcome: View {
     ]
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: Space.x3) {
-                PippaMark(size: 56, state: .ruht)
-                VStack(spacing: Space.s) {
-                    Text(T("What can I do for you?", table: "App"))
-                        .font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.ink)
-                    Text(T("Ask, or drop files here. I work on your Mac with Mail, Calendar, Reminders, Photos and your files.", table: "App"))
-                        .font(.system(size: 13.5)).foregroundStyle(Theme.ink2).multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: 420)
-                }
-                if setup.needsAttention {
-                    SetupCard(setup: setup).frame(maxWidth: 480)
-                } else {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: Space.ml), GridItem(.flexible(), spacing: Space.ml)], spacing: Space.ml) {
-                        ForEach(suggestions, id: \.text) { suggestion in
-                            SuggestionButton(symbol: suggestion.symbol, text: suggestion.text) {
-                                chat.draft = suggestion.text
-                                if setup.canAnswer && !chat.isAnswering { chat.send() }
-                            }
-                        }
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: Space.x3) {
+                    greeting
+                    if setup.needsAttention {
+                        SetupCard(setup: setup)
+                            .frame(maxWidth: 480)
+                            .padding(.horizontal, Layout.gutter)
                     }
-                    .frame(maxWidth: Layout.cardMax)
+                    Composer(chat: chat, setup: setup)
+                    if !setup.needsAttention {
+                        suggestionsGrid
+                    }
                 }
+                .padding(.vertical, Space.x4)
+                .frame(maxWidth: .infinity)
+                // Center the complete introduction when there is room; shorter windows scroll naturally.
+                .frame(minHeight: geometry.size.height, alignment: .center)
             }
-            .padding(Space.x4)
-            .frame(maxWidth: .infinity)
-            .containerRelativeFrame(.vertical, alignment: .center)
         }
     }
+
+    private var greeting: some View {
+        VStack(spacing: Space.xl) {
+            PippaMark(size: 48, state: .ruht)
+            VStack(spacing: Space.s) {
+                Text(T("What can I do for you?", table: "App"))
+                    .font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(T("Ask, or drop files here. I work on your Mac with Mail, Calendar, Reminders, Photos and your files.", table: "App"))
+                    .font(.system(size: 13.5)).foregroundStyle(Theme.ink2).multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 420)
+            }
+        }
+        .padding(.horizontal, Space.x4)
+    }
+
+    private var suggestionsGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: Space.ml)], spacing: Space.ml) {
+            ForEach(suggestions, id: \.text) { suggestion in
+                SuggestionButton(symbol: suggestion.symbol, text: suggestion.text) {
+                    chat.draft = suggestion.text
+                    if setup.canAnswer && !chat.isAnswering { chat.send() }
+                }
+            }
+        }
+        .frame(maxWidth: Layout.cardMax)
+        .padding(.horizontal, Layout.gutter)
+    }
+
 }
 
 private struct SuggestionButton: View {

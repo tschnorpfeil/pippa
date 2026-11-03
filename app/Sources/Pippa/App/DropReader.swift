@@ -85,14 +85,20 @@ enum DropReader {
     }
 
     @MainActor
-    private static func receivePromises(_ receivers: [NSFilePromiseReceiver], into folder: URL,
+    static func receivePromises(_ receivers: [NSFilePromiseReceiver], into folder: URL,
                                         completion: @escaping @MainActor (Result?) -> Void) {
         let queue = OperationQueue()
         queue.qualityOfService = .userInitiated
-        let reader = promiseReader(PromiseCollector(expected: receivers.count), completion: completion)
+        // Legacy Mail drags can promise several files through one receiver. The names are populated only after
+        // receivePromisedFiles is called. Hold callbacks until every receiver has registered its file count.
+        queue.isSuspended = true
+        let collector = PromiseCollector(expected: 0)
+        let reader = promiseReader(collector, completion: completion)
         for receiver in receivers {
             receiver.receivePromisedFiles(atDestination: folder, options: [:], operationQueue: queue, reader: reader)
+            collector.expect(max(1, receiver.fileNames.count))
         }
+        queue.isSuspended = false
     }
 
     /// AppKit calls the reader on `queue`, not on the main thread. Built outside the main actor: a closure
@@ -119,6 +125,8 @@ private final class PromiseCollector: @unchecked Sendable {
     private var urls: [URL] = []
 
     init(expected: Int) { remaining = expected }
+
+    func expect(_ count: Int) { lock.withLock { remaining += count } }
 
     func add(_ url: URL?, whenDone: ([URL]) -> Void) {
         let finished: [URL]? = lock.withLock {

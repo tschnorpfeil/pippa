@@ -95,6 +95,12 @@ final class Pill: ObservableObject {
         panel.setFrame(onScreen(NSRect(x: frame.maxX - size.width, y: frame.minY, width: size.width, height: size.height)), display: true)
     }
 
+    func finishMoving() {
+        guard let panel else { return }
+        panel.setFrame(onScreen(panel.frame), display: true)
+        panel.saveFrame(usingName: "PippaPill")
+    }
+
     /// Moves a frame inside the visible part of its screen (a saved position, another display, a longer line).
     private func onScreen(_ frame: NSRect) -> NSRect {
         guard let visible = (NSScreen.screens.first { $0.visibleFrame.intersects(frame) } ?? NSScreen.main)?.visibleFrame

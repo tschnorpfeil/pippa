@@ -38,7 +38,7 @@ struct Composer: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.s) {
                     ForEach(chat.attachments, id: \.self) { url in
-                        Chip(title: url.lastPathComponent, icon: NSWorkspace.shared.icon(forFile: url.path)) {
+                        Chip(url: url) {
                             withAnimation(Theme.leave) { chat.attachments.removeAll { $0 == url } }
                         }
                     }
@@ -173,28 +173,30 @@ struct AIBadge: View {
 
 /// A file attached to the next question, in the composer's drawer.
 private struct Chip: View {
-    var title: String
-    var icon: NSImage?
+    var url: URL
     var remove: () -> Void
-    private let hoverState = State(initialValue: false)
 
     var body: some View {
         HStack(spacing: Space.s) {
-            if let icon { Image(nsImage: icon).resizable().frame(width: 15, height: 15) } else { Image(systemName: "doc") }
-            Text(title).lineLimit(1).truncationMode(.middle).frame(maxWidth: 180, alignment: .leading)
+            NativeFilePreviewButton(url: url) {
+                HStack(spacing: Space.s) {
+                    NativeFileThumbnail(url: url, size: CGSize(width: 42, height: 42))
+                    Text(url.lastPathComponent).lineLimit(1).truncationMode(.middle)
+                        .frame(maxWidth: 150, alignment: .leading)
+                }
+                .contentShape(Rectangle())
+            }
             Button(action: remove) {
-                Image(systemName: "xmark").font(.system(size: 8.5, weight: .bold)).foregroundStyle(hoverState.wrappedValue ? Theme.ink : Theme.ink3)
-                    .frame(width: 16, height: 16).contentShape(Rectangle())
+                Image(systemName: "xmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.ink3)
+                    .frame(width: 24, height: 24).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help(T("Remove", table: "App"))
-            .accessibilityLabel(T("Remove", table: "App"))
+            .accessibilityLabel(T("Remove", table: "App") + ": " + url.lastPathComponent)
         }
         .font(.system(size: 12)).foregroundStyle(Theme.ink)
-        .padding(.leading, Space.m).padding(.trailing, Space.xs)
-        .frame(height: 26)
+        .padding(.leading, Space.xs).padding(.trailing, Space.xs).padding(.vertical, Space.xs)
         .background(Theme.chatCard, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: Radius.row, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1) }
-        .onHover { hoverState.wrappedValue = $0 }
     }
 }

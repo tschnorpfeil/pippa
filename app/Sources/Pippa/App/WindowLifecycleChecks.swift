@@ -7,14 +7,14 @@ enum WindowLifecycleChecks {
     static func run() async -> Int32 {
         var failures = 0
         var skipped = 0
-        let foregroundAvailable = NSWorkspace.shared.frontmostApplication?.bundleIdentifier != "com.apple.loginwindow"
+        var foregroundAvailable = false
         func check(_ name: String, _ result: Bool) {
             print("\(result ? "✓" : "✗") \(name)")
             if !result { failures += 1 }
         }
         func foregroundCheck(_ name: String, _ result: Bool) {
             if foregroundAvailable { check(name, result) }
-            else { skipped += 1; print("– \(name): foreground check skipped (macOS reports loginwindow)") }
+            else { skipped += 1; print("– \(name): foreground check skipped (isolated app is not active)") }
         }
         func settle() async { try? await Task.sleep(for: .milliseconds(220)) }
         for _ in 0..<10 where !NSRunningApplication.current.isFinishedLaunching { await settle() }
@@ -30,18 +30,23 @@ enum WindowLifecycleChecks {
 
         ChatWindow.shared.show()
         await settle()
+        // LaunchServices can leave an isolated command-line test inactive while another app owns the desktop.
+        // Visibility, draft retention, mouse handling and drop decoding still run; focus assertions need activation.
+        foregroundAvailable = NSApp.isActive
         guard let chat = NSApp.windows.first(where: { $0.title == "Pippa" && !($0 is NSPanel) }) else {
             print("✗ Chat window missing"); return 1
         }
         check("Opening the app presents the chat", chat.isVisible && !chat.isMiniaturized)
         ChatModel.shared.draft = "Unsent lifecycle fixture"
         ChatModel.shared.frontApp = "Retained context fixture"
+        await settle()
         chat.miniaturize(nil)
         await settle()
         check("Chat can be minimized", chat.isMiniaturized)
         _ = delegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: true)
         await settle()
         check("Dock reopen restores a minimized chat", chat.isVisible && !chat.isMiniaturized)
+        print("Reopen: draft=\(ChatModel.shared.draft.debugDescription), context=\(ChatModel.shared.frontApp ?? "nil"), key=\(NSApp.keyWindow?.title ?? "nil")")
         check("Reopen preserves draft and context", ChatModel.shared.draft == "Unsent lifecycle fixture" && ChatModel.shared.frontApp == "Retained context fixture")
         chat.performClose(nil)
         await settle()
@@ -53,6 +58,7 @@ enum WindowLifecycleChecks {
         SettingsWindow.shared.show()
         await settle()
         let settings = NSApp.windows.first { $0.title == T("Pippa Settings", table: "App") }
+        print("Settings: active=\(NSApp.isActive), key=\(NSApp.keyWindow?.title ?? "nil"), settings=\(settings?.isKeyWindow ?? false)")
         foregroundCheck("Settings comes to the front", settings != nil && settings?.isKeyWindow == true)
         settings?.miniaturize(nil)
         await settle()
@@ -74,6 +80,7 @@ enum WindowLifecycleChecks {
             check("Pill receives Mail file promises", NSFilePromiseReceiver.readableDraggedTypes.allSatisfy {
                 surface.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0))
             })
+            pill.center()
             let start = pill.frame.origin
             func mouse(_ type: NSEvent.EventType, _ point: NSPoint) -> NSEvent {
                 NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
@@ -89,6 +96,10 @@ enum WindowLifecycleChecks {
             surface.mouseDown(with: mouse(.leftMouseDown, NSPoint(x: 20, y: 20)))
             surface.mouseUp(with: mouse(.leftMouseUp, NSPoint(x: 20, y: 20)))
             check("Clicking the pill still opens chat", chat.isVisible)
+            surface.mouseDown(with: mouse(.leftMouseDown, NSPoint(x: 20, y: 20)))
+            surface.mouseDragged(with: mouse(.leftMouseDragged, NSPoint(x: 100_000, y: 100_000)))
+            surface.mouseUp(with: mouse(.leftMouseUp, NSPoint(x: 20, y: 20)))
+            check("Moving the pill beyond an edge brings it back on screen", NSScreen.screens.contains { $0.visibleFrame.contains(pill.frame) })
             pill.setFrameOrigin(start)
         }
         check("Chat receives Mail file promises", NSFilePromiseReceiver.readableDraggedTypes.allSatisfy {
@@ -100,6 +111,18 @@ enum WindowLifecycleChecks {
         DropReader.read(pasteboard) { dropped = $0?.items ?? [] }
         check("An existing mail file survives drop decoding", dropped.map(\.path) == ["/tmp/Pippa-drop-fixture.eml"])
         pasteboard.releaseGlobally()
+        let promiseFolder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-promises-" + UUID().uuidString)
+        try? FileManager.default.createDirectory(at: promiseFolder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: promiseFolder) }
+        var promiseResult: DropReader.Result?
+        var promiseCompletions = 0
+        DropReader.receivePromises([LegacyPromiseFixture()], into: promiseFolder) {
+            promiseResult = $0
+            promiseCompletions += 1
+        }
+        for _ in 0..<100 where promiseCompletions == 0 { try? await Task.sleep(for: .milliseconds(20)) }
+        check("One legacy Mail promise delivers all files before completing", promiseCompletions == 1 &&
+              Set(promiseResult?.items.map(\.lastPathComponent) ?? []) == Set(["first.eml", "second.eml"]))
         Pill.shared.isShown = false
         NSApp.hide(nil)
         await settle()
@@ -111,4 +134,28 @@ enum WindowLifecycleChecks {
         print(failures == 0 ? "Window lifecycle checks passed." : "Window lifecycle checks failed.")
         return failures == 0 ? 0 : 1
     }
+}
+
+/// Emulates a legacy drag containing several files on one pasteboard item. Names appear only when requested.
+private final class LegacyPromiseFixture: NSFilePromiseReceiver {
+    private var names: [String] = []
+    override var fileNames: [String] { names }
+
+    override func receivePromisedFiles(atDestination destinationDir: URL, options: [AnyHashable: Any] = [:],
+                                       operationQueue: OperationQueue, reader: @escaping (URL, Error?) -> Void) {
+        names = ["first.eml", "second.eml"]
+        let callback = PromiseFixtureCallback(reader)
+        for name in names {
+            let url = destinationDir.appendingPathComponent(name)
+            operationQueue.addOperation {
+                do { try Data("Subject: Fixture\n\nMail drop fixture".utf8).write(to: url); callback.read(url, nil) }
+                catch { callback.read(url, error) }
+            }
+        }
+    }
+}
+
+private final class PromiseFixtureCallback: @unchecked Sendable {
+    let read: (URL, Error?) -> Void
+    init(_ read: @escaping (URL, Error?) -> Void) { self.read = read }
 }
