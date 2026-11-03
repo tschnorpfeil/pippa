@@ -2,7 +2,7 @@ import Foundation
 
 /// Common version and paths of Pippa.
 public enum Pippa {
-    public static let version = "0.4.4"
+    public static let version = "0.4.5"
     /// The app's bundle identifier.
     public static let bundleID = "io.github.tschnorpfeil.pippa"
 
