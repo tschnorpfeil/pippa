@@ -627,6 +627,24 @@ func runMCPChecks() async {
         ]
         return ok.status == 200 && ok.contentType == "application/json" && statuses == [401, 401, 401, 403, 403, 200, 405, 202, 415]
     }
+    await checkAsync("Undo from the receipt row: an added event and reminder are removed once; already deleted says so; mail drafts offer none") {
+        let host = PippaMCPHost.demo(now: now)
+        let tools = PippaMCPWriteTools(host: host)
+        let event = await tools.call("calendar_add", ["title": "Undo fixture", "date": "tomorrow", "time": "10:00"])
+        let reminder = await tools.call("reminder_add", ["title": "Undo fixture"])
+        guard let added = event.receipt, added.canUndo, let note = reminder.receipt, note.canUndo else { return false }
+        let undone = await host.undo(added), undoneNote = await host.undo(note)
+        // Pressed again (e.g. an older copy of the conversation): nothing is offered, nothing removed twice.
+        let again = await host.undo(undone)
+        // Deleted by the person in the meantime: says so instead of claiming it removed something.
+        var stale = added; stale.undo = nil
+        let gone = await host.undo(stale)
+        let draft = PippaMCPWriteReceipt(action: "mailDraft", outcome: "done", name: "Re: Termin")
+        let failed = PippaMCPWriteReceipt(action: "calendarAdd", outcome: "failed", name: "x", created: added.created)
+        return undone.undo == "removed" && !undone.canUndo && undoneNote.undo == "removed" && again == undone
+            && gone.undo == "gone" && !draft.canUndo && !failed.canUndo
+    }
+
     check("MCP: new key on each start, 64 hex characters") {
         let a = PippaMCPServer.newToken(), b = PippaMCPServer.newToken()
         return a != b && a.count == 64 && a.allSatisfy { $0.isHexDigit && !$0.isUppercase }

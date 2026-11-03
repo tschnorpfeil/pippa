@@ -49,7 +49,8 @@ Dropped: `applescript`, `pippa_more_tools` and tool-scope, `save_skill`, `make_c
   search, new composer and empty state. `Pippa --snapshot <folder>` renders sample states. Next: settings layout,
   card views, onboarding text.
 
-- Undo for calendar entries and reminders in the receipt row (the old app had it).
+- [x] Undo for calendar entries and reminders in the receipt row: removes only what is unchanged since Pippa added
+  it, and tells Pi with the next question.
 - Mail and Calendar acceptance needs a signed build or the person's clicks: a re-signed dev copy asks macOS again.
 - Local AI switched to oMLX with Ornith 1.5 9B (MLX, 4-bit); llama.cpp, GGUF and the model table are gone. Tasks in
   [omlx-switch.md](omlx-switch.md).
