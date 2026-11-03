@@ -88,6 +88,9 @@ enum PippaMCPService {
 
 
 
+    /// Undo from the receipt row: removes the event or reminder only if it is unchanged since Pippa added it.
+    static func undo(_ receipt: PippaMCPWriteReceipt) async -> PippaMCPWriteReceipt { await currentHost.undo(receipt) }
+
     /// Bring mail to the front ("Entwurf öffnen"). With PIPPA_DEMO=1 nothing (no real apps).
     static func showMail() async {
         guard ProcessInfo.processInfo.environment["PIPPA_DEMO"] != "1",

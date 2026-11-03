@@ -125,6 +125,37 @@ final class ChatModel: ObservableObject {
         save(id)
     }
 
+    // MARK: Undo
+
+    /// Receipts being undone right now (message id, receipt index): the button stays disabled meanwhile.
+    @Published private(set) var undoing: Set<String> = []
+    /// Conversation id → what the person undid that Pi has not heard of yet; told with the next question.
+    private var undoneNotes: [String: [String]] = [:]
+
+    static func undoKey(_ messageID: UUID, _ index: Int) -> String { "\(messageID.uuidString)#\(index)" }
+
+    /// Removes the event or reminder a receipt names, only if it is unchanged since Pippa added it, and keeps the
+    /// outcome on the receipt (shown in the row, saved with the conversation).
+    func undo(receiptAt index: Int, in messageID: UUID) {
+        guard let id = currentID,
+              let receipts = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == messageID })?.receipts,
+              receipts.indices.contains(index), receipts[index].canUndo else { return }
+        let receipt = receipts[index]
+        let key = Self.undoKey(messageID, index)
+        guard !undoing.contains(key) else { return }
+        undoing.insert(key)
+        Task {
+            let result = await PippaMCPService.undo(receipt)
+            undoing.remove(key)
+            update(messageID, in: id) { message in
+                guard message.receipts.indices.contains(index) else { return }
+                message.receipts[index] = result
+            }
+            if result.undo == "removed" { undoneNotes[id, default: []].append(result.name) }
+            save(id)
+        }
+    }
+
     // MARK: Asking
 
     func send() {
@@ -142,7 +173,7 @@ final class ChatModel: ObservableObject {
         save(id)
         let reply = ChatMessage(role: .assistant, text: "")
         append(reply, to: id)
-        let prompt = Self.prompt(text, files: files, frontApp: frontApp)
+        let prompt = Self.prompt(text, files: files, frontApp: frontApp, undone: undoneNotes.removeValue(forKey: id) ?? [])
         draft = ""; attachments = []; frontApp = nil
         let started = Date()
         begin(started, in: id)
@@ -279,9 +310,14 @@ final class ChatModel: ObservableObject {
     }
 
     /// What Pi receives: the person's words, then the files they added and the app they called Pippa from.
-    static func prompt(_ text: String, files: [String], frontApp: String?) -> String {
+    static func prompt(_ text: String, files: [String], frontApp: String?, undone: [String] = []) -> String {
         var parts = [text]
         if !files.isEmpty { parts.append("Files:\n" + files.map { "- \($0)" }.joined(separator: "\n")) }
+        // Pi still believes what it added is there; the person undid it from the receipt row since.
+        if !undone.isEmpty {
+            parts.append("[The person pressed Undo since your last answer; these are no longer on the Mac: "
+                         + undone.joined(separator: "; ") + ".]")
+        }
         if let frontApp { parts.append("[Background context only: \(frontApp) was in front when Pippa opened. This is not a request to read that app. Use it only if the person asks about its content.]") }
         return parts.filter { !$0.isEmpty }.joined(separator: "\n\n")
     }

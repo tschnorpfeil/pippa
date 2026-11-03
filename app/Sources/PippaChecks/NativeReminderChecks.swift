@@ -114,6 +114,12 @@ func runNativeReminderChecks() async {
             && records.count == 1 && records.first?.origin == f.origin && records.first?.phase == .completed
     }
 
+    await checkAsync("A durable reminder's receipt carries what was created, so the receipt row can undo it") {
+        let f = try ReminderFixture()
+        let result = await f.tools.call("reminder_add", ["title": "Durable undo fixture"])
+        return result.receipt?.outcome == "done" && result.receipt?.created != nil && result.receipt?.canUndo == true
+    }
+
     await checkAsync("Chat permission Later, denial and Stop never dispatch the pending reminder or silently replay it") {
         for decision in ["later", "denied", "previously-denied", "stop-explanation", "stop-request"] {
             var f = try ReminderFixture()
