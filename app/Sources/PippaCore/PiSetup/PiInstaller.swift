@@ -42,7 +42,8 @@ public struct PiInstallOptions: Sendable {
 
 /// The installer: detect -> Pi -> model folder -> model -> models.json -> ready. Every step is idempotent, writes
 /// its state to install-state.json and can be repeated on its own ("Repair"). Foreign things stay untouched:
-/// Pippa deletes and replaces only what is listed in `state.created`.
+/// Pippa deletes and replaces only what is listed in `state.created`, plus releases carrying its own marker
+/// (`managedReleaseMarker`), which outlives a lost record.
 public final class PiInstaller: @unchecked Sendable {
     public static let providerKey = "pippa-local"
     public let roots: PiInstallRoots
@@ -188,12 +189,7 @@ public final class PiInstaller: @unchecked Sendable {
             try fm.removeItem(at: leftover)
         }
         if fm.fileExists(atPath: release.path) {
-            if (try? version(release: release)) == pin {
-                // A release Pippa installed before the marker existed gains it here, so a later state rewrite
-                // cannot turn it into a permanent stranger.
-                if state.didCreate(release), !Self.hasManagedReleaseMarker(release) { try? markManagedRelease(release) }
-                return (release, true)
-            }
+            if (try? version(release: release)) == pin { return (release, true) }
             guard state.didCreate(release) else { throw PiInstallFailure.releaseBroken(release.path) }
             try fm.removeItem(at: release) // Pippa's own, damaged release
         }
@@ -323,15 +319,20 @@ public final class PiInstaller: @unchecked Sendable {
 
     /// Removes releases that Pippa created itself and nobody needs anymore. Kept: the pin, the previous pin
     /// (running terminal sessions, going back) and whatever `current-version` names. Foreign releases (Pi's
-    /// installer, `pi update`) always stay.
+    /// installer, `pi update`) always stay. A kept release Pippa recorded before the marker existed gains it here,
+    /// so a later state rewrite cannot turn it into a permanent stranger.
     func pruneReleases(root: URL) {
         let releases = root.appendingPathComponent("releases", isDirectory: true)
         let active = (try? String(contentsOf: root.appendingPathComponent("current-version"), encoding: .utf8))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let keep = Set([roots.pin, state.previousPin, active].compactMap { $0 })
         var changed = false
-        for entry in (try? fm.contentsOfDirectory(at: releases, includingPropertiesForKeys: nil)) ?? []
-        where !keep.contains(entry.lastPathComponent) && isPippaRelease(entry) {
+        for entry in (try? fm.contentsOfDirectory(at: releases, includingPropertiesForKeys: nil)) ?? [] {
+            if keep.contains(entry.lastPathComponent) {
+                if state.didCreate(entry), !Self.hasManagedReleaseMarker(entry) { try? markManagedRelease(entry) }
+                continue
+            }
+            guard isPippaRelease(entry) else { continue }
             guard (try? fm.removeItem(at: entry)) != nil else { continue }
             state.forget(entry)
             changed = true

@@ -784,6 +784,21 @@ func runPiUpgradeChecks() {
         return ok
     }
 
+    check("Pi switch: a release Pippa recorded before the marker existed gains it while kept as the previous pin (#139)") {
+        let home = fakeHome("upgrade-backfill-marker"); defer { discard(home) }
+        let first = roots(home, try upgradePayload(home, "1.0.4"))
+        guard PiInstaller(roots: first).installPi().isDone else { return false }
+        // An install from before the marker: recorded in the state, nothing inside the release.
+        let marker = first.release(.official).appendingPathComponent(PiInstaller.managedReleaseMarker)
+        try fm.removeItem(at: marker)
+        let second = roots(home, try upgradePayload(home, "1.1.0"))
+        guard PiInstaller(roots: second).installPi().isDone else { return false }
+        let ok = fm.fileExists(atPath: first.release(.official).path) && fm.fileExists(atPath: marker.path)
+            && fm.fileExists(atPath: second.release(.official).appendingPathComponent(PiInstaller.managedReleaseMarker).path)
+        if !ok { print("   ", fm.fileExists(atPath: first.release(.official).path), fm.fileExists(atPath: marker.path)) }
+        return ok
+    }
+
     check("Pi switch: if the person moved to a newer version themselves (pi update), it stays; Pippa uses its pin alongside") {
         let home = fakeHome("upgrade-newer"); defer { discard(home) }
         let first = roots(home, try upgradePayload(home, "1.0.4"))
