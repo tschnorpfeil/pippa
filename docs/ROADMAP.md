@@ -5,7 +5,7 @@ The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); 
 
 ## Where Pippa stands
 
-The last release is 0.4.4. Pippa is a plain native chat front end for Pi: menu bar, pill and one chat window with a
+The last release is 0.4.5. Pippa is a plain native chat front end for Pi: menu bar, pill and one chat window with a
 conversation sidebar, a first-run card, and settings for the AI (on this Mac, ChatGPT, or an own online AI), the
 shortcut, login item, permissions and updates. Dropped photos and PDFs become one PDF with a button, without the model.
 

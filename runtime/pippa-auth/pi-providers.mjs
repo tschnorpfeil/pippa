@@ -14,8 +14,9 @@ export function allowedSignInURL(value) {
   } catch { return false; }
 }
 
-/** Only public catalog metadata leaves Pi; no auth result or credential object is serialized. */
-export function catalog(runtime) {
+/** Only public catalog metadata leaves Pi; no auth result or credential object is serialized. `defaults` is Pi's own
+ * model choice per provider (`defaultModelPerProvider`), named only when that model is on the provider's list. */
+export function catalog(runtime, defaults = {}) {
   const available = runtime.getAvailableSnapshot();
   return { providers: runtime.getProviders().map(provider => {
     const configured = runtime.getProviderAuthStatus(provider.id).configured;
@@ -23,9 +24,11 @@ export function catalog(runtime) {
     const methods = [];
     if (provider.auth.oauth) methods.push({ id: 'oauth', name: clean(provider.auth.oauth.loginLabel ?? provider.auth.oauth.name) });
     if (provider.auth.apiKey?.login) methods.push({ id: 'api_key', name: clean(provider.auth.apiKey.name) });
+    const defaultModel = models.some(model => model.id === defaults[provider.id]) ? defaults[provider.id] : undefined;
     return {
       id: provider.id, name: clean(provider.name), configured, methods,
       models: models.map(model => ({ id: model.id, name: clean(model.name) })),
+      ...(defaultModel ? { defaultModel } : {}),
     };
   }) };
 }
@@ -86,6 +89,14 @@ export function interaction(write, signal) {
   };
 }
 
+/** Pi's default model per provider, as `pi --provider <id>` picks it. Not on Pi's public index, so optional. */
+export async function piDefaults(release) {
+  try {
+    const { defaultModelPerProvider } = await import(pathToFileURL(join(release ?? '', 'node_modules/@earendil-works/pi-coding-agent/dist/core/model-resolver.js')).href);
+    return defaultModelPerProvider && typeof defaultModelPerProvider === 'object' ? defaultModelPerProvider : {};
+  } catch { return {}; }
+}
+
 export async function refreshProvider(runtime, provider, signal) {
   // Login has already succeeded; a transient catalog refresh must not report that credentials were rejected.
   try {
@@ -134,7 +145,7 @@ export async function main(args = process.argv.slice(2)) {
     const runtime = await ModelRuntime.create({ allowModelNetwork: false, signal: controller.signal });
     if (command === 'catalog') {
       if (providerId && runtime.getProvider(providerId)) await refreshProvider(runtime, providerId, controller.signal);
-      write(catalog(runtime)); return 0;
+      write(catalog(runtime, await piDefaults(release))); return 0;
     }
     const provider = runtime.getProvider(providerId);
     if (!provider || (command === 'login' && !((authType === 'oauth' && provider.auth.oauth) || (authType === 'api_key' && provider.auth.apiKey?.login)))) {

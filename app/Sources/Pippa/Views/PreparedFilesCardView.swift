@@ -29,30 +29,28 @@ struct PreparedFilesCardView: View {
 private struct PreparedFileRow: View {
     var file: URL
 
+    /// One line: thumbnail and name open the preview, the two actions sit beside them.
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.m) {
+        HStack(spacing: Space.l) {
             NativeFilePreviewButton(url: file) {
                 HStack(spacing: Space.l) {
-                    NativeFileThumbnail(url: file, size: CGSize(width: 52, height: 64))
+                    NativeFileThumbnail(url: file, size: CGSize(width: 44, height: 56))
                         .clipShape(RoundedRectangle(cornerRadius: Radius.row))
-                    VStack(alignment: .leading, spacing: Space.xs) {
+                        .overlay(RoundedRectangle(cornerRadius: Radius.row).strokeBorder(Theme.hairline, lineWidth: 1))
+                    VStack(alignment: .leading, spacing: Space.xxs) {
                         Text(verbatim: file.lastPathComponent)
                             .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink)
                             .lineLimit(2).truncationMode(.middle)
                         Text(T("Preview", table: "App"))
-                            .font(.system(size: 12)).foregroundStyle(Theme.ink2)
+                            .font(.system(size: 12)).foregroundStyle(Theme.accent)
                     }
-                    Spacer(minLength: 0)
-                    Image(systemName: "eye").font(.system(size: 13)).foregroundStyle(Theme.ink2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            HStack(spacing: Space.m) {
-                ActionPill(title: T("Open", table: "App")) { NSWorkspace.shared.open(file) }
-                ActionPill(title: T("Show in Finder", table: "App")) {
-                    NSWorkspace.shared.activateFileViewerSelecting([file])
-                }
+            ActionPill(title: T("Open", table: "App")) { NSWorkspace.shared.open(file) }
+            ActionPill(title: T("Show in Finder", table: "App")) {
+                NSWorkspace.shared.activateFileViewerSelecting([file])
             }
         }
         .padding(.horizontal, 14)

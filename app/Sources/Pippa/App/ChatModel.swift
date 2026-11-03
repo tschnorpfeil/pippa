@@ -309,6 +309,14 @@ final class ChatModel: ObservableObject {
         stopRequested = false
     }
 
+    /// An online provider's failure mid-answer ("401 {…}", "usage limit") as one plain sentence; anything else as Pi said it.
+    static func modelError(_ error: String, online: Bool) -> String {
+        guard online, let problem = PiProviderClient.problem(in: error) else { return error }
+        return problem == .limit
+            ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
+            : T("Reconnect your online AI in Settings.", table: "App")
+    }
+
     /// What Pi receives: the person's words, then the files they added and the app they called Pippa from.
     static func prompt(_ text: String, files: [String], frontApp: String?, undone: [String] = []) -> String {
         var parts = [text]
@@ -351,10 +359,14 @@ final class ChatModel: ObservableObject {
             }
         case .assistantEnded(_, let reason, let error):
             if reason == "toolUse" { updateLast(in: id) { if !$0.text.isEmpty, !$0.text.hasSuffix("\n") { $0.text += "\n\n" } } }
-            if reason == "error", let error { updateLast(in: id) { $0.error = error } }
+            let online = SettingsModel.shared.inferenceSettings.usesOnlineAI
+            if reason == "error", let error { updateLast(in: id) { $0.error = Self.modelError(error, online: online) } }
             // The model used up its answer length (usually while thinking) and stopped mid-way: say so, never end quietly.
             if reason == "length" {
-                updateLast(in: id) { $0.error = T("That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time.", table: "App") }
+                updateLast(in: id) {
+                    $0.error = online ? T("That was too much at once for the AI. Ask for a smaller part, for example one document at a time.", table: "App")
+                        : T("That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time.", table: "App")
+                }
             }
         case .notice(let text, let kind) where kind == "error" || kind == "warning":
             updateLast(in: id) { $0.error = text }

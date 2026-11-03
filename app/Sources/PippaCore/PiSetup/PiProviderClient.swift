@@ -8,12 +8,27 @@ public struct PiProvider: Codable, Sendable, Identifiable, Equatable {
     public struct Model: Codable, Sendable, Identifiable, Equatable {
         public var id: String
         public var name: String
+        public init(id: String, name: String) { self.id = id; self.name = name }
     }
     public var id: String
     public var name: String
     public var configured: Bool
     public var methods: [Method]
     public var models: [Model]
+    /// Pi's own choice for this provider (`pi --provider <id>` without `--model`), when the account lists it.
+    public var defaultModel: String?
+
+    public init(id: String, name: String, configured: Bool, methods: [Method], models: [Model], defaultModel: String? = nil) {
+        self.id = id; self.name = name; self.configured = configured; self.methods = methods; self.models = models
+        self.defaultModel = defaultModel
+    }
+
+    /// The model to preselect: the one in use, else Pi's default, else nothing (the person picks).
+    public func preselected(_ preferred: String?) -> String {
+        if let preferred, models.contains(where: { $0.id == preferred }) { return preferred }
+        if let defaultModel, models.contains(where: { $0.id == defaultModel }) { return defaultModel }
+        return ""
+    }
 
     /// Presentation order only. Provider capabilities and model lists always come from Pi.
     public static func ordered(_ providers: [Self]) -> [Self] {

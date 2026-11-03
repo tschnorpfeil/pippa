@@ -28,6 +28,10 @@ test('catalog exposes public methods and chat models, using only available model
     { id: 'one', name: 'One', configured: true, methods: [{ id: 'oauth', name: 'Sign in' }, { id: 'api_key', name: 'One API' }], models: [{ id: 'available', name: 'Available' }] },
     { id: 'two', name: 'Two', configured: false, methods: [], models: [{ id: 'catalog', name: 'Catalog' }] },
   ] });
+  // Pi's default is named only when the account can use it.
+  const named = catalog(runtime, { one: 'available', two: 'missing' }).providers;
+  assert.equal(named[0].defaultModel, 'available');
+  assert.equal('defaultModel' in named[1], false);
 });
 
 test('generic text, secret, manual-code and select prompts use correlated stdin replies without echoing credentials', async () => {
@@ -121,6 +125,9 @@ test('bundled Pi public API lists requested providers and login methods in a fak
       assert.ok(provider.methods.length, id);
     }
     assert.equal(result.providers.some(provider => provider.id === 'google-antigravity'), false, 'Do not invent an unsupported provider');
+    // After Sign in with ChatGPT, Pippa preselects Pi's own OpenAI default instead of the oldest model on the list.
+    const openai = result.providers.find(provider => provider.id === 'openai');
+    assert.ok(openai.defaultModel && openai.models.some(model => model.id === openai.defaultModel), 'openai must name a listed default');
     assert.equal(JSON.stringify(result).includes('access_token'), false);
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
