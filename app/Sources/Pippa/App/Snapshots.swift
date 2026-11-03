@@ -216,7 +216,8 @@ enum Snapshots {
             ChatStep(id: "2", label: "Reading ETF-Portfolio.md", done: true),
             ChatStep(id: "3", label: "Reading ETF-Ideen.md", done: true),
         ]
-        answer.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Sparplan prüfen · Fr., 7. Nov.")]
+        let sample = CreatedItem(integration: .reminders, identifier: "snapshot", modified: nil)
+        answer.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Sparplan prüfen · Fr., 7. Nov.", created: sample)]
         answer.duration = 18
         if answering {
             answer.text = ""
@@ -239,7 +240,9 @@ enum Snapshots {
         letter.unsupportedDates = ["19. November 2026"]
         letter.checkedDates = ["15. November 2026"]
         letter.sources = [ChatSource(kind: .file, name: "Brief-Stadtwerke.pdf", location: "/Users/me/Downloads/Brief-Stadtwerke.pdf", detail: "Ganze Seite")]
-        letter.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Nachzahlung überweisen · Fr., 14. Nov.")]
+        var undone = PippaMCPWriteReceipt(action: "calendarAdd", outcome: "done", name: "Fr., 14. Nov., 09:00 – Nachzahlung", created: sample)
+        undone.undo = "removed"
+        letter.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Nachzahlung überweisen · Fr., 14. Nov.", created: sample), undone]
         letter.context = ContextUsage(tokens: 12_431, window: 32_768)
         letter.duration = 6
         if !answering && !failed {

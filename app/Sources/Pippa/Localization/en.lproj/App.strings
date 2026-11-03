@@ -202,3 +202,10 @@
 "Services" = "Services";
 
 "Preview" = "Preview";
+
+/* Undo in the receipt row (calendar entries and reminders) */
+"Removed from Calendar" = "Removed from Calendar";
+"Reminder removed" = "Reminder removed";
+"Not undone: it was already deleted." = "Not undone: it was already deleted.";
+"Not undone: it was changed since, so it stays." = "Not undone: it was changed since, so it stays.";
+"Couldn’t undo it. You can delete it in the app." = "Couldn’t undo it. You can delete it in the app.";

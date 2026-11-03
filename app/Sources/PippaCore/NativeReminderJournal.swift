@@ -44,6 +44,7 @@ public struct NativeReminderRecord: Sendable, Equatable, Codable {
         var receipt = finalReceipt ?? .init(action: "reminderAdd", outcome: phase == .completed ? "done" : phase == .notDispatched ? "cancelled" : "unclear",
                                             name: label, reason: phase == .notDispatched ? "stopped" : phase == .completed ? nil : "unconfirmed")
         receipt.operationID = id; receipt.turnID = originatingTurnID; receipt.nativeRevision = revision
+        if receipt.outcome == "done", receipt.created == nil { receipt.created = result?.item }
         return receipt
     }
 

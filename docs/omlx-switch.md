@@ -56,7 +56,7 @@ tuning flags.
 - [x] Fresh setup in an empty home (`PIPPA_PI_HOME`, Developer ID build with Hardened Runtime): Pi installed, runtime
   unpacked and checked, model checked, own server on a new port, first answer 31 s cold. The model download itself
   could not be tried: huggingface.co resets the TLS handshake on this network (2026-11-02)
-- [ ] Publish the runtime archive as a release asset (needs the person's go: it is a push)
+- [x] Publish the runtime archive as a release asset (`mlx-runtime-0.7.3-1`, 2026-11-02)
 
 ## Acceptance, 2026-11-01
 
