@@ -16,8 +16,8 @@ struct MessageView: View, Equatable {
     var started: Date?
     var undoing: Set<String>
     private let hoverState = State(initialValue: false)
-    /// Cards and receipts already there when the answer came on screen; ones that come later arrive one by one.
-    private let seenState = State<(cards: Int, receipts: Int)?>(initialValue: nil)
+    /// Cards, receipts and an error already there when the answer came on screen; ones that come later arrive.
+    private let seenState = State<(cards: Int, receipts: Int, error: Bool)?>(initialValue: nil)
 
     private var hover: Bool { hoverState.wrappedValue }
 
@@ -34,7 +34,7 @@ struct MessageView: View, Equatable {
             }
         }
         .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
-        .onAppear { seenState.wrappedValue = (message.cards.count, message.receipts.count) }
+        .onAppear { seenState.wrappedValue = (message.cards.count, message.receipts.count, message.error != nil) }
     }
 
     private var user: some View {
@@ -91,7 +91,7 @@ struct MessageView: View, Equatable {
             }
             if let error = message.error {
                 ErrorBox(text: error, retry: isLast && !answering ? { chat.retry() } : nil)
-                    .arrives(isLast)
+                    .arrives(seen.map { !$0.error } ?? false)
             }
             if !live { footer }
         }

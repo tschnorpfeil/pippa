@@ -45,7 +45,8 @@ struct Transcript: View {
                         let last = index == conversation.messages.count - 1
                         let arrives = settled.id == conversation.id && index >= settled.count
                         MessageView(chat: chat, message: message, live: answeringHere && last, isLast: last,
-                                    answering: chat.isAnswering, started: chat.answerStarted, undoing: chat.undoing)
+                                    answering: chat.isAnswering, started: answeringHere && last ? chat.answerStarted : nil,
+                                    undoing: chat.undoing)
                             .equatable()
                             .arrives(arrives, delay: message.role == .assistant ? Theme.stagger : 0)
                             .padding(.top, index == 0 ? 0 : message.role == .assistant ? 12 : 28)
