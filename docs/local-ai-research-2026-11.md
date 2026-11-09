@@ -158,7 +158,7 @@ print(model.supportsLocale(Locale(identifier: "de_DE")))     // true
 | Memory | Recommendation |
 |---|---|
 | 8 GB | The agent runs on an online AI. Where Apple Intelligence is on, Apple's model can do titles and small jobs offline |
-| 16 GB | Ornith 1.5 9B at 16K, with kernels (shipped in runtime 0.7.3-2). Handle the 507 refusal in plain language ("close an app and try again") |
+| 16 GB | Ornith 1.5 9B at 16K, with kernels (shipped in runtime 0.7.3-2). The 507 refusal gets one plain sentence since 0.5.0 (#152) |
 | 24 GB | Ornith 1.5 9B at 32K, with kernels. Then measure MTP or DFlash for faster writing. The 35B does not fit beside a working Mac; Pippa recorded swapping with it on 2026-10-31 |
 | 32–48 GB | Ornith 1.5 35B-A3B 4-bit, after Pippa's task gate passes on a 32 GB Mac |
 | 64 GB and up | Ornith 1.5 35B-A3B 8-bit |
