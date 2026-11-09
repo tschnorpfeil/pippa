@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Pippa's colors. Everything else uses system controls and system fonts.
+// Pippa's colors, type, motion and surfaces. Everything else uses system controls and system fonts.
 
 enum Theme {
     static func dyn(_ light: NSColor, _ dark: NSColor) -> NSColor {
@@ -33,25 +33,20 @@ enum Theme {
     static let accentFill = dynamic(light: hex(0x005BCD), dark: hex(0x1F6FE0))
     static let accentPress = dynamic(light: hex(0x0049A6), dark: hex(0x2B7CF0))
     static let accentTint = dynamic(light: hex(0x005BCD, 0.10), dark: hex(0x80B8FF, 0.14))
-    static let accentTint2 = dynamic(light: hex(0x005BCD, 0.16), dark: hex(0x80B8FF, 0.22))
-    static let highlight = dynamic(light: hex(0x005BCD, 0.15), dark: hex(0x80B8FF, 0.26))
     // Zustand
     static let ok = dynamic(light: hex(0x0D712C), dark: hex(0x45D97F))
     static let okTint = dynamic(light: hex(0x0D712C, 0.11), dark: hex(0x45D97F, 0.14))
     static let need = dynamic(light: hex(0x8A4600), dark: hex(0xFFB340))
     static let needTint = dynamic(light: hex(0xFF9F0A, 0.17), dark: hex(0xFF9F0A, 0.12))
-    static let needDot = dynamic(light: hex(0xE08600), dark: hex(0xFFB340))
     // Same red as the figure's sad face (MarkPalette.destructive), so face and sign match.
     static let bad = dynamic(light: hex(0xC4001D), dark: hex(0xF89DA4))
     static let badTint = dynamic(light: hex(0xC4001D, 0.10), dark: hex(0xF89DA4, 0.14))
     // Calm chat surfaces. Color marks interaction, not the whole work area.
     static let chatTint = dyn(hex(0xFCFBF9, 1), hex(0x1B1B1D, 1))
-    static let chatSidebar = dynamic(light: hex(0xF1F0ED), dark: hex(0x222224))
     // Neutral like the window around it: a blue cast here made the composer, step chips and receipts look bluish.
     static let chatCard = dynamic(light: hex(0xFFFFFF), dark: hex(0x262628))
     /// Code blocks and table heads: neutral like the cards (the old blue cast is gone).
     static let chatInset = dynamic(light: hex(0xF3F2EF), dark: hex(0x202022))
-    static let chatBorder = dynamic(light: hex(0x202735, 0.10), dark: hex(0xEDF1F7, 0.12))
     static let chatUser = dynamic(light: hex(0xEEEDEA), dark: hex(0x2D2D30))
     // Surface edges and row states (T3-style: hairlines, not borders; hover is a quiet fill, never a border colour).
     /// The 1 pt edge of a raised surface.
@@ -70,6 +65,38 @@ enum Theme {
     @MainActor static var arrive: Animation? { reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86) }
     /// Something goes away.
     @MainActor static var leave: Animation? { reduceMotion ? nil : .easeOut(duration: 0.14) }
+    /// A new question or the start of an answer settles into the conversation: a soft spring, a few points up.
+    @MainActor static var message: Animation? { reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.82) }
+    /// Cards under an answer follow each other by this much.
+    static let stagger: Double = 0.06
+    /// How far a message or card travels while it arrives.
+    static let arrivalOffset: CGFloat = 8
+
+    /// Liquid Glass on macOS 26 and later. Snapshots turn it off: drawing a window into an image can't show glass (a
+    /// tinted one blanks the whole view), so they show the solid surfaces of macOS 15 instead.
+    @MainActor static var drawsGlass = true
+}
+
+/// The chat's type scale: the system font at fixed sizes, like the rest of macOS. Numbers that change (seconds,
+/// percentages, counts) add `.monospacedDigit()` so they don't jitter.
+enum Typo {
+    /// The welcome's question.
+    static let title = Font.system(size: 22, weight: .semibold)
+    /// Card and section titles.
+    static let headline = Font.system(size: 14.5, weight: .semibold)
+    /// Questions and answers.
+    static let body = Font.system(size: 14)
+    /// Controls, rows and secondary text.
+    static let callout = Font.system(size: 13)
+    static let footnote = Font.system(size: 12)
+    static let caption = Font.system(size: 11)
+    static let code = Font.system(size: 12.5, design: .monospaced)
+    /// Extra space between the lines of reading text.
+    static let reading: CGFloat = 5
+
+    static func heading(_ level: Int) -> Font {
+        .system(size: level <= 1 ? 17 : level == 2 ? 15.5 : 14.5, weight: .semibold)
+    }
 }
 
 /// Corner radii, from the innermost chip to the composer.
@@ -78,6 +105,8 @@ enum Radius {
     static let row: CGFloat = 6
     static let control: CGFloat = 8
     static let card: CGFloat = 12
+    /// The setup card, the drop target and the composer's file drawer.
+    static let panel: CGFloat = 16
     static let bubble: CGFloat = 18
     static let chat: CGFloat = 20
 }
@@ -133,6 +162,48 @@ extension View {
             }
             .shadow(color: .black.opacity(lifted ? 0.10 : 0.05), radius: lifted ? 12 : 6, y: lifted ? 4 : 2)
     }
+
+    /// A floating control or bar (the composer, Send, "Jump to the latest"): Liquid Glass from macOS 26, reacting to the
+    /// pointer when `interactive`; before that the raised card surface. Content (answers, cards, tables) stays on solid
+    /// surfaces, where it reads best.
+    @ViewBuilder func glass(_ radius: CGFloat, interactive: Bool = false, lifted: Bool = false) -> some View {
+        if #available(macOS 26, *), Theme.drawsGlass {
+            glassEffect(interactive ? .regular.interactive() : .regular, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+        } else {
+            raised(radius, lifted: lifted)
+        }
+    }
+
+    /// A round glass button filled with a colour (Send), or `fallback` drawn as a plain circle before macOS 26.
+    @ViewBuilder func glassCircle(tint: Color?, fallback: Color) -> some View {
+        if #available(macOS 26, *), Theme.drawsGlass {
+            glassEffect(.regular.tint(tint).interactive(), in: Circle())
+        } else {
+            background(fallback, in: Circle())
+        }
+    }
+
+    /// Fades in and rises a few points the first time it appears while `active`; with Reduce Motion it is simply there.
+    func arrives(_ active: Bool, delay: Double = 0) -> some View {
+        modifier(Arrival(active: active, delay: delay))
+    }
+}
+
+private struct Arrival: ViewModifier {
+    var active: Bool
+    var delay: Double
+    private let shownState = State(initialValue: false)
+
+    func body(content: Content) -> some View {
+        let hidden = active && !shownState.wrappedValue
+        content
+            .opacity(hidden ? 0 : 1)
+            .offset(y: hidden ? Theme.arrivalOffset : 0)
+            .onAppear {
+                guard active else { return }
+                withAnimation(Theme.message?.delay(delay)) { shownState.wrappedValue = true }
+            }
+    }
 }
 
 /// The head of every result card: a small tinted symbol badge, the title and a quiet detail.
@@ -144,13 +215,13 @@ struct CardHeader: View {
     var body: some View {
         HStack(spacing: Space.m) {
             Image(systemName: symbol)
-                .font(.scaled(size: 11, weight: .semibold)).foregroundStyle(Theme.accent)
+                .font(Typo.caption.weight(.semibold)).foregroundStyle(Theme.accent)
                 .frame(width: 22, height: 22)
                 .background(Theme.accentTint, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
                 .accessibilityHidden(true)
-            Text(title).font(.scaled(size: 14.5, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+            Text(title).font(Typo.headline).foregroundStyle(Theme.ink).lineLimit(1)
             if let detail, !detail.isEmpty {
-                Text(detail).font(.scaled(size: 12)).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.tail)
+                Text(detail).font(Typo.footnote).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.tail)
             }
             Spacer(minLength: 0)
         }
@@ -217,6 +288,8 @@ struct SpinRing: View {
 struct ActionPill: View {
     var title: String
     var primary = false
+    /// Escape for the button that says no (a question in the conversation).
+    var shortcut: KeyboardShortcut? = nil
     var action: () -> Void
     private let hoverState = State(initialValue: false)
 
@@ -224,7 +297,7 @@ struct ActionPill: View {
         let shape = RoundedRectangle(cornerRadius: primary ? Radius.control : Radius.row, style: .continuous)
         Button(action: action) {
             Text(title)
-                .font(.system(size: primary ? 13 : 12, weight: primary ? .semibold : .medium))
+                .font(primary ? Typo.callout.weight(.semibold) : Typo.footnote.weight(.medium))
                 .foregroundStyle(primary ? Color.white : Theme.ink)
                 .padding(.horizontal, primary ? Space.l : Space.ml)
                 .frame(height: primary ? 28 : 24)
@@ -234,6 +307,7 @@ struct ActionPill: View {
                 .contentShape(shape)
         }
         .buttonStyle(.plain)
+        .keyboardShortcut(shortcut)
         .fixedSize()
         .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
     }

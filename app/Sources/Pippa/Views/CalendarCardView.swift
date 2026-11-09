@@ -20,7 +20,7 @@ struct CalendarCardView: View {
             }
             ForEach(Array(card.days.enumerated()), id: \.offset) { _, day in
                 Text(day.label)
-                    .font(.scaled(size: 11, weight: .semibold)).foregroundStyle(Theme.ink3)
+                    .font(Typo.caption.weight(.semibold)).foregroundStyle(Theme.ink3)
                     .textCase(.uppercase)
                     .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 3)
                     .accessibilityAddTraits(.isHeader)
@@ -33,7 +33,7 @@ struct CalendarCardView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 14).padding(.top, 8)
             }
-            Text(card.footer).font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
+            Text(card.footer).font(Typo.caption).foregroundStyle(Theme.ink3)
                 .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 11)
         }
         .resultCard()
@@ -57,7 +57,7 @@ private struct CalendarCardRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Capsule().fill(color).frame(width: 3, height: 15).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 3 }
                 Text(entry.time)
-                    .font(.scaled(size: 12).monospacedDigit()).foregroundStyle(Theme.ink2)
+                    .font(Typo.footnote.monospacedDigit()).foregroundStyle(Theme.ink2)
                     .frame(width: 92, alignment: .leading)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(entry.title)

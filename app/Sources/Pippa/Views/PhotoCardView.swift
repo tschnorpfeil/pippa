@@ -27,7 +27,7 @@ struct PhotoCardView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 14).padding(.top, 8)
             }
-            Text(card.footer).font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
+            Text(card.footer).font(Typo.caption).foregroundStyle(Theme.ink3)
                 .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 11)
         }
         .resultCard()

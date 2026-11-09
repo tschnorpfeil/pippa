@@ -15,7 +15,7 @@ struct PreparedFilesCardView: View {
                 PreparedFileRow(file: file)
             }
             if !card.note.isEmpty {
-                Text(card.note).font(.system(size: 12)).foregroundStyle(Theme.ink2)
+                Text(card.note).font(Typo.footnote).foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 14)
             }
@@ -39,10 +39,10 @@ private struct PreparedFileRow: View {
                         .overlay(RoundedRectangle(cornerRadius: Radius.row).strokeBorder(Theme.hairline, lineWidth: 1))
                     VStack(alignment: .leading, spacing: Space.xxs) {
                         Text(verbatim: file.lastPathComponent)
-                            .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink)
+                            .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink)
                             .lineLimit(2).truncationMode(.middle)
                         Text(T("Preview", table: "App"))
-                            .font(.system(size: 12)).foregroundStyle(Theme.accent)
+                            .font(Typo.footnote).foregroundStyle(Theme.accent)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
