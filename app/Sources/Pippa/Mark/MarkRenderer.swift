@@ -69,7 +69,7 @@ final class MarkRenderer {
     private var tubes: [(edges: [Edge], alpha: Double)] = []
 
     var state: MarkState { didSet { if state != oldValue { idleLife = Self.idleLifeSeconds } } }
-    /// Mouse on the pill: at rest the rings take one small breath, outer ring first, and hold it until the mouse leaves.
+    /// Mouse on the mark: at rest the rings take one small breath, outer ring first, and hold it until the mouse leaves.
     var hovered = false { didSet { if hovered != oldValue { hoverClock = 0; idleLife = Self.idleLifeSeconds } } }
     /// Same order and offset per ring as the waking breath in the conversation, so both move to one rhythm.
     static let inhaleScale = 0.12

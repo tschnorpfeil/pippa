@@ -102,13 +102,6 @@ enum Snapshots {
             await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 640), dark: dark,
                          to: folder.appendingPathComponent("settings-\(dark ? "dark" : "light").png"))
         }
-        chat.showSample([], current: nil, answering: false)
-        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: false, chrome: false, to: folder.appendingPathComponent("pill-rest.png"))
-        chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
-        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: true, chrome: false, to: folder.appendingPathComponent("pill-working.png"))
-        chat.showSample(sampleConversations(), current: "c1", answering: false)
-        chat.unseen = .answer
-        await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: false, chrome: false, to: folder.appendingPathComponent("pill.png"))
         print(folder.path)
         return 0
     }
@@ -155,13 +148,6 @@ enum Snapshots {
         override var canBecomeKey: Bool { true }
         override var isKeyWindow: Bool { true }
         override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
-    }
-
-    private struct PillPreview: View {
-        var body: some View {
-            HStack { PillView(chat: .shared, setup: .shared) }.frame(width: 300, height: 80)
-                .background(LinearGradient(colors: [.indigo.opacity(0.5), .teal.opacity(0.4)], startPoint: .leading, endPoint: .trailing))
-        }
     }
 
     /// One answer with a table and every kind of result card that comes from this Mac's apps.

@@ -34,6 +34,12 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.a
     Task { @MainActor in exit(await Snapshots.run(into: folder)) }
     app.run()
 }
+// `Pippa --snapshot-island <folder>`: Pippa Island in every state, at a notch and under the menu bar, as PNGs.
+if let index = CommandLine.arguments.firstIndex(of: "--snapshot-island"), CommandLine.arguments.count > index + 1 {
+    let folder = URL(fileURLWithPath: CommandLine.arguments[index + 1], isDirectory: true)
+    Task { @MainActor in exit(await IslandSnapshots.run(into: folder)) }
+    app.run()
+}
 // `Pippa --check-approvals`: the in-app question flow (Approvals) and the conversation store, without a window.
 if CommandLine.arguments.dropFirst().contains("--check-approvals") {
     Task { @MainActor in
@@ -52,6 +58,6 @@ if CommandLine.arguments.dropFirst().contains("--check-window-lifecycle") {
 if AppMover.runIfNeeded() { exit(0) }
 let delegate = AppDelegate()
 app.delegate = delegate
-// Pippa is a regular Mac app. The menu bar shortcut and optional pill supplement its Dock icon and windows.
+// Pippa is a regular Mac app. The menu bar shortcut and Pippa Island supplement its Dock icon and windows.
 app.setActivationPolicy(.regular)
 app.run()

@@ -21,7 +21,7 @@ Cloud assistants read your documents on their servers, and most local AI apps st
 
 Also: unsent reply drafts in Mail (you send them; she never does), Calendar entries, reminders, photos from your library and the web after she asks you.
 
-Open Pippa from the Dock or bring her up with ⌃⌥ Space, then just ask. Her menu bar shortcut stays available; an optional floating pill accepts dropped files. Each conversation stays in the sidebar for later. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is.
+Open Pippa from the Dock or bring her up with ⌃⌥ Space, then just ask. Pippa Island, at the notch or under her menu bar symbol, shows what she is doing, asks her questions there and takes a quick question or dropped files. Each conversation stays in the sidebar for later. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is.
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 

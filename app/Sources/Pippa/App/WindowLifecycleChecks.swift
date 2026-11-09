@@ -26,7 +26,7 @@ enum WindowLifecycleChecks {
         check("Window and Services menus belong to the application", NSApp.windowsMenu != nil && NSApp.servicesMenu != nil)
         check("Standard Hide action is in the app menu", NSApp.mainMenu?.items.first?.submenu?.items.contains { $0.action == #selector(NSApplication.hide(_:)) } == true)
         check("Closing the last window does not quit", !delegate.applicationShouldTerminateAfterLastWindowClosed(NSApp))
-        check("Pill starts off in a fresh preference domain", !Pill.shared.isShown)
+        check("Pippa Island starts on in a fresh preference domain", Island.shared.isShown)
 
         ChatWindow.shared.show()
         await settle()
@@ -71,36 +71,42 @@ enum WindowLifecycleChecks {
         foregroundCheck("Returning to chat clears its unread signal", ChatModel.shared.unseen == nil)
 
         let priorKey = NSApp.keyWindow
-        Pill.shared.isShown = true
+        Island.shared.start()
         await settle()
-        let pill = NSApp.windows.first { $0 is NSPanel && $0.styleMask.contains(.nonactivatingPanel) }
-        check("Optional pill stays a non-key companion", pill != nil && pill?.canBecomeKey == false && pill?.canBecomeMain == false)
-        foregroundCheck("Showing the pill leaves keyboard focus alone", NSApp.keyWindow === priorKey)
-        if let pill, let surface = pill.contentView {
-            check("Pill receives Mail file promises", NSFilePromiseReceiver.readableDraggedTypes.allSatisfy {
-                surface.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0))
+        let island = Island.shared.presenter?.panel
+        check("Pippa Island at rest or as a wing stays a non-key companion",
+              island != nil && island?.canBecomeKey == false && island?.canBecomeMain == false)
+        foregroundCheck("Showing Pippa Island leaves keyboard focus alone", NSApp.keyWindow === priorKey)
+        if let island, let view = Island.shared.presenter?.view {
+            check("Pippa Island receives Mail file promises on its wing and its panel", NSFilePromiseReceiver.readableDraggedTypes.allSatisfy {
+                view.compact.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0))
+                    && view.panel.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0))
             })
-            pill.center()
-            let start = pill.frame.origin
-            func mouse(_ type: NSEvent.EventType, _ point: NSPoint) -> NSEvent {
-                NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
-                                   windowNumber: pill.windowNumber, context: nil, eventNumber: 0,
-                                   clickCount: 1, pressure: 1)!
-            }
             ChatWindow.shared.hide()
-            surface.mouseDown(with: mouse(.leftMouseDown, NSPoint(x: 20, y: 20)))
-            surface.mouseDragged(with: mouse(.leftMouseDragged, NSPoint(x: 60, y: 40)))
-            surface.mouseUp(with: mouse(.leftMouseUp, NSPoint(x: 20, y: 20)))
-            check("Dragging the pill moves its window", abs(pill.frame.minX - start.x - 40) < 1 && abs(pill.frame.minY - start.y - 20) < 1)
-            check("Moving the pill does not open chat", !chat.isVisible)
-            surface.mouseDown(with: mouse(.leftMouseDown, NSPoint(x: 20, y: 20)))
-            surface.mouseUp(with: mouse(.leftMouseUp, NSPoint(x: 20, y: 20)))
-            check("Clicking the pill still opens chat", chat.isVisible)
-            surface.mouseDown(with: mouse(.leftMouseDown, NSPoint(x: 20, y: 20)))
-            surface.mouseDragged(with: mouse(.leftMouseDragged, NSPoint(x: 100_000, y: 100_000)))
-            surface.mouseUp(with: mouse(.leftMouseUp, NSPoint(x: 20, y: 20)))
-            check("Moving the pill beyond an edge brings it back on screen", NSScreen.screens.contains { $0.visibleFrame.contains(pill.frame) })
-            pill.setFrameOrigin(start)
+            Island.shared.reveal()
+            await settle()
+            check("A question opens Pippa Island by itself", Island.shared.isOpen && island.isVisible)
+            foregroundCheck("A question does not take the keyboard", !island.isKeyWindow)
+            Island.shared.close()
+            await settle()
+            view.compact.mouseDown(with: NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                                            windowNumber: island.windowNumber, context: nil, eventNumber: 0,
+                                                            clickCount: 1, pressure: 1)!)
+            await settle()
+            check("Clicking the wing opens Pippa Island, not the chat", Island.shared.isOpen && !chat.isVisible)
+            check("Only the open island with its question field can become key", island.canBecomeKey)
+            Island.shared.close()
+            await settle()
+            check("Closing Pippa Island makes it a non-key companion again", !island.canBecomeKey && !island.isKeyWindow)
+            Island.shared.ask(front: nil)
+            await settle()
+            check("The shortcut opens Pippa Island for a question", Island.shared.isOpen && Island.shared.focusToken > 0)
+            foregroundCheck("The question field takes the keyboard", island.isKeyWindow)
+            Island.shared.close()
+            await settle()
+            check("Closing hands the keyboard back", !island.isKeyWindow)
+            ChatWindow.shared.show()
+            await settle()
         }
         check("Chat receives Mail file promises", NSFilePromiseReceiver.readableDraggedTypes.allSatisfy {
             chat.contentView?.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0)) == true
@@ -132,7 +138,9 @@ enum WindowLifecycleChecks {
         for _ in 0..<100 where promiseCompletions == 0 { try? await Task.sleep(for: .milliseconds(20)) }
         check("One legacy Mail promise delivers all files before completing", promiseCompletions == 1 &&
               Set(promiseResult?.items.map(\.lastPathComponent) ?? []) == Set(["first.eml", "second.eml"]))
-        Pill.shared.isShown = false
+        Island.shared.isShown = false
+        await settle()
+        check("Switching Pippa Island off removes it", Island.shared.presenter?.panel.isVisible != true)
         NSApp.hide(nil)
         await settle()
         check("Command-H can hide Pippa", NSApp.isHidden)

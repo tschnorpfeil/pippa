@@ -55,6 +55,8 @@ await focused("PIPPA_FILE_PREPARATION_CHECKS", "File preparation") { await runFi
 await focused("PIPPA_MCP_FILE_PREPARATION_CHECKS", "MCP file preparation") { await runMCPFilePreparationChecks() }
 await focused("PIPPA_DOWNLOAD_CHECKS", "Download") { await runDownloadChecks() }
 await focused("PIPPA_MARKDOWN_CHECKS", "Markdown") { runMarkdownChecks() }
+// Pippa Island's geometry, spring and choreography; no windows.
+await focused("PIPPA_ISLAND_CHECKS", "Island") { runIslandChecks() }
 // Mail identity, readback and insertion decisions; no native app actions.
 await focused("PIPPA_LETTER_CHECKS", "Letter") { await runLetterChecks() }
 // Installer only (PiSetup, fake HOME under .build/fake-home-*).
@@ -433,6 +435,7 @@ await runCalendarChecks()
 runCalendarStoreChecks()
 await runResultCardChecks()
 runPressureChecks()
+runIslandChecks()
 await runSetupChecks()
 await runMCPChecks()
 await runNativeReminderChecks()
