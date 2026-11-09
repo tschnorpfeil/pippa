@@ -30,11 +30,12 @@ extension PiRPCClient {
         return found
     }
 
+    private static let versionPattern = try! NSRegularExpression(pattern: #"\b(\d+)\.(\d+)\.(\d+)\b"#)
+
     /// Only the check, for tests with made-up output.
     public static func checkVersion(output: String) throws -> String {
-        let pattern = try! NSRegularExpression(pattern: #"\b(\d+)\.(\d+)\.(\d+)\b"#)
         let text = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let match = pattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+        guard let match = versionPattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let range = Range(match.range, in: text) else { throw PiRPCError.versionUnreadable(output: text) }
         let found = String(text[range])
         guard found.hasPrefix(supportedVersionPrefix) else { throw PiRPCError.versionMismatch(found: found, supported: supportedVersionPrefix + "x") }
