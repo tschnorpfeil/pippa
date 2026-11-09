@@ -24,8 +24,9 @@ engine are gone.
 2. **Mail and Calendar acceptance** needs a signed build or the person's clicks: a re-signed development copy asks
    macOS again.
 3. **UI polish, second pass:** card views, onboarding text.
-4. **Liquid Glass on a real screen.** Snapshots draw without system glass (`cacheDisplay`); the chat, Pippa Island and
-   Settings need one look on macOS 26 or later, and Pippa Island one on a MacBook with a notch.
+4. **Pippa Island on a MacBook with a notch.** The chat and Settings were checked with Liquid Glass drawn by the window
+   server (`PIPPA_SNAPSHOT_LIVE=1 Pippa --snapshot`, 2026-11-09, Mac mini without a notch); the island at a real notch
+   still needs one look.
 
 Done since 0.4.5, not released yet: macOS 26.2 or later is required (the oMLX runtime's MLX binaries need it); Pippa
 Island at the notch or under the menu bar symbol replaces the pill; a calmer chat window that streams answers without
