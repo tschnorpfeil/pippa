@@ -80,13 +80,15 @@ person's own `~/.pi` web settings are never read or changed. The first search of
 silicon with 16 GB or more, 32K context from 24 GB, 16K on 16 GB. `OMLXServer` runs oMLX from the Python runtime
 (`MLXRuntime`, manifest `Resources/mlx-runtime.json`, built by `scripts/build-mlx-runtime.sh`) on a fixed loopback port
 with a key file; oMLX unloads the model by itself after an idle timeout. Runtime and model are downloaded only after
-consent (resumable, SHA256-verified), or the model is cloned from oMLX's or Hugging Face's folders
-(`ExistingModels.swift`). A catalog model is pinned with `scripts/pin-model.sh <catalog-key> <hf-repo> [<file>]`;
-`build-app.sh` refuses an unpinned model (`scripts/check-default-models.py`). See [Pippa's local AI](models.md).
+consent (`ModelDownloader`: resumable, SHA256-verified, free space checked first), or the model is cloned from oMLX's
+or Hugging Face's folders (`ExistingModels.swift`, `ModelDownloader+Adopt.swift`). A catalog model is pinned with
+`scripts/pin-model.sh <catalog-key> <hf-repo> [<file>]`; `build-app.sh` refuses an unpinned model
+(`scripts/check-default-models.py`). See [Pippa's local AI](models.md).
 
 **Setup (`app/Sources/PippaCore/PiSetup`).** `PiInstaller` copies the bundled Pi payload into Pi's managed layout
 (`~/.pi/agent/install/releases/<version>`), puts Node under `~/.local/share/pi-node` and writes the `pippa-local`
-provider into `models.json`. `PiLocalServer` plans the oMLX server for it, `PiModelTuning` sets thinking and
+provider into `models.json`; one file per step (`PiInstaller+Detect`, `+Release`, `+Layout`, `+Model`, `+ModelsJSON`,
+`+Launch`, `+TerminalExtension`). `PiLocalServer` plans the oMLX server for it, `PiModelTuning` sets thinking and
 compaction per model in Pi's `settings.json`. See [Updating Pi](updating-pi.md).
 
 **Online AI.** `PiProviderSettings` presents the bundled Pi’s provider catalog and authentication methods through
