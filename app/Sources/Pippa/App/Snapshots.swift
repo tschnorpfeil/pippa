@@ -1,4 +1,5 @@
 import AppKit
+import PiRPC
 import PippaCore
 import PDFKit
 import SwiftUI
@@ -48,43 +49,51 @@ enum Snapshots {
         let chat = ChatModel.shared
         let setup = SetupModel.shared
         setup.showForSnapshot(.ready(adoptedFrom: nil))
-        // Name, how to set it up, window height, and whether "Worked for …" starts open.
-        let scenes: [(String, () -> Void, CGFloat, Bool)] = [
-            ("welcome", { chat.showSample([], current: nil, answering: false) }, 760, false),
-            ("conversation", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false),
-            ("answering", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, false),
-            ("steps", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, true),
-            ("error", { chat.showSample(sampleConversations(failed: true), current: "c1", answering: false) }, 760, false),
-            ("cards", { chat.showSample(sampleCards() + sampleConversations(), current: "cards", answering: false) }, 1480, false),
+        // Name, how to set it up, window height, whether "Worked for …" starts open, and whether "About this answer" shows.
+        let scenes: [(String, () -> Void, CGFloat, Bool, Bool)] = [
+            ("welcome", { chat.showSample([], current: nil, answering: false) }, 760, false, false),
+            ("conversation", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false, false),
+            ("context", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false, true),
+            ("answering", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, false, false),
+            ("steps", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, true, false),
+            ("approval", {
+                chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
+                askSampleQuestion()
+            }, 760, false, false),
+            ("error", { chat.showSample(sampleConversations(failed: true), current: "c1", answering: false) }, 760, false, false),
+            ("cards", { chat.showSample(sampleCards() + sampleConversations(), current: "cards", answering: false) }, 1480, false, false),
             ("setup", {
                 chat.showSample([], current: nil, answering: false)
                 setup.showForSnapshot(.downloading(progress: 0.42, remaining: 380))
-            }, 760, false),
+            }, 760, false, false),
             ("setup-failed", {
                 chat.showSample([], current: nil, answering: false)
                 setup.showForSnapshot(.failed(PiSetupProblem(message: "This Mac has too little memory to run the AI itself.",
                                                              details: "No local model fits this Mac", canRetry: false)))
-            }, 760, false),
+            }, 760, false, false),
             ("attachments", {
                 setup.showForSnapshot(.ready(adoptedFrom: nil))
                 chat.showSample(sampleConversations(), current: nil, answering: false)
                 chat.attachments = [fixtures.appendingPathComponent("Rechnung-Oktober.pdf"), fixtures.appendingPathComponent("IMG-2041.png")]
-            }, 760, false),
+            }, 760, false, false),
         ]
-        for (name, prepare, height, expandsWork) in scenes {
+        for (name, prepare, height, expandsWork, inspector) in scenes {
             prepare()
+            // Let a question asked in `prepare` reach the list before drawing.
+            for _ in 0..<5 { await Task.yield() }
             for dark in [false, true] {
-                let view = ChatView(chat: chat, setup: setup).environment(\.expandsWork, expandsWork)
+                let view = ChatView(chat: chat, setup: setup, inspector: inspector).environment(\.expandsWork, expandsWork)
                 let file = folder.appendingPathComponent("\(name)-\(dark ? "dark" : "light").png")
                 await render(view, size: NSSize(width: 1240, height: height), dark: dark, to: file)
             }
             chat.attachments = []
+            Approvals.shared.cancelAll()
         }
         chat.showSample([], current: nil, answering: false)
         setup.showForSnapshot(.ready(adoptedFrom: nil))
         chat.attachments = [fixtures.appendingPathComponent("Rechnung-Oktober.pdf"), fixtures.appendingPathComponent("IMG-2041.png")]
         for width: CGFloat in [640, 860] {
-            await render(ChatView(chat: chat, setup: setup), size: NSSize(width: width, height: 520), dark: false,
+            await render(ChatView(chat: chat, setup: setup, inspector: false), size: NSSize(width: width, height: 520), dark: false,
                          to: folder.appendingPathComponent("attachments-narrow-\(Int(width)).png"))
         }
         chat.attachments = []
@@ -102,6 +111,20 @@ enum Snapshots {
         await render(PillPreview(), size: NSSize(width: 300, height: 80), dark: false, chrome: false, to: folder.appendingPathComponent("pill.png"))
         print(folder.path)
         return 0
+    }
+
+    /// Pi asks to search the web while the answer runs. The question goes to Pippa's own list (never the alert): a
+    /// presenter is registered first, and no view's `reveal` may bring the real chat window up meanwhile.
+    private static func askSampleQuestion() {
+        let approvals = Approvals.shared
+        for _ in 0..<20 where approvals.hasPresenter { approvals.dismiss("chat") }
+        approvals.present("snapshot")
+        let request = PiUIRequest(id: "snapshot-web", method: "confirm", title: "Darf Pippa im Internet suchen?",
+                                  message: "Pippa möchte bei DuckDuckGo suchen nach:\n\n„aktuelle Kosten MSCI World ETF Sparplan“")
+        Task {
+            _ = await approvals.ask(request)
+            approvals.dismiss("snapshot")
+        }
     }
 
     /// `chrome`: a titled window with its buttons (the chat, Settings); without, just the view (the pill floats alone).
