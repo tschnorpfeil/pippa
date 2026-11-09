@@ -27,6 +27,11 @@ def thin(major, minor, old_command=False):
     return header + command
 
 
+def metallib(major, minor, os=0x81):
+    """The first bytes of a Metal library as `metal -mmacosx-version-min=<major>.<minor>` writes them."""
+    return b"MTLB" + struct.pack("<HHHBBHH", 0x8001, 2, 9, 0, os, major, minor) + b"\0" * 64
+
+
 def universal(*slices):
     """A universal (fat) file with each slice at a 4096-byte boundary."""
     data = bytearray(struct.pack(">II", minos.FAT_MAGIC, len(slices)))
@@ -66,6 +71,18 @@ class MachOMinimumTests(unittest.TestCase):
     def test_ignores_files_that_are_not_mach_o(self):
         self.assertIsNone(minos.minimum_macos(self.write("notes.txt", b"plain text, long enough")))
         self.assertIsNone(minos.minimum_macos(self.write("A.class", b"\xca\xfe\xba\xbe\x00\x00\x00\x34rest")))
+
+    def test_reads_the_minimum_of_a_metal_library(self):
+        self.assertEqual(minos.minimum_macos(self.write("mlx.metallib", metallib(26, 2))), (26, 2, 0))
+        self.assertEqual(minos.minimum_macos(self.write("kernels.metallib", metallib(15, 0))), (15, 0, 0))
+        self.assertIsNone(minos.minimum_macos(self.write("ios.metallib", metallib(26, 0, os=0x82))))
+        self.assertIsNone(minos.minimum_macos(self.write("short.metallib", b"MTLB\x01\x80")))
+
+    def test_flags_a_metal_library_newer_than_the_supported_macos(self):
+        self.write("omlx/custom_kernels/quant_matmul/omlx_quant_matmul_kernels_nax.metallib", metallib(26, 2))
+        self.write("omlx/custom_kernels/attention/omlx_attention_kernels.metallib", metallib(27, 0))
+        self.assertEqual(minos.too_new(self.root, (26, 2)),
+                         [((27, 0, 0), "omlx/custom_kernels/attention/omlx_attention_kernels.metallib")])
 
     def test_lists_only_binaries_newer_than_the_supported_macos(self):
         self.write("lib/libmlx.dylib", thin(26, 2))
