@@ -3,9 +3,6 @@ import Combine
 import PippaCore
 import PiRPC
 
-/// Settings binds its switch to `Pill.shared.isShown` (Views/SettingsWindow.swift); it now turns the island on and off.
-typealias Pill = Island
-
 /// Pippa Island: a black companion at the notch (or under the menu bar symbol on a display without one). It shows
 /// what Pippa is doing, asks Pi's questions, and takes a quick question or dropped files. At rest it is invisible:
 /// hidden in the camera housing, or just the menu bar symbol.
