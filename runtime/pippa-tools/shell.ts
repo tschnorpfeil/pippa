@@ -1,5 +1,5 @@
 /**
- * Pippa's `bash` runs inside a macOS sandbox the system enforces (`sandbox-exec`). The model can use local utilities (python, sips, qpdf, ffmpeg, mdfind, …);
+ * Pippa's `bash` runs inside a macOS sandbox the system enforces (`sandbox-exec`). The model can use local utilities (sips, qpdf, ffmpeg, mdfind, …, and python where Apple's developer tools are installed);
  * the sandbox bounds ordinary shell execution; explicit app-control calls are refused before execution.
  * This is not a sandbox around Pi's built-in file tools or all capabilities of a standard task. Wired up in pippa-tools.ts.
  *
@@ -15,12 +15,17 @@
  *   later call does the remaining work. Before an approved write call runs, every existing file it names gets a
  *   copy (pippa-assist.ts `backUp`), so it can be undone.
  *
+ * Without Apple's developer tools, /usr/bin/python3, git, make and the like are placeholders that open an install dialog
+ * when started. Such a command is refused before it runs, and the profile forbids executing them (`env python3`,
+ * scripts, `xargs git`), so the person never sees that dialog from Pippa.
+ *
  * Never, not even after an OK: delete anything outside the working and temporary folders (the Trash is
  * `move_files` with `to: "trash"`), or write to `~/Library` (except iCloud Drive and cloud folders), dot folders such as `~/.ssh` or
  * `~/.pi`, and Pippa's own folder. An approved network grant still permits network requests; these rules are not
  * a universal no-send guarantee for standard tasks. Other executors have their own policies.
  */
-import { existsSync, realpathSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { accessSync, constants, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -28,6 +33,41 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 export type Grant = "net" | "write";
 
 export const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
+/** Where Apple keeps the developer-tool placeholders. */
+export const SHIM_DIR = "/usr/bin";
+const SHIM_NAMES = ["python3", "pip3", "git", "make", "clang", "clang++", "cc", "c++", "gcc", "g++", "swift", "swiftc", "ld", "lldb",
+	"strings", "otool", "nm", "m4", "xcrun", "xcodebuild", "xcode-select"];
+
+/**
+ * Whether Apple's developer tools are installed. `xcode-select -p` only prints the folder (it never opens the install
+ * dialog); `xcrun` and the placeholders themselves would. Remembered for the process.
+ */
+let installed: boolean | undefined;
+export function developerToolsInstalled(env: Record<string, string | undefined> = process.env): boolean {
+	if (process.platform !== "darwin") return true;
+	if (env.DEVELOPER_DIR && existsSync(env.DEVELOPER_DIR)) return true;
+	if (installed === undefined) {
+		const run = spawnSync("/usr/bin/xcode-select", ["-p"], { encoding: "utf8", timeout: 3000 });
+		const folder = run.status === 0 ? String(run.stdout).trim() : "";
+		installed = Boolean(folder) && existsSync(join(folder, "usr/bin/git"));
+	}
+	return installed;
+}
+
+/**
+ * The placeholder names in `dir`: every entry that is the same file as git (hard links on macOS, 78 of them), plus
+ * Apple's own launchers. Without git there, the known names.
+ */
+export function developerShims(dir = SHIM_DIR): string[] {
+	const launchers = ["xcrun", "xcodebuild", "xcode-select"];
+	try {
+		const git = statSync(join(dir, "git"));
+		const same = readdirSync(dir).filter((name) => {
+			try { const info = statSync(join(dir, name)); return info.ino === git.ino && info.dev === git.dev; } catch { return false; }
+		});
+		return [...new Set([...same, ...launchers])];
+	} catch { return [...SHIM_NAMES]; }
+}
 
 /** The folders the profile is built from, as real paths (the sandbox compares resolved paths: /var is /private/var). */
 export interface Places {
@@ -63,13 +103,14 @@ function dotEntries(folder: string): string {
  * The sandbox profile for this set of grants. In SBPL the last matching rule wins, so the order is: broad denies,
  * what a grant allows, what stays forbidden anyway, and the working folders last.
  */
-export function sandboxProfile(grants: ReadonlySet<Grant>, where: Places): string {
+export function sandboxProfile(grants: ReadonlySet<Grant>, where: Places, shims: readonly string[] = [], shimDir = SHIM_DIR): string {
 	const home = where.home;
 	const lines = ["(version 1)", "(allow default)"];
 	if (!grants.has("net")) lines.push("(deny network*)");
 	// No broad app-control grant: only Pippa's narrow native tools may change apps.
 	lines.push("(deny appleevent-send)");
 	lines.push(`(deny process-exec (literal "/usr/bin/osascript") (literal "/usr/bin/open") (literal "/usr/bin/shortcuts") (literal "/usr/bin/automator"))`);
+	if (shims.length) lines.push(`(deny process-exec ${shims.map((name) => `(literal ${lit(join(shimDir, name))})`).join(" ")})`);
 	lines.push(`(deny file-write* (subpath ${lit(home)}) (subpath "/Volumes") (subpath "/Users/Shared") (subpath "/Applications") (subpath "/Library"))`);
 	if (grants.has("write")) {
 		lines.push(`(allow file-write* (subpath ${lit(home)}) (subpath "/Volumes") (subpath "/Users/Shared"))`);
@@ -90,17 +131,45 @@ export function quote(text: string): string {
 }
 
 /** What Pi runs instead of the command: the same command, in a bash inside the sandbox. */
-export function sandboxedCommand(command: string, grants: ReadonlySet<Grant>, where: Places, sandbox = SANDBOX_EXEC): string {
-	return `exec ${sandbox} -p ${quote(sandboxProfile(grants, where))} /bin/bash -c ${quote(command)}`;
+export function sandboxedCommand(command: string, grants: ReadonlySet<Grant>, where: Places, sandbox = SANDBOX_EXEC, shims: readonly string[] = [], shimDir = SHIM_DIR): string {
+	return `exec ${sandbox} -p ${quote(sandboxProfile(grants, where, shims, shimDir))} /bin/bash -c ${quote(command)}`;
 }
 
-/** The words a command runs: the first word of every part of a pipe or chain, and of `$( … )`. */
-function programs(command: string): string[] {
+/** The first word of every part of a pipe or chain, and of `$( … )`, as written (with its folder, if any). */
+function programWords(command: string): string[] {
 	return command.split(/[;&|\n`()]|\$\(/).map((part) => {
 		const words = part.trim().split(/\s+/).filter(Boolean);
 		while (words.length && (/^\w+=/.test(words[0]) || ["sudo", "env", "command", "exec", "nohup", "time", "nice", "xargs"].includes(words[0]))) words.shift();
-		return (words[0] ?? "").replace(/^["'\\]+|["']+$/g, "").split("/").pop() ?? "";
+		return (words[0] ?? "").replace(/^["'\\]+|["']+$/g, "");
 	}).filter(Boolean);
+}
+
+/** The programs a command runs, without their folders. */
+function programs(command: string): string[] {
+	return programWords(command).map((word) => word.split("/").pop() ?? "").filter(Boolean);
+}
+
+/** The folder a bare program name is found in first along `PATH`, as the shell would. */
+function firstOnPath(name: string, env: Record<string, string | undefined>): string | undefined {
+	for (const folder of (env.PATH ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(":")) {
+		if (!folder) continue;
+		const file = join(folder, name);
+		try {
+			accessSync(file, constants.X_OK);
+			if (statSync(file).isFile()) return resolve(folder);
+		} catch { /* not here */ }
+	}
+	return undefined;
+}
+
+/** The placeholder a command would start (the first match along `PATH` lives in `shimDir`), if any. */
+export function shimStarted(command: string, shims: readonly string[], env: Record<string, string | undefined>, shimDir = SHIM_DIR): string | undefined {
+	for (const word of programWords(command)) {
+		const name = word.split("/").pop() ?? "";
+		if (!shims.includes(name)) continue;
+		if (word.includes("/") ? word === join(shimDir, name) : firstOnPath(name, env) === resolve(shimDir)) return name;
+	}
+	return undefined;
 }
 
 const NETWORK = new Set(["curl", "wget", "pip", "pip3", "brew", "npm", "npx", "yarn", "pnpm", "gem", "cargo", "ssh", "scp", "sftp",
@@ -122,13 +191,18 @@ export function neededGrants(command: string): Set<Grant> {
 const NETWORK_FAILURE = /Could not resolve host|Couldn't connect|Failed to connect|nodename nor servname|Network is unreachable|getaddrinfo|Name or service not known|Temporary failure in name resolution|Failed to establish a new connection|URLError|unable to access '|Connection refused|No route to host/i;
 const APPS_FAILURE = /Not authorized to send Apple events|\(-1743\)|errAEEventNotPermitted|\(-600\)|\/usr\/bin\/(?:osascript|open|shortcuts|automator): (?:Operation not permitted|Permission denied)/i;
 export const APP_CONTROL_REASON = "Not run: app control is not available in Pippa’s shell. Use Pippa's native tools; Mail replies remain unsent drafts. Do not bypass this with another shell command, shortcut or URL.";
+export function noDeveloperToolsReason(name: string): string {
+	return `Not run: ${name} is not on this Mac. It comes with Apple's developer tools, which are not installed, and starting it would only open an install dialog. Use bash, awk, sed, sips, textutil or Pippa's own tools instead, or tell the person in one short sentence what you could not do. Do not install anything.`;
+}
+// A placeholder the profile forbids to start: `/bin/bash: /usr/bin/python3: Operation not permitted`, `env: python3: Operation not permitted`, `xargs: git: Operation not permitted`.
+const SHIM_FAILURE = /(?:\/usr\/bin\/|\b(?:env|xargs|find): )[\w+.-]+: Operation not permitted/;
 const WRITE_FAILURE = /Operation not permitted/i;
 
 /** Grants a failed command lacked, judged from its output. */
 export function missingGrants(command: string, output: string, grants: ReadonlySet<Grant>): Set<Grant> {
 	const missing = new Set<Grant>();
 	if (!grants.has("net") && NETWORK_FAILURE.test(output)) missing.add("net");
-	if (APPS_FAILURE.test(output) || programs(command).some((word) => APPS.has(word))) return missing;
+	if (APPS_FAILURE.test(output) || SHIM_FAILURE.test(output) || programs(command).some((word) => APPS.has(word))) return missing;
 	if (!grants.has("write") && !missing.size && WRITE_FAILURE.test(output)) missing.add("write");
 	return missing;
 }
@@ -194,12 +268,13 @@ export const SHELL_DECLINED_REASON = "Not run: the person said no. Do not try an
 export const NO_SANDBOX_REASON = "Not run: Pippa's safe shell (sandbox-exec) is missing on this Mac. Use Pippa's other tools instead.";
 
 /** A note appended to a failed command, so the model knows the limits instead of guessing. */
-export function limitsNote(grants: ReadonlySet<Grant>, work: string): string {
+export function limitsNote(grants: ReadonlySet<Grant>, work: string, noDeveloperTools = false): string {
 	const no: string[] = [];
 	if (!grants.has("write")) no.push(`write only in ${work} and temporary folders (save results there, then move_files them where they belong; for one text file use write)`);
 	no.push("never delete outside that folder (move_files to \"trash\" moves to the Trash)");
 	if (!grants.has("net")) no.push("no internet (use web_search and fetch_content)");
 	no.push("no app control (Pippa’s native tools cover Mail, Calendar, Reminders and Photos)");
+	if (noDeveloperTools) no.push("no developer tools (python3, git, make, …): use bash, awk, sed");
 	return `Note: bash runs in Pippa's sandbox: ${no.join("; ")}. Do not retry the same command.`;
 }
 
@@ -237,6 +312,10 @@ export interface ShellDeps {
 	keep?: (file: string) => Promise<string | undefined>;
 	env?: Record<string, string | undefined>;
 	home?: string;
+	/** Whether Apple's developer tools are installed (default: asks `xcode-select -p` once). */
+	developerTools?: () => boolean;
+	/** Where the placeholders live (default /usr/bin). */
+	shimDir?: string;
 }
 
 /**
@@ -248,6 +327,11 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 	const available = deps.available ?? (() => sandboxAvailable(sandbox));
 	const env = deps.env ?? process.env;
 	const home = deps.home ?? homedir();
+	const developerTools = deps.developerTools ?? (() => developerToolsInstalled(env));
+	const shimDir = deps.shimDir ?? SHIM_DIR;
+	let shims: string[] | undefined;
+	/** The placeholders to keep out, or none when the tools are installed. */
+	const lockedShims = (): string[] => developerTools() ? [] : (shims ??= developerShims(shimDir));
 	let grants = new Set<Grant>();
 
 	return {
@@ -266,6 +350,9 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					const where = places(cwd, env, home);
 					const command = String(params?.command ?? "");
 					if (programs(command).some((word) => APPS.has(word))) return notRun(APP_CONTROL_REASON);
+					const locked = lockedShims();
+					const shim = locked.length ? shimStarted(command, locked, env, shimDir) : undefined;
+					if (shim) return notRun(noDeveloperToolsReason(shim));
 					// Retain copies through failures and interruptions as well as successful completion.
 					const kept = new Map<string, string>();
 					const ask = async (need: Set<Grant>): Promise<boolean> => {
@@ -289,7 +376,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						let dispatched = false;
 						const tool = create(cwd, { spawnHook: (spawn: any) => {
 							dispatched = true;
-							return { ...spawn, command: sandboxedCommand(spawn.command, now, where, sandbox) };
+							return { ...spawn, command: sandboxedCommand(spawn.command, now, where, sandbox, locked, shimDir) };
 						} });
 						try {
 							const result = await tool.execute(id, params, signal, onUpdate, ctx);
@@ -316,7 +403,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 							// Granting access cannot make replay safe; return the original failure for recovery.
 							result = withNote(result, "Permission is now available for this answer, but the failed command was not rerun. It may already have changed something before failing. Check its effects, then use a separate, narrowly scoped call for only the remaining work. Do not repeat completed steps.");
 						}
-						if (result?.isError) result = withNote(result, limitsNote(grants, where.work));
+						if (result?.isError) result = withNote(result, limitsNote(grants, where.work, locked.length > 0));
 					}
 					if (kept.size) {
 						const copies = [...kept].map(([file, copy]) => ({ file, copy }));

@@ -179,17 +179,19 @@ test("tool: without developer tools a shim is refused before it starts, with the
 	assert.equal(runs, 4);
 });
 
-test("tool: the profile carries the shim lock only without developer tools", { skip: !piIndex && "PIPPA_PI_CLI not set" }, async () => {
-	const { createBashToolDefinition } = await import(piIndex);
-	const { root, home, work } = scratch("shim-profile");
-	const profile = async (installed) => {
-		const tool = shellTool(createBashToolDefinition, { sandbox: fakeSandbox(root), available: () => true, home, env: {},
-			developerTools: () => installed, shimDir: "/usr/bin" });
-		await tool.definition(work).execute("p", { command: "echo hi" }, undefined, undefined, plain(work));
-		return readFileSync(join(root, "profile.sb"), "utf8");
+test("tool: the profile carries the shim lock only without developer tools (on this Mac: the real answer)", async () => {
+	let command = "";
+	const create = (cwd, options) => ({ name: "bash", execute: async (id, params) => {
+		command = options.spawnHook({ command: params.command, cwd, env: {} }).command;
+		return { content: [{ type: "text", text: "ok" }] };
+	} });
+	const profile = async (deps) => {
+		await shellTool(create, { available: () => true, env: {}, ...deps }).definition("/fixture").execute("p", { command: "echo hi" }, undefined, undefined, plain("/fixture"));
+		return command;
 	};
-	assert.match(await profile(false), /\(deny process-exec \(literal "\/usr\/bin\/[\w+.-]+"\)/);
-	assert.doesNotMatch(await profile(true), /process-exec \(literal "\/usr\/bin\/python3"/);
+	assert.match(await profile({ developerTools: () => false, shimDir: "/usr/bin" }), /\(deny process-exec \(literal "\/usr\/bin\/[\w+.-]+"\)/);
+	assert.doesNotMatch(await profile({ developerTools: () => true }), /process-exec \(literal "\/usr\/bin\/(?:python3|git)"/);
+	if (onMac && shell.developerToolsInstalled()) assert.doesNotMatch(await profile({}), /process-exec \(literal "\/usr\/bin\/(?:python3|git)"/);
 });
 
 /** Pi's bash as far as the sandbox is concerned: the spawn hook's command runs in a real bash. */
