@@ -67,9 +67,11 @@ in-process MCP server's own read and write notes (`PippaMCPService`), so no `str
   written to `~/.pi/agent/mcp.json`, so the terminal Pi never sees the server.
 
 **MCP server (`app/Sources/PippaCore/MCP`).** Streamable HTTP on 127.0.0.1 inside the app (`PippaMCPServer`). Readers
-in `PippaMCPTools.swift` and `PippaMCPTurn.swift` (`read_document`, with text recognition for scans), writers in
-`PippaMCPWrite.swift` (event, reminder, unsent Mail draft; only during an answer), and `prepare_files`
-(`PippaMCPFilePreparation.swift`: ordered photos and PDFs into one verified PDF, optionally aimed at a size limit).
+are dispatched in `PippaMCPTools.swift`, one file per app (`PippaMCPCalendarReaders`, `PippaMCPMailReaders`,
+`PippaMCPPhotoReaders`, `PippaMCPFrontReaders`), with `read_document` in `PippaMCPTurn.swift` (text recognition for
+scans). Writers are dispatched in `PippaMCPWrite.swift`, one file per tool (`PippaMCPCalendarAdd`,
+`PippaMCPReminderAdd`, `PippaMCPMailDraft`; only during an answer). `prepare_files` (`PippaMCPFilePreparation.swift`)
+puts ordered photos and PDFs into one verified PDF, optionally aimed at a size limit.
 
 **Web access (`runtime/pippa-web`).** `index.ts` loads the pinned `pi-web-access` with Pippa's settings in
 `<Application Support>/Pippa/pi-web` (`PIPPA_WEB_DIR`): DuckDuckGo only, no switch to another signed-in provider. The
