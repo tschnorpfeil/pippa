@@ -6,7 +6,7 @@ import CoreFoundation
 // see the Pi docs rpc.md, rpc-commands.md, rpc-extension-ui.md.
 // Deliberately no dependency on PippaCore, so the probe program builds fast.
 
-/// Drives a `pi --mode rpc` process. One response at a time; deliver more via `steer`/`followUp`.
+/// Drives a `pi --mode rpc` process. One response at a time; deliver more via `steer`.
 public actor PiRPCClient {
     /// Tested range: the pinned minor version (app/Packaging/pi-release, currently Pi 1.5.x). `start()` rejects other versions
     /// with `.versionMismatch`. scripts/bump-pi.sh aborts if that does not match the new pin.
@@ -159,11 +159,6 @@ public actor PiRPCClient {
     /// `true`: Pi accepted the message (it then appears as `.userMessage`).
     @discardableResult public func steer(_ text: String) async throws -> Bool {
         Self.disposition(try await send(["type": "steer", "message": text])) == "queued"
-    }
-
-    /// Deliver only after the running work has ended.
-    @discardableResult public func followUp(_ text: String) async throws -> Bool {
-        Self.disposition(try await send(["type": "follow_up", "message": text])) == "queued"
     }
 
     /// Abort; Pi replies only once the session is idle again.

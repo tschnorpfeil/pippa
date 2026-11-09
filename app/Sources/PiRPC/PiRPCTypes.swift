@@ -9,7 +9,7 @@ public enum PiRPCError: Error, LocalizedError, Equatable, Sendable {
     /// `pi --version` returned nothing readable (or did not run).
     case versionUnreadable(output: String)
     case notRunning
-    /// A response is already running; use `steer`/`followUp` or `abort` first.
+    /// A response is already running; use `steer` or `abort` first.
     case busy
     /// Pi rejected a command (`success: false`).
     case commandFailed(command: String, message: String)
@@ -60,7 +60,7 @@ public enum PiRPCEvent: Sendable, Equatable {
     case toolStarted(id: String, name: String, arguments: String)
     case toolEnded(id: String, name: String, isError: Bool, result: String, outcome: PiActionRecord.Outcome? = nil,
                    fileAccessFailure: PiFileAccessFailure? = nil)
-    /// Pi picked up another message from the person (delivered via `steer` or `followUp`).
+    /// Pi picked up another message from the person (delivered via `steer`).
     case userMessage(String)
     /// A model response is done. `stopReason`: "stop", "toolUse", "aborted", "error", …
     case assistantEnded(text: String, stopReason: String, error: String?)
