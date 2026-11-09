@@ -54,9 +54,14 @@ public enum MailParser {
         return (headers, body)
     }
 
+    /// One expression per parameter name `walk` asks for, compiled once.
+    private static let paramExpressions: [String: NSRegularExpression] = Dictionary(uniqueKeysWithValues:
+        ["boundary", "filename", "name", "charset"].map { name in
+            (name, try! NSRegularExpression(pattern: "(?i)\(name)\\*?=\\s*(\"([^\"]*)\"|([^;\\s]+))"))
+        })
+
     static func param(_ name: String, in header: String) -> String? {
-        let pattern = "(?i)\(name)\\*?=\\s*(\"([^\"]*)\"|([^;\\s]+))"
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = paramExpressions[name],
               let m = re.firstMatch(in: header, range: NSRange(header.startIndex..., in: header)) else { return nil }
         for g in [2, 3] { if let r = Range(m.range(at: g), in: header) { return String(header[r]) } }
         return nil
@@ -125,13 +130,14 @@ public enum MailParser {
         return out
     }
 
+    private static let encodedWord = try! NSRegularExpression(pattern: #"=\?([^?]+)\?([QqBb])\?([^?]*)\?="#)
+
     /// RFC 2047: =?utf-8?Q?...?= and =?utf-8?B?...?=
     static func decodeWords(_ input: String) -> String {
         guard input.contains("=?") else { return input }
         let s = input.replacingOccurrences(of: #"\?=\s+=\?"#, with: "?==?", options: .regularExpression)
-        guard let re = try? NSRegularExpression(pattern: #"=\?([^?]+)\?([QqBb])\?([^?]*)\?="#) else { return input }
         var result = s
-        for m in re.matches(in: s, range: NSRange(s.startIndex..., in: s)).reversed() {
+        for m in encodedWord.matches(in: s, range: NSRange(s.startIndex..., in: s)).reversed() {
             guard let whole = Range(m.range, in: s), let cs = Range(m.range(at: 1), in: s),
                   let mode = Range(m.range(at: 2), in: s), let payload = Range(m.range(at: 3), in: s) else { continue }
             let data: Data
