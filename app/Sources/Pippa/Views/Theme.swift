@@ -72,8 +72,8 @@ enum Theme {
     /// How far a message or card travels while it arrives.
     static let arrivalOffset: CGFloat = 8
 
-    /// Liquid Glass on macOS 26 and later. Snapshots turn it off: drawing a window into an image can't show glass (a
-    /// tinted one blanks the whole view), so they show the solid surfaces of macOS 15 instead.
+    /// Liquid Glass. Snapshots turn it off: drawing a window into an image can't show glass (a tinted one blanks the
+    /// whole view), so they show solid surfaces instead.
     @MainActor static var drawsGlass = true
 }
 
@@ -163,20 +163,20 @@ extension View {
             .shadow(color: .black.opacity(lifted ? 0.10 : 0.05), radius: lifted ? 12 : 6, y: lifted ? 4 : 2)
     }
 
-    /// A floating control or bar (the composer, Send, "Jump to the latest"): Liquid Glass from macOS 26, reacting to the
-    /// pointer when `interactive`; before that the raised card surface. Content (answers, cards, tables) stays on solid
-    /// surfaces, where it reads best.
+    /// A floating control or bar (the composer, Send, "Jump to the latest"): Liquid Glass, reacting to the pointer when
+    /// `interactive`; the raised card surface in snapshots. Content (answers, cards, tables) stays on solid surfaces,
+    /// where it reads best.
     @ViewBuilder func glass(_ radius: CGFloat, interactive: Bool = false, lifted: Bool = false) -> some View {
-        if #available(macOS 26, *), Theme.drawsGlass {
+        if Theme.drawsGlass {
             glassEffect(interactive ? .regular.interactive() : .regular, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
         } else {
             raised(radius, lifted: lifted)
         }
     }
 
-    /// A round glass button filled with a colour (Send), or `fallback` drawn as a plain circle before macOS 26.
+    /// A round glass button filled with a colour (Send), or `fallback` drawn as a plain circle in snapshots.
     @ViewBuilder func glassCircle(tint: Color?, fallback: Color) -> some View {
-        if #available(macOS 26, *), Theme.drawsGlass {
+        if Theme.drawsGlass {
             glassEffect(.regular.tint(tint).interactive(), in: Circle())
         } else {
             background(fallback, in: Circle())

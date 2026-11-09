@@ -125,14 +125,14 @@ struct Transcript: View {
 }
 
 private extension View {
-    /// From macOS 26 the conversation scrolls on under the glass composer and softly fades out behind it; before,
-    /// the composer sits on the chat's own colour as it always did.
+    /// The conversation scrolls on under the glass composer and softly fades out behind it; in snapshots the composer
+    /// sits on the chat's own colour.
     @ViewBuilder func softBottomEdge() -> some View {
-        if #available(macOS 26, *), Theme.drawsGlass { scrollEdgeEffectStyle(.soft, for: .bottom) } else { self }
+        if Theme.drawsGlass { scrollEdgeEffectStyle(.soft, for: .bottom) } else { self }
     }
 
     @ViewBuilder func floatingBar() -> some View {
-        if #available(macOS 26, *), Theme.drawsGlass { self } else { background(Color(nsColor: Theme.chatTint)) }
+        if Theme.drawsGlass { self } else { background(Color(nsColor: Theme.chatTint)) }
     }
 }
 

@@ -189,9 +189,9 @@ private struct Chip: View {
 }
 
 private extension View {
-    /// The file drawer: glass like the composer from macOS 26, a soft fill with a hairline before.
+    /// The file drawer: glass like the composer; a soft fill with a hairline in snapshots.
     @ViewBuilder func drawerSurface<S: InsettableShape>(_ shape: S) -> some View {
-        if #available(macOS 26, *), Theme.drawsGlass {
+        if Theme.drawsGlass {
             glassEffect(.regular, in: shape)
         } else {
             background(Theme.fill, in: shape).overlay { shape.strokeBorder(Theme.hairline, lineWidth: 1) }
