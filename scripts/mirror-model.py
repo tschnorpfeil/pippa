@@ -237,7 +237,15 @@ def main(argv=None, home=None, catalog=None):
         source, label = found[entry["path"]]
         print(f"verified {entry['path']} ({entry['size']} bytes, SHA-256 {entry['sha256'][:12]}…) from {label}: {source}")
         planned += [(name, length, entry["path"]) for name, _, length in assets_for(entry["path"], entry["size"], part)]
-    existing = existing_assets(tag, REPO) if shutil.which("gh") else None
+    if not args.dry_run and not shutil.which("gh"):
+        raise MirrorError("gh (GitHub CLI, signed in) is needed to publish; --dry-run works without it")
+    try:
+        existing = existing_assets(tag, REPO) if shutil.which("gh") else None
+    except MirrorError as error:
+        if not args.dry_run:
+            raise
+        print(f"Release state unknown ({error}); listing every asset.")
+        existing = None
     if existing is not None:
         for name, length, _ in planned:
             if name in existing and existing[name] != length:

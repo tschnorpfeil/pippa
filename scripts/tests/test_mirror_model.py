@@ -137,6 +137,65 @@ class MirrorLocate(unittest.TestCase):
             self.assertEqual(sorted(p for p in home.rglob("*")), before)
 
 
+class MirrorPublish(unittest.TestCase):
+    def test_creates_a_pre_release_and_uploads_only_missing_assets(self):
+        weights, config = os.urandom(25_000), b"{}"
+        model = fixture_model([pin("sub/config.json", config), pin("model.safetensors", weights)])
+        tag = f"model-test-model-{REVISION[:7]}"
+        calls, release, created = [], {}, []
+
+        def fake_gh(*args, check=True):
+            calls.append(args)
+            if args[:2] == ("release", "view"):
+                if not created:
+                    return subprocess.CompletedProcess(args, 1, "", "release not found")
+                return subprocess.CompletedProcess(args, 0, json.dumps({"assets": [{"name": n, "size": z} for n, z in release.items()]}), "")
+            if args[:2] == ("release", "create"):
+                created.append(args)
+            if args[:2] == ("release", "upload"):
+                path = pathlib.Path(args[3])
+                release[path.name] = len(path.read_bytes())
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        class Card(io.BytesIO):
+            def __enter__(self): return self
+            def __exit__(self, *exc): return False
+
+        with tempfile.TemporaryDirectory() as home:
+            home = pathlib.Path(home)
+            catalog = home / "catalog.json"
+            catalog.write_text(json.dumps({"models": [model]}))
+            omlx = home / ".omlx/models/org/Test-Model"
+            (omlx / "sub").mkdir(parents=True)
+            (omlx / "sub/config.json").write_bytes(config)
+            (omlx / "model.safetensors").write_bytes(weights)
+            with unittest.mock.patch.object(mirror, "gh", side_effect=fake_gh), \
+                    unittest.mock.patch.object(mirror.shutil, "which", return_value="/usr/bin/gh"), \
+                    unittest.mock.patch.object(mirror.urllib.request, "urlopen", return_value=Card(b"# card")), \
+                    unittest.mock.patch.dict(os.environ, {"PIPPA_CACHE": str(home / "cache")}), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                mirror.main(["test-model"], home=home, catalog=catalog)
+            create = next(c for c in calls if c[:2] == ("release", "create"))
+            self.assertIn("--prerelease", create)
+            self.assertIn("--latest=false", create)
+            self.assertEqual(create[create.index("--title") + 1], "AI model mirror: Test Model (not an app release)")
+            uploaded = [pathlib.Path(c[3]).name for c in calls if c[:2] == ("release", "upload")]
+            self.assertEqual(uploaded, ["sub--config.json", "model.safetensors.part-0", "model.safetensors.part-1",
+                                        "model.safetensors.part-2", "MODEL-CARD.md"])
+            self.assertEqual(release["model.safetensors.part-2"], 5_000)
+            self.assertFalse((home / "cache/mirror" / tag).exists())
+            self.assertEqual((omlx / "model.safetensors").read_bytes(), weights)
+
+            # Second run: the release is complete, nothing is created or uploaded again.
+            calls.clear()
+            with unittest.mock.patch.object(mirror, "gh", side_effect=fake_gh), \
+                    unittest.mock.patch.object(mirror.shutil, "which", return_value="/usr/bin/gh"), \
+                    unittest.mock.patch.dict(os.environ, {"PIPPA_CACHE": str(home / "cache")}), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                mirror.main(["test-model"], home=home, catalog=catalog)
+            self.assertEqual([c[:2] for c in calls], [("release", "view"), ("release", "view")])
+
+
 class MirrorCatalogRules(unittest.TestCase):
     def test_valid_mirror_has_no_problems(self):
         self.assertEqual(mirror.mirror_problems(fixture_model([])), [])
