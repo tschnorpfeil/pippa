@@ -53,8 +53,8 @@ enum AppleEvents {
     static let readLimit: TimeInterval = 3
     static let askLimit: TimeInterval = 60
 
-    /// The system call; checks replace it with one that hangs.
-    nonisolated(unsafe) static var determine: @Sendable (_ bundle: String, _ ask: Bool) -> OSStatus = { bundle, ask in
+    /// The system call.
+    private static func determine(_ bundle: String, _ ask: Bool) -> OSStatus {
         let target = NSAppleEventDescriptor(bundleIdentifier: bundle)
         guard let desc = target.aeDesc else { return OSStatus(procNotFound) }
         // With a prompt, wildcards are not allowed: a concrete read event (core/getd).
@@ -69,9 +69,9 @@ enum AppleEvents {
     ///
     /// macOS can leave this call hanging for minutes (seen with Mail running: two threads stuck, a dialog that never
     /// showed). So it runs on a thread of its own, not in Swift's small shared pool where it would hold up other work,
-    /// and after `limit` the answer is "not responding". The hanging call stays parked; while it runs, further checks for
-    /// the same app share its answer instead of starting another one.
-    static func permission(bundle: String, appName: String, ask: Bool, limit: TimeInterval? = nil) async -> IntegrationAccess {
+    /// and after `readLimit` (`askLimit` when asking) the answer is "not responding". The hanging call stays parked; while it
+    /// runs, further checks for the same app share its answer instead of starting another one.
+    static func permission(bundle: String, appName: String, ask: Bool) async -> IntegrationAccess {
         let key = "\(bundle)|\(ask)"
         let status: OSStatus? = await withCheckedContinuation { (cont: CheckedContinuation<OSStatus?, Never>) in
             let once = ResumeOnce(cont)
@@ -87,7 +87,7 @@ enum AppleEvents {
                     waiters.forEach { $0(status) }
                 }
             }
-            DispatchQueue.global().asyncAfter(deadline: .now() + (limit ?? (ask ? askLimit : readLimit))) { once.resume(nil) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + (ask ? askLimit : readLimit)) { once.resume(nil) }
         }
         guard let status else {
             DiagnosticsLog.shared.event("erlaubnis-haengt", ["app": appName, "fragen": String(ask)])
