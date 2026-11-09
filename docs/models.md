@@ -66,7 +66,7 @@ For developers:
    start `.github/workflows/mlx-runtime.yml` by hand), check the run's kernel and minimum-macOS steps, publish the
    artifact as the `mlx-runtime-<version>` pre-release, then copy its manifest to
    [`mlx-runtime.json`](../app/Sources/PippaCore/Resources/mlx-runtime.json). `scripts/build-mlx-runtime.sh` alone
-   builds without kernels on a Mac without Xcode, for local checks only.
+   builds without kernels on a Mac without Xcode, for local checks only, and leaves `mlx-runtime.json` as it is.
 
 ## Online AI instead
 

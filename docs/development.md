@@ -124,7 +124,7 @@ terminal from running two.
 | `app/Sources/PippaChecks` | Checks without a model |
 | `app/Sources/PiRPCChecks` | RPC lifecycle and receipts against a fake Pi process |
 | `app/Sources/PippaUpdateProbe` | Probe for a real Sparkle update through a loopback feed |
-| `app/Packaging` | `Info.plist` and its translations, entitlements, icon generator, pinned Node, Pi, fd and rg; `mlx-runtime/` (lock file for the runtime builder) |
+| `app/Packaging` | `Info.plist` and its translations, entitlements, icon generator, pinned Node, Pi, fd and rg; `mlx-runtime/` (the runtime builder's lock files: dependencies, build tools) |
 | `runtime/` | Pi extensions (`pippa-tools`), web access (`pippa-web`), provider discovery/sign-in bridge (`pippa-auth`), terminal autostart (`pippa-local-server`), skills (`pippa-skills`) |
 | `scripts/` | Build, verify, DMG, release and check scripts |
 | `site/` | Static website, German and English, no build step |
