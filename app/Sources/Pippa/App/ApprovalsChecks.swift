@@ -76,3 +76,34 @@ enum ApprovalsChecks {
     }
 }
 
+/// Also run by `Pippa --check-approvals`: the conversation files as the store reads them at launch, in a temporary folder.
+@MainActor
+enum ConversationStoreChecks {
+    static func run() -> Int32 {
+        var failures = 0
+        func check(_ ok: Bool, _ name: String) {
+            print("\(ok ? "PASS" : "FAIL") \(name)")
+            if !ok { failures += 1 }
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-store-check-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = ConversationStore(folder: root.appendingPathComponent("conversations", isDirectory: true)).load()
+        check(first.conversations.isEmpty && first.unreadable == 0, "a first run without a folder is an empty history, not a failure")
+
+        let folder = root.appendingPathComponent("conversations", isDirectory: true)
+        let store = ConversationStore(folder: folder)
+        store.save(Conversation(id: "kept", title: "Kept", updated: Date(), messages: []))
+        store.flush()
+        try? Data("{ not a conversation".utf8).write(to: folder.appendingPathComponent("broken.json"))
+        let mixed = store.load()
+        check(mixed.conversations.map(\.id) == ["kept"] && mixed.unreadable == 1, "an unreadable file is counted, and the readable ones still load")
+
+        let file = root.appendingPathComponent("not-a-folder")
+        try? Data().write(to: file)
+        let blocked = ConversationStore(folder: file).load()
+        check(blocked.conversations.isEmpty && blocked.unreadable == 1, "a folder that cannot be read is a failure, not an empty history")
+
+        print(failures == 0 ? "conversation store: all checks passed" : "conversation store: \(failures) failed")
+        return failures == 0 ? 0 : 1
+    }
+}

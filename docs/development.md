@@ -181,7 +181,7 @@ node --experimental-strip-types --test $(ls runtime/pippa-tools/*.test.mjs | gre
 node --test runtime/pippa-auth/*.test.mjs                               # Provider/login bridge (no network)
 node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs   # terminal autostart, fake server
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first
-app/.build/debug/Pippa --check-approvals                                # in-app questions (Approvals), no window
+app/.build/debug/Pippa --check-approvals                                # questions and conversation files, no window
 node scripts/check-site.cjs                                             # website content and behavior
 ```
 

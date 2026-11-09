@@ -59,7 +59,9 @@ struct Sidebar: View {
         VStack(spacing: Space.ml) {
             Image(systemName: "bubble.left.and.text.bubble.right")
                 .font(.system(size: 24)).foregroundStyle(Theme.ink3)
-            Text(query.isEmpty ? T("Your conversations appear here.", table: "App") : T("Nothing found", table: "App"))
+            Text(!query.isEmpty ? T("Nothing found", table: "App")
+                 : chat.unreadable > 0 ? T("Pippa couldn’t read your saved conversations. If this keeps happening, choose “Report a Problem…” in the Help menu.", table: "App")
+                 : T("Your conversations appear here.", table: "App"))
                 .font(.callout).foregroundStyle(Theme.ink2).multilineTextAlignment(.center)
             if !query.isEmpty {
                 Button(T("Clear Search", table: "App")) { search.wrappedValue = "" }.controlSize(.small)

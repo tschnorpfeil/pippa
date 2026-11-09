@@ -84,6 +84,8 @@ final class ChatModel: ObservableObject {
     private let store = ConversationStore(folder: ChatModel.folder)
     /// The saved conversations have been read (the sidebar says "nothing here" only after that).
     @Published private(set) var isLoaded = false
+    /// Saved conversation files (or their folder) that could not be read: the sidebar says so instead of "nothing here".
+    @Published private(set) var unreadable = 0
     /// Snapshots show sample conversations: the saved ones, read later, must not join them.
     private var showsSample = false
     private var terminateWatch: NSObjectProtocol?
@@ -428,7 +430,8 @@ final class ChatModel: ObservableObject {
             await MainActor.run {
                 guard !self.showsSample else { return }
                 let known = Set(self.conversations.map(\.id))
-                self.conversations = (self.conversations + saved.filter { !known.contains($0.id) }).sorted { $0.updated > $1.updated }
+                self.conversations = (self.conversations + saved.conversations.filter { !known.contains($0.id) }).sorted { $0.updated > $1.updated }
+                self.unreadable = saved.unreadable
                 self.isLoaded = true
             }
         }
@@ -449,14 +452,24 @@ final class ConversationStore: Sendable {
 
     init(folder: URL) { self.folder = folder }
 
-    /// Called off the main actor (at launch).
-    func load() -> [Conversation] {
+    /// Called off the main actor (at launch). Every file that can be read counts; a missing folder is a first run. The
+    /// folder or files that cannot be read are counted and logged, so they never pass for an empty history.
+    func load() -> (conversations: [Conversation], unreadable: Int) {
         queue.sync {
+            let files: [URL]
+            do { files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) }
+            catch {
+                if (error as NSError).code == NSFileReadNoSuchFileError { return ([], 0) }
+                UserMessage.record(error, context: "gespraeche-ordner")
+                return ([], 1)
+            }
             let decoder = JSONDecoder()
-            let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
-            return files.filter { $0.pathExtension == "json" }
-                .compactMap { try? decoder.decode(Conversation.self, from: Data(contentsOf: $0)) }
-                .sorted { $0.updated > $1.updated }
+            var conversations: [Conversation] = [], unreadable = 0
+            for file in files where file.pathExtension == "json" {
+                do { conversations.append(try decoder.decode(Conversation.self, from: Data(contentsOf: file))) }
+                catch { unreadable += 1; UserMessage.record(error, context: "gespraech-lesen") }
+            }
+            return (conversations.sorted { $0.updated > $1.updated }, unreadable)
         }
     }
 

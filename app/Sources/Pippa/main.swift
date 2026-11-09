@@ -34,9 +34,12 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.a
     Task { @MainActor in exit(await Snapshots.run(into: folder)) }
     app.run()
 }
-// `Pippa --check-approvals`: the in-app question flow (Approvals) without a window.
+// `Pippa --check-approvals`: the in-app question flow (Approvals) and the conversation store, without a window.
 if CommandLine.arguments.dropFirst().contains("--check-approvals") {
-    Task { @MainActor in exit(await ApprovalsChecks.run()) }
+    Task { @MainActor in
+        let approvals = await ApprovalsChecks.run()
+        exit(max(approvals, ConversationStoreChecks.run()))
+    }
     app.run()
 }
 // Isolated acceptance run: the harness clones the app under a different bundle ID to keep real preferences intact.
