@@ -38,7 +38,7 @@ struct SetupCard: View {
                 HStack(spacing: Space.m) {
                     ActionPill(title: T("Load Pippa’s AI", table: "App"), primary: true) { setup.load() }
                     if showsOnlineOption {
-                        ActionPill(title: T("Use an Online AI…", table: "App")) { SettingsWindow.shared.show() }
+                        ActionPill(title: T("Use an Online AI…", table: "App")) { SettingsWindow.shared.show(.ai) }
                     }
                 }
             case .downloading(let progress, let remaining):
@@ -61,7 +61,7 @@ struct SetupCard: View {
                 HStack(spacing: Space.m) {
                     if problem.canRetry { ActionPill(title: T("Try Again", table: "App"), primary: true) { setup.begin() } }
                     if showsOnlineOption {
-                        ActionPill(title: T("Use an Online AI…", table: "App"), primary: !problem.canRetry) { SettingsWindow.shared.show() }
+                        ActionPill(title: T("Use an Online AI…", table: "App"), primary: !problem.canRetry) { SettingsWindow.shared.show(.ai) }
                     }
                 }
                 if !problem.details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
