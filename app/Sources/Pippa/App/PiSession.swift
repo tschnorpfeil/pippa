@@ -64,7 +64,7 @@ final class PiSession {
                 throw Failure.model(problem == .limit ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
                                                       : T("Reconnect your online AI in Settings.", table: "App"))
             }
-            throw Failure.model(message)
+            throw Failure.model(route.online == nil && route.piModel == nil ? ChatModel.modelError(message, online: false) : message)
         }
         for try await event in stream {
             onEvent(event)

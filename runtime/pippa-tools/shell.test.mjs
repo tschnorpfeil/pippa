@@ -7,14 +7,15 @@
 //   PIPPA_PI_CLI=<release>/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js \
 //   node --experimental-strip-types --test runtime/pippa-tools/shell.test.mjs
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const shell = await import("./shell.ts");
 const { sandboxProfile, sandboxedCommand, neededGrants, missingGrants, namedPaths, folderNames, grantAskText, shellTool, places,
-	SHELL_DECLINED_REASON, NO_SANDBOX_REASON, APP_CONTROL_REASON } = shell;
+	SHELL_DECLINED_REASON, NO_SANDBOX_REASON, APP_CONTROL_REASON, developerShims, limitsNote } = shell;
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = join(here, "../..");
 const cli = process.env.PIPPA_PI_CLI
@@ -104,6 +105,136 @@ test("namedPaths resolves relative files in cwd that exist on disk, and filesToK
 	symlinkSync(home, linkHome);
 	const linkFile = join(linkHome, "Documents", "Brief.txt");
 	assert.deepEqual(await shell.filesToKeep([linkFile], places(work, {}, home)), [linkFile]);
+});
+
+// Without Apple's developer tools /usr/bin/python3, git, make, … are placeholders: starting one opens an install dialog.
+// The folder stands in for /usr/bin, so these run the same on every platform.
+function shimFolder(name) {
+	const { root } = scratch(name);
+	const bin = join(root, "usr-bin");
+	mkdirSync(bin);
+	const stub = join(bin, "git");
+	writeFileSync(stub, "#!/bin/sh\nexit 0\n");
+	chmodSync(stub, 0o755);
+	for (const other of ["python3", "make"]) linkSync(stub, join(bin, other));
+	const xcode = join(bin, "xcodebuild"); // Xcode's placeholders share another file
+	writeFileSync(xcode, "#!/bin/sh\nexit 1\n");
+	chmodSync(xcode, 0o755);
+	linkSync(xcode, join(bin, "xed"));
+	const own = join(bin, "ls"); // a real program in the same folder: another file
+	writeFileSync(own, "#!/bin/sh\nexit 0\n");
+	chmodSync(own, 0o755);
+	return { root, bin };
+}
+
+test("shims: every entry that is the same file as git or a launcher, plus Apple's launchers; a fixed list when git is missing", () => {
+	const { bin } = shimFolder("shims");
+	const names = developerShims(bin);
+	for (const name of ["git", "python3", "make", "xed", "xcrun", "xcodebuild", "xcode-select"]) assert.ok(names.includes(name), name);
+	assert.ok(!names.includes("ls"), "a different file in the same folder is a real program");
+	const fallback = developerShims(join(bin, "nowhere"));
+	for (const name of ["python3", "pip3", "git", "make", "clang", "swift", "otool", "xcrun", "xcode-select"]) assert.ok(fallback.includes(name), name);
+});
+
+test("shims on this Mac: the placeholders and nothing next to them (system volume inodes exceed a double's precision)", { skip: !onMac && "macOS only" }, () => {
+	const names = developerShims();
+	for (const name of ["git", "python3", "make", "clang", "xcrun", "xcodebuild"]) assert.ok(names.includes(name), name);
+	for (const name of ["afplay", "afconvert", "ls", "sips", "textutil"]) assert.ok(!names.includes(name), `${name} is a real program`);
+});
+
+test("profile: no executing the shims without developer tools; unchanged with them", () => {
+	const shims = ["python3", "git"];
+	const without = sandboxProfile(new Set(), where, shims, "/usr/bin");
+	assert.match(without, /\(deny process-exec \(literal "\/usr\/bin\/python3"\) \(literal "\/usr\/bin\/git"\)\)/);
+	assert.equal(sandboxProfile(new Set(), where, [], "/usr/bin"), sandboxProfile(new Set(), where));
+	assert.doesNotMatch(sandboxProfile(new Set(), where), /python3/);
+	assert.equal(without.trim().split("\n").pop(), sandboxProfile(new Set(), where).trim().split("\n").pop(), "the working folder still comes last");
+});
+
+test("a shim's failure text never asks for a write or internet grant; the note names the missing tools", () => {
+	for (const output of ["/bin/bash: /usr/bin/python3: Operation not permitted", "env: python3: Operation not permitted",
+		"/bin/bash: line 1: /usr/bin/git: Operation not permitted", "/bin/bash: ./x.py: /usr/bin/python3: bad interpreter: Operation not permitted"]) {
+		assert.deepEqual([...missingGrants("python3 x.py", output, new Set())], [], output);
+	}
+	assert.deepEqual([...missingGrants("sips a b", "Error: Operation not permitted", new Set())], ["write"], "other failures are unchanged");
+	assert.match(limitsNote(new Set(), "/w", true), /no developer tools \(python3, git, make, …\): use bash, awk, sed/);
+	assert.doesNotMatch(limitsNote(new Set(), "/w"), /developer tools/);
+});
+
+test("tool: without developer tools a shim is refused before it starts, with the program's name; a real program of that name is not", async () => {
+	const { root, bin } = shimFolder("refuse");
+	const real = join(root, "real-bin");
+	mkdirSync(real);
+	writeFileSync(join(real, "python3"), "#!/bin/sh\nexit 0\n");
+	chmodSync(join(real, "python3"), 0o755);
+	let runs = 0, asks = 0;
+	const create = () => ({ name: "bash", execute: async () => { runs++; return { content: [{ type: "text", text: "ran" }] }; } });
+	const ctx = { ...plain("/fixture"), hasUI: true, ui: { confirm: async () => { asks++; return true; } } };
+	const tool = (PATH, installed = false) => shellTool(create, { available: () => true, env: { PATH }, developerTools: () => installed, shimDir: bin }).definition("/fixture");
+	for (const [command, name] of [["python3 -c 1", "python3"], ["cd x && git status", "git"], ["env make all", "make"], [`${bin}/git log`, "git"]]) {
+		const result = await tool(`${bin}:/bin`).execute("shim", { command }, undefined, undefined, ctx);
+		assert.equal(result.isError, true, command);
+		assert.equal(result.details.pippaExecution, "not_dispatched", command);
+		assert.match(result.content[0].text, new RegExp(`^Not run: ${name} is not on this Mac\\. It comes with Apple's developer tools, which are not installed`), command);
+		assert.match(result.content[0].text, /Do not install anything\.$/, command);
+	}
+	assert.equal(runs, 0);
+	assert.equal(asks, 0);
+	for (const command of ["ls", "echo python3 is a word", "python3 -c 1"]) {
+		const result = await tool(`${real}:${bin}:/bin`).execute("real", { command }, undefined, undefined, ctx);
+		assert.equal(result.content[0].text, "ran", `${command}: a real python3 comes first on the PATH`);
+	}
+	assert.equal((await tool(`${bin}:/bin`, true).execute("installed", { command: "git status" }, undefined, undefined, ctx)).content[0].text, "ran",
+		"with developer tools nothing is refused");
+	assert.equal(runs, 4);
+});
+
+test("tool: the profile carries the shim lock only without developer tools (on this Mac: the real answer)", async () => {
+	let command = "";
+	const create = (cwd, options) => ({ name: "bash", execute: async (id, params) => {
+		command = options.spawnHook({ command: params.command, cwd, env: {} }).command;
+		return { content: [{ type: "text", text: "ok" }] };
+	} });
+	const profile = async (deps) => {
+		await shellTool(create, { available: () => true, env: {}, ...deps }).definition("/fixture").execute("p", { command: "echo hi" }, undefined, undefined, plain("/fixture"));
+		return command;
+	};
+	assert.match(await profile({ developerTools: () => false, shimDir: "/usr/bin" }), /\(deny process-exec \(literal "\/usr\/bin\/[\w+.-]+"\)/);
+	assert.doesNotMatch(await profile({ developerTools: () => true }), /process-exec \(literal "\/usr\/bin\/(?:python3|git)"/);
+	if (onMac && shell.developerToolsInstalled()) assert.doesNotMatch(await profile({}), /process-exec \(literal "\/usr\/bin\/(?:python3|git)"/);
+});
+
+/** Pi's bash as far as the sandbox is concerned: the spawn hook's command runs in a real bash. */
+function pipedBash(env) {
+	return (cwd, options) => ({ name: "bash", execute: async (id, params) => {
+		const spawn = options.spawnHook({ command: params.command, cwd, env });
+		const run = spawnSync("/bin/bash", ["-c", spawn.command], { cwd, env, encoding: "utf8", timeout: 20_000 });
+		const text = `${run.stdout}${run.stderr}`;
+		return run.status === 0 ? { content: [{ type: "text", text }] } : { content: [{ type: "text", text: `${text}\n\nCommand exited with code ${run.status}` }], isError: true };
+	} });
+}
+
+test("real sandbox: without developer tools even `env python3` and scripts fail, nothing is asked, the note names the tools", {
+	skip: !onMac && "macOS sandbox only", timeout: 60_000,
+}, async () => {
+	const { home, work } = scratch("shim-real");
+	let asks = 0;
+	const ctx = { ...plain(work), hasUI: true, ui: { confirm: async () => { asks++; return true; } } };
+	const env = { PATH: "/usr/bin:/bin", HOME: home };
+	const tool = shellTool(pipedBash(env), { home, env, developerTools: () => false }).definition(work);
+	writeFileSync(join(work, "run.sh"), "#!/usr/bin/env python3\nprint(1)\n");
+	chmodSync(join(work, "run.sh"), 0o755);
+	writeFileSync(join(work, "direct.py"), "#!/usr/bin/python3\nprint(1)\n");
+	chmodSync(join(work, "direct.py"), 0o755);
+	for (const command of ["/usr/bin/env python3 -c 1", "./run.sh", "./direct.py", "echo x | /usr/bin/xargs git status"]) {
+		const result = await tool.execute("real", { command }, undefined, undefined, ctx);
+		const text = result.content.map((part) => part.text).join("\n");
+		assert.equal(result.isError, true, command);
+		assert.match(text, /Operation not permitted/, command);
+		assert.match(text, /no developer tools \(python3, git, make, …\)/, command);
+		assert.equal(result.details.pippaExecution, "attempted", command);
+	}
+	assert.equal(asks, 0, "a placeholder's failure is not a question about files");
 });
 
 /** Stand-in for /usr/bin/sandbox-exec off a Mac: records the profile, runs the command without a sandbox. */

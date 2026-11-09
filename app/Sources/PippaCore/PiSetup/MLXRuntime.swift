@@ -52,6 +52,9 @@ public struct MLXRuntime: Sendable {
         return manifest.size
     }
 
+    /// Free space the download needs to install: the archive, its unpacked files and room while unpacking.
+    public var installBytes: Int64 { remainingBytes * 3 }
+
     /// Download (or take the local archive), check the hash, unpack, mark installed, remove other versions.
     /// `progress`: 0…1 of the download.
     public func install(progress: @escaping @Sendable (Double) -> Void) async throws {
@@ -62,7 +65,7 @@ public struct MLXRuntime: Sendable {
         if let local = environment["PIPPA_MLX_RUNTIME_ARCHIVE"], !local.isEmpty {
             archive = URL(fileURLWithPath: local)
         } else {
-            if let shortfall = ModelDownloader.spaceShortfall(available: ModelDownloader.availableSpace(at: root), remaining: manifest.size * 3) {
+            if let shortfall = ModelDownloader.spaceShortfall(available: ModelDownloader.availableSpace(at: root), remaining: installBytes) {
                 throw PippaError.notEnoughSpace(bytes: shortfall)
             }
             try await ResumableDownload(directory: root).download(manifest.url, to: partial, size: manifest.size) { progress(Double($0) / Double(manifest.size)) }

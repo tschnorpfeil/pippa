@@ -26,6 +26,24 @@ func runErrorMessageChecks() {
             && L(key, table: "Core", language: "de") == "Dein Mac hat gerade zu wenig Arbeitsspeicher frei. Schließ ein paar Apps oder Browserfenster und versuch es dann noch einmal."
     }
 
+    // The local AI refuses a model that does not fit in memory (HTTP 507); Pi passes oMLX's text through.
+    let memoryText = #"507: {"message":"Model 'ornith-1.5-9b-mlx-4bit' (4.93GB) does not fit under the dynamic memory ceiling (4.46GB). Close other apps to free RAM (macOS and other apps leave oMLX 4.46GB of the 21.00GB static cap, and oMLX already uses all but 4.29GB of it), raise memory_guard_tier (safe → balanced → aggressive), or use a smaller model.","type":"server_error","param":null,"code":null}"#
+    check("Local AI: oMLX's out-of-memory refusal reads as the short-on-memory sentence, without the raw text") {
+        let plain = OMLXServer.plainFailure(memoryText, online: false)
+        return plain == PippaError.notEnoughMemory.errorDescription && plain?.contains("507") == false
+    }
+    check("Local AI: the status 507 or the memory ceiling alone is enough, in any case") {
+        OMLXServer.isOutOfMemory("HTTP 507 Insufficient Storage") && OMLXServer.isOutOfMemory("Does Not Fit Under The Dynamic Memory Ceiling")
+    }
+    check("Local AI: any other local error stays as it was; an online error is never read this way") {
+        OMLXServer.plainFailure("500: {\"message\":\"internal error\"}", online: false) == nil
+            && OMLXServer.plainFailure("connection refused, 5070 files", online: false) == nil
+            && OMLXServer.plainFailure("400: the request has 40,507 tokens, more than the context of 32,768", online: false) == nil
+            && OMLXServer.isOutOfMemory("507 status code (no body)") && OMLXServer.isOutOfMemory("Status code: 507")
+            && OMLXServer.plainFailure(memoryText, online: true) == nil
+            && PiProviderClient.problem(in: "401 Unauthorized") == .signedOut && PiProviderClient.problem(in: memoryText) == nil
+    }
+
     let inference: [InferenceError] = [.invalidConnection("Bitte eine gültige Modell-ID angeben."), .missingCredential, .busy, .credentialStorage(-25300), .invalidResponse]
     check("Error texts: connection errors are clean") { offender(inference.map { $0.errorDescription ?? "" }) == nil }
 

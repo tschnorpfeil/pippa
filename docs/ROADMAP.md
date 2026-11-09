@@ -23,7 +23,17 @@ engine are gone.
    date), Mail totals run past the answer limit. Details in [omlx-switch.md](omlx-switch.md).
 2. **Mail and Calendar acceptance** needs a signed build or the person's clicks: a re-signed development copy asks
    macOS again.
-3. **UI polish, second pass:** settings layout, card views, onboarding text.
+3. **UI polish, second pass:** card views, onboarding text.
+4. **Liquid Glass on a real screen.** Snapshots draw without system glass (`cacheDisplay`); the chat, Pippa Island and
+   Settings need one look on macOS 26 or later, and Pippa Island one on a MacBook with a notch.
+
+Done since 0.4.5, not released yet: macOS 26.2 or later is required (the oMLX runtime's MLX binaries need it); Pippa
+Island at the notch or under the menu bar symbol replaces the pill; a calmer chat window that streams answers without
+reparsing them and asks Pi's questions in the conversation; Settings with toolbar pages (General, AI, Permissions,
+Updates) and a permission overview that never prompts; no developer-tool install dialog from Pippa's shell on Macs
+without Apple's developer tools, plain sentences when the local AI is short on memory or the disk is short on space;
+setup, download, MCP and integration code split into smaller files with one hashing helper. Research for the local AI:
+[local-ai-research-2026-11.md](local-ai-research-2026-11.md).
 
 Done since 0.3.20: Undo for calendar entries and reminders in the receipt row; the oMLX runtime archive is published
 as a release asset.

@@ -89,7 +89,8 @@ Instead of the App Sandbox, Pippa has her own controls:
   working folder and temporary folders. Going online, or changing files in your own folders, needs your OK first;
   before an approved change, existing files get a backup copy. They can't delete files for
   good outside those folders, write to `~/Library` (except iCloud Drive and cloud folders), hidden folders such as
-  `~/.ssh` or Pippa's own folder, or control other apps.
+  `~/.ssh` or Pippa's own folder, or control other apps. On a Mac without Apple's developer tools, they never start
+  python3, git or the other placeholders that would only open Apple's install dialog.
 - **Fixed tools for Mac apps.** Changes to other apps go through three dedicated tools: add an event, add a reminder,
   save an unsent Mail draft. Her Mail tool only saves drafts; sending is up to you.
 - **Your documents are data, not orders.** Files, emails and web pages she reads can't widen what she is allowed to do.
