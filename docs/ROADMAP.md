@@ -34,7 +34,7 @@ reparsing them and asks Pi's questions in the conversation; Settings with toolba
 Updates) and a permission overview that never prompts; no developer-tool install dialog from Pippa's shell on Macs
 without Apple's developer tools, plain sentences when the local AI is short on memory or the disk is short on space;
 setup, download, MCP and integration code split into smaller files with one hashing helper; the oMLX runtime 0.7.3-2
-with oMLX's native kernels, built and published by CI; a SHA-pinned copy of the model in this repository's releases
+with oMLX's native kernels, built in CI and published as a release asset; a SHA-pinned copy of the model in this repository's releases
 that the download falls back to. Research for the local AI:
 [local-ai-research-2026-11.md](local-ai-research-2026-11.md).
 
