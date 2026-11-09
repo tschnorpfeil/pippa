@@ -1,108 +1,10 @@
 import Foundation
 import Darwin
 import CoreFoundation
-import Synchronization
 
 // Pippa drives the real Pi via `pi --mode rpc`. Protocol: JSONL on stdin/stdout,
 // see the Pi docs rpc.md, rpc-commands.md, rpc-extension-ui.md.
 // Deliberately no dependency on PippaCore, so the probe program builds fast.
-
-/// Errors the app must distinguish. User-facing texts come from the app, not this client.
-public enum PiRPCError: Error, LocalizedError, Equatable, Sendable {
-    /// No executable `pi` at the path.
-    case notInstalled(path: String)
-    /// `pi --version` reports a version outside the tested range.
-    case versionMismatch(found: String, supported: String)
-    /// `pi --version` returned nothing readable (or did not run).
-    case versionUnreadable(output: String)
-    case notRunning
-    /// A response is already running; use `steer`/`followUp` or `abort` first.
-    case busy
-    /// Pi rejected a command (`success: false`).
-    case commandFailed(command: String, message: String)
-    /// The Pi process ended. `diagnostics`: end of stderr, for debugging only.
-    case processExited(status: Int32, diagnostics: String)
-
-    public var errorDescription: String? {
-        switch self {
-        case .notInstalled(let path): "Pi is not installed at \(path)."
-        case .versionMismatch(let found, let supported): "Pi \(found) is not a tested version (tested: \(supported))."
-        case .versionUnreadable(let output): "Could not read the Pi version: \(output.prefix(200))"
-        case .notRunning: "Pi is not running."
-        case .busy: "Pi is still answering."
-        case .commandFailed(let command, let message): "Pi rejected \(command): \(message)"
-        case .processExited(let status, _): "Pi stopped unexpectedly (exit status \(status))."
-        }
-    }
-}
-
-public struct PiRPCConfiguration: Sendable {
-    /// The `pi` executable (e.g. ~/.local/bin/pi).
-    public var executable: URL
-    /// Pi's working directory: write/edit/bash create relative paths there.
-    public var workingDirectory: URL
-    /// Additional environment (e.g. PI_CODING_AGENT_DIR, PIPPA_WEB_DIR). PATH gets Homebrew added because `pi` is a
-    /// Node script and an app launched from Finder only knows /usr/bin:/bin.
-    public var environment: [String: String]
-    /// Loaded with `--extension` (Pippa's tools, helps and web access).
-    public var extensions: [URL]
-    /// Further Pi options, e.g. `--no-session`, `--tools read,write`, `--append-system-prompt …`.
-    public var arguments: [String]
-    /// Installer (`PiLaunchSpec`): arguments directly after `executable`, before all Pi options, e.g. the path to the
-    /// CLI of the pinned release when `executable` is Pippa's Node. Also applies to `--version`.
-    public var launcherArguments: [String] = []
-    public init(executable: URL, workingDirectory: URL, environment: [String: String] = [:], extensions: [URL] = [], arguments: [String] = ["--no-session"]) {
-        self.executable = executable; self.workingDirectory = workingDirectory; self.environment = environment
-        self.extensions = extensions; self.arguments = arguments
-    }
-}
-
-/// What happens during a response, in order.
-public enum PiRPCEvent: Sendable, Equatable {
-    /// A piece of response text.
-    case textDelta(String)
-    /// A piece of the model's reasoning before or between answers (only when thinking is on).
-    case thinkingDelta(String)
-    /// Pi calls a tool. `arguments`: JSON with long string values shortened, never cut mid-structure.
-    case toolStarted(id: String, name: String, arguments: String)
-    case toolEnded(id: String, name: String, isError: Bool, result: String, outcome: PiActionRecord.Outcome? = nil,
-                   fileAccessFailure: PiFileAccessFailure? = nil)
-    /// Pi picked up another message from the person (delivered via `steer` or `followUp`).
-    case userMessage(String)
-    /// A model response is done. `stopReason`: "stop", "toolUse", "aborted", "error", …
-    case assistantEnded(text: String, stopReason: String, error: String?)
-    /// `ctx.ui.notify` of an extension.
-    case notice(String, kind: String)
-    /// Pi does not continue on its own (`agent_settled`). Cancellation can happen between assistant messages,
-    /// so `aborted` is authoritative even when the last assistant stopped for tool use or completed normally.
-    case settled(aborted: Bool)
-}
-
-/// A confirmation request from an extension (`extension_ui_request` with `confirm`, `select`, `input` or `editor`).
-public struct PiUIRequest: Sendable, Equatable {
-    public let id: String
-    public let method: String
-    public let title: String
-    public let message: String
-    public let options: [String]
-    public let placeholder: String?
-    public let prefill: String?
-    public let timeout: Int?
-
-    public init(id: String, method: String, title: String, message: String, options: [String] = [],
-                placeholder: String? = nil, prefill: String? = nil, timeout: Int? = nil) {
-        self.id = id; self.method = method; self.title = title; self.message = message; self.options = options
-        self.placeholder = placeholder; self.prefill = prefill; self.timeout = timeout
-    }
-}
-
-public enum PiUIResponse: Sendable, Equatable {
-    case confirmed(Bool)
-    case value(String)
-    case cancelled
-}
-
-public typealias PiUIHandler = @Sendable (PiUIRequest) async -> PiUIResponse
 
 /// Drives a `pi --mode rpc` process. One response at a time; deliver more via `steer`/`followUp`.
 public actor PiRPCClient {
@@ -133,54 +35,6 @@ public actor PiRPCClient {
     public func setUIHandler(_ handler: PiUIHandler?) { uiHandler = handler }
     public var isRunning: Bool { process?.isRunning == true }
     public var isAnswering: Bool { events != nil }
-
-    // MARK: Version
-
-    /// Read `pi --version` and check it against the tested range.
-    public static func checkVersion(executable: URL, launcherArguments: [String] = [], environment: [String: String] = [:]) throws -> String {
-        guard FileManager.default.isExecutableFile(atPath: executable.path) else { throw PiRPCError.notInstalled(path: executable.path) }
-        let child = Process(), out = Pipe()
-        child.executableURL = executable
-        child.arguments = launcherArguments + ["--version"]
-        child.environment = processEnvironment(environment)
-        child.standardOutput = out; child.standardError = out
-        do { try child.run() } catch { throw PiRPCError.versionUnreadable(output: "\(error)") }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        child.waitUntilExit()
-        return try checkVersion(output: String(decoding: data, as: UTF8.self))
-    }
-
-    /// `checkVersion` once per installed Pi: Pi restarts with every conversation switch, and each `--version` is
-    /// another Node cold start. A reinstall at the same path keeps the pinned version (PiInstaller).
-    private static let checkedVersions = Mutex<[String: String]>([:])
-    static func checkedVersion(_ configuration: PiRPCConfiguration) throws -> String {
-        let key = ([configuration.executable.path] + configuration.launcherArguments).joined(separator: "\u{0}")
-        if let known = checkedVersions.withLock({ $0[key] }), FileManager.default.isExecutableFile(atPath: configuration.executable.path) { return known }
-        let found = try checkVersion(executable: configuration.executable, launcherArguments: configuration.launcherArguments,
-                                     environment: configuration.environment)
-        checkedVersions.withLock { $0[key] = found }
-        return found
-    }
-
-    /// Only the check, for tests with made-up output.
-    public static func checkVersion(output: String) throws -> String {
-        let pattern = try! NSRegularExpression(pattern: #"\b(\d+)\.(\d+)\.(\d+)\b"#)
-        let text = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let match = pattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-              let range = Range(match.range, in: text) else { throw PiRPCError.versionUnreadable(output: text) }
-        let found = String(text[range])
-        guard found.hasPrefix(supportedVersionPrefix) else { throw PiRPCError.versionMismatch(found: found, supported: supportedVersionPrefix + "x") }
-        return found
-    }
-
-    static func processEnvironment(_ extra: [String: String]) -> [String: String] {
-        let inherited = ProcessInfo.processInfo.environment
-        var env = Dictionary(uniqueKeysWithValues: ["HOME", "TMPDIR", "LANG", "USER", "LOGNAME"].compactMap { key in inherited[key].map { (key, $0) } })
-        let path = inherited["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
-        env["PATH"] = (["/opt/homebrew/bin", "/usr/local/bin"].filter { !path.contains($0) } + [path]).joined(separator: ":")
-        for (key, value) in extra { env[key] = value }
-        return env
-    }
 
     // MARK: Process
 
@@ -321,17 +175,6 @@ public actor PiRPCClient {
     public func command(_ payload: [String: any Sendable], timeout: Duration? = nil) async throws -> Data? {
         try await send(payload, timeout: timeout).data
     }
-
-    /// Pi's answer to a prompt while a summary runs (Pi 1.1: "Cannot submit a prompt while compaction is in progress").
-    static func isCompactionBusy(_ error: PiRPCError) -> Bool {
-        guard case .commandFailed(let command, let message) = error else { return false }
-        return command == "prompt" && message.localizedCaseInsensitiveContains("compaction is in progress")
-    }
-
-    private static func disposition(_ response: Response) -> String? {
-        response.data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["disposition"] as? String
-    }
-
     private func send(_ payload: [String: any Sendable], timeout: Duration? = nil) async throws -> Response {
         guard let stdin, process?.isRunning == true else { throw PiRPCError.notRunning }
         nextID += 1
@@ -452,16 +295,6 @@ public actor PiRPCClient {
             break
         }
     }
-
-    public static let readResultLimit = 200_000
-    /// Every other tool: enough for a whole error message or a written file's summary.
-    public static let resultLimit = 4_000
-    /// A single argument value (a file's new content, a long command); paths and search words stay whole.
-    public static let argumentValueLimit = 2_000
-    public static let listingResultLimit = 20_000
-    /// `web_search`: enough to find its result links for the sources card (PiTurnReceipt.webSources).
-    static let listingTools: Set<String> = ["bash", "find", "grep", "ls", "web_search"]
-
     private func uiRequest(_ record: [String: Any]) {
         guard let id = record["id"] as? String, let method = record["method"] as? String else { return }
         switch method {
@@ -494,57 +327,4 @@ public actor PiRPCClient {
         if let error { events?.finish(throwing: error) } else { events?.finish() }
         events = nil
     }
-
-    private static func text(of message: [String: Any]) -> String {
-        if let text = message["content"] as? String { return text }
-        return (message["content"] as? [[String: Any]] ?? []).compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }.joined()
-    }
-
-    /// Sorted JSON of the arguments with each long string shortened, so the JSON stays valid and short values that
-    /// sort after a long one (a `path` after `content`) are never lost.
-    static func json(_ value: Any?, valueLimit: Int) -> String {
-        func shorten(_ value: Any) -> Any {
-            switch value {
-            case let text as String: text.count > valueLimit ? String(text.prefix(valueLimit)) + "…" : text
-            case let object as [String: Any]: object.mapValues(shorten)
-            case let list as [Any]: list.map(shorten)
-            default: value
-            }
-        }
-        guard let value, let data = try? JSONSerialization.data(withJSONObject: shorten(value), options: [.fragmentsAllowed, .sortedKeys]) else { return "" }
-        return String(decoding: data, as: UTF8.self)
-    }
-}
-
-/// Buffer for the read queues: split lines at LF (stdout) or keep only the tail (stderr).
-final class Buffer: @unchecked Sendable {
-    private let lock = NSLock()
-    private var data = Data()
-    private var discarding = false
-    private let limit: Int
-    init(limit: Int) { self.limit = limit }
-    func lines(appending chunk: Data) -> [Data] {
-        lock.lock(); defer { lock.unlock() }
-        var result: [Data] = []
-        // Scan only new bytes and discard oversized frames through the next LF.
-        for byte in chunk {
-            if byte == 10 {
-                if !discarding {
-                    if data.last == 13 { data.removeLast() }
-                    result.append(data)
-                }
-                data.removeAll(keepingCapacity: true); discarding = false
-            } else if !discarding {
-                if data.count >= 16 * 1024 * 1024 { data.removeAll(keepingCapacity: true); discarding = true }
-                else { data.append(byte) }
-            }
-        }
-        return result
-    }
-    func append(_ chunk: Data) {
-        lock.lock(); defer { lock.unlock() }
-        data.append(chunk)
-        if data.count > limit { data.removeFirst(data.count - limit) }
-    }
-    var text: String { lock.lock(); defer { lock.unlock() }; return String(decoding: data, as: UTF8.self) }
 }
