@@ -5,7 +5,7 @@ The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); 
 
 ## Where Pippa stands
 
-The last release is 0.4.5. Pippa is a plain native chat front end for Pi: menu bar, pill and one chat window with a
+The last release is 0.5.0. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
 conversation sidebar, a first-run card, and settings for the AI (on this Mac, ChatGPT, or an own online AI), the
 shortcut, login item, permissions and updates. Dropped photos and PDFs become one PDF with a button, without the model.
 
@@ -28,12 +28,14 @@ engine are gone.
    server (`PIPPA_SNAPSHOT_LIVE=1 Pippa --snapshot`, 2026-11-09, Mac mini without a notch); the island at a real notch
    still needs one look.
 
-Done since 0.4.5, not released yet: macOS 26.2 or later is required (the oMLX runtime's MLX binaries need it); Pippa
+Released in 0.5.0: macOS 26.2 or later is required (the oMLX runtime's MLX binaries need it); Pippa
 Island at the notch or under the menu bar symbol replaces the pill; a calmer chat window that streams answers without
 reparsing them and asks Pi's questions in the conversation; Settings with toolbar pages (General, AI, Permissions,
 Updates) and a permission overview that never prompts; no developer-tool install dialog from Pippa's shell on Macs
 without Apple's developer tools, plain sentences when the local AI is short on memory or the disk is short on space;
-setup, download, MCP and integration code split into smaller files with one hashing helper. Research for the local AI:
+setup, download, MCP and integration code split into smaller files with one hashing helper; the oMLX runtime 0.7.3-2
+with oMLX's native kernels, built and published by CI; a SHA-pinned copy of the model in this repository's releases
+that the download falls back to. Research for the local AI:
 [local-ai-research-2026-11.md](local-ai-research-2026-11.md).
 
 Done since 0.3.20: Undo for calendar entries and reminders in the receipt row; the oMLX runtime archive is published

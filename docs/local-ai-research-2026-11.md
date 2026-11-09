@@ -50,7 +50,7 @@ tool result.
 
 **oMLX refuses to load when memory is short.** The same log has eight refusals on a 24 GB Mac with other apps open:
 `507: Model 'ornith-1.5-9b-mlx-4bit' (4.93GB) does not fit under the dynamic memory ceiling (4.69GB). Close other apps
-to free RAM`. Pippa has no plain-language handling for this answer yet. It will hit 16 GB Macs more often.
+to free RAM`. Since 0.5.0 Pippa answers it with one plain sentence (#152); it will still hit 16 GB Macs more often.
 
 **Nothing for developers on the user's Mac.** The runtime brings its own Python, and serving needs neither Xcode nor
 the Command Line Tools. oMLX 0.7.3 calls `/usr/bin/python3` and `git` only in its cluster mode (two Macs), which Pippa
@@ -87,7 +87,7 @@ many steps.
 | **Ornith 1.5 9B** (MIT) | 5.06 GB | MCP-Atlas 54.2, Toolathlon 41.2, ClawEval 66.5 (Qwen 3.5 9B: 46.8 / 29.6 / 53.2) | Today's model, 16 GB and up |
 | **Ornith 1.5 35B-A3B** (MIT) | 19.51 GB | MCP-Atlas 70.2, Toolathlon 48.7, ClawEval 72.5 (Qwen 3.6 35B-A3B: 62.8 / 41.7 / 68.7) | 32 GB and up |
 | Gemma 4 26B-A4B / 31B (Apache-2.0) | 15.34 GB (26B-A4B) | τ²: 68.2 / 76.9 | No German or Pippa evidence; Gemma 4 12B reads at half the 9B's speed or less |
-| Qwen 3.8 27B (dense, Apache-2.0) | 16.05 GB | — | Dense 27B reads about 3× slower than the 9B |
+| Qwen 3.8 27B (dense, Apache-2.0) | 16.05 GB | — | Dense 27B reads about 3× slower than the 9B. No 3-bit build from Qwen, mlx-community or LM Studio (2026-11-09), and 3-bit puts tool calls and German at risk: 4-bit if ever. Its chat template defaults `reasoning_effort` to `xhigh`, so an entry would need `medium` |
 | K2 Horizon 7B | — | BFCL v4 67.0 | English only on its card; lost to Qwen on Pippa's own tasks (2026-10-23) |
 
 German quality: no current German leaderboard covers these models. Pippa's own blind rating (Qwen 3.5 9B: 3.83 of 5)
