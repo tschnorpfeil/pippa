@@ -49,10 +49,12 @@ enum SettingsTab: String, CaseIterable {
 final class SettingsWindow {
     static let shared = SettingsWindow()
     static let width: CGFloat = 600
-    private var window: NSWindow?
+    private(set) var window: NSWindow?
+    private var tabs: SettingsTabsController?
     var isVisible: Bool { window?.isVisible == true }
 
-    func show() {
+    /// Opens on `tab`, or where the person left it.
+    func show(_ tab: SettingsTab? = nil) {
         if window == nil {
             let tabs = SettingsTabsController()
             let window = NSWindow(contentViewController: tabs)
@@ -60,9 +62,11 @@ final class SettingsWindow {
             window.toolbarStyle = .preference
             window.isReleasedWhenClosed = false
             self.window = window
+            self.tabs = tabs
             tabs.fitWindow(animated: false)
             window.center()
         }
+        if let tab, let index = SettingsTab.allCases.firstIndex(of: tab) { tabs?.selectedTabViewItemIndex = index }
         NSApp.unhide(nil)
         NSApp.activate()
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }

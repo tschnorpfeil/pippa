@@ -65,7 +65,7 @@
 /* The settings window: toolbar tabs and the permissions page (Views/Settings*.swift). */
 "General" = "Allgemein";
 "AI" = "KI";
-"Permissions" = "Erlaubnisse";
+"Permissions" = "Zugriff";
 "Updates" = "Updates";
 "Show Pippa Island" = "Pippa Island zeigen";
 "Sits at the top of the screen, shows what Pippa is doing and takes a quick question." = "Sitzt oben am Bildschirm, zeigt, was Pippa gerade tut, und nimmt schnell eine Frage an.";
