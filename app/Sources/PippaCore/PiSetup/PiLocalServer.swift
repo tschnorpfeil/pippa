@@ -91,7 +91,7 @@ public enum PiLocalServer {
         let fm = FileManager.default
         try fm.createDirectory(at: plan.modelsDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try fm.createDirectory(at: plan.baseDirectory.appendingPathComponent("home"), withIntermediateDirectories: true)
-        var document = (try? Data(contentsOf: plan.settingsFile)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        var document = JSONFile.readObject(plan.settingsFile) ?? [:]
         func merge(_ section: String, _ values: [String: Any]) {
             var current = document[section] as? [String: Any] ?? [:]
             for (key, value) in values { current[key] = value }
