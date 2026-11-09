@@ -9,8 +9,8 @@ to a new Pi release. The plan is [Pippa next](pippa-next-architecture.md), where
 ## Architecture
 
 Pi is the harness, Pippa is the window and the hands. [Pi](https://github.com/earendil-works/pi) does the reasoning,
-tool choice, sessions, compaction, skills and memory. Pippa is a regular native Mac app: Dock icon, app menus, one chat window, a menu bar shortcut and an optional pill
-with a conversation sidebar, a first-run card and settings. Mac access (Mail, Calendar, Reminders, Photos, documents,
+tool choice, sessions, compaction, skills and memory. Pippa is a regular native Mac app: Dock icon, app menus, one chat window
+with a conversation sidebar, a first-run card and settings, a menu bar symbol and Pippa Island. Mac access (Mail, Calendar, Reminders, Photos, documents,
 PDF building) is one MCP server inside the app process, so macOS asks for "Pippa" and the permission belongs to the app.
 [oMLX](https://github.com/jundot/omlx) (MLX) runs the local model on a loopback-only server; it and the model are
 downloaded at setup, not bundled ([decision](omlx-switch.md)).
@@ -112,7 +112,7 @@ terminal from running two.
 
 | Path | Contents |
 |---|---|
-| `app/Sources/Pippa` | The app: Dock/app menus, menu bar shortcut, optional pill, chat window, settings, first-run card, hotkey, Sparkle updates, `PiSession`, `Pippa --ask` |
+| `app/Sources/Pippa` | The app: Dock/app menus, menu bar symbol, Pippa Island, chat window, settings, first-run card, hotkey, Sparkle updates, `PiSession`, `Pippa --ask` |
 | `app/Sources/PippaCore` | Model catalog and download, runtime download, oMLX server, Pi installer, MCP server, Mail/Calendar/Reminders/Photos readers and writers, PDF building, journal |
 | `app/Sources/PiRPC` | Starts Pi with Pippa's flags, speaks JSON lines over stdin and stdout, turns tool events into receipts |
 | `app/Sources/PippaChecks` | Checks without a model |
@@ -235,8 +235,8 @@ endpoint), `PIPPA_TRASH_DIR` (a test folder instead of the real Trash), `PIPPA_L
 `PI_CODING_AGENT_DIR` is passed through to Pi, so a test can keep `~/.pi` untouched.
 
 **Clicking through the real app.** Pippa is a regular app with a Dock icon, app menus, and Command-Tab support.
-The chat opens on launch; closing it keeps Pippa running, and clicking the Dock icon restores it. The pill is optional
-and off unless enabled in Settings; an explicit saved preference is retained. For a clean first start, point Foundation at a fake home and Pi's setup at its own folder:
+The chat opens on launch; closing it keeps Pippa running, and clicking the Dock icon restores it. Pippa Island is
+on unless switched off in Settings or the menu bar menu; an explicit saved preference is retained. For a clean first start, point Foundation at a fake home and Pi's setup at its own folder:
 `open --env PIPPA_NO_MOVE=1 --env CFFIXED_USER_HOME=$PWD/.build/fakehome --env HOME=$PWD/.build/fakehome --env PIPPA_PI_HOME=$PWD/.build/fakehome dist/Pippa.app`.
 Preferences (`io.github.tschnorpfeil.pippa`) still go to the real account through `cfprefsd`: export them first
 (`defaults export io.github.tschnorpfeil.pippa ~/pippa-prefs.plist`) and import them afterwards. `PIPPA_NO_MOVE=1`
@@ -372,6 +372,6 @@ legacy. Google Antigravity is not built in; Google Gemini and Vertex are listed 
 After building the app, run `scripts/check-window-lifecycle.sh`. It clones the bundle with APFS, assigns a temporary
 bundle identifier, and launches it through LaunchServices with an isolated HOME, so real preferences and Pi state
 stay untouched. It exercises closing, minimizing, reopening, draft preservation, app menus, hiding/unhiding, and the
-optional non-key pill. Setup, updates, and model servers do not run. If macOS reports `loginwindow` as the frontmost
+non-key Pippa Island. Setup, updates, and model servers do not run. If macOS reports `loginwindow` as the frontmost
 app, three checks that need real keyboard focus are explicitly skipped; rerun from an unlocked interactive desktop
 to exercise them. Background replies update a Dock badge and do not activate Pippa.

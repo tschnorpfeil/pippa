@@ -58,7 +58,8 @@ final class ChatModel: ObservableObject {
     /// The app that was in front when Pippa was called ("Mail"), told to Pi with the next question so "this mail"
     /// works; Pi reads it with `front_read`. Not shown: most questions have nothing to do with it.
     var frontApp: String?
-    /// An answer came in or failed while the chat window was not in front: the pill says so until the chat opens.
+    /// An answer came in or failed while the chat window was not in front: Pippa Island says so for a moment, the menu
+    /// bar symbol and the Dock badge until the chat opens.
     @Published var unseen: Unseen?
     enum Unseen { case answer, failed }
     @Published private(set) var isAnswering = false
