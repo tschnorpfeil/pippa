@@ -202,7 +202,8 @@ struct SettingsRow<Trailing: View>: View {
             }
             .layoutPriority(1)
             Spacer(minLength: Space.m)
-            trailing
+            // The control keeps its whole label and the text on the left wraps instead: German labels run longer.
+            trailing.fixedSize()
         }
     }
 }

@@ -125,13 +125,17 @@ private struct PermissionRow: View {
             .accessibilityElement(children: .combine)
             .layoutPriority(1)
             Spacer(minLength: Space.m)
-            if permission == .files {
-                Button(T("Open Files & Folders…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }
-            } else if access == .denied {
-                Button(T("Allow in System Settings…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }
-            } else if access == .granted {
-                Button(T("Change…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }.pippa(.quiet)
+            Group {
+                if permission == .files {
+                    Button(T("Open Files & Folders…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }
+                } else if access == .denied {
+                    Button(T("Allow in System Settings…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }
+                } else if access == .granted {
+                    Button(T("Change…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }.pippa(.quiet)
+                }
             }
+            // The button keeps its whole label and the state on the left wraps instead: German labels run longer.
+            .fixedSize()
         }
         .padding(.vertical, Space.xxs)
     }
