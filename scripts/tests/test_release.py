@@ -48,7 +48,7 @@ class ReleaseChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             folder = pathlib.Path(folder)
             plist, archive, output = folder / "Info.plist", folder / "Pippa 0.1.0-123.dmg", folder / "appcast.xml"
-            info = dict(CFBundleVersion="123", CFBundleShortVersionString="0.1.0", LSMinimumSystemVersion="15.0",
+            info = dict(CFBundleVersion="123", CFBundleShortVersionString="0.1.0", LSMinimumSystemVersion="26.2",
                         SUFeedURL="https://github.com/tschnorpfeil/pippa/releases/latest/download/appcast.xml")
             plist.write_bytes(plistlib.dumps(info))
             archive.write_bytes(b"fixture")
@@ -57,7 +57,7 @@ class ReleaseChecks(unittest.TestCase):
             item = ET.parse(output).find("channel/item")
             ns = "{http://www.andymatuschak.org/xml-namespaces/sparkle}"
             self.assertEqual(item.findtext(ns + "version"), "123")
-            self.assertEqual(item.findtext(ns + "minimumSystemVersion"), "15.0")
+            self.assertEqual(item.findtext(ns + "minimumSystemVersion"), "26.2")
             self.assertEqual(item.findtext(ns + "hardwareRequirements"), "arm64")
             enclosure = item.find("enclosure")
             self.assertEqual(enclosure.get("url"), "https://github.com/tschnorpfeil/pippa/releases/download/v0.1.0-123/Pippa%200.1.0-123.dmg")
@@ -77,7 +77,7 @@ class ReleaseChecks(unittest.TestCase):
             folder = pathlib.Path(folder)
             plist, archive, output = folder / "Info.plist", folder / "Pippa-0.3.7-650.dmg", folder / "appcast.xml"
             plist.write_bytes(plistlib.dumps(dict(
-                CFBundleVersion="650", CFBundleShortVersionString="0.3.7", LSMinimumSystemVersion="15.0",
+                CFBundleVersion="650", CFBundleShortVersionString="0.3.7", LSMinimumSystemVersion="26.2",
                 SUFeedURL="https://github.com/tschnorpfeil/pippa/releases/latest/download/appcast.xml")))
             archive.write_bytes(b"fixture")
             appcast.write_appcast(plist, archive, "v0.3.7-650", "", output)

@@ -209,7 +209,7 @@ public enum TextReader {
         return CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
     }
 
-    /// Text recognition (German, English): document recognition from macOS 26 (tables as Markdown), otherwise the classic one.
+    /// Text recognition (German, English) with DocumentOCR's reading engine.
     public static func recognize(_ image: CGImage) -> String {
         DocumentOCR.recognize(image).text
     }

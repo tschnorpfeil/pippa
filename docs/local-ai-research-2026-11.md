@@ -31,6 +31,7 @@ again at the source or on a Mac mini (Apple M6, 24 GB, macOS 27.0.1). **Checked*
 |---|---|
 | Engine | oMLX 0.7.3 in Pippa's runtime archive `mlx-runtime-0.7.3-1` (Python 3.11, `scripts/build-mlx-runtime.sh`) |
 | Native kernels | **None.** `native_kernel_status()` reports all four packages missing, for example `No module named 'omlx.custom_kernels.attention._ext'`. The build does a plain `uv pip install` of the source archive; kernels only build with `OMLX_WITH_CUSTOM_KERNEL=1` and Xcode's Metal toolchain |
+| Oldest macOS | **26.2.** The MLX binaries in the runtime (`libmlx.dylib`, `core.cpython-311-darwin.so`, `libjaccl.dylib`) need it, although their wheels are tagged `macosx_26_0`; everything else loads from macOS 14. Pippa promised macOS 15 until 2026-11-09, where this runtime cannot load; she now requires 26.2, and `scripts/macho-minos.py` stops a runtime build that needs a newer macOS than `LSMinimumSystemVersion` |
 | Model | `ornith-ai/Ornith-1.5-9B-MLX-4bit`, 5.06 GB, uniform 4-bit. Its config names one MTP layer, but none of its 927 tensors are MTP weights, so multi-token prediction cannot run on it |
 | Settings Pippa writes | SSD prompt cache 8 GB; idle unload after 600 s; temperature 0.6, top-k 20, top-p 0.95; context 32K (24 GB and up) or 16K (16 GB) |
 | oMLX defaults in effect | RAM cache tier 0 (cache lives on the SSD only); memory guard "balanced"; SpecPrefill, DFlash, MTP and KV compression off |
@@ -59,7 +60,7 @@ to free RAM`. Pippa has no plain-language handling for this answer yet. It will 
 | vllm-mlx | 0.6.0 (2026-10-20) | No. oMLX began as a fork of it; still Python, pinned to `mlx-lm <0.32` | Checked |
 | LM Studio | — | **Cannot be bundled.** Its [app terms](https://lmstudio.ai/app-terms) forbid redistribution. Pippa could only talk to a copy the user installed | Checked |
 | Splash | 1.6.0 | Not now. Needs M3 or newer and macOS 26.4+, and serves only large models (27B and up) | Checked |
-| mlx-serve (MIT, Zig) | v26.11.2 | Not now. Needs macOS 26.2+, one main maintainer, no SSD cache | Checked |
+| mlx-serve (MIT, Zig) | v26.11.2 | Not now. One main maintainer, no SSD cache | Checked |
 | MLX Swift | 0.33.0 (2026-10-27) | Not now. An engine inside Pippa would also need Xcode to build its Metal shaders | Checked |
 | Apple Foundation Models | macOS 26+ | Helper only (see below) | Checked on the Mac mini |
 
@@ -142,14 +143,14 @@ print(model.supportsLocale(Locale(identifier: "de_DE")))     // true
 - Builds without Xcode as long as Pippa avoids the `@Generable` macro; dynamic schemas work.
 - Apple's larger server model (Private Cloud Compute, 32K context) reports "available" but refuses an app without
   Apple's entitlement. Whether apps outside the App Store can get it is unclear.
-- One run per prompt, so a thin sample. Good enough for titles and short sorting jobs on macOS 26 and later, with the
-  local or online AI as fallback when it refuses.
+- One run per prompt, so a thin sample. Good enough for titles and short sorting jobs on every Mac Pippa supports,
+  where Apple Intelligence is on, with the local or online AI as fallback when it refuses.
 
 ## Recommendation by memory
 
 | Memory | Recommendation |
 |---|---|
-| 8 GB | The agent runs on an online AI. On macOS 26+, Apple's model can do titles and small jobs offline |
+| 8 GB | The agent runs on an online AI. Where Apple Intelligence is on, Apple's model can do titles and small jobs offline |
 | 16 GB | Ornith 1.5 9B at 16K, with kernels. Handle the 507 refusal in plain language ("close an app and try again") |
 | 24 GB | Ornith 1.5 9B at 32K, with kernels. Then measure MTP or DFlash for faster writing. The 35B does not fit beside a working Mac; Pippa recorded swapping with it on 2026-10-31 |
 | 32–48 GB | Ornith 1.5 35B-A3B 4-bit, after Pippa's task gate passes on a 32 GB Mac |

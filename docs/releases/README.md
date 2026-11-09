@@ -11,7 +11,7 @@ and which file to download before the AI download starts:
 
 Pippa is a free Mac helper for paperwork and small chores. Drop a letter, a PDF, a folder or a few photos on her, or ask her something, and she hands back the result: one PDF ready to send, what a letter wants from you and by when, a tidy folder, a reply draft in Mail. Her built-in AI runs on your Mac: no account, no subscription.
 
-**You need** a Mac with Apple silicon (M1 or later) and macOS 15 or later. **Download** `Pippa.dmg` below, open it and drag Pippa to Applications. Photo and PDF actions work before AI setup. For AI chat on a Mac with 16 GB of memory or more, Pippa asks before downloading about 5.4 GB; smaller Macs can use an online AI.
+**You need** a Mac with Apple silicon (M1 or later) and macOS 26.2 or later. **Download** `Pippa.dmg` below, open it and drag Pippa to Applications. Photo and PDF actions work before AI setup. For AI chat on a Mac with 16 GB of memory or more, Pippa asks before downloading about 5.4 GB; smaller Macs can use an online AI.
 
 **New in Pippa <version>**
 

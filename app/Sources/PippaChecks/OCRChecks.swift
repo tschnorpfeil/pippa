@@ -44,7 +44,7 @@ func runOCRChecks() async {
     }
 
     let image = ToolFixtures.textImage(["Summe 23,45 EUR", "Fällig 06.11.2026"], width: 1200, height: 900)
-    check("OCR: accurate recognition reads amount, date and umlaut (default path, also macOS 15)") {
+    check("OCR: accurate recognition reads amount, date and umlaut (default path)") {
         guard let image else { return false }
         let page = DocumentOCR.recognize(image, engine: .accurate)
         return page.engine == .accurate && ocrContains(page.text, ["23,45", "06.11.2026", "Fällig"])
@@ -57,12 +57,10 @@ func runOCRChecks() async {
             && !ocrContains("Fallig 06.12.2026", ["Fällig", "06.11.2026"], environment: ci)
             && !ocrContains("Summe 23 45", ["23,45"], environment: ci)
     }
-    check("OCR: document recognition from macOS 26, else fallback to the classic one, same words") {
+    check("OCR: document recognition reads the same words") {
         guard let image else { return false }
         let page = DocumentOCR.recognize(image, engine: .documents)
-        let expected: DocumentOCR.Engine
-        if #available(macOS 26, *) { expected = .documents } else { expected = .accurate }
-        return page.engine == expected && page.text.contains("23,45") && page.text.contains("06.11.2026")
+        return page.engine == .documents && page.text.contains("23,45") && page.text.contains("06.11.2026")
     }
     check("OCR: image without readable content under document recognition returns empty text instead of an error") {
         guard let blank = ToolFixtures.textImage([], width: 8, height: 8) else { return false }
