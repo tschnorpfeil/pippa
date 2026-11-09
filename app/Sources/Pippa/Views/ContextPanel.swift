@@ -15,7 +15,7 @@ struct ContextPanel: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 Text(T("About this answer", table: "App"))
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink)
+                    .font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink)
                     .accessibilityAddTraits(.isHeader)
                 if answer == nil {
                     intro
@@ -36,7 +36,7 @@ struct ContextPanel: View {
     private var intro: some View {
         VStack(alignment: .leading, spacing: Space.l) {
             Text(T("After each answer you see here what Pippa read, what she changed on your Mac and which dates she checked.", table: "App"))
-                .font(.system(size: 12.5)).foregroundStyle(Theme.ink2).lineSpacing(2)
+                .font(Typo.footnote).foregroundStyle(Theme.ink2).lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: Space.s) {
                 introRow("doc.text", T("Read", table: "App"))
@@ -48,8 +48,8 @@ struct ContextPanel: View {
 
     private func introRow(_ symbol: String, _ title: String) -> some View {
         HStack(spacing: Space.m) {
-            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Theme.ink3).frame(width: 16)
-            Text(title).font(.system(size: 12.5)).foregroundStyle(Theme.ink3)
+            Image(systemName: symbol).font(Typo.caption).foregroundStyle(Theme.ink3).frame(width: 16)
+            Text(title).font(Typo.footnote).foregroundStyle(Theme.ink3)
         }
     }
 
@@ -102,11 +102,14 @@ struct ContextPanel: View {
                 }
             }
             .frame(height: 5)
+            .animation(Theme.arrive, value: usage.fraction)
             Text(T("%lld %% full", table: "App", Int((usage.fraction * 100).rounded())))
-                .font(.system(size: 11.5)).foregroundStyle(Theme.ink2).monospacedDigit()
+                .font(Typo.caption).foregroundStyle(Theme.ink2).monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(Theme.quick, value: usage.fraction)
             if usage.fraction > 0.8 {
                 Text(T("Almost full: Pippa will soon summarize the start. A new conversation is faster.", table: "App"))
-                    .font(.system(size: 11.5)).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true)
+                    .font(Typo.caption).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true)
             }
         }
         .contentShape(Rectangle())
@@ -116,7 +119,7 @@ struct ContextPanel: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: Space.xxs) {
             HStack(spacing: Space.s) {
-                Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer").font(.system(size: 11))
+                Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer").font(Typo.caption)
                 Text(setup.usesOnlineAI ? AIBadge.label(setup) : "\(SettingsView.localModelName) · \(AIBadge.label(setup))")
                     .lineLimit(1).truncationMode(.middle)
             }
@@ -124,7 +127,7 @@ struct ContextPanel: View {
             Text(setup.usesOnlineAI ? T("Your conversation goes to this online AI.", table: "App") : T("Nothing leaves this Mac.", table: "App"))
                 .foregroundStyle(Theme.ink3)
         }
-        .font(.system(size: 11.5))
+        .font(Typo.caption)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Space.xl).padding(.vertical, Space.l)
         .background(.bar)
@@ -134,7 +137,7 @@ struct ContextPanel: View {
     private func section<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: Space.xs) {
             Text(title)
-                .font(.system(size: 10.5, weight: .semibold)).tracking(0.5).textCase(.uppercase)
+                .font(Typo.caption.weight(.semibold)).tracking(0.5).textCase(.uppercase)
                 .foregroundStyle(Theme.ink3)
                 .padding(.bottom, Space.xxs)
                 .accessibilityAddTraits(.isHeader)
@@ -143,7 +146,7 @@ struct ContextPanel: View {
     }
 
     private func empty(_ text: String) -> some View {
-        Text(text).font(.system(size: 12.5)).foregroundStyle(Theme.ink3)
+        Text(text).font(Typo.footnote).foregroundStyle(Theme.ink3)
     }
 }
 
@@ -170,14 +173,14 @@ private struct PanelRow: View {
 
     private var content: some View {
         HStack(alignment: .top, spacing: Space.m) {
-            Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(tint).frame(width: 16).padding(.top, 1)
+            Image(systemName: symbol).font(Typo.footnote).foregroundStyle(tint).frame(width: 16).padding(.top, 1)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 12.5)).foregroundStyle(Theme.ink).lineLimit(2).truncationMode(.middle)
-                if let detail { Text(detail).font(.system(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(2) }
+                Text(title).font(Typo.footnote).foregroundStyle(Theme.ink).lineLimit(2).truncationMode(.middle)
+                if let detail { Text(detail).font(Typo.caption).foregroundStyle(Theme.ink3).lineLimit(2) }
             }
             Spacer(minLength: 0)
             if action != nil {
-                Image(systemName: "arrow.up.forward").font(.system(size: 9.5, weight: .semibold)).foregroundStyle(Theme.ink3)
+                Image(systemName: "arrow.up.forward").font(Typo.caption.weight(.semibold)).imageScale(.small).foregroundStyle(Theme.ink3)
                     .padding(.top, 2)
                     .opacity(hoverState.wrappedValue ? 1 : 0)
             }

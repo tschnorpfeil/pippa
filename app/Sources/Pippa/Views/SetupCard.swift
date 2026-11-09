@@ -1,7 +1,8 @@
 import PippaCore
 import SwiftUI
 
-/// First run, one card: load the AI for this Mac, or use an online AI in Settings.
+/// First run, one card: load the AI for this Mac, or use an online AI in Settings. One primary button; while the AI
+/// downloads, it says what already works.
 struct SetupCard: View {
     @ObservedObject var setup: SetupModel
     var showsOnlineOption = true
@@ -10,28 +11,30 @@ struct SetupCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.l) {
             HStack(spacing: Space.ml) {
-                Image(systemName: symbol).font(.system(size: 14, weight: .semibold)).foregroundStyle(tint)
+                Image(systemName: symbol).font(Typo.body.weight(.semibold)).foregroundStyle(tint)
+                    .contentTransition(.symbolEffect(.replace))
                     .frame(width: 30, height: 30)
                     .background(tintFill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-                Text(T("Pippa’s AI", table: "App")).font(.system(size: 14.5, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text(T("Pippa’s AI", table: "App")).font(Typo.headline).foregroundStyle(Theme.ink)
                 Spacer()
                 if case .downloading(let progress, _) = setup.state {
                     let locale = Locale(identifier: Bundle.module.preferredLocalizations.first ?? "en")
                     Text(progress, format: .percent.precision(.fractionLength(0)).locale(locale))
-                        .font(.system(size: 13, weight: .medium)).monospacedDigit().foregroundStyle(Theme.ink2)
+                        .font(Typo.callout.weight(.medium)).monospacedDigit().foregroundStyle(Theme.ink2)
                         .contentTransition(.numericText())
+                        .animation(Theme.quick, value: progress)
                 }
             }
             switch setup.state {
             case .preparing(let source):
-                HStack(spacing: 8) {
+                HStack(spacing: Space.m) {
                     ProgressView().controlSize(.small)
                     Text(source.map { T("Taking over the AI from %@…", table: "App", $0) } ?? T("Getting ready…", table: "App"))
                 }
             case .askDownload(let bytes):
                 Text(T("Pippa’s AI runs on this Mac. It needs a one-time download of %@.", table: "App",
                        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)))
-                Text(T("Picked to fit your Mac: %@", table: "App", setup.hardware)).font(.system(size: 12)).foregroundStyle(Theme.ink3)
+                Text(T("Picked to fit your Mac: %@", table: "App", setup.hardware)).font(Typo.footnote).foregroundStyle(Theme.ink3)
                 HStack(spacing: Space.m) {
                     ActionPill(title: T("Load Pippa’s AI", table: "App"), primary: true) { setup.load() }
                     if showsOnlineOption {
@@ -42,10 +45,16 @@ struct SetupCard: View {
                 ProgressBar(value: progress)
                 HStack {
                     Text(remaining.map { $0 < 60 ? T("Less than a minute left", table: "App") : T("About %@ left", table: "App", Self.duration($0)) } ?? T("Loading…", table: "App"))
-                        .font(.system(size: 12)).foregroundStyle(Theme.ink3).monospacedDigit()
+                        .font(Typo.footnote).foregroundStyle(Theme.ink3).monospacedDigit()
+                        .contentTransition(.numericText())
+                        .animation(Theme.quick, value: remaining)
                     Spacer()
                     ActionPill(title: T("Stop", table: "App")) { setup.stopDownload() }
                 }
+                Label(T("Meanwhile, drop photos or PDFs here to make one PDF.", table: "Views"), systemImage: "doc.richtext")
+                    .font(Typo.footnote).foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, Space.xs)
             case .failed(let problem):
                 Text(problem.message).fixedSize(horizontal: false, vertical: true)
                 // Never a dead end: even when this Mac can't run the AI itself (too little memory), an online AI can.
@@ -58,24 +67,36 @@ struct SetupCard: View {
                 if !problem.details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     DisclosureGroup(isExpanded: detailsState.projectedValue) {
                         Text(problem.details)
-                            .font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Theme.ink2)
+                            .font(Typo.caption.monospaced()).foregroundStyle(Theme.ink2)
                             .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(Space.m)
                             .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                             .padding(.top, Space.xs)
                     } label: {
-                        Text(T("Details", table: "App")).font(.caption).foregroundStyle(Theme.ink3)
+                        Text(T("Details", table: "App")).font(Typo.caption).foregroundStyle(Theme.ink3)
                     }
                 }
             case .ready:
                 Label(T("Ready", table: "App"), systemImage: "checkmark.circle").foregroundStyle(Theme.ok)
             }
         }
-        .font(.system(size: 13))
+        .font(Typo.callout)
         .padding(Space.xl + 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .raised(Radius.card + 2)
+        .raised(Radius.panel)
+        .animation(Theme.arrive, value: stage)
+    }
+
+    /// Which of the card's states shows, for animating between them (not the progress inside one).
+    private var stage: Int {
+        switch setup.state {
+        case .preparing: 0
+        case .askDownload: 1
+        case .downloading: 2
+        case .failed: 3
+        case .ready: 4
+        }
     }
 
     private var tint: Color { if case .failed = setup.state { Theme.need } else { Theme.accent } }

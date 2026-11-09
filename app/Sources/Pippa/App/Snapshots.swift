@@ -10,6 +10,7 @@ enum Snapshots {
     private static var fixtureDirectory: URL?
     static func run(into folder: URL) async -> Int32 {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        Theme.drawsGlass = false
         if ProcessInfo.processInfo.environment["PIPPA_SNAPSHOT_PROVIDERS_ONLY"] == "1" {
             let setup = SetupModel.shared
             setup.showForSnapshot(.ready(adoptedFrom: nil))
