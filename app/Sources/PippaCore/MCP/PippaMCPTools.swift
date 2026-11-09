@@ -90,7 +90,7 @@ public struct PippaMCPTools: Sendable {
             if let raw = params["arguments"] {
                 guard let object = raw as? [String: Any] else {
                     let outcome = invalid("arguments must be an object; omit it when there are no arguments.")
-                    return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": true])
+                    return Self.toolResult(id: id, outcome.text, isError: true)
                 }
                 arguments = object
             } else {
@@ -109,7 +109,7 @@ public struct PippaMCPTools: Sendable {
                                           permissionRepair: outcome.permissionRepair)
                 note.turnID = context.turn?.id
                 host.onRead?(note)
-                return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
+                return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
             }
             // Event, reminder, mail draft (PippaMCPWrite.swift); the receipt goes to the app.
             if name == PippaMCPFilePreparation.name {
@@ -118,22 +118,26 @@ public struct PippaMCPTools: Sendable {
                 if !context.writes.snapshot.cancelled, host.turns.active === context.turn {
                     host.onRead?(PippaMCPFilePreparation.readNote(for: outcome, turnID: context.turn?.id))
                 }
-                return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
+                return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
             }
             if PippaMCPWriteTools.names.contains(name) {
                 let outcome = await PippaMCPWriteTools(host: host, scope: context.writes).call(name, arguments)
                 if let receipt = outcome.receipt { host.onWrite?(receipt) }
-                return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
+                return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
             }
             let input = ToolInput(name, arguments)
             let outcome = await call(name, input, context: context)
-            return Self.result(id: id, ["content": [["type": "text", "text": outcome.text]], "isError": outcome.isError])
+            return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
         default:
             return Self.error(id: id, code: -32601, message: "Method not found")
         }
     }
 
     static func result(id: Any, _ value: [String: Any]) -> [String: Any] { ["jsonrpc": "2.0", "id": id, "result": value] }
+    /// The reply to `tools/call`: the text for the model and whether it is an error.
+    static func toolResult(id: Any, _ text: String, isError: Bool) -> [String: Any] {
+        result(id: id, ["content": [["type": "text", "text": text]], "isError": isError])
+    }
     static func error(id: Any, code: Int, message: String) -> [String: Any] {
         ["jsonrpc": "2.0", "id": id, "error": ["code": code, "message": message]]
     }
