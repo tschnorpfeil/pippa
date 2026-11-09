@@ -82,7 +82,9 @@ struct Transcript: View {
                 // Opened mid-answer (or the first question just went out): the question and the answer still arrive.
                 settledState.wrappedValue = Settled(id: conversation.id,
                                                     count: answeringHere ? max(0, conversation.messages.count - 2) : conversation.messages.count)
-                Approvals.shared.present("chat", reveal: { ChatWindow.shared.show() })
+                // Pippa Island shows a new question without taking the keyboard from the app in front; only without
+                // the island does the chat come forward for it.
+                Approvals.shared.present("chat", reveal: { if !Island.shared.isShown { ChatWindow.shared.show() } })
                 proxy.scrollTo("end", anchor: .bottom)
                 // Once more after the first layout: lazy rows only know their real height then.
                 Task { @MainActor in proxy.scrollTo("end", anchor: .bottom) }

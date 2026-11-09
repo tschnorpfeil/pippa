@@ -342,7 +342,8 @@ final class IslandPresenter: NSObject {
         removeMonitors()
         let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         let local = NSEvent.addLocalMonitorForEvents(matching: clicks.union(.keyDown)) { [weak self] event in
-            let escape = event.type == .keyDown && event.keyCode == 53
+            // Escape is the island's only when typed there; in the chat window it stays the chat's.
+            let escape = event.type == .keyDown && event.keyCode == 53 && event.window === self?.panel
             if event.type == .keyDown && !escape { return event }
             let inPanel = event.window === self?.panel
             let location = event.locationInWindow
