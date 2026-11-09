@@ -24,7 +24,7 @@ jobs:
       UV_VERSION: '0.11.32'
       UV_SHA256: 'ed336d0ba49db8ef89b2b41fffa372ce63bd032f22a56f001c265891aec32829'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Select latest Xcode
         run: |
           X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
@@ -114,7 +114,7 @@ jobs:
           ls -l dist/mlx-runtime
           shasum -a 256 dist/mlx-runtime/*.tar.gz
           cat dist/mlx-runtime/*.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pippa-mlx-runtime
           path: |
