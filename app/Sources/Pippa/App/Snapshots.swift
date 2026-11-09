@@ -13,6 +13,8 @@ import SwiftUI
 enum Snapshots {
     private static var fixtureDirectory: URL?
     private static let live = ProcessInfo.processInfo.environment["PIPPA_SNAPSHOT_LIVE"] == "1"
+    /// Live captures that failed: the run then ends with 1, and no older PNG stands in for them.
+    private static var failed: [String] = []
     static func run(into folder: URL) async -> Int32 {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         Theme.drawsGlass = live
@@ -32,8 +34,7 @@ enum Snapshots {
             preview.prompt = try? JSONDecoder().decode(PiProviderEvent.self, from: Data(#"{"event":"prompt","id":"key","type":"secret","message":"API key","placeholder":"Enter API key"}"#.utf8))
             await render(ProviderLoginSheet(provider: preview), size: NSSize(width: 520, height: 400), dark: false,
                          to: folder.appendingPathComponent("provider-login.png"))
-            print(folder.path)
-            return 0
+            return finish(folder)
         }
         let fixtures = folder.appendingPathComponent("fixtures", isDirectory: true)
         try? FileManager.default.createDirectory(at: fixtures, withIntermediateDirectories: true)
@@ -117,7 +118,15 @@ enum Snapshots {
                              to: folder.appendingPathComponent("settings-\(tab.rawValue)-\(dark ? "dark" : "light").png"))
             }
         }
+        return finish(folder)
+    }
+
+    private static func finish(_ folder: URL) -> Int32 {
         print(folder.path)
+        guard failed.isEmpty else {
+            print("live snapshot failed: \(failed.joined(separator: ", "))")
+            return 1
+        }
         return 0
     }
 
@@ -147,9 +156,10 @@ enum Snapshots {
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         let host = NSHostingView(rootView: view.environment(\.controlActiveState, .key))
         window.contentView = host
-        // ScreenCaptureKit only takes a window that touches a screen: a live one keeps a 2-point edge on it.
-        let screen = NSScreen.main?.frame ?? .zero
-        window.setFrameOrigin(live ? NSPoint(x: screen.minX - size.width + 2, y: screen.minY + 80) : NSPoint(x: -4000, y: -4000))
+        // ScreenCaptureKit only takes a window that touches a screen: a live one keeps a 2-point edge on the leftmost
+        // screen, so no other display lies under the rest of it.
+        let left = NSScreen.screens.min { $0.frame.minX < $1.frame.minX }?.frame ?? .zero
+        window.setFrameOrigin(live ? NSPoint(x: left.minX - size.width + 2, y: left.minY + 80) : NSPoint(x: -4000, y: -4000))
         window.makeKeyAndOrderFront(nil)
         // Let SwiftUI lay out, load images and run onAppear before drawing.
         for _ in 0..<6 { try? await Task.sleep(for: .milliseconds(120)); host.layoutSubtreeIfNeeded() }
@@ -158,10 +168,10 @@ enum Snapshots {
             host.layoutSubtreeIfNeeded()
         }
         if live {
+            try? FileManager.default.removeItem(at: file)
             try? await Task.sleep(for: .milliseconds(400))   // the window server's first frame, glass included
-            if let image = await capture(window) {
-                try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: file)
-            }
+            let png = await capture(window).flatMap { NSBitmapImageRep(cgImage: $0).representation(using: .png, properties: [:]) }
+            if (try? png?.write(to: file)) == nil { failed.append(file.lastPathComponent) }
             window.orderOut(nil)
             return
         }
