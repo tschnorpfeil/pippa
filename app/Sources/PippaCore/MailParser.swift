@@ -54,14 +54,14 @@ public enum MailParser {
         return (headers, body)
     }
 
-    /// One expression per parameter name `walk` asks for, compiled once.
+    private static func paramPattern(_ name: String) -> String { "(?i)\(name)\\*?=\\s*(\"([^\"]*)\"|([^;\\s]+))" }
+
+    /// One expression per parameter name `walk` asks for, compiled once; any other name is compiled when asked.
     private static let paramExpressions: [String: NSRegularExpression] = Dictionary(uniqueKeysWithValues:
-        ["boundary", "filename", "name", "charset"].map { name in
-            (name, try! NSRegularExpression(pattern: "(?i)\(name)\\*?=\\s*(\"([^\"]*)\"|([^;\\s]+))"))
-        })
+        ["boundary", "filename", "name", "charset"].map { ($0, try! NSRegularExpression(pattern: paramPattern($0))) })
 
     static func param(_ name: String, in header: String) -> String? {
-        guard let re = paramExpressions[name],
+        guard let re = paramExpressions[name] ?? (try? NSRegularExpression(pattern: paramPattern(name))),
               let m = re.firstMatch(in: header, range: NSRange(header.startIndex..., in: header)) else { return nil }
         for g in [2, 3] { if let r = Range(m.range(at: g), in: header) { return String(header[r]) } }
         return nil
