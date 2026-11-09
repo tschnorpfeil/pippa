@@ -21,14 +21,10 @@ DIST="$ROOT/dist"
 APP="$DIST/Pippa.app"
 CACHE="${PIPPA_CACHE:-$HOME/Library/Caches/pippa-build}"
 IDENTITY="${PIPPA_SIGN_IDENTITY:-}"
+. "$ROOT/scripts/lib.sh"
 if [[ "${PIPPA_REQUIRE_DISTRIBUTION:-0}" == 1 && "$IDENTITY" != "Developer ID Application:"* ]]; then
-  printf 'Error: a release needs PIPPA_SIGN_IDENTITY with a Developer ID Application.\n' >&2
-  exit 1
+  die "a release needs PIPPA_SIGN_IDENTITY with a Developer ID Application."
 fi
-
-say() { printf '\033[1m==> %s\033[0m\n' "$*"; }
-warn() { printf '\033[33mWarning: %s\033[0m\n' "$*" >&2; }
-die() { printf '\033[31mError: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [[ "$(uname -s)" == Darwin ]] || die "macOS only"
 for tool in swift codesign iconutil sips plutil install_name_tool otool shasum curl python3 tar; do
@@ -41,12 +37,7 @@ JOBS="${PIPPA_BUILD_JOBS:-$(( CORES - 2 ))}"
 (( JOBS >= 1 )) || JOBS=1
 
 # --- Version -----------------------------------------------------------------
-VERSION="$(sed -n 's/.*static let version = "\([^"]*\)".*/\1/p' "$APP_SRC/Sources/PippaCore/PippaCore.swift" | head -1)"
-[[ -n "$VERSION" ]] || die "Pippa.version not found in app/Sources/PippaCore/PippaCore.swift"
-# Build number = base + commit count. The base keeps builds above those of the archived repository (up to 282)
-# now that the public repository starts with a single commit; Sparkle only offers higher builds.
-COMMITS="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)"
-BUILD="$(( $(tr -d '[:space:]' < "$ROOT/app/Packaging/build-number-base") + COMMITS ))"
+read_version_build
 say "Pippa $VERSION ($BUILD)"
 
 # --- Default model pinned (catalog.json) ------------------------------------
@@ -70,7 +61,6 @@ BIN="$(cd "$APP_SRC" && swift build "${SWIFT_ARGS[@]}" --show-bin-path)"
 [[ -x "$BIN/Pippa" ]] || die "no release binary at $BIN/Pippa"
 
 mkdir -p "$CACHE"
-sha_of() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
 # --- fd and ripgrep for Pi's find and grep (pinned, checksum-verified) -------
 SEARCH_JSON="$ROOT/app/Packaging/search-tools.json"
@@ -78,14 +68,7 @@ SEARCH_DIR="$CACHE/search-tools"
 mkdir -p "$SEARCH_DIR"
 while read -r TOOL URL SHA; do
   FILE="$CACHE/$(basename "$URL")"
-  if [[ -f "$FILE" && "$(sha_of "$FILE")" != "$SHA" ]]; then rm -f "$FILE"; fi
-  if [[ ! -f "$FILE" ]]; then
-    say "Downloading $TOOL ($(basename "$URL"))"
-    curl -fL --retry 3 --progress-bar -o "$FILE.part" "$URL"
-    ACTUAL="$(sha_of "$FILE.part")"
-    [[ "$ACTUAL" == "$SHA" ]] || { rm -f "$FILE.part"; die "SHA256 of $(basename "$URL") does not match: expected $SHA, got $ACTUAL"; }
-    mv "$FILE.part" "$FILE"
-  fi
+  fetch_pinned "$URL" "$FILE" "$SHA"
   rm -rf "${SEARCH_DIR:?}/$TOOL"
   mkdir -p "$SEARCH_DIR/$TOOL"
   tar -xzf "$FILE" -C "$SEARCH_DIR/$TOOL" --strip-components=1
@@ -161,9 +144,11 @@ echo "    Resources: pippa-skills ($(find "$APP/Contents/Resources/pippa-skills"
 # Pippa's Pi extensions (file tools, helps for small models, MCP connection) for the Pi RPC path.
 # Only the sources Pi loads; tests stay out.
 mkdir -p "$APP/Contents/Resources/pippa-tools"
-for f in pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-mcp.ts files.ts facts.mjs list-folder.ts document.ts shell.ts budget.ts search.mjs; do
+for f in $(runtime_files pippa-tools); do
   cp "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f"
 done
+# The file lists verify-app.sh and the runtime probe (Pippa --verify-runtime) check the bundle against.
+cp "$PACKAGING/runtime-files.json" "$APP/Contents/Resources/runtime-files.json"
 # Provider discovery and native sign-in through Pi's public APIs; tests stay out.
 mkdir -p "$APP/Contents/Resources/pippa-auth"
 cp "$ROOT/runtime/pippa-auth/pi-providers.mjs" "$APP/Contents/Resources/pippa-auth/pi-providers.mjs"

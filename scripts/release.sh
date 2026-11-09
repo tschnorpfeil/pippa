@@ -6,15 +6,11 @@
 # appcast.xml is informational: installed copies are told about this release and sent to the website, not updated.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
+. "$ROOT/scripts/lib.sh"
 [[ "${PIPPA_SIGN_IDENTITY:-}" == 'Developer ID Application:'* ]] || die 'PIPPA_SIGN_IDENTITY with a Developer ID Application is missing'
 [[ -n "${PIPPA_NOTARY_PROFILE:-}" ]] || die 'PIPPA_NOTARY_PROFILE is missing'
 [[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=normal)" ]] || die 'commit the working tree locally first; a release must match a clean commit'
-VERSION="$(sed -n 's/.*static let version = "\([^"]*\)".*/\1/p' "$ROOT/app/Sources/PippaCore/PippaCore.swift" | head -1)"
-# Build number = base + commit count. The base keeps builds above those of the archived repository (up to 282)
-# now that the public repository starts with a single commit; Sparkle only offers higher builds.
-COMMITS="$(git -C "$ROOT" rev-list --count HEAD)"
-BUILD="$(( $(tr -d '[:space:]' < "$ROOT/app/Packaging/build-number-base") + COMMITS ))"
+read_version_build
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 TAG="${1:-v$VERSION-$BUILD}"
 [[ "$TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die 'tag may only contain letters, digits, dot, underscore and hyphen'

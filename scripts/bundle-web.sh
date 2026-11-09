@@ -9,27 +9,13 @@ APP="${1:?Usage: bundle-web.sh /path/to/Pippa.app}"
 CACHE="${PIPPA_CACHE:-$HOME/Library/Caches/pippa-build}"
 NPM_CACHE="${PIPPA_NPM_CACHE:-$ROOT/.build/npm-cache}"
 MANIFEST="$ROOT/app/Packaging/node-release.json"
-read -r VERSION ASSET SHA < <(python3 - "$MANIFEST" <<'PY'
-import json,sys
-m=json.load(open(sys.argv[1])); print(m['version'],m['asset'],m['sha256'])
-PY
-)
-mkdir -p "$CACHE"
-ARCHIVE="$CACHE/$ASSET"
-sha_of() { shasum -a 256 "$1" | cut -d' ' -f1; }
-if [[ -f "$ARCHIVE" && "$(sha_of "$ARCHIVE")" != "$SHA" ]]; then rm -f "$ARCHIVE"; fi
-if [[ ! -f "$ARCHIVE" ]]; then
-  curl -fL --retry 3 --progress-bar -o "$ARCHIVE.part" "https://nodejs.org/dist/$VERSION/$ASSET"
-  [[ "$(sha_of "$ARCHIVE.part")" == "$SHA" ]] || { rm -f "$ARCHIVE.part"; echo 'Node SHA256 mismatch' >&2; exit 1; }
-  mv "$ARCHIVE.part" "$ARCHIVE"
-fi
-WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
-tar -xzf "$ARCHIVE" -C "$WORK"
-NODE_DIR="$WORK/node-$VERSION-darwin-arm64"
+. "$ROOT/scripts/lib.sh"
+ensure_node
+VERSION="$NODE_VERSION"
 NODE="$NODE_DIR/bin/node"
 NPM=("$NODE" "$NODE_DIR/lib/node_modules/npm/bin/npm-cli.js")
-[[ "$("$NODE" --version)" == "$VERSION" ]] || { echo 'Unexpected Node version' >&2; exit 1; }
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
 STAGE="$WORK/pippa-web"
 mkdir -p "$STAGE"
 cp "$ROOT/runtime/pippa-web/package.json" "$ROOT/runtime/pippa-web/package-lock.json" "$ROOT/runtime/pippa-web/index.ts" "$STAGE/"

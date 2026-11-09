@@ -35,7 +35,10 @@ enum BundleVerification {
         console.log('pippa_node_ok',process.version);
         """
         // pi-web-access loads only inside Pi (it imports Pi's own packages); here: Pippa's settings file and the package are there.
-        for path in ["index.ts", "node_modules/pi-web-access/dist/index.js"] where !FileManager.default.fileExists(atPath: web.appendingPathComponent(path).path) {
+        // The file list is app/Packaging/runtime-files.json, which build-app.sh puts into the bundle.
+        let runtimeFiles = try JSONSerialization.jsonObject(with: Data(contentsOf: bundle.appendingPathComponent("Contents/Resources/runtime-files.json"))) as? [String: Any]
+        guard let webFiles = runtimeFiles?["pippa-web"] as? [String] else { throw Failure.web("runtime-files.json") }
+        for path in webFiles where !FileManager.default.fileExists(atPath: web.appendingPathComponent(path).path) {
             throw Failure.web(path)
         }
         // Node and Pi get an empty HOME, never the person's ~/.pi.
