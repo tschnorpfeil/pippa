@@ -54,6 +54,7 @@ await focused("PIPPA_DURABLE_JOB_CHECKS", "Durable job") { await runDurableJobCh
 await focused("PIPPA_FILE_PREPARATION_CHECKS", "File preparation") { await runFilePreparationChecks() }
 await focused("PIPPA_MCP_FILE_PREPARATION_CHECKS", "MCP file preparation") { await runMCPFilePreparationChecks() }
 await focused("PIPPA_DOWNLOAD_CHECKS", "Download") { await runDownloadChecks() }
+await focused("PIPPA_MARKDOWN_CHECKS", "Markdown") { runMarkdownChecks() }
 // Mail identity, readback and insertion decisions; no native app actions.
 await focused("PIPPA_LETTER_CHECKS", "Letter") { await runLetterChecks() }
 // Installer only (PiSetup, fake HOME under .build/fake-home-*).
@@ -414,6 +415,7 @@ runDateEvidenceChecks()
 runMailSingularChecks()
 runAmountHintChecks()
 runErrorMessageChecks()
+runMarkdownChecks()
 runLocalizationChecks()
 runSkillChecks()
 await runInferenceChecks()
