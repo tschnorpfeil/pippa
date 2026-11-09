@@ -117,19 +117,29 @@ function shimFolder(name) {
 	writeFileSync(stub, "#!/bin/sh\nexit 0\n");
 	chmodSync(stub, 0o755);
 	for (const other of ["python3", "make"]) linkSync(stub, join(bin, other));
+	const xcode = join(bin, "xcodebuild"); // Xcode's placeholders share another file
+	writeFileSync(xcode, "#!/bin/sh\nexit 1\n");
+	chmodSync(xcode, 0o755);
+	linkSync(xcode, join(bin, "xed"));
 	const own = join(bin, "ls"); // a real program in the same folder: another file
 	writeFileSync(own, "#!/bin/sh\nexit 0\n");
 	chmodSync(own, 0o755);
 	return { root, bin };
 }
 
-test("shims: every entry that is the same file as git, plus Apple's launchers; a fixed list when git is missing", () => {
+test("shims: every entry that is the same file as git or a launcher, plus Apple's launchers; a fixed list when git is missing", () => {
 	const { bin } = shimFolder("shims");
 	const names = developerShims(bin);
-	for (const name of ["git", "python3", "make", "xcrun", "xcodebuild", "xcode-select"]) assert.ok(names.includes(name), name);
+	for (const name of ["git", "python3", "make", "xed", "xcrun", "xcodebuild", "xcode-select"]) assert.ok(names.includes(name), name);
 	assert.ok(!names.includes("ls"), "a different file in the same folder is a real program");
 	const fallback = developerShims(join(bin, "nowhere"));
 	for (const name of ["python3", "pip3", "git", "make", "clang", "swift", "otool", "xcrun", "xcode-select"]) assert.ok(fallback.includes(name), name);
+});
+
+test("shims on this Mac: the placeholders and nothing next to them (system volume inodes exceed a double's precision)", { skip: !onMac && "macOS only" }, () => {
+	const names = developerShims();
+	for (const name of ["git", "python3", "make", "clang", "xcrun", "xcodebuild"]) assert.ok(names.includes(name), name);
+	for (const name of ["afplay", "afconvert", "ls", "sips", "textutil"]) assert.ok(!names.includes(name), `${name} is a real program`);
 });
 
 test("profile: no executing the shims without developer tools; unchanged with them", () => {
@@ -143,7 +153,7 @@ test("profile: no executing the shims without developer tools; unchanged with th
 
 test("a shim's failure text never asks for a write or internet grant; the note names the missing tools", () => {
 	for (const output of ["/bin/bash: /usr/bin/python3: Operation not permitted", "env: python3: Operation not permitted",
-		"/bin/bash: line 1: /usr/bin/git: Operation not permitted"]) {
+		"/bin/bash: line 1: /usr/bin/git: Operation not permitted", "/bin/bash: ./x.py: /usr/bin/python3: bad interpreter: Operation not permitted"]) {
 		assert.deepEqual([...missingGrants("python3 x.py", output, new Set())], [], output);
 	}
 	assert.deepEqual([...missingGrants("sips a b", "Error: Operation not permitted", new Set())], ["write"], "other failures are unchanged");
@@ -214,7 +224,9 @@ test("real sandbox: without developer tools even `env python3` and scripts fail,
 	const tool = shellTool(pipedBash(env), { home, env, developerTools: () => false }).definition(work);
 	writeFileSync(join(work, "run.sh"), "#!/usr/bin/env python3\nprint(1)\n");
 	chmodSync(join(work, "run.sh"), 0o755);
-	for (const command of ["/usr/bin/env python3 -c 1", "./run.sh", "echo x | /usr/bin/xargs git status"]) {
+	writeFileSync(join(work, "direct.py"), "#!/usr/bin/python3\nprint(1)\n");
+	chmodSync(join(work, "direct.py"), 0o755);
+	for (const command of ["/usr/bin/env python3 -c 1", "./run.sh", "./direct.py", "echo x | /usr/bin/xargs git status"]) {
 		const result = await tool.execute("real", { command }, undefined, undefined, ctx);
 		const text = result.content.map((part) => part.text).join("\n");
 		assert.equal(result.isError, true, command);

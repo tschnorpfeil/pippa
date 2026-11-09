@@ -55,15 +55,18 @@ export function developerToolsInstalled(env: Record<string, string | undefined> 
 }
 
 /**
- * The placeholder names in `dir`: every entry that is the same file as git (hard links on macOS, 78 of them), plus
- * Apple's own launchers. Without git there, the known names.
+ * The placeholder names in `dir`: every entry that is the same file as git or one of Apple's launchers (hard links on
+ * macOS: 78 share git's file, 16 xcodebuild's), plus the launchers. Without git there, the known names. Inode numbers
+ * on the system volume lie near 2^60, past a double's precision, where neighbouring files such as afplay would compare
+ * equal: they are compared as bigints.
  */
 export function developerShims(dir = SHIM_DIR): string[] {
 	const launchers = ["xcrun", "xcodebuild", "xcode-select"];
+	const file = (name: string) => statSync(join(dir, name), { bigint: true });
 	try {
-		const git = statSync(join(dir, "git"));
+		const anchors = [file("git"), ...launchers.flatMap((name) => { try { return [file(name)]; } catch { return []; } })];
 		const same = readdirSync(dir).filter((name) => {
-			try { const info = statSync(join(dir, name)); return info.ino === git.ino && info.dev === git.dev; } catch { return false; }
+			try { const info = file(name); return anchors.some((shim) => shim.ino === info.ino && shim.dev === info.dev); } catch { return false; }
 		});
 		return [...new Set([...same, ...launchers])];
 	} catch { return [...SHIM_NAMES]; }
@@ -194,8 +197,9 @@ export const APP_CONTROL_REASON = "Not run: app control is not available in Pipp
 export function noDeveloperToolsReason(name: string): string {
 	return `Not run: ${name} is not on this Mac. It comes with Apple's developer tools, which are not installed, and starting it would only open an install dialog. Use bash, awk, sed, sips, textutil or Pippa's own tools instead, or tell the person in one short sentence what you could not do. Do not install anything.`;
 }
-// A placeholder the profile forbids to start: `/bin/bash: /usr/bin/python3: Operation not permitted`, `env: python3: Operation not permitted`, `xargs: git: Operation not permitted`.
-const SHIM_FAILURE = /(?:\/usr\/bin\/|\b(?:env|xargs|find): )[\w+.-]+: Operation not permitted/;
+// A placeholder the profile forbids to start: `/bin/bash: /usr/bin/python3: Operation not permitted`, `env: python3: Operation not permitted`, `xargs: git: Operation not permitted`,
+// and as a script's interpreter `/bin/bash: ./x.py: /usr/bin/python3: bad interpreter: Operation not permitted`.
+const SHIM_FAILURE = /(?:\/usr\/bin\/|\b(?:env|xargs|find): )[\w+.-]+: (?:bad interpreter: )?Operation not permitted/;
 const WRITE_FAILURE = /Operation not permitted/i;
 
 /** Grants a failed command lacked, judged from its output. */
