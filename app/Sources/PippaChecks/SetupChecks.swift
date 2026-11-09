@@ -708,6 +708,34 @@ func runSetupFlowChecks() async {
         return ok
     }
 
+    check("Setup: a missing runtime needs room to unpack, not only for its archive; the question still names the download") {
+        let home = fakeHome("flow-room-runtime"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (model, data) = dummyModel()
+        // The model is in place (size and verified mark); only the runtime is missing.
+        guard let file = model.pinned?.files.first else { return false }
+        let folder = modelFolder(r, model)
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        try data.write(to: folder.appendingPathComponent(file.path))
+        try file.sha256.write(to: folder.appendingPathComponent(file.path + ".ok"), atomically: true, encoding: .utf8)
+        let size: Int64 = 123_456
+        let runtime = MLXRuntime(support: r.support, environment: [:], manifest: fakeRuntimeManifest(size: size, sha256: String(repeating: "0", count: 64)))!
+        let free = Recorder<Int64>()
+        free.add(size + ModelDownloader.spaceBuffer)   // room for the archive alone
+        let flow = PiSetupFlow(roots: r, model: model, contextWindow: 4096, searchRoots: [], port: 18_471, runtime: runtime,
+                               download: stubDownload(data), freeSpace: { _ in free.all.last })
+        let tight = flow.prepare()
+        free.add(runtime.installBytes + ModelDownloader.spaceBuffer)
+        let enough = flow.prepare()
+        let ok: Bool
+        if case .failed(let problem) = tight, case .notEnoughSpace(let bytes)? = problem.failure {
+            ok = bytes == runtime.installBytes - size && enough == .askDownload(bytes: size)
+        } else { ok = false }
+        if !ok { print("   ", tight, enough) }
+        return ok
+    }
+
     check("Setup: an interrupted download asks only for what is still missing; a complete .part is not \"ready\"") {
         let home = fakeHome("flow-partial"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))

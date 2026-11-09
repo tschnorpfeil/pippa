@@ -75,7 +75,7 @@ public final class PiSetupFlow: @unchecked Sendable {
         return model.pinned?.files.lazy.compactMap { found[$0.sha256]?.source }.first
     }
 
-    /// How much more free space the download needs (2 GB to spare), checked before the question. `nil`: enough, or unknown.
+    /// How much more free space `remaining` bytes need (2 GB to spare), checked before the question. `nil`: enough, or unknown.
     public func spaceShortfall(remaining: Int64) -> Int64? {
         let folder = installer.state.modelsFolder.map { URL(fileURLWithPath: $0, isDirectory: true) } ?? installer.roots.support
         return ModelDownloader.spaceShortfall(available: freeSpace(folder), remaining: remaining)
@@ -88,18 +88,20 @@ public final class PiSetupFlow: @unchecked Sendable {
             if case .failed(let failure) = installer.perform(step, options).outcome { return .failed(PiSetupProblem(failure)) }
         }
         var missing = runtime?.remainingBytes ?? 0
+        // The question names the download; the room needed is larger, because the runtime is unpacked next to its archive.
+        var room = runtime?.installBytes ?? 0
         if runtime == nil { return .failed(PiSetupProblem(.missingStep(.model))) }
         // Also with 0 bytes left (a complete but unverified .part): the download step verifies it.
         var modelMissing = false
         switch installer.perform(.model, options).outcome {
         case .failed(let failure): return .failed(PiSetupProblem(failure))
-        case .needsDownload(let bytes): missing += bytes; modelMissing = true
+        case .needsDownload(let bytes): missing += bytes; room += bytes; modelMissing = true
         case .modelReady(_, .some, let source): lock.withLock { adopted = source }
         default: break
         }
         if case .failed(let failure) = installer.perform(.provider, options).outcome { return .failed(PiSetupProblem(failure)) }
         if modelMissing || missing > 0 || runtime?.isInstalled != true {
-            if let shortfall = spaceShortfall(remaining: missing) { return .failed(PiSetupProblem(.notEnoughSpace(bytes: shortfall))) }
+            if let shortfall = spaceShortfall(remaining: room) { return .failed(PiSetupProblem(.notEnoughSpace(bytes: shortfall))) }
             return .askDownload(bytes: missing)
         }
         if case .failed(let failure) = installer.perform(.ready, options).outcome { return .failed(PiSetupProblem(failure)) }
