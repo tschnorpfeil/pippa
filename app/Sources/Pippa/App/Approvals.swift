@@ -38,17 +38,27 @@ final class Approvals: ObservableObject {
         presenters[name, default: 0] += 1
         if let reveal { reveals[name] = reveal }
     }
-    /// The matching call when that view disappears.
+    /// The matching call when that view disappears. When the last one goes (a new conversation replaced the transcript)
+    /// and no view takes over within the same turn, the open questions go to the alert, so none waits unseen.
     func dismiss(_ name: String) {
         guard let count = presenters[name] else { return }
         presenters[name] = count > 1 ? count - 1 : nil
         if presenters[name] == nil { reveals[name] = nil }
+        if presenters.isEmpty, !questions.isEmpty { Task { @MainActor in self.handOver() } }
     }
     var hasPresenter: Bool { !presenters.isEmpty }
 
+    /// Asks when no view can: the alert. `--check-approvals` puts a stand-in here.
+    var fallback: @MainActor (PiUIRequest) -> PiUIResponse = Confirmations.alert
+
+    private func handOver() {
+        guard presenters.isEmpty else { return }
+        for question in questions where waiting[question.id] != nil { answer(question.id, fallback(question.request)) }
+    }
+
     /// Asks inside Pippa when a presenter is on screen, otherwise with an alert. Pi's own timeout cancels the question.
     func ask(_ request: PiUIRequest) async -> PiUIResponse {
-        guard hasPresenter else { return Confirmations.alert(request) }
+        guard hasPresenter else { return fallback(request) }
         let question = Question(id: request.id, request: request, conversationID: ChatModel.shared.answeringID, asked: Date())
         if let timeout = request.timeout, timeout > 0 {
             Task { [weak self] in

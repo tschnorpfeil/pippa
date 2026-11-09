@@ -54,7 +54,25 @@ enum ApprovalsChecks {
         check(late == .cancelled && Date().timeIntervalSince(started) < 2, "Pi's timeout cancels the question")
         check(approvals.questions.isEmpty, "a timed-out question disappears")
 
+        // The last view that shows questions goes (a new conversation replaced the transcript): open questions go to the
+        // alert, unless another view takes over within the same turn.
+        var alerted: [String] = []
+        approvals.fallback = { request in alerted.append(request.id); return .confirmed(false) }
+        let open = Task { await approvals.ask(request("q6")) }
+        await settle()
+        approvals.dismiss("check")
+        approvals.present("check") { revealed += 1 }
+        await settle()
+        check(alerted.isEmpty && approvals.questions.map(\.id) == ["q6"], "a view that takes over within the turn keeps the question")
+        approvals.dismiss("check")
+        await settle()
+        check(alerted == ["q6"] && approvals.questions.isEmpty, "with no view left, an open question goes to the alert")
+        approvals.answer("q6", .cancelled)   // a failed check must not keep the run waiting
+        check(await open.value == .confirmed(false), "the alert's answer reaches the caller")
+        approvals.present("check") { revealed += 1 }
+
         print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
         return failures == 0 ? 0 : 1
     }
 }
+
