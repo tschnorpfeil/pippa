@@ -47,7 +47,7 @@ Web searches never go through a signed-in online AI.
 
 | What | When |
 |---|---|
-| Downloading her AI | Once, after you say OK. The model comes from Hugging Face, the runtime that runs it (Python with oMLX) from this repository's releases; each file is checked before use. |
+| Downloading her AI | Once, after you say OK. The model comes from Hugging Face (or, when that fails, from a copy in this repository's releases), the runtime that runs it (Python with oMLX) from this repository's releases; each file is checked before use. |
 | Update checks | Once a day, from this repository's releases. Updates install when you quit or after a while without input. |
 | Web searches | The first search in an answer shows you the exact search text and waits for your OK. |
 | Reading web pages | Pages from your own message or from that answer's search results are read without asking again. Any other address is asked for. Addresses on your Mac or your local network are never read. |
