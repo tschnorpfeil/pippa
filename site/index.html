@@ -232,6 +232,8 @@ strong, b { font-weight: 600; }
 .pw-attach .thumb { width: 38px; height: 50px; border-radius: 5px; }
 .pw-attach .fold { width: 44px; height: 40px; }
 .pw-answer { font-size: 15px; line-height: 1.45; display: flex; flex-direction: column; gap: 10px; max-width: 540px; }
+.pw-answer ul { display: flex; flex-direction: column; gap: 3px; padding-left: 20px; list-style: disc; }
+.pw-answer li::marker { color: var(--ink3); }
 .pw-quote { display: flex; gap: 12px; color: var(--ink2); }
 .pw-quote::before { content: ""; width: 2px; border-radius: 1px; background: var(--hair); flex: none; }
 .pw-quote small { display: block; margin-top: 2px; font-size: 13px; color: var(--ink3); }
@@ -362,23 +364,6 @@ strong, b { font-weight: 600; }
 
 
 /* Downloads: the tidy preview, before and after */
-.tidy7 { gap: 10px; max-width: 600px; }
-.tidy7 .meta { color: var(--ink3); }
-.ba { display: flex; align-items: center; gap: 12px; padding: 10px 14px 8px; border-radius: 10px; background: var(--fill); }
-.ba-now { display: flex; flex-direction: column; gap: 1px; width: 104px; flex: none; font-size: 12px; }
-.ba-now b { font-weight: 600; margin-top: 6px; }
-.ba-now small { color: var(--ink3); font-size: 12px; }
-.heap { position: relative; height: 40px; }
-.heap i { position: absolute; top: 4px; width: 26px; height: 33px; border-radius: 3px; background: #fff; box-shadow: 0 0 0 .5px rgb(0 0 0 / .18), 0 1px 2px rgb(0 0 0 / .1); }
-.heap i:nth-child(1) { left: 2px; transform: rotate(-12deg); }
-.heap i:nth-child(2) { left: 26px; top: 0; transform: rotate(8deg); background: linear-gradient(160deg, #b2a48e, #776c5c); }
-.heap i:nth-child(3) { left: 52px; top: 6px; transform: rotate(-4deg); background: repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .2) 3px 4px) 20% 30% / 60% 40% no-repeat, #fff; }
-.ba-arr { width: 16px; height: 16px; color: var(--ink3); flex: none; }
-.ba-to { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.ba-to li { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center; }
-.ba-to svg { width: 38px; height: 32px; }
-.ba-to b { max-width: 100%; font-size: 11.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ba-to small { font-size: 11px; color: var(--ink3); }
 .fx .sc:not(.rv-go) .ba-to li { opacity: 0; transform: translateY(6px) scale(.92); }
 .rv-go .ba-to li { transition: opacity .4s ease calc(.75s + var(--i) * 90ms), transform .6s cubic-bezier(.2, .8, .2, 1) calc(.75s + var(--i) * 90ms); }
 .undo7 { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink3); min-width: 0; }
@@ -485,15 +470,6 @@ strong, b { font-weight: 600; }
 
 /* 4: permissions */
 .access { position: relative; max-width: 640px; height: 380px; margin: 52px auto 0; }
-.tidy { left: 0; top: 0; width: 380px; padding: 18px 20px 16px; transform: rotate(-1.5deg); background: #fbfbfc; }
-.tidy-cap { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #202735; }
-.tidy-cap .ic { color: var(--ok); stroke-width: 2.2; }
-.tidy ul { margin-top: 8px; }
-.tidy li { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: 13px; color: #3a3f48; border-bottom: 1px solid #eef0f3; }
-.tidy li:last-child { border-bottom: 0; }
-.tidy li .ic { font-size: 18px; color: #4a8fe7; stroke-width: 1.5; }
-.tidy li small { margin-left: auto; font-size: 11.5px; color: var(--faint); }
-.tidy-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .undo { padding: 5px 11px; border-radius: 7px; background: rgb(32 39 53 / .07); font-size: 12px; font-weight: 500; color: #202735; }
 .ask { right: 0; bottom: 0; width: 290px; padding: 22px 20px 18px; text-align: center; border-radius: 16px; background: rgb(250 250 251 / .97); box-shadow: 0 0 0 1px rgb(17 24 39 / .1), 0 3px 6px rgb(17 24 39 / .05), 0 30px 60px -24px rgb(17 24 39 / .4); }
 .ask .appic { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 2px 5px rgb(0 0 0 / .1); }
@@ -640,11 +616,6 @@ strong, b { font-weight: 600; }
   .pw { height: 640px; }
   .sc { gap: 14px; }
   .pw-chip { left: 16px; max-width: calc(100% - 32px); }
-  .ba { padding: 12px 10px 10px; }
-  .ba-now, .ba-arr { display: none; }
-  .ba-to { gap: 4px; }
-  .ba-to svg { width: 32px; height: 27px; }
-  .ba-to b { font-size: 10.5px; }
   .undo7 { order: 2; }
   .cal .ev { min-width: 0; align-self: stretch; margin-left: 0; }
   .cal .ev small { grid-column: 1; grid-row: auto; margin-top: 2px; }
@@ -674,10 +645,9 @@ strong, b { font-weight: 600; }
   .tile svg { width: 44px; height: 44px; }
   .t-cal b { font-size: 34px; }
   .access { height: auto; margin-top: 40px; }
-  .tidy, .perm { width: auto; max-width: 92%; }
+  .perm { width: auto; max-width: 92%; }
   .isl-scr { height: 236px; }
   .isl-open { width: 92%; }
-  .tidy-cap { font-size: 12.5px; }
   .ask { width: 270px; max-width: 88%; margin: -10px 0 0 auto; }
   .faq h2 { font-size: 29px; margin-bottom: 24px; }
   .faq summary { font-size: 15.5px; padding: 19px 0; }
@@ -712,7 +682,6 @@ strong, b { font-weight: 600; }
   <symbol id="s-folder" viewBox="0 0 20 20"><path d="M2.5 5.5a1.5 1.5 0 0 1 1.5-1.5h3.6l1.7 1.8H16a1.5 1.5 0 0 1 1.5 1.5v7.2a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M2.5 8h15"/></symbol>
   <symbol id="s-cal" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2.3 6.6h11.4M5.2 1.8v2.6M10.8 1.8v2.6"/></symbol>
   <symbol id="s-undo" viewBox="0 0 16 16"><path d="M5.6 3.8 2.6 6.8l3 3"/><path d="M2.9 6.8h6.6a3.6 3.6 0 0 1 0 7.2H7.2"/></symbol>
-  <symbol id="s-arrow" viewBox="0 0 16 16"><path d="M2.5 8h11M9.5 4l4 4-4 4"/></symbol>
   <symbol id="s-fold" viewBox="0 0 40 34"><path d="M2 5.6A3.6 3.6 0 0 1 5.6 2h8.9l3.7 3.5h16.2A3.6 3.6 0 0 1 38 9.1V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#4f9be6"/><path d="M2 11.2a3 3 0 0 1 3-3h30a3 3 0 0 1 3 3V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#7cbaf4"/><path d="M2.4 9.8a3 3 0 0 1 2.6-1.6h30a3 3 0 0 1 2.6 1.6z" fill="#a5d1fb"/></symbol>
   <symbol id="s-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.4"/><path d="m10.3 10.3 3.4 3.4"/></symbol>
   <symbol id="s-laptop" viewBox="0 0 16 16"><rect x="3" y="3.4" width="10" height="7" rx="1.2"/><path d="M1.4 12.6h13.2"/></symbol>
@@ -830,20 +799,7 @@ strong, b { font-weight: 600; }
               </div>
               <div class="pw-answer">
                 <p class="rv" style="--d:.1s">Erledigt: Die 38 losen Dateien liegen jetzt in vier neuen Ordnern. Überschrieben habe ich nichts.</p>
-              </div>
-              <div class="pw-card tidy7 rv" style="--d:.4s">
-                <div class="ct"><svg class="ic"><use href="#s-folder"/></svg>Downloads geordnet</div>
-                <div class="meta"><span>38 Dateien eingeordnet</span><span class="ds">4 neue Ordner</span><span>nichts gelöscht</span></div>
-                <div class="ba">
-                  <div class="ba-now"><span class="heap"><i></i><i></i><i></i></span><b>Vorher</b><small>38 lose Dateien</small></div>
-                  <svg class="ic ba-arr"><use href="#s-arrow"/></svg>
-                  <ul class="ba-to">
-                    <li style="--i:0"><svg><use href="#s-fold"/></svg><b>Rechnungen</b><small>9</small></li>
-                    <li style="--i:1"><svg><use href="#s-fold"/></svg><b>Fotos</b><small>14</small></li>
-                    <li style="--i:2"><svg><use href="#s-fold"/></svg><b>Bildschirmfotos</b><small>11</small></li>
-                    <li style="--i:3"><svg><use href="#s-fold"/></svg><b>Archive</b><small>4</small></li>
-                  </ul>
-                </div>
+                <ul class="rv" style="--d:.4s"><li><strong>Rechnungen:</strong> 9 Dateien</li><li><strong>Fotos:</strong> 14 Dateien</li><li><strong>Bildschirmfotos:</strong> 11 Dateien</li><li><strong>Archive:</strong> 4 Dateien</li></ul>
               </div>
             </div>
             <div class="sc" data-s="4" data-desc="Beispiel mit einem erfundenen Termin: Auf „Trag Zahnarzt Donnerstag 15 Uhr ein“ prüft Pippa, ob die Zeit frei ist, und trägt den Termin in den Kalender ein: Donnerstag, 5. November, 15 bis 16 Uhr.">
@@ -855,7 +811,7 @@ strong, b { font-weight: 600; }
               </div>
               <div class="pw-rcpt rv" style="--d:.4s">
                 <span class="ri"><svg class="ic"><use href="#s-cal"/></svg></span>
-                <span class="rt"><b>Im Kalender eingetragen</b><small><span>Zahnarzt</span><span>Do., 5.&nbsp;Nov., 15:00–16:00</span></small></span>
+                <span class="rt"><b>Im Kalender eingetragen</b><small>Do., 5.&nbsp;Nov., 15:00 – Zahnarzt</small></span>
                 <span class="acts"><span class="qbtn">Rückgängig</span><span class="qbtn">Kalender öffnen</span></span>
               </div>
             </div>
@@ -929,7 +885,7 @@ strong, b { font-weight: 600; }
           <div class="rs" data-s="4">
             <div class="pw-sec pw-used">
               <div class="h">Gelesen</div>
-              <div class="pw-item"><i><svg class="ic"><use href="#s-cal"/></svg></i><div class="tx"><b>Kalender</b><small>Donnerstag, 5.&nbsp;November</small></div></div>
+              <p class="pw-empty">Für diese Antwort nichts gelesen</p>
             </div>
             <div class="pw-sec">
               <div class="h">Erledigt</div>
@@ -939,9 +895,7 @@ strong, b { font-weight: 600; }
           <div class="rs" data-s="5">
             <div class="pw-sec pw-used">
               <div class="h">Gelesen</div>
-              <div class="pw-item"><i><svg class="ic"><use href="#s-photo"/></svg></i><div class="tx"><b>IMG_3101.jpg</b></div></div>
-              <div class="pw-item"><i><svg class="ic"><use href="#s-photo"/></svg></i><div class="tx"><b>IMG_3102.jpg</b></div></div>
-              <div class="pw-item"><i><svg class="ic"><use href="#s-photo"/></svg></i><div class="tx"><b>IMG_3103.jpg</b></div></div>
+              <p class="pw-empty">Für diese Antwort nichts gelesen</p>
             </div>
             <div class="pw-sec">
               <div class="h">Erledigt</div>
