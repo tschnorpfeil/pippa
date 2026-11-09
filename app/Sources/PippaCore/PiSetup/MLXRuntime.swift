@@ -65,10 +65,11 @@ public struct MLXRuntime: Sendable {
             if let shortfall = ModelDownloader.spaceShortfall(available: ModelDownloader.availableSpace(at: root), remaining: manifest.size * 3) {
                 throw PippaError.notEnoughSpace(bytes: shortfall)
             }
-            archive = try await RuntimeDownload.fetch(manifest.url, to: partial, expected: manifest.size, progress: progress)
+            try await ResumableDownload(directory: root).download(manifest.url, to: partial, size: manifest.size) { progress(Double($0) / Double(manifest.size)) }
+            archive = partial
         }
         progress(1)
-        guard try ModelDownloader.sha256(of: archive) == manifest.sha256 else {
+        guard try FileDigest.sha256(of: archive) == manifest.sha256 else {
             if archive == partial { try? fm.removeItem(at: partial) }
             throw PippaError.checksumMismatch
         }
@@ -93,37 +94,5 @@ public struct MLXRuntime: Sendable {
             try? fm.removeItem(at: old)
         }
         try? (root as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
-    }
-}
-
-/// One file over HTTPS with progress, resumed from a `.part` file when the server allows ranges.
-enum RuntimeDownload {
-    static func fetch(_ url: URL, to part: URL, expected: Int64, progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
-        let fm = FileManager.default
-        var have = max(0, ModelDownloader.fileSize(part))
-        if have >= expected { return part }
-        var request = URLRequest(url: url)
-        if have > 0 { request.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard status == 200 || status == 206 else { throw PippaError.downloadFailed("HTTP \(status)") }
-        if status == 200 { have = 0; try? fm.removeItem(at: part) }
-        if !fm.fileExists(atPath: part.path) { fm.createFile(atPath: part.path, contents: nil) }
-        let handle = try FileHandle(forWritingTo: part)
-        defer { try? handle.close() }
-        try handle.seekToEnd()
-        var buffer = Data(capacity: 1 << 20)
-        var lastReport = Date.distantPast
-        for try await byte in bytes {
-            buffer.append(byte)
-            if buffer.count >= 1 << 20 {
-                try handle.write(contentsOf: buffer)
-                have += Int64(buffer.count)
-                buffer.removeAll(keepingCapacity: true)
-                if Date().timeIntervalSince(lastReport) > 0.25 { progress(Double(have) / Double(expected)); lastReport = Date() }
-            }
-        }
-        try handle.write(contentsOf: buffer)
-        return part
     }
 }

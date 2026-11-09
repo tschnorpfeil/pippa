@@ -140,4 +140,17 @@ func runDownloadHangChecks() async {
         // Watchdog (0.5 s) plus one retry pause (3 s), far below URLSession's 60 s idle timeout.
         return downloader.isInstalled(selected) && downloaded == payload && Date().timeIntervalSince(started) < 20
     }
+    await checkAsync("Download: the runtime archive uses the same downloader (all bytes in without completion, then verified and unpacked)") {
+        let base = dir("download-runtime")
+        let archive = try Data(contentsOf: fakeRuntimeArchive(in: base, padding: 300_000))
+        let server = try StallingServer(payload: archive)
+        defer { server.stop() }
+        let port = try await server.start()
+        let archiveHash = SHA256.hash(data: archive).map { String(format: "%02x", $0) }.joined()
+        let manifest = fakeRuntimeManifest(size: Int64(archive.count), sha256: archiveHash, url: "http://127.0.0.1:\(port)/stall-end/runtime.tar.gz")
+        let runtime = MLXRuntime(support: base.appendingPathComponent("support"), environment: [:], manifest: manifest)!
+        let started = Date()
+        try await runtime.install { _ in }
+        return runtime.isInstalled && Date().timeIntervalSince(started) < 10
+    }
 }

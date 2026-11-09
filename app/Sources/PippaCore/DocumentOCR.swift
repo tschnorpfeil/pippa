@@ -1,5 +1,4 @@
 import CoreGraphics
-import CryptoKit
 import Foundation
 import Vision
 
@@ -179,16 +178,7 @@ public enum DocumentOCR {
 
     /// Content hash of a file (nil if unreadable or over 200 MB).
     static func contentKey(_ url: URL) -> String? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        var hasher = SHA256()
-        var total = 0
-        while let chunk = try? handle.read(upToCount: 4 << 20), !chunk.isEmpty {
-            total += chunk.count
-            if total > 200_000_000 { return nil }
-            hasher.update(data: chunk)
-        }
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        try? FileDigest.sha256(of: url, maxBytes: 200_000_000)
     }
 
     /// A page recognized before in this session, if any.
