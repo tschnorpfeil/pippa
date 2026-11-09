@@ -4,7 +4,7 @@
   "python": "3.11.14",
   "native_kernels": true,
   "file": "pippa-mlx-runtime-0.7.3-2-arm64.tar.gz",
-  "size": 351196928,
-  "sha256": "62aa627280fcfd9b40c6a7c9499198977d4c0f81bae35af13448c0434751eac6",
+  "size": 351195100,
+  "sha256": "c5378a21ef95e09c864c3ad853484697b7f123313e03b6cf8f914e1e2f733940",
   "url": "https://github.com/tschnorpfeil/pippa/releases/download/mlx-runtime-0.7.3-2/pippa-mlx-runtime-0.7.3-2-arm64.tar.gz"
 }

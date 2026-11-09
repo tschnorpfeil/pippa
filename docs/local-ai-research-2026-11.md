@@ -181,7 +181,7 @@ Pages open as in the release gate. Record chip, `sysctl vm.swapusage` and `memor
 ### Kernels, measured 2026-11-09
 
 Mac mini M6, 24 GB, macOS 27, no other model server running, Ornith 1.5 9B MLX 4-bit. A is the published runtime
-0.7.3-1, B the 0.7.3-2 archive from `.github/workflows/mlx-runtime.yml` (run 42704368211, Xcode 26.6, macOS SDK 26.5),
+0.7.3-1, B the 0.7.3-2 archive from `.github/workflows/mlx-runtime.yml` (run 42711960795, Xcode 26.6, macOS SDK 26.5),
 one after the other on their own port and folder. Reading: five prompts each, `max_tokens: 1`, prompt cache off;
 writing: three answers of 256 tokens. Medians:
 
