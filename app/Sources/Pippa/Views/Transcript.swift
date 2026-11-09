@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// The conversation: questions and answers in one reading column, the composer floating at the bottom.
+/// The conversation: questions and answers in one reading column, Pi's open questions under the running answer, and
+/// the composer floating at the bottom.
 struct Transcript: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
     var conversation: Conversation
+    @ObservedObject private var approvals = Approvals.shared
     /// The end of the conversation is in view: new words keep it there. Scrolled up, they don't pull the person down.
     private let atBottomState = State(initialValue: true)
     /// The person is scrolling (wheel, trackpad, scroll bar); only then may "at the bottom" turn off. Content growing
@@ -49,6 +51,13 @@ struct Transcript: View {
                             .padding(.top, index == 0 ? 0 : message.role == .assistant ? 12 : 28)
                             .id(message.id)
                     }
+                    // Pi's questions wait right under the answer that asked; from another conversation they show here
+                    // too, so a question is never hidden.
+                    ForEach(Array(approvals.questions.enumerated()), id: \.element.id) { index, question in
+                        QuestionCard(question: question, handlesKeys: index == 0)
+                            .padding(.top, Space.l)
+                            .arrives(true)
+                    }
                     Color.clear.frame(height: 1).id("end")
                 }
                 .padding(.top, Space.xxl).padding(.bottom, Space.l)
@@ -72,10 +81,12 @@ struct Transcript: View {
                 // Opened mid-answer (or the first question just went out): the question and the answer still arrive.
                 settledState.wrappedValue = Settled(id: conversation.id,
                                                     count: answeringHere ? max(0, conversation.messages.count - 2) : conversation.messages.count)
+                Approvals.shared.present("chat", reveal: { ChatWindow.shared.show() })
                 proxy.scrollTo("end", anchor: .bottom)
                 // Once more after the first layout: lazy rows only know their real height then.
                 Task { @MainActor in proxy.scrollTo("end", anchor: .bottom) }
             }
+            .onDisappear { Approvals.shared.dismiss("chat") }
             .onChange(of: conversation.id) { _, id in
                 settledState.wrappedValue = Settled(id: id, count: conversation.messages.count)
                 atBottomState.wrappedValue = true
@@ -84,8 +95,8 @@ struct Transcript: View {
             .onChange(of: answeringHere) { _, answering in
                 if !answering { settledState.wrappedValue = Settled(id: conversation.id, count: conversation.messages.count) }
             }
-            // A new question: always to the end, also from further up.
-            .onChange(of: conversation.messages.count) { old, new in
+            // A new question or one from Pi: always to the end, also from further up.
+            .onChange(of: conversation.messages.count + approvals.questions.count) { old, new in
                 guard new > old else { return }
                 atBottomState.wrappedValue = true
                 withAnimation(Theme.arrive) { proxy.scrollTo("end", anchor: .bottom) }
