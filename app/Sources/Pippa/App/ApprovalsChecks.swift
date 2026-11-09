@@ -1,0 +1,109 @@
+import Foundation
+import PiRPC
+
+/// `Pippa --check-approvals`: the question flow without any window. Asks while a presenter is registered, answers,
+/// cancels and times out, and checks each answer reaches the waiting caller exactly once. Prints one line per check.
+@MainActor
+enum ApprovalsChecks {
+    static func run() async -> Int32 {
+        var failures = 0
+        func check(_ ok: Bool, _ name: String) {
+            print("\(ok ? "PASS" : "FAIL") \(name)")
+            if !ok { failures += 1 }
+        }
+        let approvals = Approvals.shared
+        var revealed = 0
+        approvals.present("check") { revealed += 1 }
+        defer { approvals.dismiss("check") }
+        check(approvals.hasPresenter, "a registered presenter receives questions")
+
+        func request(_ id: String, _ method: String = "confirm", options: [String] = [], timeout: Int? = nil) -> PiUIRequest {
+            PiUIRequest(id: id, method: method, title: "Search the web?", message: "Pippa wants to look this up online.",
+                        options: options, timeout: timeout)
+        }
+        func settle() async { for _ in 0..<5 { await Task.yield() } }
+
+        let allow = Task { await approvals.ask(request("q1")) }
+        await settle()
+        check(approvals.questions.map(\.id) == ["q1"], "an open question is listed")
+        check(revealed == 1, "a new question brings its presenter forward")
+        approvals.answer("q1", .confirmed(true))
+        check(await allow.value == .confirmed(true), "Allow reaches the caller")
+        check(approvals.questions.isEmpty, "an answered question disappears")
+        approvals.answer("q1", .confirmed(false))   // late or double click: ignored
+
+        let pick = Task { await approvals.ask(request("q2", "select", options: ["Once", "Always"])) }
+        await settle()
+        approvals.answer("q2", .value("Once"))
+        check(await pick.value == .value("Once"), "a choice reaches the caller")
+
+        let first = Task { await approvals.ask(request("q3")) }
+        let second = Task { await approvals.ask(request("q4")) }
+        await settle()
+        check(approvals.questions.count == 2, "two questions wait side by side")
+        approvals.cancelAll()
+        let cancelled = [await first.value, await second.value]
+        check(cancelled == [.cancelled, .cancelled], "cancelling answers every open question")
+        check(approvals.questions.isEmpty, "nothing is left after cancelling")
+
+        let timed = Task { await approvals.ask(request("q5", timeout: 50)) }
+        await settle()
+        check(approvals.questions.count == 1, "a question with a timeout is listed")
+        let started = Date()
+        let late = await timed.value
+        check(late == .cancelled && Date().timeIntervalSince(started) < 2, "Pi's timeout cancels the question")
+        check(approvals.questions.isEmpty, "a timed-out question disappears")
+
+        // The last view that shows questions goes (a new conversation replaced the transcript): open questions go to the
+        // alert, unless another view takes over within the same turn.
+        var alerted: [String] = []
+        approvals.fallback = { request in alerted.append(request.id); return .confirmed(false) }
+        let open = Task { await approvals.ask(request("q6")) }
+        await settle()
+        approvals.dismiss("check")
+        approvals.present("check") { revealed += 1 }
+        await settle()
+        check(alerted.isEmpty && approvals.questions.map(\.id) == ["q6"], "a view that takes over within the turn keeps the question")
+        approvals.dismiss("check")
+        await settle()
+        check(alerted == ["q6"] && approvals.questions.isEmpty, "with no view left, an open question goes to the alert")
+        approvals.answer("q6", .cancelled)   // a failed check must not keep the run waiting
+        check(await open.value == .confirmed(false), "the alert's answer reaches the caller")
+        approvals.present("check") { revealed += 1 }
+
+        print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
+        return failures == 0 ? 0 : 1
+    }
+}
+
+/// Also run by `Pippa --check-approvals`: the conversation files as the store reads them at launch, in a temporary folder.
+@MainActor
+enum ConversationStoreChecks {
+    static func run() -> Int32 {
+        var failures = 0
+        func check(_ ok: Bool, _ name: String) {
+            print("\(ok ? "PASS" : "FAIL") \(name)")
+            if !ok { failures += 1 }
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-store-check-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = ConversationStore(folder: root.appendingPathComponent("conversations", isDirectory: true)).load()
+        check(first.conversations.isEmpty && first.unreadable == 0, "a first run without a folder is an empty history, not a failure")
+
+        let folder = root.appendingPathComponent("conversations", isDirectory: true)
+        let store = ConversationStore(folder: folder)
+        store.save(Conversation(id: "kept", title: "Kept", updated: Date(), messages: []))
+        store.flush()
+        try? Data("{ not a conversation".utf8).write(to: folder.appendingPathComponent("broken.json"))
+        let mixed = store.load()
+        check(mixed.conversations.map(\.id) == ["kept"] && mixed.unreadable == 1, "an unreadable file is counted, and the readable ones still load")
+
+        let file = root.appendingPathComponent("not-a-folder")
+        try? Data().write(to: file)
+        let blocked = ConversationStore(folder: file).load()
+        check(blocked.conversations.isEmpty && blocked.unreadable == 1, "a folder that cannot be read is a failure, not an empty history")
+
+        print(failures == 0 ? "conversation store: all checks passed" : "conversation store: \(failures) failed")
+        return failures == 0 ? 0 : 1
+    }
+}

@@ -14,7 +14,7 @@ struct WebSourcesCardView: View {
             ForEach(Array(card.items.enumerated()), id: \.offset) { _, item in
                 WebSourceRow(item: item)
             }
-            Text(card.footer).font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
+            Text(card.footer).font(Typo.caption).foregroundStyle(Theme.ink3)
                 .padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 11)
         }
         .resultCard()
@@ -28,13 +28,13 @@ private struct WebSourceRow: View {
     var body: some View {
         CardRowButton(action: { NSWorkspace.shared.open(item.url) }) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(item.host).font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1).fixedSize()
+                Text(item.host).font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink).lineLimit(1).fixedSize()
                 if let path = item.path {
-                    Text(path).font(.scaled(size: 12)).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle)
+                    Text(path).font(Typo.footnote).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.middle)
                 }
                 Spacer(minLength: 8)
                 if item.read {
-                    Text(T("read", table: "Views")).font(.scaled(size: 11, weight: .medium)).foregroundStyle(Theme.ink2).fixedSize()
+                    Text(T("read", table: "Views")).font(Typo.caption.weight(.medium)).foregroundStyle(Theme.ink2).fixedSize()
                 }
             }
         }
@@ -73,7 +73,7 @@ struct SourceChipsView: View {
         FlowRow(spacing: 6, maxItemWidth: 220) {
             ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in WebSourceChip(chip: chip) }
             if more > 0 {
-                Text(verbatim: "+\(more)").font(.scaled(size: 12, weight: .medium)).foregroundStyle(Theme.ink3)
+                Text(verbatim: "+\(more)").font(Typo.footnote.weight(.medium)).foregroundStyle(Theme.ink3)
                     .padding(.horizontal, 10).frame(minHeight: 26)
                     .overlay { Capsule(style: .circular).inset(by: 0.5).stroke(Theme.hairline, lineWidth: 1) }
                     .accessibilityLabel(T("More sources: %lld", table: "Views", more))

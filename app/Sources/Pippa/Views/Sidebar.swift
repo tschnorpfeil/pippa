@@ -12,6 +12,8 @@ struct Sidebar: View {
     private var query: String { search.wrappedValue.trimmingCharacters(in: .whitespaces) }
 
     var body: some View {
+        let groups = self.groups
+        let query = self.query
         List {
             NewConversationRow { chat.newConversation() }
                 .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 6, trailing: 0))
@@ -42,7 +44,8 @@ struct Sidebar: View {
         }
         .searchable(text: search, placement: .sidebar, prompt: T("Search", table: "App"))
         .overlay {
-            if groups.isEmpty { emptyState.padding(.top, 44) }
+            // Before the saved conversations are read, the list is just empty for a moment, not "nothing here".
+            if groups.isEmpty && chat.isLoaded { emptyState.padding(.top, 44) }
         }
         .toolbar {
             ToolbarItem {
@@ -55,8 +58,10 @@ struct Sidebar: View {
     private var emptyState: some View {
         VStack(spacing: Space.ml) {
             Image(systemName: "bubble.left.and.text.bubble.right")
-                .font(.system(size: 24, weight: .regular)).foregroundStyle(Theme.ink3)
-            Text(query.isEmpty ? T("Your conversations appear here.", table: "App") : T("Nothing found", table: "App"))
+                .font(.system(size: 24)).foregroundStyle(Theme.ink3)
+            Text(!query.isEmpty ? T("Nothing found", table: "App")
+                 : chat.unreadable > 0 ? T("Pippa couldn’t read your saved conversations. If this keeps happening, choose “Report a Problem…” in the Help menu.", table: "App")
+                 : T("Your conversations appear here.", table: "App"))
                 .font(.callout).foregroundStyle(Theme.ink2).multilineTextAlignment(.center)
             if !query.isEmpty {
                 Button(T("Clear Search", table: "App")) { search.wrappedValue = "" }.controlSize(.small)
@@ -66,6 +71,7 @@ struct Sidebar: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Pinned first, then by day. Worked out once per redraw (`body`), not once per use.
     private var groups: [(title: String, items: [Conversation])] {
         let query = query
         let found = query.isEmpty ? chat.conversations : chat.conversations.filter { conversation in
@@ -96,9 +102,10 @@ struct Sidebar: View {
         for message in conversation.messages {
             guard let range = message.text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) else { continue }
             let start = message.text.index(range.lowerBound, offsetBy: -24, limitedBy: message.text.startIndex) ?? message.text.startIndex
-            var text = String(message.text[start...].prefix(120))
-                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-                .replacingOccurrences(of: #"[\*_`#]"#, with: "", options: .regularExpression)
+            // One line, without Markdown marks.
+            var text = message.text[start...].prefix(120)
+                .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                .filter { !"*_`#".contains($0) }
                 .trimmingCharacters(in: .whitespaces)
             if start != message.text.startIndex { text = "…" + text }
             return text
@@ -117,12 +124,12 @@ private struct NewConversationRow: View {
         Button(action: action) {
             HStack(spacing: Space.m) {
                 Image(systemName: "square.and.pencil")
-                    .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink2)
+                    .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink2)
                     .frame(width: 18)
                 Text(T("New Conversation", table: "App"))
-                    .font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink)
+                    .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink)
                 Spacer(minLength: Space.xs)
-                Text(verbatim: "⌘N").font(.system(size: 11.5)).foregroundStyle(Theme.ink3)
+                Text(verbatim: "⌘N").font(Typo.caption).foregroundStyle(Theme.ink3)
             }
             .padding(.horizontal, Space.m)
             .frame(height: 34)
@@ -194,18 +201,18 @@ private struct ConversationRow: View {
     private var label: some View {
         HStack(spacing: Space.m) {
             Image(systemName: conversation.symbol)
-                .font(.system(size: 12.5)).foregroundStyle(active ? Theme.ink2 : Theme.ink3)
+                .font(Typo.footnote).foregroundStyle(active ? Theme.ink2 : Theme.ink3)
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
                 if renaming {
                     nameField
                 } else {
                     Text(title)
-                        .font(.system(size: 13.5, weight: selected ? .medium : .regular))
+                        .font(Typo.callout.weight(selected ? .medium : .regular))
                         .foregroundStyle(active ? Theme.ink : Theme.ink2)
                         .lineLimit(1)
                     if let snippet {
-                        Text(snippet).font(.system(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1)
+                        Text(snippet).font(Typo.caption).foregroundStyle(Theme.ink3).lineLimit(1)
                     }
                 }
             }
@@ -218,7 +225,7 @@ private struct ConversationRow: View {
     private var nameField: some View {
         TextField(T("Rename Conversation", table: "App"), text: nameState.projectedValue)
             .textFieldStyle(.plain)
-            .font(.system(size: 13.5, weight: .medium)).foregroundStyle(Theme.ink)
+            .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink)
             .focused($nameFocused)
             .onSubmit { finish(keep: true) }
             .onExitCommand { finish(keep: false) }
@@ -252,13 +259,13 @@ private struct ConversationRow: View {
                     Circle().fill(Theme.accent).frame(width: 7, height: 7)
                         .accessibilityLabel(T("New answer", table: "App"))
                 } else if conversation.pinned == true {
-                    Image(systemName: "pin.fill").font(.system(size: 10)).foregroundStyle(Theme.ink3)
+                    Image(systemName: "pin.fill").font(Typo.caption).imageScale(.small).foregroundStyle(Theme.ink3)
                         .accessibilityLabel(T("Pinned", table: "App"))
                 }
             }
             .opacity(hover ? 0 : 1)
             Menu { menuItems } label: {
-                Image(systemName: "ellipsis").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.ink2)
+                Image(systemName: "ellipsis").font(Typo.footnote.weight(.semibold)).foregroundStyle(Theme.ink2)
                     .frame(width: 20, height: 20).contentShape(Rectangle())
             }
             .menuStyle(.button)

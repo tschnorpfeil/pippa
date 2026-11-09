@@ -13,7 +13,7 @@ struct ReminderCardView: View {
             ForEach(Array(card.items.enumerated()), id: \.offset) { _, item in
                 ReminderCardRow(item: item, showsList: card.showsList)
             }
-            Text(card.footer).font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
+            Text(card.footer).font(Typo.caption).foregroundStyle(Theme.ink3)
                 .padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 11)
         }
         .resultCard()
@@ -27,10 +27,10 @@ private struct ReminderCardRow: View {
     var body: some View {
         CardRowButton(action: open) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Image(systemName: "circle").font(.scaled(size: 12)).foregroundStyle(item.overdue ? Theme.need : Theme.ink3)
+                Image(systemName: "circle").font(Typo.footnote).foregroundStyle(item.overdue ? Theme.need : Theme.ink3)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(item.title).font(.scaled(size: 13)).foregroundStyle(Theme.ink).lineLimit(2)
+                    Text(item.title).font(Typo.callout).foregroundStyle(Theme.ink).lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     if showsList, !item.list.isEmpty {
                         Text(item.list).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1)

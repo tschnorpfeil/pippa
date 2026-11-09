@@ -13,7 +13,7 @@ struct MailCardView: View {
             ForEach(Array(card.items.enumerated()), id: \.offset) { _, item in
                 MailCardRow(item: item)
             }
-            Text(card.footer).font(.scaled(size: 11)).foregroundStyle(Theme.ink3)
+            Text(card.footer).font(Typo.caption).foregroundStyle(Theme.ink3)
                 .padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 11)
         }
         .resultCard()
@@ -32,15 +32,15 @@ private struct MailCardRow: View {
         CardRowButton(action: open) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(item.sender).font(.scaled(size: 13, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                    Text(item.sender).font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink).lineLimit(1)
                     Spacer(minLength: 8)
                     if let date = item.dateLabel {
                         Text(date).font(.scaled(size: 11.5).monospacedDigit()).foregroundStyle(Theme.ink3).fixedSize()
                     }
                 }
-                Text(item.subject).font(.scaled(size: 13)).foregroundStyle(Theme.ink).lineLimit(1)
+                Text(item.subject).font(Typo.callout).foregroundStyle(Theme.ink).lineLimit(1)
                 if !item.preview.isEmpty {
-                    Text(item.preview).font(.scaled(size: 12)).foregroundStyle(Theme.ink3).lineLimit(2)
+                    Text(item.preview).font(Typo.footnote).foregroundStyle(Theme.ink3).lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -62,24 +62,31 @@ private struct MailCardRow: View {
     }
 }
 
-/// The cards of one answer, in the order the tools ran.
+/// The cards of one answer, in the order the tools ran. Cards from `arrivingFrom` on came in while the answer was on
+/// screen: they arrive one after the other.
 struct ResultCardsView: View {
     var cards: [ResultCard]
+    var arrivingFrom: Int? = nil
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(cards.enumerated()), id: \.offset) { _, card in
-                switch card {
-                case .calendar(let calendar): CalendarCardView(card: calendar, text: nil)
-                case .mail(let mail) where !mail.items.isEmpty: MailCardView(card: mail)
-                case .mail: EmptyView()
-                case .photos(let photos) where !photos.items.isEmpty: PhotoCardView(card: photos)
-                case .photos: EmptyView()
-                case .reminders(let reminders) where !reminders.items.isEmpty: ReminderCardView(card: reminders)
-                case .reminders: EmptyView()
-                case .web(let web): WebSourcesCardView(card: web)
-                case .preparedFiles(let prepared): PreparedFilesCardView(card: prepared)
-                }
+        VStack(alignment: .leading, spacing: Space.m) {
+            ForEach(Array(cards.enumerated()), id: \.offset) { index, card in
+                self.card(card)
+                    .arrives(arrivingFrom.map { index >= $0 } ?? false, delay: Double(index - (arrivingFrom ?? 0)) * Theme.stagger)
             }
+        }
+    }
+
+    @ViewBuilder private func card(_ card: ResultCard) -> some View {
+        switch card {
+        case .calendar(let calendar): CalendarCardView(card: calendar, text: nil)
+        case .mail(let mail) where !mail.items.isEmpty: MailCardView(card: mail)
+        case .mail: EmptyView()
+        case .photos(let photos) where !photos.items.isEmpty: PhotoCardView(card: photos)
+        case .photos: EmptyView()
+        case .reminders(let reminders) where !reminders.items.isEmpty: ReminderCardView(card: reminders)
+        case .reminders: EmptyView()
+        case .web(let web): WebSourcesCardView(card: web)
+        case .preparedFiles(let prepared): PreparedFilesCardView(card: prepared)
         }
     }
 }

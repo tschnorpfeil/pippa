@@ -19,7 +19,7 @@ let package = Package(
     targets: [
         // Resources/{en,de}.lproj/*.strings become localized resources in Bundle.module (tables Core, MCP, Setup, …; list in scripts/check-strings.py).
         .target(name: "PippaCore", resources: [.process("Resources")]),
-        // Localization/{en,de}.lproj/*.strings: tables App, Views, Settings, CalendarUI.
+        // Localization/{en,de}.lproj/*.strings: tables App, Views, Settings, CalendarUI, Island.
         .executableTarget(name: "Pippa", dependencies: ["PippaCore", "PiRPC", .product(name: "Sparkle", package: "Sparkle")],
                           resources: [.process("Localization")]),
         // Without Xcode there is neither XCTest nor Swift Testing: checks run as `swift run PippaChecks`.
