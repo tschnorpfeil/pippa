@@ -338,10 +338,17 @@ enum SheetText {
             if n.rounded() == n && abs(n) < 1e15 { return String(Int64(n)) }
             return String(n)
         case .date(let d):
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "en_US_POSIX")
-            f.dateFormat = "yyyy-MM-dd"
-            return f.string(from: d)
+            return day.string(from: d)
         }
     }
+
+    /// One formatter for every date cell; never changed after it is made. The time zone follows the system, as a new
+    /// formatter's default does.
+    private static let day: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .autoupdatingCurrent
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 }
