@@ -68,10 +68,15 @@ extension PippaMCPTools {
 
     /// "Do., 8. Okt. 2026, 16:00" in the app language; the model does not convert dates.
     static func dateLabel(_ date: Date, time: Bool, calendar: Calendar) -> String {
+        localized(date, template: time ? "EEE d MMM y HH:mm" : "EEE d MMM y", calendar: calendar)
+    }
+
+    /// A date in the app language by a skeleton template, in the host's calendar and time zone.
+    static func localized(_ date: Date, template: String, calendar: Calendar) -> String {
         let f = DateFormatter()
         f.calendar = calendar; f.timeZone = calendar.timeZone
         f.locale = Locale(identifier: Bundle.module.preferredLocalizations.first ?? "en")
-        f.setLocalizedDateFormatFromTemplate(time ? "EEE d MMM y HH:mm" : "EEE d MMM y")
+        f.setLocalizedDateFormatFromTemplate(template)
         return f.string(from: date)
     }
 }

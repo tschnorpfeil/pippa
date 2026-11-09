@@ -51,11 +51,7 @@ extension PippaMCPWriteTools {
     }
 
     func format(_ date: Date, _ template: String) -> String {
-        let f = DateFormatter()
-        f.calendar = host.calendar; f.timeZone = host.calendar.timeZone
-        f.locale = Locale(identifier: Bundle.module.preferredLocalizations.first ?? "en")
-        f.setLocalizedDateFormatFromTemplate(template)
-        return f.string(from: date)
+        PippaMCPTools.localized(date, template: template, calendar: host.calendar)
     }
 
     /// Short for the receipt ("Do., 8. Okt., 09:00"), for the model with year and end ("Do., 8. Okt. 2026, 09:00–10:00").
