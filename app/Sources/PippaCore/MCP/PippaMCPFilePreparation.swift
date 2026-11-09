@@ -147,7 +147,7 @@ public struct PippaMCPFilePreparation: Sendable {
         do {
             try lease.check()
             let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
-            let key = "pi-prepare-files:" + turn.id.uuidString + ":" + SHA256.hash(data: try encoder.encode(request)).map { String(format: "%02x", $0) }.joined()
+            let key = "pi-prepare-files:" + turn.id.uuidString + ":" + SHA256.hash(data: try encoder.encode(request)).hexString
             if let existing = try await store.record(requestKey: key) {
                 lease.bindOperationID(existing.id, nativeRevision: existing.revision)
                 return Execution(result: try await existingResult(existing, store: store, plan: request.plan, lease: lease))

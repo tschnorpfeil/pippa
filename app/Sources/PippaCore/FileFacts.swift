@@ -44,6 +44,15 @@ public struct FileFacts: Sendable {
 
     public var isImage: Bool { type.conforms(to: .image) }
 
+    /// EXIF times carry no time zone: read in the system's, as a new formatter's default would. Never changed after it is made.
+    private static let exifTime: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .autoupdatingCurrent
+        f.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        return f
+    }()
+
     public static func read(_ url: URL) -> FileFacts {
         let type = UTType(filenameExtension: url.pathExtension.lowercased()) ?? .data
         let values = try? url.resourceValues(forKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey])
@@ -54,9 +63,7 @@ public struct FileFacts: Sendable {
             let exif = props[kCGImagePropertyExifDictionary] as? [CFString: Any]
             let tiff = props[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
             if let raw = (exif?[kCGImagePropertyExifDateTimeOriginal] ?? tiff?[kCGImagePropertyTIFFDateTime]) as? String {
-                let f = DateFormatter()
-                f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy:MM:dd HH:mm:ss"
-                facts.captureDate = f.date(from: raw)
+                facts.captureDate = exifTime.date(from: raw)
             }
             facts.cameraModel = tiff?[kCGImagePropertyTIFFModel] as? String
         }

@@ -6,7 +6,7 @@ import PippaCore
 /// Optional local HTTP checks; scripts/check-downloads.sh supplies the fixture.
 func runDownloadChecks() async {
     let payload = Data((0..<524_288).map { UInt8($0 % 256) })
-    let hash = SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
+    let hash = SHA256.hash(data: payload).hexString
     func model(_ route: String, hash: String) throws -> CatalogModel {
         let json: [String: Any] = [
             "key": route, "label": route, "repo": "fixture/\(route)", "quant": "test",
@@ -105,7 +105,7 @@ private final class StallingServer: @unchecked Sendable {
 
 func runDownloadHangChecks() async {
     let payload = Data((0..<300_000).map { UInt8(($0 * 7) % 251) })
-    let hash = SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
+    let hash = SHA256.hash(data: payload).hexString
     func model(_ route: String) throws -> CatalogModel {
         let json: [String: Any] = [
             "key": route, "label": route, "repo": "fixture/\(route)", "quant": "test",
@@ -146,7 +146,7 @@ func runDownloadHangChecks() async {
         let server = try StallingServer(payload: archive)
         defer { server.stop() }
         let port = try await server.start()
-        let archiveHash = SHA256.hash(data: archive).map { String(format: "%02x", $0) }.joined()
+        let archiveHash = SHA256.hash(data: archive).hexString
         let manifest = fakeRuntimeManifest(size: Int64(archive.count), sha256: archiveHash, url: "http://127.0.0.1:\(port)/stall-end/runtime.tar.gz")
         let runtime = MLXRuntime(support: base.appendingPathComponent("support"), environment: [:], manifest: manifest)!
         let started = Date()

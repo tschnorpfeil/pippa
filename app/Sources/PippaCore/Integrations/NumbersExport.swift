@@ -49,7 +49,7 @@ public enum NumbersExport {
     /// table twice exports it once.
     public static func copyURL(for url: URL) -> URL {
         let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)?.timeIntervalSince1970 ?? 0
-        let key = SHA256.hash(data: Data("\(url.standardizedFileURL.path)|\(modified)".utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+        let key = SHA256.hash(data: Data("\(url.standardizedFileURL.path)|\(modified)".utf8)).prefix(8).hexString
         let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Pippa/Numbers/\(key)", isDirectory: true)
         let name = url.deletingPathExtension().lastPathComponent
