@@ -42,13 +42,15 @@ public final class PiSetupFlow: @unchecked Sendable {
     public let options: PiInstallOptions
     public let runtime: MLXRuntime?
     private let download: PiInstaller.Download
+    private let freeSpace: @Sendable (URL) -> Int64?
     private let lock = NSLock()
     private var adopted: String?
 
     /// `searchRoots`: `nil` = all known places (oMLX, LM Studio, Hugging Face).
-    /// `download`: a stand-in only for tests and recordings; otherwise the real ModelDownloader.
+    /// `download`, `freeSpace`: stand-ins only for tests and recordings; otherwise the real ModelDownloader and the volume's free space.
     public init(roots: PiInstallRoots, model: CatalogModel, contextWindow: Int, searchRoots: [ModelLocation]? = nil,
-                port: Int? = nil, runtime: MLXRuntime? = nil, download: @escaping PiInstaller.Download = PiInstaller.modelDownloader) {
+                port: Int? = nil, runtime: MLXRuntime? = nil, download: @escaping PiInstaller.Download = PiInstaller.modelDownloader,
+                freeSpace: @escaping @Sendable (URL) -> Int64? = ModelDownloader.availableSpace(at:)) {
         installer = PiInstaller(roots: roots)
         self.model = model
         self.runtime = runtime ?? MLXRuntime(support: roots.support)
@@ -56,6 +58,7 @@ public final class PiSetupFlow: @unchecked Sendable {
                                    providerModels: [PiProviderModel(id: model.key, name: model.label, contextWindow: contextWindow)],
                                    port: port ?? PiInstaller.stablePort(support: roots.support))
         self.download = download
+        self.freeSpace = freeSpace
     }
 
     /// The model for this Mac (`ModelSelector.choose`): Ornith on Apple silicon with 16 GB or more, else `nil`.
@@ -72,13 +75,14 @@ public final class PiSetupFlow: @unchecked Sendable {
         return model.pinned?.files.lazy.compactMap { found[$0.sha256]?.source }.first
     }
 
-    /// Before "Load": how much more free space the download needs (2 GB to spare). `nil`: enough, or unknown.
+    /// How much more free space the download needs (2 GB to spare), checked before the question. `nil`: enough, or unknown.
     public func spaceShortfall(remaining: Int64) -> Int64? {
         let folder = installer.state.modelsFolder.map { URL(fileURLWithPath: $0, isDirectory: true) } ?? installer.roots.support
-        return ModelDownloader.spaceShortfall(available: ModelDownloader.availableSpace(at: folder), remaining: remaining)
+        return ModelDownloader.spaceShortfall(available: freeSpace(folder), remaining: remaining)
     }
 
-    /// All without network. Stops only at the download question or an error.
+    /// All without network. Stops only at the download question or an error; not enough room for the download is an error,
+    /// so the question is never asked for something that cannot fit.
     public func prepare() -> PiSetupState {
         for step in [PiInstallStep.detect, .pi, .modelsFolder] {
             if case .failed(let failure) = installer.perform(step, options).outcome { return .failed(PiSetupProblem(failure)) }
@@ -94,7 +98,10 @@ public final class PiSetupFlow: @unchecked Sendable {
         default: break
         }
         if case .failed(let failure) = installer.perform(.provider, options).outcome { return .failed(PiSetupProblem(failure)) }
-        if modelMissing || missing > 0 || runtime?.isInstalled != true { return .askDownload(bytes: missing) }
+        if modelMissing || missing > 0 || runtime?.isInstalled != true {
+            if let shortfall = spaceShortfall(remaining: missing) { return .failed(PiSetupProblem(.notEnoughSpace(bytes: shortfall))) }
+            return .askDownload(bytes: missing)
+        }
         if case .failed(let failure) = installer.perform(.ready, options).outcome { return .failed(PiSetupProblem(failure)) }
         return .ready(adoptedFrom: lock.withLock { adopted })
     }

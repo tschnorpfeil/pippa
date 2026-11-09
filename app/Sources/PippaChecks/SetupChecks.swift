@@ -677,6 +677,37 @@ func runSetupFlowChecks() async {
         return ok
     }
 
+    check("Setup: too little room ends in an error with the shortfall instead of the question; Try Again checks anew") {
+        let home = fakeHome("flow-room"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (model, data) = dummyModel()
+        let size = Int64(data.count)
+        let free = Recorder<Int64>()   // the last value added is the free space "now"
+        free.add(size + ModelDownloader.spaceBuffer - 1_234)
+        let flow = PiSetupFlow(roots: r, model: model, contextWindow: 4096, searchRoots: [], port: 18_471, runtime: installedRuntime(r),
+                               download: stubDownload(data), freeSpace: { _ in free.all.last })
+        let tight = flow.prepare()
+        free.add(size + ModelDownloader.spaceBuffer)
+        let enough = flow.prepare()
+        // A started download counts only with its rest: 400 000 bytes are there, so 400 000 less room is needed.
+        let part = modelFolder(r, model).appendingPathComponent("model.safetensors.part")
+        try data.prefix(400_000).write(to: part)
+        free.add(size - 400_000 + ModelDownloader.spaceBuffer - 1)
+        let resumed = flow.prepare()
+        free.add(size - 400_000 + ModelDownloader.spaceBuffer)
+        let resumedFits = flow.prepare()
+        let ok: Bool
+        if case .failed(let problem) = tight, case .notEnoughSpace(let bytes)? = problem.failure {
+            ok = bytes == 1_234 && problem.message == PiInstaller.message(.notEnoughSpace(bytes: 1_234))
+                && enough == .askDownload(bytes: size)
+                && { if case .failed(let p) = resumed, case .notEnoughSpace(let b)? = p.failure { return b == 1 } else { return false } }()
+                && resumedFits == .askDownload(bytes: size - 400_000)
+        } else { ok = false }
+        if !ok { print("   ", tight, enough, resumed, resumedFits) }
+        return ok
+    }
+
     check("Setup: an interrupted download asks only for what is still missing; a complete .part is not \"ready\"") {
         let home = fakeHome("flow-partial"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))

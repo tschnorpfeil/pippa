@@ -202,3 +202,5 @@
 "Not undone: it was already deleted." = "Nicht rückgängig gemacht: Es war schon gelöscht.";
 "Not undone: it was changed since, so it stays." = "Nicht rückgängig gemacht: Es wurde inzwischen geändert und bleibt deshalb.";
 "Couldn’t undo it. You can delete it in the app." = "Das ließ sich nicht rückgängig machen. Du kannst es in der App löschen.";
+"Open Storage Settings…" = "Speicher-Einstellungen öffnen…";
+"Copy Details" = "Details kopieren";

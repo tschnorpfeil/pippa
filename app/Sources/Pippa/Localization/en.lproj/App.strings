@@ -202,3 +202,5 @@
 "Not undone: it was already deleted." = "Not undone: it was already deleted.";
 "Not undone: it was changed since, so it stays." = "Not undone: it was changed since, so it stays.";
 "Couldn’t undo it. You can delete it in the app." = "Couldn’t undo it. You can delete it in the app.";
+"Open Storage Settings…" = "Open Storage Settings…";
+"Copy Details" = "Copy Details";

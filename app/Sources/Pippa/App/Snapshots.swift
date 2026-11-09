@@ -71,6 +71,10 @@ enum Snapshots {
                 setup.showForSnapshot(.failed(PiSetupProblem(message: "This Mac has too little memory to run the AI itself.",
                                                              details: "No local model fits this Mac", canRetry: false)))
             }, 760, false, false),
+            ("setup-space", {
+                chat.showSample([], current: nil, answering: false)
+                setup.showForSnapshot(.failed(PiSetupProblem(.notEnoughSpace(bytes: 3_400_000_000))), detailsOpen: true)
+            }, 760, false, false),
             ("attachments", {
                 setup.showForSnapshot(.ready(adoptedFrom: nil))
                 chat.showSample(sampleConversations(), current: nil, answering: false)
