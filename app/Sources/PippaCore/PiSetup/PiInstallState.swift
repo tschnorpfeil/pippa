@@ -114,7 +114,9 @@ public struct PiInstallState: Codable, Sendable, Equatable {
         guard let data = try? Data(contentsOf: url) else { return PiInstallState() }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode(PiInstallState.self, from: data)) ?? PiInstallState()
+        // A damaged file starts from scratch (every step is idempotent), but leaves a trace in the log.
+        do { return try decoder.decode(PiInstallState.self, from: data) }
+        catch { UserMessage.record(error, context: "install-state-load"); return PiInstallState() }
     }
 
     public func save(to url: URL) throws {

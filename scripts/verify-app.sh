@@ -17,6 +17,7 @@ for arg in "$@"; do
 done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/scripts/lib.sh"
 APP="$ROOT/dist/Pippa.app"
 DMG="$ROOT/dist/Pippa.dmg"
 WORK="$(mktemp -d)"
@@ -103,7 +104,7 @@ for tool in fd rg; do [[ -x "$APP/Contents/Helpers/$tool" ]] || fail "bundled $t
 # The local AI (oMLX runtime and model) is downloaded at setup; nothing of the old llama.cpp engine ships.
 [[ ! -e "$APP/Contents/Helpers/llama-server" ]] || fail "old llama-server still in Contents/Helpers"
 WEB="$APP/Contents/Resources/pippa-web"
-for path in index.ts package-lock.json node_modules/pi-web-access/dist/index.js; do
+for path in $(runtime_files pippa-web); do
   [[ -f "$WEB/$path" ]] || fail "pippa-web/$path missing (web access)"
 done
 cmp -s "$ROOT/runtime/pippa-web/package-lock.json" "$WEB/package-lock.json" || fail "bundled web access lockfile differs from this checkout; rebuild the app"
@@ -121,7 +122,7 @@ ok "Pippa's abilities: $found_skills in Contents/Resources/pippa-skills, same as
 # The old conversation core is gone and must not come along from an old build.
 [[ ! -e "$APP/Contents/Resources/pi-runtime" ]] || fail "old conversation core (Contents/Resources/pi-runtime) still in the bundle"
 # The Pi RPC path starts Pi with Pippa's extensions from the bundle.
-for f in pippa-tools.ts pippa-assist.ts pippa-memory.ts pippa-mcp.ts files.ts facts.mjs list-folder.ts document.ts shell.ts budget.ts search.mjs; do
+for f in $(runtime_files pippa-tools); do
   cmp -s "$ROOT/runtime/pippa-tools/$f" "$APP/Contents/Resources/pippa-tools/$f" || fail "pippa-tools/$f missing or stale (Pi extensions)"
 done
 [[ ! -e "$APP/Contents/Resources/pippa-guard" ]] || fail "old guard (Contents/Resources/pippa-guard) still in the bundle"
@@ -154,7 +155,7 @@ for path in release/package.json release/package-lock.json release/metadata.json
 done
 [[ "$(readlink "$PAYLOAD/release/node_modules/.bin/pi")" == "../@earendil-works/pi-coding-agent/dist/bundle/cli.js" ]] || fail "pi-payload: node_modules/.bin/pi missing or wrong"
 cmp -s "$ROOT/app/Packaging/pi-release/package-lock.json" "$PAYLOAD/release/package-lock.json" || fail "pi-payload lockfile differs from app/Packaging/pi-release"
-for f in index.ts common.mjs ensure.mjs supervisor.mjs; do
+for f in $(runtime_files pippa-local-server); do
   cmp -s "$ROOT/runtime/pippa-local-server/$f" "$PAYLOAD/extensions/pippa-local-server/$f" || fail "pi-payload/extensions/pippa-local-server/$f missing or stale (terminal autostart)"
 done
 ok "Pippa's terminal extension (pippa-local-server) in pi-payload"

@@ -20,6 +20,11 @@ func runErrorMessageChecks() {
     ]
     let pippaTexts = pippa.map { $0.errorDescription ?? "" }
     check("Error texts: every PippaError has a clean German sentence") { offender(pippaTexts) == nil }
+    check("Error texts: the low-memory sentence is translated") {
+        let key = "Your Mac is short on memory right now. Close a few apps or browser windows, then try again."
+        return L(key, table: "Core", language: "en") == key
+            && L(key, table: "Core", language: "de") == "Dein Mac hat gerade zu wenig Arbeitsspeicher frei. Schließ ein paar Apps oder Browserfenster und versuch es dann noch einmal."
+    }
 
     let inference: [InferenceError] = [.invalidConnection("Bitte eine gültige Modell-ID angeben."), .missingCredential, .busy, .credentialStorage(-25300), .invalidResponse]
     check("Error texts: connection errors are clean") { offender(inference.map { $0.errorDescription ?? "" }) == nil }

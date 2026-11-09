@@ -593,7 +593,7 @@ func runSetupFlowChecks() async {
                                 download: stubDownload(data)).prepare()
         // From a local archive (PIPPA_MLX_RUNTIME_ARCHIVE): nothing to download for the runtime, but still installed on "Load".
         let archive = try fakeRuntimeArchive(in: home)
-        let hash = try ModelDownloader.sha256(of: archive)
+        let hash = try FileDigest.sha256(of: archive)
         let manifest = fakeRuntimeManifest(size: ModelDownloader.fileSize(archive), sha256: hash)
         let local = MLXRuntime(support: r.support, environment: ["PIPPA_MLX_RUNTIME_ARCHIVE": archive.path], manifest: manifest)!
         let old = r.support.appendingPathComponent("mlx-runtime/0.0.1-old", isDirectory: true)

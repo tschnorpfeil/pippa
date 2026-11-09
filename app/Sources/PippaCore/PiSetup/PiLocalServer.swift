@@ -91,7 +91,7 @@ public enum PiLocalServer {
         let fm = FileManager.default
         try fm.createDirectory(at: plan.modelsDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try fm.createDirectory(at: plan.baseDirectory.appendingPathComponent("home"), withIntermediateDirectories: true)
-        var document = (try? Data(contentsOf: plan.settingsFile)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        var document = JSONFile.readObject(plan.settingsFile) ?? [:]
         func merge(_ section: String, _ values: [String: Any]) {
             var current = document[section] as? [String: Any] ?? [:]
             for (key, value) in values { current[key] = value }
@@ -107,10 +107,9 @@ public enum PiLocalServer {
         // top-k) let stray tokens through: Cyrillic and English fragments in German answers. Qwen 3.5's values for
         // precise work, which Ornith is fine-tuned from.
         merge("sampling", ["temperature": 0.6, "top_k": 20, "top_p": 0.95])
-        let data = try JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        let data = try JSONSerialization.data(withJSONObject: document, options: JSONFile.writingOptions)
         if (try? Data(contentsOf: plan.settingsFile)) == data { return }
-        try data.write(to: plan.settingsFile, options: .atomic)
-        try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: plan.settingsFile.path)
+        try JSONFile.writeAtomically(data, to: plan.settingsFile, mode: 0o600)
     }
 
     /// The server for it (not yet started). Log `<Support>/local-server.log`.
@@ -141,19 +140,11 @@ public enum PiLocalServer {
     public static func publishLaunchFile(_ plan: Plan, support: URL) throws -> Bool {
         try writeServerSettings(plan)
         let config = launchConfiguration(plan, support: support)
-        let data = try JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) + Data("\n".utf8)
+        let data = try JSONFile.encode(config)
         let url = launchFile(support: support)
         if (try? Data(contentsOf: url)) == data { return false }
         try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        let temporary = support.appendingPathComponent(".\(launchFileName).\(UUID().uuidString)")
-        guard FileManager.default.createFile(atPath: temporary.path, contents: data, attributes: [.posixPermissions: 0o600]) else {
-            throw PiInstallFailure.notWritable(path: url.path, reason: SystemError.reason(errno: errno))
-        }
-        guard rename(temporary.path, url.path) == 0 else {
-            let code = errno
-            try? FileManager.default.removeItem(at: temporary)
-            throw PiInstallFailure.notWritable(path: url.path, reason: SystemError.reason(errno: code))
-        }
+        try JSONFile.writeAtomically(data, to: url, mode: 0o600)
         return true
     }
 }

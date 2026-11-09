@@ -65,7 +65,15 @@ public actor OMLXServer {
         }
         _ = PiServerLock.remove(lock) { !$0.isLive }
         guard PiServerLock.read(lock)?.isLive != true else { throw PippaError.modelFailed }
-        guard PiServerLock.create(lock, PiServerLock(owner: "app", holder: me, pid: nil, port: plan.port)) else {
+        let created: Bool
+        do { created = try PiServerLock.create(lock, PiServerLock(owner: "app", holder: me, pid: nil, port: plan.port)) }
+        catch {
+            // The lock cannot be written (full disk, no permission): waiting for "someone else's" server would only run into
+            // the timeout. `UserMessage` words a file error for the person.
+            UserMessage.record(error, context: "server-lock")
+            throw error
+        }
+        guard created else {
             // Lost the race to the terminal: use theirs.
             if try await waitForHealth(timeout: 180, while: { true }) { return }
             throw PippaError.modelFailed

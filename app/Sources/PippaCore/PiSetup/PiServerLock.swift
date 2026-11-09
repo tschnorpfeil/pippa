@@ -16,7 +16,7 @@ public struct PiServerLock: Sendable, Equatable {
     public var port: Int
     public var startedAt: String
 
-    public init(owner: String, holder: Int32, pid: Int32?, port: Int, startedAt: String = ISO8601DateFormatter().string(from: Date())) {
+    public init(owner: String, holder: Int32, pid: Int32?, port: Int, startedAt: String = Timestamp.iso8601()) {
         self.owner = owner; self.holder = holder; self.pid = pid; self.port = port; self.startedAt = startedAt
     }
 
@@ -51,15 +51,16 @@ public struct PiServerLock: Sendable, Equatable {
                             startedAt: object["startedAt"] as? String ?? "")
     }
 
-    /// Create exclusively; `false` if a lock already exists.
-    public static func create(_ url: URL, _ lock: PiServerLock) -> Bool {
+    /// Create exclusively; `false` if a lock already exists. Throws when the lock cannot be written at all (full disk, no
+    /// permission), which is not the same as someone else holding it.
+    public static func create(_ url: URL, _ lock: PiServerLock) throws -> Bool {
         let temporary = url.deletingLastPathComponent().appendingPathComponent(".lock-\(UUID().uuidString).tmp")
         defer { try? FileManager.default.removeItem(at: temporary) }
-        do {
-            try lock.json.write(to: temporary, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
-            return link(temporary.path, url.path) == 0
-        } catch { return false }
+        try lock.json.write(to: temporary, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
+        if link(temporary.path, url.path) == 0 { return true }
+        if errno == EEXIST { return false }
+        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
     }
 
     /// Replace the content of an own lock (temp file + rename).
@@ -74,10 +75,5 @@ public struct PiServerLock: Sendable, Equatable {
     public static func remove(_ url: URL, if matches: (PiServerLock) -> Bool) -> Bool {
         guard let lock = read(url), matches(lock) else { return false }
         return unlink(url.path) == 0
-    }
-
-    /// Mark as "in use": the terminal extension's watcher counts the modification time as a request.
-    public static func touch(_ url: URL) {
-        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
     }
 }

@@ -20,7 +20,7 @@ public enum MacHardware {
 
     /// Memory as Apple sells it: 17 179 869 184 bytes are "16 GB".
     public static func memoryGB(physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory) -> Int {
-        Int((Double(physicalMemory) / 1_073_741_824).rounded())
+        Int(ByteCount.gibibytes(physicalMemory).rounded())
     }
 
     /// "Apple M2 Pro with 16 GB memory", or only the memory when the chip is unknown.

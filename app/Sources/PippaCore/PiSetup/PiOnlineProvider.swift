@@ -52,48 +52,27 @@ public enum PiOnlineProvider {
     /// not readable JSON, it stays unchanged (error). Returns whether anything changed.
     @discardableResult
     public static func sync(_ connection: ModelConnection?, modelsJSON url: URL) throws -> Bool {
-        let fm = FileManager.default
-        var document: [String: Any] = [:]
-        let existed = fm.fileExists(atPath: url.path)
-        if existed {
-            guard let data = try? Data(contentsOf: url),
-                  let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-                  object["providers"] == nil || object["providers"] is [String: Any] else {
-                throw PiInstallFailure.modelsJSONUnreadable(url.path)
-            }
-            document = object
-        } else if connection == nil {
-            return false
-        }
+        let loaded = try PiInstaller.loadModelsJSON(url)
+        if !loaded.existed, connection == nil { return false }
+        var document = loaded.document
         var providers = document["providers"] as? [String: Any] ?? [:]
         if let connection {
             let entry = entry(connection)
-            if let current = providers[providerKey], PiInstaller.canonical(current) == PiInstaller.canonical(entry) { return false }
+            if let current = providers[providerKey], JSONFile.canonical(current) == JSONFile.canonical(entry) { return false }
             providers[providerKey] = entry
         } else {
             guard providers[providerKey] != nil else { return false }
             providers.removeValue(forKey: providerKey)
         }
         document["providers"] = providers
-        try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let data = try JSONSerialization.data(withJSONObject: document, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
-        let temporary = url.deletingLastPathComponent().appendingPathComponent(".models.json.pippa-\(UUID().uuidString)")
-        try (data + Data("\n".utf8)).write(to: temporary)
-        let mode = existed ? ((try? fm.attributesOfItem(atPath: url.path)[.posixPermissions] as? NSNumber)?.intValue ?? 0o600) : 0o600
-        try fm.setAttributes([.posixPermissions: mode], ofItemAtPath: temporary.path)
-        guard rename(temporary.path, url.path) == 0 else {
-            let code = errno
-            try? fm.removeItem(at: temporary)
-            throw PiInstallFailure.notWritable(path: url.path, reason: SystemError.reason(errno: code))
-        }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONFile.writeAtomically(JSONFile.encode(document), to: url)
         return true
     }
 
     /// The entry as it currently stands in models.json (for checks).
     public static func current(modelsJSON: URL) -> [String: Any]? {
-        let providers = (try? Data(contentsOf: modelsJSON))
-            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["providers"] as? [String: Any]
-        return providers?[providerKey] as? [String: Any]
+        PiInstaller.providers(modelsJSON: modelsJSON)?[providerKey] as? [String: Any]
     }
 
     /// Which path applies for Pippa's Pi (RPC path): the online service only if connected and not switched off.

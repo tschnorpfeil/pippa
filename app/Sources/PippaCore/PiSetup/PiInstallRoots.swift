@@ -74,6 +74,14 @@ public struct PiInstallRoots: Sendable {
         self.searchPath = searchPath ?? Self.defaultSearchPath(home: home)
     }
 
+    /// The roots of the running app: the real home, or for development (`PIPPA_PI_HOME`) a fake home whose own
+    /// `~/.local/bin` is the only place a foreign `pi` is looked for.
+    public static func forApp(payload: PiPayload, environment: [String: String] = ProcessInfo.processInfo.environment) -> PiInstallRoots {
+        guard let home = environment["PIPPA_PI_HOME"] else { return PiInstallRoots(support: Pippa.supportDirectory, payload: payload) }
+        let url = URL(fileURLWithPath: home, isDirectory: true)
+        return PiInstallRoots(home: url, payload: payload, searchPath: [url.appendingPathComponent(".local/bin")])
+    }
+
     public static func defaultSearchPath(home: URL) -> [URL] {
         ["/opt/homebrew/bin", "/usr/local/bin", "/run/current-system/sw/bin", "/nix/var/nix/profiles/default/bin"].map { URL(fileURLWithPath: $0) }
             + [".npm-global/bin", ".nix-profile/bin", ".volta/bin", ".bun/bin", ".local/bin"].map { home.appendingPathComponent($0) }

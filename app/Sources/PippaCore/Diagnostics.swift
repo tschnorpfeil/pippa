@@ -38,23 +38,23 @@ public final class DiagnosticsLog: @unchecked Sendable {
     public func flush() { queue.sync {} }
 
     static func format(name: String, fields: [String: String], date: Date) -> String {
-        var parts = [ISO8601DateFormatter().string(from: date), Self.redact(name)]
+        var parts = [Timestamp.iso8601(date), Self.redact(name)]
         for key in fields.keys.sorted() { parts.append("\(Self.redact(key))=\(Self.redact(fields[key] ?? ""))") }
         return parts.joined(separator: " ")
     }
 
+    private static let redactionRules: [(expression: NSRegularExpression, template: String)] = [
+        (#"[\w.+\-]+@[\w\-]+\.[\w.\-]+"#, "<mail>"),
+        (#"(?i)(bearer\s+|sk-|key[=:\s]+)[A-Za-z0-9._\-]{6,}"#, "<schluessel>"),
+        (#"[A-Za-z][A-Za-z0-9+.\-]*://\S+"#, "<adresse>"),
+        (#"(~|/)[^\s]*/[^\s]*"#, "<pfad>"),
+        (#"\b[A-Za-z0-9_\-]{32,}\b"#, "<kennung>"),
+    ].compactMap { pattern, template in (try? NSRegularExpression(pattern: pattern)).map { ($0, template) } }
+
     /// Removes what looks like personal data, and shortens. Deliberately coarse: when in doubt, gone.
     public static func redact(_ text: String) -> String {
         var value = text.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
-        let rules: [(String, String)] = [
-            (#"[\w.+\-]+@[\w\-]+\.[\w.\-]+"#, "<mail>"),
-            (#"(?i)(bearer\s+|sk-|key[=:\s]+)[A-Za-z0-9._\-]{6,}"#, "<schluessel>"),
-            (#"[A-Za-z][A-Za-z0-9+.\-]*://\S+"#, "<adresse>"),
-            (#"(~|/)[^\s]*/[^\s]*"#, "<pfad>"),
-            (#"\b[A-Za-z0-9_\-]{32,}\b"#, "<kennung>"),
-        ]
-        for (pattern, template) in rules {
-            guard let expression = try? NSRegularExpression(pattern: pattern) else { continue }
+        for (expression, template) in redactionRules {
             value = expression.stringByReplacingMatches(in: value, range: NSRange(value.startIndex..., in: value), withTemplate: template)
         }
         if value.count > maxFieldLength { value = String(value.prefix(maxFieldLength)) + "…" }

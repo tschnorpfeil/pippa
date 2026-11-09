@@ -21,29 +21,14 @@ WITH_NODE="${2:-}"
 CACHE="${PIPPA_CACHE:-$HOME/Library/Caches/pippa-build}"
 NPM_CACHE="${PIPPA_NPM_CACHE:-$ROOT/.build/npm-cache}"
 RELEASE_SRC="$ROOT/app/Packaging/pi-release"
-MANIFEST="$ROOT/app/Packaging/node-release.json"
 [[ ! -e "$DEST/release" ]] || { echo "$DEST/release already exists; use a fresh directory" >&2; exit 1; }
 
-read -r VERSION ASSET SHA < <(python3 - "$MANIFEST" <<'PY'
-import json,sys
-m=json.load(open(sys.argv[1])); print(m['version'],m['asset'],m['sha256'])
-PY
-)
-mkdir -p "$CACHE"
-ARCHIVE="$CACHE/$ASSET"
-sha_of() { shasum -a 256 "$1" | cut -d' ' -f1; }
-if [[ -f "$ARCHIVE" && "$(sha_of "$ARCHIVE")" != "$SHA" ]]; then rm -f "$ARCHIVE"; fi
-if [[ ! -f "$ARCHIVE" ]]; then
-  curl -fL --retry 3 --progress-bar -o "$ARCHIVE.part" "https://nodejs.org/dist/$VERSION/$ASSET"
-  [[ "$(sha_of "$ARCHIVE.part")" == "$SHA" ]] || { rm -f "$ARCHIVE.part"; echo 'Node SHA256 mismatch' >&2; exit 1; }
-  mv "$ARCHIVE.part" "$ARCHIVE"
-fi
+. "$ROOT/scripts/lib.sh"
+ensure_node
+VERSION="$NODE_VERSION"
+NODE="$NODE_DIR/bin/node"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-tar -xzf "$ARCHIVE" -C "$WORK"
-NODE_DIR="$WORK/node-$VERSION-darwin-arm64"
-NODE="$NODE_DIR/bin/node"
-[[ "$("$NODE" --version)" == "$VERSION" ]] || { echo 'Unexpected Node version' >&2; exit 1; }
 
 # metadata.json: fields as in the real release (schemaVersion, version, sourceCommit, publishedAt, packages).
 # Checked against package.json and the lockfile; the official lockfile has no `integrity` for the @earendil-works
@@ -98,7 +83,7 @@ mv "$STAGE" "$DEST/release"
 # Pippa's terminal extension (runtime/pippa-local-server): PiInstaller copies it to ~/.pi/agent/extensions so that
 # `pi` in the terminal starts Pippa's local oMLX server itself. Runtime files only, no tests.
 mkdir -p "$DEST/extensions/pippa-local-server"
-for f in index.ts common.mjs ensure.mjs supervisor.mjs; do
+for f in $(runtime_files pippa-local-server); do
   cp "$ROOT/runtime/pippa-local-server/$f" "$DEST/extensions/pippa-local-server/$f"
 done
 cp -R "$NODE_DIR/lib/node_modules/npm" "$DEST/lib/node_modules/npm"
