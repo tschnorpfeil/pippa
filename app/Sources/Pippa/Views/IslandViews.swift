@@ -272,8 +272,9 @@ struct IslandQuestionView: View {
                     .lineLimit(6).fixedSize(horizontal: false, vertical: true)
             }
             if !parts.detail.isEmpty {
+                // In full, as on the chat's card: the command or address the person allows (bounded by its sender).
                 Text(parts.detail).font(.system(size: 12, weight: .medium)).foregroundStyle(IslandStyle.white(IslandStyle.primary))
-                    .lineLimit(4).fixedSize(horizontal: false, vertical: true)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             answers.padding(.top, 2)
         }

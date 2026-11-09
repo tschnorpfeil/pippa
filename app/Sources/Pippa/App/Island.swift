@@ -91,7 +91,8 @@ final class Island: ObservableObject {
             DropFeedback.island.objectWillChange.map { _ in () }.eraseToAnyPublisher())
         // objectWillChange comes before the change: read the models on the next turn of the run loop.
         watches.append(changes.receive(on: RunLoop.main).sink { [weak self] in self?.refresh() })
-        watches.append(chat.$unseen.removeDuplicates().sink { [weak self] unseen in self?.showFlash(unseen) })
+        // Not deduplicated: `unseen` stays `.answer` until the chat is opened, and every later answer flashes too.
+        watches.append(chat.$unseen.sink { [weak self] unseen in self?.showFlash(unseen) })
         watches.append(Approvals.shared.$questions.map(\.isEmpty).removeDuplicates().sink { [weak self] empty in
             guard let self, empty, openedForQuestion else { return }
             DispatchQueue.main.async { self.close() }
@@ -228,7 +229,9 @@ final class Island: ObservableObject {
     func send() {
         let chat = ChatModel.shared
         let text = chat.draft, files = chat.attachments
-        guard !chat.isAnswering, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !files.isEmpty else { return }
+        // Like the composer: until the AI can answer, the question stays in the field (the island shows the setup above it).
+        guard !chat.isAnswering, SetupModel.shared.canAnswer,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !files.isEmpty else { return }
         chat.newConversation()
         chat.draft = text
         chat.attachments = files

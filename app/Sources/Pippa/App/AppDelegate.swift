@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .answer: NSApp.dockTile.badgeLabel = "•"
             case nil: NSApp.dockTile.badgeLabel = conversations.isEmpty ? nil : "•"
             }
-            self?.unreadDot.isHidden = unseen == nil
+            self?.unreadDot.isHidden = unseen == nil && conversations.isEmpty
         }
         // The shortcut opens the island's question field; with the island switched off, the chat.
         HotkeyCenter.shared.onPress = { Island.shared.isShown ? Island.shared.ask() : AppActions.callPippa() }

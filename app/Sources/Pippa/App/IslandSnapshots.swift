@@ -40,7 +40,15 @@ enum IslandSnapshots {
                 chat.showSample(sample(.answered), current: "s1", answering: false)
                 island.showForSnapshot(status(flash: .answer))
             }),
+            // A command Pippa wants to run: the whole command shows before Allow.
+            ("needs-you-command", true, {
+                question = Task { await approvals.ask(commandQuestion) }
+                for _ in 0..<5 { await Task.yield() }
+                island.showForSnapshot(status(questions: approvals.questions.count))
+            }),
             ("failed", false, {
+                approvals.cancelAll()
+                _ = await question?.value
                 chat.showSample(sample(.failed), current: "s1", answering: false)
                 island.showForSnapshot(status(flash: .failed))
             }),
@@ -173,4 +181,12 @@ enum IslandSnapshots {
     private static let sampleQuestion = PiUIRequest(
         id: "island-snapshot", method: "confirm", title: "Darf Pippa im Internet suchen?",
         message: "Pippa möchte bei DuckDuckGo suchen nach:\n\n„Widerspruchsfrist Nebenkostenabrechnung“")
+
+    /// As shell.ts asks before a write (`grantAskText`), with a command near its 300-character limit.
+    private static let commandQuestion = PiUIRequest(
+        id: "island-snapshot-command", method: "confirm", title: "Darf Pippa deine Dateien ändern?",
+        message: "Für diese Antwort möchte Pippa mit einem Befehl Dateien in Dokumente/Steuer ändern (vorher legt Pippa Kopien an)."
+            + "\n\nDetails:\nfor f in ~/Documents/Steuer/2026/Belege/*.pdf; do n=$(basename \"$f\" .pdf); "
+            + "mv \"$f\" ~/Documents/Steuer/2026/Belege/\"$(date -r \"$f\" +%Y-%m-%d)-$n.pdf\"; done; "
+            + "ls -la ~/Documents/Steuer/2026/Belege | head -40; echo fertig mit allen Belegen aus dem Ordner Steuer 2026")
 }
