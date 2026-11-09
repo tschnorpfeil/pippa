@@ -1,6 +1,7 @@
 import Foundation
 
-/// Downloads model files from Hugging Face: resumable (.part + Range), SHA256 verified before renaming.
+/// Downloads model files from Hugging Face, or from the catalog's mirror when Hugging Face fails: resumable
+/// (.part + Range, also across the two sources), SHA256 verified before renaming.
 public final class ModelDownloader: @unchecked Sendable {
     public static let endpoint = ProcessInfo.processInfo.environment["PIPPA_HF_ENDPOINT"] ?? "https://huggingface.co"
 
@@ -19,6 +20,24 @@ public final class ModelDownloader: @unchecked Sendable {
     public static func url(repo: String, revision: String, path: String, endpoint: String = endpoint) -> URL {
         let encoded = path.split(separator: "/").map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }.joined(separator: "/")
         return URL(string: "\(endpoint)/\(repo)/resolve/\(revision)/\(encoded)")!
+    }
+
+    /// URLs of `path` on `mirror`: the file itself, or its parts when it is larger than `partSize`. `nil` for an unusable mirror.
+    public static func mirrorURLs(_ mirror: CatalogModel.Mirror, path: String, size: Int64) -> [URL]? {
+        guard mirror.partSize > 0, mirror.url.hasSuffix("/"), let base = URL(string: mirror.url), base.host != nil else { return nil }
+        let name = path.replacingOccurrences(of: "/", with: "--")
+        let count = size > mirror.partSize ? Int((size + mirror.partSize - 1) / mirror.partSize) : 1
+        let names = count == 1 ? [name] : (0..<count).map { "\(name).part-\($0)" }
+        return names.map { base.appendingPathComponent($0, isDirectory: false) }
+    }
+
+    /// Hugging Face first, then the mirror if the catalog names one.
+    func sources(_ model: CatalogModel, revision: String, file: CatalogModel.File) -> [ResumableDownload.Source] {
+        var sources = [ResumableDownload.Source(name: "huggingface", urls: [Self.url(repo: model.repo, revision: revision, path: file.path, endpoint: source)])]
+        if let mirror = model.mirror, let urls = Self.mirrorURLs(mirror, path: file.path, size: file.size) {
+            sources.append(ResumableDownload.Source(name: "spiegel", urls: urls, partSize: mirror.partSize))
+        }
+        return sources
     }
 
     public func localURL(_ file: CatalogModel.File) -> URL {
@@ -112,7 +131,7 @@ public final class ModelDownloader: @unchecked Sendable {
             let base = completed
             let have = max(0, Self.fileSize(part))
             if startBytes == nil, have < file.size { startBytes = base + have }
-            try await transfer.download(Self.url(repo: model.repo, revision: pinned.revision, path: file.path, endpoint: source), to: part, size: file.size) { bytes in
+            let delivered = try await transfer.download(from: sources(model, revision: pinned.revision, file: file), to: part, size: file.size) { bytes in
                 let done = base + bytes
                 let elapsed = Date().timeIntervalSince(started)
                 let rate = elapsed > 2 ? Double(done - (startBytes ?? 0)) / elapsed : 0
@@ -135,6 +154,7 @@ public final class ModelDownloader: @unchecked Sendable {
                 try FileManager.default.moveItem(at: part, to: dest)
                 try file.sha256.write(to: dest.appendingPathExtension("ok"), atomically: true, encoding: .utf8)
             } catch { throw writeFailure(error, remaining: 0) }
+            DiagnosticsLog.shared.event("download-fertig", ["quelle": delivered?.name ?? "vorhanden"])
             completed += file.size
             progress(Double(completed) / Double(total), nil)
         }

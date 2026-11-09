@@ -86,7 +86,10 @@ with a key file; oMLX unloads the model by itself after an idle timeout. Runtime
 consent (`ModelDownloader`: resumable, SHA256-verified, free space checked first), or the model is cloned from oMLX's
 or Hugging Face's folders (`ExistingModels.swift`, `ModelDownloader+Adopt.swift`). A catalog model is pinned with
 `scripts/pin-model.sh <catalog-key> <hf-repo> [<file>]`; `build-app.sh` refuses an unpinned model
-(`scripts/check-default-models.py`). See [Pippa's local AI](models.md).
+(`scripts/check-default-models.py`). When Hugging Face fails, `ModelDownloader` falls back to the catalog's `mirror`
+on GitHub releases (each failed attempt switches source, the 8 attempts are shared, the `.part` file carries over);
+`scripts/mirror-model.sh <catalog-key> [--dry-run]` publishes that mirror from verified local files. See
+[Pippa's local AI](models.md).
 
 **Setup (`app/Sources/PippaCore/PiSetup`).** `PiInstaller` copies the bundled Pi payload into Pi's managed layout
 (`~/.pi/agent/install/releases/<version>`), puts Node under `~/.local/share/pi-node` and writes the `pippa-local`
@@ -337,8 +340,8 @@ defaults domain, so back up that preferences file first.
 | Node for the terminal `pi` | `~/.local/share/pi-node` |
 | Build cache (developers) | `~/Library/Caches/pippa-build` |
 
-**Network.** Only these go out: the model download from Hugging Face and the oMLX runtime from Pippa's GitHub
-releases (both after consent), Sparkle's update check, web
+**Network.** Only these go out: the model download from Hugging Face (or, when that fails, from its mirror on Pippa's
+GitHub releases) and the oMLX runtime from Pippa's GitHub releases (both after consent), Sparkle's update check, web
 search and page reads (the first search of an answer is asked for), and the online AI the person switches on. Files,
 conversations and the model otherwise stay on the Mac.
 

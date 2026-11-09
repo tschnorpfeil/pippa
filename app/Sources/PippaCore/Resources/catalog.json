@@ -11,6 +11,8 @@
       "memGiB": 6.5,
       "ctx": 32768,
       "thinking": "medium",
+      "license": "MIT, declared on https://huggingface.co/ornith-ai/Ornith-1.5-9B",
+      "mirror": {"url": "https://github.com/tschnorpfeil/pippa/releases/download/model-ornith-1.5-9b-mlx-4bit-a48173b/", "partSize": 2000000000},
       "pinned": {
         "revision": "a48173b246ac705be75c05bedf1a0666db522d53",
         "files": [
