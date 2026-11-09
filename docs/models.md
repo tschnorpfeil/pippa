@@ -45,9 +45,12 @@ Everything lives in `~/Library/Application Support/Pippa`:
 | Python runtime with oMLX (pinned archive, SHA-256 checked) | `mlx-runtime/<version>/` |
 
 The model comes from Hugging Face, the runtime from Pippa's GitHub releases. Downloads resume and are verified before
-use. If the same model is already on your Mac from oMLX (`~/.omlx/models`), LM Studio (`~/.lmstudio/models`) or the
-Hugging Face cache (`~/.cache/huggingface/hub`), Pippa checks each file's SHA-256 and clones it (APFS, no extra space)
-instead of downloading it. The other app's files are left as they are.
+use. If Hugging Face fails (blocked, refused, broken off or stuck), Pippa fetches the same files from a mirror on
+Pippa's GitHub releases without asking, and switches back and forth on every failed attempt, continuing where the
+file stopped. Each file is still checked against the SHA-256 pinned in the catalog, so the mirror cannot slip in
+other bytes. If the same model is already on your Mac from oMLX (`~/.omlx/models`), LM Studio (`~/.lmstudio/models`)
+or the Hugging Face cache (`~/.cache/huggingface/hub`), Pippa checks each file's SHA-256 and clones it (APFS, no extra
+space) instead of downloading it. The other app's files are left as they are.
 
 The server listens only on 127.0.0.1. Pippa starts it when needed; `pi` in the terminal starts the same server through
 Pippa's extension when the app is not running.
@@ -60,9 +63,17 @@ For developers:
    thinking, memory). The key is the folder name and the model id that oMLX serves and Pi asks for.
 2. Pin it: `scripts/pin-model.sh <key> <hf-repo>` writes the revision and each file's size and SHA-256.
    `build-app.sh` refuses a model that is not pinned (`scripts/check-default-models.py`).
-3. Check the memory floor and context in `ModelSelector` ([`Models.swift`](../app/Sources/PippaCore/Models.swift)) and
+3. Mirror it: add `license` (as the publisher states it) and `mirror` (`url`: the release download folder of this repo
+   with tag `model-<key>-<revision[:7]>`, `partSize`: below 2 GiB, GitHub's asset limit) to the entry, then run
+   `scripts/mirror-model.sh <key> --dry-run` and, once that looks right, without `--dry-run`. It finds the pinned files
+   on this Mac (Pippa's model folder, `~/.omlx/models/<repo>`, the Hugging Face cache), checks size and SHA-256 of
+   each, and publishes them as a pre-release that is never "latest", with the model card as `MODEL-CARD.md`. On the
+   mirror a file is named after its path with `/` replaced by `--`; a file above `partSize` lies there in parts
+   `<name>.part-0`, `.part-1`, … of `partSize` bytes that, joined, are the file. Publish the mirror before the release
+   that ships the catalog entry; until then Pippa only finds the mirror empty and keeps trying Hugging Face.
+4. Check the memory floor and context in `ModelSelector` ([`Models.swift`](../app/Sources/PippaCore/Models.swift)) and
    the thinking switch in `PiModelTuning`.
-4. A new oMLX version means a new runtime archive: `scripts/build-mlx-runtime.sh`, then update
+5. A new oMLX version means a new runtime archive: `scripts/build-mlx-runtime.sh`, then update
    [`mlx-runtime.json`](../app/Sources/PippaCore/Resources/mlx-runtime.json).
 
 ## Online AI instead

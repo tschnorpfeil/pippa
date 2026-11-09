@@ -4,6 +4,15 @@ import Foundation
 public struct CatalogModel: Sendable, Codable, Hashable {
     public struct File: Sendable, Codable, Hashable { public var path: String; public var size: Int64; public var sha256: String }
     public struct Pinned: Sendable, Codable, Hashable { public var revision: String; public var files: [File] }
+    /// The same pinned files as assets of a GitHub release (`scripts/mirror-model.sh`), used when Hugging Face fails.
+    /// Each file is named after its path with `/` replaced by `--`; one larger than `partSize` lies there in parts
+    /// `<name>.part-0`, `.part-1`, … of `partSize` bytes (the last one shorter) that, joined, are the file.
+    public struct Mirror: Sendable, Codable, Hashable {
+        /// Release download folder, ending in `/`.
+        public var url: String
+        public var partSize: Int64
+        public init(url: String, partSize: Int64) { self.url = url; self.partSize = partSize }
+    }
 
     /// Also the model's folder name, the id oMLX serves it under and the id in Pi's models.json.
     public var key: String
@@ -16,6 +25,10 @@ public struct CatalogModel: Sendable, Codable, Hashable {
     /// `modelThinkingLevels` (PiModelTuning). Pi clamps it to what the model supports.
     public var thinking: String?
     public var pinned: Pinned?
+    /// Optional: where the pinned files are mirrored. Downloads are checked against the same SHA-256 either way.
+    public var mirror: Mirror?
+    /// The model's license as stated by its publisher; required for a mirror (written into the mirror's release notes).
+    public var license: String?
 }
 
 public struct ModelCatalog: Sendable, Codable {
