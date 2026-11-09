@@ -15,7 +15,9 @@ again at the source or on a Mac mini (Apple M6, 24 GB, macOS 27.0.1). **Checked*
    results (prompts up to 23K tokens), and that speed depends on the chip and the model's design, not on the server.
 2. **Ship oMLX's native kernels.** Pippa's runtime archive has none of them (checked). oMLX says Qwen 3.5 models, which
    Ornith is built on, need them and otherwise "silently fall back to much slower generic paths". Building them needs
-   full Xcode, which the macOS 26 CI runners have. The gain for Ornith 9B is not measured yet.
+   full Xcode, but only on the machine that builds the runtime (the macOS 26 CI runners have it). The kernels then
+   ship compiled inside the runtime download, so nobody using Pippa needs Xcode or the Command Line Tools. The gain
+   for Ornith 9B is not measured yet.
 3. **Make tool results smaller.** A 23K-token PDF result costs 100–300 s to read on M1–M4, whatever the engine. Page
    ranges, extracted table rows and totals computed in code shrink it at the source. This is the biggest lever on
    the slow tasks in [omlx-switch.md](omlx-switch.md#acceptance-2026-11-01).
@@ -49,6 +51,10 @@ tool result.
 `507: Model 'ornith-1.5-9b-mlx-4bit' (4.93GB) does not fit under the dynamic memory ceiling (4.69GB). Close other apps
 to free RAM`. Pippa has no plain-language handling for this answer yet. It will hit 16 GB Macs more often.
 
+**Nothing for developers on the user's Mac.** The runtime brings its own Python, and serving needs neither Xcode nor
+the Command Line Tools. oMLX 0.7.3 calls `/usr/bin/python3` and `git` only in its cluster mode (two Macs), which Pippa
+does not use. Checked by reading the code, not yet on a Mac without the Command Line Tools.
+
 ## Engines
 
 | Engine | Latest (date) | Verdict for Pippa | Basis |
@@ -61,7 +67,7 @@ to free RAM`. Pippa has no plain-language handling for this answer yet. It will 
 | LM Studio | — | **Cannot be bundled.** Its [app terms](https://lmstudio.ai/app-terms) forbid redistribution. Pippa could only talk to a copy the user installed | Checked |
 | Splash | 1.6.0 | Not now. Needs M3 or newer and macOS 26.4+, and serves only large models (27B and up) | Checked |
 | mlx-serve (MIT, Zig) | v26.11.2 | Not now. One main maintainer, no SSD cache | Checked |
-| MLX Swift | 0.33.0 (2026-10-27) | Not now. An engine inside Pippa would also need Xcode to build its Metal shaders | Checked |
+| MLX Swift | 0.33.0 (2026-10-27) | Not now. Its Metal shaders need Xcode on the build machine, and Pippa would have to rebuild the server, cache and tool-call parsing oMLX already has | Checked |
 | Apple Foundation Models | macOS 26+ | Helper only (see below) | Checked on the Mac mini |
 
 **oMLX since 0.7.3.** 0.7.4.dev1 sends parallel tool results to the chat template in call order, so Qwen-based models
