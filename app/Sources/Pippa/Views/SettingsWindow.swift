@@ -1,6 +1,5 @@
 import AppKit
 import PippaCore
-import ServiceManagement
 import SwiftUI
 
 /// Where the online-AI settings save, and whether an answer is running (then they wait).
@@ -19,23 +18,50 @@ final class SettingsModel: ObservableObject {
     }
 }
 
-/// Settings: the AI, the shortcut, opening at login, Mac permissions, updates.
+/// The pages of the settings window, in toolbar order.
+enum SettingsTab: String, CaseIterable {
+    case general, ai, permissions, updates
+
+    /// The tab chosen last, so the window opens where the person left it.
+    static let defaultsKey = "settingsTab"
+
+    var title: String {
+        switch self {
+        case .general: T("General", table: "Settings")
+        case .ai: T("AI", table: "Settings")
+        case .permissions: T("Permissions", table: "Settings")
+        case .updates: T("Updates", table: "Settings")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .general: "gearshape"
+        case .ai: "sparkles"
+        case .permissions: "hand.raised"
+        case .updates: "arrow.down.circle"
+        }
+    }
+}
+
+/// Settings like the Mac's own apps: one window, a tab per page in the toolbar, the window as tall as the page.
 @MainActor
 final class SettingsWindow {
     static let shared = SettingsWindow()
+    static let width: CGFloat = 600
     private var window: NSWindow?
+    var isVisible: Bool { window?.isVisible == true }
 
     func show() {
         if window == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 560),
-                                  styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.title = T("Pippa Settings", table: "App")
+            let tabs = SettingsTabsController()
+            let window = NSWindow(contentViewController: tabs)
+            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.toolbarStyle = .preference
             window.isReleasedWhenClosed = false
-            // Taller for the online-AI form; the width stays (the view is 560 wide).
-            window.minSize = NSSize(width: 560, height: 480)
-            window.contentView = NSHostingView(rootView: SettingsView(settings: .shared, setup: .shared))
-            window.center()
             self.window = window
+            tabs.fitWindow(animated: false)
+            window.center()
         }
         NSApp.unhide(nil)
         NSApp.activate()
@@ -44,98 +70,102 @@ final class SettingsWindow {
     }
 }
 
+/// Toolbar tabs, each page a SwiftUI form. The window takes the title and the height of the chosen page.
+private final class SettingsTabsController: NSTabViewController {
+    init() {
+        super.init(nibName: nil, bundle: nil)
+        tabStyle = .toolbar
+        for tab in SettingsTab.allCases {
+            let page = NSHostingController(rootView: SettingsView(tab: tab, settings: .shared, setup: .shared))
+            page.sizingOptions = [.preferredContentSize]
+            page.title = tab.title
+            let item = NSTabViewItem(viewController: page)
+            item.identifier = tab.rawValue
+            item.label = tab.title
+            item.image = NSImage(systemSymbolName: tab.symbol, accessibilityDescription: nil)
+            addTabViewItem(item)
+        }
+        let saved = UserDefaults.standard.string(forKey: SettingsTab.defaultsKey).flatMap(SettingsTab.init(rawValue:)) ?? .general
+        selectedTabViewItemIndex = SettingsTab.allCases.firstIndex(of: saved) ?? 0
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        view.window?.title = tabViewItems[selectedTabViewItemIndex].label
+    }
+
+    override func tabView(_ tabView: NSTabView, didSelect item: NSTabViewItem?) {
+        super.tabView(tabView, didSelect: item)
+        guard let item, let id = item.identifier as? String else { return }
+        UserDefaults.standard.set(id, forKey: SettingsTab.defaultsKey)
+        view.window?.title = item.label
+        fitWindow(animated: true)
+    }
+
+    override func preferredContentSizeDidChange(for viewController: NSViewController) {
+        super.preferredContentSizeDidChange(for: viewController)
+        if viewController === tabViewItems[selectedTabViewItemIndex].viewController { fitWindow(animated: true) }
+    }
+
+    /// As tall as the page, at most as tall as the screen (then the page scrolls); the top edge stays where it is.
+    func fitWindow(animated: Bool) {
+        guard let window = view.window, let page = tabViewItems[selectedTabViewItemIndex].viewController,
+              let content = window.contentView else { return }
+        let chrome = window.frame.height - content.frame.height
+        var height = page.preferredContentSize.height
+        if let screen = window.screen ?? NSScreen.main { height = min(height, screen.visibleFrame.height - chrome) }
+        let size = NSSize(width: SettingsWindow.width, height: ceil(max(height, 1)) + chrome)
+        guard size != window.frame.size else { return }
+        let frame = NSRect(x: window.frame.minX, y: window.frame.maxY - size.height, width: size.width, height: size.height)
+        window.setFrame(frame, display: true, animate: animated && !Theme.reduceMotion)
+    }
+}
+
+/// One page of the settings window.
 struct SettingsView: View {
+    var tab: SettingsTab
     @ObservedObject var settings: SettingsModel
     @ObservedObject var setup: SetupModel
-    @ObservedObject var pill = Pill.shared
-    private let hotkeyState = State(initialValue: Hotkey.current)
-    private let opensAtLoginState = State(initialValue: SMAppService.mainApp.status == .enabled)
-    /// Asked once: where the app lies does not change while it runs.
-    private static let outsideApplications = Bundle.main.bundleURL.pathExtension == "app" && !AppLocation.isInApplications()
+    /// The permissions page reads the real state; snapshots pass a fixed one.
+    var permissions = PermissionStatus.shared
 
     var body: some View {
-        Form {
-            Section(T("Pippa’s AI", table: "App")) {
-                if setup.isReady {
-                    SettingsRow(title: T("On this Mac", table: "App"),
-                                detail: T("%@. Your conversations stay on this Mac.", table: "App", Self.localModelName)) {
-                        Label(T("Ready", table: "App"), systemImage: "circle.fill")
-                            .labelStyle(StatusLabelStyle())
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    SetupCard(setup: setup, showsOnlineOption: false)
-                }
-                PiProviderSettings(settings: settings)
-                // Keep existing Keychain connections usable until the person chooses a Pi provider.
-                if settings.inferenceSettings.activePiModel == nil, settings.inferenceSettings.connection != nil {
-                    ModelConnectionSettings(model: settings)
-                }
-            }
-            Section(T("Everyday", table: "App")) {
-                Picker(T("Shortcut", table: "App"), selection: hotkeyState.projectedValue) {
-                    ForEach(Hotkey.allCases) { Text($0.display).tag($0) }
-                }
-                .onChange(of: hotkeyState.wrappedValue) { _, value in Hotkey.current = value; HotkeyCenter.shared.apply(value) }
-                Toggle(T("Open at login", table: "App"), isOn: opensAtLoginState.projectedValue)
-                    .onChange(of: opensAtLoginState.wrappedValue) { _, on in
-                        if on { try? SMAppService.mainApp.register() } else { try? SMAppService.mainApp.unregister() }
-                        opensAtLoginState.wrappedValue = SMAppService.mainApp.status == .enabled
-                    }
-                Toggle(T("Show Pippa at the screen edge", table: "App"), isOn: Binding(get: { pill.isShown }, set: { pill.isShown = $0 }))
-                if Self.outsideApplications {
-                    SettingsRow(title: T("Pippa isn’t in Applications", table: "App"),
-                                detail: T("From there she stays up to date by herself and can open at login.", table: "App")) {
-                        Button(T("Move to Applications…", table: "App")) { AppMover.moveNow() }
-                    }
-                }
-            }
-            Section(T("Permissions", table: "App")) {
-                Text(T("Pippa asks the first time she needs Calendar, Reminders, Mail, Photos or your files. You can change that later in System Settings.", table: "App"))
-                    .font(.callout).foregroundStyle(.secondary)
-                Button(T("Open Privacy & Security…", table: "App")) {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy")!)
-                }
-            }
-            Section(T("Updates", table: "App")) {
-                SettingsRow(title: T("Version", table: "App"), detail: AppVersion.label) {
-                    Button(T("Check for Updates…", table: "App")) { Updates.shared.checkNow() }
-                }
+        Group {
+            switch tab {
+            case .general: GeneralSettings()
+            case .ai: AISettings(settings: settings, setup: setup)
+            case .permissions: PermissionSettings(status: permissions)
+            case .updates: UpdateSettings()
             }
         }
         .formStyle(.grouped)
         .tint(Theme.accent)
-        .frame(width: 560)
-        .frame(minHeight: 480, maxHeight: .infinity)
+        .frame(width: SettingsWindow.width)
     }
 
     /// Read once: `ModelCatalog.bundled()` decodes a file, and views ask for the name on every redraw.
     static let localModelName: String = ModelCatalog.bundled().models.first?.label ?? ""
 }
 
-/// A small green dot before the status text.
-private struct StatusLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 6) {
-            configuration.icon.font(.system(size: 7)).foregroundStyle(Theme.ok)
-            configuration.title
-        }
-    }
-}
-
-/// One row in a settings group: title, explanation, control (used by the online-AI settings).
+/// One row in a settings group: title, explanation, control.
 struct SettingsRow<Trailing: View>: View {
     var title: String
     var detail: String?
     @ViewBuilder var trailing: Trailing
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+        HStack(spacing: Space.l) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                Text(title).font(Typo.callout)
+                if let detail {
+                    Text(detail).font(Typo.footnote).foregroundStyle(Theme.ink2).monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .layoutPriority(1)
-            Spacer(minLength: 8)
+            Spacer(minLength: Space.m)
             trailing
         }
     }

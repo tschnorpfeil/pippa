@@ -61,3 +61,23 @@
 "Reconnect" = "Reconnect";
 
 "Choose a model" = "Choose a model";
+
+/* The settings window: toolbar tabs and the permissions page (Views/Settings*.swift). */
+"General" = "General";
+"AI" = "AI";
+"Permissions" = "Permissions";
+"Updates" = "Updates";
+"Show Pippa Island" = "Show Pippa Island";
+"Sits at the top of the screen, shows what Pippa is doing and takes a quick question." = "Sits at the top of the screen, shows what Pippa is doing and takes a quick question.";
+"Your conversations stay on this Mac." = "Your conversations stay on this Mac.";
+"What Pippa may use on this Mac" = "What Pippa may use on this Mac";
+"Pippa only reads what you ask about. You can change this at any time in System Settings." = "Pippa only reads what you ask about. You can change this at any time in System Settings.";
+"Files & Folders" = "Files & Folders";
+"Checking…" = "Checking…";
+"Allowed" = "Allowed";
+"Not asked yet – Pippa asks when she first needs it" = "Not asked yet – Pippa asks when she first needs it";
+"Not allowed" = "Not allowed";
+"Pippa can check this while %@ is open" = "Pippa can check this while %@ is open";
+"Pippa asks when she first needs a folder" = "Pippa asks when she first needs a folder";
+"Allow in System Settings…" = "Allow in System Settings…";
+"Open Files & Folders…" = "Open Files & Folders…";
