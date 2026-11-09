@@ -1,0 +1,125 @@
+# Builds Pippa's MLX runtime archive (scripts/build-mlx-runtime.sh) with oMLX's native kernels, which need Xcode's
+# Metal compiler, and uploads the archive and its manifest as an artifact. Publishing the release stays a manual step.
+# Runs by hand and on pushes to ci/mlx-runtime-** branches (a workflow_dispatch workflow can be started only once it is
+# on main); never on pull requests.
+name: MLX runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/mlx-runtime-**']
+
+concurrency:
+  group: mlx-runtime-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      UV_VERSION: '0.11.32'
+      UV_SHA256: 'ed336d0ba49db8ef89b2b41fffa372ce63bd032f22a56f001c265891aec32829'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Select latest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+          echo "macOS SDK $(xcrun -sdk macosx --show-sdk-version)"
+          sw_vers
+      - name: Metal toolchain
+        run: |
+          # Xcode 26 ships the Metal compiler as a separate component; the runner image usually has it.
+          if ! xcrun -sdk macosx metal --version; then
+            sudo xcodebuild -downloadComponent MetalToolchain
+            xcrun -sdk macosx metal --version
+          fi
+      - name: uv ${{ env.UV_VERSION }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/uv"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/uv.tar.gz" \
+            "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-aarch64-apple-darwin.tar.gz"
+          echo "$UV_SHA256  $RUNNER_TEMP/uv.tar.gz" | shasum -a 256 -c -
+          tar -xzf "$RUNNER_TEMP/uv.tar.gz" -C "$RUNNER_TEMP/uv" --strip-components 1
+          echo "UV=$RUNNER_TEMP/uv/uv" >> "$GITHUB_ENV"
+      - name: Build the runtime with native kernels
+        env:
+          OMLX_WITH_CUSTOM_KERNEL: '1'
+          PIPPA_CACHE: ${{ runner.temp }}/pippa-cache
+        run: scripts/build-mlx-runtime.sh
+      - name: Lock files unchanged
+        run: |
+          # The build must use the committed locks, never resolve new ones.
+          git status --porcelain app/Packaging/mlx-runtime
+          test -z "$(git status --porcelain app/Packaging/mlx-runtime)"
+      - name: Unpack the archive
+        run: |
+          mkdir -p "$RUNNER_TEMP/unpacked"
+          tar -xzf dist/mlx-runtime/pippa-mlx-runtime-*-arm64.tar.gz -C "$RUNNER_TEMP/unpacked"
+          echo "RUNTIME=$RUNNER_TEMP/unpacked" >> "$GITHUB_ENV"
+      - name: Native kernels Qwen 3.5 uses (native_kernel_status)
+        run: |
+          # Ornith 1.5 is a Qwen 3.5 model: the FA-256 prefill attention (omlx/patches/qwen35_fa256_attention.py),
+          # the quantized prefill matmuls including the NAX tiles for M5 and newer (qwen35_q4_mlp.py) and the MoE
+          # weighted sum (qwen35_moe_weighted_sum.py). Every native package must load, not only these.
+          cd "$RUNNER_TEMP"
+          "$RUNTIME/bin/python3" -I - <<'PY'
+          import sys
+
+          from omlx.custom_kernels import native_kernel_status
+          from omlx.custom_kernels.attention import fast as attention
+          from omlx.custom_kernels.quant_matmul import fast as quant_matmul
+
+          failed = []
+          for name, report in native_kernel_status().items():
+              print(f"{name}: available={report['available']} import_error={report['import_error']}")
+              if not report["available"]:
+                  failed.append(name)
+          for module, symbol in [(attention, "fa256_attention"), (quant_matmul, "affine_q4_qmm_t"),
+                                 (quant_matmul, "moe_weighted_sum"), (quant_matmul, "nax_qmm_kernels_built")]:
+              present = module.has_symbol(symbol)
+              print(f"{module.__name__}.{symbol}: {present}")
+              if not present:
+                  failed.append(symbol)
+          nax = bool(quant_matmul._ext.nax_qmm_kernels_built()) if quant_matmul.has_symbol("nax_qmm_kernels_built") else False
+          print(f"NAX quantized matmul library built: {nax}")
+          if not nax:
+              failed.append("omlx_quant_matmul_kernels_nax.metallib")
+          if failed:
+              sys.exit(f"native kernels missing: {failed}")
+          print("All native kernels Qwen 3.5 uses are available.")
+          PY
+      - name: Minimum macOS of every binary and Metal library
+        run: |
+          echo "LSMinimumSystemVersion: $(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' app/Packaging/Info.plist)"
+          python3 -I - "$RUNTIME" <<'PY'
+          import importlib.util, os, sys
+          spec = importlib.util.spec_from_file_location("minos", "scripts/macho-minos.py")
+          minos = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(minos)
+          for root, _, files in os.walk(os.path.join(sys.argv[1], "lib/python3.11/site-packages/omlx/custom_kernels")):
+              for name in sorted(files):
+                  if name.endswith((".so", ".metallib")):
+                      path = os.path.join(root, name)
+                      print(".".join(map(str, minos.minimum_macos(path) or ("?",))), os.path.relpath(path, sys.argv[1]))
+          PY
+          python3 -I scripts/macho-minos.py "$RUNTIME" app/Packaging/Info.plist
+      - name: Archive and manifest
+        run: |
+          ls -l dist/mlx-runtime
+          shasum -a 256 dist/mlx-runtime/*.tar.gz
+          cat dist/mlx-runtime/*.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pippa-mlx-runtime
+          path: |
+            dist/mlx-runtime/*.tar.gz
+            dist/mlx-runtime/*.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

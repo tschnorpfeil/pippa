@@ -7,14 +7,26 @@
 #
 #   scripts/build-mlx-runtime.sh
 #
-# Output: dist/mlx-runtime/pippa-mlx-runtime-<version>-arm64.tar.gz and a JSON manifest next to it, copied to
-# app/Sources/PippaCore/Resources/mlx-runtime.json. The archive holds bin/, lib/ at its root.
+# Output: dist/mlx-runtime/pippa-mlx-runtime-<version>-arm64.tar.gz and a JSON manifest next to it. A build with
+# native kernels also copies the manifest to app/Sources/PippaCore/Resources/mlx-runtime.json (PIPPA_MLX_PIN=1 does for
+# one without). The archive holds bin/, lib/ at its root.
 #
 # Dependencies come from app/Packaging/mlx-runtime/requirements.lock (hashes for everything from PyPI and the oMLX
 # source tarball; mlx-lm, mlx-vlm, mlx-audio and mlx-embeddings are git URLs at fixed commits, as oMLX requires).
+# uv installs the PyPI part as wheels only and builds nothing. oMLX and the git packages are built here, without build
+# isolation, by setuptools' PEP 517 hooks with the tools their [build-system] tables name (setuptools, wheel,
+# setuptools-scm; cmake and nanobind for the kernels), pinned with hashes in app/Packaging/mlx-runtime/build-tools.lock
+# and installed outside the runtime, so none of them lands in the archive.
+#
+# oMLX's native kernels (omlx/custom_kernels: C++ extensions and Metal libraries) build only with
+# OMLX_WITH_CUSTOM_KERNEL=1 and Xcode's Metal compiler, from the same source and tools as oMLX's wheel;
+# .github/workflows/mlx-runtime.yml builds the release archive that way on a GitHub runner.
 #
 # Environment:
-#   PIPPA_MLX_RELOCK=1          resolve the lock file again (otherwise it is created only when missing)
+#   OMLX_WITH_CUSTOM_KERNEL=1   build oMLX's native kernels into the runtime (needs Xcode with the macOS 26.2 SDK or
+#                               newer: `xcrun metal`); without it the runtime has none and oMLX takes its slow paths
+#   PIPPA_MLX_RELOCK=1          resolve the lock files again (otherwise each is created only when missing)
+#   PIPPA_MLX_PIN=1             copy the manifest to Resources/mlx-runtime.json even without native kernels
 #   PIPPA_CACHE                 download cache (default ~/Library/Caches/pippa-build)
 #   PIPPA_MLX_VERIFY=0          skip the check that unpacks the archive and starts the server
 #   PIPPA_MLX_VERIFY_MODEL      MLX model folder for a chat request in that check
@@ -27,13 +39,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PACKAGING="$ROOT/app/Packaging/mlx-runtime"
 LOCK="$PACKAGING/requirements.lock"
+BUILD_TOOLS_LOCK="$PACKAGING/build-tools.lock"
 OUT="$ROOT/dist/mlx-runtime"
 RESOURCE_MANIFEST="$ROOT/app/Sources/PippaCore/Resources/mlx-runtime.json"
 CACHE="${PIPPA_CACHE:-$HOME/Library/Caches/pippa-build}/mlx-runtime"
 
 # --- Pins --------------------------------------------------------------------
 OMLX_VERSION="0.7.3"
-BUILD_REVISION="1"                       # bump when the archive changes without a new oMLX
+BUILD_REVISION="2"                       # bump when the archive changes without a new oMLX (2: native kernels)
 VERSION="$OMLX_VERSION-$BUILD_REVISION"
 PYTHON_VERSION="3.11.14"                 # python-build-standalone as uv ships it
 OMLX_URL="https://github.com/jundot/omlx/archive/refs/tags/v$OMLX_VERSION.tar.gz"
@@ -44,6 +57,9 @@ NAME="pippa-mlx-runtime-$VERSION-arm64"
 ARCHIVE="$OUT/$NAME.tar.gz"
 MANIFEST="$OUT/$NAME.json"
 RELEASE_URL="https://github.com/tschnorpfeil/pippa/releases/download/mlx-runtime-$VERSION/$NAME.tar.gz"
+# The kernels' Mach-O files target oMLX's own default; the NAX library sets 26.2 itself (oMLX's setup.py).
+KERNEL_DEPLOYMENT_TARGET="15.0"
+KERNEL_PACKAGES=(attention lowbit quant_matmul sparse_index)
 
 say() { printf '\033[1m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mWarning: %s\033[0m\n' "$*" >&2; }
@@ -57,9 +73,26 @@ UV="${UV:-$(command -v uv || true)}"
 for tool in codesign otool install_name_tool file shasum curl tar gzip; do
   command -v "$tool" >/dev/null || die "$tool missing (Command Line Tools installed?)"
 done
-say "MLX runtime $VERSION (oMLX $OMLX_VERSION, Python $PYTHON_VERSION)"
+case "$(printf '%s' "${OMLX_WITH_CUSTOM_KERNEL:-}" | tr '[:upper:]' '[:lower:]')" in
+  1|true|yes|on) KERNELS=1 ;;
+  *) KERNELS=0 ;;
+esac
+# Read once, then gone: oMLX's wheel is built without kernels, the kernels are built below from the same source.
+unset OMLX_WITH_CUSTOM_KERNEL
+if [[ "$KERNELS" == 1 ]]; then
+  # Fail before anything is downloaded: asked for kernels, a build without them would look the same from outside.
+  if ! xcrun -sdk macosx -f metal >/dev/null 2>&1 || ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+    die "OMLX_WITH_CUSTOM_KERNEL=1 needs Xcode's Metal compiler, and \`xcrun metal\` does not run here (developer dir: $(xcode-select -p 2>/dev/null || echo none)). Install Xcode and select it with xcode-select -s (on Xcode 26 also: xcodebuild -downloadComponent MetalToolchain), or build without kernels by leaving OMLX_WITH_CUSTOM_KERNEL unset."
+  fi
+  SDK_VERSION="$(xcrun -sdk macosx --show-sdk-version)"
+  [[ "$(printf '%s\n26.2\n' "$SDK_VERSION" | sort -V | head -1)" == 26.2 ]] \
+    || die "OMLX_WITH_CUSTOM_KERNEL=1 needs the macOS 26.2 SDK or newer for the NAX kernels (M5 and newer); this Xcode has $SDK_VERSION"
+fi
+say "MLX runtime $VERSION (oMLX $OMLX_VERSION, Python $PYTHON_VERSION, native kernels: $([[ "$KERNELS" == 1 ]] && echo "yes, macOS SDK $SDK_VERSION" || echo no))"
 
 mkdir -p "$CACHE" "$OUT" "$PACKAGING"
+# Resolved like BASE_DIR below (a TMPDIR cache under /var is /private/var), so the Python check compares like with like.
+CACHE="$(cd "$CACHE" && pwd -P)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/pippa-mlx-runtime.XXXXXX")"
 SERVER_PID=""
 cleanup() {
@@ -96,8 +129,83 @@ if [[ ! -f "$LOCK" || "${PIPPA_MLX_RELOCK:-0}" == 1 ]]; then
     cat "$WORK/requirements.lock"
   } > "$LOCK"
 fi
-# The oMLX tarball is pinned by its release hash, whatever the lock says.
-grep -q "sha256:$OMLX_SHA256" "$LOCK" || die "lock file does not carry the oMLX $OMLX_VERSION tarball hash"
+
+# --- Sources -----------------------------------------------------------------
+# Everything the lock does not take from PyPI as a wheel is built here from pinned sources: oMLX from its release
+# tarball (checked against its hash), mlx-lm, mlx-vlm, mlx-audio and mlx-embeddings from git at the lock's commits.
+"$BASE_PY" -I "$ROOT/scripts/mlx-runtime-sources.py" split "$LOCK" "$WORK/binary.lock" >"$WORK/sources.tsv" \
+  || die "cannot read $LOCK"
+grep -q "^archive	omlx	$OMLX_URL	$OMLX_SHA256$" "$WORK/sources.tsv" \
+  || die "lock file does not pin the oMLX $OMLX_VERSION tarball by its hash"
+say "sources"
+SRC_ARCHIVE="$CACHE/omlx-$OMLX_VERSION.tar.gz"
+if [[ ! -f "$SRC_ARCHIVE" ]] || ! shasum -a 256 "$SRC_ARCHIVE" | grep -q "^$OMLX_SHA256 "; then
+  curl -fsSL --retry 3 -o "$SRC_ARCHIVE.part" "$OMLX_URL"
+  mv "$SRC_ARCHIVE.part" "$SRC_ARCHIVE"
+fi
+shasum -a 256 "$SRC_ARCHIVE" | grep -q "^$OMLX_SHA256 " || die "oMLX $OMLX_VERSION source tarball does not match its pinned hash"
+SRC="$WORK/src/omlx"
+mkdir -p "$SRC"
+tar -xzf "$SRC_ARCHIVE" -C "$SRC" --strip-components 1
+SOURCE_DIRS=("$SRC")
+while IFS=$'\t' read -r kind name url pin; do
+  [[ "$kind" == git ]] || continue
+  # A bare mirror in the cache (full history: setuptools-scm derives mlx-lm's version from its tags), a fresh clone
+  # per build so nothing a previous build left behind ends up in a wheel.
+  mirror="$CACHE/git/$name.git"
+  if ! git -C "$mirror" cat-file -e "$pin^{commit}" 2>/dev/null; then
+    if [[ -d "$mirror" ]]; then
+      git -C "$mirror" fetch --quiet --tags "$url" '+refs/heads/*:refs/heads/*'
+    else
+      git clone --quiet --bare "$url" "$mirror.part" && mv "$mirror.part" "$mirror"
+    fi
+  fi
+  git -C "$mirror" cat-file -e "$pin^{commit}" 2>/dev/null || die "$url has no commit $pin"
+  dir="$WORK/src/$name"
+  git clone --quiet --no-checkout "$mirror" "$dir"
+  git -C "$dir" -c advice.detachedHead=false checkout --quiet "$pin"
+  [[ "$(git -C "$dir" rev-parse HEAD)" == "$pin" ]] || die "$name checkout is not at $pin"
+  SOURCE_DIRS+=("$dir")
+done <"$WORK/sources.tsv"
+[[ "${#SOURCE_DIRS[@]}" == "$(wc -l <"$WORK/sources.tsv" | tr -d ' ')" ]] || die "unexpected source entry in $LOCK"
+
+# --- Build tools -------------------------------------------------------------
+# What those sources' [build-system] tables name (setuptools, wheel, setuptools-scm; cmake and nanobind for oMLX's
+# kernels), pinned with hashes in build-tools.lock and installed outside the runtime: no wheel here is built with a tool
+# uv resolves on the fly, and none of them ships. mlx, which oMLX's [build-system] also names, is the runtime's own.
+# A relock reads [build-system] from the sources above (with the lock's own URLs and commits).
+if [[ ! -f "$BUILD_TOOLS_LOCK" || "${PIPPA_MLX_RELOCK:-0}" == 1 ]]; then
+  say "resolving $BUILD_TOOLS_LOCK"
+  "$BASE_PY" -I "$ROOT/scripts/mlx-runtime-sources.py" build-requires "${SOURCE_DIRS[@]/%//pyproject.toml}" \
+    | grep -Ev '^mlx([^-_.A-Za-z0-9]|$)' >"$WORK/build-tools.in"
+  # From $WORK, so the lock's "via" comments name build-tools.in, not a temporary path.
+  (cd "$WORK" && "$UV" pip compile build-tools.in \
+    --python "$BASE_PY" --python-platform aarch64-apple-darwin \
+    --generate-hashes --exclude-newer "$EXCLUDE_NEWER" \
+    --no-header --output-file build-tools.lock)
+  {
+    printf '# Tools that build the Pippa MLX runtime'"'"'s wheels and oMLX %s'"'"'s native kernels ([build-system] of oMLX,\n' \
+      "$OMLX_VERSION"
+    printf '# mlx-lm, mlx-vlm, mlx-audio, mlx-embeddings; mlx comes from requirements.lock). Not shipped.\n'
+    printf '# Generated by scripts/build-mlx-runtime.sh (PIPPA_MLX_RELOCK=1); do not edit by hand.\n'
+    cat "$WORK/build-tools.lock"
+  } > "$BUILD_TOOLS_LOCK"
+fi
+# A nanobind other than oMLX's pin isolates the extensions from mlx's arrays (oMLX issue #2139); oMLX builds against
+# the exact mlx of the runtime.
+NANOBIND_PIN="$(sed -n 's/^[[:space:]]*"nanobind==\([0-9][0-9.]*\)".*/\1/p' "$SRC/pyproject.toml" | head -1)"
+grep -q "^nanobind==$NANOBIND_PIN " "$BUILD_TOOLS_LOCK" || die "$BUILD_TOOLS_LOCK does not pin nanobind $NANOBIND_PIN as oMLX $OMLX_VERSION requires"
+MLX_PIN="$(sed -n 's/^[[:space:]]*"mlx==\([0-9][0-9.]*\)".*/\1/p' "$SRC/pyproject.toml" | head -1)"
+grep -q "^mlx==$MLX_PIN " "$LOCK" || die "$LOCK does not pin mlx $MLX_PIN as oMLX $OMLX_VERSION builds against"
+# One tool folder per source with only what its own [build-system] needs, as an isolated build would have it.
+TOOLS="$WORK/build-tools"
+for dir in "${SOURCE_DIRS[@]}"; do
+  name="$(basename "$dir")"
+  "$BASE_PY" -I "$ROOT/scripts/mlx-runtime-sources.py" tools "$BUILD_TOOLS_LOCK" "$dir/pyproject.toml" \
+    "$WORK/build-tools-$name.lock" mlx || die "$BUILD_TOOLS_LOCK lacks build tools of $name (PIPPA_MLX_RELOCK=1?)"
+  "$UV" pip install --target "$TOOLS/$name" --python "$BASE_PY" --no-deps --require-hashes --no-build \
+    --exclude-newer "$EXCLUDE_NEWER" -r "$WORK/build-tools-$name.lock"
+done
 
 # --- Install -----------------------------------------------------------------
 STAGE="$WORK/$NAME"
@@ -107,8 +215,77 @@ SITE="$STAGE/lib/python3.11/site-packages"
 # Start from an empty site-packages: pip and setuptools come back only if the lock needs them.
 rm -rf "$SITE"/*
 rm -f "$STAGE/lib/python3.11/EXTERNALLY-MANAGED"
-"$UV" pip install --python "$STAGE/bin/python3" --no-deps --link-mode copy --no-compile \
-  --exclude-newer "$EXCLUDE_NEWER" -r "$LOCK"
+# Wheels only (--no-build): uv builds nothing here, so it never resolves a build environment of its own.
+"$UV" pip install --python "$STAGE/bin/python3" --no-deps --require-hashes --no-build --link-mode copy --no-compile \
+  --exclude-newer "$EXCLUDE_NEWER" -r "$WORK/binary.lock"
+
+# The source-built packages, through setuptools' PEP 517 hooks run by the staged Python (so oMLX builds against the
+# runtime's mlx) with only the pinned tools added: no build isolation, no user site.
+# build_env <source name> <command>...
+build_env() {
+  local tools="$TOOLS/$1"; shift
+  env PYTHONPATH="$tools" PYTHONNOUSERSITE=1 PATH="$tools/cmake/data/bin:$PATH" "$@"
+}
+WHEELS="$WORK/wheels"
+mkdir -p "$WHEELS"
+for dir in "${SOURCE_DIRS[@]}"; do
+  say "building $(basename "$dir")"
+  (cd "$dir" && build_env "$(basename "$dir")" "$STAGE/bin/python3" -B -c '
+import sys, tomllib
+out = sys.argv[1]   # read first: the setuptools hooks rewrite sys.argv
+system = tomllib.load(open("pyproject.toml", "rb"))["build-system"]
+if system.get("build-backend") != "setuptools.build_meta" or system.get("backend-path"):
+    sys.exit("expected setuptools.build_meta, got %r" % system.get("build-backend"))
+from setuptools import build_meta
+# Anything the backend asks for beyond [build-system] would have to be resolved: refuse instead.
+extra = build_meta.get_requires_for_build_wheel()
+if extra:
+    sys.exit("the build asks for more tools: %s" % extra)
+print(build_meta.build_wheel(out))' "$WHEELS") || die "building $(basename "$dir") failed; see the output above"
+done
+# By name from a local index, not by file path: uv would record the build folder as their origin.
+"$UV" pip install --python "$STAGE/bin/python3" --no-deps --no-index --find-links "$WHEELS" --no-build \
+  --link-mode copy --no-compile $(cut -f2 "$WORK/sources.tsv")
+# As if uv had installed the lock's URLs itself (PEP 610): oMLX shows the engines' commits from these.
+while IFS=$'\t' read -r kind name url pin; do
+  if [[ "$kind" == git ]]; then
+    "$BASE_PY" -I "$ROOT/scripts/mlx-runtime-sources.py" direct-url "$SITE" "$name" git "$url" "$pin"
+  else
+    "$BASE_PY" -I "$ROOT/scripts/mlx-runtime-sources.py" direct-url "$SITE" "$name" archive "$url"
+  fi
+done <"$WORK/sources.tsv"
+
+# --- Native kernels (OMLX_WITH_CUSTOM_KERNEL=1) ------------------------------
+# What oMLX's `make kernels` does, against the staged Python and its MLX (the extensions are ABI-coupled to that exact
+# mlx), from the same source and tools as oMLX's wheel; after the wheel, so the wheel cannot pick up the built files.
+# Before the prune: CMake needs the staged Python's headers.
+if [[ "$KERNELS" == 1 ]]; then
+  say "building oMLX's native kernels"
+  (
+    cd "$SRC"
+    export OMLX_WITH_CUSTOM_KERNEL=1 OMLX_CUSTOM_KERNEL_DEPLOYMENT_TARGET="$KERNEL_DEPLOYMENT_TARGET"
+    export MACOSX_DEPLOYMENT_TARGET="$KERNEL_DEPLOYMENT_TARGET" CMAKE_ARGS="-DCMAKE_OSX_DEPLOYMENT_TARGET=$KERNEL_DEPLOYMENT_TARGET"
+    build_env omlx "$STAGE/bin/python3" -B setup.py build_ext --inplace --force
+  ) || die "native kernel build failed; see the output above"
+  for kernel in "${KERNEL_PACKAGES[@]}"; do
+    built="$SRC/omlx/custom_kernels/$kernel"
+    target="$SITE/omlx/custom_kernels/$kernel"
+    [[ -d "$target" ]] || die "oMLX $OMLX_VERSION has no omlx/custom_kernels/$kernel in the runtime"
+    [[ -f "$built/_ext.cpython-311-darwin.so" ]] || die "kernel build left no $kernel/_ext.cpython-311-darwin.so"
+    [[ -f "$built/omlx_${kernel}_kernels.metallib" ]] || die "kernel build left no $kernel/omlx_${kernel}_kernels.metallib"
+    cp "$built"/_ext.cpython-311-darwin.so "$built"/*.metallib "$target/"
+  done
+  # SDK-gated, not deployment-gated: with the 26.2 SDK checked above it must be there (M5 and newer use it).
+  [[ -f "$SITE/omlx/custom_kernels/quant_matmul/omlx_quant_matmul_kernels_nax.metallib" ]] \
+    || die "kernel build left no quant_matmul/omlx_quant_matmul_kernels_nax.metallib"
+  say "native kernels: $(cd "$SITE/omlx/custom_kernels" && ls */_ext*.so */*.metallib | tr '\n' ' ')"
+fi
+# Build tools stay out of the runtime (the lock carries none of them).
+for tool in setuptools wheel setuptools_scm cmake nanobind; do
+  if compgen -G "$SITE/$tool-*.dist-info" >/dev/null && ! grep -qi "^${tool//_/[-_]}==" "$LOCK"; then
+    die "build tool $tool ended up in the runtime"
+  fi
+done
 
 # --- Prune -------------------------------------------------------------------
 # Only what text serving never touches; the check below starts the unpacked server.
@@ -186,14 +363,22 @@ cat > "$MANIFEST" <<JSON
   "version": "$VERSION",
   "omlx": "$OMLX_VERSION",
   "python": "$PY_FULL",
+  "native_kernels": $([[ "$KERNELS" == 1 ]] && echo true || echo false),
   "file": "$NAME.tar.gz",
   "size": $SIZE,
   "sha256": "$SHA256",
   "url": "$RELEASE_URL"
 }
 JSON
-cp "$MANIFEST" "$RESOURCE_MANIFEST"
+# Only an archive with kernels is what a release carries; a local build without them leaves the pin alone.
+if [[ "$KERNELS" == 1 || "${PIPPA_MLX_PIN:-0}" == 1 ]]; then
+  cp "$MANIFEST" "$RESOURCE_MANIFEST"
+  say "pinned in ${RESOURCE_MANIFEST#"$ROOT/"}"
+else
+  say "${RESOURCE_MANIFEST#"$ROOT/"} left unchanged (PIPPA_MLX_PIN=1 pins this build anyway)"
+fi
 say "$ARCHIVE: $(( SIZE / 1048576 )) MB compressed, $(( UNPACKED_KB / 1024 )) MB unpacked"
+[[ "$KERNELS" == 1 ]] || warn "built without oMLX's native kernels: not the archive the release of $VERSION carries (OMLX_WITH_CUSTOM_KERNEL=1 on a Mac with Xcode, or .github/workflows/mlx-runtime.yml)"
 
 # --- Check: unpack elsewhere, start the server, ask the model ----------------
 [[ "${PIPPA_MLX_VERIFY:-1}" == 1 ]] || exit 0
@@ -204,6 +389,16 @@ BASE="$CHECK/base"
 mkdir -p "$RUNTIME" "$BASE/models"
 tar -xzf "$ARCHIVE" -C "$RUNTIME"
 rm -rf "$STAGE"   # nothing may resolve back into the staging folder
+# oMLX's own report (also in its /api/status). Built with kernels, every native package must load and accept MLX
+# arrays (the ABI probe runs on import); built without, none is expected.
+"$RUNTIME/bin/python3" -I -c '
+import sys
+from omlx.custom_kernels import native_kernel_status
+status = native_kernel_status()
+for name, report in status.items():
+    print("native kernel %s: available=%s import_error=%s" % (name, report["available"], report["import_error"]))
+missing = [name for name, report in status.items() if not report["available"]]
+sys.exit(1 if sys.argv[1] == "1" and missing else 0)' "$KERNELS" || die "native kernels missing from the archive"
 MODEL_DIR="${PIPPA_MLX_VERIFY_MODEL:-$HOME/.omlx/models/ornith-ai/Ornith-1.5-9B-MLX-4bit}"
 MODEL_ID=""
 if [[ -d "$MODEL_DIR" ]]; then

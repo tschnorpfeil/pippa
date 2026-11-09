@@ -13,11 +13,12 @@ again at the source or on a Mac mini (Apple M6, 24 GB, macOS 27.0.1). **Checked*
 
 1. **Keep oMLX and Ornith 1.5 9B.** No other engine would fix what is slow today. The slow part is reading long tool
    results (prompts up to 23K tokens), and that speed depends on the chip and the model's design, not on the server.
-2. **Ship oMLX's native kernels.** Pippa's runtime archive has none of them (checked). oMLX says Qwen 3.5 models, which
-   Ornith is built on, need them and otherwise "silently fall back to much slower generic paths". Building them needs
-   full Xcode, but only on the machine that builds the runtime (the macOS 26 CI runners have it). The kernels then
-   ship compiled inside the runtime download, so nobody using Pippa needs Xcode or the Command Line Tools. The gain
-   for Ornith 9B is not measured yet.
+2. **Ship oMLX's native kernels.** Done in runtime 0.7.3-2. oMLX says Qwen 3.5 models, which Ornith is built on, need
+   them and otherwise "silently fall back to much slower generic paths". Building them needs full Xcode, but only on
+   the machine that builds the runtime: `.github/workflows/mlx-runtime.yml` builds the archive on a macOS 26 runner,
+   and the kernels ship compiled inside the runtime download, so nobody using Pippa needs Xcode or the Command Line
+   Tools. On the M6 Mac mini Ornith 9B writes 19.7 % faster with them and reads as fast as before
+   ([measured](#kernels-measured-2026-11-09)).
 3. **Make tool results smaller.** A 23K-token PDF result costs 100–300 s to read on M1–M4, whatever the engine. Page
    ranges, extracted table rows and totals computed in code shrink it at the source. This is the biggest lever on
    the slow tasks in [omlx-switch.md](omlx-switch.md#acceptance-2026-11-01).
@@ -31,8 +32,8 @@ again at the source or on a Mac mini (Apple M6, 24 GB, macOS 27.0.1). **Checked*
 
 | Part | State (checked 2026-11-09) |
 |---|---|
-| Engine | oMLX 0.7.3 in Pippa's runtime archive `mlx-runtime-0.7.3-1` (Python 3.11, `scripts/build-mlx-runtime.sh`) |
-| Native kernels | **None.** `native_kernel_status()` reports all four packages missing, for example `No module named 'omlx.custom_kernels.attention._ext'`. The build does a plain `uv pip install` of the source archive; kernels only build with `OMLX_WITH_CUSTOM_KERNEL=1` and Xcode's Metal toolchain |
+| Engine | oMLX 0.7.3 in Pippa's runtime archive `mlx-runtime-0.7.3-1` (Python 3.11, `scripts/build-mlx-runtime.sh`); 0.7.3-2 with native kernels since 2026-11-09 |
+| Native kernels | **None in 0.7.3-1.** `native_kernel_status()` reports all four packages missing, for example `No module named 'omlx.custom_kernels.attention._ext'`. The build did a plain `uv pip install` of the source archive; kernels only build with `OMLX_WITH_CUSTOM_KERNEL=1` and Xcode's Metal toolchain. Runtime 0.7.3-2 has all four (attention, lowbit, quant_matmul, sparse_index) |
 | Oldest macOS | **26.2.** The MLX binaries in the runtime (`libmlx.dylib`, `core.cpython-311-darwin.so`, `libjaccl.dylib`) need it, although their wheels are tagged `macosx_26_0`; everything else loads from macOS 14. Pippa promised macOS 15 until 2026-11-09, where this runtime cannot load; she now requires 26.2, and `scripts/macho-minos.py` stops a runtime build that needs a newer macOS than `LSMinimumSystemVersion` |
 | Model | `ornith-ai/Ornith-1.5-9B-MLX-4bit`, 5.06 GB, uniform 4-bit. Its config names one MTP layer, but none of its 927 tensors are MTP weights, so multi-token prediction cannot run on it |
 | Settings Pippa writes | SSD prompt cache 8 GB; idle unload after 600 s; temperature 0.6, top-k 20, top-p 0.95; context 32K (24 GB and up) or 16K (16 GB) |
@@ -120,7 +121,7 @@ M6 it takes 15–60 s.
 | Technique | What it speeds up | Verdict |
 |---|---|---|
 | Prompt cache across turns | Every turn after the first | **Already on** and working (see above) |
-| Native kernels | Reading and writing for Qwen 3.5 models; prerequisite for ANE prefill | **Do it.** Gain unmeasured; on M5 and newer one kernel is skipped anyway because MLX's own attention is faster there |
+| Native kernels | Reading and writing for Qwen 3.5 models; prerequisite for ANE prefill | **Done** (runtime 0.7.3-2). On the M6: writing +19.7 %, reading unchanged; on M5 and newer one kernel is skipped anyway because MLX's own attention is faster there. M1–M4 not measured |
 | ANE prefill (Neural Engine shares the reading work) | Reading | Later. Experimental, per Mac, needs a tuning run and the native kernels. oMLX measured +22.7 % to +26.3 % on an M3 Ultra (0.6.3 notes) |
 | Smaller tool results | Reading | **Do it.** The biggest lever on M1–M4 |
 | MTP or DFlash draft | Writing only, about 1.3–1.8× in community rows | Measure. Needs an MTP build or the DFlash draft; reading is unchanged |
@@ -157,7 +158,7 @@ print(model.supportsLocale(Locale(identifier: "de_DE")))     // true
 | Memory | Recommendation |
 |---|---|
 | 8 GB | The agent runs on an online AI. Where Apple Intelligence is on, Apple's model can do titles and small jobs offline |
-| 16 GB | Ornith 1.5 9B at 16K, with kernels. Handle the 507 refusal in plain language ("close an app and try again") |
+| 16 GB | Ornith 1.5 9B at 16K, with kernels (shipped in runtime 0.7.3-2). Handle the 507 refusal in plain language ("close an app and try again") |
 | 24 GB | Ornith 1.5 9B at 32K, with kernels. Then measure MTP or DFlash for faster writing. The 35B does not fit beside a working Mac; Pippa recorded swapping with it on 2026-10-31 |
 | 32–48 GB | Ornith 1.5 35B-A3B 4-bit, after Pippa's task gate passes on a 32 GB Mac |
 | 64 GB and up | Ornith 1.5 35B-A3B 8-bit |
@@ -176,6 +177,27 @@ Pages open as in the release gate. Record chip, `sysctl vm.swapusage` and `memor
    4K, 16K and 23K-token prompts (a real PDF tool result) to `/v1/chat/completions` with `max_tokens: 1` and the header
    `X-oMLX-Cache-Store: off`, five times each. Compare reading speed and time to first token from the
    `Chat completion … prompt:` lines in `server.log`.
+
+### Kernels, measured 2026-11-09
+
+Mac mini M6, 24 GB, macOS 27, no other model server running, Ornith 1.5 9B MLX 4-bit. A is the published runtime
+0.7.3-1, B a 0.7.3-2 archive from `.github/workflows/mlx-runtime.yml` (run 42704368211, Xcode 26.6, macOS SDK 26.5;
+the published archive from run 42711960795 has the same files apart from packaging metadata), one after the other
+on their own port and folder. Reading: five prompts each, `max_tokens: 1`, prompt cache off; writing: three answers
+of 256 tokens. Medians:
+
+| | A: 0.7.3-1 | B: 0.7.3-2, kernels | Change |
+|---|---|---|---|
+| Reading 4,006 tokens | 1,035 tokens/s (3.9 s) | 1,035 tokens/s (3.9 s) | 0.0 % |
+| Reading 16,020 tokens | 1,034 tokens/s (15.5 s) | 1,032 tokens/s (15.5 s) | −0.2 % |
+| Reading 23,019 tokens | 937 tokens/s (24.6 s) | 923 tokens/s (24.9 s) | −1.4 % (A's runs spread 23.4–28.0 s) |
+| Writing | 24.8 tokens/s | 29.6 tokens/s | **+19.7 %** |
+| Peak memory | 7,593 MB | 7,602 MB | |
+
+At temperature 0, two of three answers were identical; the third, a German summary of a long text, took a different
+but equally correct wording after 619 characters, as a different summation order does. Swap stayed at 2,621 MB
+used. The M6 skips oMLX's attention kernel (MLX's own is faster from M5 on), so reading on M1–M4 may gain more;
+that is not measured.
 2. **Faster writing.** With the server stopped, enable DFlash in `<Support>/omlx/model_settings.json` with Ornith's
    draft model, or switch to an MTP build. Run the ten model-compare tasks with Pippa's sampling. Compare writing speed,
    draft acceptance and whether answers change.

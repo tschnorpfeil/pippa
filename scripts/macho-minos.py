@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Lists the Mach-O files in a folder that need a newer macOS than Pippa supports.
+"""Lists the Mach-O files and Metal libraries in a folder that need a newer macOS than Pippa supports.
 
 Usage: macho-minos.py <folder> <Info.plist>
 
 Prints `<minimum macOS> <path>` for every binary whose minimum is above the plist's LSMinimumSystemVersion and exits
 with 1 if there is one. scripts/build-mlx-runtime.sh runs it on the staged runtime: a binary built for a newer macOS
-does not load on an older one, and MLX 0.32.4's wheels tagged macosx_26_0 need 26.2.
+does not load on an older one, and MLX 0.32.4's wheels tagged macosx_26_0 need 26.2. Metal libraries (.metallib, as
+MLX and oMLX's native kernels ship them) are no Mach-O files but carry their own deployment target in the header.
 """
 import os
 import plistlib
@@ -15,6 +16,9 @@ import sys
 MH_MAGIC_64 = 0xFEEDFACF
 FAT_MAGIC, FAT_MAGIC_64 = 0xCAFEBABE, 0xCAFEBABF
 LC_VERSION_MIN_MACOSX, LC_BUILD_VERSION = 0x24, 0x32
+# A Metal library starts with "MTLB"; byte 11 names the operating system (0x81: macOS) and the two little-endian
+# 16-bit numbers after it its minimum version, as `metal -mmacosx-version-min=` wrote it.
+METALLIB_MAGIC, METALLIB_MACOS = b"MTLB", 0x81
 
 
 def parse_version(text):
@@ -48,10 +52,22 @@ def slice_offsets(handle):
     return offsets
 
 
+def metallib_minimum(head):
+    """The minimum macOS in a Metal library header, None for anything else (or a library for another system)."""
+    if len(head) < 16 or head[:4] != METALLIB_MAGIC or head[11] != METALLIB_MACOS:
+        return None
+    major, minor = struct.unpack("<HH", head[12:16])
+    return (major, minor, 0)
+
+
 def minimum_macos(path):
-    """The highest minimum macOS among the file's slices, or None if it is not a 64-bit Mach-O."""
+    """The highest minimum macOS among the file's slices (or of a Metal library), None if it is neither."""
     found = None
     with open(path, "rb") as handle:
+        library = metallib_minimum(handle.read(16))
+        if library:
+            return library
+        handle.seek(0)
         for offset in slice_offsets(handle):
             handle.seek(offset)
             header = handle.read(32)
