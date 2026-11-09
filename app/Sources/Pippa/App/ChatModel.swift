@@ -80,6 +80,13 @@ final class ChatModel: ObservableObject {
     private var generation = 0
 
     private static var folder: URL { Pippa.supportDirectory.appendingPathComponent("conversations", isDirectory: true) }
+    /// Reading and writing conversation files, away from the window.
+    private let store = ConversationStore(folder: ChatModel.folder)
+    /// The saved conversations have been read (the sidebar says "nothing here" only after that).
+    @Published private(set) var isLoaded = false
+    /// Snapshots show sample conversations: the saved ones, read later, must not join them.
+    private var showsSample = false
+    private var terminateWatch: NSObjectProtocol?
 
     var current: Conversation? { conversations.first { $0.id == currentID } }
     /// The conversation with the running answer (not necessarily the one on screen).
@@ -87,7 +94,13 @@ final class ChatModel: ObservableObject {
     /// The running answer belongs to the conversation on screen (Stop shows there, not elsewhere).
     var isAnsweringHere: Bool { isAnswering && (answeringID == nil || answeringID == currentID) }
 
-    init() { load() }
+    init() {
+        load()
+        // Quitting waits for the last writes, so an answer that just ended is on disk.
+        let store = self.store
+        terminateWatch = NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
+                                                                object: nil, queue: nil) { _ in store.flush() }
+    }
 
     // MARK: Conversations
 
@@ -108,7 +121,7 @@ final class ChatModel: ObservableObject {
         unseenIDs.remove(id)
         conversations.removeAll { $0.id == id }
         if currentID == id { currentID = nil }
-        try? FileManager.default.trashItem(at: Self.folder.appendingPathComponent("\(id).json"), resultingItemURL: nil)
+        store.trash(id)
         Task { await PiSession.shared.forget(id) }
     }
 
@@ -377,6 +390,8 @@ final class ChatModel: ObservableObject {
 
     /// Snapshots only (`Snapshots`): never saved.
     func replaceForSnapshot(_ conversations: [Conversation], current: String?, answering: Bool) {
+        showsSample = true
+        isLoaded = true
         self.conversations = conversations
         currentID = current
         isAnswering = answering
@@ -404,20 +419,64 @@ final class ChatModel: ObservableObject {
         change(&conversations[index].messages[conversations[index].messages.count - 1])
     }
 
+    /// Reads the saved conversations in the background. One asked meanwhile stays; a saved one with the same id
+    /// does not replace it.
     private func load() {
-        let decoder = JSONDecoder()
-        let files = (try? FileManager.default.contentsOfDirectory(at: Self.folder, includingPropertiesForKeys: nil)) ?? []
-        conversations = files.filter { $0.pathExtension == "json" }
-            .compactMap { try? decoder.decode(Conversation.self, from: Data(contentsOf: $0)) }
-            .sorted { $0.updated > $1.updated }
+        let store = self.store
+        Task.detached(priority: .userInitiated) {
+            let saved = store.load()
+            await MainActor.run {
+                guard !self.showsSample else { return }
+                let known = Set(self.conversations.map(\.id))
+                self.conversations = (self.conversations + saved.filter { !known.contains($0.id) }).sorted { $0.updated > $1.updated }
+                self.isLoaded = true
+            }
+        }
     }
 
+    /// Hands a copy to the background writer; files are written in the order they were saved.
     private func save(_ id: String) {
-        guard let conversation = conversations.first(where: { $0.id == id }),
-              let data = try? JSONEncoder().encode(conversation) else { return }
-        try? FileManager.default.createDirectory(at: Self.folder, withIntermediateDirectories: true)
-        try? data.write(to: Self.folder.appendingPathComponent("\(id).json"), options: .atomic)
+        guard !showsSample, let conversation = conversations.first(where: { $0.id == id }) else { return }
+        store.save(conversation)
     }
+}
+
+/// The conversation files, read and written on one background queue: encoding and writing never hold up the window,
+/// and saves land on disk in the order they were made (a later save of a conversation never loses to an earlier one).
+final class ConversationStore: Sendable {
+    private let folder: URL
+    private let queue = DispatchQueue(label: "Pippa.conversations", qos: .utility)
+
+    init(folder: URL) { self.folder = folder }
+
+    /// Called off the main actor (at launch).
+    func load() -> [Conversation] {
+        queue.sync {
+            let decoder = JSONDecoder()
+            let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+            return files.filter { $0.pathExtension == "json" }
+                .compactMap { try? decoder.decode(Conversation.self, from: Data(contentsOf: $0)) }
+                .sorted { $0.updated > $1.updated }
+        }
+    }
+
+    func save(_ conversation: Conversation) {
+        let folder = self.folder
+        queue.async {
+            guard let data = try? JSONEncoder().encode(conversation) else { return }
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try? data.write(to: folder.appendingPathComponent("\(conversation.id).json"), options: .atomic)
+        }
+    }
+
+    /// After any save still waiting, so a late write never brings a deleted conversation back.
+    func trash(_ id: String) {
+        let file = folder.appendingPathComponent("\(id).json")
+        queue.async { try? FileManager.default.trashItem(at: file, resultingItemURL: nil) }
+    }
+
+    /// Waits until every save so far is on disk (when Pippa quits).
+    func flush() { queue.sync {} }
 }
 
 /// A short everyday line for a tool call ("Reading Lease.pdf"). Display only; Pi never sees it.
