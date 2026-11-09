@@ -153,7 +153,7 @@ let ornithKey = "ornith-1.5-9b-mlx-4bit"
 func fakeCatalogModel(key: String = "fake-1b-mlx", repo: String = "fixture-org/Fake-1B-MLX", files: [String: Data]) -> CatalogModel {
     let pinned = files.keys.sorted().map { path -> [String: Any] in
         let data = files[path]!
-        return ["path": path, "size": data.count, "sha256": SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()]
+        return ["path": path, "size": data.count, "sha256": SHA256.hash(data: data).hexString]
     }
     let json: [String: Any] = ["key": key, "label": "Fake 1B", "repo": repo, "quant": "MLX 4-bit", "memGiB": 1, "ctx": 4096,
                                "pinned": ["revision": "test", "files": pinned]]

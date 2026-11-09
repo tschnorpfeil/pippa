@@ -1,5 +1,4 @@
 import CoreGraphics
-import CryptoKit
 import Foundation
 import ImageIO
 import PDFKit
@@ -32,15 +31,9 @@ public struct FilePreparationSource: Codable, Sendable, Equatable {
               let fingerprint = FileFingerprint.of(url), fingerprint.size <= 500_000_000 else {
             throw FilePreparationFailure.unsupported(url.lastPathComponent)
         }
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        var hash = SHA256()
-        while let data = try handle.read(upToCount: 1_048_576), !data.isEmpty {
-            try Task.checkCancellation()
-            hash.update(data: data)
-        }
+        let sha256 = try FileDigest.sha256(of: url)
         guard fingerprint.matches(FileFingerprint.of(url)) else { throw FilePreparationFailure.changed(url.lastPathComponent) }
-        return Self(url: url, fingerprint: fingerprint, sha256: hash.finalize().map { String(format: "%02x", $0) }.joined())
+        return Self(url: url, fingerprint: fingerprint, sha256: sha256)
     }
 
     public func validate() throws {

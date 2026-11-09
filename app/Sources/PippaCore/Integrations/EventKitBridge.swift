@@ -99,6 +99,6 @@ final class EventKitBridge: @unchecked Sendable {
         }
         for alarm in item.alarms ?? [] { parts += [String(describing: alarm.absoluteDate), String(alarm.relativeOffset)] }
         let data = (try? JSONEncoder().encode(parts)) ?? Data()
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        return SHA256.hash(data: data).hexString
     }
 }

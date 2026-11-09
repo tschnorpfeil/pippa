@@ -61,7 +61,7 @@ private func roots(_ home: URL, _ payload: PiPayload) -> PiInstallRoots {
 /// Small model from random bytes plus a catalog entry with its SHA-256 (never the real model files).
 private func dummyModel(name: String = "model.safetensors", bytes: Int = 1_048_576, key: String = "dummy-1b") -> (CatalogModel, Data) {
     let data = Data((0..<bytes).map { _ in UInt8.random(in: 0...255) })
-    let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    let hash = SHA256.hash(data: data).hexString
     let json: [String: Any] = ["key": key, "label": "Dummy 1B", "repo": "fixture/dummy", "quant": "MLX 4-bit", "memGiB": 1, "ctx": 4096,
                                "pinned": ["revision": "test", "files": [["path": name, "size": bytes, "sha256": hash]]]]
     let model = try! JSONDecoder().decode(CatalogModel.self, from: JSONSerialization.data(withJSONObject: json))

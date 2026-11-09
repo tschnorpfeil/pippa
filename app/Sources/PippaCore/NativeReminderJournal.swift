@@ -51,7 +51,7 @@ public struct NativeReminderRecord: Sendable, Equatable, Codable {
     /// Includes the normalized arguments before resolving relative dates, so a retry tomorrow retains today's plan.
     public static func requestHash(_ arguments: [String: String]) -> String {
         let data = try! JSONSerialization.data(withJSONObject: arguments, options: [.sortedKeys])
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        return SHA256.hash(data: data).hexString
     }
 }
 

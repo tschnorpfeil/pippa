@@ -114,7 +114,7 @@ public final class PippaMCPServer: @unchecked Sendable {
     /// 32 random bytes as hex (SystemRandomNumberGenerator: arc4random, cryptographically secure).
     public static func newToken() -> String {
         var generator = SystemRandomNumberGenerator()
-        return (0..<32).map { _ in String(format: "%02x", UInt8.random(in: .min ... .max, using: &generator)) }.joined()
+        return (0..<32).map { _ in UInt8.random(in: .min ... .max, using: &generator) }.hexString
     }
 
     public var port: UInt16 { lock.withLock { boundPort } }

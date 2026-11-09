@@ -89,7 +89,7 @@ enum ToolFixtures {
     /// Byte checksum and fingerprint, to verify "originals unchanged".
     static func identity(_ url: URL) -> (sha: String, fingerprint: FileFingerprint?) {
         let data = (try? Data(contentsOf: url)) ?? Data()
-        let sha = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let sha = SHA256.hash(data: data).hexString
         return (sha, FileFingerprint.of(url))
     }
 

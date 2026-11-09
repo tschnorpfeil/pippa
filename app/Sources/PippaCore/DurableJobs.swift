@@ -1,4 +1,3 @@
-import CryptoKit
 import Darwin
 import Foundation
 
@@ -22,17 +21,11 @@ public struct DurableFileIdentity: Codable, Sendable, Equatable {
 
     public static func capture(_ url: URL) throws -> Self {
         let before = try metadata(url)
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        var digest = SHA256()
-        while let data = try handle.read(upToCount: 1_048_576), !data.isEmpty {
-            if Task.isCancelled { throw CancellationError() }
-            digest.update(data: data)
-        }
+        let sha256 = try FileDigest.sha256(of: url)
         let after = try metadata(url)
         guard before == after else { throw DurableJobError.sourceChanged }
         return .init(size: before.size, modified: before.modified, device: before.device, inode: before.inode,
-                     sha256: digest.finalize().map { String(format: "%02x", $0) }.joined())
+                     sha256: sha256)
     }
 
     private struct Metadata: Equatable {

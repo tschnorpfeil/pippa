@@ -27,5 +27,5 @@ public enum FileDigest {
 
 extension Sequence where Element == UInt8 {
     /// Lowercase hex, two digits per byte.
-    var hexString: String { map { String(format: "%02x", $0) }.joined() }
+    public var hexString: String { map { String(format: "%02x", $0) }.joined() }
 }
