@@ -62,8 +62,11 @@ For developers:
    `build-app.sh` refuses a model that is not pinned (`scripts/check-default-models.py`).
 3. Check the memory floor and context in `ModelSelector` ([`Models.swift`](../app/Sources/PippaCore/Models.swift)) and
    the thinking switch in `PiModelTuning`.
-4. A new oMLX version means a new runtime archive: `scripts/build-mlx-runtime.sh`, then update
-   [`mlx-runtime.json`](../app/Sources/PippaCore/Resources/mlx-runtime.json).
+4. A new oMLX version means a new runtime archive with oMLX's native kernels: push to a `ci/mlx-runtime-*` branch (or
+   start `.github/workflows/mlx-runtime.yml` by hand), check the run's kernel and minimum-macOS steps, publish the
+   artifact as the `mlx-runtime-<version>` pre-release, then copy its manifest to
+   [`mlx-runtime.json`](../app/Sources/PippaCore/Resources/mlx-runtime.json). `scripts/build-mlx-runtime.sh` alone
+   builds without kernels on a Mac without Xcode, for local checks only.
 
 ## Online AI instead
 
