@@ -192,11 +192,11 @@ final class PiSession {
         let modelsJSON = target.agent.appendingPathComponent("models.json")
         let settings = InferenceSettings.load(from: Self.settingsDirectory)
         if let model = settings.activePiModel {
-            _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
+            await removeOnlineProvider(from: modelsJSON)
             return LaunchRoute(key: "pi|" + model.providerID + "|" + model.modelID, piModel: model)
         }
         guard let connection = PiOnlineProvider.activeConnection(settings) else {
-            _ = try? await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value
+            await removeOnlineProvider(from: modelsJSON)
             return LaunchRoute(key: "local|" + (try Self.installTarget(ProcessInfo.processInfo.environment)).model)
         }
         let key = try await Task.detached { try ModelCredentialStore.read(connection.id) }.value ?? ""
@@ -204,6 +204,12 @@ final class PiSession {
         let routeKey = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
                         connection.modelID, String(connection.contextWindow), String(key.hashValue)].joined(separator: "|")
         return LaunchRoute(key: routeKey, online: (connection, key))
+    }
+
+    /// Pi's models.json keeps no online entry while another route is active. Best effort: a failure is only logged.
+    private func removeOnlineProvider(from modelsJSON: URL) async {
+        do { _ = try await Task.detached { try PiOnlineProvider.sync(nil, modelsJSON: modelsJSON) }.value }
+        catch { UserMessage.record(error, context: "online-provider-sync") }
     }
 
     /// The local oMLX server for `pippa-local`, created when the plan (model, port) changes.
@@ -219,7 +225,10 @@ final class PiSession {
         if let localServer, localPlan == plan { return localServer }
         // Pi in the terminal starts the same server from this file when the app isn't running.
         let launchSupport = target.roots.support
-        Task.detached { _ = try? PiLocalServer.publishLaunchFile(plan, support: launchSupport) }
+        Task.detached {
+            do { try PiLocalServer.publishLaunchFile(plan, support: launchSupport) }
+            catch { UserMessage.record(error, context: "launch-file") }
+        }
         if let old = localServer { await old.stop() }
         let server = PiLocalServer.server(plan, logDirectory: support)
         localServer = server; localPlan = plan
@@ -256,13 +265,7 @@ final class PiSession {
 
     static func installation(_ env: [String: String]) throws -> (roots: PiInstallRoots, agent: URL) {
         guard let payload = PiPayload.locate(environment: env) else { throw Failure.setup("Pi payload missing (PIPPA_PI_PAYLOAD)") }
-        let roots: PiInstallRoots
-        if let home = env["PIPPA_PI_HOME"] {
-            let url = URL(fileURLWithPath: home, isDirectory: true)
-            roots = PiInstallRoots(home: url, payload: payload, searchPath: [url.appendingPathComponent(".local/bin")])
-        } else {
-            roots = PiInstallRoots(support: Pippa.supportDirectory, payload: payload)
-        }
+        let roots = PiInstallRoots.forApp(payload: payload, environment: env)
         let agent = env["PI_CODING_AGENT_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) } ?? roots.agentDirectory
         return (roots, agent)
     }

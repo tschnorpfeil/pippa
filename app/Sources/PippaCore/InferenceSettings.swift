@@ -106,11 +106,16 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
         self.piModel = piModel
     }
     public static func load(from base: URL = Pippa.supportDirectory) -> Self {
-        guard let data = try? Data(contentsOf: base.appendingPathComponent("inference-settings.json")),
-              let value = try? JSONDecoder().decode(Self.self, from: data),
-              value.policy == .localOnly || value.connection != nil,
+        guard let data = try? Data(contentsOf: base.appendingPathComponent("inference-settings.json")) else { return Self() }
+        let value: Self
+        do { value = try JSONDecoder().decode(Self.self, from: data) }
+        catch { UserMessage.record(error, context: "inference-settings-load"); return Self() }
+        guard value.policy == .localOnly || value.connection != nil,
               value.connection == nil || (try? value.connection?.validated()) != nil,
-              value.activePiModel?.isValid != false else { return Self() }
+              value.activePiModel?.isValid != false else {
+            DiagnosticsLog.shared.event("inference-settings-ungueltig")
+            return Self()
+        }
         return value
     }
     public func save(to base: URL = Pippa.supportDirectory) throws {

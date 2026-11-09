@@ -19,16 +19,18 @@ func fakeRuntimeDirectory(in base: URL, script: String = "#!/bin/sh\nexit 0\n") 
     return runtime
 }
 
-func fakeRuntimeManifest(size: Int64, sha256: String) -> MLXRuntime.Manifest {
-    let json = #"{"version": "9.9.9-1", "omlx": "9.9.9", "file": "pippa-mlx-runtime-check.tar.gz", "size": \#(size), "sha256": "\#(sha256)", "url": "https://example.invalid/runtime.tar.gz"}"#
+func fakeRuntimeManifest(size: Int64, sha256: String, url: String = "https://example.invalid/runtime.tar.gz") -> MLXRuntime.Manifest {
+    let json = #"{"version": "9.9.9-1", "omlx": "9.9.9", "file": "pippa-mlx-runtime-check.tar.gz", "size": \#(size), "sha256": "\#(sha256)", "url": "\#(url)"}"#
     return try! JSONDecoder().decode(MLXRuntime.Manifest.self, from: Data(json.utf8))
 }
 
 /// A runtime archive like scripts/build-mlx-runtime.sh makes: one top folder with `bin/python3`.
-func fakeRuntimeArchive(in base: URL) throws -> URL {
+/// `padding`: bytes of incompressible filler, for a download check (a tiny body is not delivered until the connection ends).
+func fakeRuntimeArchive(in base: URL, padding: Int = 0) throws -> URL {
     let source = base.appendingPathComponent("runtime-src", isDirectory: true)
     let python = source.appendingPathComponent("pippa-mlx-runtime/bin/python3")
     try fm.createDirectory(at: python.deletingLastPathComponent(), withIntermediateDirectories: true)
+    if padding > 0 { try Data((0..<padding).map { _ in UInt8.random(in: 0...255) }).write(to: source.appendingPathComponent("pippa-mlx-runtime/filler.bin")) }
     write("#!/bin/sh\nexit 0\n", python)
     try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: python.path)
     let archive = base.appendingPathComponent("pippa-mlx-runtime-check.tar.gz")
@@ -101,8 +103,8 @@ func runTerminalAutostartChecks() async {
         let support = dir("ta-lock")
         let url = PiServerLock.url(support: support)
         let me = getpid()
-        let first = PiServerLock.create(url, PiServerLock(owner: "app", holder: me, pid: nil, port: 1234))
-        let second = PiServerLock.create(url, PiServerLock(owner: "pi", holder: 1, pid: nil, port: 1234))
+        let first = try PiServerLock.create(url, PiServerLock(owner: "app", holder: me, pid: nil, port: 1234))
+        let second = try PiServerLock.create(url, PiServerLock(owner: "pi", holder: 1, pid: nil, port: 1234))
         let read = PiServerLock.read(url)
         let mode = ((try? fm.attributesOfItem(atPath: url.path)[.posixPermissions] as? NSNumber)?.intValue ?? 0) & 0o777
         let notOurs = !PiServerLock.remove(url) { $0.owner == "pi" }
@@ -117,6 +119,11 @@ func runTerminalAutostartChecks() async {
             && notOurs && jsStarting?.pid == nil && jsStarting?.isLive == false
             && deadServer?.isLive == false   // Server dead: orphaned, even if the holder is still alive
             && removed && !fm.fileExists(atPath: url.path)
+    }
+    check("Lock file: a write error is an error, not a lock someone else holds") {
+        let url = PiServerLock.url(support: dir("ta-lock-missing").appendingPathComponent("gone"))
+        do { _ = try PiServerLock.create(url, PiServerLock(owner: "app", holder: getpid(), pid: nil, port: 1234)); return false }
+        catch { return !fm.fileExists(atPath: url.path) }
     }
 
     check("Local server plan: runtime python, <Support>/omlx, stable port and key; context from memory, never above models.json") {

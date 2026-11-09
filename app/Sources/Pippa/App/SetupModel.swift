@@ -42,13 +42,7 @@ final class SetupModel: ObservableObject {
             state = .failed(PiSetupProblem(.payloadMissing(env["PIPPA_PI_PAYLOAD"] ?? "Contents/Resources/pi-payload")))
             return
         }
-        let roots: PiInstallRoots
-        if let home = env["PIPPA_PI_HOME"] {
-            let url = URL(fileURLWithPath: home, isDirectory: true)
-            roots = PiInstallRoots(home: url, payload: payload, searchPath: [url.appendingPathComponent(".local/bin")])
-        } else {
-            roots = PiInstallRoots(support: Pippa.supportDirectory, payload: payload)
-        }
+        let roots = PiInstallRoots.forApp(payload: payload, environment: env)
         let saved = PippaSettings.load(from: roots.support)
         let choice: ModelChoice
         switch ModelSelector.choose(physicalMemory: ProcessInfo.processInfo.physicalMemory) {
