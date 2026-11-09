@@ -229,6 +229,7 @@ final class IslandPresenter: NSObject {
             render()
             fade(from: 0)
         } else {
+            cancelFade()
             opening.retarget(1, IslandSpring.opening)
             startLink()
         }
@@ -257,6 +258,7 @@ final class IslandPresenter: NSObject {
                 self?.onIdle?()
             }
         } else {
+            cancelFade()
             opening.retarget(0, IslandSpring.closing)
             startLink()
         }
@@ -289,7 +291,6 @@ final class IslandPresenter: NSObject {
     }
 
     private func startLink() {
-        fadeToken += 1
         if link == nil {
             let link = view.displayLink(target: self, selector: #selector(tick(_:)))
             link.isPaused = true
@@ -311,6 +312,12 @@ final class IslandPresenter: NSObject {
         guard wing.isSettled && opening.isSettled else { return }
         link.isPaused = true
         if isIdle { onIdle?() }
+    }
+
+    /// A spring takes over from a fade that is still running (Reduce Motion switched off mid-way).
+    private func cancelFade() {
+        fadeToken += 1
+        panel.alphaValue = 1
     }
 
     /// Reduce Motion: the window fades instead of the shape moving.

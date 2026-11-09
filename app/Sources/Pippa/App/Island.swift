@@ -45,8 +45,9 @@ final class Island: ObservableObject {
     func showForSnapshot(_ status: IslandStatus) { self.status = status }
 
     private func apply() {
+        // The menu bar symbol follows the status also while the island is off.
+        watch()
         if isShown {
-            watch()
             if presenter == nil { presenter = makePresenter() }
             if !presenting {
                 // The island can always show a question, so it is a presenter for as long as it is on.
@@ -61,6 +62,7 @@ final class Island: ObservableObject {
             }
             presenter?.place(nil, compactWidth: nil)
             isOpen = false
+            refresh()
         }
     }
 
@@ -118,10 +120,11 @@ final class Island: ObservableObject {
     }
 
     func refresh() {
-        guard isShown, let presenter else { return }
         let status = IslandStatus.current(chat: .shared, setup: .shared, questions: Approvals.shared.questions.count,
                                           flash: flash, targeted: DropFeedback.island.targeted)
         if status != self.status { self.status = status }
+        guard isShown, let presenter else { return }
+        presenter.view.compact.setAccessibilityValue(status.label)
         if !isOpen, presenter.isIdle, let placement = placement(), placement != presenter.placement {
             presenter.place(placement, compactWidth: compactWidth(status, placement))
         }
@@ -195,6 +198,7 @@ final class Island: ObservableObject {
         if !isOpen, let placement = placement(fromStatusItem: fromStatusItem), placement != presenter.placement {
             presenter.place(placement, compactWidth: compactWidth(status, placement))
         }
+        guard presenter.placement != nil else { return }
         isOpen = true
         wantsFocus = focus
         presenter.open(key: key)
