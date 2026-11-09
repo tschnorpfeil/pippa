@@ -21,6 +21,20 @@ public actor OMLXServer {
         logURL = logDirectory.appendingPathComponent(PiLocalServer.logName)
     }
 
+    /// Whether a failure of the local AI (the text Pi passes through) means the model does not fit in memory right now:
+    /// oMLX answers 507 with "… does not fit under the dynamic memory ceiling …".
+    public static func isOutOfMemory(_ errorText: String) -> Bool {
+        let text = errorText.lowercased()
+        return text.contains("does not fit under the dynamic memory ceiling") || text.range(of: #"\b507\b"#, options: .regularExpression) != nil
+    }
+
+    /// The plain sentence for a failure of the local AI that has a known cause; `nil` for an online AI and for anything else,
+    /// which then shows as Pi said it.
+    public static func plainFailure(_ errorText: String, online: Bool) -> String? {
+        guard !online, isOutOfMemory(errorText) else { return nil }
+        return PippaError.notEnoughMemory.errorDescription
+    }
+
     /// The server process this app started; `nil` when none runs or the server is shared.
     public var processID: Int32? { process?.isRunning == true ? process?.processIdentifier : nil }
 

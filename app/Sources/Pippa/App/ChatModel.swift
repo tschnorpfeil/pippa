@@ -325,8 +325,13 @@ final class ChatModel: ObservableObject {
         stopRequested = false
     }
 
-    /// An online provider's failure mid-answer ("401 {…}", "usage limit") as one plain sentence; anything else as Pi said it.
+    /// A failure mid-answer as one plain sentence: an online provider's ("401 {…}", "usage limit"), or the AI on this Mac
+    /// running out of memory (the raw text goes to the log, not the chat); anything else as Pi said it.
     static func modelError(_ error: String, online: Bool) -> String {
+        if let plain = OMLXServer.plainFailure(error, online: online) {
+            DiagnosticsLog.shared.event("ki-zu-wenig-speicher", ["text": error])
+            return plain
+        }
         guard online, let problem = PiProviderClient.problem(in: error) else { return error }
         return problem == .limit
             ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
