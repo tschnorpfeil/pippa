@@ -149,12 +149,13 @@ class MirrorPublish(unittest.TestCase):
             if args[:2] == ("release", "view"):
                 if not created:
                     return subprocess.CompletedProcess(args, 1, "", "release not found")
-                return subprocess.CompletedProcess(args, 0, json.dumps({"assets": [{"name": n, "size": z} for n, z in release.items()]}), "")
+                return subprocess.CompletedProcess(args, 0, json.dumps({"assets": [
+                    {"name": n, "size": len(b), "digest": "sha256:" + hashlib.sha256(b).hexdigest()} for n, b in release.items()]}), "")
             if args[:2] == ("release", "create"):
                 created.append(args)
             if args[:2] == ("release", "upload"):
                 path = pathlib.Path(args[3])
-                release[path.name] = len(path.read_bytes())
+                release[path.name] = path.read_bytes()
             return subprocess.CompletedProcess(args, 0, "", "")
 
         class Card(io.BytesIO):
@@ -182,7 +183,7 @@ class MirrorPublish(unittest.TestCase):
             uploaded = [pathlib.Path(c[3]).name for c in calls if c[:2] == ("release", "upload")]
             self.assertEqual(uploaded, ["sub--config.json", "model.safetensors.part-0", "model.safetensors.part-1",
                                         "model.safetensors.part-2", "MODEL-CARD.md"])
-            self.assertEqual(release["model.safetensors.part-2"], 5_000)
+            self.assertEqual(len(release["model.safetensors.part-2"]), 5_000)
             self.assertFalse((home / "cache/mirror" / tag).exists())
             self.assertEqual((omlx / "model.safetensors").read_bytes(), weights)
 
@@ -194,6 +195,17 @@ class MirrorPublish(unittest.TestCase):
                     contextlib.redirect_stdout(io.StringIO()):
                 mirror.main(["test-model"], home=home, catalog=catalog)
             self.assertEqual([c[:2] for c in calls], [("release", "view"), ("release", "view")])
+
+            # An asset of the right size with other bytes (a broken upload) is refused, never reported complete.
+            calls.clear()
+            release["model.safetensors.part-1"] = bytes(10_000)
+            with unittest.mock.patch.object(mirror, "gh", side_effect=fake_gh), \
+                    unittest.mock.patch.object(mirror.shutil, "which", return_value="/usr/bin/gh"), \
+                    unittest.mock.patch.dict(os.environ, {"PIPPA_CACHE": str(home / "cache")}), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(mirror.MirrorError, "model.safetensors.part-1"):
+                    mirror.main(["test-model"], home=home, catalog=catalog)
+            self.assertFalse([c for c in calls if c[:2] in (("release", "upload"), ("release", "create"))])
 
 
 class MirrorCatalogRules(unittest.TestCase):

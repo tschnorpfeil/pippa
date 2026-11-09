@@ -136,6 +136,23 @@ def locate(model, home):
     return found, problems
 
 
+def asset_digest(source, offset, length, size, sha):
+    """SHA-256 of one asset's bytes: the pinned hash for a whole file, else the hash of its range in the verified copy."""
+    if offset == 0 and length == size:
+        return sha
+    digest = hashlib.sha256()
+    with open(source, "rb") as f:
+        f.seek(offset)
+        left = length
+        while left > 0:
+            block = f.read(min(CHUNK, left))
+            if not block:
+                raise MirrorError(f"{source} ended early")
+            digest.update(block)
+            left -= len(block)
+    return digest.hexdigest()
+
+
 def split(source, path, size, part_size, sha, work):
     """Writes the assets of one file into `work` and verifies them by hashing them joined. Returns their paths."""
     pieces = assets_for(path, size, part_size)
@@ -201,13 +218,29 @@ def gh(*args, check=True):
 
 
 def existing_assets(tag, repo):
-    """{name: size} of the release's assets, or None when the release does not exist."""
+    """{name: (size, digest)} of the release's assets (digest as GitHub reports it, `sha256:<hex>` or None), or None
+    when the release does not exist."""
     result = gh("release", "view", tag, "--repo", repo, "--json", "assets", check=False)
     if result.returncode != 0:
         if "not found" in (result.stderr or "").lower():
             return None
         raise MirrorError(f"gh release view {tag} failed: {result.stderr.strip()}")
-    return {a["name"]: a["size"] for a in json.loads(result.stdout)["assets"]}
+    return {a["name"]: (a["size"], a.get("digest")) for a in json.loads(result.stdout)["assets"]}
+
+
+def mismatched(assets, planned, found, files):
+    """Planned assets that are on the release with other bytes than the verified local copy: by size and by the
+    SHA-256 GitHub reports for each asset (an asset without one counts as different). Missing assets are not listed."""
+    wrong = []
+    for name, offset, length, path in planned:
+        if name not in assets:
+            continue
+        size, digest = assets[name]
+        entry = files[path]
+        want = f"sha256:{asset_digest(found[path][0], offset, length, entry['size'], entry['sha256'])}"
+        if size != length or digest != want:
+            wrong.append(f"{name} ({size} bytes, {digest or 'no digest'}; expected {length} bytes, {want})")
+    return wrong
 
 
 def main(argv=None, home=None, catalog=None):
@@ -232,11 +265,12 @@ def main(argv=None, home=None, catalog=None):
     found, skipped = locate(model, home)
     for line in skipped:
         print(f"  skipped: {line}")
-    planned = []  # (asset name, length, file path)
+    planned = []  # (asset name, offset in the file, length, file path)
+    files = {entry["path"]: entry for entry in pinned["files"]}
     for entry in pinned["files"]:
         source, label = found[entry["path"]]
         print(f"verified {entry['path']} ({entry['size']} bytes, SHA-256 {entry['sha256'][:12]}…) from {label}: {source}")
-        planned += [(name, length, entry["path"]) for name, _, length in assets_for(entry["path"], entry["size"], part)]
+        planned += [(name, offset, length, entry["path"]) for name, offset, length in assets_for(entry["path"], entry["size"], part)]
     if not args.dry_run and not shutil.which("gh"):
         raise MirrorError("gh (GitHub CLI, signed in) is needed to publish; --dry-run works without it")
     try:
@@ -246,13 +280,11 @@ def main(argv=None, home=None, catalog=None):
             raise
         print(f"Release state unknown ({error}); listing every asset.")
         existing = None
-    if existing is not None:
-        for name, length, _ in planned:
-            if name in existing and existing[name] != length:
-                raise MirrorError(f"release asset {name} has {existing[name]} bytes, expected {length}; delete it by hand first")
+    if existing is not None and (wrong := mismatched(existing, planned, found, files)):
+        raise MirrorError("release assets differ from the pinned bytes; delete them by hand first:\n  " + "\n  ".join(wrong))
     have = existing or {}
     print(f"Assets ({'release exists' if existing is not None else 'new release'}):")
-    for name, length, path in planned:
+    for name, _, length, path in planned:
         print(f"  {'present' if name in have else 'upload '} {name} ({length} bytes, from {path})")
     print(f"  {'present' if 'MODEL-CARD.md' in have else 'upload '} MODEL-CARD.md (from {card_url(model)})")
 
@@ -286,9 +318,9 @@ def main(argv=None, home=None, catalog=None):
         print(f"uploading {path.name} …", flush=True)
         gh("release", "upload", tag, str(path), "--repo", REPO)
     final = existing_assets(tag, REPO) or {}
-    wrong = [name for name, length, _ in planned if final.get(name) != length]
+    wrong = [name for name, _, _, _ in planned if name not in final] + mismatched(final, planned, found, files)
     if wrong or "MODEL-CARD.md" not in final:
-        raise MirrorError(f"release {tag} is incomplete after upload: {wrong or ['MODEL-CARD.md']}")
+        raise MirrorError(f"release {tag} is incomplete or wrong after upload: {wrong or ['MODEL-CARD.md']}")
     shutil.rmtree(work)
     print(f"Mirror complete: https://github.com/{REPO}/releases/tag/{tag}")
     return 0
