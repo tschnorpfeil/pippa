@@ -22,10 +22,12 @@ public actor OMLXServer {
     }
 
     /// Whether a failure of the local AI (the text Pi passes through) means the model does not fit in memory right now:
-    /// oMLX answers 507 with "… does not fit under the dynamic memory ceiling …".
+    /// oMLX answers 507 with "… does not fit under the dynamic memory ceiling …". The status counts only where a status
+    /// stands ("507: {…}", "HTTP 507", "status code 507"), not as a number inside the message ("40,507 tokens").
     public static func isOutOfMemory(_ errorText: String) -> Bool {
         let text = errorText.lowercased()
-        return text.contains("does not fit under the dynamic memory ceiling") || text.range(of: #"\b507\b"#, options: .regularExpression) != nil
+        return text.contains("does not fit under the dynamic memory ceiling")
+            || text.range(of: #"(?:^\s*|\bhttp |\bstatus(?: code)?:? )507\b"#, options: .regularExpression) != nil
     }
 
     /// The plain sentence for a failure of the local AI that has a known cause; `nil` for an online AI and for anything else,

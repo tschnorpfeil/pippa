@@ -38,6 +38,8 @@ func runErrorMessageChecks() {
     check("Local AI: any other local error stays as it was; an online error is never read this way") {
         OMLXServer.plainFailure("500: {\"message\":\"internal error\"}", online: false) == nil
             && OMLXServer.plainFailure("connection refused, 5070 files", online: false) == nil
+            && OMLXServer.plainFailure("400: the request has 40,507 tokens, more than the context of 32,768", online: false) == nil
+            && OMLXServer.isOutOfMemory("507 status code (no body)") && OMLXServer.isOutOfMemory("Status code: 507")
             && OMLXServer.plainFailure(memoryText, online: true) == nil
             && PiProviderClient.problem(in: "401 Unauthorized") == .signedOut && PiProviderClient.problem(in: memoryText) == nil
     }
