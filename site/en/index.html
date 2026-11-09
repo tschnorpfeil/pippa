@@ -347,17 +347,8 @@ strong, b { font-weight: 600; }
 .pw-rcpt .rt b { font-size: 13px; font-weight: 600; }
 .pw-rcpt .rt small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--ink2); }
 .pw-rcpt .rt small span + span::before { content: "\00b7"; margin: 0 .35em; }
-.pw-rcpt .acts, .pw-ask .acts { display: flex; gap: 8px; flex: none; }
-.pw-rcpt .qbtn, .pw-ask .qbtn { background: #f6f6f7; box-shadow: inset 0 0 0 .5px rgb(31 37 51 / .16); }
-/* A question in the conversation: Allow or Don't Allow, right where Pippa asks */
-.pw-ask { max-width: 560px; display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px; border-radius: 12px; background: var(--chatCard); box-shadow: inset 0 0 0 1px var(--chatBorder), 0 1px 2px rgb(31 37 51 / .03); }
-.pw-ask .ah { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; color: var(--ink); }
-.pw-ask .hand { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; flex: none; background: rgb(0 91 205 / .12); color: var(--accent); font-size: 13px; }
-.pw-ask .hand .ic { stroke-width: 1.8; }
-.pw-ask p { font-size: 13px; line-height: 1.4; color: var(--ink2); }
-.pw-ask .cmd { display: flex; align-items: baseline; gap: 6px; padding: 6px 10px; border-radius: 7px; background: rgb(31 37 51 / .045); font-size: 12px; color: var(--ink2); }
-.pw-ask .cmd code { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 11.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
-.pw-ask .acts { justify-content: flex-end; }
+.pw-rcpt .acts { display: flex; gap: 8px; flex: none; }
+.pw-rcpt .qbtn { background: #f6f6f7; box-shadow: inset 0 0 0 .5px rgb(31 37 51 / .16); }
 .tbtn, .qbtn, .pbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; white-space: nowrap; flex: none; }
 .tbtn { margin-left: 21px; background: rgb(0 91 205 / .1); color: var(--accent); }
 .tbtn .ic { width: 12px; height: 12px; stroke-width: 1.8; }
@@ -366,8 +357,6 @@ strong, b { font-weight: 600; }
 .cf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cf .tbtn { margin-left: 0; }
 .ct .tag { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #eaf5ee; color: var(--ok); font-size: 11px; font-weight: 600; }
-.fit7 { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ok); }
-.fit7 .ic { font-size: 13px; stroke-width: 2.2; }
 
 /* Excel: a spreadsheet file, and the chart card Pippa computes from it */
 .thumb.xl { background: linear-gradient(rgb(16 124 65 / .55), rgb(16 124 65 / .55)) 0 0 / 100% 18% no-repeat,
@@ -657,7 +646,6 @@ strong, b { font-weight: 600; }
   .pw { border-radius: 20px; }
   .pw-head { height: 52px; padding: 0 8px 0 14px; }
   .pw-field .mac { display: none; }
-  .pw-ask .cmd { display: none; }
   .pw-answer { font-size: 14.5px; }
   .glow { inset: -50px -24px -80px; }
   .fi { width: 56px; }
@@ -754,7 +742,6 @@ strong, b { font-weight: 600; }
   <symbol id="s-fold" viewBox="0 0 40 34"><path d="M2 5.6A3.6 3.6 0 0 1 5.6 2h8.9l3.7 3.5h16.2A3.6 3.6 0 0 1 38 9.1V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#4f9be6"/><path d="M2 11.2a3 3 0 0 1 3-3h30a3 3 0 0 1 3 3V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#7cbaf4"/><path d="M2.4 9.8a3 3 0 0 1 2.6-1.6h30a3 3 0 0 1 2.6 1.6z" fill="#a5d1fb"/></symbol>
   <symbol id="s-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.4"/><path d="m10.3 10.3 3.4 3.4"/></symbol>
   <symbol id="s-laptop" viewBox="0 0 16 16"><rect x="3" y="3.4" width="10" height="7" rx="1.2"/><path d="M1.4 12.6h13.2"/></symbol>
-  <symbol id="s-hand" viewBox="0 0 16 16"><path d="M5.4 8.6V4a1 1 0 0 1 2 0v3.4M7.4 7.4V2.9a1 1 0 0 1 2 0v4.5M9.4 7.6V3.9a1 1 0 0 1 2 0v5.4c0 2.9-1.8 4.8-4.5 4.8-1.6 0-2.7-.7-3.6-2.1L2 9.7a1 1 0 0 1 1.6-1.2l1.8 1.8"/></symbol>
   <symbol id="s-bubble" viewBox="0 0 16 16"><path d="M3.2 3h9.6a1.6 1.6 0 0 1 1.6 1.6v5.6a1.6 1.6 0 0 1-1.6 1.6H7.4l-3.2 2.4v-2.4h-1a1.6 1.6 0 0 1-1.6-1.6V4.6A1.6 1.6 0 0 1 3.2 3z"/></symbol>
   <symbol id="s-photo" viewBox="0 0 16 16"><rect x="1.8" y="3" width="12.4" height="10" rx="1.8"/><circle cx="10.4" cy="6.4" r="1.1"/><path d="m2.2 11.4 3.5-3.5 3.2 3.1 1.6-1.5 3.3 3.1"/></symbol>
   <symbol id="s-mark" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="7.6" ry="7.3"/><ellipse cx="12.7" cy="11.4" rx="7.2" ry="7.6" opacity=".45"/></symbol>
@@ -868,19 +855,19 @@ strong, b { font-weight: 600; }
                 <div class="cf"><span class="meta"><span>Draft in Mail</span><span>not sent</span></span><span class="tbtn"><svg class="ic"><use href="#s-env"/></svg>Open draft</span></div>
               </div>
             </div>
-            <div class="sc" data-s="3" data-desc="Example with a made-up Downloads folder: Pippa suggests putting 38 loose files into four new folders: Invoices, Photos, Screenshots and Archives. Nothing is deleted. Before she moves anything, she asks in the conversation “May Pippa change your files?”, with the buttons Don’t Allow and Allow.">
+            <div class="sc" data-s="3" data-desc="Example with a made-up Downloads folder: asked to tidy up the Downloads folder, Pippa puts 38 loose files into four new folders: Invoices, Photos, Screenshots and Archives. She overwrites no file, and nothing is deleted.">
               <div class="pw-user">
                 <div class="pw-attach"><span class="fold"><svg><use href="#s-fold"/></svg></span></div>
                 <p>Tidy up my Downloads folder.</p>
               </div>
               <div class="pw-answer">
-                <p class="rv" style="--d:.1s">Here’s my plan. Nothing moves until you click “Allow”.</p>
+                <p class="rv" style="--d:.1s">Done: the 38 loose files are now in four new folders. I didn’t overwrite anything.</p>
               </div>
               <div class="pw-card tidy7 rv" style="--d:.4s">
-                <div class="ct"><svg class="ic"><use href="#s-folder"/></svg>Organize Downloads</div>
-                <div class="meta"><span>38 files get a place</span><span class="ds">4 new folders</span><span>nothing is deleted</span></div>
+                <div class="ct"><svg class="ic"><use href="#s-folder"/></svg>Downloads organized</div>
+                <div class="meta"><span>38 files sorted</span><span class="ds">4 new folders</span><span>nothing deleted</span></div>
                 <div class="ba">
-                  <div class="ba-now"><span class="heap"><i></i><i></i><i></i></span><b>Now</b><small>38 loose files</small></div>
+                  <div class="ba-now"><span class="heap"><i></i><i></i><i></i></span><b>Before</b><small>38 loose files</small></div>
                   <svg class="ic ba-arr"><use href="#s-arrow"/></svg>
                   <ul class="ba-to">
                     <li style="--i:0"><svg><use href="#s-fold"/></svg><b>Invoices</b><small>9</small></li>
@@ -889,12 +876,6 @@ strong, b { font-weight: 600; }
                     <li style="--i:3"><svg><use href="#s-fold"/></svg><b>Archives</b><small>4</small></li>
                   </ul>
                 </div>
-              </div>
-              <div class="pw-ask rv" style="--d:.8s">
-                <p class="ah"><span class="hand"><svg class="ic"><use href="#s-hand"/></svg></span>May Pippa change your files?</p>
-                <p>For this answer Pippa wants to use a command to change files in Downloads (Pippa keeps copies first).</p>
-                <p class="cmd">Details:<code>mkdir -p Invoices Photos Screenshots Archives &amp;&amp; mv *.pdf Invoices/ &amp;&amp; mv IMG_*.jpg Photos/ …</code></p>
-                <p class="acts"><span class="qbtn">Don’t Allow</span><span class="qbtn">Allow</span></p>
               </div>
             </div>
             <div class="sc" data-s="4" data-desc="Example with a made-up appointment: asked to put the dentist in for Thursday at 3 pm, Pippa checks that the time is free and adds it to Calendar: Thursday, November 5, 15:00 to 16:00.">
@@ -910,18 +891,14 @@ strong, b { font-weight: 600; }
                 <span class="acts"><span class="qbtn">Undo</span><span class="qbtn">Open Calendar</span></span>
               </div>
             </div>
-            <div class="sc" data-s="5" data-desc="Example with made-up photos: from three phone photos of a lease, Pippa makes one PDF with three pages and 2.1 MB, within the 10 MB size target. This needs no AI download, and the originals stay unchanged.">
+            <div class="sc" data-s="5" data-desc="Example with made-up photos: with the One PDF button, Pippa turns three phone photos of a lease into one PDF with three pages and 2.1 MB. This needs no AI download, and the originals stay unchanged.">
               <div class="pw-user">
                 <div class="pw-attach"><span class="thumb ph" style="transform:rotate(-1.5deg)"></span><span class="thumb ph b" style="transform:rotate(1deg)"></span><span class="thumb ph" style="transform:rotate(-.5deg)"></span></div>
-                <p>Make one PDF from these photos.</p>
-              </div>
-              <div class="pw-answer">
-                <p class="rv" style="--d:.1s">Done: three pages in one PDF, small enough to upload.</p>
+                <p>Make one PDF</p>
               </div>
               <div class="pw-card rv" style="--d:.4s">
                 <div class="ct"><svg class="ic"><use href="#s-doc"/></svg>Your PDF is ready<span class="tag">No AI download</span></div>
                 <div class="meta"><span>3 pages</span><span>2.1&nbsp;MB</span></div>
-                <div class="fit7"><svg class="ic"><use href="#s-checkc"/></svg>Within the 10&nbsp;MB size target</div>
                 <div class="pw-file"><span class="doc20"></span>Lease.pdf</div>
                 <div class="links"><span>Open PDF</span><span>Save a copy…</span><span>Show in Finder</span></div>
                 <div class="foot">Your originals are unchanged. Nothing has been sent.</div>
@@ -979,7 +956,7 @@ strong, b { font-weight: 600; }
             </div>
             <div class="pw-sec">
               <div class="h">Done</div>
-              <p class="pw-empty">Nothing changed on your Mac</p>
+              <div class="pw-item ok rv" style="--d:.6s"><i><svg class="ic"><use href="#s-folder"/></svg></i><div class="tx"><b>38 files moved</b><small>Into 4 new folders in Downloads</small></div></div>
             </div>
           </div>
           <div class="rs" data-s="4">
@@ -1080,7 +1057,7 @@ strong, b { font-weight: 600; }
           </div>
         </div>
         <h3>Ready to send.</h3>
-        <p>Photos and scans become one PDF in your order, within your size target. No AI download needed.</p>
+        <p>Photos and scans become one PDF in your order, with One PDF even before the AI download. Need it smaller, say under 10&nbsp;MB? Tell her in the conversation.</p>
       </div>
       <div>
         <div class="stage" role="img" aria-label="A made-up German letter from a property manager with one sentence highlighted. In front, Pippa’s answer: What, pay 186.40 euros in service charges. By when, Monday, November 30. Below it the highlighted sentence as a quote with its translation, and a button to add the deadline to Reminders.">
@@ -1176,11 +1153,11 @@ strong, b { font-weight: 600; }
 <section class="faq" id="fragen" aria-labelledby="h-faq">
   <h2 id="h-faq">Questions?</h2>
   <details id="passt"><summary>Will it run on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>You need a Mac with Apple silicon (M1 or later) and macOS 26.2 or later. Check under Apple menu, About This Mac; an older macOS updates for free in System Settings under General &gt; Software Update. Intel Macs are not supported. The download is under 100&nbsp;MB. Her AI on your Mac needs 16&nbsp;GB of memory; she asks before downloading it, about 5.4&nbsp;GB. First she checks that there is enough free space and tells you how much is missing. If oMLX, LM Studio or the Hugging Face cache already has the same model, she uses it. With less memory, or if you prefer, Pippa uses an online AI: sign in with ChatGPT or add your own key. One PDF from photos always works, without any AI.</p></details>
-  <details><summary>Can I start without the AI download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Turning photos and PDFs into one PDF, making files smaller and converting images work right after you install her, and so does tidying a folder. For letters and questions she loads her AI, but only after your OK, and she tells you the size first.</p></details>
+  <details><summary>Can I start without the AI download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes, for one PDF: photos, scans and PDFs become one PDF with One PDF right after you install her. For letters, questions and everything else, including tidying a folder, she loads her AI, but only after your OK, and she tells you the size first.</p></details>
   <details><summary>Do I need internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>To download the app and her AI, for updates and for web lookups. After that, her AI and the PDF tools work without a connection. If a command needs the internet, she asks you first in the conversation. An online AI, if you turn one on, needs the internet, of course.</p></details>
   <details><summary>Can I keep using ChatGPT?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Choose a provider in Pippa’s Settings under AI, sign in or enter an API key, and choose a model. Providers come from the bundled Pi version, including Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. Activate your chosen provider and Pippa uses it as her online AI. While that is on, your conversations go to it. You can turn it off any time in Settings.</p></details>
   <details><summary>What can Pippa access on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>macOS asks you before she can reach your Desktop, Documents, Downloads, Calendar, Reminders or Photos, or control Mail. In Pippa’s Settings, the Permissions page shows what is allowed and opens the right place in System Settings under Privacy &amp; Security. Pippa runs outside Apple’s App Sandbox so she can work with your folders and Mac apps; a sandboxed app couldn’t do that in full.</p></details>
-  <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. Tidying shows you the plan first, and Undo works as long as you haven’t changed those files elsewhere. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
+  <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. When tidying, Pippa never overwrites a file, and anything she removes goes to the Trash. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
 </section>
 
 <section class="closing" id="loslegen" aria-labelledby="h-home">
