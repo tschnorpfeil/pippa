@@ -129,6 +129,8 @@ private struct PermissionRow: View {
                 Button(T("Open Files & Folders…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }
             } else if access == .denied {
                 Button(T("Allow in System Settings…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }
+            } else if access == .granted {
+                Button(T("Change…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }.pippa(.quiet)
             }
         }
         .padding(.vertical, Space.xxs)

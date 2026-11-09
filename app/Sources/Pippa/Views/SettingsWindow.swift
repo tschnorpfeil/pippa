@@ -71,6 +71,10 @@ final class SettingsWindow {
         NSApp.activate()
         if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
+        // A closed window keeps its pages, and SwiftUI does not show them again (no onAppear): the page may have grown or
+        // shrunk meanwhile, and the permissions may have changed in System Settings.
+        tabs?.fitWindow(animated: false)
+        if tabs?.selectedTab == .permissions { PermissionStatus.shared.refresh() }
     }
 }
 
@@ -80,8 +84,9 @@ private final class SettingsTabsController: NSTabViewController {
         super.init(nibName: nil, bundle: nil)
         tabStyle = .toolbar
         for tab in SettingsTab.allCases {
-            let page = NSHostingController(rootView: SettingsView(tab: tab, settings: .shared, setup: .shared))
+            let page = SettingsPage(rootView: SettingsView(tab: tab, settings: .shared, setup: .shared))
             page.sizingOptions = [.preferredContentSize]
+            page.tabs = self
             page.title = tab.title
             let item = NSTabViewItem(viewController: page)
             item.identifier = tab.rawValue
@@ -96,6 +101,8 @@ private final class SettingsTabsController: NSTabViewController {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
+    var selectedTab: SettingsTab { SettingsTab.allCases[selectedTabViewItemIndex] }
+
     override func viewDidAppear() {
         super.viewDidAppear()
         view.window?.title = tabViewItems[selectedTabViewItemIndex].label
@@ -109,22 +116,47 @@ private final class SettingsTabsController: NSTabViewController {
         fitWindow(animated: true)
     }
 
-    override func preferredContentSizeDidChange(for viewController: NSViewController) {
-        super.preferredContentSizeDidChange(for: viewController)
-        if viewController === tabViewItems[selectedTabViewItemIndex].viewController { fitWindow(animated: true) }
+    /// The most a page may ask for: the screen's height and, while the window is on screen, the room below its top edge
+    /// (never less than it has), so a page that grows while open scrolls instead of reaching under the Dock.
+    var pageLimit: CGFloat? {
+        guard let window = view.window, let content = window.contentView,
+              let visible = (window.screen ?? NSScreen.main)?.visibleFrame else { return nil }
+        let room = window.isVisible ? max(window.frame.maxY - visible.minY, window.frame.height) : visible.height
+        return room - (window.frame.height - content.frame.height)
     }
 
-    /// As tall as the page, at most as tall as the screen (then the page scrolls); the top edge stays where it is.
+    /// As tall as the page, at most as tall as the screen (then the page scrolls). The top edge stays where it is unless
+    /// the page would reach below the Dock; then the window moves up as far as needed.
     func fitWindow(animated: Bool) {
-        guard let window = view.window, let page = tabViewItems[selectedTabViewItemIndex].viewController,
+        guard let window = view.window, let page = tabViewItems[selectedTabViewItemIndex].viewController as? SettingsPage,
               let content = window.contentView else { return }
-        let chrome = window.frame.height - content.frame.height
-        var height = page.preferredContentSize.height
-        if let screen = window.screen ?? NSScreen.main { height = min(height, screen.visibleFrame.height - chrome) }
-        let size = NSSize(width: SettingsWindow.width, height: ceil(max(height, 1)) + chrome)
-        guard size != window.frame.size else { return }
-        let frame = NSRect(x: window.frame.minX, y: window.frame.maxY - size.height, width: size.width, height: size.height)
+        var height = ceil(max(page.naturalHeight, 1)) + window.frame.height - content.frame.height
+        var top = window.frame.maxY
+        if let visible = (window.screen ?? NSScreen.main)?.visibleFrame {
+            height = min(height, visible.height)
+            top = min(max(top, visible.minY + height), visible.maxY)
+        }
+        let frame = NSRect(x: window.frame.minX, y: top - height, width: SettingsWindow.width, height: height)
+        guard frame != window.frame else { return }
         window.setFrame(frame, display: true, animate: animated && !Theme.reduceMotion)
+    }
+}
+
+/// One page. While it is shown, AppKit sizes the window from its preferred size whenever the content grows, without
+/// asking the controller, so the page itself keeps to the controller's limit.
+private final class SettingsPage: NSHostingController<SettingsView> {
+    weak var tabs: SettingsTabsController?
+
+    /// The height the page would like, without the limit.
+    var naturalHeight: CGFloat { super.preferredContentSize.height }
+
+    override var preferredContentSize: NSSize {
+        get {
+            var size = super.preferredContentSize
+            if let limit = tabs?.pageLimit { size.height = min(size.height, limit) }
+            return size
+        }
+        set { super.preferredContentSize = newValue }
     }
 }
 
