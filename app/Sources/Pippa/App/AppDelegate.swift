@@ -5,8 +5,11 @@ import PippaCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
+    private var statusMenu: NSMenu?
     /// The menu bar mark: still and single-colour at rest, turning while Pippa works.
     private let menuMark = MarkNSView(size: 18, monochromeIdle: true)
+    /// An answer nobody has looked at yet, after the island's "Your answer is ready" has gone.
+    private let unreadDot = NSView()
     private var markWatch: AnyCancellable?
     private var unreadWatch: AnyCancellable?
     private var shuttingDown = false
@@ -20,18 +23,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DiagnosticsLog.shared.event("start", ["version": AppVersion.label, "macos": ProcessInfo.processInfo.operatingSystemVersionString])
         NSApp.mainMenu = mainMenu()
         statusItem = makeStatusItem()
-        unreadWatch = Publishers.CombineLatest(ChatModel.shared.$unseen, ChatModel.shared.$unseenIDs).sink { unseen, conversations in
+        unreadWatch = Publishers.CombineLatest(ChatModel.shared.$unseen, ChatModel.shared.$unseenIDs).sink { [weak self] unseen, conversations in
             // A quiet Dock badge replaces focus stealing when a background answer is ready.
             switch unseen {
             case .failed: NSApp.dockTile.badgeLabel = "!"
             case .answer: NSApp.dockTile.badgeLabel = "•"
             case nil: NSApp.dockTile.badgeLabel = conversations.isEmpty ? nil : "•"
             }
+            self?.unreadDot.isHidden = unseen == nil
         }
-        HotkeyCenter.shared.onPress = { AppActions.callPippa() }
+        // The shortcut opens the island's question field; with the island switched off, the chat.
+        HotkeyCenter.shared.onPress = { Island.shared.isShown ? Island.shared.ask() : AppActions.callPippa() }
         HotkeyCenter.shared.apply(Hotkey.current)
         SetupModel.shared.begin()
-        Pill.shared.show()
+        Island.shared.start()
         Updates.shared.start()
         // Ordinary launches show the chat; respect a hidden launch requested by macOS.
         if !NSApp.isHidden { ChatWindow.shared.show() }
@@ -43,21 +48,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menuMark.frame = NSRect(x: (button.bounds.width - 18) / 2, y: (button.bounds.height - 18) / 2, width: 18, height: 18)
             menuMark.autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin, .maxYMargin]
             button.addSubview(menuMark)
+            unreadDot.frame = NSRect(x: menuMark.frame.maxX - 4, y: menuMark.frame.maxY - 6, width: 6, height: 6)
+            unreadDot.autoresizingMask = menuMark.autoresizingMask
+            unreadDot.wantsLayer = true
+            unreadDot.layer?.cornerRadius = 3
+            unreadDot.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+            unreadDot.isHidden = true
+            button.addSubview(unreadDot)
             button.setAccessibilityLabel("Pippa")
+            // Left click opens the island; right click (or control-click) shows the menu.
+            button.target = self
+            button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            Island.shared.statusButton = button
         }
-        markWatch = ChatModel.shared.$isAnswering.sink { [weak self] working in self?.menuMark.setState(working ? .arbeitet : .ruht) }
+        markWatch = Island.shared.$status.sink { [weak self] status in
+            self?.menuMark.setState(status.tone == .done ? .ruht : status.markState)
+            self?.statusItem?.button?.setAccessibilityValue(status.label)
+        }
         let menu = NSMenu()
         menu.addItem(MenuAction.item(T("Ask Pippa", table: "App")) { AppActions.callPippa() })
         menu.addItem(MenuAction.item(T("New Conversation", table: "App")) { ChatModel.shared.newConversation(); ChatWindow.shared.show() })
         menu.addItem(.separator())
-        let pill = MenuAction.item(T("Show Pill", table: "App")) { Pill.shared.isShown.toggle() }
-        menu.addItem(pill)
+        let island = MenuAction.item(T("Pippa Island", table: "Island")) { Island.shared.isShown.toggle() }
+        menu.addItem(island)
         menu.addItem(MenuAction.item(T("Settings…", table: "App")) { SettingsWindow.shared.show() })
         menu.addItem(.separator())
         menu.addItem(MenuAction.item(T("Quit Pippa", table: "App")) { NSApp.terminate(nil) })
-        menu.delegate = MenuAction.stateUpdater { pill.state = Pill.shared.isShown ? .on : .off }
-        item.menu = menu
+        menu.delegate = MenuAction.stateUpdater { island.state = Island.shared.isShown ? .on : .off }
+        statusMenu = menu
         return item
+    }
+
+    @objc private func statusItemClicked() {
+        let event = NSApp.currentEvent
+        let wantsMenu = event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true
+        if Island.shared.isShown, !wantsMenu {
+            Island.shared.toggle(fromStatusItem: true)
+            return
+        }
+        // Attached only for this click, so the next left click reaches the island again.
+        statusItem?.menu = statusMenu
+        statusItem?.button?.performClick(nil)
+        statusItem?.menu = nil
     }
 
     /// Standard Mac app menus, including responder-chain editing, hiding, and window management.
