@@ -467,8 +467,6 @@ strong, b { font-weight: 600; }
 .ans blockquote { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid #eef0f3; font-size: 12.5px; line-height: 1.45; color: rgb(32 39 53 / .78); }
 .ans blockquote::before { content: ""; width: 2px; border-radius: 1px; background: rgb(32 39 53 / .14); flex: none; }
 .ans blockquote small { display: block; margin-top: 3px; font-size: 11.5px; color: rgb(32 39 53 / .75); }
-.chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: rgb(0 91 205 / .09); color: var(--accent); font-size: 12px; font-weight: 600; }
-.chip .ic { stroke-width: 2; }
 
 /* 3: Mac apps */
 .apps { display: flex; justify-content: center; gap: 34px; margin-top: 56px; }
@@ -712,7 +710,6 @@ strong, b { font-weight: 600; }
   <symbol id="s-env" viewBox="0 0 16 16"><rect x="1.6" y="3.4" width="12.8" height="9.4" rx="1.8"/><path d="M2.2 4.4 8 8.8l5.8-4.4"/></symbol>
   <symbol id="s-doc" viewBox="0 0 16 16"><path d="M4.1 1.7h5.1l3.3 3.3v8.3a1 1 0 0 1-1 1H4.1a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z"/><path d="M9 1.9v3.3h3.3M5.6 8.3h4.8M5.6 10.9h3.4"/></symbol>
   <symbol id="s-folder" viewBox="0 0 20 20"><path d="M2.5 5.5a1.5 1.5 0 0 1 1.5-1.5h3.6l1.7 1.8H16a1.5 1.5 0 0 1 1.5 1.5v7.2a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M2.5 8h15"/></symbol>
-  <symbol id="s-bell" viewBox="0 0 16 16"><path d="M4 11.5V7.2a4 4 0 0 1 8 0v4.3l1.2 1.3H2.8zM6.6 14.2a1.5 1.5 0 0 0 2.8 0"/></symbol>
   <symbol id="s-cal" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2.3 6.6h11.4M5.2 1.8v2.6M10.8 1.8v2.6"/></symbol>
   <symbol id="s-undo" viewBox="0 0 16 16"><path d="M5.6 3.8 2.6 6.8l3 3"/><path d="M2.9 6.8h6.6a3.6 3.6 0 0 1 0 7.2H7.2"/></symbol>
   <symbol id="s-arrow" viewBox="0 0 16 16"><path d="M2.5 8h11M9.5 4l4 4-4 4"/></symbol>
@@ -762,7 +759,7 @@ strong, b { font-weight: 600; }
         <button type="button" class="seg" data-s="5" aria-pressed="false" aria-controls="win">PDF<i aria-hidden="true"></i></button>
       </div>
     </div>
-    <div class="pw" id="win" role="img" aria-label="Beispiel mit erfundenen Dateien: Pippas Fenster. Auf Fotos eines Briefs vom Finanzamt und einen Kontoauszug antwortet Pippa: 412 Euro Einkommensteuer, fällig bis Montag, 16. November, mit dem Satz aus dem Brief, der das sagt. Dazu legt sie eine Erinnerung an.">
+    <div class="pw" id="win" role="img" aria-label="Beispiel mit erfundenen Dateien: Pippas Fenster. Auf Fotos eines Briefs vom Finanzamt und einen Kontoauszug antwortet Pippa: 412 Euro Einkommensteuer, fällig bis Montag, 16. November, mit dem Satz aus dem Brief, der das sagt. Wie gewünscht legt sie dazu eine Erinnerung an.">
       <div class="pw-body" aria-hidden="true">
         <div class="pw-sessions">
           <div class="pw-bar"><span class="pw-lights"><i></i><i></i><i></i></span><span class="glass"><svg class="ic"><use href="#s-compose"/></svg></span><span class="glass"><svg class="ic"><use href="#s-sidebar-l"/></svg></span></div>
@@ -787,15 +784,15 @@ strong, b { font-weight: 600; }
             <span class="glass tog-c"><svg class="ic"><use href="#s-sidebar-r"/></svg></span>
           </div>
           <div class="pw-scroll">
-            <div class="sc on" data-s="0" data-desc="Beispiel mit erfundenen Dateien: Pippas Fenster. Auf Fotos eines Briefs vom Finanzamt und einen Kontoauszug antwortet Pippa: 412 Euro Einkommensteuer, fällig bis Montag, 16. November, mit dem Satz aus dem Brief, der das sagt. Dazu legt sie eine Erinnerung an.">
+            <div class="sc on" data-s="0" data-desc="Beispiel mit erfundenen Dateien: Pippas Fenster. Auf Fotos eines Briefs vom Finanzamt und einen Kontoauszug antwortet Pippa: 412 Euro Einkommensteuer, fällig bis Montag, 16. November, mit dem Satz aus dem Brief, der das sagt. Wie gewünscht legt sie dazu eine Erinnerung an.">
               <div class="pw-user">
                 <div class="pw-attach"><span class="thumb" style="transform:rotate(-2deg)"></span><span class="thumb ph" style="transform:rotate(1.5deg)"></span><span class="thumb ph b" style="transform:rotate(-1deg)"></span><span class="thumb pd" style="transform:rotate(2deg)"></span></div>
-                <p>Was wollen die von mir?</p>
+                <p>Was wollen die von mir? Erinnere mich rechtzeitig.</p>
               </div>
               <div class="pw-answer">
                 <p class="rv" style="--d:.1s">Das Finanzamt möchte <strong>412,00&nbsp;€ Einkommensteuer für 2025</strong>, und zwar <strong>bis Montag, 16.&nbsp;November</strong>. So steht es im Brief:</p>
                 <blockquote class="pw-quote rv" style="--d:.4s"><span>„Bitte zahlen Sie den Betrag von 412,00&nbsp;€ spätestens bis zum 16.11.2026.“</span></blockquote>
-                <p class="rv ds" style="--d:.7s">Auf deinem Kontoauszug ist noch keine Zahlung ans Finanzamt zu sehen. Damit die Frist nicht untergeht, habe ich dir eine Erinnerung angelegt.</p>
+                <p class="rv ds" style="--d:.7s">Auf deinem Kontoauszug ist noch keine Zahlung ans Finanzamt zu sehen. Ich habe dir für Freitag eine Erinnerung angelegt.</p>
               </div>
               <div class="pw-rcpt rv" style="--d:1s">
                 <span class="ri"><svg class="ic"><use href="#s-checklist"/></svg></span>
@@ -1028,7 +1025,7 @@ strong, b { font-weight: 600; }
         <p>Fotos und Scans werden ein PDF in deiner Reihenfolge, mit „Ein PDF“ schon ohne KI-Download. Soll es kleiner sein, etwa unter 10&nbsp;MB, sag es ihr im Gespräch.</p>
       </div>
       <div>
-        <div class="stage" role="img" aria-label="Ein erfundener Brief einer Hausverwaltung mit einem markierten Satz. Davor Pippas Antwort: Was, 186,40 € Nebenkosten nachzahlen. Bis wann, Montag, 30. November. Darunter der markierte Satz als Zitat und ein Knopf, um die Frist als Erinnerung anzulegen.">
+        <div class="stage" role="img" aria-label="Ein erfundener Brief einer Hausverwaltung mit einem markierten Satz. Davor Pippas Antwort: Was, 186,40 € Nebenkosten nachzahlen. Bis wann, Montag, 30. November. Darunter der markierte Satz als Zitat.">
           <div class="paper letter" aria-hidden="true">
             <p class="from">Hausverwaltung Berger, Lindenstraße 4</p>
             <div class="to"><span class="ln" style="width:44%"></span><span class="ln" style="width:58%"></span><span class="ln" style="width:36%"></span></div>
@@ -1041,7 +1038,6 @@ strong, b { font-weight: 600; }
             <div class="ans-h"><svg class="ic" viewBox="0 0 40 40" style="font-size:18px"><use href="#s-rings"/></svg><b>Pippa</b>Brief-Hausverwaltung.jpg</div>
             <dl><div><dt>Was</dt><dd>186,40&nbsp;€ Nebenkosten nachzahlen</dd></div><div><dt>Bis wann</dt><dd>Montag, 30.&nbsp;November</dd></div></dl>
             <blockquote><span>„Den Nachzahlungsbetrag von 186,40&nbsp;€ überweisen Sie bitte bis zum 30.11.2026.“</span></blockquote>
-            <span class="chip"><svg class="ic"><use href="#s-bell"/></svg>Als Erinnerung</span>
           </div>
         </div>
         <h3>Brief verstanden.</h3>
