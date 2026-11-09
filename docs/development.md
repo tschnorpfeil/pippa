@@ -81,7 +81,8 @@ person's own `~/.pi` web settings are never read or changed. The first search of
 **Local model.** One model, Ornith 1.5 9B (MLX 4-bit), the only entry in
 `app/Sources/PippaCore/Resources/catalog.json`. `ModelSelector` (`Models.swift`) only decides whether it fits: Apple
 silicon with 16 GB or more, 32K context from 24 GB, 16K on 16 GB. `OMLXServer` runs oMLX from the Python runtime
-(`MLXRuntime`, manifest `Resources/mlx-runtime.json`, built by `scripts/build-mlx-runtime.sh`) on a fixed loopback port
+(`MLXRuntime`, manifest `Resources/mlx-runtime.json`, built by `scripts/build-mlx-runtime.sh`; the published archive
+with oMLX's native kernels comes from `.github/workflows/mlx-runtime.yml`) on a fixed loopback port
 with a key file; oMLX unloads the model by itself after an idle timeout. Runtime and model are downloaded only after
 consent (`ModelDownloader`: resumable, SHA256-verified, free space checked first), or the model is cloned from oMLX's
 or Hugging Face's folders (`ExistingModels.swift`, `ModelDownloader+Adopt.swift`). A catalog model is pinned with

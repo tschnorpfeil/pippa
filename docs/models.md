@@ -73,8 +73,11 @@ For developers:
    that ships the catalog entry; until then Pippa only finds the mirror empty and keeps trying Hugging Face.
 4. Check the memory floor and context in `ModelSelector` ([`Models.swift`](../app/Sources/PippaCore/Models.swift)) and
    the thinking switch in `PiModelTuning`.
-5. A new oMLX version means a new runtime archive: `scripts/build-mlx-runtime.sh`, then update
-   [`mlx-runtime.json`](../app/Sources/PippaCore/Resources/mlx-runtime.json).
+5. A new oMLX version means a new runtime archive with oMLX's native kernels: push to a `ci/mlx-runtime-*` branch (or
+   start `.github/workflows/mlx-runtime.yml` by hand), check the run's kernel and minimum-macOS steps, publish the
+   artifact as the `mlx-runtime-<version>` pre-release, then copy its manifest to
+   [`mlx-runtime.json`](../app/Sources/PippaCore/Resources/mlx-runtime.json). `scripts/build-mlx-runtime.sh` alone
+   builds without kernels on a Mac without Xcode, for local checks only.
 
 ## Online AI instead
 
