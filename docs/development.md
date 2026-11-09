@@ -187,6 +187,8 @@ node --test runtime/pippa-auth/*.test.mjs                               # Provid
 node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs   # terminal autostart, fake server
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first
 app/.build/debug/Pippa --check-approvals                                # questions and conversation files, no window
+app/.build/debug/Pippa --snapshot <folder>                              # sample windows as PNGs, no system glass
+PIPPA_SNAPSHOT_LIVE=1 app/.build/debug/Pippa --snapshot <folder>        # the same, drawn by the window server with Liquid Glass
 node scripts/check-site.cjs                                             # website content and behavior
 ```
 

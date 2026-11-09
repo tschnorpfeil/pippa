@@ -2,16 +2,20 @@ import AppKit
 import PiRPC
 import PippaCore
 import PDFKit
+import ScreenCaptureKit
 import SwiftUI
 
 /// `Pippa --snapshot <folder>`: renders the chat window with sample conversations, light and dark, as PNGs. For
 /// checking the layout without screen access; nothing is read from or written to the person's conversations.
+/// With `PIPPA_SNAPSHOT_LIVE=1` the window server draws each window, Liquid Glass included, and ScreenCaptureKit takes
+/// it from Pippa's own windows, which needs no Screen Recording permission. Only a 2-point edge of each window shows.
 @MainActor
 enum Snapshots {
     private static var fixtureDirectory: URL?
+    private static let live = ProcessInfo.processInfo.environment["PIPPA_SNAPSHOT_LIVE"] == "1"
     static func run(into folder: URL) async -> Int32 {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        Theme.drawsGlass = false
+        Theme.drawsGlass = live
         if ProcessInfo.processInfo.environment["PIPPA_SNAPSHOT_PROVIDERS_ONLY"] == "1" {
             let setup = SetupModel.shared
             setup.showForSnapshot(.ready(adoptedFrom: nil))
@@ -143,7 +147,9 @@ enum Snapshots {
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         let host = NSHostingView(rootView: view.environment(\.controlActiveState, .key))
         window.contentView = host
-        window.setFrameOrigin(NSPoint(x: -4000, y: -4000))
+        // ScreenCaptureKit only takes a window that touches a screen: a live one keeps a 2-point edge on it.
+        let screen = NSScreen.main?.frame ?? .zero
+        window.setFrameOrigin(live ? NSPoint(x: screen.minX - size.width + 2, y: screen.minY + 80) : NSPoint(x: -4000, y: -4000))
         window.makeKeyAndOrderFront(nil)
         // Let SwiftUI lay out, load images and run onAppear before drawing.
         for _ in 0..<6 { try? await Task.sleep(for: .milliseconds(120)); host.layoutSubtreeIfNeeded() }
@@ -151,11 +157,37 @@ enum Snapshots {
             window.setContentSize(NSSize(width: size.width, height: host.fittingSize.height))
             host.layoutSubtreeIfNeeded()
         }
+        if live {
+            try? await Task.sleep(for: .milliseconds(400))   // the window server's first frame, glass included
+            if let image = await capture(window) {
+                try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: file)
+            }
+            window.orderOut(nil)
+            return
+        }
         guard let frameView = window.contentView?.superview,
               let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else { return }
         frameView.cacheDisplay(in: frameView.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: file)
         window.orderOut(nil)
+    }
+
+    /// The window as the window server composites it, at its backing scale.
+    private static func capture(_ window: NSWindow) async -> CGImage? {
+        do {
+            let content = try await SCShareableContent.currentProcess
+            guard let target = content.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
+                print("live snapshot: window \(window.windowNumber) not shareable"); return nil
+            }
+            let config = SCStreamConfiguration()
+            config.width = Int(target.frame.width * window.backingScaleFactor)
+            config.height = Int(target.frame.height * window.backingScaleFactor)
+            config.showsCursor = false
+            return try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: target),
+                                                              configuration: config)
+        } catch {
+            print("live snapshot failed: \(error.localizedDescription)"); return nil
+        }
     }
 
     /// Keeps the size it is given, also taller than the screen (a normal window is clamped to it), and draws as key
