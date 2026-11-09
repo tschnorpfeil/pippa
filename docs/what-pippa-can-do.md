@@ -38,8 +38,8 @@ A few more things she can do when you ask:
 - **Spotlight finds what it has indexed.** Files that Spotlight hasn't indexed, or cloud files that aren't downloaded,
   can be missing. An empty result doesn't prove a file isn't there.
 - **macOS asks first.** The first time Pippa needs your Documents folder, Calendar, Reminders, Photos or Mail, macOS
-  asks you. Settings has a link to Privacy & Security if you want to change that later. More in
-  [Privacy and permissions](privacy-and-permissions.md).
+  asks you. In Pippa's Settings, the Permissions page shows what is allowed and opens the right place in System
+  Settings if you want to change it. More in [Privacy and permissions](privacy-and-permissions.md).
 - **Something didn't work?** [Open an issue](https://github.com/tschnorpfeil/pippa/issues) with the version, what you
   asked, what happened and what you expected. Use made-up examples and remove personal details from screenshots.
 

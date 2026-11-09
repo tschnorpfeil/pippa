@@ -17,7 +17,6 @@
 "Don’t Allow" = "Don’t Allow";
 "Drag Pippa into the Applications folder in Finder. Until then she works from here." = "Drag Pippa into the Applications folder in Finder. Until then she works from here.";
 "Edit" = "Edit";
-"Everyday" = "Everyday";
 "File" = "File";
 "Find my lease and tell me the notice period" = "Find my lease and tell me the notice period";
 "Getting ready…" = "Getting ready…";
@@ -39,13 +38,9 @@
 "On this Mac" = "On this Mac";
 "Open" = "Open";
 "Open Mail" = "Open Mail";
-"Open Privacy & Security…" = "Open Privacy & Security…";
 "Open at login" = "Open at login";
 "Paste" = "Paste";
-"Permissions" = "Permissions";
 "Picked to fit your Mac: %@" = "Picked to fit your Mac: %@";
-"Pippa Settings" = "Pippa Settings";
-"Pippa asks the first time she needs Calendar, Reminders, Mail, Photos or your files. You can change that later in System Settings." = "Pippa asks the first time she needs Calendar, Reminders, Mail, Photos or your files. You can change that later in System Settings.";
 "Pippa couldn't start her Mac tools. Quit Pippa and open her again." = "Pippa couldn't start her Mac tools. Quit Pippa and open her again.";
 "Pippa couldn’t move herself." = "Pippa couldn’t move herself.";
 "Pippa isn't set up yet. Open Settings to finish setting up her AI." = "Pippa isn't set up yet. Open Settings to finish setting up her AI.";
@@ -75,7 +70,6 @@
 "Then she stays up to date by herself and can start with your Mac. It only takes a moment." = "Then she stays up to date by herself and can start with your Mac. It only takes a moment.";
 "Try Again" = "Try Again";
 "Undo" = "Undo";
-"Updates" = "Updates";
 "Use an Online AI…" = "Use an Online AI…";
 "Version" = "Version";
 "What can I do for you?" = "What can I do for you?";
@@ -124,7 +118,6 @@
 "%lld s" = "%lld s";
 "The AI on this Mac didn’t start. Try again in a moment." = "The AI on this Mac didn’t start. Try again in a moment.";
 "Not in what I read: %@. I worked this out myself, so please check it." = "Not in what I read: %@. I worked this out myself, so please check it.";
-"%@. Your conversations stay on this Mac." = "%@. Your conversations stay on this Mac.";
 "That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time." = "That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time.";
 "Almost full: Pippa will soon summarize the start. A new conversation is faster." = "Almost full: Pippa will soon summarize the start. A new conversation is faster.";
 "Beginning only" = "Beginning only";
@@ -168,7 +161,6 @@
 "Pippa is still answering in another conversation." = "Pippa is still answering in another conversation.";
 "Pippa isn’t in Applications" = "Pippa isn’t in Applications";
 "Remove" = "Remove";
-"Show Pippa at the screen edge" = "Show Pippa at the screen edge";
 "Stopped" = "Stopped";
 "Thought for %@" = "Thought for %@";
 "Worked for %@ · %lld steps" = "Worked for %@ · %lld steps";
@@ -210,3 +202,5 @@
 "Not undone: it was already deleted." = "Not undone: it was already deleted.";
 "Not undone: it was changed since, so it stays." = "Not undone: it was changed since, so it stays.";
 "Couldn’t undo it. You can delete it in the app." = "Couldn’t undo it. You can delete it in the app.";
+"Open Storage Settings…" = "Open Storage Settings…";
+"Copy Details" = "Copy Details";

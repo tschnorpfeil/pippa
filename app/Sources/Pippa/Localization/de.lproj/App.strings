@@ -17,7 +17,6 @@
 "Don’t Allow" = "Nicht erlauben";
 "Drag Pippa into the Applications folder in Finder. Until then she works from here." = "Zieh Pippa im Finder in den Ordner „Programme“. Bis dahin arbeitet sie von hier aus.";
 "Edit" = "Bearbeiten";
-"Everyday" = "Bedienung";
 "File" = "Ablage";
 "Find my lease and tell me the notice period" = "Finde meinen Mietvertrag und sag mir die Kündigungsfrist";
 "Getting ready…" = "Bereite alles vor …";
@@ -39,13 +38,9 @@
 "On this Mac" = "Auf diesem Mac";
 "Open" = "Öffnen";
 "Open Mail" = "Mail öffnen";
-"Open Privacy & Security…" = "Datenschutz & Sicherheit öffnen …";
 "Open at login" = "Mit dem Mac starten";
 "Paste" = "Einsetzen";
-"Permissions" = "Erlaubnisse";
 "Picked to fit your Mac: %@" = "Passend zu deinem Mac: %@";
-"Pippa Settings" = "Pippa-Einstellungen";
-"Pippa asks the first time she needs Calendar, Reminders, Mail, Photos or your files. You can change that later in System Settings." = "Pippa fragt, wenn sie Kalender, Erinnerungen, Mail, Fotos oder deine Dateien zum ersten Mal braucht. Ändern kannst du das später in den Systemeinstellungen.";
 "Pippa couldn't start her Mac tools. Quit Pippa and open her again." = "Pippa konnte ihre Mac-Werkzeuge nicht starten. Beende Pippa und öffne sie erneut.";
 "Pippa couldn’t move herself." = "Pippa konnte sich nicht selbst verschieben.";
 "Pippa isn't set up yet. Open Settings to finish setting up her AI." = "Pippa ist noch nicht eingerichtet. Öffne die Einstellungen, um ihre KI fertig einzurichten.";
@@ -75,7 +70,6 @@
 "Then she stays up to date by herself and can start with your Mac. It only takes a moment." = "Dann hält sie sich selbst aktuell und kann mit deinem Mac starten. Das dauert nur einen Moment.";
 "Try Again" = "Erneut versuchen";
 "Undo" = "Rückgängig";
-"Updates" = "Updates";
 "Use an Online AI…" = "Online-KI verwenden …";
 "Version" = "Version";
 "What can I do for you?" = "Was kann ich für dich tun?";
@@ -124,7 +118,6 @@
 "%lld s" = "%lld s";
 "The AI on this Mac didn’t start. Try again in a moment." = "Die KI auf diesem Mac ist nicht gestartet. Versuch es gleich noch einmal.";
 "Not in what I read: %@. I worked this out myself, so please check it." = "Steht nicht in dem, was ich gelesen habe: %@. Das habe ich selbst ausgerechnet – bitte prüf es.";
-"%@. Your conversations stay on this Mac." = "%@. Deine Gespräche bleiben auf diesem Mac.";
 "That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time." = "Das war zu viel auf einmal für die KI auf diesem Mac. Frag nach einem kleineren Teil, zum Beispiel einem Dokument nach dem anderen.";
 "Almost full: Pippa will soon summarize the start. A new conversation is faster." = "Fast voll: Pippa fasst bald den Anfang zusammen. Ein neues Gespräch ist schneller.";
 "Beginning only" = "Nur der Anfang";
@@ -168,7 +161,6 @@
 "Pippa is still answering in another conversation." = "Pippa antwortet noch in einem anderen Gespräch.";
 "Pippa isn’t in Applications" = "Pippa liegt nicht in „Programme“";
 "Remove" = "Entfernen";
-"Show Pippa at the screen edge" = "Pippa am Bildschirmrand zeigen";
 "Stopped" = "Gestoppt";
 "Thought for %@" = "%@ nachgedacht";
 "Worked for %@ · %lld steps" = "%@ gearbeitet · %lld Schritte";
@@ -210,3 +202,5 @@
 "Not undone: it was already deleted." = "Nicht rückgängig gemacht: Es war schon gelöscht.";
 "Not undone: it was changed since, so it stays." = "Nicht rückgängig gemacht: Es wurde inzwischen geändert und bleibt deshalb.";
 "Couldn’t undo it. You can delete it in the app." = "Das ließ sich nicht rückgängig machen. Du kannst es in der App löschen.";
+"Open Storage Settings…" = "Speichereinstellungen öffnen …";
+"Copy Details" = "Details kopieren";

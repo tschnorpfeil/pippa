@@ -61,3 +61,24 @@
 "Reconnect" = "Erneut verbinden";
 
 "Choose a model" = "Modell auswählen";
+
+/* The settings window: toolbar tabs and the permissions page (Views/Settings*.swift). */
+"General" = "Allgemein";
+"AI" = "KI";
+"Permissions" = "Zugriff";
+"Updates" = "Updates";
+"Show Pippa Island" = "Pippa Island zeigen";
+"Sits at the top of the screen, shows what Pippa is doing and takes a quick question." = "Sitzt oben am Bildschirm, zeigt, was Pippa gerade tut, und nimmt schnell eine Frage an.";
+"Your conversations stay on this Mac." = "Deine Gespräche bleiben auf diesem Mac.";
+"What Pippa may use on this Mac" = "Was Pippa auf diesem Mac nutzen darf";
+"Pippa only reads what you ask about. You can change this at any time in System Settings." = "Pippa liest nur, wonach du fragst. Ändern kannst du das jederzeit in den Systemeinstellungen.";
+"Files & Folders" = "Dateien und Ordner";
+"Checking…" = "Wird geprüft …";
+"Allowed" = "Erlaubt";
+"Not asked yet – Pippa asks when she first needs it" = "Noch nicht gefragt – Pippa fragt, wenn sie es zum ersten Mal braucht";
+"Not allowed" = "Nicht erlaubt";
+"Pippa can check this while %@ is open" = "Pippa kann das prüfen, während %@ geöffnet ist";
+"Pippa asks when she first needs a folder" = "Pippa fragt, wenn sie zum ersten Mal einen Ordner braucht";
+"Allow in System Settings…" = "In den Systemeinstellungen erlauben …";
+"Open Files & Folders…" = "Dateien und Ordner öffnen …";
+"Change…" = "Ändern …";

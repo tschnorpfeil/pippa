@@ -33,8 +33,14 @@ final class SetupModel: ObservableObject {
         }
     }
 
+    /// Snapshots only: they cannot click "Details", so the card starts with it open.
+    private(set) var detailsOpenForSnapshot = false
+
     /// Snapshots only.
-    func showForSnapshot(_ state: PiSetupState) { self.state = state }
+    func showForSnapshot(_ state: PiSetupState, detailsOpen: Bool = false) {
+        self.state = state
+        detailsOpenForSnapshot = detailsOpen
+    }
 
     init() {
         let env = ProcessInfo.processInfo.environment

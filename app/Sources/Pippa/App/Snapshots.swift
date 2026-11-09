@@ -16,11 +16,11 @@ enum Snapshots {
             let setup = SetupModel.shared
             setup.showForSnapshot(.ready(adoptedFrom: nil))
             for dark in [false, true] {
-                await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 820), dark: dark,
+                await render(SettingsView(tab: .ai, settings: .shared, setup: setup), size: NSSize(width: SettingsWindow.width, height: 820), dark: dark,
                              to: folder.appendingPathComponent("providers-\(dark ? "dark" : "light").png"))
             }
             setup.showForSnapshot(.askDownload(bytes: 5_400_000_000))
-            await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 820), dark: false,
+            await render(SettingsView(tab: .ai, settings: .shared, setup: setup), size: NSSize(width: SettingsWindow.width, height: 820), dark: false,
                          to: folder.appendingPathComponent("providers-first-run.png"))
             let preview = PiProviderSettingsModel()
             preview.providers = (try? JSONDecoder().decode([PiProvider].self, from: Data(#"[{"id":"openrouter","name":"OpenRouter","configured":false,"methods":[],"models":[]}]"#.utf8))) ?? []
@@ -71,6 +71,10 @@ enum Snapshots {
                 setup.showForSnapshot(.failed(PiSetupProblem(message: "This Mac has too little memory to run the AI itself.",
                                                              details: "No local model fits this Mac", canRetry: false)))
             }, 760, false, false),
+            ("setup-space", {
+                chat.showSample([], current: nil, answering: false)
+                setup.showForSnapshot(.failed(PiSetupProblem(.notEnoughSpace(bytes: 3_400_000_000))), detailsOpen: true)
+            }, 760, false, false),
             ("attachments", {
                 setup.showForSnapshot(.ready(adoptedFrom: nil))
                 chat.showSample(sampleConversations(), current: nil, answering: false)
@@ -98,9 +102,16 @@ enum Snapshots {
         }
         chat.attachments = []
         setup.showForSnapshot(.ready(adoptedFrom: nil))
-        for dark in [false, true] {
-            await render(SettingsView(settings: .shared, setup: setup), size: NSSize(width: 560, height: 640), dark: dark,
-                         to: folder.appendingPathComponent("settings-\(dark ? "dark" : "light").png"))
+        // One picture per settings page, without the toolbar (offscreen drawing leaves out its glass). Fixed permission
+        // states, so the picture doesn't depend on this Mac.
+        let permissions = PermissionStatus(sample: [.calendar: .granted, .reminders: .notDetermined, .photos: .denied,
+                                                    .mail: .unavailable("")])
+        for tab in SettingsTab.allCases {
+            let page = SettingsView(tab: tab, settings: .shared, setup: setup, permissions: permissions)
+            for dark in [false, true] {
+                await render(page, size: NSSize(width: SettingsWindow.width, height: 400), dark: dark, chrome: false, fits: true,
+                             to: folder.appendingPathComponent("settings-\(tab.rawValue)-\(dark ? "dark" : "light").png"))
+            }
         }
         print(folder.path)
         return 0
@@ -120,8 +131,9 @@ enum Snapshots {
         }
     }
 
-    /// `chrome`: a titled window with its buttons (the chat, Settings); without, just the view (the pill floats alone).
-    private static func render<V: View>(_ view: V, size: NSSize, dark: Bool, chrome: Bool = true, to file: URL) async {
+    /// `chrome`: a titled window with its buttons (the chat); without, just the view (a settings page). `fits`: the
+    /// height follows the view once it has loaded (a settings page, as tall as its window).
+    private static func render<V: View>(_ view: V, size: NSSize, dark: Bool, chrome: Bool = true, fits: Bool = false, to file: URL) async {
         NSApp.setActivationPolicy(.accessory)
         NSApp.activate()
         let window = SnapshotWindow(contentRect: NSRect(origin: .zero, size: size),
@@ -135,6 +147,10 @@ enum Snapshots {
         window.makeKeyAndOrderFront(nil)
         // Let SwiftUI lay out, load images and run onAppear before drawing.
         for _ in 0..<6 { try? await Task.sleep(for: .milliseconds(120)); host.layoutSubtreeIfNeeded() }
+        if fits {
+            window.setContentSize(NSSize(width: size.width, height: host.fittingSize.height))
+            host.layoutSubtreeIfNeeded()
+        }
         guard let frameView = window.contentView?.superview,
               let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else { return }
         frameView.cacheDisplay(in: frameView.bounds, to: rep)

@@ -57,7 +57,7 @@ enum WindowLifecycleChecks {
 
         SettingsWindow.shared.show()
         await settle()
-        let settings = NSApp.windows.first { $0.title == T("Pippa Settings", table: "App") }
+        let settings = SettingsWindow.shared.window
         print("Settings: active=\(NSApp.isActive), key=\(NSApp.keyWindow?.title ?? "nil"), settings=\(settings?.isKeyWindow ?? false)")
         foregroundCheck("Settings comes to the front", settings != nil && settings?.isKeyWindow == true)
         settings?.miniaturize(nil)

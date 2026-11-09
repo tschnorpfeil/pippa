@@ -1,3 +1,4 @@
+import AppKit
 import PippaCore
 import SwiftUI
 
@@ -6,7 +7,22 @@ import SwiftUI
 struct SetupCard: View {
     @ObservedObject var setup: SetupModel
     var showsOnlineOption = true
-    private let detailsState = State(initialValue: false)
+    private let detailsState: State<Bool>
+    private let copiedState = State(initialValue: false)
+
+    /// Settings > General > Storage, where the person sees what takes up room and can free some.
+    static let storageSettingsURL = URL(string: "x-apple.systempreferences:com.apple.settings.Storage")!
+
+    init(setup: SetupModel, showsOnlineOption: Bool = true) {
+        self.setup = setup
+        self.showsOnlineOption = showsOnlineOption
+        detailsState = State(initialValue: setup.detailsOpenForSnapshot)
+    }
+
+    private func isOutOfSpace(_ problem: PiSetupProblem) -> Bool {
+        if case .notEnoughSpace? = problem.failure { return true }
+        return false
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.l) {
@@ -38,7 +54,7 @@ struct SetupCard: View {
                 HStack(spacing: Space.m) {
                     ActionPill(title: T("Load Pippa’s AI", table: "App"), primary: true) { setup.load() }
                     if showsOnlineOption {
-                        ActionPill(title: T("Use an Online AI…", table: "App")) { SettingsWindow.shared.show() }
+                        ActionPill(title: T("Use an Online AI…", table: "App")) { SettingsWindow.shared.show(.ai) }
                     }
                 }
             case .downloading(let progress, let remaining):
@@ -59,16 +75,22 @@ struct SetupCard: View {
                 Text(problem.message).fixedSize(horizontal: false, vertical: true)
                 // Never a dead end: even when this Mac can't run the AI itself (too little memory), an online AI can.
                 HStack(spacing: Space.m) {
-                    if problem.canRetry { ActionPill(title: T("Try Again", table: "App"), primary: true) { setup.begin() } }
+                    // Out of room: Storage settings is the way forward, then Try Again checks once more.
+                    let space = isOutOfSpace(problem)
+                    if space { ActionPill(title: T("Open Storage Settings…", table: "App"), primary: true) { NSWorkspace.shared.open(Self.storageSettingsURL) } }
+                    if problem.canRetry { ActionPill(title: T("Try Again", table: "App"), primary: !space) { setup.begin() } }
                     if showsOnlineOption {
-                        ActionPill(title: T("Use an Online AI…", table: "App"), primary: !problem.canRetry) { SettingsWindow.shared.show() }
+                        ActionPill(title: T("Use an Online AI…", table: "App"), primary: !problem.canRetry) { SettingsWindow.shared.show(.ai) }
                     }
                 }
                 if !problem.details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     DisclosureGroup(isExpanded: detailsState.projectedValue) {
-                        Text(problem.details)
-                            .font(Typo.caption.monospaced()).foregroundStyle(Theme.ink2)
-                            .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: Space.s) {
+                            Text(problem.details)
+                                .font(Typo.caption.monospaced()).foregroundStyle(Theme.ink2)
+                                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                            copyButton(problem.details)
+                        }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(Space.m)
                             .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
@@ -86,6 +108,29 @@ struct SetupCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .raised(Radius.panel)
         .animation(Theme.arrive, value: stage)
+    }
+
+    /// Copies the details for a request for help; shows "Copied" with a check mark for a moment (a fade, with Reduce Motion).
+    private func copyButton(_ text: String) -> some View {
+        let copied = copiedState.wrappedValue
+        return Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+            let fade = Theme.reduceMotion ? Animation.easeInOut(duration: 0.2) : Theme.quick
+            withAnimation(fade) { copiedState.wrappedValue = true }
+            Task {
+                try? await Task.sleep(for: .seconds(1.5))
+                withAnimation(fade) { copiedState.wrappedValue = false }
+            }
+        } label: {
+            Label(copied ? T("Copied", table: "App") : T("Copy", table: "App"), systemImage: copied ? "checkmark" : "doc.on.doc")
+                .font(Typo.footnote).foregroundStyle(Theme.ink3)
+                .contentTransition(Theme.reduceMotion ? .opacity : .symbolEffect(.replace))
+                .frame(minHeight: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(T("Copy Details", table: "App"))
     }
 
     /// Which of the card's states shows, for animating between them (not the progress inside one).

@@ -677,6 +677,65 @@ func runSetupFlowChecks() async {
         return ok
     }
 
+    check("Setup: too little room ends in an error with the shortfall instead of the question; Try Again checks anew") {
+        let home = fakeHome("flow-room"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (model, data) = dummyModel()
+        let size = Int64(data.count)
+        let free = Recorder<Int64>()   // the last value added is the free space "now"
+        free.add(size + ModelDownloader.spaceBuffer - 1_234)
+        let flow = PiSetupFlow(roots: r, model: model, contextWindow: 4096, searchRoots: [], port: 18_471, runtime: installedRuntime(r),
+                               download: stubDownload(data), freeSpace: { _ in free.all.last })
+        let tight = flow.prepare()
+        free.add(size + ModelDownloader.spaceBuffer)
+        let enough = flow.prepare()
+        // A started download counts only with its rest: 400 000 bytes are there, so 400 000 less room is needed.
+        let part = modelFolder(r, model).appendingPathComponent("model.safetensors.part")
+        try data.prefix(400_000).write(to: part)
+        free.add(size - 400_000 + ModelDownloader.spaceBuffer - 1)
+        let resumed = flow.prepare()
+        free.add(size - 400_000 + ModelDownloader.spaceBuffer)
+        let resumedFits = flow.prepare()
+        let ok: Bool
+        if case .failed(let problem) = tight, case .notEnoughSpace(let bytes)? = problem.failure {
+            ok = bytes == 1_234 && problem.message == PiInstaller.message(.notEnoughSpace(bytes: 1_234))
+                && enough == .askDownload(bytes: size)
+                && { if case .failed(let p) = resumed, case .notEnoughSpace(let b)? = p.failure { return b == 1 } else { return false } }()
+                && resumedFits == .askDownload(bytes: size - 400_000)
+        } else { ok = false }
+        if !ok { print("   ", tight, enough, resumed, resumedFits) }
+        return ok
+    }
+
+    check("Setup: a missing runtime needs room to unpack, not only for its archive; the question still names the download") {
+        let home = fakeHome("flow-room-runtime"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        let (model, data) = dummyModel()
+        // The model is in place (size and verified mark); only the runtime is missing.
+        guard let file = model.pinned?.files.first else { return false }
+        let folder = modelFolder(r, model)
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        try data.write(to: folder.appendingPathComponent(file.path))
+        try file.sha256.write(to: folder.appendingPathComponent(file.path + ".ok"), atomically: true, encoding: .utf8)
+        let size: Int64 = 123_456
+        let runtime = MLXRuntime(support: r.support, environment: [:], manifest: fakeRuntimeManifest(size: size, sha256: String(repeating: "0", count: 64)))!
+        let free = Recorder<Int64>()
+        free.add(size + ModelDownloader.spaceBuffer)   // room for the archive alone
+        let flow = PiSetupFlow(roots: r, model: model, contextWindow: 4096, searchRoots: [], port: 18_471, runtime: runtime,
+                               download: stubDownload(data), freeSpace: { _ in free.all.last })
+        let tight = flow.prepare()
+        free.add(runtime.installBytes + ModelDownloader.spaceBuffer)
+        let enough = flow.prepare()
+        let ok: Bool
+        if case .failed(let problem) = tight, case .notEnoughSpace(let bytes)? = problem.failure {
+            ok = bytes == runtime.installBytes - size && enough == .askDownload(bytes: size)
+        } else { ok = false }
+        if !ok { print("   ", tight, enough) }
+        return ok
+    }
+
     check("Setup: an interrupted download asks only for what is still missing; a complete .part is not \"ready\"") {
         let home = fakeHome("flow-partial"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))

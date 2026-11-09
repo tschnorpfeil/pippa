@@ -128,7 +128,7 @@ struct AIBadge: View {
     @ObservedObject var setup: SetupModel
 
     var body: some View {
-        Button { SettingsWindow.shared.show() } label: {
+        Button { SettingsWindow.shared.show(.ai) } label: {
             HStack(spacing: Space.xs) {
                 if case .preparing = setup.state, !setup.usesOnlineAI { ProgressView().controlSize(.mini) }
                 else { Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer").font(Typo.caption.weight(.medium)) }
