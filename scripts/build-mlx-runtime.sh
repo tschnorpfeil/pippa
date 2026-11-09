@@ -161,6 +161,14 @@ for f in "${MACHO[@]}"; do
     die "$f links against a path outside the runtime"
   fi
 done
+# Every binary must load on the oldest macOS Pippa supports. A wheel's platform tag is not proof: MLX 0.32.4's
+# macosx_26_0 wheels need macOS 26.2. Run by the base Python: the staged one's libpython has just lost its signature
+# to install_name_tool, and macOS kills it until the files are signed again below.
+if ! "$BASE_PY" -I "$ROOT/scripts/macho-minos.py" "$STAGE" "$ROOT/app/Packaging/Info.plist" >"$WORK/too-new"; then
+  warn "these need a newer macOS than LSMinimumSystemVersion in app/Packaging/Info.plist:"
+  sed 's/^/    /' "$WORK/too-new" >&2
+  die "runtime does not load on every macOS Pippa supports"
+fi
 xattr -cr "$STAGE"
 for f in "${MACHO[@]}"; do codesign --force --timestamp=none --sign - "$f" 2>/dev/null; done
 say "${#MACHO[@]} Mach-O files signed"

@@ -52,7 +52,7 @@ tree.write(probe / 'feed/appcast.xml', encoding='utf-8', xml_declaration=True)
 shutil.copyfile(asset, probe / 'feed' / asset.name)
 info = dict(CFBundleIdentifier='io.github.tschnorpfeil.pippa.update-probe', CFBundleName='Pippa Updateprobe',
     CFBundleExecutable='PippaUpdateProbe', CFBundlePackageType='APPL', CFBundleVersion='1', CFBundleShortVersionString='1',
-    LSMinimumSystemVersion='15.0', NSAppTransportSecurity={'NSAllowsLocalNetworking': True},
+    LSMinimumSystemVersion='26.2', NSAppTransportSecurity={'NSAllowsLocalNetworking': True},
     PippaProbeHost=str(host), PippaProbeTarget=item.findtext(ns+'version'),
     PippaProbeFeed='http://127.0.0.1:18765/appcast.xml', PippaProbeLog=str(probe / 'events.log'),
     PippaProbeAutomatic=automatic, SUEnableInstallerLauncherService=bool(host_info.get('SUEnableInstallerLauncherService', False)))

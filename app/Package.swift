@@ -5,7 +5,8 @@ let package = Package(
     name: "Pippa",
     // Development language English, German is a full translation (docs/development.md "Localization").
     defaultLocalization: "en",
-    platforms: [.macOS(.v15)],
+    // macOS 26.2: the oldest macOS the MLX binaries in Pippa's AI runtime load on (scripts/macho-minos.py).
+    platforms: [.macOS("26.2")],
     products: [
         .executable(name: "Pippa", targets: ["Pippa"]),
         .library(name: "PippaCore", targets: ["PippaCore"]),

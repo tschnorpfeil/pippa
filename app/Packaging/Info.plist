@@ -51,7 +51,7 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>15.0</string>
+	<string>26.2</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>When you ask, Pippa reads the email you selected in Mail and the table you’re looking at in Excel, opens Numbers tables you give her to read them, and searches your photos and notes. Nothing is sent without your approval.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

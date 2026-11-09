@@ -4,15 +4,15 @@ import Foundation
 import Vision
 
 /// Text recognition for one page image, shared by reading (TextReader) and the searchable PDF layer (OCRLayer).
-/// Classic `VNRecognizeTextRequest` by default; on macOS 26+ optionally Vision's `RecognizeDocumentsRequest`
+/// Classic `VNRecognizeTextRequest` by default; optionally Vision's `RecognizeDocumentsRequest`
 /// (paragraphs, tables with cells; tables become Markdown), falling back to the classic request when it fails.
 public enum DocumentOCR {
     public enum Engine: String, Sendable, CaseIterable {
-        /// `VNRecognizeTextRequest`, `.accurate` (macOS 15 path, fallback).
+        /// `VNRecognizeTextRequest`, `.accurate` (default and fallback).
         case accurate
         /// `VNRecognizeTextRequest`, `.fast` (`PIPPA_OCR_FAST=1`, CI runners without a Neural Engine).
         case fast
-        /// `RecognizeDocumentsRequest` (macOS 26+).
+        /// `RecognizeDocumentsRequest`.
         case documents
     }
 
@@ -26,12 +26,9 @@ public enum DocumentOCR {
 
     /// The engine for reading (chat, tools, Thought Line). Classic `.accurate`: measured faster and more exact than the
     /// document request on German letters, invoices and phone photos; the document
-    /// request only on `PIPPA_OCR_ENGINE=documents` (macOS 26+), for comparison and table structure.
+    /// request only on `PIPPA_OCR_ENGINE=documents`, for comparison and table structure.
     public static var preferred: Engine {
-        if ProcessInfo.processInfo.environment["PIPPA_OCR_ENGINE"] == Engine.documents.rawValue {
-            if #available(macOS 26, *) { return .documents }
-        }
-        return .accurate
+        ProcessInfo.processInfo.environment["PIPPA_OCR_ENGINE"] == Engine.documents.rawValue ? .documents : .accurate
     }
 
     /// File output uses cancellable classic requests. `PIPPA_OCR_FAST=1` (CI runners without a Neural Engine)
@@ -45,11 +42,11 @@ public enum DocumentOCR {
 
     /// Recognizes one page. Blocks the caller; never throws: a failed document request falls back to the classic one.
     public static func recognize(_ image: CGImage, engine: Engine = preferred) -> Page {
-        if engine == .documents, #available(macOS 26, *), let page = recognizeDocument(image) { return page }
+        if engine == .documents, let page = recognizeDocument(image) { return page }
         return recognizeClassic(image, level: engine == .fast ? .fast : .accurate)
     }
 
-    // MARK: Classic (macOS 15+)
+    // MARK: Classic
 
     static func recognizeClassic(_ image: CGImage, level: VNRequestTextRecognitionLevel) -> Page {
         recognizeClassic(image, request: classicRequest(level: level))
@@ -78,9 +75,8 @@ public enum DocumentOCR {
         return Page(text: text, lines: lines, tables: 0, engine: level == .fast ? .fast : .accurate)
     }
 
-    // MARK: Documents (macOS 26+)
+    // MARK: Documents
 
-    @available(macOS 26, *)
     static func recognizeDocument(_ image: CGImage) -> Page? {
         let result = ResultBox<DocumentObservation.Container>()
         let input = UncheckedImage(image: image)
@@ -99,7 +95,6 @@ public enum DocumentOCR {
         return page(from: doc)
     }
 
-    @available(macOS 26, *)
     static func page(from doc: DocumentObservation.Container) -> Page {
         let lines: [OCRLine] = doc.text.lines.compactMap { line in
             let text = line.transcript

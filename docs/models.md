@@ -28,7 +28,8 @@ for a while.
 - **oMLX instead of llama.cpp.** MLX is built for Apple silicon; oMLX serves an OpenAI-compatible API, keeps its own
   prompt cache on disk and unloads the model when idle. Pippa no longer builds or bundles an engine of her own.
 
-The decision and what it removed: [Local AI: oMLX and Ornith 1.5 9B](omlx-switch.md).
+The decision and what it removed: [Local AI: oMLX and Ornith 1.5 9B](omlx-switch.md). Other engines, models and
+speed-ups compared, with a plan by memory size: [research, November 2026](local-ai-research-2026-11.md).
 
 These are small tests, not quality guarantees. Local AI can miss details or get facts wrong; check important names,
 amounts and dates against the original.

@@ -4,7 +4,7 @@
 Free for the Mac: letters explained, photos to one PDF, mail drafts and appointments. Her AI runs on your Mac.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white" alt="macOS 15 or later">
+  <img src="https://img.shields.io/badge/macOS-26.2%2B-000000?logo=apple&logoColor=white" alt="macOS 26.2 or later">
   <img src="https://img.shields.io/badge/Apple%20silicon-M1%2B-000000" alt="Apple silicon, M1 or later">
   <img src="https://img.shields.io/badge/native-Swift-F05138?logo=swift&logoColor=white" alt="Native Swift app">
   <img src="https://img.shields.io/badge/language-English%20%7C%20Deutsch-2b6cb0" alt="Language: English and German">
@@ -25,7 +25,7 @@ Open Pippa from the Dock or bring her up with ⌃⌥ Space, then just ask. Her m
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 
-<p align="center"><sub>Apple silicon (M1 or later), macOS 15 or later. One PDF from photos works right away. For the rest, her AI on your Mac needs 16 GB of memory; she asks before downloading it, about 5.4 GB (<a href="#will-it-run-on-my-mac">details</a>). If oMLX, LM Studio or Hugging Face already has the same model, she uses it instead of downloading it again. Smaller Mac, or prefer an online AI? Sign in with ChatGPT or add your own key.</sub></p>
+<p align="center"><sub>Apple silicon (M1 or later), macOS 26.2 or later. One PDF from photos works right away. For the rest, her AI on your Mac needs 16 GB of memory; she asks before downloading it, about 5.4 GB (<a href="#will-it-run-on-my-mac">details</a>). If oMLX, LM Studio or Hugging Face already has the same model, she uses it instead of downloading it again. Smaller Mac, or prefer an online AI? Sign in with ChatGPT or add your own key.</sub></p>
 
 <p align="center"><img src="docs/images/demo-letter.gif" width="960" alt="Scripted website demo with made-up files: asked when notice is due before moving out at the end of March, Pippa answers 'By December 31', explains the three-month notice period and quotes the passage from the lease"><br>
 <sub>Scripted demo from an earlier version of the website, with made-up files. Not a live AI session.</sub></p>
@@ -59,7 +59,7 @@ More, with examples and limits: [What Pippa can do](docs/what-pippa-can-do.md).
 
 ## Will it run on my Mac?
 
-You need a Mac with **Apple silicon (M1 or later)** and **macOS 15 or later**. Intel Macs are not supported.
+You need a Mac with **Apple silicon (M1 or later)** and **macOS 26.2 or later**. Every Apple silicon Mac can update to it for free in System Settings > General > Software Update. Intel Macs are not supported.
 
 One PDF from photos and scans works without any AI download. For everything else, Pippa uses one AI on your Mac, Ornith 1.5 9B, and asks before downloading it. With an online AI switched on, she works without the download.
 
@@ -83,7 +83,7 @@ Leave some extra disk space for the app and your results. If the same model is a
 
 ## Build from source
 
-You need an Apple silicon Mac with macOS 15 or later, and the Command Line Tools with Swift 6 (`xcode-select --install`). Xcode is not needed.
+You need an Apple silicon Mac with macOS 26.2 or later, and the Command Line Tools with Swift 6 (`xcode-select --install`). Xcode is not needed.
 
 ```sh
 scripts/build-app.sh                        # dist/Pippa.app

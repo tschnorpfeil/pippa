@@ -126,7 +126,7 @@ terminal from running two.
 
 ## Requirements
 
-Apple silicon Mac, macOS 15 or later, Command Line Tools with Swift 6 (`xcode-select --install`). Xcode is not needed, which is why checks run as executables instead of XCTest. Node 22.19 or later for the
+Apple silicon Mac, macOS 26.2 or later, Command Line Tools with Swift 6 (`xcode-select --install`). Xcode is not needed, which is why checks run as executables instead of XCTest. Node 22.19 or later for the
 runtime tests. The app ships its own pinned Node (`app/Packaging/node-release.json`) and Pi release
 (`app/Packaging/pi-release`); users need neither Terminal nor npm.
 
@@ -205,7 +205,7 @@ enables the slow speed checks; `PIPPA_OCR_FAST=1` uses the fast text recognizer.
 
 **CI.** `.github/workflows/ci.yml` is the fast gate on pull requests and pushes to `main` (not for documentation-only
 changes): string check, script tests, `swift build`, `PippaChecks`, `PiRPCChecks` and the runtime tests that don't need
-the real Pi. `.github/workflows/heavy.yml` runs the real-Pi tests, the web access tests, the macOS 15 compatibility run
+the real Pi. `.github/workflows/heavy.yml` runs the real-Pi tests, the web access tests
 and, if asked, an ad-hoc `Pippa.app` artifact; it runs only by hand (`workflow_dispatch`) and on release tags (`v*`).
 `.github/workflows/pages.yml` checks `site/` and publishes it to GitHub Pages from `main`.
 
