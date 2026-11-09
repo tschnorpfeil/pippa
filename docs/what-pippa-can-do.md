@@ -4,9 +4,20 @@ Drop files on Pippa, bring her up with ⌃⌥ Space, or just ask her something. 
 answer with the passage it comes from, a draft, an event or a reminder. The [README](../README.md) has the short
 version.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="images/pippa-window-dark.png">
+    <img src="images/pippa-window-light.png" width="720" alt="Pippa's window on macOS 26, with made-up sample data: the sidebar with search and earlier conversations, and a conversation about an ETF overview and a letter from the utility company, with a reminder Pippa added and a date she marked to check.">
+  </picture>
+</p>
+
 One job needs no AI at all: drop photos, scans or PDFs and press **One PDF**. Everything else uses her AI: the local AI
-she downloads once for your Mac, or an online AI you switch on in Settings. Each conversation is kept in the window's
-sidebar, so you can pick it up later.
+she downloads once for your Mac, or an online AI you switch on in Settings under **AI**. Each conversation is kept in
+the window's sidebar, so you can search for it and pick it up later.
+
+**Pippa Island** sits at the notch, or under Pippa's menu bar symbol on a Mac without one. It shows what she is working
+on, such as the file she is reading. Press ⌃⌥ Space to open it for a quick question, drop a file on it, or click
+**Open Pippa** to continue in the full window. You can switch it off in Settings under **General**.
 
 ## Everyday jobs
 
@@ -40,13 +51,20 @@ A few more things she can do when you ask:
 - **macOS asks first.** The first time Pippa needs your Documents folder, Calendar, Reminders, Photos or Mail, macOS
   asks you. In Pippa's Settings, the Permissions page shows what is allowed and opens the right place in System
   Settings if you want to change it. More in [Privacy and permissions](privacy-and-permissions.md).
+- **Pippa asks in the conversation.** Before her first web search in an answer, or before a command that goes online
+  or changes your files, a card in the conversation asks you, with **Allow** and **Don’t Allow**. The same question
+  shows in Pippa Island, so you can answer it without switching windows.
+- **Setting up on a new Mac.** Before the AI download, Pippa checks that there is enough free disk space and tells you
+  how much more is needed. If her AI runs short of memory, she tells you briefly and what helps. She never brings up
+  Apple's window asking you to install developer tools.
 - **Something didn't work?** [Open an issue](https://github.com/tschnorpfeil/pippa/issues) with the version, what you
   asked, what happened and what you expected. Use made-up examples and remove personal details from screenshots.
 
 ## Demo
 
 This animation was recorded from an earlier version of the scripted demo on [heypippa.app](https://heypippa.app/en/),
-with made-up files. It is not a recording of a live AI session, and the current app looks different.
+with made-up files. It is not a recording of a live AI session, and the current app looks different (see the window at
+the top of this page).
 
 <p align="center">
   <img src="images/demo-letter.gif" width="480" alt="Website demo with made-up files: asked when notice is due before moving out at the end of March, Pippa answers 'By December 31' and quotes the passage from the lease.">

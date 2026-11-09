@@ -15,17 +15,17 @@
 <meta property="og:site_name" content="Pippa">
 <meta property="og:title" content="Pippa: the free AI assistant for Mac that actually gets things done">
 <meta property="og:description" content="Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Pippa’s built-in AI runs on your Mac.">
-<meta property="og:image" content="https://heypippa.app/og-en.jpg?v=5">
-<meta property="og:image:alt" content="“The AI assistant that actually gets things done.” Below it, Pippa’s window: a photographed letter from the German tax office is explained, with the amount, the deadline and the sentence that states it.">
-<meta property="og:image:secure_url" content="https://heypippa.app/og-en.jpg?v=5">
+<meta property="og:image" content="https://heypippa.app/og-en.jpg?v=6">
+<meta property="og:image:alt" content="“The AI assistant that actually gets things done.” Below it, Pippa’s window in the macOS 26 look, with made-up sample data: Pippa sums up an investment overview from a file and has added a reminder; below, a letter from the utility company comes with the question by when something needs doing.">
+<meta property="og:image:secure_url" content="https://heypippa.app/og-en.jpg?v=6">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pippa: the free AI assistant for Mac that actually gets things done">
 <meta name="twitter:description" content="Photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Pippa’s built-in AI runs on your Mac.">
-<meta name="twitter:image" content="https://heypippa.app/og-en.jpg?v=5">
-<meta name="twitter:image:alt" content="“The AI assistant that actually gets things done.” Below it, Pippa’s window: a photographed letter from the German tax office is explained, with the amount, the deadline and the sentence that states it.">
+<meta name="twitter:image" content="https://heypippa.app/og-en.jpg?v=6">
+<meta name="twitter:image:alt" content="“The AI assistant that actually gets things done.” Below it, Pippa’s window in the macOS 26 look, with made-up sample data: Pippa sums up an investment overview from a file and has added a reminder; below, a letter from the utility company comes with the question by when something needs doing.">
 <link rel="icon" href="../favicon.ico" sizes="48x48">
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
@@ -183,73 +183,92 @@ strong, b { font-weight: 600; }
 .caption { margin-top: 18px; font-size: 12.5px; color: var(--faint); text-align: center; }
 
 .pw {
-  --ink: #202735; --ink2: rgb(32 39 53 / .78); --ink3: rgb(32 39 53 / .72); --hair: rgb(32 39 53 / .10);
-  --fill: rgb(32 39 53 / .035); --fill2: rgb(32 39 53 / .07); --accent: #005BCD; --accentTint2: rgb(0 91 205 / .14);
-  --chatCard: #fff; --chatBorder: rgb(39 61 96 / .10); --chatUser: #E5EEFF;
-  position: relative; height: 680px; display: flex; flex-direction: column; overflow: hidden; isolation: isolate;
-  border-radius: 26px; background: #f8f9fb; color: var(--ink); text-align: left; letter-spacing: -.003em;
+  --ink: #1f2533; --ink2: rgb(31 37 51 / .8); --ink3: rgb(31 37 51 / .56); --hair: rgb(31 37 51 / .1);
+  --fill: rgb(31 37 51 / .04); --fill2: rgb(31 37 51 / .07); --accent: #005BCD; --accentTint2: rgb(0 91 205 / .14);
+  --side: #f0efed; --paper: #fcfbfa; --chatCard: #fff; --chatBorder: rgb(31 37 51 / .1); --chatUser: #efeeec;
+  position: relative; height: 700px; display: flex; flex-direction: column; overflow: hidden; isolation: isolate;
+  border-radius: 26px; background: var(--paper); color: var(--ink); text-align: left; letter-spacing: -.003em;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
   box-shadow: 0 0 0 1px rgb(22 34 56 / .11), 0 3px 8px rgb(22 34 56 / .04), 0 30px 70px -18px rgb(22 34 56 / .30);
   transform-origin: 50% 60%;
 }
 .pw::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .6); z-index: 5; }
 .pw .ic { stroke-width: 1.6; }
-.pw-head { position: relative; height: 64px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 20px; }
-.pw-head::after, .pw-sessions::after, .pw-detail::before { content: ""; position: absolute; background: var(--hair); }
-.pw-head::after { left: 0; right: 0; bottom: 0; height: 1px; transform: scaleY(.5); transform-origin: bottom; }
-.pw-head canvas { width: 32px; height: 32px; flex: none; }
-.pw-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.pw-title b { font: 600 14px/1.2 ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
-.pw-title small { font-size: 12px; line-height: 1.25; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pw-tog { width: 28px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: var(--accent); background: rgb(0 91 205 / .10); font-size: 14px; flex: none; }
-.pw-close { width: 26px; height: 26px; display: grid; place-items: center; color: var(--ink3); font-size: 11px; flex: none; }
-.pw-close .ic { stroke-width: 2.2; }
 .pw-body { flex: 1; display: flex; min-height: 0; }
-.pw-sessions { position: relative; width: 232px; flex: none; background: var(--fill); padding: 10px 10px 14px; }
-.pw-sessions::after { right: 0; top: 0; bottom: 0; width: 1px; transform: scaleX(.5); }
-.pw-new { height: 32px; border-radius: 8px; background: var(--fill2); display: flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
-.pw-group { font-size: 11.5px; font-weight: 500; color: var(--ink3); padding: 12px 10px 4px; }
-.pw-row { height: 30px; border-radius: 8px; display: flex; align-items: center; padding: 0 10px; font-size: 13px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
-.pw-row.sel { background: var(--accentTint2); color: var(--ink); justify-content: space-between; }
-.pw-row .dots { color: var(--ink2); font-size: 11px; letter-spacing: .5px; }
+/* macOS 26: round Liquid Glass buttons in the title bar (rebuilt from the app's live snapshots) */
+.glass { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--ink); font-size: 17px;
+  background: linear-gradient(180deg, rgb(255 255 255 / .86), rgb(255 255 255 / .5));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .95), inset 0 -1px 1px rgb(31 37 51 / .04), 0 0 0 .5px rgb(31 37 51 / .16), 0 1px 2px rgb(31 37 51 / .06), 0 6px 14px -6px rgb(31 37 51 / .18);
+  -webkit-backdrop-filter: blur(10px) saturate(170%); backdrop-filter: blur(10px) saturate(170%); }
+.glass .ic { stroke-width: 1.5; }
+/* Sidebar: window buttons, search, New Conversation, the conversations */
+.pw-sessions { position: relative; width: 248px; flex: none; display: flex; flex-direction: column; background: var(--side); padding: 0 8px 14px; }
+.pw-bar { height: 54px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 0 0 10px; }
+.pw-lights { display: flex; gap: 8px; margin-right: auto; }
+.pw-lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .14); }
+.pw-lights i:nth-child(2) { background: #febc2e; }
+.pw-lights i:nth-child(3) { background: #28c840; }
+.pw-search { height: 28px; flex: none; display: flex; align-items: center; gap: 6px; margin: 4px 0 10px; padding: 0 10px; border-radius: 14px; font-size: 13px; color: var(--ink3); background: rgb(31 37 51 / .025); box-shadow: inset 0 0 0 .5px rgb(31 37 51 / .22), inset 0 1px 2px rgb(31 37 51 / .05); }
+.pw-search .ic { font-size: 13px; stroke-width: 1.8; }
+.pw-new { height: 34px; display: flex; align-items: center; gap: 9px; padding: 0 10px 0 16px; font-size: 13px; font-weight: 600; }
+.pw-new .ic { font-size: 14px; }
+.pw-new kbd { margin-left: auto; font: 500 11px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; color: var(--ink3); }
+.pw-group { font-size: 11px; font-weight: 600; color: var(--ink3); padding: 14px 6px 6px; }
+.pw-row { height: 34px; border-radius: 10px; display: flex; align-items: center; gap: 9px; margin: 0 8px 4px; padding: 0 10px; font-size: 13px; color: var(--ink2); white-space: nowrap; overflow: hidden; }
+.pw-row .ic { font-size: 14px; color: var(--ink3); }
+.pw-row.sel { background: #fff; color: var(--ink); box-shadow: 0 0 0 .5px rgb(31 37 51 / .06), 0 1px 3px rgb(31 37 51 / .07); }
+/* The conversation: its title bar, the transcript, the composer */
 .pw-chat { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.pw-scroll { flex: 1; min-height: 0; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
-.pw-user { align-self: flex-end; max-width: 78%; background: var(--chatUser); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.pw-head { height: 54px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 9px 0 20px; }
+.pw-head canvas { width: 26px; height: 26px; flex: none; }
+.pw-title { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.pw-title b { font-size: 13px; font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pw-title small { font-size: 11px; line-height: 1.2; color: var(--ink3); }
+.pw-head .tog-c { display: none; }
+.pw-scroll { flex: 1; min-height: 0; padding: 10px 28px 22px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+.pw-user { align-self: flex-end; max-width: 78%; background: var(--chatUser); border-radius: 18px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
 .pw-user p { font-size: 14.5px; line-height: 1.32; }
 .pw-attach { display: flex; gap: 6px; }
 .pw-attach .thumb { width: 38px; height: 50px; border-radius: 5px; }
+.pw-attach .fold { width: 44px; height: 40px; }
 .pw-answer { font-size: 15px; line-height: 1.45; display: flex; flex-direction: column; gap: 10px; max-width: 540px; }
+.pw-answer ul { display: flex; flex-direction: column; gap: 3px; padding-left: 20px; list-style: disc; }
+.pw-answer li::marker { color: var(--ink3); }
 .pw-quote { display: flex; gap: 12px; color: var(--ink2); }
 .pw-quote::before { content: ""; width: 2px; border-radius: 1px; background: var(--hair); flex: none; }
 .pw-quote small { display: block; margin-top: 2px; font-size: 13px; color: var(--ink3); }
-.pw-card { max-width: 540px; background: var(--chatCard); border-radius: 12px; box-shadow: inset 0 0 0 1px var(--chatBorder); padding: 14px; display: flex; flex-direction: column; gap: 9px; }
+.pw-card { max-width: 540px; background: var(--chatCard); border-radius: 12px; box-shadow: inset 0 0 0 1px var(--chatBorder), 0 1px 2px rgb(31 37 51 / .03); padding: 14px; display: flex; flex-direction: column; gap: 9px; }
 .ct { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
 .ct .ic { color: var(--accent); font-size: 15px; stroke-width: 1.8; }
 .meta { display: flex; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-top: -4px; }
 .meta span + span::before { content: "\00b7"; margin: 0 .35em; }
-.fit { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #0d712c; }
-.fit .ic { font-size: 13px; stroke-width: 2.2; }
 .pw-file { display: flex; gap: 10px; align-items: center; font-size: 13px; font-weight: 500; }
-.links { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; font-weight: 500; color: var(--accent); }
+.pw-file .fn { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.pw-file .fn small { font-size: 11.5px; font-weight: 500; color: var(--accent); }
+.pw-file .acts { display: flex; gap: 8px; flex: none; }
 .foot { font-size: 11.5px; color: var(--ink3); }
-.pw-composer { padding: 10px 24px 18px; flex: none; }
-.pw-field { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--chatCard); border-radius: 18px; box-shadow: inset 0 0 0 1px var(--chatBorder), 0 1px 2px rgb(22 34 56 / .04); }
-.pw-field .add { width: 28px; height: 32px; display: grid; place-items: center; color: var(--accent); font-size: 15px; }
-.pw-field .ph { flex: 1; font-size: 14.5px; color: var(--ink3); }
-.pw-field .send { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 14px; opacity: .4; }
+.pw-composer { padding: 6px 28px 18px; flex: none; }
+/* The composer: a rounded field, "+" and "On this Mac" underneath, the send button */
+.pw-field { display: grid; grid-template-columns: 28px 1fr auto 30px; grid-template-areas: "ph ph ph ph" "add . mac send"; align-items: center; gap: 10px 8px; padding: 12px 9px 9px 10px; background: #f9f8f7; border-radius: 20px; box-shadow: inset 0 0 0 1px #eceae7, 0 1px 2px rgb(22 34 56 / .04), 0 10px 24px -16px rgb(22 34 56 / .18); }
+.pw-field .ph { grid-area: ph; padding-left: 4px; font-size: 14.5px; color: var(--ink3); }
+.pw-field .add { grid-area: add; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--ink); font-size: 14px; background: rgb(31 37 51 / .06); box-shadow: inset 0 0 0 .5px rgb(31 37 51 / .1); }
+.pw-field .mac { grid-area: mac; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 7px; background: rgb(31 37 51 / .05); font-size: 11.5px; font-weight: 500; color: var(--ink2); white-space: nowrap; }
+.pw-field .mac .ic { font-size: 13px; }
+.pw-field .send { grid-area: send; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 14px; opacity: .2; }
 .pw-field .send .ic { stroke-width: 2.2; }
-.pw-detail { position: relative; width: 288px; flex: none; background: var(--fill); padding: 16px 12px 30px; display: flex; flex-direction: column; gap: 22px; }
-.pw-detail::before { left: 0; top: 0; bottom: 0; width: 1px; transform: scaleX(.5); }
+/* About this answer: what Pippa read, what she did on your Mac, which dates she checked */
+.pw-detail { position: relative; width: 280px; flex: none; background: var(--side); padding: 0 12px 30px 16px; display: flex; flex-direction: column; gap: 22px; }
+.pd-head { height: 54px; display: flex; align-items: center; justify-content: space-between; margin-right: -3px; font-size: 13px; font-weight: 700; }
 .pw-sec { display: flex; flex-direction: column; gap: 4px; }
-.pw-sec .h { padding: 0 6px 2px; font-size: 12.5px; font-weight: 600; display: flex; gap: 6px; align-items: baseline; }
-.pw-sec .h span { font-size: 11.5px; font-weight: 500; color: var(--ink3); }
-.pw-item { display: flex; gap: 10px; padding: 5px 6px; align-items: flex-start; }
-.pw-item > i { width: 20px; height: 24px; display: grid; place-items: center; color: var(--accent); font-size: 13px; flex: none; }
-.pw-item .tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.pw-item .tx b { font-size: 13px; font-weight: 400; line-height: 1.3; }
-.pw-item .tx small { display: flex; font-size: 11.5px; color: var(--ink3); }
+.pw-sec .h { padding-bottom: 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink3); }
+.pw-item { display: flex; gap: 9px; padding: 3px 0; align-items: flex-start; }
+.pw-item > i { width: 16px; height: 18px; display: grid; place-items: center; color: var(--ink3); font-size: 14px; flex: none; }
+.pw-item.ok > i { color: var(--ok); }
+.pw-item .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pw-item .tx b { font-size: 12.5px; font-weight: 400; line-height: 1.35; }
+.pw-item .tx small { display: flex; font-size: 11px; color: var(--ink3); }
 .pw-item .tx small span + span::before { content: "\00b7"; margin: 0 .35em; }
-.pw-empty { font-size: 12px; color: var(--ink3); padding: 0 6px; line-height: 1.4; }
+.pw-empty { font-size: 12px; color: var(--ink3); line-height: 1.4; }
 
 /* A phone photo of a page, and a PDF file icon */
 .thumb { position: relative; flex: none; overflow: hidden; box-shadow: 0 0 0 .5px rgb(0 0 0 / .16), 0 1px 2px rgb(0 0 0 / .12);
@@ -275,14 +294,13 @@ strong, b { font-weight: 600; }
 .pw-scroll { display: grid; }
 .sc { grid-area: 1 / 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
 .pw-detail { display: grid; align-content: start; }
-.rs { grid-area: 1 / 1; display: flex; flex-direction: column; gap: 22px; }
+.pd-head { grid-area: 1 / 1; }
+.rs { grid-area: 2 / 1; display: flex; flex-direction: column; gap: 22px; }
 .sc:not(.on), .rs:not(.on) { opacity: 0; visibility: hidden; }
 .fx .sc, .fx .rs { transition: opacity .2s ease, visibility 0s linear .2s; }
 .fx .sc.on, .fx .rs.on { transition: opacity .32s ease .06s; }
 .pw-row { transition: background-color .35s ease, color .35s ease; }
 .pw-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.pw-row.sel::after { content: "\2022\2022\2022"; flex: none; margin-left: 8px; color: var(--ink2); font-size: 11px; letter-spacing: .5px; }
-.pw-title small { display: block; }
 
 /* Pippa's answer appears once per scene */
 .fx .sc:not(.rv-go) .rv, .fx .rs:not(.rv-go) .rv { opacity: 0; transform: translateY(6px); }
@@ -322,64 +340,30 @@ strong, b { font-weight: 600; }
 @keyframes caret { 50% { opacity: 0; } }
 .pw-field .send { transition: opacity .2s ease; }
 .pw-field.ready .send { opacity: 1; }
-.pw-field .ring { position: absolute; inset: -1px; border-radius: 19px; box-shadow: 0 0 0 2px rgb(0 91 205 / .5), 0 0 0 6px rgb(0 91 205 / .1); opacity: 0; pointer-events: none; }
+.pw-field .ring { position: absolute; inset: -1px; border-radius: 21px; box-shadow: 0 0 0 2px rgb(0 91 205 / .5), 0 0 0 6px rgb(0 91 205 / .1); opacity: 0; pointer-events: none; }
 
 /* What happened: Pippa's receipt line, and a small button inside cards */
-.pw-rcpt { max-width: 540px; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 9px 11px 11px; border-radius: 10px; background: var(--chatCard); box-shadow: inset 0 0 0 .5px var(--chatBorder), inset 0 0 0 1px rgb(39 61 96 / .05); }
-.pw-rcpt p { display: flex; gap: 7px; font-size: 12.5px; font-weight: 600; line-height: 1.4; }
-.pw-rcpt p .ic { width: 14px; height: 14px; margin-top: 2px; color: var(--ok); stroke-width: 2.4; }
-.tbtn, .qbtn, .pbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; white-space: nowrap; flex: none; }
-.tbtn { margin-left: 21px; background: rgb(0 91 205 / .1); color: var(--accent); }
-.tbtn .ic { width: 12px; height: 12px; stroke-width: 1.8; }
+.pw-rcpt { max-width: 560px; display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: var(--chatCard); box-shadow: inset 0 0 0 1px var(--chatBorder), 0 1px 2px rgb(31 37 51 / .03); }
+.pw-rcpt .ri { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; flex: none; background: #e7f3ea; color: var(--ok); font-size: 15px; }
+.pw-rcpt .rt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.pw-rcpt .rt b { font-size: 13px; font-weight: 600; }
+.pw-rcpt .rt small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--ink2); }
+.pw-rcpt .rt small span + span::before { content: "\00b7"; margin: 0 .35em; }
+.pw-rcpt .acts { display: flex; gap: 8px; flex: none; }
+.pw-rcpt .qbtn { background: #f6f6f7; box-shadow: inset 0 0 0 .5px rgb(31 37 51 / .16); }
+.qbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; white-space: nowrap; flex: none; }
 .qbtn { background: var(--fill2); color: var(--ink); }
-.pbtn { background: var(--accent); color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / .16); }
-.cf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.cf .tbtn { margin-left: 0; }
 .ct .tag { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #eaf5ee; color: var(--ok); font-size: 11px; font-weight: 600; }
-.fit7 { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ok); }
-.fit7 .ic { font-size: 13px; stroke-width: 2.2; }
 
-/* Excel: a spreadsheet file, and the chart card Pippa computes from it */
+/* Excel: a spreadsheet file */
 .thumb.xl { background: linear-gradient(rgb(16 124 65 / .55), rgb(16 124 65 / .55)) 0 0 / 100% 18% no-repeat,
   repeating-linear-gradient(90deg, transparent 0 7px, rgb(30 40 50 / .14) 7px 8px) 0 18% / 100% 66% no-repeat,
   repeating-linear-gradient(180deg, transparent 0 4px, rgb(30 40 50 / .14) 4px 5px) 0 18% / 100% 66% no-repeat, #fff; font-size: 6px; }
 .thumb.xl::after { content: "XLSX"; position: absolute; left: 0; right: 0; bottom: 9%; padding: .25em 0; font: 700 1em/1 -apple-system, system-ui, sans-serif; color: #fff; background: #107c41; text-align: center; }
 .pw-item > i .thumb.xl::after { font-size: 4px; }
-.chart { gap: 12px; }
-.chart .ct .ic { stroke-width: 2; }
-.bars { position: relative; display: flex; align-items: flex-end; gap: 11px; height: 118px; margin: 2px 2px 18px; border-bottom: 1px solid var(--hair); }
-.bars span { position: relative; flex: 1; height: var(--h); border-radius: 3px 3px 0 0; background: linear-gradient(#3b88e6, #0a63d2); transform-origin: 50% 100%; }
-.bars span b { position: absolute; left: 50%; top: 100%; margin-top: 4px; transform: translateX(-50%); font-size: 10.5px; font-weight: 400; color: var(--ink3); }
-.fx .sc:not(.rv-go) .bars span { transform: scaleY(0); }
-.rv-go .bars span { transition: transform .7s cubic-bezier(.2, .8, .2, 1) calc(.85s + var(--i) * 35ms); }
-.chart .cf .foot { font-size: 11px; }
 
-/* Mail: the reply draft */
-.mail { gap: 8px; }
-.mf { display: flex; gap: 10px; font-size: 12.5px; padding-bottom: 8px; border-bottom: 1px solid #eef0f3; }
-.mf span { color: var(--ink3); min-width: 22px; }
-.mf b { font-weight: 500; }
-.mbody { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--ink2); padding: 2px 0 4px; }
-.mail .cf .meta { margin: 0; font-size: 11.5px; color: var(--ink3); }
 
 /* Downloads: the tidy preview, before and after */
-.tidy7 { gap: 10px; max-width: 600px; }
-.tidy7 .meta { color: var(--ink3); }
-.ba { display: flex; align-items: center; gap: 12px; padding: 14px 14px 12px; border-radius: 10px; background: var(--fill); }
-.ba-now { display: flex; flex-direction: column; gap: 1px; width: 104px; flex: none; font-size: 12px; }
-.ba-now b { font-weight: 600; margin-top: 6px; }
-.ba-now small { color: var(--ink3); font-size: 12px; }
-.heap { position: relative; height: 40px; }
-.heap i { position: absolute; top: 4px; width: 26px; height: 33px; border-radius: 3px; background: #fff; box-shadow: 0 0 0 .5px rgb(0 0 0 / .18), 0 1px 2px rgb(0 0 0 / .1); }
-.heap i:nth-child(1) { left: 2px; transform: rotate(-12deg); }
-.heap i:nth-child(2) { left: 26px; top: 0; transform: rotate(8deg); background: linear-gradient(160deg, #b2a48e, #776c5c); }
-.heap i:nth-child(3) { left: 52px; top: 6px; transform: rotate(-4deg); background: repeating-linear-gradient(180deg, transparent 0 3px, rgb(60 60 70 / .2) 3px 4px) 20% 30% / 60% 40% no-repeat, #fff; }
-.ba-arr { width: 16px; height: 16px; color: var(--ink3); flex: none; }
-.ba-to { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.ba-to li { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center; }
-.ba-to svg { width: 38px; height: 32px; }
-.ba-to b { max-width: 100%; font-size: 11.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ba-to small { font-size: 11px; color: var(--ink3); }
 .fx .sc:not(.rv-go) .ba-to li { opacity: 0; transform: translateY(6px) scale(.92); }
 .rv-go .ba-to li { transition: opacity .4s ease calc(.75s + var(--i) * 90ms), transform .6s cubic-bezier(.2, .8, .2, 1) calc(.75s + var(--i) * 90ms); }
 .undo7 { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink3); min-width: 0; }
@@ -450,7 +434,6 @@ strong, b { font-weight: 600; }
 .src li small { margin-left: auto; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .card { position: absolute; background: #fff; border-radius: 14px; box-shadow: var(--lift); color: #202735; }
 .pdf { right: 26px; bottom: 30px; width: 300px; padding: 18px; display: flex; flex-direction: column; gap: 10px; --ink2: rgb(32 39 53 / .78); --ink3: rgb(32 39 53 / .62); --accent: #005bcd; }
-.pdf .fit { margin-top: -2px; }
 .pdf .pw-file { padding: 10px 0; border-top: 1px solid #eef0f3; border-bottom: 1px solid #eef0f3; }
 .letter { left: 26px; top: 28px; width: 214px; padding: 20px 20px 22px; transform: rotate(-2.5deg); font-size: 9.5px; line-height: 1.5; color: #4a4f58; }
 .letter .from { font-size: 8.5px; color: var(--faint); }
@@ -469,8 +452,6 @@ strong, b { font-weight: 600; }
 .ans blockquote { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid #eef0f3; font-size: 12.5px; line-height: 1.45; color: rgb(32 39 53 / .78); }
 .ans blockquote::before { content: ""; width: 2px; border-radius: 1px; background: rgb(32 39 53 / .14); flex: none; }
 .ans blockquote small { display: block; margin-top: 3px; font-size: 11.5px; color: rgb(32 39 53 / .75); }
-.chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: rgb(0 91 205 / .09); color: var(--accent); font-size: 12px; font-weight: 600; }
-.chip .ic { stroke-width: 2; }
 
 /* 3: Mac apps */
 .apps { display: flex; justify-content: center; gap: 34px; margin-top: 56px; }
@@ -489,15 +470,6 @@ strong, b { font-weight: 600; }
 
 /* 4: permissions */
 .access { position: relative; max-width: 640px; height: 380px; margin: 52px auto 0; }
-.tidy { left: 0; top: 0; width: 380px; padding: 18px 20px 16px; transform: rotate(-1.5deg); background: #fbfbfc; }
-.tidy-cap { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #202735; }
-.tidy-cap .ic { color: var(--ok); stroke-width: 2.2; }
-.tidy ul { margin-top: 8px; }
-.tidy li { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: 13px; color: #3a3f48; border-bottom: 1px solid #eef0f3; }
-.tidy li:last-child { border-bottom: 0; }
-.tidy li .ic { font-size: 18px; color: #4a8fe7; stroke-width: 1.5; }
-.tidy li small { margin-left: auto; font-size: 11.5px; color: var(--faint); }
-.tidy-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .undo { padding: 5px 11px; border-radius: 7px; background: rgb(32 39 53 / .07); font-size: 12px; font-weight: 500; color: #202735; }
 .ask { right: 0; bottom: 0; width: 290px; padding: 22px 20px 18px; text-align: center; border-radius: 16px; background: rgb(250 250 251 / .97); box-shadow: 0 0 0 1px rgb(17 24 39 / .1), 0 3px 6px rgb(17 24 39 / .05), 0 30px 60px -24px rgb(17 24 39 / .4); }
 .ask .appic { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 2px 5px rgb(0 0 0 / .1); }
@@ -507,6 +479,53 @@ strong, b { font-weight: 600; }
 .ask-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
 .ask-btns span { padding: 6px 0; border-radius: 7px; font-size: 12.5px; font-weight: 500; background: rgb(0 0 0 / .06); color: #1d1d1f; }
 .ask-btns span.on { background: var(--accent); color: #fff; }
+
+/* Pippa Island: the black companion at the notch, rebuilt from the app's island snapshots */
+.isl-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 56px; }
+.isl-cap { margin-top: 14px; font-size: 13px; color: var(--muted); text-align: center; }
+.isl-scr { position: relative; height: 228px; border-radius: 18px; overflow: hidden; background: linear-gradient(160deg, #2f3a5c, #4b5a80 55%, #6a6f8f); box-shadow: inset 0 0 0 1px rgb(17 24 39 / .08); }
+.isl-scr::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 30px; background: rgb(255 255 255 / .12); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.isl-scr::after { content: ""; position: absolute; inset: 30px 0 0; background: radial-gradient(70% 90% at 30% 100%, rgb(255 255 255 / .12), transparent 70%); }
+.island { position: absolute; z-index: 1; left: 50%; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: min(420px, 86%); height: 34px; padding: 0 16px 0 14px; transform: translateX(-50%); border-radius: 0 0 14px 14px; background: #000; color: rgb(255 255 255 / .82); font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: 0 8px 22px -10px rgb(0 0 0 / .5); }
+.island svg { width: 20px; height: 20px; flex: none; }
+.island .st { position: relative; display: grid; justify-items: end; min-width: 0; }
+.island .st span { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; }
+.island .st .ic { width: 13px; height: 13px; color: #6fd38a; stroke-width: 2.4; }
+.island .st span:not(:first-child) { opacity: 0; }
+.mk { fill: none; stroke: #7cb6ff; stroke-width: 2.6; }
+.isl-open { position: absolute; z-index: 1; left: 50%; top: 0; width: min(380px, 88%); padding: 40px 18px 16px; transform: translateX(-50%); border-radius: 0 0 24px 24px; background: #000; color: #fff; box-shadow: 0 16px 34px -14px rgb(0 0 0 / .6); }
+.isl-open .oh { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+.isl-open .oh svg { width: 22px; height: 22px; }
+.isl-open p { margin-top: 10px; font-size: 13px; color: rgb(255 255 255 / .62); }
+.isl-open .of { margin-top: 12px; padding: 9px 12px; border-radius: 10px; background: #1b1b1d; font-size: 13.5px; color: rgb(255 255 255 / .5); }
+.isl-open .typing::after { content: ""; display: inline-block; width: 1.5px; height: 1.05em; margin-right: 2px; vertical-align: -.15em; background: #7cb6ff; animation: caret 1s steps(1) infinite; }
+.isl-open .ob { display: flex; justify-content: flex-end; margin-top: 12px; }
+.isl-open .ob span { display: inline-flex; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #2a2a2c; font-size: 12.5px; font-weight: 600; }
+.isl-open .ob small { color: rgb(255 255 255 / .42); font-size: 12px; }
+/* Three states in turn while Pippa works: reading, writing, done. Only with motion allowed. */
+@media (prefers-reduced-motion: no-preference) {
+  .island { animation: isl-w 9s ease-in-out infinite; }
+  .island .st span { animation: isl-s 9s ease infinite; }
+  .island .st span:nth-child(2) { animation-delay: 3s; }
+  .island .st span:nth-child(3) { animation-delay: 6s; }
+}
+@keyframes isl-s { 0% { opacity: 0; } 4%, 30% { opacity: 1; } 34%, 100% { opacity: 0; } }
+@keyframes isl-w { 0%, 100% { width: min(420px, 86%); } 66%, 96% { width: min(380px, 80%); } }
+
+/* Settings, Permissions: what Pippa may use on this Mac */
+.perm { left: 0; top: 0; width: 400px; padding: 10px 16px 12px; transform: rotate(-1.5deg); background: #fbfbfc; }
+.perm-tabs { display: flex; justify-content: center; gap: 4px; padding-bottom: 10px; border-bottom: 1px solid #eef0f3; }
+.perm-tabs span { padding: 4px 10px; border-radius: 7px; font-size: 11.5px; font-weight: 500; color: #5d6168; }
+.perm-tabs span.on { background: rgb(0 91 205 / .1); color: var(--accent); }
+.perm-h { margin: 12px 0 4px; font-size: 12.5px; font-weight: 600; color: #202735; }
+.perm li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eef0f3; }
+.perm li:last-child { border-bottom: 0; }
+.perm li > svg { width: 26px; height: 26px; padding: 5px; flex: none; border-radius: 7px; background: rgb(0 91 205 / .08); color: var(--accent); }
+.perm li span { display: flex; flex-direction: column; min-width: 0; }
+.perm li b { font-size: 12.5px; font-weight: 500; color: #202735; }
+.perm li small { font-size: 11px; color: #676c75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.perm li small.ok { color: var(--ok); }
+.perm li small.no { color: #c0352b; }
 
 /* FAQ */
 .faq { width: min(700px, calc(100% - 48px)); margin: 0 auto; padding-top: 136px; }
@@ -548,7 +567,8 @@ strong, b { font-weight: 600; }
 
 @media (max-width: 1060px) {
   .pw-detail { display: none; }
-  .tog-r { display: none; }
+  .pw-head .tog-c { display: grid; }
+  .isl-pair { gap: 18px; }
 }
 @media (max-width: 900px) {
   .benefits { grid-template-columns: repeat(2, 1fr); row-gap: 40px; }
@@ -557,9 +577,14 @@ strong, b { font-weight: 600; }
   .closing { grid-template-columns: 1fr; gap: 32px; padding: 44px 40px; }
 }
 @media (max-width: 720px) {
-  .pw-sessions, .pw-tog { display: none; }
+  .pw-sessions { display: none; }
   .pw { height: 620px; }
-  .pw-scroll { padding: 18px 16px; }
+  .pw-scroll { padding: 8px 16px 18px; }
+  .pw-rcpt { flex-wrap: wrap; }
+  .pw-rcpt .acts { width: 100%; padding-left: 38px; }
+  .pw-file { flex-wrap: wrap; }
+  .pw-file .acts { width: 100%; padding-left: 30px; }
+  .isl-pair { grid-template-columns: 1fr; max-width: 460px; margin-inline: auto; }
   .pw-composer { padding: 6px 16px 16px; }
 }
 @media (max-width: 600px) {
@@ -574,7 +599,8 @@ strong, b { font-weight: 600; }
   .act { gap: 6px 20px; margin-top: 26px; }
   .product { margin-top: 40px; }
   .pw { border-radius: 20px; }
-  .pw-head { height: 56px; padding: 0 14px; }
+  .pw-head { height: 52px; padding: 0 8px 0 14px; }
+  .pw-field .mac { display: none; }
   .pw-answer { font-size: 14.5px; }
   .glow { inset: -50px -24px -80px; }
   .fi { width: 56px; }
@@ -590,14 +616,6 @@ strong, b { font-weight: 600; }
   .pw { height: 640px; }
   .sc { gap: 14px; }
   .pw-chip { left: 16px; max-width: calc(100% - 32px); }
-  .bars { gap: 5px; height: 72px; }
-  .bars span b { font-size: 9px; }
-  .ba { padding: 12px 10px 10px; }
-  .ba-now, .ba-arr { display: none; }
-  .ba-to { gap: 4px; }
-  .ba-to svg { width: 32px; height: 27px; }
-  .ba-to b { font-size: 10.5px; }
-  .cf { flex-wrap: wrap; row-gap: 8px; }
   .undo7 { order: 2; }
   .cal .ev { min-width: 0; align-self: stretch; margin-left: 0; }
   .cal .ev small { grid-column: 1; grid-row: auto; margin-top: 2px; }
@@ -627,8 +645,9 @@ strong, b { font-weight: 600; }
   .tile svg { width: 44px; height: 44px; }
   .t-cal b { font-size: 34px; }
   .access { height: auto; margin-top: 40px; }
-  .tidy { width: auto; max-width: 92%; }
-  .tidy-cap { font-size: 12.5px; }
+  .perm { width: auto; max-width: 92%; }
+  .isl-scr { height: 236px; }
+  .isl-open { width: 92%; }
   .ask { width: 270px; max-width: 88%; margin: -10px 0 0 auto; }
   .faq h2 { font-size: 29px; margin-bottom: 24px; }
   .faq summary { font-size: 15.5px; padding: 19px 0; }
@@ -639,6 +658,8 @@ strong, b { font-weight: 600; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .island, .island .st span, .isl-open .typing::after { animation: none !important; }
+  .island .st span:not(:first-child) { opacity: 0; }
   .btn, .site-head, .faq summary svg .v { transition: none; }
   .glow::before, .glow::after { animation: none; opacity: .85; }
 }
@@ -659,12 +680,14 @@ strong, b { font-weight: 600; }
   <symbol id="s-env" viewBox="0 0 16 16"><rect x="1.6" y="3.4" width="12.8" height="9.4" rx="1.8"/><path d="M2.2 4.4 8 8.8l5.8-4.4"/></symbol>
   <symbol id="s-doc" viewBox="0 0 16 16"><path d="M4.1 1.7h5.1l3.3 3.3v8.3a1 1 0 0 1-1 1H4.1a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z"/><path d="M9 1.9v3.3h3.3M5.6 8.3h4.8M5.6 10.9h3.4"/></symbol>
   <symbol id="s-folder" viewBox="0 0 20 20"><path d="M2.5 5.5a1.5 1.5 0 0 1 1.5-1.5h3.6l1.7 1.8H16a1.5 1.5 0 0 1 1.5 1.5v7.2a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M2.5 8h15"/></symbol>
-  <symbol id="s-bell" viewBox="0 0 16 16"><path d="M4 11.5V7.2a4 4 0 0 1 8 0v4.3l1.2 1.3H2.8zM6.6 14.2a1.5 1.5 0 0 0 2.8 0"/></symbol>
-  <symbol id="s-chart" viewBox="0 0 16 16"><path d="M2.2 13.6h11.6M4.4 11.2V8.4M7.1 11.2V4.6M9.8 11.2V6.8M12.5 11.2V3.2"/></symbol>
   <symbol id="s-cal" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2.3 6.6h11.4M5.2 1.8v2.6M10.8 1.8v2.6"/></symbol>
   <symbol id="s-undo" viewBox="0 0 16 16"><path d="M5.6 3.8 2.6 6.8l3 3"/><path d="M2.9 6.8h6.6a3.6 3.6 0 0 1 0 7.2H7.2"/></symbol>
-  <symbol id="s-arrow" viewBox="0 0 16 16"><path d="M2.5 8h11M9.5 4l4 4-4 4"/></symbol>
   <symbol id="s-fold" viewBox="0 0 40 34"><path d="M2 5.6A3.6 3.6 0 0 1 5.6 2h8.9l3.7 3.5h16.2A3.6 3.6 0 0 1 38 9.1V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#4f9be6"/><path d="M2 11.2a3 3 0 0 1 3-3h30a3 3 0 0 1 3 3V29a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z" fill="#7cbaf4"/><path d="M2.4 9.8a3 3 0 0 1 2.6-1.6h30a3 3 0 0 1 2.6 1.6z" fill="#a5d1fb"/></symbol>
+  <symbol id="s-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.4"/><path d="m10.3 10.3 3.4 3.4"/></symbol>
+  <symbol id="s-laptop" viewBox="0 0 16 16"><rect x="3" y="3.4" width="10" height="7" rx="1.2"/><path d="M1.4 12.6h13.2"/></symbol>
+  <symbol id="s-bubble" viewBox="0 0 16 16"><path d="M3.2 3h9.6a1.6 1.6 0 0 1 1.6 1.6v5.6a1.6 1.6 0 0 1-1.6 1.6H7.4l-3.2 2.4v-2.4h-1a1.6 1.6 0 0 1-1.6-1.6V4.6A1.6 1.6 0 0 1 3.2 3z"/></symbol>
+  <symbol id="s-photo" viewBox="0 0 16 16"><rect x="1.8" y="3" width="12.4" height="10" rx="1.8"/><circle cx="10.4" cy="6.4" r="1.1"/><path d="m2.2 11.4 3.5-3.5 3.2 3.1 1.6-1.5 3.3 3.1"/></symbol>
+  <symbol id="s-mark" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="7.6" ry="7.3"/><ellipse cx="12.7" cy="11.4" rx="7.2" ry="7.6" opacity=".45"/></symbol>
   <symbol id="s-rings" viewBox="0 0 40 40"><g fill="none" stroke="#005bcd" stroke-width="2.2"><ellipse cx="20" cy="20" rx="12.6" ry="12.2"/><ellipse cx="21.3" cy="19" rx="12" ry="12.6" opacity=".5"/><ellipse cx="18.8" cy="21" rx="12.4" ry="11.8" opacity=".32"/></g></symbol>
 </svg>
 <a class="skip" href="#main">Skip to content</a>
@@ -705,59 +728,55 @@ strong, b { font-weight: 600; }
         <button type="button" class="seg" data-s="5" aria-pressed="false" aria-controls="win">PDF<i aria-hidden="true"></i></button>
       </div>
     </div>
-    <div class="pw" id="win" role="img" aria-label="Example with made-up files: Pippa’s window. To photos of a letter from the German tax office and a bank statement, Pippa answers: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. She also adds a reminder.">
-      <div class="pw-head" aria-hidden="true">
-        <canvas id="winMark" width="32" height="32"></canvas>
-        <div class="pw-title"><b>Pippa</b><small id="winTitle">Letter from the tax office</small></div>
-        <span class="pw-tog"><svg class="ic"><use href="#s-sidebar-l"/></svg></span>
-        <span class="pw-tog tog-r"><svg class="ic"><use href="#s-sidebar-r"/></svg></span>
-        <span class="pw-close"><svg class="ic"><use href="#s-chev"/></svg></span>
-      </div>
+    <div class="pw" id="win" role="img" aria-label="Example with made-up files: Pippa’s window. To photos of a letter from the German tax office and a bank statement, Pippa answers: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. As asked, she also adds a reminder.">
       <div class="pw-body" aria-hidden="true">
         <div class="pw-sessions">
-          <div class="pw-new"><svg class="ic"><use href="#s-compose"/></svg>New Conversation</div>
+          <div class="pw-bar"><span class="pw-lights"><i></i><i></i><i></i></span><span class="glass"><svg class="ic"><use href="#s-compose"/></svg></span><span class="glass"><svg class="ic"><use href="#s-sidebar-l"/></svg></span></div>
+          <div class="pw-search"><svg class="ic"><use href="#s-search"/></svg>Search</div>
+          <div class="pw-new"><svg class="ic"><use href="#s-compose"/></svg>New Conversation<kbd>⌘N</kbd></div>
           <div class="pw-group">Today</div>
-          <div class="pw-row sel" data-s="0"><span>Letter from the tax office</span></div>
-          <div class="pw-row" data-s="1"><span>Check 2025 revenue</span></div>
-          <div class="pw-row" data-s="2"><span>Reply to the property manager</span></div>
+          <div class="pw-row sel" data-s="0"><svg class="ic"><use href="#s-doc"/></svg><span>Letter from the tax office</span></div>
+          <div class="pw-row" data-s="1"><svg class="ic"><use href="#s-doc"/></svg><span>Check 2025 revenue</span></div>
+          <div class="pw-row" data-s="2"><svg class="ic"><use href="#s-env"/></svg><span>Reply to the property manager</span></div>
           <div class="pw-group">Yesterday</div>
-          <div class="pw-row" data-s="3"><span>Tidy up Downloads</span></div>
-          <div class="pw-row" data-s="4"><span>Add the dentist</span></div>
-          <div class="pw-row" data-s="5"><span>Lease as a PDF</span></div>
+          <div class="pw-row" data-s="3"><svg class="ic"><use href="#s-folder"/></svg><span>Tidy up Downloads</span></div>
+          <div class="pw-row" data-s="4"><svg class="ic"><use href="#s-bubble"/></svg><span>Add the dentist</span></div>
+          <div class="pw-row" data-s="5"><svg class="ic"><use href="#s-photo"/></svg><span>Lease as a PDF</span></div>
           <div class="pw-group">Previous 7 Days</div>
-          <div class="pw-row"><span>Daycare sign-up</span></div>
-          <div class="pw-row"><span>Electricity bill explained</span></div>
+          <div class="pw-row"><svg class="ic"><use href="#s-bubble"/></svg><span>Daycare sign-up</span></div>
+          <div class="pw-row"><svg class="ic"><use href="#s-doc"/></svg><span>Electricity bill explained</span></div>
         </div>
         <div class="pw-chat">
+          <div class="pw-head">
+            <canvas id="winMark" width="26" height="26"></canvas>
+            <div class="pw-title"><b id="winTitle">Letter from the tax office</b><small>On this Mac</small></div>
+            <span class="glass tog-c"><svg class="ic"><use href="#s-sidebar-r"/></svg></span>
+          </div>
           <div class="pw-scroll">
-            <div class="sc on" data-s="0" data-desc="Example with made-up files: Pippa’s window. To photos of a letter from the German tax office and a bank statement, Pippa answers: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. She also adds a reminder.">
+            <div class="sc on" data-s="0" data-desc="Example with made-up files: Pippa’s window. To photos of a letter from the German tax office and a bank statement, Pippa answers: 412 euros of income tax due Monday, November 16, with the sentence from the letter that says so. As asked, she also adds a reminder.">
               <div class="pw-user">
                 <div class="pw-attach"><span class="thumb" style="transform:rotate(-2deg)"></span><span class="thumb ph" style="transform:rotate(1.5deg)"></span><span class="thumb ph b" style="transform:rotate(-1deg)"></span><span class="thumb pd" style="transform:rotate(2deg)"></span></div>
-                <p>What do they want from me?</p>
+                <p>What do they want from me? Remind me in time.</p>
               </div>
               <div class="pw-answer">
                 <p class="rv" style="--d:.1s">The tax office wants <strong>€412.00 in income tax for 2025</strong>, due <strong>by Monday, November&nbsp;16</strong>. This is the sentence in the letter:</p>
                 <blockquote class="pw-quote rv" style="--d:.4s"><span><span lang="de">„Bitte zahlen Sie den Betrag von 412,00&nbsp;€ spätestens bis zum 16.11.2026.“</span><small>Please pay the amount of €412.00 by November 16, 2026 at the latest.</small></span></blockquote>
-                <p class="rv ds" style="--d:.7s">Your bank statement shows no payment to the tax office yet. So the deadline doesn’t slip by, I added a reminder.</p>
+                <p class="rv ds" style="--d:.7s">Your bank statement shows no payment to the tax office yet. I added a reminder for Friday.</p>
               </div>
               <div class="pw-rcpt rv" style="--d:1s">
-                <p><svg class="ic"><use href="#s-check"/></svg><span>Reminder added: Pay €412.00 to the tax office (due Fri, Nov&nbsp;13)</span></p>
-                <span class="tbtn"><svg class="ic"><use href="#s-checklist"/></svg>Open Reminders</span>
+                <span class="ri"><svg class="ic"><use href="#s-checklist"/></svg></span>
+                <span class="rt"><b>Reminder added</b><small><span>Pay €412.00 to the tax office</span><span>Fri, Nov&nbsp;13</span></small></span>
+                <span class="acts"><span class="qbtn">Undo</span><span class="qbtn">Open Reminders</span></span>
               </div>
             </div>
-            <div class="sc" data-s="1" data-desc="Example with a made-up spreadsheet: Pippa checks Revenue-2025.xlsx. The total for Revenue leaves out October, November and December; with them it would be 144,000. She changes nothing in the table. Below, a bar chart of revenue by month that can be saved as a picture.">
+            <div class="sc" data-s="1" data-desc="Example with a made-up spreadsheet: Pippa checks Revenue-2025.xlsx. The total for Revenue leaves out October, November and December; with them it would be 144,000. She changes nothing in the table.">
               <div class="pw-user">
                 <div class="pw-attach"><span class="thumb xl"></span></div>
-                <p>Does the total add up? And show me revenue by month.</p>
+                <p>Does the total add up?</p>
               </div>
               <div class="pw-answer">
                 <p class="rv" style="--d:.1s">The total for “Revenue” leaves out “October”, “November”, and “December”. With them, the total would be <strong>144,000</strong>.</p>
                 <p class="rv" style="--d:.4s">The sheet says 105,580, so 38,420 is missing. Nothing in your table was changed.</p>
-              </div>
-              <div class="pw-card chart rv" style="--d:.7s">
-                <div class="ct"><svg class="ic"><use href="#s-chart"/></svg>Revenue by Month</div>
-                <div class="bars"><span style="--h:69.5%;--i:0"><b>Jan</b></span><span style="--h:72.2%;--i:1"><b>Feb</b></span><span style="--h:82.2%;--i:2"><b>Mar</b></span><span style="--h:85.4%;--i:3"><b>Apr</b></span><span style="--h:94.8%;--i:4"><b>May</b></span><span style="--h:91.2%;--i:5"><b>Jun</b></span><span style="--h:79.5%;--i:6"><b>Jul</b></span><span style="--h:74.1%;--i:7"><b>Aug</b></span><span style="--h:97.2%;--i:8"><b>Sep</b></span><span style="--h:87.1%;--i:9"><b>Oct</b></span><span style="--h:84.4%;--i:10"><b>Nov</b></span><span style="--h:100.0%;--i:11"><b>Dec</b></span></div>
-                <div class="cf"><span class="foot">Computed by Pippa from Revenue-2025.xlsx</span><span class="qbtn">Save as Picture…</span></div>
               </div>
             </div>
             <div class="sc" data-s="2" data-desc="Example with a made-up email: the message “Heating service on Tuesday” is selected in Mail. Asked to tell the property manager that Tuesday works, Pippa puts a reply in Mail as a draft. Nothing is sent." data-chip="">
@@ -767,35 +786,20 @@ strong, b { font-weight: 600; }
               <div class="pw-answer">
                 <p class="rv" style="--d:.1s">Your reply is waiting as a draft in Mail. Nothing is sent; you send it yourself.</p>
               </div>
-              <div class="pw-card mail rv" style="--d:.4s">
-                <div class="ct"><svg class="ic"><use href="#s-env"/></svg>Re: Heating service on Tuesday</div>
-                <div class="mf"><span>To</span><b>Berger Property Management</b></div>
-                <div class="mbody"><p>Hello Ms Berger,</p><p>thank you for your message. Tuesday works well for me.</p><p>Best regards</p></div>
-                <div class="cf"><span class="meta"><span>Draft in Mail</span><span>not sent</span></span><span class="tbtn"><svg class="ic"><use href="#s-env"/></svg>Open draft</span></div>
+              <div class="pw-rcpt rv" style="--d:.4s">
+                <span class="ri"><svg class="ic"><use href="#s-env"/></svg></span>
+                <span class="rt"><b>Draft in Mail, not sent</b><small>“Re: Heating service on Tuesday”</small></span>
+                <span class="acts"><span class="qbtn">Open Mail</span></span>
               </div>
             </div>
-            <div class="sc" data-s="3" data-desc="Example with a made-up Downloads folder: Pippa suggests putting 38 loose files into four new folders: Invoices, Photos, Screenshots and Archives. Nothing is deleted, nothing moves until you click, and one click undoes it all.">
+            <div class="sc" data-s="3" data-desc="Example with a made-up Downloads folder: asked to tidy up the Downloads folder, Pippa puts 38 loose files into four new folders: Invoices, Photos, Screenshots and Archives. She overwrites no file, and nothing is deleted.">
               <div class="pw-user">
                 <div class="pw-attach"><span class="fold"><svg><use href="#s-fold"/></svg></span></div>
                 <p>Tidy up my Downloads folder.</p>
               </div>
               <div class="pw-answer">
-                <p class="rv" style="--d:.1s">Here’s my plan. Nothing moves until you click “Organize 38 Files”.</p>
-              </div>
-              <div class="pw-card tidy7 rv" style="--d:.4s">
-                <div class="ct"><svg class="ic"><use href="#s-folder"/></svg>Organize Downloads</div>
-                <div class="meta"><span>38 files get a place</span><span class="ds">4 new folders</span><span>nothing is deleted</span></div>
-                <div class="ba">
-                  <div class="ba-now"><span class="heap"><i></i><i></i><i></i></span><b>Now</b><small>38 loose files</small></div>
-                  <svg class="ic ba-arr"><use href="#s-arrow"/></svg>
-                  <ul class="ba-to">
-                    <li style="--i:0"><svg><use href="#s-fold"/></svg><b>Invoices</b><small>9</small></li>
-                    <li style="--i:1"><svg><use href="#s-fold"/></svg><b>Photos</b><small>14</small></li>
-                    <li style="--i:2"><svg><use href="#s-fold"/></svg><b>Screenshots</b><small>11</small></li>
-                    <li style="--i:3"><svg><use href="#s-fold"/></svg><b>Archives</b><small>4</small></li>
-                  </ul>
-                </div>
-                <div class="cf"><span class="undo7"><svg class="ic"><use href="#s-undo"/></svg>Undo with one click</span><span class="acts"><span class="qbtn">Not Now</span><span class="pbtn">Organize 38 Files</span></span></div>
+                <p class="rv" style="--d:.1s">Done: the 38 loose files are now in four new folders. I didn’t overwrite anything.</p>
+                <ul class="rv" style="--d:.4s"><li><strong>Invoices:</strong> 9 files</li><li><strong>Photos:</strong> 14 files</li><li><strong>Screenshots:</strong> 11 files</li><li><strong>Archives:</strong> 4 files</li></ul>
               </div>
             </div>
             <div class="sc" data-s="4" data-desc="Example with a made-up appointment: asked to put the dentist in for Thursday at 3 pm, Pippa checks that the time is free and adds it to Calendar: Thursday, November 5, 15:00 to 16:00.">
@@ -805,122 +809,97 @@ strong, b { font-weight: 600; }
               <div class="pw-answer">
                 <p class="rv" style="--d:.1s">Thursday at 3 pm was still free. The appointment is now in your Calendar.</p>
               </div>
-              <div class="pw-rcpt cal rv" style="--d:.4s">
-                <p><svg class="ic"><use href="#s-check"/></svg><span>Added to Calendar: Thu, Nov&nbsp;5, 15:00 – Dentist</span></p>
-                <div class="ev"><b>Dentist</b><span class="meta"><span>Thursday, November&nbsp;5</span><span>15:00–16:00</span></span><small>In Calendar</small></div>
+              <div class="pw-rcpt rv" style="--d:.4s">
+                <span class="ri"><svg class="ic"><use href="#s-cal"/></svg></span>
+                <span class="rt"><b>Added to Calendar</b><small>Thu, Nov&nbsp;5, 15:00 – Dentist</small></span>
+                <span class="acts"><span class="qbtn">Undo</span><span class="qbtn">Open Calendar</span></span>
               </div>
             </div>
-            <div class="sc" data-s="5" data-desc="Example with made-up photos: from three phone photos of a lease, Pippa makes one PDF with three pages and 2.1 MB, within the 10 MB size target. This needs no AI download, and the originals stay unchanged.">
+            <div class="sc" data-s="5" data-desc="Example with made-up photos: with the One PDF button, Pippa turns three phone photos of a lease into one PDF with three pages and 2.1 MB. This needs no AI download, and the originals stay unchanged.">
               <div class="pw-user">
                 <div class="pw-attach"><span class="thumb ph" style="transform:rotate(-1.5deg)"></span><span class="thumb ph b" style="transform:rotate(1deg)"></span><span class="thumb ph" style="transform:rotate(-.5deg)"></span></div>
-                <p>Make one PDF from these photos.</p>
-              </div>
-              <div class="pw-answer">
-                <p class="rv" style="--d:.1s">Done: three pages in one PDF, small enough to upload.</p>
+                <p>Make one PDF</p>
               </div>
               <div class="pw-card rv" style="--d:.4s">
                 <div class="ct"><svg class="ic"><use href="#s-doc"/></svg>Your PDF is ready<span class="tag">No AI download</span></div>
                 <div class="meta"><span>3 pages</span><span>2.1&nbsp;MB</span></div>
-                <div class="fit7"><svg class="ic"><use href="#s-checkc"/></svg>Within the 10&nbsp;MB size target</div>
-                <div class="pw-file"><span class="doc20"></span>Lease.pdf</div>
-                <div class="links"><span>Open PDF</span><span>Save a copy…</span><span>Show in Finder</span></div>
-                <div class="foot">Your originals are unchanged. Nothing has been sent.</div>
+                <div class="pw-file"><span class="doc20"></span><span class="fn">Lease.pdf<small>Preview</small></span><span class="acts"><span class="qbtn">Open</span><span class="qbtn">Show in Finder</span></span></div>
+                <div class="foot">Pages and order checked. Your originals are unchanged.</div>
               </div>
             </div>
           </div>
           <div class="pw-composer">
             <span class="pw-chip"><i><svg class="ic"><use href="#s-env"/></svg></i><b>Mail</b><span>Heating service on Tuesday</span></span>
-            <div class="pw-field"><span class="add"><svg class="ic"><use href="#s-plus"/></svg></span><span class="ph"><span class="ph0">Ask Pippa…</span><span class="typed"></span></span><span class="send"><svg class="ic"><use href="#s-up"/></svg></span><span class="ring"></span></div>
+            <div class="pw-field"><span class="ph"><span class="ph0">Ask Pippa…</span><span class="typed"></span></span><span class="add"><svg class="ic"><use href="#s-plus"/></svg></span><span class="mac"><svg class="ic"><use href="#s-laptop"/></svg>On this Mac</span><span class="send"><svg class="ic"><use href="#s-up"/></svg></span><span class="ring"></span></div>
           </div>
         </div>
         <div class="pw-detail">
+          <div class="pd-head">About this answer<span class="glass"><svg class="ic"><use href="#s-sidebar-r"/></svg></span></div>
           <div class="rs on" data-s="0">
             <div class="pw-sec pw-used">
-              <div class="h">Files in Use <span>4</span></div>
-              <div class="pw-item"><i><span class="thumb" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Tax-letter.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2041.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-              <div class="pw-item"><i><span class="thumb ph b" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_2042.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-              <div class="pw-item"><i><span class="doc20"></span></i><div class="tx"><b>Bank-statement.pdf</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="h">Read</div>
+              <div class="pw-item"><i><svg class="ic"><use href="#s-photo"/></svg></i><div class="tx"><b>Tax-letter.jpg</b><small>Whole page</small></div></div>
+              <div class="pw-item"><i><svg class="ic"><use href="#s-photo"/></svg></i><div class="tx"><b>IMG_2041.jpg</b></div></div>
+              <div class="pw-item"><i><svg class="ic"><use href="#s-photo"/></svg></i><div class="tx"><b>IMG_2042.jpg</b></div></div>
+              <div class="pw-item"><i><svg class="ic"><use href="#s-doc"/></svg></i><div class="tx"><b>Bank-statement.pdf</b></div></div>
             </div>
             <div class="pw-sec">
-              <div class="h">Results <span>1</span></div>
-              <div class="pw-item rv" style="--d:1s"><i><svg class="ic"><use href="#s-checklist"/></svg></i><div class="tx"><b>Pay €412.00 to the tax office</b><small>In Reminders</small><span class="links"><span>Open</span></span></div></div>
+              <div class="h">Done</div>
+              <div class="pw-item ok rv" style="--d:1s"><i><svg class="ic"><use href="#s-checklist"/></svg></i><div class="tx"><b>Reminder added</b><small>Pay €412.00 to the tax office</small></div></div>
             </div>
             <div class="pw-sec">
-              <div class="h">Sources</div>
-              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+              <div class="h">Dates checked</div>
+              <div class="pw-item ok rv" style="--d:.4s"><i><svg class="ic"><use href="#s-checkc"/></svg></i><div class="tx"><b>November 16, 2026</b><small>In what I read</small></div></div>
             </div>
           </div>
           <div class="rs" data-s="1">
             <div class="pw-sec pw-used">
-              <div class="h">Files in Use <span>1</span></div>
-              <div class="pw-item"><i><span class="thumb xl" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>Revenue-2025.xlsx</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="h">Read</div>
+              <div class="pw-item"><i><svg class="ic"><use href="#s-doc"/></svg></i><div class="tx"><b>Revenue-2025.xlsx</b></div></div>
             </div>
             <div class="pw-sec">
-              <div class="h">Results <span>1</span></div>
-              <div class="pw-item rv" style="--d:.7s"><i><svg class="ic"><use href="#s-chart"/></svg></i><div class="tx"><b>Revenue by Month</b><small>Chart</small></div></div>
-            </div>
-            <div class="pw-sec">
-              <div class="h">Sources</div>
-              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+              <div class="h">Done</div>
+              <p class="pw-empty">Nothing changed on your Mac</p>
             </div>
           </div>
           <div class="rs" data-s="2">
             <div class="pw-sec pw-used">
-              <div class="h">Files in Use <span>0</span></div>
-              <p class="pw-empty">Drop files here to use them in this conversation.</p>
+              <div class="h">Read</div>
+              <div class="pw-item"><i><svg class="ic"><use href="#s-env"/></svg></i><div class="tx"><b>Heating service on Tuesday</b><small>Mail</small></div></div>
             </div>
             <div class="pw-sec">
-              <div class="h">Results <span>1</span></div>
-              <div class="pw-item rv" style="--d:.4s"><i><svg class="ic"><use href="#s-env"/></svg></i><div class="tx"><b>Re: Heating service on Tuesday</b><small><span>Draft in Mail</span><span>not sent</span></small><span class="links"><span>Open</span></span></div></div>
-            </div>
-            <div class="pw-sec">
-              <div class="h">Sources</div>
-              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+              <div class="h">Done</div>
+              <div class="pw-item ok rv" style="--d:.4s"><i><svg class="ic"><use href="#s-env"/></svg></i><div class="tx"><b>Draft in Mail, not sent</b><small>Re: Heating service on Tuesday</small></div></div>
             </div>
           </div>
           <div class="rs" data-s="3">
             <div class="pw-sec pw-used">
-              <div class="h">Files in Use <span>1</span></div>
-              <div class="pw-item"><i><svg class="fold-s"><use href="#s-fold"/></svg></i><div class="tx"><b>Downloads</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="h">Read</div>
+              <div class="pw-item"><i><svg class="ic"><use href="#s-folder"/></svg></i><div class="tx"><b>Downloads</b></div></div>
             </div>
             <div class="pw-sec">
-              <div class="h">Results <span>0</span></div>
-              <p class="pw-empty">Files, drafts, events and reminders Pippa makes in this conversation show up here.</p>
-            </div>
-            <div class="pw-sec">
-              <div class="h">Sources</div>
-              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+              <div class="h">Done</div>
+              <div class="pw-item ok rv" style="--d:.6s"><i><svg class="ic"><use href="#s-folder"/></svg></i><div class="tx"><b>38 files moved</b><small>Into 4 new folders in Downloads</small></div></div>
             </div>
           </div>
           <div class="rs" data-s="4">
             <div class="pw-sec pw-used">
-              <div class="h">Files in Use <span>0</span></div>
-              <p class="pw-empty">Drop files here to use them in this conversation.</p>
+              <div class="h">Read</div>
+              <p class="pw-empty">Nothing read for this answer</p>
             </div>
             <div class="pw-sec">
-              <div class="h">Results <span>1</span></div>
-              <div class="pw-item rv" style="--d:.4s"><i><svg class="ic"><use href="#s-cal"/></svg></i><div class="tx"><b>Thu, Nov&nbsp;5, 15:00 – Dentist</b><small>In Calendar</small><span class="links"><span>Open</span></span></div></div>
-            </div>
-            <div class="pw-sec">
-              <div class="h">Sources</div>
-              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+              <div class="h">Done</div>
+              <div class="pw-item ok rv" style="--d:.4s"><i><svg class="ic"><use href="#s-cal"/></svg></i><div class="tx"><b>Added to Calendar</b><small>Thu, Nov&nbsp;5, 15:00 – Dentist</small></div></div>
             </div>
           </div>
           <div class="rs" data-s="5">
             <div class="pw-sec pw-used">
-              <div class="h">Files in Use <span>3</span></div>
-              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3101.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-              <div class="pw-item"><i><span class="thumb ph b" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3102.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
-              <div class="pw-item"><i><span class="thumb ph" style="width:17px;height:22px;border-radius:3px"></span></i><div class="tx"><b>IMG_3103.jpg</b><span class="links"><span>Show in Finder</span></span></div></div>
+              <div class="h">Read</div>
+              <p class="pw-empty">Nothing read for this answer</p>
             </div>
             <div class="pw-sec">
-              <div class="h">Results <span>1</span></div>
-              <div class="pw-item rv" style="--d:.4s"><i><span class="doc20"></span></i><div class="tx"><b>Lease.pdf</b><small>Prepared file</small><span class="links"><span>Open</span><span>Show in Finder</span></span></div></div>
-            </div>
-            <div class="pw-sec">
-              <div class="h">Sources</div>
-              <p class="pw-empty">Web pages Pippa reads for this conversation show up here.</p>
+              <div class="h">Done</div>
+              <p class="pw-empty">Nothing changed on your Mac</p>
             </div>
           </div>
         </div>
@@ -964,7 +943,7 @@ strong, b { font-weight: 600; }
   <div class="wrap">
     <div class="sh">
       <h2 id="h-setup">Pippa sets everything up.</h2>
-      <p>She checks that her AI fits your Mac, tells you the download size and waits for your OK.</p>
+      <p>She checks that her AI fits your Mac and that there is enough free space, tells you the download size and waits for your OK.</p>
     </div>
     <div class="tiers" role="img" aria-label="Three cards: Mac with less than 16 GB of memory, online AI. Mac with 16 GB or more, 5.4 GB AI download, highlighted with “Fits your Mac”. Model already there from oMLX or LM Studio, 0 GB.">
       <div class="tier l" aria-hidden="true"><small>Mac under 16&nbsp;GB</small><b>Online AI</b></div>
@@ -972,7 +951,7 @@ strong, b { font-weight: 600; }
       <div class="tier r" aria-hidden="true"><small>Model already there</small><b>0&nbsp;GB</b></div>
     </div>
     <div class="ready"><p><svg class="ic" aria-hidden="true"><use href="#s-checkc"/></svg>Photos and PDFs work before that, with no AI download.</p></div>
-    <p class="note">If oMLX, LM Studio or the Hugging Face cache already has the same model, Pippa uses it instead of downloading it again.</p>
+    <p class="note">If disk space is short, Pippa tells you beforehand how much is missing. If her AI runs short of memory, she tells you briefly and what helps. She never brings up Apple’s window for installing developer tools. If oMLX, LM Studio or the Hugging Face cache already has the same model, Pippa uses it instead of downloading it again.</p>
   </div>
 </section>
 
@@ -984,7 +963,7 @@ strong, b { font-weight: 600; }
     </div>
     <div class="pair">
       <div>
-        <div class="stage" role="img" aria-label="Three phone photos of a lease, 12.6 MB together. In front, Pippa’s card: Your PDF is ready, 3 pages, 2.1 MB, within the 10 MB size target, with buttons to open it, save a copy and show it in Finder.">
+        <div class="stage" role="img" aria-label="Three phone photos of a lease, 12.6 MB together. In front, Pippa’s card: Your PDF is ready, 3 pages, 2.1 MB, pages and order checked, within the 10 MB size limit, with a preview and buttons to open it and show it in Finder.">
           <div class="paper src" aria-hidden="true">
             <p class="src-cap">Your photos</p>
             <ul><li><span class="thumb"></span>IMG_2041.jpg<small>4.2 MB</small></li><li><span class="thumb"></span>IMG_2042.jpg<small>4.1 MB</small></li><li><span class="thumb"></span>IMG_2043.jpg<small>4.3 MB</small></li></ul>
@@ -992,17 +971,15 @@ strong, b { font-weight: 600; }
           <div class="card pdf" aria-hidden="true">
             <div class="ct"><svg class="ic"><use href="#s-doc"/></svg>Your PDF is ready</div>
             <div class="meta"><span>3 pages</span><span>2.1&nbsp;MB</span></div>
-            <div class="fit"><svg class="ic"><use href="#s-check"/></svg>Within the 10&nbsp;MB size target</div>
-            <div class="pw-file"><span class="doc20"></span>Lease.pdf</div>
-            <div class="links"><span>Open PDF</span><span>Save a copy…</span><span>Show in Finder</span></div>
-            <div class="foot">Your originals are unchanged. Nothing has been sent.</div>
+            <div class="pw-file"><span class="doc20"></span><span class="fn">Lease.pdf<small>Preview</small></span><span class="acts"><span class="qbtn">Open</span><span class="qbtn">Show in Finder</span></span></div>
+            <div class="foot">Pages and order checked. Your originals are unchanged. Within your 10&nbsp;MB size limit.</div>
           </div>
         </div>
         <h3>Ready to send.</h3>
-        <p>Photos and scans become one PDF in your order, within your size target. No AI download needed.</p>
+        <p>Photos and scans become one PDF in your order, with One PDF even before the AI download. Need it smaller, say under 10&nbsp;MB? Tell her in the conversation.</p>
       </div>
       <div>
-        <div class="stage" role="img" aria-label="A made-up German letter from a property manager with one sentence highlighted. In front, Pippa’s answer: What, pay 186.40 euros in service charges. By when, Monday, November 30. Below it the highlighted sentence as a quote with its translation, and a button to add the deadline to Reminders.">
+        <div class="stage" role="img" aria-label="A made-up German letter from a property manager with one sentence highlighted. In front, Pippa’s answer: What, pay 186.40 euros in service charges. By when, Monday, November 30. Below it the highlighted sentence as a quote with its translation.">
           <div class="paper letter" aria-hidden="true">
             <p class="from" lang="de">Hausverwaltung Berger, Lindenstraße 4</p>
             <div class="to"><span class="ln" style="width:44%"></span><span class="ln" style="width:58%"></span><span class="ln" style="width:36%"></span></div>
@@ -1015,13 +992,32 @@ strong, b { font-weight: 600; }
             <div class="ans-h"><svg class="ic" viewBox="0 0 40 40" style="font-size:18px"><use href="#s-rings"/></svg><b>Pippa</b>Brief-Hausverwaltung.jpg</div>
             <dl><div><dt>What</dt><dd>Pay €186.40 in service charges</dd></div><div><dt>By when</dt><dd>Monday, November&nbsp;30</dd></div></dl>
             <blockquote><span><span lang="de">„Den Nachzahlungsbetrag von 186,40&nbsp;€ überweisen Sie bitte bis zum 30.11.2026.“</span><small>Please transfer the balance of €186.40 by November 30, 2026.</small></span></blockquote>
-            <span class="chip"><svg class="ic"><use href="#s-bell"/></svg>Add to Reminders</span>
           </div>
         </div>
         <h3>Letter explained.</h3>
         <p>What the letter wants, by when, and the sentence that says so. A phone photo is enough. Check amounts and dates against the original.</p>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="feature" id="island" aria-labelledby="h-island">
+  <div class="wrap">
+    <div class="sh">
+      <h2 id="h-island"><span>Pippa Island:</span> <span>always within reach.</span></h2>
+      <p>At the notch, Pippa Island shows you what Pippa is working on. Press <span class="nw">⌃⌥ Space</span> to open it for a quick question, or just drop files on it.</p>
+    </div>
+    <div class="isl-pair" role="img" aria-label="Two views of the top edge of a MacBook screen. On the left, Pippa Island at the notch, a black shape with Pippa’s sign and the status “Reading Brief-Finanzamt.pdf”, then “Writing…” and “Your answer is ready”. On the right, the open island with “Ask me anything, or drop a file here.”, the field “Ask Pippa…” and the Open Pippa button.">
+      <div class="isl-fig" aria-hidden="true">
+        <div class="isl-scr"><div class="island"><svg class="mk" viewBox="0 0 24 24"><use href="#s-mark"/></svg><span class="st"><span>Reading Brief-Finanzamt.pdf</span><span>Writing…</span><span>Your answer is ready<svg class="ic"><use href="#s-check"/></svg></span></span></div></div>
+        <p class="isl-cap">While Pippa works</p>
+      </div>
+      <div class="isl-fig" aria-hidden="true">
+        <div class="isl-scr"><div class="isl-open"><p class="oh"><svg class="mk" viewBox="0 0 24 24"><use href="#s-mark"/></svg>Pippa</p><p>Ask me anything, or drop a file here.</p><p class="of"><span class="typing"></span>Ask Pippa…</p><p class="ob"><span>Open Pippa<small>⌘↵</small></span></p></div></div>
+        <p class="isl-cap">With <span class="nw">⌃⌥ Space</span></p>
+      </div>
+    </div>
+    <p class="note">On a Mac without a notch, Pippa Island hangs under Pippa’s symbol in the menu bar. When Pippa has a question, you see it there too, with Allow and Don’t Allow. You can switch the island off in Pippa’s Settings under General.</p>
   </div>
 </section>
 
@@ -1047,15 +1043,18 @@ strong, b { font-weight: 600; }
   <div class="wrap">
     <div class="sh">
       <h2 id="h-access"><span>You decide</span> <span>what Pippa can do.</span></h2>
-      <p>macOS asks you before Pippa can reach your folders, calendar or photos. When she tidies up, you see the plan first, and Undo puts the files back.</p>
+      <p>macOS asks you before Pippa can reach your folders, calendar or photos. If Pippa wants to go online or change files with a command, she asks you herself, right in the conversation: Allow or Don’t Allow.</p>
     </div>
-    <div class="access" role="img" aria-label="Pippa’s card after tidying up: 17 files moved into three folders, Invoices, Photos and Installers, with an Undo button. In front, the macOS question: “Pippa” would like to access files in your Downloads folder, with Don’t Allow and Allow.">
-      <div class="card tidy" aria-hidden="true">
-        <div class="tidy-top"><p class="tidy-cap"><svg class="ic"><use href="#s-checkc"/></svg>17 files moved into 3 folders</p><span class="undo">Undo</span></div>
+    <div class="access" role="img" aria-label="Pippa’s Settings with the pages General, AI, Permissions and Updates, open at Permissions: What Pippa may use on this Mac. Calendar allowed, Reminders not asked yet, Mail checked while Mail is open, Photos not allowed, for Files and Folders Pippa asks the first time. In front, the macOS question: “Pippa” would like to access files in your Downloads folder, with Don’t Allow and Allow.">
+      <div class="card perm" aria-hidden="true">
+        <p class="perm-tabs"><span>General</span><span>AI</span><span class="on">Permissions</span><span>Updates</span></p>
+        <p class="perm-h">What Pippa may use on this Mac</p>
         <ul>
-          <li><svg class="ic"><use href="#s-folder"/></svg>Invoices<small>9 files</small></li>
-          <li><svg class="ic"><use href="#s-folder"/></svg>Photos<small>5 files</small></li>
-          <li><svg class="ic"><use href="#s-folder"/></svg>Installers<small>3 files</small></li>
+          <li><svg class="ic"><use href="#s-cal"/></svg><span><b>Calendar</b><small class="ok">Allowed</small></span></li>
+          <li><svg class="ic"><use href="#s-checklist"/></svg><span><b>Reminders</b><small>Not asked yet – Pippa asks when she first needs it</small></span></li>
+          <li><svg class="ic"><use href="#s-env"/></svg><span><b>Mail</b><small>Pippa can check this while Mail is open</small></span></li>
+          <li><svg class="ic"><use href="#s-photo"/></svg><span><b>Photos</b><small class="no">Not allowed</small></span></li>
+          <li><svg class="ic"><use href="#s-folder"/></svg><span><b>Files &amp; Folders</b><small>Pippa asks when she first needs a folder</small></span></li>
         </ul>
       </div>
       <div class="card ask" aria-hidden="true">
@@ -1065,18 +1064,18 @@ strong, b { font-weight: 600; }
         <div class="ask-btns"><span>Don’t Allow</span><span class="on">Allow</span></div>
       </div>
     </div>
-    <p class="note">Pippa uses an online AI such as ChatGPT only if you turn it on. She never sends Mail drafts herself. More in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p>
+    <p class="note">Pippa’s Settings have four pages: General, AI, Permissions and Updates. Permissions shows what Pippa may use. Pippa uses an online AI such as ChatGPT only if you turn it on. She never sends Mail drafts herself. More in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p>
   </div>
 </section>
 
 <section class="faq" id="fragen" aria-labelledby="h-faq">
   <h2 id="h-faq">Questions?</h2>
-  <details id="passt"><summary>Will it run on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>You need a Mac with Apple silicon (M1 or later) and macOS 26.2 or later. Check under Apple menu, About This Mac; an older macOS updates for free in System Settings under General &gt; Software Update. Intel Macs are not supported. The download is under 100&nbsp;MB. Her AI on your Mac needs 16&nbsp;GB of memory; she asks before downloading it, about 5.4&nbsp;GB. If oMLX, LM Studio or the Hugging Face cache already has the same model, she uses it. With less memory, or if you prefer, Pippa uses an online AI: sign in with ChatGPT or add your own key. One PDF from photos always works, without any AI.</p></details>
-  <details><summary>Can I start without the AI download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Turning photos and PDFs into one PDF, making files smaller and converting images work right after you install her, and so does tidying a folder. For letters and questions she loads her AI, but only after your OK, and she tells you the size first.</p></details>
-  <details><summary>Do I need internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>To download the app and her AI, for updates and for web lookups. After that, her AI and the PDF tools work without a connection. If a command needs the internet, she asks you first. An online AI, if you turn one on, needs the internet, of course.</p></details>
-  <details><summary>Can I keep using ChatGPT?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Choose a provider in Pippa’s Settings, sign in or enter an API key, and choose a model. Providers come from the bundled Pi version, including Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. Activate your chosen provider and Pippa uses it as her online AI. While that is on, your conversations go to it. You can turn it off any time in Settings.</p></details>
-  <details><summary>What can Pippa access on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>macOS asks you before she can reach your Desktop, Documents, Downloads, Calendar, Reminders or Photos, or control Mail. You can review and change these permissions in System Settings under Privacy &amp; Security. Pippa runs outside Apple’s App Sandbox so she can work with your folders and Mac apps; a sandboxed app couldn’t do that in full.</p></details>
-  <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. Tidying shows you the plan first, and Undo works as long as you haven’t changed those files elsewhere. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
+  <details id="passt"><summary>Will it run on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>You need a Mac with Apple silicon (M1 or later) and macOS 26.2 or later. Check under Apple menu, About This Mac; an older macOS updates for free in System Settings under General &gt; Software Update. Intel Macs are not supported. The download is under 100&nbsp;MB. Her AI on your Mac needs 16&nbsp;GB of memory; she asks before downloading it, about 5.4&nbsp;GB. First she checks that there is enough free space and tells you how much is missing. If oMLX, LM Studio or the Hugging Face cache already has the same model, she uses it. With less memory, or if you prefer, Pippa uses an online AI: sign in with ChatGPT or add your own key. One PDF from photos always works, without any AI.</p></details>
+  <details><summary>Can I start without the AI download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes, for one PDF: photos, scans and PDFs become one PDF with One PDF right after you install her. For letters, questions and everything else, including tidying a folder, she loads her AI, but only after your OK, and she tells you the size first.</p></details>
+  <details><summary>Do I need internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>To download the app and her AI, for updates and for web lookups. After that, her AI and the PDF tools work without a connection. If a command needs the internet, she asks you first in the conversation. An online AI, if you turn one on, needs the internet, of course.</p></details>
+  <details><summary>Can I keep using ChatGPT?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Choose a provider in Pippa’s Settings under AI, sign in or enter an API key, and choose a model. Providers come from the bundled Pi version, including Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. Activate your chosen provider and Pippa uses it as her online AI. While that is on, your conversations go to it. You can turn it off any time in Settings.</p></details>
+  <details><summary>What can Pippa access on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>macOS asks you before she can reach your Desktop, Documents, Downloads, Calendar, Reminders or Photos, or control Mail. In Pippa’s Settings, the Permissions page shows what is allowed and opens the right place in System Settings under Privacy &amp; Security. Pippa runs outside Apple’s App Sandbox so she can work with your folders and Mac apps; a sandboxed app couldn’t do that in full.</p></details>
+  <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. When tidying, Pippa never overwrites a file, and anything she removes goes to the Trash. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
 </section>
 
 <section class="closing" id="loslegen" aria-labelledby="h-home">
@@ -1086,7 +1085,7 @@ strong, b { font-weight: 600; }
     <div class="act">
       <a class="btn dl" href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg">Download free for Mac<svg class="ic" aria-hidden="true"><use href="#s-dl"/></svg></a>
     </div>
-    <p class="req">For Macs with Apple silicon on macOS&nbsp;15 or later. The download is under 100&nbsp;MB; her AI (about 5.4&nbsp;GB, Macs with 16&nbsp;GB of memory) waits for your OK. <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What’s new?</a></p>
+    <p class="req">For Macs with Apple silicon on macOS&nbsp;26.2 or later. The download is under 100&nbsp;MB; her AI (about 5.4&nbsp;GB, Macs with 16&nbsp;GB of memory) waits for your OK. <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What’s new?</a></p>
   </div>
   <ol class="steps"><li>Open <strong>Pippa.dmg</strong> and drag Pippa onto the Applications folder.</li><li>Drop photos or PDFs on Pippa and choose <strong>“One PDF”</strong>.</li><li>Load her AI when you’re ready. She asks first and tells you the size.</li></ol>
 </section>
@@ -1107,7 +1106,7 @@ strong, b { font-weight: 600; }
 (()=>{'use strict';
 const mk=(c,size,o)=>c&&window.PippaMark?new PippaMark(c,{size,state:'ruht',alive:false,...o}):{setState(){}};
 document.querySelectorAll('canvas[data-mark]').forEach(c=>mk(c,+c.dataset.mark));
-const w=mk(document.getElementById('winMark'),32),e=mk(document.getElementById('endMark'),44);
+const w=mk(document.getElementById('winMark'),26),e=mk(document.getElementById('endMark'),44);
 const head=document.getElementById('head'),sc=()=>head.toggleAttribute('data-scrolled',scrollY>8);sc();addEventListener('scroll',sc,{passive:true});
 const win=document.getElementById('win'),root=document.documentElement;
 if(win){const FX=root.classList.contains('fx');if(FX)root.classList.add('fx-ok');

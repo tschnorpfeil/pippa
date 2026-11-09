@@ -110,7 +110,7 @@ for (const [lang, html] of Object.entries(pages)) {
   const benefits = [...html.matchAll(/<li class="benefit"><h3>[^<]+<\/h3><p>([\s\S]*?)<\/p><\/li>/g)];
   assert.equal(benefits.length, 4, `${lang}: expected four benefits`);
   for (const b of benefits) assert.equal(count(b[1], /<br>/g), 1, `${lang}: a benefit needs exactly two lines`);
-  assert.match(html, /<div class="fit">[\s\S]*?10&nbsp;MB/, `${lang}: PDF card without its size target`);
+  assert.match(html, /<div class="foot">[^<]*10&nbsp;MB[^<]*<\/div>/, `${lang}: PDF card without its size target`);
   assert.equal(count(html, /<span class="tile /g), 6, `${lang}: expected six app tiles`);
   const faqs = count(html, /<details\b/g);
   assert.ok(faqs >= 5 && faqs <= 7, `${lang}: FAQ should have five to seven answers`);

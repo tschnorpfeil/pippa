@@ -13,6 +13,14 @@ Free for the Mac: letters explained, photos to one PDF, mail drafts and appointm
   <a href="https://github.com/tschnorpfeil/pippa/releases/latest"><img src="https://img.shields.io/github/v/release/tschnorpfeil/pippa?label=release&display_name=release" alt="Latest release"></a>
 </p>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/pippa-window-dark.png">
+    <img src="docs/images/pippa-window-light.png" width="860" alt="Pippa's window on macOS 26, with made-up sample data. The sidebar has a search field, New Conversation and earlier conversations. Asked where the current ETF overview is, Pippa names the file, lists three funds with their shares and monthly amounts, and shows a card: Reminder added, Sparplan prüfen, with Undo and Open Reminders. Below, a letter from the utility company with the question by when something needs doing: a payment of 184.37 euros by November 15, 2026, and a date she worked out herself, marked to check.">
+  </picture>
+  <br><sub>Pippa on macOS 26, drawn by the app's own snapshot mode with made-up sample data.</sub>
+</p>
+
 Cloud assistants read your documents on their servers, and most local AI apps stop at a chat window. Pippa works with your Mac and hands back finished results:
 
 - **Letter explained.** What a letter wants from you, by when, and the sentence that says so. A PDF or a phone photo works. Ask, and the deadline goes into Reminders or Calendar. Check amounts and dates against the original.
@@ -21,11 +29,11 @@ Cloud assistants read your documents on their servers, and most local AI apps st
 
 Also: unsent reply drafts in Mail (you send them; she never does), Calendar entries, reminders, photos from your library and the web after she asks you.
 
-Open Pippa from the Dock or bring her up with ⌃⌥ Space, then just ask. Pippa Island, at the notch or under her menu bar symbol, shows what she is doing, asks her questions there and takes a quick question or dropped files. Each conversation stays in the sidebar for later. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is.
+Open Pippa from the Dock or press ⌃⌥ Space, then just ask. **Pippa Island**, at the notch or under her menu bar symbol, shows what she is working on; ⌃⌥ Space opens it for a quick question, and you can drop files on it. When she needs your OK, for example before a web search or a command that changes files, she asks right in the conversation with **Allow** and **Don’t Allow**, not in a separate window. Each conversation stays in the sidebar, which you can search. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 
-<p align="center"><sub>Apple silicon (M1 or later), macOS 26.2 or later. One PDF from photos works right away. For the rest, her AI on your Mac needs 16 GB of memory; she asks before downloading it, about 5.4 GB (<a href="#will-it-run-on-my-mac">details</a>). If oMLX, LM Studio or Hugging Face already has the same model, she uses it instead of downloading it again. Smaller Mac, or prefer an online AI? Sign in with ChatGPT or add your own key.</sub></p>
+<p align="center"><sub>Apple silicon (M1 or later), macOS 26.2 or later. One PDF from photos works right away. For the rest, her AI on your Mac needs 16 GB of memory; she checks your free disk space and asks before downloading it, about 5.4 GB (<a href="#will-it-run-on-my-mac">details</a>). If oMLX, LM Studio or Hugging Face already has the same model, she uses it instead of downloading it again. Smaller Mac, or prefer an online AI? Sign in with ChatGPT or add your own key.</sub></p>
 
 <p align="center"><img src="docs/images/demo-letter.gif" width="960" alt="Scripted website demo with made-up files: asked when notice is due before moving out at the end of March, Pippa answers 'By December 31', explains the three-month notice period and quotes the passage from the lease"><br>
 <sub>Scripted demo from an earlier version of the website, with made-up files. Not a live AI session.</sub></p>
@@ -54,6 +62,7 @@ Keep ChatGPT if you like it: Pippa can use your subscription as her online AI.
 - **Mail, Calendar and Reminders:** find and read mails and their attachments, write an unsent draft in Mail for you to review and send; read your calendar and reminders, and add appointments and reminders when you ask.
 - **Finding things:** files on your Mac and in iCloud Drive, photos in your library, and the web after she asks you.
 - **Remembering:** a short list of facts you tell her about yourself, such as your doctor's name. You can ask her to forget them.
+- **Quick questions:** press ⌃⌥ Space and ask in Pippa Island at the top of the screen, or drop a file on it. **Open Pippa** takes the conversation to the full window.
 
 More, with examples and limits: [What Pippa can do](docs/what-pippa-can-do.md).
 
@@ -69,7 +78,7 @@ One PDF from photos and scans works without any AI download. For everything else
 | 16 or 18 GB | Download about 5.4 GB, shorter context |
 | 24 GB or more | Download about 5.4 GB |
 
-Leave some extra disk space for the app and your results. If the same model is already on your Mac from oMLX, LM Studio or Hugging Face, Pippa uses it instead of downloading it again. Which AI, and why: [Pippa's local AI](docs/models.md).
+Before the download, Pippa checks that there is enough free disk space and tells you how much more is needed. If her AI runs short of memory on your Mac, she tells you briefly and what helps. She never brings up Apple's window asking you to install developer tools. If the same model is already on your Mac from oMLX, LM Studio or Hugging Face, Pippa uses it instead of downloading it again. Which AI, and why: [Pippa's local AI](docs/models.md).
 
 ## Good to know
 
@@ -77,8 +86,9 @@ Leave some extra disk space for the app and your results. If the same model is a
 - **Answers may be in German.** Pippa's own abilities for letters and deadlines are written in German.
 - **Nothing is deleted for good.** A file she removes goes to the Trash, and moves never overwrite another file.
 - **She acts when you ask.** If you ask her to add a reminder or move a file, she does it without asking again. The card under her answer shows what she actually did; check the result.
-- **She runs outside the App Sandbox** so she can work with your folders and Mac apps; a sandboxed app couldn't. macOS still asks before she reaches Documents, Calendar or Photos. Details: [Privacy and permissions](docs/privacy-and-permissions.md).
-- **Updates arrive inside the app.** Pippa checks daily and installs when you quit or after a while without input, never in the middle of your work.
+- **She asks in the conversation.** Before her first web search in an answer, or before a command that goes online or changes your files, a card in the conversation (and in Pippa Island) asks you: **Allow** or **Don’t Allow**.
+- **She runs outside the App Sandbox** so she can work with your folders and Mac apps; a sandboxed app couldn't. macOS still asks before she reaches Documents, Calendar or Photos, and **Settings > Permissions** shows what you have allowed. Details: [Privacy and permissions](docs/privacy-and-permissions.md).
+- **Updates arrive inside the app.** Pippa checks daily and installs when you quit or after a while without input, never in the middle of your work. **Settings > Updates** shows your version and checks by hand.
 - **Uninstall:** [how to remove Pippa and her files](docs/privacy-and-permissions.md#remove-pippa).
 
 ## Build from source

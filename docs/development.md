@@ -362,6 +362,18 @@ node scripts/check-site.cjs           # content and behavior checks
 node scripts/check-site-launch.cjs    # publication gate: required files
 ```
 
+**Social preview images.** `site/og.jpg` and `site/og-en.jpg` (1200×630, under 150 KB) show the page's headline in
+Bagel Fat One over a real Pippa window from the live snapshots, which use made-up sample data. Render the German
+window from an app bundle with `-AppleLanguages '(de)'`: the bare debug binary has no bundle localizations and always
+draws in English. Look at the result before committing: the transcript's scroll position can differ between snapshot
+runs. Then bump `?v=` on every og/twitter image URL in both pages so link previews refresh.
+
+```sh
+PIPPA_SNAPSHOT_LIVE=1 dist/Pippa.app/Contents/MacOS/Pippa --snapshot "$TMPDIR/og-de" -AppleLanguages '(de)'
+PIPPA_SNAPSHOT_LIVE=1 app/.build/debug/Pippa --snapshot "$TMPDIR/og-en"
+swift scripts/render-og.swift "$TMPDIR/og-de" "$TMPDIR/og-en"   # writes site/og.jpg and site/og-en.jpg
+```
+
 ### Provider integration checks
 
 ```sh
