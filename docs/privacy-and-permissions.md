@@ -61,8 +61,9 @@ Apart from the cases above, your files and conversations stay on your Mac.
 ## What macOS asks for
 
 macOS asks you the first time Pippa needs each kind of access. You can review and change it any time in **System
-Settings → Privacy & Security**. In Pippa's Settings, **Permissions** shows what is allowed; when something was
-denied, a blocked action offers **Open System Settings**.
+Settings → Privacy & Security**. In Pippa's Settings, the **Permissions** page lists Calendar, Reminders, Mail, Photos
+and Files & Folders with their state, read without asking macOS, and opens the matching place in System Settings. When
+something was denied, a blocked action offers **Open System Settings** too.
 
 | Access | What Pippa does with it |
 |---|---|
