@@ -31,7 +31,7 @@ SOURCES = ROOT / "app" / "Sources"
 # Funktion -> (Modulordner, Ressourcenordner, Tabellen)
 MODULES = {
     "L": ("PippaCore", SOURCES / "PippaCore" / "Resources", ("Core", "Analysis", "Tools", "TrayCore", "Sheet", "Calendar", "Thought", "Setup", "MCP", "FilePreparation")),
-    "T": ("Pippa", SOURCES / "Pippa" / "Localization", ("App", "Views", "Settings", "CalendarUI")),
+    "T": ("Pippa", SOURCES / "Pippa" / "Localization", ("App", "Views", "Settings", "CalendarUI", "Island")),
 }
 LANGUAGES = ("en", "de")
 

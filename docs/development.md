@@ -181,6 +181,7 @@ node --experimental-strip-types --test $(ls runtime/pippa-tools/*.test.mjs | gre
 node --test runtime/pippa-auth/*.test.mjs                               # Provider/login bridge (no network)
 node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs   # terminal autostart, fake server
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first
+app/.build/debug/Pippa --check-approvals                                # in-app questions (Approvals), no window
 node scripts/check-site.cjs                                             # website content and behavior
 ```
 
@@ -257,7 +258,7 @@ become localized resources in `Bundle.module` and must not contain subfolders.
 | Module | Call | Files |
 |---|---|---|
 | `PippaCore` | `L("…", table: "Core")` | `app/Sources/PippaCore/Resources/{en,de}.lproj/<Table>.strings` |
-| `Pippa` | `T("…", table: "App")` | `app/Sources/Pippa/Localization/{en,de}.lproj/<Table>.strings` (`App`, `CalendarUI`, `Settings`, `Views`) |
+| `Pippa` | `T("…", table: "App")` | `app/Sources/Pippa/Localization/{en,de}.lproj/<Table>.strings` (`App`, `CalendarUI`, `Island`, `Settings`, `Views`) |
 | App bundle | system | `app/Packaging/Localization/{en,de}.lproj/{InfoPlist,ServicesMenu}.strings`, copied by `build-app.sh` |
 
 **Rules.**

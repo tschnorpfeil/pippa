@@ -1,10 +1,15 @@
 import AppKit
 import PiRPC
 
-/// Questions Pi's extensions ask before a risky step (a shell command that changes things, a web search): a plain alert.
+/// Questions Pi's extensions ask before a risky step (a shell command that changes things, a web search). They are
+/// answered inside Pippa (`Approvals`); this alert is the fallback while no view that can show them is on screen.
 @MainActor
 enum Confirmations {
     static func ask(_ request: PiUIRequest) async -> PiUIResponse {
+        await Approvals.shared.ask(request)
+    }
+
+    static func alert(_ request: PiUIRequest) -> PiUIResponse {
         let alert = NSAlert()
         // Pi's `select` has no message, only a title and answers; "question\n\nsentence" may come in the title.
         var title = request.title, message = request.message
