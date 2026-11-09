@@ -2,17 +2,6 @@ import AppKit
 import Carbon
 import Foundation
 
-/// For checks: Apple Events consent with a stand-in for the system call (for example one that hangs).
-public enum AppleEventsConsentCheck {
-    public static func permission(bundle: String, appName: String, ask: Bool, limit: TimeInterval,
-                                  determine: @escaping @Sendable (String, Bool) -> OSStatus) async -> IntegrationAccess {
-        let real = AppleEvents.determine
-        AppleEvents.determine = determine
-        defer { AppleEvents.determine = real }
-        return await AppleEvents.permission(bundle: bundle, appName: appName, ask: ask, limit: limit)
-    }
-}
-
 /// Deterministic checks of the real serial queue and dispatch boundary, without scripting any app.
 public enum AppleEventsExecutionCheck {
     public static func perform<T: Sendable>(mutation: Bool = false, _ body: @escaping @Sendable () throws -> T) async throws -> T {
