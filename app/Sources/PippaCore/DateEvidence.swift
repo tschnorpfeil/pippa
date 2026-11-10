@@ -6,8 +6,8 @@ import Foundation
 ///
 /// Shown are the dates in what tools returned, in the arguments of Pippa's write tools (the person confirmed those in
 /// the native preview) and in the person's own words. The same day in any form counts (15.11.2026, 15. November 2026,
-/// 2026-11-15, November 15, 2026). Dates within a week of today pass: that is "Dienstag" turned into a date. Only
-/// checked once a tool returned something; a plain chat answer has nothing to check against. Dates without a year
+/// 2026-11-15, November 15, 2026). A date close to today is no exception: "Dienstag" turned into a date shows in
+/// the calendar result like any other. Only checked once a tool returned something; a plain chat answer has nothing to check against. Dates without a year
 /// ("bis 19.11.") are not seen.
 public struct DateEvidence: Sendable {
     private var shown: Set<DayDate> = []
@@ -39,11 +39,11 @@ public struct DateEvidence: Sendable {
     }
 
     /// The answer's dates that no source shows, as written, each day once, in order.
-    public func unsupported(in answer: String, today: DayDate = DayDate(Date())) -> [String] {
+    public func unsupported(in answer: String) -> [String] {
         guard hasSources else { return [] }
         var seen = Set<DayDate>()
         return Self.dates(in: answer).compactMap { match in
-            guard !shown.contains(match.value), !Self.withinAWeek(match.value, of: today), seen.insert(match.value).inserted else { return nil }
+            guard !shown.contains(match.value), seen.insert(match.value).inserted else { return nil }
             return match.text
         }
     }
@@ -53,11 +53,6 @@ public struct DateEvidence: Sendable {
         guard hasSources else { return [] }
         var seen = Set<DayDate>()
         return Self.dates(in: answer).compactMap { shown.contains($0.value) && seen.insert($0.value).inserted ? $0.text : nil }
-    }
-
-    static func withinAWeek(_ date: DayDate, of today: DayDate) -> Bool {
-        let days = Calendar(identifier: .gregorian).dateComponents([.day], from: today.localNoon, to: date.localNoon).day ?? .max
-        return abs(days) <= 7
     }
 
     // GermanText reads German and numeric dates; English answers write the month as a word.
