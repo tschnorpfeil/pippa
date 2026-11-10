@@ -71,6 +71,8 @@ enum ApprovalsChecks {
         check(await open.value == .confirmed(false), "the alert's answer reaches the caller")
         approvals.present("check") { revealed += 1 }
 
+        failures += Int(await HeadlessAskChecks.run())
+
         print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
         return failures == 0 ? 0 : 1
     }
