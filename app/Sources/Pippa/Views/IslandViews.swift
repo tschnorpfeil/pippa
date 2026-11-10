@@ -18,25 +18,25 @@ extension IslandStyle {
     }
 }
 
-/// The wing beside the notch (mark left, line right) or the capsule under the menu bar symbol.
+/// Left of the notch: Pippa's blue mark, and while she works her line beside it. Or the capsule under the menu bar
+/// symbol.
 struct IslandCompactView: View {
     @ObservedObject var island: Island
-    /// Width of the camera housing between the wings; nil under the menu bar.
+    /// Width of the camera housing; nil under the menu bar. The shape reaches into its left half.
     var housingWidth: CGFloat?
 
     var body: some View {
         let status = island.status
         Group {
             if let housingWidth {
-                HStack(spacing: 0) {
+                HStack(spacing: IslandStyle.wingGap) {
                     PippaMark(size: IslandStatus.markSize, state: status.markState)
-                        .padding(.leading, IslandStyle.wingInset)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Color.clear.frame(width: housingWidth)
-                    IslandLine(status: status)
-                        .padding(.leading, IslandStyle.wingGap).padding(.trailing, IslandStyle.wingInset)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    if status.showsCompact { IslandLine(status: status).transition(.opacity) }
                 }
+                .padding(.leading, IslandStyle.wingInset)
+                .padding(.trailing, IslandStyle.wingGap + housingWidth / 2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .animation(.easeOut(duration: 0.18), value: status.showsCompact)
             } else {
                 HStack(spacing: 7) {
                     PippaMark(size: IslandStatus.markSize, state: status.markState)

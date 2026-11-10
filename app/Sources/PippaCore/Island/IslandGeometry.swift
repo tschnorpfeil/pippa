@@ -57,8 +57,11 @@ public struct IslandSilhouette: Equatable, Sendable {
 
 /// Frames of Pippa Island. Pure functions of the display's public geometry (`NSScreen.frame`, `safeAreaInsets.top`,
 /// `auxiliaryTopLeftArea`, `auxiliaryTopRightArea`, `visibleFrame`) and the menu bar symbol, so checks can run them
-/// for any Mac. Three resting shapes: `rest` (hidden in the housing, or nothing), `compact` (a wing on both sides of
-/// the housing, or a small capsule under the symbol) and `open` (the panel).
+/// for any Mac. Three resting shapes: `rest` (Pippa's mark just left of the housing, or nothing), `compact` (a wing on
+/// the left of the housing, or a small capsule under the symbol) and `open` (the panel).
+///
+/// At the notch Pippa keeps to the left of the housing: tools like tinyStats live on its right, and the menu bar
+/// symbols there should stay readable. The shapes reach into the housing up to its middle, so they read as one with it.
 public enum IslandGeometry {
     public static let openWidth: CGFloat = 380
     public static let cornerRadius: CGFloat = 22
@@ -69,8 +72,10 @@ public enum IslandGeometry {
     /// Between the menu bar and a floating island.
     public static let menuBarGap: CGFloat = 6
     public static let capsuleHeight: CGFloat = 28
-    /// Width of one wing beside the housing.
-    public static let wingWidth: ClosedRange<CGFloat> = 40...180
+    /// Width of the wing left of the housing.
+    public static let wingWidth: ClosedRange<CGFloat> = 40...260
+    /// At rest at the notch: just Pippa's mark, left of the housing.
+    public static let earWidth: CGFloat = 40
     public static let capsuleMaxWidth: CGFloat = 300
 
     /// The camera housing's bounding box, or nil on a display without one. The auxiliary areas are the menu bar parts
@@ -94,25 +99,25 @@ public enum IslandGeometry {
         min(anchor.minY, visible.maxY) - menuBarGap
     }
 
-    /// At rest: inside the housing, slightly smaller so no black shows around its rounded corners (it still takes a
-    /// click on the notch); under the menu bar, a line with no height under the symbol.
+    /// At rest: Pippa's mark left of the housing (it takes a click there and on the notch's left half); under the menu
+    /// bar, a line with no height under the symbol.
     public static func rest(_ placement: IslandPlacement) -> CGRect {
         switch placement {
-        case .notch(let housing, _):
-            return CGRect(x: housing.minX + 6, y: housing.minY + 2, width: max(0, housing.width - 12), height: max(0, housing.height - 2))
+        case .notch:
+            return compact(placement, width: earWidth)
         case .menuBar(let anchor, let visible):
             let x = min(max(anchor.minX, visible.minX + margin), visible.maxX - margin - anchor.width)
             return CGRect(x: x, y: attachY(anchor: anchor, visible: visible), width: anchor.width, height: 0)
         }
     }
 
-    /// Working, needs you, done: `width` is one wing's width at the notch, the whole capsule under the menu bar.
+    /// Working, needs you, done: `width` is the wing's width left of the housing at the notch, the whole capsule under
+    /// the menu bar. The wing ends in the middle of the housing, where no corner of it can show.
     public static func compact(_ placement: IslandPlacement, width: CGFloat) -> CGRect {
         switch placement {
         case .notch(let housing, let screen):
-            let wing = min(max(width, wingWidth.lowerBound), wingWidth.upperBound,
-                           max(0, min(housing.minX - screen.minX, screen.maxX - housing.maxX) - margin))
-            return CGRect(x: housing.minX - wing, y: housing.minY, width: housing.width + 2 * wing, height: housing.height)
+            let wing = min(max(width, wingWidth.lowerBound), wingWidth.upperBound, max(0, housing.minX - screen.minX - margin))
+            return CGRect(x: housing.minX - wing, y: housing.minY, width: wing + housing.width / 2, height: housing.height)
         case .menuBar(let anchor, let visible):
             let width = min(max(width, capsuleHeight), capsuleMaxWidth, visible.width - 2 * margin)
             let top = attachY(anchor: anchor, visible: visible)
@@ -155,7 +160,8 @@ public enum IslandGeometry {
         switch placement {
         case .notch(let housing, _):
             func radius(_ r: CGRect) -> CGFloat { r.height > housing.height + 1 ? cornerRadius : wingRadius }
-            let flare = max(0, min(Self.flare, (rect.width - housing.width) / 2))
+            // The flare beside the left edge; the right one lies inside the housing until the panel opens.
+            let flare = max(0, min(Self.flare, housing.minX - rect.minX, rect.maxX - housing.minX))
             return IslandSilhouette(rect: rect, radius: mix(radius(from), radius(to), p), flare: flare, hangsFromTop: true)
         case .menuBar:
             return IslandSilhouette(rect: rect, radius: min(cornerRadius, rect.height / 2, rect.width / 2), flare: 0, hangsFromTop: false)

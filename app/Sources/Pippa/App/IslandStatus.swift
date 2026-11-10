@@ -76,7 +76,8 @@ struct IslandStatus: Equatable {
 
     /// At the notch: one wing's width. The mark sits in the left wing, the line in the right one; both are equally
     /// wide so the island stays centred on the camera.
-    var wingWidth: CGFloat { IslandStyle.wingGap + labelWidth + trailerWidth + IslandStyle.wingInset }
+    /// Left of the housing: mark, line, and a gap before the housing.
+    var wingWidth: CGFloat { IslandStyle.wingInset + Self.markSize + IslandStyle.wingGap + labelWidth + trailerWidth + IslandStyle.wingGap }
 
     /// Under the menu bar: the whole capsule.
     var capsuleWidth: CGFloat { 6 + Self.markSize + 7 + labelWidth + trailerWidth + 12 }

@@ -25,18 +25,20 @@ func runIslandChecks() {
             return near(housing.width, 185) && near(housing.height, 32) && near(housing.maxY, display.screen.maxY)
                 && near(housing.midX, display.screen.midX)
         }
-        check("Island: on the \(display.name) display the wing and the panel are centred on the notch and flush with its lower edge") {
+        check("Island: on the \(display.name) display the wing and the mark keep left of the notch, the panel is centred on it") {
             guard let housing = IslandGeometry.housing(screen: display.screen, leftArea: display.left, rightArea: display.right,
                                                        topInset: display.inset) else { return false }
             let placement = IslandPlacement.notch(housing: housing, screen: display.screen)
             let wing = IslandGeometry.compact(placement, width: 120)
             let open = IslandGeometry.open(placement, contentHeight: 240)
             let rest = IslandGeometry.rest(placement)
-            return near(wing.midX, housing.midX) && near(wing.minY, housing.minY) && near(wing.maxY, display.screen.maxY)
-                && near(wing.width, housing.width + 240)
+            // Nothing right of the housing's middle: tools like tinyStats live there.
+            return near(wing.minX, housing.minX - 120) && near(wing.maxX, housing.midX) && near(wing.minY, housing.minY)
+                && near(wing.maxY, display.screen.maxY)
                 && near(open.midX, housing.midX) && near(open.width, IslandGeometry.openWidth)
                 && near(open.maxY, display.screen.maxY) && near(open.minY, housing.minY - 240)
-                && housing.contains(rest) && near(rest.midX, housing.midX)
+                && near(rest.minX, housing.minX - IslandGeometry.earWidth) && near(rest.maxX, housing.midX)
+                && near(rest.minY, housing.minY)
         }
     }
     check("Island: a display without a housing (Mac mini, external) has no notch placement") {
@@ -50,8 +52,9 @@ func runIslandChecks() {
         let housing = CGRect(x: 663.5, y: 950, width: 185, height: 32)
         let placement = IslandPlacement.notch(housing: housing, screen: screen)
         let narrow = IslandGeometry.compact(placement, width: 4), wide = IslandGeometry.compact(placement, width: 4000)
-        return near(narrow.width, 185 + 2 * IslandGeometry.wingWidth.lowerBound)
-            && near(wide.width, 185 + 2 * IslandGeometry.wingWidth.upperBound) && screen.contains(wide)
+        return near(narrow.width, 185 / 2 + IslandGeometry.wingWidth.lowerBound)
+            && near(wide.width, 185 / 2 + IslandGeometry.wingWidth.upperBound) && screen.contains(wide)
+            && wide.maxX <= housing.midX + 0.01
     }
 
     // 1080p display (this Mac mini): menu bar 24 pt, symbol 30 pt wide.
@@ -77,15 +80,17 @@ func runIslandChecks() {
         return open.minY >= IslandGeometry.margin - 0.01 && open.height > 0
     }
 
-    check("Island: hit areas follow the shape (notch at rest takes a click, the menu bar beside it does not)") {
+    check("Island: hit areas follow the shape (the mark at rest takes a click, the menu bar right of the notch does not)") {
         let housing = CGRect(x: 663.5, y: 950, width: 185, height: 32)
         let placement = IslandPlacement.notch(housing: housing, screen: CGRect(x: 0, y: 0, width: 1512, height: 982))
         let rest = IslandGeometry.rest(placement)
         let atRest = IslandGeometry.silhouette(placement, from: rest, to: rest, progress: 0)
         let wing = IslandGeometry.silhouette(placement, from: rest, to: IslandGeometry.compact(placement, width: 100), progress: 1)
-        return atRest.contains(CGPoint(x: housing.midX, y: housing.midY)) && !atRest.contains(CGPoint(x: housing.minX - 30, y: housing.midY))
+        return atRest.contains(CGPoint(x: housing.minX - 20, y: housing.midY)) && !atRest.contains(CGPoint(x: housing.minX - 60, y: housing.midY))
+            && !atRest.contains(CGPoint(x: housing.maxX + 20, y: housing.midY))
             && wing.contains(CGPoint(x: housing.minX - 60, y: housing.midY)) && !wing.contains(CGPoint(x: housing.minX - 60, y: housing.minY - 4))
-            && atRest.flare == 0 && wing.flare == IslandGeometry.flare
+            && !wing.contains(CGPoint(x: housing.maxX + 20, y: housing.midY))
+            && atRest.flare == IslandGeometry.flare && wing.flare == IslandGeometry.flare
     }
     check("Island: the silhouette widens before it drops and ends exactly on the open panel") {
         let placement = IslandPlacement.menuBar(anchor: CGRect(x: 1200, y: 1056, width: 30, height: 24), visible: visible)

@@ -59,10 +59,19 @@ Thread.detachNewThread {
     post(.leftMouseDown, from); pause(0.1); post(.leftMouseUp, from); pause(1.2)
     let afterClick = lines().last { $0.hasPrefix("STATE ") } ?? ""
     post(.mouseMoved, home)
+    // The default shortcut, as a real key press.
+    for down in [true, false] {
+        let key = CGEvent(keyboardEventSource: nil, virtualKey: 49, keyDown: down) // Space
+        key?.flags = .maskAlternate
+        key?.post(tap: .cghidEventTap)
+    }
+    pause(1)
+    let hotkey = lines().contains("HOTKEY optionSpace")
+    print("\(hotkey ? "✓" : "✗") Pressing ⌥ Space calls Pippa (default shortcut)")
     let dropped = afterDrop == "STATE open=true files=1" && !closedMeanwhile
     let closed = afterClick.hasPrefix("STATE open=false")
     print("\(dropped ? "✓" : "✗") A file dragged from another app lands on the open island, which stays open (\(afterDrop), closed meanwhile: \(closedMeanwhile))")
     print("\(closed ? "✓" : "✗") A click in another app closes the island (\(afterClick))")
-    exit(dropped && closed ? 0 : 1)
+    exit(dropped && closed && hotkey ? 0 : 1)
 }
 app.run()

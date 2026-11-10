@@ -107,7 +107,7 @@ enum IslandSnapshots {
             let openRect = IslandGeometry.open(placement, contentHeight: ceil(height))
             let frame = IslandGeometry.windowFrame(placement, covering: [compact] + (open ? [openRect] : []))
             view.frame = frame
-            view.show(placement, compactShape: compact, compactTarget: compact, compactAlpha: width == nil ? 0 : 1,
+            view.show(placement, compactShape: compact, compactTarget: compact, compactAlpha: width == nil && !notch ? 0 : 1,
                       open: open ? 1 : 0, openRect: openRect, origin: frame.origin)
         }
         view = IslandView(island: .shared) { measured in

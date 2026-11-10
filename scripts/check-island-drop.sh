@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Drags a file from another app onto the open Pippa Island with real mouse events, in a cloned app that touches
-# neither Pippa's preferences nor her AI. Moves the pointer for a few seconds; the Terminal needs Accessibility access.
+# Drags a file from another app onto the open Pippa Island with real mouse events and presses the default shortcut,
+# in a cloned app that touches neither Pippa's preferences nor her AI. Moves the pointer for a few seconds; the
+# Terminal needs Accessibility access.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="${1:-$ROOT/dist/Pippa.app}"

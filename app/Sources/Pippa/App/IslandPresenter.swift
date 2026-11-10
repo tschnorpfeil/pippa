@@ -180,11 +180,16 @@ final class IslandPresenter: NSObject {
         }
         compactTo = target(placement, compactWidth)
         compactFrom = compactTo
-        alphaTo = compactWidth == nil ? 0 : 1
+        alphaTo = Self.compactAlpha(placement, compactWidth)
         alphaFrom = alphaTo
         wing.snap(to: 1)
         if !isPresented { opening.snap(to: 0) }
         render()
+    }
+
+    /// At the notch the mark stays visible at rest; under the menu bar the capsule leaves.
+    private static func compactAlpha(_ placement: IslandPlacement, _ width: CGFloat?) -> CGFloat {
+        width != nil || placement.isNotch ? 1 : 0
     }
 
     private func target(_ placement: IslandPlacement, _ width: CGFloat?) -> CGRect {
@@ -195,7 +200,7 @@ final class IslandPresenter: NSObject {
     func setCompact(width: CGFloat?) {
         guard let placement else { return }
         let target = target(placement, width)
-        let alpha: CGFloat = width == nil ? 0 : 1
+        let alpha = Self.compactAlpha(placement, width)
         guard target != compactTo || alpha != alphaTo else { return }
         compactFrom = currentCompact
         alphaFrom = currentCompactAlpha
