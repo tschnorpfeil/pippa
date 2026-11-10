@@ -12,7 +12,7 @@ public struct MailHeader: Sendable, Equatable {
     public var mailbox: String
     /// At most the first 400 characters of the text.
     public var preview: String
-    /// Message-ID header (to open the mail in Mail); never shown to the model.
+    /// Message-ID header: opens the mail in Mail, and is the `message_id` the model passes to `mail_read`.
     public var messageID: String?
     /// Not read yet in Mail.
     public var unread: Bool
@@ -196,8 +196,8 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
         let found = mails.filter { m in
             (query.isEmpty || m.subject.localizedCaseInsensitiveContains(query) || m.sender.localizedCaseInsensitiveContains(query))
                 && (!unread || m.unread)
-        }.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
-        return HostFetch(items: Array(found.prefix(limit)), total: found.count)
+        }
+        return HostFetch(items: MailSelection.newest(found, limit: limit, date: \.date, tie: { $0.messageID ?? "" }), total: found.count)
     }
 
     public func openReminders(dueBefore: Date?, limit: Int) async throws -> HostFetch<ReminderItem> {
@@ -240,66 +240,228 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
 
 // MARK: Search mail (read only)
 
+/// Which mails a search keeps: the newest, whatever order the source lists them in. Missing dates come last; equal dates
+/// go by `tie` (larger first), then by position, so the same input always gives the same answer.
+enum MailSelection {
+    static func newest<T>(_ items: [T], limit: Int, date: (T) -> Date?, tie: (T) -> String) -> [T] {
+        guard limit > 0 else { return [] }
+        let ranked = items.enumerated().map { (index: $0.offset, item: $0.element, date: date($0.element), tie: tie($0.element)) }
+        let ordered = ranked.sorted { a, b in
+            switch (a.date, b.date) {
+            case let (x?, y?) where x != y: return x > y
+            case (.some, nil): return true
+            case (nil, .some): return false
+            default: break
+            }
+            if a.tie != b.tie { return a.tie > b.tie }
+            return a.index < b.index
+        }
+        return ordered.prefix(limit).map(\.item)
+    }
+}
+
+/// A matching message before any text is read: Mail's own id and the date it was received (nil: Mail has none).
+public struct MailSearchCandidate: Sendable, Equatable {
+    public var id: Int
+    public var date: Date?
+    public init(id: Int, date: Date?) { self.id = id; self.date = date }
+}
+
+/// A chosen message read from Mail, with the date it was selected by (to notice that the inbox changed in between).
+public struct MailSearchRow: Sendable, Equatable {
+    public var id: Int
+    public var date: Date?
+    public var header: MailHeader
+    public init(id: Int, date: Date?, header: MailHeader) { self.id = id; self.date = date; self.header = header }
+}
+
+/// What a mail search asks of Mail, in two steps so text is read only for the chosen messages. Called inside one
+/// `AppleEvents.perform`; checks replace it with a synthetic source.
+public protocol MailSearchNative: Sendable {
+    /// Every match (subject or sender contains `query`, empty: all; `unread`), in any order, with its date. Throws when
+    /// the answer is malformed.
+    func candidates(query: String, unread: Bool) throws -> [MailSearchCandidate]
+    /// Header and start of the text of exactly these messages. A message that is gone is left out. Throws when the answer is malformed.
+    func rows(ids: [Int]) throws -> [MailSearchRow]
+}
+
+/// Choose the newest matches from all matching dates, then read only those. Sorting is never left to Mail's order.
+public enum MailSearchFlow {
+    /// Two tries: a message arriving or leaving between the two steps changes what the first answer said.
+    static let attempts = 2
+
+    public static func search(_ native: any MailSearchNative, query: String, unread: Bool, limit: Int) throws -> HostFetch<MailHeader> {
+        for _ in 0..<attempts {
+            let all = try native.candidates(query: query, unread: unread)
+            guard Set(all.map(\.id)).count == all.count else { throw PippaError.notAvailable }
+            let chosen = MailSelection.newest(all, limit: limit, date: \.date, tie: { String(format: "%020lld", Int64($0.id)) })
+            if chosen.isEmpty { return HostFetch(items: [], total: all.count) }
+            let rows = Dictionary(try native.rows(ids: chosen.map(\.id)).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let items = chosen.compactMap { candidate -> MailHeader? in
+                guard let row = rows[candidate.id], sameDate(row.date, candidate.date) else { return nil }
+                return row.header
+            }
+            if items.count == chosen.count { return HostFetch(items: items, total: all.count) }
+        }
+        throw PippaError.notAvailable
+    }
+
+    private static func sameDate(_ a: Date?, _ b: Date?) -> Bool {
+        switch (a, b) {
+        case (nil, nil): return true
+        case let (x?, y?): return abs(x.timeIntervalSince(y)) < 1
+        default: return false
+        }
+    }
+
+    // MARK: Native answers
+
+    /// `{ids, dates}`: two lists of the same length, an integer and a date (or `missing value`) per match.
+    public static func parseCandidates(_ reply: NSAppleEventDescriptor) throws -> [MailSearchCandidate] {
+        guard reply.descriptorType == typeAEList, reply.numberOfItems == 2, let ids = reply.atIndex(1), let dates = reply.atIndex(2),
+              ids.descriptorType == typeAEList, dates.descriptorType == typeAEList, ids.numberOfItems == dates.numberOfItems else {
+            throw PippaError.notAvailable
+        }
+        let idItems = AppleEvents.items(ids), dateItems = AppleEvents.items(dates)
+        guard idItems.count == ids.numberOfItems, dateItems.count == dates.numberOfItems else { throw PippaError.notAvailable }
+        return try zip(idItems, dateItems).map { MailSearchCandidate(id: try mailID($0), date: try mailDate($1)) }
+    }
+
+    /// One row per requested id: `{id, subject, sender, date, mailbox, start, message id, unread}`, or `{}` for a message that is gone.
+    public static func parseRows(_ reply: NSAppleEventDescriptor, expecting count: Int) throws -> [MailSearchRow] {
+        guard reply.descriptorType == typeAEList, reply.numberOfItems == count else { throw PippaError.notAvailable }
+        var rows: [MailSearchRow] = []
+        for row in AppleEvents.items(reply) {
+            guard row.descriptorType == typeAEList else { throw PippaError.notAvailable }
+            if row.numberOfItems == 0 { continue }
+            let f = AppleEvents.items(row)
+            guard f.count == 8, row.numberOfItems == 8 else { throw PippaError.notAvailable }
+            let text = try [1, 2, 4, 5, 6].map { i -> String in
+                guard let value = f[i].stringValue, f[i].descriptorType != typeAEList else { throw PippaError.notAvailable }
+                return value
+            }
+            guard [typeBoolean, typeTrue, typeFalse].contains(f[7].descriptorType) else { throw PippaError.notAvailable }
+            let id = try mailID(f[0]), date = try mailDate(f[3])
+            let messageID = text[4].trimmingCharacters(in: .whitespacesAndNewlines)
+            rows.append(MailSearchRow(id: id, date: date, header: MailHeader(
+                subject: text[0], sender: text[1], date: date, mailbox: text[2], preview: text[3],
+                messageID: messageID.isEmpty ? nil : messageID, unread: f[7].booleanValue)))
+        }
+        return rows
+    }
+
+    private static func mailID(_ d: NSAppleEventDescriptor) throws -> Int {
+        guard [typeSInt16, typeSInt32, typeSInt64, typeUInt32].contains(d.descriptorType),
+              let number = d.coerce(toDescriptorType: typeSInt64), number.data.count == MemoryLayout<Int64>.size else { throw PippaError.notAvailable }
+        let value = number.data.withUnsafeBytes { $0.loadUnaligned(as: Int64.self) }
+        guard value >= 0, value <= Int64(Int32.max) else { throw PippaError.notAvailable }
+        return Int(value)
+    }
+
+    /// A date, or nil for `missing value` (a message Mail has no date for); anything else is malformed.
+    private static func mailDate(_ d: NSAppleEventDescriptor) throws -> Date? {
+        if d.descriptorType == typeNull || (d.descriptorType == typeType && d.typeCodeValue == 0x6d73_6e67) { return nil }
+        guard d.descriptorType == typeLongDateTime, let date = d.dateValue else { throw PippaError.notAvailable }
+        return date
+    }
+}
+
 /// Searches the inbox (`inbox`: all accounts) by subject or sender. The search text goes in as a parameter,
-/// never into the script text. At most `maxCount` hits are read, only the first 400 characters of the text.
-/// [assumption] Mail returns a mailbox's messages newest first; the hits are sorted by date in Swift.
+/// never into the script text. Step one reads only ids and dates of all matches in bulk, Swift chooses the newest
+/// (`MailSelection`), step two reads subject, sender and the first 400 characters of the text of those messages only.
+/// [assumption] Mail answers a bulk property read of a `whose` query in one consistent order, and ids in `whose id is`;
+/// neither could be proven without reading a real mailbox. Both steps are bounded by their own 20 second timeout.
 enum MailSearchScript {
     static let source = """
-    on searchInbox(q, onlyUnread, maxCount)
+    on searchCandidates(q, onlyUnread)
         tell application id "com.apple.mail"
             with timeout of 20 seconds
                 if q is "" and onlyUnread then
-                    set found to (messages of inbox whose read status is false)
+                    set theIDs to id of (messages of inbox whose read status is false)
+                    set theDates to date received of (messages of inbox whose read status is false)
                 else if q is "" then
-                    set found to (messages of inbox)
+                    set theIDs to id of (messages of inbox)
+                    set theDates to date received of (messages of inbox)
                 else if onlyUnread then
-                    set found to (messages of inbox whose (subject contains q or sender contains q) and read status is false)
+                    set theIDs to id of (messages of inbox whose (subject contains q or sender contains q) and read status is false)
+                    set theDates to date received of (messages of inbox whose (subject contains q or sender contains q) and read status is false)
                 else
-                    set found to (messages of inbox whose subject contains q or sender contains q)
+                    set theIDs to id of (messages of inbox whose subject contains q or sender contains q)
+                    set theDates to date received of (messages of inbox whose subject contains q or sender contains q)
                 end if
             end timeout
-            set total to count of found
-            set n to total
-            if n > maxCount then set n to maxCount
-            set out to {}
-            repeat with i from 1 to n
-                set m to item i of found
-                set boxName to ""
-                try
-                    set boxName to (name of mailbox of m) as text
-                end try
-                set c to ""
-                try
-                    set c to (content of m) as text
-                    if (length of c) > 400 then set c to text 1 thru 400 of c
-                end try
-                set mid to ""
-                try
-                    set mid to (message id of m) as text
-                end try
-                set end of out to {subject of m, sender of m, date received of m, boxName, c, mid, not (read status of m)}
-            end repeat
-            return {total, out}
+            return {theIDs as list, theDates as list}
         end tell
-    end searchInbox
+    end searchCandidates
+
+    on searchRows(wantedIDs)
+        set out to {}
+        tell application id "com.apple.mail"
+            with timeout of 20 seconds
+                repeat with i from 1 to count of wantedIDs
+                    set wanted to item i of wantedIDs
+                    set found to (messages of inbox whose id is wanted)
+                    if (count of found) is not 1 then
+                        set end of out to {}
+                    else
+                        set m to item 1 of found
+                        set theSubject to ""
+                        set theSender to ""
+                        set theDate to missing value
+                        set boxName to ""
+                        set c to ""
+                        set mid to ""
+                        set isUnread to false
+                        try
+                            set theSubject to (subject of m) as text
+                        end try
+                        try
+                            set theSender to (sender of m) as text
+                        end try
+                        try
+                            set theDate to date received of m
+                        end try
+                        try
+                            set boxName to (name of mailbox of m) as text
+                        end try
+                        try
+                            set c to (content of m) as text
+                            if (length of c) > 400 then set c to text 1 thru 400 of c
+                        end try
+                        try
+                            set mid to (message id of m) as text
+                        end try
+                        try
+                            set isUnread to not (read status of m)
+                        end try
+                        set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread}
+                    end if
+                end repeat
+            end timeout
+        end tell
+        return out
+    end searchRows
     """
+
+    /// The real Mail, through Apple Events. Only inside `AppleEvents.perform`.
+    struct Live: MailSearchNative {
+        func candidates(query: String, unread: Bool) throws -> [MailSearchCandidate] {
+            try MailSearchFlow.parseCandidates(try AppleEvents.call(
+                MailSearchScript.source, handler: "searchCandidates",
+                [NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(boolean: unread)], app: .mail))
+        }
+
+        func rows(ids: [Int]) throws -> [MailSearchRow] {
+            let list = NSAppleEventDescriptor.list()
+            for (i, id) in ids.enumerated() { list.insert(NSAppleEventDescriptor(int32: Int32(id)), at: i + 1) }
+            return try MailSearchFlow.parseRows(try AppleEvents.call(MailSearchScript.source, handler: "searchRows", [list], app: .mail),
+                                                expecting: ids.count)
+        }
+    }
 
     static func search(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> {
         try await AppleEvents.perform { () throws -> HostFetch<MailHeader> in
-            let reply = try AppleEvents.call(source, handler: "searchInbox",
-                                             [NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(boolean: unread),
-                                              NSAppleEventDescriptor(int32: Int32(limit))], app: .mail)
-            let parts = AppleEvents.items(reply)
-            guard parts.count == 2 else { return HostFetch(items: [], total: 0) }
-            let items = AppleEvents.items(parts[1]).compactMap { row -> MailHeader? in
-                let f = AppleEvents.items(row)
-                guard f.count >= 5 else { return nil }
-                return MailHeader(subject: f[0].stringValue ?? "", sender: f[1].stringValue ?? "", date: f[2].dateValue,
-                                  mailbox: f[3].stringValue ?? "", preview: f[4].stringValue ?? "", messageID: f.count > 5 ? f[5].stringValue : nil,
-                                  unread: f.count > 6 && f[6].booleanValue)
-            }
-            let sorted = items.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
-            return HostFetch(items: sorted, total: Int(parts[0].int32Value))
+            try MailSearchFlow.search(Live(), query: query, unread: unread, limit: limit)
         }
     }
 }

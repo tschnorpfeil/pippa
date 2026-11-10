@@ -214,6 +214,17 @@ enum HeadlessAskChecks {
         check(foreign.ended(with: .failed), "--ask: only Pippa's own tools can report needs_access")
         let modelError = await headless(Fixture(granted: true)) { emit in emit(.assistantEnded(text: "", stopReason: "error", error: "provider down")) }
         check(modelError.ended(with: .failed), "--ask: a model error is failed")
+        let cutOff = await headless(Fixture(granted: true), answer: "A later, complete-looking answer.") { emit in
+            emit(.assistantEnded(text: "partial", stopReason: "length", error: nil))
+        }
+        check(cutOff.ended(with: .failed), "--ask: a model turn cut off by the length limit is failed although a later answer follows")
+        let cutOffAndAccess = await headless(Fixture(granted: false)) { emit in
+            emit(.assistantEnded(text: "partial", stopReason: "length", error: nil))
+            emit(ended("mcp__pippa__calendar_read", await call("calendar_read", ["period": "today"])))
+        }
+        check(cutOffAndAccess.ended(with: .failed), "--ask: a length cut-off stays failed after missing calendar access")
+        let stopped = await headless(Fixture(granted: true)) { emit in emit(.assistantEnded(text: "ok", stopReason: "stop", error: nil)) }
+        check(stopped.ended(with: .completed), "--ask: a model turn that stopped normally is completed")
         let unclear = await headless(Fixture(granted: true)) { emit in
             emit(.toolEnded(id: "u", name: "mcp__pippa__calendar_add", isError: false, result: "{}", outcome: .unclear, fileAccessFailure: nil))
         }

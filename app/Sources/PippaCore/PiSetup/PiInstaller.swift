@@ -51,6 +51,7 @@ public final class PiInstaller: @unchecked Sendable {
     /// Order when adopting models; checks force e.g. the hardlink here.
     public var adoptionMethods: [PiAdoptionMethod] = [.clone, .hardlink, .copy]
     let fm = FileManager.default
+    private var exclusiveDepth = 0
 
     public init(roots: PiInstallRoots) {
         self.roots = roots
@@ -74,7 +75,11 @@ public final class PiInstaller: @unchecked Sendable {
 
     /// Re-run one step. "Detect" forgets the earlier layout decision.
     public func repair(_ step: PiInstallStep, _ options: PiInstallOptions) -> PiStepResult {
-        if step == .detect { state.layout = nil; state.detection = nil }
+        if step == .detect {
+            // Inside the lock: its state refresh would otherwise bring the forgotten decision back.
+            do { return try exclusive { state.layout = nil; state.detection = nil; return detect() } }
+            catch { return finish(.detect, .failed(failure(error, path: roots.support))) }
+        }
         if step == .modelsFolder { state.modelsFolder = nil; state.modelsFolderShared = nil }
         return perform(step, options)
     }
@@ -122,6 +127,30 @@ public final class PiInstaller: @unchecked Sendable {
     }
 
     // MARK: Helpers
+
+    /// One writer per installation. The app's setup and the first Pi start each have their own `PiInstaller` and can
+    /// both install the pinned Pi in the same minute; without this the second deletes the first one's staging copy
+    /// (`ensureRelease`) and a release lacking files can be published. The lock is on the support folder, so it holds
+    /// across instances and processes and ends with its holder. A waiting installer then reads the state the other one
+    /// saved, so it neither decides the layout again on a half-built folder nor overwrites the other's records.
+    /// Re-entrant for the same instance.
+    func exclusive<T>(_ body: () throws -> T) throws -> T {
+        if exclusiveDepth > 0 { return try body() }
+        let file = roots.support.appendingPathComponent(".install.lock")
+        do { try fm.createDirectory(at: roots.support, withIntermediateDirectories: true) }
+        catch { throw PiInstallFailure.notWritable(path: roots.support.path, reason: SystemError.reason(error)) }
+        let descriptor = open(file.path, O_RDWR | O_CREAT | O_CLOEXEC, 0o600)
+        guard descriptor >= 0 else { throw PiInstallFailure.notWritable(path: file.path, reason: SystemError.reason(errno: errno)) }
+        defer { close(descriptor) } // also releases the lock
+        while flock(descriptor, LOCK_EX) != 0 {
+            guard errno == EINTR else { throw PiInstallFailure.notWritable(path: file.path, reason: SystemError.reason(errno: errno)) }
+        }
+        exclusiveDepth += 1
+        defer { exclusiveDepth -= 1 }
+        // Everything this instance changed is saved at once (`begin`, `finish`, `makeDirectory`); the file is newer.
+        if fm.fileExists(atPath: roots.stateFile.path) { state = PiInstallState.load(from: roots.stateFile) }
+        return try body()
+    }
 
     /// Creates missing folders and remembers each one (to uninstall exactly what was created).
     func makeDirectory(_ url: URL) throws {

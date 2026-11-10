@@ -1,6 +1,6 @@
 # Pippa 0.6: foundation and a memory experiment
 
-Status: implementation started, 2026-11-10. [ROADMAP.md](ROADMAP.md) remains the active roadmap.
+Status: reliability release candidate implemented and reviewed, 2026-11-10. [ROADMAP.md](ROADMAP.md) remains the active roadmap.
 The earlier visual exploration is a concept, not a release specification. Tiny apps are out of 0.6.
 
 ## Direction
@@ -46,7 +46,42 @@ fixture and live acceptance results separate. The signed app's real permissions 
 No new production tool or card ships before the existing acceptance tasks pass.
 
 Current memory result: the bounded diagnostic and fixture checks are implemented. A direct development-binary run
-reported `notDetermined` for both sources without prompting; granted-library coverage and usefulness remain unmeasured.
-Headless asks and the evidence runner provide repeatable technical checks; the five live acceptance tasks are not
-claimed as passed. Historical probes are not grounds for new public performance claims. Release preparation follows
-[releases/README.md](releases/README.md).
+reported `notDetermined` for both sources without prompting. The signed app launched through LaunchServices used
+existing grants successfully: a seven-day sample contained 0 visible Photos assets and 11 Calendar events, in 182 ms.
+This proves the granted read path, not whole-library coverage or recall usefulness. Terminal and app launches can
+have different macOS permission attribution.
+
+Release verification on 2026-11-10 uses a Mac with **24 GiB**, not the 16 GB acceptance target. The signed baseline
+is 0.5.0 build 980. Keep its evidence separate from checks of the release commit:
+
+| Task | Observed baseline | Remaining evidence |
+|---|---|---|
+| File lookup | Current run failed in 54 s: changed paths caused tool errors, then the answer chose an older snapshot while the expected current file was present | Correct selection and source use; historical passes do not establish current reliability |
+| Mail attachments and totals | Historical failure; candidate fixes verified separately below | Independently checked payment totals and reliable model use of the selected sources |
+| Calendar creation and Undo | One labeled fixture created with a receipt and Undo; Open Calendar opened Calendar; Undo reported removal | First attempt showed a setup error; retry completed in 78 s. A fresh cold start answered normally; the original cause is unresolved |
+| Letter deadline | Synthetic letter failed answer-quality review in 97 s; an isolated no-thinking comparison also failed | Correct source quotation and no invented receipt-based deadline; warnings do not count as a pass |
+| Five images into one PDF | Five-page PDF in 5.29 s; all pages rendered in order; input hashes unchanged. The window showed its card and opened Finder | Files entered through Open With, not a physical drag; repeat on the release build |
+
+The Mail candidate was also tested through its signed app and the real Pi runtime with a local scripted responder,
+without a model. An inbox with five matches returned consistent selections at limits four and three; three selected
+message identities read back exactly. Ten attachments (2,683,020 bytes) were saved, with none reported missing,
+in 18 s. This proves native selection/read interoperability and attachment availability. The newest-first algorithm
+is covered by shuffled synthetic fixtures; the live comparison is not an independent ordering oracle. The original
+payment-topic query had no current matches, so payment totals and model behavior remain unverified.
+
+The 0.6.0 build 989 candidate also passed the actual window flow: a question entered through the composer read a
+message by its exact identity, displayed an enabled source chip, opened the matching message window in Mail, and
+saved the canonical source URL. A fresh profile completed in 8 s; a previously damaged test profile completed in
+6 s. Both used a local scripted responder and the real Pi runtime, not a model. These timings measure integration,
+not AI response speed.
+
+That fresh-profile test exposed a separate setup race: app setup and the first question could install Pi together,
+delete each other's temporary copy, and leave missing dependencies despite a successful version check. Controlled
+checks reproduced the race. Preparation and publication now share a lock and refresh saved state; incomplete copies
+owned by Pippa are repaired from the bundled payload, while foreign installations stay untouched. The signed tests
+confirmed complete dependency trees and preserved setup records in both profiles. This establishes the new race's
+cause; it does not retroactively establish the cause of the earlier Calendar baseline error.
+
+The model setting stays unchanged. There is no production recall feature, persistent index or new card in this
+release. The five live acceptance tasks and performance on a 16 GB Mac are not claimed as passed. Reports and raw
+transcripts stay local; public evidence contains aggregate results only.

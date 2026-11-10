@@ -17,6 +17,7 @@ extension PiInstaller {
         guard let layout = state.layout else { return nil }
         let release = roots.release(layout)
         guard fm.fileExists(atPath: PiPayload.cliEntry(release: release).path) else { return nil }
+        guard !isPippaRelease(release) || hasPayloadFiles(release) else { return nil }
         var environment = Self.baseEnvironment(roots)
         if layout != .pippaRoot { environment["PI_MANAGED_INSTALL_ROOT"] = roots.managedRoot.path }
         return PiLaunchSpec(executable: roots.payload.node, launcherArguments: [PiPayload.cliEntry(release: release).path],

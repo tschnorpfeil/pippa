@@ -50,6 +50,14 @@ public final class SystemIntegrations: AppIntegrations, @unchecked Sendable {
         return try await MailScript.find(subject: subject, sender: sender)
     }
 
+    public func findMail(messageID: String) async throws -> MailMessage? {
+        guard let wanted = MailReplySource.canonicalMessageID(messageID) else { return nil }
+        guard AppleEvents.isRunning(.mail) else { throw PippaError.appNotOpen(Integration.mail.appName) }
+        // Mail's `whose` match ignores case; only the exact id counts.
+        guard let mail = try await MailScript.find(messageID: wanted), mail.messageID.flatMap(MailReplySource.canonicalMessageID) == wanted else { return nil }
+        return mail
+    }
+
     public func insertReply(_ draft: MailDraft) async throws -> MailInsertResult { try await MailReplyScript.insert(draft) }
 
     public func events(in interval: DateInterval, limit: Int) async throws -> CalendarFetch { try eventKit.read(interval, limit: limit) }

@@ -4,6 +4,11 @@ extension PiInstaller {
     // MARK: 2. Pi
 
     public func installPi() -> PiStepResult {
+        do { return try exclusive(installPiExclusively) }
+        catch { return finish(.pi, .failed(failure(error, path: roots.support))) }
+    }
+
+    private func installPiExclusively() -> PiStepResult {
         if state.layout == nil || state.pin != roots.pin { _ = detect() }
         guard let layout = state.layout else { return finish(.pi, .failed(.missingStep(.detect))) }
         begin(.pi)
@@ -34,8 +39,9 @@ extension PiInstaller {
             try fm.removeItem(at: leftover)
         }
         if fm.fileExists(atPath: release.path) {
-            if (try? version(release: release)) == pin { return (release, true) }
-            guard state.didCreate(release) else { throw PiInstallFailure.releaseBroken(release.path) }
+            let owned = isPippaRelease(release)
+            if (try? version(release: release)) == pin, !owned || hasPayloadFiles(release) { return (release, true) }
+            guard owned else { throw PiInstallFailure.releaseBroken(release.path) }
             try fm.removeItem(at: release) // Pippa's own, damaged release
         }
         try makeDirectory(staging)
@@ -53,6 +59,16 @@ extension PiInstaller {
         state.record(release)
         save()
         return (release, false)
+    }
+
+    /// The old concurrent copy could lose dependencies while the bundled CLI still reported its version. Check
+    /// presence against this payload before reusing Pippa's copy; other installers' layouts are not compared.
+    func hasPayloadFiles(_ release: URL) -> Bool {
+        guard let entries = fm.enumerator(atPath: roots.payload.release.path) else { return false }
+        for case let path as String in entries {
+            if !fm.fileExists(atPath: release.appendingPathComponent(path).path) { return false }
+        }
+        return true
     }
 
 

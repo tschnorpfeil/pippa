@@ -76,7 +76,9 @@ func runResultCardChecks() async {
         let cards = notes.value.map(\.card)
         guard cards.count == 3, case .mail(let mail)? = cards[0], case .calendar? = cards[2] else { return false }
         return mail.items.first?.messageID == "nk-2025@berger-hv.example" && mail.items.first?.sender == "Hausverwaltung Berger"
-            && cards[1] == nil && !found.contains("nk-2025") && !none.isEmpty
+            && cards[1] == nil && !none.isEmpty
+            // The model now gets the id (mail_read opens exactly that mail); the card keeps it for "Open in Mail".
+            && found.contains("\"message_id\":\"nk-2025@berger-hv.example\"")
     }
     check("Reminders card: overdue only before now (with a time) or before today (day only), list names only across several lists") {
         let now = berlin.date(from: DateComponents(year: 2026, month: 10, day: 7, hour: 14, minute: 32))!

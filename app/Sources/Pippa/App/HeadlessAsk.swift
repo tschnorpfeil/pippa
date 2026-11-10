@@ -67,7 +67,8 @@ enum HeadlessAsk {
                 else if outcome == .blocked { blocked += 1 }
                 else if isError || outcome == .failed || outcome == .unclear { failed = true }
             case .assistantEnded(_, let reason, let error):
-                if reason == "error" || reason == "aborted" || error != nil { failed = true }
+                // "length" is a turn cut off by the model's output limit: ChatModel reports it as failed too.
+                if reason == "error" || reason == "aborted" || reason == "length" || error != nil { failed = true }
             case .settled(let aborted):
                 if aborted { failed = true }
             default:

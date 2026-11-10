@@ -96,6 +96,51 @@ private func options(_ model: CatalogModel?, roots search: [ModelLocation]? = ni
 private func inode(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber)?.intValue }
 private func linkCount(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: url.path)[.referenceCount] as? NSNumber)?.intValue }
 
+/// The app's setup and `PiSession.launcher` (no launch spec yet, so installPi) are two PiInstaller instances
+/// on one installation. The second starts while the first is copying the payload. True if both end well and the one
+/// release is complete (every file of the payload), Pippa's own in the state, with one layout decision.
+private func prepareConcurrently(_ r: PiInstallRoots) -> Bool {
+    let staging = r.managedRoot.appendingPathComponent("staging", isDirectory: true)
+    let group = DispatchGroup()
+    nonisolated(unsafe) var setup: PiSetupState?
+    nonisolated(unsafe) var launch: (spec: PiLaunchSpec?, result: PiStepResult?)?
+    group.enter()
+    Thread.detachNewThread {
+        let (model, _) = dummyModel(bytes: 16)
+        let flow = PiSetupFlow(roots: r, model: model, contextWindow: 4096, searchRoots: [], freeSpace: { _ in Int64.max })
+        setup = flow.prepare()
+        group.leave()
+    }
+    // Only once the first copy exists, like a first message sent while setup is still running.
+    let deadline = Date().addingTimeInterval(30)
+    while Date() < deadline,
+          !((try? fm.contentsOfDirectory(atPath: staging.path)) ?? []).contains(where: { $0.hasPrefix("pippa-") }),
+          !fm.fileExists(atPath: r.release(.official).path) { usleep(500) }
+    group.enter()
+    Thread.detachNewThread {
+        let installer = PiInstaller(roots: r)
+        var result: PiStepResult?
+        if installer.launchSpec(modelID: "dummy-1b") == nil { result = installer.installPi() }
+        launch = (installer.launchSpec(modelID: "dummy-1b"), result)
+        group.leave()
+    }
+    group.wait()
+    func tree(_ root: URL) -> Set<String> { Set((fm.enumerator(atPath: root.path)?.allObjects as? [String]) ?? []) }
+    let release = r.release(.official)
+    let missing = tree(r.payload.release).subtracting(tree(release))
+    let leftovers = ((try? fm.contentsOfDirectory(atPath: staging.path)) ?? []).filter { $0.hasPrefix("pippa-") }
+    let saved = PiInstaller(roots: r) // what the next start reads
+    let setupOK: Bool
+    switch setup { case .ready?, .askDownload?: setupOK = true; default: setupOK = false }
+    let ok = setupOK && (launch?.result?.isDone ?? true) && launch?.spec != nil
+        && missing.isEmpty && leftovers.isEmpty
+        && saved.state.layout == .official && saved.state.didCreate(release)
+        && saved.state.modelsFolder == modelsFolder(r).path && saved.state.didCreate(modelsFolder(r))
+        && saved.checkReady(modelIDs: [], model: nil).isDone
+    if !ok { print("   ", setup as Any, launch?.result?.outcome as Any, "missing:", missing.count, "leftovers:", leftovers, saved.state.layout as Any, "model folder recorded:", saved.state.modelsFolder != nil) }
+    return ok
+}
+
 func runSetupChecks() async {
     check("Upgrade from 0.3: Pippa's old GGUF folder, prompt cache and her own files in ~/models go; the person's stay") {
         let home = fakeHome("old-models"); defer { discard(home) }
@@ -178,6 +223,8 @@ func runSetupChecks() async {
         write("{\"kind\": \"pi-managed-install\", \"schemaVersion\": 1, \"layout\": \"releases-v1\"}", r.managedRoot.appendingPathComponent("managed-install.json"))
         write("1.0.4\n", r.managedRoot.appendingPathComponent("current-version"))
         try fm.copyItem(at: payload.release, to: r.release(.addedRelease))
+        // A foreign, working release need not contain Pippa's packaging metadata.
+        try fm.removeItem(at: r.release(.addedRelease).appendingPathComponent("package-lock.json"))
         let installer = PiInstaller(roots: r)
         let reused = installer.installPi()
         let fakeVersion = PiPayload.cliEntry(release: r.release(.addedRelease)).deletingLastPathComponent().appendingPathComponent("fake-version")
@@ -185,8 +232,32 @@ func runSetupChecks() async {
         let broken = installer.installPi()
         return reused.outcome == .piInstalled(layout: .addedRelease, release: r.release(.addedRelease), reused: true)
             && !installer.state.didCreate(r.release(.addedRelease))
+            && !fm.fileExists(atPath: r.release(.addedRelease).appendingPathComponent("package-lock.json").path)
             && broken.outcome == .failed(.releaseBroken(r.release(.addedRelease).path))
             && (try? String(contentsOf: fakeVersion, encoding: .utf8)) == "kaputt\n"
+    }
+
+    check("Installer: a previously incomplete own release is not launchable and is repaired even when its version still matches") {
+        let home = fakeHome("incomplete-owned"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let relative = "node_modules/extension-loader/index.js"
+        let dependency = payload.release.appendingPathComponent(relative)
+        try fm.createDirectory(at: dependency.deletingLastPathComponent(), withIntermediateDirectories: true)
+        write("module.exports = {}\n", dependency)
+        let r = roots(home, payload), installer = PiInstaller(roots: roots(home, payload))
+        guard installer.installPi().isDone else { return false }
+        // The old race could also lose the state record; the marker still identifies Pippa's copy.
+        var state = PiInstallState.load(from: r.stateFile)
+        state.created.removeAll { $0 == r.release(.official).standardizedFileURL.path }
+        try state.save(to: r.stateFile)
+        let missing = r.release(.official).appendingPathComponent(relative)
+        try fm.removeItem(at: missing)
+        guard shell(payload.node.path, [PiPayload.cliEntry(release: r.release(.official)).path, "--version"], environment: [:]) == r.pin,
+              PiInstaller(roots: r).launchSpec(modelID: "dummy-1b") == nil else { return false }
+        let repaired = PiInstaller(roots: r).installPi()
+        return repaired.outcome == .piInstalled(layout: .official, release: r.release(.official), reused: false)
+            && (try? Data(contentsOf: missing)) == Data("module.exports = {}\n".utf8)
+            && PiInstaller(roots: r).launchSpec(modelID: "dummy-1b") != nil
     }
 
     check("Installer: foreign pi (npm global) → own root folder; ~/.pi/agent/install and ~/.local/bin/pi stay untouched") {
@@ -440,6 +511,20 @@ func runSetupChecks() async {
             && (try? Data(contentsOf: folder.appendingPathComponent("model.safetensors"))) == data
     }
 
+    check("Installer: setup and the first start prepare one fresh HOME at the same time; neither deletes the other's copy, the release is complete") {
+        let home = fakeHome("concurrent"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        // Hold the waiting launcher's reuse check long enough for setup's following state writes to finish.
+        let node = try String(contentsOf: payload.node, encoding: .utf8)
+        write(node.replacingOccurrences(of: "if [ \"$2\" = --version ];", with: "case \"$1\" in */install/releases/*) sleep 0.3;; esac\nif [ \"$2\" = --version ];"), payload.node)
+        for index in 0..<120 { // a payload big enough that the copy is still running when the second one starts
+            let package = payload.release.appendingPathComponent("node_modules/dep-\(index)/lib", isDirectory: true)
+            try fm.createDirectory(at: package, withIntermediateDirectories: true)
+            for file in 0..<30 { write("module.exports = \(file)\n", package.appendingPathComponent("file-\(file).js")) }
+        }
+        return prepareConcurrently(roots(home, payload))
+    }
+
     check("Installer: models folder <Support>/omlx/models without asking (excluded from Time Machine); port stays stable") {
         let home = fakeHome("folder"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))
@@ -477,6 +562,23 @@ func runSetupChecks() async {
                         environment: ["HOME": home.path, "PATH": r.piNode.appendingPathComponent("current/bin").path + ":/usr/bin:/bin"])
         print(String(format: "    Pi step %.1f s, launcher: %@, spec: %@, npm: %@", seconds, viaLauncher ?? "-", viaSpec ?? "-", npm ?? "-"))
         return pi.isDone && viaLauncher == real.version && viaSpec == real.version && npm != nil
+    }
+    check("Installer (real payload): setup and the first start at the same time leave a release that loads Pippa's TypeScript extension") {
+        let home = fakeHome("real-concurrent"); defer { discard(home) }
+        let r = roots(home, real)
+        guard prepareConcurrently(r), let extensionFolder = real.terminalExtension else { return false }
+        // `--version` passes even without jiti; loading a TypeScript extension (as every Pippa session does) does not.
+        let spec = PiInstaller(roots: r).launchSpec(modelID: "dummy-1b")
+        let process = Process(), out = Pipe()
+        process.executableURL = spec?.executable
+        process.arguments = (spec?.launcherArguments ?? []) + ["-e", extensionFolder.appendingPathComponent("index.ts").path, "--list-models"]
+        process.environment = (spec?.environment ?? [:]).merging(["PI_CODING_AGENT_DIR": home.appendingPathComponent("agent").path]) { $1 }
+        process.standardOutput = out; process.standardError = out
+        guard (try? process.run()) != nil else { return false }
+        let output = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        process.waitUntilExit()
+        if output.contains("Failed to load extension") { print("   ", output.prefix(300)) }
+        return process.terminationStatus == 0 && !output.contains("Failed to load extension")
     }
     check("Installer (real payload): own root folder starts without PI_MANAGED_INSTALL_ROOT") {
         let home = fakeHome("real-own"); defer { discard(home) }

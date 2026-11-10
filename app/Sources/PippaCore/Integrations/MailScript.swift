@@ -30,6 +30,36 @@ enum MailScript {
         end tell
     end findInInbox
 
+    on findByMessageID(theID)
+        tell application id "com.apple.mail"
+            with timeout of 20 seconds
+                set found to (messages of inbox whose message id is theID or message id is ("<" & theID & ">"))
+            end timeout
+            set best to missing value
+            repeat with m in found
+                set candidateID to ""
+                try
+                    set candidateID to (message id of m) as text
+                end try
+                set exactIdentity to false
+                considering case
+                    if candidateID is theID or candidateID is ("<" & theID & ">") then set exactIdentity to true
+                end considering
+                if exactIdentity then
+                    if best is missing value then
+                        set best to contents of m
+                    else
+                        try
+                            if (date received of m) > (date received of best) then set best to contents of m
+                        end try
+                    end if
+                end if
+            end repeat
+            if best is missing value then return {}
+            return my messageInfo(best)
+        end tell
+    end findByMessageID
+
     on messageInfo(m)
         tell application id "com.apple.mail"
             set attachmentNames to {}
@@ -80,6 +110,12 @@ enum MailScript {
         try await AppleEvents.perform { () throws -> MailMessage? in
             message(try AppleEvents.call(source, handler: "findInInbox",
                                          [NSAppleEventDescriptor(string: subject), NSAppleEventDescriptor(string: sender)], app: .mail))
+        }
+    }
+
+    static func find(messageID: String) async throws -> MailMessage? {
+        try await AppleEvents.perform { () throws -> MailMessage? in
+            message(try AppleEvents.call(source, handler: "findByMessageID", [NSAppleEventDescriptor(string: messageID)], app: .mail))
         }
     }
 

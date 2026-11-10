@@ -168,5 +168,6 @@ extension MCPCheckContext {
                 && unavailable.isError && unavailable.json["status"] as? String == "unavailable" && unavailable.json["data"] == nil
                 && !granted.isError && firstUse.demo.mailPreparations == 1
         }
+        await mailSelectionChecks()
     }
 }

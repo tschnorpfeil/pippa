@@ -9,23 +9,51 @@ public enum MailFiling {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("Pippa/Inbox", isDirectory: true)
     }
 
+    /// What saving the attachments of one message did: the files, and the real attachments whose bytes could not be saved.
+    public struct AttachmentSave: Sendable, Equatable {
+        /// Saved or reused files in message order, with the attachment name each came from.
+        public var saved: [SavedFile] = []
+        /// Real (not inline) attachments without readable bytes: empty after decoding, or the file could not be written.
+        public var unsaved: [String] = []
+        /// Inline images left out on purpose.
+        public var skippedInline: [String] = []
+        /// The message itself could not be read or parsed, so nothing is known about its attachments.
+        public var unreadable = false
+        public var files: [URL] { saved.map(\.url) }
+    }
+
+    public struct SavedFile: Sendable, Equatable {
+        public var name: String
+        public var url: URL
+    }
+
     /// Writes the attachments of `eml` into `folder` and returns their files in message order. A file already there with
-    /// the same size is reused, so reading the same mail twice writes nothing new. Empty and inline parts are skipped.
-    public static func saveAttachments(of eml: URL, into folder: URL) -> [URL] {
-        guard let data = try? Data(contentsOf: eml) else { return [] }
-        let parts = MailParser.parse(data).files.filter { !$0.inline && !$0.data.isEmpty }
-        guard !parts.isEmpty, (try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)) != nil else { return [] }
+    /// the same bytes is reused, so reading the same mail twice writes nothing new. Empty and inline parts are skipped.
+    public static func saveAttachments(of eml: URL, into folder: URL) -> [URL] { save(of: eml, into: folder).files }
+
+    /// As `saveAttachments`, and says what could not be saved so a caller never presents a name as readable content.
+    public static func save(of eml: URL, into folder: URL) -> AttachmentSave {
+        var result = AttachmentSave()
+        guard let data = try? Data(contentsOf: eml) else { result.unreadable = true; return result }
+        let all = MailParser.parse(data).files
+        result.skippedInline = all.filter(\.inline).map(\.name)
+        let real = all.filter { !$0.inline }
+        result.unsaved = real.filter { $0.data.isEmpty }.map(\.name)
+        let parts = real.filter { !$0.data.isEmpty }
+        guard !parts.isEmpty else { return result }
+        guard (try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)) != nil else {
+            result.unsaved += parts.map(\.name)
+            return result
+        }
         var taken: Set<String> = [eml.lastPathComponent.lowercased()]
-        var saved: [URL] = []
         for part in parts {
             let url = folder.appendingPathComponent(uniqueName(part.name, taken: &taken))
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
-            if size != part.data.count {
-                guard (try? part.data.write(to: url, options: .atomic)) != nil else { continue }
+            if (try? Data(contentsOf: url, options: .mappedIfSafe)) != part.data {
+                guard (try? part.data.write(to: url, options: .atomic)) != nil else { result.unsaved.append(part.name); continue }
             }
-            saved.append(url)
+            result.saved.append(SavedFile(name: part.name, url: url))
         }
-        return saved
+        return result
     }
 
     /// Where the attachments of `eml` go: beside it when it is already Pippa's copy, otherwise a folder of the inbox named
@@ -38,15 +66,38 @@ public enum MailFiling {
     }
 
     /// A mail read from Mail as files: the .eml (Mail's original message when it gave one) and its attachments, in one
-    /// folder per message under `root`, so reading the same mail again reuses them.
-    public static func file(_ mail: MailMessage, root: URL = inbox) throws -> (eml: URL, attachments: [URL]) {
-        let identity = mail.messageID ?? (mail.subject + "|" + mail.sender + "|" + String(mail.date?.timeIntervalSince1970 ?? 0))
+    /// folder per message under `root`, so reading the same mail again reuses them. `notSaved` names every attachment
+    /// Mail lists whose bytes are not in a file (not even a name-only stand-in is readable content).
+    public static func file(_ mail: MailMessage, root: URL = inbox) throws -> (eml: URL, attachments: [URL], notSaved: [String]) {
+        let text = mail.emlText
+        // Without a Message-ID the text joins the identity: two mails with the same subject, sender and date never share a folder.
+        let identity = mail.messageID ?? (mail.subject + "|" + mail.sender + "|" + String(mail.date?.timeIntervalSince1970 ?? 0) + "|" + stableHash(text))
         let folder = root.appendingPathComponent("mail-" + stableHash(identity), isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let eml = folder.appendingPathComponent(mail.fileName)
-        let text = mail.emlText
         if (try? String(contentsOf: eml, encoding: .utf8)) != text { try text.write(to: eml, atomically: true, encoding: .utf8) }
-        return (eml, saveAttachments(of: eml, into: folder))
+        let result = save(of: eml, into: folder)
+        return (eml, result.files, notSaved(mail.attachmentNames, result))
+    }
+
+    /// The names Mail lists that have no readable file: real attachments that failed to save, and listed names that the
+    /// message neither saved nor skipped as an inline image (Mail's source can lack parts it has not downloaded).
+    static func notSaved(_ listed: [String], _ result: AttachmentSave) -> [String] {
+        if result.unreadable { return listed }
+        var accounted: [String: Int] = [:], names = result.unsaved
+        for name in result.saved.map(\.name) + result.skippedInline + result.unsaved {
+            accounted[comparable(name), default: 0] += 1
+        }
+        for name in listed {
+            let key = comparable(name)
+            if accounted[key, default: 0] > 0 { accounted[key, default: 0] -= 1 }
+            else { names.append(name) }
+        }
+        return names
+    }
+
+    private static func comparable(_ name: String) -> String {
+        Naming.sanitize(name, maxLength: 120).precomposedStringWithCanonicalMapping.lowercased()
     }
 
     /// File name from the attachment's own name; "Anhang" when it has none, " 2", " 3" … when two share a name.

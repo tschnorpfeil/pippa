@@ -34,7 +34,10 @@ struct SourceChips: View {
         switch source.kind {
         case .file: NSWorkspace.shared.open(URL(fileURLWithPath: source.location))
         case .web: if let url = URL(string: source.location), ["http", "https"].contains(url.scheme) { NSWorkspace.shared.open(url) }
-        case .mail: break
+        case .mail:
+            guard ProcessInfo.processInfo.environment["PIPPA_DEMO"] != "1",
+                  let url = URL(string: source.location), url.scheme == "message" else { return }
+            NSWorkspace.shared.open(url)
         }
     }
 }

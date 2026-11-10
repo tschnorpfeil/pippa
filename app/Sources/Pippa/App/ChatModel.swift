@@ -369,7 +369,8 @@ final class ChatModel: ObservableObject {
                 message.steps[index].failed = failed
             }
             // A source counts once it was read; the same file read twice shows once, with its latest pages.
-            if var source = pendingSources.removeValue(forKey: call), !failed {
+            let pendingSource = pendingSources.removeValue(forKey: call)
+            if !failed, var source = SourceLog.source(tool: name, arguments: "{}", result: result) ?? pendingSource {
                 if name.hasSuffix("read_document") { source.detail = SourceLog.detail(result: result) }
                 updateLast(in: id) { message in
                     var sources = message.sources ?? []

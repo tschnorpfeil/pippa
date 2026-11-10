@@ -206,8 +206,9 @@ PIPPA_ASK_RESULT {"status":"completed"}
 ```
 
 Statuses and exit codes are `completed` (0), `failed` (1), `needs_access` (2), and `needs_input` (3). A tool failure
-keeps the run failed even if the model later answers. `completed` describes execution only: verify the answer,
-quoted sources, dates and any card/Undo behavior separately. The existing unsupported-date warning remains.
+or an answer cut off by the output limit keeps the run failed even if the model later answers. `completed` describes
+execution only: verify the answer, quoted sources, dates and any card/Undo behavior separately. The existing
+unsupported-date warning remains.
 
 `scripts/quality/run-acceptance.py` collects local evidence for all five
 [acceptance tasks](pippa-next-architecture.md#acceptance). Its `--help` describes a JSON manifest containing an app
