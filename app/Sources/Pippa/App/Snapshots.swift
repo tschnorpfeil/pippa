@@ -63,6 +63,8 @@ enum Snapshots {
             // The question is out, the AI on this Mac still loads: nothing from Pi yet.
             ("starting", { chat.showSample(sampleConversations(answering: true, starting: true), current: "c1", answering: true, starting: true) }, 760, false, false),
             ("steps", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, true, false),
+            // Words of the answer coming in: her handwriting instead of the mark.
+            ("writing", { chat.showSample(sampleConversations(answering: true, writing: true), current: "c1", answering: true, writing: true) }, 760, false, false),
             ("approval", {
                 chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
                 askSampleQuestion()
@@ -273,7 +275,8 @@ enum Snapshots {
         ])]
     }
 
-    private static func sampleConversations(answering: Bool = false, failed: Bool = false, starting: Bool = false) -> [Conversation] {
+    private static func sampleConversations(answering: Bool = false, failed: Bool = false, starting: Bool = false,
+                                            writing: Bool = false) -> [Conversation] {
         let now = Date()
         var answer = ChatMessage(role: .assistant, text: """
         Dein aktueller Stand ist **ETF-Portfolio.md**, zuletzt geändert am 1. November 2026.
@@ -298,6 +301,10 @@ enum Snapshots {
             answer.receipts = []
             answer.steps = [ChatStep(id: "1", label: "Searching files for “ETF”", done: true), ChatStep(id: "2", label: "Reading ETF-Portfolio.md", done: false)]
             answer.thinking = "Die Person fragt nach der aktuellen ETF-Übersicht. Es gibt drei Dateien; ETF-Portfolio.md ist die neueste (updated 2026-11-01). Ich lese sie und nenne die Aufteilung." 
+        }
+        if writing {
+            answer.steps[1].done = true
+            answer.text = "Dein aktueller Stand ist **ETF-Portfolio.md**, zuletzt geändert am"
         }
         if starting {
             answer.steps = []
@@ -355,7 +362,8 @@ enum Snapshots {
 
 extension ChatModel {
     /// Snapshots only: show sample conversations without touching the saved ones.
-    func showSample(_ conversations: [Conversation], current: String?, answering: Bool, starting: Bool = false) {
-        replaceForSnapshot(conversations, current: current, answering: answering, starting: starting)
+    func showSample(_ conversations: [Conversation], current: String?, answering: Bool, starting: Bool = false,
+                    writing: Bool = false) {
+        replaceForSnapshot(conversations, current: current, answering: answering, starting: starting, writing: writing)
     }
 }

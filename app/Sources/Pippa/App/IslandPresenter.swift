@@ -86,8 +86,11 @@ final class IslandView: NSView {
         let shape = IslandGeometry.silhouette(placement, from: compactShape, to: openRect, progress: open)
         silhouette = shape
         var housingWidth: CGFloat?
+        var row: IslandPanelView.MenuBarRow?
         switch placement {
         case .notch(let housing, _):
+            // The row left of the housing, from the panel's left edge: everything right of it is the camera or beyond.
+            row = IslandPanelView.MenuBarRow(height: housing.height, besideHousing: max(0, openRect.maxX - housing.minX))
             // Grows out of the black housing: it is black from the start.
             fillAlpha = 1
             housingWidth = housing.width
@@ -99,6 +102,11 @@ final class IslandView: NSView {
         if compact.rootView.housingWidth != housingWidth {
             compact.rootView = IslandCompactView(island: compact.rootView.island, housingWidth: housingWidth)
         }
+        if panel.rootView.menuBarRow != row {
+            var view = panel.rootView
+            view.menuBarRow = row
+            panel.rootView = view
+        }
         needsDisplay = true
         let body = shape.rect.offsetBy(dx: -origin.x, dy: -origin.y)
         clip.frame = body
@@ -106,20 +114,14 @@ final class IslandView: NSView {
         clip.isHidden = body.width < 1 || body.height < 1
         compact.frame = compactTarget.offsetBy(dx: -shape.rect.minX, dy: -shape.rect.minY)
         compact.alphaValue = compactAlpha * IslandChoreography.compactAlpha(open)
-        // At the notch the panel's content starts below the housing.
-        let top = openRect.maxY - housingHeight(placement)
+        // At the notch the panel's top row lies beside the housing: Pippa's mark and line stay in the menu bar.
         panel.frame = NSRect(x: openRect.minX - shape.rect.minX, y: openRect.minY - shape.rect.minY + IslandChoreography.contentDrop(open),
-                             width: openRect.width, height: max(0, top - openRect.minY))
+                             width: openRect.width, height: openRect.height)
         panel.alphaValue = IslandChoreography.contentAlpha(open)
         let hidden = open < 0.01
         let shown = panel.isHidden && !hidden
         panel.isHidden = hidden
         if shown { onPanelShown?() }
-    }
-
-    private func housingHeight(_ placement: IslandPlacement) -> CGFloat {
-        if case .notch(let housing, _) = placement { return housing.height }
-        return 0
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -148,6 +150,8 @@ final class IslandPresenter: NSObject {
     private var wing = IslandSpring(value: 1)
     private var opening = IslandSpring()
     private var contentHeight: CGFloat = 180
+    /// Another notch tool shows right of the housing (checked on each opening): the open panel keeps left of it.
+    private var besideTool = false
     private var link: CADisplayLink?
     private var lastTick: CFTimeInterval = 0
     private var fadeToken = 0
@@ -231,7 +235,8 @@ final class IslandPresenter: NSObject {
     /// Opens the island; `key` makes it key for typing (the person asked for it). A question that opens it by itself
     /// does not take the keyboard from the app in front.
     func open(key: Bool) {
-        guard placement != nil else { return }
+        guard let placement else { return }
+        if !isPresented { besideTool = IslandGeometry.toolRightOfHousing(placement, windows: Self.otherWindows()) }
         panel.allowsKey = true
         if key { panel.makeKeyAndOrderFront(nil) } else { panel.orderFrontRegardless() }
         guard !isPresented else { return }
@@ -277,6 +282,23 @@ final class IslandPresenter: NSObject {
         }
     }
 
+    /// Frames of other apps' on-screen windows at menu bar level or above, in global AppKit coordinates. Frames and
+    /// owners need no permission (window titles would).
+    private static func otherWindows() -> [CGRect] {
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]],
+              let top = NSScreen.screens.first?.frame.maxY else { return [] }
+        let me = ProcessInfo.processInfo.processIdentifier
+        return list.compactMap { info in
+            guard (info[kCGWindowOwnerPID as String] as? Int32) != me,
+                  (info[kCGWindowLayer as String] as? Int ?? 0) >= Int(CGWindowLevelForKey(.mainMenuWindow)),
+                  !["Window Server", "Dock"].contains(info[kCGWindowOwnerName as String] as? String ?? ""),
+                  let bounds = info[kCGWindowBounds as String] as? NSDictionary,
+                  let rect = CGRect(dictionaryRepresentation: bounds) else { return nil }
+            // Window lists count from the top left of the main display, AppKit from its bottom left.
+            return CGRect(x: rect.minX, y: top - rect.maxY, width: rect.width, height: rect.height)
+        }
+    }
+
     private func contentHeightChanged(_ height: CGFloat) {
         guard height > 0, abs(height - contentHeight) > 0.5 else { return }
         contentHeight = height
@@ -288,7 +310,7 @@ final class IslandPresenter: NSObject {
     private func render() {
         guard let placement else { return }
         if wing.isSettled { compactFrom = compactTo; alphaFrom = alphaTo }
-        let openRect = IslandGeometry.open(placement, contentHeight: ceil(contentHeight))
+        let openRect = IslandGeometry.open(placement, contentHeight: ceil(contentHeight), besideTool: besideTool)
         let showsOpen = opening.value > 0 || opening.target > 0
         let frame = IslandGeometry.windowFrame(placement, covering: [compactFrom, compactTo] + (showsOpen ? [openRect] : []))
         if panel.frame != frame {

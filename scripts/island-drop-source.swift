@@ -37,6 +37,13 @@ func point(_ prefix: String, after count: Int = 0) -> CGPoint? {
 func post(_ type: CGEventType, _ point: CGPoint) {
     CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
 }
+func pressShortcut() {
+    for down in [true, false] {
+        let key = CGEvent(keyboardEventSource: nil, virtualKey: 49, keyDown: down) // Space
+        key?.flags = .maskAlternate
+        key?.post(tap: .cghidEventTap)
+    }
+}
 func pause(_ seconds: Double) { Thread.sleep(forTimeInterval: seconds) }
 var failures = 0
 func report(_ ok: Bool, _ text: String) { print("\(ok ? "✓" : "✗") \(text)"); if !ok { failures += 1 } }
@@ -93,11 +100,7 @@ Thread.detachNewThread {
     report(state().hasPrefix("STATE open=false"), "A click in another app closes the island (\(state()))")
     // 3. The default shortcut, as a real key press.
     let before = lines().count
-    for down in [true, false] {
-        let key = CGEvent(keyboardEventSource: nil, virtualKey: 49, keyDown: down) // Space
-        key?.flags = .maskAlternate
-        key?.post(tap: .cghidEventTap)
-    }
+    pressShortcut()
     pause(1.5)
     report(lines().contains("HOTKEY optionSpace"), "Pressing ⌥ Space calls Pippa (default shortcut)")
     let focus = lines().last { $0.hasPrefix("FOCUS ") } ?? "FOCUS missing"
@@ -110,6 +113,13 @@ Thread.detachNewThread {
     } else {
         report(false, "The open island reported its place")
     }
+    // 5. While she answers a question from the island and afterwards, the keyboard stays in its field.
+    pressShortcut()
+    pause(2)
+    let answering = lines().last { $0.hasPrefix("ANSWERING ") } ?? "ANSWERING missing"
+    let answered = lines().last { $0.hasPrefix("ANSWERED ") } ?? "ANSWERED missing"
+    report(answering == "ANSWERING open=true key=true field=true" && answered == "ANSWERED open=true key=true field=true",
+           "The question field keeps the keyboard while Pippa answers and after (\(answering); \(answered))")
     clickOutside()
     post(.mouseMoved, home)
     exit(failures == 0 ? 0 : 1)

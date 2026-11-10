@@ -30,7 +30,7 @@ struct IslandCompactView: View {
         Group {
             if let housingWidth {
                 HStack(spacing: IslandStyle.wingGap) {
-                    PippaMark(size: IslandStatus.markSize, state: status.markState)
+                    IslandMark(status: status, size: IslandStatus.markSize)
                     if status.showsCompact { IslandLine(status: status).transition(.opacity) }
                 }
                 .padding(.leading, IslandStyle.wingInset)
@@ -39,7 +39,7 @@ struct IslandCompactView: View {
                 .animation(.easeOut(duration: 0.18), value: status.showsCompact)
             } else {
                 HStack(spacing: 7) {
-                    PippaMark(size: IslandStatus.markSize, state: status.markState)
+                    IslandMark(status: status, size: IslandStatus.markSize)
                     IslandLine(status: status)
                 }
                 .padding(.leading, 6).padding(.trailing, 12)
@@ -48,6 +48,24 @@ struct IslandCompactView: View {
         }
         .frame(maxHeight: .infinity)
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// Pippa's mark, or her handwriting while words of the answer come in.
+struct IslandMark: View {
+    let status: IslandStatus
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            if status.writing {
+                Scribble(size: size).transition(.opacity)
+            } else {
+                PippaMark(size: size, state: status.markState).transition(.opacity)
+            }
+        }
+        .frame(width: size, height: size)
+        .animation(.easeOut(duration: 0.18), value: status.writing)
     }
 }
 
@@ -92,21 +110,45 @@ struct IslandPanelView: View {
     @ObservedObject var setup: SetupModel
     @ObservedObject var approvals: Approvals
     var onHeight: (CGFloat) -> Void = { _ in }
+    /// At the notch: the menu bar row beside the housing, where the header stays. Nil under the menu bar symbol.
+    var menuBarRow: MenuBarRow?
     @FocusState private var fieldFocused: Bool
     @ObservedObject private var drop = DropFeedback.island
 
+    struct MenuBarRow: Equatable {
+        var height: CGFloat
+        /// From the housing's left edge to the panel's right edge: the part of the row the header must leave free.
+        var besideHousing: CGFloat
+    }
+
     var body: some View {
-        Group {
-            if island.dropMode { dropTray } else { content }
+        VStack(spacing: 0) {
+            if let menuBarRow {
+                // Mark and line stay in the menu bar, left of the camera; the panel only grows below it.
+                header(markSize: IslandStatus.markSize)
+                    .padding(.leading, IslandStyle.padding)
+                    .padding(.trailing, IslandStyle.wingGap + menuBarRow.besideHousing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: menuBarRow.height)
+                    // As on the closed island, a click on the mark's row closes it.
+                    .contentShape(Rectangle())
+                    .onTapGesture { island.compactClicked() }
+            }
+            Group {
+                if island.dropMode { dropTray } else { content }
+            }
+            .padding(.horizontal, IslandStyle.padding).padding(.top, menuBarRow == nil ? 10 : 6).padding(.bottom, IslandStyle.padding)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeight($0) }
         }
-        .padding(.horizontal, IslandStyle.padding).padding(.top, 10).padding(.bottom, IslandStyle.padding)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeight($0) }
         .frame(maxHeight: .infinity, alignment: .top)
         .environment(\.colorScheme, .dark)
         .onAppear { if island.wantsFocus { fieldFocused = true } }
         .onChange(of: island.focusToken) { fieldFocused = true }
+        // The field stays usable while she answers, so it keeps the keyboard after Return; this brings it back if
+        // something else took it.
+        .onChange(of: chat.isAnswering) { _, answering in if !answering && island.isOpen { fieldFocused = true } }
     }
 
     /// While files are dragged toward the island: one large target that lights up when they are over it.
@@ -135,7 +177,7 @@ struct IslandPanelView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header
+            if menuBarRow == nil { header(markSize: 22) }
             if let question = approvals.questions.first {
                 IslandQuestionView(question: question).id(question.id)
             } else if chat.isAnswering {
@@ -187,37 +229,69 @@ struct IslandPanelView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 10) {
-            PippaMark(size: 22, state: island.status.markState)
-            Text(island.status.tone == .rest ? "Pippa" : island.status.label)
+    private func header(markSize: CGFloat) -> some View {
+        HStack(spacing: markSize < 20 ? IslandStyle.wingGap : 10) {
+            IslandMark(status: island.status, size: markSize)
+            // In the menu bar row just her name and the sign: the panel below says what she does or asks.
+            Text(island.status.tone == .rest || markSize < 20 ? "Pippa" : island.status.label)
                 .font(.system(size: 13, weight: .semibold)).monospacedDigit()
                 .foregroundStyle(IslandStyle.white(IslandStyle.primary))
                 .lineLimit(1).truncationMode(.middle)
             Spacer(minLength: 0)
-            if let symbol = island.status.symbol {
+            // Beside the notch the row has room for the name only; the panel below shows the question or the answer.
+            if markSize >= 20, let symbol = island.status.symbol {
                 Image(systemName: symbol).font(.system(size: 11, weight: .bold)).foregroundStyle(IslandStyle.tint(island.status.tone))
             }
         }
         .accessibilityElement(children: .combine)
     }
 
+    /// While she works: her steps as a chain, newest at the bottom, and what she is doing right now at its end: her
+    /// thinking or the answer as it is written, the last few lines of it.
     private var steps: some View {
-        let running = chat.answering?.messages.last?.steps.suffix(3) ?? []
-        return VStack(alignment: .leading, spacing: 6) {
-            if running.isEmpty {
-                Text(T("Thinking…", table: "App")).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+        let message = chat.answering?.messages.last
+        let all = message?.steps ?? []
+        let shown = Array(all.suffix(4))
+        let now = IslandChain.now(message: message, writing: chat.isWriting)
+        // A running step is what she does right now: the chain ends on it.
+        let running = all.contains { !$0.done }
+        return VStack(alignment: .leading, spacing: 0) {
+            if all.count > shown.count {
+                IslandChainRow(node: .earlier, isFirst: true, isLast: false) {
+                    Text(T("%lld earlier steps", table: "Island", all.count - shown.count))
+                        .foregroundStyle(IslandStyle.white(IslandStyle.tertiary))
+                }
             }
-            ForEach(Array(running)) { step in
-                HStack(spacing: 8) {
-                    Image(systemName: step.failed ? "exclamationmark.circle" : step.done ? "checkmark.circle" : "circle.dotted")
-                        .foregroundStyle(step.failed ? IslandStyle.bad : IslandStyle.white(step.done ? IslandStyle.tertiary : IslandStyle.secondary))
+            ForEach(Array(shown.enumerated()), id: \.element.id) { index, step in
+                IslandChainRow(node: step.failed ? .failed : step.done ? .done : .running,
+                               isFirst: index == 0 && all.count == shown.count, isLast: running && index == shown.count - 1) {
                     Text(step.label).lineLimit(1).truncationMode(.middle)
                         .foregroundStyle(IslandStyle.white(step.done ? IslandStyle.secondary : IslandStyle.primary))
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            if !running {
+                IslandChainRow(node: now.writing ? .writing : .thinking, isFirst: all.isEmpty, isLast: true) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(now.writing ? T("Writing…", table: "App")
+                                         : chat.startingAI && all.isEmpty ? T("Starting my AI…", table: "App") : T("Thinking…", table: "App"))
+                            .foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                            .contentTransition(.opacity)
+                        if let tail = now.tail {
+                            Text(tail)
+                                .font(.system(size: 12)).italic(!now.writing)
+                                .foregroundStyle(IslandStyle.white(now.writing ? IslandStyle.secondary + 0.1 : IslandStyle.secondary))
+                                .lineSpacing(2).lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
                 }
             }
         }
         .font(.system(size: 12))
+        .animation(.easeOut(duration: 0.2), value: all.map(\.id))
+        .animation(.easeOut(duration: 0.18), value: now.writing)
     }
 
     private var setupProgress: Double? {
@@ -277,7 +351,6 @@ struct IslandPanelView: View {
             .font(.system(size: 13))
             .foregroundStyle(IslandStyle.white(IslandStyle.primary))
             .focused($fieldFocused)
-            .disabled(chat.isAnswering)
             .onSubmit { island.send() }
             .padding(.horizontal, 10).padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(IslandStyle.white(0.1)))
@@ -386,5 +459,78 @@ struct IslandButtonStyle: ButtonStyle {
             .background(Capsule().fill(prominent ? IslandStyle.white(configuration.isPressed ? 0.75 : IslandStyle.primary)
                                                  : IslandStyle.white(configuration.isPressed ? 0.24 : 0.14)))
             .contentShape(Capsule())
+    }
+}
+
+/// The working state's chain: nodes on a thin line, one row per step.
+enum IslandChain {
+    enum Node { case earlier, done, running, failed, thinking, writing }
+
+    /// What she is doing right now and the last words of it (thinking, or the answer as it comes in).
+    @MainActor
+    static func now(message: ChatMessage?, writing: Bool) -> (writing: Bool, tail: String?) {
+        let running = message?.steps.contains { !$0.done } ?? false
+        if writing && !running { return (true, tail(message?.text, plain: true)) }
+        return (false, running ? nil : tail(message?.thinking, plain: false))
+    }
+
+    /// The last ~150 characters on one flowing line, starting at a word: enough for three lines in the island.
+    static func tail(_ text: String?, plain: Bool, limit: Int = 150) -> String? {
+        guard var text = text else { return nil }
+        if plain { text = text.replacingOccurrences(of: #"[*#`>|_]+"#, with: "", options: .regularExpression) }
+        text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return nil }
+        guard text.count > limit else { return text }
+        var cut = String(text.suffix(limit))
+        if let space = cut.firstIndex(of: " ") { cut = String(cut[cut.index(after: space)...]) }
+        return "…" + cut
+    }
+}
+
+struct IslandChainRow<Label: View>: View {
+    let node: IslandChain.Node
+    let isFirst: Bool
+    let isLast: Bool
+    @ViewBuilder var label: Label
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            nodeView
+                .frame(width: 14, height: 16)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .background(alignment: .top) {
+                    // The line through the nodes: from the row above into the one below.
+                    VStack(spacing: 0) {
+                        Rectangle().fill(isFirst ? .clear : IslandStyle.white(0.16)).frame(width: 1, height: 3)
+                        Spacer(minLength: 0).frame(height: 10)
+                        Rectangle().fill(isLast ? .clear : IslandStyle.white(0.16)).frame(width: 1)
+                    }
+                }
+            label
+                .frame(minHeight: 16, alignment: .leading)
+                .padding(.bottom, isLast ? 0 : 6)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private var nodeView: some View {
+        switch node {
+        case .earlier:
+            Circle().fill(IslandStyle.white(0.22)).frame(width: 4, height: 4)
+        case .done:
+            Image(systemName: "checkmark").font(.system(size: 8, weight: .bold))
+                .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                .frame(width: 12, height: 12).background(Circle().fill(IslandStyle.white(0.1)))
+        case .running:
+            SpinRing(size: 11, lineWidth: 1.5, color: IslandStyle.accent)
+        case .failed:
+            Image(systemName: "exclamationmark").font(.system(size: 8, weight: .bold)).foregroundStyle(IslandStyle.bad)
+                .frame(width: 12, height: 12).background(Circle().fill(IslandStyle.bad.opacity(0.16)))
+        case .thinking:
+            PippaMark(size: 14, state: .arbeitet)
+        case .writing:
+            Scribble(size: 14)
+        }
     }
 }
