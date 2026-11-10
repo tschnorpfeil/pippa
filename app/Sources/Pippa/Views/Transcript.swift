@@ -66,8 +66,9 @@ struct Transcript: View {
                 .padding(.horizontal, Layout.gutter)
                 .frame(maxWidth: .infinity)
             }
+            // No scroll bar: `.hidden` still shows the wide one whenever a mouse is connected, `.never` does not.
+            .scrollIndicators(.never)
             // Open at the end of the conversation, not at its top and then a jump.
-            .scrollIndicators(.hidden)
             .defaultScrollAnchor(.bottom, for: .initialOffset)
             .onScrollPhaseChange { _, phase in
                 userScrollingState.wrappedValue = phase == .interacting || phase == .tracking || phase == .decelerating

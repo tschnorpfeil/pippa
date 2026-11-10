@@ -9,6 +9,9 @@ struct WorkView: View {
     @Environment(\.expandsWork) private var expandsWork
     private let openState = State(initialValue: false)
     private let hoverState = State(initialValue: false)
+    /// Opened while the answer came in: the thinking keeps its six lines when the answer ends, so nothing below jumps.
+    /// Opening it again shows all of it.
+    private let cappedState = State(initialValue: false)
 
     private var open: Bool { openState.wrappedValue }
     private var thinking: String? {
@@ -18,31 +21,45 @@ struct WorkView: View {
     private var canOpen: Bool { !message.steps.isEmpty || thinking != nil }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.xxs) {
-            Button { withAnimation(Theme.arrive) { openState.wrappedValue.toggle() } } label: { header }
+        VStack(alignment: .leading, spacing: 0) {
+            Button { toggle() } label: { header }
                 .buttonStyle(.plain)
                 .disabled(!canOpen)
                 .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering && canOpen } }
                 .onAppear { if expandsWork && canOpen { openState.wrappedValue = true } }
-            if open {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(message.steps) { step in stepRow(step) }
-                    if let thinking {
-                        Text(thinking)
-                            .font(Typo.footnote).foregroundStyle(Theme.ink3).lineSpacing(3)
-                            .textSelection(.enabled)
-                            .lineLimit(live ? 6 : nil)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.leading, Space.ml)
-                            .overlay(alignment: .leading) { Rectangle().fill(Theme.fill3).frame(width: 2) }
-                            .padding(.top, message.steps.isEmpty ? Space.xs : Space.s).padding(.bottom, Space.xs)
+            // The steps fade in while this box grows and clips them: they never slide over the row above or the answer below.
+            VStack(alignment: .leading, spacing: 0) {
+                if open {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(message.steps) { step in stepRow(step) }
+                        if let thinking {
+                            Text(thinking)
+                                .font(Typo.footnote).foregroundStyle(Theme.ink3).lineSpacing(3)
+                                .textSelection(.enabled)
+                                .lineLimit(live || cappedState.wrappedValue ? 6 : nil)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.leading, Space.ml)
+                                .overlay(alignment: .leading) { Rectangle().fill(Theme.fill3).frame(width: 2) }
+                                .padding(.top, message.steps.isEmpty ? Space.xs : Space.s).padding(.bottom, Space.xs)
+                        }
                     }
+                    .padding(.leading, 22).padding(.top, Space.xxs)
+                    .transition(.opacity)
                 }
-                .padding(.leading, 22)
-                .transition(Theme.reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .clipped()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Opening grows softly; closing is quick, because the conversation below moves up with it.
+    private func toggle() {
+        let opening = !open
+        withAnimation(opening ? Theme.arrive : Theme.leave) {
+            openState.wrappedValue = opening
+            cappedState.wrappedValue = opening && live
+        }
     }
 
     private var header: some View {

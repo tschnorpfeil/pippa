@@ -41,16 +41,19 @@ enum Theme {
     // Same red as the figure's sad face (MarkPalette.destructive), so face and sign match.
     static let bad = dynamic(light: hex(0xC4001D), dark: hex(0xF89DA4))
     static let badTint = dynamic(light: hex(0xC4001D, 0.10), dark: hex(0xF89DA4, 0.14))
-    // Calm chat surfaces. Color marks interaction, not the whole work area.
-    static let chatTint = dyn(hex(0xFCFBF9, 1), hex(0x1B1B1D, 1))
+    // Calm chat surfaces. Color marks interaction, not the whole work area. Dark is almost black, like Pippa Island:
+    // the window and the island read as one thing, and the blue of her mark stands out.
+    static let chatTint = dyn(hex(0xFCFBF9, 1), hex(0x0B0B0C, 1))
+    /// The conversation list and "About this answer" in dark: a step deeper than the chat. Light keeps the system's own.
+    static let sideTint = dynamic(light: .clear, dark: hex(0x050506))
     // Neutral like the window around it: a blue cast here made the composer, step chips and receipts look bluish.
-    static let chatCard = dynamic(light: hex(0xFFFFFF), dark: hex(0x262628))
+    static let chatCard = dynamic(light: hex(0xFFFFFF), dark: hex(0x17171A))
     /// Code blocks and table heads: neutral like the cards (the old blue cast is gone).
-    static let chatInset = dynamic(light: hex(0xF3F2EF), dark: hex(0x202022))
-    static let chatUser = dynamic(light: hex(0xEEEDEA), dark: hex(0x2D2D30))
+    static let chatInset = dynamic(light: hex(0xF3F2EF), dark: hex(0x121214))
+    static let chatUser = dynamic(light: hex(0xEEEDEA), dark: hex(0x1F1F23))
     // Surface edges and row states (T3-style: hairlines, not borders; hover is a quiet fill, never a border colour).
     /// The 1 pt edge of a raised surface.
-    static let hairline = dynamic(light: hex(0x000000, 0.08), dark: NSColor(white: 1, alpha: 0.07))
+    static let hairline = dynamic(light: hex(0x000000, 0.08), dark: NSColor(white: 1, alpha: 0.09))
     /// Light catching the top edge of a raised surface in dark mode.
     static let topLight = dynamic(light: .clear, dark: NSColor(white: 1, alpha: 0.04))
     static let rowHover = whiteA(0.045, 0.055)

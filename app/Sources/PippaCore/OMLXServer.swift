@@ -22,11 +22,13 @@ public actor OMLXServer {
     }
 
     /// Whether a failure of the local AI (the text Pi passes through) means the model does not fit in memory right now:
-    /// oMLX answers 507 with "… does not fit under the dynamic memory ceiling …". The status counts only where a status
-    /// stands ("507: {…}", "HTTP 507", "status code 507"), not as a number inside the message ("40,507 tokens").
+    /// oMLX answers 507 with "… does not fit under the dynamic memory ceiling …", or its memory guard ends a running
+    /// request ("… process memory limit exceeded …"). The status counts only where a status stands ("507: {…}",
+    /// "HTTP 507", "status code 507"), not as a number inside the message ("40,507 tokens").
     public static func isOutOfMemory(_ errorText: String) -> Bool {
         let text = errorText.lowercased()
         return text.contains("does not fit under the dynamic memory ceiling")
+            || text.contains("process memory limit exceeded")
             || text.range(of: #"(?:^\s*|\bhttp |\bstatus(?: code)?:? )507\b"#, options: .regularExpression) != nil
     }
 

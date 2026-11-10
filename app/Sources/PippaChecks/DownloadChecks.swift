@@ -217,6 +217,60 @@ private final class StallingServer: @unchecked Sendable {
     }
 }
 
+/// Loopback HTTP fixture that answers `Range: bytes=a-b` with exactly those bytes after a short pause, one request per
+/// connection, and counts how many connections were open at once. `ignoresRange`: always the whole payload with `200`.
+private final class RangeServer: @unchecked Sendable {
+    let listener: NWListener
+    let payload: Data
+    let ignoresRange: Bool
+    private var open = 0
+    private(set) var mostAtOnce = 0
+    private(set) var ranges: [Range<Int>] = []
+    private let lock = NSLock()
+
+    init(payload: Data, ignoresRange: Bool = false) throws {
+        self.payload = payload
+        self.ignoresRange = ignoresRange
+        listener = try NWListener(using: .tcp, on: .any)
+    }
+
+    func start() async throws -> UInt16 {
+        listener.newConnectionHandler = { [self] c in
+            c.start(queue: .global())
+            lock.withLock { open += 1; mostAtOnce = max(mostAtOnce, open) }
+            c.receive(minimumIncompleteLength: 1, maximumLength: 64 << 10) { [self] data, _, _, _ in
+                let head = String(decoding: data ?? Data(), as: UTF8.self)
+                let bounds = head.range(of: #"(?i)range: bytes=(\d+)-(\d*)"#, options: .regularExpression)
+                    .map { head[$0].split(separator: "=").last!.split(separator: "-", omittingEmptySubsequences: false).map { Int($0) } }
+                var reply: Data
+                if !ignoresRange, let first = bounds?.first ?? nil {
+                    let last = min(payload.count - 1, (bounds?.last ?? nil) ?? payload.count - 1)
+                    lock.withLock { ranges.append(first..<(last + 1)) }
+                    reply = Data(("HTTP/1.1 206 Partial Content\r\nContent-Length: \(last - first + 1)\r\n"
+                        + "Content-Range: bytes \(first)-\(last)/\(payload.count)\r\nConnection: close\r\n\r\n").utf8) + payload[first...last]
+                } else {
+                    reply = Data("HTTP/1.1 200 OK\r\nContent-Length: \(payload.count)\r\nConnection: close\r\n\r\n".utf8) + payload
+                }
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) { [self] in
+                    c.send(content: reply, completion: .contentProcessed { [self] _ in
+                        lock.withLock { open -= 1 }
+                        c.cancel()
+                    })
+                }
+            }
+        }
+        for _ in 0..<200 {
+            if let port = listener.port?.rawValue, port != 0 { return port }
+            if listener.state == .setup { listener.start(queue: .global()) }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        throw PippaError.downloadFailed("fixture")
+    }
+
+    func stop() { listener.cancel() }
+    var seen: (mostAtOnce: Int, ranges: [Range<Int>]) { lock.withLock { (mostAtOnce, ranges) } }
+}
+
 func runDownloadHangChecks() async {
     check("Download: mirror asset names (path with / as --, parts above partSize) and the catalog's mirror") {
         let mirror = CatalogModel.Mirror(url: "https://github.com/tschnorpfeil/pippa/releases/download/model-x-abc1234/", partSize: 2_000_000_000)
@@ -266,6 +320,40 @@ func runDownloadHangChecks() async {
         // Watchdog (0.5 s) plus one retry pause (3 s), far below URLSession's 60 s idle timeout.
         return downloader.isInstalled(selected) && downloaded == payload && Date().timeIntervalSince(started) < 20
     }
+    await checkAsync("Download: a large file comes in pieces over several connections at once, resumed where the part file ends") {
+        let server = try RangeServer(payload: payload)
+        defer { server.stop() }
+        let port = try await server.start()
+        let directory = dir("download-parallel")
+        try payload.prefix(12_345).write(to: directory.appendingPathComponent("model.gguf.part"))
+        let downloader = ModelDownloader(directory: directory)
+        downloader.source = "http://127.0.0.1:\(port)"
+        downloader.parallelMinimum = 1
+        downloader.pieceSize = 20_000
+        let selected = try model("parallel")
+        let progress = Recorded()
+        try await downloader.download(selected) { done, _ in progress.add(done) }
+        let downloaded = try Data(contentsOf: downloader.localURL(selected.pinned!.files[0]))
+        let seen = server.seen
+        // 15 pieces from byte 12 345 on, none twice, several under way together; progress only ever grows.
+        return downloader.isInstalled(selected) && downloaded == payload && seen.mostAtOnce > 1
+            && seen.ranges.sorted { $0.lowerBound < $1.lowerBound }.map(\.lowerBound) == Array(stride(from: 12_345, to: payload.count, by: 20_000))
+            && seen.ranges.reduce(0) { $0 + $1.count } == payload.count - 12_345
+            && progress.values == progress.values.sorted() && progress.values.last == 1
+    }
+    await checkAsync("Download: a server that ignores Range for pieces still delivers the file, over one connection") {
+        let server = try RangeServer(payload: payload, ignoresRange: true)
+        defer { server.stop() }
+        let port = try await server.start()
+        let downloader = ModelDownloader(directory: dir("download-parallel-fallback"))
+        downloader.source = "http://127.0.0.1:\(port)"
+        downloader.parallelMinimum = 1
+        downloader.pieceSize = 20_000
+        let selected = try model("parallel-fallback")
+        try await downloader.download(selected) { _, _ in }
+        let downloaded = try Data(contentsOf: downloader.localURL(selected.pinned!.files[0]))
+        return downloader.isInstalled(selected) && downloaded == payload
+    }
     await checkAsync("Download: the runtime archive uses the same downloader (all bytes in without completion, then verified and unpacked)") {
         let base = dir("download-runtime")
         let archive = try Data(contentsOf: fakeRuntimeArchive(in: base, padding: 300_000))
@@ -278,5 +366,25 @@ func runDownloadHangChecks() async {
         let started = Date()
         try await runtime.install { _ in }
         return runtime.isInstalled && Date().timeIntervalSince(started) < 10
+    }
+}
+
+/// Progress values a download reported, collected across threads.
+private final class Recorded: @unchecked Sendable {
+    private var list: [Double] = []
+    private let lock = NSLock()
+    func add(_ value: Double) { lock.withLock { list.append(value) } }
+    var values: [Double] { lock.withLock { list } }
+}
+
+/// `PIPPA_LIVE_DOWNLOAD_CHECKS=1`: needs the network.
+func runLiveDownloadChecks() async {
+    await checkAsync("Download: the real AI runtime archive arrives, verifies and unpacks") {
+        let runtime = MLXRuntime(support: dir("download-live"), environment: [:])!
+        let started = Date()
+        try await runtime.install { _ in }
+        let seconds = Date().timeIntervalSince(started)
+        print(String(format: "  %.0f MB in %.0f s, %.1f MB/s (download, check and unpacking)", Double(runtime.manifest.size) / 1e6, seconds, Double(runtime.manifest.size) / 1e6 / seconds))
+        return runtime.isInstalled
     }
 }

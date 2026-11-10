@@ -25,6 +25,8 @@ struct GhostButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Never squeezed by what stands beside it (source chips): the title stays on one line.
+        .fixedSize()
         .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
         .help(title)
         .accessibilityLabel(title)

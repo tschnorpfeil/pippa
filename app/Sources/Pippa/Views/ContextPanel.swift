@@ -30,6 +30,7 @@ struct ContextPanel: View {
         // and the panel starts ~50 pt lower than the conversation. Now its heading shares the row with the title.
         .ignoresSafeArea(.container, edges: .top)
         .safeAreaInset(edge: .bottom, spacing: 0) { footer }
+        .background(Theme.sideTint)
     }
 
     /// No answer yet: what the panel will show, instead of empty sections.
@@ -130,7 +131,7 @@ struct ContextPanel: View {
         .font(Typo.caption)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Space.xl).padding(.vertical, Space.l)
-        .background(.bar)
+        .background { Rectangle().fill(.bar).overlay(Theme.sideTint) }
         .overlay(alignment: .top) { Rectangle().fill(Theme.hairline).frame(height: 1) }
     }
 

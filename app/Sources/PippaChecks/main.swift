@@ -54,6 +54,8 @@ await focused("PIPPA_DURABLE_JOB_CHECKS", "Durable job") { await runDurableJobCh
 await focused("PIPPA_FILE_PREPARATION_CHECKS", "File preparation") { await runFilePreparationChecks() }
 await focused("PIPPA_MCP_FILE_PREPARATION_CHECKS", "MCP file preparation") { await runMCPFilePreparationChecks() }
 await focused("PIPPA_DOWNLOAD_CHECKS", "Download") { await runDownloadChecks() }
+// The real AI runtime archive from GitHub releases (about 350 MB), with its speed: only on request, it needs the network.
+await focused("PIPPA_LIVE_DOWNLOAD_CHECKS", "Live download") { await runLiveDownloadChecks() }
 await focused("PIPPA_MARKDOWN_CHECKS", "Markdown") { runMarkdownChecks() }
 // Pippa Island's geometry, spring and choreography; no windows.
 await focused("PIPPA_ISLAND_CHECKS", "Island") { runIslandChecks() }

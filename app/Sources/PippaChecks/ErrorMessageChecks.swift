@@ -32,6 +32,11 @@ func runErrorMessageChecks() {
         let plain = OMLXServer.plainFailure(memoryText, online: false)
         return plain == PippaError.notEnoughMemory.errorDescription && plain?.contains("507") == false
     }
+    check("Local AI: a request the memory guard ended mid-answer reads as the short-on-memory sentence too") {
+        let aborted = "oMLX memory guard aborted this request mid-prefill: Request aborted: process memory limit exceeded (usage 6.4 GB, abort threshold (hard watermark) 6.4 GB, dynamic ceiling 6.7 GB). Close other apps to free RAM, raise memory_guard_tier (safe → balanced → aggressive), or reduce context length."
+        return OMLXServer.plainFailure(aborted, online: false) == PippaError.notEnoughMemory.errorDescription
+            && OMLXServer.plainFailure(aborted, online: true) == nil
+    }
     check("Local AI: the status 507 or the memory ceiling alone is enough, in any case") {
         OMLXServer.isOutOfMemory("HTTP 507 Insufficient Storage") && OMLXServer.isOutOfMemory("Does Not Fit Under The Dynamic Memory Ceiling")
     }

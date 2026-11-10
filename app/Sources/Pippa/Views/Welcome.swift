@@ -34,7 +34,7 @@ struct Welcome: View {
                 // Center the complete introduction when there is room; shorter windows scroll naturally.
                 .frame(minHeight: geometry.size.height, alignment: .center)
             }
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.never)
         }
     }
 
