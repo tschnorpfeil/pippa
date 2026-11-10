@@ -45,5 +45,8 @@ Use the commands in [development.md](development.md) and fresh evidence for each
 fixture and live acceptance results separate. The signed app's real permissions and source opening need live proof.
 No new production tool or card ships before the existing acceptance tasks pass.
 
-Current memory result: not measured. Historical probes inform questions to investigate; they are not new test results
-or grounds for public performance claims. Release preparation follows [releases/README.md](releases/README.md).
+Current memory result: the bounded diagnostic and fixture checks are implemented. A direct development-binary run
+reported `notDetermined` for both sources without prompting; granted-library coverage and usefulness remain unmeasured.
+Headless asks and the evidence runner provide repeatable technical checks; the five live acceptance tasks are not
+claimed as passed. Historical probes are not grounds for new public performance claims. Release preparation follows
+[releases/README.md](releases/README.md).

@@ -196,6 +196,51 @@ PIPPA_SNAPSHOT_LIVE=1 app/.build/debug/Pippa --snapshot <folder>        # the sa
 node scripts/check-site.cjs                                             # website content and behavior
 ```
 
+### Headless evidence and the memory experiment
+
+`Pippa --ask "question"` uses existing permissions and declines Pi's interactive questions. Grant native access in
+Pippa's window first if needed. Every completed invocation ends with one standalone line:
+
+```text
+PIPPA_ASK_RESULT {"status":"completed"}
+```
+
+Statuses and exit codes are `completed` (0), `failed` (1), `needs_access` (2), and `needs_input` (3). A tool failure
+keeps the run failed even if the model later answers. `completed` describes execution only: verify the answer,
+quoted sources, dates and any card/Undo behavior separately. The existing unsupported-date warning remains.
+
+`scripts/quality/run-acceptance.py` collects local evidence for all five
+[acceptance tasks](pippa-next-architecture.md#acceptance). Its `--help` describes a JSON manifest containing an app
+binary and case entries such as `{"id": 1, "argv": ["--ask", "your test question"]}`. Arguments are passed literally.
+Keep manifests with personal questions and transcripts outside the repository or under ignored `.build/`.
+
+```sh
+# Preview configured tasks; nothing runs by default.
+python3 scripts/quality/run-acceptance.py --manifest .build/acceptance-cases.json
+# Execute only the configured task once; the output directory must be new.
+python3 scripts/quality/run-acceptance.py --manifest .build/acceptance-cases.json --only 1 --run --out .build/acceptance-run-1
+```
+
+Missing tasks stay `not_run`. Timeouts, access failures and missing terminal markers stay explicit; every answer
+still needs review. The runner's own exit 0 means the report was written, not that acceptance passed. Reports and
+transcripts use private file permissions. Timeouts stop process groups in the runner-created session; a process
+that starts a different session can escape that cleanup. Do not repeat the calendar-write task merely to compare
+timings. Run labels are supplied by the caller; the runner does not infer cold or warm model state.
+
+The developer-only memory probe reads bounded metadata using existing grants, without a model or an index:
+
+```sh
+app/.build/debug/Pippa --memory-probe --from 2026-10-01 --to 2026-10-08
+PIPPA_MEMORY_PROBE_CHECKS=1 swift run --package-path app --jobs 2 PippaChecks
+```
+
+Dates are inclusive/exclusive in the reported local time zone, with a maximum of 31 calendar days and 500 sampled
+items per source. The JSON contains access states, visible totals, sample counts and timings, never titles, source
+identifiers or coordinates. Photos includes visible photo/video assets and excludes hidden assets; undated assets
+are not assigned to the window. Limited access and truncation are explicit. The OS fetch has no application timeout.
+A bare development binary may lack the signed app's grants; `notDetermined` is not an empty library. Fixture checks
+and aggregate coverage measurements do not establish that a recall feature is useful. See [the 0.6 scope](plan-0.6.md).
+
 **Against the real Pi.** `runtime/pippa-tools/real-pi-*.test.mjs`, `runtime/pippa-local-server/test/real-pi.test.mjs`
 and the Pi-dependent parts of `shell.test.mjs` load the pinned Pi and are skipped without one. Point them at it with
 `PIPPA_PI_CLI`:
