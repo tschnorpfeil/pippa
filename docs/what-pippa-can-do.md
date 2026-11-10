@@ -23,13 +23,13 @@ on, such as the file she is reading. Press ⌃⌥ Space to open it for a quick q
 
 | What you need | How Pippa helps |
 |---|---|
-| **A letter you can act on** | Ask what it says, what you need to do and by when. She quotes the passage her answer comes from and does not work out deadlines from the letter's date. A PDF or a phone photo works. |
+| **A letter you can act on** | Ask what it says, what you need to do and by when. She quotes the passage her answer comes from, and flags full dates (with a year, including nearby ones) in her answer that do not appear in what she read; dates without a year and deadlines measured from receipt still need checking against the original. A PDF or a phone photo works. |
 | **A PDF ready to send** | Drop photos or scans and press **One PDF**, or ask for one PDF in your own words. Pippa keeps your order, checks every page and reports the real file size. Give a size limit, such as 10 MB, and she aims for it. Your originals stay unchanged. |
 | **An appointment or a reminder** | Ask Pippa to add it to Calendar or Reminders, or to add the deadline from a letter. A card under her answer shows what was actually added. |
 | **What's coming up** | Ask about today, this week or a range of dates. She reads your calendar and your open reminders. |
 | **A file you can't find** | Ask "Where is the invoice for my helmet?" Pippa searches your Mac's Spotlight index by content, file name and folder, optionally by year or kind, and lists the newest first. |
 | **A tidier folder** | Ask her to rename a file, move it, or sort a folder's files into subfolders. Moves never overwrite another file. A file she removes goes to the Trash, never deleted for good. |
-| **A reply ready to review** | Pippa finds and reads mails in Apple Mail, including their attachments, and saves an unsent draft in Mail for you to review and send. She never sends mail. |
+| **A reply ready to review** | Pippa finds and reads your newest matching mails in Apple Mail, including document attachments, opens the exact read message when you click its source under her answer, and saves an unsent draft in Mail for you to review and send. She never sends mail. |
 | **A clearer piece of writing** | Shorten a text, make it clearer and friendlier, fix spelling, summarize it or turn notes into a checklist. |
 
 A few more things she can do when you ask:
@@ -55,8 +55,9 @@ A few more things she can do when you ask:
   or changes your files, a card in the conversation asks you, with **Allow** and **Don’t Allow**. The same question
   shows in Pippa Island, so you can answer it without switching windows.
 - **Setting up on a new Mac.** Before the AI download, Pippa checks that there is enough free disk space and tells you
-  how much more is needed. If her AI runs short of memory, she tells you briefly and what helps. She never brings up
-  Apple's window asking you to install developer tools.
+  how much more is needed. If Hugging Face is blocked or fails, she continues from a verified copy on GitHub. If her AI
+  runs short of memory, she tells you briefly and what helps, and if files in her own AI installation are missing she
+  repairs them. She never brings up Apple's window asking you to install developer tools.
 - **Something didn't work?** [Open an issue](https://github.com/tschnorpfeil/pippa/issues) with the version, what you
   asked, what happened and what you expected. Use made-up examples and remove personal details from screenshots.
 

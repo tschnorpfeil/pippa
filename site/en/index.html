@@ -74,6 +74,7 @@
       ],
       "description": "Free Mac helper for paperwork: photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Pippa’s built-in AI runs on your Mac, with no account.",
       "operatingSystem": "macOS 26.2+",
+      "softwareVersion": "0.6.0",
       "applicationCategory": "UtilitiesApplication",
       "processorRequirements": "Apple silicon (M1 or later)",
       "isAccessibleForFree": true,
@@ -951,7 +952,7 @@ strong, b { font-weight: 600; }
       <div class="tier r" aria-hidden="true"><small>Model already there</small><b>0&nbsp;GB</b></div>
     </div>
     <div class="ready"><p><svg class="ic" aria-hidden="true"><use href="#s-checkc"/></svg>Photos and PDFs work before that, with no AI download.</p></div>
-    <p class="note">If disk space is short, Pippa tells you beforehand how much is missing. If her AI runs short of memory, she tells you briefly and what helps. She never brings up Apple’s window for installing developer tools. If oMLX, LM Studio or the Hugging Face cache already has the same model, Pippa uses it instead of downloading it again.</p>
+    <p class="note">If disk space is short, Pippa tells you beforehand how much is missing. If her AI runs short of memory, she tells you briefly and what helps. She never brings up Apple’s window for installing developer tools. If the Hugging Face download is blocked or drops, Pippa carries on from a verified copy on GitHub. If oMLX, LM Studio or the Hugging Face cache already has the same model, Pippa uses it instead of downloading it again.</p>
   </div>
 </section>
 
@@ -995,7 +996,7 @@ strong, b { font-weight: 600; }
           </div>
         </div>
         <h3>Letter explained.</h3>
-        <p>What the letter wants, by when, and the sentence that says so. A phone photo is enough. Check amounts and dates against the original.</p>
+        <p>What the letter wants, by when, and the sentence that says so. A phone photo is enough. Dates with a year not in what Pippa read are flagged to check; dates without a year, amounts and deadlines still need checking against the original.</p>
       </div>
     </div>
   </div>
@@ -1025,7 +1026,7 @@ strong, b { font-weight: 600; }
   <div class="wrap">
     <div class="sh">
       <h2 id="h-apps">Works with your Mac apps.</h2>
-      <p>Deadlines go to Reminders, appointments to Calendar, replies to Mail as drafts. She finds your files and adds up columns in Excel.</p>
+      <p>Deadlines go to Reminders, appointments to Calendar, replies to Mail as drafts. She reads emails and their attachments, opens the read message on click, finds your files and adds up columns in Excel.</p>
     </div>
     <ul class="apps" role="img" aria-label="Six app symbols in a row: Mail, Calendar, Reminders, Finder, Excel and Photos.">
       <li aria-hidden="true"><span class="tile t-mail"><svg viewBox="0 0 52 52"><rect x="9" y="14" width="34" height="24" rx="4" fill="#fff"/><path d="M10.5 16.5 26 28l15.5-11.5" fill="none" stroke="#2a82ef" stroke-width="2.2" stroke-linejoin="round"/></svg></span>Mail</li>
