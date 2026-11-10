@@ -33,7 +33,8 @@ tool or card.
 Released in 0.6.2: "Starting my AI…" in the chat window and on Pippa Island while the local AI starts and loads, with
 an explanation behind an info button (the weights are now loaded before the question goes out); "Writing…" only while
 words come in; files dragged from another app onto the open Pippa Island land there instead of closing it; ⌥ Space as the default shortcut; Pippa Island only left of the notch, with her mark visible
-there at rest.
+there at rest; a drop tray when files are dragged toward the closed island; the question field focused when the
+shortcut opens the island; formatted answers in the island.
 
 Released in 0.6.1: an almost black chat window in Dark Mode to match Pippa Island; large downloads over four
 connections with the single connection as fallback; the plain short-on-memory sentence when oMLX's memory guard ends a

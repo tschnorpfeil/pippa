@@ -64,6 +64,12 @@ enum IslandSnapshots {
                 chat.showSample(sample(.working), current: "s1", answering: true)
                 island.showForSnapshot(status())
             }),
+            // A file dragged toward the island, then over its tray.
+            ("drop-tray", true, {
+                chat.showSample(sample(.answered), current: "s1", answering: false)
+                island.showForSnapshot(status(), dropMode: true)
+            }),
+            ("drop-tray-over", true, { DropFeedback.island.targeted = true }),
         ]
         for (name, open, prepare) in scenes {
             await prepare()
@@ -72,6 +78,8 @@ enum IslandSnapshots {
                              to: folder.appendingPathComponent("\(name)-\(notch ? "notch" : "menubar").png"))
             }
         }
+        DropFeedback.island.targeted = false
+        island.showForSnapshot(status())
         approvals.dismiss("snapshot")
         print(folder.path)
         return 0
@@ -160,6 +168,10 @@ enum IslandSnapshots {
 
         Einwände gehen innerhalb von vier Wochen nach Zugang, also bis **19. November 2026**. Die Abrechnung nennt \
         dafür die Hausverwaltung als Ansprechpartner.
+
+        **Was du tun kannst**
+        - Den Betrag bis zum 15. November überweisen
+        - Bei Fragen die Hausverwaltung Berger anrufen
         """)
         let search = StepLabel.text(tool: "search_files", arguments: #"{"query":"Stadtwerke"}"#)
         let read = StepLabel.text(tool: "read", arguments: #"{"path":"/Users/me/Downloads/Brief-Stadtwerke.pdf"}"#)

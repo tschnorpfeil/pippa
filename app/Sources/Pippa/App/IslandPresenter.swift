@@ -52,6 +52,8 @@ final class IslandView: NSView {
     private var fillAlpha: CGFloat = 1
     /// Window origin in global coordinates; the geometry is global.
     private var origin = CGPoint.zero
+    /// The open panel just became visible: only now can its question field take the keyboard.
+    var onPanelShown: (() -> Void)?
 
     init(island: Island, onHeight: @escaping (CGFloat) -> Void) {
         compact = IslandHostingView(rootView: IslandCompactView(island: island))
@@ -109,7 +111,10 @@ final class IslandView: NSView {
         panel.frame = NSRect(x: openRect.minX - shape.rect.minX, y: openRect.minY - shape.rect.minY + IslandChoreography.contentDrop(open),
                              width: openRect.width, height: max(0, top - openRect.minY))
         panel.alphaValue = IslandChoreography.contentAlpha(open)
-        panel.isHidden = open < 0.01
+        let hidden = open < 0.01
+        let shown = panel.isHidden && !hidden
+        panel.isHidden = hidden
+        if shown { onPanelShown?() }
     }
 
     private func housingHeight(_ placement: IslandPlacement) -> CGFloat {
@@ -167,6 +172,7 @@ final class IslandPresenter: NSObject {
         view.compact.onClick = { [weak island] in island?.compactClicked() }
         view.compact.onDrop = { [weak island] in island?.attach($0) }
         view.panel.onDrop = { [weak island] in island?.attach($0) }
+        view.onPanelShown = { [weak island] in island?.panelShown() }
     }
 
     /// A new display or menu bar position: everything jumps to its resting place there.

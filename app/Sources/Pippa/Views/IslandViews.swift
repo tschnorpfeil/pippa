@@ -93,8 +93,47 @@ struct IslandPanelView: View {
     @ObservedObject var approvals: Approvals
     var onHeight: (CGFloat) -> Void = { _ in }
     @FocusState private var fieldFocused: Bool
+    @ObservedObject private var drop = DropFeedback.island
 
     var body: some View {
+        Group {
+            if island.dropMode { dropTray } else { content }
+        }
+        .padding(.horizontal, IslandStyle.padding).padding(.top, 10).padding(.bottom, IslandStyle.padding)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeight($0) }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .environment(\.colorScheme, .dark)
+        .onAppear { if island.wantsFocus { fieldFocused = true } }
+        .onChange(of: island.focusToken) { fieldFocused = true }
+    }
+
+    /// While files are dragged toward the island: one large target that lights up when they are over it.
+    private var dropTray: some View {
+        let over = drop.targeted
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        return VStack(spacing: 8) {
+            Image(systemName: "arrow.down.doc.fill")
+                .font(.system(size: 26, weight: .medium))
+                .foregroundStyle(over ? IslandStyle.accent : IslandStyle.white(IslandStyle.secondary))
+                .offset(y: over ? 2 : 0)
+            Text(T("Drop here for Pippa", table: "Island"))
+                .font(.system(size: 13, weight: .semibold)).foregroundStyle(IslandStyle.white(IslandStyle.primary))
+            Text(T("Then just ask what to do with it.", table: "Island"))
+                .font(.system(size: 12)).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 22)
+        .background(shape.fill(over ? IslandStyle.accent.opacity(0.14) : IslandStyle.white(0.04)))
+        .overlay(shape.strokeBorder(over ? IslandStyle.accent : IslandStyle.white(0.22),
+                                    style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])))
+        .scaleEffect(over ? 1.02 : 1)
+        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: over)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
             if let question = approvals.questions.first {
@@ -105,11 +144,29 @@ struct IslandPanelView: View {
                 download(progress)
             } else if setupNeedsYou {
                 setupAction
-            } else if let preview {
-                Text(preview)
+            } else if let error = lastAnswer?.error, !error.isEmpty {
+                Text(error)
                     .font(.system(size: 13)).foregroundStyle(IslandStyle.white(IslandStyle.primary - 0.1))
-                    .lineLimit(4).lineSpacing(2)
+                    .lineSpacing(2).fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let text = lastAnswer?.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                // The answer as in the chat (bold, lists, headings, tables), scrolling inside the island when it is long.
+                ScrollView {
+                    MarkdownText(text: text)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // Room under the last line: the fade below only ever covers text that scrolls on.
+                        .padding(.bottom, 12)
+                }
+                .scrollIndicators(.never)
+                .frame(maxHeight: 300)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, -6)
+                .mask {
+                    VStack(spacing: 0) {
+                        Color.black
+                        LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 12)
+                    }
+                }
             } else {
                 Text(T("Ask me anything, or drop a file here.", table: "Island"))
                     .font(.system(size: 13)).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
@@ -128,14 +185,6 @@ struct IslandPanelView: View {
                 .keyboardShortcut(.return, modifiers: .command)
             }
         }
-        .padding(.horizontal, IslandStyle.padding).padding(.top, 10).padding(.bottom, IslandStyle.padding)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeight($0) }
-        .frame(maxHeight: .infinity, alignment: .top)
-        .environment(\.colorScheme, .dark)
-        .onAppear { if island.wantsFocus { fieldFocused = true } }
-        .onChange(of: island.focusToken) { fieldFocused = true }
     }
 
     private var header: some View {
@@ -197,13 +246,10 @@ struct IslandPanelView: View {
             .buttonStyle(IslandButtonStyle(prominent: true))
     }
 
-    /// The beginning of the last answer as plain text; a failed answer shows its error.
-    private var preview: String? {
+    /// The last answer of the conversation in view (or the latest one).
+    private var lastAnswer: ChatMessage? {
         let conversation = chat.current ?? chat.conversations.max { $0.updated < $1.updated }
-        guard let message = conversation?.messages.last(where: { $0.role == .assistant }) else { return nil }
-        if let error = message.error, !error.isEmpty { return error }
-        let text = IslandText.plain(message.text)
-        return text.isEmpty ? nil : text
+        return conversation?.messages.last(where: { $0.role == .assistant })
     }
 
     private var files: some View {
@@ -340,23 +386,5 @@ struct IslandButtonStyle: ButtonStyle {
             .background(Capsule().fill(prominent ? IslandStyle.white(configuration.isPressed ? 0.75 : IslandStyle.primary)
                                                  : IslandStyle.white(configuration.isPressed ? 0.24 : 0.14)))
             .contentShape(Capsule())
-    }
-}
-
-/// The start of an answer without Markdown marks, for a few lines in the island.
-enum IslandText {
-    static func plain(_ markdown: String) -> String {
-        var lines: [String] = []
-        for raw in markdown.components(separatedBy: .newlines) {
-            var line = raw.trimmingCharacters(in: .whitespaces)
-            if line.isEmpty || line.hasPrefix("|") || line.hasPrefix("```") || line.allSatisfy({ "-*_ ".contains($0) }) { continue }
-            while line.hasPrefix("#") { line.removeFirst() }
-            if line.hasPrefix("- ") || line.hasPrefix("* ") { line = "• " + line.dropFirst(2) }
-            line = line.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: "")
-                .replacingOccurrences(of: "`", with: "")
-            lines.append(line.trimmingCharacters(in: .whitespaces))
-            if lines.count == 4 { break }
-        }
-        return lines.joined(separator: "\n")
     }
 }
