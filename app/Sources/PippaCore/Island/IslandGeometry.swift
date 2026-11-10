@@ -63,7 +63,7 @@ public struct IslandSilhouette: Equatable, Sendable {
 /// At the notch Pippa keeps to the left of the housing: tools like tinyStats live on its right, and the menu bar
 /// symbols there should stay readable. The shapes reach into the housing up to 6 pt from its right edge: there they
 /// stay hidden in the camera cutout (their corner curves up before the housing's does), and a click anywhere on the
-/// notch still opens the island.
+/// notch still opens the island. Open, the panel ends on the housing's right edge too.
 public enum IslandGeometry {
     public static let openWidth: CGFloat = 380
     public static let cornerRadius: CGFloat = 22
@@ -132,10 +132,12 @@ public enum IslandGeometry {
     public static func open(_ placement: IslandPlacement, contentHeight: CGFloat) -> CGRect {
         switch placement {
         case .notch(let housing, let screen):
+            // Left of the notch like the wing, its right edge on the housing's: nothing opens over the menu bar right
+            // of the notch, where tools like tinyStats live. The top row beside the housing holds Pippa's mark and line.
             let width = min(openWidth, screen.width - 2 * margin)
             let height = housing.height + max(0, contentHeight)
-            return CGRect(x: clampedX(center: housing.midX, width: width, in: screen), y: screen.maxY - height,
-                          width: width, height: height)
+            let x = min(max(housing.maxX - width, screen.minX + margin), screen.maxX - margin - width)
+            return CGRect(x: x, y: screen.maxY - height, width: width, height: height)
         case .menuBar(let anchor, let visible):
             let width = min(openWidth, visible.width - 2 * margin)
             let top = attachY(anchor: anchor, visible: visible)

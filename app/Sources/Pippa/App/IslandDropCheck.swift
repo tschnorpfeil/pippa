@@ -12,13 +12,34 @@ enum IslandDropCheck {
         Island.shared.start()
         // The default shortcut, as the app registers it: the script presses it at the end.
         // As in the app: the shortcut opens the island for a quick question, and the keyboard must land in its field.
+        var presses = 0
+        func focus(_ name: String) {
+            let panel = Island.shared.presenter?.panel
+            print("\(name) open=\(Island.shared.isOpen) key=\(panel?.isKeyWindow == true) field=\(panel?.firstResponder is NSTextView)")
+        }
         HotkeyCenter.shared.onPress = {
+            presses += 1
             print("HOTKEY \(Hotkey.current.rawValue)")
+            guard presses == 1 else {
+                // A second press: Pippa answers a question sent from the island (there is no AI in this clone, so the
+                // answer is staged), and the keyboard must stay in the field while she answers and after.
+                Task { @MainActor in
+                    let chat = ChatModel.shared
+                    let question = Conversation(id: "check", title: "Check", updated: Date(), messages: [
+                        ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")])
+                    chat.replaceForSnapshot([question], current: "check", answering: true)
+                    try? await Task.sleep(for: .milliseconds(700))
+                    focus("ANSWERING")
+                    chat.replaceForSnapshot([question], current: "check", answering: false)
+                    try? await Task.sleep(for: .milliseconds(700))
+                    focus("ANSWERED")
+                }
+                return
+            }
             Island.shared.ask()
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(900))
-                let panel = Island.shared.presenter?.panel
-                print("FOCUS open=\(Island.shared.isOpen) key=\(panel?.isKeyWindow == true) field=\(panel?.firstResponder is NSTextView)")
+                focus("FOCUS")
             }
         }
         print("HOTKEY_REGISTERED \(HotkeyCenter.shared.apply(Hotkey.current))")
@@ -30,7 +51,7 @@ enum IslandDropCheck {
         let zone = IslandGeometry.compact(placement, width: placement.isNotch ? 120 : 160)
         print("ISLAND_REST \(Int(zone.midX)) \(Int(screen.frame.maxY - zone.midY))")
         var last = "", wasOpen = false
-        for _ in 0..<400 {
+        for _ in 0..<600 {
             let open = Island.shared.isOpen
             if open && !wasOpen {
                 await settle(500)

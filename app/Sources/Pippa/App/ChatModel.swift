@@ -429,7 +429,8 @@ final class ChatModel: ObservableObject {
     }
 
     /// Snapshots only (`Snapshots`): never saved.
-    func replaceForSnapshot(_ conversations: [Conversation], current: String?, answering: Bool, starting: Bool = false) {
+    func replaceForSnapshot(_ conversations: [Conversation], current: String?, answering: Bool, starting: Bool = false,
+                            writing: Bool = false) {
         showsSample = true
         isLoaded = true
         self.conversations = conversations
@@ -438,7 +439,7 @@ final class ChatModel: ObservableObject {
         answeringID = answering ? current : nil
         answerStarted = answering ? Date().addingTimeInterval(-42) : nil
         startingAI = starting
-        isWriting = false
+        isWriting = writing
     }
 
     // MARK: Storage

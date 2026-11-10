@@ -64,6 +64,16 @@ enum IslandSnapshots {
                 chat.showSample(sample(.working), current: "s1", answering: true)
                 island.showForSnapshot(status())
             }),
+            // No step running: her thinking at the end of the chain, then the answer as it is written.
+            ("open-thinking", true, {
+                chat.showSample(sample(.thinking), current: "s1", answering: true)
+                island.showForSnapshot(status())
+            }),
+            ("open-writing", true, {
+                chat.showSample(sample(.writing), current: "s1", answering: true, writing: true)
+                island.showForSnapshot(status())
+            }),
+            ("writing", false, {}),
             // A file dragged toward the island, then over its tray.
             ("drop-tray", true, {
                 chat.showSample(sample(.answered), current: "s1", answering: false)
@@ -153,6 +163,14 @@ enum IslandSnapshots {
             let path = NSBezierPath(roundedRect: housing, xRadius: 10, yRadius: 10)
             path.appendRect(NSRect(x: housing.minX, y: housing.midY, width: housing.width, height: housing.height / 2))
             path.fill()
+            // Another notch tool on the right, like tinyStats: the island must leave it alone.
+            let tool = NSRect(x: housing.maxX - 10, y: housing.minY, width: 110, height: housing.height)
+            NSBezierPath(roundedRect: tool, xRadius: 10, yRadius: 10).fill()
+            NSColor(srgbRed: 0.5, green: 0.72, blue: 1, alpha: 1).setFill()
+            for (i, h) in [6.0, 9, 13].enumerated() {
+                NSBezierPath(roundedRect: NSRect(x: housing.maxX + 14 + Double(i) * 8, y: housing.minY + 9, width: 4, height: h),
+                             xRadius: 2, yRadius: 2).fill()
+            }
         }
     }
 
@@ -160,7 +178,7 @@ enum IslandSnapshots {
         override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
     }
 
-    private enum Sample { case answered, working, failed }
+    private enum Sample { case answered, working, thinking, writing, failed }
 
     private static func sample(_ kind: Sample) -> [Conversation] {
         var answer = ChatMessage(role: .assistant, text: """
@@ -181,6 +199,13 @@ enum IslandSnapshots {
         case .working:
             answer.text = ""
             answer.steps[1].done = false
+        case .thinking:
+            answer.text = ""
+            answer.thinking = "Der Brief nennt zwei Daten: die Fälligkeit der Nachzahlung und die Frist für Einwände. "
+                + "Die Fälligkeit steht im zweiten Absatz, 15. November. Für den Einwand zählen vier Wochen ab Zugang, "
+                + "der Brief kam am 22. Oktober, also bis zum 19. November."
+        case .writing:
+            answer.text = String(answer.text.prefix(150))
         case .failed:
             answer.text = ""
             answer.error = "Pippa darf deinen Kalender nicht lesen. Erlaube es in den Systemeinstellungen unter Datenschutz & Sicherheit."

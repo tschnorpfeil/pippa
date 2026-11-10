@@ -25,7 +25,7 @@ func runIslandChecks() {
             return near(housing.width, 185) && near(housing.height, 32) && near(housing.maxY, display.screen.maxY)
                 && near(housing.midX, display.screen.midX)
         }
-        check("Island: on the \(display.name) display the wing and the mark keep left of the notch, the panel is centred on it") {
+        check("Island: on the \(display.name) display the wing and the mark keep left of the notch, the panel ends on its right edge") {
             guard let housing = IslandGeometry.housing(screen: display.screen, leftArea: display.left, rightArea: display.right,
                                                        topInset: display.inset) else { return false }
             let placement = IslandPlacement.notch(housing: housing, screen: display.screen)
@@ -35,7 +35,7 @@ func runIslandChecks() {
             // Nothing right of the housing: tools like tinyStats live there.
             return near(wing.minX, housing.minX - 120) && near(wing.maxX, housing.maxX - 6) && near(wing.minY, housing.minY)
                 && near(wing.maxY, display.screen.maxY)
-                && near(open.midX, housing.midX) && near(open.width, IslandGeometry.openWidth)
+                && near(open.maxX, housing.maxX) && near(open.width, IslandGeometry.openWidth)
                 && near(open.maxY, display.screen.maxY) && near(open.minY, housing.minY - 240)
                 && near(rest.minX, housing.minX - IslandGeometry.earWidth) && near(rest.maxX, housing.maxX - 6)
                 && near(rest.minY, housing.minY)

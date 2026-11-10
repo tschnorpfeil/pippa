@@ -12,6 +12,8 @@ struct IslandStatus: Equatable {
     var progress: Double?
     /// A file is dragged over the island.
     var targeted = false
+    /// Words of the answer are coming in: the mark becomes her handwriting (`Scribble`).
+    var writing = false
 
     static let rest = IslandStatus(tone: .rest, label: "Pippa")
 
@@ -44,7 +46,7 @@ struct IslandStatus: Equatable {
         if chat.isAnswering {
             let last = chat.answering?.messages.last
             if let step = last?.steps.last(where: { !$0.done }) { return IslandStatus(tone: .working, label: step.label) }
-            if chat.isWriting { return IslandStatus(tone: .working, label: T("Writing…", table: "App")) }
+            if chat.isWriting { return IslandStatus(tone: .working, label: T("Writing…", table: "App"), writing: true) }
             return IslandStatus(tone: .working, label: chat.startingAI ? T("Starting my AI…", table: "App") : T("Thinking…", table: "App"))
         }
         if !setup.usesOnlineAI {

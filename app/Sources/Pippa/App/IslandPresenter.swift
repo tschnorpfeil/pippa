@@ -99,6 +99,12 @@ final class IslandView: NSView {
         if compact.rootView.housingWidth != housingWidth {
             compact.rootView = IslandCompactView(island: compact.rootView.island, housingWidth: housingWidth)
         }
+        let row = housingWidth.map { IslandPanelView.MenuBarRow(height: housingHeight(placement), housingWidth: $0) }
+        if panel.rootView.menuBarRow != row {
+            var view = panel.rootView
+            view.menuBarRow = row
+            panel.rootView = view
+        }
         needsDisplay = true
         let body = shape.rect.offsetBy(dx: -origin.x, dy: -origin.y)
         clip.frame = body
@@ -106,10 +112,9 @@ final class IslandView: NSView {
         clip.isHidden = body.width < 1 || body.height < 1
         compact.frame = compactTarget.offsetBy(dx: -shape.rect.minX, dy: -shape.rect.minY)
         compact.alphaValue = compactAlpha * IslandChoreography.compactAlpha(open)
-        // At the notch the panel's content starts below the housing.
-        let top = openRect.maxY - housingHeight(placement)
+        // At the notch the panel's top row lies beside the housing: Pippa's mark and line stay in the menu bar.
         panel.frame = NSRect(x: openRect.minX - shape.rect.minX, y: openRect.minY - shape.rect.minY + IslandChoreography.contentDrop(open),
-                             width: openRect.width, height: max(0, top - openRect.minY))
+                             width: openRect.width, height: openRect.height)
         panel.alphaValue = IslandChoreography.contentAlpha(open)
         let hidden = open < 0.01
         let shown = panel.isHidden && !hidden

@@ -74,7 +74,15 @@ struct WorkView: View {
     private var header: some View {
         HStack(spacing: 7) {
             if live {
-                PippaMark(size: 16, state: .arbeitet).frame(width: 16, height: 16)
+                ZStack {
+                    if writing && !showsStarting && message.steps.allSatisfy(\.done) {
+                        Scribble(size: 16, color: Theme.accent).transition(.opacity)
+                    } else {
+                        PippaMark(size: 16, state: .arbeitet).transition(.opacity)
+                    }
+                }
+                .frame(width: 16, height: 16)
+                .animation(Theme.quick, value: writing)
                 Text(nowLabel).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle)
                     .contentTransition(.opacity)
                     .animation(Theme.quick, value: nowLabel)

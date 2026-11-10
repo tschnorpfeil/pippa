@@ -100,6 +100,21 @@ enum ConversationStoreChecks {
         let states = events.map { event in writing = ChatModel.writing(writing, after: event); return writing }
         check(states == [false, false, true, false, false, false, true, true, false],
               "Writing shows only while words come in: not for opening line breaks, not while thinking or reading after a first sentence")
+        // The island's chain ends on her thinking or on the answer as it is written, never on both, and never while a step runs.
+        var working = ChatMessage(role: .assistant, text: "**Die Frist** endet\n\nam 19. November.", thinking: "Erst  lesen,\ndann rechnen.")
+        let thinkingNow = IslandChain.now(message: working, writing: false), writingNow = IslandChain.now(message: working, writing: true)
+        working.steps = [ChatStep(id: "1", label: "Lese", done: false)]
+        let stepNow = IslandChain.now(message: working, writing: true)
+        let long = IslandChain.tail(String(repeating: "Wort ", count: 60) + "Ende", plain: false) ?? ""
+        check(thinkingNow.writing == false && thinkingNow.tail == "Erst lesen, dann rechnen."
+              && writingNow.writing && writingNow.tail == "Die Frist endet am 19. November."
+              && stepNow.writing == false && stepNow.tail == nil
+              && long.hasPrefix("…Wort ") && long.hasSuffix("Ende") && long.count <= 151,
+              "the island's chain ends on the thinking or the answer written so far, as plain flowing text cut at a word")
+        let strokes = (0..<3).map { Scribble.stroke($0, at: 12.5) }
+        check(strokes.allSatisfy { $0.count == 91 && $0.allSatisfy { abs($0.x) <= 0.9 && abs($0.y) <= 0.9 } }
+              && Scribble.stroke(0, at: 12.5) != Scribble.stroke(0, at: 13),
+              "Pippa's handwriting stays inside her mark's square and keeps moving")
         let firstMail = mailSource("old@example.test"), secondMail = mailSource("new@example.test")
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",
               "a mail read by id gets its title and openable identity from the result")
