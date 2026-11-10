@@ -28,7 +28,7 @@ public enum MailFiling {
     }
 
     /// Writes the attachments of `eml` into `folder` and returns their files in message order. A file already there with
-    /// the same size is reused, so reading the same mail twice writes nothing new. Empty and inline parts are skipped.
+    /// the same bytes is reused, so reading the same mail twice writes nothing new. Empty and inline parts are skipped.
     public static func saveAttachments(of eml: URL, into folder: URL) -> [URL] { save(of: eml, into: folder).files }
 
     /// As `saveAttachments`, and says what could not be saved so a caller never presents a name as readable content.
@@ -48,8 +48,7 @@ public enum MailFiling {
         var taken: Set<String> = [eml.lastPathComponent.lowercased()]
         for part in parts {
             let url = folder.appendingPathComponent(uniqueName(part.name, taken: &taken))
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
-            if size != part.data.count {
+            if (try? Data(contentsOf: url, options: .mappedIfSafe)) != part.data {
                 guard (try? part.data.write(to: url, options: .atomic)) != nil else { result.unsaved.append(part.name); continue }
             }
             result.saved.append(SavedFile(name: part.name, url: url))
@@ -85,9 +84,15 @@ public enum MailFiling {
     /// message neither saved nor skipped as an inline image (Mail's source can lack parts it has not downloaded).
     static func notSaved(_ listed: [String], _ result: AttachmentSave) -> [String] {
         if result.unreadable { return listed }
-        let accounted = Set((result.saved.map(\.name) + result.skippedInline).map(comparable))
-        var seen = Set(result.unsaved.map(comparable)), names = result.unsaved
-        for name in listed where !accounted.contains(comparable(name)) && seen.insert(comparable(name)).inserted { names.append(name) }
+        var accounted: [String: Int] = [:], names = result.unsaved
+        for name in result.saved.map(\.name) + result.skippedInline + result.unsaved {
+            accounted[comparable(name), default: 0] += 1
+        }
+        for name in listed {
+            let key = comparable(name)
+            if accounted[key, default: 0] > 0 { accounted[key, default: 0] -= 1 }
+            else { names.append(name) }
+        }
         return names
     }
 

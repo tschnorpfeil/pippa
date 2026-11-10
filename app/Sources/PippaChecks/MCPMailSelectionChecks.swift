@@ -279,6 +279,48 @@ extension MCPCheckContext {
             MailMessage(subject: "Vertrag", sender: "Maximilian Lahm <maximilian.lahm@firma.example>", date: nil, body: "Anbei der Vertrag.",
                         attachmentNames: names, messageID: "vertrag-1@firma.example", source: source)
         }
+        check("Mail attachments: an older cache cannot substitute equal-sized bytes when an inline document shifts duplicate names") {
+            let later = Data(repeating: UInt8(ascii: "x"), count: pdf.count)
+            let second = inlinePDF.replacingOccurrences(of: "inline;", with: "attachment;")
+                .replacingOccurrences(of: pdf.base64EncodedString(), with: later.base64EncodedString())
+            let folder = dir("mail-cache-upgrade"), eml = folder.appendingPathComponent("Vertrag.eml")
+            // The earlier parser skipped the inline PDF and saved the later attachment under this name.
+            try later.write(to: folder.appendingPathComponent("Vertrag.pdf"))
+            try mime(inlinePDF, second).write(to: eml, atomically: true, encoding: .utf8)
+            let saved = MailFiling.saveAttachments(of: eml, into: folder)
+            guard saved.count == 2 else { return false }
+            let contents = try saved.map { try Data(contentsOf: $0) }
+            return contents == [pdf, later]
+        }
+        check("Mail attachments: each duplicate filename needs its own saved, failed or deliberately skipped occurrence") {
+            let cases: [([String], String, [String])] = [
+                (["Vertrag.pdf", "Vertrag.pdf"], mime(inlinePDF), ["Vertrag.pdf"]),
+                (["Leer.pdf", "Leer.pdf"], mime(emptyPart), ["Leer.pdf", "Leer.pdf"]),
+                (["logo.png", "logo.png"], mime(logo), ["logo.png"]),
+                (["Vertrag.pdf", "Vertrag.pdf"], mime(inlinePDF, inlinePDF), [])
+            ]
+            for (i, item) in cases.enumerated() {
+                let filed = try MailFiling.file(mail(names: item.0, source: item.1), root: dir("mail-name-occurrences-\(i)"))
+                if filed.notSaved != item.2 { return false }
+            }
+            return true
+        }
+        check("Mail attachments: a named inline CSV is saved byte-exact and named inline body text remains readable") {
+            let csv = Data("Position,Betrag\n1,42.50\n".utf8)
+            let part = """
+            Content-Type: text/csv; name="rows.csv"
+            Content-Disposition: inline; filename="rows.csv"
+            Content-ID: <rows@firma.example>
+            Content-Transfer-Encoding: base64
+
+            \(csv.base64EncodedString())
+            """
+            let filed = try MailFiling.file(mail(names: ["rows.csv"], source: mime(part)), root: dir("mail-inline-csv"))
+            let namedBody = "Content-Type: text/plain; name=body.txt\nContent-Disposition: inline; filename=body.txt\n\nMessage body."
+            let body = MailParser.parse(Data(namedBody.utf8)).body
+            return filed.attachments.count == 1 && (try? Data(contentsOf: filed.attachments[0])) == csv
+                && filed.notSaved.isEmpty && body == "Message body."
+        }
         await checkAsync("MCP mail_read: an inline PDF reaches read_document as a file with its bytes, the logo does not") {
             let h = host("mail-read-inline")
             let json = await read(mail(names: ["Vertrag.pdf", "logo.png"], source: mime(inlinePDF, logo)), in: h)

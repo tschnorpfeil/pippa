@@ -91,12 +91,14 @@ public enum MailParser {
             if encoding.contains("quoted-printable") { return quotedPrintable(body) }
             return Self.bytes(body)            // 7bit, 8bit, binary: the original bytes
         }
-        if disposition.lowercased().hasPrefix("attachment") || (filename != nil && !lowerType.hasPrefix("text/")) {
+        let explicitAttachment = disposition.lowercased().hasPrefix("attachment")
+        if explicitAttachment || filename != nil {
             let name = filename.map { decodeWords(decode(Self.bytes($0), charset: "utf-8")) } ?? "Anhang"
             attachments.append(name)
-            let inline = !disposition.lowercased().hasPrefix("attachment") && headers["content-id"] != nil && lowerType.hasPrefix("image/")
+            let inline = !explicitAttachment && headers["content-id"] != nil && lowerType.hasPrefix("image/")
             files.append(Attachment(name: name, data: content(), inline: inline))
-            return
+            // Named inline text is also a file; plain/HTML can still supply the message body.
+            if explicitAttachment || !(lowerType.hasPrefix("text/plain") || lowerType.hasPrefix("text/html")) { return }
         }
         guard lowerType.hasPrefix("text/") else { return }
         let charset = param("charset", in: contentType)?.lowercased() ?? "utf-8"
