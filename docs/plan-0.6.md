@@ -46,7 +46,22 @@ fixture and live acceptance results separate. The signed app's real permissions 
 No new production tool or card ships before the existing acceptance tasks pass.
 
 Current memory result: the bounded diagnostic and fixture checks are implemented. A direct development-binary run
-reported `notDetermined` for both sources without prompting; granted-library coverage and usefulness remain unmeasured.
-Headless asks and the evidence runner provide repeatable technical checks; the five live acceptance tasks are not
-claimed as passed. Historical probes are not grounds for new public performance claims. Release preparation follows
-[releases/README.md](releases/README.md).
+reported `notDetermined` for both sources without prompting. The signed app launched through LaunchServices used
+existing grants successfully: a seven-day sample contained 0 visible Photos assets and 11 Calendar events, in 182 ms.
+This proves the granted read path, not whole-library coverage or recall usefulness. Terminal and app launches can
+have different macOS permission attribution.
+
+Release verification on 2026-11-10 uses a Mac with **24 GiB**, not the 16 GB acceptance target. The signed baseline
+is 0.5.0 build 980. Keep its evidence separate from checks of the release commit:
+
+| Task | Observed baseline | Remaining evidence |
+|---|---|---|
+| File lookup | Current run failed in 54 s: changed paths caused tool errors, then the answer chose an older snapshot while the expected current file was present | Correct selection and source use; historical passes do not establish current reliability |
+| Mail attachments and totals | Historical failure; selection and attachment fixes in progress | Live newest-message selection, distinct message reads and independently checked totals |
+| Calendar creation and Undo | One labeled fixture created with a receipt and Undo; Open Calendar opened Calendar; Undo reported removal | First attempt showed a setup error; retry completed in 78 s. A fresh cold start answered normally; the original cause is unresolved |
+| Letter deadline | Synthetic letter failed answer-quality review in 97 s; an isolated no-thinking comparison also failed | Correct source quotation and no invented receipt-based deadline; warnings do not count as a pass |
+| Five images into one PDF | Five-page PDF in 5.29 s; all pages rendered in order; input hashes unchanged. The window showed its card and opened Finder | Files entered through Open With, not a physical drag; repeat on the release build |
+
+The model setting stays unchanged. There is no production recall feature, persistent index or new card in this
+release. The five live acceptance tasks and performance on a 16 GB Mac are not claimed as passed. Reports and raw
+transcripts stay local; public evidence contains aggregate results only.

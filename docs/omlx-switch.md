@@ -45,10 +45,10 @@ tuning flags.
 - [x] Remove llama code, bundle steps, checks, scripts; docs
 - [x] Build, verify; setup adopts Ornith from `~/.omlx` by APFS clone; ETF question answered from `ETF-Portfolio.md` (270 s, 13.7 tok/s while a second oMLX held the same model)
 - [x] Acceptance runs with Ornith alone in memory (2026-11-01, headless `--ask`, see below): 2 of 5 pass
-- [x] Letter deadline: Ornith computes a date from "four weeks after receipt" despite the persona rule (three runs,
-  13, 17 and 19 November). Fixed structurally: `DateEvidence` names every date in the answer that nothing the turn
-  read shows, under the answer ("Not in what I read: … please check it"). Rerun: one answer without a date, one with
-  19 November, which the note named
+- [x] Date warning: Ornith computes a date from "four weeks after receipt" (three runs, 13, 17 and 19 November).
+  `DateEvidence` added a warning below the answer for dates absent from the sources. Rerun: one answer without a
+  date, one with 19 November, which the note named. This did not fix the deadline answer. The rule written in
+  `persona.md` was not loaded by the running system prompt; see the correction below.
 - [ ] Mail totals: finds both mails (plural retry) and reads both PDFs, then thinks past the 4,096-token answer limit
   adding up two large tables in its head (650–750 s) instead of using awk. The app now says so instead of ending
   quietly; the task itself stays beyond this model
@@ -65,16 +65,17 @@ Ornith alone in memory, M-series Mac, headless `Pippa --ask`, each run starting 
 | Task | Result | Time |
 | --- | --- | --- |
 | ETF overview in brain | Pass: `ETF-Portfolio.md`, snapshots named as history | 262 s |
-| Letter "Until when…" | Fail: payment date quoted right, but an objection date computed (wrong, three different values); offered to make the transfer before the persona fix | 55–132 s |
+| Letter "Until when…" | Fail: payment date quoted right, but an objection date computed (wrong, three different values); also offered to make the transfer | 55–132 s |
 | Five photos → one PDF (model) | Pass: one PDF; the answer names an internal folder ("DurableJobs") | 57 s |
 | Mail attachments → totals | Fail: found two of three mails, read both PDFs, no answer within 600 s | >600 s |
 | Dentist Tuesday 10:00 | Blocked: `calendar_read` did not return | >600 s |
 
 Generation 12.6–18.4 tok/s; prefill dominates once tool results land (prompt up to 23K tokens).
-Fixed on the way: the server log was emptied on every start; the persona now says how to treat relative deadlines and
-that Pippa cannot pay or post letters.
+Fixed on the way: the server log was emptied on every start. Correction, 2026-11-10: the deadline and capability
+rules added to `persona.md` were not loaded by `PippaPiLaunch.systemPrompt`. Editing that file did not change the
+running prompt. The manually invoked deadline skill has its own rule; ordinary chat does not invoke it automatically.
 
-Comparison on the letter deadline, same build and persona: `mlx-community/Qwen3.5-9B-MLX-4bit` (revision 938d891) on
+Comparison on the letter deadline, same build: `mlx-community/Qwen3.5-9B-MLX-4bit` (revision 938d891) on
 the same oMLX also computes an objection date in three of three runs (19, 17 and 27 November), at 8.8–13.4 tok/s, and
 once failed to open the PDF (249 s). The earlier Qwen pass on llama.cpp was not reproducible. Switching back to Qwen does
 not fix it; Ornith stays.
