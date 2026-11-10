@@ -86,7 +86,7 @@ class AcceptanceRunner(unittest.TestCase):
     def test_marker_problems_never_become_success(self):
         _, _, by_id = self.run_cases({1: ["--ask", "legacy"], 2: ["--ask", "bad"], 3: ["--ask", "dup"],
                                       4: ["--ask", "mismatch"], 5: ["--ask", "fail"]})
-        self.assertEqual(by_id[1]["status"], "completed")
+        self.assertEqual(by_id[1]["status"], "failed")
         self.assertEqual(by_id[1]["evidence"], "no_marker")
         self.assertEqual(by_id[2]["evidence"], "marker_malformed")
         self.assertEqual(by_id[3]["evidence"], "marker_duplicate")
@@ -153,6 +153,31 @@ class AcceptanceRunner(unittest.TestCase):
         again = self.runner("--manifest", self.manifest({}), "--out", str(out))
         self.assertEqual(again.returncode, 2)
         self.assertIn("exists", again.stderr)
+
+    def test_invalid_inputs_are_rejected_before_creating_output_or_launching(self):
+        invalid_manifests = [[], {"cases": None}, {"cases": [None]},
+                             {"cases": [{"id": 1.0, "argv": ["--ask", "ok"]}]},
+                             {"app": 7, "cases": []},
+                             {"cases": [{"id": 1, "argv": ["--setup"]}]},
+                             {"cases": [{"id": 1, "argv": ["--ask"]}]},
+                             {"cases": [{"id": 5, "argv": ["--make-pdf"]}]},
+                             {"cases": [{"id": 1, "argv": ["--ask", "bad\x00text"]}]}]
+        for index, data in enumerate(invalid_manifests):
+            with self.subTest(data=data):
+                path = self.tmp / "invalid.json"
+                path.write_text(json.dumps(data))
+                out = self.tmp / f"invalid-out-{index}"
+                result = self.runner("--manifest", str(path), "--out", str(out))
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertFalse(out.exists())
+        for timeout in ("nan", "inf", "-inf", "0", "-1"):
+            with self.subTest(timeout=timeout):
+                out = self.tmp / f"invalid-timeout-{timeout}"
+                result = self.runner("--timeout=" + timeout, "--out", str(out))
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertFalse(out.exists())
+        self.assertFalse(self.log.exists())
 
     def test_help_documents_manifest_and_report(self):
         text = self.runner("--help").stdout

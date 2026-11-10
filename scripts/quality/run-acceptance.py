@@ -28,8 +28,7 @@ marker, evidence, review ("needs_review" always) and review_notes.
   and card against `criteria`.
   `--ask` may print a standalone line `PIPPA_ASK_RESULT {"status":"completed|needs_access|needs_input|failed"}`.
   It is used when present and valid. Missing, malformed or duplicate markers, or an exit code that contradicts the
-  marker, give failed. An older --ask with exit 0 and no marker is completed with evidence "no_marker": the
-  completion is unconfirmed. A timeout overrides any marker. --make-pdf has no marker.
+  marker, give failed. An older --ask with no marker is failed with evidence "no_marker". A timeout overrides any marker. --make-pdf has no marker.
   A timeout stops the child's own process group (SIGTERM, then SIGKILL) and keeps the partial output. A child that
   deliberately leaves its session is not reached.
 The transcripts may contain private content. The summary printed here never shows them. Nothing is uploaded.
@@ -38,6 +37,7 @@ Each selected case runs exactly once per invocation. Task 3 creates a calendar e
 """
 import argparse
 import json
+import math
 import os
 import pathlib
 import signal
@@ -64,21 +64,30 @@ TASKS = {
         "Needs the quoted sentence and no invented deadline."),
     5: ("Five photos, one PDF",
         "A PDF card, without the model.",
-        "Check the PDF and the card; --make-pdf prints no card."),
+        "Check the actual PDF and card; the CLI prints only a card description."),
 }
 
 
 def load_manifest(path):
     data = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("cases", []), list):
+        raise ValueError("manifest must be an object with a cases array")
+    app = data.get("app")
+    if app is not None and (not isinstance(app, str) or not app.strip() or "\x00" in app):
+        raise ValueError("app must be a non-empty binary path")
     cases = {}
     for entry in data.get("cases", []):
+        if not isinstance(entry, dict):
+            raise ValueError("each case must be an object")
         case_id, argv = entry.get("id"), entry.get("argv")
-        if case_id not in TASKS or isinstance(case_id, bool):
+        if type(case_id) is not int or case_id not in TASKS:
             raise ValueError(f"case id {case_id!r} is not 1..5")
         if case_id in cases:
             raise ValueError(f"case id {case_id} appears twice")
-        if not (isinstance(argv, list) and argv and all(isinstance(a, str) for a in argv)):
+        if not (isinstance(argv, list) and argv and all(isinstance(a, str) and "\x00" not in a for a in argv)):
             raise ValueError(f"case {case_id}: argv must be a non-empty list of strings")
+        if argv[0] not in ("--ask", "--make-pdf") or len(argv) < 2 or not argv[1].strip():
+            raise ValueError(f"case {case_id}: expected --ask QUESTION or --make-pdf FILE ...")
         cases[case_id] = argv
     return data.get("app"), cases
 
@@ -107,7 +116,7 @@ def classify(argv, exit_code, stdout_text):
         return "failed", evidence, None, evidence
     if marker is None:
         if exit_code == 0:
-            return "completed", "exit 0 without a result marker: completion unconfirmed", None, "no_marker"
+            return "failed", "exit 0 without a result marker: completion unconfirmed", None, "no_marker"
         return "failed", f"exit code {exit_code}, no marker", None, "no_marker"
     if marker == "completed" and exit_code == 0:
         return "completed", "marker completed, exit 0", marker, evidence
@@ -220,6 +229,8 @@ def main(argv=None):
     parser.add_argument("--run-label", help="free text recorded in the report, e.g. 'after model restart'")
     args = parser.parse_args(argv)
 
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
+        parser.error("--timeout must be a positive finite number")
     if args.run and not args.out:
         parser.error("--run needs --out")
     if args.only and not set(args.only) <= set(TASKS):
