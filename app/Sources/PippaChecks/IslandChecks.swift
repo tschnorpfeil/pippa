@@ -32,12 +32,12 @@ func runIslandChecks() {
             let wing = IslandGeometry.compact(placement, width: 120)
             let open = IslandGeometry.open(placement, contentHeight: 240)
             let rest = IslandGeometry.rest(placement)
-            // Nothing right of the housing's middle: tools like tinyStats live there.
-            return near(wing.minX, housing.minX - 120) && near(wing.maxX, housing.midX) && near(wing.minY, housing.minY)
+            // Nothing right of the housing: tools like tinyStats live there.
+            return near(wing.minX, housing.minX - 120) && near(wing.maxX, housing.maxX - 6) && near(wing.minY, housing.minY)
                 && near(wing.maxY, display.screen.maxY)
                 && near(open.midX, housing.midX) && near(open.width, IslandGeometry.openWidth)
                 && near(open.maxY, display.screen.maxY) && near(open.minY, housing.minY - 240)
-                && near(rest.minX, housing.minX - IslandGeometry.earWidth) && near(rest.maxX, housing.midX)
+                && near(rest.minX, housing.minX - IslandGeometry.earWidth) && near(rest.maxX, housing.maxX - 6)
                 && near(rest.minY, housing.minY)
         }
     }
@@ -52,9 +52,9 @@ func runIslandChecks() {
         let housing = CGRect(x: 663.5, y: 950, width: 185, height: 32)
         let placement = IslandPlacement.notch(housing: housing, screen: screen)
         let narrow = IslandGeometry.compact(placement, width: 4), wide = IslandGeometry.compact(placement, width: 4000)
-        return near(narrow.width, 185 / 2 + IslandGeometry.wingWidth.lowerBound)
-            && near(wide.width, 185 / 2 + IslandGeometry.wingWidth.upperBound) && screen.contains(wide)
-            && wide.maxX <= housing.midX + 0.01
+        return near(narrow.width, 185 - 6 + IslandGeometry.wingWidth.lowerBound)
+            && near(wide.width, 185 - 6 + IslandGeometry.wingWidth.upperBound) && screen.contains(wide)
+            && wide.maxX <= housing.maxX
     }
 
     // 1080p display (this Mac mini): menu bar 24 pt, symbol 30 pt wide.
@@ -87,6 +87,7 @@ func runIslandChecks() {
         let atRest = IslandGeometry.silhouette(placement, from: rest, to: rest, progress: 0)
         let wing = IslandGeometry.silhouette(placement, from: rest, to: IslandGeometry.compact(placement, width: 100), progress: 1)
         return atRest.contains(CGPoint(x: housing.minX - 20, y: housing.midY)) && !atRest.contains(CGPoint(x: housing.minX - 60, y: housing.midY))
+            && atRest.contains(CGPoint(x: housing.maxX - 20, y: housing.midY))
             && !atRest.contains(CGPoint(x: housing.maxX + 20, y: housing.midY))
             && wing.contains(CGPoint(x: housing.minX - 60, y: housing.midY)) && !wing.contains(CGPoint(x: housing.minX - 60, y: housing.minY - 4))
             && !wing.contains(CGPoint(x: housing.maxX + 20, y: housing.midY))

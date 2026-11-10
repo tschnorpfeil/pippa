@@ -61,7 +61,9 @@ public struct IslandSilhouette: Equatable, Sendable {
 /// the left of the housing, or a small capsule under the symbol) and `open` (the panel).
 ///
 /// At the notch Pippa keeps to the left of the housing: tools like tinyStats live on its right, and the menu bar
-/// symbols there should stay readable. The shapes reach into the housing up to its middle, so they read as one with it.
+/// symbols there should stay readable. The shapes reach into the housing up to 6 pt from its right edge: there they
+/// stay hidden in the camera cutout (their corner curves up before the housing's does), and a click anywhere on the
+/// notch still opens the island.
 public enum IslandGeometry {
     public static let openWidth: CGFloat = 380
     public static let cornerRadius: CGFloat = 22
@@ -99,7 +101,7 @@ public enum IslandGeometry {
         min(anchor.minY, visible.maxY) - menuBarGap
     }
 
-    /// At rest: Pippa's mark left of the housing (it takes a click there and on the notch's left half); under the menu
+    /// At rest: Pippa's mark left of the housing (it takes a click there and on the notch); under the menu
     /// bar, a line with no height under the symbol.
     public static func rest(_ placement: IslandPlacement) -> CGRect {
         switch placement {
@@ -112,12 +114,12 @@ public enum IslandGeometry {
     }
 
     /// Working, needs you, done: `width` is the wing's width left of the housing at the notch, the whole capsule under
-    /// the menu bar. The wing ends in the middle of the housing, where no corner of it can show.
+    /// the menu bar. The wing ends inside the housing, where no corner of it can show.
     public static func compact(_ placement: IslandPlacement, width: CGFloat) -> CGRect {
         switch placement {
         case .notch(let housing, let screen):
             let wing = min(max(width, wingWidth.lowerBound), wingWidth.upperBound, max(0, housing.minX - screen.minX - margin))
-            return CGRect(x: housing.minX - wing, y: housing.minY, width: wing + housing.width / 2, height: housing.height)
+            return CGRect(x: housing.minX - wing, y: housing.minY, width: wing + housing.width - 6, height: housing.height)
         case .menuBar(let anchor, let visible):
             let width = min(max(width, capsuleHeight), capsuleMaxWidth, visible.width - 2 * margin)
             let top = attachY(anchor: anchor, visible: visible)

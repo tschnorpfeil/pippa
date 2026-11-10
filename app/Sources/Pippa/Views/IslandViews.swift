@@ -22,7 +22,7 @@ extension IslandStyle {
 /// symbol.
 struct IslandCompactView: View {
     @ObservedObject var island: Island
-    /// Width of the camera housing; nil under the menu bar. The shape reaches into its left half.
+    /// Width of the camera housing; nil under the menu bar. The shape reaches into it up to 6 pt from its right edge.
     var housingWidth: CGFloat?
 
     var body: some View {
@@ -34,7 +34,7 @@ struct IslandCompactView: View {
                     if status.showsCompact { IslandLine(status: status).transition(.opacity) }
                 }
                 .padding(.leading, IslandStyle.wingInset)
-                .padding(.trailing, IslandStyle.wingGap + housingWidth / 2)
+                .padding(.trailing, IslandStyle.wingGap + housingWidth - 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .animation(.easeOut(duration: 0.18), value: status.showsCompact)
             } else {
