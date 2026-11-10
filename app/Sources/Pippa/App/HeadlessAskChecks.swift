@@ -168,6 +168,11 @@ enum HeadlessAskChecks {
         check(needsInput.ended(with: .needs_input), "--ask: a declined question is needs_input (the blocked command is not a failure), exit code 3")
         let unexplained = await headless(Fixture(granted: true)) { emit in emit(plainTool("bash", isError: true, result: "Blocked", blocked: true)) }
         check(unexplained.ended(with: .failed), "--ask: a blocked tool without a recorded cause is failed")
+        let blockedAndAccess = await headless(Fixture(granted: false)) { emit in
+            emit(plainTool("bash", isError: true, result: "App control is not allowed.", blocked: true))
+            emit(ended("mcp__pippa__calendar_read", await call("calendar_read", ["period": "today"])))
+        }
+        check(blockedAndAccess.ended(with: .failed), "--ask: a blocked shell command without a question stays failed after missing calendar access")
         let toolFailed = await headless(Fixture(granted: true), answer: "Everything worked.") { emit in
             emit(plainTool("bash", isError: true, result: "exit 1"))
         }

@@ -76,7 +76,7 @@ enum HeadlessAsk {
         }
 
         func status(declinedQuestions: Int) -> Status {
-            if failed || (blocked > 0 && !access && declinedQuestions == 0) { return .failed }
+            if failed || (blocked > 0 && declinedQuestions == 0) { return .failed }
             if access { return .needs_access }
             return declinedQuestions > 0 ? .needs_input : .completed
         }
