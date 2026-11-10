@@ -61,6 +61,9 @@ enum HeadlessAsk {
             switch event {
             case .toolEnded(_, let name, let isError, let result, let outcome, let fileAccessFailure):
                 if fileAccessFailure != nil || (isError && Self.needsAccess(tool: name, result: result)) { access = true }
+                // A native validation/read/write error is not an unanswered question. Keep its failure even when
+                // another tool needs access or an unrelated Pi question was declined later in this run.
+                else if isError && PiTurnReceipt.pippaTool(name) != nil { failed = true }
                 else if outcome == .blocked { blocked += 1 }
                 else if isError || outcome == .failed || outcome == .unclear { failed = true }
             case .assistantEnded(_, let reason, let error):

@@ -183,6 +183,22 @@ enum HeadlessAskChecks {
             emit(ended("mcp__pippa__calendar_read", await call("calendar_read", ["period": "today"])))
         }
         check(accessAndInput.ended(with: .needs_access), "--ask: needs_access wins over needs_input")
+        for withAccessFailure in [true, false] {
+            let fixture = Fixture(granted: !withAccessFailure)
+            var nativeStatus: String?
+            let mixed = await headless(fixture) { emit in
+                let invalid = await call("calendar_add", ["title": "Test appointment", "date": "not-a-date"])
+                nativeStatus = invalid.status
+                emit(ended("mcp__pippa__calendar_add", invalid))
+                if withAccessFailure {
+                    emit(ended("mcp__pippa__calendar_read", await call("calendar_read", ["period": "today"])))
+                } else {
+                    _ = await PiSession.shared.interaction.uiHandler(question("mixed-error", "confirm"))
+                }
+            }
+            check(nativeStatus == "invalid_arguments" && mixed.ended(with: .failed) && fixture.demo.createdCount == 0,
+                  "--ask: invalid native arguments stay failed after \(withAccessFailure ? "missing access" : "an unrelated declined question")")
+        }
         let words = await headless(Fixture(granted: true), answer: "I have no access to your calendar (needs_access).") { emit in
             emit(plainTool("read", isError: false, result: "{\"status\":\"needs_access\"}"))
         }
