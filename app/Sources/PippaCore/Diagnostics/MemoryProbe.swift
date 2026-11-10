@@ -160,9 +160,11 @@ public enum MemoryProbe {
         public var readElapsedMs: Int
         public var notes = [
             "Counts describe the sample of at most sampleLimit items per source, not a whole library.",
-            "Photos are selected by creation date inside the window; metadata without a creation date cannot belong to a date-bounded photo window and is not counted.",
+            "Photos are selected by creation date inside the window; metadata without a creation date cannot be assigned to this window and is not counted.",
             "A calendar entry is a plan, not proof of attendance; a photo's date and location do not show who was there or what happened.",
             "The operating system's fetch has no application timeout: elapsedMs is measured, not enforced.",
+            "Photos includes visible photo and video assets; hidden assets are excluded by the default fetch options.",
+            "Calendar reports both denied and restricted access as denied through the existing integration.",
         ]
 
         /// One JSON object, stable key order.
