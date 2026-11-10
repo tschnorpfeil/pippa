@@ -46,7 +46,7 @@ import sys
 import time
 
 MARKER_PREFIX = "PIPPA_ASK_RESULT "
-MARKER_STATUSES = ("completed", "needs_access", "needs_input", "failed")
+MARKER_EXIT_CODES = {"completed": 0, "failed": 1, "needs_access": 2, "needs_input": 3}
 GRACE_SECONDS = 2
 
 TASKS = {
@@ -109,7 +109,7 @@ def parse_marker(stdout_text):
         status = json.loads(lines[0][len(MARKER_PREFIX):]).get("status")
     except (ValueError, AttributeError):
         return None, "marker_malformed"
-    return (status, "marker_ok") if status in MARKER_STATUSES else (None, "marker_malformed")
+    return (status, "marker_ok") if isinstance(status, str) and status in MARKER_EXIT_CODES else (None, "marker_malformed")
 
 
 def classify(argv, exit_code, stdout_text):
@@ -124,12 +124,8 @@ def classify(argv, exit_code, stdout_text):
         if exit_code == 0:
             return "failed", "exit 0 without a result marker: completion unconfirmed", None, "no_marker"
         return "failed", f"exit code {exit_code}, no marker", None, "no_marker"
-    if marker == "completed" and exit_code == 0:
-        return "completed", "marker completed, exit 0", marker, evidence
-    if marker in ("needs_access", "needs_input") and exit_code != 0:
+    if exit_code == MARKER_EXIT_CODES[marker]:
         return marker, f"marker {marker}, exit code {exit_code}", marker, evidence
-    if marker == "failed" and exit_code != 0:
-        return "failed", f"marker failed, exit code {exit_code}", marker, evidence
     return "failed", f"marker {marker} contradicts exit code {exit_code}", marker, "marker_exit_mismatch"
 
 

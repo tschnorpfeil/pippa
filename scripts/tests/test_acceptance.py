@@ -25,8 +25,10 @@ if args[0] == "--make-pdf":
 def marker(s): print('PIPPA_ASK_RESULT ' + json.dumps({"status": s}))
 if mode == "ok": print("answer"); marker("completed")
 elif mode == "legacy": print("answer")
-elif mode == "access": print("no"); marker("needs_access"); sys.exit(3)
-elif mode == "input": marker("needs_input"); sys.exit(4)
+elif mode == "access": print("no"); marker("needs_access"); sys.exit(2)
+elif mode == "input": marker("needs_input"); sys.exit(3)
+elif mode == "wrongaccess": marker("needs_access"); sys.exit(1)
+elif mode == "wronginput": marker("needs_input"); sys.exit(2)
 elif mode == "fail": print("boom"); marker("failed"); sys.exit(1)
 elif mode == "nonzero": print("boom"); sys.exit(7)
 elif mode == "bad": print("PIPPA_ASK_RESULT {nope")
@@ -86,7 +88,7 @@ class AcceptanceRunner(unittest.TestCase):
         self.assertTrue(all(c["review"] == "needs_review" for c in report["cases"]))
         self.assertIn("quote", by_id[4]["review_notes"])
         self.assertIn("Undo", by_id[3]["review_notes"])
-        self.assertEqual(by_id[2]["exit_code"], 3)
+        self.assertEqual(by_id[2]["exit_code"], 2)
 
     def test_marker_problems_never_become_success(self):
         _, _, by_id = self.run_cases({1: ["--ask", "legacy"], 2: ["--ask", "bad"], 3: ["--ask", "dup"],
@@ -102,6 +104,12 @@ class AcceptanceRunner(unittest.TestCase):
         _, _, by_id = self.run_cases({1: ["--ask", "notfinal"], 2: ["--ask", "badfinal"],
                                       3: ["--ask", "unicode"], 4: ["--ask", "carriage"]})
         self.assertEqual([by_id[i]["status"] for i in (1, 2, 3, 4)], ["failed"] * 4)
+
+    def test_access_and_input_markers_require_their_documented_exit_codes(self):
+        _, _, by_id = self.run_cases({1: ["--ask", "wrongaccess"], 2: ["--ask", "wronginput"]})
+        for case_id in (1, 2):
+            self.assertEqual(by_id[case_id]["status"], "failed")
+            self.assertEqual(by_id[case_id]["evidence"], "marker_exit_mismatch")
 
     def test_missing_and_unselected_cases_are_explicit_and_not_run(self):
         out = str(self.tmp / "out")
