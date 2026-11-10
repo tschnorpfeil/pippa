@@ -63,7 +63,8 @@ public struct IslandSilhouette: Equatable, Sendable {
 /// At the notch Pippa keeps to the left of the housing: tools like tinyStats live on its right, and the menu bar
 /// symbols there should stay readable. The shapes reach into the housing up to 6 pt from its right edge: there they
 /// stay hidden in the camera cutout (their corner curves up before the housing's does), and a click anywhere on the
-/// notch still opens the island. Open, the panel ends on the housing's right edge too.
+/// notch still opens the island. Open, the panel is centred on the housing unless another notch tool shows right of
+/// it (`toolRightOfHousing`); then it, too, ends on the housing's right edge.
 public enum IslandGeometry {
     public static let openWidth: CGFloat = 380
     public static let cornerRadius: CGFloat = 22
@@ -128,14 +129,19 @@ public enum IslandGeometry {
         }
     }
 
-    /// The open panel, `contentHeight` tall below the housing (or below the menu bar).
-    public static func open(_ placement: IslandPlacement, contentHeight: CGFloat) -> CGRect {
+    /// The open panel, `contentHeight` tall below the housing (or below the menu bar). At the notch it is centred on
+    /// the housing, unless `besideTool`: another notch tool (like tinyStats) shows right of the housing, and the panel
+    /// then ends on the housing's right edge, leaving that tool alone. Either way the row beside the housing holds
+    /// Pippa's mark and name.
+    public static func open(_ placement: IslandPlacement, contentHeight: CGFloat, besideTool: Bool = false) -> CGRect {
         switch placement {
         case .notch(let housing, let screen):
-            // Left of the notch like the wing, its right edge on the housing's: nothing opens over the menu bar right
-            // of the notch, where tools like tinyStats live. The top row beside the housing holds Pippa's mark and line.
             let width = min(openWidth, screen.width - 2 * margin)
             let height = housing.height + max(0, contentHeight)
+            guard besideTool else {
+                return CGRect(x: clampedX(center: housing.midX, width: width, in: screen), y: screen.maxY - height,
+                              width: width, height: height)
+            }
             let x = min(max(housing.maxX - width, screen.minX + margin), screen.maxX - margin - width)
             return CGRect(x: x, y: screen.maxY - height, width: width, height: height)
         case .menuBar(let anchor, let visible):
@@ -144,6 +150,18 @@ public enum IslandGeometry {
             let height = min(max(0, contentHeight), max(0, top - visible.minY - margin))
             return CGRect(x: clampedX(center: anchor.midX, width: width, in: visible), y: top - height,
                           width: width, height: height)
+        }
+    }
+
+    /// Whether another app's window (global AppKit frames of on-screen windows at menu bar level or above, none of
+    /// Pippa's) is a notch tool right of the housing: it hangs from the top of the display, starts in the housing or right
+    /// at its edge as notch tools do, and continues to its right. Menu bar symbols keep a gap to the housing; overlays as
+    /// wide as half the display are no notch tool.
+    public static func toolRightOfHousing(_ placement: IslandPlacement, windows: [CGRect]) -> Bool {
+        guard case .notch(let housing, let screen) = placement else { return false }
+        return windows.contains { w in
+            abs(w.maxY - screen.maxY) <= 2 && w.width < screen.width / 2
+                && w.minX <= housing.maxX + 2 && w.maxX > housing.maxX + 8
         }
     }
 

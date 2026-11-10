@@ -25,21 +25,37 @@ func runIslandChecks() {
             return near(housing.width, 185) && near(housing.height, 32) && near(housing.maxY, display.screen.maxY)
                 && near(housing.midX, display.screen.midX)
         }
-        check("Island: on the \(display.name) display the wing and the mark keep left of the notch, the panel ends on its right edge") {
+        check("Island: on the \(display.name) display the wing and the mark keep left of the notch, the panel is centred on it, or ends on its right edge beside another notch tool") {
             guard let housing = IslandGeometry.housing(screen: display.screen, leftArea: display.left, rightArea: display.right,
                                                        topInset: display.inset) else { return false }
             let placement = IslandPlacement.notch(housing: housing, screen: display.screen)
             let wing = IslandGeometry.compact(placement, width: 120)
             let open = IslandGeometry.open(placement, contentHeight: 240)
+            let beside = IslandGeometry.open(placement, contentHeight: 240, besideTool: true)
             let rest = IslandGeometry.rest(placement)
             // Nothing right of the housing: tools like tinyStats live there.
             return near(wing.minX, housing.minX - 120) && near(wing.maxX, housing.maxX - 6) && near(wing.minY, housing.minY)
                 && near(wing.maxY, display.screen.maxY)
-                && near(open.maxX, housing.maxX) && near(open.width, IslandGeometry.openWidth)
+                && near(open.midX, housing.midX) && near(open.width, IslandGeometry.openWidth)
+                && near(beside.maxX, housing.maxX) && near(beside.width, IslandGeometry.openWidth) && beside.minY == open.minY
                 && near(open.maxY, display.screen.maxY) && near(open.minY, housing.minY - 240)
                 && near(rest.minX, housing.minX - IslandGeometry.earWidth) && near(rest.maxX, housing.maxX - 6)
                 && near(rest.minY, housing.minY)
         }
+    }
+    check("Island: a notch tool right of the housing is told apart from menu bar symbols, overlays and the left side") {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let housing = CGRect(x: 663.5, y: 950, width: 185, height: 32)
+        let placement = IslandPlacement.notch(housing: housing, screen: screen)
+        func tool(_ windows: [CGRect]) -> Bool { IslandGeometry.toolRightOfHousing(placement, windows: windows) }
+        let tinyStats = CGRect(x: 838, y: 950, width: 120, height: 32), atEdge = CGRect(x: 849, y: 950, width: 100, height: 32)
+        let symbol = CGRect(x: 860, y: 950, width: 30, height: 32)
+        let overlay = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let leftTool = CGRect(x: 560, y: 950, width: 110, height: 32)
+        let lower = CGRect(x: 838, y: 700, width: 120, height: 32)
+        return tool([tinyStats]) && tool([atEdge]) && tool([symbol, tinyStats]) && !tool([]) && !tool([symbol]) && !tool([overlay])
+            && !tool([leftTool]) && !tool([lower])
+            && !IslandGeometry.toolRightOfHousing(.menuBar(anchor: symbol, visible: screen), windows: [tinyStats])
     }
     check("Island: a display without a housing (Mac mini, external) has no notch placement") {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)

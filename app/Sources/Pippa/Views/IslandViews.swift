@@ -117,7 +117,8 @@ struct IslandPanelView: View {
 
     struct MenuBarRow: Equatable {
         var height: CGFloat
-        var housingWidth: CGFloat
+        /// From the housing's left edge to the panel's right edge: the part of the row the header must leave free.
+        var besideHousing: CGFloat
     }
 
     var body: some View {
@@ -126,7 +127,7 @@ struct IslandPanelView: View {
                 // Mark and line stay in the menu bar, left of the camera; the panel only grows below it.
                 header(markSize: IslandStatus.markSize)
                     .padding(.leading, IslandStyle.padding)
-                    .padding(.trailing, IslandStyle.wingGap + menuBarRow.housingWidth)
+                    .padding(.trailing, IslandStyle.wingGap + menuBarRow.besideHousing)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: menuBarRow.height)
             }

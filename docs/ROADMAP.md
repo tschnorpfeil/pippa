@@ -30,8 +30,8 @@ tool or card.
    server (`PIPPA_SNAPSHOT_LIVE=1 Pippa --snapshot`, 2026-11-09, Mac mini without a notch); the island at a real notch
    still needs one look.
 
-Released in 0.6.3: the open Pippa Island stays left of the notch too, with her mark and name in the menu bar row
-beside it; her handwriting (`Scribble`, the pill's old "write" shape) while words come in, on the island and in the
+Released in 0.6.3: the open Pippa Island keeps left of the notch when another notch tool (like tinyStats) shows right
+of it, centred otherwise, with her mark and name in the menu bar row beside the housing; her handwriting (`Scribble`, the pill's old "write" shape) while words come in, on the island and in the
 chat; the island's question field keeps the keyboard while she answers; her steps on the open island as a chain that
 ends on her thinking or the answer as it is written.
 
