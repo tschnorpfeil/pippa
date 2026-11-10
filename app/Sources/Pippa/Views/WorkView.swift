@@ -5,6 +5,10 @@ import SwiftUI
 struct WorkView: View {
     var message: ChatMessage
     var live: Bool
+    /// The AI on this Mac is starting: the row says so, with an explanation behind the info button.
+    var starting = false
+    /// Words of the answer are coming in right now (not: there is text already).
+    var writing = false
     var started: Date?
     @Environment(\.expandsWork) private var expandsWork
     private let openState = State(initialValue: false)
@@ -12,6 +16,7 @@ struct WorkView: View {
     /// Opened while the answer came in: the thinking keeps its six lines when the answer ends, so nothing below jumps.
     /// Opening it again shows all of it.
     private let cappedState = State(initialValue: false)
+    private let infoState = State(initialValue: false)
 
     private var open: Bool { openState.wrappedValue }
     private var thinking: String? {
@@ -22,11 +27,15 @@ struct WorkView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button { toggle() } label: { header }
-                .buttonStyle(.plain)
-                .disabled(!canOpen)
-                .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering && canOpen } }
-                .onAppear { if expandsWork && canOpen { openState.wrappedValue = true } }
+            HStack(spacing: 0) {
+                Button { toggle() } label: { header }
+                    .buttonStyle(.plain)
+                    .disabled(!canOpen)
+                    .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering && canOpen } }
+                    .onAppear { if expandsWork && canOpen { openState.wrappedValue = true } }
+                if showsStarting { startingInfo.transition(.opacity) }
+            }
+            .animation(Theme.quick, value: showsStarting)
             // The steps fade in while this box grows and clips them: they never slide over the row above or the answer below.
             VStack(alignment: .leading, spacing: 0) {
                 if open {
@@ -99,6 +108,23 @@ struct WorkView: View {
         .padding(.leading, -Space.m)
     }
 
+    /// Nothing has come from the AI yet and it is still starting.
+    private var showsStarting: Bool { live && starting && message.steps.isEmpty && message.text.isEmpty && thinking == nil }
+
+    /// What "starting" means, for those who want to know.
+    private var startingInfo: some View {
+        Button { infoState.wrappedValue.toggle() } label: {
+            Image(systemName: "info.circle").font(Typo.callout).foregroundStyle(Theme.ink3)
+                .frame(width: 24, height: 28).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(T("Why this takes a moment", table: "App"))
+        .accessibilityLabel(T("Why this takes a moment", table: "App"))
+        .popover(isPresented: infoState.projectedValue, arrowEdge: .bottom) {
+            StartingExplanation()
+        }
+    }
+
     private func stepRow(_ step: ChatStep) -> some View {
         HStack(spacing: Space.m) {
             Group {
@@ -114,10 +140,11 @@ struct WorkView: View {
         .frame(height: 24)
     }
 
-    /// What she is doing right now: the running step, else thinking or writing.
+    /// What she is doing right now: the running step, the AI starting, words coming in, else thinking.
     private var nowLabel: String {
         if let step = message.steps.last(where: { !$0.done }) { return step.label }
-        return message.text.isEmpty ? T("Thinking…", table: "App") : T("Writing…", table: "App")
+        if showsStarting { return T("Starting my AI…", table: "App") }
+        return writing ? T("Writing…", table: "App") : T("Thinking…", table: "App")
     }
 
     private var summary: String {
@@ -140,5 +167,16 @@ struct WorkView: View {
         let seconds = max(1, Int(duration.rounded()))
         if seconds < 60 { return T("%lld s", table: "App", seconds) }
         return T("%lld min %lld s", table: "App", seconds / 60, seconds % 60)
+    }
+}
+
+/// Behind the info button while the AI starts: what is happening, in four sentences.
+struct StartingExplanation: View {
+    var body: some View {
+        Text(T("My AI runs on this Mac, not on the internet. Before the first answer I load it into memory, which is several gigabytes. That takes a few seconds, or up to a minute when your Mac is busy. After ten minutes without a question I free the memory again.", table: "App"))
+            .font(Typo.footnote).foregroundStyle(Theme.ink).lineSpacing(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: 280, alignment: .leading)
+            .padding(Space.xl)
     }
 }

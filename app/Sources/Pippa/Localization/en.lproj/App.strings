@@ -204,3 +204,6 @@
 "Couldn’t undo it. You can delete it in the app." = "Couldn’t undo it. You can delete it in the app.";
 "Open Storage Settings…" = "Open Storage Settings…";
 "Copy Details" = "Copy Details";
+"Starting my AI…" = "Starting my AI…";
+"Why this takes a moment" = "Why this takes a moment";
+"My AI runs on this Mac, not on the internet. Before the first answer I load it into memory, which is several gigabytes. That takes a few seconds, or up to a minute when your Mac is busy. After ten minutes without a question I free the memory again." = "My AI runs on this Mac, not on the internet. Before the first answer I load it into memory, which is several gigabytes. That takes a few seconds, or up to a minute when your Mac is busy. After ten minutes without a question I free the memory again.";

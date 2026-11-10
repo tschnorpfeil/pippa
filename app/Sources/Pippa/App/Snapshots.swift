@@ -60,6 +60,8 @@ enum Snapshots {
             ("conversation", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false, false),
             ("context", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false, true),
             ("answering", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, false, false),
+            // The question is out, the AI on this Mac still loads: nothing from Pi yet.
+            ("starting", { chat.showSample(sampleConversations(answering: true, starting: true), current: "c1", answering: true, starting: true) }, 760, false, false),
             ("steps", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, true, false),
             ("approval", {
                 chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
@@ -97,6 +99,10 @@ enum Snapshots {
             }
             chat.attachments = []
             Approvals.shared.cancelAll()
+        }
+        for dark in [false, true] {
+            await render(StartingExplanation(), size: NSSize(width: 312, height: 160), dark: dark, chrome: false, fits: true,
+                         to: folder.appendingPathComponent("starting-info-\(dark ? "dark" : "light").png"))
         }
         chat.showSample([], current: nil, answering: false)
         setup.showForSnapshot(.ready(adoptedFrom: nil))
@@ -267,7 +273,7 @@ enum Snapshots {
         ])]
     }
 
-    private static func sampleConversations(answering: Bool = false, failed: Bool = false) -> [Conversation] {
+    private static func sampleConversations(answering: Bool = false, failed: Bool = false, starting: Bool = false) -> [Conversation] {
         let now = Date()
         var answer = ChatMessage(role: .assistant, text: """
         Dein aktueller Stand ist **ETF-Portfolio.md**, zuletzt geändert am 1. November 2026.
@@ -292,6 +298,10 @@ enum Snapshots {
             answer.receipts = []
             answer.steps = [ChatStep(id: "1", label: "Searching files for “ETF”", done: true), ChatStep(id: "2", label: "Reading ETF-Portfolio.md", done: false)]
             answer.thinking = "Die Person fragt nach der aktuellen ETF-Übersicht. Es gibt drei Dateien; ETF-Portfolio.md ist die neueste (updated 2026-11-01). Ich lese sie und nenne die Aufteilung." 
+        }
+        if starting {
+            answer.steps = []
+            answer.thinking = nil
         }
         if failed {
             answer.text = ""
@@ -345,7 +355,7 @@ enum Snapshots {
 
 extension ChatModel {
     /// Snapshots only: show sample conversations without touching the saved ones.
-    func showSample(_ conversations: [Conversation], current: String?, answering: Bool) {
-        replaceForSnapshot(conversations, current: current, answering: answering)
+    func showSample(_ conversations: [Conversation], current: String?, answering: Bool, starting: Bool = false) {
+        replaceForSnapshot(conversations, current: current, answering: answering, starting: starting)
     }
 }

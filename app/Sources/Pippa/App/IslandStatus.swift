@@ -44,8 +44,8 @@ struct IslandStatus: Equatable {
         if chat.isAnswering {
             let last = chat.answering?.messages.last
             if let step = last?.steps.last(where: { !$0.done }) { return IslandStatus(tone: .working, label: step.label) }
-            if let text = last?.text, !text.isEmpty { return IslandStatus(tone: .working, label: T("Writing…", table: "App")) }
-            return IslandStatus(tone: .working, label: T("Thinking…", table: "App"))
+            if chat.isWriting { return IslandStatus(tone: .working, label: T("Writing…", table: "App")) }
+            return IslandStatus(tone: .working, label: chat.startingAI ? T("Starting my AI…", table: "App") : T("Thinking…", table: "App"))
         }
         if !setup.usesOnlineAI {
             switch setup.state {

@@ -203,7 +203,8 @@ private struct Arrival: ViewModifier {
             .opacity(hidden ? 0 : 1)
             .offset(y: hidden ? Theme.arrivalOffset : 0)
             .onAppear {
-                guard active else { return }
+                // Already on screen when it turns active later: it stays visible, it never hides again.
+                guard active else { shownState.wrappedValue = true; return }
                 withAnimation(Theme.message?.delay(delay)) { shownState.wrappedValue = true }
             }
     }

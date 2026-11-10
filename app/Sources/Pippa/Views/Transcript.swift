@@ -45,6 +45,8 @@ struct Transcript: View {
                         let last = index == conversation.messages.count - 1
                         let arrives = settled.id == conversation.id && index >= settled.count
                         MessageView(chat: chat, message: message, live: answeringHere && last, isLast: last,
+                                    starting: answeringHere && last && chat.startingAI,
+                                    writing: answeringHere && last && chat.isWriting,
                                     answering: chat.isAnswering, started: answeringHere && last ? chat.answerStarted : nil,
                                     undoing: chat.undoing)
                             .equatable()
