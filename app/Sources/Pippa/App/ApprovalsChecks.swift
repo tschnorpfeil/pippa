@@ -91,6 +91,15 @@ enum ConversationStoreChecks {
             let result = #"{"data":{"subject":"Repeated subject","messageID":"\#(id)"}}"#
             return SourceLog.source(tool: "mcp__pippa__mail_read", arguments: arguments, result: result)
         }
+        // "Writing…" follows what comes in right now, not whether the answer has text already.
+        let events: [PiRPCEvent] = [.textDelta("\n\n"), .thinkingDelta("hm"), .textDelta("Ich schaue nach."),
+                                    .assistantEnded(text: "", stopReason: "toolUse", error: nil), .thinkingDelta("weiter"),
+                                    .toolStarted(id: "1", name: "read", arguments: "{}"), .textDelta("Fertig"), .textDelta(" "),
+                                    .thinkingDelta("noch etwas")]
+        var writing = false
+        let states = events.map { event in writing = ChatModel.writing(writing, after: event); return writing }
+        check(states == [false, false, true, false, false, false, true, true, false],
+              "Writing shows only while words come in: not for opening line breaks, not while thinking or reading after a first sentence")
         let firstMail = mailSource("old@example.test"), secondMail = mailSource("new@example.test")
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",
               "a mail read by id gets its title and openable identity from the result")

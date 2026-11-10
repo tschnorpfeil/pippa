@@ -11,6 +11,10 @@ struct MessageView: View, Equatable {
     /// The answer that is coming in right now.
     var live: Bool
     var isLast: Bool
+    /// The AI on this Mac is still starting for this answer.
+    var starting = false
+    /// Words of this answer are coming in right now.
+    var writing = false
     /// An answer runs somewhere: Edit and Ask Again wait.
     var answering: Bool
     var started: Date?
@@ -22,7 +26,7 @@ struct MessageView: View, Equatable {
     private var hover: Bool { hoverState.wrappedValue }
 
     nonisolated static func == (a: MessageView, b: MessageView) -> Bool {
-        a.message == b.message && a.live == b.live && a.isLast == b.isLast && a.answering == b.answering
+        a.message == b.message && a.live == b.live && a.isLast == b.isLast && a.starting == b.starting && a.writing == b.writing && a.answering == b.answering
             && a.started == b.started && a.undoing == b.undoing
     }
 
@@ -72,7 +76,7 @@ struct MessageView: View, Equatable {
         let seen = seenState.wrappedValue
         return VStack(alignment: .leading, spacing: Space.l) {
             if live || !message.steps.isEmpty || !(message.thinking ?? "").isEmpty || message.stopped == true {
-                WorkView(message: message, live: live, started: started)
+                WorkView(message: message, live: live, starting: starting, writing: writing, started: started)
             }
             if !message.text.isEmpty {
                 MarkdownText(text: message.text, highlights: live ? [] : message.unsupportedDates ?? [])

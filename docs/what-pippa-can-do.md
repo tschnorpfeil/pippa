@@ -1,6 +1,6 @@
 # What Pippa can do
 
-Drop files on Pippa, bring her up with ⌃⌥ Space, or just ask her something. She hands back the result: a file, an
+Drop files on Pippa, bring her up with ⌥ Space, or just ask her something. She hands back the result: a file, an
 answer with the passage it comes from, a draft, an event or a reminder. The [README](../README.md) has the short
 version.
 
@@ -16,7 +16,7 @@ she downloads once for your Mac, or an online AI you switch on in Settings under
 the window's sidebar, so you can search for it and pick it up later.
 
 **Pippa Island** sits at the notch, or under Pippa's menu bar symbol on a Mac without one. It shows what she is working
-on, such as the file she is reading. Press ⌃⌥ Space to open it for a quick question, drop a file on it, or click
+on, such as the file she is reading. Press ⌥ Space to open it for a quick question, drop a file on it, or click
 **Open Pippa** to continue in the full window. You can switch it off in Settings under **General**.
 
 ## Everyday jobs

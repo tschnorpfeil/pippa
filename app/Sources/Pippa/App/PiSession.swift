@@ -67,19 +67,23 @@ final class PiSession {
 
     /// Sends `text` to Pi in the session `conversation` and calls `onEvent` for every event until Pi settles.
     /// `turn` binds the app's MCP tools to this answer: writes outside an answer are refused.
-    func ask(_ text: String, conversation: String, onEvent: @escaping (PiRPCEvent) -> Void) async throws {
+    /// `onStarting`: `true` while the AI on this Mac starts and loads into memory before the question goes out, then `false`.
+    func ask(_ text: String, conversation: String, onStarting: @escaping (Bool) -> Void = { _ in },
+             onEvent: @escaping (PiRPCEvent) -> Void) async throws {
         let turn = PippaMCPTurn()
         PippaMCPService.begin(turn)
         defer { PippaMCPService.end(turn) }
         var settled = false
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
-        let startup = Task { try await prepare(conversation: conversation) }
+        defer { onStarting(false) }
+        let startup = Task { try await prepare(conversation: conversation, onStarting: onStarting) }
         startupTask = startup
         let client: PiRPCClient
         let route: LaunchRoute
         do { (client, route) = try await withTaskCancellationHandler { try await startup.value } onCancel: { startup.cancel() } }
         catch { startupTask = nil; throw error }
         startupTask = nil
+        onStarting(false)
         try Task.checkCancellation()
         let stream: AsyncThrowingStream<PiRPCEvent, Error>
 
@@ -96,12 +100,17 @@ final class PiSession {
         }
     }
 
-    private func prepare(conversation: String) async throws -> (PiRPCClient, LaunchRoute) {
+    private func prepare(conversation: String, onStarting: (Bool) -> Void) async throws -> (PiRPCClient, LaunchRoute) {
         let route = try await launchRoute()
         if route.online == nil && route.piModel == nil {
-            do { try await localModelServer().ensureRunning() }
+            onStarting(true)
+            let server: OMLXServer
+            do { server = try await localModelServer(); try await server.ensureRunning() }
             catch let error as Failure { throw error }
             catch { throw Failure.setup(T("The AI on this Mac didn’t start. Try again in a moment.", table: "App")) }
+            // Load the weights now, so "starting" covers the load and "thinking" means thinking. A load that fails
+            // here fails again with the question, which reports it properly.
+            try? await server.prewarm()
         }
         try Task.checkCancellation()
         return (try await ready(conversation: conversation, route: route), route)

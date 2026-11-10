@@ -29,7 +29,7 @@ Cloud assistants read your documents on their servers, and most local AI apps st
 
 Also: unsent reply drafts in Mail (you send them; she never does), Calendar entries, reminders, photos from your library and the web after she asks you.
 
-Open Pippa from the Dock or press ⌃⌥ Space, then just ask. **Pippa Island**, at the notch or under her menu bar symbol, shows what she is working on; ⌃⌥ Space opens it for a quick question, and you can drop files on it. When she needs your OK, for example before a web search or a command that changes files, she asks right in the conversation with **Allow** and **Don’t Allow**, not in a separate window. Each conversation stays in the sidebar, which you can search. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
+Open Pippa from the Dock or press ⌥ Space, then just ask. **Pippa Island**, at the notch or under her menu bar symbol, shows what she is working on; ⌥ Space opens it for a quick question, and you can drop files on it. When she needs your OK, for example before a web search or a command that changes files, she asks right in the conversation with **Allow** and **Don’t Allow**, not in a separate window. Each conversation stays in the sidebar, which you can search. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 
@@ -62,7 +62,7 @@ Keep ChatGPT if you like it: Pippa can use your subscription as her online AI.
 - **Mail, Calendar and Reminders:** find and read your newest matching mails and their document attachments, open the exact read mail from the source under her answer, and write an unsent draft in Mail for you to review and send; read your calendar and reminders, and add appointments and reminders when you ask.
 - **Finding things:** files on your Mac and in iCloud Drive, photos in your library, and the web after she asks you.
 - **Remembering:** a short list of facts you tell her about yourself, such as your doctor's name. You can ask her to forget them.
-- **Quick questions:** press ⌃⌥ Space and ask in Pippa Island at the top of the screen, or drop a file on it. **Open Pippa** takes the conversation to the full window.
+- **Quick questions:** press ⌥ Space and ask in Pippa Island at the top of the screen, or drop a file on it. **Open Pippa** takes the conversation to the full window.
 
 More, with examples and limits: [What Pippa can do](docs/what-pippa-can-do.md).
 

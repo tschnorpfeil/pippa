@@ -73,6 +73,12 @@ final class ChatModel: ObservableObject {
     private var pendingSources: [String: ChatSource] = [:]
     /// When the running answer started, for the live "Thinking … 12 s".
     @Published private(set) var answerStarted: Date?
+    /// The AI on this Mac is starting or loading into memory before the question goes out (shown once it takes a moment).
+    @Published private(set) var startingAI = false
+    private var startingTask: Task<Void, Never>?
+    /// Words of the answer are coming in right now. Text already there says nothing about it: after a first sentence
+    /// Pippa often thinks or reads on.
+    @Published private(set) var isWriting = false
     private var answer: Task<Void, Never>?
     private var pdfTask: Task<Void, Never>?
     /// "Stop" was pressed for the running answer.
@@ -199,7 +205,7 @@ final class ChatModel: ObservableObject {
         let turn = generation
         answer = Task {
             do {
-                try await PiSession.shared.ask(prompt, conversation: id) { event in self.apply(event, in: id) }
+                try await PiSession.shared.ask(prompt, conversation: id, onStarting: { self.starting($0) }) { event in self.apply(event, in: id) }
             } catch is CancellationError {
             } catch {
                 if !stopRequested { update(reply.id, in: id) { $0.error = error.localizedDescription } }
@@ -316,7 +322,20 @@ final class ChatModel: ObservableObject {
         answerStarted = started
     }
 
+    /// A warm AI is ready within milliseconds: only a start that takes a moment is worth saying.
+    private func starting(_ on: Bool) {
+        startingTask?.cancel()
+        startingTask = nil
+        guard on else { startingAI = false; return }
+        startingTask = Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            if !Task.isCancelled { startingAI = true }
+        }
+    }
+
     private func end() {
+        starting(false)
+        isWriting = false
         isAnswering = false
         answeringID = nil
         answerStarted = nil
@@ -351,8 +370,20 @@ final class ChatModel: ObservableObject {
         return parts.filter { !$0.isEmpty }.joined(separator: "\n\n")
     }
 
+    /// Whether words of the answer are coming in after `event`: text with more than line breaks (models open with
+    /// them) starts it; thinking, a tool call and the end of the model's turn end it.
+    static func writing(_ now: Bool, after event: PiRPCEvent) -> Bool {
+        switch event {
+        case .textDelta(let delta): now || delta.contains { !$0.isWhitespace }
+        case .thinkingDelta, .toolStarted, .assistantEnded: false
+        default: now
+        }
+    }
+
     private func apply(_ event: PiRPCEvent, in id: String) {
         evidence.observe(event)
+        let writing = Self.writing(isWriting, after: event)
+        if writing != isWriting { isWriting = writing }
         switch event {
         case .textDelta(let delta):
             updateLast(in: id) { $0.text += delta }
@@ -398,7 +429,7 @@ final class ChatModel: ObservableObject {
     }
 
     /// Snapshots only (`Snapshots`): never saved.
-    func replaceForSnapshot(_ conversations: [Conversation], current: String?, answering: Bool) {
+    func replaceForSnapshot(_ conversations: [Conversation], current: String?, answering: Bool, starting: Bool = false) {
         showsSample = true
         isLoaded = true
         self.conversations = conversations
@@ -406,6 +437,8 @@ final class ChatModel: ObservableObject {
         isAnswering = answering
         answeringID = answering ? current : nil
         answerStarted = answering ? Date().addingTimeInterval(-42) : nil
+        startingAI = starting
+        isWriting = false
     }
 
     // MARK: Storage

@@ -102,7 +102,13 @@ enum HeadlessAsk {
 
     /// `ask` and `write` default to the real session and standard output; checks pass their own.
     static func run(_ question: String,
-                    ask: Ask = { text, conversation, onEvent in try await PiSession.shared.ask(text, conversation: conversation, onEvent: onEvent) },
+                    ask: Ask = { text, conversation, onEvent in
+                        // To standard error with the time, so a run shows how long the AI took to start.
+                        let began = Date()
+                        try await PiSession.shared.ask(text, conversation: conversation, onStarting: { on in
+                            FileHandle.standardError.write(Data(String(format: "%6.1fs · AI on this Mac %@\n", Date().timeIntervalSince(began), on ? "starting" : "ready").utf8))
+                        }, onEvent: onEvent)
+                    },
                     write: @escaping (String) -> Void = { FileHandle.standardOutput.write(Data(($0 + "\n").utf8)) }) async -> Int32 {
         let started = Date()
         func say(_ line: String) { write(String(format: "%6.1fs ", Date().timeIntervalSince(started)) + line) }

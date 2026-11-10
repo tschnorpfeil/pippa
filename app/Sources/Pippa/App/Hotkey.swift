@@ -2,9 +2,9 @@ import AppKit
 import Carbon.HIToolbox
 import PippaCore
 
-/// Shortcut for "call Pippa". One default everywhere: ⌃⌥ Space (⌥ Space types a non-breaking space on German
-/// keyboards, ⌃⌥ P is hard to remember). If ⌃⌥ Space is already "Select next input source",
-/// Settings reports that (`HotkeyCenter.takenBySystem`).
+/// Shortcut for "call Pippa". One default everywhere: ⌥ Space, the owner's choice (2026-11-10), as in other assistants.
+/// While it is on, ⌥ Space no longer types a non-breaking space; whoever needs that picks ⌃⌥ Space in Settings. If the
+/// shortcut is taken by macOS, Settings reports that (`HotkeyCenter.takenBySystem`).
 /// Whoever has already saved another combination keeps it. A few fixed presets, no free recorder.
 enum Hotkey: String, CaseIterable, Identifiable {
     case controlOptionSpace
@@ -21,7 +21,7 @@ enum Hotkey: String, CaseIterable, Identifiable {
     }
 
     /// The one default.
-    static let standard: Hotkey = .controlOptionSpace
+    static let standard: Hotkey = .optionSpace
 
     var display: String {
         switch self {

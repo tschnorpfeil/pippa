@@ -34,12 +34,24 @@ final class Island: ObservableObject {
     /// The island opened by itself for a question and closes again once it is answered.
     private var openedForQuestion = false
     private var presenting = false
+    /// Files are being dragged in another app with the pointer near the top of the island's display: the island opens
+    /// as a large drop tray, so nobody has to open it first.
+    @Published private(set) var dropMode = false
+    private var dragMonitor: Any?
+    private var dragStart = 0
+    static let fileDragTypes: [NSPasteboard.PasteboardType] =
+        [.fileURL] + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
+    /// How far below the top of the display a drag counts as heading for the island.
+    static let dragReach: CGFloat = 160
 
     /// At launch: shows the island if it is switched on.
     func start() { apply() }
 
     /// Snapshots only (`IslandSnapshots`).
-    func showForSnapshot(_ status: IslandStatus) { self.status = status }
+    func showForSnapshot(_ status: IslandStatus, dropMode: Bool = false) {
+        self.status = status
+        self.dropMode = dropMode
+    }
 
     private func apply() {
         // The menu bar symbol follows the status also while the island is off.
@@ -70,6 +82,7 @@ final class Island: ObservableObject {
         presenter.onClosed = { [weak self] in
             guard let self else { return }
             isOpen = false
+            dropMode = false
             openedForQuestion = false
             wantsFocus = false
             statusButton?.highlight(false)
@@ -94,6 +107,11 @@ final class Island: ObservableObject {
             guard let self, empty, openedForQuestion else { return }
             DispatchQueue.main.async { self.close() }
         })
+        // Mouse events of other apps need no permission; the drag pasteboard tells a file drag from any other.
+        dragMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
+            let type = event.type
+            MainActor.assumeIsolated { self?.followDrag(type) }
+        }
         screenObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                                                 object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -101,6 +119,42 @@ final class Island: ObservableObject {
                 self?.presenter?.close(animated: false)
                 self?.refresh()
             }
+        }
+    }
+
+    private func followDrag(_ type: NSEvent.EventType) {
+        let board = NSPasteboard(name: .drag)
+        switch type {
+        case .leftMouseDown:
+            dragStart = board.changeCount
+        case .leftMouseUp where dropMode:
+            // The drop reaches the island after this event: a tray that got nothing closes once it would have.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self, dropMode, NSEvent.pressedMouseButtons & 1 == 0 else { return }
+                close()
+            }
+        case .leftMouseDragged:
+            // An island opened by hand already takes drops as it is.
+            // Files only (also Mail's promised files): dragged text or a link is not headed for Pippa.
+            guard isShown, !isOpen || dropMode, board.changeCount != dragStart,
+                  board.availableType(from: Self.fileDragTypes) != nil, let placement = presenter?.placement else { return }
+            let island: CGPoint
+            switch placement {
+            case .notch(let housing, _): island = CGPoint(x: housing.midX, y: housing.midY)
+            case .menuBar(let anchor, _): island = CGPoint(x: anchor.midX, y: anchor.midY)
+            }
+            // Near the top of the display the island is on, not of a neighbour whose top lines up with it.
+            let point = NSEvent.mouseLocation
+            let screen = NSScreen.screens.first { $0.frame.contains(point) }
+            let near = screen.map { $0.frame.contains(island) && point.y >= $0.frame.maxY - Self.dragReach } == true
+            if near, !dropMode {
+                dropMode = true
+                open(key: false)
+            } else if !near, dropMode {
+                close()
+            }
+        default:
+            break
         }
     }
 
@@ -180,6 +234,12 @@ final class Island: ObservableObject {
 
     /// A new question from Pi: the island opens by itself, without taking the keyboard from the app in front.
     func reveal() {
+        // Open as a drop tray: the question takes its place, and the drag no longer closes it.
+        if dropMode {
+            dropMode = false
+            openedForQuestion = true
+            return
+        }
         guard isShown, !isOpen else { return }
         openedForQuestion = true
         open(key: false)
@@ -209,6 +269,11 @@ final class Island: ObservableObject {
 
     func close() { presenter?.close() }
 
+    /// The panel's content is on screen: a focus asked for while it was still hidden takes effect now.
+    func panelShown() {
+        if wantsFocus { focusToken += 1 }
+    }
+
     /// "Open Pippa" (⌘↩), "Set up my AI", or a click on "Your answer is ready".
     func openChat() {
         close()
@@ -217,6 +282,7 @@ final class Island: ObservableObject {
 
     /// Files dropped on the island go with the next quick question.
     func attach(_ urls: [URL]) {
+        dropMode = false
         let chat = ChatModel.shared
         chat.attachments += MailDropIdentity.attachments(urls, excluding: chat.attachments)
         open(key: true, focus: true)

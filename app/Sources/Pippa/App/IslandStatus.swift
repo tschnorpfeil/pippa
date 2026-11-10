@@ -44,8 +44,8 @@ struct IslandStatus: Equatable {
         if chat.isAnswering {
             let last = chat.answering?.messages.last
             if let step = last?.steps.last(where: { !$0.done }) { return IslandStatus(tone: .working, label: step.label) }
-            if let text = last?.text, !text.isEmpty { return IslandStatus(tone: .working, label: T("Writing…", table: "App")) }
-            return IslandStatus(tone: .working, label: T("Thinking…", table: "App"))
+            if chat.isWriting { return IslandStatus(tone: .working, label: T("Writing…", table: "App")) }
+            return IslandStatus(tone: .working, label: chat.startingAI ? T("Starting my AI…", table: "App") : T("Thinking…", table: "App"))
         }
         if !setup.usesOnlineAI {
             switch setup.state {
@@ -76,7 +76,8 @@ struct IslandStatus: Equatable {
 
     /// At the notch: one wing's width. The mark sits in the left wing, the line in the right one; both are equally
     /// wide so the island stays centred on the camera.
-    var wingWidth: CGFloat { IslandStyle.wingGap + labelWidth + trailerWidth + IslandStyle.wingInset }
+    /// Left of the housing: mark, line, and a gap before the housing.
+    var wingWidth: CGFloat { IslandStyle.wingInset + Self.markSize + IslandStyle.wingGap + labelWidth + trailerWidth + IslandStyle.wingGap }
 
     /// Under the menu bar: the whole capsule.
     var capsuleWidth: CGFloat { 6 + Self.markSize + 7 + labelWidth + trailerWidth + 12 }

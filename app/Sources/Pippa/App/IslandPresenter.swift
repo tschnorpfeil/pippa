@@ -52,6 +52,8 @@ final class IslandView: NSView {
     private var fillAlpha: CGFloat = 1
     /// Window origin in global coordinates; the geometry is global.
     private var origin = CGPoint.zero
+    /// The open panel just became visible: only now can its question field take the keyboard.
+    var onPanelShown: (() -> Void)?
 
     init(island: Island, onHeight: @escaping (CGFloat) -> Void) {
         compact = IslandHostingView(rootView: IslandCompactView(island: island))
@@ -109,7 +111,10 @@ final class IslandView: NSView {
         panel.frame = NSRect(x: openRect.minX - shape.rect.minX, y: openRect.minY - shape.rect.minY + IslandChoreography.contentDrop(open),
                              width: openRect.width, height: max(0, top - openRect.minY))
         panel.alphaValue = IslandChoreography.contentAlpha(open)
-        panel.isHidden = open < 0.01
+        let hidden = open < 0.01
+        let shown = panel.isHidden && !hidden
+        panel.isHidden = hidden
+        if shown { onPanelShown?() }
     }
 
     private func housingHeight(_ placement: IslandPlacement) -> CGFloat {
@@ -148,6 +153,8 @@ final class IslandPresenter: NSObject {
     private var fadeToken = 0
     private var monitors: [Any] = []
     private var observers: [NSObjectProtocol] = []
+    /// Watches a press in another app until the button comes up (`pressedOutside`).
+    private var pressWatch: Timer?
     /// The menu bar symbol: clicks there belong to its own toggle and never count as outside clicks.
     var sourceRect: () -> NSRect = { .zero }
     var onClosed: (() -> Void)?
@@ -165,6 +172,7 @@ final class IslandPresenter: NSObject {
         view.compact.onClick = { [weak island] in island?.compactClicked() }
         view.compact.onDrop = { [weak island] in island?.attach($0) }
         view.panel.onDrop = { [weak island] in island?.attach($0) }
+        view.onPanelShown = { [weak island] in island?.panelShown() }
     }
 
     /// A new display or menu bar position: everything jumps to its resting place there.
@@ -178,11 +186,16 @@ final class IslandPresenter: NSObject {
         }
         compactTo = target(placement, compactWidth)
         compactFrom = compactTo
-        alphaTo = compactWidth == nil ? 0 : 1
+        alphaTo = Self.compactAlpha(placement, compactWidth)
         alphaFrom = alphaTo
         wing.snap(to: 1)
         if !isPresented { opening.snap(to: 0) }
         render()
+    }
+
+    /// At the notch the mark stays visible at rest; under the menu bar the capsule leaves.
+    private static func compactAlpha(_ placement: IslandPlacement, _ width: CGFloat?) -> CGFloat {
+        width != nil || placement.isNotch ? 1 : 0
     }
 
     private func target(_ placement: IslandPlacement, _ width: CGFloat?) -> CGRect {
@@ -193,7 +206,7 @@ final class IslandPresenter: NSObject {
     func setCompact(width: CGFloat?) {
         guard let placement else { return }
         let target = target(placement, width)
-        let alpha: CGFloat = width == nil ? 0 : 1
+        let alpha = Self.compactAlpha(placement, width)
         guard target != compactTo || alpha != alphaTo else { return }
         compactFrom = currentCompact
         alphaFrom = currentCompactAlpha
@@ -360,10 +373,10 @@ final class IslandPresenter: NSObject {
             return escape ? nil : event
         }
         // Clicks in other apps are always outside; only the menu bar symbol keeps them.
-        let global = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
+        let global = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] event in
             MainActor.assumeIsolated {
                 guard let self, !self.sourceRect().contains(NSEvent.mouseLocation) else { return }
-                self.close()
+                if event.type == .leftMouseDown { self.pressedOutside() } else { self.close() }
             }
         }
         monitors = [local, global].compactMap { $0 }
@@ -373,7 +386,27 @@ final class IslandPresenter: NSObject {
         })
     }
 
+    /// A press in another app may be the start of a drag onto the island ("drop a file here"), so the island waits for
+    /// the button to come up: a plain click closes it then, and so does a drag that ends anywhere else. A drag that
+    /// ends on the island leaves it open with the files.
+    private func pressedOutside() {
+        let drags = NSPasteboard(name: .drag).changeCount
+        pressWatch?.invalidate()
+        pressWatch = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, NSEvent.pressedMouseButtons & 1 == 0 else { return }
+                self.pressWatch?.invalidate()
+                self.pressWatch = nil
+                let dragged = NSPasteboard(name: .drag).changeCount != drags
+                let onIsland = self.view.shapeContains(self.panel.convertPoint(fromScreen: NSEvent.mouseLocation))
+                if !(dragged && onIsland) { self.close() }
+            }
+        }
+    }
+
     private func removeMonitors() {
+        pressWatch?.invalidate()
+        pressWatch = nil
         monitors.forEach(NSEvent.removeMonitor)
         monitors.removeAll()
         observers.forEach(NSWorkspace.shared.notificationCenter.removeObserver)

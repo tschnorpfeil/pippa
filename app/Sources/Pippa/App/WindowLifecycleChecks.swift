@@ -27,6 +27,23 @@ enum WindowLifecycleChecks {
         check("Standard Hide action is in the app menu", NSApp.mainMenu?.items.first?.submenu?.items.contains { $0.action == #selector(NSApplication.hide(_:)) } == true)
         check("Closing the last window does not quit", !delegate.applicationShouldTerminateAfterLastWindowClosed(NSApp))
         check("Pippa Island starts on in a fresh preference domain", Island.shared.isShown)
+        // The default shortcut is ⌥ Space, and a real ⌥ Space press reaches Pippa.
+        check("The default shortcut in a fresh preference domain is ⌥ Space", Hotkey.current == .optionSpace)
+        var pressed = false
+        let previous = HotkeyCenter.shared.onPress
+        HotkeyCenter.shared.onPress = { pressed = true }
+        let registered = HotkeyCenter.shared.apply(Hotkey.current)
+        for down in [true, false] {
+            let event = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(Hotkey.optionSpace.keyCode ?? 0), keyDown: down)
+            event?.flags = .maskAlternate
+            event?.post(tap: .cghidEventTap)
+        }
+        for _ in 0..<10 where !pressed { await settle() }
+        HotkeyCenter.shared.onPress = previous
+        print("Shortcut: registered=\(registered), posting allowed=\(CGPreflightPostEventAccess()), pressed=\(pressed)")
+        check("⌥ Space registers with macOS", registered)
+        // Posting a key needs the Accessibility grant, which this cloned app does not have.
+        if CGPreflightPostEventAccess() { check("A real ⌥ Space press calls Pippa", pressed) }
 
         ChatWindow.shared.show()
         await settle()
