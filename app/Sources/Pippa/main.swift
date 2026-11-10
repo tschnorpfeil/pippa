@@ -3,6 +3,12 @@ import AppKit
 // Pi, the oMLX server and Node are children on pipes: if one dies just before a write, the write fails instead of
 // SIGPIPE ending Pippa.
 signal(SIGPIPE, SIG_IGN)
+// `Pippa --memory-probe --from … --to …`: first of all, so that nothing of the app starts for this developer diagnostic.
+if CommandLine.arguments.dropFirst().contains("--memory-probe") {
+    let arguments = Array(CommandLine.arguments.dropFirst())
+    Task { exit(await MemoryProbeCommand.run(arguments)) }
+    dispatchMain()
+}
 let app = NSApplication.shared
 if CommandLine.arguments.dropFirst().contains("--verify-runtime") {
     do { try BundleVerification.run(); exit(0) }

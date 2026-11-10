@@ -68,6 +68,9 @@ await focused("PIPPA_MCP_CHECKS", "MCP") {
     await runNativeReminderChecks()
 }
 
+// The memory probe's window, access states and privacy; synthetic stand-ins only.
+await focused("PIPPA_MEMORY_PROBE_CHECKS", "Memory probe") { await runMemoryProbeChecks() }
+
 func dir(_ name: String) -> URL {
     let u = root.appendingPathComponent(name, isDirectory: true)
     try? fm.createDirectory(at: u, withIntermediateDirectories: true)
@@ -440,6 +443,7 @@ await runMCPChecks()
 await runNativeReminderChecks()
 await runPermissionRepairChecks()
 await runDownloadHangChecks()
+await runMemoryProbeChecks()
 
 print(failures == 0 ? "All checks passed." : "\(failures) check(s) failed.")
 exit(failures == 0 ? 0 : 1)
