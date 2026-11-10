@@ -84,6 +84,13 @@ public final class PiSetupFlow: @unchecked Sendable {
     /// All without network. Stops only at the download question or an error; not enough room for the download is an error,
     /// so the question is never asked for something that cannot fit.
     public func prepare() -> PiSetupState {
+        // Keep the following model/provider records in the same transaction as the Pi install. A waiting launcher
+        // otherwise reloads an earlier state and can overwrite these records after its reuse check finishes.
+        do { return try installer.exclusive(prepareExclusively) }
+        catch { return .failed(PiSetupProblem(installer.failure(error, path: installer.roots.support))) }
+    }
+
+    private func prepareExclusively() -> PiSetupState {
         for step in [PiInstallStep.detect, .pi, .modelsFolder] {
             if case .failed(let failure) = installer.perform(step, options).outcome { return .failed(PiSetupProblem(failure)) }
         }
