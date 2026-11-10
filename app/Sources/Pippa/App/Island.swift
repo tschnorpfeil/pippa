@@ -39,6 +39,8 @@ final class Island: ObservableObject {
     @Published private(set) var dropMode = false
     private var dragMonitor: Any?
     private var dragStart = 0
+    static let fileDragTypes: [NSPasteboard.PasteboardType] =
+        [.fileURL] + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
     /// How far below the top of the display a drag counts as heading for the island.
     static let dragReach: CGFloat = 160
 
@@ -133,16 +135,18 @@ final class Island: ObservableObject {
             }
         case .leftMouseDragged:
             // An island opened by hand already takes drops as it is.
+            // Files only (also Mail's promised files): dragged text or a link is not headed for Pippa.
             guard isShown, !isOpen || dropMode, board.changeCount != dragStart,
-                  board.availableType(from: DropReader.types) != nil, let placement = presenter?.placement else { return }
-            let top: CGFloat
+                  board.availableType(from: Self.fileDragTypes) != nil, let placement = presenter?.placement else { return }
+            let island: CGPoint
             switch placement {
-            case .notch(_, let screen): top = screen.maxY
-            case .menuBar(let anchor, _): top = anchor.maxY
+            case .notch(let housing, _): island = CGPoint(x: housing.midX, y: housing.midY)
+            case .menuBar(let anchor, _): island = CGPoint(x: anchor.midX, y: anchor.midY)
             }
+            // Near the top of the display the island is on, not of a neighbour whose top lines up with it.
             let point = NSEvent.mouseLocation
             let screen = NSScreen.screens.first { $0.frame.contains(point) }
-            let near = screen.map { $0.frame.maxY == top } == true && point.y >= top - Self.dragReach
+            let near = screen.map { $0.frame.contains(island) && point.y >= $0.frame.maxY - Self.dragReach } == true
             if near, !dropMode {
                 dropMode = true
                 open(key: false)
@@ -230,6 +234,12 @@ final class Island: ObservableObject {
 
     /// A new question from Pi: the island opens by itself, without taking the keyboard from the app in front.
     func reveal() {
+        // Open as a drop tray: the question takes its place, and the drag no longer closes it.
+        if dropMode {
+            dropMode = false
+            openedForQuestion = true
+            return
+        }
         guard isShown, !isOpen else { return }
         openedForQuestion = true
         open(key: false)

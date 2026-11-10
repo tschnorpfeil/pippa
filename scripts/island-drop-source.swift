@@ -1,11 +1,13 @@
 // The other app in scripts/check-island-drop.sh: a small window whose content starts a file drag, and real mouse and
-// key events. 1: drag a file onto the closed island (the drop zone appears on the way). 2: a click outside closes it.
+// key events. 0: dragged text leaves the island shut. 1: drag a file onto the closed island (the drop zone appears on the way). 2: a click outside closes it.
 // 3: ⌥ Space opens it with the keyboard in its field. 4: a second file dragged onto the open island lands there.
 // Usage: island-drop-source <log> <file> <second file>
 import AppKit
 
 let log = CommandLine.arguments[1]
 var file = URL(fileURLWithPath: CommandLine.arguments[2])
+/// Drag selected text instead of the file.
+var dragsText = false
 let second = URL(fileURLWithPath: CommandLine.arguments[3])
 
 final class Source: NSView, NSDraggingSource {
@@ -13,7 +15,7 @@ final class Source: NSView, NSDraggingSource {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) {}
     override func mouseDragged(with event: NSEvent) {
-        let item = NSDraggingItem(pasteboardWriter: file as NSURL)
+        let item = NSDraggingItem(pasteboardWriter: dragsText ? "Some selected text" as NSString : file as NSURL)
         item.setDraggingFrame(NSRect(x: 0, y: 0, width: 32, height: 32), contents: NSWorkspace.shared.icon(forFile: file.path))
         beginDraggingSession(with: [item], event: event, source: self)
     }
@@ -74,6 +76,13 @@ func clickOutside() {
 Thread.detachNewThread {
     let home = CGEvent(source: nil)?.location ?? from
     guard let zone = point("ISLAND_REST") else { print("FAIL: the island never reported its place"); exit(1) }
+    // 0. Selected text dragged toward the top (beside the island, which may show a line here) is not for Pippa.
+    dragsText = true
+    var textTray = false
+    drag(to: CGPoint(x: zone.x - 400, y: zone.y)) { textTray = state().contains("zone=true") }
+    dragsText = false
+    pause(0.8)
+    report(!textTray && state().hasPrefix("STATE open=false"), "Dragging selected text toward the top leaves the island closed (\(state()))")
     // 1. Onto the closed island.
     var zoneShown = false
     drag(to: zone) { zoneShown = state().contains("zone=true") }
