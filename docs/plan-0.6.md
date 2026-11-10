@@ -62,6 +62,13 @@ is 0.5.0 build 980. Keep its evidence separate from checks of the release commit
 | Letter deadline | Synthetic letter failed answer-quality review in 97 s; an isolated no-thinking comparison also failed | Correct source quotation and no invented receipt-based deadline; warnings do not count as a pass |
 | Five images into one PDF | Five-page PDF in 5.29 s; all pages rendered in order; input hashes unchanged. The window showed its card and opened Finder | Files entered through Open With, not a physical drag; repeat on the release build |
 
+The Mail candidate was also tested through its signed app and the real Pi runtime with a local scripted responder,
+without a model. An inbox with five matches returned consistent selections at limits four and three; three selected
+message identities read back exactly. Ten attachments (2,683,020 bytes) were saved, with none reported missing,
+in 18 s. This proves native selection/read interoperability and attachment availability. The newest-first algorithm
+is covered by shuffled synthetic fixtures; the live comparison is not an independent ordering oracle. The original
+payment-topic query had no current matches, so payment totals and model behavior remain unverified.
+
 The model setting stays unchanged. There is no production recall feature, persistent index or new card in this
 release. The five live acceptance tasks and performance on a 16 GB Mac are not claimed as passed. Reports and raw
 transcripts stay local; public evidence contains aggregate results only.
