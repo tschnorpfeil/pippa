@@ -53,13 +53,13 @@ Keep ChatGPT if you like it: Pippa can use your subscription as her online AI.
 | Mail, Calendar, Reminders | Unsent Mail drafts, Calendar events, reminders | Through connectors, mostly to online accounts | Varies; a few draft mail or add events | Built into Apple's apps |
 | Cost, account, code | Free, no account, open source (MIT) | Account needed; paid plans for more; closed source | Mostly free, no account; many open source | Included with supported Macs; closed source |
 
-<sub>As of October 2026; other apps change quickly.</sub>
+<sub>As of November 2026; other apps change quickly.</sub>
 
 ## What she can do
 
 - **Files and PDFs:** one PDF from photos and scans, aimed at a size limit if you give one; files found by what's in them; renaming, moving and sorting into folders, with the Trash instead of deleting.
 - **Letters and documents:** what a letter wants and by when, with the passage that says so; questions about PDFs, Word files, spreadsheets and photos of documents; summaries, shorter or clearer text, checklists from your notes.
-- **Mail, Calendar and Reminders:** find and read mails and their attachments, write an unsent draft in Mail for you to review and send; read your calendar and reminders, and add appointments and reminders when you ask.
+- **Mail, Calendar and Reminders:** find and read your newest matching mails and their document attachments, open the exact read mail from the source under her answer, and write an unsent draft in Mail for you to review and send; read your calendar and reminders, and add appointments and reminders when you ask.
 - **Finding things:** files on your Mac and in iCloud Drive, photos in your library, and the web after she asks you.
 - **Remembering:** a short list of facts you tell her about yourself, such as your doctor's name. You can ask her to forget them.
 - **Quick questions:** press ⌃⌥ Space and ask in Pippa Island at the top of the screen, or drop a file on it. **Open Pippa** takes the conversation to the full window.
@@ -78,11 +78,11 @@ One PDF from photos and scans works without any AI download. For everything else
 | 16 or 18 GB | Download about 5.4 GB, shorter context |
 | 24 GB or more | Download about 5.4 GB |
 
-Before the download, Pippa checks that there is enough free disk space and tells you how much more is needed. If her AI runs short of memory on your Mac, she tells you briefly and what helps. She never brings up Apple's window asking you to install developer tools. If the same model is already on your Mac from oMLX, LM Studio or Hugging Face, Pippa uses it instead of downloading it again. Which AI, and why: [Pippa's local AI](docs/models.md).
+Before the download, Pippa checks that there is enough free disk space and tells you how much more is needed. If Hugging Face is blocked or drops, she continues from a verified copy on GitHub Releases. If her AI runs short of memory on your Mac, she tells you briefly and what helps. She never brings up Apple's window asking you to install developer tools. If the same model is already on your Mac from oMLX, LM Studio or Hugging Face, Pippa uses it instead of downloading it again. Which AI, and why: [Pippa's local AI](docs/models.md).
 
 ## Good to know
 
-- **Local AI can miss details.** Check important names, amounts and dates against the original. A date in her answer that appears in nothing she read gets a note saying she worked it out herself. If Pippa gets something wrong, [open an issue](https://github.com/tschnorpfeil/pippa/issues) with the version, what you asked and what happened, using made-up examples.
+- **Local AI can miss details.** Check important names, amounts and dates against the original. Full dates (with a year, including nearby ones) in her answer that appear in nothing she read get a note saying she worked them out herself; dates written without a year are not checked. If Pippa gets something wrong, [open an issue](https://github.com/tschnorpfeil/pippa/issues) with the version, what you asked and what happened, using made-up examples.
 - **Answers may be in German.** Pippa's own abilities for letters and deadlines are written in German.
 - **Nothing is deleted for good.** A file she removes goes to the Trash, and moves never overwrite another file.
 - **She acts when you ask.** If you ask her to add a reminder or move a file, she does it without asking again. The card under her answer shows what she actually did; check the result.

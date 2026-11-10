@@ -70,9 +70,11 @@ in-process MCP server's own read and write notes (`PippaMCPService`), so no `str
 **MCP server (`app/Sources/PippaCore/MCP`).** Streamable HTTP on 127.0.0.1 inside the app (`PippaMCPServer`). Readers
 are dispatched in `PippaMCPTools.swift`, one file per app (`PippaMCPCalendarReaders`, `PippaMCPMailReaders`,
 `PippaMCPPhotoReaders`, `PippaMCPFrontReaders`), with `read_document` in `PippaMCPTurn.swift` (text recognition for
-scans). Writers are dispatched in `PippaMCPWrite.swift`, one file per tool (`PippaMCPCalendarAdd`,
-`PippaMCPReminderAdd`, `PippaMCPMailDraft`; only during an answer). `prepare_files` (`PippaMCPFilePreparation.swift`)
-puts ordered photos and PDFs into one verified PDF, optionally aimed at a size limit.
+scans). `mail_search` selects the newest matches before applying its limit and returns each message's `message_id`;
+`mail_read` opens the exact message by `message_id`, preserves inline document attachments, reports unsaved attachment
+occurrences, and feeds an openable `message://` source chip. Writers are dispatched in `PippaMCPWrite.swift`, one file
+per tool (`PippaMCPCalendarAdd`, `PippaMCPReminderAdd`, `PippaMCPMailDraft`; only during an answer). `prepare_files`
+(`PippaMCPFilePreparation.swift`) puts ordered photos and PDFs into one verified PDF, optionally aimed at a size limit.
 
 **Web access (`runtime/pippa-web`).** `index.ts` loads the pinned `pi-web-access` with Pippa's settings in
 `<Application Support>/Pippa/pi-web` (`PIPPA_WEB_DIR`): DuckDuckGo only, no switch to another signed-in provider. The
@@ -95,7 +97,9 @@ on GitHub releases (each failed attempt switches source, the 8 attempts are shar
 **Setup (`app/Sources/PippaCore/PiSetup`).** `PiInstaller` copies the bundled Pi payload into Pi's managed layout
 (`~/.pi/agent/install/releases/<version>`), puts Node under `~/.local/share/pi-node` and writes the `pippa-local`
 provider into `models.json`; one file per step (`PiInstaller+Detect`, `+Release`, `+Layout`, `+Model`, `+ModelsJSON`,
-`+Launch`, `+TerminalExtension`). `PiLocalServer` plans the oMLX server for it, `PiModelTuning` sets thinking and
+`+Launch`, `+TerminalExtension`). Preparation and publication share a lock so setup and a first question cannot race,
+and incomplete installations owned by Pippa are repaired from the bundled payload while foreign installations stay
+untouched. `PiLocalServer` plans the oMLX server for it, `PiModelTuning` sets thinking and
 compaction per model in Pi's `settings.json`. See [Updating Pi](updating-pi.md).
 
 **Online AI.** `PiProviderSettings` presents the bundled Pi’s provider catalog and authentication methods through

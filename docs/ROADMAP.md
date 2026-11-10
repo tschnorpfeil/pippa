@@ -5,7 +5,7 @@ The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); 
 
 ## Where Pippa stands
 
-The last release is 0.5.0. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
+The last release is 0.6.0. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
 conversation sidebar, a first-run card, and settings for the AI (on this Mac, ChatGPT, or an own online AI), the
 shortcut, login item, permissions and updates. Dropped photos and PDFs become one PDF with a button, without the model.
 
@@ -17,20 +17,24 @@ engine are gone.
 
 ## Next
 
-The [0.6 scope](plan-0.6.md) keeps foundation work first, removes tiny apps, and makes life memory conditional on
-a bounded usefulness experiment. The existing five-task acceptance gate remains in force. The vision prototype is
-exploration, not a shipping commitment.
+The [0.6 scope](plan-0.6.md) shipped the foundation and reliability work first, kept tiny apps out, and left life memory
+conditional on a bounded usefulness experiment. The five-task acceptance gate remains in force before any new production
+tool or card.
 
 1. **Acceptance.** The five tasks in the plan, on a 16 GB Mac with Ornith 1.5 9B on oMLX: find a file in iCloud, evaluate mail
    attachments, add a calendar entry, answer a letter's deadline with the quoted sentence, and photos to one PDF
-   without the model. ETF and photos pass; the letter deadline regresses against Qwen (Ornith computes an objection
-   date), Mail totals run past the answer limit. Details in [omlx-switch.md](omlx-switch.md).
-2. **Mail and Calendar acceptance** needs a signed build or the person's clicks: a re-signed development copy asks
-   macOS again.
-3. **UI polish, second pass:** card views, onboarding text.
-4. **Pippa Island on a MacBook with a notch.** The chat and Settings were checked with Liquid Glass drawn by the window
+   without the model. Document selection, Mail payment totals and receipt-based deadlines remain open model-quality
+   limits ([plan-0.6.md](plan-0.6.md), [omlx-switch.md](omlx-switch.md)).
+2. **UI polish, second pass:** card views, onboarding text.
+3. **Pippa Island on a MacBook with a notch.** The chat and Settings were checked with Liquid Glass drawn by the window
    server (`PIPPA_SNAPSHOT_LIVE=1 Pippa --snapshot`, 2026-11-09, Mac mini without a notch); the island at a real notch
    still needs one look.
+
+Released in 0.6.0: serialized Pi setup and first-start installation with automatic repair of incomplete owned runtimes;
+newest-first inbox selection before applying the result limit, exact Mail message reads and openable Mail source chips;
+preserved inline document attachments and explicit reporting of missing attachment bytes; unsupported-date warnings for
+nearby dates too; headless `--ask` exit codes, length-cutoff failure reporting, the acceptance runner, and a bounded
+read-only `--memory-probe` diagnostic.
 
 Released in 0.5.0: macOS 26.2 or later is required (the oMLX runtime's MLX binaries need it); Pippa
 Island at the notch or under the menu bar symbol replaces the pill; a calmer chat window that streams answers without
