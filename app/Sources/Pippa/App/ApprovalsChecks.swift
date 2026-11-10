@@ -87,6 +87,23 @@ enum ConversationStoreChecks {
             print("\(ok ? "PASS" : "FAIL") \(name)")
             if !ok { failures += 1 }
         }
+        func mailSource(_ id: String, arguments: String = #"{"message_id":"old@example.test"}"#) -> ChatSource? {
+            let result = #"{"data":{"subject":"Repeated subject","messageID":"\#(id)"}}"#
+            return SourceLog.source(tool: "mcp__pippa__mail_read", arguments: arguments, result: result)
+        }
+        let firstMail = mailSource("old@example.test"), secondMail = mailSource("new@example.test")
+        check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",
+              "a mail read by id gets its title and openable identity from the result")
+        check(firstMail != nil && secondMail != nil && Set([firstMail, secondMail]).count == 2,
+              "two read mails with the same subject remain distinct sources")
+        check(mailSource("old@example.test", arguments: #"{"subject":"Wrong subject"}"#)?.name == "Repeated subject",
+              "the mail result supplies the source title, never a look-alike subject in the arguments")
+        check(SourceLog.source(tool: "mail_read", arguments: #"{"subject":"Not read yet"}"#) == nil
+              && SourceLog.source(tool: "mail_read", arguments: "{}", result: #"{"status":"not_found"}"#) == nil,
+              "a mail call without a successful read result is no source")
+        check(mailSource("invalid id")?.location.isEmpty == true,
+              "an invalid message identity cannot become an openable URL")
+
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-store-check-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let first = ConversationStore(folder: root.appendingPathComponent("conversations", isDirectory: true)).load()
