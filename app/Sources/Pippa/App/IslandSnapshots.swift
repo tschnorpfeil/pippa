@@ -88,7 +88,7 @@ enum IslandSnapshots {
                              to: folder.appendingPathComponent("\(name)-\(notch ? "notch" : "menubar").png"))
             }
             // Without another notch tool the open island is centred on the notch.
-            if open && (name == "open" || name == "open-writing") {
+            if open && ["open", "open-writing", "needs-you"].contains(name) {
                 await render(notch: true, open: true, tool: false, status: island.status,
                              to: folder.appendingPathComponent("\(name)-notch-alone.png"))
             }

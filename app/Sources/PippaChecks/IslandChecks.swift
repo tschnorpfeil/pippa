@@ -43,6 +43,19 @@ func runIslandChecks() {
                 && near(rest.minY, housing.minY)
         }
     }
+    check("Island: beside another notch tool the open shape has no flare right of the housing, centred it has one") {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let housing = CGRect(x: 663.5, y: 950, width: 185, height: 32)
+        let placement = IslandPlacement.notch(housing: housing, screen: screen)
+        let rest = IslandGeometry.rest(placement)
+        func shape(_ beside: Bool) -> IslandSilhouette {
+            IslandGeometry.silhouette(placement, from: rest, to: IslandGeometry.open(placement, contentHeight: 200, besideTool: beside), progress: 1)
+        }
+        let beside = shape(true), centred = shape(false)
+        let rightOfHousing = CGPoint(x: housing.maxX + 2, y: screen.maxY - 1)
+        return beside.rightFlare == 0 && beside.flare == IslandGeometry.flare && centred.rightFlare == nil
+            && !beside.path().contains(rightOfHousing) && centred.path().contains(rightOfHousing)
+    }
     check("Island: a notch tool right of the housing is told apart from menu bar symbols, overlays and the left side") {
         let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
         let housing = CGRect(x: 663.5, y: 950, width: 185, height: 32)

@@ -130,6 +130,9 @@ struct IslandPanelView: View {
                     .padding(.trailing, IslandStyle.wingGap + menuBarRow.besideHousing)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: menuBarRow.height)
+                    // As on the closed island, a click on the mark's row closes it.
+                    .contentShape(Rectangle())
+                    .onTapGesture { island.compactClicked() }
             }
             Group {
                 if island.dropMode { dropTray } else { content }
@@ -235,7 +238,8 @@ struct IslandPanelView: View {
                 .foregroundStyle(IslandStyle.white(IslandStyle.primary))
                 .lineLimit(1).truncationMode(.middle)
             Spacer(minLength: 0)
-            if let symbol = island.status.symbol {
+            // Beside the notch the row has room for the name only; the panel below shows the question or the answer.
+            if markSize >= 20, let symbol = island.status.symbol {
                 Image(systemName: symbol).font(.system(size: 11, weight: .bold)).foregroundStyle(IslandStyle.tint(island.status.tone))
             }
         }

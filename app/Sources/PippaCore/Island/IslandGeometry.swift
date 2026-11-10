@@ -18,6 +18,9 @@ public struct IslandSilhouette: Equatable, Sendable {
     /// Width of the concave flares beside the top edge (notch only, 0 while the shape is inside the housing).
     public var flare: CGFloat
     public var hangsFromTop: Bool
+    /// The flare right of the top edge, when it differs from the left one (none where the shape ends on the housing's
+    /// right edge: there the menu bar belongs to another notch tool).
+    public var rightFlare: CGFloat? = nil
 
     /// The outline in global coordinates; `offset` moves it into a window (pass the window origin).
     public func path(offset: CGPoint = .zero) -> CGPath {
@@ -29,11 +32,11 @@ public struct IslandSilhouette: Equatable, Sendable {
             path.addRoundedRect(in: r, cornerWidth: radius, cornerHeight: radius)
             return path
         }
-        let f = min(flare, r.height / 2)
+        let f = min(flare, r.height / 2), fr = min(rightFlare ?? flare, r.height / 2)
         path.move(to: CGPoint(x: r.minX - f, y: r.maxY))
-        path.addLine(to: CGPoint(x: r.maxX + f, y: r.maxY))
-        if f > 0.01 {
-            path.addArc(center: CGPoint(x: r.maxX + f, y: r.maxY - f), radius: f, startAngle: .pi / 2, endAngle: .pi, clockwise: false)
+        path.addLine(to: CGPoint(x: r.maxX + fr, y: r.maxY))
+        if fr > 0.01 {
+            path.addArc(center: CGPoint(x: r.maxX + fr, y: r.maxY - fr), radius: fr, startAngle: .pi / 2, endAngle: .pi, clockwise: false)
         }
         path.addLine(to: CGPoint(x: r.maxX, y: r.minY + radius))
         if radius > 0.01 {
@@ -184,7 +187,10 @@ public enum IslandGeometry {
             func radius(_ r: CGRect) -> CGFloat { r.height > housing.height + 1 ? cornerRadius : wingRadius }
             // The flare beside the left edge; the right one lies inside the housing until the panel opens.
             let flare = max(0, min(Self.flare, housing.minX - rect.minX, rect.maxX - housing.minX))
-            return IslandSilhouette(rect: rect, radius: mix(radius(from), radius(to), p), flare: flare, hangsFromTop: true)
+            // Ending on the housing's right edge (beside another notch tool), it meets the menu bar there without one.
+            let rightFlare: CGFloat? = rect.maxX <= housing.maxX + 0.5 ? 0 : nil
+            return IslandSilhouette(rect: rect, radius: mix(radius(from), radius(to), p), flare: flare, hangsFromTop: true,
+                                    rightFlare: rightFlare)
         case .menuBar:
             return IslandSilhouette(rect: rect, radius: min(cornerRadius, rect.height / 2, rect.width / 2), flare: 0, hangsFromTop: false)
         }
