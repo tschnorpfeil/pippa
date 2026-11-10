@@ -71,22 +71,41 @@ enum PippaMCPService {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
+    /// `false` in `Pippa --ask`: only access that is already granted is used. The tools then say `needs_access` instead of
+    /// showing Pippa's sentence and the system prompt (`PippaMCPHost.askForAccess`). Set through `PiSession.interaction`.
+    static var asksForAccess = true {
+        didSet {
+            guard asksForAccess != oldValue else { return }
+            invalidateEndpoint()
+            host = nil
+        }
+    }
 
     /// The server's integrations (with PIPPA_DEMO=1 a substitute appointment lives only in this substitute's memory).
     private static var host: PippaMCPHost?
 
-    private static var currentHost: PippaMCPHost {
+    /// Where the host starts from; checks replace it with stand-in readers and writers.
+    static var baseHost: () -> PippaMCPHost = { ProcessInfo.processInfo.environment["PIPPA_DEMO"] == "1" ? .demo() : .system() } {
+        didSet { host = nil }
+    }
+
+    static var currentHost: PippaMCPHost {
         if let host { return host }
-        var fresh: PippaMCPHost = ProcessInfo.processInfo.environment["PIPPA_DEMO"] == "1" ? .demo() : .system()
-        fresh.onRead = { note in readNotes.append(note) }
-        fresh.onWrite = { receipt in writeNotes.append(receipt) }
-        fresh.requireActiveWriteTurn = true
-        fresh.explainAccess = { subject, sentence in await explain(subject, sentence) }
+        let fresh = configured(baseHost(), asksForAccess: asksForAccess)
         host = fresh
         return fresh
     }
 
-
+    /// Pippa's own wiring of a host. Without `asksForAccess` neither Pippa's sentence nor a system prompt can appear.
+    static func configured(_ base: PippaMCPHost, asksForAccess: Bool) -> PippaMCPHost {
+        var fresh = base
+        fresh.onRead = { note in readNotes.append(note) }
+        fresh.onWrite = { receipt in writeNotes.append(receipt) }
+        fresh.requireActiveWriteTurn = true
+        fresh.askForAccess = asksForAccess
+        if asksForAccess { fresh.explainAccess = { subject, sentence in await explain(subject, sentence) } }
+        return fresh
+    }
 
     /// Undo from the receipt row: removes the event or reminder only if it is unchanged since Pippa added it.
     static func undo(_ receipt: PippaMCPWriteReceipt) async -> PippaMCPWriteReceipt { await currentHost.undo(receipt) }

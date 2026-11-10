@@ -17,6 +17,10 @@ engine are gone.
 
 ## Next
 
+The [0.6 scope](plan-0.6.md) keeps foundation work first, removes tiny apps, and makes life memory conditional on
+a bounded usefulness experiment. The existing five-task acceptance gate remains in force. The vision prototype is
+exploration, not a shipping commitment.
+
 1. **Acceptance.** The five tasks in the plan, on a 16 GB Mac with Ornith 1.5 9B on oMLX: find a file in iCloud, evaluate mail
    attachments, add a calendar entry, answer a letter's deadline with the quoted sentence, and photos to one PDF
    without the model. ETF and photos pass; the letter deadline regresses against Qwen (Ornith computes an objection

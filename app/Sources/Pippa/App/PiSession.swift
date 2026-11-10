@@ -9,6 +9,30 @@ import PippaCore
 final class PiSession {
     static let shared = PiSession()
 
+    /// Who can answer while Pippa works. The window can; `Pippa --ask` cannot, so it neither opens a dialog nor grants anything.
+    enum Interaction {
+        case window
+        /// Existing grants only. Pi's questions are declined (`declined` says that one was asked), never answered with yes.
+        case headless(declined: @Sendable (PiUIRequest) -> Void)
+
+        /// Whether Pippa's tools may show a permission prompt for access that was never decided (`PippaMCPHost.askForAccess`).
+        var asksForAccess: Bool { if case .window = self { true } else { false } }
+
+        var uiHandler: PiUIHandler {
+            switch self {
+            case .window: { request in await Confirmations.ask(request) }
+            case .headless(let declined): { request in declined(request); return Self.decline(request) }
+            }
+        }
+
+        /// A confirmation is denied; a choice or a typed answer is cancelled. Nothing is approved on the person's behalf.
+        static func decline(_ request: PiUIRequest) -> PiUIResponse { request.method == "confirm" ? .confirmed(false) : .cancelled }
+    }
+
+    var interaction = Interaction.window {
+        didSet { PippaMCPService.asksForAccess = interaction.asksForAccess }
+    }
+
     enum Failure: LocalizedError {
         case setup(String)
         case nativeTools(String)
@@ -166,7 +190,7 @@ final class PiSession {
         let fresh = PiRPCClient(configuration: configuration)
         try Task.checkCancellation()
         client = fresh
-        await fresh.setUIHandler { request in await Confirmations.ask(request) }
+        await fresh.setUIHandler(interaction.uiHandler)
         do {
             try await fresh.start()
             try await fresh.verifyNativeTools()
