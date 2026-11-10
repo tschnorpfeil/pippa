@@ -148,6 +148,8 @@ final class IslandPresenter: NSObject {
     private var fadeToken = 0
     private var monitors: [Any] = []
     private var observers: [NSObjectProtocol] = []
+    /// Watches a press in another app until the button comes up (`pressedOutside`).
+    private var pressWatch: Timer?
     /// The menu bar symbol: clicks there belong to its own toggle and never count as outside clicks.
     var sourceRect: () -> NSRect = { .zero }
     var onClosed: (() -> Void)?
@@ -360,10 +362,10 @@ final class IslandPresenter: NSObject {
             return escape ? nil : event
         }
         // Clicks in other apps are always outside; only the menu bar symbol keeps them.
-        let global = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
+        let global = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] event in
             MainActor.assumeIsolated {
                 guard let self, !self.sourceRect().contains(NSEvent.mouseLocation) else { return }
-                self.close()
+                if event.type == .leftMouseDown { self.pressedOutside() } else { self.close() }
             }
         }
         monitors = [local, global].compactMap { $0 }
@@ -373,7 +375,27 @@ final class IslandPresenter: NSObject {
         })
     }
 
+    /// A press in another app may be the start of a drag onto the island ("drop a file here"), so the island waits for
+    /// the button to come up: a plain click closes it then, and so does a drag that ends anywhere else. A drag that
+    /// ends on the island leaves it open with the files.
+    private func pressedOutside() {
+        let drags = NSPasteboard(name: .drag).changeCount
+        pressWatch?.invalidate()
+        pressWatch = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, NSEvent.pressedMouseButtons & 1 == 0 else { return }
+                self.pressWatch?.invalidate()
+                self.pressWatch = nil
+                let dragged = NSPasteboard(name: .drag).changeCount != drags
+                let onIsland = self.view.shapeContains(self.panel.convertPoint(fromScreen: NSEvent.mouseLocation))
+                if !(dragged && onIsland) { self.close() }
+            }
+        }
+    }
+
     private func removeMonitors() {
+        pressWatch?.invalidate()
+        pressWatch = nil
         monitors.forEach(NSEvent.removeMonitor)
         monitors.removeAll()
         observers.forEach(NSWorkspace.shared.notificationCenter.removeObserver)

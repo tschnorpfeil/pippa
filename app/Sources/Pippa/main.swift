@@ -60,6 +60,13 @@ if CommandLine.arguments.dropFirst().contains("--check-window-lifecycle") {
     Task { @MainActor in exit(await WindowLifecycleChecks.run()) }
     app.run()
 }
+// Isolated acceptance run for dropping files on the open island (scripts/check-island-drop.sh).
+if CommandLine.arguments.dropFirst().contains("--check-island-drop") {
+    app.setActivationPolicy(.regular)
+    setvbuf(stdout, nil, _IOLBF, 0)
+    Task { @MainActor in exit(await IslandDropCheck.run()) }
+    app.run()
+}
 // First launch from the disk image or Downloads: offer once to move to Applications.
 if AppMover.runIfNeeded() { exit(0) }
 let delegate = AppDelegate()

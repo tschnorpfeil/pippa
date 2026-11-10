@@ -32,7 +32,7 @@ tool or card.
 
 Released in 0.6.2: "Starting my AI…" in the chat window and on Pippa Island while the local AI starts and loads, with
 an explanation behind an info button (the weights are now loaded before the question goes out); "Writing…" only while
-words come in.
+words come in; files dragged from another app onto the open Pippa Island land there instead of closing it.
 
 Released in 0.6.1: an almost black chat window in Dark Mode to match Pippa Island; large downloads over four
 connections with the single connection as fallback; the plain short-on-memory sentence when oMLX's memory guard ends a
