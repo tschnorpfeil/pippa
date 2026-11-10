@@ -14,7 +14,8 @@ public enum MailParser {
     public struct Attachment: Sendable, Equatable {
         public var name: String
         public var data: Data
-        /// Shown inside the text (`Content-Disposition: inline` with a Content-ID): signature logos and social icons.
+        /// An image shown inside the text (`Content-Disposition: inline` with a Content-ID): signature logos and social
+        /// icons. A PDF or other document is never inline, even when a mailer gives it a Content-ID.
         public var inline: Bool
     }
 
@@ -93,7 +94,7 @@ public enum MailParser {
         if disposition.lowercased().hasPrefix("attachment") || (filename != nil && !lowerType.hasPrefix("text/")) {
             let name = filename.map { decodeWords(decode(Self.bytes($0), charset: "utf-8")) } ?? "Anhang"
             attachments.append(name)
-            let inline = !disposition.lowercased().hasPrefix("attachment") && headers["content-id"] != nil
+            let inline = !disposition.lowercased().hasPrefix("attachment") && headers["content-id"] != nil && lowerType.hasPrefix("image/")
             files.append(Attachment(name: name, data: content(), inline: inline))
             return
         }

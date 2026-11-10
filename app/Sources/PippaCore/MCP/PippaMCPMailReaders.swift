@@ -16,15 +16,24 @@ extension PippaMCPTools {
     }
 
     func mailRead(_ input: ToolInput) async -> PippaMCPToolResult {
+        // A supplied message_id selects exactly that mail. Wrong, blank or unknown never falls back to a similar subject.
+        var wantedID: String?
+        if let raw = input.messageID {
+            guard let id = MailReplySource.canonicalMessageID(raw) else { return invalid("message_id must be the message_id from mail_search.") }
+            wantedID = id
+        }
         let subject = (input.subject ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (1...300).contains(subject.count) else { return invalid("subject must be the exact subject from mail_search.") }
+        if wantedID == nil, !(1...300).contains(subject.count) { return invalid("subject must be the exact subject from mail_search, or pass its message_id.") }
         let sender = Self.address(input.from ?? "")
         if case .blocked(let reply) = await ensure(.mail, openMail: true,
                                                    closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
             return reply
         }
         do {
-            guard let mail = try await host.integrations.findMail(subject: subject, sender: sender) else {
+            let found: MailMessage?
+            if let wantedID { found = try await host.integrations.findMail(messageID: wantedID) }
+            else { found = try await host.integrations.findMail(subject: subject, sender: sender) }
+            guard let mail = found else {
                 return blocked("not_found", L("I couldn’t find this email in the inbox.", table: "MCP"))
             }
             return mailResult(mail, source: "Mail on this Mac (email from the inbox)")
@@ -41,7 +50,7 @@ extension PippaMCPTools {
     }
 
     /// One mail for the model: text, identity for a reply draft, and its attachments saved as files (`MailFiling`), so
-    /// read_document can read them. Without Mail's original message only the attachment names are known.
+    /// read_document can read them. Without Mail's original message, or when saving fails, only names are known and the result says so.
     private func mailResult(_ mail: MailMessage, source: String) -> PippaMCPToolResult {
         let limit = 6000
         let body = Self.compact(mail.body)
@@ -54,12 +63,19 @@ extension PippaMCPTools {
             if let replyTo = source.replyTo { data["replyTo"] = replyTo }
         }
         var next = "Use only what the email says. Never send mail; replies are drafts. "
-        let files = mail.source == nil ? [] : ((try? MailFiling.file(mail, root: host.mailFiles))?.attachments ?? [])
+        // Without Mail's original message there are no attachment bytes, whatever names Mail lists.
+        let sourceBlank = (mail.source ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        var files: [URL] = [], notSaved = mail.attachmentNames
+        if !sourceBlank, let filed = try? MailFiling.file(mail, root: host.mailFiles) { files = filed.attachments; notSaved = filed.notSaved }
         if !files.isEmpty {
             data["attachments"] = files.prefix(20).map { ["name": $0.lastPathComponent, "path": $0.path] }
             next += "Its attachments are saved as files: read one with mcp__pippa__read_document and its path. "
-        } else if !mail.attachmentNames.isEmpty {
+        } else if !notSaved.isEmpty {
             data["attachments"] = Array(mail.attachmentNames.prefix(20))
+        }
+        if !notSaved.isEmpty {
+            data["attachmentsNotSaved"] = Array(notSaved.prefix(20))
+            next += "Names in attachmentsNotSaved are only names: those attachments could not be saved as files, so their content is unknown. Never say or guess what they contain; tell the person you could not read them. "
         }
         return Self.bounded(source: source, data: data, next: next + Self.mailAppointmentHint)
     }
@@ -88,10 +104,12 @@ extension PippaMCPTools {
             let mails = fetch.items.map { m -> [String: Any] in
                 var value: [String: Any] = ["subject": m.subject, "from": m.sender, "mailbox": m.mailbox, "start": Self.compact(m.preview),
                                             "unread": m.unread]
+                // Only an id mail_read accepts: the exact mail, even when subject and sender repeat.
+                if let id = m.messageID.flatMap(MailReplySource.canonicalMessageID) { value["message_id"] = id }
                 if let date = m.date { value["date"] = Self.dateLabel(date, time: true, calendar: host.calendar) }
                 return value
             }
-            var next = "If mails is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences. start is only the beginning of each email; for the whole email or its attachments call mail_read with its subject and from. If mails is empty, no email in the inbox matches."
+            var next = "If mails is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences. start is only the beginning of each email; for the whole email or its attachments call mail_read with its message_id (without one: its subject and from). If mails is empty, no email in the inbox matches."
             // A small model asked for "the last three" when there are two keeps searching until time runs out.
             if let count = await host.turns.active?.countMailSearch(), count >= Self.mailSearchesBeforeStop {
                 next = "This is Mail search \(count) in this answer: stop searching. Tell the person which mails you found and that you found no others, then work with those."

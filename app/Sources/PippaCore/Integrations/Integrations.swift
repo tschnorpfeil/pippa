@@ -134,6 +134,9 @@ public protocol AppIntegrations: Sendable {
     func selectedMail() async throws -> MailMessage?
     /// The newest inbox mail with exactly this subject whose sender contains `sender` ("" = any), or `nil`.
     func findMail(subject: String, sender: String) async throws -> MailMessage?
+    /// The inbox mail whose Message-ID is exactly `messageID` (a canonical id, see `MailReplySource.canonicalMessageID`), or
+    /// `nil`. Never another mail with a similar subject; of several copies of one message the newest.
+    func findMail(messageID: String) async throws -> MailMessage?
     /// Creates an unsent native reply to the captured original identity. Never falls back to compose.
     func insertReply(_ draft: MailDraft) async throws -> MailInsertResult
     /// Occurrences overlapping `interval` from every event calendar, read only, sorted by start, at most `limit`
@@ -144,6 +147,7 @@ public protocol AppIntegrations: Sendable {
 public extension AppIntegrations {
     func prepareMailAccess() async -> IntegrationAccess { await access(.mail) }
     func findMail(subject: String, sender: String) async throws -> MailMessage? { throw PippaError.notAvailable }
+    func findMail(messageID: String) async throws -> MailMessage? { throw PippaError.notAvailable }
     func insertReply(_ draft: MailDraft) async throws -> MailInsertResult { throw PippaError.notAvailable }
     func events(in interval: DateInterval, limit: Int) async throws -> CalendarFetch { throw PippaError.notAvailable }
 }
@@ -155,6 +159,8 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
     private var items: [String: (item: CreatedItem, title: String)] = [:]
     private var drafts: [MailDraft] = []
     public var sampleMail: MailMessage?
+    /// More inbox mails for `findMail` (tests, PIPPA_DEMO), after `sampleMail`. Never selected by `selectedMail`.
+    public var inboxMails: [MailMessage] = []
     /// Synthetic events (never real); `nil` = `sampleCalendar` relative to now. Tests and PIPPA_DEMO only.
     public var calendarEvents: [CalendarEvent]?
     public var calendarNames = ["Arbeit", "Privat"]
@@ -175,6 +181,9 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
     private var preparedMailCount = 0
     /// Tests only: how often Mail was prepared for a search or draft.
     public var mailPreparations: Int { lock.withLock { preparedMailCount } }
+    private var lookups = 0
+    /// Tests only: how often a mail was looked up in the inbox (`findMail`), found or not.
+    public var mailLookups: Int { lock.withLock { lookups } }
 
     public init(granted: Bool = false) {
         state = Dictionary(uniqueKeysWithValues: Integration.allCases.map { ($0, granted ? .granted : .notDetermined) })
@@ -227,13 +236,25 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
         return sampleMail
     }
 
-    /// The sample mail when subject and sender match it, as `SystemIntegrations.findMail` matches the inbox.
+    /// The newest mail among the sample mail and `inboxMails` with this subject whose sender contains `sender`, as
+    /// `SystemIntegrations.findMail` matches the inbox.
     public func findMail(subject: String, sender: String) async throws -> MailMessage? {
         try requireGranted(.mail)
-        let mail = sampleMail
-        guard let mail, mail.subject == subject, sender.isEmpty || mail.sender.localizedCaseInsensitiveContains(sender) else { return nil }
-        return mail
+        lock.withLock { lookups += 1 }
+        let matches = inboxCandidates().filter { $0.subject == subject && (sender.isEmpty || $0.sender.localizedCaseInsensitiveContains(sender)) }
+        return MailSelection.newest(matches, limit: 1, date: \.date, tie: { _ in "" }).first
     }
+
+    /// Exactly the mail with this Message-ID (case-sensitive, with or without angle brackets), never a look-alike.
+    public func findMail(messageID: String) async throws -> MailMessage? {
+        try requireGranted(.mail)
+        lock.withLock { lookups += 1 }
+        guard let wanted = MailReplySource.canonicalMessageID(messageID) else { return nil }
+        let matches = inboxCandidates().filter { $0.messageID.flatMap(MailReplySource.canonicalMessageID) == wanted }
+        return MailSelection.newest(matches, limit: 1, date: \.date, tie: { _ in "" }).first
+    }
+
+    private func inboxCandidates() -> [MailMessage] { lock.withLock { (sampleMail.map { [$0] } ?? []) + inboxMails } }
 
     /// Remembers the draft instead of opening a window. Never sends.
     public func insertReply(_ draft: MailDraft) async throws -> MailInsertResult {
