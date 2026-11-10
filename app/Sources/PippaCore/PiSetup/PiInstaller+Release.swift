@@ -4,6 +4,11 @@ extension PiInstaller {
     // MARK: 2. Pi
 
     public func installPi() -> PiStepResult {
+        do { return try exclusive(installPiExclusively) }
+        catch { return finish(.pi, .failed(failure(error, path: roots.support))) }
+    }
+
+    private func installPiExclusively() -> PiStepResult {
         if state.layout == nil || state.pin != roots.pin { _ = detect() }
         guard let layout = state.layout else { return finish(.pi, .failed(.missingStep(.detect))) }
         begin(.pi)

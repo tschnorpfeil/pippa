@@ -4,6 +4,11 @@ extension PiInstaller {
     // MARK: 1. Detect
 
     public func detect() -> PiStepResult {
+        do { return try exclusive(detectExclusively) }
+        catch { return finish(.detect, .failed(failure(error, path: roots.support))) }
+    }
+
+    private func detectExclusively() -> PiStepResult {
         begin(.detect)
         // Already decided (earlier, maybe aborted run): keep it. Otherwise a half-created official layout
         // would look "foreign" when resuming.

@@ -96,6 +96,48 @@ private func options(_ model: CatalogModel?, roots search: [ModelLocation]? = ni
 private func inode(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: url.path)[.systemFileNumber] as? NSNumber)?.intValue }
 private func linkCount(_ url: URL) -> Int? { (try? fm.attributesOfItem(atPath: url.path)[.referenceCount] as? NSNumber)?.intValue }
 
+/// The app's setup (detect, Pi) and `PiSession.launcher` (no launch spec yet, so installPi) are two PiInstaller instances
+/// on one installation. The second starts while the first is copying the payload. True if both end well and the one
+/// release is complete (every file of the payload), Pippa's own in the state, with one layout decision.
+private func prepareConcurrently(_ r: PiInstallRoots) -> Bool {
+    let staging = r.managedRoot.appendingPathComponent("staging", isDirectory: true)
+    let group = DispatchGroup()
+    nonisolated(unsafe) var setup: PiStepResult?
+    nonisolated(unsafe) var launch: (spec: PiLaunchSpec?, result: PiStepResult?)?
+    group.enter()
+    Thread.detachNewThread {
+        let installer = PiInstaller(roots: r)
+        _ = installer.perform(.detect, options(nil))
+        setup = installer.perform(.pi, options(nil))
+        group.leave()
+    }
+    // Only once the first copy exists, like a first message sent while setup is still running.
+    let deadline = Date().addingTimeInterval(30)
+    while Date() < deadline,
+          !((try? fm.contentsOfDirectory(atPath: staging.path)) ?? []).contains(where: { $0.hasPrefix("pippa-") }),
+          !fm.fileExists(atPath: r.release(.official).path) { usleep(500) }
+    group.enter()
+    Thread.detachNewThread {
+        let installer = PiInstaller(roots: r)
+        var result: PiStepResult?
+        if installer.launchSpec(modelID: "dummy-1b") == nil { result = installer.installPi() }
+        launch = (installer.launchSpec(modelID: "dummy-1b"), result)
+        group.leave()
+    }
+    group.wait()
+    func tree(_ root: URL) -> Set<String> { Set((fm.enumerator(atPath: root.path)?.allObjects as? [String]) ?? []) }
+    let release = r.release(.official)
+    let missing = tree(r.payload.release).subtracting(tree(release))
+    let leftovers = ((try? fm.contentsOfDirectory(atPath: staging.path)) ?? []).filter { $0.hasPrefix("pippa-") }
+    let saved = PiInstaller(roots: r) // what the next start reads
+    let ok = setup?.isDone == true && (launch?.result?.isDone ?? true) && launch?.spec != nil
+        && missing.isEmpty && leftovers.isEmpty
+        && saved.state.layout == .official && saved.state.didCreate(release)
+        && saved.checkReady(modelIDs: [], model: nil).isDone
+    if !ok { print("   ", setup?.outcome as Any, launch?.result?.outcome as Any, "missing:", missing.count, "leftovers:", leftovers, saved.state.layout as Any) }
+    return ok
+}
+
 func runSetupChecks() async {
     check("Upgrade from 0.3: Pippa's old GGUF folder, prompt cache and her own files in ~/models go; the person's stay") {
         let home = fakeHome("old-models"); defer { discard(home) }
@@ -440,6 +482,17 @@ func runSetupChecks() async {
             && (try? Data(contentsOf: folder.appendingPathComponent("model.safetensors"))) == data
     }
 
+    check("Installer: setup and the first start prepare one fresh HOME at the same time; neither deletes the other's copy, the release is complete") {
+        let home = fakeHome("concurrent"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        for index in 0..<120 { // a payload big enough that the copy is still running when the second one starts
+            let package = payload.release.appendingPathComponent("node_modules/dep-\(index)/lib", isDirectory: true)
+            try fm.createDirectory(at: package, withIntermediateDirectories: true)
+            for file in 0..<30 { write("module.exports = \(file)\n", package.appendingPathComponent("file-\(file).js")) }
+        }
+        return prepareConcurrently(roots(home, payload))
+    }
+
     check("Installer: models folder <Support>/omlx/models without asking (excluded from Time Machine); port stays stable") {
         let home = fakeHome("folder"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))
@@ -477,6 +530,23 @@ func runSetupChecks() async {
                         environment: ["HOME": home.path, "PATH": r.piNode.appendingPathComponent("current/bin").path + ":/usr/bin:/bin"])
         print(String(format: "    Pi step %.1f s, launcher: %@, spec: %@, npm: %@", seconds, viaLauncher ?? "-", viaSpec ?? "-", npm ?? "-"))
         return pi.isDone && viaLauncher == real.version && viaSpec == real.version && npm != nil
+    }
+    check("Installer (real payload): setup and the first start at the same time leave a release that loads Pippa's TypeScript extension") {
+        let home = fakeHome("real-concurrent"); defer { discard(home) }
+        let r = roots(home, real)
+        guard prepareConcurrently(r), let extensionFolder = real.terminalExtension else { return false }
+        // `--version` passes even without jiti; loading a TypeScript extension (as every Pippa session does) does not.
+        let spec = PiInstaller(roots: r).launchSpec(modelID: "dummy-1b")
+        let process = Process(), out = Pipe()
+        process.executableURL = spec?.executable
+        process.arguments = (spec?.launcherArguments ?? []) + ["-e", extensionFolder.appendingPathComponent("index.ts").path, "--list-models"]
+        process.environment = (spec?.environment ?? [:]).merging(["PI_CODING_AGENT_DIR": home.appendingPathComponent("agent").path]) { $1 }
+        process.standardOutput = out; process.standardError = out
+        guard (try? process.run()) != nil else { return false }
+        let output = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        process.waitUntilExit()
+        if output.contains("Failed to load extension") { print("   ", output.prefix(300)) }
+        return process.terminationStatus == 0 && !output.contains("Failed to load extension")
     }
     check("Installer (real payload): own root folder starts without PI_MANAGED_INSTALL_ROOT") {
         let home = fakeHome("real-own"); defer { discard(home) }
