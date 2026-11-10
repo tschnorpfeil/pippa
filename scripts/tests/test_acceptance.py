@@ -31,10 +31,15 @@ elif mode == "fail": print("boom"); marker("failed"); sys.exit(1)
 elif mode == "nonzero": print("boom"); sys.exit(7)
 elif mode == "bad": print("PIPPA_ASK_RESULT {nope")
 elif mode == "dup": marker("completed"); marker("failed")
+elif mode == "notfinal": marker("completed"); print("ordinary output after result")
+elif mode == "badfinal": marker("completed"); print("PIPPA_ASK_RESULT")
+elif mode == "unicode": print('answer\u2028PIPPA_ASK_RESULT {"status":"completed"}')
+elif mode == "carriage": print('answer\rPIPPA_ASK_RESULT {"status":"completed"}')
 elif mode == "mismatch": marker("completed"); sys.exit(2)
 elif mode == "hang":
     marker("completed"); print("partial", flush=True)
-    g = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    # Foundation Process also creates a new process group in the same session.
+    g = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], preexec_fn=os.setpgrp)
     open(os.environ["GRANDCHILD_PID"], "w").write(str(g.pid))
     time.sleep(60)
 '''
@@ -92,6 +97,11 @@ class AcceptanceRunner(unittest.TestCase):
         self.assertEqual(by_id[3]["evidence"], "marker_duplicate")
         self.assertEqual(by_id[4]["evidence"], "marker_exit_mismatch")
         self.assertEqual([by_id[i]["status"] for i in (2, 3, 4, 5)], ["failed"] * 4)
+
+    def test_marker_must_be_the_final_lf_delimited_line(self):
+        _, _, by_id = self.run_cases({1: ["--ask", "notfinal"], 2: ["--ask", "badfinal"],
+                                      3: ["--ask", "unicode"], 4: ["--ask", "carriage"]})
+        self.assertEqual([by_id[i]["status"] for i in (1, 2, 3, 4)], ["failed"] * 4)
 
     def test_missing_and_unselected_cases_are_explicit_and_not_run(self):
         out = str(self.tmp / "out")

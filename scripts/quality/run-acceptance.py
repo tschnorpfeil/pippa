@@ -27,9 +27,9 @@ marker, evidence, review ("needs_review" always) and review_notes.
   status describes the process only. completed is not a pass: every case needs a person to check the answer, source
   and card against `criteria`.
   `--ask` may print a standalone line `PIPPA_ASK_RESULT {"status":"completed|needs_access|needs_input|failed"}`.
-  It is used when present and valid. Missing, malformed or duplicate markers, or an exit code that contradicts the
+  It must be the unique marker on the final nonempty LF-delimited stdout line. Missing, malformed or duplicate markers, or an exit code that contradicts the
   marker, give failed. An older --ask with no marker is failed with evidence "no_marker". A timeout overrides any marker. --make-pdf has no marker.
-  A timeout stops the child's own process group (SIGTERM, then SIGKILL) and keeps the partial output. A child that
+  A timeout stops the process groups in the child's own session (SIGTERM, then SIGKILL) and keeps the partial output. A child that
   deliberately leaves its session is not reached.
 The transcripts may contain private content. The summary printed here never shows them. Nothing is uploaded.
 
@@ -93,12 +93,18 @@ def load_manifest(path):
 
 
 def parse_marker(stdout_text):
-    """Returns (status or None, evidence). Only whole stdout lines starting with the prefix count."""
-    lines = [l for l in stdout_text.splitlines() if l.startswith(MARKER_PREFIX)]
+    """Require one result marker on the final nonempty LF-delimited stdout line."""
+    output_lines = [line for line in stdout_text.split("\n") if line.strip()]
+    # LF is the transport delimiter; Unicode separators in an answer are not protocol boundaries.
+    lines = [line for line in output_lines if line.startswith("PIPPA_ASK_RESULT")]
     if not lines:
         return None, "no_marker"
     if len(lines) > 1:
         return None, "marker_duplicate"
+    if lines[0] != output_lines[-1]:
+        return None, "marker_not_terminal"
+    if not lines[0].startswith(MARKER_PREFIX):
+        return None, "marker_malformed"
     try:
         status = json.loads(lines[0][len(MARKER_PREFIX):]).get("status")
     except (ValueError, AttributeError):
@@ -112,7 +118,7 @@ def classify(argv, exit_code, stdout_text):
         ok = exit_code == 0
         return ("completed" if ok else "failed"), f"exit code {exit_code}; --make-pdf prints no marker", None, "no_marker_expected"
     marker, evidence = parse_marker(stdout_text)
-    if evidence in ("marker_duplicate", "marker_malformed"):
+    if evidence in ("marker_duplicate", "marker_malformed", "marker_not_terminal"):
         return "failed", evidence, None, evidence
     if marker is None:
         if exit_code == 0:
@@ -142,24 +148,32 @@ def run_child(command, stdout_path, stderr_path, timeout):
             proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
-            # The leader is not reaped yet, so its process group id cannot belong to anyone else.
-            for sig, wait in ((signal.SIGTERM, GRACE_SECONDS), (signal.SIGKILL, None)):
-                try:
-                    os.killpg(proc.pid, sig)
-                except ProcessLookupError:
-                    pass
-                try:
-                    proc.wait(timeout=wait)
-                    if sig == signal.SIGTERM:
-                        # Leader exited on TERM; make sure no descendant outlived it.
-                        try:
-                            os.killpg(proc.pid, signal.SIGKILL)
-                        except ProcessLookupError:
-                            pass
-                    break
-                except subprocess.TimeoutExpired:
-                    continue
+            # Foundation Process gives Pi/other children their own groups in this same session.
+            # Keep the leader unreaped until cleanup is finished, so its session id cannot be reused.
+            try:
+                signal_session(proc.pid, signal.SIGTERM)
+                time.sleep(GRACE_SECONDS)
+                signal_session(proc.pid, signal.SIGKILL)
+            finally:
+                proc.kill()
+                proc.wait()
     return proc.returncode, timed_out, time.monotonic() - start
+
+
+def signal_session(session_id, sig):
+    """Signal only groups with a current member in the session this runner created."""
+    pids = subprocess.check_output(["/bin/ps", "-axo", "pid="], text=True, timeout=5).split()
+    groups = set()
+    for raw in pids:
+        try:
+            pid = int(raw)
+            if os.getsid(pid) == session_id:
+                group = os.getpgid(pid)
+                if group not in groups:
+                    os.killpg(group, sig)
+                    groups.add(group)
+        except ProcessLookupError:
+            pass  # A process may finish between listing it and checking its session.
 
 
 def open_private(path):
@@ -197,7 +211,7 @@ def build_report(args, app, configured):
                     case.update(status="timed_out", reason=f"stopped after {args.timeout}s; partial output kept",
                                 evidence="timeout")
                 else:
-                    text = pathlib.Path(stdout_path).read_text(encoding="utf-8", errors="replace")
+                    text = pathlib.Path(stdout_path).read_bytes().decode("utf-8", errors="replace")
                     status, reason, marker, evidence = classify(argv, code, text)
                     case.update(status=status, reason=reason, marker=marker, evidence=evidence)
         cases.append(case)
