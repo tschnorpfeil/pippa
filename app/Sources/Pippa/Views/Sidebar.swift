@@ -8,6 +8,7 @@ struct Sidebar: View {
     var search: Binding<String>
     /// The conversation whose title is being edited right in its row.
     private let renamingState = State<String?>(initialValue: nil)
+    @Environment(\.colorScheme) private var colorScheme
 
     private var query: String { search.wrappedValue.trimmingCharacters(in: .whitespaces) }
 
@@ -42,6 +43,9 @@ struct Sidebar: View {
                 }
             }
         }
+        // Dark only: light keeps the system's own list background.
+        .scrollContentBackground(colorScheme == .dark ? .hidden : .automatic)
+        .background(Theme.sideTint)
         .searchable(text: search, placement: .sidebar, prompt: T("Search", table: "App"))
         .overlay {
             // Before the saved conversations are read, the list is just empty for a moment, not "nothing here".

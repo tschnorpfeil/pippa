@@ -15,6 +15,15 @@ public final class ModelDownloader: @unchecked Sendable {
         get { transfer.stallTimeout }
         set { transfer.stallTimeout = newValue }
     }
+    /// A file with at least `parallelMinimum` bytes left comes in pieces of `pieceSize` bytes over several connections.
+    public var parallelMinimum: Int64 {
+        get { transfer.parallelMinimum }
+        set { transfer.parallelMinimum = newValue }
+    }
+    public var pieceSize: Int64 {
+        get { transfer.pieceSize }
+        set { transfer.pieceSize = newValue }
+    }
     public init(directory: URL) { self.directory = directory; transfer = ResumableDownload(directory: directory) }
 
     public static func url(repo: String, revision: String, path: String, endpoint: String = endpoint) -> URL {

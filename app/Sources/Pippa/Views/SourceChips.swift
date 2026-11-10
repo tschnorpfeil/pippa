@@ -50,9 +50,10 @@ private struct SourceChip: View {
         Button { SourceChips.open(source) } label: {
             HStack(spacing: 5) {
                 Image(systemName: SourceChips.symbol(source.kind)).font(Typo.caption)
-                Text(SourceChips.short(source.name)).lineLimit(1)
+                Text(SourceChips.short(source.name)).lineLimit(1).truncationMode(.middle)
             }
-            .fixedSize()
+            // In a narrow window the chips give way (their names shorten further), not the buttons beside them.
+            .fixedSize(horizontal: false, vertical: true)
             .font(Typo.caption).foregroundStyle(hoverState.wrappedValue ? Theme.ink : Theme.ink2)
             .padding(.horizontal, Space.m).frame(height: 24)
             .background(hoverState.wrappedValue ? Theme.rowHover : .clear, in: Capsule())

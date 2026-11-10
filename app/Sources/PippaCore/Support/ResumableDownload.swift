@@ -9,6 +9,10 @@ import Foundation
 /// releases): each failed attempt switches to the next one, and the 8 attempts are shared by all of them. Because the
 /// bytes are the same, a file started at one source is resumed at the other.
 ///
+/// A large file comes over several connections at once (`connections` pieces of `pieceSize` bytes, written in order, so
+/// the `.part` file still resumes by its size): one connection to GitHub releases or Hugging Face is often far slower
+/// than the line. Whatever goes wrong there, the rest of the file comes the old way, over one connection.
+///
 /// One instance per download: it holds the state of the running transfer.
 final class ResumableDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     /// Error writing the temporary file: not a network error, so no retry.
@@ -37,6 +41,10 @@ final class ResumableDownload: NSObject, URLSessionDataDelegate, @unchecked Send
     let directory: URL
     /// No bytes and no completion for this long ends the attempt (URLSession's own idle timeout is 60 s).
     var stallTimeout: TimeInterval = 90
+    /// A file with at least this much left comes over `connections` connections at once, `pieceSize` bytes each.
+    var parallelMinimum: Int64 = 64 << 20
+    var pieceSize: Int64 = 8 << 20
+    var connections = 4
 
     private var handle: FileHandle?
     private var continuation: CheckedContinuation<Int, Error>?
@@ -72,11 +80,27 @@ final class ResumableDownload: NSObject, URLSessionDataDelegate, @unchecked Send
         precondition(!sources.isEmpty)
         var attempts = 0
         var finished: Source?
+        // After two failures the file stays on one connection: slower, and it works wherever a download works at all.
+        var parallelFailures = 0
         while true {
             try Task.checkCancellation()
             let have = max(0, ModelDownloader.fileSize(part))
             if have >= size { return finished }
             let source = sources[attempts % sources.count]
+            if connections > 1, parallelFailures < 2, size - have >= parallelMinimum {
+                do {
+                    defer { if ModelDownloader.fileSize(part) > have { finished = source } }
+                    try await fetchParallel(source, to: part, from: have, size: size, onBytes: onBytes)
+                    continue
+                } catch let failure as WriteFailure {
+                    throw ModelDownloader.writeFailure(failure.underlying, remaining: size - max(0, ModelDownloader.fileSize(part)), in: directory)
+                } catch {
+                    if Task.isCancelled { throw CancellationError() }
+                    parallelFailures += 1
+                    DiagnosticsLog.shared.event("download-parallel-fehler", ["versuch": String(parallelFailures)])
+                    continue
+                }
+            }
             do {
                 guard let segment = source.segment(at: have, size: size) else {
                     throw PippaError.downloadFailed("Quelle ohne Teil ab \(have).")
@@ -102,6 +126,49 @@ final class ResumableDownload: NSObject, URLSessionDataDelegate, @unchecked Send
                 }
                 // The first switch to a source not tried yet goes straight on; back at a source that already failed, wait.
                 if attempts >= sources.count { try await Task.sleep(for: .seconds(Double(attempts) * 3)) }
+            }
+        }
+    }
+
+    /// Brings `part` from `offset` to `size` over `connections` connections: pieces of `pieceSize` bytes, fetched ahead
+    /// by at most two pieces per connection and written in order. Throws on the first piece that fails; what is
+    /// written by then stays, and the caller goes on from the file's size.
+    private func fetchParallel(_ source: Source, to part: URL, from offset: Int64, size: Int64, onBytes: @escaping (Int64) -> Void) async throws {
+        if !FileManager.default.fileExists(atPath: part.path) { FileManager.default.createFile(atPath: part.path, contents: nil) }
+        let fh: FileHandle
+        do { fh = try FileHandle(forWritingTo: part); try fh.seekToEnd() } catch { throw WriteFailure(underlying: error) }
+        defer { try? fh.close() }
+        var free = (0..<connections).map { _ in PieceConnection() }
+        let all = free
+        defer { all.forEach { $0.invalidate() } }
+        let step = max(1, pieceSize), window = step * Int64(connections) * 2
+        var next = offset, written = offset, sinceCheck: Int64 = 0
+        var waiting: [Int64: Data] = [:]
+        try await withThrowingTaskGroup(of: (Int64, PieceConnection, Data).self) { group in
+            while true {
+                while next < size, next - written < window, let connection = free.popLast() {
+                    guard let segment = source.segment(at: next, size: size) else { throw PippaError.downloadFailed("Quelle ohne Teil ab \(next).") }
+                    let start = next, end = min(start + step, segment.end)
+                    next = end
+                    group.addTask {
+                        (start, connection, try await connection.fetch(segment.url, bytes: (start - segment.start)..<(end - segment.start)))
+                    }
+                }
+                guard let (start, connection, data) = try await group.next() else { break }
+                free.append(connection)
+                waiting[start] = data
+                while let data = waiting.removeValue(forKey: written) {
+                    do { try fh.write(contentsOf: data) } catch { throw WriteFailure(underlying: error) }
+                    written += Int64(data.count)
+                    sinceCheck += Int64(data.count)
+                    onBytes(written)
+                }
+                if sinceCheck >= 256 << 20 {
+                    sinceCheck = 0
+                    if let space = ModelDownloader.availableSpace(at: directory), space < ModelDownloader.spaceFloor {
+                        throw WriteFailure(underlying: PippaError.notEnoughSpace(bytes: ModelDownloader.spaceBuffer))
+                    }
+                }
             }
         }
     }
@@ -238,5 +305,75 @@ final class ResumableDownload: NSObject, URLSessionDataDelegate, @unchecked Send
         lock.unlock()
         if let failure { cont?.resume(throwing: failure) }
         else if let error { cont?.resume(throwing: error) } else { cont?.resume(returning: 0) }
+    }
+}
+
+/// One connection of a parallel download: its own URLSession (so pieces really travel over separate connections, not
+/// as streams of one), fetching one piece at a time into memory. Only a `206` for exactly the bytes asked for counts;
+/// a server that ignores `Range` would send the whole file.
+private final class PieceConnection: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    private var session: URLSession?
+    private let lock = NSLock()
+    private var task: URLSessionDataTask?
+    private var continuation: CheckedContinuation<Data, Error>?
+    private var data = Data()
+    private var first: Int64 = 0
+    private var count = 0
+    private var failure: Error?
+    private var cancelled = false
+
+    func invalidate() { lock.withLock { session }?.invalidateAndCancel() }
+
+    func fetch(_ url: URL, bytes: Range<Int64>) async throws -> Data {
+        var request = URLRequest(url: url)
+        request.setValue("Pippa/\(Pippa.version)", forHTTPHeaderField: "User-Agent")
+        request.setValue("bytes=\(bytes.lowerBound)-\(bytes.upperBound - 1)", forHTTPHeaderField: "Range")
+        request.timeoutInterval = 60
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
+                lock.withLock {
+                    if cancelled { cont.resume(throwing: CancellationError()); return }
+                    if session == nil { session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil) }
+                    continuation = cont
+                    data = Data(); first = bytes.lowerBound; count = bytes.count; failure = nil
+                    task = session?.dataTask(with: request)
+                    task?.resume()
+                }
+            }
+        } onCancel: {
+            lock.withLock { cancelled = true; task?.cancel() }
+        }
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+                    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        let http = response as? HTTPURLResponse
+        let range = http?.value(forHTTPHeaderField: "Content-Range") ?? ""
+        let fits = lock.withLock {
+            let fits = http?.statusCode == 206 && range.hasPrefix("bytes \(first)-\(first + Int64(count) - 1)/")
+            if !fits { failure = PippaError.downloadFailed("Antwort \(http?.statusCode ?? 0) auf ein Teilstück") }
+            return fits
+        }
+        completionHandler(fits ? .allow : .cancel)
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive chunk: Data) {
+        lock.withLock {
+            data.append(chunk)
+            if data.count > count { failure = PippaError.downloadFailed("Teilstück zu lang"); dataTask.cancel() }
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        let (cont, result): (CheckedContinuation<Data, Error>?, Result<Data, Error>) = lock.withLock {
+            let cont = continuation
+            continuation = nil; self.task = nil
+            let piece = data
+            data = Data()
+            if let failure { return (cont, .failure(failure)) }
+            if let error { return (cont, .failure(error)) }
+            return (cont, piece.count == count ? .success(piece) : .failure(PippaError.downloadFailed("Teilstück unvollständig")))
+        }
+        cont?.resume(with: result)
     }
 }
