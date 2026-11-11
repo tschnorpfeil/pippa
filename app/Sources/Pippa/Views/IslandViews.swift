@@ -787,13 +787,11 @@ struct IslandChainRow<Label: View>: View {
         case .failed:
             Image(systemName: "exclamationmark").font(.system(size: 8, weight: .bold)).foregroundStyle(IslandStyle.bad)
                 .frame(width: 12, height: 12).background(Circle().fill(IslandStyle.bad.opacity(0.16)))
-        case .thinking:
-            // Not her mark: it already sits in the header above, once is enough.
+        case .thinking, .writing:
+            // Not her mark or her handwriting: the header above already shows them, once is enough.
             Image(systemName: "ellipsis").font(.system(size: 10, weight: .bold))
                 .foregroundStyle(IslandStyle.accent)
                 .symbolEffect(.variableColor.iterative, options: .repeating)
-        case .writing:
-            Scribble(size: 14)
         }
     }
 }
