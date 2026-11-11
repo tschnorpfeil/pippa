@@ -335,10 +335,10 @@ struct IslandPanelView: View {
     private var steps: some View {
         let message = chat.answering?.messages.last
         let all = message?.steps ?? []
-        let shown = Array(all.suffix(4))
         let now = IslandChain.now(message: message, writing: chat.isWriting)
         // A running step is what she does right now: the chain ends on it.
         let running = all.contains { !$0.done }
+        let shown = Array(all.suffix(IslandChain.shownSteps(all.count, nowRow: !running)))
         // A new step fades in and rises into place; the ones before it move up instead of jumping.
         let arrival = AnyTransition.asymmetric(insertion: .opacity.combined(with: .offset(y: IslandStyle.rise)), removal: .opacity)
         return VStack(alignment: .leading, spacing: 0) {
@@ -739,6 +739,17 @@ extension View {
 /// The working state's chain: nodes on a thin line, one row per step.
 enum IslandChain {
     enum Node { case earlier, done, running, failed, thinking, writing }
+
+    /// Rows the chain may take, counting "n earlier steps" and the thinking/writing row. A fixed budget keeps the island's
+    /// height still while she works: with four steps plus a row that came and went at every step, it grew and shrank
+    /// by a row each time.
+    static let rows = 4
+
+    /// How many of `steps` show, so that the earlier-row, the shown steps and the now-row together never exceed `rows`.
+    static func shownSteps(_ steps: Int, nowRow: Bool) -> Int {
+        let room = rows - (nowRow ? 1 : 0)
+        return steps <= room ? steps : room - 1
+    }
 
     /// What she is doing right now and, while she writes, the answer so far. Her thinking stays out of the island: it
     /// is her working notes (often in English, about her own instructions), it races, and "Thinking…" with the seconds
