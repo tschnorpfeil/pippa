@@ -33,8 +33,8 @@ struct ChatView: View {
             }
             .background(Color(nsColor: Theme.chatTint))
             .overlay { if dropFeedback.targeted { DropOverlay() } }
+            // The conversation's title only: which AI answers is said once, in the composer.
             .navigationTitle(chat.current?.title ?? "Pippa")
-            .navigationSubtitle(AIBadge.label(setup))
             .inspector(isPresented: panelState.projectedValue) {
                 ContextPanel(chat: chat, setup: setup)
                     .inspectorColumnWidth(min: 240, ideal: Layout.inspector, max: 340)
@@ -83,16 +83,17 @@ extension EnvironmentValues {
     }
 }
 
+/// Files over the window: a solid accent tint with a solid 1 pt accent edge, like Pippa Island's drop tray.
 private struct DropOverlay: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.panel, style: .continuous)
         shape
             .fill(Theme.accentTint)
-            .overlay(shape.strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: [8, 6])))
+            .overlay(shape.strokeBorder(Theme.accent, lineWidth: 1))
             .overlay {
                 VStack(spacing: Space.m) {
                     Image(systemName: "arrow.down.doc").font(.system(size: 32, weight: .medium))
-                    Text(T("Drop files for Pippa", table: "App")).font(.title3.weight(.semibold))
+                    Text(T("Drop files for Pippa", table: "App")).font(Typo.headline)
                 }
                 .foregroundStyle(Theme.accent)
             }

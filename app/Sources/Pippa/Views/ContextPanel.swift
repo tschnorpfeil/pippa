@@ -15,7 +15,7 @@ struct ContextPanel: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 Text(T("About this answer", table: "App"))
-                    .font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink)
+                    .font(Typo.headline).foregroundStyle(Theme.ink)
                     .accessibilityAddTraits(.isHeader)
                 if answer == nil {
                     intro
@@ -105,7 +105,7 @@ struct ContextPanel: View {
             .frame(height: 5)
             .animation(Theme.arrive, value: usage.fraction)
             Text(T("%lld %% full", table: "App", Int((usage.fraction * 100).rounded())))
-                .font(Typo.caption).foregroundStyle(Theme.ink2).monospacedDigit()
+                .font(Typo.figure).foregroundStyle(Theme.ink2)
                 .contentTransition(.numericText())
                 .animation(Theme.quick, value: usage.fraction)
             if usage.fraction > 0.8 {
@@ -117,16 +117,13 @@ struct ContextPanel: View {
         .help(T("%@ of %@ tokens", table: "App", usage.tokens.formatted(), usage.window.formatted()))
     }
 
+    /// Where the conversation goes. The model's name is not repeated here: the composer shows it.
     private var footer: some View {
-        VStack(alignment: .leading, spacing: Space.xxs) {
-            HStack(spacing: Space.s) {
-                Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer").font(Typo.caption)
-                Text(setup.usesOnlineAI ? AIBadge.label(setup) : "\(SettingsView.localModelName) · \(AIBadge.label(setup))")
-                    .lineLimit(1).truncationMode(.middle)
-            }
-            .foregroundStyle(Theme.ink2)
-            Text(setup.usesOnlineAI ? T("Your conversation goes to this online AI.", table: "App") : T("Nothing leaves this Mac.", table: "App"))
-                .foregroundStyle(Theme.ink3)
+        HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+            Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer").foregroundStyle(Theme.ink2)
+            Text(setup.usesOnlineAI ? T("Your conversation goes to the online AI you chose.", table: "App") : T("Nothing leaves this Mac.", table: "App"))
+                .foregroundStyle(Theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .font(Typo.caption)
         .frame(maxWidth: .infinity, alignment: .leading)

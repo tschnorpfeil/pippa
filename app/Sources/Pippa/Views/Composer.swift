@@ -91,14 +91,15 @@ struct Composer: View {
         .animation(Theme.quick, value: focused)
     }
 
-    /// One 32 pt circle in one place: Send, or Stop while the answer here runs. The symbol turns into the other.
+    /// One 32 pt circle in one place: Send (the accent as soon as there is something to send, quiet grey before), or
+    /// Stop while the answer here runs, a quiet disc with a square. The symbol turns into the other.
     private var sendButton: some View {
         let stops = chat.isAnsweringHere
-        let fill = stops ? Theme.ink : canSend ? Theme.accentFill : nil
+        let fill = !stops && canSend ? Theme.accentFill : nil
         return Button { stops ? chat.stop() : chat.send() } label: {
             Image(systemName: stops ? "stop.fill" : "arrow.up")
                 .font(stops ? Typo.caption.weight(.bold) : Typo.callout.weight(.bold))
-                .foregroundStyle(stops ? Color(nsColor: .textBackgroundColor) : canSend ? Color.white : Theme.ink3)
+                .foregroundStyle(stops ? Theme.ink : canSend ? Color.white : Theme.ink3)
                 .contentTransition(.symbolEffect(.replace))
                 .frame(width: 32, height: 32)
                 .glassCircle(tint: fill, fallback: fill ?? Theme.sendDisabled)
@@ -143,12 +144,13 @@ struct AIBadge: View {
         .help(T("Change in Settings", table: "App"))
     }
 
-    /// Which AI answers: on this Mac, ChatGPT or the connected model. From the settings in memory, never from disk:
-    /// the window header and the composer ask for it on every redraw.
+    /// Which AI answers: on this Mac, ChatGPT or the connected model, by the names Settings shows ("OpenAI · GPT-6.1
+    /// Terra"); the model's ID only when it has no name. From the settings in memory, never from disk: the composer
+    /// asks for it on every redraw. The only place in the main window that names the model.
     @MainActor static func label(_ setup: SetupModel) -> String {
         let settings = SettingsModel.shared.inferenceSettings
-        if let selected = settings.activePiModel { return selected.providerName + " · " + selected.modelID }
-        if let connection = PiOnlineProvider.activeConnection(settings) { return connection.modelID }
+        if let selected = settings.activePiModel { return selected.providerName + " · " + selected.modelDisplayName }
+        if let connection = PiOnlineProvider.activeConnection(settings) { return connection.displayName }
         switch setup.state {
         case .ready: return T("On this Mac", table: "App")
         case .preparing: return T("Getting ready…", table: "App")
