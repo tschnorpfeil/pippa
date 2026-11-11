@@ -315,7 +315,7 @@ struct SpinRing: View {
 }
 
 /// The chat's button: a capsule of one height and one font ("Open Reminders", "Try Again", "Allow"). Secondary is a
-/// quiet fill with a hairline; `primary` (one per decision: Allow, setup's main action) is the accent with white text.
+/// quiet fill, like the island's capsules; `primary` (one per decision: Allow, setup's main action) is the accent with white text.
 /// Drawn by hand so it stays crisp in dark mode and unfocused windows instead of macOS's flat inactive grey.
 struct ActionPill: View {
     var title: String
@@ -326,17 +326,17 @@ struct ActionPill: View {
     private let hoverState = State(initialValue: false)
 
     var body: some View {
+        let shape = Capsule()
         Button(action: action) {
             Text(title)
-                .font(Typo.callout.weight(.medium))
+                .font(Typo.footnote.weight(.medium))
                 .foregroundStyle(primary ? Color.white : Theme.ink)
                 .lineLimit(1)
-                .padding(.horizontal, Space.l)
-                .frame(height: 28)
+                .padding(.horizontal, Space.ml)
+                .frame(height: 26)
                 .background(primary ? (hoverState.wrappedValue ? Theme.accentPress : Theme.accentFill)
-                                    : (hoverState.wrappedValue ? Theme.fill2 : Theme.fill), in: Capsule())
-                .overlay { if !primary { Capsule().strokeBorder(Theme.hairline, lineWidth: 1) } }
-                .contentShape(Capsule())
+                                    : (hoverState.wrappedValue ? Theme.fill3 : Theme.fill2), in: shape)
+                .contentShape(shape)
         }
         .buttonStyle(.plain)
         .keyboardShortcut(shortcut)
