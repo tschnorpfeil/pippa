@@ -382,14 +382,7 @@ struct IslandPanelView: View {
                             // Since the last step ended (or the question went out): thinking and writing count up too.
                             if let since = all.last?.ended ?? chat.answerStarted { ElapsedSeconds(since: since).foregroundStyle(IslandStyle.white(IslandStyle.secondary)) }
                         }
-                        if let tail = now.tail {
-                            Text(tail)
-                                .italic(!now.writing)
-                                .foregroundStyle(IslandStyle.white(now.writing ? IslandStyle.secondary + 0.1 : IslandStyle.secondary))
-                                .lineSpacing(2).lineLimit(3)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
+                        if let tail = now.tail { IslandAnswerTail(text: tail) }
                     }
                 }
                 .transition(arrival)
@@ -726,25 +719,58 @@ extension View {
 enum IslandChain {
     enum Node { case earlier, done, running, failed, thinking, writing }
 
-    /// What she is doing right now and the last words of it (thinking, or the answer as it comes in).
+    /// What she is doing right now and, while she writes, the answer so far. Her thinking stays out of the island: it
+    /// is her working notes (often in English, about her own instructions), it races, and "Thinking…" with the seconds
+    /// says enough here. The chat window still shows it.
     @MainActor
     static func now(message: ChatMessage?, writing: Bool) -> (writing: Bool, tail: String?) {
         let running = message?.steps.contains { !$0.done } ?? false
-        if writing && !running { return (true, tail(message?.text, plain: true)) }
-        return (false, running ? nil : tail(message?.thinking, plain: false))
+        if writing && !running { return (true, tail(message?.text)) }
+        return (false, nil)
     }
 
-    /// The last ~150 characters on one flowing line, starting at a word: enough for three lines in the island.
-    static func tail(_ text: String?, plain: Bool, limit: Int = 150) -> String? {
+    /// The answer as plain flowing text, from a start that rarely moves (`IslandTail`).
+    static func tail(_ text: String?) -> String? {
         guard var text = text else { return nil }
-        if plain { text = text.replacingOccurrences(of: #"[*#`>|_]+"#, with: "", options: .regularExpression) }
+        text = text.replacingOccurrences(of: #"[*#`>|_]+"#, with: "", options: .regularExpression)
         text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return nil }
-        guard text.count > limit else { return text }
-        var cut = String(text.suffix(limit))
-        if let space = cut.firstIndex(of: " ") { cut = String(cut[cut.index(after: space)...]) }
-        return "…" + cut
+        return text.isEmpty ? nil : IslandTail.window(text)
+    }
+}
+
+/// The answer as it is written: at most its last three lines, anchored at the bottom. Earlier lines keep their wrap and
+/// slide up when a new one starts, fading out at the top; once three lines are full the island's height stays put.
+struct IslandAnswerTail: View {
+    let text: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// More than three lines: only then is there something above to fade.
+    private let overflowsState = State(initialValue: false)
+
+    /// Three lines of `IslandStyle.small` (12 pt) with the 2 pt spacing below.
+    private static let threeLines: CGFloat = {
+        let font = NSFont.systemFont(ofSize: 12)
+        return 3 * (font.ascender - font.descender + font.leading).rounded(.up) + 2 * 2
+    }()
+
+    var body: some View {
+        Text(text)
+            .foregroundStyle(IslandStyle.white(IslandStyle.secondary + 0.1))
+            .lineSpacing(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onGeometryChange(for: Bool.self) { $0.size.height > Self.threeLines + 0.5 } action: { overflowsState.wrappedValue = $0 }
+            .frame(maxHeight: Self.threeLines, alignment: .bottom)
+            .clipped()
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 8)
+                    Color.black
+                }
+                // An answer that fits has nothing above it to fade.
+                .padding(.top, overflowsState.wrappedValue ? 0 : -8)
+            }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: text)
     }
 }
 

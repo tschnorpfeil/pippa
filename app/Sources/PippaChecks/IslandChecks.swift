@@ -206,4 +206,21 @@ func runIslandChecks() {
         spring.advance(by: 2)
         return spring.value < 0.6
     }
+    check("Island: while the answer grows word by word, the shown text keeps its start (no reflow), ends on the newest word and keeps 250+ characters (five lines)") {
+        let words = (1...400).map { "Wort\($0)" }
+        var text = "", starts = 0, previous: Substring?
+        for word in words {
+            text += (text.isEmpty ? "" : " ") + word
+            let shown = IslandTail.window(text)
+            guard shown.hasSuffix(word), shown == text || (shown.hasPrefix("…") && shown.count > 250) else { return false }
+            // The start: everything before the first visible word; it may only move when a new step is reached.
+            let start = shown.prefix(12)
+            if start != previous { starts += 1; previous = start }
+        }
+        // A long word (a URL) after the cut must not swallow the window.
+        let url = String(repeating: "word ", count: 60) + String(repeating: "x", count: 301)
+        let withURL = IslandTail.window(url + " next")
+        // ~3,600 characters: the start moves about every 300 characters, not with every word (400 times).
+        return text.count > 3_000 && starts <= text.count / 300 + 2 && withURL.count > 300 && withURL.hasSuffix(" next")
+    }
 }

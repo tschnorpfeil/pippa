@@ -105,12 +105,10 @@ enum ConversationStoreChecks {
         let thinkingNow = IslandChain.now(message: working, writing: false), writingNow = IslandChain.now(message: working, writing: true)
         working.steps = [ChatStep(id: "1", label: "Lese", done: false)]
         let stepNow = IslandChain.now(message: working, writing: true)
-        let long = IslandChain.tail(String(repeating: "Wort ", count: 60) + "Ende", plain: false) ?? ""
-        check(thinkingNow.writing == false && thinkingNow.tail == "Erst lesen, dann rechnen."
+        check(thinkingNow.writing == false && thinkingNow.tail == nil
               && writingNow.writing && writingNow.tail == "Die Frist endet am 19. November."
-              && stepNow.writing == false && stepNow.tail == nil
-              && long.hasPrefix("…Wort ") && long.hasSuffix("Ende") && long.count <= 151,
-              "the island's chain ends on the thinking or the answer written so far, as plain flowing text cut at a word")
+              && stepNow.writing == false && stepNow.tail == nil,
+              "the island's chain ends on \"Thinking…\" without her notes, or on the answer written so far as plain text")
         let strokes = (0..<3).map { Scribble.stroke($0, at: 12.5) }
         check(strokes.allSatisfy { $0.count == 91 && $0.allSatisfy { abs($0.x) <= 0.9 && abs($0.y) <= 0.9 } }
               && Scribble.stroke(0, at: 12.5) != Scribble.stroke(0, at: 13),

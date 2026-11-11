@@ -63,7 +63,9 @@ struct Transcript: View {
                             .padding(.top, Space.l)
                             .arrives(true)
                     }
-                    Color.clear.frame(height: 1).id("end")
+                    // The end the chat follows (scrolled to its bottom): its height is the room above the composer, so a
+                    // streaming answer never runs into it. Padding below this marker would stay hidden under the composer.
+                    Color.clear.frame(height: Space.x3).id("end")
                 }
                 .padding(.top, Space.xxl).padding(.bottom, Space.l)
                 .frame(maxWidth: Layout.column, alignment: .leading)
