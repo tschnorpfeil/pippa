@@ -289,8 +289,12 @@ struct IslandPanelView: View {
             }
         case .empty:
             VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
-                Text(T("Ask me anything, or drop a file here.", table: "Island"))
-                    .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                // With a conversation to follow up, the field says "Follow up…": an invitation to ask anything would
+                // say the opposite right above it.
+                if island.followUp == nil {
+                    Text(T("Ask me anything, or drop a file here.", table: "Island"))
+                        .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                }
                 if let recent { recentRow(recent) }
             }
         }
@@ -503,14 +507,18 @@ struct IslandPanelView: View {
             .focused($fieldFocused)
             .onSubmit { island.send() }
             // Room for the pencil, so the text does not run under it.
-            .padding(.trailing, followUp != nil ? 26 : 0)
+            .padding(.trailing, followUp != nil ? 46 : 0)
             .islandWell()
             .overlay(alignment: .trailing) {
                 if followUp != nil {
+                    // The shortcut written beside it, as "⌘↩" on "Open Pippa": tooltips rarely show on the island.
                     Button { island.startsFresh = true } label: {
-                        Image(systemName: "square.and.pencil").font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
-                            .frame(width: 28, height: 28).contentShape(Rectangle())
+                        HStack(spacing: 4) {
+                            Image(systemName: "square.and.pencil").font(.system(size: 12, weight: .semibold))
+                            Text("⌘N").font(IslandStyle.caption)
+                        }
+                        .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                        .padding(.horizontal, 4).frame(height: 28).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .keyboardShortcut("n", modifiers: .command)
