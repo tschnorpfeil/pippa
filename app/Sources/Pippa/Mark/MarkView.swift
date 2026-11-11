@@ -126,8 +126,10 @@ struct PippaMark: NSViewRepresentable {
     var size: CGFloat
     var state: MarkState
     var hovered = false
+    /// Black or white at rest and still, like a symbol (an empty list); colour only when the state changes.
+    var monochrome = false
 
-    func makeNSView(context: Context) -> MarkNSView { MarkNSView(size: size) }
+    func makeNSView(context: Context) -> MarkNSView { MarkNSView(size: size, monochromeIdle: monochrome) }
     func updateNSView(_ view: MarkNSView, context: Context) {
         view.setState(state)
         view.setHovered(hovered)
