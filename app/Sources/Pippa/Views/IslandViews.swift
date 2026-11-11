@@ -43,14 +43,10 @@ struct IslandCompactView: View {
         let status = island.status
         Group {
             if let housingWidth {
-                // At rest the shape hides in the housing: no mark, so nothing shows beside the notch.
                 HStack(spacing: IslandStyle.wingGap) {
-                    if status.showsCompact {
-                        IslandMark(status: status, size: IslandStatus.markSize)
-                        IslandLine(status: status)
-                    }
+                    IslandMark(status: status, size: IslandStatus.markSize)
+                    if status.showsCompact { IslandLine(status: status).transition(.opacity) }
                 }
-                .transition(.opacity)
                 .padding(.leading, IslandStyle.wingInset)
                 .padding(.trailing, IslandStyle.wingGap + housingWidth - 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
