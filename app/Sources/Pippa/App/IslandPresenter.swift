@@ -260,6 +260,8 @@ final class IslandPresenter: NSObject {
         if panel.isKeyWindow {
             panel.orderOut(nil)
             panel.orderFrontRegardless()
+            // Still open while it closes: another notch tool stays in front.
+            if let placement { keepBehindNotchTool(placement) }
         }
         onClosed?()
         if !animated {
