@@ -289,8 +289,12 @@ struct IslandPanelView: View {
             }
         case .empty:
             VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
-                Text(T("Ask me anything, or drop a file here.", table: "Island"))
-                    .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                // With a conversation to follow up, the field says "Follow up…": an invitation to ask anything would
+                // say the opposite right above it.
+                if island.followUp == nil {
+                    Text(T("Ask me anything, or drop a file here.", table: "Island"))
+                        .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                }
                 if let recent { recentRow(recent) }
             }
         }
@@ -305,6 +309,7 @@ struct IslandPanelView: View {
                 if !chat.attachments.isEmpty { files }
                 HStack(spacing: IslandStyle.buttonGap) {
                     field
+                    IslandAIBadge(setup: setup)
                     IslandOpenButton(hint: true, action: island.openChat)
                 }
             }
@@ -335,10 +340,10 @@ struct IslandPanelView: View {
     private var steps: some View {
         let message = chat.answering?.messages.last
         let all = message?.steps ?? []
-        let shown = Array(all.suffix(4))
         let now = IslandChain.now(message: message, writing: chat.isWriting)
         // A running step is what she does right now: the chain ends on it.
         let running = all.contains { !$0.done }
+        let shown = Array(all.suffix(IslandChain.shownSteps(all.count, nowRow: !running)))
         // A new step fades in and rises into place; the ones before it move up instead of jumping.
         let arrival = AnyTransition.asymmetric(insertion: .opacity.combined(with: .offset(y: IslandStyle.rise)), removal: .opacity)
         return VStack(alignment: .leading, spacing: 0) {
@@ -502,14 +507,18 @@ struct IslandPanelView: View {
             .focused($fieldFocused)
             .onSubmit { island.send() }
             // Room for the pencil, so the text does not run under it.
-            .padding(.trailing, followUp != nil ? 26 : 0)
+            .padding(.trailing, followUp != nil ? 46 : 0)
             .islandWell()
             .overlay(alignment: .trailing) {
                 if followUp != nil {
+                    // The shortcut written beside it, as "⌘↩" on "Open Pippa": tooltips rarely show on the island.
                     Button { island.startsFresh = true } label: {
-                        Image(systemName: "square.and.pencil").font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
-                            .frame(width: 28, height: 28).contentShape(Rectangle())
+                        HStack(spacing: 4) {
+                            Image(systemName: "square.and.pencil").font(.system(size: 12, weight: .semibold))
+                            Text("⌘N").font(IslandStyle.caption)
+                        }
+                        .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                        .padding(.horizontal, 4).frame(height: 28).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .keyboardShortcut("n", modifiers: .command)
@@ -519,6 +528,28 @@ struct IslandPanelView: View {
                     .transition(.opacity)
                 }
             }
+    }
+}
+
+/// Which AI answers, beside the field: on this Mac (a laptop) or online (a cloud), its name on hover and for VoiceOver,
+/// as the chat's composer names it (`AIBadge`); a click opens Settings → AI. Only the symbol: with the name the field
+/// had no room left.
+struct IslandAIBadge: View {
+    @ObservedObject var setup: SetupModel
+
+    var body: some View {
+        let name = AIBadge.label(setup)
+        Button { SettingsWindow.shared.show(.ai) } label: {
+            Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                .frame(width: 28, height: IslandStyle.controlHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(name + " · " + T("Change in Settings", table: "App"))
+        .accessibilityLabel(name)
+        .accessibilityHint(T("Change in Settings", table: "App"))
     }
 }
 
@@ -739,6 +770,17 @@ extension View {
 /// The working state's chain: nodes on a thin line, one row per step.
 enum IslandChain {
     enum Node { case earlier, done, running, failed, thinking, writing }
+
+    /// Rows the chain may take, counting "n earlier steps" and the thinking/writing row. A fixed budget keeps the island's
+    /// height still while she works: with four steps plus a row that came and went at every step, it grew and shrank
+    /// by a row each time.
+    static let rows = 4
+
+    /// How many of `steps` show, so that the earlier-row, the shown steps and the now-row together never exceed `rows`.
+    static func shownSteps(_ steps: Int, nowRow: Bool) -> Int {
+        let room = rows - (nowRow ? 1 : 0)
+        return steps <= room ? steps : room - 1
+    }
 
     /// What she is doing right now and, while she writes, the answer so far. Her thinking stays out of the island: it
     /// is her working notes (often in English, about her own instructions), it races, and "Thinking…" with the seconds

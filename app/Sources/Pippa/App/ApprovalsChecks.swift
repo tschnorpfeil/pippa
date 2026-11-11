@@ -109,6 +109,18 @@ enum ConversationStoreChecks {
               && writingNow.writing && writingNow.tail == "Die Frist endet am 19. November."
               && stepNow.writing == false && stepNow.tail == nil,
               "the island's chain ends on \"Thinking…\" without her notes, or on the answer written so far as plain text")
+        // The chain's height: as steps run and end one after another, it only grows, up to four rows, then stays.
+        do {
+            var heights: [Int] = []
+            for steps in 1...8 {
+                for nowRow in [false, true] {
+                    let shown = IslandChain.shownSteps(steps, nowRow: nowRow)
+                    heights.append((steps > shown ? 1 : 0) + shown + (nowRow ? 1 : 0))
+                }
+            }
+            check(zip(heights, heights.dropFirst()).allSatisfy { $0 <= $1 } && heights.max() == IslandChain.rows && heights.suffix(10).allSatisfy { $0 == IslandChain.rows },
+                  "the island's step chain grows to four rows and then keeps its height while steps run and end")
+        }
         // A question in the island goes on with the latest conversation while it is recent; an old one or "New
         // conversation" starts fresh.
         do {
