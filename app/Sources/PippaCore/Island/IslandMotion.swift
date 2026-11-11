@@ -1,8 +1,8 @@
 import Foundation
 
-/// Critically damped spring on Pippa Island's progress (0 closed, 1 open): it eases out without overshoot or rebound,
-/// in fixed sub-steps so the motion does not depend on the frame rate. Retargeting keeps value and velocity, so a
-/// reversal in flight continues from wherever the shape is.
+/// Critically damped spring on Pippa Island's progress (0 closed, 1 open) or on a size in points (the open panel's
+/// height): it eases out without overshoot or rebound, in fixed sub-steps so the motion does not depend on the frame
+/// rate. Retargeting keeps value and velocity, so a reversal in flight continues from wherever the shape is.
 public struct IslandSpring: Equatable, Sendable {
     public struct Parameters: Equatable, Sendable {
         /// Perceptual duration: one undamped period, 2π / ω.
@@ -20,10 +20,17 @@ public struct IslandSpring: Equatable, Sendable {
     public private(set) var velocity: Double = 0
     public private(set) var target: Double
     public private(set) var parameters = IslandSpring.closing
+    /// The value never leaves these bounds.
+    public let bounds: ClosedRange<Double>
+    /// Closer than this to the target (and nearly still), the value snaps onto it.
+    public let tolerance: Double
 
-    public init(value: Double = 0) {
+    /// `tolerance` 0.001 is a third of a point on the widest panel for a progress; a size in points takes ~0.25.
+    public init(value: Double = 0, bounds: ClosedRange<Double> = 0...1, tolerance: Double = 0.001) {
         self.value = value
         target = value
+        self.bounds = bounds
+        self.tolerance = tolerance
     }
 
     public var isSettled: Bool { value == target && velocity == 0 }
@@ -53,17 +60,22 @@ public struct IslandSpring: Equatable, Sendable {
         var remaining = min(interval, 1.0 / 15)
         while remaining > 0 {
             let dt = min(Self.step, remaining)
-            velocity += (-stiffness * (value - target) - friction * velocity) * dt
+            let before = value - target
+            velocity += (-stiffness * before - friction * velocity) * dt
             value += velocity * dt
-            // Hard guard against any overshoot, also after fast double reversals.
-            if value < 0 || value > 1 {
-                value = min(max(value, 0), 1)
+            // Hard guards against any overshoot, also after a retarget against fast motion or fast double reversals:
+            // the value stops on the target instead of passing it, and never leaves its bounds.
+            if before != 0, (value - target).sign != before.sign {
+                value = target
+                velocity = 0
+            }
+            if !bounds.contains(value) {
+                value = min(max(value, bounds.lowerBound), bounds.upperBound)
                 velocity = 0
             }
             remaining -= dt
         }
-        // Snap once the rest is below a third of a point on the widest panel.
-        if abs(value - target) < 0.001, abs(velocity) < 0.05 {
+        if abs(value - target) < tolerance, abs(velocity) < 50 * tolerance {
             value = target
             velocity = 0
         }

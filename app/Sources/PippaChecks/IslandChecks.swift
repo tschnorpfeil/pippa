@@ -167,6 +167,39 @@ func runIslandChecks() {
         moving.move(to: 1, IslandSpring.opening, reduceMotion: false)
         return opened && spring.value == 0 && spring.isSettled && !moving.isSettled && moving.value == 0
     }
+    check("Island: the panel's height springs to new content without passing it, growing and shrinking") {
+        var height = IslandSpring(value: 180, bounds: 0...10_000, tolerance: 0.25)
+        func run(to target: Double, _ parameters: IslandSpring.Parameters) -> (time: Double, low: Double, high: Double) {
+            height.retarget(target, parameters)
+            var time = 0.0, low = height.value, high = height.value
+            while !height.isSettled && time < 2 {
+                height.advance(by: 1.0 / 120)
+                time += 1.0 / 120
+                low = min(low, height.value); high = max(high, height.value)
+            }
+            return (time, low, high)
+        }
+        let grow = run(to: 320, IslandSpring.opening)
+        let shrink = run(to: 200, IslandSpring.closing)
+        return height.value == 200 && height.velocity == 0
+            && grow.high <= 320 && grow.low >= 180 && grow.time < 0.6
+            && shrink.low >= 200 && shrink.high <= 320 && shrink.time < grow.time
+    }
+    check("Island: a new target against fast motion is never passed (content that grows, then shrinks a little)") {
+        var height = IslandSpring(value: 100, bounds: 0...10_000, tolerance: 0.25)
+        height.retarget(400, IslandSpring.opening)
+        for _ in 0..<6 { height.advance(by: 1.0 / 120) }
+        let target = height.value + 4
+        height.retarget(target, IslandSpring.closing)
+        var high = height.value, time = 0.0
+        while !height.isSettled && time < 2 { height.advance(by: 1.0 / 120); time += 1.0 / 120; high = max(high, height.value) }
+        return high <= target && height.value == target && height.isSettled
+    }
+    check("Island: under Reduce Motion the panel's height jumps") {
+        var height = IslandSpring(value: 180, bounds: 0...10_000, tolerance: 0.25)
+        height.move(to: 260, IslandSpring.opening, reduceMotion: true)
+        return height.value == 260 && height.isSettled
+    }
     check("Island: a stalled frame slows the motion instead of jumping") {
         var spring = IslandSpring()
         spring.retarget(1, IslandSpring.opening)
