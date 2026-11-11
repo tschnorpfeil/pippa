@@ -63,7 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Island.shared.statusButton = button
         }
         markWatch = Island.shared.$status.sink { [weak self] status in
-            self?.menuMark.setState(status.markState)
+            // One live mark at a time: at the notch the island shows it, under the symbol the symbol does.
+            self?.menuMark.setState(Island.shared.carriesMark ? .ruht : status.markState)
             self?.statusItem?.button?.setAccessibilityValue(status.label)
         }
         let menu = NSMenu()

@@ -26,6 +26,8 @@ final class Island: ObservableObject {
     weak var statusButton: NSStatusBarButton?
 
     private(set) var presenter: IslandPresenter?
+    /// Beside the notch the island carries her live mark, so the menu bar symbol stays at rest.
+    var carriesMark: Bool { isShown && presenter?.placement?.isNotch == true }
     private var watches: [AnyCancellable] = []
     private var screenObserver: NSObjectProtocol?
     /// "Your answer is ready" or "That didn't work", for a few seconds after an answer.
