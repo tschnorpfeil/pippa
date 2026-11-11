@@ -46,6 +46,21 @@ enum IslandSnapshots {
                 for _ in 0..<5 { await Task.yield() }
                 island.showForSnapshot(status(questions: approvals.questions.count))
             }),
+            // A choice of three, and a text answer: "Open Pippa" gets its own row under them.
+            ("needs-you-select", true, {
+                approvals.cancelAll()
+                _ = await question?.value
+                question = Task { await approvals.ask(selectQuestion) }
+                for _ in 0..<5 { await Task.yield() }
+                island.showForSnapshot(status(questions: approvals.questions.count))
+            }),
+            ("needs-you-text", true, {
+                approvals.cancelAll()
+                _ = await question?.value
+                question = Task { await approvals.ask(textQuestion) }
+                for _ in 0..<5 { await Task.yield() }
+                island.showForSnapshot(status(questions: approvals.questions.count))
+            }),
             ("failed", false, {
                 approvals.cancelAll()
                 _ = await question?.value
@@ -141,7 +156,8 @@ enum IslandSnapshots {
         }
         if let view { canvas.addSubview(view) }
         if notch && tool, let housing = canvas.housing {
-            canvas.addSubview(NotchTool(frame: NSRect(x: housing.maxX - 10, y: housing.minY, width: 110, height: housing.height)))
+            // tinyStats' real wing: it starts 36.5 pt inside the housing and is 118 pt wide.
+            canvas.addSubview(NotchTool(frame: NSRect(x: housing.maxX - 36.5, y: housing.minY, width: 118, height: housing.height)))
         }
         layout()
         window.setFrameOrigin(NSPoint(x: -4000, y: -4000))
@@ -181,8 +197,9 @@ enum IslandSnapshots {
             NSColor.black.setFill()
             NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10).fill()
             NSColor(srgbRed: 0.5, green: 0.72, blue: 1, alpha: 1).setFill()
+            // Its bars right of the housing.
             for (i, h) in [6.0, 9, 13].enumerated() {
-                NSBezierPath(roundedRect: NSRect(x: 24 + Double(i) * 8, y: 9, width: 4, height: h), xRadius: 2, yRadius: 2).fill()
+                NSBezierPath(roundedRect: NSRect(x: 50 + Double(i) * 8, y: 9, width: 4, height: h), xRadius: 2, yRadius: 2).fill()
             }
         }
     }
@@ -231,6 +248,14 @@ enum IslandSnapshots {
     private static let sampleQuestion = PiUIRequest(
         id: "island-snapshot", method: "confirm", title: "Darf Pippa im Internet suchen?",
         message: "Pippa möchte bei DuckDuckGo suchen nach:\n\n„Widerspruchsfrist Nebenkostenabrechnung“")
+
+    private static let selectQuestion = PiUIRequest(
+        id: "island-snapshot-select", method: "select", title: "Welche Datei soll Pippa lesen?", message: "",
+        options: ["Brief-Stadtwerke.pdf", "Nebenkosten-2025.pdf", "Mietvertrag.pdf"])
+
+    private static let textQuestion = PiUIRequest(
+        id: "island-snapshot-text", method: "input", title: "Wie soll der Ordner heißen?",
+        message: "Pippa legt einen neuen Ordner in Dokumente an.", placeholder: "Name des Ordners", prefill: "Steuer 2026")
 
     /// As shell.ts asks before a write (`grantAskText`), with a command near its 300-character limit.
     private static let commandQuestion = PiUIRequest(

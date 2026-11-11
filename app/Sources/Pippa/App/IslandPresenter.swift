@@ -47,6 +47,8 @@ final class IslandHostingView<Content: View>: DropHostingView<Content> {
 final class IslandView: NSView {
     let compact: IslandHostingView<IslandCompactView>
     let panel: DropHostingView<IslandPanelView>
+    /// Where the panel's lower edge is while its height springs: its last rows ride on it.
+    let edge = IslandEdge()
     private let clip = NSView()
     private var silhouette: IslandSilhouette?
     private var fillAlpha: CGFloat = 1
@@ -57,7 +59,8 @@ final class IslandView: NSView {
 
     init(island: Island, onHeight: @escaping (CGFloat) -> Void) {
         compact = IslandHostingView(rootView: IslandCompactView(island: island))
-        panel = DropHostingView(rootView: IslandPanelView(island: island, chat: .shared, setup: .shared, approvals: .shared, onHeight: onHeight))
+        panel = DropHostingView(rootView: IslandPanelView(island: island, chat: .shared, setup: .shared, approvals: .shared,
+                                                          edge: edge, onHeight: onHeight))
         super.init(frame: .zero)
         wantsLayer = true
         clip.wantsLayer = true
@@ -79,9 +82,11 @@ final class IslandView: NSView {
     override var isOpaque: Bool { false }
 
     /// Lays out one moment: the compact shape `compactShape` (rest or wing, maybe mid-change) grown toward the open
-    /// panel by `open`. `compactTarget` is where the compact content sits; `compactAlpha` how much of it shows.
+    /// panel `openRect` by `open`. `compactTarget` is where the compact content sits; `compactAlpha` how much of it
+    /// shows. `contentRect` holds the panel's content laid out at its own height (by default the open panel); its last
+    /// rows follow the lower edge of `openRect` while the height springs (`IslandEdge`).
     func show(_ placement: IslandPlacement, compactShape: CGRect, compactTarget: CGRect, compactAlpha: CGFloat,
-              open: CGFloat, openRect: CGRect, origin: CGPoint) {
+              open: CGFloat, openRect: CGRect, contentRect: CGRect? = nil, lag: CGFloat = 0, origin: CGPoint) {
         self.origin = origin
         let shape = IslandGeometry.silhouette(placement, from: compactShape, to: openRect, progress: open)
         silhouette = shape
@@ -115,8 +120,10 @@ final class IslandView: NSView {
         compact.frame = compactTarget.offsetBy(dx: -shape.rect.minX, dy: -shape.rect.minY)
         compact.alphaValue = compactAlpha * IslandChoreography.compactAlpha(open)
         // At the notch the panel's top row lies beside the housing: Pippa's mark and line stay in the menu bar.
-        panel.frame = NSRect(x: openRect.minX - shape.rect.minX, y: openRect.minY - shape.rect.minY + IslandChoreography.contentDrop(open),
-                             width: openRect.width, height: openRect.height)
+        let content = contentRect ?? openRect
+        panel.frame = NSRect(x: content.minX - shape.rect.minX, y: content.minY - shape.rect.minY + IslandChoreography.contentDrop(open),
+                             width: content.width, height: content.height)
+        if edge.lag != lag { edge.lag = lag }
         panel.alphaValue = IslandChoreography.contentAlpha(open)
         let hidden = open < 0.01
         let shown = panel.isHidden && !hidden
@@ -149,7 +156,12 @@ final class IslandPresenter: NSObject {
     private var alphaFrom: CGFloat = 0, alphaTo: CGFloat = 0
     private var wing = IslandSpring(value: 1)
     private var opening = IslandSpring()
-    private var contentHeight: CGFloat = 180
+    /// The open panel's content height, on its own spring: when what it shows grows or shrinks, the lower edge
+    /// follows smoothly (0.32 s growing, 0.24 s shrinking), whatever the opening is doing.
+    private var height = IslandSpring(value: 180, bounds: 0...10_000, tolerance: 0.25)
+    /// The tallest the panel has been since its height last settled: the window and the content keep that size until
+    /// then, so neither is resized on every frame.
+    private var heightReach: CGFloat = 180
     private var link: CADisplayLink?
     private var lastTick: CFTimeInterval = 0
     private var fadeToken = 0
@@ -162,7 +174,7 @@ final class IslandPresenter: NSObject {
     var onClosed: (() -> Void)?
     /// The close has finished: the island may move to another display now.
     var onIdle: (() -> Void)?
-    var isIdle: Bool { !isPresented && opening.isSettled && opening.value == 0 }
+    var isIdle: Bool { !isPresented && opening.isSettled && opening.value == 0 && height.isSettled }
     /// Escape while open: true when it was used (a question declined), otherwise the island closes.
     var onEscape: (() -> Bool)?
     var reduceMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
@@ -266,11 +278,13 @@ final class IslandPresenter: NSObject {
         onClosed?()
         if !animated {
             opening.snap(to: 0)
+            height.snap(to: height.target)
             render()
             onIdle?()
         } else if reduceMotion() {
             fade(from: 1, to: 0) { [weak self] in
                 self?.opening.snap(to: 0)
+                if let self { self.height.snap(to: self.height.target) }
                 self?.render()
                 self?.panel.alphaValue = 1
                 self?.onIdle?()
@@ -313,10 +327,18 @@ final class IslandPresenter: NSObject {
         }
     }
 
-    private func contentHeightChanged(_ height: CGFloat) {
-        guard height > 0, abs(height - contentHeight) > 0.5 else { return }
-        contentHeight = height
-        render()
+    private func contentHeightChanged(_ newHeight: CGFloat) {
+        let target = Double(newHeight)
+        guard newHeight > 0, abs(target - height.target) > 0.5 else { return }
+        heightReach = max(heightReach, CGFloat(height.value), newHeight)
+        // Closed nothing shows it; under Reduce Motion sizes jump.
+        let shown = isPresented || opening.value > 0
+        if !shown || reduceMotion() {
+            height.snap(to: target)
+        } else {
+            height.retarget(target, target > height.value ? IslandSpring.opening : IslandSpring.closing)
+        }
+        if height.isSettled { render() } else { startLink() }
     }
 
     // MARK: Drawing
@@ -324,15 +346,18 @@ final class IslandPresenter: NSObject {
     private func render() {
         guard let placement else { return }
         if wing.isSettled { compactFrom = compactTo; alphaFrom = alphaTo }
-        let openRect = IslandGeometry.open(placement, contentHeight: ceil(contentHeight))
+        if height.isSettled { heightReach = CGFloat(height.target) }
+        let openRect = IslandGeometry.open(placement, contentHeight: CGFloat(height.value))
+        let reach = IslandGeometry.open(placement, contentHeight: ceil(heightReach))
         let showsOpen = opening.value > 0 || opening.target > 0
-        let frame = IslandGeometry.windowFrame(placement, covering: [compactFrom, compactTo] + (showsOpen ? [openRect] : []))
+        let frame = IslandGeometry.windowFrame(placement, covering: [compactFrom, compactTo] + (showsOpen ? [reach] : []))
         if panel.frame != frame {
             panel.setFrame(frame, display: false)
             view.frame = NSRect(origin: .zero, size: frame.size)
         }
         view.show(placement, compactShape: currentCompact, compactTarget: compactTo, compactAlpha: currentCompactAlpha,
-                  open: CGFloat(opening.value), openRect: openRect, origin: frame.origin)
+                  open: CGFloat(opening.value), openRect: openRect, contentRect: reach,
+                  lag: CGFloat(height.value - height.target), origin: frame.origin)
         // At the notch the resting island hides in the housing and takes a click there; under the menu bar it leaves.
         let visible = placement.isNotch || alphaTo > 0 || alphaFrom > 0 || showsOpen
         if visible, !panel.isVisible { panel.orderFrontRegardless() }
@@ -356,9 +381,12 @@ final class IslandPresenter: NSObject {
         let now = link.targetTimestamp
         wing.advance(by: now - lastTick)
         opening.advance(by: now - lastTick)
+        height.advance(by: now - lastTick)
+        // Closed, nothing shows the height: it does not keep the island from going idle.
+        if !isPresented, opening.isSettled, opening.value == 0 { height.snap(to: height.target) }
         lastTick = now
         render()
-        guard wing.isSettled && opening.isSettled else { return }
+        guard wing.isSettled && opening.isSettled && height.isSettled else { return }
         link.isPaused = true
         if isIdle { onIdle?() }
     }

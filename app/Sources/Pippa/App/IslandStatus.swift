@@ -67,7 +67,15 @@ struct IslandStatus: Equatable {
 
     // MARK: Compact size
 
-    nonisolated(unsafe) static let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
+    /// The wing's one font, SF Pro Rounded with tabular digits: it both measures the wing and draws its line, so the
+    /// measured width is the drawn one.
+    nonisolated(unsafe) static let font: NSFont = {
+        let base = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        let rounded = base.fontDescriptor.withDesign(.rounded) ?? base.fontDescriptor
+        let tabular = rounded.addingAttributes([.featureSettings: [[NSFontDescriptor.FeatureKey.typeIdentifier: kNumberSpacingType,
+                                                                     .selectorIdentifier: kMonospacedNumbersSelector]]])
+        return NSFont(descriptor: tabular, size: 12) ?? base
+    }()
     static let markSize: CGFloat = 18
 
     private var labelWidth: CGFloat {
@@ -93,5 +101,18 @@ enum IslandStyle {
     /// From the housing to the line in the right wing, and from the outer edge to the mark.
     static let wingGap: CGFloat = 8
     static let wingInset: CGFloat = 12
+    /// Between the panel's edges and everything in it.
     static let padding: CGFloat = 16
+    /// Between blocks: what she says, the question, the field row.
+    static let gap: CGFloat = 12
+    /// Between buttons, and between the lines of a question.
+    static let buttonGap: CGFloat = 8
+    /// Inner wells (the question field, the drop tray); the panel's own corners are `IslandGeometry.cornerRadius`.
+    static let wellRadius: CGFloat = 12
+    /// Capsule buttons and the field beside them.
+    static let controlHeight: CGFloat = 28
+    /// At the notch, between the menu bar row (mark and name) and the panel's content.
+    static let notchTop: CGFloat = 6
+    /// How far a new step rises into place.
+    static let rise: CGFloat = 4
 }
