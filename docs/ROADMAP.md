@@ -31,7 +31,7 @@ tool or card.
 
 Released in 0.6.7: a question on Pippa Island follows up the conversation of the last ten minutes ("Follow up…", a
 pencil for a new one); the island's step chain keeps its height, shows no thinking text and streams the answer's last
-three lines without reflowing; room between the chat's last line and the composer.
+three lines without reflowing; a laptop or cloud beside the island's field names the AI and opens Settings; room between the chat's last line and the composer.
 
 Released in 0.6.6: long PDF and Word texts read to the end as notes on all of them, saved and reused while the file is
 unchanged; Pippa Island shows one live mark at a time (beside the notch the island, under the menu bar symbol the

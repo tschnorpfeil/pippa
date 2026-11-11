@@ -305,6 +305,7 @@ struct IslandPanelView: View {
                 if !chat.attachments.isEmpty { files }
                 HStack(spacing: IslandStyle.buttonGap) {
                     field
+                    IslandAIBadge(setup: setup)
                     IslandOpenButton(hint: true, action: island.openChat)
                 }
             }
@@ -519,6 +520,28 @@ struct IslandPanelView: View {
                     .transition(.opacity)
                 }
             }
+    }
+}
+
+/// Which AI answers, beside the field: on this Mac (a laptop) or online (a cloud), its name on hover and for VoiceOver,
+/// as the chat's composer names it (`AIBadge`); a click opens Settings → AI. Only the symbol: with the name the field
+/// had no room left.
+struct IslandAIBadge: View {
+    @ObservedObject var setup: SetupModel
+
+    var body: some View {
+        let name = AIBadge.label(setup)
+        Button { SettingsWindow.shared.show(.ai) } label: {
+            Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                .frame(width: 28, height: IslandStyle.controlHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(name + " · " + T("Change in Settings", table: "App"))
+        .accessibilityLabel(name)
+        .accessibilityHint(T("Change in Settings", table: "App"))
     }
 }
 
