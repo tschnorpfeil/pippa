@@ -526,7 +526,8 @@ struct IslandQuestionAnswers: View {
 
     @ViewBuilder private var answers: some View {
         switch request.method {
-        case "select" where !request.options.isEmpty && request.options.count <= 3:
+        // Up to three short choices are buttons; a choice too long for one row of the 380 pt panel goes into the menu.
+        case "select" where !request.options.isEmpty && request.options.count <= 3 && request.options.allSatisfy({ $0.count <= 28 }):
             IslandButtonRow {
                 button(T("Cancel", table: "App"), .cancelled)
                 ForEach(request.options, id: \.self) { option in button(option, .value(option)) }

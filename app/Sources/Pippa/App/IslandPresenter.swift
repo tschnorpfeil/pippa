@@ -278,11 +278,13 @@ final class IslandPresenter: NSObject {
         onClosed?()
         if !animated {
             opening.snap(to: 0)
+            height.snap(to: height.target)
             render()
             onIdle?()
         } else if reduceMotion() {
             fade(from: 1, to: 0) { [weak self] in
                 self?.opening.snap(to: 0)
+                if let self { self.height.snap(to: self.height.target) }
                 self?.render()
                 self?.panel.alphaValue = 1
                 self?.onIdle?()
@@ -380,6 +382,8 @@ final class IslandPresenter: NSObject {
         wing.advance(by: now - lastTick)
         opening.advance(by: now - lastTick)
         height.advance(by: now - lastTick)
+        // Closed, nothing shows the height: it does not keep the island from going idle.
+        if !isPresented, opening.isSettled, opening.value == 0 { height.snap(to: height.target) }
         lastTick = now
         render()
         guard wing.isSettled && opening.isSettled && height.isSettled else { return }
