@@ -18,9 +18,6 @@ public struct IslandSilhouette: Equatable, Sendable {
     /// Width of the concave flares beside the top edge (notch only, 0 while the shape is inside the housing).
     public var flare: CGFloat
     public var hangsFromTop: Bool
-    /// The flare right of the top edge, when it differs from the left one (none where the shape ends on the housing's
-    /// right edge: there the menu bar belongs to another notch tool).
-    public var rightFlare: CGFloat? = nil
 
     /// The outline in global coordinates; `offset` moves it into a window (pass the window origin).
     public func path(offset: CGPoint = .zero) -> CGPath {
@@ -32,11 +29,11 @@ public struct IslandSilhouette: Equatable, Sendable {
             path.addRoundedRect(in: r, cornerWidth: radius, cornerHeight: radius)
             return path
         }
-        let f = min(flare, r.height / 2), fr = min(rightFlare ?? flare, r.height / 2)
+        let f = min(flare, r.height / 2)
         path.move(to: CGPoint(x: r.minX - f, y: r.maxY))
-        path.addLine(to: CGPoint(x: r.maxX + fr, y: r.maxY))
-        if fr > 0.01 {
-            path.addArc(center: CGPoint(x: r.maxX + fr, y: r.maxY - fr), radius: fr, startAngle: .pi / 2, endAngle: .pi, clockwise: false)
+        path.addLine(to: CGPoint(x: r.maxX + f, y: r.maxY))
+        if f > 0.01 {
+            path.addArc(center: CGPoint(x: r.maxX + f, y: r.maxY - f), radius: f, startAngle: .pi / 2, endAngle: .pi, clockwise: false)
         }
         path.addLine(to: CGPoint(x: r.maxX, y: r.minY + radius))
         if radius > 0.01 {
@@ -66,8 +63,8 @@ public struct IslandSilhouette: Equatable, Sendable {
 /// At the notch Pippa keeps to the left of the housing: tools like tinyStats live on its right, and the menu bar
 /// symbols there should stay readable. The shapes reach into the housing up to 6 pt from its right edge: there they
 /// stay hidden in the camera cutout (their corner curves up before the housing's does), and a click anywhere on the
-/// notch still opens the island. Open, the panel is centred on the housing unless another notch tool shows right of
-/// it (`toolRightOfHousing`); then it, too, ends on the housing's right edge.
+/// notch still opens the island. Open, the panel is centred on the housing; another notch tool right of it
+/// (`notchTool`) stays in front of the panel.
 public enum IslandGeometry {
     public static let openWidth: CGFloat = 380
     public static let cornerRadius: CGFloat = 22
@@ -133,20 +130,14 @@ public enum IslandGeometry {
     }
 
     /// The open panel, `contentHeight` tall below the housing (or below the menu bar). At the notch it is centred on
-    /// the housing, unless `besideTool`: another notch tool (like tinyStats) shows right of the housing, and the panel
-    /// then ends on the housing's right edge, leaving that tool alone. Either way the row beside the housing holds
-    /// Pippa's mark and name.
-    public static func open(_ placement: IslandPlacement, contentHeight: CGFloat, besideTool: Bool = false) -> CGRect {
+    /// the housing, and the row left of the housing holds Pippa's mark and name.
+    public static func open(_ placement: IslandPlacement, contentHeight: CGFloat) -> CGRect {
         switch placement {
         case .notch(let housing, let screen):
             let width = min(openWidth, screen.width - 2 * margin)
             let height = housing.height + max(0, contentHeight)
-            guard besideTool else {
-                return CGRect(x: clampedX(center: housing.midX, width: width, in: screen), y: screen.maxY - height,
-                              width: width, height: height)
-            }
-            let x = min(max(housing.maxX - width, screen.minX + margin), screen.maxX - margin - width)
-            return CGRect(x: x, y: screen.maxY - height, width: width, height: height)
+            return CGRect(x: clampedX(center: housing.midX, width: width, in: screen), y: screen.maxY - height,
+                          width: width, height: height)
         case .menuBar(let anchor, let visible):
             let width = min(openWidth, visible.width - 2 * margin)
             let top = attachY(anchor: anchor, visible: visible)
@@ -156,13 +147,13 @@ public enum IslandGeometry {
         }
     }
 
-    /// Whether another app's window (global AppKit frames of on-screen windows at menu bar level or above, none of
-    /// Pippa's) is a notch tool right of the housing: it hangs from the top of the display, starts in the housing or right
-    /// at its edge as notch tools do, and continues to its right. Menu bar symbols keep a gap to the housing; overlays as
-    /// wide as half the display are no notch tool.
-    public static func toolRightOfHousing(_ placement: IslandPlacement, windows: [CGRect]) -> Bool {
-        guard case .notch(let housing, let screen) = placement else { return false }
-        return windows.contains { w in
+    /// Which of another app's windows (global AppKit frames of on-screen windows at menu bar level or above, none of
+    /// Pippa's) is a notch tool right of the housing, like tinyStats: it hangs from the top of the display, starts in the
+    /// housing or right at its edge as notch tools do, and continues to its right. Menu bar symbols keep a gap to the
+    /// housing; overlays as wide as half the display are no notch tool. The open panel stays behind it.
+    public static func notchTool(_ placement: IslandPlacement, windows: [CGRect]) -> Int? {
+        guard case .notch(let housing, let screen) = placement else { return nil }
+        return windows.firstIndex { w in
             abs(w.maxY - screen.maxY) <= 2 && w.width < screen.width / 2
                 && w.minX <= housing.maxX + 2 && w.maxX > housing.maxX + 8
         }
@@ -187,10 +178,7 @@ public enum IslandGeometry {
             func radius(_ r: CGRect) -> CGFloat { r.height > housing.height + 1 ? cornerRadius : wingRadius }
             // The flare beside the left edge; the right one lies inside the housing until the panel opens.
             let flare = max(0, min(Self.flare, housing.minX - rect.minX, rect.maxX - housing.minX))
-            // Ending on the housing's right edge (beside another notch tool), it meets the menu bar there without one.
-            let rightFlare: CGFloat? = rect.maxX <= housing.maxX + 0.5 ? 0 : nil
-            return IslandSilhouette(rect: rect, radius: mix(radius(from), radius(to), p), flare: flare, hangsFromTop: true,
-                                    rightFlare: rightFlare)
+            return IslandSilhouette(rect: rect, radius: mix(radius(from), radius(to), p), flare: flare, hangsFromTop: true)
         case .menuBar:
             return IslandSilhouette(rect: rect, radius: min(cornerRadius, rect.height / 2, rect.width / 2), flare: 0, hangsFromTop: false)
         }

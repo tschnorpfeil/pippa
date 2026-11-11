@@ -150,8 +150,6 @@ final class IslandPresenter: NSObject {
     private var wing = IslandSpring(value: 1)
     private var opening = IslandSpring()
     private var contentHeight: CGFloat = 180
-    /// Another notch tool shows right of the housing (checked on each opening): the open panel keeps left of it.
-    private var besideTool = false
     private var link: CADisplayLink?
     private var lastTick: CFTimeInterval = 0
     private var fadeToken = 0
@@ -236,9 +234,9 @@ final class IslandPresenter: NSObject {
     /// does not take the keyboard from the app in front.
     func open(key: Bool) {
         guard let placement else { return }
-        if !isPresented { besideTool = IslandGeometry.toolRightOfHousing(placement, windows: Self.otherWindows()) }
         panel.allowsKey = true
         if key { panel.makeKeyAndOrderFront(nil) } else { panel.orderFrontRegardless() }
+        keepBehindNotchTool(placement)
         guard !isPresented else { return }
         isPresented = true
         installMonitors()
@@ -282,20 +280,34 @@ final class IslandPresenter: NSObject {
         }
     }
 
-    /// Frames of other apps' on-screen windows at menu bar level or above, in global AppKit coordinates. Frames and
-    /// owners need no permission (window titles would).
-    private static func otherWindows() -> [CGRect] {
+    /// Another notch tool right of the housing (like tinyStats) stays in front of the open panel: the panel goes right
+    /// behind its window, at its level if that is lower. Without one the panel is back at menu bar level.
+    private func keepBehindNotchTool(_ placement: IslandPlacement) {
+        let windows = Self.otherWindows()
+        guard let index = IslandGeometry.notchTool(placement, windows: windows.map(\.frame)) else {
+            panel.level = .statusBar
+            return
+        }
+        let tool = windows[index]
+        panel.level = NSWindow.Level(rawValue: min(NSWindow.Level.statusBar.rawValue, tool.layer))
+        panel.order(.below, relativeTo: tool.number)
+    }
+
+    /// Other apps' on-screen windows at menu bar level or above: their number, level and frame in global AppKit
+    /// coordinates. These need no permission (window titles would).
+    private static func otherWindows() -> [(number: Int, layer: Int, frame: CGRect)] {
         guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]],
               let top = NSScreen.screens.first?.frame.maxY else { return [] }
         let me = ProcessInfo.processInfo.processIdentifier
         return list.compactMap { info in
-            guard (info[kCGWindowOwnerPID as String] as? Int32) != me,
-                  (info[kCGWindowLayer as String] as? Int ?? 0) >= Int(CGWindowLevelForKey(.mainMenuWindow)),
+            let layer = info[kCGWindowLayer as String] as? Int ?? 0
+            guard (info[kCGWindowOwnerPID as String] as? Int32) != me, layer >= Int(CGWindowLevelForKey(.mainMenuWindow)),
+                  let number = info[kCGWindowNumber as String] as? Int,
                   !["Window Server", "Dock"].contains(info[kCGWindowOwnerName as String] as? String ?? ""),
                   let bounds = info[kCGWindowBounds as String] as? NSDictionary,
                   let rect = CGRect(dictionaryRepresentation: bounds) else { return nil }
             // Window lists count from the top left of the main display, AppKit from its bottom left.
-            return CGRect(x: rect.minX, y: top - rect.maxY, width: rect.width, height: rect.height)
+            return (number, layer, CGRect(x: rect.minX, y: top - rect.maxY, width: rect.width, height: rect.height))
         }
     }
 
@@ -310,7 +322,7 @@ final class IslandPresenter: NSObject {
     private func render() {
         guard let placement else { return }
         if wing.isSettled { compactFrom = compactTo; alphaFrom = alphaTo }
-        let openRect = IslandGeometry.open(placement, contentHeight: ceil(contentHeight), besideTool: besideTool)
+        let openRect = IslandGeometry.open(placement, contentHeight: ceil(contentHeight))
         let showsOpen = opening.value > 0 || opening.target > 0
         let frame = IslandGeometry.windowFrame(placement, covering: [compactFrom, compactTo] + (showsOpen ? [openRect] : []))
         if panel.frame != frame {
