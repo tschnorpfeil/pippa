@@ -95,6 +95,8 @@ final class Island: ObservableObject {
             dropMode = false
             openedForQuestion = false
             wantsFocus = false
+            // "New conversation" counts for this opening only, also when it was closed with Escape or a click outside.
+            startsFresh = false
             // Seen: the next time the island opens it starts fresh.
             if !ChatModel.shared.isAnswering { freshAnswer = nil }
             statusButton?.highlight(false)
@@ -297,10 +299,7 @@ final class Island: ObservableObject {
         }
     }
 
-    func close() {
-        startsFresh = false
-        presenter?.close()
-    }
+    func close() { presenter?.close() }
 
     private func updateMenuMark() {
         let state = isShown && presenter?.placement?.isNotch == true ? MarkState.ruht : status.markState
