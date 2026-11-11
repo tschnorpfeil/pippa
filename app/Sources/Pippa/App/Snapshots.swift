@@ -266,13 +266,19 @@ enum Snapshots {
         """)
         answer.cards = [calendar.map(ResultCard.calendar), mail.map(ResultCard.mail), reminders.map(ResultCard.reminders),
                         .preparedFiles(prepared)].compactMap { $0 }
-        answer.steps = [ChatStep(id: "c1", label: "Reading Calendar", done: true), ChatStep(id: "c2", label: "Searching Mail for “Nebenkosten”", done: true),
-                        ChatStep(id: "c3", label: "Reading Reminders", done: true), ChatStep(id: "c4", label: "Making one PDF", done: true)]
+        answer.steps = [step("c1", "calendar_read"), step("c2", "mail_search"), step("c3", "reminders_read"), step("c4", "prepare_files")]
         answer.duration = 24
         answer.sources = [ChatSource(kind: .mail, name: "Nebenkostenabrechnung 2025", location: "", detail: "Hausverwaltung Berger")]
         return [Conversation(id: "cards", title: "Nebenkosten und Termine", updated: Date(), messages: [
             ChatMessage(role: .user, text: "Wie haben sich die Nebenkosten entwickelt, und was steht diese Woche an?"), answer,
         ])]
+    }
+
+    /// A sample step labelled the way Pippa labels that tool, in the language the snapshot runs in.
+    private static func step(_ id: String, _ tool: String, _ arguments: [String: String] = [:], done: Bool = true,
+                             failed: Bool = false) -> ChatStep {
+        let json = (try? JSONSerialization.data(withJSONObject: arguments)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+        return ChatStep(id: id, label: StepLabel.text(tool: tool, arguments: json), done: done, failed: failed)
     }
 
     private static func sampleConversations(answering: Bool = false, failed: Bool = false, starting: Bool = false,
@@ -289,9 +295,9 @@ enum Snapshots {
         Die anderen beiden Dateien (`ETF-Ideen.md`, `ETF-2024.md`) sind älter und nennen andere Zahlen.
         """)
         answer.steps = [
-            ChatStep(id: "1", label: "Searching files for “ETF”", done: true),
-            ChatStep(id: "2", label: "Reading ETF-Portfolio.md", done: true),
-            ChatStep(id: "3", label: "Reading ETF-Ideen.md", done: true),
+            step("1", "search_files", ["query": "ETF"]),
+            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"]),
+            step("3", "read", ["path": "/Users/me/Documents/ETF-Ideen.md"]),
         ]
         let sample = CreatedItem(integration: .reminders, identifier: "snapshot", modified: nil)
         answer.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Sparplan prüfen · Fr., 7. Nov.", created: sample)]
@@ -299,7 +305,8 @@ enum Snapshots {
         if answering {
             answer.text = ""
             answer.receipts = []
-            answer.steps = [ChatStep(id: "1", label: "Searching files for “ETF”", done: true), ChatStep(id: "2", label: "Reading ETF-Portfolio.md", done: false)]
+            answer.steps = [step("1", "search_files", ["query": "ETF"]),
+                            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"], done: false)]
             answer.thinking = "Die Person fragt nach der aktuellen ETF-Übersicht. Es gibt drei Dateien; ETF-Portfolio.md ist die neueste (updated 2026-11-01). Ich lese sie und nenne die Aufteilung." 
         }
         if writing {
@@ -313,7 +320,7 @@ enum Snapshots {
         if failed {
             answer.text = ""
             answer.receipts = []
-            answer.steps = [ChatStep(id: "1", label: "Reading Calendar", done: true, failed: true)]
+            answer.steps = [step("1", "calendar_read", failed: true)]
             answer.error = "Pippa darf deinen Kalender nicht lesen. Erlaube es in den Systemeinstellungen unter Datenschutz & Sicherheit."
         }
         var letter = ChatMessage(role: .assistant, text: """
@@ -321,7 +328,7 @@ enum Snapshots {
 
         Einwände gehen innerhalb von vier Wochen nach Zugang, also bis **19. November 2026**.
         """)
-        letter.steps = [ChatStep(id: "4", label: "Reading Brief-Stadtwerke.pdf", done: true)]
+        letter.steps = [step("4", "read_document", ["path": "/Users/me/Downloads/Brief-Stadtwerke.pdf"])]
         letter.unsupportedDates = ["19. November 2026"]
         letter.checkedDates = ["15. November 2026"]
         letter.sources = [ChatSource(kind: .file, name: "Brief-Stadtwerke.pdf", location: "/Users/me/Downloads/Brief-Stadtwerke.pdf", detail: "Ganze Seite")]
@@ -331,11 +338,11 @@ enum Snapshots {
         letter.context = ContextUsage(tokens: 12_431, window: 32_768)
         letter.duration = 6
         if !answering && !failed {
-            answer.sources = [ChatSource(kind: .file, name: "ETF-Portfolio.md", location: "/Users/me/brain/ETF-Portfolio.md", detail: nil),
-                              ChatSource(kind: .file, name: "ETF-Ideen.md", location: "/Users/me/brain/ETF-Ideen.md", detail: nil)]
+            answer.sources = [ChatSource(kind: .file, name: "ETF-Portfolio.md", location: "/Users/me/Documents/ETF-Portfolio.md", detail: nil),
+                              ChatSource(kind: .file, name: "ETF-Ideen.md", location: "/Users/me/Documents/ETF-Ideen.md", detail: nil)]
             answer.checkedDates = ["1. November 2026"]
         }
-        var messages = [ChatMessage(role: .user, text: "Wo ist meine aktuelle ETF-Übersicht in brain und was steht drin?"), answer]
+        var messages = [ChatMessage(role: .user, text: "Wo ist meine aktuelle ETF-Übersicht und was steht drin?"), answer]
         if !answering && !failed {
             messages += [ChatMessage(role: .user, text: "Bis wann muss ich hier etwas tun?", files: ["/Users/me/Downloads/Brief-Stadtwerke.pdf"]), letter]
         }
