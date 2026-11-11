@@ -36,7 +36,7 @@ type ExtensionAPI = any;
 
 /** Short versions for Pi's built-in tools (Pi 1.1.0: read 303, bash 270, edit 330, write 141 characters). */
 export const BUILTIN_DESCRIPTIONS: Record<string, string> = {
-	read: "Read a file: text, image, or a document (PDF, Word, Excel, RTF, Pages …) as text; long files with offset/limit.",
+	read: "Read a file: text, image, or a document (PDF, Word, Excel, RTF, Pages …) as text; long files in parts by line (offset/limit).",
 	write: "Save text to a file; create or overwrite.",
 	edit: "Replace exact, unique text passages in a file.",
 	bash: "Run a command when no dedicated tool fits; save text with write.",
@@ -53,7 +53,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("user_bash", () => ({ result: { output: "Direct shell execution is disabled in Pippa.", exitCode: 1, cancelled: false, truncated: false } }));
 	// One result must not fill a 16k window (Pi's read and bash allow 50 KB, ~14k tokens).
 	pi.on("tool_result", (event: any, ctx: any) => {
-		const content = capResult(String(event?.toolName ?? ""), event?.content, resultLimit(ctx?.model?.contextWindow));
+		const content = capResult(String(event?.toolName ?? ""), event?.content, resultLimit(ctx?.model?.contextWindow), event?.input);
 		return content ? { content } : undefined;
 	});
 

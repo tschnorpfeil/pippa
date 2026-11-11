@@ -96,7 +96,7 @@ export function readTool(create: (cwd: string, options?: any) => any, exec: Run 
 			const base = create(defaultCwd);
 			return {
 				...base,
-				description: "Read a file: text, image, or a document (PDF, Word, Excel, RTF, Pages …) as text; long files with offset/limit.",
+				description: "Read a file: text, image, or a document (PDF, Word, Excel, RTF, Pages …) as text; long files in parts by line (offset/limit).",
 				async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: unknown, ctx: any) {
 					const path = resolvePath(params?.path ?? params?.file_path, ctx?.cwd || defaultCwd);
 					if (extname(path).toLowerCase() === ".csv") {

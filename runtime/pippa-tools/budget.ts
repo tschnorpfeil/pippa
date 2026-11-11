@@ -75,15 +75,23 @@ export function resultLimit(contextWindow: unknown): number {
  * the app caps them itself (≤ 9,000 characters) and their JSON must stay whole. bash keeps the end (where errors and
  * results are, like Pi's own bash truncation), everything else the beginning (like Pi's read).
  * `undefined` = fits, nothing to change.
+ *
+ * `read` counts `offset` in lines, so its text is cut after a whole line and the note names the exact `offset` to read
+ * on with. A note in characters made small models pass a character count as `offset` and loop on "beyond the end".
+ * `input` is the call's arguments (its `offset` says which line the text starts at).
  */
-export function capResult(toolName: string, content: unknown, limit: number): any[] | undefined {
+export function capResult(toolName: string, content: unknown, limit: number, input?: Record<string, unknown>): any[] | undefined {
 	if (toolName.startsWith("mcp__") || !Array.isArray(content)) return undefined;
 	const total = content.reduce((n: number, part: any) => n + (part?.type === "text" ? String(part.text ?? "").length : 0), 0);
 	if (total <= limit) return undefined;
+	if (toolName === "read") {
+		const texts = content.filter((part: any) => part?.type === "text");
+		if (texts.length === 1) return capLines(content, texts[0], limit, Number(input?.offset) || 1, Number(input?.limit) > 0);
+	}
 	const keepEnd = toolName === "bash";
 	const note = keepEnd
 		? `[Only the last ${limit} of ${total} characters are shown; the rest did not fit the conversation.]\n`
-		: `\n[Only the first ${limit} of ${total} characters are shown; the rest did not fit the conversation. For a file, read on with offset/limit.]`;
+		: `\n[Only the first ${limit} of ${total} characters are shown; the rest did not fit the conversation.]`;
 	let budget = limit;
 	const parts = keepEnd ? [...content].reverse() : [...content];
 	const kept = parts.map((part: any) => {
@@ -97,4 +105,24 @@ export function capResult(toolName: string, content: unknown, limit: number): an
 	const at = keepEnd ? kept.findIndex((part: any) => part?.type === "text") : kept.map((part: any) => part?.type).lastIndexOf("text");
 	if (at >= 0) kept[at] = { ...kept[at], text: keepEnd ? note + kept[at].text : kept[at].text + note };
 	return kept;
+}
+
+/** `read`'s one text part cut after the last whole line that fits; the note says which lines it shows and where to go on. */
+function capLines(content: any[], part: any, limit: number, first: number, limited: boolean): any[] {
+	const text = String(part.text ?? "");
+	const lines = text.split("\n");
+	let used = 0, count = 0;
+	while (count < lines.length && used + lines[count].length + (count ? 1 : 0) <= limit) {
+		used += lines[count].length + (count ? 1 : 0);
+		count++;
+	}
+	const last = first + Math.max(count, 1) - 1;
+	const end = first + lines.length - 1;
+	// One line longer than the whole budget: its start, and the note says it was cut.
+	const piece = count > 0 ? lines.slice(0, count).join("\n") : text.slice(0, limit);
+	const cut = count === 0 ? ` Line ${first} is too long and was cut.` : "";
+	const of = limited ? `of the requested lines ${first}-${end}` : `of ${end}`;
+	const note = `\n[Shown: lines ${first}-${last} ${of}; the rest did not fit the conversation.${cut} `
+		+ `To read on, call read again with offset ${last + 1} (offset counts lines, not characters).]`;
+	return content.map((p: any) => p === part ? { ...part, text: piece + note } : p);
 }
