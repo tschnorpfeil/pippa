@@ -36,7 +36,7 @@ struct SetupCard: View {
                 if case .downloading(let progress, _) = setup.state {
                     let locale = Locale(identifier: Bundle.module.preferredLocalizations.first ?? "en")
                     Text(progress, format: .percent.precision(.fractionLength(0)).locale(locale))
-                        .font(Typo.callout.weight(.medium)).monospacedDigit().foregroundStyle(Theme.ink2)
+                        .font(Typo.figure).foregroundStyle(Theme.ink2)
                         .contentTransition(.numericText())
                         .animation(Theme.quick, value: progress)
                 }
@@ -144,8 +144,9 @@ struct SetupCard: View {
         }
     }
 
-    private var tint: Color { if case .failed = setup.state { Theme.need } else { Theme.accent } }
-    private var tintFill: Color { if case .failed = setup.state { Theme.needTint } else { Theme.accentTint } }
+    /// Neutral like every card's symbol; only a problem takes the warning colour.
+    private var tint: Color { if case .failed = setup.state { Theme.need } else { Theme.ink2 } }
+    private var tintFill: Color { if case .failed = setup.state { Theme.needTint } else { Theme.fill } }
 
     private var symbol: String {
         switch setup.state {

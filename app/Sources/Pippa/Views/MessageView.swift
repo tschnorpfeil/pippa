@@ -155,7 +155,7 @@ private struct ErrorBox: View {
             Spacer(minLength: Space.m)
             if let retry { ActionPill(title: T("Try Again", table: "App"), action: retry) }
         }
-        .padding(Space.l)
+        .padding(.horizontal, Space.card).padding(.vertical, Space.l)
         .frame(maxWidth: Layout.cardMax, alignment: .leading)
         .background(Theme.badTint, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
@@ -174,9 +174,9 @@ private struct DateNote: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .font(Typo.footnote)
-        .padding(.horizontal, Space.ml).padding(.vertical, Space.s)
+        .padding(.horizontal, Space.card).padding(.vertical, Space.m)
         .frame(maxWidth: Layout.cardMax, alignment: .leading)
-        .background(Theme.needTint.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .background(Theme.needTint.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 

@@ -17,7 +17,7 @@ struct PreparedFilesCardView: View {
             if !card.note.isEmpty {
                 Text(card.note).font(Typo.footnote).foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, Space.card)
             }
             Spacer().frame(height: Space.xxs)
         }
@@ -53,7 +53,7 @@ private struct PreparedFileRow: View {
                 NSWorkspace.shared.activateFileViewerSelecting([file])
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, Space.card)
         .padding(.bottom, Space.s)
     }
 }

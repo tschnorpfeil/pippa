@@ -21,14 +21,13 @@ struct PhotoCardView: View {
                     PhotoTile(item: item, previews: card.previews)
                 }
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, Space.card)
             if let note = card.truncatedNote {
-                Text(note).font(.caption).foregroundStyle(Theme.ink3)
+                Text(note).font(Typo.caption).foregroundStyle(Theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 14).padding(.top, 8)
+                    .padding(.horizontal, Space.card).padding(.top, Space.m)
             }
-            Text(card.footer).font(Typo.caption).foregroundStyle(Theme.ink3)
-                .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 11)
+            CardFooter(text: card.footer)
         }
         .resultCard()
         .accessibilityElement(children: .contain)

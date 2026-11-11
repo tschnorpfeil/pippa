@@ -21,7 +21,7 @@ struct ReceiptRow: View {
                 .background(removed ? Theme.fill2 : done ? Theme.okTint : Theme.needTint,
                             in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
-                Text(Self.title(receipt)).font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink)
+                Text(Self.title(receipt)).font(Typo.callout.weight(.semibold)).fontDesign(.rounded).foregroundStyle(Theme.ink)
                 if !receipt.name.isEmpty {
                     Text(receipt.name).font(Typo.footnote).foregroundStyle(Theme.ink2).lineLimit(2)
                         .strikethrough(removed, color: Theme.ink3)
@@ -38,7 +38,7 @@ struct ReceiptRow: View {
                 ActionPill(title: label, action: open)
             }
         }
-        .padding(Space.ml)
+        .padding(.horizontal, Space.card).padding(.vertical, Space.ml)
         .frame(maxWidth: Layout.cardMax, alignment: .leading)
         .raised(Radius.card)
     }
