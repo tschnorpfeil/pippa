@@ -12,7 +12,9 @@
  * - `move_files`: rename or move one item (`from`, `to`; `to: "trash"` moves it to the macOS Trash), or sort many
  *   files into (new) subfolders in one call (`folder`, `groups: [{into, files}]`). Never overwrites, never deletes for
  *   good; every move can be undone (pippa-assist.ts `changesOf`).
- * - `read`: Pi's own read, with documents (PDF, Word, …) returned as text in the same call (document.ts).
+ * - `read`: Pi's own read, with documents (PDF, Word, …) returned as text in the same call (document.ts). A document
+ *   too long for one result comes back as notes on all of it, taken part by part by the model (digest.ts; notes kept
+ *   in PIPPA_DIGEST_DIR, set by the app).
  * - `bash`: Pi's own shell tool, run inside a macOS sandbox (shell.ts): writing outside Pippa's working folder and the
  *   internet need the person's OK; app control stays blocked. Pi's direct RPC shell is refused (it would bypass it).
  *

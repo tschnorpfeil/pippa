@@ -28,9 +28,13 @@ public enum PippaPiLaunch {
         public var skillsDirectory: URL?
         /// "Was Pippa über dich weiß", e.g. ~/Library/Application Support/Pippa/memory.md; `nil`: kept only per process.
         public var memoryFile: URL?
-        public init(extensionsDirectory: URL, webExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil, memoryFile: URL? = nil) {
+        /// Notes on documents too long for one result (digest.ts), e.g. ~/Library/Application Support/Pippa/digests;
+        /// `nil`: a temporary folder.
+        public var digestDirectory: URL?
+        public init(extensionsDirectory: URL, webExtension: URL?, sessionDirectory: URL, skillsDirectory: URL? = nil, memoryFile: URL? = nil,
+                    digestDirectory: URL? = nil) {
             self.extensionsDirectory = extensionsDirectory; self.webExtension = webExtension; self.sessionDirectory = sessionDirectory
-            self.skillsDirectory = skillsDirectory; self.memoryFile = memoryFile
+            self.skillsDirectory = skillsDirectory; self.memoryFile = memoryFile; self.digestDirectory = digestDirectory
         }
     }
 
@@ -61,6 +65,7 @@ public enum PippaPiLaunch {
                                      mcp: (endpoint: MCPEndpoint, extension: URL)? = nil) -> PiRPCConfiguration {
         var env = launcher.environment.merging(environment) { $1 }
         if let memory = paths.memoryFile { env[memoryVariable] = memory.path }
+        if let digests = paths.digestDirectory { env[digestVariable] = digests.path }
         // The app's language for the questions the shell (shell.ts) and web access ask before going further.
         env["PIPPA_LANGUAGE"] = language
         env.merge(offlineEnvironment) { $1 }
@@ -74,6 +79,8 @@ public enum PippaPiLaunch {
 
     /// Where pippa-memory.ts keeps the person's facts.
     public static let memoryVariable = "PIPPA_MEMORY_FILE"
+    /// Where digest.ts keeps its notes on long documents.
+    public static let digestVariable = "PIPPA_DIGEST_DIR"
 
     /// Extensions in load order. Only these load: `arguments` passes `--no-extensions`, which keeps explicit `--extension`s.
     public static func extensions(_ paths: Paths) -> [URL] {

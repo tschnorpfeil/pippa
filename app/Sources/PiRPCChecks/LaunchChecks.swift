@@ -7,7 +7,8 @@ import PiRPC
     let bundled = URL(fileURLWithPath: "/fixture/Pippa.app/Contents/Resources/pippa-skills", isDirectory: true)
     let memory = URL(fileURLWithPath: "/fixture/Application Support/Pippa/memory.md")
     let web = URL(fileURLWithPath: "/fixture/pippa-web/index.ts")
-    let paths = PippaPiLaunch.Paths(extensionsDirectory: t, webExtension: web, sessionDirectory: t, skillsDirectory: bundled, memoryFile: memory)
+    let paths = PippaPiLaunch.Paths(extensionsDirectory: t, webExtension: web, sessionDirectory: t, skillsDirectory: bundled, memoryFile: memory,
+                                    digestDirectory: URL(fileURLWithPath: "/fixture/Application Support/Pippa/digests", isDirectory: true))
     func run(_ args: [String], _ part: [String]) -> Bool {
         guard args.count >= part.count else { return false }
         return (0...(args.count - part.count)).contains { Array(args[$0..<($0 + part.count)]) == part }
@@ -46,6 +47,10 @@ import PiRPC
           && configured.environment["X"] == "1")
     check("Memory file and language reach the extensions",
           configured.environment[PippaPiLaunch.memoryVariable] == memory.path && configured.environment["PIPPA_LANGUAGE"] == "de")
+    check("The folder for notes on long documents reaches the extensions; without one nothing is set",
+          configured.environment[PippaPiLaunch.digestVariable] == "/fixture/Application Support/Pippa/digests"
+          && PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: withoutSkills, sessionID: nil, language: "de")
+              .environment[PippaPiLaunch.digestVariable] == nil)
     check("Only Pippa's extensions load, web access last",
           configured.extensions == ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts"].map { t.appendingPathComponent($0) } + [web])
 

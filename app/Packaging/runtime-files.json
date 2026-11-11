@@ -2,7 +2,7 @@
   "about": "The runtime files that ship in the app. scripts/build-app.sh and scripts/bundle-pi-payload.sh copy the first two groups, scripts/verify-app.sh checks all three and BundleVerification (Pippa --verify-runtime) reads the bundled copy of this file.",
   "pippa-tools": [
     "pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-mcp.ts", "files.ts", "facts.mjs",
-    "list-folder.ts", "document.ts", "shell.ts", "budget.ts", "search.mjs"
+    "list-folder.ts", "document.ts", "digest.ts", "shell.ts", "budget.ts", "search.mjs"
   ],
   "pippa-local-server": ["index.ts", "common.mjs", "ensure.mjs", "supervisor.mjs"],
   "pippa-web": ["index.ts", "package-lock.json", "node_modules/pi-web-access/dist/index.js"]

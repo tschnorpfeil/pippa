@@ -93,6 +93,9 @@ final class ChatModel: ObservableObject {
     private var evidence = DateEvidence()
     /// Sources of tool calls that have started but not ended.
     private var pendingSources: [String: ChatSource] = [:]
+    /// Running steps that reported progress: their label without it. Notes files of running reads, by call.
+    private var stepLabels: [String: String] = [:]
+    private var pendingNotes: [String: String] = [:]
     /// When the running answer started, for the live "Thinking … 12 s".
     @Published private(set) var answerStarted: Date?
     /// The AI on this Mac is starting or loading into memory before the question goes out (shown once it takes a moment).
@@ -222,7 +225,7 @@ final class ChatModel: ObservableObject {
         let started = Date()
         begin(started, in: id)
         _ = PippaMCPService.readNotes.take(); _ = PippaMCPService.writeNotes.take()
-        evidence = DateEvidence(); pendingSources = [:]
+        evidence = DateEvidence(); pendingSources = [:]; stepLabels = [:]; pendingNotes = [:]
         evidence.add(prompt: prompt)
         let turn = generation
         answer = Task {
@@ -420,10 +423,23 @@ final class ChatModel: ObservableObject {
                 $0.lead = $0.text.count
             }
             if let source = SourceLog.source(tool: name, arguments: arguments) { pendingSources[call] = source }
+        case .toolProgress(let call, let part, let of, let merging):
+            updateLast(in: id) { message in
+                guard let index = message.steps.firstIndex(where: { $0.id == call }), !message.steps[index].done else { return }
+                let label = stepLabels[call] ?? message.steps[index].label
+                stepLabels[call] = label
+                message.steps[index].label = StepLabel.progress(label, part: part, of: of, merging: merging)
+            }
+        case .toolNotes(let call, let path):
+            pendingNotes[call] = path
         case .toolEnded(let call, let name, let isError, let result, let outcome, _):
             let failed = isError || (outcome.map { $0 != .done } ?? false)
+            let label = stepLabels.removeValue(forKey: call)
+            let notes = pendingNotes.removeValue(forKey: call)
             updateLast(in: id) { message in
                 guard let index = message.steps.firstIndex(where: { $0.id == call }) else { return }
+                // The finished step is "Reading Thesis.docx" again, not its last part.
+                if let label { message.steps[index].label = label }
                 message.steps[index].done = true
                 message.steps[index].failed = failed
                 message.steps[index].ended = Date()
@@ -432,6 +448,7 @@ final class ChatModel: ObservableObject {
             let pendingSource = pendingSources.removeValue(forKey: call)
             if !failed, var source = SourceLog.source(tool: name, arguments: "{}", result: result) ?? pendingSource {
                 if name.hasSuffix("read_document") { source.detail = SourceLog.detail(result: result) }
+                if source.kind == .file { source.notes = notes }
                 updateLast(in: id) { message in
                     var sources = message.sources ?? []
                     sources.removeAll { $0.kind == source.kind && $0.name == source.name && $0.location == source.location }
@@ -564,6 +581,11 @@ final class ConversationStore: Sendable {
 
 /// A short everyday line for a tool call ("Reading Lease.pdf"). Display only; Pi never sees it.
 enum StepLabel {
+    /// A running step's label with where it is in a long document: "Reading Thesis.docx · Part 3 of 10".
+    static func progress(_ label: String, part: Int, of: Int, merging: Bool) -> String {
+        merging ? T("%@ · merging the notes", table: "App", label) : T("%@ · Part %lld of %lld", table: "App", label, part, of)
+    }
+
     static func text(tool: String, arguments: String) -> String {
         let args = (try? JSONSerialization.jsonObject(with: Data(arguments.utf8))) as? [String: Any] ?? [:]
         let name = tool.hasPrefix("mcp__pippa__") ? String(tool.dropFirst("mcp__pippa__".count)) : tool

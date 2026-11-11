@@ -184,7 +184,8 @@ final class PiSession {
         let web = Self.webPath(env).flatMap { FileManager.default.fileExists(atPath: $0) ? URL(fileURLWithPath: $0) : nil }
         let paths = PippaPiLaunch.Paths(extensionsDirectory: extensions, webExtension: web, sessionDirectory: Self.sessionDirectory,
                                         skillsDirectory: PippaSkill.bundledDirectory(),
-                                        memoryFile: PiConversationDefault.memoryFile(support: Pippa.supportDirectory))
+                                        memoryFile: PiConversationDefault.memoryFile(support: Pippa.supportDirectory),
+                                        digestDirectory: PiConversationDefault.digestDirectory(support: Pippa.supportDirectory))
         var launcher = try await Self.launcher(env, modelID: route.piModel?.modelID ?? route.online?.connection.modelID)
         if let online = route.online { launcher.piArguments = PiOnlineProvider.launchArguments(online.connection) }
         if let model = route.piModel { launcher.piArguments = model.launchArguments }

@@ -17,6 +17,11 @@ public enum PiConversationDefault {
         support.appendingPathComponent("memory.md")
     }
 
+    /// Notes on documents too long to read at once, one Markdown file per document (runtime/pippa-tools/digest.ts).
+    public static func digestDirectory(support: URL) -> URL {
+        support.appendingPathComponent("digests", isDirectory: true)
+    }
+
     /// Pippa's Pi extensions in the app bundle (scripts/build-app.sh: Contents/Resources/pippa-tools): file tools,
     /// helps for small models, the MCP connection.
     public static func bundledExtensions(bundle: URL) -> URL {

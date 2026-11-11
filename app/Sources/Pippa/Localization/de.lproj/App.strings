@@ -208,3 +208,7 @@
 "Starting my AI…" = "Starte meine KI …";
 "Why this takes a moment" = "Warum das einen Moment dauert";
 "My AI runs on this Mac, not on the internet. Before the first answer I load it into memory, which is several gigabytes. That takes a few seconds, or up to a minute when your Mac is busy. After ten minutes without a question I free the memory again." = "Meine KI läuft auf diesem Mac, nicht im Internet. Vor der ersten Antwort lade ich sie in den Arbeitsspeicher, das sind mehrere Gigabyte. Das dauert ein paar Sekunden, auf einem ausgelasteten Mac bis zu einer Minute. Nach zehn Minuten ohne Frage gebe ich den Speicher wieder frei.";
+"%@ · Part %lld of %lld" = "%@ · Teil %lld von %lld";
+"%@ · merging the notes" = "%@ · fasse die Notizen zusammen";
+"Notes on %@" = "Notizen zu %@";
+"Long document, read in parts" = "Langes Dokument, in Teilen gelesen";

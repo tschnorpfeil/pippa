@@ -10,11 +10,15 @@
  *   `mcp__pippa__read_document` (text recognition included), run as a nested call when the app serves it. Without the
  *   app the call fails with what could not be read.
  *
- * `offset`/`limit` count lines of the text, as for any other file.
+ * `offset`/`limit` count lines of the text, as for any other file. A PDF or Word text read whole (no `offset`, no
+ * `limit`) that is longer than one result may be comes back as notes on the whole document (digest.ts), with one
+ * progress update per part; the lines themselves stay readable with `offset`/`limit`.
  */
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
+import { resultLimit } from "./budget.ts";
+import { digest, piComplete, type Complete } from "./digest.ts";
 import { resolvePath } from "./files.ts";
 
 const PDF = new Set(["pdf"]);
@@ -89,15 +93,16 @@ function hasText(text: string): boolean {
 	return text.replace(/\[Page \d+\]/g, "").trim().length > 0;
 }
 
-/** Pi's read (`create` = `createReadToolDefinition`) with documents read to text in the same call. */
-export function readTool(create: (cwd: string, options?: any) => any, exec: Run = run) {
+/** Pi's read (`create` = `createReadToolDefinition`) with documents read to text in the same call.
+ * `options` (tests): the model call and the folder digest.ts uses; by default Pi's model registry and PIPPA_DIGEST_DIR. */
+export function readTool(create: (cwd: string, options?: any) => any, exec: Run = run, options: { complete?: Complete; digestDirectory?: string } = {}) {
 	return {
 		definition(defaultCwd: string) {
 			const base = create(defaultCwd);
 			return {
 				...base,
 				description: "Read a file: text, image, or a document (PDF, Word, Excel, RTF, Pages …) as text; long files in parts by line (offset/limit).",
-				async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: unknown, ctx: any) {
+				async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: any, ctx: any) {
 					const path = resolvePath(params?.path ?? params?.file_path, ctx?.cwd || defaultCwd);
 					if (extname(path).toLowerCase() === ".csv") {
 						const decoded = await windows1252Csv(path);
@@ -113,8 +118,24 @@ export function readTool(create: (cwd: string, options?: any) => any, exec: Run 
 					if (kind === "pdf" || kind === "textutil") {
 						const text = await localText(path, kind, exec);
 						if (hasText(text)) {
-							return { content: [{ type: "text", text: lines(text, params?.offset, params?.limit) }],
-								details: { pippaDocument: { path, via: kind === "pdf" ? "pdfkit" : "textutil" } } };
+							const details = { pippaDocument: { path, via: kind === "pdf" ? "pdfkit" : "textutil" } };
+							const complete = options.complete ?? piComplete(ctx);
+							const limit = resultLimit(ctx?.model?.contextWindow);
+							// Read whole and too long for one result: notes on all of it instead of its first lines.
+							if (!params?.offset && !params?.limit && text.length > limit && complete) {
+								const notes = await digest({ path, text, contextWindow: ctx?.model?.contextWindow, limit, complete,
+									directory: options.digestDirectory, signal: signal ?? ctx?.signal,
+									onProgress: (progress) => {
+										if (typeof onUpdate !== "function") return;
+										const what = progress.phase === "merge" ? "Merging notes" : "Part";
+										onUpdate({ content: [{ type: "text", text: `${what} ${progress.part} of ${progress.of}` }], details: { pippaProgress: progress } });
+									} });
+								if (notes) {
+									return { content: [{ type: "text", text: notes.text }],
+										details: { ...details, pippaDigest: { notes: notes.file, lines: notes.lines, parts: notes.parts, gaps: notes.gaps, cached: notes.cached } } };
+								}
+							}
+							return { content: [{ type: "text", text: lines(text, params?.offset, params?.limit) }], details };
 						}
 					}
 					const reader = ctx?.tools?.some?.((tool: any) => tool?.name === DOCUMENT_READER);

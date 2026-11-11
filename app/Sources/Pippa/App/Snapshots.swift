@@ -59,6 +59,8 @@ enum Snapshots {
             ("welcome", { chat.showSample([], current: nil, answering: false) }, 760, false, false),
             ("conversation", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false, false),
             ("context", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false, true),
+            // A document too long to read at once: "About this answer" lists Pippa's notes on it.
+            ("context-notes", { chat.showSample(sampleLongDocument() + sampleConversations(), current: "thesis", answering: false) }, 760, false, true),
             ("answering", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, false, false),
             // The question is out, the AI on this Mac still loads: nothing from Pi yet.
             ("starting", { chat.showSample(sampleConversations(answering: true, starting: true), current: "c1", answering: true, starting: true) }, 760, false, false),
@@ -271,6 +273,27 @@ enum Snapshots {
         answer.sources = [ChatSource(kind: .mail, name: "Nebenkostenabrechnung 2025", location: "", detail: "Hausverwaltung Berger")]
         return [Conversation(id: "cards", title: "Nebenkosten und Termine", updated: Date(), messages: [
             ChatMessage(role: .user, text: "Wie haben sich die Nebenkosten entwickelt, und was steht diese Woche an?"), answer,
+        ])]
+    }
+
+    /// A thesis read part by part (runtime/pippa-tools/digest.ts): the answer rests on Pippa's notes.
+    private static func sampleLongDocument() -> [Conversation] {
+        var answer = ChatMessage(role: .assistant, text: """
+        Die Arbeit untersucht, wie sich **Wärmepumpen in Altbauten** rechnen.
+
+        - **Methode:** 42 Gebäude, Messzeitraum zwei Heizperioden
+        - **Ergebnis:** Jahresarbeitszahl im Mittel 3,4; unter 2,8 nur ohne Dämmung der obersten Geschossdecke
+        - **Fazit:** wirtschaftlich ab einer Vorlauftemperatur unter 55 °C
+
+        Ich habe das Dokument in Teilen gelesen und mir Notizen gemacht. Für ein genaues Zitat lese ich die Stelle nach.
+        """)
+        answer.steps = [step("t1", "read", ["path": "/Users/me/Documents/Thesis.docx"], seconds: 312)]
+        answer.duration = 341
+        answer.sources = [ChatSource(kind: .file, name: "Thesis.docx", location: "/Users/me/Documents/Thesis.docx", detail: nil,
+                                     notes: "/Users/me/Library/Application Support/Pippa/digests/Thesis.docx.3f9a1c2b7d.md")]
+        answer.context = ContextUsage(tokens: 9_870, window: 16_384)
+        return [Conversation(id: "thesis", title: "Thesis zusammenfassen", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Fass mir die Thesis zusammen.", files: ["/Users/me/Documents/Thesis.docx"]), answer,
         ])]
     }
 
