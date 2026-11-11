@@ -85,16 +85,13 @@ struct PermissionSettings: View {
     @ObservedObject var status: PermissionStatus
 
     var body: some View {
-        Form {
-            Section {
-                ForEach(MacPermission.allCases, id: \.self) { permission in
+        SettingsScroll {
+            SettingsSection(title: T("What Pippa may use on this Mac", table: "Settings"),
+                            footer: T("Pippa only reads what you ask about. You can change this at any time in System Settings.", table: "Settings")) {
+                ForEach(Array(MacPermission.allCases.enumerated()), id: \.element) { index, permission in
+                    if index > 0 { SettingsDivider() }
                     PermissionRow(permission: permission, access: status.access[permission])
                 }
-            } header: {
-                Text(T("What Pippa may use on this Mac", table: "Settings"))
-            } footer: {
-                Text(T("Pippa only reads what you ask about. You can change this at any time in System Settings.", table: "Settings"))
-                    .font(Typo.footnote).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
             }
         }
         .onAppear { status.refresh() }
@@ -112,13 +109,14 @@ private struct PermissionRow: View {
     var body: some View {
         HStack(spacing: Space.l) {
             HStack(spacing: Space.l) {
+                // Neutral: blue marks what can be pressed, not what a row is about.
                 Image(systemName: permission.symbol)
-                    .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.accent)
+                    .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink2)
                     .frame(width: 28, height: 28)
-                    .background(Theme.accentTint, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                    .background(Theme.fill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: Space.xxs) {
-                    Text(permission.name).font(Typo.callout)
+                    Text(permission.name).font(Typo.callout).foregroundStyle(Theme.ink)
                     state.font(Typo.footnote)
                 }
             }
@@ -127,9 +125,9 @@ private struct PermissionRow: View {
             Spacer(minLength: Space.m)
             Group {
                 if permission == .files {
-                    Button(T("Open Files & Folders…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }
+                    Button(T("Open Files & Folders…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }.pippa(.secondary)
                 } else if access == .denied {
-                    Button(T("Allow in System Settings…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }
+                    Button(T("Allow in System Settings…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }.pippa(.secondary)
                 } else if access == .granted {
                     Button(T("Change…", table: "Settings")) { NSWorkspace.shared.open(permission.settingsURL) }.pippa(.quiet)
                 }
@@ -137,7 +135,7 @@ private struct PermissionRow: View {
             // The button keeps its whole label and the state on the left wraps instead: German labels run longer.
             .fixedSize()
         }
-        .padding(.vertical, Space.xxs)
+        .settingsBlock()
     }
 
     @ViewBuilder private var state: some View {
