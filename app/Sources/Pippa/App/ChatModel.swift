@@ -451,7 +451,10 @@ final class ChatModel: ObservableObject {
                 if source.kind == .file { source.notes = notes }
                 updateLast(in: id) { message in
                     var sources = message.sources ?? []
-                    sources.removeAll { $0.kind == source.kind && $0.name == source.name && $0.location == source.location }
+                    let same = { (other: ChatSource) in other.kind == source.kind && other.name == source.name && other.location == source.location }
+                    // Reading an exact passage after the notes keeps the notes (the digest asks for such reads).
+                    if source.notes == nil { source.notes = sources.last(where: same)?.notes }
+                    sources.removeAll(where: same)
                     sources.append(source)
                     message.sources = sources
                 }

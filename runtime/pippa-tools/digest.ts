@@ -41,7 +41,7 @@ export type Digest = {
 	file: string;
 	lines: number;
 	parts: number;
-	/** Line ranges without notes (their model call failed, or the document is longer than `MAX_SHARDS` parts). */
+	/** Line ranges without notes (their model call failed). */
 	gaps: Range[];
 	cached: boolean;
 };
@@ -56,8 +56,6 @@ const SMALLEST_SHARD = 4_000;
 /** The AI on this Mac: about 4,000 tokens a part whatever its window. Measured 2026-11-11 on a 24 GB Mac mini with other
  * apps open: oMLX's memory guard aborted parts of ~9,000 tokens (prefill peak above its limit) and let ~3,000 through. */
 const LOCAL_SHARD = 12_000;
-/** More parts than this are not read (20 minutes and more on a local model); the notes name the lines left out. */
-export const MAX_SHARDS = 30;
 const MERGE_ROUNDS = 3;
 const SMALLEST_NOTE = 400;
 const LARGEST_NOTE = 2_400;
@@ -238,7 +236,8 @@ export async function digest(options: {
 	const lines = text.split("\n").length;
 	const size = shardChars(options.contextWindow, options.local);
 	const all = shards(text, size);
-	const parts = all.slice(0, MAX_SHARDS);
+	// Every part is read, however long the document: the step shows "Part n of N", and Stop ends it.
+	const parts = all;
 	const head = header(name, lines, text.length, parts.length, true).length + 2;
 	const budget = limit - head;
 	// What one part's notes may take so that all fit without a merge round; the model is asked for a little less.
@@ -273,10 +272,6 @@ export async function digest(options: {
 		}
 	}
 	if (!written) return undefined;
-	if (all.length > parts.length) {
-		const rest = { first: all[parts.length].first, last: lines };
-		notes.push({ first: rest.first, last: rest.last, text: "", gaps: [rest] });
-	}
 
 	for (let round = 0; round < MERGE_ROUNDS && renderNotes(notes).length > budget; round++) {
 		const before = renderNotes(notes).length;

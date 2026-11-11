@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { resultLimit } from "./budget.ts";
-import { digestDirectory, halves, shardChars, shards } from "./digest.ts";
+import { digest, digestDirectory, halves, shardChars, shards } from "./digest.ts";
 import { readTool } from "./document.ts";
 
 const builtin = { name: "read", description: "Pi's read", execute: async () => ({ content: [{ type: "text", text: "pi read" }] }) };
@@ -180,4 +180,21 @@ test("A4: a part too large for a tight memory guard gets notes from its two halv
 		assert.ok(result.content[0].text.includes(`## Lines ${a.first}-${a.last}\nThema ${a.first}`));
 		assert.ok(result.content[0].text.includes(`## Lines ${b.first}-${b.last}\nThema ${b.first}`));
 	} finally { await t.done(); }
+});
+
+test("every part of a very long document is read: no part limit leaves its end out", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "pippa-digest-long-"));
+	try {
+		const path = join(dir, "Buch.docx");
+		await writeFile(path, "docx bytes");
+		const text = Array.from({ length: 2_000 }, (_, i) => `Zeile ${i + 1} ` + "x".repeat(90)).join("\n");
+		const seen = [];
+		const result = await digest({ path, text, contextWindow: 1_000, limit: 24_000, directory: dir,
+			complete: async (system, user) => { if (!system.startsWith("These are notes")) seen.push(Number(/^(\d+): /.exec(user)[1])); return "- Notiz"; } });
+		const parts = shards(text, shardChars(1_000));
+		assert.ok(parts.length > 30, `${parts.length} parts`);
+		assert.equal(seen.length, parts.length, "one call per part");
+		assert.equal(seen.at(-1), parts.at(-1).first, "the last part is read");
+		assert.deepEqual(result.gaps, []);
+	} finally { await rm(dir, { recursive: true, force: true }); }
 });
