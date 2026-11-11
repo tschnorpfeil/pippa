@@ -124,6 +124,7 @@ export function readTool(create: (cwd: string, options?: any) => any, exec: Run 
 							// Read whole and too long for one result: notes on all of it instead of its first lines.
 							if (!params?.offset && !params?.limit && text.length > limit && complete) {
 								const notes = await digest({ path, text, contextWindow: ctx?.model?.contextWindow, limit, complete,
+									local: ctx?.model?.provider === "pippa-local",
 									directory: options.digestDirectory, signal: signal ?? ctx?.signal,
 									onProgress: (progress) => {
 										if (typeof onUpdate !== "function") return;

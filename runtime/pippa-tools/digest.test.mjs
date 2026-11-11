@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { resultLimit } from "./budget.ts";
-import { digestDirectory, shardChars, shards } from "./digest.ts";
+import { digestDirectory, halves, shardChars, shards } from "./digest.ts";
 import { readTool } from "./document.ts";
 
 const builtin = { name: "read", description: "Pi's read", execute: async () => ({ content: [{ type: "text", text: "pi read" }] }) };
@@ -117,10 +117,15 @@ test("A4: a failed part is named with its lines; when every call fails the text 
 	try {
 		const parts = shards(thesis, shardChars(16_384));
 		const result = await t.read(16_384);
-		const gap = parts[1];
-		assert.ok(result.content[0].text.includes(`## Lines ${gap.first}-${gap.last}\n[Lines ${gap.first}-${gap.last} are not in these notes. Read them with read, offset ${gap.first}, limit ${gap.last - gap.first + 1}.]`));
+		// The failed part is tried once more in two halves; both fail here, so both are named with their lines.
+		const [a, b] = halves(parts[1]);
+		for (const gap of [a, b]) {
+			assert.ok(result.content[0].text.includes(`## Lines ${gap.first}-${gap.last}\n[Lines ${gap.first}-${gap.last} are not in these notes. Read them with read, offset ${gap.first}, limit ${gap.last - gap.first + 1}.]`));
+		}
+		assert.equal(a.first, parts[1].first); assert.equal(b.last, parts[1].last); assert.equal(b.first, a.last + 1);
 		assert.ok(result.content[0].text.includes(`## Lines ${parts[2].first}-${parts[2].last}\nThema ${parts[2].first}`), "the parts after the gap are there");
-		assert.deepEqual(result.details.pippaDigest.gaps, [{ first: gap.first, last: gap.last }]);
+		assert.deepEqual(result.details.pippaDigest.gaps, [{ first: a.first, last: a.last }, { first: b.first, last: b.last }]);
+
 
 		failing = () => true;
 		await utimes(t.path, new Date(), new Date(Date.now() + 120_000));
@@ -151,4 +156,28 @@ test("A5: notes longer than the limit are merged until they fit; a model that ne
 		assert.match(cut, /The notes were shortened to fit\.\]/);
 		assert.ok(cut.includes(" […]") && cut.includes("-1931\n"));
 	} finally { await t.done(); await stubborn.done(); }
+});
+
+test("the AI on this Mac reads in parts of about 4,000 tokens; a failed part gets one more try in two halves", async () => {
+	assert.equal(shardChars(32_768, true), 12_000);
+	assert.equal(shardChars(16_384, true), 12_000);
+	assert.equal(shardChars(32_768), 39_322, "online and unknown models keep the window-based size");
+	const text = Array.from({ length: 10 }, (_, i) => `Satz ${i + 1}`).join("\n");
+	const [part] = shards(text, 10_000);
+	const [a, b] = halves(part);
+	assert.deepEqual([a.first, a.last, b.first, b.last], [1, 5, 6, 10]);
+	assert.equal(a.text.split("\n").length + b.text.split("\n").length, 10);
+	assert.equal(halves({ first: 3, last: 3, text: "3: eine Zeile" }), undefined);
+});
+
+test("A4: a part too large for a tight memory guard gets notes from its two halves, without a gap", async () => {
+	const parts = shards(thesis, shardChars(16_384));
+	const [a, b] = halves(parts[1]);
+	const t = await setup((call) => { if (call.first === parts[1].first && call.user.split("\n").length > a.last - a.first + 1) throw new Error("memory"); return `Thema ${call.first}`; });
+	try {
+		const result = await t.read(16_384);
+		assert.deepEqual(result.details.pippaDigest.gaps, []);
+		assert.ok(result.content[0].text.includes(`## Lines ${a.first}-${a.last}\nThema ${a.first}`));
+		assert.ok(result.content[0].text.includes(`## Lines ${b.first}-${b.last}\nThema ${b.first}`));
+	} finally { await t.done(); }
 });

@@ -53,16 +53,33 @@ const SHARD_SHARE = 0.4;
 /** Online models have windows of 200k and more; parts stay small enough for careful notes. */
 const LARGEST_SHARD = 60_000;
 const SMALLEST_SHARD = 4_000;
+/** The AI on this Mac: about 4,000 tokens a part whatever its window. Measured 2026-11-11 on a 24 GB Mac mini with other
+ * apps open: oMLX's memory guard aborted parts of ~9,000 tokens (prefill peak above its limit) and let ~3,000 through. */
+const LOCAL_SHARD = 12_000;
 /** More parts than this are not read (20 minutes and more on a local model); the notes name the lines left out. */
 export const MAX_SHARDS = 30;
 const MERGE_ROUNDS = 3;
 const SMALLEST_NOTE = 400;
 const LARGEST_NOTE = 2_400;
 
-/** Characters of one part, from the model's context window (16k → 19,661, 32k → 39,322; unknown: as for 16k). */
-export function shardChars(contextWindow: unknown): number {
+/** Characters of one part, from the model's context window (16k → 19,661, 32k → 39,322; unknown: as for 16k).
+ * `local`: the AI on this Mac, where memory, not the window, sets the size (`LOCAL_SHARD`). */
+export function shardChars(contextWindow: unknown, local = false): number {
 	const window = Number(contextWindow) > 0 ? Number(contextWindow) : 16_384;
-	return Math.min(LARGEST_SHARD, Math.max(SMALLEST_SHARD, Math.round(window * SHARD_SHARE * CHARS_PER_TOKEN)));
+	const size = Math.min(LARGEST_SHARD, Math.max(SMALLEST_SHARD, Math.round(window * SHARD_SHARE * CHARS_PER_TOKEN)));
+	return local ? Math.min(size, LOCAL_SHARD) : size;
+}
+
+/** A part in two halves at a line boundary, for one more try after its call failed; `undefined` for a single line. */
+export function halves(part: Shard): [Shard, Shard] | undefined {
+	const lines = part.text.split("\n");
+	if (lines.length < 2) return undefined;
+	const number = (line: string) => Number(/^(\d+): /.exec(line)?.[1]);
+	const middle = Math.floor(lines.length / 2);
+	const a = lines.slice(0, middle), b = lines.slice(middle);
+	const first = number(a[0]), split = number(b[0]), last = number(b[b.length - 1]);
+	if (![first, split, last].every(Number.isFinite)) return undefined;
+	return [{ first, last: Math.max(first, split - 1), text: a.join("\n") }, { first: split, last, text: b.join("\n") }];
 }
 
 /** `text` in parts of at most `size` characters, cut after whole lines; every line starts with its number ("12: …").
@@ -202,7 +219,7 @@ async function cached(file: string, path: string, size: number, modified: number
  * the text as before.
  */
 export async function digest(options: {
-	path: string; text: string; contextWindow: unknown; limit: number; complete: Complete;
+	path: string; text: string; contextWindow: unknown; limit: number; complete: Complete; local?: boolean;
 	directory?: string; signal?: AbortSignal; onProgress?: (progress: Progress) => void;
 }): Promise<Digest | undefined> {
 	const { path, text, limit, complete, signal, onProgress } = options;
@@ -219,7 +236,7 @@ export async function digest(options: {
 
 	const name = basename(path);
 	const lines = text.split("\n").length;
-	const size = shardChars(options.contextWindow);
+	const size = shardChars(options.contextWindow, options.local);
 	const all = shards(text, size);
 	const parts = all.slice(0, MAX_SHARDS);
 	const head = header(name, lines, text.length, parts.length, true).length + 2;
@@ -228,17 +245,31 @@ export async function digest(options: {
 	const each = Math.min(LARGEST_NOTE, Math.max(SMALLEST_NOTE, Math.floor(budget / parts.length) - 40));
 	let notes: Note[] = [];
 	let written = 0;
+	const ask = async (part: Shard, chars: number) => {
+		const note = (await complete(notesPrompt(Math.floor(chars * 0.8)), part.text, Math.ceil(chars / CHARS_PER_TOKEN), signal)).trim();
+		if (!note) throw new Error("empty");
+		return note;
+	};
 	for (const [index, part] of parts.entries()) {
 		if (signal?.aborted) throw new Error("Reading was stopped.");
 		onProgress?.({ part: index + 1, of: parts.length, phase: "notes" });
 		try {
-			const note = (await complete(notesPrompt(Math.floor(each * 0.8)), part.text, Math.ceil(each / CHARS_PER_TOKEN), signal)).trim();
-			if (!note) throw new Error("empty");
-			notes.push({ first: part.first, last: part.last, text: note, gaps: [] });
+			notes.push({ first: part.first, last: part.last, text: await ask(part, each), gaps: [] });
 			written++;
 		} catch (error) {
 			if (signal?.aborted) throw error;
-			notes.push({ first: part.first, last: part.last, text: "", gaps: [{ first: part.first, last: part.last }] });
+			// One more try in two halves: a smaller prompt passes a tight memory guard more often. A half that fails too
+			// stays a gap with its lines.
+			for (const half of halves(part) ?? [part]) {
+				if (half === part) { notes.push({ first: part.first, last: part.last, text: "", gaps: [{ first: part.first, last: part.last }] }); break; }
+				try {
+					notes.push({ first: half.first, last: half.last, text: await ask(half, Math.max(SMALLEST_NOTE, Math.floor(each / 2))), gaps: [] });
+					written++;
+				} catch (again) {
+					if (signal?.aborted) throw again;
+					notes.push({ first: half.first, last: half.last, text: "", gaps: [{ first: half.first, last: half.last }] });
+				}
+			}
 		}
 	}
 	if (!written) return undefined;
