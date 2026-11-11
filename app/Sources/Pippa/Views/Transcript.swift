@@ -9,6 +9,8 @@ struct Transcript: View {
     @ObservedObject private var approvals = Approvals.shared
     /// The end of the conversation is in view: new words keep it there. Scrolled up, they don't pull the person down.
     private let atBottomState = State(initialValue: true)
+    /// Until then the conversation just opened settles at its end.
+    private let openingUntilState = State(initialValue: Date.distantPast)
     /// The person is scrolling (wheel, trackpad, scroll bar); only then may "at the bottom" turn off. Content growing
     /// under a programmatic scroll never does.
     private let userScrollingState = State(initialValue: false)
@@ -81,10 +83,11 @@ struct Transcript: View {
                 if atBottom { atBottomState.wrappedValue = true }
                 else if userScrollingState.wrappedValue { atBottomState.wrappedValue = false }
             }
-            // The conversation grew or was laid out again (lazy rows, a font that loads late) while its end was in
-            // view: stay at the end. Without this the first conversation opened sometimes stood at its top.
+            // A conversation that was just opened is still being laid out (lazy rows, a font that loads late): for
+            // that moment a change of its height goes to the end again. Without this the first conversation opened
+            // sometimes stood at its top. Later height changes (steps opened by hand) leave the place alone.
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, _ in
-                if atBottomState.wrappedValue, !userScrollingState.wrappedValue { proxy.scrollTo("end", anchor: .bottom) }
+                if Date() < openingUntilState.wrappedValue, !userScrollingState.wrappedValue { proxy.scrollTo("end", anchor: .bottom) }
             }
             .onAppear {
                 // Opened mid-answer (or the first question just went out): the question and the answer still arrive.
@@ -93,6 +96,7 @@ struct Transcript: View {
                 // Pippa Island shows a new question without taking the keyboard from the app in front; only without
                 // the island does the chat come forward for it.
                 Approvals.shared.present("chat", reveal: { if !Island.shared.isShown { ChatWindow.shared.show() } })
+                openingUntilState.wrappedValue = Date().addingTimeInterval(1)
                 proxy.scrollTo("end", anchor: .bottom)
                 // Once more after the first layout: lazy rows only know their real height then.
                 Task { @MainActor in proxy.scrollTo("end", anchor: .bottom) }
@@ -101,6 +105,7 @@ struct Transcript: View {
             .onChange(of: conversation.id) { _, id in
                 settledState.wrappedValue = Settled(id: id, count: conversation.messages.count)
                 atBottomState.wrappedValue = true
+                openingUntilState.wrappedValue = Date().addingTimeInterval(1)
                 proxy.scrollTo("end", anchor: .bottom)
             }
             .onChange(of: answeringHere) { _, answering in
