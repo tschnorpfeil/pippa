@@ -16,9 +16,9 @@ Free for the Mac: letters explained, photos to one PDF, mail drafts and appointm
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/pippa-window-dark.png">
-    <img src="docs/images/pippa-window-light.png" width="860" alt="Pippa's window on macOS 26, with made-up sample data. The sidebar has a search field, New Conversation and earlier conversations. Asked where the current ETF overview is, Pippa names the file, lists three funds with their shares and monthly amounts, and shows a card: Reminder added, Sparplan prüfen, with Undo and Open Reminders. Below, a letter from the utility company with the question by when something needs doing: a payment of 184.37 euros by November 15, 2026, and a date she worked out herself, marked to check.">
+    <img src="docs/images/pippa-window-light.png" width="860" alt="Pippa's window on macOS 26, with made-up sample data. The sidebar has a search field, New Conversation and earlier conversations. Asked where the current ETF overview is, Pippa names the file, lists three funds with their shares and monthly amounts under the heading Überblick, and shows a card: Reminder added, Sparplan prüfen, with the rounded buttons Undo and Open Reminders. Below, a letter from the utility company with the question by when something needs doing: a payment of 184.37 euros by November 15, 2026, and a date she worked out herself, marked to check. The question field at the bottom names the AI that answers.">
   </picture>
-  <br><sub>Pippa on macOS 26, drawn by the app's own snapshot mode with made-up sample data.</sub>
+  <br><sub>Pippa 0.6.5 on macOS 26, drawn by the app's own snapshot mode with made-up sample data.</sub>
 </p>
 
 Cloud assistants read your documents on their servers, and most local AI apps stop at a chat window. Pippa works with your Mac and hands back finished results:
@@ -29,7 +29,19 @@ Cloud assistants read your documents on their servers, and most local AI apps st
 
 Also: unsent reply drafts in Mail (you send them; she never does), Calendar entries, reminders, photos from your library and the web after she asks you.
 
-Open Pippa from the Dock or press ⌥ Space, then just ask. **Pippa Island**, at the notch or under her menu bar symbol, shows what she is working on; ⌥ Space opens it for a quick question, and you can drop files on it. When she needs your OK, for example before a web search or a command that changes files, she asks right in the conversation with **Allow** and **Don’t Allow**, not in a separate window. Each conversation stays in the sidebar, which you can search. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
+Open Pippa from the Dock or press ⌥ Space, then just ask.
+
+**Pippa Island** sits at the notch, or under her menu bar symbol on a Mac without one. It shows what she is working on, step by step; ⌥ Space opens it for a quick question, and you can drop files on it. **Open Pippa** takes the conversation to the full window.
+
+<p align="center">
+  <img src="docs/images/island-question.png" width="420" alt="Pippa Island open under the notch, black like the notch itself. Pippa asks whether she may search the web and shows the search words. Three rounded buttons: Open Pippa on the left, Don’t Allow and a blue Allow on the right.">
+  <img src="docs/images/island-answer.png" width="420" alt="Pippa Island open under the notch with a short answer: a payment of 184.37 euros is due by November 15, 2026, followed by two things to do. Below, the question field Ask Pippa and the button Open Pippa.">
+  <br><sub>Pippa Island asking for your OK, and with an answer. Drawn by the app's snapshot mode with made-up sample data; her sample answers are in German.</sub>
+</p>
+
+When she needs your OK, for example before a web search or a command that changes files, she asks right where you are, in the conversation and on Pippa Island, with one clear **Allow** next to **Don’t Allow**, never in a separate window.
+
+The chat window, Pippa Island and Settings share one look: almost black in Dark Mode, warm paper in Light Mode, and blue only for what you can act on. Each conversation stays in the sidebar, which you can search. The question field names the AI that answers. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 
