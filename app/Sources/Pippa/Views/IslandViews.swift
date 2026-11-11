@@ -43,24 +43,18 @@ struct IslandCompactView: View {
         let status = island.status
         Group {
             if let housingWidth {
-                // At rest the shape hides in the housing: no mark, so nothing shows beside the notch.
                 HStack(spacing: IslandStyle.wingGap) {
-                    if status.showsCompact {
-                        IslandMark(status: status, size: IslandStatus.markSize)
-                        IslandLine(status: status)
-                    }
+                    IslandMark(status: status, size: IslandStatus.markSize)
+                    if status.showsCompact { IslandLine(status: status).transition(.opacity) }
                 }
-                .transition(.opacity)
                 .padding(.leading, IslandStyle.wingInset)
                 .padding(.trailing, IslandStyle.wingGap + housingWidth - 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .animation(.easeOut(duration: 0.18), value: status.showsCompact)
             } else {
-                HStack(spacing: 7) {
-                    IslandMark(status: status, size: IslandStatus.markSize)
-                    IslandLine(status: status)
-                }
-                .padding(.leading, 6).padding(.trailing, 12)
+                // Under the menu bar symbol: the symbol right above is her mark, the capsule only says what she does.
+                IslandLine(status: status)
+                .padding(.leading, 12).padding(.trailing, 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
         }
@@ -256,8 +250,9 @@ struct IslandPanelView: View {
         return .empty
     }
 
-    /// The panel already says what she does: the step chain with "Thinking…" or "Writing…", or the download line.
-    private var panelShowsStatus: Bool { phase == .working || phase == .download }
+    /// The panel already says what she does: the step chain with "Thinking…" or "Writing…", the download line, or the
+    /// "Set up my AI" button.
+    private var panelShowsStatus: Bool { phase == .working || phase == .download || phase == .setup }
 
     @ViewBuilder private var main: some View {
         switch phase {
@@ -318,7 +313,8 @@ struct IslandPanelView: View {
 
     private func header(markSize: CGFloat) -> some View {
         HStack(spacing: markSize < 20 ? IslandStyle.wingGap : 10) {
-            IslandMark(status: island.status, size: markSize)
+            // Under the menu bar symbol the symbol is her mark; beside the notch the header carries it.
+            if menuBarRow != nil { IslandMark(status: island.status, size: markSize) }
             // In the menu bar row just her name and the sign: the panel below says what she does or asks. While she
             // works or loads her AI the panel says it too, so the header keeps her name instead of saying it twice.
             Text(island.status.tone == .rest || markSize < 20 || panelShowsStatus ? "Pippa" : island.status.label)
@@ -791,13 +787,11 @@ struct IslandChainRow<Label: View>: View {
         case .failed:
             Image(systemName: "exclamationmark").font(.system(size: 8, weight: .bold)).foregroundStyle(IslandStyle.bad)
                 .frame(width: 12, height: 12).background(Circle().fill(IslandStyle.bad.opacity(0.16)))
-        case .thinking:
-            // Not her mark: it already sits in the header above, once is enough.
+        case .thinking, .writing:
+            // Not her mark or her handwriting: the header above already shows them, once is enough.
             Image(systemName: "ellipsis").font(.system(size: 10, weight: .bold))
                 .foregroundStyle(IslandStyle.accent)
                 .symbolEffect(.variableColor.iterative, options: .repeating)
-        case .writing:
-            Scribble(size: 14)
         }
     }
 }

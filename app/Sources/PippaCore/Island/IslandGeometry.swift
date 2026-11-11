@@ -57,12 +57,11 @@ public struct IslandSilhouette: Equatable, Sendable {
 
 /// Frames of Pippa Island. Pure functions of the display's public geometry (`NSScreen.frame`, `safeAreaInsets.top`,
 /// `auxiliaryTopLeftArea`, `auxiliaryTopRightArea`, `visibleFrame`) and the menu bar symbol, so checks can run them
-/// for any Mac. Three resting shapes: `rest` (nothing visible: inside the housing, or a line under the symbol), `compact` (a wing on
+/// for any Mac. Three resting shapes: `rest` (Pippa's mark just left of the housing, or nothing), `compact` (a wing on
 /// the left of the housing, or a small capsule under the symbol) and `open` (the panel).
 ///
 /// At the notch Pippa keeps to the left of the housing: tools like tinyStats live on its right, and the menu bar
-/// symbols there should stay readable. At rest she stays inside the housing, so an app whose menus reach the notch
-/// keeps them readable; the wing comes out only while she works, asks or has an answer. The shapes reach into the housing up to 6 pt from its right edge: there they
+/// symbols there should stay readable. The shapes reach into the housing up to 6 pt from its right edge: there they
 /// stay hidden in the camera cutout (their corner curves up before the housing's does), and a click anywhere on the
 /// notch still opens the island. Open, the panel is centred on the housing; another notch tool right of it
 /// (`notchTool`) stays in front of the panel.
@@ -78,6 +77,8 @@ public enum IslandGeometry {
     public static let capsuleHeight: CGFloat = 28
     /// Width of the wing left of the housing.
     public static let wingWidth: ClosedRange<CGFloat> = 40...260
+    /// At rest at the notch: just Pippa's mark, left of the housing.
+    public static let earWidth: CGFloat = 40
     public static let capsuleMaxWidth: CGFloat = 300
 
     /// The camera housing's bounding box, or nil on a display without one. The auxiliary areas are the menu bar parts
@@ -101,12 +102,12 @@ public enum IslandGeometry {
         min(anchor.minY, visible.maxY) - menuBarGap
     }
 
-    /// At rest: hidden in the housing (a click on the notch still opens the island), so nothing covers the menus of
-    /// the app in front; under the menu bar, a line with no height under the symbol.
+    /// At rest: Pippa's mark left of the housing (it takes a click there and on the notch); under the menu
+    /// bar, a line with no height under the symbol.
     public static func rest(_ placement: IslandPlacement) -> CGRect {
         switch placement {
-        case .notch(let housing, _):
-            return CGRect(x: housing.minX, y: housing.minY, width: housing.width - 6, height: housing.height)
+        case .notch:
+            return compact(placement, width: earWidth)
         case .menuBar(let anchor, let visible):
             let x = min(max(anchor.minX, visible.minX + margin), visible.maxX - margin - anchor.width)
             return CGRect(x: x, y: attachY(anchor: anchor, visible: visible), width: anchor.width, height: 0)

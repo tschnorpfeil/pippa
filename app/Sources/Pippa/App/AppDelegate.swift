@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// An answer nobody has looked at yet, after the island's "Your answer is ready" has gone.
     private let unreadDot = NSView()
     private var markWatch: AnyCancellable?
+    private var menuMarkWatch: AnyCancellable?
     private var unreadWatch: AnyCancellable?
     private var shuttingDown = false
 
@@ -63,9 +64,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Island.shared.statusButton = button
         }
         markWatch = Island.shared.$status.sink { [weak self] status in
-            self?.menuMark.setState(status.markState)
             self?.statusItem?.button?.setAccessibilityValue(status.label)
         }
+        // One live mark at a time: at the notch the island shows it, under the symbol the symbol does.
+        menuMarkWatch = Island.shared.$menuMark.sink { [weak self] state in self?.menuMark.setState(state) }
         let menu = NSMenu()
         menu.addItem(MenuAction.item(T("Ask Pippa", table: "App")) { AppActions.callPippa() })
         menu.addItem(MenuAction.item(T("New Conversation", table: "App")) { ChatModel.shared.newConversation(); ChatWindow.shared.show() })

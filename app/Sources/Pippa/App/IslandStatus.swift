@@ -90,7 +90,7 @@ struct IslandStatus: Equatable {
     var wingWidth: CGFloat { IslandStyle.wingInset + Self.markSize + IslandStyle.wingGap + labelWidth + trailerWidth + IslandStyle.wingGap }
 
     /// Under the menu bar: the whole capsule.
-    var capsuleWidth: CGFloat { 6 + Self.markSize + 7 + labelWidth + trailerWidth + 12 }
+    var capsuleWidth: CGFloat { 12 + labelWidth + trailerWidth + 12 }
 }
 
 /// Island colours and measures. The island is always dark: black like the camera housing, white type in three steps.
