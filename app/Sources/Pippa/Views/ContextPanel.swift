@@ -60,6 +60,12 @@ struct ContextPanel: View {
                     ForEach(sources, id: \.self) { source in
                         PanelRow(symbol: SourceChips.symbol(source.kind), title: source.name, detail: source.detail,
                                  action: source.location.isEmpty ? nil : { SourceChips.open(source) })
+                        // A document too long to read at once: the answer rests on Pippa's notes, which open here.
+                        if let notes = source.notes {
+                            PanelRow(symbol: "note.text", title: T("Notes on %@", table: "App", source.name),
+                                     detail: T("Long document, read in parts", table: "App"),
+                                     action: { NSWorkspace.shared.open(URL(fileURLWithPath: notes)) })
+                        }
                     }
                 } else {
                     empty(running ? T("Nothing yet", table: "App") : T("Nothing read for this answer", table: "App"))

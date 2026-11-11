@@ -40,6 +40,25 @@ if CommandLine.arguments.contains("--mode") {
                       "result": ["content": [["type": "text", "text": String(repeating: "x", count: 30_000)]],
                                  "details": ["pippaFileAccess": ["schema": 1, "code": "EPERM", "path": "/Users/fixture/Documents/Private"]]]])
                 emit(["type": "agent_settled", "aborted": false])
+            case "digest-protocol":
+                response("started")
+                // `read` on a long document (runtime/pippa-tools/digest.ts): one update per part, notes in the details.
+                let call = "long-read", path = "/Users/fixture/Documents/Thesis.docx"
+                emit(["type": "tool_execution_start", "toolCallId": call, "toolName": "read", "args": ["path": path]])
+                for (part, phase) in [(1, "notes"), (2, "notes"), (3, "notes"), (1, "merge")] {
+                    emit(["type": "tool_execution_update", "toolCallId": call, "toolName": "read", "args": ["path": path],
+                          "partialResult": ["content": [["type": "text", "text": "Part \(part) of 3"]],
+                                            "details": ["pippaProgress": ["part": part, "of": phase == "merge" ? 1 : 3, "phase": phase]]]])
+                }
+                // Another tool's partial output is no progress.
+                emit(["type": "tool_execution_update", "toolCallId": call, "toolName": "bash", "args": [:],
+                      "partialResult": ["content": [["type": "text", "text": "partial output"]], "details": [:]]])
+                emit(["type": "tool_execution_end", "toolCallId": call, "toolName": "read", "isError": false,
+                      "result": ["content": [["type": "text", "text": "[Notes on Thesis.docx: lines 1-1931 …]"]],
+                                 "details": ["pippaDocument": ["path": path, "via": "textutil"],
+                                             "pippaDigest": ["notes": "/Users/fixture/Library/Application Support/Pippa/digests/Thesis.docx.0123456789.md",
+                                                             "lines": 1931, "parts": 3, "gaps": [], "cached": false]]]])
+                emit(["type": "agent_settled", "aborted": false])
             case "outcome-protocol":
                 response("started")
                 for (id, fields) in [
@@ -186,6 +205,17 @@ for event in try await collect("folder-permission-protocol") { folderReceipt.obs
 check("Real RPC decoding retains structured folder denial even when display output is truncated",
       folderReceipt.records.first?.fileAccessFailure?.code == "EPERM"
       && folderReceipt.records.first?.fileAccessFailure?.path == "/Users/fixture/Documents/Private")
+let digest = try await collect("digest-protocol")
+let digestProgress = digest.compactMap { event -> [Int]? in
+    if case .toolProgress(let id, let part, let of, let merging) = event, id == "long-read" { return [part, of, merging ? 1 : 0] }
+    return nil
+}
+let notesAt = digest.firstIndex(of: .toolNotes(id: "long-read", path: "/Users/fixture/Library/Application Support/Pippa/digests/Thesis.docx.0123456789.md"))
+let endedAt = digest.firstIndex { if case .toolEnded(let id, _, let isError, _, _, _) = $0 { return id == "long-read" && !isError }; return false }
+check("A long document's read reports each part and the merge round; other tools' partial output is no progress",
+      digestProgress == [[1, 3, 0], [2, 3, 0], [3, 3, 0], [1, 1, 1]])
+check("The notes file of a long document reaches the app right before the read ends",
+      notesAt != nil && endedAt != nil && notesAt! + 1 == endedAt!)
 try await runNativeReadinessChecks(executable: executable, temporary: temporary)
 await client.shutdown()
 print(failures == 0 ? "Pi RPC checks passed." : "\(failures) Pi RPC check(s) failed.")

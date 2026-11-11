@@ -253,6 +253,13 @@ public actor PiRPCClient {
             let name = record["toolName"] as? String ?? ""
             events?.yield(.toolStarted(id: record["toolCallId"] as? String ?? "", name: name,
                                        arguments: Self.json(record["args"], valueLimit: Self.argumentValueLimit)))
+        case "tool_execution_update":
+            // Only Pippa's own progress (a long document read part by part); bash's partial output needs no display.
+            guard let details = (record["partialResult"] as? [String: Any])?["details"] as? [String: Any],
+                  let progress = details["pippaProgress"] as? [String: Any],
+                  let part = progress["part"] as? Int, let of = progress["of"] as? Int, part >= 1, of >= part else { return }
+            events?.yield(.toolProgress(id: record["toolCallId"] as? String ?? "", part: part, of: of,
+                                        merging: progress["phase"] as? String == "merge"))
         case "tool_execution_end":
             let payload = record["result"] as? [String: Any]
             let flag = record["isError"] as? NSNumber
@@ -267,6 +274,10 @@ public actor PiRPCClient {
             // Pippa's own readers and fetched pages likewise: the answer's dates are checked against them (DateEvidence).
             let whole = name == "read" || name == "fetch_content" || name.hasPrefix("mcp__pippa__")
             let limit = whole ? Self.readResultLimit : Self.listingTools.contains(name) ? Self.listingResultLimit : Self.resultLimit
+            if !isError, let digest = (payload?["details"] as? [String: Any])?["pippaDigest"] as? [String: Any],
+               let notes = digest["notes"] as? String, notes.hasPrefix("/") {
+                events?.yield(.toolNotes(id: record["toolCallId"] as? String ?? "", path: notes))
+            }
             events?.yield(.toolEnded(id: record["toolCallId"] as? String ?? "", name: name,
                                      isError: isError, result: String(result.prefix(limit)),
                                      outcome: PiTurnReceipt.classify(tool: name, isError: isError, result: validResult ? payload : nil),

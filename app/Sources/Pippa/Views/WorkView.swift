@@ -145,14 +145,21 @@ struct WorkView: View {
             .frame(width: 14, height: 14)
             .contentTransition(.symbolEffect(.replace))
             Text(step.label).lineLimit(1).truncationMode(.middle).foregroundStyle(step.done || !live ? Theme.ink3 : Theme.ink2)
+            // Where the time goes: the running step counts up, a finished one of a second or more says how long it took.
+            if !step.done && live, let started = step.started {
+                ElapsedSeconds(since: started).foregroundStyle(Theme.ink3)
+            } else if let duration = step.duration, duration >= 1 {
+                Text(Self.time(duration)).monospacedDigit().foregroundStyle(Theme.ink3.opacity(0.75)).fixedSize()
+            }
         }
         .font(Typo.footnote)
         .frame(height: 24)
     }
 
-    /// What she is doing right now: the running step, the AI starting, words coming in, else thinking.
+    /// What she is doing right now: the running step, the AI starting, words coming in, else thinking. With the steps
+    /// open the running one shows right below, so the row only says she is working.
     private var nowLabel: String {
-        if let step = message.steps.last(where: { !$0.done }) { return step.label }
+        if let step = message.steps.last(where: { !$0.done }) { return open ? T("Working…", table: "App") : step.label }
         if showsStarting { return T("Starting my AI…", table: "App") }
         return writing ? T("Writing…", table: "App") : T("Thinking…", table: "App")
     }
@@ -177,6 +184,25 @@ struct WorkView: View {
         let seconds = max(1, Int(duration.rounded()))
         if seconds < 60 { return T("%lld s", table: "App", seconds) }
         return T("%lld min %lld s", table: "App", seconds / 60, seconds % 60)
+    }
+}
+
+/// Seconds since `since` ("8 s", "1 min 5 s"), ticking once a second; nothing in the first second, so quick steps stay
+/// quiet. The caller sets font and colour.
+struct ElapsedSeconds: View {
+    var since: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let seconds = context.date.timeIntervalSince(since)
+            if seconds >= 1 {
+                Text(WorkView.time(seconds))
+                    .monospacedDigit()
+                    .contentTransition(.numericText(countsDown: false))
+                    .animation(.easeOut(duration: 0.2), value: Int(seconds))
+            }
+        }
+        .fixedSize()
     }
 }
 

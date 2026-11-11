@@ -60,6 +60,12 @@ public enum PiRPCEvent: Sendable, Equatable {
     case toolStarted(id: String, name: String, arguments: String)
     case toolEnded(id: String, name: String, isError: Bool, result: String, outcome: PiActionRecord.Outcome? = nil,
                    fileAccessFailure: PiFileAccessFailure? = nil)
+    /// A running tool says where it is (`tool_execution_update` with `details.pippaProgress`, runtime/pippa-tools/digest.ts):
+    /// part `part` of `of` of a long document; `merging`: the notes on the parts are being merged.
+    case toolProgress(id: String, part: Int, of: Int, merging: Bool)
+    /// `read` returned notes on a long document and saved them at `path` (`details.pippaDigest.notes`, digest.ts).
+    /// Comes right before the tool's `toolEnded`.
+    case toolNotes(id: String, path: String)
     /// Pi picked up another message from the person (delivered via `steer`).
     case userMessage(String)
     /// A model response is done. `stopReason`: "stop", "toolUse", "aborted", "error", …

@@ -9,6 +9,15 @@ struct ChatStep: Codable, Identifiable, Equatable {
     var label: String
     var done = false
     var failed = false
+    /// When the step started and ended; older conversations have neither.
+    var started: Date?
+    var ended: Date?
+
+    /// How long the step took, once it ended.
+    var duration: TimeInterval? {
+        guard let started, let ended else { return nil }
+        return max(0, ended.timeIntervalSince(started))
+    }
 }
 
 struct ChatMessage: Codable, Identifiable, Equatable {
@@ -31,10 +40,23 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     /// How full the conversation's context was afterwards.
     var context: ContextUsage?
     var error: String?
+    /// Characters of `text` written before the last tool call: what she said on the way ("I'll read chapter 6 now").
+    /// The island shows only what follows, the result; the chat shows all of it.
+    var lead: Int?
     /// How long the answer took, for "Worked for 18 s".
     var duration: TimeInterval?
     /// The person stopped the answer.
     var stopped: Bool?
+}
+
+extension ChatMessage {
+    /// What she found, without what she said on the way there: the text after the last tool call, or all of it when
+    /// nothing came after.
+    var result: String {
+        guard let lead, lead > 0, lead < text.count else { return text }
+        let after = String(text.dropFirst(lead)).trimmingCharacters(in: .whitespacesAndNewlines)
+        return after.isEmpty ? text : after
+    }
 }
 
 struct Conversation: Codable, Identifiable, Equatable {
@@ -71,6 +93,9 @@ final class ChatModel: ObservableObject {
     private var evidence = DateEvidence()
     /// Sources of tool calls that have started but not ended.
     private var pendingSources: [String: ChatSource] = [:]
+    /// Running steps that reported progress: their label without it. Notes files of running reads, by call.
+    private var stepLabels: [String: String] = [:]
+    private var pendingNotes: [String: String] = [:]
     /// When the running answer started, for the live "Thinking … 12 s".
     @Published private(set) var answerStarted: Date?
     /// The AI on this Mac is starting or loading into memory before the question goes out (shown once it takes a moment).
@@ -200,7 +225,7 @@ final class ChatModel: ObservableObject {
         let started = Date()
         begin(started, in: id)
         _ = PippaMCPService.readNotes.take(); _ = PippaMCPService.writeNotes.take()
-        evidence = DateEvidence(); pendingSources = [:]
+        evidence = DateEvidence(); pendingSources = [:]; stepLabels = [:]; pendingNotes = [:]
         evidence.add(prompt: prompt)
         let turn = generation
         answer = Task {
@@ -220,7 +245,10 @@ final class ChatModel: ObservableObject {
                 message.unsupportedDates = dates.isEmpty ? nil : dates
                 let checked = evidence.supported(in: message.text)
                 message.checkedDates = checked.isEmpty ? nil : checked
-                for index in message.steps.indices where !message.steps[index].done { message.steps[index].done = true }
+                for index in message.steps.indices where !message.steps[index].done {
+                    message.steps[index].done = true
+                    message.steps[index].ended = Date()
+                }
                 message.duration = Date().timeIntervalSince(started)
                 if stopped {
                     message.stopped = true
@@ -390,22 +418,43 @@ final class ChatModel: ObservableObject {
         case .thinkingDelta(let delta):
             updateLast(in: id) { $0.thinking = ($0.thinking ?? "") + delta }
         case .toolStarted(let call, let name, let arguments):
-            updateLast(in: id) { $0.steps.append(ChatStep(id: call, label: StepLabel.text(tool: name, arguments: arguments))) }
+            updateLast(in: id) {
+                $0.steps.append(ChatStep(id: call, label: StepLabel.text(tool: name, arguments: arguments), started: Date()))
+                $0.lead = $0.text.count
+            }
             if let source = SourceLog.source(tool: name, arguments: arguments) { pendingSources[call] = source }
+        case .toolProgress(let call, let part, let of, let merging):
+            updateLast(in: id) { message in
+                guard let index = message.steps.firstIndex(where: { $0.id == call }), !message.steps[index].done else { return }
+                let label = stepLabels[call] ?? message.steps[index].label
+                stepLabels[call] = label
+                message.steps[index].label = StepLabel.progress(label, part: part, of: of, merging: merging)
+            }
+        case .toolNotes(let call, let path):
+            pendingNotes[call] = path
         case .toolEnded(let call, let name, let isError, let result, let outcome, _):
             let failed = isError || (outcome.map { $0 != .done } ?? false)
+            let label = stepLabels.removeValue(forKey: call)
+            let notes = pendingNotes.removeValue(forKey: call)
             updateLast(in: id) { message in
                 guard let index = message.steps.firstIndex(where: { $0.id == call }) else { return }
+                // The finished step is "Reading Thesis.docx" again, not its last part.
+                if let label { message.steps[index].label = label }
                 message.steps[index].done = true
                 message.steps[index].failed = failed
+                message.steps[index].ended = Date()
             }
             // A source counts once it was read; the same file read twice shows once, with its latest pages.
             let pendingSource = pendingSources.removeValue(forKey: call)
             if !failed, var source = SourceLog.source(tool: name, arguments: "{}", result: result) ?? pendingSource {
                 if name.hasSuffix("read_document") { source.detail = SourceLog.detail(result: result) }
+                if source.kind == .file { source.notes = notes }
                 updateLast(in: id) { message in
                     var sources = message.sources ?? []
-                    sources.removeAll { $0.kind == source.kind && $0.name == source.name && $0.location == source.location }
+                    let same = { (other: ChatSource) in other.kind == source.kind && other.name == source.name && other.location == source.location }
+                    // Reading an exact passage after the notes keeps the notes (the digest asks for such reads).
+                    if source.notes == nil { source.notes = sources.last(where: same)?.notes }
+                    sources.removeAll(where: same)
                     sources.append(source)
                     message.sources = sources
                 }
@@ -535,6 +584,11 @@ final class ConversationStore: Sendable {
 
 /// A short everyday line for a tool call ("Reading Lease.pdf"). Display only; Pi never sees it.
 enum StepLabel {
+    /// A running step's label with where it is in a long document: "Reading Thesis.docx · Part 3 of 10".
+    static func progress(_ label: String, part: Int, of: Int, merging: Bool) -> String {
+        merging ? T("%@ · merging the notes", table: "App", label) : T("%@ · Part %lld of %lld", table: "App", label, part, of)
+    }
+
     static func text(tool: String, arguments: String) -> String {
         let args = (try? JSONSerialization.jsonObject(with: Data(arguments.utf8))) as? [String: Any] ?? [:]
         let name = tool.hasPrefix("mcp__pippa__") ? String(tool.dropFirst("mcp__pippa__".count)) : tool

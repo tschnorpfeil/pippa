@@ -115,6 +115,11 @@ enum ConversationStoreChecks {
         check(strokes.allSatisfy { $0.count == 91 && $0.allSatisfy { abs($0.x) <= 0.9 && abs($0.y) <= 0.9 } }
               && Scribble.stroke(0, at: 12.5) != Scribble.stroke(0, at: 13),
               "Pippa's handwriting stays inside her mark's square and keeps moving")
+        let reading = StepLabel.text(tool: "read", arguments: #"{"path":"/Users/me/Documents/Thesis.docx"}"#)
+        check(StepLabel.progress(reading, part: 3, of: 10, merging: false) == T("%@ · Part %lld of %lld", table: "App", reading, 3, 10)
+              && StepLabel.progress(reading, part: 3, of: 10, merging: false).hasSuffix("Thesis.docx · " + (T("Open", table: "App") == "Öffnen" ? "Teil 3 von 10" : "Part 3 of 10"))
+              && StepLabel.progress(reading, part: 1, of: 2, merging: true) != StepLabel.progress(reading, part: 1, of: 2, merging: false),
+              "a long document's step says which part is being read, in the app's language")
         let firstMail = mailSource("old@example.test"), secondMail = mailSource("new@example.test")
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",
               "a mail read by id gets its title and openable identity from the result")

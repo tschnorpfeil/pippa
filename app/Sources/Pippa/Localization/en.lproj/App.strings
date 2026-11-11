@@ -101,6 +101,7 @@
 "Search" = "Search";
 "Send" = "Send";
 "Thinking…" = "Thinking…";
+"Working…" = "Working…";
 "Thought it through" = "Thought it through";
 "Today" = "Today";
 "What’s new in my Downloads folder?" = "What’s new in my Downloads folder?";
@@ -207,3 +208,7 @@
 "Starting my AI…" = "Starting my AI…";
 "Why this takes a moment" = "Why this takes a moment";
 "My AI runs on this Mac, not on the internet. Before the first answer I load it into memory, which is several gigabytes. That takes a few seconds, or up to a minute when your Mac is busy. After ten minutes without a question I free the memory again." = "My AI runs on this Mac, not on the internet. Before the first answer I load it into memory, which is several gigabytes. That takes a few seconds, or up to a minute when your Mac is busy. After ten minutes without a question I free the memory again.";
+"%@ · Part %lld of %lld" = "%@ · Part %lld of %lld";
+"%@ · merging the notes" = "%@ · merging the notes";
+"Notes on %@" = "Notes on %@";
+"Long document, read in parts" = "Long document, read in parts";

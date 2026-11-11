@@ -59,6 +59,8 @@ enum Snapshots {
             ("welcome", { chat.showSample([], current: nil, answering: false) }, 760, false, false),
             ("conversation", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false, false),
             ("context", { chat.showSample(sampleConversations(), current: "c1", answering: false) }, 760, false, true),
+            // A document too long to read at once: "About this answer" lists Pippa's notes on it.
+            ("context-notes", { chat.showSample(sampleLongDocument() + sampleConversations(), current: "thesis", answering: false) }, 760, false, true),
             ("answering", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, false, false),
             // The question is out, the AI on this Mac still loads: nothing from Pi yet.
             ("starting", { chat.showSample(sampleConversations(answering: true, starting: true), current: "c1", answering: true, starting: true) }, 760, false, false),
@@ -274,11 +276,35 @@ enum Snapshots {
         ])]
     }
 
+    /// A thesis read part by part (runtime/pippa-tools/digest.ts): the answer rests on Pippa's notes.
+    private static func sampleLongDocument() -> [Conversation] {
+        var answer = ChatMessage(role: .assistant, text: """
+        Die Arbeit untersucht, wie sich **Wärmepumpen in Altbauten** rechnen.
+
+        - **Methode:** 42 Gebäude, Messzeitraum zwei Heizperioden
+        - **Ergebnis:** Jahresarbeitszahl im Mittel 3,4; unter 2,8 nur ohne Dämmung der obersten Geschossdecke
+        - **Fazit:** wirtschaftlich ab einer Vorlauftemperatur unter 55 °C
+
+        Ich habe das Dokument in Teilen gelesen und mir Notizen gemacht. Für ein genaues Zitat lese ich die Stelle nach.
+        """)
+        answer.steps = [step("t1", "read", ["path": "/Users/me/Documents/Thesis.docx"], seconds: 312)]
+        answer.duration = 341
+        answer.sources = [ChatSource(kind: .file, name: "Thesis.docx", location: "/Users/me/Documents/Thesis.docx", detail: nil,
+                                     notes: "/Users/me/Library/Application Support/Pippa/digests/Thesis.docx.3f9a1c2b7d.md")]
+        answer.context = ContextUsage(tokens: 9_870, window: 16_384)
+        return [Conversation(id: "thesis", title: "Thesis zusammenfassen", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Fass mir die Thesis zusammen.", files: ["/Users/me/Documents/Thesis.docx"]), answer,
+        ])]
+    }
+
     /// A sample step labelled the way Pippa labels that tool, in the language the snapshot runs in.
+    /// `seconds`: how long it took (or, still running, has taken so far).
     private static func step(_ id: String, _ tool: String, _ arguments: [String: String] = [:], done: Bool = true,
-                             failed: Bool = false) -> ChatStep {
+                             failed: Bool = false, seconds: TimeInterval? = nil) -> ChatStep {
         let json = (try? JSONSerialization.data(withJSONObject: arguments)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        return ChatStep(id: id, label: StepLabel.text(tool: tool, arguments: json), done: done, failed: failed)
+        let now = Date()
+        return ChatStep(id: id, label: StepLabel.text(tool: tool, arguments: json), done: done, failed: failed,
+                        started: seconds.map { now.addingTimeInterval(-$0) }, ended: seconds != nil && done ? now : nil)
     }
 
     private static func sampleConversations(answering: Bool = false, failed: Bool = false, starting: Bool = false,
@@ -296,8 +322,8 @@ enum Snapshots {
         """)
         answer.steps = [
             step("1", "search_files", ["query": "ETF"]),
-            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"]),
-            step("3", "read", ["path": "/Users/me/Documents/ETF-Ideen.md"]),
+            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"], seconds: 4),
+            step("3", "read", ["path": "/Users/me/Documents/ETF-Ideen.md"], seconds: 2),
         ]
         let sample = CreatedItem(integration: .reminders, identifier: "snapshot", modified: nil)
         answer.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Sparplan prüfen · Fr., 7. Nov.", created: sample)]
@@ -306,7 +332,7 @@ enum Snapshots {
             answer.text = ""
             answer.receipts = []
             answer.steps = [step("1", "search_files", ["query": "ETF"]),
-                            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"], done: false)]
+                            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"], done: false, seconds: 6)]
             answer.thinking = "Die Person fragt nach der aktuellen ETF-Übersicht. Es gibt drei Dateien; ETF-Portfolio.md ist die neueste (updated 2026-11-01). Ich lese sie und nenne die Aufteilung." 
         }
         if writing {

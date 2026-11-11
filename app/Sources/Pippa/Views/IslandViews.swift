@@ -252,6 +252,9 @@ struct IslandPanelView: View {
         return .empty
     }
 
+    /// The panel already says what she does: the step chain with "Thinking…" or "Writing…", or the download line.
+    private var panelShowsStatus: Bool { phase == .working || phase == .download }
+
     @ViewBuilder private var main: some View {
         switch phase {
         case .question:
@@ -270,7 +273,7 @@ struct IslandPanelView: View {
         case .answer:
             // The answer as in the chat (bold, lists, headings, tables), scrolling inside the island when it is long.
             ScrollView {
-                MarkdownText(text: lastAnswer?.text ?? "", style: .island)
+                MarkdownText(text: lastAnswer?.result ?? "", style: .island)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // Room under the last line: the fade below only ever covers text that scrolls on.
                     .padding(.bottom, IslandStyle.gap)
@@ -286,8 +289,11 @@ struct IslandPanelView: View {
                 }
             }
         case .empty:
-            Text(T("Ask me anything, or drop a file here.", table: "Island"))
-                .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+            VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
+                Text(T("Ask me anything, or drop a file here.", table: "Island"))
+                    .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                if let recent { recentRow(recent) }
+            }
         }
     }
 
@@ -309,8 +315,9 @@ struct IslandPanelView: View {
     private func header(markSize: CGFloat) -> some View {
         HStack(spacing: markSize < 20 ? IslandStyle.wingGap : 10) {
             IslandMark(status: island.status, size: markSize)
-            // In the menu bar row just her name and the sign: the panel below says what she does or asks.
-            Text(island.status.tone == .rest || markSize < 20 ? "Pippa" : island.status.label)
+            // In the menu bar row just her name and the sign: the panel below says what she does or asks. While she
+            // works or loads her AI the panel says it too, so the header keeps her name instead of saying it twice.
+            Text(island.status.tone == .rest || markSize < 20 || panelShowsStatus ? "Pippa" : island.status.label)
                 .font(IslandStyle.title).monospacedDigit()
                 .foregroundStyle(IslandStyle.white(IslandStyle.primary))
                 .lineLimit(1).truncationMode(.middle)
@@ -346,18 +353,35 @@ struct IslandPanelView: View {
             ForEach(Array(shown.enumerated()), id: \.element.id) { index, step in
                 IslandChainRow(node: step.failed ? .failed : step.done ? .done : .running,
                                isFirst: index == 0 && all.count == shown.count, isLast: running && index == shown.count - 1) {
-                    Text(step.label).lineLimit(1).truncationMode(.middle)
-                        .foregroundStyle(IslandStyle.white(step.done ? IslandStyle.secondary : IslandStyle.primary))
+                    HStack(alignment: .firstTextBaseline, spacing: IslandStyle.buttonGap) {
+                        Text(step.label).lineLimit(1).truncationMode(.middle)
+                            .foregroundStyle(IslandStyle.white(step.done ? IslandStyle.secondary : IslandStyle.primary))
+                        Spacer(minLength: 0)
+                        // Where the time goes: the running step counts up, a finished one of a second or more says how
+                        // long it took.
+                        if !step.done, let started = step.started {
+                            ElapsedSeconds(since: started).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                        } else if let duration = step.duration, duration >= 1 {
+                            Text(WorkView.time(duration)).monospacedDigit().fixedSize()
+                                .foregroundStyle(IslandStyle.white(IslandStyle.tertiary + 0.06))
+                                .transition(.opacity)
+                        }
+                    }
                 }
                 .transition(arrival)
             }
             if !running {
                 IslandChainRow(node: now.writing ? .writing : .thinking, isFirst: all.isEmpty, isLast: true) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(now.writing ? T("Writing…", table: "App")
-                                         : chat.startingAI && all.isEmpty ? T("Starting my AI…", table: "App") : T("Thinking…", table: "App"))
-                            .foregroundStyle(IslandStyle.white(IslandStyle.primary))
-                            .contentTransition(.opacity)
+                        HStack(alignment: .firstTextBaseline, spacing: IslandStyle.buttonGap) {
+                            Text(now.writing ? T("Writing…", table: "App")
+                                             : chat.startingAI && all.isEmpty ? T("Starting my AI…", table: "App") : T("Thinking…", table: "App"))
+                                .foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                                .contentTransition(.opacity)
+                            Spacer(minLength: 0)
+                            // Since the last step ended (or the question went out): thinking and writing count up too.
+                            if let since = all.last?.ended ?? chat.answerStarted { ElapsedSeconds(since: since).foregroundStyle(IslandStyle.white(IslandStyle.secondary)) }
+                        }
                         if let tail = now.tail {
                             Text(tail)
                                 .italic(!now.writing)
@@ -404,10 +428,51 @@ struct IslandPanelView: View {
             .buttonStyle(IslandButtonStyle(prominent: true))
     }
 
-    /// The last answer of the conversation in view (or the latest one).
+    /// The answer the person has not seen yet (`Island.freshAnswer`). An answer seen once is not shown again: the
+    /// island then starts empty, with the latest conversation one click away.
     private var lastAnswer: ChatMessage? {
-        let conversation = chat.current ?? chat.conversations.max { $0.updated < $1.updated }
-        return conversation?.messages.last(where: { $0.role == .assistant })
+        guard let id = island.freshAnswer else { return nil }
+        for conversation in chat.conversations {
+            if let message = conversation.messages.last(where: { $0.id == id }) { return message }
+        }
+        return nil
+    }
+
+    /// The latest conversation of the last day, to go back to from the empty island.
+    private var recent: Conversation? {
+        guard let latest = chat.conversations.max(by: { $0.updated < $1.updated }),
+              latest.updated > Date().addingTimeInterval(-24 * 3600), !latest.messages.isEmpty else { return nil }
+        return latest
+    }
+
+    /// One quiet row: the conversation's title and how long ago; a click opens it in the chat.
+    private func recentRow(_ conversation: Conversation) -> some View {
+        Button { island.openConversation(conversation.id) } label: {
+            HStack(spacing: IslandStyle.buttonGap) {
+                Image(systemName: "arrow.uturn.backward").font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(IslandStyle.white(IslandStyle.tertiary + 0.1))
+                Text(conversation.title).lineLimit(1).truncationMode(.tail)
+                    .foregroundStyle(IslandStyle.white(IslandStyle.primary - 0.15))
+                Text(Self.ago(conversation.updated)).fixedSize()
+                    .foregroundStyle(IslandStyle.white(IslandStyle.tertiary + 0.1))
+                Spacer(minLength: 0)
+            }
+            .font(IslandStyle.small)
+            .padding(.horizontal, 10).frame(height: IslandStyle.controlHeight)
+            .background(RoundedRectangle(cornerRadius: IslandStyle.wellRadius, style: .continuous).fill(IslandStyle.white(0.06)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(T("Continue: %@", table: "Island", conversation.title))
+    }
+
+    /// "jetzt", "vor 4 Min.", "vor 2 Std." in the person's language; the first minute is "now", never seconds.
+    private static func ago(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        formatter.dateTimeStyle = .named
+        let seconds = max(0, Date().timeIntervalSince(date))
+        return formatter.localizedString(fromTimeInterval: seconds < 60 ? 0 : -seconds)
     }
 
     private var files: some View {

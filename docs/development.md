@@ -59,6 +59,8 @@ in-process MCP server's own read and write notes (`PippaMCPService`), so no `str
   built-in tools and caps each result to the context window (`budget.ts`), and wraps `bash` in a macOS sandbox
   (`shell.ts`). Without Apple's developer tools (`xcode-select -p`), `/usr/bin/python3`, `git`, `make` and the other
   placeholders that would open the install dialog are refused before a command starts and denied in the profile.
+  A PDF or Word text too long for one result comes back from `read` as notes on the whole document, taken part by
+  part by the model and kept per document in `PIPPA_DIGEST_DIR` (`digest.ts`).
 - `pippa-assist.ts` keeps a small local model on track: it stops identical repeated calls, sends documents that Pi's
   `read` would return as bytes to `read_document` (`document.ts`), and copies a file to `Backups` before it is changed.
 - `pippa-memory.ts`: "what Pippa knows about you", one fact per line in `memory.md` (`PIPPA_MEMORY_FILE`), added to the

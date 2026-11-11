@@ -51,7 +51,9 @@ test("result cap follows the context window; bash keeps the end, MCP results sta
 	const read = capResult("read", [{ type: "text", text: `Anfang${long}Ende` }], 12_288);
 	assert.equal(read.length, 1);
 	assert.ok(read[0].text.startsWith("Anfang") && !read[0].text.includes("Ende"));
-	assert.match(read[0].text, /\[Only the first 12288 of 20010 characters are shown; .* offset\/limit\.\]$/);
+	assert.match(read[0].text, /\[Shown: lines 1-1 of 1; .* Line 1 is too long and was cut\. .* offset 2 \(offset counts lines, not characters\)\.\]$/);
+	const other = capResult("grep", [{ type: "text", text: long }], 12_288);
+	assert.match(other[0].text, /\[Only the first 12288 of 20000 characters are shown; the rest did not fit the conversation\.\]$/);
 	const bash = capResult("bash", [{ type: "text", text: `Anfang${long}Ende` }], 12_288);
 	assert.ok(bash[0].text.endsWith("Ende") && !bash[0].text.includes("Anfang"));
 	assert.match(bash[0].text, /^\[Only the last 12288 of 20010 characters/);
@@ -59,6 +61,20 @@ test("result cap follows the context window; bash keeps the end, MCP results sta
 	assert.deepEqual(capResult("read", [image, { type: "text", text: long }], 12_288).map((p) => p.type), ["image", "text"]);
 	assert.equal(capResult("mcp__pippa__read_document", [{ type: "text", text: long }], 12_288), undefined);
 	assert.equal(capResult("read", [{ type: "text", text: "kurz" }], 12_288), undefined);
+});
+
+test("a cut read ends after a whole line and names the line offset to read on with, never a character count", () => {
+	const doc = Array.from({ length: 1931 }, (_, i) => `Zeile ${i + 1} ` + "x".repeat(100)).join("\n");
+	const first = capResult("read", [{ type: "text", text: doc }], 24_000, { path: "/a/Thesis.docx" });
+	const shown = first[0].text.split("\n[Shown:")[0].split("\n");
+	assert.equal(shown.at(-1), `Zeile ${shown.length} ` + "x".repeat(100), "the last line is whole");
+	assert.match(first[0].text, new RegExp(`\\[Shown: lines 1-${shown.length} of 1931; .*offset ${shown.length + 1} \\(offset counts lines`));
+	// Read on from that offset: Pi's read hands lines offset… onwards, and the note counts from there.
+	const rest = doc.split("\n").slice(shown.length).join("\n");
+	const second = capResult("read", [{ type: "text", text: rest }], 24_000, { path: "/a/Thesis.docx", offset: shown.length + 1 });
+	assert.match(second[0].text, new RegExp(`\\[Shown: lines ${shown.length + 1}-\\d+ of 1931;`));
+	const asked = capResult("read", [{ type: "text", text: rest.split("\n").slice(0, 400).join("\n") }], 24_000, { offset: 300, limit: 400 });
+	assert.match(asked[0].text, /of the requested lines 300-699;/);
 });
 
 test("parameter texts of Pi's built-in tools get shorter in the request; schema, other tools and odd payloads stay", () => {

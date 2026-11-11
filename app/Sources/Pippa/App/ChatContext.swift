@@ -10,6 +10,9 @@ struct ChatSource: Codable, Equatable, Hashable {
     var location: String
     /// "Pages 1–3", "Beginning only": filled in once the read has ended.
     var detail: String?
+    /// Pippa's notes on a document too long to read at once (a Markdown file, runtime/pippa-tools/digest.ts): the
+    /// answer rests on these notes, not on the full text.
+    var notes: String?
 }
 
 /// How full the conversation's context was after the answer (Pi's `get_session_stats`).
