@@ -87,7 +87,7 @@ enum IslandSnapshots {
                 await render(notch: notch, open: open, status: island.status,
                              to: folder.appendingPathComponent("\(name)-\(notch ? "notch" : "menubar").png"))
             }
-            // Without another notch tool the open island is centred on the notch.
+            // Without another notch tool in front of the open island.
             if open && ["open", "open-writing", "needs-you"].contains(name) {
                 await render(notch: true, open: true, tool: false, status: island.status,
                              to: folder.appendingPathComponent("\(name)-notch-alone.png"))
@@ -100,7 +100,7 @@ enum IslandSnapshots {
         return 0
     }
 
-    /// `tool`: another notch tool shows right of the housing, like tinyStats.
+    /// `tool`: another notch tool shows right of the housing, like tinyStats, in front of the island.
     private static func render(notch: Bool, open: Bool, tool: Bool = true, status: IslandStatus, to file: URL) async {
         let size = NSSize(width: 640, height: open ? 420 : 110)
         let barHeight: CGFloat = notch ? 32 : 24
@@ -110,7 +110,6 @@ enum IslandSnapshots {
         if notch {
             let housing = CGRect(x: ((size.width - 185) / 2).rounded(), y: size.height - barHeight, width: 185, height: barHeight)
             canvas.housing = housing
-            canvas.tool = tool
             placement = .notch(housing: housing, screen: canvas.bounds)
         } else {
             let anchor = CGRect(x: size.width - 150, y: size.height - barHeight, width: 30, height: barHeight)
@@ -129,7 +128,7 @@ enum IslandSnapshots {
             guard let view else { return }
             let width = status.showsCompact ? (notch ? status.wingWidth : status.capsuleWidth) : nil
             let compact = width.map { IslandGeometry.compact(placement, width: $0) } ?? IslandGeometry.rest(placement)
-            let openRect = IslandGeometry.open(placement, contentHeight: ceil(height), besideTool: notch && tool)
+            let openRect = IslandGeometry.open(placement, contentHeight: ceil(height))
             let frame = IslandGeometry.windowFrame(placement, covering: [compact] + (open ? [openRect] : []))
             view.frame = frame
             view.show(placement, compactShape: compact, compactTarget: compact, compactAlpha: width == nil && !notch ? 0 : 1,
@@ -141,6 +140,9 @@ enum IslandSnapshots {
             layout()
         }
         if let view { canvas.addSubview(view) }
+        if notch && tool, let housing = canvas.housing {
+            canvas.addSubview(NotchTool(frame: NSRect(x: housing.maxX - 10, y: housing.minY, width: 110, height: housing.height)))
+        }
         layout()
         window.setFrameOrigin(NSPoint(x: -4000, y: -4000))
         window.orderFrontRegardless()
@@ -160,7 +162,6 @@ enum IslandSnapshots {
     private final class Canvas: NSView {
         var barHeight: CGFloat = 24
         var housing: CGRect?
-        var tool = true
         override func draw(_ dirtyRect: NSRect) {
             NSGradient(starting: NSColor(srgbRed: 0.16, green: 0.20, blue: 0.35, alpha: 1),
                        ending: NSColor(srgbRed: 0.34, green: 0.40, blue: 0.53, alpha: 1))?.draw(in: bounds, angle: -65)
@@ -171,14 +172,17 @@ enum IslandSnapshots {
             let path = NSBezierPath(roundedRect: housing, xRadius: 10, yRadius: 10)
             path.appendRect(NSRect(x: housing.minX, y: housing.midY, width: housing.width, height: housing.height / 2))
             path.fill()
-            // Another notch tool on the right, like tinyStats: the island must leave it alone.
-            guard tool else { return }
-            let stats = NSRect(x: housing.maxX - 10, y: housing.minY, width: 110, height: housing.height)
-            NSBezierPath(roundedRect: stats, xRadius: 10, yRadius: 10).fill()
+        }
+    }
+
+    /// Another notch tool on the right of the housing, like tinyStats: it stays in front of the open island.
+    private final class NotchTool: NSView {
+        override func draw(_ dirtyRect: NSRect) {
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10).fill()
             NSColor(srgbRed: 0.5, green: 0.72, blue: 1, alpha: 1).setFill()
             for (i, h) in [6.0, 9, 13].enumerated() {
-                NSBezierPath(roundedRect: NSRect(x: housing.maxX + 14 + Double(i) * 8, y: housing.minY + 9, width: 4, height: h),
-                             xRadius: 2, yRadius: 2).fill()
+                NSBezierPath(roundedRect: NSRect(x: 24 + Double(i) * 8, y: 9, width: 4, height: h), xRadius: 2, yRadius: 2).fill()
             }
         }
     }
