@@ -526,8 +526,8 @@ struct IslandQuestionAnswers: View {
 
     @ViewBuilder private var answers: some View {
         switch request.method {
-        // Up to three short choices are buttons; a choice too long for one row of the 380 pt panel goes into the menu.
-        case "select" where !request.options.isEmpty && request.options.count <= 3 && request.options.allSatisfy({ $0.count <= 28 }):
+        // Up to three choices are buttons; a choice wider than one row of the panel goes into the menu.
+        case "select" where !request.options.isEmpty && request.options.count <= 3 && request.options.allSatisfy(Self.fitsRow):
             IslandButtonRow {
                 button(T("Cancel", table: "App"), .cancelled)
                 ForEach(request.options, id: \.self) { option in button(option, .value(option)) }
@@ -557,6 +557,15 @@ struct IslandQuestionAnswers: View {
                 }
             }
         }
+    }
+
+    /// A button with this title fits one row of the panel: its text in the buttons' size (a touch heavier, so the
+    /// measure errs wide) plus the capsule's padding.
+    private static func fitsRow(_ title: String) -> Bool {
+        let rounded = NSFont.systemFont(ofSize: 13, weight: .semibold).fontDescriptor.withDesign(.rounded)
+        let font = rounded.flatMap { NSFont(descriptor: $0, size: 13) } ?? .systemFont(ofSize: 13, weight: .semibold)
+        let text = ceil((title as NSString).size(withAttributes: [.font: font]).width)
+        return text + 2 * IslandStyle.gap <= IslandGeometry.openWidth - 2 * IslandStyle.padding
     }
 
     private func button(_ title: String, _ response: PiUIResponse, prominent: Bool = false) -> some View {
