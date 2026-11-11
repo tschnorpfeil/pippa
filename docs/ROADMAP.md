@@ -5,7 +5,7 @@ The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); 
 
 ## Where Pippa stands
 
-The last release is 0.6.4. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
+The last release is 0.6.5. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
 conversation sidebar, a first-run card, and settings for the AI (on this Mac, ChatGPT, or an own online AI), the
 shortcut, login item, permissions and updates. Dropped photos and PDFs become one PDF with a button, without the model.
 
@@ -29,6 +29,12 @@ tool or card.
 3. **Pippa Island on a MacBook with a notch.** The chat and Settings were checked with Liquid Glass drawn by the window
    server (`PIPPA_SNAPSHOT_LIVE=1 Pippa --snapshot`, 2026-11-09, Mac mini without a notch); the island at a real notch
    still needs one look.
+
+Released in 0.6.5: one look for the chat window, Pippa Island and Settings. The island in SF Pro Rounded on one grid,
+an approval question directly on the black with one filled "Allow", the field and "Open Pippa" in one row, a solid drop
+tray, and a panel height that follows its own spring; the chat with clearer headings, capsule buttons, neutral card
+symbols, the AI named once in the composer by its display name, and Pippa's mark in the empty sidebar; Settings on the
+chat's almost black background with one type scale and display names for models.
 
 Released in 0.6.4: the open Pippa Island is centred on the notch again, and another notch tool right of it
 (like tinyStats) stays in front of it instead of moving the island.
