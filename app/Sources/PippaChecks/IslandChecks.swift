@@ -217,7 +217,10 @@ func runIslandChecks() {
             let start = shown.prefix(12)
             if start != previous { starts += 1; previous = start }
         }
+        // A long word (a URL) after the cut must not swallow the window.
+        let url = String(repeating: "word ", count: 60) + String(repeating: "x", count: 301)
+        let withURL = IslandTail.window(url + " next")
         // ~3,600 characters: the start moves about every 300 characters, not with every word (400 times).
-        return text.count > 3_000 && starts <= text.count / 300 + 2
+        return text.count > 3_000 && starts <= text.count / 300 + 2 && withURL.count > 300 && withURL.hasSuffix(" next")
     }
 }

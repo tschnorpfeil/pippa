@@ -744,6 +744,8 @@ enum IslandChain {
 struct IslandAnswerTail: View {
     let text: String
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// More than three lines: only then is there something above to fade.
+    private let overflowsState = State(initialValue: false)
 
     /// Three lines of `IslandStyle.small` (12 pt) with the 2 pt spacing below.
     private static let threeLines: CGFloat = {
@@ -757,6 +759,7 @@ struct IslandAnswerTail: View {
             .lineSpacing(2)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .onGeometryChange(for: Bool.self) { $0.size.height > Self.threeLines + 0.5 } action: { overflowsState.wrappedValue = $0 }
             .frame(maxHeight: Self.threeLines, alignment: .bottom)
             .clipped()
             .mask {
@@ -764,8 +767,8 @@ struct IslandAnswerTail: View {
                     LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 8)
                     Color.black
                 }
-                // A short answer has nothing above it to fade.
-                .padding(.top, text.count > 120 ? 0 : -8)
+                // An answer that fits has nothing above it to fade.
+                .padding(.top, overflowsState.wrappedValue ? 0 : -8)
             }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: text)
     }

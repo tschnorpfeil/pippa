@@ -7,8 +7,10 @@ public enum IslandTail {
         guard text.count > keep, step > 0 else { return text }
         let cut = ((text.count - keep) / step + 1) * step
         var start = text.index(text.startIndex, offsetBy: cut)
-        // From the next word on, so the hidden first line never starts mid-word.
-        if let space = text[start...].firstIndex(of: " ") { start = text.index(after: space) }
+        // Back to the start of the word the cut falls in, so the hidden first line never starts mid-word. Searching
+        // backwards keeps the window whole (a long URL after the cut would otherwise swallow it), and only text before
+        // the cut is read, which no longer changes. Without a space there (one endless word), the cut stays.
+        if let space = text[..<start].lastIndex(of: " ") { start = text.index(after: space) }
         return "…" + text[start...]
     }
 }
