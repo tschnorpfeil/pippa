@@ -39,18 +39,21 @@ struct ModelConnectionSettings: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        SettingsSection {
             SettingsRow(title: T("Use my own online AI", table: "Settings"), detail: explanation) {
-                Toggle("", isOn: onBinding).labelsHidden()
+                Toggle(T("Use my own online AI", table: "Settings"), isOn: onBinding).labelsHidden().toggleStyle(.switch)
             }
-            if onBinding.wrappedValue { form.padding(.horizontal, 14).padding(.top, 4).padding(.bottom, 14) }
+            if onBinding.wrappedValue {
+                SettingsDivider()
+                form.settingsBlock()
+            }
         }
         .disabled(blocked)
         .onAppear { loadDraft() }
     }
 
     @ViewBuilder private var form: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Space.l) {
             field(T("Provider", table: "Settings")) {
                 Picker(T("Provider", table: "Settings"), selection: providerState.projectedValue) {
                     Text(verbatim: "OpenAI").tag(ModelProvider.openAI)
@@ -76,29 +79,29 @@ struct ModelConnectionSettings: View {
                 SecureField(keyPlaceholder, text: keyState.projectedValue)
                     .textFieldStyle(.roundedBorder).accessibilityLabel(T("API key", table: "Settings"))
             }
-            HStack(spacing: 6) {
-                Image(systemName: savedCredentialApplies ? "lock.fill" : "lock")
+            HStack(spacing: Space.s) {
+                Image(systemName: savedCredentialApplies ? "lock.fill" : "lock").accessibilityHidden(true)
                 Text(keyNote)
-            }.font(.caption).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Button(T("Test and Save", table: "Settings")) { testAndSave() }.pippa(.primary)
+            }.font(Typo.footnote).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+            // Not the accent-filled button: the page's one main action is "Use <provider>".
+            HStack(spacing: Space.xl) {
+                Button(T("Test and Save", table: "Settings")) { testAndSave() }.pippa(.secondary)
                 if model.inferenceSettings.connection != nil {
                     Button(T("Remove", table: "Settings")) { removeConnection() }.pippa(.quiet)
                 }
                 if busyState.wrappedValue { ProgressView().controlSize(.small) }
             }
-            Text(T("Saving first sends one short test message. No files and nothing from your conversations.", table: "Settings"))
-                .font(.caption).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true)
+            SettingsNote(T("Saving first sends one short test message. No files and nothing from your conversations.", table: "Settings"))
             if let status = statusState.wrappedValue {
-                Text(status).font(.caption).foregroundStyle(errorState.wrappedValue ? Theme.need : Theme.ok)
+                Text(status).font(Typo.footnote).foregroundStyle(errorState.wrappedValue ? Theme.need : Theme.ok)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title).font(.caption).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: Space.s) {
+            Text(title).font(Typo.footnote).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
             content()
         }
     }

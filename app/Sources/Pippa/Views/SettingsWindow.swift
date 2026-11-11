@@ -61,6 +61,8 @@ final class SettingsWindow {
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.toolbarStyle = .preference
             window.isReleasedWhenClosed = false
+            // The chat's background behind the toolbar and while the window resizes between pages.
+            window.backgroundColor = Theme.chatTint
             self.window = window
             self.tabs = tabs
             tabs.fitWindow(animated: false)
@@ -177,45 +179,10 @@ struct SettingsView: View {
             case .updates: UpdateSettings()
             }
         }
-        .formStyle(.grouped)
         .tint(Theme.accent)
         .frame(width: SettingsWindow.width)
     }
 
     /// Read once: `ModelCatalog.bundled()` decodes a file, and views ask for the name on every redraw.
     static let localModelName: String = ModelCatalog.bundled().models.first?.label ?? ""
-}
-
-/// One row in a settings group: title, explanation, control.
-struct SettingsRow<Trailing: View>: View {
-    var title: String
-    var detail: String?
-    @ViewBuilder var trailing: Trailing
-    var body: some View {
-        HStack(spacing: Space.l) {
-            VStack(alignment: .leading, spacing: Space.xxs) {
-                Text(title).font(Typo.callout)
-                if let detail {
-                    Text(detail).font(Typo.footnote).foregroundStyle(Theme.ink2).monospacedDigit()
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .layoutPriority(1)
-            Spacer(minLength: Space.m)
-            // The control keeps its whole label and the text on the left wraps instead: German labels run longer.
-            trailing.fixedSize()
-        }
-    }
-}
-
-enum ButtonKind { case primary, secondary, quiet }
-
-extension View {
-    @ViewBuilder func pippa(_ kind: ButtonKind, large: Bool = false) -> some View {
-        switch kind {
-        case .primary: buttonStyle(.borderedProminent)
-        case .secondary: buttonStyle(.bordered)
-        case .quiet: buttonStyle(.borderless)
-        }
-    }
 }

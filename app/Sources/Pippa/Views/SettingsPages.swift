@@ -12,32 +12,35 @@ struct GeneralSettings: View {
     private static let outsideApplications = Bundle.main.bundleURL.pathExtension == "app" && !AppLocation.isInApplications()
 
     var body: some View {
-        Form {
-            Section {
-                Picker(T("Shortcut", table: "App"), selection: hotkeyState.projectedValue) {
-                    ForEach(Hotkey.allCases) { Text($0.display).tag($0) }
+        SettingsScroll {
+            SettingsSection {
+                SettingsRow(title: T("Shortcut", table: "App")) {
+                    Picker(T("Shortcut", table: "App"), selection: hotkeyState.projectedValue) {
+                        ForEach(Hotkey.allCases) { Text($0.display).tag($0) }
+                    }
+                    .labelsHidden()
+                    .onChange(of: hotkeyState.wrappedValue) { _, value in Hotkey.current = value; HotkeyCenter.shared.apply(value) }
                 }
-                .onChange(of: hotkeyState.wrappedValue) { _, value in Hotkey.current = value; HotkeyCenter.shared.apply(value) }
-                Toggle(T("Open at login", table: "App"), isOn: opensAtLoginState.projectedValue)
-                    .onChange(of: opensAtLoginState.wrappedValue) { _, on in
-                        if on { try? SMAppService.mainApp.register() } else { try? SMAppService.mainApp.unregister() }
-                        opensAtLoginState.wrappedValue = SMAppService.mainApp.status == .enabled
-                    }
+                SettingsDivider()
+                SettingsRow(title: T("Open at login", table: "App")) {
+                    Toggle(T("Open at login", table: "App"), isOn: opensAtLoginState.projectedValue).labelsHidden().toggleStyle(.switch)
+                        .onChange(of: opensAtLoginState.wrappedValue) { _, on in
+                            if on { try? SMAppService.mainApp.register() } else { try? SMAppService.mainApp.unregister() }
+                            opensAtLoginState.wrappedValue = SMAppService.mainApp.status == .enabled
+                        }
+                }
             }
-            Section {
-                Toggle(isOn: $island.isShown) {
-                    VStack(alignment: .leading, spacing: Space.xxs) {
-                        Text(T("Show Pippa Island", table: "Settings")).font(Typo.callout)
-                        Text(T("Sits at the top of the screen, shows what Pippa is doing and takes a quick question.", table: "Settings"))
-                            .font(Typo.footnote).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
-                    }
+            SettingsSection {
+                SettingsRow(title: T("Show Pippa Island", table: "Settings"),
+                            detail: T("Sits at the top of the screen, shows what Pippa is doing and takes a quick question.", table: "Settings")) {
+                    Toggle(T("Show Pippa Island", table: "Settings"), isOn: $island.isShown).labelsHidden().toggleStyle(.switch)
                 }
             }
             if Self.outsideApplications {
-                Section {
+                SettingsSection {
                     SettingsRow(title: T("Pippa isn’t in Applications", table: "App"),
                                 detail: T("From there she stays up to date by herself and can open at login.", table: "App")) {
-                        Button(T("Move to Applications…", table: "App")) { AppMover.moveNow() }
+                        Button(T("Move to Applications…", table: "App")) { AppMover.moveNow() }.pippa(.secondary)
                     }
                 }
             }
@@ -51,28 +54,26 @@ struct AISettings: View {
     @ObservedObject var setup: SetupModel
 
     var body: some View {
-        Form {
-            Section(T("On this Mac", table: "App")) {
-                if setup.isReady {
+        SettingsScroll {
+            if setup.isReady {
+                SettingsSection(title: T("On this Mac", table: "App")) {
                     SettingsRow(title: SettingsView.localModelName,
                                 detail: T("Your conversations stay on this Mac.", table: "Settings")) {
-                        HStack(spacing: Space.s) {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok).accessibilityHidden(true)
-                            Text(T("Ready", table: "App")).foregroundStyle(Theme.ink2)
-                        }
-                        .font(Typo.callout)
-                        .accessibilityElement(children: .combine)
+                        SettingsStatus(symbol: "checkmark.circle.fill", color: Theme.ok, text: T("Ready", table: "App"))
                     }
-                } else {
+                }
+            } else {
+                // The setup card is a surface itself: it sits on the page, not in a group.
+                VStack(alignment: .leading, spacing: Space.m) {
+                    Text(T("On this Mac", table: "App")).font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink)
+                        .accessibilityAddTraits(.isHeader)
                     SetupCard(setup: setup, showsOnlineOption: false)
                 }
             }
-            Section {
-                PiProviderSettings(settings: settings)
-                // Keep existing Keychain connections usable until the person chooses a Pi provider.
-                if settings.inferenceSettings.activePiModel == nil, settings.inferenceSettings.connection != nil {
-                    ModelConnectionSettings(model: settings)
-                }
+            PiProviderSettings(settings: settings)
+            // Keep existing Keychain connections usable until the person chooses a Pi provider.
+            if settings.inferenceSettings.activePiModel == nil, settings.inferenceSettings.connection != nil {
+                ModelConnectionSettings(model: settings)
             }
         }
     }
@@ -81,10 +82,10 @@ struct AISettings: View {
 /// Updates: the version and checking by hand.
 struct UpdateSettings: View {
     var body: some View {
-        Form {
-            Section {
+        SettingsScroll {
+            SettingsSection {
                 SettingsRow(title: T("Version", table: "App"), detail: AppVersion.label) {
-                    Button(T("Check for Updates…", table: "App")) { Updates.shared.checkNow() }
+                    Button(T("Check for Updates…", table: "App")) { Updates.shared.checkNow() }.pippa(.secondary)
                 }
             }
         }
