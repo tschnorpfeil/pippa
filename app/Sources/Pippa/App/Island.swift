@@ -37,6 +37,8 @@ final class Island: ObservableObject {
     /// The finished answer the open island shows: one the person has not seen yet. It goes once the island closes
     /// after showing it or the chat window comes to the front, so the island never keeps an old answer.
     @Published private(set) var freshAnswer: UUID?
+    /// "New conversation" pressed in the island: the next question starts fresh although a recent one could go on.
+    @Published var startsFresh = false
     private var answeringID: String?
     /// The island opened by itself for a question and closes again once it is answered.
     private var openedForQuestion = false
@@ -295,7 +297,10 @@ final class Island: ObservableObject {
         }
     }
 
-    func close() { presenter?.close() }
+    func close() {
+        startsFresh = false
+        presenter?.close()
+    }
 
     private func updateMenuMark() {
         let state = isShown && presenter?.placement?.isNotch == true ? MarkState.ruht : status.markState
@@ -327,14 +332,27 @@ final class Island: ObservableObject {
         open(key: true, focus: true)
     }
 
-    /// Return in the question field: a new conversation with the question and any dropped files.
+    /// What a question in the island goes on with: the latest conversation while the island still shows its answer or
+    /// its last message is at most ten minutes old, so "And chapter 6?" keeps the context. Older, or after "New
+    /// conversation": a new one.
+    var followUp: Conversation? {
+        guard !startsFresh else { return nil }
+        let chat = ChatModel.shared
+        guard let latest = chat.conversations.filter({ !$0.messages.isEmpty }).max(by: { $0.updated < $1.updated }) else { return nil }
+        let showing = freshAnswer.map { id in latest.messages.contains { $0.id == id } } ?? false
+        return showing || latest.updated > Date().addingTimeInterval(-600) ? latest : nil
+    }
+
+    /// Return in the question field: the question and any dropped files, going on with `followUp` or in a new
+    /// conversation.
     func send() {
         let chat = ChatModel.shared
         let text = chat.draft, files = chat.attachments
         // Like the composer: until the AI can answer, the question stays in the field (the island shows the setup above it).
         guard !chat.isAnswering, SetupModel.shared.canAnswer,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !files.isEmpty else { return }
-        chat.newConversation()
+        if let followUp { chat.select(followUp.id) } else { chat.newConversation() }
+        startsFresh = false
         chat.draft = text
         chat.attachments = files
         chat.send()
