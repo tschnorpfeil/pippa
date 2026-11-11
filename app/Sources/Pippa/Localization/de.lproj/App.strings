@@ -165,7 +165,7 @@
 "Thought for %@" = "%@ nachgedacht";
 "Worked for %@ · %lld steps" = "%@ gearbeitet · %lld Schritte";
 "Worked for %@ · 1 step" = "%@ gearbeitet · 1 Schritt";
-"Your conversation goes to this online AI." = "Dein Gespräch geht an diese Online-KI.";
+"Your conversation goes to the online AI you chose." = "Dein Gespräch geht an die Online-KI, die du gewählt hast.";
 
 "Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings." = "Dein Online-KI-Limit ist vorerst erreicht. Versuche es später erneut oder wechsle in den Einstellungen zur KI auf diesem Mac.";
 

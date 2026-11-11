@@ -14,8 +14,7 @@ struct WebSourcesCardView: View {
             ForEach(Array(card.items.enumerated()), id: \.offset) { _, item in
                 WebSourceRow(item: item)
             }
-            Text(card.footer).font(Typo.caption).foregroundStyle(Theme.ink3)
-                .padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 11)
+            CardFooter(text: card.footer)
         }
         .resultCard()
         .accessibilityElement(children: .contain)

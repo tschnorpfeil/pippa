@@ -58,6 +58,7 @@ enum Theme {
     static let topLight = dynamic(light: .clear, dark: NSColor(white: 1, alpha: 0.04))
     static let rowHover = whiteA(0.045, 0.055)
     static let rowSelected = dynamic(light: hex(0xFFFFFF), dark: NSColor(white: 1, alpha: 0.08))
+    /// Send with nothing to send, and the Stop disc: a quiet grey circle.
     static let sendDisabled = whiteA(0.12, 0.12)
 
     // Motion: short and soft; nothing moves with Reduce Motion on.
@@ -81,12 +82,15 @@ enum Theme {
 }
 
 /// The chat's type scale: the system font at fixed sizes, like the rest of macOS. Numbers that change (seconds,
-/// percentages, counts) add `.monospacedDigit()` so they don't jitter.
+/// percentages, counts) add `.monospacedDigit()` so they don't jitter. Reading text stays SF Pro; only titles and
+/// numbers that stand alone are SF Pro Rounded.
 enum Typo {
     /// The welcome's question.
-    static let title = Font.system(size: 22, weight: .semibold)
+    static let title = Font.system(size: 22, weight: .semibold, design: .rounded)
     /// Card and section titles.
-    static let headline = Font.system(size: 14.5, weight: .semibold)
+    static let headline = Font.system(size: 14.5, weight: .semibold, design: .rounded)
+    /// A number that stands alone as a label ("38 % full", "42 %"): rounded, with digits of equal width.
+    static let figure = Font.system(size: 12, weight: .medium, design: .rounded).monospacedDigit()
     /// Questions and answers.
     static let body = Font.system(size: 14)
     /// Controls, rows and secondary text.
@@ -97,8 +101,9 @@ enum Typo {
     /// Extra space between the lines of reading text.
     static let reading: CGFloat = 5
 
+    /// Headings in an answer: clear steps above the 14 pt body, so a heading never reads like bold body text.
     static func heading(_ level: Int) -> Font {
-        .system(size: level <= 1 ? 17 : level == 2 ? 15.5 : 14.5, weight: .semibold)
+        .system(size: level <= 1 ? 20 : level == 2 ? 17 : 14.5, weight: .semibold)
     }
 }
 
@@ -122,6 +127,8 @@ enum Space {
     static let m: CGFloat = 8
     static let ml: CGFloat = 10
     static let l: CGFloat = 12
+    /// The inner padding of every card: the header, its rows and its footer start here.
+    static let card: CGFloat = 14
     static let xl: CGFloat = 16
     static let xxl: CGFloat = 20
     static let x3: CGFloat = 24
@@ -210,7 +217,7 @@ private struct Arrival: ViewModifier {
     }
 }
 
-/// The head of every result card: a small tinted symbol badge, the title and a quiet detail.
+/// The head of every result card: a small neutral symbol badge, the title and a quiet detail.
 struct CardHeader: View {
     var symbol: String
     var title: String
@@ -218,20 +225,40 @@ struct CardHeader: View {
 
     var body: some View {
         HStack(spacing: Space.m) {
-            Image(systemName: symbol)
-                .font(Typo.caption.weight(.semibold)).foregroundStyle(Theme.accent)
-                .frame(width: 22, height: 22)
-                .background(Theme.accentTint, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
-                .accessibilityHidden(true)
+            CardSymbol(symbol: symbol)
             Text(title).font(Typo.headline).foregroundStyle(Theme.ink).lineLimit(1)
             if let detail, !detail.isEmpty {
                 Text(detail).font(Typo.footnote).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.tail)
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 14).padding(.top, Space.l).padding(.bottom, Space.s)
+        .padding(.horizontal, Space.card).padding(.top, Space.l).padding(.bottom, Space.s)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// The symbol at the head of a card or a question: neutral, never blue, because colour marks what can be clicked.
+struct CardSymbol: View {
+    var symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(Typo.caption.weight(.semibold)).foregroundStyle(Theme.ink2)
+            .frame(width: 22, height: 22)
+            .background(Theme.fill, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
+/// The last line of a result card: where the facts come from, quiet.
+struct CardFooter: View {
+    var text: String
+
+    var body: some View {
+        Text(text).font(Typo.caption).foregroundStyle(Theme.ink3)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, Space.card).padding(.top, Space.m).padding(.bottom, Space.l)
     }
 }
 
@@ -287,8 +314,9 @@ struct SpinRing: View {
     }
 }
 
-/// A compact action pill button ("Open Reminders", "Show in Finder", "Try Again", or primary CTA in `SetupCard`)
-/// that stays crisp in dark mode and unfocused windows instead of collapsing to macOS's flat inactive grey.
+/// The chat's button: a capsule of one height and one font ("Open Reminders", "Try Again", "Allow"). Secondary is a
+/// quiet fill, like the island's capsules; `primary` (one per decision: Allow, setup's main action) is the accent with white text.
+/// Drawn by hand so it stays crisp in dark mode and unfocused windows instead of macOS's flat inactive grey.
 struct ActionPill: View {
     var title: String
     var primary = false
@@ -298,16 +326,16 @@ struct ActionPill: View {
     private let hoverState = State(initialValue: false)
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: primary ? Radius.control : Radius.row, style: .continuous)
+        let shape = Capsule()
         Button(action: action) {
             Text(title)
-                .font(primary ? Typo.callout.weight(.semibold) : Typo.footnote.weight(.medium))
+                .font(Typo.footnote.weight(.medium))
                 .foregroundStyle(primary ? Color.white : Theme.ink)
-                .padding(.horizontal, primary ? Space.l : Space.ml)
-                .frame(height: primary ? 28 : 24)
+                .lineLimit(1)
+                .padding(.horizontal, Space.ml)
+                .frame(height: 26)
                 .background(primary ? (hoverState.wrappedValue ? Theme.accentPress : Theme.accentFill)
-                                    : (hoverState.wrappedValue ? Theme.fill2 : Theme.fill), in: shape)
-                .overlay { if !primary { shape.strokeBorder(Theme.hairline, lineWidth: 1) } }
+                                    : (hoverState.wrappedValue ? Theme.fill3 : Theme.fill2), in: shape)
                 .contentShape(shape)
         }
         .buttonStyle(.plain)

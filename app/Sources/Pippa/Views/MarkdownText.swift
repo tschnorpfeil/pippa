@@ -14,7 +14,7 @@ struct MarkdownText: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: style.blockSpacing) {
-            ForEach(renderState.wrappedValue.blocks(for: text, highlights: highlights)) { block in
+            ForEach(renderState.wrappedValue.blocks(for: text, highlights: highlights, style: style)) { block in
                 MarkdownBlockView(block: block, style: style).equatable()
             }
         }
@@ -39,9 +39,11 @@ struct MarkdownStyle {
     var lineSpacing: CGFloat
     /// Between paragraphs, lists, tables and code.
     var blockSpacing: CGFloat
+    /// Added above a heading on top of `blockSpacing`, so a heading sits closer to the text it starts.
+    var headingSpace: CGFloat = Space.xs
 
     @MainActor static let chat = MarkdownStyle(body: Typo.body, heading: Typo.heading, code: Typo.code, cell: Typo.callout,
-                                               lineSpacing: Typo.reading, blockSpacing: Space.l)
+                                               lineSpacing: Typo.reading, blockSpacing: Space.l, headingSpace: Space.m)
     /// Pippa Island: one size, SF Pro Rounded; headings differ by weight only, the panel is 380 pt wide.
     @MainActor static let island = MarkdownStyle(body: .system(size: 13, design: .rounded),
                                                  heading: { _ in .system(size: 13, weight: .semibold, design: .rounded) },
@@ -81,7 +83,10 @@ final class MarkdownRender {
     private var open: [RenderedBlock] = []
     private var nextStamp = 0
 
-    func blocks(for text: String, highlights: [String]) -> [RenderedBlock] {
+    private var style: MarkdownStyle?
+
+    func blocks(for text: String, highlights: [String], style: MarkdownStyle) -> [RenderedBlock] {
+        self.style = style
         stream.update(text)
         if highlights != self.highlights || stream.restarts != restarts {
             self.highlights = highlights
@@ -103,22 +108,24 @@ final class MarkdownRender {
     private func render(_ block: MarkdownBlock, id: Int) -> RenderedBlock {
         nextStamp += 1
         let content: RenderedBlock.Content
+        let body = style?.body.weight(.medium), cell = style?.cell.weight(.medium)
         switch block {
-        case .paragraph(let text): content = .paragraph(marked(text))
-        case .heading(let level, let text): content = .heading(level, marked(text))
-        case .list(let items, let ordered): content = .list(items.map { (marked($0.text), $0.indent) }, ordered: ordered)
-        case .quote(let text): content = .quote(marked(text))
+        case .paragraph(let text): content = .paragraph(marked(text, code: body))
+        case .heading(let level, let text): content = .heading(level, marked(text, code: nil))
+        case .list(let items, let ordered): content = .list(items.map { (marked($0.text, code: body), $0.indent) }, ordered: ordered)
+        case .quote(let text): content = .quote(marked(text, code: body))
         case .code(let text): content = .code(text)
         case .table(let header, let rows):
-            content = .table(header.map(MarkdownText.inline), rows.map { $0.map(MarkdownText.inline) },
+            content = .table(header.map { Self.plainCode(MarkdownText.inline($0), font: cell) },
+                             rows.map { $0.map { Self.plainCode(MarkdownText.inline($0), font: cell) } },
                              numeric: header.indices.map { MarkdownTable.isNumeric(column: $0, in: rows) })
         case .rule: content = .rule
         }
         return RenderedBlock(id: id, stamp: nextStamp, content: content)
     }
 
-    private func marked(_ text: String) -> AttributedString {
-        var result = MarkdownText.inline(text)
+    private func marked(_ text: String, code: Font?) -> AttributedString {
+        var result = Self.plainCode(MarkdownText.inline(text), font: code)
         for mark in highlights where !mark.isEmpty {
             var start = result.startIndex
             while let range = result[start...].range(of: mark) {
@@ -126,6 +133,18 @@ final class MarkdownRender {
                 result[range].foregroundColor = Theme.need
                 start = range.upperBound
             }
+        }
+        return result
+    }
+
+    /// Inline code reads as part of the sentence: the surrounding font at medium weight, never monospaced or boxed.
+    /// `font` `nil` keeps the font around it (a heading, already semibold).
+    static func plainCode(_ text: AttributedString, font: Font?) -> AttributedString {
+        var result = text
+        let ranges = result.runs.filter { $0.inlinePresentationIntent?.contains(.code) == true }.map(\.range)
+        for range in ranges {
+            result[range].inlinePresentationIntent?.remove(.code)
+            if let font { result[range].font = font }
         }
         return result
     }
@@ -142,7 +161,7 @@ private struct MarkdownBlockView: View, Equatable {
         case .paragraph(let text):
             Text(text).lineSpacing(style.lineSpacing).fixedSize(horizontal: false, vertical: true)
         case .heading(let level, let text):
-            Text(text).font(style.heading(level)).padding(.top, Space.xs)
+            Text(text).font(style.heading(level)).padding(.top, style.headingSpace)
         case .list(let items, let ordered):
             VStack(alignment: .leading, spacing: Space.s) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
@@ -206,8 +225,8 @@ private struct CodeBlock: View {
     }
 }
 
-/// A table in a hairline frame: a tinted head, every other row softly filled so long rows stay easy to follow, and
-/// columns of amounts, dates or percentages set flush right so their digits line up.
+/// A table in a hairline frame: a quiet tinted head, every other row softly filled so long rows stay easy to follow,
+/// and columns of amounts or percentages set flush right with digits of equal width, so they line up.
 struct MarkdownTable: View {
     var header: [AttributedString]
     var rows: [[AttributedString]]
@@ -220,7 +239,7 @@ struct MarkdownTable: View {
             Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
                 GridRow {
                     ForEach(Array(header.enumerated()), id: \.offset) { column, text in
-                        cell(text, bold: true, trailing: numeric[column])
+                        cell(text, head: true, trailing: numeric[column])
                     }
                 }
                 .background(Theme.chatInset)
@@ -228,7 +247,7 @@ struct MarkdownTable: View {
                     Rectangle().fill(Theme.hairline).frame(height: 1).gridCellUnsizedAxes(.horizontal)
                     GridRow {
                         ForEach(0..<header.count, id: \.self) { column in
-                            cell(column < row.count ? row[column] : AttributedString(), bold: false, trailing: numeric[column])
+                            cell(column < row.count ? row[column] : AttributedString(), head: false, trailing: numeric[column])
                         }
                     }
                     .background(index % 2 == 1 ? Theme.chatInset.opacity(0.5) : .clear)
@@ -239,8 +258,10 @@ struct MarkdownTable: View {
         }
     }
 
-    private func cell(_ text: AttributedString, bold: Bool, trailing: Bool) -> some View {
-        Text(text).font(bold ? font.weight(.semibold) : font)
+    /// The head is quieter than the cells: medium weight in the secondary ink.
+    private func cell(_ text: AttributedString, head: Bool, trailing: Bool) -> some View {
+        Text(text).font(head ? font.weight(.medium) : font)
+            .foregroundStyle(head ? Theme.ink2 : Theme.ink)
             .monospacedDigit()
             .multilineTextAlignment(trailing ? .trailing : .leading)
             .padding(.horizontal, Space.l).padding(.vertical, 7)

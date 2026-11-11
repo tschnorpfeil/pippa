@@ -76,8 +76,15 @@ public struct PiModelSelection: Codable, Sendable, Equatable {
     public var providerID: String
     public var modelID: String
     public var providerName: String
-    public init(providerID: String, modelID: String, providerName: String) {
-        self.providerID = providerID; self.modelID = modelID; self.providerName = providerName
+    /// The model's name as the provider lists it ("GPT-6.1 Terra"); `nil` for selections saved before it was kept.
+    public var modelName: String?
+    public init(providerID: String, modelID: String, providerName: String, modelName: String? = nil) {
+        self.providerID = providerID; self.modelID = modelID; self.providerName = providerName; self.modelName = modelName
+    }
+    /// What people see: the model's name, its ID only when there is no name.
+    public var modelDisplayName: String {
+        guard let name = modelName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return modelID }
+        return name
     }
     public var isValid: Bool {
         [providerID, modelID, providerName].allSatisfy {

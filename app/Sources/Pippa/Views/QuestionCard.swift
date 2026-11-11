@@ -37,12 +37,8 @@ struct QuestionCard: View {
         let text = self.text
         VStack(alignment: .leading, spacing: Space.l) {
             HStack(alignment: .firstTextBaseline, spacing: Space.m) {
-                Image(systemName: "hand.raised.fill")
-                    .font(Typo.caption.weight(.semibold)).foregroundStyle(Theme.accent)
-                    .frame(width: 22, height: 22)
-                    .background(Theme.accentTint, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+                CardSymbol(symbol: "hand.raised.fill")
                     .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-                    .accessibilityHidden(true)
                 Text(text.title).font(Typo.headline).foregroundStyle(Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
@@ -51,19 +47,17 @@ struct QuestionCard: View {
                 Text(first).font(Typo.callout).foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            // What exactly would happen (the search words, the address): quiet, and selectable to check.
+            // What exactly would happen (the search words, the address): right on the card, selectable to check.
             if text.paragraphs.count > 1 {
                 Text(text.paragraphs.dropFirst().joined(separator: "\n\n"))
-                    .font(Typo.footnote).foregroundStyle(Theme.ink2).lineSpacing(2)
+                    .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink).lineSpacing(2)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Space.ml).padding(.vertical, Space.m)
-                    .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             }
             answers
         }
-        .padding(Space.xl)
+        .padding(Space.card)
         .frame(maxWidth: Layout.cardMax, alignment: .leading)
         .raised(Radius.card)
         .accessibilityElement(children: .contain)
@@ -75,7 +69,7 @@ struct QuestionCard: View {
             HStack(spacing: Space.m) {
                 Spacer(minLength: 0)
                 ActionPill(title: T("Don’t Allow", table: "App"), shortcut: escape) { answer(.confirmed(false)) }
-                ActionPill(title: T("Allow", table: "App")) { answer(.confirmed(true)) }
+                ActionPill(title: T("Allow", table: "App"), primary: true) { answer(.confirmed(true)) }
             }
         case "select" where request.options.count <= 3:
             HStack(spacing: Space.m) {

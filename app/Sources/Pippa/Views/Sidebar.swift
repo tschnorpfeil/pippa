@@ -17,7 +17,7 @@ struct Sidebar: View {
         let query = self.query
         List {
             NewConversationRow { chat.newConversation() }
-                .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 6, trailing: 0))
+                .listRowInsets(EdgeInsets(top: Space.xxs, leading: 0, bottom: Space.s, trailing: 0))
             ForEach(groups, id: \.title) { group in
                 Section(group.title) {
                     ForEach(group.items) { conversation in
@@ -38,7 +38,7 @@ struct Sidebar: View {
                                         cancelRename: { renamingState.wrappedValue = nil },
                                         togglePin: { chat.togglePin(conversation.id) },
                                         delete: { chat.delete(conversation.id) })
-                            .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Space.xxs, trailing: 0))
                     }
                 }
             }
@@ -61,12 +61,15 @@ struct Sidebar: View {
 
     private var emptyState: some View {
         VStack(spacing: Space.ml) {
-            Image(systemName: "bubble.left.and.text.bubble.right")
-                .font(.system(size: 24)).foregroundStyle(Theme.ink3)
+            // Pippa's own mark, still and in one colour, quieted to a hint.
+            PippaMark(size: 28, state: .ruht, monochrome: true)
+                .opacity(0.4)
+                .accessibilityHidden(true)
             Text(!query.isEmpty ? T("Nothing found", table: "App")
                  : chat.unreadable > 0 ? T("Pippa couldn’t read your saved conversations. If this keeps happening, choose “Report a Problem…” in the Help menu.", table: "App")
                  : T("Your conversations appear here.", table: "App"))
-                .font(.callout).foregroundStyle(Theme.ink2).multilineTextAlignment(.center)
+                .font(Typo.callout).foregroundStyle(Theme.ink2).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
             if !query.isEmpty {
                 Button(T("Clear Search", table: "App")) { search.wrappedValue = "" }.controlSize(.small)
             }
@@ -136,7 +139,7 @@ private struct NewConversationRow: View {
                 Text(verbatim: "⌘N").font(Typo.caption).foregroundStyle(Theme.ink3)
             }
             .padding(.horizontal, Space.m)
-            .frame(height: 34)
+            .frame(height: Space.x4)
             .background(hoverState.wrappedValue ? Theme.rowHover : .clear,
                         in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             .contentShape(Rectangle())
@@ -185,7 +188,7 @@ private struct ConversationRow: View {
             trailing.frame(width: 20, height: 20).opacity(renaming ? 0 : 1).allowsHitTesting(!renaming)
         }
         .padding(.leading, Space.m).padding(.trailing, Space.xs)
-        .frame(minHeight: 36)
+        .frame(minHeight: Space.x4)
         .background {
             let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
             if renaming {

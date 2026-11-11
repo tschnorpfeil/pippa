@@ -121,7 +121,8 @@ struct Transcript: View {
                     .transition(Theme.reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85, anchor: .bottom)))
                 }
             }
-            .animation(Theme.arrive, value: atBottomState.wrappedValue)
+            // Arrives softly when scrolled up, leaves quickly back at the end.
+            .animation(atBottomState.wrappedValue ? Theme.leave : Theme.arrive, value: atBottomState.wrappedValue)
             .overlay(alignment: .top) { BarFade() }
             .softBottomEdge()
             .safeAreaInset(edge: .bottom, spacing: 0) { Composer(chat: chat, setup: setup).floatingBar() }

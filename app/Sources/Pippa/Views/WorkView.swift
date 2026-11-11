@@ -109,6 +109,8 @@ struct WorkView: View {
             }
         }
         .font(Typo.callout)
+        // "Working" turns into "Worked for 18 s" as a crossfade, not a jump.
+        .animation(Theme.quick, value: live)
         .padding(.horizontal, Space.m)
         .frame(height: 28)
         .background(hoverState.wrappedValue ? Theme.rowHover : .clear, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
