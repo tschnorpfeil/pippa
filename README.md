@@ -34,14 +34,14 @@ Open Pippa from the Dock or press ⌥ Space, then just ask.
 **Pippa Island** sits at the notch, or under her menu bar symbol on a Mac without one. It shows what she is working on, step by step; ⌥ Space opens it for a quick question, and you can drop files on it. **Open Pippa** takes the conversation to the full window.
 
 <p align="center">
-  <img src="docs/images/island-question.png" width="420" alt="Pippa Island open under the notch, black like the notch itself. Pippa asks whether she may search the web and shows the search words. Three rounded buttons: Open Pippa on the left, Don’t Allow and a blue Allow on the right.">
-  <img src="docs/images/island-answer.png" width="420" alt="Pippa Island open under the notch with a short answer: a payment of 184.37 euros is due by November 15, 2026, followed by two things to do. Below, the question field Ask Pippa and the button Open Pippa.">
+  <img src="docs/images/island-question.png" width="48%" alt="Pippa Island open under the notch, black like the notch itself. Pippa asks whether she may search the web and shows the search words. Three rounded buttons: Open Pippa on the left, Don’t Allow and a blue Allow on the right.">
+  <img src="docs/images/island-answer.png" width="48%" alt="Pippa Island open under the notch with a short answer: a payment of 184.37 euros is due by November 15, 2026, followed by two things to do. Below, the question field Ask Pippa and the button Open Pippa.">
   <br><sub>Pippa Island asking for your OK, and with an answer. Drawn by the app's snapshot mode with made-up sample data; her sample answers are in German.</sub>
 </p>
 
 When she needs your OK, for example before a web search or a command that changes files, she asks right where you are, in the conversation and on Pippa Island, with one clear **Allow** next to **Don’t Allow**, never in a separate window.
 
-The chat window, Pippa Island and Settings share one look: almost black in Dark Mode, warm paper in Light Mode, and blue only for what you can act on. Each conversation stays in the sidebar, which you can search. The question field says which AI answers: the one on this Mac, or the online AI you chose. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
+The chat window, Pippa Island and Settings share one look. The window and Settings are almost black in Dark Mode and warm paper in Light Mode; Pippa Island is always black, like the notch. Blue marks Pippa herself and the button to press. Each conversation stays in the sidebar, which you can search. The question field says which AI answers: the one on this Mac, or the online AI you chose. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 
