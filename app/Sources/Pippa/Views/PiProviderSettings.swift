@@ -171,10 +171,10 @@ struct PiProviderSettings: View {
     /// The model's display name; the raw ID only when Pi lists no name.
     private func modelName(_ model: PiProvider.Model) -> String { model.name.isEmpty ? model.id : model.name }
 
-    /// The name of the model in use, once the provider list has loaded; the ID until then.
+    /// The name of the model in use, from the provider list, or as saved with the selection.
     private func activeModelName(_ selection: PiModelSelection) -> String {
         provider.providers.first { $0.id == selection.providerID }?.models.first { $0.id == selection.modelID }.map(modelName)
-            ?? selection.modelID
+            ?? selection.modelDisplayName
     }
 
     private var statusLine: String {
@@ -370,7 +370,8 @@ struct PiProviderSettings: View {
 
     private func useSelected(_ selected: PiProvider) {
         var saved = settings.inferenceSettings
-        saved.piModel = PiModelSelection(providerID: selected.id, modelID: provider.modelID, providerName: selected.name)
+        saved.piModel = PiModelSelection(providerID: selected.id, modelID: provider.modelID, providerName: selected.name,
+                                         modelName: selected.models.first { $0.id == provider.modelID }?.name)
         saved.subscriptionModel = nil; saved.policy = .localOnly
         do { try settings.saveInferenceSettings(saved) } catch { provider.report(error) }
     }
