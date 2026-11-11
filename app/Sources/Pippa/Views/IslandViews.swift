@@ -194,7 +194,7 @@ struct IslandPanelView: View {
             } else if let text = lastAnswer?.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 // The answer as in the chat (bold, lists, headings, tables), scrolling inside the island when it is long.
                 ScrollView {
-                    MarkdownText(text: text)
+                    MarkdownText(text: text, style: .island)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         // Room under the last line: the fade below only ever covers text that scrolls on.
                         .padding(.bottom, 12)

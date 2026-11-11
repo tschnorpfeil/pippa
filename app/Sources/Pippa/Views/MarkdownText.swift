@@ -8,15 +8,17 @@ struct MarkdownText: View {
     var text: String
     /// Marked in the text: dates the model worked out itself (`DateEvidence`).
     var highlights: [String] = []
+    /// Sizes and spacing: the chat's reading text, or the smaller rounded text of Pippa Island.
+    var style: MarkdownStyle = .chat
     private let renderState = State(initialValue: MarkdownRender())
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.l) {
+        VStack(alignment: .leading, spacing: style.blockSpacing) {
             ForEach(renderState.wrappedValue.blocks(for: text, highlights: highlights)) { block in
-                MarkdownBlockView(block: block).equatable()
+                MarkdownBlockView(block: block, style: style).equatable()
             }
         }
-        .font(Typo.body)
+        .font(style.body)
         .foregroundStyle(Theme.ink)
         .textSelection(.enabled)
     }
@@ -25,6 +27,27 @@ struct MarkdownText: View {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
     }
+}
+
+/// The type of an answer. A constant per surface, so blocks never compare it.
+struct MarkdownStyle {
+    var body: Font
+    var heading: (Int) -> Font
+    var code: Font
+    var cell: Font
+    /// Extra space between the lines of a paragraph.
+    var lineSpacing: CGFloat
+    /// Between paragraphs, lists, tables and code.
+    var blockSpacing: CGFloat
+
+    @MainActor static let chat = MarkdownStyle(body: Typo.body, heading: Typo.heading, code: Typo.code, cell: Typo.callout,
+                                               lineSpacing: Typo.reading, blockSpacing: Space.l)
+    /// Pippa Island: one size, SF Pro Rounded; headings differ by weight only, the panel is 380 pt wide.
+    @MainActor static let island = MarkdownStyle(body: .system(size: 13, design: .rounded),
+                                                 heading: { _ in .system(size: 13, weight: .semibold, design: .rounded) },
+                                                 code: .system(size: 12, design: .monospaced),
+                                                 cell: .system(size: 12, design: .rounded),
+                                                 lineSpacing: 3, blockSpacing: Space.ml)
 }
 
 /// One block with its inline Markdown already styled. `stamp` changes whenever its content does, so comparing two is
@@ -110,22 +133,23 @@ final class MarkdownRender {
 
 private struct MarkdownBlockView: View, Equatable {
     var block: RenderedBlock
+    var style: MarkdownStyle
 
     nonisolated static func == (a: MarkdownBlockView, b: MarkdownBlockView) -> Bool { a.block == b.block }
 
     var body: some View {
         switch block.content {
         case .paragraph(let text):
-            Text(text).lineSpacing(Typo.reading).fixedSize(horizontal: false, vertical: true)
+            Text(text).lineSpacing(style.lineSpacing).fixedSize(horizontal: false, vertical: true)
         case .heading(let level, let text):
-            Text(text).font(Typo.heading(level)).padding(.top, Space.xs)
+            Text(text).font(style.heading(level)).padding(.top, Space.xs)
         case .list(let items, let ordered):
             VStack(alignment: .leading, spacing: Space.s) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     HStack(alignment: .firstTextBaseline, spacing: Space.m) {
                         Text(verbatim: ordered ? "\(index + 1)." : "•").foregroundStyle(Theme.ink3).monospacedDigit()
                             .frame(minWidth: ordered ? 18 : 10, alignment: .trailing)
-                        Text(item.text).lineSpacing(Typo.reading).fixedSize(horizontal: false, vertical: true)
+                        Text(item.text).lineSpacing(style.lineSpacing).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.leading, CGFloat(item.indent) * 18)
                 }
@@ -133,12 +157,12 @@ private struct MarkdownBlockView: View, Equatable {
         case .quote(let text):
             HStack(spacing: Space.ml) {
                 RoundedRectangle(cornerRadius: 1.5).fill(Theme.fill3).frame(width: 3)
-                Text(text).foregroundStyle(Theme.ink2).lineSpacing(Typo.reading).fixedSize(horizontal: false, vertical: true)
+                Text(text).foregroundStyle(Theme.ink2).lineSpacing(style.lineSpacing).fixedSize(horizontal: false, vertical: true)
             }
         case .code(let text):
-            CodeBlock(text: text)
+            CodeBlock(text: text, font: style.code)
         case .table(let header, let rows, let numeric):
-            MarkdownTable(header: header, rows: rows, numeric: numeric)
+            MarkdownTable(header: header, rows: rows, numeric: numeric, font: style.cell)
         case .rule:
             Divider()
         }
@@ -148,6 +172,7 @@ private struct MarkdownBlockView: View, Equatable {
 /// Code in a neutral inset with a hairline; Copy floats over its corner on hover.
 private struct CodeBlock: View {
     var text: String
+    var font: Font = Typo.code
     private let hoverState = State(initialValue: false)
     private let copiedState = State(initialValue: false)
 
@@ -155,7 +180,7 @@ private struct CodeBlock: View {
         let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
         let copied = copiedState.wrappedValue
         ScrollView(.horizontal, showsIndicators: false) {
-            Text(text).font(Typo.code).foregroundStyle(Theme.ink).lineSpacing(3)
+            Text(text).font(font).foregroundStyle(Theme.ink).lineSpacing(3)
                 .padding(.horizontal, Space.l).padding(.vertical, Space.ml)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -187,6 +212,7 @@ struct MarkdownTable: View {
     var header: [AttributedString]
     var rows: [[AttributedString]]
     var numeric: [Bool]
+    var font: Font = Typo.callout
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
@@ -214,7 +240,7 @@ struct MarkdownTable: View {
     }
 
     private func cell(_ text: AttributedString, bold: Bool, trailing: Bool) -> some View {
-        Text(text).font(bold ? Typo.callout.weight(.semibold) : Typo.callout)
+        Text(text).font(bold ? font.weight(.semibold) : font)
             .monospacedDigit()
             .multilineTextAlignment(trailing ? .trailing : .leading)
             .padding(.horizontal, Space.l).padding(.vertical, 7)
