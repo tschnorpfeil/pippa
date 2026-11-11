@@ -81,6 +81,11 @@ struct Transcript: View {
                 if atBottom { atBottomState.wrappedValue = true }
                 else if userScrollingState.wrappedValue { atBottomState.wrappedValue = false }
             }
+            // The conversation grew or was laid out again (lazy rows, a font that loads late) while its end was in
+            // view: stay at the end. Without this the first conversation opened sometimes stood at its top.
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, _ in
+                if atBottomState.wrappedValue, !userScrollingState.wrappedValue { proxy.scrollTo("end", anchor: .bottom) }
+            }
             .onAppear {
                 // Opened mid-answer (or the first question just went out): the question and the answer still arrive.
                 settledState.wrappedValue = Settled(id: conversation.id,
