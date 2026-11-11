@@ -72,6 +72,21 @@ enum WindowLifecycleChecks {
         await settle()
         check("Dock reopen restores a closed chat", chat.isVisible)
 
+        // One live mark at a time while she works: beside a notch the island carries it and the menu bar symbol rests;
+        // under the symbol, or with the island off, the symbol shows it. Switching the island must update the symbol.
+        ChatModel.shared.showSample([], current: nil, answering: true)
+        Island.shared.isShown = false
+        await settle()
+        check("Island off while she works: the menu bar symbol shows it", Island.shared.menuMark == .arbeitet)
+        Island.shared.isShown = true
+        await settle()
+        let notch = Island.shared.presenter?.placement?.isNotch == true
+        check("Island on while she works: \(notch ? "the symbol rests, the island beside the notch shows it" : "the symbol shows it")",
+              Island.shared.menuMark == (notch ? .ruht : .arbeitet))
+        check("⌘H leaves Pippa Island on screen", Island.shared.presenter?.panel.canHide == false)
+        ChatModel.shared.showSample([], current: nil, answering: false)
+        Island.shared.refresh()
+
         SettingsWindow.shared.show()
         await settle()
         let settings = SettingsWindow.shared.window

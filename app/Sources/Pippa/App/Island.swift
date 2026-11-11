@@ -26,8 +26,9 @@ final class Island: ObservableObject {
     weak var statusButton: NSStatusBarButton?
 
     private(set) var presenter: IslandPresenter?
-    /// Beside the notch the island carries her live mark, so the menu bar symbol stays at rest.
-    var carriesMark: Bool { isShown && presenter?.placement?.isNotch == true }
+    /// The menu bar symbol's state. Beside the notch the island carries her live mark, so the symbol stays at rest;
+    /// set after every status or placement change, so the two never animate together or both rest while she works.
+    @Published private(set) var menuMark = MarkState.ruht
     private var watches: [AnyCancellable] = []
     private var screenObserver: NSObjectProtocol?
     /// "Your answer is ready" or "That didn't work", for a few seconds after an answer.
@@ -197,6 +198,7 @@ final class Island: ObservableObject {
     }
 
     func refresh() {
+        defer { updateMenuMark() }
         let status = IslandStatus.current(chat: .shared, setup: .shared, questions: Approvals.shared.questions.count,
                                           flash: flash, targeted: DropFeedback.island.targeted)
         if status != self.status { self.status = status }
@@ -281,6 +283,7 @@ final class Island: ObservableObject {
         if !isOpen, let placement = placement(fromStatusItem: fromStatusItem), placement != presenter.placement {
             presenter.place(placement, compactWidth: compactWidth(status, placement))
         }
+        updateMenuMark()
         guard presenter.placement != nil else { return }
         isOpen = true
         wantsFocus = focus
@@ -293,6 +296,11 @@ final class Island: ObservableObject {
     }
 
     func close() { presenter?.close() }
+
+    private func updateMenuMark() {
+        let state = isShown && presenter?.placement?.isNotch == true ? MarkState.ruht : status.markState
+        if state != menuMark { menuMark = state }
+    }
 
     /// The panel's content is on screen: a focus asked for while it was still hidden takes effect now.
     func panelShown() {
