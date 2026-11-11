@@ -43,10 +43,14 @@ struct IslandCompactView: View {
         let status = island.status
         Group {
             if let housingWidth {
+                // At rest the shape hides in the housing: no mark, so nothing shows beside the notch.
                 HStack(spacing: IslandStyle.wingGap) {
-                    IslandMark(status: status, size: IslandStatus.markSize)
-                    if status.showsCompact { IslandLine(status: status).transition(.opacity) }
+                    if status.showsCompact {
+                        IslandMark(status: status, size: IslandStatus.markSize)
+                        IslandLine(status: status)
+                    }
                 }
+                .transition(.opacity)
                 .padding(.leading, IslandStyle.wingInset)
                 .padding(.trailing, IslandStyle.wingGap + housingWidth - 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -496,7 +500,8 @@ struct IslandPanelView: View {
 
     /// The quick question; it grows, "Open Pippa" beside it keeps its size.
     private var field: some View {
-        let prompt = chat.isAnswering ? T("Pippa is answering…", table: "Island") : T("Ask Pippa…", table: "App")
+        // While she answers the chain above says so; the field only waits for the next question.
+        let prompt = chat.isAnswering ? T("Next question…", table: "Island") : T("Ask Pippa…", table: "App")
         return TextField(prompt, text: $chat.draft, prompt: Text(prompt).foregroundStyle(IslandStyle.white(IslandStyle.secondary)))
             .textFieldStyle(.plain)
             .font(IslandStyle.body)
@@ -787,7 +792,10 @@ struct IslandChainRow<Label: View>: View {
             Image(systemName: "exclamationmark").font(.system(size: 8, weight: .bold)).foregroundStyle(IslandStyle.bad)
                 .frame(width: 12, height: 12).background(Circle().fill(IslandStyle.bad.opacity(0.16)))
         case .thinking:
-            PippaMark(size: 14, state: .arbeitet)
+            // Not her mark: it already sits in the header above, once is enough.
+            Image(systemName: "ellipsis").font(.system(size: 10, weight: .bold))
+                .foregroundStyle(IslandStyle.accent)
+                .symbolEffect(.variableColor.iterative, options: .repeating)
         case .writing:
             Scribble(size: 14)
         }

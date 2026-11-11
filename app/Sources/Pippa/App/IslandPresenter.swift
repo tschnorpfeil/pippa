@@ -16,6 +16,8 @@ final class IslandPanel: NSPanel {
         level = .statusBar
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
         hidesOnDeactivate = false
+        // Like the menu bar symbol, the island stays when the chat window is hidden with ⌘H.
+        canHide = false
         isReleasedWhenClosed = false
         isMovable = false
         animationBehavior = .none
