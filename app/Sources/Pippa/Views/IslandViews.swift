@@ -487,17 +487,38 @@ struct IslandPanelView: View {
         }
     }
 
-    /// The quick question; it grows, "Open Pippa" beside it keeps its size.
+    /// The quick question; it grows, "Open Pippa" beside it keeps its size. It says whether the question goes on with a
+    /// recent conversation (`Island.followUp`); the pencil beside it starts a new one instead.
     private var field: some View {
         // While she answers the chain above says so; the field only waits for the next question.
-        let prompt = chat.isAnswering ? T("Next question…", table: "Island") : T("Ask Pippa…", table: "App")
+        let followUp = chat.isAnswering ? nil : island.followUp
+        let prompt = chat.isAnswering ? T("Next question…", table: "Island")
+            // Which conversation it goes on with is right above: its answer, or the recent row on the empty island.
+            : followUp != nil ? T("Follow up…", table: "Island") : T("Ask Pippa…", table: "App")
         return TextField(prompt, text: $chat.draft, prompt: Text(prompt).foregroundStyle(IslandStyle.white(IslandStyle.secondary)))
             .textFieldStyle(.plain)
             .font(IslandStyle.body)
             .foregroundStyle(IslandStyle.white(IslandStyle.primary))
             .focused($fieldFocused)
             .onSubmit { island.send() }
+            // Room for the pencil, so the text does not run under it.
+            .padding(.trailing, followUp != nil ? 26 : 0)
             .islandWell()
+            .overlay(alignment: .trailing) {
+                if followUp != nil {
+                    Button { island.startsFresh = true } label: {
+                        Image(systemName: "square.and.pencil").font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                            .frame(width: 28, height: 28).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut("n", modifiers: .command)
+                    .help(T("New Conversation", table: "App") + " (⌘N)")
+                    .accessibilityLabel(T("New Conversation", table: "App"))
+                    .padding(.trailing, 4)
+                    .transition(.opacity)
+                }
+            }
     }
 }
 

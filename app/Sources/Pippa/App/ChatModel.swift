@@ -362,6 +362,8 @@ final class ChatModel: ObservableObject {
     }
 
     private func end() {
+        // The conversation is as recent as its answer's end, not its start: a follow-up in the island counts from here.
+        if let id = answeringID, let index = conversations.firstIndex(where: { $0.id == id }) { conversations[index].updated = Date() }
         starting(false)
         isWriting = false
         isAnswering = false

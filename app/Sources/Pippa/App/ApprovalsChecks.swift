@@ -109,6 +109,26 @@ enum ConversationStoreChecks {
               && writingNow.writing && writingNow.tail == "Die Frist endet am 19. November."
               && stepNow.writing == false && stepNow.tail == nil,
               "the island's chain ends on \"Thinking…\" without her notes, or on the answer written so far as plain text")
+        // A question in the island goes on with the latest conversation while it is recent; an old one or "New
+        // conversation" starts fresh.
+        do {
+            let chat = ChatModel.shared, island = Island.shared
+            let saved = (chat.conversations, chat.currentID)
+            let message = ChatMessage(role: .user, text: "Frage")
+            chat.showSample([Conversation(id: "old", title: "Alt", updated: Date().addingTimeInterval(-3600), messages: [message]),
+                             Conversation(id: "new", title: "Neu", updated: Date().addingTimeInterval(-120), messages: [message])],
+                            current: nil, answering: false)
+            let recent = island.followUp?.id
+            island.startsFresh = true
+            let fresh = island.followUp
+            island.startsFresh = false
+            chat.showSample([Conversation(id: "old", title: "Alt", updated: Date().addingTimeInterval(-3600), messages: [message])],
+                            current: nil, answering: false)
+            let stale = island.followUp
+            chat.showSample(saved.0, current: saved.1, answering: false)
+            check(recent == "new" && fresh == nil && stale == nil,
+                  "a question in the island follows up the conversation of the last ten minutes; older or after New Conversation it starts a new one")
+        }
         let strokes = (0..<3).map { Scribble.stroke($0, at: 12.5) }
         check(strokes.allSatisfy { $0.count == 91 && $0.allSatisfy { abs($0.x) <= 0.9 && abs($0.y) <= 0.9 } }
               && Scribble.stroke(0, at: 12.5) != Scribble.stroke(0, at: 13),
