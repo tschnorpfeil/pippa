@@ -71,7 +71,13 @@ enum IslandSnapshots {
                 // Built directly: an online AI chosen on this Mac would hide the setup from `IslandStatus.current`.
                 island.showForSnapshot(IslandStatus(tone: .working, label: T("Loading my AI · %lld %%", table: "App", 42), progress: 0.42))
             }),
+            // An answer not seen yet: the island shows what she found, without what she said on the way.
             ("open", true, {
+                chat.showSample(sample(.answered), current: "s1", answering: false)
+                island.showForSnapshot(status(), fresh: chat.conversations.first?.messages.last?.id)
+            }),
+            // Seen already: the island starts empty, with the latest conversation one click away.
+            ("open-recent", true, {
                 chat.showSample(sample(.answered), current: "s1", answering: false)
                 island.showForSnapshot(status())
             }),
@@ -223,12 +229,18 @@ enum IslandSnapshots {
         """)
         let search = StepLabel.text(tool: "search_files", arguments: #"{"query":"Stadtwerke"}"#)
         let read = StepLabel.text(tool: "read", arguments: #"{"path":"/Users/me/Downloads/Brief-Stadtwerke.pdf"}"#)
-        answer.steps = [ChatStep(id: "1", label: search, done: true), ChatStep(id: "2", label: read, done: true)]
+        let now = Date()
+        answer.steps = [ChatStep(id: "1", label: search, done: true, started: now.addingTimeInterval(-40), ended: now.addingTimeInterval(-39.6)),
+                        ChatStep(id: "2", label: read, done: true, started: now.addingTimeInterval(-39), ended: now.addingTimeInterval(-31))]
         switch kind {
-        case .answered: break
+        case .answered:
+            // What she said before reading: the chat shows it, the island only what follows.
+            answer.lead = "Ich schaue in deine Downloads. ".count
+            answer.text = "Ich schaue in deine Downloads.\n\n" + answer.text
         case .working:
             answer.text = ""
             answer.steps[1].done = false
+            answer.steps[1].ended = nil
         case .thinking:
             answer.text = ""
             answer.thinking = "Der Brief nennt zwei Daten: die Fälligkeit der Nachzahlung und die Frist für Einwände. "

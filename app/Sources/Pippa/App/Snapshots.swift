@@ -275,10 +275,13 @@ enum Snapshots {
     }
 
     /// A sample step labelled the way Pippa labels that tool, in the language the snapshot runs in.
+    /// `seconds`: how long it took (or, still running, has taken so far).
     private static func step(_ id: String, _ tool: String, _ arguments: [String: String] = [:], done: Bool = true,
-                             failed: Bool = false) -> ChatStep {
+                             failed: Bool = false, seconds: TimeInterval? = nil) -> ChatStep {
         let json = (try? JSONSerialization.data(withJSONObject: arguments)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        return ChatStep(id: id, label: StepLabel.text(tool: tool, arguments: json), done: done, failed: failed)
+        let now = Date()
+        return ChatStep(id: id, label: StepLabel.text(tool: tool, arguments: json), done: done, failed: failed,
+                        started: seconds.map { now.addingTimeInterval(-$0) }, ended: seconds != nil && done ? now : nil)
     }
 
     private static func sampleConversations(answering: Bool = false, failed: Bool = false, starting: Bool = false,
@@ -296,8 +299,8 @@ enum Snapshots {
         """)
         answer.steps = [
             step("1", "search_files", ["query": "ETF"]),
-            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"]),
-            step("3", "read", ["path": "/Users/me/Documents/ETF-Ideen.md"]),
+            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"], seconds: 4),
+            step("3", "read", ["path": "/Users/me/Documents/ETF-Ideen.md"], seconds: 2),
         ]
         let sample = CreatedItem(integration: .reminders, identifier: "snapshot", modified: nil)
         answer.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Sparplan prüfen · Fr., 7. Nov.", created: sample)]
@@ -306,7 +309,7 @@ enum Snapshots {
             answer.text = ""
             answer.receipts = []
             answer.steps = [step("1", "search_files", ["query": "ETF"]),
-                            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"], done: false)]
+                            step("2", "read", ["path": "/Users/me/Documents/ETF-Portfolio.md"], done: false, seconds: 6)]
             answer.thinking = "Die Person fragt nach der aktuellen ETF-Übersicht. Es gibt drei Dateien; ETF-Portfolio.md ist die neueste (updated 2026-11-01). Ich lese sie und nenne die Aufteilung." 
         }
         if writing {

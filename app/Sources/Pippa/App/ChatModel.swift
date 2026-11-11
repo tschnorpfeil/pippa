@@ -9,6 +9,15 @@ struct ChatStep: Codable, Identifiable, Equatable {
     var label: String
     var done = false
     var failed = false
+    /// When the step started and ended; older conversations have neither.
+    var started: Date?
+    var ended: Date?
+
+    /// How long the step took, once it ended.
+    var duration: TimeInterval? {
+        guard let started, let ended else { return nil }
+        return max(0, ended.timeIntervalSince(started))
+    }
 }
 
 struct ChatMessage: Codable, Identifiable, Equatable {
@@ -31,10 +40,23 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     /// How full the conversation's context was afterwards.
     var context: ContextUsage?
     var error: String?
+    /// Characters of `text` written before the last tool call: what she said on the way ("I'll read chapter 6 now").
+    /// The island shows only what follows, the result; the chat shows all of it.
+    var lead: Int?
     /// How long the answer took, for "Worked for 18 s".
     var duration: TimeInterval?
     /// The person stopped the answer.
     var stopped: Bool?
+}
+
+extension ChatMessage {
+    /// What she found, without what she said on the way there: the text after the last tool call, or all of it when
+    /// nothing came after.
+    var result: String {
+        guard let lead, lead > 0, lead < text.count else { return text }
+        let after = String(text.dropFirst(lead)).trimmingCharacters(in: .whitespacesAndNewlines)
+        return after.isEmpty ? text : after
+    }
 }
 
 struct Conversation: Codable, Identifiable, Equatable {
@@ -220,7 +242,10 @@ final class ChatModel: ObservableObject {
                 message.unsupportedDates = dates.isEmpty ? nil : dates
                 let checked = evidence.supported(in: message.text)
                 message.checkedDates = checked.isEmpty ? nil : checked
-                for index in message.steps.indices where !message.steps[index].done { message.steps[index].done = true }
+                for index in message.steps.indices where !message.steps[index].done {
+                    message.steps[index].done = true
+                    message.steps[index].ended = Date()
+                }
                 message.duration = Date().timeIntervalSince(started)
                 if stopped {
                     message.stopped = true
@@ -390,7 +415,10 @@ final class ChatModel: ObservableObject {
         case .thinkingDelta(let delta):
             updateLast(in: id) { $0.thinking = ($0.thinking ?? "") + delta }
         case .toolStarted(let call, let name, let arguments):
-            updateLast(in: id) { $0.steps.append(ChatStep(id: call, label: StepLabel.text(tool: name, arguments: arguments))) }
+            updateLast(in: id) {
+                $0.steps.append(ChatStep(id: call, label: StepLabel.text(tool: name, arguments: arguments), started: Date()))
+                $0.lead = $0.text.count
+            }
             if let source = SourceLog.source(tool: name, arguments: arguments) { pendingSources[call] = source }
         case .toolEnded(let call, let name, let isError, let result, let outcome, _):
             let failed = isError || (outcome.map { $0 != .done } ?? false)
@@ -398,6 +426,7 @@ final class ChatModel: ObservableObject {
                 guard let index = message.steps.firstIndex(where: { $0.id == call }) else { return }
                 message.steps[index].done = true
                 message.steps[index].failed = failed
+                message.steps[index].ended = Date()
             }
             // A source counts once it was read; the same file read twice shows once, with its latest pages.
             let pendingSource = pendingSources.removeValue(forKey: call)

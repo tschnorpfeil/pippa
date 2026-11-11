@@ -31,6 +31,10 @@ final class Island: ObservableObject {
     /// "Your answer is ready" or "That didn't work", for a few seconds after an answer.
     private var flash: ChatModel.Unseen?
     private var flashClear: Task<Void, Never>?
+    /// The finished answer the open island shows: one the person has not seen yet. It goes once the island closes
+    /// after showing it or the chat window comes to the front, so the island never keeps an old answer.
+    @Published private(set) var freshAnswer: UUID?
+    private var answeringID: String?
     /// The island opened by itself for a question and closes again once it is answered.
     private var openedForQuestion = false
     private var presenting = false
@@ -48,9 +52,10 @@ final class Island: ObservableObject {
     func start() { apply() }
 
     /// Snapshots only (`IslandSnapshots`).
-    func showForSnapshot(_ status: IslandStatus, dropMode: Bool = false) {
+    func showForSnapshot(_ status: IslandStatus, dropMode: Bool = false, fresh: UUID? = nil) {
         self.status = status
         self.dropMode = dropMode
+        freshAnswer = fresh
     }
 
     private func apply() {
@@ -85,6 +90,8 @@ final class Island: ObservableObject {
             dropMode = false
             openedForQuestion = false
             wantsFocus = false
+            // Seen: the next time the island opens it starts fresh.
+            if !ChatModel.shared.isAnswering { freshAnswer = nil }
             statusButton?.highlight(false)
         }
         presenter.onIdle = { [weak self] in self?.refresh() }
@@ -103,6 +110,14 @@ final class Island: ObservableObject {
         watches.append(changes.receive(on: RunLoop.main).sink { [weak self] in self?.refresh() })
         // Not deduplicated: `unseen` stays `.answer` until the chat is opened, and every later answer flashes too.
         watches.append(chat.$unseen.sink { [weak self] unseen in self?.showFlash(unseen) })
+        // An answer that ends while the chat window is not in front stays in the island until it was seen there.
+        watches.append(chat.$answeringID.sink { [weak self] id in
+            guard let self else { return }
+            let ended = answeringID
+            answeringID = id
+            guard id == nil, let ended else { return }
+            DispatchQueue.main.async { self.answerEnded(in: ended) }
+        })
         watches.append(Approvals.shared.$questions.map(\.isEmpty).removeDuplicates().sink { [weak self] empty in
             guard let self, empty, openedForQuestion else { return }
             DispatchQueue.main.async { self.close() }
@@ -158,8 +173,16 @@ final class Island: ObservableObject {
         }
     }
 
+    private func answerEnded(in conversation: String) {
+        let message = ChatModel.shared.conversations.first { $0.id == conversation }?.messages.last { $0.role == .assistant }
+        guard let message, isOpen || !ChatWindow.shared.isKey else { return }
+        freshAnswer = message.id
+    }
+
     private func showFlash(_ unseen: ChatModel.Unseen?) {
         flashClear?.cancel()
+        // The chat window came to the front: the answer was seen there.
+        if unseen == nil, ChatWindow.shared.isKey { freshAnswer = nil }
         flash = unseen
         guard unseen != nil else { return }
         flashClear = Task { [weak self] in
@@ -278,6 +301,12 @@ final class Island: ObservableObject {
     func openChat() {
         close()
         ChatWindow.shared.show()
+    }
+
+    /// The earlier conversation under the empty field: the chat opens on it.
+    func openConversation(_ id: String) {
+        ChatModel.shared.select(id)
+        openChat()
     }
 
     /// Files dropped on the island go with the next quick question.
