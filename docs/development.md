@@ -33,7 +33,7 @@ Pippa.app (Swift, SwiftUI)
 |---|---|
 | Pi | `read` (documents come back as text in the same call), `bash`, `write` |
 | pi-web-access (`runtime/pippa-web`) | `web_search`, `fetch_content` |
-| `runtime/pippa-tools/pippa-tools.ts` | `search_files` (Spotlight), `list_folder`, `move_files` (`to: "trash"` moves to the Trash) |
+| `runtime/pippa-tools/pippa-tools.ts` | `search_files` (Spotlight), `list_folder`, `move_files` (`to: "trash"` moves to the Trash), `ask` (one question to the person) |
 | `runtime/pippa-tools/pippa-memory.ts` | `remember` (facts in `memory.md`, at most 30 lines) |
 | App MCP server (`mcp__pippa__*`) | `calendar_read`, `reminders_read`, `mail_search`, `mail_read`, `photos_search`, `front_read`, `read_document`, `calendar_add`, `reminder_add`, `mail_draft`, `prepare_files` |
 
@@ -54,7 +54,10 @@ in-process MCP server's own read and write notes (`PippaMCPService`), so no `str
 **Pippa's extensions (`runtime/pippa-tools`).**
 
 - `pippa-tools.ts`: `search_files` (`search.mjs`; content, file name and folder search in the home folder and iCloud
-  Drive, newest first; an empty result never proves absence), `list_folder` (`list-folder.ts`), `move_files`
+  Drive, newest first; an empty result never proves absence and says to search once more with other words), `ask`
+  (`ask.ts`; one question with 2-4 choices and "Something else…" for the person's own words, shown through Pi's
+  `select`/`input` as a card in the chat and on Pippa Island; a closed card or a run without the app tells the model to
+  go on with the most likely reading and name it; `--ask` declines it, so it ends as `needs_input`), `list_folder` (`list-folder.ts`), `move_files`
   (`files.ts`; never overwrites; the Trash through `/usr/bin/trash`). It also shortens the parameter texts of Pi's
   built-in tools and caps each result to the context window (`budget.ts`), and wraps `bash` in a macOS sandbox
   (`shell.ts`). Without Apple's developer tools (`xcode-select -p`), `/usr/bin/python3`, `git`, `make` and the other

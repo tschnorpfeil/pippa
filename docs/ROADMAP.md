@@ -10,7 +10,7 @@ conversation sidebar, a first-run card, and settings for the AI (on this Mac, Ch
 shortcut, login item, permissions and updates. Dropped photos and PDFs become one PDF with a button, without the model.
 
 Pi does the work through a fixed list of tools: Pi's `read`, `bash` and `write`; the web; Pippa's file tools
-(`search_files`, `list_folder`, `move_files`, `remember`); and the app's MCP server for Calendar, Reminders, Mail,
+(`search_files`, `list_folder`, `move_files`, `remember`, `ask`); and the app's MCP server for Calendar, Reminders, Mail,
 Photos, the app in front, documents and PDF building. Keyword routers, the letter and Excel lines, the tidy preview, the
 deadlines view, the morning overview, charts, PDF form filling, saved skills, AppleScript, dictation and the second model
 engine are gone.

@@ -15,6 +15,8 @@
  * - `read`: Pi's own read, with documents (PDF, Word, …) returned as text in the same call (document.ts). A document
  *   too long for one result comes back as notes on all of it, taken part by part by the model (digest.ts; notes kept
  *   in PIPPA_DIGEST_DIR, set by the app).
+ * - `ask`: one question to the person with 2-4 choices or their own words, as a card in the chat and on Pippa Island
+ *   (ask.ts).
  * - `bash`: Pi's own shell tool, run inside a macOS sandbox (shell.ts): writing outside Pippa's working folder and the
  *   internet need the person's OK; app control stays blocked. Pi's direct RPC shell is refused (it would bypass it).
  *
@@ -32,6 +34,7 @@ import { search } from "./search.mjs";
 import { shellTool } from "./shell.ts";
 import { listFolder } from "./list-folder.ts";
 import { readTool } from "./document.ts";
+import { askTool } from "./ask.ts";
 
 type ExtensionAPI = any;
 
@@ -58,6 +61,8 @@ export default function (pi: ExtensionAPI) {
 		const content = capResult(String(event?.toolName ?? ""), event?.content, resultLimit(ctx?.model?.contextWindow), event?.input);
 		return content ? { content } : undefined;
 	});
+
+	pi.registerTool(askTool());
 
 	pi.registerTool({
 		name: "search_files",

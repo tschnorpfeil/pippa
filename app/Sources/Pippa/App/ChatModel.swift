@@ -606,6 +606,7 @@ enum StepLabel {
         case "web_search": return T("Searching the web", table: "App")
         case "fetch_content": return T("Reading a web page", table: "App")
         case "remember": return T("Remembering", table: "App")
+        case "ask": return T("Asking you", table: "App")
         case "calendar_read": return T("Reading Calendar", table: "App")
         case "calendar_add": return T("Adding to Calendar", table: "App")
         case "reminders_read": return T("Reading Reminders", table: "App")

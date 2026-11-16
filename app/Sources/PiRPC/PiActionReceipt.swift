@@ -47,7 +47,7 @@ public struct PiActionRecord: Sendable, Equatable {
 /// Collects the events of one answer (one `prompt` up to `agent_settled`, including late-delivered messages).
 public struct PiTurnReceipt: Sendable {
     /// Tools that only read: no receipt line.
-    public static let readOnlyTools: Set<String> = ["read", "grep", "find", "ls", "list_folder", "search_files"]
+    public static let readOnlyTools: Set<String> = ["read", "grep", "find", "ls", "list_folder", "search_files", "ask"]
     /// Pippa's own housekeeping without a receipt line. `remember` (pippa-memory.ts) gets one: "Gemerkt: …" is how the
     /// person sees what Pippa keeps about them, from the call's own arguments.
     public static let quietTools: Set<String> = []
