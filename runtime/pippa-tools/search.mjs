@@ -168,7 +168,7 @@ export async function search(query, year, home = process.env.CFFIXED_USER_HOME |
   ...(unavailable.length ? { unavailable: unavailable.slice(0, 5) } : {}),
   ...(error ? { error: error.killed ? 'The search stopped after 30 seconds; the matches so far are listed.' : 'The search did not finish; the matches so far are listed.' } : {}),
   note: 'Searched content, file names and folder names in the home folder and iCloud Drive. Cloud files not downloaded, files Spotlight has not indexed and scans without recognized text can be missing.',
-  ...(!found.length && !error ? { next: 'Nothing matched these words, which does not show there is no such file. Search once more with fewer or other words (another word for it, or the other language: Rechnung/invoice) before you say you found nothing.' } : {}),
+  ...(!found.length && !error ? { next: 'Nothing matched these words, which does not show there is no such file. If this was your first search for it, search once more with one other word (a synonym, or the other language: Rechnung/invoice). If not, stop searching: tell the person you found nothing and which words you tried.' } : {}),
  }), files.length, maxChars);
 }
 
