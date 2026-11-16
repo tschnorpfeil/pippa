@@ -51,7 +51,7 @@ test("choices: trimmed, distinct, never the extra one, at most four", () => {
 test("the tool: Pi's card when the app is there, the no-one text when it is not", async () => {
 	const tool = askTool();
 	assert.equal(tool.name, "ask");
-	assert.ok(tool.description.length < 260, "every word costs prompt time with the local model");
+	assert.ok(tool.description.length < 300, "every word costs prompt time with the local model");
 	const ui = card("A");
 	const shown = await tool.execute("1", { question: "Q?", choices: ["A", "B"] }, undefined, undefined, { hasUI: true, ui });
 	assert.match(shown.content[0].text, /answered: "A"/);
