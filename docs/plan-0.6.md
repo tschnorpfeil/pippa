@@ -43,7 +43,7 @@ utility. Real questions and a baseline comparison remain necessary before claimi
 
 Use the commands in [development.md](development.md) and fresh evidence for each changed behavior. Keep mocked,
 fixture and live acceptance results separate. The signed app's real permissions and source opening need live proof.
-No new production tool or card ships before the existing acceptance tasks pass.
+No new production tool or card ships before the existing acceptance tasks pass. One exception, by the owner's decision on 2026-11-16: `ask` (one question to the person, with choices), measured not to ask on clear tasks with Ornith 1.5 9B; the acceptance run still has to pass with it.
 
 Current memory result: the bounded diagnostic and fixture checks are implemented. A direct development-binary run
 reported `notDetermined` for both sources without prompting. The signed app launched through LaunchServices used
