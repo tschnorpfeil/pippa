@@ -213,3 +213,9 @@
 "%@ · merging the notes" = "%@ · fasse die Notizen zusammen";
 "Notes on %@" = "Notizen zu %@";
 "Long document, read in parts" = "Langes Dokument, in Teilen gelesen";
+
+/* Pippa's browser panel (WKBrowserSession.swift, ChatView.swift) */
+"Browsing a web page" = "Webseite im Browser";
+"Browser" = "Browser";
+"Show or hide Pippa’s browser" = "Pippas Browser ein- oder ausblenden";
+"Please sign in or finish the check here. Pippa never sees your password. Click Done, then tell Pippa to continue." = "Bitte melde dich hier an oder schließ die Prüfung ab. Pippa sieht dein Passwort nie. Klick auf „Fertig“ und sag Pippa dann, dass sie weitermachen soll.";

@@ -28,6 +28,37 @@ import PiRPC
           && PiTurnReceipt.classify(tool: prepare, isError: false, result: result("{\"done\":true,\"path\":\"/fixture/result.pdf\"}")) == .done
           && PiTurnReceipt.classify(tool: prepare, isError: false, result: result("Connection closed")) == .unclear
           && PiTurnReceipt.classify(tool: prepare, isError: true, result: result("{\"done\":false,\"status\":\"not_dispatched\",\"dispatched\":false}")) == .blocked)
+    let browse = "mcp__pippa__browse"
+    check("Browser steps need native confirmation; refusals before any click are blocked, a handoff after a click stays unclear",
+          PiTurnReceipt.pippaWriters.contains("browse")
+          && PiTurnReceipt.classify(tool: browse, isError: false, result: result("{\"done\":true,\"data\":{}}")) == .done
+          && ["blocked", "stale_ref", "handoff_required", "cancelled", "invalid_arguments", "unavailable"].allSatisfy { status in
+              PiTurnReceipt.classify(tool: browse, isError: status != "handoff_required" && status != "cancelled",
+                                     result: result("{\"done\":false,\"dispatched\":false,\"status\":\"\(status)\"}")) == .blocked
+          }
+          && PiTurnReceipt.classify(tool: browse, isError: false,
+                                    result: result("{\"done\":false,\"dispatched\":true,\"status\":\"handoff_required\"}")) == .unclear
+          && PiTurnReceipt.classify(tool: browse, isError: false, result: result("Page text without JSON")) == .unclear)
+    var browsed = PiTurnReceipt()
+    browsed.observe(.toolStarted(id: "open", name: browse, arguments: "{\"action\":\"open\",\"url\":\"https://example.org/a\"}"))
+    browsed.observe(.toolEnded(id: "open", name: browse, isError: false, result: "{\"done\":true}"))
+    browsed.observe(.toolStarted(id: "refused", name: browse, arguments: "{\"action\":\"open\",\"url\":\"https://example.net/\"}"))
+    browsed.observe(.toolEnded(id: "refused", name: browse, isError: false,
+                               result: "{\"done\":false,\"dispatched\":false,\"status\":\"cancelled\"}"))
+    browsed.observe(.toolStarted(id: "click", name: browse, arguments: "{\"action\":\"click\",\"ref\":\"@e1\"}"))
+    browsed.observe(.toolEnded(id: "click", name: browse, isError: false, result: "{\"done\":true}"))
+    check("Browser receipts are write lines in call order; only confirmed opens count as pages read",
+          browsed.records.map(\.outcome) == [.done, .blocked, .done] && browsed.records.allSatisfy { $0.action == "write" && $0.name == "browse" }
+          && browsed.webPagesRead == ["https://example.org/a"])
+    var redirected = PiTurnReceipt()
+    redirected.observe(.toolStarted(id: "open", name: browse, arguments: "{\"action\":\"open\",\"url\":\"https://a.example/start\"}"))
+    redirected.observe(.toolEnded(id: "open", name: browse, isError: false,
+                                  result: "{\"done\":true,\"data\":{\"url\":\"https://b.example/landed\"}}"))
+    redirected.observe(.toolStarted(id: "click", name: browse, arguments: "{\"action\":\"click\",\"ref\":\"@e1\"}"))
+    redirected.observe(.toolEnded(id: "click", name: browse, isError: false,
+                                  result: "{\"done\":true,\"data\":{\"url\":\"https://c.example/next\"}}"))
+    check("Browser receipts record the landed page URL from the tool result instead of the requested URL",
+          redirected.webPagesRead == ["https://b.example/landed", "https://c.example/next"])
     check("Native refusals and duplicate blocks remain known pre-dispatch outcomes",
           ["invalid_arguments", "not_dispatched", "busy", "cancelled"].allSatisfy { status in
               PiTurnReceipt.classify(tool: native, isError: status != "busy",

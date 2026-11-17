@@ -25,6 +25,10 @@ export const TOOLS = ["calendar_read", "reminders_read", "mail_search", "mail_re
  * mail drafts remain unsent, and prepared PDFs preserve their original files. */
 export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft", "prepare_files"];
 
+/** Pippa's browser panel (app/Sources/PippaCore/MCP/PippaMCPBrowser.swift): goes online, so the app asks the person
+ * before it opens a new site and before every click, typed text or choice. Logins stay with the person. */
+export const BROWSER_TOOLS = ["browse"];
+
 /** Entry as in `mcp.json`, or `undefined` if the environment does not fit (then no server, no error). */
 export function serverConfig(env: Record<string, string | undefined>) {
 	const url = env.PIPPA_MCP_URL ?? "";
@@ -42,7 +46,7 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		url: parsed.toString(),
 		headers: { Authorization: `Bearer ${token}` },
 		exposure,
-		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and unsent Mail drafts; prepare verified PDFs locally.",
+		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and unsent Mail drafts; prepare verified PDFs locally; browse web pages in Pippa's panel with the person's OK.",
 		// Text recognition on many pages takes a while: 5 minutes instead of 1. The app's server keeps the connection
 		// open accordingly (PippaMCPServer).
 		timeout: 300,
@@ -50,7 +54,7 @@ export function serverConfig(env: Record<string, string | undefined>) {
 }
 
 export const READINESS_COMMAND = "pippa-native-ready";
-export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
+export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS, ...BROWSER_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
 
 /** Background discovery may still be connecting when RPC starts accepting commands. No model call or mutation. */
 export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<typeof serverConfig>,

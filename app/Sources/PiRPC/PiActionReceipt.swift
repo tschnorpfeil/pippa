@@ -77,7 +77,18 @@ public struct PiTurnReceipt: Sendable {
             ended[id] = state
             fileAccessFailures[id] = name == "list_folder" && started[id]?.name == name && isError && state == .failed ? fileAccessFailure : nil
             guard state == .done else { break }
-            if name == "fetch_content" {
+            if name == "mcp__pippa__browse" {
+                // Record the landed page URL from the tool's own output envelope when present, so redirects are
+                // attributed to the destination rather than the initially requested URL.
+                let payload = (try? JSONSerialization.jsonObject(with: Data(result.utf8))) as? [String: Any]
+                let landedURL = (payload?["data"] as? [String: Any])?["url"] as? String
+                let args = (try? JSONSerialization.jsonObject(with: Data((started[id]?.arguments ?? "").utf8))) as? [String: Any]
+                if let landedURL, !landedURL.isEmpty {
+                    if !webPagesRead.contains(landedURL) { webPagesRead.append(landedURL) }
+                } else if args?["action"] as? String == "open", let url = args?["url"] as? String {
+                    if !webPagesRead.contains(url) { webPagesRead.append(url) }
+                }
+            } else if name == "fetch_content" {
                 let args = (try? JSONSerialization.jsonObject(with: Data((started[id]?.arguments ?? "").utf8))) as? [String: Any]
                 webPagesRead += (args?["urls"] as? [String]) ?? (args?["url"] as? String).map { [$0] } ?? []
             } else if name == "web_search" {
@@ -113,12 +124,15 @@ public struct PiTurnReceipt: Sendable {
         }
     }
 
-    /// Pippa's native MCP tools that create a local result or change something on the Mac.
-    public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft", "prepare_files"]
+    /// Pippa's native MCP tools that create a local result or change something on the Mac, or on a web page in
+    /// Pippa's browser panel (`browse`: click, fill and select).
+    public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft", "prepare_files", "browse"]
 
     // Emitted before an effect by PippaMCPWrite.swift; unknown future statuses stay unconfirmed.
     private static let nativeNoEffect: Set<String> = ["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
-        "not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created"]
+        "not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
+        // `browse` (PippaMCPBrowser.swift): refused address, stale ref, or the person's login step before any click.
+        "blocked", "stale_ref", "handoff_required"]
 
     /// Interpret the complete tool envelope, not display text or answer prose. Called before the RPC preview is cut.
     public static func classify(tool: String, isError: Bool, result: [String: Any]?) -> PiActionRecord.Outcome {

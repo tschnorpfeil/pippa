@@ -9,6 +9,8 @@ struct ChatView: View {
     @ObservedObject var setup: SetupModel
     private let searchState = State(initialValue: "")
     @ObservedObject private var dropFeedback = DropFeedback.chat
+    /// Pippa's browser panel, a drawer on the right while open (closed by default and in snapshots).
+    @ObservedObject private var browser = WKBrowserSession.shared
     /// Keep the conversation spacious by default; remember an explicit choice to show the inspector.
     private let panelState: State<Bool>
 
@@ -24,15 +26,24 @@ struct ChatView: View {
             Sidebar(chat: chat, search: searchState.projectedValue)
                 .navigationSplitViewColumnWidth(min: 200, ideal: Layout.sidebarIdeal, max: 340)
         } detail: {
-            Group {
-                if let conversation = chat.current, !conversation.messages.isEmpty {
-                    Transcript(chat: chat, setup: setup, conversation: conversation)
-                } else {
-                    Welcome(chat: chat, setup: setup)
+            HStack(spacing: 0) {
+                Group {
+                    if let conversation = chat.current, !conversation.messages.isEmpty {
+                        Transcript(chat: chat, setup: setup, conversation: conversation)
+                    } else {
+                        Welcome(chat: chat, setup: setup)
+                    }
+                }
+                .background(Color(nsColor: Theme.chatTint))
+                .overlay { if dropFeedback.targeted { DropOverlay() } }
+                if browser.isOpen {
+                    Divider()
+                    BrowserPanelView(browser: browser)
+                        .frame(minWidth: 360, idealWidth: 480, maxWidth: 720)
+                        .transition(.move(edge: .trailing))
                 }
             }
-            .background(Color(nsColor: Theme.chatTint))
-            .overlay { if dropFeedback.targeted { DropOverlay() } }
+            .animation(Theme.quick, value: browser.isOpen)
             // The conversation's title only: which AI answers is said once, in the composer.
             .navigationTitle(chat.current?.title ?? "Pippa")
             .inspector(isPresented: panelState.projectedValue) {
@@ -41,6 +52,12 @@ struct ChatView: View {
             }
             .onChange(of: panelState.wrappedValue) { _, open in UserDefaults.standard.set(open, forKey: "contextPanel") }
             .toolbar {
+                ToolbarItem {
+                    Button { browser.isOpen.toggle() } label: {
+                        Label { Text(T("Browser", table: "App")) } icon: { Image(systemName: "globe") }
+                    }
+                    .help(T("Show or hide Pippa’s browser", table: "App"))
+                }
                 ToolbarItem {
                     Button { panelState.wrappedValue.toggle() } label: {
                         Label { Text(T("Context", table: "App")) } icon: {

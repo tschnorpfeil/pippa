@@ -56,6 +56,28 @@ extension PippaMCPTools {
         return PippaMCPReadNote(tool: name, read: true, line: line, mail: mail, card: outcome.card, permissionRepair: outcome.permissionRepair)
     }
 
+    /// `browse`: what happened in Pippa's browser panel, from the call and Pippa's own result. `detail` is the host or
+    /// the element's name, never typed text.
+    static func browseNote(action: String, detail: String, result: PippaMCPToolResult) -> PippaMCPReadNote {
+        let json = (try? JSONSerialization.jsonObject(with: Data(result.text.utf8))) as? [String: Any] ?? [:]
+        let done = !result.isError && (json["done"] as? Bool) == true
+        let line: String
+        if json["status"] as? String == "handoff_required" {
+            line = L("Waiting for you in the browser: %@", table: "Tools", detail)
+        } else if !done {
+            line = L("Not done in the browser", table: "Tools")
+        } else {
+            line = switch action {
+            case "click": L("Clicked in the browser: “%@”", table: "Tools", detail)
+            case "fill": L("Typed in the browser: “%@”", table: "Tools", detail)
+            case "select": L("Chose in the browser: “%@”", table: "Tools", detail)
+            case "close": L("Closed the browser", table: "Tools")
+            default: L("Viewed in the browser: %@", table: "Tools", detail)
+            }
+        }
+        return PippaMCPReadNote(tool: PippaMCPBrowserTool.name, read: done, line: line)
+    }
+
     /// The chip's app name in a `front_read` result (beside the blocked answer, or under data); the app's own text never.
     static func frontAppName(_ outcome: PippaMCPToolResult) -> String {
         let json = (try? JSONSerialization.jsonObject(with: Data(outcome.text.utf8))) as? [String: Any] ?? [:]

@@ -35,6 +35,18 @@ public struct PippaMCPHost: Sendable {
     public var mailFiles: URL = MailFiling.inbox
     /// Reads that app (Safari, Chrome, the front document); Mail and Excel go through their own readers.
     public var front: any FrontAppReading = SystemFrontApp()
+    /// Pippa's browser panel for `browse` (PippaMCPBrowser.swift). `nil`: the tool says it is not available.
+    public var browser: (any BrowserOperating)?
+    /// The person's OK before `browse` opens a new host or clicks, types or chooses. `nil`: nothing happens.
+    public var confirmBrowser: (@Sendable (_ action: String, _ title: String, _ message: String) async -> Bool)?
+    /// A login, 2FA or CAPTCHA page is the person's to finish: the app reveals its browser panel.
+    public var onBrowserHandoff: (@Sendable (_ reason: String, _ url: String?) -> Void)?
+    /// Hosts the person already allowed in this answer (shared by every copy of this host).
+    public var browserApprovals = PippaMCPBrowserApprovals()
+    /// Resolves whether a host points to a private/local address (defaults to `PippaMCPBrowserTool.resolvesToPrivateAddress`).
+    public var resolveHostIsPrivate: @Sendable (_ host: String) async -> Bool = { host in
+        await PippaMCPBrowserTool.resolvesToPrivateAddress(host)
+    }
 
     public init(integrations: any AppIntegrations, sheets: any SheetReading, hostData: any HostDataReading, askForAccess: Bool = true,
                 now: @escaping @Sendable () -> Date = { Date() }, calendar: Calendar = .autoupdatingCurrent,
@@ -62,6 +74,7 @@ public struct PippaMCPHost: Sendable {
                                 now: { Date() })
         host.writer = demo
         host.front = DemoFrontApp()
+        host.browser = DemoBrowserOperator()
         return host
     }
 }

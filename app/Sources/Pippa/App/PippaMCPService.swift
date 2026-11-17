@@ -104,7 +104,44 @@ enum PippaMCPService {
         fresh.requireActiveWriteTurn = true
         fresh.askForAccess = asksForAccess
         if asksForAccess { fresh.explainAccess = { subject, sentence in await explain(subject, sentence) } }
+        // Pippa's browser panel; PIPPA_DEMO=1 keeps the demo host's invented pages.
+        if fresh.browser == nil, ProcessInfo.processInfo.environment["PIPPA_DEMO"] != "1" {
+            let session = WKBrowserSession.shared
+            let approvals = fresh.browserApprovals
+            let turns = fresh.turns
+            session.authorizeNavigation = { url in
+                guard let host = PippaMCPBrowserTool.normalizedHost(url) else { return false }
+                // Once Pippa handed off login/2FA/CAPTCHA to the human outside an active turn, allow their clicks.
+                if turns.active == nil, session.handoffMessage != nil { return true }
+                guard let turn = turns.active, !turn.writes.snapshot.cancelled else { return false }
+                if approvals.approved(host, turn: turn.id) { return true }
+                let prompt = PippaMCPBrowserTool.openHostPrompt(url)
+                let ok = await confirmBrowser(title: prompt.title, message: prompt.message, asksForAccess: asksForAccess)
+                guard ok, !turn.writes.snapshot.cancelled else { return false }
+                approvals.approve(host, turn: turn.id)
+                return true
+            }
+            fresh.browser = session
+            fresh.onBrowserHandoff = { _, _ in
+                Task { @MainActor in
+                    WKBrowserSession.shared.showHandoff(T("Please sign in or finish the check here. Pippa never sees your password. Click Done, then tell Pippa to continue.", table: "App"))
+                }
+            }
+        }
+        fresh.confirmBrowser = { _, title, message in await confirmBrowser(title: title, message: message, asksForAccess: asksForAccess) }
         return fresh
+    }
+
+    /// The person's OK for `browse`, in Pippa's own approval. `Pippa --ask` never shows it: the question counts as
+    /// declined (`PiSession.Interaction.headless`), so the run reports needs_input.
+    static func confirmBrowser(title: String, message: String, asksForAccess: Bool) async -> Bool {
+        let request = PiUIRequest(id: UUID().uuidString, method: "confirm", title: title, message: message,
+                                  options: [], placeholder: nil, prefill: nil, timeout: nil)
+        guard asksForAccess else {
+            if case .headless(let declined) = PiSession.shared.interaction { declined(request) }
+            return false
+        }
+        return await Confirmations.ask(request) == .confirmed(true)
     }
 
     /// Undo from the receipt row: removes the event or reminder only if it is unchanged since Pippa added it.

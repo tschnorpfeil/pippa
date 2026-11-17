@@ -67,6 +67,7 @@ await focused("PIPPA_SETUP_CHECKS", "Installer") { await runSetupChecks() }
 // Only Pippa's MCP server (stand-in readers, no real Mail/Calendar/Excel).
 await focused("PIPPA_MCP_CHECKS", "MCP") {
     await runMCPChecks()
+    await runMCPBrowserChecks()
     await runNativeReminderChecks()
 }
 
@@ -442,6 +443,7 @@ await runResultCardChecks()
 runIslandChecks()
 await runSetupChecks()
 await runMCPChecks()
+await runMCPBrowserChecks()
 await runNativeReminderChecks()
 await runPermissionRepairChecks()
 await runDownloadHangChecks()

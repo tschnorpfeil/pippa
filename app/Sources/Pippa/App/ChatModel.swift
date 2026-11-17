@@ -616,6 +616,7 @@ enum StepLabel {
         case "photos_search": return T("Searching Photos", table: "App")
         case "front_read": return T("Reading the app in front", table: "App")
         case "prepare_files": return T("Preparing files", table: "App")
+        case "browse": return T("Browsing a web page", table: "App")
         default: return name
         }
     }
