@@ -53,8 +53,10 @@ public struct FrontContent: Sendable, Equatable {
     public var file: URL?
     /// The text; empty if the app did not hand it out (Chrome without JavaScript from Apple Events, a scanned PDF).
     public var text: String
-    public init(kind: Kind, title: String, url: String? = nil, file: URL? = nil, text: String) {
-        self.kind = kind; self.title = title; self.url = url; self.file = file; self.text = text
+    /// `true` when the reader stopped early (node, depth, character or time limit).
+    public var clipped: Bool
+    public init(kind: Kind, title: String, url: String? = nil, file: URL? = nil, text: String, clipped: Bool = false) {
+        self.kind = kind; self.title = title; self.url = url; self.file = file; self.text = text; self.clipped = clipped
     }
 }
 
@@ -64,6 +66,12 @@ public protocol FrontAppReading: Sendable {
     func frontAccess(_ app: FrontApp, ask: Bool) async -> IntegrationAccess
     /// `nil`: the app shows nothing Pippa can read (no window, not scriptable).
     func readFront(_ app: FrontApp) async throws -> FrontContent?
+    /// The second way in, when Apple Events bring nothing (FrontAppAccessibility.swift). `nil`: none.
+    var accessibility: (any AccessibilityFrontReading)? { get }
+}
+
+public extension FrontAppReading {
+    var accessibility: (any AccessibilityFrontReading)? { nil }
 }
 
 /// The chip of the running answer: set by the app for one answer (PiRPCChat+Shown.swift), read by `front_read`.
@@ -82,11 +90,20 @@ public final class FrontAppStage: @unchecked Sendable {
 // MARK: - Real
 
 /// Safari, Chrome and every app with a front document (TextEdit, Preview, Pages …), via Apple Events in Pippa's process.
+/// Other apps: the window's visible text via Accessibility (`accessibility`), only when Apple Events bring nothing.
 public struct SystemFrontApp: FrontAppReading {
-    public init() {}
+    public let accessibility: (any AccessibilityFrontReading)?
+    public init(accessibility: (any AccessibilityFrontReading)? = SystemAccessibilityFrontReader()) {
+        self.accessibility = accessibility
+    }
 
+    /// Apps without a scripting dictionary (Electron apps and the like) are not asked for Automation at all: the
+    /// prompt would bring nothing, so `.unavailable` sends `front_read` straight to Accessibility.
     public func frontAccess(_ app: FrontApp, ask: Bool) async -> IntegrationAccess {
-        await AppleEvents.permission(bundle: app.bundleID, appName: app.name, ask: ask)
+        guard FrontAppScript.isScriptable(bundleID: app.bundleID) else {
+            return .unavailable(L("%@ can’t be read with Apple Events.", table: "Core", app.name))
+        }
+        return await AppleEvents.permission(bundle: app.bundleID, appName: app.name, ask: ask)
     }
 
     public func readFront(_ app: FrontApp) async throws -> FrontContent? {
@@ -102,10 +119,13 @@ public struct SystemFrontApp: FrontAppReading {
 public final class DemoFrontApp: FrontAppReading, @unchecked Sendable {
     public var access: IntegrationAccess
     public var content: FrontContent?
+    /// No Accessibility fallback unless a check sets one.
+    public var accessibility: (any AccessibilityFrontReading)?
     public init(access: IntegrationAccess = .granted,
                 content: FrontContent? = FrontContent(kind: .page, title: "Mietkaution – Beispielseite", url: "https://beispiel.example/kaution",
-                                                      text: "Die Kaution darf höchstens drei Nettokaltmieten betragen (Beispieltext).")) {
-        self.access = access; self.content = content
+                                                      text: "Die Kaution darf höchstens drei Nettokaltmieten betragen (Beispieltext)."),
+                accessibility: (any AccessibilityFrontReading)? = nil) {
+        self.access = access; self.content = content; self.accessibility = accessibility
     }
     public func frontAccess(_ app: FrontApp, ask: Bool) async -> IntegrationAccess {
         if access == .notDetermined && ask { access = .granted }
@@ -116,6 +136,20 @@ public final class DemoFrontApp: FrontAppReading, @unchecked Sendable {
 
 /// Read only: the front tab's title, address and text; the front document's path. Never changes anything.
 enum FrontAppScript {
+    /// Does the app take Apple Events scripts (`NSAppleScriptEnabled` or a scripting dictionary)? Unknown apps: yes,
+    /// so nothing changes for them.
+    static func isScriptable(bundleID: String) -> Bool {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
+              let info = Bundle(url: url)?.infoDictionary else { return true }
+        if info["OSAScriptingDefinition"] != nil { return true }
+        switch info["NSAppleScriptEnabled"] {
+        case let flag as Bool: return flag
+        case let text as String: return ["yes", "true", "1"].contains(text.lowercased())
+        case let number as NSNumber: return number.boolValue
+        default: return false
+        }
+    }
+
     static let safari = """
     on frontTitle()
         tell application id "com.apple.Safari"

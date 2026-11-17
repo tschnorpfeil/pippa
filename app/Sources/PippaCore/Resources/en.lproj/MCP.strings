@@ -72,6 +72,8 @@
 "To answer this, I need to read what’s open in %@ – only when you ask, and I don’t change anything." = "To answer this, I need to read what’s open in %@ – only when you ask, and I don’t change anything.";
 "I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again." = "I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again.";
 "I can’t read anything from %@. Copy the text you mean or drop the file on me, then ask again." = "I can’t read anything from %@. Copy the text you mean or drop the file on me, then ask again.";
+"Pippa can’t read %@ yet. Ask again, then turn on Pippa under Accessibility when your Mac asks." = "Pippa can’t read %@ yet. Ask again, then turn on Pippa under Accessibility when your Mac asks.";
+"Pippa may not read %@ yet. To change that, open System Settings → Privacy & Security → Accessibility and turn on Pippa. Then ask again." = "Pippa may not read %@ yet. To change that, open System Settings → Privacy & Security → Accessibility and turn on Pippa. Then ask again.";
 "Read Photos: pictures from today" = "Read Photos: pictures from today";
 "Read Photos: pictures from the last %lld days" = "Read Photos: pictures from the last %lld days";
 "Read Photos: newest pictures" = "Read Photos: newest pictures";

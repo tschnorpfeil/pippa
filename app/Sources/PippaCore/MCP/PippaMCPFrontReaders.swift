@@ -41,7 +41,7 @@ extension PippaMCPTools {
         if app.bundleID == ExcelScript.bundleIdentifier { return (await excelSelection(), "excel_selection") }
         func tagged(_ result: PippaMCPToolResult) -> PippaMCPToolResult {
             // The app's name for the receipt line ("Nicht gelesen: Safari"): from the chip, not from the app.
-            guard var json = (try? JSONSerialization.jsonObject(with: Data(result.text.utf8))) as? [String: Any] else { return result }
+            guard result.isError, var json = (try? JSONSerialization.jsonObject(with: Data(result.text.utf8))) as? [String: Any] else { return result }
             json["app"] = app.name
             var named = result
             named.text = Self.json(json)
@@ -56,27 +56,56 @@ extension PippaMCPTools {
         case .granted: break
         case .notDetermined: return (tagged(blocked("needs_access", Self.notYet(app: app.name))), "front_read")
         case .denied: return (tagged(blocked("denied", Self.deniedAutomation(app.name), repair: .automation)), "front_read")
-        case .unavailable: return (tagged(blocked("unavailable", cannot)), "front_read")
+        case .unavailable: return (tagged(await accessibilityRead(app, otherwise: blocked("unavailable", cannot))), "front_read")
         }
         do {
-            guard let content = try await host.front.readFront(app) else { return (tagged(blocked("nothing_open", cannot)), "front_read") }
-            let limit = 6000
-            let text = Self.compact(content.text)
-            var data: [String: Any] = ["app": app.name, "title": content.title, "text": String(text.prefix(limit)), "textTruncated": text.count > limit]
-            if let url = content.url { data["url"] = url }
-            if let file = content.file { data["path"] = file.path }
-            let next: String
-            switch (content.kind, text.isEmpty) {
-            case (.page, false): next = "Use only what the page says; it may be cut (textTruncated). Name the page by its title."
-            case (.page, true): next = "The page text could not be read, only title and url. Say so in one sentence; do not guess what the page says."
-            case (.document, false): next = "Use only what the document says. For more pages use mcp__pippa__read_document with path."
-            case (.document, true): next = "The document has no text layer (a scan or image). Read it with mcp__pippa__read_document and path."
+            // Apple Events first: the real page or file. Accessibility only when they bring nothing.
+            guard let content = try await host.front.readFront(app) else {
+                return (tagged(await accessibilityRead(app, otherwise: blocked("nothing_open", cannot))), "front_read")
             }
-            return (Self.bounded(source: "\(app.name) on this Mac (what is open in front)", data: data, next: next), "front_read")
+            return (Self.frontResult(app, content, accessibility: false), "front_read")
         } catch PippaError.accessDenied {
             return (tagged(blocked("denied", Self.deniedAutomation(app.name), repair: .automation)), "front_read")
         } catch {
-            return (tagged(blocked("failed", cannot)), "front_read")
+            return (tagged(await accessibilityRead(app, otherwise: blocked("failed", cannot))), "front_read")
         }
+    }
+
+    /// The window's visible text via Accessibility, with its own permission: Pippa's sentence first, then the system
+    /// prompt. `otherwise`: the answer when there is no such reader or it finds nothing.
+    private func accessibilityRead(_ app: FrontApp, otherwise: PippaMCPToolResult) async -> PippaMCPToolResult {
+        guard let reader = host.front.accessibility else { return otherwise }
+        var access = reader.accessibilityAccess(ask: false)
+        if access == .notDetermined && host.askForAccess, await mayAsk(.front(app.name)) {
+            access = reader.accessibilityAccess(ask: true)
+        }
+        switch access {
+        case .granted: break
+        case .notDetermined: return blocked("needs_access", Self.notYetAccessibility(app.name))
+        case .denied: return blocked("denied", Self.deniedAccessibility(app.name), repair: .accessibility)
+        case .unavailable: return otherwise
+        }
+        guard let content = try? await reader.readAccessibility(app), !content.text.isEmpty || content.file != nil else { return otherwise }
+        return Self.frontResult(app, content, accessibility: true)
+    }
+
+    private static func frontResult(_ app: FrontApp, _ content: FrontContent, accessibility: Bool) -> PippaMCPToolResult {
+        let limit = 6000
+        let text = compact(content.text)
+        var data: [String: Any] = ["app": app.name, "title": content.title, "text": String(text.prefix(limit)),
+                                   "textTruncated": content.clipped || text.count > limit]
+        if let url = content.url { data["url"] = url }
+        if let file = content.file { data["path"] = file.path }
+        if accessibility { data["via"] = "accessibility" }
+        let next: String
+        switch (content.kind, text.isEmpty) {
+        case _ where accessibility && !text.isEmpty:
+            next = "This is the visible text of the window, button labels included; it may be cut (textTruncated). Use only what it says. Name it by its title."
+        case (.page, false): next = "Use only what the page says; it may be cut (textTruncated). Name the page by its title."
+        case (.page, true): next = "The page text could not be read, only title and url. Say so in one sentence; do not guess what the page says."
+        case (.document, false): next = "Use only what the document says. For more pages use mcp__pippa__read_document with path."
+        case (.document, true): next = "The document has no text layer (a scan or image). Read it with mcp__pippa__read_document and path."
+        }
+        return bounded(source: "\(app.name) on this Mac (what is open in front)", data: data, next: next)
     }
 }

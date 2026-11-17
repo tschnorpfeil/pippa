@@ -89,3 +89,4 @@
 
 "The old version is no longer there." = "Die alte Version ist nicht mehr da.";
 "Pippa’s AI on this Mac needs 16 GB of memory. Use an online AI in Settings instead." = "Pippas KI auf diesem Mac braucht 16 GB Arbeitsspeicher. Nutze stattdessen eine Online-KI in den Einstellungen.";
+"%@ can’t be read with Apple Events." = "%@ lässt sich nicht über Apple Events lesen.";

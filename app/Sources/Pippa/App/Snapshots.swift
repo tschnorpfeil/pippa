@@ -120,7 +120,7 @@ enum Snapshots {
         // One picture per settings page, without the toolbar (offscreen drawing leaves out its glass). Fixed permission
         // states, so the picture doesn't depend on this Mac.
         let permissions = PermissionStatus(sample: [.calendar: .granted, .reminders: .notDetermined, .photos: .denied,
-                                                    .mail: .unavailable("")])
+                                                    .accessibility: .granted, .mail: .unavailable("")])
         for tab in SettingsTab.allCases {
             let page = SettingsView(tab: tab, settings: .shared, setup: setup, permissions: permissions)
             for dark in [false, true] {
