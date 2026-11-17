@@ -37,6 +37,7 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
     if mode == "missing-file-preparation" {
         receipt["registeredTools"] = PiNativeReadiness.tools.filter { $0 != "mcp__pippa__prepare_files" }
     }
+    if mode == "missing-browser" { receipt["registeredTools"] = PiNativeReadiness.tools.filter { $0 != "mcp__pippa__browse" } }
     if mode == "wrong-registration" { receipt["status"] = "registrationMismatch" }
     if mode == "malformed" { receipt["v"] = true }
     if mode != "missing-receipt" {
@@ -71,7 +72,7 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
     for (mode, expected) in [
         ("missing-command", PiNativeReadiness.Failure.commandMissing), ("wrong-source", .commandMissing),
         ("missing-registered", .invalidReceipt),
-        ("missing-file-preparation", .invalidReceipt),
+        ("missing-file-preparation", .invalidReceipt), ("missing-browser", .invalidReceipt),
         ("wrong-nonce", .invalidReceipt), ("partial", .invalidReceipt), ("missing-receipt", .invalidReceipt),
         ("malformed", .invalidReceipt), ("wrong-registration", .registrationMismatch),
         ("hang-command", .timedOut), ("hang-prompt", .timedOut)
@@ -102,6 +103,8 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
     }
     check("Native file preparation is required for registration and Pi may call every Pippa MCP tool",
           PiNativeReadiness.tools.contains("mcp__pippa__prepare_files") && PippaPiLaunch.tools.contains("mcp__pippa__*"))
+    check("Pippa's browser tool is required for registration, exactly once, among twelve native tools",
+          PiNativeReadiness.tools.filter { $0 == "mcp__pippa__browse" }.count == 1 && PiNativeReadiness.tools.count == 12)
     let (fresh, _) = make("ready")
     try await fresh.start()
     try await fresh.verifyNativeTools(timeout: .seconds(1))

@@ -22,3 +22,28 @@
 "I can only make images and PDFs smaller." = "Kleiner machen kann ich nur Bilder und PDFs.";
 
 "The PDF is ready. I couldn’t add searchable text to every image." = "Das PDF ist fertig. Ich konnte nicht zu jedem Bild durchsuchbaren Text hinzufügen.";
+
+/* browse: Pippa's browser panel (PippaMCPBrowser.swift) */
+"Pippa’s browser isn’t available right now." = "Pippas Browser ist gerade nicht verfügbar.";
+"Not done: the answer was stopped." = "Nicht erledigt: Die Antwort wurde gestoppt.";
+"May Pippa open this web page?" = "Darf Pippa diese Webseite öffnen?";
+"Pippa wants to open this page in her browser:\n\n%@" = "Pippa möchte diese Seite in ihrem Browser öffnen:\n\n%@";
+"May Pippa type this?" = "Darf Pippa das eintippen?";
+"On %@, Pippa wants to type into “%@”:\n\n%@" = "Auf %@ möchte Pippa in „%@“ eintippen:\n\n%@";
+"May Pippa choose this?" = "Darf Pippa das auswählen?";
+"On %@, Pippa wants to choose “%@” in “%@”." = "Auf %@ möchte Pippa „%@“ in „%@“ auswählen.";
+"May Pippa click this?" = "Darf Pippa das anklicken?";
+"On %@, Pippa wants to click “%@”." = "Auf %@ möchte Pippa auf „%@“ klicken.";
+"Nothing is open in Pippa’s browser yet." = "In Pippas Browser ist noch nichts geöffnet.";
+"Pippa can only do this in her browser when you can confirm it." = "Das kann Pippa in ihrem Browser nur tun, wenn du es bestätigen kannst.";
+"Not done: you said no." = "Nicht erledigt: Du hast abgelehnt.";
+"Please sign in or finish the check yourself in Pippa’s browser panel. Pippa never asks for your password. Tell Pippa when you’re done." = "Bitte melde dich selbst in Pippas Browserbereich an oder schließ die Prüfung dort ab. Pippa fragt nie nach deinem Passwort. Sag Pippa Bescheid, wenn du fertig bist.";
+"Pippa’s browser couldn’t do that just now. Please try again." = "Pippas Browser konnte das gerade nicht tun. Bitte versuch es noch einmal.";
+"Pippa only opens web pages on the internet, not addresses on this Mac or your local network." = "Pippa öffnet nur Webseiten im Internet, keine Adressen auf diesem Mac oder in deinem lokalen Netzwerk.";
+"Waiting for you in the browser: %@" = "Wartet im Browser auf dich: %@";
+"Not done in the browser" = "Im Browser nicht erledigt";
+"Clicked in the browser: “%@”" = "Im Browser angeklickt: „%@“";
+"Typed in the browser: “%@”" = "Im Browser eingetippt: „%@“";
+"Chose in the browser: “%@”" = "Im Browser ausgewählt: „%@“";
+"Closed the browser" = "Browser geschlossen";
+"Viewed in the browser: %@" = "Im Browser angesehen: %@";

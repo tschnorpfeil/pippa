@@ -104,7 +104,29 @@ enum PippaMCPService {
         fresh.requireActiveWriteTurn = true
         fresh.askForAccess = asksForAccess
         if asksForAccess { fresh.explainAccess = { subject, sentence in await explain(subject, sentence) } }
+        // Pippa's browser panel; PIPPA_DEMO=1 keeps the demo host's invented pages.
+        if fresh.browser == nil, ProcessInfo.processInfo.environment["PIPPA_DEMO"] != "1" {
+            fresh.browser = WKBrowserSession.shared
+            fresh.onBrowserHandoff = { _, _ in
+                Task { @MainActor in
+                    WKBrowserSession.shared.showHandoff(T("Please sign in or finish the check here. Pippa never sees your password. Click Done, then tell Pippa to continue.", table: "App"))
+                }
+            }
+        }
+        fresh.confirmBrowser = { _, title, message in await confirmBrowser(title: title, message: message, asksForAccess: asksForAccess) }
         return fresh
+    }
+
+    /// The person's OK for `browse`, in Pippa's own approval. `Pippa --ask` never shows it: the question counts as
+    /// declined (`PiSession.Interaction.headless`), so the run reports needs_input.
+    static func confirmBrowser(title: String, message: String, asksForAccess: Bool) async -> Bool {
+        let request = PiUIRequest(id: UUID().uuidString, method: "confirm", title: title, message: message,
+                                  options: [], placeholder: nil, prefill: nil, timeout: nil)
+        guard asksForAccess else {
+            if case .headless(let declined) = PiSession.shared.interaction { declined(request) }
+            return false
+        }
+        return await Confirmations.ask(request) == .confirmed(true)
     }
 
     /// Undo from the receipt row: removes the event or reminder only if it is unchanged since Pippa added it.

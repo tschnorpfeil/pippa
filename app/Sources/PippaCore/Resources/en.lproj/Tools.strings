@@ -22,3 +22,28 @@
 "I can only make images and PDFs smaller." = "I can only make images and PDFs smaller.";
 
 "The PDF is ready. I couldn’t add searchable text to every image." = "The PDF is ready. I couldn’t add searchable text to every image.";
+
+/* browse: Pippa's browser panel (PippaMCPBrowser.swift) */
+"Pippa’s browser isn’t available right now." = "Pippa’s browser isn’t available right now.";
+"Not done: the answer was stopped." = "Not done: the answer was stopped.";
+"May Pippa open this web page?" = "May Pippa open this web page?";
+"Pippa wants to open this page in her browser:\n\n%@" = "Pippa wants to open this page in her browser:\n\n%@";
+"May Pippa type this?" = "May Pippa type this?";
+"On %@, Pippa wants to type into “%@”:\n\n%@" = "On %@, Pippa wants to type into “%@”:\n\n%@";
+"May Pippa choose this?" = "May Pippa choose this?";
+"On %@, Pippa wants to choose “%@” in “%@”." = "On %@, Pippa wants to choose “%@” in “%@”.";
+"May Pippa click this?" = "May Pippa click this?";
+"On %@, Pippa wants to click “%@”." = "On %@, Pippa wants to click “%@”.";
+"Nothing is open in Pippa’s browser yet." = "Nothing is open in Pippa’s browser yet.";
+"Pippa can only do this in her browser when you can confirm it." = "Pippa can only do this in her browser when you can confirm it.";
+"Not done: you said no." = "Not done: you said no.";
+"Please sign in or finish the check yourself in Pippa’s browser panel. Pippa never asks for your password. Tell Pippa when you’re done." = "Please sign in or finish the check yourself in Pippa’s browser panel. Pippa never asks for your password. Tell Pippa when you’re done.";
+"Pippa’s browser couldn’t do that just now. Please try again." = "Pippa’s browser couldn’t do that just now. Please try again.";
+"Pippa only opens web pages on the internet, not addresses on this Mac or your local network." = "Pippa only opens web pages on the internet, not addresses on this Mac or your local network.";
+"Waiting for you in the browser: %@" = "Waiting for you in the browser: %@";
+"Not done in the browser" = "Not done in the browser";
+"Clicked in the browser: “%@”" = "Clicked in the browser: “%@”";
+"Typed in the browser: “%@”" = "Typed in the browser: “%@”";
+"Chose in the browser: “%@”" = "Chose in the browser: “%@”";
+"Closed the browser" = "Closed the browser";
+"Viewed in the browser: %@" = "Viewed in the browser: %@";

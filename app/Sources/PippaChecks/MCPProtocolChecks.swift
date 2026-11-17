@@ -33,8 +33,8 @@ extension MCPCheckContext {
             let list = (await rpc(s.tools, "tools/list"))?["result"] as? [String: Any]
             let all = list?["tools"] as? [[String: Any]] ?? []
             let names = all.compactMap { $0["name"] as? String }
-            // calendar_add/reminder_add/mail_draft and prepare_files change something on the Mac.
-            let tools = all.filter { !(PippaMCPWriteTools.names + [PippaMCPFilePreparation.name]).contains($0["name"] as? String ?? "") }
+            // calendar_add/reminder_add/mail_draft and prepare_files change something on the Mac; browse goes online.
+            let tools = all.filter { !(PippaMCPWriteTools.names + [PippaMCPFilePreparation.name, PippaMCPBrowserTool.name]).contains($0["name"] as? String ?? "") }
             let hintsOK = tools.allSatisfy { tool in
                 let a = tool["annotations"] as? [String: Any] ?? [:]
                 return a["readOnlyHint"] as? Bool == true && a["destructiveHint"] as? Bool == false && a["openWorldHint"] as? Bool == false
@@ -43,6 +43,14 @@ extension MCPCheckContext {
             // Keep the tool list small: with direct approval it goes into every request.
             let bytes = (try? JSONSerialization.data(withJSONObject: tools))?.count ?? .max
             return names == PippaMCPTools.toolNames && hintsOK && bytes < 3500 && tools.count == 7
+        }
+        await checkAsync("MCP: browse is listed once, open world, not destructive, not read-only") {
+            let s = setup()
+            let list = (await rpc(s.tools, "tools/list"))?["result"] as? [String: Any]
+            let browse = (list?["tools"] as? [[String: Any]] ?? []).filter { $0["name"] as? String == PippaMCPBrowserTool.name }
+            let a = browse.first?["annotations"] as? [String: Any] ?? [:]
+            return browse.count == 1 && a["openWorldHint"] as? Bool == true && a["destructiveHint"] as? Bool == false
+                && a["readOnlyHint"] as? Bool == false && a["idempotentHint"] as? Bool == false
         }
         await checkAsync("MCP: unknown tool is a protocol error, unknown arguments a tool error") {
             let s = setup()

@@ -16,3 +16,11 @@
 "“%@” in Photos" = "“%@” in Photos";
 "Meanwhile, drop photos or PDFs here to make one PDF." = "Meanwhile, drop photos or PDFs here to make one PDF.";
 "Choose…" = "Choose…";
+
+/* Pippa's browser panel (BrowserPanelView.swift) */
+"Back" = "Back";
+"Stop loading" = "Stop loading";
+"Reload" = "Reload";
+"Hide the browser" = "Hide the browser";
+"Done" = "Done";
+"No page open" = "No page open";

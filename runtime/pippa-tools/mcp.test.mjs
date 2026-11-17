@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { default: register, serverConfig, SERVER_NAME, TOOLS, WRITE_TOOLS, discoverNativeTools, REQUIRED_TOOLS, READINESS_COMMAND } = await import("./pippa-mcp.ts");
+const { default: register, serverConfig, SERVER_NAME, TOOLS, WRITE_TOOLS, BROWSER_TOOLS, discoverNativeTools, REQUIRED_TOOLS, READINESS_COMMAND } = await import("./pippa-mcp.ts");
 
 const token = "ab".repeat(32);
 
@@ -58,7 +58,12 @@ test("tool names as in the Swift server, none writes or sends", () => {
 
 test("admission requires exactly the readers and writers of the Swift server", () => {
 	assert.deepEqual(REQUIRED_TOOLS, ["calendar_read", "reminders_read", "mail_search", "mail_read", "photos_search", "front_read", "read_document",
-		"calendar_add", "reminder_add", "mail_draft", "prepare_files"].map((name) => `mcp__pippa__${name}`));
+		"calendar_add", "reminder_add", "mail_draft", "prepare_files", "browse"].map((name) => `mcp__pippa__${name}`));
+});
+
+test("the browser tool is separate from the readers and the Mac-only writers", () => {
+	assert.deepEqual(BROWSER_TOOLS, ["browse"]);
+	assert.ok(!TOOLS.includes("browse") && !WRITE_TOOLS.includes("browse"));
 });
 
 test("writing tools as in the Swift server, none sends or deletes", () => {
@@ -106,8 +111,8 @@ test("admission waits for actual discovery and requires every active tool", asyn
 	assert.equal((await discoverNativeTools(f.pi, f.config, 0)).status, "toolsUnavailable");
 });
 
-test("file preparation must be registered and active for admission", async () => {
-	const name = "mcp__pippa__prepare_files", f = fixture();
+for (const name of ["mcp__pippa__prepare_files", "mcp__pippa__browse"]) test(`${name} must be registered and active for admission`, async () => {
+	const f = fixture();
 	assert.ok(REQUIRED_TOOLS.includes(name));
 	f.pi.getActiveTools = () => REQUIRED_TOOLS.filter((tool) => tool !== name);
 	assert.equal((await discoverNativeTools(f.pi, f.config, 0)).status, "toolsUnavailable");
