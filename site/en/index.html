@@ -487,16 +487,19 @@ strong, b { font-weight: 600; }
 .isl-scr { position: relative; height: 228px; border-radius: 18px; overflow: hidden; background: linear-gradient(160deg, #2f3a5c, #4b5a80 55%, #6a6f8f); box-shadow: inset 0 0 0 1px rgb(17 24 39 / .08); }
 .isl-scr::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 30px; background: rgb(255 255 255 / .12); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 .isl-scr::after { content: ""; position: absolute; inset: 30px 0 0; background: radial-gradient(70% 90% at 30% 100%, rgb(255 255 255 / .12), transparent 70%); }
-.island { position: absolute; z-index: 1; left: 50%; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: min(420px, 86%); height: 34px; padding: 0 16px 0 14px; transform: translateX(-50%); border-radius: 0 0 14px 14px; background: #000; color: rgb(255 255 255 / .82); font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: 0 8px 22px -10px rgb(0 0 0 / .5); }
-.island svg { width: 20px; height: 20px; flex: none; }
-.island .st { position: relative; display: grid; justify-items: end; min-width: 0; }
+.island { position: absolute; z-index: 1; left: 50%; top: 0; display: flex; align-items: center; gap: 10px; width: min(400px, 84%); height: 30px; padding: 0 16px 0 14px; transform: translateX(-50%); border-radius: 0 0 12px 12px; background: #000; color: rgb(255 255 255 / .82); font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: 0 8px 22px -10px rgb(0 0 0 / .5); }
+.island svg { width: 18px; height: 18px; flex: none; }
+.island .st { position: relative; display: grid; justify-items: start; flex: 1; min-width: 0; }
 .island .st span { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; }
 .island .st .ic { width: 13px; height: 13px; color: #6fd38a; stroke-width: 2.4; }
 .island .st span:not(:first-child) { opacity: 0; }
 .mk { fill: none; stroke: #7cb6ff; stroke-width: 2.6; }
-.isl-open { position: absolute; z-index: 1; left: 50%; top: 0; width: min(380px, 88%); padding: 40px 18px 16px; transform: translateX(-50%); border-radius: 0 0 24px 24px; background: #000; color: #fff; box-shadow: 0 16px 34px -14px rgb(0 0 0 / .6); }
-.isl-open .oh { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
-.isl-open .oh svg { width: 22px; height: 22px; }
+.bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 13px; margin-left: auto; flex: none; }
+.bars i { width: 3.5px; border-radius: 2px; background: #7cb6ff; }
+.bars i:nth-child(1) { height: 6px; } .bars i:nth-child(2) { height: 9px; } .bars i:nth-child(3) { height: 13px; }
+.isl-open { position: absolute; z-index: 1; left: 50%; top: 0; width: min(380px, 88%); padding: 0 18px 16px; transform: translateX(-50%); border-radius: 0 0 24px 24px; background: #000; color: #fff; box-shadow: 0 16px 34px -14px rgb(0 0 0 / .6); }
+.isl-open .oh { display: flex; align-items: center; gap: 10px; height: 30px; margin-top: 0; font-size: 14px; font-weight: 700; color: #fff; }
+.isl-open .oh svg { width: 18px; height: 18px; }
 .isl-open p { margin-top: 10px; font-size: 13px; color: rgb(255 255 255 / .62); }
 .isl-open .of { margin-top: 12px; padding: 9px 12px; border-radius: 10px; background: #1b1b1d; font-size: 13.5px; color: rgb(255 255 255 / .5); }
 .isl-open .typing::after { content: ""; display: inline-block; width: 1.5px; height: 1.05em; margin-right: 2px; vertical-align: -.15em; background: #7cb6ff; animation: caret 1s steps(1) infinite; }
@@ -505,13 +508,11 @@ strong, b { font-weight: 600; }
 .isl-open .ob small { color: rgb(255 255 255 / .42); font-size: 12px; }
 /* Three states in turn while Pippa works: reading, writing, done. Only with motion allowed. */
 @media (prefers-reduced-motion: no-preference) {
-  .island { animation: isl-w 9s ease-in-out infinite; }
   .island .st span { animation: isl-s 9s ease infinite; }
   .island .st span:nth-child(2) { animation-delay: 3s; }
   .island .st span:nth-child(3) { animation-delay: 6s; }
 }
-@keyframes isl-s { 0% { opacity: 0; } 4%, 30% { opacity: 1; } 34%, 100% { opacity: 0; } }
-@keyframes isl-w { 0%, 100% { width: min(420px, 86%); } 66%, 96% { width: min(380px, 80%); } }
+@keyframes isl-s { 0%, 2% { opacity: 0; } 6%, 29% { opacity: 1; } 32%, 100% { opacity: 0; } }
 
 /* Settings, Permissions: what Pippa may use on this Mac */
 .perm { left: 0; top: 0; width: 400px; padding: 10px 16px 12px; transform: rotate(-1.5deg); background: #fbfbfc; }
@@ -1010,11 +1011,11 @@ strong, b { font-weight: 600; }
     </div>
     <div class="isl-pair" role="img" aria-label="Two views of the top edge of a MacBook screen. On the left, Pippa Island at the notch, a black shape with Pippa’s sign and the status “Reading Brief-Finanzamt.pdf”, then “Writing…” and “Your answer is ready”. On the right, the open island with “Ask me anything, or drop a file here.”, the field “Ask Pippa…” and the Open Pippa button.">
       <div class="isl-fig" aria-hidden="true">
-        <div class="isl-scr"><div class="island"><svg class="mk" viewBox="0 0 24 24"><use href="#s-mark"/></svg><span class="st"><span>Reading Brief-Finanzamt.pdf</span><span>Writing…</span><span>Your answer is ready<svg class="ic"><use href="#s-check"/></svg></span></span></div></div>
+        <div class="isl-scr"><div class="island"><svg class="mk" viewBox="0 0 24 24"><use href="#s-mark"/></svg><span class="st"><span>Reading Brief-Finanzamt.pdf</span><span>Writing…</span><span>Your answer is ready<svg class="ic"><use href="#s-check"/></svg></span></span><span class="bars"><i></i><i></i><i></i></span></div></div>
         <p class="isl-cap">While Pippa works</p>
       </div>
       <div class="isl-fig" aria-hidden="true">
-        <div class="isl-scr"><div class="isl-open"><p class="oh"><svg class="mk" viewBox="0 0 24 24"><use href="#s-mark"/></svg>Pippa</p><p>Ask me anything, or drop a file here.</p><p class="of"><span class="typing"></span>Ask Pippa…</p><p class="ob"><span>Open Pippa<small>⌘↵</small></span></p></div></div>
+        <div class="isl-scr"><div class="isl-open"><p class="oh"><svg class="mk" viewBox="0 0 24 24"><use href="#s-mark"/></svg>Pippa<span class="bars"><i></i><i></i><i></i></span></p><p>Ask me anything, or drop a file here.</p><p class="of"><span class="typing"></span>Ask Pippa…</p><p class="ob"><span>Open Pippa<small>⌘↵</small></span></p></div></div>
         <p class="isl-cap">With <span class="nw">⌥ Space</span></p>
       </div>
     </div>
