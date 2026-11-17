@@ -56,8 +56,7 @@ public enum AccessibilityText {
         collect(root, role: \.role, subrole: \.subrole, texts: \.texts, children: \.children)
     }
 
-    /// Depth first in reading order. `children` is only called for nodes within the bounds, so a live tree is never
-    /// read further than the walk goes. `stop` ends the walk early (a deadline).
+    /// Depth first in reading order. Children below `maxDepth` are never visited. `stop` ends the walk early (a deadline).
     public static func collect<Node>(_ root: Node, role: (Node) -> String, subrole: (Node) -> String? = { _ in nil },
                                      texts: (Node) -> [String], children: (Node) -> [Node],
                                      stop: () -> Bool = { false }) -> Walk {
@@ -89,17 +88,44 @@ public enum AccessibilityText {
             if stop() { walk.clipped = true; full = true; return }
             var seen: Set<String> = []
             for text in texts(node) {
-                for raw in text.split(whereSeparator: \.isNewline) {
-                    let line = raw.split(whereSeparator: { $0 == " " || $0 == "\t" }).joined(separator: " ")
-                    guard !line.isEmpty, seen.insert(line).inserted else { continue }
-                    add(line)
-                    if full { return }
+                var index = text.startIndex
+                var step = 0
+                var firstLine = true
+                while index < text.endIndex {
+                    if !firstLine && stop() { walk.clipped = true; full = true; return }
+                    firstLine = false
+                    var line = ""
+                    var pendingSpace = false
+                    while index < text.endIndex {
+                        let ch = text[index]
+                        index = text.index(after: index)
+                        if ch.isNewline { break }
+                        if ch == " " || ch == "\t" {
+                            if !line.isEmpty { pendingSpace = true }
+                        } else {
+                            if pendingSpace {
+                                line.append(" ")
+                                pendingSpace = false
+                            }
+                            line.append(ch)
+                            if line.count > maxChars { break }
+                        }
+                        step += 1
+                        if step & 4095 == 0 && stop() { walk.clipped = true; full = true; return }
+                    }
+                    if !line.isEmpty, seen.insert(line).inserted {
+                        add(line)
+                        if full { return }
+                    }
                 }
             }
             if stop() { walk.clipped = true; full = true; return }
-            guard depth < maxDepth else { return }
             let kids = children(node)
             if stop() { walk.clipped = true; full = true; return }
+            guard depth < maxDepth else {
+                if !kids.isEmpty { walk.clipped = true }
+                return
+            }
             for child in kids {
                 visit(child, depth: depth + 1)
                 if full { return }

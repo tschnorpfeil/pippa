@@ -157,10 +157,14 @@ extension MCPCheckContext {
                 && notes.all.filter { $0.permissionRepair == .accessibility }.count == 2
         }
         check("Accessibility walk: depth ≤ 12, nodes ≤ 800, chrome skipped, secure subrole skipped, deadline stops, CFArray checked") {
-            // A chain 30 levels deep: text below level 12 is never reached.
+            // A chain 30 levels deep: text below level 12 is never reached and marks clipped.
             var chain = AXNodeSample(role: "AXStaticText", texts: ["level 30"])
             for level in stride(from: 29, through: 0, by: -1) { chain = AXNodeSample(role: "AXGroup", texts: ["level \(level)"], children: [chain]) }
             let deep = AccessibilityText.collect(chain)
+            // A chain ending cleanly at depth 12 without deeper children is not clipped.
+            var exactChain = AXNodeSample(role: "AXStaticText", texts: ["exact 12"])
+            for level in stride(from: 11, through: 0, by: -1) { exactChain = AXNodeSample(role: "AXGroup", texts: ["exact \(level)"], children: [exactChain]) }
+            let exactDepth12 = AccessibilityText.collect(exactChain)
             // 2000 siblings, nearly all without text: the walk stops after 800 nodes (the window and 799 rows).
             let wide = AccessibilityText.collect(AXNodeSample(role: "AXWindow", children: (0..<2000).map {
                 AXNodeSample(role: "AXStaticText", texts: $0 == 798 ? ["last read"] : $0 == 799 ? ["never read"] : [])
@@ -185,17 +189,31 @@ extension MCPCheckContext {
                 children: \.children,
                 stop: { stopped }
             )
+            // Huge repeated-line text respects stop() inside the line loop without hanging or losing clipped=true.
+            var lineChecks = 0
+            let repeatedText = String(repeating: "same line\n", count: 50_000)
+            let repeatedTimedOut = AccessibilityText.collect(
+                AXNodeSample(role: "AXWindow", texts: [repeatedText]),
+                role: \.role,
+                subrole: \.subrole,
+                texts: \.texts,
+                children: \.children,
+                stop: { lineChecks += 1; return lineChecks > 10 }
+            )
             let validAX = AXUIElementCreateApplication(1)
             let validList = SystemAccessibilityFrontReader.axElements(from: [validAX] as CFArray)
             let invalidList = SystemAccessibilityFrontReader.axElements(from: ["not an AX element"] as CFArray)
             let mixedList = SystemAccessibilityFrontReader.axElements(from: [validAX, "bad"] as CFArray)
-            return deep.deepest == AccessibilityText.maxDepth && deep.lines.count == 13 && deep.lines.last == "level 12" && !deep.text.contains("level 13")
+            return deep.deepest == AccessibilityText.maxDepth && deep.lines.count == 13 && deep.lines.last == "level 12"
+                && !deep.text.contains("level 13") && deep.clipped
+                && exactDepth12.deepest == AccessibilityText.maxDepth && !exactDepth12.clipped && exactDepth12.lines.last == "exact 12"
                 && wide.visited == AccessibilityText.maxNodes && wide.clipped && wide.lines == ["last read"]
                 && chrome.lines == ["Inbox", "Hello", "line one", "line two", "Inbox"]
                 && !chrome.text.contains("hidden.example") && !chrome.text.contains("hunter2")
                 && !chrome.text.contains("hunter3") && !chrome.text.contains("hunter3-child") && !chrome.clipped
                 && long.text.count == AccessibilityText.maxChars && long.clipped && long.visited < 50
                 && timedOut.clipped && timedOut.lines == ["Visible"]
+                && repeatedTimedOut.clipped && repeatedTimedOut.lines == ["same line"]
                 && validList?.count == 1 && invalidList == nil && mixedList == nil
         }
         await checkAsync("MCP front_read: with Mail in front it reads the selected mail (same receipt as mail_selected)") {
