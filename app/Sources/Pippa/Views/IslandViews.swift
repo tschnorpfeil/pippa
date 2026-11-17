@@ -442,25 +442,30 @@ struct IslandPanelView: View {
         return latest
     }
 
-    /// One quiet row: the conversation's title and how long ago; a click opens it in the chat.
+    /// One quiet row: the conversation's title and how long ago. A click (or ↑ in the empty field) goes on with it in
+    /// the island and lights the row; the pencil (⌘N) in the field starts a new conversation again. The chat stays behind "Open Pippa".
     private func recentRow(_ conversation: Conversation) -> some View {
-        Button { island.openConversation(conversation.id) } label: {
-            HStack(spacing: IslandStyle.buttonGap) {
-                Image(systemName: "arrow.uturn.backward").font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(IslandStyle.white(IslandStyle.tertiary + 0.1))
-                Text(conversation.title).lineLimit(1).truncationMode(.tail)
-                    .foregroundStyle(IslandStyle.white(IslandStyle.primary - 0.15))
-                Text(Self.ago(conversation.updated)).fixedSize()
-                    .foregroundStyle(IslandStyle.white(IslandStyle.tertiary + 0.1))
-                Spacer(minLength: 0)
-            }
-            .font(IslandStyle.small)
-            .padding(.horizontal, 10).frame(height: IslandStyle.controlHeight)
-            .background(RoundedRectangle(cornerRadius: IslandStyle.wellRadius, style: .continuous).fill(IslandStyle.white(0.06)))
-            .contentShape(Rectangle())
+        let following = island.followUp?.id == conversation.id
+        return HStack(spacing: IslandStyle.buttonGap) {
+            Image(systemName: "arrow.uturn.backward").font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(IslandStyle.white(following ? IslandStyle.secondary : IslandStyle.tertiary + 0.1))
+            Text(conversation.title).lineLimit(1).truncationMode(.tail)
+                .foregroundStyle(IslandStyle.white(following ? IslandStyle.primary : IslandStyle.primary - 0.15))
+            Text(Self.ago(conversation.updated)).fixedSize()
+                .foregroundStyle(IslandStyle.white(IslandStyle.tertiary + 0.1))
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
+        .font(IslandStyle.small)
+        .padding(.horizontal, 10).frame(height: IslandStyle.controlHeight)
+        .background(RoundedRectangle(cornerRadius: IslandStyle.wellRadius, style: .continuous)
+            .fill(IslandStyle.white(following ? 0.12 : 0.06)))
+        .contentShape(Rectangle())
+        .onTapGesture { if !following { island.continueConversation(conversation.id) } }
+        .help(following ? "" : T("Continue: %@", table: "Island", conversation.title) + " (↑)")
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(T("Continue: %@", table: "Island", conversation.title))
+        .accessibilityAddTraits(following ? [.isSelected] : [.isButton])
+        .accessibilityAction { if !following { island.continueConversation(conversation.id) } }
     }
 
     /// "jetzt", "vor 4 Min.", "vor 2 Std." in the person's language; the first minute is "now", never seconds.
@@ -505,26 +510,18 @@ struct IslandPanelView: View {
             .foregroundStyle(IslandStyle.white(IslandStyle.primary))
             .focused($fieldFocused)
             .onSubmit { island.send() }
+            // ↑ in the empty field goes on with the recent conversation shown above it, as a shell recalls the last line.
+            .onKeyPress(.upArrow) {
+                guard chat.draft.isEmpty, followUp == nil, !chat.isAnswering, let recent else { return .ignored }
+                island.continueConversation(recent.id)
+                return .handled
+            }
             // Room for the pencil, so the text does not run under it.
             .padding(.trailing, followUp != nil ? 46 : 0)
             .islandWell()
             .overlay(alignment: .trailing) {
                 if followUp != nil {
-                    // The shortcut written beside it, as "⌘↩" on "Open Pippa": tooltips rarely show on the island.
-                    Button { island.startsFresh = true } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "square.and.pencil").font(.system(size: 12, weight: .semibold))
-                            Text("⌘N").font(IslandStyle.caption)
-                        }
-                        .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
-                        .padding(.horizontal, 4).frame(height: 28).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut("n", modifiers: .command)
-                    .help(T("New Conversation", table: "App") + " (⌘N)")
-                    .accessibilityLabel(T("New Conversation", table: "App"))
-                    .padding(.trailing, 4)
-                    .transition(.opacity)
+                    IslandNewConversationButton(island: island).padding(.trailing, 4).transition(.opacity)
                 }
             }
     }
@@ -533,6 +530,27 @@ struct IslandPanelView: View {
 /// Which AI answers, beside the field: on this Mac (a laptop) or online (a cloud), its name on hover and for VoiceOver,
 /// as the chat's composer names it (`AIBadge`); a click opens Settings → AI. Only the symbol: with the name the field
 /// had no room left.
+/// "New conversation", the same wherever it shows: the pencil with ⌘N written beside it, since tooltips rarely show on
+/// the island.
+struct IslandNewConversationButton: View {
+    @ObservedObject var island: Island
+
+    var body: some View {
+        Button { island.startsFresh = true } label: {
+            // One line of text: the symbol sits on the same baseline as ⌘N (side by side in an HStack the pencil's box
+            // hung below the letters).
+            Text("\(Image(systemName: "square.and.pencil"))\u{2009}⌘N")
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+            .padding(.horizontal, 4).frame(height: 28).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut("n", modifiers: .command)
+        .help(T("New Conversation", table: "App") + " (⌘N)")
+        .accessibilityLabel(T("New Conversation", table: "App"))
+    }
+}
+
 struct IslandAIBadge: View {
     @ObservedObject var setup: SetupModel
 

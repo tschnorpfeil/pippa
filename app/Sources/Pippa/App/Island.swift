@@ -41,6 +41,12 @@ final class Island: ObservableObject {
     @Published private(set) var freshAnswer: UUID?
     /// "New conversation" pressed in the island: the next question starts fresh although a recent one could go on.
     @Published var startsFresh = false
+    /// The earlier conversation picked in the island (its row, or ↑ in the empty field): the next question goes on
+    /// with it here, without the chat window, however old it is. For this opening only, like `startsFresh`.
+    @Published var continuing: String?
+    /// When this opening began: the ten-minute rule of `followUp` counts from here, so what the island showed on
+    /// opening does not flip while the person types.
+    var openedAt: Date?
     private var answeringID: String?
     /// The island opened by itself for a question and closes again once it is answered.
     private var openedForQuestion = false
@@ -99,6 +105,8 @@ final class Island: ObservableObject {
             wantsFocus = false
             // "New conversation" counts for this opening only, also when it was closed with Escape or a click outside.
             startsFresh = false
+            continuing = nil
+            openedAt = nil
             // Seen: the next time the island opens it starts fresh.
             if !ChatModel.shared.isAnswering { freshAnswer = nil }
             statusButton?.highlight(false)
@@ -291,6 +299,7 @@ final class Island: ObservableObject {
         }
         updateMenuMark()
         guard presenter.placement != nil else { return }
+        if !isOpen { openedAt = Date() }
         isOpen = true
         wantsFocus = focus
         presenter.open(key: key)
@@ -336,15 +345,34 @@ final class Island: ObservableObject {
         open(key: true, focus: true)
     }
 
-    /// What a question in the island goes on with: the latest conversation while the island still shows its answer or
-    /// its last message is at most ten minutes old, so "And chapter 6?" keeps the context. Older, or after "New
-    /// conversation": a new one.
+    /// The earlier conversation under the empty field: the next question goes on with it in the island. ⌘N starts a
+    /// new one again, "Open Pippa" shows it in the chat.
+    func continueConversation(_ id: String) {
+        startsFresh = false
+        continuing = id
+        ChatModel.shared.select(id)
+        wantsFocus = true
+        focusToken += 1
+    }
+
+    /// How long after its last message a conversation is still followed up on its own.
+    static let followUpWindow: TimeInterval = 600
+
+    /// What a question in the island goes on with; `nil` starts a new conversation. In this order, first match wins:
+    /// 1. "New conversation" (pencil, ⌘N) in this opening: new.
+    /// 2. Picked in this opening (its row, ↑) or asked here already: that one; deleted meanwhile: new, never another.
+    /// 3. The island shows a fresh answer: its conversation.
+    /// 4. The latest conversation's last message is at most ten minutes older than this opening: that one.
+    /// 5. Otherwise: new.
+    /// The island always shows the outcome: an answer or a lit row with "Follow up…" for 2–4, the plain field for 1 and 5.
     var followUp: Conversation? {
         guard !startsFresh else { return nil }
         let chat = ChatModel.shared
-        guard let latest = chat.conversations.filter({ !$0.messages.isEmpty }).max(by: { $0.updated < $1.updated }) else { return nil }
+        let started = chat.conversations.filter { !$0.messages.isEmpty }
+        if let continuing { return started.first { $0.id == continuing } }
+        guard let latest = started.max(by: { $0.updated < $1.updated }) else { return nil }
         let showing = freshAnswer.map { id in latest.messages.contains { $0.id == id } } ?? false
-        return showing || latest.updated > Date().addingTimeInterval(-600) ? latest : nil
+        return showing || latest.updated > (openedAt ?? Date()).addingTimeInterval(-Self.followUpWindow) ? latest : nil
     }
 
     /// Return in the question field: the question and any dropped files, going on with `followUp` or in a new
@@ -360,6 +388,8 @@ final class Island: ObservableObject {
         chat.draft = text
         chat.attachments = files
         chat.send()
+        // The next question in this opening goes on with this one, however the clock or the answer turns out.
+        continuing = chat.currentID
     }
 
     /// Escape on a question: "Don't Allow", or no answer.

@@ -81,7 +81,15 @@ enum IslandSnapshots {
                 chat.showSample(sample(.answered), current: "s1", answering: false)
                 island.showForSnapshot(status())
             }),
+            // Older than ten minutes: a new question starts fresh; the row (or ↑) goes on with it in the island.
+            ("open-recent-older", true, {
+                chat.showSample(sample(.answered).map { var c = $0; c.updated = Date().addingTimeInterval(-25 * 60); return c },
+                                current: "s1", answering: false)
+                island.showForSnapshot(status())
+            }),
+            ("open-recent-continue", true, { island.continuing = "s1" }),
             ("open-working", true, {
+                island.continuing = nil
                 chat.showSample(sample(.working), current: "s1", answering: true)
                 island.showForSnapshot(status())
             }),
