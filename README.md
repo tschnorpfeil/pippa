@@ -27,15 +27,15 @@ Cloud assistants read your documents on their servers, and most local AI apps st
 - **Ready to send.** Photos and scans become one PDF in your order; she checks that every page made it in and can aim for a size limit you set (say, 10 MB). Drop them and press **One PDF**: that works without any AI download.
 - **Found and sorted.** Files by what's in them, the newest version first. Ask her to rename or move them; a file she removes goes to the Trash, never deleted for good.
 
-Also: unsent reply drafts in Mail (you send them; she never does), Calendar entries, reminders, photos from your library and the web after she asks you.
+Also: unsent reply drafts in Mail (you send them; she never does), Calendar entries, reminders, photos from your library and the web after she asks you. When a web page needs clicking through, she does it in a browser panel in her window while you watch, and asks before each new site and each click.
 
 Open Pippa from the Dock or press ⌥ Space, then just ask.
 
-**Pippa Island** sits at the notch, or under her menu bar symbol on a Mac without one. It shows what she is working on, step by step; ⌥ Space opens it for a quick question, and you can drop files on it. **Open Pippa** takes the conversation to the full window.
+**Pippa Island** sits at the notch, or under her menu bar symbol on a Mac without one. It shows what she is working on, step by step; ⌥ Space opens it for a quick question, and you can drop files on it. Click your last conversation to keep asking there without opening the window; the pencil (⌘N) starts a new one. **Open Pippa** takes the conversation to the full window.
 
 <p align="center">
   <img src="docs/images/island-question.png" width="48%" alt="Pippa Island open under the notch, black like the notch itself. Pippa asks whether she may search the web and shows the search words. Three rounded buttons: Open Pippa on the left, Don’t Allow and a blue Allow on the right.">
-  <img src="docs/images/island-answer.png" width="48%" alt="Pippa Island open under the notch with a short answer: a payment of 184.37 euros is due by November 15, 2026, followed by two things to do. Below, the question field Ask Pippa and the button Open Pippa.">
+  <img src="docs/images/island-answer.png" width="48%" alt="Pippa Island open under the notch with a short answer: a payment of 184.37 euros is due by November 15, 2026, followed by two things to do. Below, the question field Follow up with the pencil for a new conversation (⌘N), the laptop symbol for the AI on this Mac, and the button Open Pippa.">
   <br><sub>Pippa Island asking for your OK, and with an answer. Drawn by the app's snapshot mode with made-up sample data; her sample answers are in German.</sub>
 </p>
 
@@ -73,8 +73,10 @@ Keep ChatGPT if you like it: Pippa can use your subscription as her online AI.
 - **Letters and documents:** what a letter wants and by when, with the passage that says so; questions about PDFs, Word files, spreadsheets and photos of documents; summaries, shorter or clearer text, checklists from your notes.
 - **Mail, Calendar and Reminders:** find and read your newest matching mails and their document attachments, open the exact read mail from the source under her answer, and write an unsent draft in Mail for you to review and send; read your calendar and reminders, and add appointments and reminders when you ask.
 - **Finding things:** files on your Mac and in iCloud Drive, photos in your library, and the web after she asks you.
+- **The web:** pages that need clicking through open in a browser panel in her window. She asks before each new site and before every click, typed text or choice, and leaves sign-ins, passwords and codes to you.
+- **The app in front:** ask about what's open, and she reads it. For apps that can't hand over their content, she reads the visible text through macOS Accessibility, read only, after you allow it.
 - **Remembering:** a short list of facts you tell her about yourself, such as your doctor's name. You can ask her to forget them.
-- **Quick questions:** press ⌥ Space and ask in Pippa Island at the top of the screen, or drop a file on it. **Open Pippa** takes the conversation to the full window.
+- **Quick questions:** press ⌥ Space and ask in Pippa Island at the top of the screen, or drop a file on it. Click your last conversation to keep asking there. **Open Pippa** takes the conversation to the full window.
 
 More, with examples and limits: [What Pippa can do](docs/what-pippa-can-do.md).
 
