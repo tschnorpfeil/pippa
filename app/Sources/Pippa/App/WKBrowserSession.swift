@@ -82,7 +82,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             try await installRules()
             isOpen = true
             preapprovedPopupURL = nil
-            awaitingNavigationStart = true
+            awaitingNavigationStart = isCrossDocumentDestination(url)
             blockedNavigation = false; declinedNavigation = false; navigationFailed = false
             webView.load(URLRequest(url: url))
             await settle(after: .milliseconds(150), timeout: .seconds(15))
@@ -101,7 +101,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             guard currentURL != nil else { throw BrowserError.nothingOpen }
             blockedNavigation = false; declinedNavigation = false; navigationFailed = false
             if webView.canGoBack {
-                if let backURL = webView.backForwardList.backItem?.url, isCrossDocumentDestination(backURL) {
+                if let backURL = webView.backForwardList.backItem?.url, isCrossDocumentHistoryDestination(backURL) {
                     awaitingNavigationStart = true
                 }
                 webView.goBack()
@@ -282,6 +282,18 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         guard scheme == "http" || scheme == "https" else { return false }
         guard url.fragment != nil,
               let current = webView.url,
+              var destination = URLComponents(url: url, resolvingAgainstBaseURL: true),
+              var currentComponents = URLComponents(url: current, resolvingAgainstBaseURL: true) else { return true }
+        destination.fragment = nil
+        currentComponents.fragment = nil
+        return destination.string != currentComponents.string
+    }
+
+    private func isCrossDocumentHistoryDestination(_ url: URL) -> Bool {
+        let scheme = url.scheme?.lowercased() ?? ""
+        guard scheme == "http" || scheme == "https" else { return false }
+        guard let current = webView.url,
+              url.fragment != nil || current.fragment != nil,
               var destination = URLComponents(url: url, resolvingAgainstBaseURL: true),
               var currentComponents = URLComponents(url: current, resolvingAgainstBaseURL: true) else { return true }
         destination.fragment = nil
