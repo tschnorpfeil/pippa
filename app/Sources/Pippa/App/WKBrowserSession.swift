@@ -28,7 +28,9 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     private var declinedNavigation = false
     private var navigationFailed = false
     private var rulesInstalled = false
-    private var pendingPopupTask: Task<Void, Never>?
+    private var pendingPolicyDecisions = 0
+    private var pendingPopupTasks: [UUID: Task<Void, Never>] = [:]
+    private var preapprovedPopupURL: URL?
     private let world = WKContentWorld.world(name: "PippaBrowser")
 
     /// Gates main-frame destinations and popups through turn-scoped host approvals and confirmation.
@@ -77,6 +79,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             if await PippaMCPBrowserTool.resolvesToPrivateAddress(host) { throw BrowserError.blockedAddress }
             try await installRules()
             isOpen = true
+            preapprovedPopupURL = nil
             blockedNavigation = false; declinedNavigation = false; navigationFailed = false
             webView.load(URLRequest(url: url))
             await settle(after: .milliseconds(150), timeout: .seconds(15))
@@ -99,8 +102,9 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             if declinedNavigation { throw BrowserError.declinedNavigation }
         case .close:
             webView.stopLoading()
-            pendingPopupTask?.cancel()
-            pendingPopupTask = nil
+            for task in pendingPopupTasks.values { task.cancel() }
+            pendingPopupTasks.removeAll()
+            preapprovedPopupURL = nil
             latest = nil
             handoffMessage = nil
             isOpen = false
@@ -111,31 +115,47 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         return try await capture()
     }
 
-    /// Waits for the page to load (bounded), so a snapshot sees the result of a click or an address.
+    private func drainPending(timeout: Duration) async {
+        var deadline = ContinuousClock.now + timeout
+        while !Task.isCancelled {
+            if !pendingPopupTasks.isEmpty {
+                for task in Array(pendingPopupTasks.values) { await task.value }
+                // Confirmation or popup waits do not consume the post-approval page-load timeout.
+                deadline = ContinuousClock.now + timeout
+                try? await Task.sleep(for: .milliseconds(100))
+                continue
+            }
+            if pendingPolicyDecisions > 0 {
+                try? await Task.sleep(for: .milliseconds(50))
+                deadline = ContinuousClock.now + timeout
+                if pendingPolicyDecisions == 0 {
+                    // Let WebKit transition `isLoading` after `.allow` / `load(...)`.
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+                continue
+            }
+            if webView.isLoading, ContinuousClock.now < deadline {
+                try? await Task.sleep(for: .milliseconds(100))
+                continue
+            }
+            break
+        }
+    }
+
+    /// Waits for confirmations, popups and page loads (bounded after approval), so the tool sees any navigation decision.
     private func settle(after delay: Duration, timeout: Duration) async {
         try? await Task.sleep(for: delay)
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if let popup = pendingPopupTask {
-                pendingPopupTask = nil
-                await popup.value
-            }
-            if !webView.isLoading { break }
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-        // Scripts often render after load; a short pause catches most of it.
+        await drainPending(timeout: timeout)
+        // Scripts often render or navigate after load; a short pause catches most of it.
         try? await Task.sleep(for: .milliseconds(250))
-        if let popup = pendingPopupTask {
-            pendingPopupTask = nil
-            await popup.value
-            while webView.isLoading, ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(100)) }
-        }
+        await drainPending(timeout: timeout)
         sync()
     }
 
     private func act(_ kind: String, ref: String, snapshotId: String?, text: String) async throws {
         guard currentURL != nil else { throw BrowserError.nothingOpen }
         guard let snapshotId = snapshotId ?? latest?.snapshotId else { throw BrowserError.staleRef }
+        blockedNavigation = false; declinedNavigation = false; navigationFailed = false
         let reply = try? await webView.callAsyncJavaScript(Self.actionScript, arguments: ["kind": kind, "ref": ref, "snapshotId": snapshotId, "text": text],
                                                            in: nil, contentWorld: world) as? [String: Any]
         switch reply?["error"] as? String {
@@ -146,7 +166,6 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         default: throw BrowserError.failed
         }
         latest = nil
-        blockedNavigation = false; declinedNavigation = false; navigationFailed = false
         await settle(after: .milliseconds(400), timeout: .seconds(10))
         if blockedNavigation { throw BrowserError.blockedAddress }
         if declinedNavigation { throw BrowserError.declinedNavigation }
@@ -199,9 +218,16 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             "[0-9]+\\\\.0[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.*[:/]",
             "[0-9]+\\\\.[0-9]+\\\\.0[0-9]+\\\\.[0-9]+\\\\.*[:/]",
             "[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.0[0-9]+\\\\.*[:/]",
-            "0x[0-9a-f]+\\\\.[0-9a-fx]+\\\\.*[:/]",
-            "0x[0-9a-f]+\\\\.[0-9a-fx]+\\\\.[0-9a-fx]+\\\\.*[:/]",
+            "0x[0-9a-f]+\\\\.[0-9]+\\\\.*[:/]",
+            "0x[0-9a-f]+\\\\.0x[0-9a-f]+\\\\.*[:/]",
+            "[0-9]+\\\\.0x[0-9a-f]+\\\\.*[:/]",
+            "0x[0-9a-f]+\\\\.[0-9]+\\\\.[0-9]+\\\\.*[:/]",
+            "[0-9]+\\\\.0x[0-9a-f]+\\\\.[0-9]+\\\\.*[:/]",
+            "[0-9]+\\\\.[0-9]+\\\\.0x[0-9a-f]+\\\\.*[:/]",
             "0x[0-9a-f]+\\\\.[0-9a-fx]+\\\\.[0-9a-fx]+\\\\.[0-9a-fx]+\\\\.*[:/]",
+            "[0-9]+\\\\.0x[0-9a-f]+\\\\.[0-9a-fx]+\\\\.[0-9a-fx]+\\\\.*[:/]",
+            "[0-9]+\\\\.[0-9]+\\\\.0x[0-9a-f]+\\\\.[0-9a-fx]+\\\\.*[:/]",
+            "[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.0x[0-9a-f]+\\\\.*[:/]",
             "0" + quad, "10" + quad, "127" + quad, "192\\\\.168" + pair, "169\\\\.254" + pair,
             "172\\\\.1[6-9]" + pair, "172\\\\.2[0-9]" + pair, "172\\\\.3[01]" + pair,
             "100\\\\.6[4-9]" + pair, "100\\\\.[7-9][0-9]" + pair, "100\\\\.1[01][0-9]" + pair, "100\\\\.12[0-7]" + pair,
@@ -222,7 +248,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         rulesInstalled = true
     }
 
-    private func allowNavigation(_ url: URL, mainFrame: Bool, isPopup: Bool) async -> Bool {
+    private func allowNavigation(_ url: URL, mainFrame: Bool, isPopup: Bool, confirmHost: Bool = true) async -> Bool {
         let scheme = url.scheme?.lowercased() ?? ""
         if scheme == "about" { return !isPopup }
         if !mainFrame && !isPopup && (scheme == "blob" || scheme == "data") { return true }
@@ -231,7 +257,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             if mainFrame || isPopup { blockedNavigation = true }
             return false
         }
-        if mainFrame || isPopup {
+        if confirmHost && (mainFrame || isPopup) {
             guard let authorizeNavigation else {
                 declinedNavigation = true
                 return false
@@ -245,12 +271,17 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+        pendingPolicyDecisions += 1
+        defer { pendingPolicyDecisions -= 1 }
         guard let url = navigationAction.request.url else { return .cancel }
         let isPopup = navigationAction.targetFrame == nil
         let mainFrame = navigationAction.targetFrame?.isMainFrame ?? true
-        guard await allowNavigation(url, mainFrame: mainFrame, isPopup: isPopup) else { return .cancel }
+        let skipConfirm = !isPopup && mainFrame && preapprovedPopupURL == url
+        if skipConfirm { preapprovedPopupURL = nil }
+        guard await allowNavigation(url, mainFrame: mainFrame, isPopup: isPopup, confirmHost: !skipConfirm) else { return .cancel }
         // `target="_blank"` and window.open: the same view, never a new window.
         if isPopup {
+            preapprovedPopupURL = url
             webView.load(navigationAction.request)
             return .cancel
         }
@@ -258,6 +289,8 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse) async -> WKNavigationResponsePolicy {
+        pendingPolicyDecisions += 1
+        defer { pendingPolicyDecisions -= 1 }
         guard let url = navigationResponse.response.url else { return .cancel }
         guard await allowNavigation(url, mainFrame: navigationResponse.isForMainFrame, isPopup: false) else { return .cancel }
         return .allow
@@ -266,9 +299,12 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction,
                  windowFeatures: WKWindowFeatures) -> WKWebView? {
         guard let url = navigationAction.request.url else { return nil }
-        pendingPopupTask = Task { @MainActor [weak self] in
+        let id = UUID()
+        pendingPopupTasks[id] = Task { @MainActor [weak self] in
+            defer { self?.pendingPopupTasks.removeValue(forKey: id) }
             guard let self else { return }
             guard await self.allowNavigation(url, mainFrame: true, isPopup: true) else { return }
+            self.preapprovedPopupURL = url
             self.webView.load(navigationAction.request)
         }
         return nil
@@ -318,16 +354,21 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
       if (type === 'checkbox' || type === 'radio') return type;
       return 'textbox';
     };
+    const textFromIds = (el, attr) => {
+      const ids = el.getAttribute(attr);
+      if (!ids) return '';
+      return ids.split(/\s+/).map((id) => {
+        const target = document.getElementById(id);
+        return target ? (target.innerText || target.textContent || '') : '';
+      }).join(' ').trim();
+    };
     const labelOf = (el) => {
       const aria = el.getAttribute('aria-label');
       if (aria) return aria;
-      const by = el.getAttribute('aria-labelledby');
-      if (by) {
-        const text = by.split(/\s+/).map((id) => document.getElementById(id)?.innerText || '').join(' ').trim();
-        if (text) return text;
-      }
+      const by = textFromIds(el, 'aria-labelledby');
+      if (by) return by;
       if (el.labels && el.labels.length) {
-        const text = Array.from(el.labels).map((label) => label.innerText).join(' ').trim();
+        const text = Array.from(el.labels).map((label) => label.innerText || label.textContent || '').join(' ').trim();
         if (text) return text;
       }
       const type = typeOf(el);
@@ -342,13 +383,54 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
       const nonText = ['hidden', 'button', 'submit', 'reset', 'image', 'checkbox', 'radio', 'file'];
       const isTextControl = el.tagName === 'TEXTAREA' || el.isContentEditable || (el.tagName === 'INPUT' && !nonText.includes(type));
       if (!isTextControl) return false;
-      const hints = [el.getAttribute('name'), el.id, el.getAttribute('aria-label'), el.getAttribute('placeholder'),
-                     el.labels ? Array.from(el.labels).map((l) => l.innerText).join(' ') : ''].join(' ');
-      return /(^|[^a-z0-9])(otp|totp|2fa|mfa|one[-_ ]?time[-_ ]?code|passcode|security[-_ ]?code|verification[-_ ]?code|auth[-_ ]?code|best[aä]tigungscode|einmalcode|sicherheitscode|tan)([^a-z0-9]|$)/i.test(hints);
+      const hints = [
+        labelOf(el),
+        textFromIds(el, 'aria-labelledby'),
+        textFromIds(el, 'aria-describedby'),
+        el.getAttribute('name'),
+        el.id,
+        el.getAttribute('aria-label'),
+        el.getAttribute('aria-description'),
+        el.getAttribute('placeholder'),
+        el.getAttribute('title'),
+        el.labels ? Array.from(el.labels).map((l) => l.innerText || l.textContent || '').join(' ') : ''
+      ].join(' ');
+      return /(^|[^a-z0-9])(otp|totp|2fa|mfa|two[-_ ]?factor|2[-_ ]?factor|zwei[-_ ]?faktor|one[-_ ]?time[-_ ]?code|passcode|security[-_ ]?(code|pin)|verification[-_ ]?(code|pin)|auth[-_ ]?code|best[aä]tigungscode|einmalcode|sicherheitscode|tan)([^a-z0-9]|$)/i.test(hints);
     };
     const selectSignature = (el) => el.tagName === 'SELECT'
       ? Array.from(el.options).map((o) => o.value + ':' + o.text.trim()).join('\n')
       : null;
+    const resolvedHref = (el) => {
+      if (!el) return null;
+      if (typeof el.href === 'string') return el.href;
+      return el.href && typeof el.href.baseVal === 'string' ? el.href.baseVal : null;
+    };
+    const resolvedFormAction = (el) => {
+      if (typeof el.formAction === 'string' && el.hasAttribute('formaction')) return el.formAction;
+      if (el.form) return String(Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, 'action')?.get?.call(el.form) ?? '');
+      if (typeof el.action === 'string') return el.action;
+      return null;
+    };
+    const metaOf = (el) => ({
+      url: location.href,
+      baseURI: document.baseURI,
+      baseTarget: document.querySelector('base[target]')?.getAttribute('target') ?? null,
+      tagName: el.tagName,
+      role: roleOf(el),
+      type: typeOf(el),
+      buttonType: el.tagName === 'BUTTON' ? String(el.type || 'submit').toLowerCase() : null,
+      name: clean(labelOf(el), 80),
+      hrefAttr: el.getAttribute('href'),
+      href: resolvedHref(el),
+      ancestorHref: resolvedHref(el.closest('a[href]')),
+      formactionAttr: el.getAttribute('formaction'),
+      formAction: resolvedFormAction(el),
+      formActionAttr: el.form ? (el.form.getAttribute('action') ?? '') : null,
+      target: el.getAttribute('target'),
+      formTarget: el.getAttribute('formtarget'),
+      formTargetAttr: el.form ? (el.form.getAttribute('target') ?? '') : null,
+      options: selectSignature(el),
+    });
     """#
 
     /// Up to `maxRefs` visible interactive elements, bounded readable text, login/2FA and CAPTCHA signs. Sensitive
@@ -366,21 +448,10 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
       if (sensitive) login = true;
       if (out.length >= maxRefs) continue;
       const ref = '@e' + (out.length + 1);
-      const baseName = clean(labelOf(el), 80);
-      const role = roleOf(el);
+      const captured = metaOf(el);
       refs.set(ref, el);
-      meta.set(ref, {
-        url: location.href,
-        tagName: el.tagName,
-        role,
-        type,
-        name: baseName,
-        href: el.getAttribute('href'),
-        formaction: el.getAttribute('formaction'),
-        formAction: el.form ? (el.form.getAttribute('action') ?? '') : null,
-        options: selectSignature(el),
-      });
-      let name = baseName;
+      meta.set(ref, captured);
+      let name = captured.name;
       let value = null;
       if (sensitive) value = null;
       else if (el.tagName === 'SELECT') {
@@ -389,7 +460,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         if (options.length) name = clean(name + ' [' + options.join(' | ') + ']', 160);
       } else if (type === 'checkbox' || type === 'radio') value = el.checked ? 'checked' : 'unchecked';
       else if (el.tagName === 'TEXTAREA' || (type && !['submit', 'button', 'reset', 'image'].includes(type))) value = el.value || null;
-      out.push({ ref, role, name, type, sensitive, value: value == null ? null : clean(value, 80) });
+      out.push({ ref, role: captured.role, name, type, sensitive, value: value == null ? null : clean(value, 80) });
     }
     window.__pippaRefs = refs;
     window.__pippaRefMeta = meta;
@@ -411,13 +482,10 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     const el = window.__pippaRefs.get(ref);
     const expected = window.__pippaRefMeta.get(ref);
     if (!el || !expected || !el.isConnected || el.disabled || !visible(el)) return { error: 'stale' };
-    if (location.href !== expected.url) return { error: 'stale' };
-    if (el.tagName !== expected.tagName || roleOf(el) !== expected.role || typeOf(el) !== expected.type) return { error: 'stale' };
-    if (clean(labelOf(el), 80) !== expected.name) return { error: 'stale' };
-    if ((el.getAttribute('href') ?? null) !== expected.href) return { error: 'stale' };
-    if ((el.getAttribute('formaction') ?? null) !== expected.formaction) return { error: 'stale' };
-    if ((el.form ? (el.form.getAttribute('action') ?? '') : null) !== expected.formAction) return { error: 'stale' };
-    if (selectSignature(el) !== expected.options) return { error: 'stale' };
+    const current = metaOf(el);
+    for (const key of Object.keys(expected)) {
+      if (current[key] !== expected[key]) return { error: 'stale' };
+    }
     const fire = () => {
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
