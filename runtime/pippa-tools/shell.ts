@@ -103,6 +103,16 @@ function dotEntries(folder: string): string {
 }
 
 /**
+ * Mach services a headless command line tool needs. Everything else is refused (`deny mach-lookup`): a child of
+ * Pippa.app otherwise inherits her Accessibility grant and can read other apps' windows over the AX services.
+ */
+const MACH_BASE = ["com.apple.system.logger", "com.apple.system.notification_center", "com.apple.CoreServices.coreservicesd",
+	"com.apple.metadata.mds", "com.apple.metadata.mds.legacy"];
+/** Name resolution and certificate checks, only with the network grant. */
+const MACH_NET = ["com.apple.SystemConfiguration.configd", "com.apple.SystemConfiguration.DNSConfiguration", "com.apple.dnssd.service",
+	"com.apple.TrustEvaluationAgent", "com.apple.trustd", "com.apple.securityd", "com.apple.ocspd"];
+
+/**
  * The sandbox profile for this set of grants. In SBPL the last matching rule wins, so the order is: broad denies,
  * what a grant allows, what stays forbidden anyway, and the working folders last.
  */
@@ -112,6 +122,9 @@ export function sandboxProfile(grants: ReadonlySet<Grant>, where: Places, shims:
 	if (!grants.has("net")) lines.push("(deny network*)");
 	// No broad app-control grant: only Pippa's narrow native tools may change apps.
 	lines.push("(deny appleevent-send)");
+	// Closing Apple events is not enough: Accessibility and other app-reaching Mach services stay closed, except for an allowlist.
+	lines.push("(deny mach-lookup)");
+	lines.push(`(allow mach-lookup ${[...MACH_BASE, ...(grants.has("net") ? MACH_NET : [])].map((name) => `(global-name ${lit(name)})`).join(" ")})`);
 	lines.push(`(deny process-exec (literal "/usr/bin/osascript") (literal "/usr/bin/open") (literal "/usr/bin/shortcuts") (literal "/usr/bin/automator"))`);
 	if (shims.length) lines.push(`(deny process-exec ${shims.map((name) => `(literal ${lit(join(shimDir, name))})`).join(" ")})`);
 	lines.push(`(deny file-write* (subpath ${lit(home)}) (subpath "/Volumes") (subpath "/Users/Shared") (subpath "/Applications") (subpath "/Library"))`);
@@ -200,6 +213,8 @@ export function noDeveloperToolsReason(name: string): string {
 // A placeholder the profile forbids to start: `/bin/bash: /usr/bin/python3: Operation not permitted`, `env: python3: Operation not permitted`, `xargs: git: Operation not permitted`,
 // and as a script's interpreter `/bin/bash: ./x.py: /usr/bin/python3: bad interpreter: Operation not permitted`.
 const SHIM_FAILURE = /(?:\/usr\/bin\/|\b(?:env|xargs|find): )[\w+.-]+: (?:bad interpreter: )?Operation not permitted/;
+// A refused Mach lookup or Accessibility call (`sandbox-exec`/`Sandbox` `deny(...) mach-lookup`, `bootstrap_look_up`, AX error): no file is involved.
+const MACH_OR_AX_FAILURE = /^\s*(?:(?:Sandbox:\s+\S+\(\d+\)|sandbox-exec:)\s+deny\(\d+\)\s+mach-lookup\b|bootstrap_look_up(?:\([^)\n]*\))?\s+(?:failed|error|returned)\b|(?:kAXError\w+|AXUIElement\w+\s+(?:failed|error|returned))\b)/i;
 const WRITE_FAILURE = /Operation not permitted/i;
 
 /** Grants a failed command lacked, judged from its output. */
@@ -207,7 +222,10 @@ export function missingGrants(command: string, output: string, grants: ReadonlyS
 	const missing = new Set<Grant>();
 	if (!grants.has("net") && NETWORK_FAILURE.test(output)) missing.add("net");
 	if (APPS_FAILURE.test(output) || SHIM_FAILURE.test(output) || programs(command).some((word) => APPS.has(word))) return missing;
-	if (!grants.has("write") && !missing.size && WRITE_FAILURE.test(output)) missing.add("write");
+	const hasWriteFailure = output.split(/\r?\n/).some(
+		(line) => WRITE_FAILURE.test(line) && !APPS_FAILURE.test(line) && !SHIM_FAILURE.test(line) && !MACH_OR_AX_FAILURE.test(line),
+	);
+	if (!grants.has("write") && !missing.size && hasWriteFailure) missing.add("write");
 	return missing;
 }
 
