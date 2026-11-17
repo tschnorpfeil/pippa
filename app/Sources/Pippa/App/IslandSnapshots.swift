@@ -54,6 +54,14 @@ enum IslandSnapshots {
                 for _ in 0..<5 { await Task.yield() }
                 island.showForSnapshot(status(questions: approvals.questions.count))
             }),
+            // Pippa's `ask` with four choices and "Something else…": every choice is a row of its own.
+            ("needs-you-select-long", true, {
+                approvals.cancelAll()
+                _ = await question?.value
+                question = Task { await approvals.ask(selectLongQuestion) }
+                for _ in 0..<5 { await Task.yield() }
+                island.showForSnapshot(status(questions: approvals.questions.count))
+            }),
             ("needs-you-text", true, {
                 approvals.cancelAll()
                 _ = await question?.value
@@ -273,6 +281,12 @@ enum IslandSnapshots {
     private static let selectQuestion = PiUIRequest(
         id: "island-snapshot-select", method: "select", title: "Welche Datei soll Pippa lesen?", message: "",
         options: ["Brief-Stadtwerke.pdf", "Nebenkosten-2025.pdf", "Mietvertrag.pdf"])
+
+    private static let selectLongQuestion = PiUIRequest(
+        id: "island-snapshot-select-long", method: "select", title: "Was meinst du mit „aufräumen“ in deinem Downloads-Ordner?",
+        message: "", options: ["In diese 5 thematischen Projektordner sortieren", "Alles in einen einzigen Hauptordner verschieben",
+                               "Die Dateien im Downloads-Ordner nach Alphabet sortieren",
+                               "Mir selbst sagen, welche Dateien/Ordner gelöscht werden sollen", "Etwas anderes …"])
 
     private static let textQuestion = PiUIRequest(
         id: "island-snapshot-text", method: "input", title: "Wie soll der Ordner heißen?",
