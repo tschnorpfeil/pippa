@@ -11,6 +11,8 @@ final class MarkNSView: NSView {
     private var occlusionObserver: NSObjectProtocol?
     /// Menu bar: black or white at rest like a template symbol, still; colour only when the state changes.
     private let monochromeIdle: Bool
+    /// Words of the answer are coming in: draw her handwriting (`Scribble`) instead of the rings.
+    private(set) var isWriting = false
 
     init(size: CGFloat, monochromeIdle: Bool = false) {
         renderer = MarkRenderer(size: Double(size), state: .ruht, palette: .light, reduced: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
@@ -48,7 +50,7 @@ final class MarkNSView: NSView {
     private func updatePalette() {
         let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         var palette: MarkPalette = dark ? .dark : .light
-        if monochromeIdle && renderer.state == .ruht { palette = palette.monochromeIdle(dark: dark) }
+        if monochromeIdle && renderer.state == .ruht && !isWriting { palette = palette.monochromeIdle(dark: dark) }
         if palette != renderer.palette {
             renderer.palette = palette
             wake()
@@ -58,6 +60,13 @@ final class MarkNSView: NSView {
     func setState(_ state: MarkState) {
         guard renderer.state != state else { return }
         renderer.state = state
+        updatePalette()
+        wake()
+    }
+
+    func setWriting(_ writing: Bool) {
+        guard isWriting != writing else { return }
+        isWriting = writing
         updatePalette()
         wake()
     }
@@ -77,6 +86,8 @@ final class MarkNSView: NSView {
         guard let window else { return false }
         return window.isVisible && window.occlusionState.contains(.visible) && !isHiddenOrHasHiddenAncestor
     }
+
+    private var animates: Bool { (isWriting && !renderer.reduced) || renderer.animates }
 
     func wake() {
         if renderer.reduced || !isShowing {
@@ -107,11 +118,37 @@ final class MarkNSView: NSView {
         lastTimestamp = now
         renderer.step(seconds: min(delta, 0.1))
         needsDisplay = true
-        if !renderer.animates { stop() }
+        if !animates { stop() }
     }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        if isWriting {
+            let size = bounds.width
+            let scale = size / 2 * 1.1, line = max(1.3, size * 0.08)
+            let time = renderer.reduced ? 2.0 : Date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 10_000)
+            let ink = renderer.palette.primary
+            let color = CGColor(srgbRed: ink[0], green: ink[1], blue: ink[2], alpha: 1)
+            let alphas = [1.0, 0.6, 0.42]
+            ctx.saveGState()
+            ctx.setStrokeColor(color)
+            ctx.setLineWidth(line)
+            ctx.setLineCap(.round)
+            ctx.setLineJoin(.round)
+            for k in 0..<3 {
+                ctx.setAlpha(alphas[k])
+                let points = Scribble.stroke(k, at: time)
+                guard let first = points.first else { continue }
+                ctx.beginPath()
+                ctx.move(to: CGPoint(x: size / 2 + first.x * scale, y: size / 2 + first.y * scale))
+                for point in points.dropFirst() {
+                    ctx.addLine(to: CGPoint(x: size / 2 + point.x * scale, y: size / 2 + point.y * scale))
+                }
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+            return
+        }
         let scale = bounds.width / CGFloat(renderer.size)
         renderer.glowAllowed = bounds.width > 32
         ctx.saveGState()

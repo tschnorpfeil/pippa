@@ -29,6 +29,8 @@ final class Island: ObservableObject {
     /// The menu bar symbol's state. Beside the notch the island carries her live mark, so the symbol stays at rest;
     /// set after every status or placement change, so the two never animate together or both rest while she works.
     @Published private(set) var menuMark = MarkState.ruht
+    /// Whether the menu bar symbol shows Scribble while words of the answer come in.
+    @Published private(set) var menuWriting = false
     private var watches: [AnyCancellable] = []
     private var screenObserver: NSObjectProtocol?
     /// "Your answer is ready" or "That didn't work", for a few seconds after an answer.
@@ -302,8 +304,11 @@ final class Island: ObservableObject {
     func close() { presenter?.close() }
 
     private func updateMenuMark() {
-        let state = isShown && presenter?.placement?.isNotch == true ? MarkState.ruht : status.markState
+        let notchCarriesMark = isShown && presenter?.placement?.isNotch == true
+        let state = notchCarriesMark ? MarkState.ruht : status.markState
+        let writing = !notchCarriesMark && status.writing
         if state != menuMark { menuMark = state }
+        if writing != menuWriting { menuWriting = writing }
     }
 
     /// The panel's content is on screen: a focus asked for while it was still hidden takes effect now.

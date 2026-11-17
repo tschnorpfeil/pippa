@@ -67,7 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.statusItem?.button?.setAccessibilityValue(status.label)
         }
         // One live mark at a time: at the notch the island shows it, under the symbol the symbol does.
-        menuMarkWatch = Island.shared.$menuMark.sink { [weak self] state in self?.menuMark.setState(state) }
+        menuMarkWatch = Publishers.CombineLatest(Island.shared.$menuMark, Island.shared.$menuWriting)
+            .sink { [weak self] state, writing in
+                self?.menuMark.setState(state)
+                self?.menuMark.setWriting(writing)
+            }
         let menu = NSMenu()
         menu.addItem(MenuAction.item(T("Ask Pippa", table: "App")) { AppActions.callPippa() })
         menu.addItem(MenuAction.item(T("New Conversation", table: "App")) { ChatModel.shared.newConversation(); ChatWindow.shared.show() })

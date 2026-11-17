@@ -318,8 +318,7 @@ struct IslandPanelView: View {
 
     private func header(markSize: CGFloat) -> some View {
         HStack(spacing: markSize < 20 ? IslandStyle.wingGap : 10) {
-            // Under the menu bar symbol the symbol is her mark; beside the notch the header carries it.
-            if menuBarRow != nil { IslandMark(status: island.status, size: markSize) }
+            IslandMark(status: island.status, size: markSize)
             // In the menu bar row just her name and the sign: the panel below says what she does or asks. While she
             // works or loads her AI the panel says it too, so the header keeps her name instead of saying it twice.
             Text(island.status.tone == .rest || markSize < 20 || panelShowsStatus ? "Pippa" : island.status.label)
