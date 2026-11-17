@@ -17,7 +17,9 @@ the window's sidebar, so you can search for it and pick it up later.
 
 **Pippa Island** sits at the notch, or under Pippa's menu bar symbol on a Mac without one. It shows what she is working
 on, such as the file she is reading. Press ⌥ Space to open it for a quick question, drop a file on it, or click
-**Open Pippa** to continue in the full window. You can switch it off in Settings under **General**.
+**Open Pippa** to continue in the full window. Click your latest conversation from the past 24 hours (or press ↑ in the empty field) to keep
+asking there; a question goes on with a conversation while its answer is showing or its last message is under ten
+minutes old, and the pencil (⌘N) always starts a new one. You can switch it off in Settings under **General**.
 
 ## Everyday jobs
 
@@ -38,7 +40,11 @@ A few more things she can do when you ask:
   scans.
 - **The app in front.** Ask about what's open, for example the mail you're reading.
 - **Photos.** Find matching photos in your Photos library.
-- **The web.** Look something up online, after showing you the exact search text and getting your OK.
+- **The web.** Look something up online, after showing you the exact search text and getting your OK. When a page needs
+  clicking through, she opens it in a browser panel in her window, asks before each new site and each click, typed text
+  or choice, and leaves sign-ins, passwords and codes to you.
+- **The app in front.** Ask about what's open and she reads it; for apps that can't hand over their content, she reads
+  the text its window hands to macOS Accessibility, read only, after you allow it.
 - **Remembering.** Tell her a fact about yourself, such as your doctor's name, and she keeps it for later
   conversations. Ask her to forget it, and it's gone. She never keeps account, card or ID numbers or passwords.
 
