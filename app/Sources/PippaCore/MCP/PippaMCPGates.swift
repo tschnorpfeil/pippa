@@ -82,6 +82,15 @@ extension PippaMCPTools {
         L("Pippa may not read %@. To change that, open System Settings → Privacy & Security → Automation and turn it on under Pippa.", table: "MCP", app)
     }
 
+    /// Accessibility has no "Allow" button: the Mac sends the person to System Settings.
+    static func notYetAccessibility(_ app: String) -> String {
+        L("Pippa can’t read %@ yet. Ask again, then turn on Pippa under Accessibility when your Mac asks.", table: "MCP", app)
+    }
+
+    static func deniedAccessibility(_ app: String) -> String {
+        L("Pippa may not read %@ yet. To change that, open System Settings → Privacy & Security → Accessibility and turn on Pippa. Then ask again.", table: "MCP", app)
+    }
+
     static func notYet(_ i: Integration) -> String { notYet(app: i.appName) }
     static func notYet(app: String) -> String {
         L("Pippa isn’t allowed to read %@ yet. Ask again and click “Allow” when your Mac asks.", table: "MCP", app)

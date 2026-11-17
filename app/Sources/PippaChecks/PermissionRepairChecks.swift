@@ -83,6 +83,11 @@ func runPermissionRepairChecks() async {
             && malformed.items.first?.permissionRepair == nil && roundTrip == receipt
             && PermissionRepairTarget.allCases.allSatisfy { $0.settingsURL.scheme == "x-apple.systempreferences" }
     }
+    check("Permission repair: Accessibility opens Privacy & Security → Accessibility") {
+        PermissionRepairTarget.accessibility.settingsURL.absoluteString
+            == "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+            && PermissionRepairTarget(rawValue: "accessibility") == .accessibility
+    }
     check("Permission repair: only actual POSIX/Cocoa permission errors qualify; text and other domains never do") {
         let valid = [NSError(domain: NSPOSIXErrorDomain, code: Int(EACCES)), NSError(domain: NSPOSIXErrorDomain, code: Int(EPERM)),
                      NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError),

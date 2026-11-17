@@ -4,7 +4,7 @@ import SwiftUI
 
 /// What Pippa may use on this Mac, as macOS keeps it. Only read here, never asked: Pippa asks when she first needs it.
 enum MacPermission: CaseIterable {
-    case calendar, reminders, mail, photos, files
+    case calendar, reminders, mail, photos, accessibility, files
 
     var name: String {
         switch self {
@@ -12,6 +12,7 @@ enum MacPermission: CaseIterable {
         case .reminders: Integration.reminders.appName
         case .mail: Integration.mail.appName
         case .photos: PhotosLibrary.appName
+        case .accessibility: T("Accessibility", table: "Settings")
         case .files: T("Files & Folders", table: "Settings")
         }
     }
@@ -22,6 +23,7 @@ enum MacPermission: CaseIterable {
         case .reminders: "checklist"
         case .mail: "envelope"
         case .photos: "photo.on.rectangle"
+        case .accessibility: "accessibility"
         case .files: "folder"
         }
     }
@@ -33,19 +35,22 @@ enum MacPermission: CaseIterable {
         case .reminders: Integration.reminders.settingsURL
         case .mail: Integration.mail.settingsURL
         case .photos: PhotosLibrary.settingsURL
+        case .accessibility: PermissionRepairTarget.accessibility.settingsURL
         case .files: PermissionRepairTarget.filesAndFolders.settingsURL
         }
     }
 
     /// The state without a system prompt. Calendar and Reminders: EventKit's authorization status. Mail: the Apple
     /// Events check with `ask: false`, only while Mail runs. Photos: PhotoKit's authorization status (it neither asks nor
-    /// starts Photos). Files & Folders has no such check: nil.
+    /// starts Photos). Accessibility: `AXIsProcessTrusted` through the reader with `ask: false` (never the prompt).
+    /// Files & Folders has no such check: nil.
     func read() async -> IntegrationAccess? {
         switch self {
         case .calendar: await SystemIntegrations().access(.calendar)
         case .reminders: await SystemIntegrations().access(.reminders)
         case .mail: await SystemIntegrations().access(.mail)
         case .photos: await PhotosLibrary.libraryAccess(ask: false)
+        case .accessibility: SystemAccessibilityFrontReader().accessibilityAccess(ask: false)
         case .files: nil
         }
     }
@@ -71,7 +76,7 @@ final class PermissionStatus: ObservableObject {
         guard live else { return }
         reading?.cancel()
         reading = Task {
-            for permission in [MacPermission.calendar, .reminders, .photos, .mail] {
+            for permission in [MacPermission.calendar, .reminders, .photos, .accessibility, .mail] {
                 let value = await permission.read()
                 guard !Task.isCancelled else { return }
                 access[permission] = value
