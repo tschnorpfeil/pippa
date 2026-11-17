@@ -52,6 +52,8 @@ test("the tool: Pi's card when the app is there, the no-one text when it is not"
 	const tool = askTool();
 	assert.equal(tool.name, "ask");
 	assert.ok(tool.description.length < 300, "every word costs prompt time with the local model");
+	assert.match(tool.description, /never list options in plain text/i);
+	assert.match(tool.description, /options or a question/i);
 	const ui = card("A");
 	const shown = await tool.execute("1", { question: "Q?", choices: ["A", "B"] }, undefined, undefined, { hasUI: true, ui });
 	assert.match(shown.content[0].text, /answered: "A"/);

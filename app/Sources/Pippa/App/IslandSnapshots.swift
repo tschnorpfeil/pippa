@@ -137,6 +137,7 @@ enum IslandSnapshots {
             let mark = MarkNSView(size: 18, monochromeIdle: true)
             mark.frame = NSRect(x: anchor.midX - 9, y: anchor.midY - 9, width: 18, height: 18)
             mark.setState(status.tone == .done || status.tone == .rest ? .ruht : status.markState)
+            mark.setWriting(status.writing)
             canvas.addSubview(mark)
             placement = .menuBar(anchor: anchor, visible: CGRect(x: 0, y: 0, width: size.width, height: size.height - barHeight))
         }

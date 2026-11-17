@@ -82,7 +82,15 @@ enum WindowLifecycleChecks {
         await settle()
         let notch = Island.shared.presenter?.placement?.isNotch == true
         check("Island on while she works: \(notch ? "the symbol rests, the island beside the notch shows it" : "the symbol shows it")",
-              Island.shared.menuMark == (notch ? .ruht : .arbeitet))
+              Island.shared.menuMark == (notch ? .ruht : .arbeitet) && !Island.shared.menuWriting)
+        ChatModel.shared.showSample([], current: nil, answering: true, writing: true)
+        Island.shared.isShown = false
+        await settle()
+        check("Island off while she writes: the menu bar symbol shows Scribble", Island.shared.menuWriting)
+        Island.shared.isShown = true
+        await settle()
+        check("Island on while she writes: \(notch ? "the symbol rests, the island beside the notch writes" : "the menu bar symbol shows Scribble")",
+              Island.shared.menuWriting == !notch)
         check("⌘H leaves Pippa Island on screen", Island.shared.presenter?.panel.canHide == false)
         ChatModel.shared.showSample([], current: nil, answering: false)
         Island.shared.refresh()

@@ -7,7 +7,7 @@
  * "go on with the most reasonable reading and name it", and without anyone to ask (a run without the app) the same.
  */
 export const ASK_DESCRIPTION =
-	"Ask the person one question when you cannot go on without them, before searching: their words leave open which file, folder, person or thing they mean, the readings lead to different work, or only they know. 2-4 short choices; they can also answer in their own words.";
+	"Ask one question as an interactive card (never list options in plain text) when you need the person's decision: several things match, readings differ, only they know, or they ask for options or a question. 2-4 short choices; they can also answer in their own words.";
 
 const MAX_CHOICES = 4;
 
