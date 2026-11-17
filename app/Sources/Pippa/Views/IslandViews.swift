@@ -460,12 +460,12 @@ struct IslandPanelView: View {
         .background(RoundedRectangle(cornerRadius: IslandStyle.wellRadius, style: .continuous)
             .fill(IslandStyle.white(following ? 0.12 : 0.06)))
         .contentShape(Rectangle())
-        .onTapGesture { if !following { island.continueConversation(conversation.id) } }
+        .onTapGesture { island.continueConversation(conversation.id) }
         .help(following ? "" : T("Continue: %@", table: "Island", conversation.title) + " (↑)")
         .accessibilityElement(children: .contain)
         .accessibilityLabel(T("Continue: %@", table: "Island", conversation.title))
         .accessibilityAddTraits(following ? [.isSelected] : [.isButton])
-        .accessibilityAction { if !following { island.continueConversation(conversation.id) } }
+        .accessibilityAction { island.continueConversation(conversation.id) }
     }
 
     /// "jetzt", "vor 4 Min.", "vor 2 Std." in the person's language; the first minute is "now", never seconds.
