@@ -78,6 +78,64 @@ test("grants a failed command lacked, from its output; writing only when nothing
 	assert.deepEqual([...missingGrants("ls nope", "ls: nope: No such file or directory", new Set())], []);
 });
 
+test("profile: Mach lookups are denied except a small allowlist; DNS and trust services only with the net grant", () => {
+	const NET = ["com.apple.SystemConfiguration.configd", "com.apple.SystemConfiguration.DNSConfiguration", "com.apple.dnssd.service",
+		"com.apple.TrustEvaluationAgent", "com.apple.trustd", "com.apple.securityd", "com.apple.ocspd"];
+	const BASE = ["com.apple.system.logger", "com.apple.system.notification_center", "com.apple.CoreServices.coreservicesd",
+		"com.apple.metadata.mds", "com.apple.metadata.mds.legacy"];
+	for (const grants of [new Set(), new Set(["write"]), new Set(["net"]), new Set(["net", "apps", "write"])]) {
+		const profile = sandboxProfile(grants, where);
+		const lines = profile.trim().split("\n");
+		assert.equal(lines[0], "(version 1)");
+		assert.equal(lines[1], "(allow default)");
+		assert.ok(lines.at(-1).startsWith("(allow file-write* (subpath "), "the working folder stays last");
+		const deny = lines.indexOf("(deny mach-lookup)");
+		assert.ok(deny > lines.indexOf("(deny appleevent-send)"), [...grants].join());
+		const allow = lines.findIndex((l) => l.startsWith("(allow mach-lookup"));
+		assert.ok(allow > deny, "the allowlist follows the deny, so it wins");
+		for (const name of BASE) assert.ok(lines[allow].includes(`(global-name "${name}")`), name);
+		for (const name of NET) assert.equal(lines[allow].includes(`"${name}"`), grants.has("net"), `${name} with ${[...grants].join()}`);
+		assert.doesNotMatch(profile, /accessibility|tccd|windowserver|launchservices|pasteboard/i, "nothing that reaches other apps");
+	}
+});
+
+test("a denied Mach lookup or Accessibility call never asks for a write grant", () => {
+	for (const output of [
+		"AXIsProcessTrusted: false",
+		"AXUIElementCopyAttributeValue failed: err=-25204",
+		"kAXErrorCannotComplete (-25204)",
+		"sandbox-exec: deny(1) mach-lookup com.apple.accessibility.AXBackgroundService",
+		"bootstrap_look_up failed: Operation not permitted",
+		"Sandbox: python3(123) deny(1) mach-lookup com.apple.tccd: Operation not permitted",
+	]) assert.deepEqual([...missingGrants("python3 ax.py", output, new Set())], [], output);
+	assert.deepEqual([...missingGrants("sips a.heic", "Error: Operation not permitted", new Set())], ["write"], "a plain refusal still can");
+	assert.deepEqual(
+		[...missingGrants("touch ~/Documents/Mach\\ service.txt", "touch: /Users/example/Documents/Mach service.txt: Operation not permitted", new Set())],
+		["write"],
+		"unrelated words in a filename do not suppress a genuine write refusal",
+	);
+	assert.deepEqual(
+		[...missingGrants("python3 probe.py", "AXIsProcessTrusted: True\ncp: /Users/example/Documents/out.txt: Operation not permitted", new Set())],
+		["write"],
+		"earlier diagnostic text does not suppress a later write refusal",
+	);
+	assert.deepEqual(
+		[...missingGrants("touch ~/Documents/bootstrap_look_up.txt", "touch: /Users/example/Documents/bootstrap_look_up.txt: Operation not permitted", new Set())],
+		["write"],
+		"bootstrap_look_up in a filename does not suppress a write refusal",
+	);
+	assert.deepEqual(
+		[...missingGrants("touch ~/Documents/AXUIElementCopyAttributeValue-errors.txt", "touch: /Users/example/Documents/AXUIElementCopyAttributeValue-errors.txt: Operation not permitted", new Set())],
+		["write"],
+		"AX symbols in a filename do not suppress a write refusal",
+	);
+	assert.deepEqual(
+		[...missingGrants("python3 probe.py", "Sandbox: python3(123) deny(1) mach-lookup com.apple.tccd: Operation not permitted\ntouch: /Users/example/Documents/out.txt: Operation not permitted", new Set())],
+		["write"],
+		"a denied Mach lookup on one line does not suppress an independent write refusal on another",
+	);
+});
+
 test("an indirect denied app executable never solicits a file-write grant", () => {
 	assert.deepEqual([...missingGrants('runner=/usr/bin/osascript; "$runner" -e "1+1"',
 		'/bin/bash: line 1: /usr/bin/osascript: Operation not permitted', new Set())], []);
@@ -431,6 +489,51 @@ test("real sandbox: everyday work still runs (reading, computing, converting int
 	const write = run(`echo neu > ${home}/Documents/neu.txt`, new Set(["write"]));
 	assert.equal(write.status, 0, write.stderr);
 	assert.equal(readFileSync(join(home, "Documents", "neu.txt"), "utf8"), "neu\n");
+});
+
+test("real sandbox: converters and search still run; Accessibility and other app-reaching Mach services are closed", { skip: !onMac && "macOS sandbox only", timeout: 90_000 }, async () => {
+	const { spawnSync } = await import("node:child_process");
+	const { work, home } = scratch("mach");
+	const where = places(work, {}, home);
+	const run = (command, grants = new Set()) => spawnSync("/bin/bash", ["-c", sandboxedCommand(command, grants, where)], { cwd: work, encoding: "utf8", timeout: 30_000 });
+	writeFileSync(join(work, "a.txt"), "Hallo Welt\n");
+	// A one-pixel PNG, converted by sips; a text file converted by textutil; a Spotlight query.
+	const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+	writeFileSync(join(work, "p.png"), png);
+	const sips = run(`sips -s format jpeg p.png --out p.jpg`);
+	assert.equal(sips.status, 0, sips.stderr + sips.stdout);
+	assert.ok(existsSync(join(work, "p.jpg")));
+	const textutil = run(`textutil -convert html a.txt -output a.html`);
+	assert.equal(textutil.status, 0, textutil.stderr);
+	assert.ok(existsSync(join(work, "a.html")));
+	const mdfind = run(`mdfind -onlyin ${work} Hallo >/dev/null`);
+	assert.equal(mdfind.status, 0, mdfind.stderr);
+	// Direct Mach lookups need a real python3 (without developer tools /usr/bin/python3 would open an install dialog).
+	if (!shell.developerToolsInstalled()) return;
+	const probe = `import ctypes, sys
+libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+libc.bootstrap_look_up.argtypes = [ctypes.c_uint32, ctypes.c_char_p, ctypes.POINTER(ctypes.c_uint32)]
+bootstrap = ctypes.c_uint32(0)
+libc.task_get_special_port(ctypes.c_uint32.in_dll(libc, "mach_task_self_").value, 4, ctypes.byref(bootstrap))
+def look(name):
+    port = ctypes.c_uint32(0)
+    return libc.bootstrap_look_up(bootstrap.value, name.encode(), ctypes.byref(port))
+ax = ctypes.CDLL("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices")
+ax.AXIsProcessTrusted.restype = ctypes.c_bool
+print("logger", look("com.apple.system.logger"))
+print("windowserver", look("com.apple.windowserver.active"))
+print("tccd", look("com.apple.tccd"))
+print("trusted", ax.AXIsProcessTrusted())`;
+	writeFileSync(join(work, "probe.py"), probe);
+	for (const grants of [new Set(), new Set(["net"])]) {
+		const out = run(`python3 probe.py`, grants);
+		assert.equal(out.status, 0, out.stderr);
+		const seen = Object.fromEntries(out.stdout.trim().split("\n").map((l) => l.split(" ")));
+		assert.equal(seen.logger, "0", "the allowlisted logger stays reachable");
+		assert.notEqual(seen.windowserver, "0", "WindowServer is closed");
+		assert.notEqual(seen.tccd, "0", "tccd is closed");
+		assert.equal(seen.trusted, "False", "a child never inherits Accessibility trust");
+	}
 });
 
 for (const failure of [undefined, "exit", "timeout", "abort"]) {
