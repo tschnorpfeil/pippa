@@ -18,11 +18,12 @@ public protocol AccessibilityFrontReading: Sendable {
 /// One node of an accessibility tree, as checks build it by hand (`AccessibilityText.collect`).
 public struct AXNodeSample: Sendable, Equatable {
     public var role: String
+    public var subrole: String?
     /// Title, value and description, in that order.
     public var texts: [String]
     public var children: [AXNodeSample]
-    public init(role: String, texts: [String] = [], children: [AXNodeSample] = []) {
-        self.role = role; self.texts = texts; self.children = children
+    public init(role: String, subrole: String? = nil, texts: [String] = [], children: [AXNodeSample] = []) {
+        self.role = role; self.subrole = subrole; self.texts = texts; self.children = children
     }
 }
 
@@ -37,6 +38,8 @@ public enum AccessibilityText {
         "AXScrollBar", "AXSplitter", "AXToolbar", "AXMenuBar", "AXMenuBarItem", "AXMenu", "AXMenuItem",
         "AXGrowArea", "AXBusyIndicator", "AXSecureTextField",
     ]
+    /// Subroles excluded regardless of their parent `AXRole` (for example `AXTextField` with `AXSecureTextField`).
+    public static let skippedSubroles: Set<String> = [kAXSecureTextFieldSubrole]
 
     public struct Walk: Sendable, Equatable {
         public var lines: [String]
@@ -44,18 +47,19 @@ public enum AccessibilityText {
         public var visited: Int
         /// Deepest level reached; the window is 0.
         public var deepest: Int
-        /// Stopped early: node or character budget used up.
+        /// Stopped early: node, character or time budget used up.
         public var clipped: Bool
         public var text: String { lines.joined(separator: "\n") }
     }
 
     public static func collect(_ root: AXNodeSample) -> Walk {
-        collect(root, role: \.role, texts: \.texts, children: \.children)
+        collect(root, role: \.role, subrole: \.subrole, texts: \.texts, children: \.children)
     }
 
     /// Depth first in reading order. `children` is only called for nodes within the bounds, so a live tree is never
     /// read further than the walk goes. `stop` ends the walk early (a deadline).
-    public static func collect<Node>(_ root: Node, role: (Node) -> String, texts: (Node) -> [String], children: (Node) -> [Node],
+    public static func collect<Node>(_ root: Node, role: (Node) -> String, subrole: (Node) -> String? = { _ in nil },
+                                     texts: (Node) -> [String], children: (Node) -> [Node],
                                      stop: () -> Bool = { false }) -> Walk {
         var walk = Walk(lines: [], visited: 0, deepest: 0, clipped: false)
         var chars = 0
@@ -78,7 +82,11 @@ public enum AccessibilityText {
             if walk.visited >= maxNodes || stop() { walk.clipped = true; full = true; return }
             walk.visited += 1
             walk.deepest = max(walk.deepest, depth)
-            if skippedRoles.contains(role(node)) { return }
+            let nodeRole = role(node)
+            if stop() { walk.clipped = true; full = true; return }
+            if skippedRoles.contains(nodeRole) { return }
+            if let nodeSubrole = subrole(node), skippedSubroles.contains(nodeSubrole) || skippedRoles.contains(nodeSubrole) { return }
+            if stop() { walk.clipped = true; full = true; return }
             var seen: Set<String> = []
             for text in texts(node) {
                 for raw in text.split(whereSeparator: \.isNewline) {
@@ -88,8 +96,11 @@ public enum AccessibilityText {
                     if full { return }
                 }
             }
+            if stop() { walk.clipped = true; full = true; return }
             guard depth < maxDepth else { return }
-            for child in children(node) {
+            let kids = children(node)
+            if stop() { walk.clipped = true; full = true; return }
+            for child in kids {
                 visit(child, depth: depth + 1)
                 if full { return }
             }
@@ -129,39 +140,62 @@ public struct SystemAccessibilityFrontReader: AccessibilityFrontReading {
         await Task.detached(priority: .userInitiated) { Self.read(app) }.value
     }
 
+    /// Validates that a raw CF attribute value is a `CFArray` whose elements are all `AXUIElement` instances.
+    public static func axElements(from value: CFTypeRef) -> [AXUIElement]? {
+        let elementType = AXUIElementGetTypeID()
+        guard CFGetTypeID(value) == CFArrayGetTypeID(), let items = value as? [AnyObject] else { return nil }
+        var elements: [AXUIElement] = []
+        elements.reserveCapacity(items.count)
+        for item in items {
+            guard CFGetTypeID(item) == elementType else { return nil }
+            elements.append(item as! AXUIElement)
+        }
+        return elements
+    }
+
     static func read(_ app: FrontApp) -> FrontContent? {
         // The chip's app, not whatever process took over its number.
         guard AXIsProcessTrusted(), NSRunningApplication(processIdentifier: app.pid)?.bundleIdentifier == app.bundleID else { return nil }
-        let element = AXUIElementCreateApplication(app.pid)
-        AXUIElementSetMessagingTimeout(element, messagingTimeout)
-        guard let window = element.ax(kAXFocusedWindowAttribute, as: AXUIElement.self)
-                ?? element.ax(kAXMainWindowAttribute, as: AXUIElement.self)
-                ?? element.ax(kAXWindowsAttribute, as: [AXUIElement].self)?.first else { return nil }
         let deadline = Date().addingTimeInterval(walkLimit)
-        let walk = AccessibilityText.collect(window, role: { $0.ax(kAXRoleAttribute, as: String.self) ?? "" },
-                                             texts: { node in
-                                                 [kAXTitleAttribute, kAXValueAttribute, kAXDescriptionAttribute].compactMap { node.ax($0, as: String.self) }
-                                             },
-                                             children: { $0.ax(kAXChildrenAttribute, as: [AXUIElement].self) ?? [] },
-                                             stop: { Date() > deadline })
-        let document = window.ax(kAXDocumentAttribute, as: String.self).flatMap(URL.init(string:)).flatMap { $0.isFileURL ? $0 : nil }
-        let address = window.ax(kAXURLAttribute, as: URL.self)
+        let element = AXUIElementCreateApplication(app.pid)
+        guard let window = element.ax(kAXFocusedWindowAttribute, as: AXUIElement.self, before: deadline)
+                ?? element.ax(kAXMainWindowAttribute, as: AXUIElement.self, before: deadline)
+                ?? element.ax(kAXWindowsAttribute, as: [AXUIElement].self, before: deadline)?.first else { return nil }
+        let walk = AccessibilityText.collect(
+            window,
+            role: { $0.ax(kAXRoleAttribute, as: String.self, before: deadline) ?? "" },
+            subrole: { $0.ax(kAXSubroleAttribute, as: String.self, before: deadline) },
+            texts: { node in
+                [kAXTitleAttribute, kAXValueAttribute, kAXDescriptionAttribute].compactMap { node.ax($0, as: String.self, before: deadline) }
+            },
+            children: { $0.ax(kAXChildrenAttribute, as: [AXUIElement].self, before: deadline) ?? [] },
+            stop: { Date() > deadline }
+        )
+        let document = window.ax(kAXDocumentAttribute, as: String.self, before: deadline).flatMap(URL.init(string:)).flatMap { $0.isFileURL ? $0 : nil }
+        let address = window.ax(kAXURLAttribute, as: URL.self, before: deadline)
         let text = walk.text
         guard !text.isEmpty || document != nil else { return nil }
-        let title = window.ax(kAXTitleAttribute, as: String.self).flatMap { $0.isEmpty ? nil : $0 } ?? app.title ?? app.name
+        let title = window.ax(kAXTitleAttribute, as: String.self, before: deadline).flatMap { $0.isEmpty ? nil : $0 } ?? app.title ?? app.name
         return FrontContent(kind: .page, title: title, url: address.flatMap { $0.isFileURL ? nil : $0.absoluteString },
-                            file: document ?? address.flatMap { $0.isFileURL ? $0 : nil }, text: text)
+                            file: document ?? address.flatMap { $0.isFileURL ? $0 : nil }, text: text, clipped: walk.clipped)
     }
 }
 
 private extension AXUIElement {
-    /// One attribute, copied; never written.
-    func ax<T>(_ attribute: String, as: T.Type) -> T? {
+    /// One attribute, copied within `deadline`; never written.
+    func ax<T>(_ attribute: String, as: T.Type, before deadline: Date) -> T? {
+        let timeout = Float(min(TimeInterval(SystemAccessibilityFrontReader.messagingTimeout), deadline.timeIntervalSinceNow))
+        guard timeout > 0 else { return nil }
+        AXUIElementSetMessagingTimeout(self, timeout)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(self, attribute as CFString, &value) == .success, let value else { return nil }
         if T.self == AXUIElement.self {
             guard CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
             return (value as! T)
+        }
+        if T.self == [AXUIElement].self {
+            guard let elements = SystemAccessibilityFrontReader.axElements(from: value) else { return nil }
+            return (elements as! T)
         }
         return value as? T
     }

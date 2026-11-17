@@ -1,3 +1,4 @@
+import ApplicationServices
 import Foundation
 import PippaCore
 
@@ -105,6 +106,9 @@ extension MCPCheckContext {
             // Accessibility finds no text: the old answer.
             let blankAX = StandInAccessibility(.granted, content: FrontContent(kind: .page, title: "Leer", text: ""))
             let blank = await call(tools(slack, DemoFrontApp(content: nil, accessibility: blankAX)), "front_read")
+            // Clipped walk with short text still marks textTruncated true.
+            let clippedAX = StandInAccessibility(.granted, content: FrontContent(kind: .page, title: "Lang", text: "kurzer Ausschnitt", clipped: true))
+            let clipped = await call(tools(slack, DemoFrontApp(content: nil, accessibility: clippedAX)), "front_read")
             return !primary.isError && ((primary.json["data"] as? [String: Any])?["text"] as? String)?.contains("drei Nettokaltmieten") == true
                 && (primary.json["data"] as? [String: Any])?["via"] == nil && primaryAX.counts == (0, 0)
                 && !fallback.isError && fallback.json["untrusted"] as? Bool == true && data["via"] as? String == "accessibility"
@@ -115,6 +119,7 @@ extension MCPCheckContext {
                 && automation.isError && automation.json["status"] as? String == "denied"
                 && (automation.json["tell"] as? String)?.contains("Automation") == true && automationAX.counts == (0, 0)
                 && blank.isError && blank.json["status"] as? String == "nothing_open" && blank.json["app"] as? String == "Slack"
+                && !clipped.isError && ((clipped.json["data"] as? [String: Any])?["textTruncated"] as? Bool) == true
         }
         await checkAsync("MCP front_read: Accessibility permission – headless needs_access, declined sentence never prompts, denied repairs Accessibility") {
             let notes = Box<PippaMCPReadNote>()
@@ -151,7 +156,7 @@ extension MCPCheckContext {
                 && (denied.json["tell"] as? String)?.contains("Accessibility") == true && denied.json["app"] as? String == "Notes"
                 && notes.all.filter { $0.permissionRepair == .accessibility }.count == 2
         }
-        check("Accessibility walk: depth ≤ 12, nodes ≤ 800, chrome skipped, repeated lines once, 6000 characters at most") {
+        check("Accessibility walk: depth ≤ 12, nodes ≤ 800, chrome skipped, secure subrole skipped, deadline stops, CFArray checked") {
             // A chain 30 levels deep: text below level 12 is never reached.
             var chain = AXNodeSample(role: "AXStaticText", texts: ["level 30"])
             for level in stride(from: 29, through: 0, by: -1) { chain = AXNodeSample(role: "AXGroup", texts: ["level \(level)"], children: [chain]) }
@@ -164,15 +169,34 @@ extension MCPCheckContext {
                 AXNodeSample(role: "AXToolbar", texts: ["Back"], children: [AXNodeSample(role: "AXTextField", texts: ["https://hidden.example"])]),
                 AXNodeSample(role: "AXMenuBar", texts: ["File"]), AXNodeSample(role: "AXScrollBar", texts: ["0.5"]),
                 AXNodeSample(role: "AXSplitter"), AXNodeSample(role: "AXSecureTextField", texts: ["hunter2"]),
+                AXNodeSample(role: "AXTextField", subrole: "AXSecureTextField", texts: ["hunter3"], children: [
+                    AXNodeSample(role: "AXStaticText", texts: ["hunter3-child"]),
+                ]),
                 AXNodeSample(role: "AXStaticText", texts: ["Hello", "Hello", "  "]), AXNodeSample(role: "AXStaticText", texts: ["Hello"]),
                 AXNodeSample(role: "AXTextArea", texts: ["", "line one\n\n  line   two  ", ""]), AXNodeSample(role: "AXStaticText", texts: ["Inbox"]),
             ]))
             let long = AccessibilityText.collect(AXNodeSample(role: "AXWindow", children: (0..<50).map { AXNodeSample(role: "AXStaticText", texts: ["\($0) " + String(repeating: "a", count: 300)]) }))
+            var stopped = false
+            let timedOut = AccessibilityText.collect(
+                AXNodeSample(role: "AXWindow", texts: ["Visible"], children: [AXNodeSample(role: "AXStaticText", texts: ["Skipped"])]),
+                role: \.role,
+                subrole: \.subrole,
+                texts: { node in stopped = true; return node.texts },
+                children: \.children,
+                stop: { stopped }
+            )
+            let validAX = AXUIElementCreateApplication(1)
+            let validList = SystemAccessibilityFrontReader.axElements(from: [validAX] as CFArray)
+            let invalidList = SystemAccessibilityFrontReader.axElements(from: ["not an AX element"] as CFArray)
+            let mixedList = SystemAccessibilityFrontReader.axElements(from: [validAX, "bad"] as CFArray)
             return deep.deepest == AccessibilityText.maxDepth && deep.lines.count == 13 && deep.lines.last == "level 12" && !deep.text.contains("level 13")
                 && wide.visited == AccessibilityText.maxNodes && wide.clipped && wide.lines == ["last read"]
                 && chrome.lines == ["Inbox", "Hello", "line one", "line two", "Inbox"]
-                && !chrome.text.contains("hidden.example") && !chrome.text.contains("hunter2") && !chrome.clipped
+                && !chrome.text.contains("hidden.example") && !chrome.text.contains("hunter2")
+                && !chrome.text.contains("hunter3") && !chrome.text.contains("hunter3-child") && !chrome.clipped
                 && long.text.count == AccessibilityText.maxChars && long.clipped && long.visited < 50
+                && timedOut.clipped && timedOut.lines == ["Visible"]
+                && validList?.count == 1 && invalidList == nil && mixedList == nil
         }
         await checkAsync("MCP front_read: with Mail in front it reads the selected mail (same receipt as mail_selected)") {
             let notes = Box<PippaMCPReadNote>()

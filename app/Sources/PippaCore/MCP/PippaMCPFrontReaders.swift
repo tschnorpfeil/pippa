@@ -92,7 +92,8 @@ extension PippaMCPTools {
     private static func frontResult(_ app: FrontApp, _ content: FrontContent, accessibility: Bool) -> PippaMCPToolResult {
         let limit = 6000
         let text = compact(content.text)
-        var data: [String: Any] = ["app": app.name, "title": content.title, "text": String(text.prefix(limit)), "textTruncated": text.count > limit]
+        var data: [String: Any] = ["app": app.name, "title": content.title, "text": String(text.prefix(limit)),
+                                   "textTruncated": content.clipped || text.count > limit]
         if let url = content.url { data["url"] = url }
         if let file = content.file { data["path"] = file.path }
         if accessibility { data["via"] = "accessibility" }

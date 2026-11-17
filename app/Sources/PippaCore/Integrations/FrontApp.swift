@@ -53,8 +53,10 @@ public struct FrontContent: Sendable, Equatable {
     public var file: URL?
     /// The text; empty if the app did not hand it out (Chrome without JavaScript from Apple Events, a scanned PDF).
     public var text: String
-    public init(kind: Kind, title: String, url: String? = nil, file: URL? = nil, text: String) {
-        self.kind = kind; self.title = title; self.url = url; self.file = file; self.text = text
+    /// `true` when the reader stopped early (node, depth, character or time limit).
+    public var clipped: Bool
+    public init(kind: Kind, title: String, url: String? = nil, file: URL? = nil, text: String, clipped: Bool = false) {
+        self.kind = kind; self.title = title; self.url = url; self.file = file; self.text = text; self.clipped = clipped
     }
 }
 
