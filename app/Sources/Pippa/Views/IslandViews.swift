@@ -622,8 +622,8 @@ struct IslandQuestionText: View {
 }
 
 /// The answers to a question: Allow / Don't Allow, a choice, or a text. Nothing is pre-selected and Return never
-/// allows; Escape declines (IslandPresenter). "Open Pippa" sits at the left of Allow's row when it fits there, on its
-/// own row otherwise and always under a choice or a text.
+/// allows; Escape declines (IslandPresenter). "Open Pippa" sits at the left of Allow's or Cancel's row when it fits
+/// there, on its own row otherwise and always under a text.
 struct IslandQuestionAnswers: View {
     let question: Approvals.Question
     var onOpen: () -> Void
@@ -644,6 +644,21 @@ struct IslandQuestionAnswers: View {
                 button(T("Don’t Allow", table: "App"), .confirmed(false))
                 button(T("Allow", table: "App"), .confirmed(true), prominent: true)
             }
+        } else if request.method == "select" {
+            // Every choice in sight, one row each and in full: a pop-up menu hid them behind a click and opened over
+            // the island.
+            VStack(alignment: .leading, spacing: IslandStyle.gap) {
+                VStack(spacing: 6) {
+                    ForEach(request.options, id: \.self) { option in
+                        Button(option) { Approvals.shared.answer(question.id, .value(option)) }
+                            .buttonStyle(IslandChoiceStyle())
+                    }
+                }
+                IslandButtonRow(lead: true) {
+                    IslandOpenButton(hint: false, action: onOpen)
+                    button(T("Cancel", table: "App"), .cancelled)
+                }
+            }
         } else {
             VStack(alignment: .leading, spacing: IslandStyle.gap) {
                 answers
@@ -654,23 +669,6 @@ struct IslandQuestionAnswers: View {
 
     @ViewBuilder private var answers: some View {
         switch request.method {
-        // Up to three choices are buttons; a choice wider than one row of the panel goes into the menu.
-        case "select" where !request.options.isEmpty && request.options.count <= 3 && request.options.allSatisfy(Self.fitsRow):
-            IslandButtonRow {
-                button(T("Cancel", table: "App"), .cancelled)
-                ForEach(request.options, id: \.self) { option in button(option, .value(option)) }
-            }
-        case "select":
-            HStack(spacing: IslandStyle.buttonGap) {
-                Menu(T("Choose…", table: "Island")) {
-                    ForEach(request.options, id: \.self) { option in
-                        Button(option) { Approvals.shared.answer(question.id, .value(option)) }
-                    }
-                }
-                .menuStyle(.borderlessButton).font(IslandStyle.detail).fixedSize()
-                Spacer(minLength: 0)
-                button(T("Cancel", table: "App"), .cancelled)
-            }
         default:
             VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
                 TextField(request.placeholder ?? "", text: textState.projectedValue,
@@ -685,15 +683,6 @@ struct IslandQuestionAnswers: View {
                 }
             }
         }
-    }
-
-    /// A button with this title fits one row of the panel: its text in the buttons' size (a touch heavier, so the
-    /// measure errs wide) plus the capsule's padding.
-    private static func fitsRow(_ title: String) -> Bool {
-        let rounded = NSFont.systemFont(ofSize: 13, weight: .semibold).fontDescriptor.withDesign(.rounded)
-        let font = rounded.flatMap { NSFont(descriptor: $0, size: 13) } ?? .systemFont(ofSize: 13, weight: .semibold)
-        let text = ceil((title as NSString).size(withAttributes: [.font: font]).width)
-        return text + 2 * IslandStyle.gap <= IslandGeometry.openWidth - 2 * IslandStyle.padding
     }
 
     private func button(_ title: String, _ response: PiUIResponse, prominent: Bool = false) -> some View {
@@ -772,6 +761,34 @@ struct IslandButtonStyle: ButtonStyle {
                                                  : IslandStyle.white(configuration.isPressed ? 0.24 : 0.14)))
             .contentShape(Capsule())
             .fixedSize()
+    }
+}
+
+/// One choice of a question: a full-width row in the island's quiet well, lighter under the pointer, in up to two
+/// lines.
+struct IslandChoiceStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        IslandChoiceRow(configuration: configuration)
+    }
+
+    private struct IslandChoiceRow: View {
+        let configuration: Configuration
+        private let hoverState = State(initialValue: false)
+
+        var body: some View {
+            configuration.label
+                .font(IslandStyle.small)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                .frame(maxWidth: .infinity, minHeight: IslandStyle.controlHeight, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: IslandStyle.wellRadius, style: .continuous)
+                    .fill(IslandStyle.white(configuration.isPressed ? 0.22 : hoverState.wrappedValue ? 0.16 : 0.08)))
+                .contentShape(RoundedRectangle(cornerRadius: IslandStyle.wellRadius, style: .continuous))
+                .onHover { hoverState.wrappedValue = $0 }
+        }
     }
 }
 
