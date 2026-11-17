@@ -51,7 +51,7 @@ Web searches never go through a signed-in online AI.
 | Update checks | Once a day, from this repository's releases. Updates install when you quit or after a while without input. |
 | Web searches | The first search in an answer shows you the exact search text and waits for your OK. |
 | Reading web pages | Pages from your own message or from that answer's search results are read without asking again. Any other address is asked for. Addresses on your Mac or your local network are never read. |
-| Pippa's browser | When a page needs clicking through, Pippa opens it in a browser panel in her window, where you watch along. She asks before each new website and before every click, typed text or choice. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
+| Pippa's browser | When a page needs clicking through, Pippa opens it in a browser panel in her window; open the window (from Pippa Island: **Open Pippa**) to watch along or to sign in. She asks before each new website and before every click, typed text or choice. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
 | Provider setup | Browser sign-in, credential setup, and model catalog refresh when requested in Settings. No conversation contents. |
 | Online AI | Only while you have it switched on (see above). |
 | Commands that go online | Pippa's command-line helper asks before a command that goes online, such as downloading a file. |
@@ -74,7 +74,7 @@ something was denied, a blocked action offers **Open System Settings** too.
 | Reminders | Reads open and due reminders when you ask; adds reminders and deadlines from your letters when you ask. |
 | Photos | Shows the matching photos from your library. She doesn't change or upload anything. |
 | Automation (Mail and others) | Searches and reads your inbox in Mail, reads what's open in the app in front when you ask about it, and saves unsent drafts in Mail. |
-| Accessibility | Only when you ask about the app in front and it can't hand over its content any other way: Pippa reads the visible text of its front window. Read only: she never clicks, types or changes anything there, and skips password fields. Pippa explains this before macOS asks. |
+| Accessibility | Only when you ask about the app in front and it can't hand over its content any other way: Pippa reads the text its front window hands to Accessibility, which can include text scrolled out of view. Read only: she never clicks, types or changes anything there, and skips password fields. Pippa explains this before macOS asks. |
 
 ## Why she runs outside the App Sandbox
 

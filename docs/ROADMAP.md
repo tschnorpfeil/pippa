@@ -29,7 +29,7 @@ tool or card.
 3. **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
    real menu bar); motion and drag and drop at the real notch still need a look.
 
-Released in 0.7.0: Pippa's browser (a `WKWebView` panel in the chat window and the `browse` tool; she asks before each new site and each click, typed text or choice, and hands sign-ins to the person), a read-only Accessibility fallback for `front_read`, a tighter shell sandbox (no Mach IPC or inherited Accessibility trust), and continuing an earlier conversation from Pippa Island with a fixed follow-up rule (`Island.followUp`).
+Released in 0.7.0: Pippa's browser (a `WKWebView` panel in the chat window and the `browse` tool; she asks before each new site and each click, typed text or choice, and hands sign-ins to the person), a read-only Accessibility fallback for `front_read`, a tighter shell sandbox (Mach service lookups limited to an allowlist, no inherited Accessibility trust), and continuing an earlier conversation from Pippa Island with a fixed follow-up rule (`Island.followUp`).
 
 Released in 0.6.8: Pippa asks when she can't tell what you mean (the `ask` tool: a question with choices on the existing card, in the chat and on Pippa Island; the system prompt's ask test), and an empty file search asks the model to try one other word, then stop (the 9B model does not always stop yet).
 
