@@ -31,6 +31,8 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     private var pendingPolicyDecisions = 0
     private var pendingPopupTasks: [UUID: Task<Void, Never>] = [:]
     private var preapprovedPopupURL: URL?
+    private var awaitingNavigationStart = false
+    private var activeNavigations: Set<ObjectIdentifier> = []
     private let world = WKContentWorld.world(name: "PippaBrowser")
 
     /// Gates main-frame destinations and popups through turn-scoped host approvals and confirmation.
@@ -80,6 +82,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             try await installRules()
             isOpen = true
             preapprovedPopupURL = nil
+            awaitingNavigationStart = true
             blockedNavigation = false; declinedNavigation = false; navigationFailed = false
             webView.load(URLRequest(url: url))
             await settle(after: .milliseconds(150), timeout: .seconds(15))
@@ -97,7 +100,13 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         case .back:
             guard currentURL != nil else { throw BrowserError.nothingOpen }
             blockedNavigation = false; declinedNavigation = false; navigationFailed = false
-            if webView.canGoBack { webView.goBack(); await settle(after: .milliseconds(150), timeout: .seconds(10)) }
+            if webView.canGoBack {
+                if let backURL = webView.backForwardList.backItem?.url, isCrossDocumentDestination(backURL) {
+                    awaitingNavigationStart = true
+                }
+                webView.goBack()
+                await settle(after: .milliseconds(150), timeout: .seconds(10))
+            }
             if blockedNavigation { throw BrowserError.blockedAddress }
             if declinedNavigation { throw BrowserError.declinedNavigation }
         case .close:
@@ -105,6 +114,8 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             for task in pendingPopupTasks.values { task.cancel() }
             pendingPopupTasks.removeAll()
             preapprovedPopupURL = nil
+            awaitingNavigationStart = false
+            activeNavigations.removeAll()
             latest = nil
             handoffMessage = nil
             isOpen = false
@@ -122,20 +133,15 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
                 for task in Array(pendingPopupTasks.values) { await task.value }
                 // Confirmation or popup waits do not consume the post-approval page-load timeout.
                 deadline = ContinuousClock.now + timeout
-                try? await Task.sleep(for: .milliseconds(100))
                 continue
             }
             if pendingPolicyDecisions > 0 {
                 try? await Task.sleep(for: .milliseconds(50))
                 deadline = ContinuousClock.now + timeout
-                if pendingPolicyDecisions == 0 {
-                    // Let WebKit transition `isLoading` after `.allow` / `load(...)`.
-                    try? await Task.sleep(for: .milliseconds(100))
-                }
                 continue
             }
-            if webView.isLoading, ContinuousClock.now < deadline {
-                try? await Task.sleep(for: .milliseconds(100))
+            if awaitingNavigationStart || !activeNavigations.isEmpty || webView.isLoading, ContinuousClock.now < deadline {
+                try? await Task.sleep(for: .milliseconds(50))
                 continue
             }
             break
@@ -155,6 +161,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     private func act(_ kind: String, ref: String, snapshotId: String?, text: String) async throws {
         guard currentURL != nil else { throw BrowserError.nothingOpen }
         guard let snapshotId = snapshotId ?? latest?.snapshotId else { throw BrowserError.staleRef }
+        awaitingNavigationStart = false
         blockedNavigation = false; declinedNavigation = false; navigationFailed = false
         let reply = try? await webView.callAsyncJavaScript(Self.actionScript, arguments: ["kind": kind, "ref": ref, "snapshotId": snapshotId, "text": text],
                                                            in: nil, contentWorld: world) as? [String: Any]
@@ -270,20 +277,51 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         return true
     }
 
+    private func isCrossDocumentDestination(_ url: URL) -> Bool {
+        let scheme = url.scheme?.lowercased() ?? ""
+        guard scheme == "http" || scheme == "https" else { return false }
+        guard url.fragment != nil,
+              let current = webView.url,
+              var destination = URLComponents(url: url, resolvingAgainstBaseURL: true),
+              var currentComponents = URLComponents(url: current, resolvingAgainstBaseURL: true) else { return true }
+        destination.fragment = nil
+        currentComponents.fragment = nil
+        return destination.string != currentComponents.string
+    }
+
+    private func isCrossDocumentMainAction(_ action: WKNavigationAction) -> Bool {
+        guard !action.shouldPerformDownload, let url = action.request.url else { return false }
+        let scheme = url.scheme?.lowercased() ?? ""
+        guard scheme == "http" || scheme == "https" else { return false }
+        if action.navigationType == .reload || action.navigationType == .formSubmitted
+            || (action.request.httpMethod ?? "GET").uppercased() != "GET" { return true }
+        return isCrossDocumentDestination(url)
+    }
+
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
         pendingPolicyDecisions += 1
         defer { pendingPolicyDecisions -= 1 }
-        guard let url = navigationAction.request.url else { return .cancel }
+        guard let url = navigationAction.request.url else {
+            if activeNavigations.isEmpty { awaitingNavigationStart = false }
+            return .cancel
+        }
         let isPopup = navigationAction.targetFrame == nil
         let mainFrame = navigationAction.targetFrame?.isMainFrame ?? true
         let skipConfirm = !isPopup && mainFrame && preapprovedPopupURL == url
         if skipConfirm { preapprovedPopupURL = nil }
-        guard await allowNavigation(url, mainFrame: mainFrame, isPopup: isPopup, confirmHost: !skipConfirm) else { return .cancel }
+        guard await allowNavigation(url, mainFrame: mainFrame, isPopup: isPopup, confirmHost: !skipConfirm) else {
+            if mainFrame && !isPopup && activeNavigations.isEmpty { awaitingNavigationStart = false }
+            return .cancel
+        }
         // `target="_blank"` and window.open: the same view, never a new window.
         if isPopup {
             preapprovedPopupURL = url
+            awaitingNavigationStart = true
             webView.load(navigationAction.request)
             return .cancel
+        }
+        if mainFrame && activeNavigations.isEmpty && isCrossDocumentMainAction(navigationAction) {
+            awaitingNavigationStart = true
         }
         return .allow
     }
@@ -305,20 +343,38 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             guard let self else { return }
             guard await self.allowNavigation(url, mainFrame: true, isPopup: true) else { return }
             self.preapprovedPopupURL = url
+            self.awaitingNavigationStart = true
             self.webView.load(navigationAction.request)
         }
         return nil
     }
 
-    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { sync() }
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        awaitingNavigationStart = false
+        if let navigation { activeNavigations.insert(ObjectIdentifier(navigation)) }
+        sync()
+    }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        awaitingNavigationStart = false
         // A new document: refs of the old one are gone.
         latest = nil
         sync()
     }
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { sync() }
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { failed(error) }
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failed(error) }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        awaitingNavigationStart = false
+        if let navigation { activeNavigations.remove(ObjectIdentifier(navigation)) }
+        sync()
+    }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        awaitingNavigationStart = false
+        if let navigation { activeNavigations.remove(ObjectIdentifier(navigation)) }
+        failed(error)
+    }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        awaitingNavigationStart = false
+        if let navigation { activeNavigations.remove(ObjectIdentifier(navigation)) }
+        failed(error)
+    }
 
     /// A load replaced by another one (a redirect by script, a policy decision) is no failure.
     private func failed(_ error: Error) {
