@@ -50,6 +50,15 @@ import PiRPC
     check("Browser receipts are write lines in call order; only confirmed opens count as pages read",
           browsed.records.map(\.outcome) == [.done, .blocked, .done] && browsed.records.allSatisfy { $0.action == "write" && $0.name == "browse" }
           && browsed.webPagesRead == ["https://example.org/a"])
+    var redirected = PiTurnReceipt()
+    redirected.observe(.toolStarted(id: "open", name: browse, arguments: "{\"action\":\"open\",\"url\":\"https://a.example/start\"}"))
+    redirected.observe(.toolEnded(id: "open", name: browse, isError: false,
+                                  result: "{\"done\":true,\"data\":{\"url\":\"https://b.example/landed\"}}"))
+    redirected.observe(.toolStarted(id: "click", name: browse, arguments: "{\"action\":\"click\",\"ref\":\"@e1\"}"))
+    redirected.observe(.toolEnded(id: "click", name: browse, isError: false,
+                                  result: "{\"done\":true,\"data\":{\"url\":\"https://c.example/next\"}}"))
+    check("Browser receipts record the landed page URL from the tool result instead of the requested URL",
+          redirected.webPagesRead == ["https://b.example/landed", "https://c.example/next"])
     check("Native refusals and duplicate blocks remain known pre-dispatch outcomes",
           ["invalid_arguments", "not_dispatched", "busy", "cancelled"].allSatisfy { status in
               PiTurnReceipt.classify(tool: native, isError: status != "busy",

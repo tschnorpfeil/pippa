@@ -43,6 +43,10 @@ public struct PippaMCPHost: Sendable {
     public var onBrowserHandoff: (@Sendable (_ reason: String, _ url: String?) -> Void)?
     /// Hosts the person already allowed in this answer (shared by every copy of this host).
     public var browserApprovals = PippaMCPBrowserApprovals()
+    /// Resolves whether a host points to a private/local address (defaults to `PippaMCPBrowserTool.resolvesToPrivateAddress`).
+    public var resolveHostIsPrivate: @Sendable (_ host: String) async -> Bool = { host in
+        await PippaMCPBrowserTool.resolvesToPrivateAddress(host)
+    }
 
     public init(integrations: any AppIntegrations, sheets: any SheetReading, hostData: any HostDataReading, askForAccess: Bool = true,
                 now: @escaping @Sendable () -> Date = { Date() }, calendar: Calendar = .autoupdatingCurrent,

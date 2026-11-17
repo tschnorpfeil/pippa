@@ -78,9 +78,16 @@ public struct PiTurnReceipt: Sendable {
             fileAccessFailures[id] = name == "list_folder" && started[id]?.name == name && isError && state == .failed ? fileAccessFailure : nil
             guard state == .done else { break }
             if name == "mcp__pippa__browse" {
-                // Pages Pippa's browser panel opened, from the call's own arguments once the tool confirmed it.
+                // Record the landed page URL from the tool's own output envelope when present, so redirects are
+                // attributed to the destination rather than the initially requested URL.
+                let payload = (try? JSONSerialization.jsonObject(with: Data(result.utf8))) as? [String: Any]
+                let landedURL = (payload?["data"] as? [String: Any])?["url"] as? String
                 let args = (try? JSONSerialization.jsonObject(with: Data((started[id]?.arguments ?? "").utf8))) as? [String: Any]
-                if args?["action"] as? String == "open", let url = args?["url"] as? String { webPagesRead.append(url) }
+                if let landedURL, !landedURL.isEmpty {
+                    if !webPagesRead.contains(landedURL) { webPagesRead.append(landedURL) }
+                } else if args?["action"] as? String == "open", let url = args?["url"] as? String {
+                    if !webPagesRead.contains(url) { webPagesRead.append(url) }
+                }
             } else if name == "fetch_content" {
                 let args = (try? JSONSerialization.jsonObject(with: Data((started[id]?.arguments ?? "").utf8))) as? [String: Any]
                 webPagesRead += (args?["urls"] as? [String]) ?? (args?["url"] as? String).map { [$0] } ?? []

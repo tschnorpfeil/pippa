@@ -10,19 +10,27 @@ func runMCPBrowserChecks() async {
         let asked: LockedBox<[String]>
         let handoffs: LockedBox<[String]>
         let notes: LockedBox<[PippaMCPReadNote]>
+        let turns: PippaMCPTurns
+        let turn: PippaMCPTurn
     }
     /// `confirm`: the person's answer per action; `nil` leaves `confirmBrowser` unset (nothing can ask).
-    func world(confirm: (@Sendable (String) -> Bool)? = { _ in true }, ask: Bool = true, page: DemoBrowserOperator.Page? = nil) -> World {
+    func world(confirm: (@Sendable (String) -> Bool)? = { _ in true }, ask: Bool = true, page: DemoBrowserOperator.Page? = nil,
+               privateHost: @escaping @Sendable (String) async -> Bool = { _ in false }) -> World {
         let demo = DemoIntegrations(granted: true)
         var host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo, now: Date()),
                                 askForAccess: ask)
+        let turns = PippaMCPTurns()
+        let turn = PippaMCPTurn()
+        turns.begin(turn)
+        host.turns = turns
         let browser = DemoBrowserOperator(page: page)
         let asked = LockedBox<[String]>([]), handoffs = LockedBox<[String]>([]), notes = LockedBox<[PippaMCPReadNote]>([])
         host.browser = browser
+        host.resolveHostIsPrivate = privateHost
         if let confirm { host.confirmBrowser = { action, _, _ in asked.mutate { $0.append(action) }; return confirm(action) } }
         host.onBrowserHandoff = { reason, _ in handoffs.mutate { $0.append(reason) } }
         host.onRead = { note in notes.mutate { $0.append(note) } }
-        return World(tools: PippaMCPTools(host: host), browser: browser, asked: asked, handoffs: handoffs, notes: notes)
+        return World(tools: PippaMCPTools(host: host), browser: browser, asked: asked, handoffs: handoffs, notes: notes, turns: turns, turn: turn)
     }
     func browse(_ w: World, _ arguments: [String: Any]) async -> (json: [String: Any], isError: Bool, text: String) {
         let body = try! JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "tools/call",
@@ -198,7 +206,8 @@ func runMCPBrowserChecks() async {
         let demo = DemoIntegrations(granted: true)
         let bare = PippaMCPTools(host: PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true),
                                                     hostData: DemoHostData(integrations: demo, now: Date())))
-        let missing = await browse(World(tools: bare, browser: DemoBrowserOperator(), asked: .init([]), handoffs: .init([]), notes: .init([])),
+        let missing = await browse(World(tools: bare, browser: DemoBrowserOperator(), asked: .init([]), handoffs: .init([]),
+                                         notes: .init([]), turns: w.turns, turn: w.turn),
                                    ["action": "snapshot"])
         return nothing.isError && nothing.json["status"] as? String == "unavailable"
             && back.json["done"] as? Bool == true && close.json["done"] as? Bool == true && data(close.json)["closed"] as? Bool == true
@@ -215,8 +224,71 @@ func runMCPBrowserChecks() async {
         host.turns = turns; host.requireActiveWriteTurn = true; host.browser = w.browser
         host.confirmBrowser = { _, _, _ in true }
         let tools = PippaMCPTools(host: host)
-        let r = await browse(World(tools: tools, browser: w.browser, asked: w.asked, handoffs: w.handoffs, notes: w.notes),
+        let r = await browse(World(tools: tools, browser: w.browser, asked: w.asked, handoffs: w.handoffs,
+                                   notes: w.notes, turns: turns, turn: w.turn),
                              ["action": "open", "url": page])
         return r.isError && r.json["status"] as? String == "cancelled" && w.browser.actions.isEmpty
+    }
+
+    await checkAsync("MCP browse: trailing-dot local names and private DNS mappings are blocked before asking") {
+        let w = world(privateHost: { $0 == "rebind.example.org" })
+        let trailingDot = await browse(w, ["action": "open", "url": "http://localhost.:8080/bypass"])
+        let lan = await browse(w, ["action": "open", "url": "http://router.lan/"])
+        let internalHost = await browse(w, ["action": "open", "url": "http://api.internal/"])
+        let rebind = await browse(w, ["action": "open", "url": "https://rebind.example.org/"])
+        return [trailingDot, lan, internalHost, rebind].allSatisfy {
+            $0.isError && $0.json["status"] as? String == "blocked"
+        } && w.asked.value.isEmpty && w.browser.actions.isEmpty
+    }
+
+    await checkAsync("MCP browse: nil-turn approvals never persist and different turns stay isolated") {
+        let approvals = PippaMCPBrowserApprovals()
+        approvals.approve("example.org", turn: nil)
+        let t1 = UUID(), t2 = UUID()
+        approvals.approve("example.org", turn: t1)
+        return !approvals.approved("example.org", turn: nil)
+            && approvals.approved("example.org", turn: t1)
+            && !approvals.approved("example.org", turn: t2)
+    }
+
+    await checkAsync("MCP browse: cancelling a turn inside open confirmation blocks dispatch and caching") {
+        let turns = PippaMCPTurns()
+        let turn = PippaMCPTurn()
+        turns.begin(turn)
+        let demo = DemoIntegrations(granted: true)
+        var host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo, now: Date()))
+        host.turns = turns
+        host.browser = DemoBrowserOperator()
+        host.resolveHostIsPrivate = { _ in false }
+        host.confirmBrowser = { _, _, _ in
+            turn.cancelWrites()
+            return true
+        }
+        let tools = PippaMCPTools(host: host)
+        let w = World(tools: tools, browser: host.browser as! DemoBrowserOperator, asked: .init([]), handoffs: .init([]),
+                      notes: .init([]), turns: turns, turn: turn)
+        let r = await browse(w, ["action": "open", "url": page])
+        return r.isError && r.json["status"] as? String == "cancelled"
+            && r.json["dispatched"] as? Bool == false
+            && w.browser.actions.isEmpty
+            && !host.browserApprovals.approved("example.org", turn: turn.id)
+    }
+
+    await checkAsync("MCP browse: sensitive verification-code refs are redacted and refused for fill") {
+        let otpPage: DemoBrowserOperator.Page = { url, id in
+            BrowserSnapshot(snapshotId: id, url: url.absoluteString, title: "Bestätigung", text: "Code eingeben",
+                            refs: [BrowserElementRef(ref: "@e1", role: "textbox", name: "Einmalcode", type: "text",
+                                                     value: "123456", sensitive: true)],
+                            loginDetected: true)
+        }
+        let w = world(page: otpPage)
+        let open = await browse(w, ["action": "open", "url": page])
+        let fill = await browse(w, ["action": "fill", "ref": "@e1", "text": "654321", "snapshot_id": "s1"])
+        return open.json["status"] as? String == "handoff_required"
+            && !open.text.contains("123456")
+            && fill.json["status"] as? String == "handoff_required"
+            && fill.json["dispatched"] as? Bool == false
+            && !fill.text.contains("654321")
+            && !w.browser.actions.contains { if case .fill = $0 { true } else { false } }
     }
 }
