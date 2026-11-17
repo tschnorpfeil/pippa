@@ -137,9 +137,32 @@ enum ConversationStoreChecks {
             chat.showSample([Conversation(id: "old", title: "Alt", updated: Date().addingTimeInterval(-3600), messages: [message])],
                             current: nil, answering: false)
             let stale = island.followUp
+            // Picked in the island (its row or ↑): goes on with it however old; ⌘N and closing the island drop it.
+            island.continuing = "old"
+            let picked = island.followUp?.id
+            island.startsFresh = true
+            let pickedThenFresh = island.followUp
+            island.startsFresh = false
+            // A picked conversation deleted meanwhile: a new one, never another.
+            island.continuing = "gone"
+            let gone = island.followUp
+            island.continuing = nil
+            // The ten minutes count from the opening: opened eight minutes after its last message, it stays a follow-up
+            // although that message is now eleven minutes old; opened after twelve, it is new.
+            chat.showSample([Conversation(id: "edge", title: "Rand", updated: Date().addingTimeInterval(-660), messages: [message])],
+                            current: nil, answering: false)
+            island.openedAt = Date().addingTimeInterval(-180)
+            let keptWhileOpen = island.followUp?.id
+            island.openedAt = Date().addingTimeInterval(60)
+            let openedLate = island.followUp
+            island.openedAt = nil
             chat.showSample(saved.0, current: saved.1, answering: false)
+            check(gone == nil && keptWhileOpen == "edge" && openedLate == nil,
+                  "the follow-up rule holds for the whole opening and never falls back to another conversation")
             check(recent == "new" && fresh == nil && stale == nil,
                   "a question in the island follows up the conversation of the last ten minutes; older or after New Conversation it starts a new one")
+            check(picked == "old" && pickedThenFresh == nil,
+                  "a conversation picked in the island is followed up however old it is, until New Conversation")
         }
         let strokes = (0..<3).map { Scribble.stroke($0, at: 12.5) }
         check(strokes.allSatisfy { $0.count == 91 && $0.allSatisfy { abs($0.x) <= 0.9 && abs($0.y) <= 0.9 } }
