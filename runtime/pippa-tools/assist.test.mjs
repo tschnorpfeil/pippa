@@ -99,6 +99,7 @@ test("structured native refusals can retry; result prose and nested data do not 
 	const payloads = [
 		{ done: false, status: "failed", dispatched: false },
 		{ done: false, status: "invalid_arguments" },
+		{ done: false, status: "stale_ref", dispatched: false },
 		{ done: false, status: "failed", tell: "unclear dispatched" },
 		{ done: false, status: "failed", data: { state: "unclear", dispatched: true } },
 	];
