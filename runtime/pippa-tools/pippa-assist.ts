@@ -35,11 +35,25 @@ const CHANGES = new Set(["write", "edit", "move_files", ...NATIVE_CHANGES]);
 
 /** Tool calls per answer before Pi is told to answer with what it has (docs/archive/measurements/model-compare). */
 export const MAX_CALLS = 20;
+/** Budget for models with a large context window, where long triage or research runs stay coherent. */
+export const EXTENDED_MAX_CALLS = 80;
+/** Context window (tokens) from which `EXTENDED_MAX_CALLS` applies. Local 9B models at 16k stay at `MAX_CALLS`. */
+export const LARGE_CONTEXT_WINDOW = 64_000;
+
+/** Budget for one answer: a valid `PIPPA_MAX_CALLS` (integer, 20..200) wins, then the model's context window, then `MAX_CALLS`. */
+export function callBudget(contextWindow?: number, env: NodeJS.ProcessEnv = process.env): number {
+	const raw = env.PIPPA_MAX_CALLS?.trim();
+	if (raw && /^\d+$/.test(raw)) {
+		const set = Number(raw);
+		if (set >= MAX_CALLS && set <= 200) return set;
+	}
+	return typeof contextWindow === "number" && Number.isFinite(contextWindow) && contextWindow >= LARGE_CONTEXT_WINDOW ? EXTENDED_MAX_CALLS : MAX_CALLS;
+}
 
 /** Over budget: the reason Pi gets instead of the call. */
-export function overBudget(calls: number): string | undefined {
-	if (calls <= MAX_CALLS) return undefined;
-	return `Stopped: you already used ${MAX_CALLS} tool calls for this answer. Do not call any more tools. Answer the user now with what you found, and say in one short sentence what you could not check.`;
+export function overBudget(calls: number, limit = MAX_CALLS): string | undefined {
+	if (calls <= limit) return undefined;
+	return `Stopped: you already used ${limit} tool calls for this answer. Do not call any more tools. Answer the user now with what you found, and say in one short sentence what you could not check.`;
 }
 
 export interface LoopCount { runs: number; failures: number; successes: number; uncertain: number }
@@ -238,7 +252,7 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 	const attempt = (event: any, ctx: any) => {
-		const reason = overBudget(++calls) ?? loopBrake(counts, keys, event.toolCallId, event.toolName, event.input, CHANGES.has(event.toolName));
+		const reason = overBudget(++calls, callBudget(ctx?.model?.contextWindow)) ?? loopBrake(counts, keys, event.toolCallId, event.toolName, event.input, CHANGES.has(event.toolName));
 		if (reason) recordStop(event.toolName, ctx);
 		return reason;
 	};

@@ -338,3 +338,45 @@ test("what an answer changed is told to the app from the tools' own results, so 
 	assert.deepEqual(changesOf("write", { pippaBefore: { file: "/u/a.txt", copy: "/b/a.txt" } }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("read", {}, false), []);
 });
+
+test('call budget: callBudget scales with context window and PIPPA_MAX_CALLS, invalid values fall back', async () => {
+ const { MAX_CALLS, EXTENDED_MAX_CALLS, callBudget } = await import('./pippa-assist.ts');
+ assert.equal(MAX_CALLS,20);
+ assert.equal(EXTENDED_MAX_CALLS,80);
+ assert.equal(callBudget(undefined,{}),20);
+ assert.equal(callBudget(16_384,{}),20);
+ assert.equal(callBudget(128_000,{}),80);
+ assert.equal(callBudget(undefined,{PIPPA_MAX_CALLS:'80'}),80);
+ for(const bad of ['abc','5','999']){
+  assert.equal(callBudget(undefined,{PIPPA_MAX_CALLS:bad}),20);
+  assert.equal(callBudget(128_000,{PIPPA_MAX_CALLS:bad}),80);
+ }
+});
+
+test('call budget: attempt uses the model context window and PIPPA_MAX_CALLS', async () => {
+ const { overBudget } = await import('./pippa-assist.ts');
+ assert.equal(overBudget(21,80),undefined);
+ assert.match(overBudget(81,80),/used 80 tool calls/);
+ const run=async(ctx)=>{
+  const handlers={};
+  assist({ registerTool: () => {}, on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:()=>{}});
+  await handlers.agent_start({});
+  let blockedAt=0;
+  for(let i=1;i<=90&&!blockedAt;i++){
+   const event={toolName:'mcp__pippa__read_document',input:{path:`/fake/Downloads/beleg_${i}.pdf`},toolCallId:'b'+i};
+   const block=await handlers.tool_call(event,ctx);
+   if(block)blockedAt=i;else await handlers.tool_result({...event,isError:false,content:[{type:'text',text:'ok'}]},ctx);
+  }
+  return blockedAt;
+ };
+ const saved=process.env.PIPPA_MAX_CALLS;
+ try{
+  delete process.env.PIPPA_MAX_CALLS;
+  assert.equal(await run({abort:()=>{},model:{contextWindow:16_384}}),21);
+  assert.equal(await run({abort:()=>{},model:{contextWindow:128_000}}),81);
+  process.env.PIPPA_MAX_CALLS='40';
+  assert.equal(await run({abort:()=>{}}),41);
+ }finally{
+  if(saved===undefined)delete process.env.PIPPA_MAX_CALLS;else process.env.PIPPA_MAX_CALLS=saved;
+ }
+});
