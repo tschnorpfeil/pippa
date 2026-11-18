@@ -39,7 +39,7 @@ func runSkillChecks() {
     check("Skills: Swift finds every shipped folder from the SKILL.md header, nothing is kept twice") {
         skills.map(\.name) == shipped
             && Set(shipped) == ["text-kuerzen", "dokument-einordnen", "fristen-erkennen", "antwort-schreiben", "brief-verstehen", "tabelle-pruefen", "text-verbessern", "zusammenfassen",
-                                  "online-pruefen", "termin-aus-mail", "text-korrigieren", "checkliste"]
+                                  "online-pruefen", "termin-aus-mail", "text-korrigieren", "checkliste", "posteingang-sichten"]
     }
     check("Skills: SKILL.md follows Pi's header rules (name like folder, lowercase with hyphens, description), explicit invocation only, short") {
         var bad: [String] = []

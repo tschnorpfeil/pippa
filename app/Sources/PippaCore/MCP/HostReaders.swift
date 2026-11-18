@@ -16,9 +16,12 @@ public struct MailHeader: Sendable, Equatable {
     public var messageID: String?
     /// Not read yet in Mail.
     public var unread: Bool
-    public init(subject: String, sender: String, date: Date?, mailbox: String, preview: String, messageID: String? = nil, unread: Bool = false) {
+    /// The account whose inbox holds it, as the person named it in Mail; `nil` from the combined inbox search.
+    public var account: String?
+    public init(subject: String, sender: String, date: Date?, mailbox: String, preview: String, messageID: String? = nil, unread: Bool = false,
+                account: String? = nil) {
         self.subject = subject; self.sender = sender; self.date = date; self.mailbox = mailbox; self.preview = preview
-        self.messageID = messageID; self.unread = unread
+        self.messageID = messageID; self.unread = unread; self.account = account
     }
 }
 

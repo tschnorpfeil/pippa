@@ -24,6 +24,8 @@ public struct MailCard: Codable, Sendable, Equatable {
         public var preview: String
         /// Message-ID without angle brackets, to open the mail; `nil` when Mail gave none.
         public var messageID: String?
+        /// The account whose inbox holds it; `nil` in cards from the combined inbox search and in older histories.
+        public var account: String?
     }
     /// Empty: the newest mails, no search word.
     public var query: String
@@ -32,10 +34,15 @@ public struct MailCard: Codable, Sendable, Equatable {
     public var total: Int
     /// "Mail auf diesem Mac · 3 von 7"
     public var footer: String
+    /// Accounts that could not be read, so the card never looks like every inbox was checked. `nil`: all answered (or an older card).
+    public var notice: String?
     /// More rows than the search tool ever returns (mail_search allows at most 20).
     public static let maxItems = 20
 
-    public init(query: String, unread: Bool = false, mails: [MailHeader], total: Int, calendar: Calendar) {
+    /// `first`, `last`: positions among all `total` matches this page covers (a later page starts after 1; mails that left
+    /// the inbox in between still count toward the range). `notRead`: accounts that did not answer, with their reason.
+    public init(query: String, unread: Bool = false, mails: [MailHeader], total: Int, calendar: Calendar, first: Int = 1, last: Int? = nil,
+                notRead: [String] = []) {
         self.query = query
         self.unread = unread
         self.total = total
@@ -48,9 +55,15 @@ public struct MailCard: Codable, Sendable, Equatable {
                 .split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
             return Item(subject: Self.line(m.subject, 120), sender: Self.line(MailCard.name(of: m.sender), 80), date: m.date, dateLabel: label,
                         preview: one.count > 160 ? String(one.prefix(159)) + "…" : one,
-                        messageID: m.messageID.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "<> ")) }.flatMap { $0.isEmpty ? nil : $0 })
+                        messageID: m.messageID.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "<> ")) }.flatMap { $0.isEmpty ? nil : $0 },
+                        account: m.account.map { Self.line($0, 60) })
         }
-        footer = total > items.count ? L("Mail on this Mac · %lld of %lld", table: "MCP", items.count, total) : L("Mail on this Mac", table: "MCP")
+        if first > 1, !items.isEmpty {
+            footer = L("Mail on this Mac · %lld–%lld of %lld", table: "MCP", first, last ?? (first + items.count - 1), total)
+        } else {
+            footer = total > items.count ? L("Mail on this Mac · %lld of %lld", table: "MCP", items.count, total) : L("Mail on this Mac", table: "MCP")
+        }
+        notice = notRead.isEmpty ? nil : L("Not read: %@", table: "MCP", notRead.map { Self.line($0, 60) }.joined(separator: ", "))
     }
 
     /// "Hausverwaltung Berger <info@berger-hv.de>" → "Hausverwaltung Berger".

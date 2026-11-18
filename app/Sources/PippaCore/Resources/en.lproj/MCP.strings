@@ -92,3 +92,8 @@
 "The online AI can’t look into your calendar. Ask the AI on this Mac, or share the days with + first." = "The online AI can’t look into your calendar. Ask the AI on this Mac, or share the days with + first.";
 "The online AI can’t open your emails. Pippa saves a new draft instead, or the AI on this Mac can reply in the thread." = "The online AI can’t open your emails. Pippa saves a new draft instead, or the AI on this Mac can reply in the thread.";
 "This stays on this Mac while you use an online AI. Add what’s needed with + to check it before it’s sent, or ask the AI on this Mac." = "This stays on this Mac while you use an online AI. Add what’s needed with + to check it before it’s sent, or ask the AI on this Mac.";
+"Mail on this Mac · %lld–%lld of %lld" = "Mail on this Mac · %lld–%lld of %lld";
+"Mail account timed out" = "Mail account timed out";
+"no access" = "no access";
+"couldn’t be read" = "couldn’t be read";
+"stopped" = "stopped";

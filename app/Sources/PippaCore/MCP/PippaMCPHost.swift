@@ -31,6 +31,10 @@ public struct PippaMCPHost: Sendable {
     public var filePreparationStore: DurableJobStore?
     /// The app in front at the call, as the chip shows it for the running answer (`front_read`). `nil`: no chip.
     public var shownFront: @Sendable () -> FrontApp? = { FrontAppStage.shared.current }
+    /// Mail one account at a time (`mail_search` accounts, cursors and `mail_ref`). `nil`: the combined inbox search only.
+    public var mailAccounts: (any MailAccountReading)?
+    /// Snapshots, cursors and mail references of the running answer (shared by every copy of this host).
+    public var mailPages = MailPageStore()
     /// Where read mails and their attachments are saved as files (`MailFiling`); checks use their own folder.
     public var mailFiles: URL = MailFiling.inbox
     /// Reads that app (Safari, Chrome, the front document); Mail and Excel go through their own readers.
@@ -64,6 +68,7 @@ public struct PippaMCPHost: Sendable {
         let system = SystemIntegrations()
         var host = PippaMCPHost(integrations: system, sheets: system, hostData: system)
         host.writer = system
+        host.mailAccounts = system.mailAccounts
         host.requiresReminderJournal = true
         host.reminderJournal = try? Executor()
         host.filePreparationStore = try? DurableJobStore()

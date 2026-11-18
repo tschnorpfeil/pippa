@@ -213,10 +213,10 @@ public struct PippaMCPTools: Sendable {
             switch name {
             case "calendar_read": outcome = await calendarRead(input)
             case "reminders_read": outcome = await remindersRead(input)
-            case "mail_search": outcome = await mailSearch(input)
+            case "mail_search": outcome = await mailSearch(input, turn: context.turn)
             case "mail_read":
                 // Read like the selected mail: same receipt, same reply identity for a draft.
-                outcome = await mailRead(input); noted = "mail_selected"
+                outcome = await mailRead(input, turn: context.turn); noted = "mail_selected"
             case "photos_search": outcome = await photosSearch(input)
             default:
                 let read = await frontRead(context.front)

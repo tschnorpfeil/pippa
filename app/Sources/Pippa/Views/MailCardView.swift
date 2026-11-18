@@ -13,7 +13,8 @@ struct MailCardView: View {
             ForEach(Array(card.items.enumerated()), id: \.offset) { _, item in
                 MailCardRow(item: item)
             }
-            CardFooter(text: card.footer)
+            // Accounts that did not answer are named, so the card never reads as "every inbox checked".
+            CardFooter(text: card.notice.map { card.footer + " · " + $0 } ?? card.footer)
         }
         .resultCard()
         .accessibilityElement(children: .contain)
@@ -38,6 +39,9 @@ private struct MailCardRow: View {
                     }
                 }
                 Text(item.subject).font(Typo.callout).foregroundStyle(Theme.ink).lineLimit(1)
+                if let account = item.account {
+                    Text(account).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1)
+                }
                 if !item.preview.isEmpty {
                     Text(item.preview).font(Typo.footnote).foregroundStyle(Theme.ink3).lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -47,7 +51,7 @@ private struct MailCardRow: View {
         }
         .help(T("Open in Mail", table: "Views"))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel([item.sender, item.subject, item.dateLabel, item.preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))
+        .accessibilityLabel([item.sender, item.subject, item.account, item.dateLabel, item.preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))
         .accessibilityHint(T("Open in Mail", table: "Views"))
         .accessibilityAddTraits(.isButton)
     }

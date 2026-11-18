@@ -201,11 +201,11 @@ extension MCPCheckContext {
             return body(legacy) == "Neu: Frist verlängert." && body(bare) == "Neu: Frist verlängert."
                 && wrongSender.isError && wrongSender.json["status"] as? String == "not_found"
         }
-        check("MCP tool list: mail_read takes an optional message_id and no longer requires a subject; mail_search hits carry no other new field") {
+        check("MCP tool list: mail_read takes an optional mail_ref or message_id and no longer requires a subject") {
             let tools = PippaMCPTools.toolList()
             guard let read = tools.first(where: { $0["name"] as? String == "mail_read" }),
                   let schema = read["inputSchema"] as? [String: Any], let properties = schema["properties"] as? [String: Any] else { return false }
-            return Set(properties.keys) == ["message_id", "subject", "from"] && (schema["required"] as? [String] ?? []).isEmpty
+            return Set(properties.keys) == ["mail_ref", "message_id", "subject", "from"] && (schema["required"] as? [String] ?? []).isEmpty
                 && schema["additionalProperties"] as? Bool == false
                 && (properties["message_id"] as? [String: Any])?["type"] as? String == "string"
         }

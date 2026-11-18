@@ -36,6 +36,7 @@ enum MailScript {
                 set found to (messages of inbox whose message id is theID or message id is ("<" & theID & ">"))
             end timeout
             set best to missing value
+            set copies to 0
             repeat with m in found
                 set candidateID to ""
                 try
@@ -46,6 +47,7 @@ enum MailScript {
                     if candidateID is theID or candidateID is ("<" & theID & ">") then set exactIdentity to true
                 end considering
                 if exactIdentity then
+                    set copies to copies + 1
                     if best is missing value then
                         set best to contents of m
                     else
@@ -56,6 +58,8 @@ enum MailScript {
                 end if
             end repeat
             if best is missing value then return {}
+            -- Several messages carry this id (e.g. one in each of two accounts): which one is meant is unknown.
+            if copies > 1 then return {"ambiguous"}
             return my messageInfo(best)
         end tell
     end findByMessageID
@@ -115,8 +119,15 @@ enum MailScript {
 
     static func find(messageID: String) async throws -> MailMessage? {
         try await AppleEvents.perform { () throws -> MailMessage? in
-            message(try AppleEvents.call(source, handler: "findByMessageID", [NSAppleEventDescriptor(string: messageID)], app: .mail))
+            let reply = try AppleEvents.call(source, handler: "findByMessageID", [NSAppleEventDescriptor(string: messageID)], app: .mail)
+            if isAmbiguous(reply) { throw MailLookupAmbiguous() }
+            return message(reply)
         }
+    }
+
+    /// `{"ambiguous"}`: more than one inbox message has the requested Message-ID.
+    static func isAmbiguous(_ reply: NSAppleEventDescriptor) -> Bool {
+        reply.descriptorType == typeAEList && reply.numberOfItems == 1 && reply.atIndex(1)?.stringValue == "ambiguous"
     }
 
     static func message(_ r: NSAppleEventDescriptor) -> MailMessage? {

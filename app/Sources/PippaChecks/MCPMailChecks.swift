@@ -169,5 +169,6 @@ extension MCPCheckContext {
                 && !granted.isError && firstUse.demo.mailPreparations == 1
         }
         await mailSelectionChecks()
+        await mailAccountChecks()
     }
 }

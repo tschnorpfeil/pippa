@@ -135,7 +135,8 @@ public protocol AppIntegrations: Sendable {
     /// The newest inbox mail with exactly this subject whose sender contains `sender` ("" = any), or `nil`.
     func findMail(subject: String, sender: String) async throws -> MailMessage?
     /// The inbox mail whose Message-ID is exactly `messageID` (a canonical id, see `MailReplySource.canonicalMessageID`), or
-    /// `nil`. Never another mail with a similar subject; of several copies of one message the newest.
+    /// `nil`. Never another mail with a similar subject. Several inbox mails with this id (e.g. in two accounts) throw
+    /// `MailLookupAmbiguous`: which one is meant is unknown.
     func findMail(messageID: String) async throws -> MailMessage?
     /// Creates an unsent native reply to the captured original identity. Never falls back to compose.
     func insertReply(_ draft: MailDraft) async throws -> MailInsertResult
@@ -251,7 +252,8 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
         lock.withLock { lookups += 1 }
         guard let wanted = MailReplySource.canonicalMessageID(messageID) else { return nil }
         let matches = inboxCandidates().filter { $0.messageID.flatMap(MailReplySource.canonicalMessageID) == wanted }
-        return MailSelection.newest(matches, limit: 1, date: \.date, tie: { _ in "" }).first
+        if matches.count > 1 { throw MailLookupAmbiguous() }
+        return matches.first
     }
 
     private func inboxCandidates() -> [MailMessage] { lock.withLock { (sampleMail.map { [$0] } ?? []) + inboxMails } }
