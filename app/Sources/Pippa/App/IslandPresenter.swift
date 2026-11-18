@@ -426,7 +426,7 @@ final class IslandPresenter: NSObject {
             let escape = event.type == .keyDown && event.keyCode == 53 && inPanel
             if event.type == .keyDown, inPanel, event.isARepeat {
                 let submit = (event.keyCode == 36 || event.keyCode == 76)
-                    && event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty
+                    && event.modifierFlags.intersection([.command, .control, .option]).isEmpty
                 // A held key can outlast the question it first answered.
                 if (escape || submit), MainActor.assumeIsolated({ !Approvals.shared.questions.isEmpty }) {
                     return nil
