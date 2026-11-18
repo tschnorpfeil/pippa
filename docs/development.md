@@ -111,7 +111,9 @@ in-process MCP server's own read and write notes (`PippaMCPService`), so no `str
   part by the model and kept per document in `PIPPA_DIGEST_DIR` (`digest.ts`).
 - `protected.ts` and native `ProtectedPaths` keep app settings, account configuration and sessions out of model-facing
   filesystem tools. The working-directory exception is tied to its original entry; the shell receives an explicit
-  environment. `transport.ts` refuses redirects for fetch requests carrying a body.
+  environment without provider keys, MCP tokens or SSH-agent variables such as `SSH_AUTH_SOCK`; commands that need
+  an independently authenticated CLI do not inherit those credentials. `transport.ts` refuses redirects for fetch
+  requests carrying a body.
 - `pippa-assist.ts` keeps a small local model on track: it stops identical repeated calls, sends documents that Pi's
   `read` would return as bytes to `read_document` (`document.ts`). The guarded file tools keep a backup of the same canonical target they change.
 - `pippa-memory.ts`: "what Pippa knows about you", one fact per line in `memory.md` (`PIPPA_MEMORY_FILE`), added to the
