@@ -28,7 +28,7 @@ enum DropReader {
     static let types: [NSPasteboard.PasteboardType] =
         [.fileURL, .URL, .string, .tiff, .png] + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
 
-    struct Result {
+    struct Result: Sendable {
         var items: [URL]
     }
 
@@ -52,30 +52,48 @@ enum DropReader {
             let files = urls.filter { FileManager.default.fileExists(atPath: $0.path) }
             if !files.isEmpty { return completion(Result(items: files)) }
         }
+        // 3.–5. Images, links, text: read here, where the pasteboard is; PNG encoding and writing the file happen away
+        // from the window, and `completion` comes back on the main actor.
+        let png = pb.data(forType: .png)
+        let tiff = png == nil ? pb.data(forType: .tiff) : nil
+        let links = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL]
+        let link = links?.first.flatMap { $0.isFileURL ? nil : $0 }
+        let text = pb.string(forType: .string)
+        guard png != nil || tiff != nil || link != nil || text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            return completion(nil)
+        }
+        Task.detached(priority: .userInitiated) {
+            let result = stage(png: png, tiff: tiff, link: link, text: text, imageName: imageName)
+            await MainActor.run { completion(result) }
+        }
+    }
+
+    /// Writes what a drop carried that is not a file into a fresh inbox folder, in the order images, links, text.
+    private nonisolated static func stage(png: Data?, tiff: Data?, link: URL?, text: String?, imageName: String) -> Result? {
         // 3. Images
-        if let data = pb.data(forType: .png) ?? pb.data(forType: .tiff).flatMap({ NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:]) }),
+        if let data = png ?? tiff.flatMap({ NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:]) }),
            let folder = try? Inbox.freshFolder() {
             let url = folder.appendingPathComponent(imageName)
             if (try? data.write(to: url)) != nil {
-                return completion(Result(items: [url]))
+                return Result(items: [url])
             }
         }
         // 4. Links
-        if let urls = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL], let link = urls.first, !link.isFileURL {
+        if let link {
             let saved = saveText(link.absoluteString, name: "Link.txt")
-            return completion(Result(items: saved.map { [$0] } ?? []))
+            return Result(items: saved.map { [$0] } ?? [])
         }
         // 5. Text
-        if let text = pb.string(forType: .string), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             if let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)), let scheme = url.scheme,
                ["http", "https"].contains(scheme.lowercased()) {
                 let saved = saveText(url.absoluteString, name: "Link.txt")
-                return completion(Result(items: saved.map { [$0] } ?? []))
+                return Result(items: saved.map { [$0] } ?? [])
             }
             let saved = saveText(text, name: "Text.txt")
-            return completion(Result(items: saved.map { [$0] } ?? []))
+            return Result(items: saved.map { [$0] } ?? [])
         }
-        completion(nil)
+        return nil
     }
 
     private static func saveText(_ text: String, name: String) -> URL? {

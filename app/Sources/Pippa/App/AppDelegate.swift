@@ -74,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         let menu = NSMenu()
         menu.addItem(MenuAction.item(T("Ask Pippa", table: "App")) { AppActions.callPippa() })
-        menu.addItem(MenuAction.item(T("New Conversation", table: "App")) { ChatModel.shared.newConversation(); ChatWindow.shared.show() })
+        menu.addItem(MenuAction.newConversation())
         menu.addItem(.separator())
         let island = MenuAction.item(T("Pippa Island", table: "Island")) { Island.shared.isShown.toggle() }
         menu.addItem(island)
@@ -133,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         main.items.first?.submenu?.insertItem(.separator(), at: 6)
         NSApp.servicesMenu = services
         submenu(T("File", table: "App"), [
-            MenuAction.item(T("New Conversation", table: "App"), key: "n", modifiers: [.command]) { ChatModel.shared.newConversation(); ChatWindow.shared.show() },
+            MenuAction.newConversation(key: "n", modifiers: [.command]),
             edit(T("Close Window", table: "App"), #selector(NSWindow.performClose(_:)), "w"),
         ])
         submenu(T("Edit", table: "App"), [
@@ -200,6 +200,14 @@ enum MenuAction {
         func menuWillOpen(_ menu: NSMenu) { update() }
     }
     private static var retained: [NSObject] = []
+
+    /// "New Conversation", in the menu bar symbol's menu and the File menu.
+    static func newConversation(key: String = "", modifiers: NSEvent.ModifierFlags = []) -> NSMenuItem {
+        item(T("New Conversation", table: "App"), key: key, modifiers: modifiers) {
+            ChatModel.shared.newConversation()
+            ChatWindow.shared.show()
+        }
+    }
 
     static func item(_ title: String, key: String = "", modifiers: NSEvent.ModifierFlags = [], _ action: @escaping () -> Void) -> NSMenuItem {
         let target = Target(action)

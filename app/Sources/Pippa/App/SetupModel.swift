@@ -94,10 +94,21 @@ final class SetupModel: ObservableObject {
     /// "Stop": pauses the download (what came stays) and asks again.
     func stopDownload() {
         guard case .downloading = state else { return }
-        task?.cancel(); task = nil
+        let stopped = task
+        stopped?.cancel()
         resumeConsent = false
         if let roots { try? PippaSettings.saveDownloadConsent(nil, to: roots.support) }
-        begin()
+        // The cancelled download may still be writing its `.part` file: ask again only once it has ended, so a new
+        // attempt never inspects or writes the same file alongside it. A fresh attempt ID drops its late progress.
+        let attempt = UUID()
+        attemptID = attempt
+        state = .preparing(adoptingFrom: nil)
+        task = Task { [weak self] in
+            await stopped?.value
+            guard let self, self.attemptID == attempt else { return }
+            self.task = nil
+            self.begin()
+        }
     }
 
     private func progress(_ value: Double, _ remaining: TimeInterval?, attempt: UUID) {

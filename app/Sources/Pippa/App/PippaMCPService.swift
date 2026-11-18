@@ -38,7 +38,11 @@ enum PippaMCPService {
     static func makePDF(_ files: [URL]) async -> (card: ResultCard?, text: String, failed: Bool) {
         let turn = PippaMCPTurn()
         begin(turn)
-        defer { end(turn) }
+        defer {
+            end(turn)
+            // Its receipts belong to no chat answer: collected here, so they never land under the next one.
+            _ = writeNotes.take(turnID: turn.id, at: \.turnID)
+        }
         let result = await PippaMCPFilePreparation(host: currentHost, turn: turn, scope: turn.writes).call(["paths": files.map(\.path)])
         let note = PippaMCPFilePreparation.readNote(for: result, turnID: turn.id)
         return (note.card, note.line, result.isError)
@@ -140,7 +144,7 @@ enum PippaMCPService {
     static func configured(_ base: PippaMCPHost, asksForAccess: Bool) -> PippaMCPHost {
         var fresh = base
         fresh.onRead = { note in if let id = note.turnID { readNotes.append(note, turnID: id) } }
-        fresh.onWrite = { receipt in writeNotes.append(receipt) }
+        fresh.onWrite = { receipt in writeNotes.append(receipt, turnID: receipt.turnID) }
         fresh.requireActiveWriteTurn = true
         fresh.askForAccess = asksForAccess
         if asksForAccess { fresh.explainAccess = { subject, sentence in await explain(subject, sentence) } }
@@ -150,16 +154,13 @@ enum PippaMCPService {
             let approvals = fresh.browserApprovals
             let turns = fresh.turns
             session.authorizeNavigation = { url in
-                guard let host = PippaMCPBrowserTool.normalizedHost(url) else { return false }
+                guard PippaMCPBrowserTool.normalizedHost(url) != nil else { return false }
                 // Once Pippa handed off login/2FA/CAPTCHA to the human outside an active turn, allow their clicks.
                 if turns.active == nil, session.handoffMessage != nil { return true }
-                guard let turn = turns.active, !turn.writes.snapshot.cancelled else { return false }
-                if approvals.approved(host, turn: turn.id) { return true }
-                let prompt = PippaMCPBrowserTool.openHostPrompt(url)
-                let ok = await confirmBrowser(title: prompt.title, message: prompt.message, asksForAccess: asksForAccess)
-                guard ok, !turn.writes.snapshot.cancelled else { return false }
-                approvals.approve(host, turn: turn.id)
-                return true
+                guard let turn = turns.active else { return false }
+                return await authorizeNavigation(url, turn: turn, approvals: approvals, isCurrent: { true }) { title, message in
+                    await confirmBrowser(title: title, message: message, asksForAccess: asksForAccess)
+                }
             }
             fresh.browser = session
             fresh.onBrowserHandoff = { _, _ in
@@ -214,20 +215,29 @@ enum PippaMCPService {
                 if demo { return DemoBrowserOperator() }
                 guard let session = WKBrowserSession.makeOnline() else { return nil }
                 session.authorizeNavigation = { url in
-                    guard turns.active === turn, !turn.writes.snapshot.cancelled,
-                          let name = PippaMCPBrowserTool.normalizedHost(url) else { return false }
-                    if approvals.approved(name, turn: turn.id) { return true }
-                    let prompt = PippaMCPBrowserTool.openHostPrompt(url)
-                    guard await confirm?("open", prompt.title, prompt.message) == true,
-                          turns.active === turn, !turn.writes.snapshot.cancelled else { return false }
-                    approvals.approve(name, turn: turn.id)
-                    return true
+                    await authorizeNavigation(url, turn: turn, approvals: approvals, isCurrent: { turns.active === turn }) { title, message in
+                        await confirm?("open", title, message) == true
+                    }
                 }
                 return session
             }
         }
         host.egress = egress
         return host
+    }
+
+    /// One main-frame destination or popup in `turn`: a host approved earlier in the turn passes, any other asks the
+    /// person first. Refused once the turn was cancelled or (`isCurrent`) is no longer the one this browser serves,
+    /// also while the question was open.
+    private static func authorizeNavigation(_ url: URL, turn: PippaMCPTurn, approvals: PippaMCPBrowserApprovals,
+                                            isCurrent: () -> Bool,
+                                            confirm: (_ title: String, _ message: String) async -> Bool) async -> Bool {
+        guard isCurrent(), !turn.writes.snapshot.cancelled, let host = PippaMCPBrowserTool.normalizedHost(url) else { return false }
+        if approvals.approved(host, turn: turn.id) { return true }
+        let prompt = PippaMCPBrowserTool.openHostPrompt(url)
+        guard await confirm(prompt.title, prompt.message), isCurrent(), !turn.writes.snapshot.cancelled else { return false }
+        approvals.approve(host, turn: turn.id)
+        return true
     }
 
     private static func started(egress: PippaMCPEgress?) async throws -> PippaMCPServer {

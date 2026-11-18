@@ -55,6 +55,8 @@ final class Island: ObservableObject {
     /// as a large drop tray, so nobody has to open it first.
     @Published private(set) var dropMode = false
     private var dragMonitor: Any?
+    /// A display came or went: `refresh` asks the displays for the island's place again.
+    private var placementStale = false
     private var dragStart = 0
     static let fileDragTypes: [NSPasteboard.PasteboardType] =
         [.fileURL] + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
@@ -149,16 +151,18 @@ final class Island: ObservableObject {
             MainActor.assumeIsolated {
                 // A display came or went: start again from rest on whichever display has the island now.
                 self?.presenter?.close(animated: false)
+                self?.placementStale = true
                 self?.refresh()
             }
         }
     }
 
+    /// Runs for every mouse event in every app: the cheap checks come before the drag pasteboard and the displays.
     private func followDrag(_ type: NSEvent.EventType) {
-        let board = NSPasteboard(name: .drag)
         switch type {
         case .leftMouseDown:
-            dragStart = board.changeCount
+            guard isShown else { return }
+            dragStart = NSPasteboard(name: .drag).changeCount
         case .leftMouseUp where dropMode:
             // The drop reaches the island after this event: a tray that got nothing closes once it would have.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
@@ -168,8 +172,9 @@ final class Island: ObservableObject {
         case .leftMouseDragged:
             // An island opened by hand already takes drops as it is.
             // Files only (also Mail's promised files): dragged text or a link is not headed for Pippa.
-            guard isShown, !isOpen || dropMode, board.changeCount != dragStart,
-                  board.availableType(from: Self.fileDragTypes) != nil, let placement = presenter?.placement else { return }
+            guard isShown, !isOpen || dropMode, let placement = presenter?.placement else { return }
+            let board = NSPasteboard(name: .drag)
+            guard board.changeCount != dragStart, board.availableType(from: Self.fileDragTypes) != nil else { return }
             let island: CGPoint
             switch placement {
             case .notch(let housing, _): island = CGPoint(x: housing.midX, y: housing.midY)
@@ -218,8 +223,16 @@ final class Island: ObservableObject {
         if status != self.status { self.status = status }
         guard isShown, let presenter else { return }
         presenter.view.compact.setAccessibilityValue(status.label)
-        if !isOpen, presenter.isIdle, let placement = placement(), placement != presenter.placement {
-            presenter.place(placement, compactWidth: compactWidth(status, placement))
+        // Refreshes come with every token and keystroke: the displays are asked again only when the island has no place
+        // yet, a display changed, or it hangs under the menu bar symbol (which moves when other symbols come or go).
+        let mayMove = presenter.placement.map { !$0.isNotch } ?? true
+        if !isOpen, presenter.isIdle, placementStale || mayMove {
+            placementStale = false
+            if let placement = placement(), placement != presenter.placement {
+                // Placing sets the wing to its width already.
+                presenter.place(placement, compactWidth: compactWidth(status, placement))
+                return
+            }
         }
         guard let placement = presenter.placement else { return }
         presenter.setCompact(width: compactWidth(status, placement))
@@ -395,10 +408,13 @@ final class Island: ObservableObject {
             openChat(in: chat.currentID)
             return
         }
+        // The app in front when the island opened goes with this question, into whichever conversation it lands in.
+        let front = chat.frontApp
         if let followUp { chat.select(followUp.id) } else { chat.newConversation() }
         startsFresh = false
         chat.draft = text
         chat.attachments = files
+        chat.frontApp = front
         chat.send()
         // The next question in this opening goes on with this one, however the clock or the answer turns out.
         continuing = chat.currentID
