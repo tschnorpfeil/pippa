@@ -81,10 +81,30 @@ public struct PippaMCPTools: Sendable {
         case "ping":
             return Self.result(id: id, [:])
         case "tools/list":
-            return Self.result(id: id, ["tools": Self.toolList()])
+            let tools = Self.toolList()
+            guard let egress = host.egress else { return Self.result(id: id, ["tools": tools]) }
+            return Self.result(id: id, ["tools": tools.filter { egress.allows($0["name"] as? String ?? "") }])
         case "tools/call":
             guard let name = params["name"] as? String, Self.toolNames.contains(name) else {
                 return Self.error(id: id, code: -32602, message: "Unknown tool")
+            }
+            // An online AI's process: refused before anything is read, and writers' results carry back nothing read here.
+            if let egress = host.egress {
+                if let reason = egress.refusal(name, params["arguments"] as? [String: Any] ?? [:]) {
+                    DiagnosticsLog.shared.event("mcp-online-refused", ["name": name, "reason": reason])
+                    let outcome = egress.refused(name, reason: reason)
+                    return Self.toolResult(id: id, outcome.text, isError: true)
+                }
+                var unrestricted = host
+                unrestricted.egress = nil
+                guard let reply = await PippaMCPTools(host: unrestricted).message(object, context: context),
+                      var result = reply["result"] as? [String: Any],
+                      let content = result["content"] as? [[String: Any]], let text = content.first?["text"] as? String else {
+                    return await PippaMCPTools(host: unrestricted).message(object, context: context)
+                }
+                let scrubbed = egress.scrub(name, PippaMCPToolResult(text: text, isError: result["isError"] as? Bool ?? false))
+                result["content"] = [["type": "text", "text": scrubbed.text]]
+                return Self.result(id: id, result)
             }
             let arguments: [String: Any]
             if let raw = params["arguments"] {

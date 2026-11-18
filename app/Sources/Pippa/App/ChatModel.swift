@@ -47,6 +47,29 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     var duration: TimeInterval?
     /// The person stopped the answer.
     var stopped: Bool?
+    /// Answer: what its tools read on this Mac, from the tools' own names (`SharingSource.read(byTool:)`). `nil` in
+    /// answers saved before 0.8: their origin is unknown.
+    var provenance: [SharingSource]?
+    /// Answer: the online AI that wrote it. Question: the online AI it went to. `nil`: the AI on this Mac.
+    var destination: String?
+    /// Question: the parts the person checked and shared with `destination` ("Lease.pdf", "Calendar, next 7 days").
+    var shared: [String]?
+}
+
+/// The review before anything from the Mac goes to an online AI: the provider, the person's words and each part Pippa
+/// read on this Mac, editable, and what stays here. Nothing is sent until the person presses Send.
+struct ShareReview: Identifiable {
+    let id = UUID()
+    var plan: SharePlan
+    /// A single question for the recipient while conversations stay on this Mac.
+    var handoff: Bool
+    /// The attached files it was made from: they leave the composer only once the approved text is sent.
+    var files: [URL]
+    /// Reads on this Mac still running; Send waits for them.
+    var pending = 0
+    var loading: Bool { pending > 0 }
+    /// Why it can't be sent (the online AI changed, a source could not be read).
+    var problem: String?
 }
 
 extension ChatMessage {
@@ -110,6 +133,8 @@ final class ChatModel: ObservableObject {
     private var stopRequested = false
     /// Counts answers, so a late result of an earlier one never lands on a newer one.
     private var generation = 0
+    /// Open while the person checks what goes to an online AI (`ShareReview`).
+    @Published var review: ShareReview?
 
     private static var folder: URL { Pippa.supportDirectory.appendingPathComponent("conversations", isDirectory: true) }
     /// Reading and writing conversation files, away from the window.
@@ -207,37 +232,78 @@ final class ChatModel: ObservableObject {
 
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !isAnswering, !text.isEmpty || !attachments.isEmpty else { return }
+        guard !isAnswering, review == nil, !text.isEmpty || !attachments.isEmpty else { return }
+        problem = nil
+        // An online AI answers: typed words go as they are; files only after the review (issue #193). The app in front
+        // and earlier undos are notes for the AI on this Mac and stay here.
+        let destination = ShareDestination.active(SettingsModel.shared.inferenceSettings)
+        let files = attachments.map(\.path)
+        let id = currentID ?? UUID().uuidString.lowercased()
+        guard let outgoing = Self.outgoing(text, files: files, frontApp: frontApp, undone: destination == nil ? undoneNotes[id] ?? [] : [],
+                                           online: destination != nil) else {
+            if let destination { startReview(destination, handoff: false) }
+            return
+        }
+        if destination == nil { undoneNotes[id] = nil }
+        draft = ""; attachments = []; frontApp = nil
+        ask(text, files: destination == nil ? files : [], outgoing: outgoing, destination: destination?.label)
+    }
+
+    /// What goes to Pi for the composer's content: everything for the AI on this Mac; for an online AI only typed words,
+    /// and `nil` (review first) as soon as files are attached. The app in front and undo notes never go online.
+    static func outgoing(_ text: String, files: [String], frontApp: String?, undone: [String], online: Bool) -> PiSession.Outgoing? {
+        guard online else { return .local(prompt(text, files: files, frontApp: frontApp, undone: undone)) }
+        return files.isEmpty ? .typed(text) : nil
+    }
+
+    /// One question and its answer. `destination`: the online AI it goes to (shown on both). `restore`: put the
+    /// question back into the composer if it was not sent or failed, so nothing the person wrote is lost.
+    private func ask(_ text: String, files: [String], outgoing: PiSession.Outgoing, handoff: Bool = false, destination: String? = nil,
+                     shared: [String]? = nil, restore: (text: String, files: [URL])? = nil) {
         let id = currentID ?? UUID().uuidString.lowercased()
         if current == nil {
-            let title = String((text.isEmpty ? attachments.first?.lastPathComponent ?? "" : text).prefix(60))
+            let title = String((text.isEmpty ? files.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? shared?.first ?? "" : text).prefix(60))
             conversations.insert(Conversation(id: id, title: title, updated: Date(), messages: []), at: 0)
             currentID = id
         }
-        let files = attachments.map(\.path)
-        append(ChatMessage(role: .user, text: text, files: files), to: id)
+        let question = ChatMessage(role: .user, text: text, files: files, destination: destination, shared: shared)
+        append(question, to: id)
         // The question is on disk before the answer starts: a crash or quit mid-answer never loses it.
         save(id)
-        let reply = ChatMessage(role: .assistant, text: "")
+        let reply = ChatMessage(role: .assistant, text: "", provenance: [], destination: destination)
         append(reply, to: id)
-        let prompt = Self.prompt(text, files: files, frontApp: frontApp, undone: undoneNotes.removeValue(forKey: id) ?? [])
-        draft = ""; attachments = []; frontApp = nil
         let started = Date()
         begin(started, in: id)
         _ = PippaMCPService.readNotes.take(); _ = PippaMCPService.writeNotes.take()
         evidence = DateEvidence(); pendingSources = [:]; stepLabels = [:]; pendingNotes = [:]
-        evidence.add(prompt: prompt)
+        switch outgoing {
+        case .local(let prompt), .typed(let prompt): evidence.add(prompt: prompt)
+        case .approved(let approval): evidence.add(prompt: approval.message)
+        }
         let turn = generation
         answer = Task {
+            var refused = false
             do {
-                try await PiSession.shared.ask(prompt, conversation: id, onStarting: { self.starting($0) }) { event in self.apply(event, in: id) }
+                try await PiSession.shared.ask(outgoing, conversation: id, handoff: handoff, onStarting: { self.starting($0) }) { event in self.apply(event, in: id) }
             } catch is CancellationError {
+            } catch PiSession.Failure.needsReview, PiSession.Failure.destinationChanged {
+                // Nothing went out: the question goes back to the composer and leaves no trace in the conversation.
+                refused = true
+                if let index = conversations.firstIndex(where: { $0.id == id }) {
+                    conversations[index].messages.removeAll { $0.id == question.id || $0.id == reply.id }
+                }
+                if draft.isEmpty && attachments.isEmpty { draft = restore?.text ?? text; attachments = restore?.files ?? files.map { URL(fileURLWithPath: $0) } }
+                problem = PiSession.Failure.destinationChanged.localizedDescription
             } catch {
-                if !stopRequested { update(reply.id, in: id) { $0.error = error.localizedDescription } }
+                if !stopRequested {
+                    update(reply.id, in: id) { $0.error = error.localizedDescription }
+                    if let restore, draft.isEmpty && attachments.isEmpty { draft = restore.text; attachments = restore.files }
+                }
             }
             let cards = PippaMCPService.readNotes.take().compactMap(\.card)
             let receipts = PippaMCPService.writeNotes.take()
             let stopped = stopRequested
+            if refused { end(); save(id); return }
             update(reply.id, in: id) { message in
                 message.cards = cards
                 message.receipts = receipts
@@ -271,6 +337,118 @@ final class ChatModel: ObservableObject {
         }
     }
 
+    /// A sentence over the composer when something was not sent (the online AI changed meanwhile).
+    @Published var problem: String?
+
+    // MARK: Sharing with an online AI
+
+    /// The online AI a single question can go to while conversations stay on this Mac ("Ask OpenAI…").
+    var handoffDestination: ShareDestination? { ShareDestination.handoff(SettingsModel.shared.inferenceSettings) }
+
+    /// "Ask <provider>…": the review for one question to the recipient, with the files attached and Pippa's last answer
+    /// here (each part with what it was read from). Nothing is sent before the person's OK.
+    func askOnline() {
+        guard !isAnswering, review == nil, let destination = handoffDestination else { return }
+        startReview(destination, handoff: true)
+    }
+
+    /// The + menu while an online AI answers: one source read on this Mac by Pippa herself, then the review.
+    func share(_ source: SharingSource) {
+        guard !isAnswering, let destination = review?.plan.destination ?? ShareDestination.active(SettingsModel.shared.inferenceSettings) else { return }
+        let rules = SettingsModel.shared.inferenceSettings.sharing
+        guard rules[source] == .ask else { return }
+        if review == nil { startReview(destination, handoff: false) }
+        let extraction = ShareExtraction(host: PippaMCPService.currentHost)
+        let reviewID = review?.id
+        review?.pending += 1
+        Task {
+            let piece: SharePiece?
+            var problem: String?
+            do {
+                switch source {
+                case .mail: piece = try await extraction.selectedMail()
+                case .calendar: piece = try await extraction.calendar()
+                case .reminders: piece = try await extraction.reminders()
+                case .documents, .photos: piece = nil
+                }
+            } catch {
+                piece = nil; problem = error.localizedDescription
+            }
+            guard review?.id == reviewID else { return }
+            review?.pending -= 1
+            if let piece { addCandidates([piece]) }
+            if let problem { review?.problem = problem }
+        }
+    }
+
+    private func startReview(_ destination: ShareDestination, handoff: Bool) {
+        let files = attachments
+        var candidates: [SharePiece] = []
+        if handoff, let answer = lastAnswerHere() { candidates.append(answer) }
+        review = ShareReview(plan: SharePlan(destination: destination, question: draft.trimmingCharacters(in: .whitespacesAndNewlines),
+                                             candidates: candidates, rules: SettingsModel.shared.inferenceSettings.sharing),
+                             handoff: handoff, files: files, pending: files.isEmpty ? 0 : 1)
+        problem = nil
+        ChatWindow.shared.show()
+        guard !files.isEmpty, let reviewID = review?.id else { return }
+        Task {
+            let pieces = await Task.detached(priority: .userInitiated) { ShareExtraction.files(files) }.value
+            guard review?.id == reviewID else { return }
+            review?.pending -= 1
+            addCandidates(pieces)
+        }
+    }
+
+    /// New parts join the review under the rules as they are now: a part on "Only on this Mac" is listed, never offered.
+    private func addCandidates(_ pieces: [SharePiece]) {
+        guard var current = review else { return }
+        let rules = SettingsModel.shared.inferenceSettings.sharing
+        let added = SharePlan(destination: current.plan.destination, question: current.plan.question, candidates: pieces, rules: rules)
+        current.plan.pieces += added.pieces
+        current.plan.withheld += added.withheld
+        review = current
+    }
+
+    /// Pippa's last answer here, by the AI on this Mac, as a part: its sources are what its tools read.
+    private func lastAnswerHere() -> SharePiece? {
+        guard let messages = current?.messages, let index = messages.lastIndex(where: { $0.role == .assistant }) else { return nil }
+        let answer = messages[index]
+        let text = answer.result.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard answer.destination == nil, answer.error == nil, !text.isEmpty else { return nil }
+        var sources = Set(answer.provenance ?? [])
+        if index > 0 { sources.formUnion(messages[index - 1].files.map { SharingSource.of(file: URL(fileURLWithPath: $0)) }) }
+        return SharePiece(sources: sources, title: T("Pippa’s answer on this Mac", table: "App"), text: text,
+                          unknownOrigin: answer.provenance == nil && !answer.steps.isEmpty)
+    }
+
+    /// The person's changes in the review sheet (their words, a part's text, leaving a part out).
+    func updateReview(_ change: (inout SharePlan) -> Void) {
+        guard var current = review else { return }
+        change(&current.plan)
+        review = current
+    }
+
+    /// Cancel: nothing is sent, the words and files stay in the composer.
+    func dismissReview() { review = nil }
+
+    /// Send: the approval is fixed now (`ShareApproval`), for the destination shown and the rules as they are now. If the
+    /// online AI changed while the review was open, nothing is sent and the review says so.
+    func approveReview() {
+        guard let current = review, !current.loading, !isAnswering else { return }
+        let settings = SettingsModel.shared.inferenceSettings
+        let now = current.handoff ? ShareDestination.handoff(settings) : ShareDestination.active(settings)
+        guard now == current.plan.destination else {
+            review?.problem = PiSession.Failure.destinationChanged.localizedDescription
+            return
+        }
+        guard let approval = current.plan.approve(rules: settings.sharing) else { return }
+        let restore = (text: draft, files: attachments)
+        review = nil
+        draft = ""; attachments = []; frontApp = nil
+        ask(approval.question, files: current.files.map(\.path), outgoing: .approved(approval), handoff: current.handoff,
+            destination: approval.destination.label, shared: approval.parts.map(\.title), restore: restore)
+    }
+
     /// The person picks up their question again: its words and files go back into the composer.
     func edit(_ message: ChatMessage) {
         guard !isAnswering, message.role == .user else { return }
@@ -279,15 +457,22 @@ final class ChatModel: ObservableObject {
     }
 
     /// The last answer failed: ask the same question again.
+    /// An approved question is never sent again as it was: it goes back through the review (no replay).
     func retry() {
-        guard !isAnswering, let id = currentID, let index = conversations.firstIndex(where: { $0.id == id }) else { return }
+        guard !isAnswering, review == nil, let id = currentID, let index = conversations.firstIndex(where: { $0.id == id }) else { return }
         let messages = conversations[index].messages
         guard messages.count >= 2, messages[messages.count - 1].role == .assistant, messages[messages.count - 2].role == .user else { return }
         let question = messages[messages.count - 2]
         conversations[index].messages.removeLast(2)
         draft = question.text
         attachments = question.files.map { URL(fileURLWithPath: $0) }
-        send()
+        if question.shared != nil, let destination = handoffDestination, destination.label == question.destination {
+            startReview(destination, handoff: true)
+        } else if question.shared != nil, let destination = ShareDestination.active(SettingsModel.shared.inferenceSettings) {
+            startReview(destination, handoff: false)
+        } else {
+            send()
+        }
     }
 
     /// Dropped photos or PDFs, one PDF: done by the app itself, no model needed.
@@ -425,6 +610,9 @@ final class ChatModel: ObservableObject {
                 $0.lead = $0.text.count
             }
             if let source = SourceLog.source(tool: name, arguments: arguments) { pendingSources[call] = source }
+            // What the answer may rest on, from the tool's name; counted when it starts, read or not.
+            let read = SharingSource.read(byTool: name)
+            if !read.isEmpty { updateLast(in: id) { $0.provenance = Array(Set($0.provenance ?? []).union(read)).sorted() } }
         case .toolProgress(let call, let part, let of, let merging):
             updateLast(in: id) { message in
                 guard let index = message.steps.firstIndex(where: { $0.id == call }), !message.steps[index].done else { return }
@@ -463,7 +651,9 @@ final class ChatModel: ObservableObject {
             }
         case .assistantEnded(_, let reason, let error):
             if reason == "toolUse" { updateLast(in: id) { if !$0.text.isEmpty, !$0.text.hasSuffix("\n") { $0.text += "\n\n" } } }
+            // A single question to an online AI is online too, while Settings still says "this Mac".
             let online = SettingsModel.shared.inferenceSettings.usesOnlineAI
+                || conversations.first(where: { $0.id == id })?.messages.last?.destination != nil
             if reason == "error", let error { updateLast(in: id) { $0.error = Self.modelError(error, online: online) } }
             // The model used up its answer length (usually while thinking) and stopped mid-way: say so, never end quietly.
             if reason == "length" {

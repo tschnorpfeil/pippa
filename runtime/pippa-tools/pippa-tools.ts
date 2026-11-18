@@ -20,6 +20,8 @@
  * - `bash`: Pi's own shell tool, run inside a macOS sandbox (shell.ts): writing outside Pippa's working folder and the
  *   internet need the person's OK; app control stays blocked. Pi's direct RPC shell is refused (it would bypass it).
  *
+ * With PIPPA_EGRESS=online (an online AI answers) only `ask` is registered and everything else is blocked (egress.ts).
+ *
  * Two hooks keep what the model reads small (budget.ts): shorter parameter texts of Pi's built-in tools in every
  * provider request, and a cap on each tool result from the model's context window.
  */
@@ -35,6 +37,7 @@ import { shellTool } from "./shell.ts";
 import { listFolder } from "./list-folder.ts";
 import { readTool } from "./document.ts";
 import { askTool } from "./ask.ts";
+import { blockReason, egress, hideWorkingFolder, onlyAllowedTools } from "./egress.ts";
 
 type ExtensionAPI = any;
 
@@ -48,6 +51,19 @@ export const BUILTIN_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function (pi: ExtensionAPI) {
+	// An online AI answers: only `ask`, every other call blocked, no working-folder path (egress.ts).
+	const online = egress();
+	if (online) {
+		pi.on("before_provider_request", (event: any) => onlyAllowedTools(online, event?.payload));
+		pi.on("before_agent_start", (event: any) => hideWorkingFolder(event));
+		pi.on("tool_call", (event: any) => {
+			const reason = blockReason(online, String(event?.toolName ?? ""));
+			return reason ? { block: true, reason } : undefined;
+		});
+		pi.on("user_bash", () => ({ result: { output: "Direct shell execution is disabled in Pippa.", exitCode: 1, cancelled: false, truncated: false } }));
+		pi.registerTool(askTool());
+		return;
+	}
 	pi.on("before_provider_request", (event: any) => shortenParameters(event?.payload));
 	const backups = backupDirectory();
 	const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined });

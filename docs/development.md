@@ -37,10 +37,26 @@ Pippa.app (Swift, SwiftUI)
 | `runtime/pippa-tools/pippa-memory.ts` | `remember` (facts in `memory.md`, at most 30 lines) |
 | App MCP server (`mcp__pippa__*`) | `calendar_read`, `reminders_read`, `mail_search`, `mail_read`, `photos_search`, `front_read`, `read_document`, `calendar_add`, `reminder_add`, `mail_draft`, `prepare_files` |
 
-Settings → AI switches web search (pi-web-access) and personal notes (`pippa-memory.ts`) separately for the AI on this
-Mac and the online AI (`InferenceSettings.capabilities`; missing values mean on). Off leaves out the extension and its
-tools (`PippaPiLaunch.Capabilities`); `memory.md` stays. The choice is part of `PiSession`'s launch key, so it applies
-from the next question while a running answer keeps its Pi.
+Settings → AI switches web search (pi-web-access) separately for the AI on this Mac and the online AI, and personal
+notes (`pippa-memory.ts`) for the AI on this Mac (`InferenceSettings.capabilities`; missing values mean on). Off leaves
+out the extension and its tools (`PippaPiLaunch.Capabilities`); `memory.md` stays. The choice is part of `PiSession`'s
+launch key, so it applies from the next question while a running answer keeps its Pi.
+
+**Online route (issue #193).** A Pi provider or an older Keychain connection starts Pi with
+`PippaPiLaunch.Capabilities.online`: tools `ask`, web tools when on, and only the app's writers whose source is on
+"Ask before sharing" (`PippaMCPEgress.tools`); no `read`, `bash`, `write`, file tools, `remember`, skills, notes file or
+memory extension. The same limit is enforced three times: `--tools`; `runtime/pippa-tools/egress.ts`
+(`PIPPA_EGRESS=online`: pippa-tools.ts registers only `ask`, blocks every other call, drops undeclared tools from each
+provider request and replaces Pi's `cwd` prompt section); and the app's MCP server, started per Pi process with
+`PippaMCPHost.egress`, which lists and runs only those writers and strips calendar conflicts and list names from their
+results. Native readiness checks that exact set (`PippaPiLaunch.nativeTools`). Each online destination has its own Pi
+session (`<conversation>:<ShareDestination.sessionTag>`), a single question a fresh one (`:handoff-<id>`); the AI on
+this Mac keeps the conversation's own session. `PiSession.ask` takes `Outgoing`: `.local` (files, front app, undo notes)
+is refused on an online route, `.typed` goes anywhere, `.approved(ShareApproval)` only to exactly its destination.
+Files and app content reach an online AI only through `ShareExtraction` (Pippa's own readers) and the review
+(`ShareReviewSheet`, `SharePlan`); the five rules are `InferenceSettings.sharing` (missing means "Ask"), the
+single-question recipient `InferenceSettings.handoffModel`. Answers record what their tools read
+(`ChatMessage.provenance`, from tool names); answers saved before that count as every source.
 
 **Conversation path.** `PiSession` (app) starts the pinned Pi with Pippa's Node through `PippaPiLaunch` and
 `PiRPCClient` (`app/Sources/PiRPC`). Flags: `--no-extensions` plus explicit `--extension`s, `--no-context-files` (an
@@ -201,6 +217,7 @@ python3 scripts/check-strings.py                                        # every 
 python3 scripts/check-default-models.py                                 # the catalog model is pinned
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'            # release and fixture scripts
 node --experimental-strip-types --test $(ls runtime/pippa-tools/*.test.mjs | grep -v /real-pi-)  # extensions, no Pi needed
+PIPPA_PI_CLI=<pi>/dist/bundle/cli.js node --experimental-strip-types --test runtime/pippa-tools/real-pi-online.test.mjs  # online route, real Pi, scripted provider
 node --test runtime/pippa-auth/*.test.mjs                               # Provider/login bridge (no network)
 node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs   # terminal autostart, fake server
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first

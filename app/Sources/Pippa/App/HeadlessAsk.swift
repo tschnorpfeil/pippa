@@ -105,7 +105,8 @@ enum HeadlessAsk {
                     ask: Ask = { text, conversation, onEvent in
                         // To standard error with the time, so a run shows how long the AI took to start.
                         let began = Date()
-                        try await PiSession.shared.ask(text, conversation: conversation, onStarting: { on in
+                        // Typed words only: on an online AI nothing else from this Mac goes with them.
+                        try await PiSession.shared.ask(.typed(text), conversation: conversation, onStarting: { on in
                             FileHandle.standardError.write(Data(String(format: "%6.1fs · AI on this Mac %@\n", Date().timeIntervalSince(began), on ? "starting" : "ready").utf8))
                         }, onEvent: onEvent)
                     },

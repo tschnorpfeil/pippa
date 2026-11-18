@@ -43,6 +43,9 @@ public struct PippaMCPHost: Sendable {
     public var onBrowserHandoff: (@Sendable (_ reason: String, _ url: String?) -> Void)?
     /// Hosts the person already allowed in this answer (shared by every copy of this host).
     public var browserApprovals = PippaMCPBrowserApprovals()
+    /// Set for an online AI's Pi process: only these tools are listed and callable, with scrubbed results (PippaMCPEgress).
+    /// `nil`: the AI on this Mac, all tools.
+    public var egress: PippaMCPEgress?
     /// Resolves whether a host points to a private/local address (defaults to `PippaMCPBrowserTool.resolvesToPrivateAddress`).
     public var resolveHostIsPrivate: @Sendable (_ host: String) async -> Bool = { host in
         await PippaMCPBrowserTool.resolvesToPrivateAddress(host)

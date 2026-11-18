@@ -22,27 +22,28 @@ public enum PiNativeReadiness {
             && result.commands.contains { $0.name == command && $0.source == "extension" }
     }
 
-    static func validate(_ text: String, nonce: String) throws {
+    static func validate(_ text: String, nonce: String, expected: [String] = tools) throws {
         struct Receipt: Decodable { let v: Int; let nonce: String; let status: String; let tools: [String]?; let registeredTools: [String]? }
         guard let receipt = try? JSONDecoder().decode(Receipt.self, from: Data(text.utf8)),
               receipt.v == 1, receipt.nonce == nonce else { throw Failure.invalidReceipt }
         if receipt.status != "ready" { throw Failure(rawValue: receipt.status) ?? .invalidReceipt }
-        guard let tools = receipt.tools, Set(Self.tools) == Set(tools), let registered = receipt.registeredTools,
-              Set(Self.tools) == Set(registered) else { throw Failure.invalidReceipt }
+        guard let tools = receipt.tools, Set(expected) == Set(tools), let registered = receipt.registeredTools,
+              Set(expected) == Set(registered) else { throw Failure.invalidReceipt }
     }
 }
 
 extension PiRPCClient {
     /// The outer deadline also bounds get_commands, a missing acknowledgement and a broken extension command.
     /// Rejecting admission terminates this process and releases pending continuations before the race is joined.
-    public func verifyNativeTools(timeout: Duration = .seconds(12)) async throws {
+    /// `expected`: the Pippa tools this process must have, exactly; an online AI's process has fewer (`PippaPiLaunch.Online`).
+    public func verifyNativeTools(timeout: Duration = .seconds(12), expected: [String] = PiNativeReadiness.tools) async throws {
         try Task.checkCancellation()
         let attempt = try beginNativeReadiness()
         defer { finishNativeReadiness(attempt) }
         do {
             try await withTaskCancellationHandler {
                 try await withThrowingTaskGroup(of: Void.self) { group in
-                    group.addTask { try await self.nativeReadinessRoundTrip(nonce: attempt.uuidString) }
+                    group.addTask { try await self.nativeReadinessRoundTrip(nonce: attempt.uuidString, expected: expected) }
                     group.addTask {
                         try await Task.sleep(for: timeout)
                         await self.rejectNativeReadiness(attempt, error: .timedOut)
@@ -61,7 +62,7 @@ extension PiRPCClient {
         }
     }
 
-    private func nativeReadinessRoundTrip(nonce: String) async throws {
+    private func nativeReadinessRoundTrip(nonce: String, expected: [String]) async throws {
         let commands = try await command(["type": "get_commands"])
         guard PiNativeReadiness.hasCommand(commands) else { throw PiNativeReadiness.Failure.commandMissing }
         // Unknown slash commands can reach the model, so never send this until get_commands confirms ownership.
@@ -70,7 +71,7 @@ extension PiRPCClient {
             guard case .notice(let text, let kind) = event, kind == PiNativeReadiness.command, !received else {
                 throw PiNativeReadiness.Failure.invalidReceipt
             }
-            try PiNativeReadiness.validate(text, nonce: nonce)
+            try PiNativeReadiness.validate(text, nonce: nonce, expected: expected)
             received = true
         }
         guard received else { throw PiNativeReadiness.Failure.invalidReceipt }

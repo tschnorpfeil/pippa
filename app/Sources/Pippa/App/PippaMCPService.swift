@@ -44,11 +44,14 @@ enum PippaMCPService {
 
     /// Only entry point from `PiRPCChat`: starts the server if needed; address, key and extension for
     /// `PippaPiLaunch.configuration(…, mcp:)`, which turns them into `addMCP`. Failure stops Pi admission before any user prompt.
-    static func endpoint(extensions: URL) async throws -> (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL) {
+    /// `egress`: set for an online AI's Pi. The endpoint is new per Pi process (`invalidateEndpoint`), so its limits hold
+    /// for exactly that process and never carry over to the AI on this Mac or back.
+    static func endpoint(extensions: URL, egress: PippaMCPEgress? = nil) async throws -> (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL) {
         let file = ProcessInfo.processInfo.environment["PIPPA_PI_MCP"] ?? extensions.appendingPathComponent("pippa-mcp.ts").path
         try Task.checkCancellation()
         guard FileManager.default.fileExists(atPath: file) else { throw EndpointFailure.extensionMissing }
-        let running = try await started()
+        if server != nil, serverEgress != egress { invalidateEndpoint() }
+        let running = try await started(egress: egress)
         return (.init(url: running.url, token: running.token), URL(fileURLWithPath: file))
     }
 
@@ -156,10 +159,14 @@ enum PippaMCPService {
         _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: config)
     }
 
-    private static func started() async throws -> PippaMCPServer {
-        if let server { return server }
+    /// The limits the running server was started with.
+    private static var serverEgress: PippaMCPEgress?
+
+    private static func started(egress: PippaMCPEgress?) async throws -> PippaMCPServer {
+        if let server, serverEgress == egress { return server }
         let generation = Self.generation
-        let host = currentHost
+        var host = currentHost
+        host.egress = egress
         do {
             let fresh = try PippaMCPServer(host: host)
             startingServer = fresh
@@ -177,7 +184,7 @@ enum PippaMCPService {
                 }
             } onCancel: { fresh.revoke() }
             guard generation == Self.generation, !Task.isCancelled else { fresh.revoke(); throw CancellationError() }
-            server = fresh
+            server = fresh; serverEgress = egress
             return fresh
         } catch {
             if Task.isCancelled || generation != Self.generation { throw CancellationError() }

@@ -49,6 +49,20 @@ public enum PiSessionFiles {
         return moved
     }
 
+    /// Sets aside the conversation's own session and every scoped one (`<id>_<scope>`, PippaPiLaunch.sessionID): the
+    /// sessions each online AI and each single question had for it.
+    @discardableResult
+    public static func trash(conversation id: String, in directory: URL, trash: (URL) throws -> Void) -> [URL] {
+        let urls = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        var moved: [URL] = []
+        for url in urls where url.pathExtension == "jsonl" {
+            guard let found = header(url)?["id"] as? String, found == id || found.hasPrefix(id + "_"),
+                  url.lastPathComponent.hasSuffix("_\(found).jsonl") else { continue }
+            do { try trash(url); moved.append(url) } catch { continue }
+        }
+        return moved
+    }
+
     /// First line as JSON (read at most 64 KB).
     static func header(_ url: URL) -> [String: Any]? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }

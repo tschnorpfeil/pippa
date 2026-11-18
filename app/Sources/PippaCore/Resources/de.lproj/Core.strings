@@ -90,3 +90,26 @@
 "The old version is no longer there." = "Die alte Version ist nicht mehr da.";
 "Pippa’s AI on this Mac needs 16 GB of memory. Use an online AI in Settings instead." = "Pippas KI auf diesem Mac braucht 16 GB Arbeitsspeicher. Nutze stattdessen eine Online-KI in den Einstellungen.";
 "%@ can’t be read with Apple Events." = "%@ lässt sich nicht über Apple Events lesen.";
+
+/* Sharing with an online AI (issue #193) */
+"(No open reminders.)" = "(Keine offenen Erinnerungen.)";
+"(No text was found in this picture. The picture itself is never sent.)" = "(In diesem Bild wurde kein Text gefunden. Das Bild selbst wird nie gesendet.)";
+"(Nothing in the calendar.)" = "(Nichts im Kalender.)";
+"(Pippa couldn’t read text from this file.)" = "(Pippa konnte aus dieser Datei keinen Text lesen.)";
+"(Pippa couldn’t read this email.)" = "(Pippa konnte diese E-Mail nicht lesen.)";
+"(The folder is empty.)" = "(Der Ordner ist leer.)";
+"Attachments (not shared): %@" = "Anhänge (nicht geteilt): %@";
+"Calendar, next %lld days" = "Kalender, nächste %lld Tage";
+"Date: %@" = "Datum: %@";
+"Documents" = "Dokumente";
+"Email “%@”" = "E-Mail „%@“";
+"Folder “%@”" = "Ordner „%@“";
+"From: %@" = "Von: %@";
+"Open reminders" = "Offene Erinnerungen";
+"Picture “%@”" = "Bild „%@“";
+"Select an email in Mail first, then try again." = "Wähle zuerst eine E-Mail in Mail aus und versuch es dann noch einmal.";
+"Subject: %@" = "Betreff: %@";
+"Text recognized in the picture on this Mac:" = "Auf diesem Mac im Bild erkannter Text:";
+"[… shortened on this Mac]" = "[… auf diesem Mac gekürzt]";
+"all day" = "ganztägig";
+"… and %lld more" = "… und %lld weitere";

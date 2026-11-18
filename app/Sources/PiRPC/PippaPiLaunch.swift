@@ -60,11 +60,29 @@ public enum PippaPiLaunch {
         public var web: Bool
         /// pippa-memory.ts: `remember` and the memory section of the system prompt. The memory file itself stays.
         public var memory: Bool
-        public init(web: Bool = true, memory: Bool = true) { self.web = web; self.memory = memory }
+        /// Set when an online AI answers: it reaches nothing of the Mac on its own (`Online`). `nil`: the AI on this Mac.
+        public var online: Online?
+        public init(web: Bool = true, memory: Bool = true, online: Online? = nil) { self.web = web; self.memory = memory; self.online = online }
         public static let all = Capabilities()
         /// For the client's launch key: a changed choice starts Pi afresh on the next question.
-        public var key: String { "web=\(web ? 1 : 0),memory=\(memory ? 1 : 0)" }
+        public var key: String {
+            "web=\(web ? 1 : 0),memory=\(memory && online == nil ? 1 : 0)" + (online.map { ",online=" + $0.mcpTools.joined(separator: "+") } ?? "")
+        }
     }
+
+    /// What an online AI's Pi gets (issue #193): no file, shell or reading tools, no personal notes, no working-folder
+    /// path; only `ask`, web access when it is on, and the app's MCP tools listed here (writers whose results carry no
+    /// personal data, chosen by the app from its sharing rules). The person's own data reaches it only as text they
+    /// approved. Enforced three times: `--tools`, the extension's guard (`PIPPA_EGRESS`) and the app's MCP server.
+    public struct Online: Sendable, Equatable, Hashable {
+        /// App MCP tools without the `mcp__pippa__` prefix, e.g. `calendar_add`.
+        public var mcpTools: [String]
+        public init(mcpTools: [String] = []) { self.mcpTools = mcpTools }
+    }
+
+    /// Tells the extensions that an online AI answers (runtime/pippa-tools/egress.ts), and which tools it may call.
+    public static let egressVariable = "PIPPA_EGRESS"
+    public static let egressToolsVariable = "PIPPA_EGRESS_TOOLS"
 
     /// Without this environment Pi never starts: no network at startup, no telemetry, no version check at pi.dev.
     public static let offlineEnvironment = ["PI_OFFLINE": "1", "PI_SKIP_VERSION_CHECK": "1", "PI_TELEMETRY": "0"]
@@ -78,11 +96,17 @@ public enum PippaPiLaunch {
                                      mcp: (endpoint: MCPEndpoint, extension: URL)? = nil,
                                      capabilities: Capabilities = .all) -> PiRPCConfiguration {
         var env = launcher.environment.merging(environment) { $1 }
-        if let memory = paths.memoryFile { env[memoryVariable] = memory.path }
+        env[egressVariable] = nil; env[egressToolsVariable] = nil
+        // An online AI never gets the notes file, not even if an extension asked for it.
+        if let memory = paths.memoryFile, capabilities.online == nil { env[memoryVariable] = memory.path } else { env[memoryVariable] = nil }
         if let digests = paths.digestDirectory { env[digestVariable] = digests.path }
         // The app's language for the questions the shell (shell.ts) and web access ask before going further.
         env["PIPPA_LANGUAGE"] = language
         env.merge(offlineEnvironment) { $1 }
+        if capabilities.online != nil {
+            env[egressVariable] = "online"
+            env[egressToolsVariable] = tools(capabilities).joined(separator: ",")
+        }
         var configuration = PiRPCConfiguration(executable: launcher.executable, workingDirectory: workingDirectory, environment: env,
                                                extensions: extensions(paths, capabilities: capabilities),
                                                arguments: launcher.piArguments + arguments(paths: paths, sessionID: sessionID, language: language,
@@ -100,7 +124,7 @@ public enum PippaPiLaunch {
     /// Extensions in load order. Only these load: `arguments` passes `--no-extensions`, which keeps explicit `--extension`s.
     /// A capability that is off loads no extension: pippa-memory.ts adds nothing to the prompt, pi-web-access registers nothing.
     public static func extensions(_ paths: Paths, capabilities: Capabilities = .all) -> [URL] {
-        (["pippa-tools.ts", "pippa-assist.ts"] + (capabilities.memory ? ["pippa-memory.ts"] : []))
+        (["pippa-tools.ts", "pippa-assist.ts"] + (capabilities.memory && capabilities.online == nil ? ["pippa-memory.ts"] : []))
             .map { paths.extensionsDirectory.appendingPathComponent($0) }
             + (capabilities.web ? paths.webExtension.map { [$0] } ?? [] : [])
     }
@@ -112,7 +136,9 @@ public enum PippaPiLaunch {
         // web_search) makes Pi exit at startup, and every message failed.
         var args = ["--no-context-files", "--no-extensions", "--no-approve", "--tools", tools(capabilities).joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
         // Only Pippa's bundled skills, not the ones the person installed for Pi in the terminal.
-        if let skills = paths.skillsDirectory { args += ["--no-skills", "--skill", skills.path] }
+        // An online AI has no reading tool to open a skill with, so it gets none.
+        if capabilities.online != nil { args += ["--no-skills"] }
+        else if let skills = paths.skillsDirectory { args += ["--no-skills", "--skill", skills.path] }
         if let sessionID {
             args += ["--session-dir", paths.sessionDirectory.path, "--session-id", piSessionID(sessionID)]
         } else {
@@ -132,8 +158,27 @@ public enum PippaPiLaunch {
 
     /// `tools` without those of a capability that is off, in the same order.
     public static func tools(_ capabilities: Capabilities) -> [String] {
+        if let online = capabilities.online {
+            return onlineTools + (capabilities.web ? webTools : []) + online.mcpTools.map { "mcp__pippa__" + $0 }
+        }
         let off = Set((capabilities.web ? [] : webTools) + (capabilities.memory ? [] : memoryTools))
         return tools.filter { !off.contains($0) }
+    }
+
+    /// The Pippa MCP tools a Pi process with `capabilities` must have, for `PiRPCClient.verifyNativeTools(expected:)`.
+    public static func nativeTools(_ capabilities: Capabilities) -> [String] {
+        guard let online = capabilities.online else { return PiNativeReadiness.tools }
+        return online.mcpTools.map { "mcp__pippa__" + $0 }
+    }
+
+    /// What every online AI may call: one question to the person.
+    public static let onlineTools = ["ask"]
+
+    /// The Pi session for one conversation and one destination: the AI on this Mac keeps the conversation's own session
+    /// (`scope` nil, as before 0.8); each online AI gets its own (`<conversation>:<scope>`), so history never moves to
+    /// another recipient, and a single question gets a fresh one.
+    public static func sessionID(conversation: String, scope: String?) -> String {
+        scope.map { conversation + ":" + $0 } ?? conversation
     }
 
     /// Pi allows only letters, digits, `.`, `_`, `-` in session IDs, and a letter or digit at start and end

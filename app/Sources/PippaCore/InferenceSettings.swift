@@ -138,12 +138,18 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
     }
     public var usesOnlineAI: Bool { activePiModel != nil || PiOnlineProvider.activeConnection(self) != nil }
     public var capabilities: OptionalCapabilities
+    /// What may go to an online AI after the person's review, per source (Settings → AI → Sharing). Missing: "Ask".
+    public var sharing: SourceSharing
+    /// The online AI a single question can go to ("Ask OpenAI…") while conversations stay on this Mac. Remembered when the
+    /// person switches back to this Mac; it is an address, not a permission: every message to it is reviewed first.
+    public var handoffModel: PiModelSelection?
     public init(policy: InferencePolicy = .localOnly, connection: ModelConnection? = nil, subscriptionModel: String? = nil,
-                piModel: PiModelSelection? = nil, capabilities: OptionalCapabilities = OptionalCapabilities()) {
+                piModel: PiModelSelection? = nil, capabilities: OptionalCapabilities = OptionalCapabilities(),
+                sharing: SourceSharing = SourceSharing(), handoffModel: PiModelSelection? = nil) {
         self.policy = policy; self.connection = connection; self.subscriptionModel = subscriptionModel
-        self.piModel = piModel; self.capabilities = capabilities
+        self.piModel = piModel; self.capabilities = capabilities; self.sharing = sharing; self.handoffModel = handoffModel
     }
-    enum CodingKeys: String, CodingKey { case policy, connection, subscriptionModel, piModel, capabilities }
+    enum CodingKeys: String, CodingKey { case policy, connection, subscriptionModel, piModel, capabilities, sharing, handoffModel }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         policy = try values.decode(InferencePolicy.self, forKey: .policy)
@@ -151,7 +157,25 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
         subscriptionModel = try values.decodeIfPresent(String.self, forKey: .subscriptionModel)
         piModel = try values.decodeIfPresent(PiModelSelection.self, forKey: .piModel)
         capabilities = try values.decodeIfPresent(OptionalCapabilities.self, forKey: .capabilities) ?? OptionalCapabilities()
+        sharing = try values.decodeIfPresent(SourceSharing.self, forKey: .sharing) ?? SourceSharing()
+        handoffModel = try values.decodeIfPresent(PiModelSelection.self, forKey: .handoffModel)
     }
+    /// "Use this Mac": conversations stay here; the online AI used until now stays the recipient for single questions.
+    public func onThisMac() -> Self {
+        var saved = self
+        saved.handoffModel = activePiModel ?? handoffModel
+        saved.piModel = nil; saved.subscriptionModel = nil; saved.policy = .localOnly
+        return saved
+    }
+
+    /// Signing out of a provider also forgets it as the recipient for single questions.
+    public func disconnected(provider: String) -> Self {
+        var saved = self
+        if activePiModel?.providerID == provider { saved.piModel = nil; saved.subscriptionModel = nil; saved.policy = .localOnly }
+        if handoffModel?.providerID == provider { saved.handoffModel = nil }
+        return saved
+    }
+
     public static func load(from base: URL = Pippa.supportDirectory) -> Self {
         guard let data = try? Data(contentsOf: base.appendingPathComponent("inference-settings.json")) else { return Self() }
         let value: Self
@@ -159,14 +183,14 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
         catch { UserMessage.record(error, context: "inference-settings-load"); return Self() }
         guard value.policy == .localOnly || value.connection != nil,
               value.connection == nil || (try? value.connection?.validated()) != nil,
-              value.activePiModel?.isValid != false else {
+              value.activePiModel?.isValid != false, value.handoffModel?.isValid != false else {
             DiagnosticsLog.shared.event("inference-settings-ungueltig")
             return Self()
         }
         return value
     }
     public func save(to base: URL = Pippa.supportDirectory) throws {
-        guard activePiModel?.isValid != false else { throw InferenceError.invalidResponse }
+        guard activePiModel?.isValid != false, handoffModel?.isValid != false else { throw InferenceError.invalidResponse }
         if let connection { try connection.validated() }
         guard policy == .localOnly || connection != nil else {
             throw InferenceError.invalidConnection(L("Please connect an online AI first.", table: "Core"))

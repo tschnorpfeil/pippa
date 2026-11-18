@@ -8,7 +8,7 @@ is in German.
 
 - **Her AI runs on your Mac.** By default, her built-in AI reads your letters, PDFs and photos on your Mac. No Pippa
   account, no Pippa server, no tracking in the app.
-- **Online AI only if you turn it on.** Connect one of Pi’s providers in Settings, choose a model, then press **Use [provider]**. While it's on, that service receives your conversations and what Pippa reads for them.
+- **Online AI only if you turn it on.** Connect one of Pi’s providers in Settings, choose a model, then press **Use [provider]**. While it's on, that service receives what you type. Anything from Mail, documents, Calendar, Reminders or Photos goes along only after Pippa shows you the provider and the exact text, and you press **Send**.
 - **She never sends your mail.** Replies wait as unsent drafts in Apple Mail, and events and reminders go into Calendar
   and Reminders. Those apps may sync through your accounts, such as iCloud.
 - **Online only where needed.** Downloads, updates and web lookups use the internet, and she asks before searching the
@@ -43,6 +43,36 @@ connection’s **Remove** action deletes its Keychain entry.
 
 Web searches never go through a signed-in online AI.
 
+## What an online AI gets
+
+An online AI can't read anything on your Mac by itself. It has no access to your files, folders, Mail, Calendar,
+Reminders, Photos, the app in front or Pippa's command line, and it never gets your personal notes or Pippa's working
+folder. What it receives:
+
+- **What you type**, as you typed it.
+- **What you checked and shared.** Attach files, or choose **+ → Selected Email in Mail**, **Calendar, Next 7 Days**
+  or **Open Reminders**. Pippa reads them on your Mac and shows a review: which provider gets it, your message, and
+  each part's text with where it came from. You can edit the text or leave a part out; only what the review shows goes
+  out when you press **Send to [provider]**. A picture is never sent, only the text Pippa recognized in it.
+  **Cancel** keeps your message and files in the chat.
+- **Its own conversation.** Each online provider keeps its own history of a conversation. When you switch between the
+  AI on this Mac and an online AI, neither sees what the other was told.
+- **Web pages**, when web search is on for the online AI. The first search in an answer still asks you.
+
+**Choose per source.** In Settings under **AI → Sharing with online AI**, set Mail, Documents, Calendar, Reminders and
+Photos each to **Ask before sharing** (the default) or **Only on this Mac**. A source on **Only on this Mac** is never
+offered in the review, and the online AI can't add events, reminders or Mail drafts for it either. With an online AI
+on, it can still add an event or a reminder, or save a new unsent Mail draft, from what you wrote; it doesn't see your
+calendar, your lists or your inbox for that.
+
+**One question while using this Mac.** After you switch back with **Use this Mac**, the chat offers **Ask
+[provider]…**: it opens the same review with your message, your attached files and Pippa's last answer here, which
+names what that answer read. That one question goes to the provider in a fresh conversation; the next question goes
+to the AI on this Mac again. Settings → AI → **Single questions** removes the provider from there.
+
+If the online AI changes while a review is open, nothing is sent and Pippa asks you to check again. An answer that
+failed is never sent again on its own: **Try again** opens the review.
+
 ## When Pippa goes online
 
 | What | When |
@@ -53,7 +83,7 @@ Web searches never go through a signed-in online AI.
 | Reading web pages | Pages from your own message or from that answer's search results are read without asking again. Any other address is asked for. Addresses on your Mac or your local network are never read. |
 | Pippa's browser | When a page needs clicking through, Pippa opens it in a browser panel in her window; open the window (from Pippa Island: **Open Pippa**) to watch along or to sign in. She asks before each new website and before every click, typed text or choice. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
 | Provider setup | Browser sign-in, credential setup, and model catalog refresh when requested in Settings. No conversation contents. |
-| Online AI | Only while you have it switched on (see above). |
+| Online AI | Only while you have it switched on, or for one question you sent with **Ask [provider]…**: what you typed and what you checked and shared (see above). |
 | Commands that go online | Pippa's command-line helper asks before a command that goes online, such as downloading a file. |
 | Mail, Calendar, Reminders, Photos | These are Apple's apps. They may sync through your accounts, such as iCloud or your mail server, as usual. |
 
@@ -118,6 +148,7 @@ given. Check results, especially for actions you didn't expect.
 
 - **Facts you can check.** She keeps the facts you tell her about yourself in `memory.md` in her folder; ask her to
   forget one, or edit the file. She keeps at most 30, and refuses account, card, ID, tax and phone numbers and passwords.
+  Only the AI on this Mac uses them; an online AI never gets them.
 - **Stored on your Mac.** Facts, conversations and task records are stored on your Mac.
 - **A log without contents.** The log in `~/Library/Logs/Pippa` records the version and events, not file contents.
 

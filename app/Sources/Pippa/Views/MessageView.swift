@@ -68,6 +68,16 @@ struct MessageView: View, Equatable {
                     }
                 }
             }
+            // Where it went, said where it happened: "Sent to OpenAI · GPT-6.1 with Lease.pdf, Calendar, next 7 days".
+            if let destination = message.destination {
+                Label {
+                    let shared = message.shared ?? []
+                    Text(shared.isEmpty ? T("Sent to %@", table: "App", destination)
+                         : T("Sent to %@ with %@", table: "App", destination, shared.formatted(ShareReviewSheet.appList)))
+                } icon: { Image(systemName: "cloud") }
+                .font(Typo.caption).foregroundStyle(Theme.ink3)
+                .padding(.leading, 64)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
@@ -109,6 +119,10 @@ struct MessageView: View, Equatable {
         let showsActions = hover || isLast
         if !sources.isEmpty || !message.text.isEmpty {
             HStack(spacing: Space.m) {
+                if let destination = message.destination {
+                    Label(T("Answer from %@", table: "App", destination), systemImage: "cloud")
+                        .font(Typo.caption).foregroundStyle(Theme.ink3).lineLimit(1)
+                }
                 if !sources.isEmpty { SourceChips(sources: sources) }
                 Spacer(minLength: Space.m)
                 HStack(spacing: Space.xxs) {

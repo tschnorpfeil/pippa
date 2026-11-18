@@ -71,6 +71,21 @@ enum Snapshots {
                                  to: folder.appendingPathComponent("\(name)-\(dark ? "dark" : "light").png"))
                 }
             }
+            // The review before sharing (issue #193): made-up texts, Photos set to "Only on this Mac".
+            var rules = SourceSharing(); rules.photos = .localOnly
+            let destination = ShareDestination(PiModelSelection(providerID: "openai", modelID: "gpt-best", providerName: "OpenAI", modelName: "GPT Best"))
+            let plan = SharePlan(destination: destination, question: "Is the notice period in my lease right?", candidates: [
+                SharePiece(sources: [.documents], title: "Lease (sample).pdf", text: "§ 4 Notice period\nEither party may end the lease with three months’ notice to the end of a month."),
+                SharePiece(sources: [.mail, .calendar], title: T("Pippa’s answer on this Mac", table: "App"),
+                           text: "The landlord’s email asks you to confirm by 30 November. Your calendar has nothing that day."),
+                SharePiece(sources: [.photos], title: "Picture “Scan 12.jpg”", text: "unused"),
+            ], rules: rules)
+            chat.review = ShareReview(plan: plan, handoff: false, files: [])
+            for dark in [false, true] {
+                await render(ShareReviewSheet(chat: chat), size: NSSize(width: 640, height: 720), dark: dark,
+                             to: folder.appendingPathComponent("share-review-\(dark ? "dark" : "light").png"))
+            }
+            chat.review = nil
             return finish(folder)
         }
         let fixtures = folder.appendingPathComponent("fixtures", isDirectory: true)

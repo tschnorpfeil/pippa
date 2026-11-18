@@ -107,11 +107,8 @@ final class PiProviderSettingsModel: ObservableObject {
     func disconnect(settings: SettingsModel) {
         guard !busy, let selected, let client = client() else { return }
         do {
-            if settings.inferenceSettings.activePiModel?.providerID == selected.id {
-                var saved = settings.inferenceSettings
-                saved.piModel = nil; saved.subscriptionModel = nil; saved.policy = .localOnly
-                try settings.saveInferenceSettings(saved)
-            }
+            let saved = settings.inferenceSettings.disconnected(provider: selected.id)
+            if saved != settings.inferenceSettings { try settings.saveInferenceSettings(saved) }
         } catch { report(error); return }
         loading = true; operation = client
         let generation = UUID(); self.generation = generation
@@ -279,7 +276,7 @@ struct PiProviderSettings: View {
                 modelChooser(selected)
                 SettingsDivider()
                 HStack(spacing: Space.l) {
-                    SettingsNote(T("Your conversations and everything Pippa reads for them will be sent to %@.", table: "Settings", selected.name))
+                    SettingsNote(T("What you type will be sent to %@. Anything from your Mac goes along only after you check it.", table: "Settings", selected.name))
                     Spacer(minLength: Space.m)
                     Button(T("Use %@", table: "Settings", selected.name)) { useSelected(selected) }.pippa(.primary)
                         .disabled(blocked || !selected.configured || !selected.models.contains(where: { $0.id == provider.modelID })
@@ -357,9 +354,7 @@ struct PiProviderSettings: View {
         }.frame(width: 330, height: 350)
     }
     private func useLocal() {
-        var saved = settings.inferenceSettings
-        saved.piModel = nil; saved.subscriptionModel = nil; saved.policy = .localOnly
-        do { try settings.saveInferenceSettings(saved) } catch { provider.report(error) }
+        do { try settings.saveInferenceSettings(settings.inferenceSettings.onThisMac()) } catch { provider.report(error) }
     }
     /// Signing in only connects; this button, naming the provider, is what sends conversations there.
     private func useSelected(_ selected: PiProvider) {

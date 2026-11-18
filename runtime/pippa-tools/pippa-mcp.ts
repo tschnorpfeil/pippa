@@ -13,6 +13,8 @@
  * terminal Pi never sees the server, and restarting the app makes the old key worthless. The key is deleted from
  * `process.env` afterwards so no bash command inherits it.
  */
+import { egress } from "./egress.ts";
+
 type ExtensionAPI = any;
 
 export const SERVER_NAME = "pippa";
@@ -56,10 +58,20 @@ export function serverConfig(env: Record<string, string | undefined>) {
 export const READINESS_COMMAND = "pippa-native-ready";
 export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS, ...BROWSER_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
 
+/** The tools this process must have: all of them for the AI on this Mac; for an online AI exactly the app's list
+ * (egress.ts), and none of the others may even be registered (the app's server lists only those). */
+export function requiredTools(env: Record<string, string | undefined> = process.env): { required: string[]; forbidden: string[] } {
+	const online = egress(env);
+	if (!online) return { required: REQUIRED_TOOLS, forbidden: [] };
+	const required = REQUIRED_TOOLS.filter((name) => online.tools.has(name));
+	return { required, forbidden: REQUIRED_TOOLS.filter((name) => !online.tools.has(name)) };
+}
+
 /** Background discovery may still be connecting when RPC starts accepting commands. No model call or mutation. */
 export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<typeof serverConfig>,
-	waitMilliseconds = 8_000, signal?: AbortSignal) {
+	waitMilliseconds = 8_000, signal?: AbortSignal, expected = requiredTools()) {
 	const deadline = Date.now() + waitMilliseconds;
+	const { required, forbidden } = expected;
 	for (;;) {
 		if (signal?.aborted) return { status: "cancelled" };
 		const registered = pi.getMcpServers().find((server: any) => server.name === SERVER_NAME)?.config;
@@ -70,8 +82,9 @@ export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<t
 		}
 		const registeredTools = pi.getAllTools().map((tool: any) => tool.name);
 		const active = pi.getActiveTools();
-		if (REQUIRED_TOOLS.every((name) => registeredTools.includes(name) && active.includes(name))) {
-			return { status: "ready", tools: REQUIRED_TOOLS, registeredTools: REQUIRED_TOOLS };
+		if (forbidden.some((name) => registeredTools.includes(name) || active.includes(name))) return { status: "registrationMismatch" };
+		if (required.every((name) => registeredTools.includes(name) && active.includes(name))) {
+			return { status: "ready", tools: required, registeredTools: required };
 		}
 		if (Date.now() >= deadline) return { status: "toolsUnavailable" };
 		await new Promise((resolve) => setTimeout(resolve, Math.min(50, Math.max(1, deadline - Date.now()))));

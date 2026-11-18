@@ -223,5 +223,30 @@
 "Choose where Pippa’s AI runs. You can change it later in Settings." = "Wähle, wo Pippas KI läuft. Du kannst das später in den Einstellungen ändern.";
 "One-time download of %@. Your conversations and files stay on this Mac." = "Einmaliger Download von %@. Deine Gespräche und Dateien bleiben auf diesem Mac.";
 "Online AI" = "Online-KI";
-"No download. Your conversations and what Pippa reads for them go to the provider you choose." = "Kein Download. Deine Gespräche und was Pippa dafür liest, gehen an den Anbieter, den du wählst.";
+"No download. What you type goes to the provider you choose; Pippa asks before anything from your Mac goes along." = "Kein Download. Was du schreibst, geht an den Anbieter, den du wählst; bevor etwas von deinem Mac mitgeht, fragt Pippa.";
 "Needs an account with a provider such as OpenAI or Anthropic." = "Dafür brauchst du ein Konto bei einem Anbieter wie OpenAI oder Anthropic.";
+
+/* Sharing with an online AI (issue #193) */
+"%@ (only on this Mac)" = "%@ (nur auf diesem Mac)";
+"Add" = "Hinzufügen";
+"Add files, or share something from your Mac after checking it" = "Dateien hinzufügen oder etwas von deinem Mac geprüft teilen";
+"Answer from %@" = "Antwort von %@";
+"Ask %@…" = "%@ fragen …";
+"Calendar, Next 7 Days" = "Kalender, nächste 7 Tage";
+"Check what goes to %@, then send this one question there" = "Prüfe, was an %@ geht, und schick diese eine Frage dorthin";
+"From %@" = "Aus %@";
+"Nothing read from your Mac" = "Nichts von deinem Mac gelesen";
+"Only what is below goes to %@. Edit or leave out anything first. Web searches are asked separately." = "Nur was unten steht, geht an %@. Ändere oder lass vorher weg, was du willst. Websuchen fragt Pippa gesondert.";
+"Pippa uses an online AI now. Nothing was sent; check what you want to share and send again." = "Pippa nutzt jetzt eine Online-KI. Es wurde nichts gesendet; prüfe, was du teilen willst, und sende noch einmal.";
+"Pippa’s answer on this Mac" = "Pippas Antwort auf diesem Mac";
+"Read before Pippa noted its sources" = "Gelesen, bevor Pippa Quellen notiert hat";
+"Reading on this Mac…" = "Wird auf diesem Mac gelesen …";
+"Selected Email in Mail" = "Ausgewählte E-Mail in Mail";
+"Send to %@" = "An %@ senden";
+"Sent to %@" = "Gesendet an %@";
+"Sent to %@ with %@" = "Gesendet an %@ mit %@";
+"Set to “Only on this Mac” in Settings." = "In den Einstellungen auf „Nur auf diesem Mac“ gestellt.";
+"Sharing Settings…" = "Einstellungen zum Teilen …";
+"Stays on this Mac" = "Bleibt auf diesem Mac";
+"The online AI changed since you checked. Nothing was sent; check again for the new one." = "Die Online-KI hat sich geändert, seit du geprüft hast. Es wurde nichts gesendet; prüf noch einmal für die neue.";
+"Your message" = "Deine Nachricht";

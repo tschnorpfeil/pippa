@@ -223,5 +223,30 @@
 "Choose where Pippa’s AI runs. You can change it later in Settings." = "Choose where Pippa’s AI runs. You can change it later in Settings.";
 "One-time download of %@. Your conversations and files stay on this Mac." = "One-time download of %@. Your conversations and files stay on this Mac.";
 "Online AI" = "Online AI";
-"No download. Your conversations and what Pippa reads for them go to the provider you choose." = "No download. Your conversations and what Pippa reads for them go to the provider you choose.";
+"No download. What you type goes to the provider you choose; Pippa asks before anything from your Mac goes along." = "No download. What you type goes to the provider you choose; Pippa asks before anything from your Mac goes along.";
 "Needs an account with a provider such as OpenAI or Anthropic." = "Needs an account with a provider such as OpenAI or Anthropic.";
+
+/* Sharing with an online AI (issue #193) */
+"%@ (only on this Mac)" = "%@ (only on this Mac)";
+"Add" = "Add";
+"Add files, or share something from your Mac after checking it" = "Add files, or share something from your Mac after checking it";
+"Answer from %@" = "Answer from %@";
+"Ask %@…" = "Ask %@…";
+"Calendar, Next 7 Days" = "Calendar, Next 7 Days";
+"Check what goes to %@, then send this one question there" = "Check what goes to %@, then send this one question there";
+"From %@" = "From %@";
+"Nothing read from your Mac" = "Nothing read from your Mac";
+"Only what is below goes to %@. Edit or leave out anything first. Web searches are asked separately." = "Only what is below goes to %@. Edit or leave out anything first. Web searches are asked separately.";
+"Pippa uses an online AI now. Nothing was sent; check what you want to share and send again." = "Pippa uses an online AI now. Nothing was sent; check what you want to share and send again.";
+"Pippa’s answer on this Mac" = "Pippa’s answer on this Mac";
+"Read before Pippa noted its sources" = "Read before Pippa noted its sources";
+"Reading on this Mac…" = "Reading on this Mac…";
+"Selected Email in Mail" = "Selected Email in Mail";
+"Send to %@" = "Send to %@";
+"Sent to %@" = "Sent to %@";
+"Sent to %@ with %@" = "Sent to %@ with %@";
+"Set to “Only on this Mac” in Settings." = "Set to “Only on this Mac” in Settings.";
+"Sharing Settings…" = "Sharing Settings…";
+"Stays on this Mac" = "Stays on this Mac";
+"The online AI changed since you checked. Nothing was sent; check again for the new one." = "The online AI changed since you checked. Nothing was sent; check again for the new one.";
+"Your message" = "Your message";

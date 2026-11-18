@@ -33,13 +33,31 @@ final class PiSession {
         didSet { PippaMCPService.asksForAccess = interaction.asksForAccess }
     }
 
+    /// What goes to Pi as the person's message. Which one may go where is decided here, after the route is read from
+    /// disk and before Pi starts (`message(_:route:)`), so a route that changed meanwhile never receives the wrong one.
+    enum Outgoing: Equatable {
+        /// For the AI on this Mac: the person's words with their files and the app in front (`ChatModel.prompt`).
+        /// Refused for an online AI.
+        case local(String)
+        /// Exactly what the person typed, nothing added. Any route.
+        case typed(String)
+        /// What the person reviewed and approved for one online AI. Only to exactly that destination.
+        case approved(ShareApproval)
+    }
+
     enum Failure: LocalizedError {
         case setup(String)
         case nativeTools(String)
         case model(String)
+        /// Files, the app in front or other Mac content would go to an online AI without the person's review.
+        case needsReview
+        /// The approved destination is no longer the one Pippa would send to. Nothing was sent.
+        case destinationChanged
 
         var errorDescription: String? {
             switch self {
+            case .needsReview: T("Pippa uses an online AI now. Nothing was sent; check what you want to share and send again.", table: "App")
+            case .destinationChanged: T("The online AI changed since you checked. Nothing was sent; check again for the new one.", table: "App")
             case .setup: T("Pippa isn't set up yet. Open Settings to finish setting up her AI.", table: "App")
             case .nativeTools: T("Pippa couldn't start her Mac tools. Quit Pippa and open her again.", table: "App")
             case .model(let message): message
@@ -48,7 +66,7 @@ final class PiSession {
     }
 
     private var client: PiRPCClient?
-    private var startupTask: Task<(PiRPCClient, LaunchRoute), Error>?
+    private var startupTask: Task<(PiRPCClient, LaunchRoute, String), Error>?
     private var preloadTask: Task<Void, Never>?
     private var lastPrewarmAttempt: ContinuousClock.Instant?
     private var sessionID: String?
@@ -65,10 +83,12 @@ final class PiSession {
 
     // MARK: Asking
 
-    /// Sends `text` to Pi in the session `conversation` and calls `onEvent` for every event until Pi settles.
-    /// `turn` binds the app's MCP tools to this answer: writes outside an answer are refused.
-    /// `onStarting`: `true` while the AI on this Mac starts and loads into memory before the question goes out, then `false`.
-    func ask(_ text: String, conversation: String, onStarting: @escaping (Bool) -> Void = { _ in },
+    /// Sends `outgoing` to Pi in the session for `conversation` and its destination and calls `onEvent` for every event
+    /// until Pi settles. `turn` binds the app's MCP tools to this answer: writes outside an answer are refused.
+    /// `handoff`: one approved question to the recipient for single questions while conversations stay on this Mac, in a
+    /// fresh session of its own. `onStarting`: `true` while the AI on this Mac starts and loads into memory before the
+    /// question goes out, then `false`.
+    func ask(_ outgoing: Outgoing, conversation: String, handoff: Bool = false, onStarting: @escaping (Bool) -> Void = { _ in },
              onEvent: @escaping (PiRPCEvent) -> Void) async throws {
         let turn = PippaMCPTurn()
         PippaMCPService.begin(turn)
@@ -76,11 +96,12 @@ final class PiSession {
         var settled = false
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
         defer { onStarting(false) }
-        let startup = Task { try await prepare(conversation: conversation, onStarting: onStarting) }
+        let startup = Task { try await prepare(outgoing, conversation: conversation, handoff: handoff, onStarting: onStarting) }
         startupTask = startup
         let client: PiRPCClient
         let route: LaunchRoute
-        do { (client, route) = try await withTaskCancellationHandler { try await startup.value } onCancel: { startup.cancel() } }
+        let text: String
+        do { (client, route, text) = try await withTaskCancellationHandler { try await startup.value } onCancel: { startup.cancel() } }
         catch { startupTask = nil; throw error }
         startupTask = nil
         onStarting(false)
@@ -100,8 +121,11 @@ final class PiSession {
         }
     }
 
-    private func prepare(conversation: String, onStarting: (Bool) -> Void) async throws -> (PiRPCClient, LaunchRoute) {
-        let route = try await launchRoute()
+    private func prepare(_ outgoing: Outgoing, conversation: String, handoff: Bool,
+                         onStarting: (Bool) -> Void) async throws -> (PiRPCClient, LaunchRoute, String) {
+        let route = try await launchRoute(handoff: handoff ? outgoing : nil)
+        // Before anything starts: a refused message never reaches a Pi process.
+        let text = try Self.message(outgoing, route: route)
         if route.online == nil && route.piModel == nil {
             onStarting(true)
             let server: OMLXServer
@@ -113,7 +137,20 @@ final class PiSession {
             try? await server.prewarm()
         }
         try Task.checkCancellation()
-        return (try await ready(conversation: conversation, route: route), route)
+        return (try await ready(conversation: conversation, route: route), route, text)
+    }
+
+    /// The text Pi receives on `route`, or why nothing may go there.
+    static func message(_ outgoing: Outgoing, route: LaunchRoute) throws -> String {
+        switch outgoing {
+        case .typed(let text): return text
+        case .local(let prompt):
+            guard route.destination == nil else { throw Failure.needsReview }
+            return prompt
+        case .approved(let approval):
+            guard let destination = route.destination, destination == approval.destination else { throw Failure.destinationChanged }
+            return approval.message
+        }
     }
 
     func stop() async {
@@ -142,8 +179,11 @@ final class PiSession {
 
     /// Before a conversation is deleted: end Pi if it holds that session, then move the session file to the Trash.
     func forget(_ conversation: String) async {
-        if sessionID == conversation { await client?.shutdown(); client = nil; sessionID = nil }
-        PiSessionFiles.trash(ids: [PippaPiLaunch.piSessionID(conversation)], in: Self.sessionDirectory) { url in
+        if let sessionID, sessionID == conversation || sessionID.hasPrefix(conversation + ":") {
+            await client?.shutdown(); client = nil; self.sessionID = nil
+        }
+        // With the sessions each online AI and each single question had for it.
+        PiSessionFiles.trash(conversation: PippaPiLaunch.piSessionID(conversation), in: Self.sessionDirectory) { url in
             try FileManager.default.trashItem(at: url, resultingItemURL: nil)
         }
     }
@@ -166,7 +206,8 @@ final class PiSession {
     // MARK: Starting Pi
 
     private func ready(conversation: String, route: LaunchRoute) async throws -> PiRPCClient {
-        if !needsFreshClient, let client, sessionID == conversation, launchKey == route.key,
+        let session = PippaPiLaunch.sessionID(conversation: conversation, scope: route.sessionScope)
+        if !needsFreshClient, let client, sessionID == session, launchKey == route.key,
            await client.isRunning, await client.isAnswering == false { return client }
         PippaMCPService.invalidateEndpoint()
         if let old = client { await old.shutdown(); client = nil }
@@ -190,12 +231,12 @@ final class PiSession {
         if let online = route.online { launcher.piArguments = PiOnlineProvider.launchArguments(online.connection) }
         if let model = route.piModel { launcher.piArguments = model.launchArguments }
         // An existing session must start in the folder it was created in, or Pi doesn't find it.
-        let cwd = PiSessionFiles.pinnedWorkingDirectory(id: PippaPiLaunch.piSessionID(conversation), in: Self.sessionDirectory) ?? work
+        let cwd = PiSessionFiles.pinnedWorkingDirectory(id: PippaPiLaunch.piSessionID(session), in: Self.sessionDirectory) ?? work
         let mcp: (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL)
-        do { mcp = try await PippaMCPService.endpoint(extensions: extensions) }
+        do { mcp = try await PippaMCPService.endpoint(extensions: extensions, egress: route.egress) }
         catch { throw Failure.nativeTools(String(describing: error)) }
         let language = Bundle.module.preferredLocalizations.first ?? "en"
-        let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: conversation,
+        let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: session,
                                                         language: language, environment: extra, mcp: mcp, capabilities: route.capabilities)
         let fresh = PiRPCClient(configuration: configuration)
         try Task.checkCancellation()
@@ -203,14 +244,14 @@ final class PiSession {
         await fresh.setUIHandler(interaction.uiHandler)
         do {
             try await fresh.start()
-            try await fresh.verifyNativeTools()
+            try await fresh.verifyNativeTools(expected: PippaPiLaunch.nativeTools(route.capabilities))
             try Task.checkCancellation()
         } catch {
             PippaMCPService.invalidateEndpoint()
             await fresh.shutdown()
             throw error
         }
-        client = fresh; sessionID = conversation; launchKey = route.key; needsFreshClient = false
+        client = fresh; sessionID = session; launchKey = route.key; needsFreshClient = false
         return fresh
     }
 
@@ -220,6 +261,12 @@ final class PiSession {
         var online: (connection: ModelConnection, key: String)?
         var piModel: PiModelSelection?
         var capabilities = PippaPiLaunch.Capabilities.all
+        /// The online AI that receives what is sent; `nil` for the AI on this Mac.
+        var destination: ShareDestination?
+        /// The app MCP server's limits for this Pi process (online only).
+        var egress: PippaMCPEgress?
+        /// Pi session beside the conversation's own: per online destination, or fresh for a single question.
+        var sessionScope: String?
 
         /// The capabilities chosen in Settings → AI for this route become part of the key, so a change reaches the next
         /// question, also in an open conversation, while an answer that is running keeps its Pi.
@@ -229,16 +276,42 @@ final class PiSession {
             route.key += "|" + route.capabilities.key
             return route
         }
+
+        /// An online AI (issue #193): no Mac reading tools, no personal notes, its own session, writers by the sharing
+        /// rules. Never inferred from a sign-in: only the active route or an approved single question gets here.
+        func online(_ destination: ShareDestination, _ choice: OptionalCapabilities.Choice, rules: SourceSharing,
+                    scope: String? = nil) -> Self {
+            var route = self
+            let egress = PippaMCPEgress(rules: rules, web: choice.web)
+            route.destination = destination
+            route.egress = egress
+            route.sessionScope = scope ?? destination.sessionTag
+            route.capabilities = PippaPiLaunch.Capabilities(web: choice.web, memory: false, online: .init(mcpTools: egress.tools))
+            route.key += "|" + route.capabilities.key + "|" + (route.sessionScope ?? "")
+            return route
+        }
     }
 
-    /// A Pi provider, an existing Keychain connection, or the model on this Mac, as saved in Settings.
-    private func launchRoute() async throws -> LaunchRoute {
+    /// A Pi provider, an existing Keychain connection, or the model on this Mac, as saved in Settings. `handoff`: the
+    /// approved single question for the saved recipient, only while it is still that recipient.
+    private func launchRoute(handoff: Outgoing? = nil) async throws -> LaunchRoute {
         let target = try Self.installation(ProcessInfo.processInfo.environment)
         let modelsJSON = target.agent.appendingPathComponent("models.json")
         let settings = InferenceSettings.load(from: Self.settingsDirectory)
+        let online = settings.capabilities.online
+        if let handoff {
+            guard case .approved(let approval) = handoff else { throw Failure.needsReview }
+            guard let model = settings.handoffModel, ShareDestination.handoff(settings) == approval.destination else {
+                throw Failure.destinationChanged
+            }
+            await removeOnlineProvider(from: modelsJSON)
+            return LaunchRoute(key: "handoff|" + model.providerID + "|" + model.modelID, piModel: model)
+                .online(approval.destination, online, rules: settings.sharing, scope: "handoff-" + approval.id.uuidString.lowercased())
+        }
         if let model = settings.activePiModel {
             await removeOnlineProvider(from: modelsJSON)
-            return LaunchRoute(key: "pi|" + model.providerID + "|" + model.modelID, piModel: model).with(settings.capabilities.online)
+            return LaunchRoute(key: "pi|" + model.providerID + "|" + model.modelID, piModel: model)
+                .online(ShareDestination(model), online, rules: settings.sharing)
         }
         guard let connection = PiOnlineProvider.activeConnection(settings) else {
             await removeOnlineProvider(from: modelsJSON)
@@ -249,7 +322,7 @@ final class PiSession {
         _ = try await Task.detached { try PiOnlineProvider.sync(connection, modelsJSON: modelsJSON) }.value
         let routeKey = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
                         connection.modelID, String(connection.contextWindow), String(key.hashValue)].joined(separator: "|")
-        return LaunchRoute(key: routeKey, online: (connection, key)).with(settings.capabilities.online)
+        return LaunchRoute(key: routeKey, online: (connection, key)).online(ShareDestination(connection), online, rules: settings.sharing)
     }
 
     /// Pi's models.json keeps no online entry while another route is active. Best effort: a failure is only logged.

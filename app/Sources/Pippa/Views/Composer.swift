@@ -71,17 +71,14 @@ struct Composer: View {
                 }
                 .onSubmit { if canSend { chat.send() } }
                 .padding(.horizontal, Space.xs)
+            if let problem = chat.problem {
+                Text(problem).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, Space.xs)
+            }
             HStack(spacing: Space.m) {
-                Button { addFiles() } label: {
-                    Image(systemName: "plus").font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink2)
-                        .frame(width: 28, height: 28)
-                        .background(Theme.rowHover, in: Circle())
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .help(T("Add Files…", table: "App"))
-                .accessibilityLabel(T("Add Files…", table: "App"))
+                addButton
                 Spacer(minLength: Space.m)
+                if let recipient = chat.handoffDestination { askOnlineButton(recipient) }
                 AIBadge(setup: setup)
                 sendButton
             }
@@ -89,6 +86,56 @@ struct Composer: View {
         .padding(.horizontal, Space.ml).padding(.top, 13).padding(.bottom, Space.ml)
         .glass(Radius.chat, lifted: focused)
         .animation(Theme.quick, value: focused)
+    }
+
+    private var plus: some View {
+        Image(systemName: "plus").font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink2)
+            .frame(width: 28, height: 28)
+            .background(Theme.rowHover, in: Circle())
+            .contentShape(Circle())
+    }
+
+    /// Files, and while an online AI answers also what Pippa reads for it on this Mac first: each opens the review that
+    /// names the provider. A source set to "Only on this Mac" is shown, but can't be chosen.
+    @ViewBuilder private var addButton: some View {
+        if SettingsModel.shared.inferenceSettings.usesOnlineAI {
+            let rules = SettingsModel.shared.inferenceSettings.sharing
+            Menu {
+                Button(T("Add Files…", table: "App")) { addFiles() }
+                Divider()
+                shareItem(T("Selected Email in Mail", table: "App"), .mail, rules)
+                shareItem(T("Calendar, Next 7 Days", table: "App"), .calendar, rules)
+                shareItem(T("Open Reminders", table: "App"), .reminders, rules)
+            } label: { plus }
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+            .disabled(chat.isAnswering)
+            .help(T("Add files, or share something from your Mac after checking it", table: "App"))
+            .accessibilityLabel(T("Add", table: "App"))
+        } else {
+            Button { addFiles() } label: { plus }
+                .buttonStyle(.plain)
+                .help(T("Add Files…", table: "App"))
+                .accessibilityLabel(T("Add Files…", table: "App"))
+        }
+    }
+
+    private func shareItem(_ title: String, _ source: SharingSource, _ rules: SourceSharing) -> some View {
+        Button(rules[source] == .ask ? title : T("%@ (only on this Mac)", table: "App", title)) { chat.share(source) }
+            .disabled(rules[source] != .ask)
+    }
+
+    /// While conversations stay on this Mac: one question to the online AI used before, after the review.
+    private func askOnlineButton(_ recipient: ShareDestination) -> some View {
+        Button { chat.askOnline() } label: {
+            Label(T("Ask %@…", table: "App", recipient.provider), systemImage: "cloud")
+                .font(Typo.caption.weight(.medium)).foregroundStyle(Theme.ink2)
+                .padding(.horizontal, 9).frame(height: 24)
+                .background(Theme.rowHover, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(chat.isAnswering || !(hasContent || chat.current?.messages.isEmpty == false))
+        .help(T("Check what goes to %@, then send this one question there", table: "App", recipient.label))
     }
 
     /// One 32 pt circle in one place: Send (the accent as soon as there is something to send, quiet grey before), or
