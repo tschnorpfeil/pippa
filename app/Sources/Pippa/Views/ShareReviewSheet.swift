@@ -89,7 +89,7 @@ struct ShareReviewSheet: View {
             ForEach(pieces) { piece in
                 Text(piece.title + " · " + Self.origin(piece)).font(Typo.caption).foregroundStyle(Theme.ink3).lineLimit(2)
             }
-            Text(T("Set to “Only on this Mac” in Settings.", table: "App")).font(Typo.caption).foregroundStyle(Theme.ink3)
+            Text(T("To include a source, set it to “Ask before sharing” and add it again.", table: "App")).font(Typo.caption).foregroundStyle(Theme.ink3)
         }
     }
 

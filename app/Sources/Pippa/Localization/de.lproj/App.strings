@@ -245,7 +245,7 @@
 "Send to %@" = "An %@ senden";
 "Sent to %@" = "Gesendet an %@";
 "Sent to %@ with %@" = "Gesendet an %@ mit %@";
-"Set to “Only on this Mac” in Settings." = "In den Einstellungen auf „Nur auf diesem Mac“ gestellt.";
+"To include a source, set it to “Ask before sharing” and add it again." = "Zum Teilen wähle für den Bereich „Vor dem Teilen fragen“ und füge den Ausschnitt erneut hinzu.";
 "Sharing Settings…" = "Einstellungen zum Teilen …";
 "Stays on this Mac" = "Bleibt auf diesem Mac";
 "The online AI changed since you checked. Nothing was sent; check again for the new one." = "Die Online-KI hat sich geändert, seit du geprüft hast. Es wurde nichts gesendet; prüf noch einmal für die neue.";

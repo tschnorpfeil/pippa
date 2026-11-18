@@ -23,6 +23,11 @@ final class SettingsModel: ObservableObject {
         settings.sharing = sharing
         try settings.save(to: PiSession.settingsDirectory)
         inferenceSettings = settings
+        ChatModel.shared.updateReview { plan in
+            let permitted = SharePlan(destination: plan.destination, question: plan.question, candidates: plan.pieces, rules: sharing)
+            plan.pieces = permitted.pieces
+            plan.withheld += permitted.withheld
+        }
         SetupModel.shared.objectWillChange.send()
     }
 
