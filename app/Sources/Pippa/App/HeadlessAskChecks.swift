@@ -246,6 +246,14 @@ enum HeadlessAskChecks {
         check(thrown.ended(with: .failed) && thrown.lines.contains { $0.contains("FAILED: provider unreachable") }, "--ask: an error ends with failed, exit code 1 and one summary line")
         check(PiSession.shared.interaction.asksForAccess && PippaMCPService.asksForAccess, "the interactive default survives every run")
 
+        // Optional abilities: the launch key carries the route's choice, so the next question starts Pi with it and an
+        // unchanged choice reuses the running Pi.
+        let local = PiSession.LaunchRoute(key: "local|fixture")
+        let same = local.with(.init()), again = local.with(.init()), noWeb = local.with(.init(web: false, memory: true))
+        check(same.key == again.key && same.capabilities == .all && noWeb.key != same.key && noWeb.key.hasPrefix("local|fixture|")
+              && noWeb.capabilities == PippaPiLaunch.Capabilities(web: false, memory: true),
+              "a changed optional ability changes the launch key; the same choice keeps it")
+
         // The real binary, without a Pi to start: the error path prints the marker once as the last line.
         check(await subprocessFailure(), "Pippa --ask without a Pi payload fails with exit code 1 and one PIPPA_ASK_RESULT line")
 

@@ -95,6 +95,36 @@ public struct PiModelSelection: Codable, Sendable, Equatable {
     public var launchArguments: [String] { ["--provider", providerID, "--model", modelID] }
 }
 
+/// Settings → AI: the bundled optional capabilities Pi loads, chosen separately for the AI on this Mac and for the online
+/// AI (a Pi provider or an older Keychain connection). Missing values, as in settings saved before this choice existed,
+/// mean on, so existing installations keep what they had.
+public struct OptionalCapabilities: Codable, Sendable, Equatable {
+    public struct Choice: Codable, Sendable, Equatable {
+        /// Web search and reading pages (pi-web-access).
+        public var web: Bool
+        /// Personal notes: the `remember` tool and the notes in each new conversation's prompt. Off keeps the notes file.
+        public var memory: Bool
+        public init(web: Bool = true, memory: Bool = true) { self.web = web; self.memory = memory }
+        public init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            web = try values.decodeIfPresent(Bool.self, forKey: .web) ?? true
+            memory = try values.decodeIfPresent(Bool.self, forKey: .memory) ?? true
+        }
+    }
+    public var local: Choice
+    public var online: Choice
+    public init(local: Choice = Choice(), online: Choice = Choice()) { self.local = local; self.online = online }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        local = try values.decodeIfPresent(Choice.self, forKey: .local) ?? Choice()
+        online = try values.decodeIfPresent(Choice.self, forKey: .online) ?? Choice()
+    }
+    public subscript(online isOnline: Bool) -> Choice {
+        get { isOnline ? online : local }
+        set { if isOnline { online = newValue } else { local = newValue } }
+    }
+}
+
 public struct InferenceSettings: Codable, Sendable, Equatable {
     public var policy: InferencePolicy
     public var connection: ModelConnection?
@@ -107,10 +137,20 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
         piModel ?? subscriptionModel.map { PiModelSelection(providerID: "openai", modelID: $0, providerName: "ChatGPT") }
     }
     public var usesOnlineAI: Bool { activePiModel != nil || PiOnlineProvider.activeConnection(self) != nil }
+    public var capabilities: OptionalCapabilities
     public init(policy: InferencePolicy = .localOnly, connection: ModelConnection? = nil, subscriptionModel: String? = nil,
-                piModel: PiModelSelection? = nil) {
+                piModel: PiModelSelection? = nil, capabilities: OptionalCapabilities = OptionalCapabilities()) {
         self.policy = policy; self.connection = connection; self.subscriptionModel = subscriptionModel
-        self.piModel = piModel
+        self.piModel = piModel; self.capabilities = capabilities
+    }
+    enum CodingKeys: String, CodingKey { case policy, connection, subscriptionModel, piModel, capabilities }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        policy = try values.decode(InferencePolicy.self, forKey: .policy)
+        connection = try values.decodeIfPresent(ModelConnection.self, forKey: .connection)
+        subscriptionModel = try values.decodeIfPresent(String.self, forKey: .subscriptionModel)
+        piModel = try values.decodeIfPresent(PiModelSelection.self, forKey: .piModel)
+        capabilities = try values.decodeIfPresent(OptionalCapabilities.self, forKey: .capabilities) ?? OptionalCapabilities()
     }
     public static func load(from base: URL = Pippa.supportDirectory) -> Self {
         guard let data = try? Data(contentsOf: base.appendingPathComponent("inference-settings.json")) else { return Self() }

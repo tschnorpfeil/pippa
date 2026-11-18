@@ -53,6 +53,19 @@ public enum PippaPiLaunch {
         }
     }
 
+    /// The bundled capabilities a person can switch off per route in Settings → AI. Off omits the extension and its
+    /// tools, so the model never sees their declarations. Pippa's other tools and the app's MCP server stay.
+    public struct Capabilities: Sendable, Equatable, Hashable {
+        /// pi-web-access (`webExtension`): `web_search`, `fetch_content`.
+        public var web: Bool
+        /// pippa-memory.ts: `remember` and the memory section of the system prompt. The memory file itself stays.
+        public var memory: Bool
+        public init(web: Bool = true, memory: Bool = true) { self.web = web; self.memory = memory }
+        public static let all = Capabilities()
+        /// For the client's launch key: a changed choice starts Pi afresh on the next question.
+        public var key: String { "web=\(web ? 1 : 0),memory=\(memory ? 1 : 0)" }
+    }
+
     /// Without this environment Pi never starts: no network at startup, no telemetry, no version check at pi.dev.
     public static let offlineEnvironment = ["PI_OFFLINE": "1", "PI_SKIP_VERSION_CHECK": "1", "PI_TELEMETRY": "0"]
 
@@ -62,7 +75,8 @@ public enum PippaPiLaunch {
     /// `mcp`: the app's Pippa MCP server, attached via `addMCP` (extension after Pippa's tools).
     public static func configuration(launcher: Launcher, workingDirectory: URL, paths: Paths, sessionID: String?, language: String,
                                      environment: [String: String] = [:],
-                                     mcp: (endpoint: MCPEndpoint, extension: URL)? = nil) -> PiRPCConfiguration {
+                                     mcp: (endpoint: MCPEndpoint, extension: URL)? = nil,
+                                     capabilities: Capabilities = .all) -> PiRPCConfiguration {
         var env = launcher.environment.merging(environment) { $1 }
         if let memory = paths.memoryFile { env[memoryVariable] = memory.path }
         if let digests = paths.digestDirectory { env[digestVariable] = digests.path }
@@ -70,8 +84,9 @@ public enum PippaPiLaunch {
         env["PIPPA_LANGUAGE"] = language
         env.merge(offlineEnvironment) { $1 }
         var configuration = PiRPCConfiguration(executable: launcher.executable, workingDirectory: workingDirectory, environment: env,
-                                               extensions: extensions(paths),
-                                               arguments: launcher.piArguments + arguments(paths: paths, sessionID: sessionID, language: language))
+                                               extensions: extensions(paths, capabilities: capabilities),
+                                               arguments: launcher.piArguments + arguments(paths: paths, sessionID: sessionID, language: language,
+                                                                                           capabilities: capabilities))
         configuration.launcherArguments = launcher.launcherArguments
         if let mcp { addMCP(mcp.endpoint, extension: mcp.extension, to: &configuration) }
         return configuration
@@ -83,17 +98,19 @@ public enum PippaPiLaunch {
     public static let digestVariable = "PIPPA_DIGEST_DIR"
 
     /// Extensions in load order. Only these load: `arguments` passes `--no-extensions`, which keeps explicit `--extension`s.
-    public static func extensions(_ paths: Paths) -> [URL] {
-        ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts"].map { paths.extensionsDirectory.appendingPathComponent($0) }
-            + (paths.webExtension.map { [$0] } ?? [])
+    /// A capability that is off loads no extension: pippa-memory.ts adds nothing to the prompt, pi-web-access registers nothing.
+    public static func extensions(_ paths: Paths, capabilities: Capabilities = .all) -> [URL] {
+        (["pippa-tools.ts", "pippa-assist.ts"] + (capabilities.memory ? ["pippa-memory.ts"] : []))
+            .map { paths.extensionsDirectory.appendingPathComponent($0) }
+            + (capabilities.web ? paths.webExtension.map { [$0] } ?? [] : [])
     }
 
     /// Pi options except `--mode rpc` and `--extension` (set by PiRPCClient). `sessionID`: `nil` = do not
     /// save a session (`--no-session`, trial runs only).
-    public static func arguments(paths: Paths, sessionID: String?, language: String) -> [String] {
+    public static func arguments(paths: Paths, sessionID: String?, language: String, capabilities: Capabilities = .all) -> [String] {
         // Without the person's own Pi extensions and packages: one that registers a tool of the same name (pi-web-access's
         // web_search) makes Pi exit at startup, and every message failed.
-        var args = ["--no-context-files", "--no-extensions", "--no-approve", "--tools", tools.joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
+        var args = ["--no-context-files", "--no-extensions", "--no-approve", "--tools", tools(capabilities).joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
         // Only Pippa's bundled skills, not the ones the person installed for Pi in the terminal.
         if let skills = paths.skillsDirectory { args += ["--no-skills", "--skill", skills.path] }
         if let sessionID {
@@ -110,6 +127,14 @@ public enum PippaPiLaunch {
     /// MCP server. Names Pi does not know are ignored.
     public static let tools = ["read", "bash", "write", "search_files", "list_folder", "move_files", "remember", "ask",
                                "web_search", "fetch_content", "mcp__pippa__*"]
+    public static let webTools = ["web_search", "fetch_content"]
+    public static let memoryTools = ["remember"]
+
+    /// `tools` without those of a capability that is off, in the same order.
+    public static func tools(_ capabilities: Capabilities) -> [String] {
+        let off = Set((capabilities.web ? [] : webTools) + (capabilities.memory ? [] : memoryTools))
+        return tools.filter { !off.contains($0) }
+    }
 
     /// Pi allows only letters, digits, `.`, `_`, `-` in session IDs, and a letter or digit at start and end
     /// (cli.md "Sessions"). Pippa's ID is `<conversation UUID>` or `<conversation UUID>:<revision UUID>`.

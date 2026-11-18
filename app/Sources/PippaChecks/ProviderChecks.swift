@@ -29,6 +29,25 @@ func runProviderChecks() async {
         try InferenceSettings().save(to: base)
         return !InferenceSettings.load(from: base).usesOnlineAI
     }
+    check("Optional abilities: older settings keep both on for both routes, and each switch saves on its own") {
+        let base = root.appendingPathComponent("capability-settings")
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        let file = base.appendingPathComponent("inference-settings.json")
+        try Data(#"{"policy":"localOnly","piModel":{"providerID":"openrouter","modelID":"fixture","providerName":"OpenRouter"}}"#.utf8).write(to: file)
+        let legacy = InferenceSettings.load(from: base)
+        guard legacy.activePiModel?.providerID == "openrouter", legacy.capabilities == OptionalCapabilities(),
+              [false, true].allSatisfy({ legacy.capabilities[online: $0] == .init(web: true, memory: true) }) else { return false }
+        try Data(#"{"policy":"localOnly","capabilities":{"local":{"web":false}}}"#.utf8).write(to: file)
+        let partial = InferenceSettings.load(from: base).capabilities
+        guard partial.local == .init(web: false, memory: true), partial.online == .init() else { return false }
+        var settings = legacy
+        settings.capabilities[online: false].memory = false
+        settings.capabilities[online: true].web = false
+        try settings.save(to: base)
+        let saved = InferenceSettings.load(from: base)
+        return saved.activePiModel == legacy.activePiModel
+            && saved.capabilities.local == .init(web: true, memory: false) && saved.capabilities.online == .init(web: false, memory: true)
+    }
     check("Pi routing rejects malformed saved provider selections and never copies credentials") {
         let base = root.appendingPathComponent("bad-provider-settings")
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)

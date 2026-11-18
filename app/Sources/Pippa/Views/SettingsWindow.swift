@@ -16,6 +16,15 @@ final class SettingsModel: ObservableObject {
         PiSession.shared.settingsChanged()
         SetupModel.shared.objectWillChange.send()
     }
+
+    /// Optional capabilities save even while an answer runs: that answer keeps its Pi, the next question starts one
+    /// with the new choice (`PiSession.LaunchRoute.key`). The route itself stays as it is.
+    func saveCapabilities(_ capabilities: OptionalCapabilities) throws {
+        var settings = inferenceSettings
+        settings.capabilities = capabilities
+        try settings.save(to: PiSession.settingsDirectory)
+        inferenceSettings = settings
+    }
 }
 
 /// The pages of the settings window, in toolbar order.

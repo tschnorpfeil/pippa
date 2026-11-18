@@ -83,3 +83,12 @@
 "Open Files & Folders…" = "Dateien und Ordner öffnen …";
 "Change…" = "Ändern …";
 "Accessibility" = "Bedienungshilfen";
+
+/* Settings → AI: optional abilities per route */
+"Optional abilities" = "Zusätzliche Fähigkeiten";
+"Each ability Pippa doesn’t need leaves the AI on this Mac more room and lets answers start sooner. A change applies from your next question, also in an open conversation; an answer already running finishes as it started." = "Jede Fähigkeit, die Pippa nicht braucht, lässt der KI auf diesem Mac mehr Platz, und Antworten beginnen früher. Eine Änderung gilt ab deiner nächsten Frage, auch in einem offenen Gespräch; eine laufende Antwort endet so, wie sie begonnen hat.";
+"Web search" = "Websuche";
+"Searches the web and reads pages to answer. Off: no web search or page reading; Pippa’s browser stays." = "Sucht im Web und liest Seiten für die Antwort. Aus: keine Websuche und kein Lesen von Seiten; Pippas Browser bleibt.";
+"Personal notes" = "Persönliche Notizen";
+"Remembers what you tell her about yourself and uses it in new conversations. Off: she neither adds notes nor reads them; saved notes are kept." = "Merkt sich, was du über dich erzählst, und nutzt es in neuen Gesprächen. Aus: Sie legt keine Notizen an und liest sie nicht; gespeicherte Notizen bleiben erhalten.";
+"Online" = "Online";

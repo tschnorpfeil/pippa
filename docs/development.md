@@ -37,6 +37,11 @@ Pippa.app (Swift, SwiftUI)
 | `runtime/pippa-tools/pippa-memory.ts` | `remember` (facts in `memory.md`, at most 30 lines) |
 | App MCP server (`mcp__pippa__*`) | `calendar_read`, `reminders_read`, `mail_search`, `mail_read`, `photos_search`, `front_read`, `read_document`, `calendar_add`, `reminder_add`, `mail_draft`, `prepare_files` |
 
+Settings → AI switches web search (pi-web-access) and personal notes (`pippa-memory.ts`) separately for the AI on this
+Mac and the online AI (`InferenceSettings.capabilities`; missing values mean on). Off leaves out the extension and its
+tools (`PippaPiLaunch.Capabilities`); `memory.md` stays. The choice is part of `PiSession`'s launch key, so it applies
+from the next question while a running answer keeps its Pi.
+
 **Conversation path.** `PiSession` (app) starts the pinned Pi with Pippa's Node through `PippaPiLaunch` and
 `PiRPCClient` (`app/Sources/PiRPC`). Flags: `--no-extensions` plus explicit `--extension`s, `--no-context-files` (an
 `AGENTS.md` in a user folder could inject instructions), `--no-approve` (project-local `.pi/` settings are ignored),
