@@ -35,10 +35,20 @@ struct OnlineSetupSheet: View {
                                   active: settings.inferenceSettings.activePiModel)
     }
 
+    private var confirmsProvider: Bool {
+        switch stage {
+        case .activate, .inUse: true
+        default: false
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xl) {
             Text(T("Use an Online AI", table: "Settings")).font(Typo.headline)
-            SettingsNote(T("No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings.", table: "Settings"))
+            // The confirmation step says once where data goes; the general note belongs to the steps before it.
+            if !confirmsProvider {
+                SettingsNote(T("No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings.", table: "Settings"))
+            }
             content
             if let problem = provider.problem, stage != .unavailable {
                 Text(problem).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)

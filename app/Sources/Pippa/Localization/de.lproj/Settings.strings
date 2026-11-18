@@ -108,6 +108,10 @@
 "Lets the AI on this Mac save and use personal notes across chats. An online AI gets them only with Mac access. Turning this off keeps your saved notes." = "Die KI auf diesem Mac kann sich persönliche Notizen über Gespräche hinweg merken und nutzen. Eine Online-KI bekommt sie nur mit Mac-Zugriff. Ausschalten behält deine gespeicherten Notizen.";
 "Only on this Mac" = "Nur auf diesem Mac";
 "Sharing with online AI" = "Teilen mit Online-KI";
+"All sources ask before sharing" = "Alle Quellen fragen vor dem Teilen";
+"Ask before sharing: %lld · Only on this Mac: %lld" = "Vor dem Teilen fragen: %lld · Nur auf diesem Mac: %lld";
+"Configure…" = "Anpassen …";
+"Hide" = "Ausblenden";
 "Single questions" = "Einzelne Fragen";
 "While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@." = "Während Pippa diesen Mac nutzt, schickt „%@ fragen …“ im Chat eine geprüfte Frage an %@.";
 

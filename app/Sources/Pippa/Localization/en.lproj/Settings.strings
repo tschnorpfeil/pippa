@@ -108,6 +108,10 @@
 "Lets the AI on this Mac save and use personal notes across chats. An online AI gets them only with Mac access. Turning this off keeps your saved notes." = "Lets the AI on this Mac save and use personal notes across chats. An online AI gets them only with Mac access. Turning this off keeps your saved notes.";
 "Only on this Mac" = "Only on this Mac";
 "Sharing with online AI" = "Sharing with online AI";
+"All sources ask before sharing" = "All sources ask before sharing";
+"Ask before sharing: %lld · Only on this Mac: %lld" = "Ask before sharing: %lld · Only on this Mac: %lld";
+"Configure…" = "Configure…";
+"Hide" = "Hide";
 "Single questions" = "Single questions";
 "While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@." = "While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@.";
 
