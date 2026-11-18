@@ -40,7 +40,7 @@ struct OnlineSetupSheet: View {
             Text(T("Use an Online AI", table: "Settings")).font(Typo.headline)
             SettingsNote(T("No download. Your conversations and everything Pippa reads for them go to the provider you choose. You can switch back to this Mac at any time in Settings.", table: "Settings"))
             content
-            if let problem = provider.problem, !provider.providers.isEmpty {
+            if let problem = provider.problem, stage != .unavailable {
                 Text(problem).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
             }
             if case .downloading = setup.state {
