@@ -457,6 +457,7 @@ swift scripts/render-og.swift   # writes site/og.jpg and site/og-en.jpg
 node --test runtime/pippa-auth/*.test.mjs
 PIPPA_PROVIDER_CHECKS=1 PIPPA_PI_PAYLOAD="$PWD/.build/pi-payload-1.5.0" swift run --package-path app --jobs 2 PippaChecks
 node scripts/provider-setup-smoke.mjs dist/Pippa.app
+python3 scripts/check-cloud-sharing.py dist/Pippa.app   # native chat, edited approval and follow-up; requires Accessibility
 ```
 
 The focused Swift checks cover settings compatibility and the duplex helper lifecycle. The app smoke uses a fresh
