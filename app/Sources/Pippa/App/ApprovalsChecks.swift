@@ -193,6 +193,12 @@ enum ConversationStoreChecks {
               && StepLabel.progress(reading, part: 1, of: 2, merging: true) != StepLabel.progress(reading, part: 1, of: 2, merging: false),
               "a long document's step says which part is being read, in the app's language")
         let firstMail = mailSource("old@example.test"), secondMail = mailSource("new@example.test")
+        let accountMail = SourceLog.source(tool: "mail_read", arguments: #"{"mail_ref":"m123456789012"}"#,
+                                          result: #"{"data":{"subject":"Repeated subject","messageID":"old@example.test","account":"Work","bodyTruncated":true}}"#)
+        check(accountMail?.location.isEmpty == true && accountMail?.name.contains("Work") == true,
+              "an account-specific Mail source never opens an account-blind message link")
+        check(SourceLog.detail(result: #"{"data":{"bodyTruncated":true}}"#) == T("Beginning only", table: "App"),
+              "a clipped email body is identified as a partial read")
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",
               "a mail read by id gets its title and openable identity from the result")
         check(firstMail != nil && secondMail != nil && Set([firstMail, secondMail]).count == 2,

@@ -38,6 +38,10 @@ enum SourceLog {
                   let data = object["data"] as? [String: Any], let subject = data["subject"] as? String, !subject.isEmpty else { return nil }
             let id = (data["messageID"] as? String).flatMap(MailReplySource.canonicalMessageID)
             let location = id.flatMap { "<\($0)>".addingPercentEncoding(withAllowedCharacters: .alphanumerics) }.map { "message://" + $0 } ?? ""
+            if let account = data["account"] as? String {
+                // A message URL cannot distinguish copies delivered to different accounts.
+                return ChatSource(kind: .mail, name: subject + " · " + account, location: "")
+            }
             return ChatSource(kind: .mail, name: subject, location: location)
         case "fetch_content":
             guard let url = (args["url"] as? String) ?? (args["urls"] as? [String])?.first, let host = URL(string: url)?.host() else { return nil }
@@ -53,7 +57,7 @@ enum SourceLog {
               let data = object["data"] as? [String: Any] else { return nil }
         let pages = data["pages"] as? String
         let total = data["pageCount"] as? Int
-        if data["truncated"] as? Bool == true {
+        if data["truncated"] as? Bool == true || data["bodyTruncated"] as? Bool == true {
             return pages.map { T("Pages %@, more not read", table: "App", $0) } ?? T("Beginning only", table: "App")
         }
         if let pages, let total { return pages == "1" && total == 1 ? T("Whole page", table: "App") : T("Pages %@ of %lld", table: "App", pages, total) }
