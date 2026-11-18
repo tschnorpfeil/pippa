@@ -16,16 +16,16 @@ enum MailScript {
                 set found to (messages of inbox whose subject is q)
             end timeout
             set best to missing value
+            set copies to 0
             repeat with m in found
                 if who is "" or (sender of m) contains who then
-                    if best is missing value then
-                        set best to contents of m
-                    else if (date received of m) > (date received of best) then
-                        set best to contents of m
-                    end if
+                    set copies to copies + 1
+                    if best is missing value then set best to contents of m
                 end if
             end repeat
             if best is missing value then return {}
+            -- Several messages match (e.g. one in each of two accounts): which one is meant is unknown.
+            if copies > 1 then return {"ambiguous"}
             return my messageInfo(best)
         end tell
     end findInInbox
@@ -112,8 +112,10 @@ enum MailScript {
 
     static func find(subject: String, sender: String) async throws -> MailMessage? {
         try await AppleEvents.perform { () throws -> MailMessage? in
-            message(try AppleEvents.call(source, handler: "findInInbox",
-                                         [NSAppleEventDescriptor(string: subject), NSAppleEventDescriptor(string: sender)], app: .mail))
+            let reply = try AppleEvents.call(source, handler: "findInInbox",
+                                             [NSAppleEventDescriptor(string: subject), NSAppleEventDescriptor(string: sender)], app: .mail)
+            if isAmbiguous(reply) { throw MailLookupAmbiguous() }
+            return message(reply)
         }
     }
 

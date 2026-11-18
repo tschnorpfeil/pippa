@@ -3,6 +3,7 @@
 "More sources: %lld" = "Weitere Quellen: %lld";
 "Newest in Mail" = "Neueste in Mail";
 "Newest in Photos" = "Neueste in Fotos";
+"Find this email in Mail in the account shown. Pippa can’t open this exact copy for you." = "Such diese E-Mail in Mail im angezeigten Konto. Genau diese Kopie kann Pippa nicht für dich öffnen.";
 "Open in Mail" = "In Mail öffnen";
 "Open in Photos" = "In Fotos öffnen";
 "Open in Reminders" = "In Erinnerungen öffnen";

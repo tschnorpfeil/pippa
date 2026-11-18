@@ -132,7 +132,8 @@ public protocol AppIntegrations: Sendable {
     /// Removes only what Pippa created and what has not been changed since.
     func remove(_ item: CreatedItem) async throws -> RemoveResult
     func selectedMail() async throws -> MailMessage?
-    /// The newest inbox mail with exactly this subject whose sender contains `sender` ("" = any), or `nil`.
+    /// The inbox mail with exactly this subject whose sender contains `sender` ("" = any), or `nil`. Several such mails
+    /// (e.g. one in each of two accounts) throw `MailLookupAmbiguous`: which one is meant is unknown.
     func findMail(subject: String, sender: String) async throws -> MailMessage?
     /// The inbox mail whose Message-ID is exactly `messageID` (a canonical id, see `MailReplySource.canonicalMessageID`), or
     /// `nil`. Never another mail with a similar subject. Several inbox mails with this id (e.g. in two accounts) throw
@@ -243,7 +244,8 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
         try requireGranted(.mail)
         lock.withLock { lookups += 1 }
         let matches = inboxCandidates().filter { $0.subject == subject && (sender.isEmpty || $0.sender.localizedCaseInsensitiveContains(sender)) }
-        return MailSelection.newest(matches, limit: 1, date: \.date, tie: { _ in "" }).first
+        if matches.count > 1 { throw MailLookupAmbiguous() }
+        return matches.first
     }
 
     /// Exactly the mail with this Message-ID (case-sensitive, with or without angle brackets), never a look-alike.

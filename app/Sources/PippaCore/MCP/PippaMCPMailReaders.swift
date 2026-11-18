@@ -40,7 +40,7 @@ extension PippaMCPTools {
             }
             return mailResult(mail, source: "Mail on this Mac (email from the inbox)")
         } catch is MailLookupAmbiguous {
-            return Self.notRead("ambiguous", "Several inbox emails have this message_id (for example one in each of two accounts). Nothing was read. Call mail_read with the mail_ref from mail_search instead.")
+            return Self.notRead("ambiguous", "Several inbox emails match (for example one in each of two accounts). Nothing was read. Call mail_read with the mail_ref from mail_search instead.")
         } catch {
             return failure(error, .mail)
         }
@@ -88,11 +88,11 @@ extension PippaMCPTools {
     func mailSearch(_ input: ToolInput, turn: PippaMCPTurn? = nil) async -> PippaMCPToolResult {
         let query = (input.query ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         // No query: the newest mails ("Habe ich neue Mails?"), not a made-up search word.
-        guard query.isEmpty || (2...100).contains(query.count) else { return invalid("query must be 2 to 100 characters, or omitted for the newest mails.") }
+        guard query.isEmpty || ((2...100).contains(query.count) && query.utf8.count <= 400) else { return invalid("query must be 2 to 100 characters, or omitted for the newest mails.") }
         let unread = input.unread ?? false
         let limit = input.limit ?? 10
         guard (1...20).contains(limit) else { return invalid("limit must be 1 to 20.") }
-        if input.cursor == nil, let account = input.account, !(1...200).contains(account.trimmingCharacters(in: .whitespacesAndNewlines).count) {
+        if input.cursor == nil, let account = input.account?.trimmingCharacters(in: .whitespacesAndNewlines), !(1...200).contains(account.count) || account.utf8.count > 400 {
             return invalid("account must be an account or account_id from accounts, or omitted for all accounts.")
         }
         // Without the per-account reader there are no accounts, cursors or references to continue: never a wider search.

@@ -29,37 +29,55 @@ struct MailCardView: View {
 private struct MailCardRow: View {
     var item: MailCard.Item
     var body: some View {
-        CardRowButton(action: open) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(item.sender).font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink).lineLimit(1)
-                    Spacer(minLength: 8)
-                    if let date = item.dateLabel {
-                        Text(date).font(.scaled(size: 11.5).monospacedDigit()).foregroundStyle(Theme.ink3).fixedSize()
-                    }
-                }
-                Text(item.subject).font(Typo.callout).foregroundStyle(Theme.ink).lineLimit(1)
-                if let account = item.account {
-                    Text(account).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1)
-                }
-                if !item.preview.isEmpty {
-                    Text(item.preview).font(Typo.footnote).foregroundStyle(Theme.ink3).lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+        if item.account == nil {
+            CardRowButton(action: open) { content }
+                .help(T("Open in Mail", table: "Views"))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(label)
+                .accessibilityHint(T("Open in Mail", table: "Views"))
+                .accessibilityAddTraits(.isButton)
+        } else {
+            // A row from one account: Mail's link could open another account's copy, so it is not a button.
+            content
+                .padding(.horizontal, Space.ml).padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Space.xs)
+                .help(T("Find this email in Mail in the account shown. Pippa can’t open this exact copy for you.", table: "Views"))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(label)
+                .accessibilityHint(T("Find this email in Mail in the account shown. Pippa can’t open this exact copy for you.", table: "Views"))
+        }
+    }
+
+    private var label: String {
+        [item.sender, item.subject, item.account, item.dateLabel, item.preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(item.sender).font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                Spacer(minLength: 8)
+                if let date = item.dateLabel {
+                    Text(date).font(.scaled(size: 11.5).monospacedDigit()).foregroundStyle(Theme.ink3).fixedSize()
                 }
             }
-            .padding(.vertical, 2)
+            Text(item.subject).font(Typo.callout).foregroundStyle(Theme.ink).lineLimit(1)
+            if let account = item.account {
+                Text(account).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1)
+            }
+            if !item.preview.isEmpty {
+                Text(item.preview).font(Typo.footnote).foregroundStyle(Theme.ink3).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .help(T("Open in Mail", table: "Views"))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel([item.sender, item.subject, item.account, item.dateLabel, item.preview].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))
-        .accessibilityHint(T("Open in Mail", table: "Views"))
-        .accessibilityAddTraits(.isButton)
+        .padding(.vertical, 2)
     }
 
     /// The mail itself by its Message-ID; without one, Mail opens. With PIPPA_DEMO=1 nothing (no real apps).
     private func open() {
         guard ProcessInfo.processInfo.environment["PIPPA_DEMO"] != "1" else { return }
-        if let id = item.messageID, let encoded = "<\(id)>".addingPercentEncoding(withAllowedCharacters: .alphanumerics),
+        if item.opensByMessageID, let id = item.messageID, let encoded = "<\(id)>".addingPercentEncoding(withAllowedCharacters: .alphanumerics),
            let url = URL(string: "message://" + encoded), NSWorkspace.shared.open(url) { return }
         Task { await PippaMCPService.showMail() }
     }

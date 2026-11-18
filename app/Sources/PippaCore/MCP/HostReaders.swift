@@ -275,7 +275,12 @@ public struct MailSearchRow: Sendable, Equatable {
     public var id: Int
     public var date: Date?
     public var header: MailHeader
-    public init(id: Int, date: Date?, header: MailHeader) { self.id = id; self.date = date; self.header = header }
+    /// Where Mail says the message is (per-account search only): the account id and the whole mailbox path.
+    public var accountID: String?
+    public var path: [String]?
+    public init(id: Int, date: Date?, header: MailHeader, accountID: String? = nil, path: [String]? = nil) {
+        self.id = id; self.date = date; self.header = header; self.accountID = accountID; self.path = path
+    }
 }
 
 /// What a mail search asks of Mail, in two steps so text is read only for the chosen messages. Called inside one
@@ -331,14 +336,16 @@ public enum MailSearchFlow {
     }
 
     /// One row per requested id: `{id, subject, sender, date, mailbox, start, message id, unread}`, or `{}` for a message that is gone.
-    public static func parseRows(_ reply: NSAppleEventDescriptor, expecting count: Int) throws -> [MailSearchRow] {
+    /// `identity`: each row also ends with the account id and the mailbox path (`{…, acctID, {box, …}}`, per-account search).
+    public static func parseRows(_ reply: NSAppleEventDescriptor, expecting count: Int, identity: Bool = false) throws -> [MailSearchRow] {
+        let fields = identity ? 10 : 8
         guard reply.descriptorType == typeAEList, reply.numberOfItems == count else { throw PippaError.notAvailable }
         var rows: [MailSearchRow] = []
         for row in AppleEvents.items(reply) {
             guard row.descriptorType == typeAEList else { throw PippaError.notAvailable }
             if row.numberOfItems == 0 { continue }
             let f = AppleEvents.items(row)
-            guard f.count == 8, row.numberOfItems == 8 else { throw PippaError.notAvailable }
+            guard f.count == fields, row.numberOfItems == fields else { throw PippaError.notAvailable }
             let text = try [1, 2, 4, 5, 6].map { i -> String in
                 guard let value = f[i].stringValue, f[i].descriptorType != typeAEList else { throw PippaError.notAvailable }
                 return value
@@ -346,9 +353,19 @@ public enum MailSearchFlow {
             guard [typeBoolean, typeTrue, typeFalse].contains(f[7].descriptorType) else { throw PippaError.notAvailable }
             let id = try mailID(f[0]), date = try mailDate(f[3])
             let messageID = text[4].trimmingCharacters(in: .whitespacesAndNewlines)
+            var where_: (account: String, path: [String])?
+            if identity {
+                guard f[8].descriptorType != typeAEList, let account = f[8].stringValue, f[9].descriptorType == typeAEList else { throw PippaError.notAvailable }
+                let path = try AppleEvents.items(f[9]).map { part -> String in
+                    guard part.descriptorType != typeAEList, let name = part.stringValue else { throw PippaError.notAvailable }
+                    return name
+                }
+                where_ = (account.trimmingCharacters(in: .whitespacesAndNewlines), path)
+            }
             rows.append(MailSearchRow(id: id, date: date, header: MailHeader(
                 subject: text[0], sender: text[1], date: date, mailbox: text[2], preview: text[3],
-                messageID: messageID.isEmpty ? nil : messageID, unread: f[7].booleanValue)))
+                messageID: messageID.isEmpty ? nil : messageID, unread: f[7].booleanValue),
+                accountID: where_.map { $0.account.isEmpty ? nil : $0.account } ?? nil, path: where_.map { $0.path.isEmpty ? nil : $0.path } ?? nil))
         }
         return rows
     }

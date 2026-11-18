@@ -26,6 +26,9 @@ public struct MailCard: Codable, Sendable, Equatable {
         public var messageID: String?
         /// The account whose inbox holds it; `nil` in cards from the combined inbox search and in older histories.
         public var account: String?
+        /// A click may open it by Message-ID. Not for a row from one account: the same Message-ID can be in several
+        /// accounts, and Mail's link cannot say which copy to open.
+        public var opensByMessageID: Bool { messageID != nil && account == nil }
     }
     /// Empty: the newest mails, no search word.
     public var query: String

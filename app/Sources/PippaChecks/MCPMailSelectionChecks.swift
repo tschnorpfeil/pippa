@@ -193,12 +193,12 @@ extension MCPCheckContext {
             return rejected && none.isError && none.json["status"] as? String == "invalid_arguments"
                 && w.demo.mailLookups == 0 && w.demo.mailPreparations == 0
         }
-        await checkAsync("MCP mail_read: without a message_id the subject and sender still select the newest matching mail") {
+        await checkAsync("MCP mail_read: without a message_id, a subject and sender held by several mails is ambiguous, never the newest") {
             let w = repeatedWorld()
             let legacy = await call(w.tools, "mail_read", ["subject": "Nachricht zur Abrechnung", "from": sender])
             let bare = await call(w.tools, "mail_read", ["subject": "Nachricht zur Abrechnung"])
             let wrongSender = await call(w.tools, "mail_read", ["subject": "Nachricht zur Abrechnung", "from": "fremd@example.com"])
-            return body(legacy) == "Neu: Frist verlängert." && body(bare) == "Neu: Frist verlängert."
+            return legacy.json["status"] as? String == "ambiguous" && body(legacy) == nil && bare.json["status"] as? String == "ambiguous"
                 && wrongSender.isError && wrongSender.json["status"] as? String == "not_found"
         }
         check("MCP tool list: mail_read takes an optional mail_ref or message_id and no longer requires a subject") {

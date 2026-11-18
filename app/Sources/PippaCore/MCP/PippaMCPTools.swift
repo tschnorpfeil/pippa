@@ -227,7 +227,8 @@ public struct PippaMCPTools: Sendable {
         DiagnosticsLog.shared.event("mcp-werkzeug", ["name": name, "fehler": String(outcome.isError), "ms": String(ms)])
         var note = Self.readNote(noted, input, outcome, calendar: host.calendar)
         note.turnID = context.turn?.id
-        host.onRead?(note)
+        // A call that finishes after its answer was stopped or replaced leaves no card or receipt under the next one.
+        host.turns.whileActive(context.turn) { host.onRead?(note) }
         return outcome
     }
 }

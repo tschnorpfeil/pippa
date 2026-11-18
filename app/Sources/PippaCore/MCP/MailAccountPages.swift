@@ -28,10 +28,11 @@ public protocol MailAccountReading: Sendable {
     func inboxAccounts() async throws -> [MailAccountInfo]
     /// Every match in this account's inbox (subject or sender contains `query`, empty: all; `unread`), with its date.
     func candidates(account: String, query: String, unread: Bool) async throws -> [MailSearchCandidate]
-    /// Header and start of the text of exactly these messages of this account's inbox; a message that is gone is left out.
+    /// Header and start of the text of exactly these messages of this account's inbox, each with the account id and
+    /// mailbox path Mail reports for it; a message that is gone is left out.
     func rows(account: String, ids: [Int]) async throws -> [MailSearchRow]
-    /// The message with this Mail id in this account's inbox, only when its Message-ID is exactly `messageID` (when given).
-    func message(account: String, mailID: Int, messageID: String?) async throws -> MailMessage?
+    /// The message with this Mail id in this account's inbox, only when its Message-ID is exactly `messageID`, with where it is.
+    func message(account: String, mailID: Int, messageID: String) async throws -> MailInboxMessage?
 }
 
 extension SystemIntegrations {
@@ -66,20 +67,35 @@ struct MailSnapshot: Sendable {
     var account: String?
     var entries: [MailPageEntry]
     var coverage: [MailAccountCoverage]
+    /// The order mixes accounts so each one is reached within the previews of an answer: not newest first overall.
+    var balanced = false
+    /// Mails that changed or left the inbox on the pages so far: never shown, so the search is not complete.
+    var gone = 0
 }
 
-/// A reference to exactly one message, valid for the answer it was given in.
+/// A reference to exactly one message, valid for the answer it was given in: Mail's account id, the whole mailbox path,
+/// the Mail id and the Message-ID, all as Mail reported them for this row. A row missing any of them gets no reference.
 struct MailRef: Sendable, Equatable {
     var account: MailAccountInfo
     var label: String
     var mailID: Int
-    var messageID: String?
+    var messageID: String
     var date: Date?
-    var mailbox: String
+    var path: [String]
+}
+
+/// One message read by its account, with where Mail says it is: the account id and the whole mailbox path.
+public struct MailInboxMessage: Sendable {
+    public var message: MailMessage
+    public var accountID: String
+    public var path: [String]
+    public init(message: MailMessage, accountID: String, path: [String]) { self.message = message; self.accountID = accountID; self.path = path }
 }
 
 /// Snapshots, cursors and mail references of the running answer. Everything from an earlier answer is gone, so an old
-/// cursor or reference is stale rather than pointing at whatever the inbox holds now.
+/// cursor or reference is stale rather than pointing at whatever the inbox holds now. Only the running answer takes the
+/// store over (`claim`); every later step of a search checks it still owns it, so an answer that resumes after a newer
+/// one began is refused and never clears the newer one's cursors, references or previews.
 public final class MailPageStore: @unchecked Sendable {
     /// Preview rows `mail_search` may return in one answer, over all its pages.
     public static let rowsPerAnswer = 100
@@ -88,39 +104,69 @@ public final class MailPageStore: @unchecked Sendable {
     private var snapshots: [String: MailSnapshot] = [:]
     private var cursors: [String: (snapshot: String, offset: Int)] = [:]
     private var refs: [String: MailRef] = [:]
-    private var rows = 0
+    /// Previews delivered, and previews held by pages still reading Mail.
+    private var delivered = 0, reserved = 0
 
     public init() {}
 
-    private func scoped<T>(_ turn: UUID?, _ body: () -> T) -> T {
+    /// The answer `turn` takes the store, dropping an earlier answer's state. `live` runs under the store's lock: an
+    /// answer that is no longer the running one can never take the store back from a newer one.
+    func claim(_ turn: UUID?, live: () -> Bool) -> Bool {
         lock.withLock {
-            if owner != turn { owner = turn; snapshots = [:]; cursors = [:]; refs = [:]; rows = 0 }
-            return body()
+            guard live() else { return false }
+            if owner != turn { owner = turn; snapshots = [:]; cursors = [:]; refs = [:]; delivered = 0; reserved = 0 }
+            return true
         }
     }
 
-    func remainingRows(turn: UUID?) -> Int { scoped(turn) { max(0, Self.rowsPerAnswer - rows) } }
+    private func owned<T>(_ turn: UUID?, _ body: () -> T) -> T? { lock.withLock { owner == turn ? body() : nil } }
 
-    func save(_ snapshot: MailSnapshot, turn: UUID?) { scoped(turn) { snapshots[snapshot.id] = snapshot } }
+    func owns(_ turn: UUID?) -> Bool { lock.withLock { owner == turn } }
 
-    func cursor(_ token: String, turn: UUID?) -> (snapshot: MailSnapshot, offset: Int)? {
-        scoped(turn) { cursors[token].flatMap { c in snapshots[c.snapshot].map { ($0, c.offset) } } }
+    /// Previews this answer may still show (`nil`: another answer owns the store).
+    func available(turn: UUID?) -> Int? { owned(turn) { max(0, Self.rowsPerAnswer - delivered - reserved) } }
+
+    func save(_ snapshot: MailSnapshot, turn: UUID?) -> Bool { owned(turn) { snapshots[snapshot.id] = snapshot; return true } ?? false }
+
+    /// Takes the cursor: it works once, so a repeated or parallel use reads nothing. `restore` gives it back when its page fails.
+    func takeCursor(_ token: String, turn: UUID?) -> (snapshot: MailSnapshot, offset: Int)? {
+        owned(turn) { () -> (snapshot: MailSnapshot, offset: Int)? in
+            guard let c = cursors.removeValue(forKey: token), let snapshot = snapshots[c.snapshot] else { return nil }
+            return (snapshot, c.offset)
+        } ?? nil
     }
 
-    /// Records what a page actually delivered: its rows count against the budget, its references become valid, and
-    /// the next cursor (when more remain) starts right after the last delivered entry.
-    func deliver(snapshot: String, rows delivered: Int, refs new: [String: MailRef], next offset: Int?, turn: UUID?) -> String? {
-        scoped(turn) {
-            rows += delivered
+    func restoreCursor(_ token: String, snapshot: String, offset: Int, turn: UUID?) {
+        _ = owned(turn) { cursors[token] = (snapshot, offset) }
+    }
+
+    /// Holds up to `wanted` previews for a page before it reads Mail; parallel pages never pass `rowsPerAnswer` together.
+    func reserve(_ wanted: Int, turn: UUID?) -> (granted: Int, left: Int)? {
+        owned(turn) {
+            let granted = min(max(0, wanted), max(0, Self.rowsPerAnswer - delivered - reserved))
+            reserved += granted
+            return (granted, Self.rowsPerAnswer - delivered - reserved)
+        }
+    }
+
+    func release(_ held: Int, turn: UUID?) { _ = owned(turn) { reserved = max(0, reserved - held) } }
+
+    /// Records what a page actually delivered: only those rows count, the rest of the held previews go back; its
+    /// references become valid, mails gone since the search add up, and the next cursor (when more remain) starts right
+    /// after the last delivered entry. `false`: another answer owns the store, nothing was recorded.
+    func settle(snapshot: String, held: Int, rows: Int, refs new: [String: MailRef], gone: Int, cursor: (token: String, offset: Int)?,
+                turn: UUID?) -> Bool {
+        owned(turn) {
+            reserved = max(0, reserved - held)
+            delivered += rows
             refs.merge(new) { a, _ in a }
-            guard let offset else { return nil }
-            let token = Self.token("c")
-            cursors[token] = (snapshot, offset)
-            return token
-        }
+            snapshots[snapshot]?.gone += gone
+            if let cursor { cursors[cursor.token] = (snapshot, cursor.offset) }
+            return true
+        } ?? false
     }
 
-    func ref(_ token: String, turn: UUID?) -> MailRef? { scoped(turn) { refs[token] } }
+    func ref(_ token: String, turn: UUID?) -> MailRef? { owned(turn) { refs[token] } ?? nil }
 
     static func token(_ prefix: String) -> String {
         prefix + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased().prefix(12)
@@ -134,25 +180,34 @@ public final class MailPageStore: @unchecked Sendable {
 
 /// Choosing and ordering, without Mail.
 enum MailAccountFlow {
-    /// Every account's matches in one order: newest first, then by account id and the larger Mail id, so equal dates and
-    /// equal Mail ids in two accounts never swap or collide. The first `page` entries include each account's newest
-    /// ones (an equal share, at least one) where the page has room, so a small account is not hidden behind a busy one.
-    static func order(_ lists: [(account: MailAccountInfo, label: String, candidates: [MailSearchCandidate])], page: Int) -> [MailPageEntry] {
+    /// Every account's matches in one order. Sorted newest first, then by account id and the larger Mail id, so equal
+    /// dates and equal Mail ids in two accounts never swap or collide. When several accounts have matches, the first
+    /// `window` entries (the previews this answer can still show) take each account's newest ones in turns, and the first
+    /// `page` of them include each account's newest (an equal share, at least one): a small account is never hidden behind
+    /// a busy one. `balanced`: this changed the newest-first order, so the result must not claim the newest overall.
+    static func order(_ lists: [(account: MailAccountInfo, label: String, candidates: [MailSearchCandidate])], page: Int, window: Int)
+        -> (entries: [MailPageEntry], balanced: Bool) {
         let entries = lists.flatMap { list in list.candidates.map { MailPageEntry(account: list.account, label: list.label, id: $0.id, date: $0.date) } }
         let all = entries.sorted(by: before)
         let filled = lists.filter { !$0.candidates.isEmpty }
-        guard page > 0, !filled.isEmpty else { return all }
-        let share = max(1, page / filled.count)
-        var chosen = Set<Key>()
-        var reserved: [MailPageEntry] = []
-        for list in filled {
-            let newest = all.filter { $0.account == list.account }.prefix(share)
-            reserved += newest
+        let w = min(window, all.count)
+        guard page > 0, w > 0, filled.count > 1 else { return (all, false) }
+        let perAccount = filled.map { list in all.filter { $0.account == list.account } }
+        var inWindow = Set<Key>()
+        var round = 0
+        while inWindow.count < w {
+            for entry in perAccount.compactMap({ round < $0.count ? $0[round] : nil }).sorted(by: before) where inWindow.count < w { inWindow.insert(Key(entry)) }
+            round += 1
         }
-        for entry in reserved.sorted(by: before).prefix(page) { chosen.insert(Key(entry)) }
-        for entry in all where chosen.count < page { chosen.insert(Key(entry)) }
-        let first = all.filter { chosen.contains(Key($0)) }
-        return first + all.filter { !chosen.contains(Key($0)) }
+        let windowed = all.filter { inWindow.contains(Key($0)) }
+        let first = min(page, w)
+        let share = max(1, first / filled.count)
+        var chosen = Set<Key>()
+        let newest = perAccount.flatMap { list in list.filter { inWindow.contains(Key($0)) }.prefix(share) }
+        for entry in newest.sorted(by: before).prefix(first) { chosen.insert(Key(entry)) }
+        for entry in windowed where chosen.count < first { chosen.insert(Key(entry)) }
+        let ordered = windowed.filter { chosen.contains(Key($0)) } + windowed.filter { !chosen.contains(Key($0)) } + all.filter { !inWindow.contains(Key($0)) }
+        return (ordered, ordered.prefix(w).map(Key.init) != all.prefix(w).map(Key.init))
     }
 
     private struct Key: Hashable {
@@ -174,7 +229,8 @@ enum MailAccountFlow {
     /// Names that tell accounts apart: accounts with the same (or no) name get the shortest start of their id, at least
     /// 8 characters, that differs between them.
     static func labels(_ accounts: [MailAccountInfo]) -> [String] {
-        func name(_ a: MailAccountInfo) -> String { a.name.trimmingCharacters(in: .whitespacesAndNewlines) }
+        // Clipped first, so two names that only differ after the cut still get their ids.
+        func name(_ a: MailAccountInfo) -> String { PippaMCPTools.clip(a.name.trimmingCharacters(in: .whitespacesAndNewlines), 60, bytes: 160) }
         return accounts.map { account in
             let twins = accounts.filter { name($0) == name(account) }
             if twins.count == 1 && !name(account).isEmpty { return name(account) }

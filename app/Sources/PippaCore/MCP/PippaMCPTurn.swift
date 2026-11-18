@@ -27,6 +27,14 @@ public final class PippaMCPTurns: @unchecked Sendable {
         lock.withLock { turn.cancelWrites(); if current === turn { current = nil } }
     }
     public var active: PippaMCPTurn? { lock.withLock { current } }
+    /// Runs `body` only while `turn` is the running answer and was not stopped (`nil`: a request outside any answer),
+    /// under the lock `begin` takes: what a late call publishes never lands under a newer answer.
+    public func whileActive(_ turn: PippaMCPTurn?, _ body: () -> Void) {
+        lock.withLock {
+            guard let turn else { body(); return }
+            if current === turn, !turn.writes.snapshot.cancelled { body() }
+        }
+    }
 }
 
 /// An answer on the Pi RPC path: who is told about phases, what Pi has read via `read_document`.

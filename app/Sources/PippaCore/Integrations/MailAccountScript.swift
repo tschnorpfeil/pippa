@@ -3,9 +3,11 @@ import Foundation
 /// Mail's inboxes one account at a time, read only. Each step is its own Apple Event with its own timeout, so one slow or
 /// refused account is reported as that account's problem and never as an empty inbox, and Stop works between accounts.
 ///
-/// [assumption] The top-level `inbox` lists one child mailbox per account inbox (`mailboxes of inbox`), and `id of account`
-/// is Mail's stable account identifier (Mail.sdef: "The unique identifier of the account"). Both were checked against the
-/// scripting dictionary and by compiling only; no real account or message was read to confirm them.
+/// The top-level `inbox` lists one child mailbox per account inbox (`mailboxes of inbox`), and `id of account` is Mail's
+/// stable account identifier (Mail.sdef: "The unique identifier of the account"). Confirmed on a Mac with three accounts
+/// by a metadata-only run (account ids, inbox children and their names; no message read). Reading messages per account is
+/// checked against the scripting dictionary and with synthetic stand-ins only.
+/// Timeouts and refused access are never swallowed: a step that cannot ask Mail reports why, never "gone" or empty.
 enum MailAccountScript {
     /// `MailScript.messageInfo` is reused for reading one message, so the same fields come back as from `mail_read`.
     static let source = MailScript.source + """
@@ -22,6 +24,8 @@ enum MailAccountScript {
                             set acct to account of box
                             set acctID to (id of acct) as text
                             set acctName to (name of acct) as text
+                        on error number errNum
+                            my rethrowAccess(errNum)
                         end try
                         set end of out to {acctID, acctName}
                     end repeat
@@ -33,16 +37,55 @@ enum MailAccountScript {
         return {"ok", out}
     end accountInboxes
 
+    on rethrowAccess(errNum)
+        if errNum is -1712 or errNum is -1743 or errNum is -1744 then error number errNum
+    end rethrowAccess
+
     on inboxOf(acctID)
         tell application id "com.apple.mail"
             repeat with box in (mailboxes of inbox)
+                set boxID to ""
                 try
-                    if ((id of (account of box)) as text) is acctID then return contents of box
+                    set boxID to (id of (account of box)) as text
+                on error number errNum
+                    my rethrowAccess(errNum)
                 end try
+                if boxID is acctID then return contents of box
             end repeat
         end tell
         error "gone" number -1728
     end inboxOf
+
+    -- Where Mail says a message is: its account's id and the whole mailbox path, top first.
+    on identityOf(m)
+        tell application id "com.apple.mail"
+            set box to mailbox of m
+            set acctID to (id of (account of box)) as text
+            set boxPath to {(name of box) as text}
+            set cur to box
+            repeat 31 times
+                try
+                    set parentBox to container of cur
+                    if class of parentBox is not mailbox then exit repeat
+                    set beginning of boxPath to (name of parentBox) as text
+                    set cur to parentBox
+                on error number errNum
+                    my rethrowAccess(errNum)
+                    exit repeat
+                end try
+            end repeat
+            return {acctID, boxPath}
+        end tell
+    end identityOf
+
+    on identityOrNone(m)
+        try
+            return my identityOf(m)
+        on error number errNum
+            my rethrowAccess(errNum)
+            return {"", {}}
+        end try
+    end identityOrNone
 
     on accountCandidates(acctID, q, onlyUnread)
         tell application id "com.apple.mail"
@@ -112,7 +155,8 @@ enum MailAccountScript {
                             try
                                 set isUnread to not (read status of m)
                             end try
-                            set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread}
+                            set ident to my identityOrNone(m)
+                            set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread, item 1 of ident, item 2 of ident}
                         end if
                     end repeat
                 end timeout
@@ -131,17 +175,18 @@ enum MailAccountScript {
                     set found to (messages of box whose id is mailID)
                     if (count of found) is not 1 then return {"ok", {}}
                     set m to item 1 of found
-                    if theID is not "" then
-                        set exactIdentity to false
-                        try
-                            set candidateID to (message id of m) as text
-                            considering case
-                                if candidateID is theID or candidateID is ("<" & theID & ">") then set exactIdentity to true
-                            end considering
-                        end try
-                        if not exactIdentity then return {"ok", {}}
-                    end if
-                    return {"ok", my messageInfo(m)}
+                    if theID is "" then return {"ok", {}}
+                    set exactIdentity to false
+                    try
+                        set candidateID to (message id of m) as text
+                        considering case
+                            if candidateID is theID or candidateID is ("<" & theID & ">") then set exactIdentity to true
+                        end considering
+                    on error number errNum
+                        my rethrowAccess(errNum)
+                    end try
+                    if not exactIdentity then return {"ok", {}}
+                    return {"ok", {my messageInfo(m), my identityOf(m)}}
                 end timeout
             on error number errNum
                 if errNum is -1728 then return {"ok", {}}
@@ -174,13 +219,14 @@ enum MailAccountScript {
                 let list = NSAppleEventDescriptor.list()
                 for (i, id) in ids.enumerated() { list.insert(NSAppleEventDescriptor(int32: Int32(id)), at: i + 1) }
                 return [NSAppleEventDescriptor(string: account), list]
-            }) { try MailSearchFlow.parseRows($0, expecting: ids.count) }
+            }) { try MailSearchFlow.parseRows($0, expecting: ids.count, identity: true) }
         }
 
-        func message(account: String, mailID: Int, messageID: String?) async throws -> MailMessage? {
-            try await run("accountMessage", {
-                [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(int32: Int32(mailID)), NSAppleEventDescriptor(string: messageID ?? "")]
-            }) { $0.numberOfItems == 0 ? nil : MailScript.message($0) }
+        func message(account: String, mailID: Int, messageID: String) async throws -> MailInboxMessage? {
+            guard !messageID.isEmpty else { return nil }
+            return try await run("accountMessage", {
+                [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(int32: Int32(mailID)), NSAppleEventDescriptor(string: messageID)]
+            }) { try MailAccountParse.message($0) }
         }
 
         /// One step: descriptors are built and read on the AppleScript queue, only Swift values leave it.
@@ -211,6 +257,19 @@ public enum MailAccountParse {
         case "denied": throw PippaError.accessDenied(Integration.mail.appName)
         default: throw MailAccountProblem.failed
         }
+    }
+
+    /// `{}` (gone) or `{messageInfo, {acctID, {box, …}}}`; anything else fails.
+    public static func message(_ payload: NSAppleEventDescriptor) throws -> MailInboxMessage? {
+        if payload.numberOfItems == 0 { return nil }
+        guard payload.numberOfItems == 2, let info = payload.atIndex(1), let ident = payload.atIndex(2), info.descriptorType == typeAEList,
+              ident.descriptorType == typeAEList, ident.numberOfItems == 2, let account = ident.atIndex(1)?.stringValue,
+              let pathList = ident.atIndex(2), pathList.descriptorType == typeAEList, let message = MailScript.message(info) else { throw MailAccountProblem.failed }
+        let path = try AppleEvents.items(pathList).map { part -> String in
+            guard part.descriptorType != typeAEList, let name = part.stringValue else { throw MailAccountProblem.failed }
+            return name
+        }
+        return MailInboxMessage(message: message, accountID: account.trimmingCharacters(in: .whitespacesAndNewlines), path: path)
     }
 
     /// `{{id, name}, …}`. An inbox whose account Mail could not name keeps an empty id: it is reported, never dropped.
