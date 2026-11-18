@@ -15,6 +15,10 @@ One job needs no AI at all: drop photos, scans or PDFs and press **One PDF**. Ev
 she downloads once for your Mac, or an online AI you switch on in Settings under **AI**. Each conversation is kept in
 the window's sidebar, so you can search for it and pick it up later.
 
+While using the local AI, choose **Ask [provider]…** to get one online answer. Pippa shows who will receive the question
+and which text you can include. You can shorten an excerpt before sending it. Your next question uses the Mac again.
+Settings → **AI → Sharing with online AI** has a separate rule for Mail, Documents, Calendar, Reminders and Photos.
+
 **Pippa Island** sits at the notch, or under Pippa's menu bar symbol on a Mac without one. It shows what she is working
 on, such as the file she is reading. Press ⌥ Space to open it for a quick question, drop a file on it, or click
 **Open Pippa** to continue in the full window. Click your latest conversation from the past 24 hours (or press ↑ in the empty field) to keep

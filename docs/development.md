@@ -49,8 +49,8 @@ memory extension. The same limit is enforced three times: `--tools`; `runtime/pi
 (`PIPPA_EGRESS=online`: pippa-tools.ts registers only `ask`, blocks every other call, drops undeclared tools from each
 provider request and replaces Pi's `cwd` prompt section); and the app's MCP server, started per Pi process with
 `PippaMCPHost.egress`, which lists and runs only those writers and strips calendar conflicts and list names from their
-results. Native readiness checks that exact set (`PippaPiLaunch.nativeTools`). Each online destination has its own Pi
-session (`<conversation>:<ShareDestination.sessionTag>`), a single question a fresh one (`:handoff-<id>`); the AI on
+results. Native readiness checks that exact set (`PippaPiLaunch.nativeTools`). Typed messages use a Pi session scoped to the conversation and the provider's
+effective endpoint and account. Every approved turn starts a fresh session (`approved-<id>` or `handoff-<id>`); the AI on
 this Mac keeps the conversation's own session. `PiSession.ask` takes `Outgoing`: `.local` (files, front app, undo notes)
 is refused on an online route, `.typed` goes anywhere, `.approved(ShareApproval)` only to exactly its destination.
 Files and app content reach an online AI only through `ShareExtraction` (Pippa's own readers) and the review

@@ -51,12 +51,13 @@ folder. What it receives:
 
 - **What you type**, as you typed it.
 - **What you checked and shared.** Attach files, or choose **+ → Selected Email in Mail**, **Calendar, Next 7 Days**
-  or **Open Reminders**. Pippa reads them on your Mac and shows a review: which provider gets it, your message, and
+  **Open Reminders**, or **Photo from Photos…**. Pippa reads them on your Mac and shows a review: which provider gets it, your message, and
   each part's text with where it came from. You can edit the text or leave a part out; only what the review shows goes
   out when you press **Send to [provider]**. A picture is never sent, only the text Pippa recognized in it.
-  **Cancel** keeps your message and files in the chat.
-- **Its own conversation.** Each online provider keeps its own history of a conversation. When you switch between the
-  AI on this Mac and an online AI, neither sees what the other was told.
+  **Cancel** keeps your edits in that conversation while Pippa is open. Choose **Continue Checking…** to resume.
+- **Follow-up questions.** Ordinary typed messages share history within the same conversation and provider account.
+  Each message you approve in the review starts a separate provider session. To ask about the same excerpt again,
+  include it in a new review. Switching back to the Mac resumes the local history.
 - **Web pages**, when web search is on for the online AI. The first search in an answer still asks you.
 
 **Choose per source.** In Settings under **AI → Sharing with online AI**, set Mail, Documents, Calendar, Reminders and
