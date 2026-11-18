@@ -12,6 +12,15 @@ enum SharingRouteChecks {
             print("\(ok ? "PASS" : "FAIL") \(name)")
             if !ok { failures += 1 }
         }
+        let mailTurn = ChatMessage(role: .assistant, text: "Local mail result", provenance: [.mail])
+        let followUp = ChatMessage(role: .assistant, text: "Repeats the earlier answer", provenance: [])
+        let legacy = ChatMessage(role: .assistant, text: "Old answer with no tool trace")
+        let onlineReply = ChatMessage(role: .assistant, text: "Separate online history", provenance: [.photos], destination: "Fixture AI")
+        let localSources = ChatModel.localHistorySources(in: [mailTurn, onlineReply, followUp][...])
+        var sharing = SourceSharing(); sharing.mail = .localOnly
+        check(localSources == [.mail] && !sharing.mayOffer(localSources), "a tool-free local follow-up inherits Mail provenance across an intervening online answer")
+        check(!sharing.mayOffer(ChatModel.localHistorySources(in: [legacy, followUp][...])), "legacy local history without source metadata needs every source on Ask")
+
         let openai = ShareDestination(PiModelSelection(providerID: "openai", modelID: "gpt-fixture", providerName: "OpenAI"))
         let anthropic = ShareDestination(PiModelSelection(providerID: "anthropic", modelID: "claude-fixture", providerName: "Anthropic"))
         let local = PiSession.LaunchRoute(key: "local|m").with(.init())

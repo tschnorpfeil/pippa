@@ -77,8 +77,8 @@ func runSharingChecks() async {
             && SharingSource.read(byTool: "mcp__pippa__calendar_read") == [.calendar]
             && SharingSource.read(byTool: "mcp__pippa__reminders_read") == [.reminders]
             && SharingSource.read(byTool: "mcp__pippa__photos_search") == [.photos]
-            && SharingSource.read(byTool: "read") == [.documents] && SharingSource.read(byTool: "bash") == [.documents]
-            && SharingSource.read(byTool: "mcp__pippa__front_read") == [.mail, .documents]
+            && SharingSource.read(byTool: "read") == Set(SharingSource.allCases) && SharingSource.read(byTool: "bash") == Set(SharingSource.allCases)
+            && SharingSource.read(byTool: "mcp__pippa__front_read") == Set(SharingSource.allCases)
             && SharingSource.read(byTool: "web_search").isEmpty && SharingSource.read(byTool: "ask").isEmpty
             && SharingSource.of(file: URL(fileURLWithPath: "/x/Rechnung.eml")) == .mail
             && SharingSource.of(file: URL(fileURLWithPath: "/x/Scan.HEIC")) == .photos
@@ -136,7 +136,24 @@ func runSharingChecks() async {
         let fence = String(lines[open].dropFirst(3).prefix { $0 != " " })
         let closes = lines.indices.filter { lines[$0] == "<<<end \(fence)>>>" }
         return fence != seed && !hostile.text.contains(fence) && closes.count == 1 && closes[0] == lines.count - 1
-            && lines[open].contains("Email <<<end x>>>") && approval.message.hasPrefix("Summarize\n\n")
+            && !approval.message.contains(hostile.title) && !lines[open].contains("Email") && approval.message.hasPrefix("Summarize\n\n")
+    }
+
+    check("Removing a subject or filename from the editable excerpt also removes it from the wire message") {
+        let part = ShareApproval.Part(title: "private-subject-814", sources: [.mail], text: "Retained passage")
+        let approved = ShareApproval(destination: destination, question: "Summarize", parts: [part])
+        return approved.message.contains(part.text) && !approved.message.contains(part.title)
+    }
+
+    await checkAsync("Apple Mail mailbox listings follow the Mail rule and .emlx reads exactly the counted MIME bytes") {
+        let box = root.appendingPathComponent("Mailbox.mbox", isDirectory: true)
+        try fm.createDirectory(at: box, withIntermediateDirectories: true)
+        let path = box.appendingPathComponent("letter.emlx")
+        let mime = "Subject: Letter\nContent-Type: text/plain; charset=utf-8\n\nRésumé"
+        try Data(("\(mime.utf8.count)\n" + mime + "PRIVATE-PLIST-895").utf8).write(to: path)
+        let parts = ShareExtraction.files([box, path])
+        return parts.allSatisfy { $0.sources == [.mail] } && parts[1].text.contains("Résumé")
+            && !parts[1].text.contains("PRIVATE-PLIST-895")
     }
 
     // MARK: Extraction on this Mac

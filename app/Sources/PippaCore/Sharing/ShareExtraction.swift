@@ -18,7 +18,11 @@ public struct ShareExtraction: Sendable {
     /// One part per file or folder, by its kind (`SharingSource.of`). Reading is local: PDFs, Office files and scans
     /// through `TextReader`, emails through `MailParser`.
     public static func files(_ urls: [URL]) -> [SharePiece] {
-        urls.map(file)
+        urls.map { url in
+            var piece = file(url.resolvingSymlinksInPath())
+            piece.sources.formUnion(SharingSource.sources(forFile: url))
+            return piece
+        }
     }
 
     static func file(_ url: URL) -> SharePiece {
@@ -28,12 +32,12 @@ public struct ShareExtraction: Sendable {
             let names = ((try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
             let shown = names.prefix(50).map { "- " + $0 }.joined(separator: "\n")
             let more = names.count > 50 ? "\n" + L("… and %lld more", table: "Core", names.count - 50) : ""
-            return SharePiece(sources: [.documents], title: L("Folder “%@”", table: "Core", name),
+            return SharePiece(sources: SharingSource.sources(forFile: url), title: L("Folder “%@”", table: "Core", name),
                               text: names.isEmpty ? L("(The folder is empty.)", table: "Core") : shown + more)
         }
         switch SharingSource.of(file: url) {
         case .mail:
-            guard let data = try? Data(contentsOf: url) else {
+            guard let data = mailData(url) else {
                 return SharePiece(sources: [.mail], title: name, text: L("(Pippa couldn’t read this email.)", table: "Core"))
             }
             let mail = MailParser.parse(data)
@@ -56,6 +60,18 @@ public struct ShareExtraction: Sendable {
             return SharePiece(sources: [.documents], title: name, text: SharePiece.bounded(read.isTruncated
                 ? text + "\n" + L("[… shortened on this Mac]", table: "Core") : text))
         }
+    }
+
+    private static func mailData(_ url: URL) -> Data? {
+        guard ["eml", "emlx"].contains(url.pathExtension.lowercased()),
+              let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
+        guard url.pathExtension.lowercased() == "emlx" else { return data }
+        // Apple Mail appends a property list after exactly this many MIME bytes.
+        guard let newline = data.prefix(24).firstIndex(of: 10),
+              let count = Int(String(decoding: data[..<newline], as: UTF8.self)), count > 0 else { return nil }
+        let payload = data.suffix(from: data.index(after: newline))
+        guard payload.count >= count else { return nil }
+        return Data(payload.prefix(count))
     }
 
     static func mailText(from: String?, date: String?, subject: String, body: String, attachments: [String]) -> String {

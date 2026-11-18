@@ -415,10 +415,22 @@ final class ChatModel: ObservableObject {
         let answer = messages[index]
         let text = answer.result.trimmingCharacters(in: .whitespacesAndNewlines)
         guard answer.destination == nil, answer.error == nil, !text.isEmpty else { return nil }
-        var sources = Set(answer.provenance ?? [])
-        if index > 0 { sources.formUnion(messages[index - 1].files.map { SharingSource.of(file: URL(fileURLWithPath: $0)) }) }
-        return SharePiece(sources: sources, title: T("Pippa’s answer on this Mac", table: "App"), text: text,
-                          unknownOrigin: answer.provenance == nil && !answer.steps.isEmpty)
+        // Pi can use any earlier local turn to answer a follow-up, even when it calls no tool on this turn.
+        let sources = Self.localHistorySources(in: messages[...index])
+        return SharePiece(sources: sources, title: T("Pippa’s answer on this Mac", table: "App"), text: text)
+    }
+
+    static func localHistorySources(in history: ArraySlice<ChatMessage>) -> Set<SharingSource> {
+        var sources = Set<SharingSource>()
+        for message in history where message.destination == nil {
+            if message.role == .assistant {
+                sources.formUnion(message.provenance ?? SharingSource.allCases)
+            }
+            for file in message.files {
+                sources.formUnion(SharingSource.sources(forFile: URL(fileURLWithPath: file)))
+            }
+        }
+        return sources
     }
 
     /// The person's changes in the review sheet (their words, a part's text, leaving a part out).
