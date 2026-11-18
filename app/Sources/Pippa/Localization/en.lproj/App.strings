@@ -219,3 +219,9 @@
 "Browser" = "Browser";
 "Show or hide Pippa’s browser" = "Show or hide Pippa’s browser";
 "Please sign in or finish the check here. Pippa never sees your password. Click Done, then tell Pippa to continue." = "Please sign in or finish the check here. Pippa never sees your password. Click Done, then tell Pippa to continue.";
+/* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
+"Choose where Pippa’s AI runs. You can change it later in Settings." = "Choose where Pippa’s AI runs. You can change it later in Settings.";
+"One-time download of %@. Your conversations and files stay on this Mac." = "One-time download of %@. Your conversations and files stay on this Mac.";
+"Online AI" = "Online AI";
+"No download. Your conversations and what Pippa reads for them go to the provider you choose." = "No download. Your conversations and what Pippa reads for them go to the provider you choose.";
+"Needs an account with a provider such as OpenAI or Anthropic." = "Needs an account with a provider such as OpenAI or Anthropic.";

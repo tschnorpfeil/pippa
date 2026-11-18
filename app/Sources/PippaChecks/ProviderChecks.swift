@@ -65,6 +65,66 @@ func runProviderChecks() async {
         let providers = PiProvider.ordered(try JSONDecoder().decode([PiProvider].self, from: data))
         return providers.map(\.id) == ["anthropic", "xai", "new-provider"]
     }
+    check("First run leads with this Mac when it can run the AI, else with online AI, and never shows setup to people already online") {
+        let unsupported = PiSetupState.failed(PiSetupProblem(message: "Too little memory", details: "No local model fits this Mac", canRetry: false))
+        let retryable = PiSetupState.failed(PiSetupProblem(.notEnoughSpace(bytes: 1)))
+        let open: [PiSetupState] = [.askDownload(bytes: 5_400_000_000), .downloading(progress: 0.4, remaining: 60), retryable, unsupported]
+        let online = InferenceSettings(piModel: .init(providerID: "anthropic", modelID: "fixture", providerName: "Anthropic"))
+        let chatGPT = InferenceSettings(subscriptionModel: "gpt-fixture")
+        return FirstRunSetup.lead(.askDownload(bytes: 1)) == .local && FirstRunSetup.lead(.downloading(progress: 0, remaining: nil)) == .local
+            && FirstRunSetup.lead(retryable) == .local && FirstRunSetup.lead(unsupported) == .online
+            && open.allSatisfy { FirstRunSetup.needsAttention($0, usesOnlineAI: false) }
+            && [online, chatGPT].allSatisfy { $0.usesOnlineAI && open.allSatisfy { !FirstRunSetup.needsAttention($0, usesOnlineAI: true) } }
+            && !FirstRunSetup.needsAttention(.ready(adoptedFrom: nil), usesOnlineAI: false)
+            && !FirstRunSetup.needsAttention(.preparing(adoptingFrom: nil), usesOnlineAI: false)
+    }
+    check("First-run sheet offers signed-in providers first, then ones Pippa can sign into, at most four") {
+        let login = [PiProvider.Method(id: "api_key", name: "API key")]
+        let providers = [
+            PiProvider(id: "custom", name: "Custom", configured: false, methods: [], models: []),
+            PiProvider(id: "xai", name: "xAI", configured: false, methods: login, models: []),
+            PiProvider(id: "openai", name: "OpenAI", configured: false, methods: login, models: []),
+            PiProvider(id: "openrouter", name: "OpenRouter", configured: true, methods: login, models: []),
+            PiProvider(id: "pippa-online", name: "Old", configured: true, methods: [], models: []),
+            PiProvider(id: "anthropic", name: "Anthropic", configured: false, methods: login, models: []),
+            PiProvider(id: "google", name: "Google", configured: false, methods: login, models: []),
+        ]
+        return FirstRunSetup.recommended(providers).map(\.id) == ["openrouter", "anthropic", "openai", "google"]
+    }
+    check("First-run sheet: sign-in never switches the route; cancel and failure return to sign-in; Use <provider> activates the recommended model") {
+        let login = [PiProvider.Method(id: "oauth", name: "Sign in")]
+        let models = [PiProvider.Model(id: "old", name: "Old"), PiProvider.Model(id: "best", name: "Best")]
+        let signedOut = PiProvider(id: "openai", name: "OpenAI", configured: false, methods: login, models: [])
+        let signedIn = PiProvider(id: "openai", name: "OpenAI", configured: true, methods: login, models: models, defaultModel: "best")
+        let noDefault = PiProvider(id: "openai", name: "OpenAI", configured: true, methods: login, models: models)
+        let empty = PiProvider(id: "openai", name: "OpenAI", configured: true, methods: login, models: [])
+        func stage(_ list: [PiProvider], _ picked: PiProvider?, model: String = "", loading: Bool = false, connecting: Bool = false,
+                   failed: Bool = false, active: PiModelSelection? = nil) -> FirstRunSetup.OnlineStage {
+            FirstRunSetup.onlineStage(providers: list, picked: picked, modelID: model, loading: loading, connecting: connecting,
+                                      failed: failed, active: active)
+        }
+        let inUse = PiModelSelection(providerID: "openai", modelID: "best", providerName: "OpenAI")
+        let other = PiModelSelection(providerID: "anthropic", modelID: "fixture", providerName: "Anthropic")
+        guard stage([], nil, loading: true) == .loading, stage([], nil, failed: true) == .unavailable,
+              stage([signedOut], nil) == .choose, stage([signedOut], signedOut) == .signIn(signedOut),
+              stage([signedOut], signedOut, connecting: true) == .signingIn(signedOut),
+              // Cancelled or failed sign-in: back to the same buttons, nothing saved.
+              stage([signedOut], signedOut, failed: true) == .signIn(signedOut),
+              stage([empty], empty) == .noModels(empty), stage([noDefault], noDefault, model: noDefault.preselected(nil)) == .chooseModel(noDefault),
+              stage([signedIn], signedIn, model: signedIn.preselected(nil)) == .activate(signedIn, model: models[1]),
+              // Someone online elsewhere stays there until they click Use OpenAI.
+              stage([signedIn], signedIn, model: "best", active: other) == .activate(signedIn, model: models[1]),
+              stage([signedIn], signedIn, model: "best", active: inUse) == .inUse(signedIn) else { return false }
+        var before = InferenceSettings(subscriptionModel: "gpt-legacy")
+        before.capabilities[online: true].web = false
+        before.capabilities[online: false].memory = false
+        before.connection = ModelConnection(provider: .openAI, endpoint: URL(string: "https://example.invalid/v1"), modelID: "own")
+        let after = FirstRunSetup.activated(before, provider: signedIn, model: models[1])
+        return after.activePiModel == PiModelSelection(providerID: "openai", modelID: "best", providerName: "OpenAI", modelName: "Best")
+            && after.subscriptionModel == nil && after.policy == .localOnly && after.capabilities == before.capabilities
+            && after.connection == before.connection
+            && after.activePiModel?.launchArguments == ["--provider", "openai", "--model", "best"]
+    }
     let environment = ProcessInfo.processInfo.environment
     guard let nodePath = environment["PIPPA_NODE_BINARY"] ?? PiPayload.locate(environment: environment)?.node.path
             ?? (environment["PATH"] ?? "").split(separator: ":").map({ String($0) + "/node" }).first(where: FileManager.default.isExecutableFile),

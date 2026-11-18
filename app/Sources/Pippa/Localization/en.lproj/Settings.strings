@@ -92,3 +92,12 @@
 "Personal notes" = "Personal notes";
 "Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes." = "Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes.";
 "Online" = "Online";
+/* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
+"Use an Online AI" = "Use an Online AI";
+"No download. Your conversations and everything Pippa reads for them go to the provider you choose. You can switch back to this Mac at any time in Settings." = "No download. Your conversations and everything Pippa reads for them go to the provider you choose. You can switch back to this Mac at any time in Settings.";
+"The download for this Mac keeps going." = "The download for this Mac keeps going.";
+"More Providers and Models…" = "More Providers and Models…";
+"Sign in to %@" = "Sign in to %@";
+"Signing in doesn’t switch anything yet: you choose afterwards." = "Signing in doesn’t switch anything yet: you choose afterwards.";
+"%@ doesn’t recommend a model. Choose one under More Providers and Models." = "%@ doesn’t recommend a model. Choose one under More Providers and Models.";
+"Model: %@" = "Model: %@";

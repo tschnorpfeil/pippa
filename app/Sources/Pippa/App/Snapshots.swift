@@ -34,6 +34,43 @@ enum Snapshots {
             preview.prompt = try? JSONDecoder().decode(PiProviderEvent.self, from: Data(#"{"event":"prompt","id":"key","type":"secret","message":"API key","placeholder":"Enter API key"}"#.utf8))
             await render(ProviderLoginSheet(provider: preview), size: NSSize(width: 520, height: 400), dark: false,
                          to: folder.appendingPathComponent("provider-login.png"))
+            // First run: the choice with a draft already typed (it stays), a Mac that can't run the AI, and the
+            // online sheet's steps. Made-up providers; nothing signs in or downloads.
+            let chat = ChatModel.shared
+            chat.showSample([], current: nil, answering: false)
+            chat.draft = "Fasse meinen Mietvertrag zusammen"
+            let firstRun: [(String, PiSetupState)] = [
+                ("first-run-choice", .askDownload(bytes: 5_400_000_000)),
+                ("first-run-downloading", .downloading(progress: 0.42, remaining: 380)),
+                ("first-run-unsupported", .failed(PiSetupProblem(message: "This Mac has too little memory to run the AI itself.",
+                                                                 details: "No local model fits this Mac", canRetry: false))),
+            ]
+            for (name, state) in firstRun {
+                setup.showForSnapshot(state)
+                for dark in [false, true] {
+                    await render(ChatView(chat: chat, setup: setup, inspector: false), size: NSSize(width: 1240, height: 760), dark: dark,
+                                 to: folder.appendingPathComponent("\(name)-\(dark ? "dark" : "light").png"))
+                }
+            }
+            chat.draft = ""
+            let catalog = #"[{"id":"openai","name":"OpenAI","configured":true,"methods":[{"id":"oauth","name":"ChatGPT Plus/Pro"},{"id":"api_key","name":"API key"}],"models":[{"id":"gpt-old","name":"GPT Old"},{"id":"gpt-best","name":"GPT Best"}],"defaultModel":"gpt-best"},{"id":"anthropic","name":"Anthropic","configured":false,"methods":[{"id":"oauth","name":"Claude Pro/Max"},{"id":"api_key","name":"API key"}],"models":[]},{"id":"openrouter","name":"OpenRouter","configured":false,"methods":[{"id":"api_key","name":"API key"}],"models":[]},{"id":"custom","name":"Custom","configured":false,"methods":[],"models":[]}]"#
+            let providers = (try? JSONDecoder().decode([PiProvider].self, from: Data(catalog.utf8))) ?? []
+            let sheets: [(String, String?, String?)] = [
+                ("online-setup-choose", nil, nil), ("online-setup-sign-in", "anthropic", nil),
+                ("online-setup-activate", "openai", nil), ("online-setup-error", "anthropic", T("The connection didn’t work. Please try again.", table: "Settings")),
+            ]
+            setup.showForSnapshot(.downloading(progress: 0.42, remaining: 380))
+            for (name, picked, problem) in sheets {
+                let model = PiProviderSettingsModel()
+                model.providers = providers
+                if let picked { model.select(picked) }
+                model.problem = problem
+                for dark in [false, true] {
+                    await render(OnlineSetupSheet(settings: .shared, setup: setup, provider: model, picked: picked, loadsOnAppear: false) {},
+                                 size: NSSize(width: 560, height: 460), dark: dark,
+                                 to: folder.appendingPathComponent("\(name)-\(dark ? "dark" : "light").png"))
+                }
+            }
             return finish(folder)
         }
         let fixtures = folder.appendingPathComponent("fixtures", isDirectory: true)

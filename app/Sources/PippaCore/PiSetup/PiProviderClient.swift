@@ -4,6 +4,7 @@ public struct PiProvider: Codable, Sendable, Identifiable, Equatable {
     public struct Method: Codable, Sendable, Identifiable, Equatable {
         public var id: String
         public var name: String
+        public init(id: String, name: String) { self.id = id; self.name = name }
     }
     public struct Model: Codable, Sendable, Identifiable, Equatable {
         public var id: String
