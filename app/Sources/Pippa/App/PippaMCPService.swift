@@ -21,7 +21,10 @@ enum PippaMCPService {
 
     /// Binds the MCP tools to one answer: writes outside an answer are refused (`requireActiveWriteTurn`).
     static func begin(_ turn: PippaMCPTurn) { currentHost.turns.begin(turn) }
-    static func end(_ turn: PippaMCPTurn) { currentHost.turns.end(turn); turn.cancelWrites() }
+    static func end(_ turn: PippaMCPTurn) {
+        currentHost.turns.end(turn)
+        serverEgress?.onlineBrowser?.end(turn)
+    }
 
     /// Photos and PDFs into one PDF without the model: the same tool Pi calls, started by a button.
     static func makePDF(_ files: [URL]) async -> (card: ResultCard?, text: String, failed: Bool) {
@@ -60,6 +63,8 @@ enum PippaMCPService {
         generation &+= 1
         server?.revoke()
         startingServer?.revoke()
+        serverEgress?.onlineBrowser?.invalidate()
+        serverEgress = nil
         server = nil; startingServer = nil
     }
 
@@ -162,11 +167,43 @@ enum PippaMCPService {
     /// The limits the running server was started with.
     private static var serverEgress: PippaMCPEgress?
 
+    private static func onlineHost(_ host: PippaMCPHost, egress: PippaMCPEgress) -> PippaMCPHost {
+        var host = host
+        var egress = egress
+        host.browser = nil
+        host.onBrowserHandoff = nil
+        if egress.web {
+            let turns = host.turns
+            let confirm = host.confirmBrowser
+            let demo = ProcessInfo.processInfo.environment["PIPPA_DEMO"] == "1"
+            // Navigation policy and the tool's initial open must consult the same turn-scoped approvals.
+            let approvals = PippaMCPBrowserApprovals()
+            egress.onlineBrowser = PippaMCPOnlineBrowser(approvals: approvals) { turn in
+                if demo { return DemoBrowserOperator() }
+                guard let session = WKBrowserSession.makeOnline() else { return nil }
+                session.authorizeNavigation = { url in
+                    guard turns.active === turn, !turn.writes.snapshot.cancelled,
+                          let name = PippaMCPBrowserTool.normalizedHost(url) else { return false }
+                    if approvals.approved(name, turn: turn.id) { return true }
+                    let prompt = PippaMCPBrowserTool.openHostPrompt(url)
+                    guard await confirm?("open", prompt.title, prompt.message) == true,
+                          turns.active === turn, !turn.writes.snapshot.cancelled else { return false }
+                    approvals.approve(name, turn: turn.id)
+                    return true
+                }
+                return session
+            }
+        }
+        host.egress = egress
+        return host
+    }
+
     private static func started(egress: PippaMCPEgress?) async throws -> PippaMCPServer {
         if let server, serverEgress == egress { return server }
         let generation = Self.generation
         var host = currentHost
-        host.egress = egress
+        host.egress = nil
+        if let egress { host = onlineHost(host, egress: egress) }
         do {
             let fresh = try PippaMCPServer(host: host)
             startingServer = fresh
@@ -184,7 +221,7 @@ enum PippaMCPService {
                 }
             } onCancel: { fresh.revoke() }
             guard generation == Self.generation, !Task.isCancelled else { fresh.revoke(); throw CancellationError() }
-            server = fresh; serverEgress = egress
+            server = fresh; serverEgress = host.egress
             return fresh
         } catch {
             if Task.isCancelled || generation != Self.generation { throw CancellationError() }

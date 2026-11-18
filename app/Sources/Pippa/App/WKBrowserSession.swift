@@ -2,8 +2,8 @@ import AppKit
 import PippaCore
 import WebKit
 
-/// Pippa's browser panel: one persistent `WKWebView` that `browse` (PippaMCPBrowser.swift) drives and the person can
-/// see and use. Cookies and logins persist in the default website data store, so the person signs in once, here.
+/// The local panel uses a persistent `WKWebView` the person can see and use. Each online answer gets an offscreen view
+/// with a fresh nonpersistent website data store.
 ///
 /// Guards: every navigation in every frame passes `PippaMCPBrowserTool.isAllowedURL` (no `file:`, no this Mac, no local
 /// network, also after redirects); a content rule list blocks local-network subresources; `target="_blank"` opens in
@@ -34,15 +34,38 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     private var awaitingNavigationStart = false
     private var activeNavigations: Set<ObjectIdentifier> = []
     private let world = WKContentWorld.world(name: "PippaBrowser")
+    private let onlineConfiguration: WKWebViewConfiguration?
+    private var isOnline: Bool { onlineConfiguration != nil }
+
+    private init(onlineConfiguration: WKWebViewConfiguration? = nil) {
+        self.onlineConfiguration = onlineConfiguration
+    }
+
+    static func makeOnline() -> WKBrowserSession? {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        // WebKit's managed SSO can authenticate independently of the cookie store and HTTP challenges.
+        // Its opt-out is SPI. Decline online browsing when the installed WebKit cannot disable it.
+        let preferences = configuration.preferences
+        let setter = NSSelectorFromString("_setExtensibleSSOEnabled:")
+        let getter = NSSelectorFromString("_isExtensibleSSOEnabled")
+        guard preferences.responds(to: setter), preferences.responds(to: getter),
+              let setMethod = preferences.method(for: setter), let getMethod = preferences.method(for: getter) else { return nil }
+        typealias SetEnabled = @convention(c) (AnyObject, Selector, Bool) -> Void
+        typealias IsEnabled = @convention(c) (AnyObject, Selector) -> Bool
+        unsafeBitCast(setMethod, to: SetEnabled.self)(preferences, setter, false)
+        guard !unsafeBitCast(getMethod, to: IsEnabled.self)(preferences, getter) else { return nil }
+        return WKBrowserSession(onlineConfiguration: configuration)
+    }
 
     /// Gates main-frame destinations and popups through turn-scoped host approvals and confirmation.
     var authorizeNavigation: (@MainActor (_ url: URL) async -> Bool)?
 
     private func makeWebView() -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .default()
+        let configuration = onlineConfiguration ?? WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        let view = WKWebView(frame: .zero, configuration: configuration)
+        let viewport: CGRect = isOnline ? CGRect(x: 0, y: 0, width: 1024, height: 768) : .zero
+        let view = WKWebView(frame: viewport, configuration: configuration)
         view.navigationDelegate = self
         view.uiDelegate = self
         view.allowsBackForwardNavigationGestures = true
@@ -80,7 +103,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             }
             if await PippaMCPBrowserTool.resolvesToPrivateAddress(host) { throw BrowserError.blockedAddress }
             try await installRules()
-            isOpen = true
+            if !isOnline { isOpen = true }
             preapprovedPopupURL = nil
             awaitingNavigationStart = isCrossDocumentDestination(url)
             blockedNavigation = false; declinedNavigation = false; navigationFailed = false
@@ -344,6 +367,13 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         guard let url = navigationResponse.response.url else { return .cancel }
         guard await allowNavigation(url, mainFrame: navigationResponse.isForMainFrame, isPopup: false) else { return .cancel }
         return .allow
+    }
+
+    func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        if isOnline && challenge.protectionSpace.authenticationMethod != NSURLAuthenticationMethodServerTrust {
+            return (.cancelAuthenticationChallenge, nil)
+        }
+        return (.performDefaultHandling, nil)
     }
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction,
