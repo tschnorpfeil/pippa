@@ -28,7 +28,7 @@ public final class PippaMCPTurns: @unchecked Sendable {
     }
     /// End only its own answer (a later one may have already replaced it).
     public func end(_ turn: PippaMCPTurn) {
-        lock.withLock { turn.cancelWrites(); if current === turn { current = nil } }
+        lock.withLock { turn.cancelWrites(); if current === turn { current = nil; generation = UUID() } }
     }
     public var active: PippaMCPTurn? { capture().turn }
     func capture() -> (turn: PippaMCPTurn?, generation: UUID) { lock.withLock { (current, generation) } }

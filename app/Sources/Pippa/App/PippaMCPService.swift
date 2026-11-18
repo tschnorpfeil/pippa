@@ -45,10 +45,18 @@ enum PippaMCPService {
     final class Notes<Note: Sendable>: @unchecked Sendable {
         private let lock = NSLock()
         private var notes: [Note] = []
-        func append(_ note: Note) { lock.withLock { notes.append(note) } }
+        private var collected: [UUID] = []
+        func append(_ note: Note, turnID: UUID? = nil) {
+            lock.withLock {
+                if let turnID, collected.contains(turnID) { return }
+                notes.append(note)
+            }
+        }
         func take() -> [Note] { lock.withLock { defer { notes = [] }; return notes } }
         func take(turnID: UUID, at keyPath: KeyPath<Note, UUID?>) -> [Note] {
             lock.withLock {
+                if !collected.contains(turnID) { collected.append(turnID) }
+                if collected.count > 512 { collected.removeFirst(collected.count - 512) }
                 var taken: [Note] = []
                 notes.removeAll { note in
                     guard note[keyPath: keyPath] == turnID else { return false }
@@ -129,7 +137,7 @@ enum PippaMCPService {
     /// Pippa's own wiring of a host. Without `asksForAccess` neither Pippa's sentence nor a system prompt can appear.
     static func configured(_ base: PippaMCPHost, asksForAccess: Bool) -> PippaMCPHost {
         var fresh = base
-        fresh.onRead = { note in if note.turnID != nil { readNotes.append(note) } }
+        fresh.onRead = { note in if let id = note.turnID { readNotes.append(note, turnID: id) } }
         fresh.onWrite = { receipt in writeNotes.append(receipt) }
         fresh.requireActiveWriteTurn = true
         fresh.askForAccess = asksForAccess

@@ -253,6 +253,16 @@ extension MCPCheckContext {
                 && data(readB)["messageID"] as? String == "a1@x.example"
                 && data(readA)["body"] as? String == "Ganzer Text A 29" && data(readA)["account"] as? String == "Privat"
         }
+        await checkAsync("Mail refs: an unbound request after an ended answer cannot reuse that answer's reference") {
+            let fake = twoAccounts(), turn = PippaMCPTurn()
+            let w = world(fake)
+            w.turns.begin(turn)
+            let first = await call(w.tools, "mail_search", ["limit": 1])
+            guard let ref = mails(first).first?["mail_ref"] as? String else { return false }
+            w.turns.end(turn)
+            let read = await call(w.tools, "mail_read", ["mail_ref": ref])
+            return read.isError && read.json["status"] as? String == "stale_ref" && fake.messageCalls == 0
+        }
         await checkAsync("Mail refs: a gone or changed mail is stale and never falls back to the subject; unknown refs read nothing") {
             let fake = twoAccounts()
             let w = world(fake)

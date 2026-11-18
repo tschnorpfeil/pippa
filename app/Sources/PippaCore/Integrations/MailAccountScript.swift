@@ -68,7 +68,7 @@ enum MailAccountScript {
                     set parentBox to container of cur
                     if parentBox is missing value then return {acctID, boxPath}
                     set parentClass to class of parentBox
-                    if parentClass is account then
+                    if parentClass is in {account, imap account, iCloud account, pop account} then
                         if (id of parentBox as text) is acctID then return {acctID, boxPath}
                         error "wrong mailbox account" number -1728
                     end if

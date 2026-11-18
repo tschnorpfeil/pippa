@@ -85,6 +85,9 @@ enum ApprovalsChecks {
         host.onRead?(note)
         check(PippaMCPService.takeReadCards(turnID: turnB.id).isEmpty, "A newer answer cannot take another turn’s or unscoped cards")
         check(PippaMCPService.takeReadCards(turnID: turnA.id) == [card], "An ended answer still collects its own cards")
+        note.turnID = turnA.id
+        host.onRead?(note)
+        check(PippaMCPService.takeReadCards(turnID: turnA.id).isEmpty, "A note arriving after its cards were collected is discarded")
         host.turns.end(turnB)
 
         failures += Int(await HeadlessAskChecks.run())
