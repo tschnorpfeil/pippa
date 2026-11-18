@@ -45,7 +45,10 @@ extension PippaMCPTools {
             guard let mail = selected else {
                 return blocked("nothing_selected", L("No email is selected in Mail. Select one and ask again.", table: "MCP"))
             }
-            let selectedOrigin = mail.mailboxKind.map { MailFiling.FiledOrigin(mailbox: $0, locator: mail.locator) }
+            let strictLocator = mail.locator.flatMap {
+                MailLocator(account: $0.account, path: $0.path, mailID: $0.mailID, accountID: $0.accountID, strict: true)
+            }
+            let selectedOrigin = MailFiling.FiledOrigin(mailbox: mail.mailboxKind, locator: strictLocator, requiresStrictLocator: true)
             return mailResult(mail, source: "Mail on this Mac (selected email)", origin: selectedOrigin)
         } catch {
             return failure(error, .mail)
@@ -168,22 +171,30 @@ extension PippaMCPTools {
         if input.cursor == nil, let account = input.account?.trimmingCharacters(in: .whitespacesAndNewlines), !(1...200).contains(account.count) || account.utf8.count > 400 {
             return invalid("account must be an account or account_id from accounts, or omitted for all accounts.")
         }
+        let searchCap = Self.mailSearchesBeforeStop(turn)
         // Without the per-account reader there are no accounts, cursors or references to continue: never a wider search.
         guard let reader = host.mailAccounts else {
             if mailbox != .inbox { return Self.notRead("unsupported_mailbox", "Pippa can search only the inboxes here, not Sent or Drafts. Nothing was read. Omit mailbox.") }
             if input.cursor != nil { return Self.notRead("stale_cursor", "This cursor is not from a mail_search in this answer. Nothing was read. Call mail_search again without cursor.") }
             if input.account != nil { return Self.notRead("unknown_account", "Pippa cannot tell Mail accounts apart here. Nothing was read. Omit account to search every inbox.") }
+            if let used = await turn?.mailSearchCount(), used >= searchCap { return Self.searchBudgetReached(searchCap) }
             return await mailSearchCombined(query: query, readStatus: readStatus, limit: limit, turn: turn)
+        }
+        // Paging through one search is not guessing again: only new searches count toward the stop.
+        if input.cursor == nil, let used = await turn?.mailSearchCount(), used >= searchCap {
+            return Self.searchBudgetReached(searchCap)
         }
         if case .blocked(let reply) = await ensure(.mail, openMail: true,
                                                    closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
             return reply
         }
-        // Paging through one search is not guessing again: only new searches count toward the stop.
-        if input.cursor == nil, let count = await turn?.countMailSearch(), count >= Self.mailSearchesBeforeStop(turn) {
-            var result = await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
-            result.text = Self.withStop(result.text, count: count)
-            return result
+        if input.cursor == nil, let count = await turn?.countMailSearch() {
+            if count > searchCap { return Self.searchBudgetReached(searchCap) }
+            if count == searchCap {
+                var result = await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
+                result.text = Self.withStop(result.text, count: count)
+                return result
+            }
         }
         return await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
     }
@@ -191,10 +202,13 @@ extension PippaMCPTools {
     /// The combined inbox without accounts (stand-in readers, PIPPA_DEMO).
     private func mailSearchCombined(query: String, readStatus: MailReadStatus, limit: Int, turn: PippaMCPTurn?) async -> PippaMCPToolResult {
         let unread = readStatus == .unread
+        let searchCap = Self.mailSearchesBeforeStop(turn)
         if case .blocked(let reply) = await ensure(.mail, openMail: true,
                                                    closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
             return reply
         }
+        let searchCount = await turn?.countMailSearch()
+        if let searchCount, searchCount > searchCap { return Self.searchBudgetReached(searchCap) }
         do {
             var fetch = try await host.hostData.searchMail(query, readStatus: readStatus, limit: limit)
             // Mail finds parts of words, not other forms: "Zahlungseingänge" misses "Zahlungseingangsliste". A small
@@ -219,8 +233,8 @@ extension PippaMCPTools {
                                       data: ["query": query, "unread": unread, "read_status": readStatus.rawValue, "mails": mails, "shown": mails.count, "total": fetch.total,
                                              "truncated": fetch.total > mails.count],
                                       next: next)
-            if let count = await turn?.countMailSearch(), count >= Self.mailSearchesBeforeStop(turn) {
-                result.text = Self.withStop(result.text, count: count)
+            if let searchCount, searchCount == searchCap {
+                result.text = Self.withStop(result.text, count: searchCount)
             }
             if !fetch.items.isEmpty {
                 result.card = .mail(MailCard(query: query, unread: unread, mails: fetch.items, total: fetch.total, calendar: host.calendar))
@@ -231,7 +245,7 @@ extension PippaMCPTools {
         }
     }
 
-    /// From this Mail search on in one answer, the result tells the model to stop and work with what it found.
+    /// Fresh Mail searches allowed in one answer before new searches are refused; the cap search itself tells the model to stop starting new ones.
     static let mailSearchesBeforeStop = 4
     /// The same for an answer with an extended budget (`PippaMCPTurn.extendedBudget`).
     static let extendedMailSearchesBeforeStop = 10
@@ -240,20 +254,34 @@ extension PippaMCPTools {
         turn?.extendedBudget == true ? extendedMailSearchesBeforeStop : mailSearchesBeforeStop
     }
 
+    static func searchBudgetReached(_ cap: Int) -> PippaMCPToolResult {
+        notRead("budget_reached", "This answer already ran \(cap) Mail searches. Nothing more was read. Do not start new searches: continue an existing cursor with only cursor if one remains, or work with the emails already shown.")
+    }
+
     static func stopSentence(_ count: Int) -> String {
         "This is Mail search \(count) in this answer: stop searching. Tell the person which mails you found and that you found no others, then work with those."
     }
 
-    /// The stop sentence in place of the result's own `next` (a failed search keeps its text). Accounts that were not
-    /// read stay named: stopping never turns a partial search into "nothing else there".
+    /// The stop sentence in place of the result's own `next` (a failed search keeps its text). An active cursor keeps its
+    /// paging guidance, and accounts that were not read stay named: stopping never turns a partial search into "nothing else there".
     static func withStop(_ text: String, count: Int) -> String {
         guard var object = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any], object["next"] != nil else { return text }
         let data = object["data"] as? [String: Any]
         let partial = data?["status"] as? String == "partial"
         let incomplete = data?["complete"] as? Bool == false || data?["truncated"] as? Bool == true
-        object["next"] = (incomplete
-            ? "This is Mail search \(count) in this answer: stop searching and work with the emails shown. The remaining results are unread or unknown."
-            : stopSentence(count)) + (partial ? " " + partialSentence : "")
+        let hasCursor = (data?["cursor"] as? String)?.isEmpty == false
+        let hasSlots = (data?["preview_rows_left"] as? Int ?? 0) > 0
+        let guidance: String
+        if hasCursor {
+            guidance = hasSlots
+                ? "This is Mail search \(count) in this answer: stop starting new searches. The remaining results are unread or unknown: call mail_search with only cursor for the next page, or call mail_read with mail_ref and work with the emails shown."
+                : "This is Mail search \(count) in this answer: stop starting new searches. The remaining results are unread or unknown, and preview slots are currently unavailable; work with the emails shown or retry this cursor after other Mail calls finish."
+        } else if incomplete {
+            guidance = "This is Mail search \(count) in this answer: stop searching and work with the emails shown. The remaining results are unread or unknown."
+        } else {
+            guidance = stopSentence(count)
+        }
+        object["next"] = guidance + (partial ? " " + partialSentence : "")
         return json(object)
     }
 

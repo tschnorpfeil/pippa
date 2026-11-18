@@ -53,6 +53,9 @@ public actor PippaMCPTurn {
     private var mailSearches = 0
     private nonisolated let budget: BudgetFlag
 
+    /// How many fresh Mail searches this answer has started so far.
+    public func mailSearchCount() -> Int { mailSearches }
+
     /// Counts this answer's Mail searches; returns the new count.
     public func countMailSearch() -> Int {
         mailSearches += 1

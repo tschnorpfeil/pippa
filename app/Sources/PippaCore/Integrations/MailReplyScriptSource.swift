@@ -36,7 +36,14 @@ extension MailReplyScript {
         tell application id "com.apple.mail"
             try
                 set box to mailbox of m
-                set foundAcct to (id of (account of box)) as text
+                set boxAcct to account of box
+                if acctID is "__local__" then
+                    if boxAcct is not missing value then return false
+                    set foundAcct to "__local__"
+                else
+                    if boxAcct is missing value then return false
+                    set foundAcct to (id of boxAcct) as text
+                end if
                 set boxPath to {(name of box) as text}
                 set cur to box
                 repeat 31 times
@@ -44,6 +51,7 @@ extension MailReplyScript {
                     if parentBox is missing value then exit repeat
                     set parentClass to class of parentBox
                     if parentClass is in {account, imap account, iCloud account, pop account} then
+                        if acctID is "__local__" then return false
                         if (id of parentBox as text) is not foundAcct then return false
                         exit repeat
                     end if
@@ -177,6 +185,9 @@ extension MailReplyScript {
 
     on mailboxAtAccount(acctID, acctName, boxPath)
         tell application id "com.apple.mail"
+            if acctID is "__local__" then
+                return my mailboxAt("", boxPath)
+            end if
             if acctID is not "" then
                 set matchingAccounts to (accounts whose id is acctID)
                 if (count of matchingAccounts) is not 1 then error "missing account" number -1728

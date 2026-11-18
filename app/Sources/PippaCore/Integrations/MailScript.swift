@@ -78,10 +78,23 @@ enum MailScript {
             try
                 set box to mailbox of m
                 set boxPath to {(name of box) as text}
+                set acct to account of box
                 set acctName to ""
-                try
-                    set acctName to (name of account of box) as text
-                end try
+                set acctID to ""
+                set locationComplete to true
+                if acct is missing value then
+                    set acctID to "__local__"
+                else
+                    try
+                        set acctName to (name of acct) as text
+                    end try
+                    try
+                        set acctID to (id of acct) as text
+                    on error
+                        set locationComplete to false
+                    end try
+                    if acctID is "" or acctID is "__local__" then set locationComplete to false
+                end if
                 set cur to box
                 repeat 31 times
                     try
@@ -93,7 +106,10 @@ enum MailScript {
                         exit repeat
                     end try
                 end repeat
-                set theLocation to {acctName, boxPath, (id of m)}
+                if locationComplete then
+                    set theLocation to {acctName, boxPath, (id of m)}
+                    if acctID is not "" then set end of theLocation to acctID
+                end if
             end try
             set theSource to ""
             try

@@ -30,7 +30,10 @@ extension PippaMCPWriteTools {
                         return Self.blocked("no_message_id", L("Pippa can’t reply to this email in its thread. Copy the text and reply in Mail yourself.", table: "MCP"),
                                             receipt: notDone("noMessageID"))
                     }
-                    source = found; locator = mail.locator; mailbox = mail.mailboxKind; explicitReplyTo = mail.explicitReplyTo
+                    let strictSelected = mail.locator.flatMap {
+                        MailLocator(account: $0.account, path: $0.path, mailID: $0.mailID, accountID: $0.accountID, strict: true)
+                    }
+                    source = found; locator = strictSelected ?? mail.locator; mailbox = mail.mailboxKind; explicitReplyTo = mail.explicitReplyTo
                 } catch {
                     return failure(error, .mail, receipt: notDone("failed"))
                 }
@@ -53,6 +56,10 @@ extension PippaMCPWriteTools {
                     return Self.invalid("reply_to is not an email file Pippa can reply to (.eml with Message-ID). Use the exact path from the message, or selected.")
                 }
                 if inspected.isDraft { return Self.invalid(Self.draftReplyError) }
+                if filedOrigin?.requiresStrictLocator == true, filedOrigin?.locator?.strict != true {
+                    return Self.blocked("not_found", L("Pippa couldn’t find the original email in Mail, so no reply was created.", table: "MCP"),
+                                        receipt: notDone("not_found"))
+                }
                 if case .blocked(let status, let tell) = await ensure(.mail, openMail: true) { return Self.blocked(status, tell, receipt: notDone(status)) }
                 source = inspected.source
                 locator = filedOrigin?.locator

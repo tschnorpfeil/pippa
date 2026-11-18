@@ -135,10 +135,11 @@ public enum MailReplyScript {
         return result
     }
 
-    /// `{account, {mailbox names…}, id}` from `selectedMessage`, or `{account, {names…}, key}` from `mailboxList`.
+    /// `{account, {mailbox names…}, id[, accountID]}` from `selectedMessage`, or `{account, {names…}, key}` from `mailboxList`.
     static func locator(_ value: ScriptValue) -> MailLocator? {
         let parts = value.items
-        guard parts.count == 3, let account = parts[0].text else { return nil }
-        return MailLocator(account: account, path: parts[1].items.compactMap(\.text), mailID: parts[2].number)
+        guard (3...4).contains(parts.count), let account = parts[0].text else { return nil }
+        let accountID = parts.count == 4 ? parts[3].text : nil
+        return MailLocator(account: account, path: parts[1].items.compactMap(\.text), mailID: parts[2].number, accountID: accountID)
     }
 }

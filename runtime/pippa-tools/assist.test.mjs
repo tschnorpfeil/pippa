@@ -340,21 +340,19 @@ test("what an answer changed is told to the app from the tools' own results, so 
 	assert.deepEqual(changesOf("read", {}, false), []);
 });
 
-test('call budget: callBudget scales with context window and PIPPA_MAX_CALLS, invalid values fall back', async () => {
+test('call budget: callBudget uses route-provided PIPPA_MAX_CALLS and defaults to 20 when absent or invalid', async () => {
  const { MAX_CALLS, EXTENDED_MAX_CALLS, callBudget } = await import('./pippa-assist.ts');
  assert.equal(MAX_CALLS,20);
  assert.equal(EXTENDED_MAX_CALLS,80);
- assert.equal(callBudget(undefined,{}),20);
- assert.equal(callBudget(16_384,{}),20);
- assert.equal(callBudget(128_000,{}),80);
- assert.equal(callBudget(undefined,{PIPPA_MAX_CALLS:'80'}),80);
- for(const bad of ['abc','5','999']){
-  assert.equal(callBudget(undefined,{PIPPA_MAX_CALLS:bad}),20);
-  assert.equal(callBudget(128_000,{PIPPA_MAX_CALLS:bad}),80);
+ assert.equal(callBudget({}),20);
+ assert.equal(callBudget({PIPPA_MAX_CALLS:'80'}),80);
+ assert.equal(callBudget({PIPPA_MAX_CALLS:' 200 '}),200);
+ for(const bad of ['','abc','5','19','201','999','-80','80.5']){
+  assert.equal(callBudget({PIPPA_MAX_CALLS:bad}),20);
  }
 });
 
-test('call budget: attempt uses the model context window and PIPPA_MAX_CALLS', async () => {
+test('call budget: attempt keeps restricted online routes and handoffs at 20 even on 128k models unless PIPPA_MAX_CALLS grants more', async () => {
  const { overBudget } = await import('./pippa-assist.ts');
  assert.equal(overBudget(21,80),undefined);
  assert.match(overBudget(81,80),/used 80 tool calls/);
@@ -374,6 +372,8 @@ test('call budget: attempt uses the model context window and PIPPA_MAX_CALLS', a
  try{
   delete process.env.PIPPA_MAX_CALLS;
   assert.equal(await run({abort:()=>{},model:{contextWindow:16_384}}),21);
+  assert.equal(await run({abort:()=>{},model:{contextWindow:128_000}}),21);
+  process.env.PIPPA_MAX_CALLS='80';
   assert.equal(await run({abort:()=>{},model:{contextWindow:128_000}}),81);
   process.env.PIPPA_MAX_CALLS='40';
   assert.equal(await run({abort:()=>{}}),41);

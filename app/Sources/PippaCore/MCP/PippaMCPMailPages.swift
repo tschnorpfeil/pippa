@@ -424,7 +424,8 @@ extension PippaMCPTools {
             }
             let origin = MailFiling.FiledOrigin(
                 mailbox: ref.mailbox,
-                locator: MailLocator(account: ref.account.name, path: ref.path, mailID: ref.mailID, accountID: ref.account.id, strict: true)
+                locator: MailLocator(account: ref.account.name, path: ref.path, mailID: ref.mailID, accountID: ref.account.id, strict: true),
+                requiresStrictLocator: true
             )
             return mailResult(found.message, source: "Mail on this Mac (email from the \(Self.boxWord(ref.mailbox)) of one account)", account: ref.label,
                               filingScope: [ref.account.id, String(ref.mailID)] + ref.path, origin: origin, extra: extra)

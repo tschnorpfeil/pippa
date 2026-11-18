@@ -86,8 +86,9 @@ public struct MailThreadActivity: Sendable, Equatable {
     public var isComplete: Bool { (sentComplete || sentReply) && (draftsComplete || draft) }
 }
 
-/// Is a mail in Sent or Drafts a reply to the original? Its `In-Reply-To` or `References` header names the original's
-/// exact Message-ID, or its subject is "Re:/AW: <original subject>" and it is not older than the original.
+/// Is a mail in Sent or Drafts a confirmed reply to the original? Only when its `In-Reply-To` or `References` header
+/// names the original's exact Message-ID and its own Message-ID is not the original's. Subject prefixes only prioritize
+/// which candidates are inspected first.
 public enum MailThreadMatch {
     public static let maxCandidates = 40
     static let replyPrefixes = ["re:", "aw:", "antw:", "sv:"]
@@ -168,14 +169,21 @@ public enum MailThreadMatch {
         return (chosen, chosen.count == all.count)
     }
 
-    public static func isReply(_ candidate: String, namesID: Bool, date: Date?, to original: String, since: Date?) -> Bool {
-        if namesID { return true }
-        let wanted = core(original)
-        let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !wanted.isEmpty, replyPrefixes.contains(where: { trimmed.hasPrefix($0) }),
-              core(candidate).compare(wanted, options: [.caseInsensitive]) == .orderedSame else { return false }
-        if let since, let date, date < since.addingTimeInterval(-60) { return false }
-        return true
+    /// Confirmed thread activity requires an exact `In-Reply-To` or `References` match on a distinct message.
+    public static func isConfirmedReply(headers: String, ownMessageID: String?, to messageID: String) -> Bool {
+        guard let wanted = MailReplySource.canonicalMessageID(messageID) else { return false }
+        let own = ownMessageID.flatMap(MailReplySource.canonicalMessageID)
+            ?? MailReplySource.capture(headers: Data(headers.utf8))?.messageID
+        guard own != wanted else { return false }
+        return referencesMessageID(headers: headers, messageID: messageID)
+    }
+
+    /// Drops a trailing unterminated header line when `all headers` was clipped before the blank header terminator.
+    public static func completeHeaderLines(_ headers: String) -> String {
+        guard !headers.isEmpty else { return "" }
+        if headers.contains("\r\n\r\n") || headers.contains("\n\n") { return headers }
+        guard let newline = headers.lastIndex(where: \.isNewline) else { return "" }
+        return String(headers[..<newline])
     }
 }
 

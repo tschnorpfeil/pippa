@@ -397,7 +397,7 @@ enum MailAccountScript {
         return {"ok", out}
     end accountThreadCandidates
 
-    -- Reads subject, headers, own Message-ID and date for the chosen Sent and Drafts ids (at most 40 per mailbox).
+    -- Reads headers, own Message-ID and completeness flags for the chosen Sent and Drafts ids (at most 40 per mailbox).
     on accountThreadHeaders(acctID, sentWanted, draftsWanted)
         set out to {}
         set pairs to {{"sent", sentWanted}, {"drafts", draftsWanted}}
@@ -418,33 +418,45 @@ enum MailAccountScript {
                                         set end of found to {}
                                     else
                                         set m to item 1 of hits
-                                        set subj to ""
                                         set hdrs to ""
+                                        set hdrsComplete to false
+                                        try
+                                            set rawHdrs to (all headers of m) as text
+                                            if (length of rawHdrs) > 65536 then
+                                                set hdrs to text 1 thru 65536 of rawHdrs
+                                            else
+                                                set hdrs to rawHdrs
+                                                set hdrsComplete to true
+                                            end if
+                                        on error number errNum
+                                            my rethrowAccess(errNum)
+                                        end try
                                         set ownID to ""
-                                        set d to missing value
+                                        set ownComplete to false
                                         try
-                                            set subj to (subject of m) as text
+                                            set rawOwn to message id of m
+                                            if rawOwn is missing value then
+                                                set ownComplete to true
+                                            else
+                                                set ownID to rawOwn as text
+                                                set ownComplete to true
+                                            end if
                                         on error number errNum
                                             my rethrowAccess(errNum)
                                         end try
-                                        try
-                                            set hdrs to (all headers of m) as text
-                                            if (length of hdrs) > 65536 then set hdrs to text 1 thru 65536 of hdrs
-                                        on error number errNum
-                                            my rethrowAccess(errNum)
-                                        end try
-                                        try
-                                            set ownID to (message id of m) as text
-                                        on error number errNum
-                                            my rethrowAccess(errNum)
-                                        end try
-                                        set d to my dateOf(m, boxKind)
-                                        set end of found to {subj, hdrs, ownID, d}
+                                        set end of found to {hdrs, ownID, hdrsComplete, ownComplete}
                                     end if
                                 end repeat
                             on error number errNum
                                 my rethrowAccess(errNum)
-                                if errNum is not -1728 then error number errNum
+                                if errNum is -1728 then
+                                    set found to {}
+                                    repeat (count of wantedIDs) times
+                                        set end of found to {}
+                                    end repeat
+                                else
+                                    error number errNum
+                                end if
                             end try
                         end if
                         set end of out to found
@@ -525,7 +537,7 @@ enum MailAccountScript {
                 }
                 return [NSAppleEventDescriptor(string: account), idList(sentPick.ids), idList(draftsPick.ids)]
             }) {
-                try MailAccountParse.threadHeaders($0, messageID: messageID, subject: subject, since: since,
+                try MailAccountParse.threadHeaders($0, messageID: messageID,
                                                    expecting: (sentPick.ids.count, draftsPick.ids.count),
                                                    complete: (sentPick.complete, draftsPick.complete))
             }
@@ -592,11 +604,11 @@ public enum MailAccountParse {
         return (parsed[0], parsed[1])
     }
 
-    /// `{sent, drafts}`, each `{{subject, headers, own Message-ID, date or missing value} or {}, …}`.
-    public static func threadHeaders(_ payload: NSAppleEventDescriptor, messageID: String, subject: String, since: Date?,
+    /// `{sent, drafts}`, each `{{headers, own Message-ID, headersComplete, ownComplete} or {}, …}`.
+    public static func threadHeaders(_ payload: NSAppleEventDescriptor, messageID: String,
                                      expecting: (Int, Int), complete: (Bool, Bool)) throws -> MailThreadActivity {
         guard payload.numberOfItems == 2 else { throw MailAccountProblem.failed }
-        let wanted = MailReplySource.canonicalMessageID(messageID)
+        let boolTypes: Set<DescType> = [typeBoolean, typeTrue, typeFalse]
         let counts = [expecting.0, expecting.1]
         let boxes = try zip(AppleEvents.items(payload), counts).map { box, expected -> (hit: Bool, allPresent: Bool) in
             guard box.descriptorType == typeAEList, box.numberOfItems == expected else { throw MailAccountProblem.failed }
@@ -606,15 +618,18 @@ public enum MailAccountParse {
                 guard entry.descriptorType == typeAEList else { throw MailAccountProblem.failed }
                 if entry.numberOfItems == 0 { allPresent = false; continue }
                 guard entry.numberOfItems == 4,
-                      entry.atIndex(1)?.descriptorType != typeAEList, let subj = entry.atIndex(1)?.stringValue,
-                      entry.atIndex(2)?.descriptorType != typeAEList, let hdrs = entry.atIndex(2)?.stringValue,
-                      entry.atIndex(3)?.descriptorType != typeAEList, let ownRaw = entry.atIndex(3)?.stringValue,
-                      let whenDesc = entry.atIndex(4) else { throw MailAccountProblem.failed }
-                let when: Date?
-                do { when = try MailSearchFlow.parseOptionalDate(whenDesc) } catch { throw MailAccountProblem.failed }
-                let own = MailReplySource.canonicalMessageID(ownRaw)
-                let namesID = wanted != nil && own != wanted && MailThreadMatch.referencesMessageID(headers: hdrs, messageID: messageID)
-                if MailThreadMatch.isReply(subj, namesID: namesID, date: when, to: subject, since: since) { hit = true }
+                      entry.atIndex(1)?.descriptorType != typeAEList, let hdrs = entry.atIndex(1)?.stringValue,
+                      entry.atIndex(2)?.descriptorType != typeAEList, let ownRaw = entry.atIndex(2)?.stringValue,
+                      let hdrsFlag = entry.atIndex(3), boolTypes.contains(hdrsFlag.descriptorType),
+                      let ownFlag = entry.atIndex(4), boolTypes.contains(ownFlag.descriptorType) else { throw MailAccountProblem.failed }
+                let hdrsComplete = hdrsFlag.booleanValue
+                let ownComplete = ownFlag.booleanValue
+                if !hdrsComplete || !ownComplete { allPresent = false }
+                let safeHdrs = hdrsComplete ? hdrs : MailThreadMatch.completeHeaderLines(hdrs)
+                let canExcludeSelf = ownComplete || MailReplySource.capture(headers: Data(safeHdrs.utf8))?.messageID != nil
+                if canExcludeSelf, MailThreadMatch.isConfirmedReply(headers: safeHdrs, ownMessageID: ownRaw, to: messageID) {
+                    hit = true
+                }
             }
             return (hit, allPresent)
         }

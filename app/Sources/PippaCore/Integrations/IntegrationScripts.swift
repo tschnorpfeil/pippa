@@ -14,6 +14,8 @@ public enum IntegrationScripts {
 
     public static func mailAccountMessageIsAmbiguous(_ response: NSAppleEventDescriptor) -> Bool { MailScript.isAmbiguous(response) }
 
+    public static func mailMessage(_ response: NSAppleEventDescriptor) -> MailMessage? { MailScript.message(response) }
+
     public static func mailSearchMatches(_ response: NSAppleEventDescriptor, in box: MailLocator) throws -> [MailLocator] {
         try MailReplyScript.searchMatches(ScriptValue(response).items, in: box)
     }

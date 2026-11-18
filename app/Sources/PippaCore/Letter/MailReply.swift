@@ -90,6 +90,7 @@ public enum MailInsertResult: String, Sendable, Equatable { case reply, replyNee
 /// Where a message lives in Mail: account name ("" for On My Mac), optional exact account ID, mailbox names from the top,
 /// and Mail's own id. When `strict` is true, `MailReplyScript` requires this exact location and never searches elsewhere.
 public struct MailLocator: Codable, Hashable, Sendable {
+    public static let localAccountID = "__local__"
     public var account: String
     public var accountID: String?
     public var path: [String]
@@ -97,11 +98,13 @@ public struct MailLocator: Codable, Hashable, Sendable {
     public var strict: Bool
 
     public init?(account: String, path: [String], mailID: Int?, accountID: String? = nil, strict: Bool = false) {
-        guard !path.isEmpty, path.count <= 32, !path.contains(where: { $0.isEmpty }),
-              mailID.map({ $0 > 0 && $0 <= Int(Int32.max) }) ?? true else { return nil }
         let trimmedID = accountID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let validID = trimmedID.flatMap { $0.isEmpty ? nil : $0 }
+        guard !path.isEmpty, path.count <= 32, !path.contains(where: { $0.isEmpty }),
+              mailID.map({ $0 > 0 && $0 <= Int(Int32.max) }) ?? true,
+              !strict || (mailID != nil && validID != nil) else { return nil }
         self.account = account
-        self.accountID = trimmedID.flatMap { $0.isEmpty ? nil : $0 }
+        self.accountID = validID
         self.path = path
         self.mailID = mailID
         self.strict = strict
