@@ -86,9 +86,9 @@
 
 /* Settings → AI: optional abilities per route */
 "Optional abilities" = "Optional abilities";
-"Each ability Pippa doesn’t need leaves the AI on this Mac more room and lets answers start sooner. A change applies from your next question, also in an open conversation; an answer already running finishes as it started." = "Each ability Pippa doesn’t need leaves the AI on this Mac more room and lets answers start sooner. A change applies from your next question, also in an open conversation; an answer already running finishes as it started.";
+"Only enabled tools take up space in the model’s context. Changes apply from your next question." = "Only enabled tools take up space in the model’s context. Changes apply from your next question.";
 "Web search" = "Web search";
-"Searches the web and reads pages to answer. Off: no web search or page reading; Pippa’s browser stays." = "Searches the web and reads pages to answer. Off: no web search or page reading; Pippa’s browser stays.";
+"Lets Pippa search the web and fetch pages for an answer. You can use Pippa’s browser either way." = "Lets Pippa search the web and fetch pages for an answer. You can use Pippa’s browser either way.";
 "Personal notes" = "Personal notes";
-"Remembers what you tell her about yourself and uses it in new conversations. Off: she neither adds notes nor reads them; saved notes are kept." = "Remembers what you tell her about yourself and uses it in new conversations. Off: she neither adds notes nor reads them; saved notes are kept.";
+"Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes." = "Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes.";
 "Online" = "Online";

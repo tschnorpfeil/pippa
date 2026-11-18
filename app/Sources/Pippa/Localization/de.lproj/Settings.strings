@@ -86,9 +86,9 @@
 
 /* Settings → AI: optional abilities per route */
 "Optional abilities" = "Zusätzliche Fähigkeiten";
-"Each ability Pippa doesn’t need leaves the AI on this Mac more room and lets answers start sooner. A change applies from your next question, also in an open conversation; an answer already running finishes as it started." = "Jede Fähigkeit, die Pippa nicht braucht, lässt der KI auf diesem Mac mehr Platz, und Antworten beginnen früher. Eine Änderung gilt ab deiner nächsten Frage, auch in einem offenen Gespräch; eine laufende Antwort endet so, wie sie begonnen hat.";
+"Only enabled tools take up space in the model’s context. Changes apply from your next question." = "Nur eingeschaltete Werkzeuge belegen Platz im Modellkontext. Änderungen gelten ab deiner nächsten Frage.";
 "Web search" = "Websuche";
-"Searches the web and reads pages to answer. Off: no web search or page reading; Pippa’s browser stays." = "Sucht im Web und liest Seiten für die Antwort. Aus: keine Websuche und kein Lesen von Seiten; Pippas Browser bleibt.";
+"Lets Pippa search the web and fetch pages for an answer. You can use Pippa’s browser either way." = "Pippa kann für eine Antwort im Web suchen und Seiten abrufen. Ihren Browser kannst du unabhängig davon nutzen.";
 "Personal notes" = "Persönliche Notizen";
-"Remembers what you tell her about yourself and uses it in new conversations. Off: she neither adds notes nor reads them; saved notes are kept." = "Merkt sich, was du über dich erzählst, und nutzt es in neuen Gesprächen. Aus: Sie legt keine Notizen an und liest sie nicht; gespeicherte Notizen bleiben erhalten.";
+"Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes." = "Pippa kann persönliche Notizen speichern und in anderen Gesprächen nutzen. Beim Ausschalten bleiben gespeicherte Notizen erhalten.";
 "Online" = "Online";

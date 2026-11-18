@@ -89,13 +89,13 @@ struct OptionalCapabilitySettings: View {
 
     var body: some View {
         SettingsSection(title: T("Optional abilities", table: "Settings"),
-                        footer: failureState.wrappedValue ?? T("Each ability Pippa doesn’t need leaves the AI on this Mac more room and lets answers start sooner. A change applies from your next question, also in an open conversation; an answer already running finishes as it started.", table: "Settings")) {
+                        footer: failureState.wrappedValue ?? T("Only enabled tools take up space in the model’s context. Changes apply from your next question.", table: "Settings")) {
             row(T("Web search", table: "Settings"),
-                detail: T("Searches the web and reads pages to answer. Off: no web search or page reading; Pippa’s browser stays.", table: "Settings"),
+                detail: T("Lets Pippa search the web and fetch pages for an answer. You can use Pippa’s browser either way.", table: "Settings"),
                 \.web)
             SettingsDivider()
             row(T("Personal notes", table: "Settings"),
-                detail: T("Remembers what you tell her about yourself and uses it in new conversations. Off: she neither adds notes nor reads them; saved notes are kept.", table: "Settings"),
+                detail: T("Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes.", table: "Settings"),
                 \.memory)
         }
     }
