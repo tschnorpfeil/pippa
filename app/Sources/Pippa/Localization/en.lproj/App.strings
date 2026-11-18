@@ -258,3 +258,5 @@
 "Open the check again with your edits; nothing is sent until you press Send" = "Open the check again with your edits; nothing is sent until you press Send";
 "Discard the check" = "Discard the check";
 "For one question to %@" = "For one question to %@";
+
+"Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review." = "Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review.";

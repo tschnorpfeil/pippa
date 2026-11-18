@@ -31,7 +31,10 @@ struct ShareReviewSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(minHeight: 220, maxHeight: 460)
-                if let problem = review.problem {
+                if !review.plan.destination.isVerified {
+                    Text(T("Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review.", table: "App"))
+                        .font(Typo.footnote).foregroundStyle(Theme.need)
+                } else if let problem = review.problem {
                     Text(problem).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
                 }
                 HStack(spacing: Space.xl) {
@@ -40,7 +43,7 @@ struct ShareReviewSheet: View {
                     Button(T("Cancel", table: "App")) { chat.dismissReview() }.keyboardShortcut(.cancelAction).pippa(.secondary)
                     Button(T("Send to %@", table: "App", review.plan.destination.provider)) { chat.approveReview() }
                         .keyboardShortcut(.defaultAction).pippa(.primary)
-                        .disabled(review.loading || !review.plan.canSend || chat.isAnswering)
+                        .disabled(!review.plan.destination.isVerified || review.loading || !review.plan.canSend || chat.isAnswering)
                 }
             }
             .font(Typo.callout).foregroundStyle(Theme.ink)

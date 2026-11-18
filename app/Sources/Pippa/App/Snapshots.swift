@@ -73,7 +73,7 @@ enum Snapshots {
             }
             // The review before sharing (issue #193): made-up texts, Photos set to "Only on this Mac".
             var rules = SourceSharing(); rules.photos = .localOnly
-            let destination = ShareDestination(PiModelSelection(providerID: "openai", modelID: "gpt-best", providerName: "OpenAI", modelName: "GPT Best"))
+            let destination = ShareDestination(PiModelSelection(providerID: "openai", modelID: "gpt-best", providerName: "OpenAI", modelName: "GPT Best"), recipient: "snapshot-account")
             let plan = SharePlan(destination: destination, question: "Is the notice period in my lease right?", candidates: [
                 SharePiece(sources: [.documents], title: "Lease (sample).pdf", text: "§ 4 Notice period\nEither party may end the lease with three months’ notice to the end of a month."),
                 SharePiece(sources: [.mail, .calendar], title: T("Pippa’s answer on this Mac", table: "App"),

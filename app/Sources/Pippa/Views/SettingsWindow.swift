@@ -18,10 +18,9 @@ final class SettingsModel: ObservableObject {
     }
 
     /// Sharing rules and the single-question recipient save like the capabilities: the next online Pi starts with them.
-    func saveSharing(_ sharing: SourceSharing, handoff: PiModelSelection?) throws {
-        var settings = inferenceSettings
+    func saveSharing(_ sharing: SourceSharing, removeRecipient: Bool) throws {
+        var settings = removeRecipient ? inferenceSettings.withoutHandoff() : inferenceSettings
         settings.sharing = sharing
-        settings.handoffModel = handoff
         try settings.save(to: PiSession.settingsDirectory)
         inferenceSettings = settings
         SetupModel.shared.objectWillChange.send()

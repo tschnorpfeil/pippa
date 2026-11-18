@@ -29,6 +29,7 @@ public struct ShareDraft: Identifiable, Sendable, Equatable {
     /// failure only into an empty composer. A draft typed meanwhile is never overwritten or cleared.
     public var composer: ShareComposer
     /// Reads on this Mac still running; Send waits for them.
+    var readingFiles: Set<URL> = []
     public var pending: Int
     public var loading: Bool { pending > 0 }
     /// Why it can't be sent, or why it was not answered last time.
@@ -70,6 +71,7 @@ public struct ShareDesk: Sendable, Equatable {
             open = ShareDraft(plan: SharePlan(destination: destination, question: question, candidates: candidates, rules: rules),
                               handoff: handoff, files: composer.files, conversation: conversation, composer: composer,
                               pending: composer.files.isEmpty ? 0 : 1)
+            open?.readingFiles = Set(composer.files)
             return composer.files
         }
         let typed = composer.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -79,12 +81,13 @@ public struct ShareDesk: Sendable, Equatable {
         let offered = old.plan.pieces.filter { piece in old.fileOf[piece.id].map(files.contains) ?? true }
         let withheld = old.plan.withheld.filter { old.fileOf[$0.id] == nil }
         let kept = Set(offered.compactMap { old.fileOf[$0.id] })
-        let unread = files.filter { !kept.contains($0) }
+        let unread = files.filter { !kept.contains($0) && !old.readingFiles.contains($0) }
         var plan = SharePlan(destination: destination, question: keepsQuestion ? old.plan.question : typed, candidates: offered, rules: rules)
         plan.withheld += withheld
         open = ShareDraft(plan: plan, handoff: handoff, files: files, conversation: conversation,
                           fileOf: old.fileOf.filter { files.contains($0.value) }, composer: explicit ? old.composer : composer,
                           pending: old.pending + (unread.isEmpty ? 0 : 1), problem: nil, id: old.id)
+        open?.readingFiles = old.readingFiles.union(unread)
         return unread
     }
 
@@ -99,10 +102,18 @@ public struct ShareDesk: Sendable, Equatable {
     /// `files`: the attached files they were read from, in order. Ends one pending read.
     public mutating func add(_ pieces: [SharePiece], files: [URL]? = nil, problem: String? = nil, to id: UUID, rules: SourceSharing) {
         func apply(_ draft: inout ShareDraft) {
-            let added = SharePlan(destination: draft.plan.destination, question: draft.plan.question, candidates: pieces, rules: rules)
+            var candidates = pieces
+            if let files {
+                draft.readingFiles.subtract(files)
+                candidates = zip(pieces, files).compactMap { piece, file in
+                    guard draft.files.contains(file) else { return nil }
+                    draft.fileOf[piece.id] = file
+                    return piece
+                }
+            }
+            let added = SharePlan(destination: draft.plan.destination, question: draft.plan.question, candidates: candidates, rules: rules)
             draft.plan.pieces += added.pieces
             draft.plan.withheld += added.withheld
-            if let files { for (piece, file) in zip(pieces, files) { draft.fileOf[piece.id] = file } }
             draft.pending = max(0, draft.pending - 1)
             if let problem { draft.problem = problem }
         }

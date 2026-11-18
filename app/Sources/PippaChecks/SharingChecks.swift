@@ -128,6 +128,17 @@ func runSharingChecks() async {
         return keyOne != nil && keyOne != keyTwo && keyOne != proxied && accountA != nil && accountA == refreshed
             && accountA != otherAccount && signInA != nil && signInA != signInB
     }
+    check("Recipient: dynamic config values cannot bind a review, and a workspace name alone cannot identify a person") {
+        try writeAgent(models: ["acme": entry("https://a.example.invalid/v1", key: "${FIXTURE_KEY}")], auth: nil)
+        let dynamic = recipients.fingerprint(custom)
+        func enterprise(_ token: String) -> [String: Any] {
+            ["type": "oauth", "enterpriseUrl": "https://work.example.invalid", "refresh": token]
+        }
+        try writeAgent(models: nil, auth: ["acme": enterprise("fixture-a")])
+        let first = recipients.fingerprint(custom)
+        try writeAgent(models: nil, auth: ["acme": enterprise("fixture-b")])
+        return dynamic == nil && first != nil && first != recipients.fingerprint(custom)
+    }
     check("Recipient: unknown or unreadable configuration fails closed (no destination may receive an approval)") {
         try writeAgent(models: nil, auth: nil)
         let nothing = recipients.fingerprint(model)

@@ -98,7 +98,7 @@ struct SharingSettings: View {
                         set: { rule in
                             var sharing = settings.inferenceSettings.sharing
                             sharing[source] = rule
-                            save(sharing, handoff: settings.inferenceSettings.handoffModel)
+                            save(sharing)
                         })) {
                         Text(T("Ask before sharing", table: "Settings")).tag(SharingRule.ask)
                         Text(T("Only on this Mac", table: "Settings")).tag(SharingRule.localOnly)
@@ -106,19 +106,19 @@ struct SharingSettings: View {
                     .labelsHidden().fixedSize()
                 }
             }
-            if let handoff = ShareDestination.handoff(settings.inferenceSettings) {
+            if let handoff = ShareDestination.handoff(settings.inferenceSettings, recipients: .unresolved) {
                 SettingsDivider()
                 SettingsRow(title: T("Single questions", table: "Settings"),
                             detail: T("While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@.", table: "Settings",
                                       handoff.provider, handoff.label)) {
-                    Button(T("Remove", table: "Settings")) { save(settings.inferenceSettings.sharing, handoff: nil) }.pippa(.quiet)
+                    Button(T("Remove", table: "Settings")) { save(settings.inferenceSettings.sharing, removeRecipient: true) }.pippa(.quiet)
                 }
             }
         }
     }
 
-    private func save(_ sharing: SourceSharing, handoff: PiModelSelection?) {
-        do { try settings.saveSharing(sharing, handoff: handoff); failureState.wrappedValue = nil }
+    private func save(_ sharing: SourceSharing, removeRecipient: Bool = false) {
+        do { try settings.saveSharing(sharing, removeRecipient: removeRecipient); failureState.wrappedValue = nil }
         catch { failureState.wrappedValue = error.localizedDescription }
     }
 }

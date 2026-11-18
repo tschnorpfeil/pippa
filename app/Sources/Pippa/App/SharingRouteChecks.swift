@@ -14,12 +14,12 @@ enum SharingRouteChecks {
         }
         let mailTurn = ChatMessage(role: .assistant, text: "Local mail result", provenance: [.mail])
         let followUp = ChatMessage(role: .assistant, text: "Repeats the earlier answer", provenance: [])
-        let legacy = ChatMessage(role: .assistant, text: "Old answer with no tool trace")
+        let legacyAnswer = ChatMessage(role: .assistant, text: "Old answer with no tool trace")
         let onlineReply = ChatMessage(role: .assistant, text: "Separate online history", provenance: [.photos], destination: "Fixture AI")
         let localSources = ChatModel.localHistorySources(in: [mailTurn, onlineReply, followUp][...])
         var sharing = SourceSharing(); sharing.mail = .localOnly
         check(localSources == [.mail] && !sharing.mayOffer(localSources), "a tool-free local follow-up inherits Mail provenance across an intervening online answer")
-        check(!sharing.mayOffer(ChatModel.localHistorySources(in: [legacy, followUp][...])), "legacy local history without source metadata needs every source on Ask")
+        check(!sharing.mayOffer(ChatModel.localHistorySources(in: [legacyAnswer, followUp][...])), "legacy local history without source metadata needs every source on Ask")
 
         let gpt = PiModelSelection(providerID: "openai", modelID: "gpt-fixture", providerName: "OpenAI")
         // Recipients are digests of the effective endpoint and account (`PiRecipient`); these stand in for two accounts.

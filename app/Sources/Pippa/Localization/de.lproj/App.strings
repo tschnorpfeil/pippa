@@ -258,3 +258,5 @@
 "Open the check again with your edits; nothing is sent until you press Send" = "Die Prüfung mit deinen Änderungen wieder öffnen; gesendet wird erst, wenn du auf Senden drückst";
 "Discard the check" = "Prüfung verwerfen";
 "For one question to %@" = "Für eine Frage an %@";
+
+"Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review." = "Pippa konnte die Verbindung zu diesem Anbieter nicht bestätigen. Prüfe sie in den KI-Einstellungen und öffne die Freigabe erneut.";

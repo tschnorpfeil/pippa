@@ -28,6 +28,18 @@ func runShareDeskChecks() {
         return desk
     }
 
+    check("Review lifecycle: reopening during extraction keeps a single read and drops a removed file") {
+        var desk = ShareDesk()
+        let initial = ShareComposer(text: "Read", files: [lease])
+        desk.open(in: "a", destination: openai, handoff: false, composer: initial, fresh: [], rules: rules)
+        guard let id = desk.open?.id else { return false }
+        _ = desk.cancel(current: "a", composer: initial)
+        let secondRead = desk.open(in: "a", destination: openai, handoff: false, composer: initial, fresh: [], rules: rules)
+        _ = desk.cancel(current: "a", composer: initial)
+        desk.open(in: "a", destination: openai, handoff: false, composer: ShareComposer(text: "Read"), fresh: [], rules: rules)
+        desk.add([SharePiece(sources: [.documents], title: "Lease", text: "Removed")], files: [lease], to: id, rules: rules)
+        return secondRead.isEmpty && desk.open?.loading == false && desk.open?.plan.pieces.isEmpty == true
+    }
     check("Review lifecycle: Cancel keeps every edit; the edited words go back into the unchanged composer; reopening resumes them") {
         var desk = edited()
         let id = desk.open?.id

@@ -40,7 +40,10 @@ public struct PiRecipient: Sendable {
             // Present but unreadable (also: comments): Pi might still use an entry Pippa cannot see. Fail closed.
             guard let document = JSONFile.readObject(modelsJSON) else { return nil }
             guard document["providers"] == nil || document["providers"] is [String: Any] else { return nil }
-            if let entry = (document["providers"] as? [String: Any])?[model.providerID] { parts["config"] = entry }
+            if let entry = (document["providers"] as? [String: Any])?[model.providerID] {
+                guard Self.hasStaticRouting(entry) else { return nil }
+                parts["config"] = entry
+            }
         }
         let authJSON = agent.appendingPathComponent("auth.json")
         if fm.fileExists(atPath: authJSON.path) {
@@ -68,19 +71,36 @@ public struct PiRecipient: Sendable {
                        "contextWindow": connection.contextWindow, "key": key])
     }
 
-    /// The part of an auth.json credential that names the account. An API key counts whole. A sign-in drops its rotating
-    /// tokens when it names its account (`accountId`, `enterpriseUrl`, …); one that names none is bound to the sign-in
-    /// itself (its refresh token), so a token refresh counts as a new recipient rather than risking another account.
+    /// Pi can resolve credential and header values at runtime. An expression cannot identify the value Pi will use.
+    private static func hasStaticRouting(_ value: Any) -> Bool {
+        if let fields = value as? [String: Any] {
+            return fields.allSatisfy { name, field in
+                switch name {
+                case "apiKey", "baseUrl": return (field as? String).map(isLiteral) == true
+                case "headers": return (field as? [String: String])?.values.allSatisfy(isLiteral) == true
+                default: return hasStaticRouting(field)
+                }
+            }
+        }
+        if let items = value as? [Any] { return items.allSatisfy(hasStaticRouting) }
+        return true
+    }
+
+    private static func isLiteral(_ text: String) -> Bool {
+        !text.isEmpty && !text.hasPrefix("!") && !text.contains("$")
+    }
+
+    /// Bind OAuth to an explicit account ID, or to the sign-in itself if Pi supplies only workspace metadata.
     static func account(_ value: Any) -> [String: Any]? {
         guard let credential = value as? [String: Any], let type = credential["type"] as? String else { return nil }
         switch type {
         case "api_key":
-            guard credential["key"] != nil || credential["env"] != nil else { return nil }
+            guard let key = credential["key"] as? String, isLiteral(key), credential["env"] == nil else { return nil }
             return credential
         case "oauth":
             var stable = credential
             for volatile in ["access", "refresh", "expires"] { stable.removeValue(forKey: volatile) }
-            if stable.count > 1 { return stable }
+            if let id = stable["accountId"] as? String, !id.isEmpty { return stable }
             guard let refresh = credential["refresh"] as? String, !refresh.isEmpty else { return nil }
             stable["signIn"] = refresh
             return stable

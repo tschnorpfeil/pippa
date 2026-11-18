@@ -40,9 +40,8 @@ struct Composer: View {
         .onChange(of: pickedPhoto.wrappedValue) { _, item in
             guard let item else { return }
             pickedPhoto.wrappedValue = nil
-            Task { @MainActor in
-                let data = try? await item.loadTransferable(type: Data.self)
-                chat.sharePhoto(data, type: item.supportedContentTypes.first)
+            chat.sharePhoto(type: item.supportedContentTypes.first) {
+                try? await item.loadTransferable(type: Data.self)
             }
         }
     }

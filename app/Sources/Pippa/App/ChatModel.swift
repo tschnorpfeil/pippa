@@ -346,12 +346,12 @@ final class ChatModel: ObservableObject {
     // MARK: Sharing with an online AI
 
     /// The online AI a single question can go to while conversations stay on this Mac ("Ask OpenAI…").
-    var handoffDestination: ShareDestination? { ShareDestination.handoff(SettingsModel.shared.inferenceSettings) }
+    var handoffDestination: ShareDestination? { ShareDestination.handoff(SettingsModel.shared.inferenceSettings, recipients: .unresolved) }
 
     /// "Ask <provider>…": the review for one question to the recipient, with the files attached and Pippa's last answer
     /// here (each part with what it was read from). Nothing is sent before the person's OK.
     func askOnline() {
-        guard !isAnswering, review == nil, let destination = handoffDestination else { return }
+        guard !isAnswering, review == nil, let destination = ShareDestination.handoff(SettingsModel.shared.inferenceSettings) else { return }
         startReview(destination, handoff: true)
     }
 
@@ -393,7 +393,7 @@ final class ChatModel: ObservableObject {
     /// One picture chosen in the Photos picker: only the text recognized in it on this Mac joins the review, under the
     /// Photos rule; the picture itself never leaves the Mac. `data` is the picture's bytes, read into a temporary file
     /// for local OCR and removed right after.
-    func sharePhoto(_ data: Data?, type: UTType?) {
+    func sharePhoto(type: UTType?, load: @escaping @MainActor () async -> Data?) {
         guard !isAnswering, let route = review.map({ ($0.plan.destination, $0.handoff) }) ?? reviewRoute,
               SettingsModel.shared.inferenceSettings.sharing.photos == .ask else { return }
         if review == nil { startReview(route.destination, handoff: route.handoff) }
@@ -401,6 +401,7 @@ final class ChatModel: ObservableObject {
         desk.reading()
         let name = T("Photo", table: "App")
         Task {
+            let data = await load()
             let piece: SharePiece? = await Task.detached(priority: .userInitiated) { () -> SharePiece? in
                 guard let data else { return nil }
                 let folder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-photo-\(UUID().uuidString)", isDirectory: true)
@@ -433,8 +434,7 @@ final class ChatModel: ObservableObject {
 
     /// A review parked in the conversation shown (cancelled, or not answered), for "Continue checking".
     var parkedReview: ShareReview? {
-        guard let route = reviewRoute else { return nil }
-        return desk.parked(in: currentID, handoff: route.handoff)
+        desk.parked(in: currentID, handoff: !SettingsModel.shared.inferenceSettings.usesOnlineAI)
     }
 
     /// "Continue checking": the parked review as it was, with every edit, for the recipient as it is now.
