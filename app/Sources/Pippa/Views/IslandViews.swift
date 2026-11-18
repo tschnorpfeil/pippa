@@ -245,8 +245,8 @@ struct IslandPanelView: View {
         if chat.isAnswering { return .working }
         if setupProgress != nil { return .download }
         if setupNeedsYou { return .setup }
-        if let error = lastAnswer?.error, !error.isEmpty { return .failed }
-        if let text = lastAnswer?.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .answer }
+        if let error = lastAnswer?.message.error, !error.isEmpty { return .failed }
+        if let text = lastAnswer?.message.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .answer }
         return .empty
     }
 
@@ -265,14 +265,14 @@ struct IslandPanelView: View {
         case .setup:
             setupAction
         case .failed:
-            Text(lastAnswer?.error ?? "")
+            Text(lastAnswer?.message.error ?? "")
                 .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.primary - 0.1))
                 .lineSpacing(2).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .answer:
             // The answer as in the chat (bold, lists, headings, tables), scrolling inside the island when it is long.
             ScrollView {
-                MarkdownText(text: lastAnswer?.result ?? "", style: .island)
+                MarkdownText(text: lastAnswer?.message.result ?? "", style: .island)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // Room under the last line: the fade below only ever covers text that scrolls on.
                     .padding(.bottom, IslandStyle.gap)
@@ -303,16 +303,24 @@ struct IslandPanelView: View {
     /// Under what she says: the answers to a question, or any dropped files and the field beside "Open Pippa".
     @ViewBuilder private var below: some View {
         if let question = approvals.questions.first {
-            IslandQuestionAnswers(question: question, onOpen: island.openChat).id(question.id)
+            IslandQuestionAnswers(question: question) { island.openChat(in: question.conversationID) }.id(question.id)
         } else {
             VStack(alignment: .leading, spacing: IslandStyle.gap) {
                 if !chat.attachments.isEmpty { files }
                 HStack(spacing: IslandStyle.buttonGap) {
                     field
                     IslandAIBadge(setup: setup)
-                    IslandOpenButton(hint: true, action: island.openChat)
+                    IslandOpenButton(hint: true) { island.openChat(in: conversationToOpen) }
                 }
             }
+        }
+    }
+
+    private var conversationToOpen: String? {
+        switch phase {
+        case .answer, .failed: lastAnswer?.conversationID
+        case .empty: island.followUp?.id
+        default: nil
         }
     }
 
@@ -427,10 +435,10 @@ struct IslandPanelView: View {
 
     /// The answer the person has not seen yet (`Island.freshAnswer`). An answer seen once is not shown again: the
     /// island then starts empty, with the latest conversation one click away.
-    private var lastAnswer: ChatMessage? {
+    private var lastAnswer: (message: ChatMessage, conversationID: String)? {
         guard let id = island.freshAnswer else { return nil }
         for conversation in chat.conversations {
-            if let message = conversation.messages.last(where: { $0.id == id }) { return message }
+            if let message = conversation.messages.last(where: { $0.id == id }) { return (message, conversation.id) }
         }
         return nil
     }

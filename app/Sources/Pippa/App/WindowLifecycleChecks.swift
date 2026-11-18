@@ -1,4 +1,5 @@
 import AppKit
+import PiRPC
 
 /// Focused AppKit acceptance checks in a cloned app with its own bundle ID and temporary HOME.
 /// No setup, updater, single-instance notifications, model server, or account login runs here.
@@ -147,6 +148,9 @@ enum WindowLifecycleChecks {
             check("Closing hands the keyboard back", !island.isKeyWindow)
             ChatWindow.shared.show()
             await settle()
+            if foregroundAvailable {
+                await checkIslandQuestionKeys(island, check: check)
+            }
         }
         check("Chat receives Mail file promises", NSFilePromiseReceiver.readableDraggedTypes.allSatisfy {
             chat.contentView?.registeredDraggedTypes.contains(NSPasteboard.PasteboardType($0)) == true
@@ -178,6 +182,20 @@ enum WindowLifecycleChecks {
         for _ in 0..<100 where promiseCompletions == 0 { try? await Task.sleep(for: .milliseconds(20)) }
         check("One legacy Mail promise delivers all files before completing", promiseCompletions == 1 &&
               Set(promiseResult?.items.map(\.lastPathComponent) ?? []) == Set(["first.eml", "second.eml"]))
+        let first = LegacyPromiseFixture()
+        first.files = ["same.eml": "<a@pippa.test>"]
+        let second = LegacyPromiseFixture()
+        second.files = ["same.eml": "<b@pippa.test>"]
+        promiseCompletions = 0
+        promiseResult = nil
+        DropReader.receivePromises([first, second], into: promiseFolder) {
+            promiseResult = $0
+            promiseCompletions += 1
+        }
+        for _ in 0..<100 where promiseCompletions == 0 { try? await Task.sleep(for: .milliseconds(20)) }
+        let delivered = MailDropIdentity.attachments(promiseResult?.items ?? [], excluding: [])
+        check("Two promises with the same filename deliver both distinct messages", promiseCompletions == 1 &&
+              Set(delivered.compactMap(MailDropIdentity.key(for:))) == Set(["<a@pippa.test>", "<b@pippa.test>"]))
         Island.shared.isShown = false
         await settle()
         check("Switching Pippa Island off removes it", Island.shared.presenter?.panel.isVisible != true)
@@ -191,21 +209,86 @@ enum WindowLifecycleChecks {
         print(failures == 0 ? "Window lifecycle checks passed." : "Window lifecycle checks failed.")
         return failures == 0 ? 0 : 1
     }
+
+    private static func checkIslandQuestionKeys(_ panel: NSPanel, check: (String, Bool) -> Void) async {
+        let chat = ChatModel.shared
+        let approvals = Approvals.shared
+        let answer = ChatMessage(role: .assistant, text: "Synthetic answer")
+        let a = Conversation(id: "A", title: "A", updated: Date(), messages: [answer])
+        let b = Conversation(id: "B", title: "B", updated: Date().addingTimeInterval(-3600), messages: [])
+        chat.draft = "Unsent island fixture"
+        func settle() async { try? await Task.sleep(for: .milliseconds(350)) }
+        func ask(_ id: String) -> Task<PiUIResponse, Never> {
+            Task { await approvals.ask(.init(id: id, method: "confirm", title: id, message: "Synthetic question")) }
+        }
+        func key(_ code: UInt16, _ characters: String, modifiers: NSEvent.ModifierFlags = [], repeating: Bool = false) {
+            NSApp.postEvent(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
+                                            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: panel.windowNumber,
+                                            context: nil, characters: characters, charactersIgnoringModifiers: characters,
+                                            isARepeat: repeating, keyCode: code)!, atStart: false)
+        }
+
+        SetupModel.shared.showForSnapshot(.ready(adoptedFrom: nil))
+        chat.showSample([a, b], current: b.id, answering: false)
+        Island.shared.ask(front: nil)
+        Island.shared.showForSnapshot(Island.shared.status, fresh: answer.id)
+        await settle()
+        key(36, "\r", modifiers: .command)
+        await settle()
+        check("Command-Return from a result opens its conversation with the draft",
+              chat.currentID == a.id && chat.draft == "Unsent island fixture" && !Island.shared.isOpen)
+        Island.shared.close()
+        await settle()
+
+        chat.showSample([a, b], current: a.id, answering: true)
+        chat.select(b.id)
+        let first = ask("first")
+        await settle()
+        panel.makeKey()
+        key(36, "\r", modifiers: .command)
+        await settle()
+        check("Command-Return from a question opens its conversation with the draft",
+              chat.currentID == a.id && chat.draft == "Unsent island fixture" && !Island.shared.isOpen)
+        approvals.cancelAll()
+        _ = await first.value
+        await settle()
+
+        let aQuestion = ask("escape-A")
+        await settle()
+        let bQuestion = ask("escape-B")
+        await settle()
+        panel.makeKey()
+        key(53, "\u{1b}")
+        await settle()
+        check("Escape declines the visible question", approvals.questions.map(\.id) == ["escape-B"])
+        key(53, "\u{1b}", repeating: true)
+        await settle()
+        check("Held Escape leaves the next question waiting", approvals.questions.map(\.id) == ["escape-B"])
+        key(53, "\u{1b}")
+        await settle()
+        check("A new Escape declines the next question", approvals.questions.isEmpty)
+        approvals.cancelAll()
+        let responses = [await aQuestion.value, await bQuestion.value]
+        check("Both questions receive a deliberate decline", responses == [.confirmed(false), .confirmed(false)])
+        chat.showSample([], current: nil, answering: false)
+    }
 }
 
 /// Emulates a legacy drag containing several files on one pasteboard item. Names appear only when requested.
 private final class LegacyPromiseFixture: NSFilePromiseReceiver {
+    var files = ["first.eml": "<first@pippa.test>", "second.eml": "<second@pippa.test>"]
     private var names: [String] = []
     override var fileNames: [String] { names }
 
     override func receivePromisedFiles(atDestination destinationDir: URL, options: [AnyHashable: Any] = [:],
                                        operationQueue: OperationQueue, reader: @escaping (URL, Error?) -> Void) {
-        names = ["first.eml", "second.eml"]
+        names = Array(files.keys)
         let callback = PromiseFixtureCallback(reader)
-        for name in names {
+        for (name, id) in files {
             let url = destinationDir.appendingPathComponent(name)
+            let data = Data("Message-ID: \(id)\r\n\r\nMail drop fixture".utf8)
             operationQueue.addOperation {
-                do { try Data("Subject: Fixture\n\nMail drop fixture".utf8).write(to: url); callback.read(url, nil) }
+                do { try data.write(to: url, options: .withoutOverwriting); callback.read(url, nil) }
                 catch { callback.read(url, error) }
             }
         }
