@@ -91,7 +91,7 @@ struct OptionalCapabilitySettings: View {
         SettingsSection(title: T("Optional abilities", table: "Settings"),
                         footer: failureState.wrappedValue ?? T("Only enabled tools take up space in the model’s context. Changes apply from your next question.", table: "Settings")) {
             row(T("Web search", table: "Settings"),
-                detail: T("Lets Pippa search the web and fetch pages for an answer. You can use Pippa’s browser either way.", table: "Settings"),
+                detail: T("Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission.", table: "Settings"),
                 \.web)
             SettingsDivider()
             row(T("Personal notes", table: "Settings"),

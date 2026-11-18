@@ -88,7 +88,7 @@
 "Optional abilities" = "Zusätzliche Fähigkeiten";
 "Only enabled tools take up space in the model’s context. Changes apply from your next question." = "Nur eingeschaltete Werkzeuge belegen Platz im Modellkontext. Änderungen gelten ab deiner nächsten Frage.";
 "Web search" = "Websuche";
-"Lets Pippa search the web and fetch pages for an answer. You can use Pippa’s browser either way." = "Pippa kann für eine Antwort im Web suchen und Seiten abrufen. Ihren Browser kannst du unabhängig davon nutzen.";
+"Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission." = "Pippa kann für eine Antwort im Web suchen und Seiten abrufen. Mit deiner Erlaubnis kann Pippa weiterhin Seiten in ihrem Browser öffnen.";
 "Personal notes" = "Persönliche Notizen";
 "Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes." = "Pippa kann persönliche Notizen speichern und in anderen Gesprächen nutzen. Beim Ausschalten bleiben gespeicherte Notizen erhalten.";
 "Online" = "Online";
