@@ -32,7 +32,7 @@ account alone does not activate online conversations. The screen names the recip
 **Use this Mac** turns online conversations off and keeps the provider connected.
 
 **Credentials.** Pi manages new API keys and OAuth tokens in its credential file (`~/.pi/agent/auth.json`), shared
-with Pi in Terminal. These credentials are not stored in Pippa’s settings or passed in command-line arguments.
+with Pi in Terminal. Before an online question, Pi renews an expiring sign-in in that shared store. The running answer gets a private copy of just that provider’s prepared access credentials, which Pippa removes when its Pi process ends. These credentials are not passed in command-line arguments.
 **Disconnect** signs the provider out of Pi too; it does not revoke credentials at the provider or remove credentials
 configured outside Pippa. Model catalogs can be refreshed without sending conversation contents.
 
