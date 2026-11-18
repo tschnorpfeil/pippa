@@ -103,7 +103,7 @@ export default function (pi: any) {
   assert.deepEqual(seen, { shared: false, providers: ['rot-fixture'] }, 'Pi reads a private agent folder holding only this provider');
   assert.ok(stdout.includes('PIPPA_RECIPIENT_OK'), stdout);
 
-  // The person's rotation stays: Pippa writes back only a credential Pi refreshed, never the copy over a newer entry.
+  // The person's rotation stays: Pippa never writes a private copy back to the shared auth.json.
   assert.equal(JSON.parse(await readFile(join(agent, 'auth.json'), 'utf8'))['rot-fixture'].key, KEY_B);
   // The private copy is gone after the run, and never held another provider's credential.
   const left = await readdir(join(support, 'pi-recipients')).catch(() => []);

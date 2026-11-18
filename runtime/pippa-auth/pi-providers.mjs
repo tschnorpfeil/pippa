@@ -2,6 +2,8 @@
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { createHash, randomUUID } from 'node:crypto';
+import { renameSync, rmSync, writeFileSync } from 'node:fs';
 
 const clean = value => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 4096);
 const aborted = () => new Error('cancelled');
@@ -104,6 +106,60 @@ export async function refreshProvider(runtime, provider, signal) {
   } catch { /* A cached catalog remains available; the UI can refresh again later. */ }
 }
 
+/** Marks the refresh token of a pinned credential: only its digest, never a token any provider would accept. */
+export const FROZEN_REFRESH = 'pippa-frozen:';
+/** Headroom for one online turn: a sign-in expiring sooner is renewed before the turn, never inside the pinned Pi. */
+export const TURN_HEADROOM_MS = 15 * 60_000;
+
+/** The credential a pinned Pi gets: an OAuth sign-in keeps its access token and account fields, but Pi can never renew
+ * it (no refresh token, no expiry it would act on), so no second process rotates the person's refresh token and the
+ * endpoint Pi derives from the access token stays the one checked. Other credentials are copied as they are. */
+export function frozen(credential) {
+  if (credential?.type !== 'oauth') return credential;
+  const refresh = String(credential.refresh ?? '');
+  const digest = refresh.startsWith(FROZEN_REFRESH) ? refresh.slice(FROZEN_REFRESH.length) : createHash('sha256').update(refresh).digest('hex');
+  return { ...credential, refresh: FROZEN_REFRESH + digest, expires: Number.MAX_SAFE_INTEGER };
+}
+
+function writePrivate(file, value) {
+  const temporary = `${file}.${randomUUID()}`;
+  try {
+    writeFileSync(temporary, JSON.stringify(value, null, 2), { mode: 0o600, flag: 'wx' });
+    renameSync(temporary, file);
+  } finally { rmSync(temporary, { force: true }); }
+}
+
+/**
+ * Prepares one online turn with Pi's own code. In Pi's shared agent folder (`agent`), `ModelRuntime.getAuth` renews a
+ * sign-in that would expire within the turn, under Pi's auth.json lock and re-checked there, so two Pippa processes (or
+ * Pi in the terminal) renew a rotating refresh token once, not twice. The credential as stored then goes frozen into
+ * `target/auth.json`, the private folder of the Pi that runs the turn. That folder is resolved as that Pi will resolve it,
+ * and the endpoint Pi derives from the credential (GitHub Copilot: from the access token) is returned for the recipient
+ * check. Nothing here sends a model request; only a due renewal reaches the provider's sign-in service.
+ */
+export async function prepareRecipient(pi, { agent, target, providerId, modelId, signal }) {
+  const { ModelRuntime, readStoredCredential } = pi;
+  const shared = await ModelRuntime.create({ authPath: join(agent, 'auth.json'), modelsPath: join(agent, 'models.json'), allowModelNetwork: false, signal });
+  const model = shared.getModel(providerId, modelId);
+  if (!model) throw Object.assign(new Error('unknown model'), { code: 'unknown_model' });
+  try {
+    await shared.getAuth(model, { signal, minOAuthValidityMs: TURN_HEADROOM_MS });
+  } catch (error) {
+    // The renewal ran and was stored, but this provider's tokens live shorter than the headroom: use what it issued.
+    if (!/expires too soon/.test(String(error?.message))) throw error;
+  }
+  signal.throwIfAborted();
+  const credential = readStoredCredential(providerId, join(agent, 'auth.json'));
+  const pinnedAuth = join(target, 'auth.json');
+  if (credential) writePrivate(pinnedAuth, { [providerId]: frozen(credential) });
+  else rmSync(pinnedAuth, { force: true });
+  const pinned = await ModelRuntime.create({ authPath: pinnedAuth, modelsPath: join(target, 'models.json'), allowModelNetwork: false, signal });
+  const pinnedModel = pinned.getModel(providerId, modelId);
+  const resolution = pinnedModel && await pinned.getAuth(pinnedModel, { signal });
+  if (!resolution) throw Object.assign(new Error('not configured'), { code: 'not_configured' });
+  return { endpoint: typeof resolution.auth?.baseUrl === 'string' ? resolution.auth.baseUrl : null };
+}
+
 export async function main(args = process.argv.slice(2)) {
   for (const name of ['log', 'info', 'warn', 'error', 'debug', 'trace']) console[name] = () => {};
   let emitted = 0;
@@ -111,8 +167,9 @@ export async function main(args = process.argv.slice(2)) {
     if (++emitted > 2000) throw new Error('output_limit');
     process.stdout.write(JSON.stringify(value) + '\n');
   };
-  const [release, command, providerId, authType] = args;
-  if (!['catalog', 'login', 'logout'].includes(command) || (command !== 'catalog' && !providerId)) {
+  const [release, command, providerId, authType, target] = args;
+  if (!['catalog', 'login', 'logout', 'prepare'].includes(command) || (command !== 'catalog' && !providerId)
+      || (command === 'prepare' && (!authType || !target || !process.env.PI_CODING_AGENT_DIR))) {
     write({ event: 'error', code: 'invalid_request' }); return 2;
   }
   const controller = new AbortController();
@@ -120,15 +177,16 @@ export async function main(args = process.argv.slice(2)) {
   let stopCode = 'cancelled';
   const stop = () => {
     controller.abort();
-    // A provider which ignores AbortSignal must not leave a callback process alive indefinitely.
+    // A provider which ignores AbortSignal must not leave a callback process alive indefinitely. A renewal that has
+    // started is bounded by Pi itself (15 s) and must be stored, or the rotated refresh token would be lost.
     hardStop ??= setTimeout(() => {
       process.stdout.write(JSON.stringify({ event: 'error', code: stopCode }) + '\n', () => process.exit(1));
-    }, 2000);
+    }, command === 'prepare' ? 20_000 : 2000);
   };
   const timer = setTimeout(() => {
     if (!controller.signal.aborted) stopCode = 'timeout';
     stop();
-  }, command === 'login' ? 10 * 60_000 : 30_000);
+  }, command === 'login' ? 10 * 60_000 : command === 'prepare' ? 45_000 : 30_000);
   process.on('SIGTERM', stop);
   let bridge;
   let buffer = '';
@@ -142,10 +200,15 @@ export async function main(args = process.argv.slice(2)) {
     }
   };
   try {
-    let ModelRuntime, SettingsManager;
+    let pi;
     try {
-      ({ ModelRuntime, SettingsManager } = await import(pathToFileURL(join(release ?? '', 'node_modules/@earendil-works/pi-coding-agent/dist/index.js')).href));
+      pi = await import(pathToFileURL(join(release ?? '', 'node_modules/@earendil-works/pi-coding-agent/dist/index.js')).href);
     } catch { write({ event: 'error', code: 'pi_missing' }); return 2; }
+    const { ModelRuntime, SettingsManager } = pi;
+    if (command === 'prepare') {
+      const prepared = await prepareRecipient(pi, { agent: process.env.PI_CODING_AGENT_DIR, target, providerId, modelId: authType, signal: controller.signal });
+      write({ event: 'done', endpoint: prepared.endpoint }); return 0;
+    }
     const runtime = await ModelRuntime.create({ allowModelNetwork: false, signal: controller.signal });
     if (command === 'catalog') {
       if (providerId && runtime.getProvider(providerId)) await refreshProvider(runtime, providerId, controller.signal);
@@ -170,7 +233,9 @@ export async function main(args = process.argv.slice(2)) {
     await refreshProvider(runtime, providerId, controller.signal);
     write({ event: 'done' }); return 0;
   } catch (error) {
-    write({ event: 'error', code: controller.signal.aborted ? stopCode : /EADDRINUSE/.test(String(error?.code ?? '') + String(error?.message ?? '')) ? 'port_busy' : 'failed' });
+    const detail = String(error?.code ?? '') + String(error?.message ?? '');
+    write({ event: 'error', code: controller.signal.aborted ? stopCode : /EADDRINUSE/.test(detail) ? 'port_busy'
+      : command === 'prepare' && /not_configured|OAuth refresh failed/.test(detail) ? 'signed_out' : 'failed' });
     return 1;
   } finally {
     clearTimeout(timer); clearTimeout(hardStop);

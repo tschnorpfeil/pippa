@@ -130,7 +130,7 @@ final class PiProviderSettingsModel: ObservableObject {
             case .cancelled: return
             case .portBusy: problem = T("Another sign-in is still open. Close it and try again.", table: "Settings")
             case .unavailable: problem = T("The provider setup is unavailable. Please reopen Pippa.", table: "Settings")
-            case .failed: problem = T("The connection didn’t work. Please try again.", table: "Settings")
+            case .failed, .signedOut: problem = T("The connection didn’t work. Please try again.", table: "Settings")
             }
         } else { problem = T("The connection didn’t work. Please try again.", table: "Settings") }
     }

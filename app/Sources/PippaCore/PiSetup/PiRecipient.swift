@@ -2,9 +2,13 @@ import CryptoKit
 import Foundation
 
 /// Who actually receives what Pi sends on an online route: the provider's effective configuration and account, not just
-/// its Pi id (issue #193). A Pi provider's models.json entry (endpoint, API, headers, key reference) and its auth.json
-/// credential, or an older Keychain connection's endpoint, model and key, become one digest. An approval and the online
-/// AI's own Pi session are bound to that digest: a new endpoint, key or sign-in is a new recipient with fresh context.
+/// its Pi id (issue #193). A Pi provider's models.json entry (endpoint, API, headers, key reference), its cached catalog
+/// entry and its auth.json credential, or an older Keychain connection's endpoint, model and key, become one digest.
+///
+/// Two digests come out (`Identity`). `recipient` binds an approval: it also covers the endpoint Pi derives from the
+/// sign-in itself (GitHub Copilot routes each access token to the `proxy-ep` it names), so a renewal that moves the
+/// endpoint needs a fresh review. `account` keys the online AI's own Pi session of typed words: the same account keeps
+/// its history across such a move; a new endpoint configuration, key or sign-in starts fresh context.
 ///
 /// Only digests leave this type; no key, token or header value is returned, logged or stored. `nil` means the recipient
 /// cannot be determined (no credential, an unreadable file, an unknown credential shape), and nothing approved may go out.
@@ -28,12 +32,29 @@ public struct PiRecipient: Sendable {
         return PiRecipient(agentDirectory: agent) { id in (try? ModelCredentialStore.readWithoutPrompt(id)) ?? nil }
     }
 
+    public struct Identity: Sendable, Equatable {
+        /// What an approval is bound to: configuration, account and the endpoint Pi derives from the credential.
+        public var recipient: String
+        /// What typed history is bound to: the same, without the credential-derived endpoint.
+        public var account: String
+        public init(recipient: String, account: String) { self.recipient = recipient; self.account = account }
+    }
+
+    /// Providers whose requests go to an endpoint Pi derives from the credential (`toAuth` returns a `baseUrl`), as of
+    /// the bundled Pi (checked by runtime/pippa-auth/pi-prepare.test.mjs). For any other provider such an endpoint is
+    /// unexpected, and the prepared turn sends nothing (`PiRecipientSnapshot.prepare`).
+    public static let credentialRoutedProviders: Set<String> = ["github-copilot"]
+
+    /// A Pi provider's recipient digest (`Identity.recipient`).
+    public func fingerprint(_ model: PiModelSelection) -> String? { identity(model)?.recipient }
+
     /// A Pi provider (built in or registered in models.json) with its configuration and account as Pi would use them.
     /// Pippa's Pi runs with a fixed environment, so the credential comes only from auth.json or the models.json entry.
-    public func fingerprint(_ model: PiModelSelection) -> String? {
+    public func identity(_ model: PiModelSelection) -> Identity? {
         guard let agent = agentDirectory, model.isValid,
               ![PiOnlineProvider.providerKey, PiInstaller.providerKey].contains(model.providerID) else { return nil }
         var parts: [String: Any] = ["kind": "pi", "provider": model.providerID, "model": model.modelID]
+        var routing: String?
         let fm = FileManager.default
         let modelsJSON = agent.appendingPathComponent("models.json")
         if fm.fileExists(atPath: modelsJSON.path) {
@@ -62,11 +83,24 @@ public struct PiRecipient: Sendable {
             if let credential = document[model.providerID] {
                 guard let account = Self.account(credential) else { return nil }
                 parts["account"] = account
+                routing = Self.routing(model.providerID, credential)
             }
         }
         // Neither a configuration nor a credential: Pi could not reach anyone Pippa can name.
-        guard parts["config"] != nil || parts["account"] != nil else { return nil }
-        return Self.digest(parts)
+        guard parts["config"] != nil || parts["account"] != nil, let account = Self.digest(parts) else { return nil }
+        guard let routing else { return Identity(recipient: account, account: account) }
+        parts["routing"] = routing
+        return Self.digest(parts).map { Identity(recipient: $0, account: account) }
+    }
+
+    /// What Pi derives the request endpoint from in a credential of a credential-routed provider. GitHub Copilot: the
+    /// access token's `proxy-ep` (empty without one; Pi then uses `enterpriseUrl`, part of the account, or its default).
+    static func routing(_ provider: String, _ credential: Any) -> String? {
+        guard credentialRoutedProviders.contains(provider), let fields = credential as? [String: Any],
+              fields["type"] as? String == "oauth" else { return nil }
+        let access = fields["access"] as? String ?? ""
+        guard let start = access.range(of: "proxy-ep=") else { return "" }
+        return String(access[start.upperBound...].prefix { $0 != ";" })
     }
 
     /// An older Keychain connection (`pippa-online`), with the key read without a dialog.
@@ -101,7 +135,12 @@ public struct PiRecipient: Sendable {
         !text.isEmpty && !text.hasPrefix("!") && !text.contains("$")
     }
 
-    /// Bind OAuth to an explicit account ID, or to the sign-in itself if Pi supplies only workspace metadata.
+    /// Marks the refresh token of a credential pinned for one Pi process: `pippa-frozen:` and the token's SHA-256, so a
+    /// pinned copy names the same sign-in as the shared credential but holds nothing a provider would accept.
+    public static let frozenRefreshPrefix = "pippa-frozen:"
+
+    /// Bind OAuth to an explicit account ID, or to the sign-in itself (its refresh token's digest) if Pi supplies only
+    /// workspace metadata. Fields a renewal replaces (tokens, expiry, Copilot's current model list) are not the account.
     static func account(_ value: Any) -> [String: Any]? {
         guard let credential = value as? [String: Any], let type = credential["type"] as? String else { return nil }
         switch type {
@@ -110,10 +149,11 @@ public struct PiRecipient: Sendable {
             return credential
         case "oauth":
             var stable = credential
-            for volatile in ["access", "refresh", "expires"] { stable.removeValue(forKey: volatile) }
+            for volatile in ["access", "refresh", "expires", "availableModelIds"] { stable.removeValue(forKey: volatile) }
             if let id = stable["accountId"] as? String, !id.isEmpty { return stable }
             guard let refresh = credential["refresh"] as? String, !refresh.isEmpty else { return nil }
-            stable["signIn"] = refresh
+            stable["signIn"] = refresh.hasPrefix(frozenRefreshPrefix) ? String(refresh.dropFirst(frozenRefreshPrefix.count))
+                : SHA256.hash(data: Data(refresh.utf8)).map { String(format: "%02x", $0) }.joined()
             return stable
         default:
             return nil

@@ -102,8 +102,6 @@ final class PiSession {
         var settled = false
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
         defer { onStarting(false) }
-        // A token Pi refreshed during this answer goes back to Pi's shared auth.json right away.
-        defer { if let snapshot { Task.detached { snapshot.writeBack() } } }
         let startup = Task { try await prepare(outgoing, conversation: conversation, handoff: handoff, onStarting: onStarting) }
         startupTask = startup
         let client: PiRPCClient
@@ -136,9 +134,9 @@ final class PiSession {
 
     private func prepare(_ outgoing: Outgoing, conversation: String, handoff: Bool,
                          onStarting: (Bool) -> Void) async throws -> (PiRPCClient, LaunchRoute, String) {
-        let route = try await launchRoute(outgoing, handoff: handoff)
+        var route = try await launchRoute(outgoing, handoff: handoff)
         // Before anything starts: a refused message never reaches a Pi process.
-        let text = try Self.message(outgoing, route: route)
+        var text = try Self.message(outgoing, route: route)
         if route.online == nil && route.piModel == nil {
             onStarting(true)
             let server: OMLXServer
@@ -150,7 +148,25 @@ final class PiSession {
             try? await server.prewarm()
         }
         try Task.checkCancellation()
-        return (try await ready(conversation: conversation, route: route), route, text)
+        let pinned = try await pinRecipient(route)
+        do {
+            if let pinned, route.piModel != nil, (pinned.identity?.recipient ?? "") != route.destination?.recipient {
+                // Pi's renewal moved the endpoint the sign-in routes to, or the account changed meanwhile: read the route
+                // again. Typed words go on in the account's own session; an approval made for the earlier recipient needs
+                // a fresh review (`message` refuses it).
+                let again = try await launchRoute(outgoing, handoff: handoff)
+                text = try Self.message(outgoing, route: again)
+                guard again.piModel == route.piModel, (pinned.identity?.recipient ?? "") == again.destination?.recipient else {
+                    throw Failure.destinationChanged
+                }
+                route = again
+            }
+            try Task.checkCancellation()
+        } catch {
+            pinned?.remove()
+            throw error
+        }
+        return (try await ready(conversation: conversation, route: route, pinned: pinned), route, text)
     }
 
     /// The text Pi receives on `route`, or why nothing may go there.
@@ -231,46 +247,59 @@ final class PiSession {
         await retireSnapshot()
     }
 
-    /// After its Pi ended: a refreshed credential goes back to the shared auth.json, then the private folder is removed
-    /// (kept only when writing back failed, for the next start's sweep).
+    /// After its Pi ended, its private folder goes too.
     private func retireSnapshot() async {
         guard let old = snapshot else { return }
         snapshot = nil
-        await Task.detached { if old.writeBack() != .failed { old.remove() } }.value
+        await Task.detached { old.remove() }.value
     }
 
-    /// Pi's agent folder for an online route, private to the Pi process about to start, and proof that it names the
-    /// recipient `route` was checked for. Any difference (a sign-in or key changed since) sends nothing.
-    private func recipientSnapshot(_ route: LaunchRoute) async throws -> PiRecipientSnapshot? {
+    /// Pi's agent folder for the online turn about to start, private to the Pi process that runs it. For a Pi provider,
+    /// Pi's own resolver prepares it from the shared folder (`PiRecipientSnapshot.prepare`): a sign-in that would expire
+    /// within the turn is renewed there first, under Pi's lock, and the folder's recipient is read from what Pi will use.
+    /// `prepare` compares that with the route; any other difference sends nothing.
+    private func pinRecipient(_ route: LaunchRoute) async throws -> PiRecipientSnapshot? {
         guard let destination = route.destination else { return nil }
-        let agent = try Self.installation(ProcessInfo.processInfo.environment).agent
+        let env = ProcessInfo.processInfo.environment
+        let (roots, agent) = try Self.installation(env)
         let root = Self.snapshotRoot, parent = Self.snapshotDirectory
-        let model = route.piModel, connection = route.online?.connection
-        return try await Task.detached {
+        if let connection = route.online?.connection, route.piModel == nil {
+            // The key itself goes only into Pi's environment (`route.online.key`), checked with the route.
+            return try await Task.detached {
+                Self.sweepSnapshots(root)
+                do { return try PiRecipientSnapshot.create(connection: connection, recipient: destination.recipient, from: agent, in: parent) }
+                catch { throw Failure.destinationChanged }
+            }.value
+        }
+        guard let model = route.piModel else { throw Failure.destinationChanged }
+        guard let pi = PiProviderClient.bundled(roots: roots, agentDirectory: agent, environment: env, helper: Self.providersHelper, offline: true) else {
+            throw Failure.setup("pi-providers.mjs missing")
+        }
+        // Not cancelled with the question: a renewal that has started must be stored, or the rotated refresh token is lost.
+        // Pi bounds it (lock wait, then 15 s for the renewal).
+        let prepared = await Task.detached { () -> Result<PiRecipientSnapshot, Error> in
             Self.sweepSnapshots(root)
-            let snapshot: PiRecipientSnapshot
-            if let model {
-                do { snapshot = try PiRecipientSnapshot.create(model: model, from: agent, in: parent) }
-                catch { throw Failure.destinationChanged }
-                guard (PiRecipient(agentDirectory: snapshot.directory).fingerprint(model) ?? "") == destination.recipient else {
-                    snapshot.remove(); throw Failure.destinationChanged
-                }
-            } else if let connection {
-                // The key itself goes only into Pi's environment (`route.online.key`), checked with the route.
-                do { snapshot = try PiRecipientSnapshot.create(connection: connection, from: agent, in: parent) }
-                catch { throw Failure.destinationChanged }
-            } else { throw Failure.destinationChanged }
-            return snapshot
+            do { return .success(try await PiRecipientSnapshot.prepare(model: model, from: agent, in: parent, pi: pi)) }
+            catch { return .failure(error) }
         }.value
+        switch prepared {
+        case .success(let snapshot):
+            if Task.isCancelled { snapshot.remove(); throw CancellationError() }
+            return snapshot
+        case .failure(PiRecipientSnapshot.Failure.signedOut):
+            throw Failure.model(T("Reconnect your online AI in Settings.", table: "App"))
+        case .failure:
+            throw Failure.destinationChanged
+        }
     }
 
-    /// Folders of Pippa processes that ended: refreshed credentials written back, then removed.
+    /// Folders of Pippa processes that ended.
     nonisolated static func sweepSnapshots(_ root: URL) {
         for folder in (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
             guard let pid = Int32(folder.lastPathComponent) else { continue }
             if pid == getpid() || kill(pid, 0) == 0 || errno != ESRCH { continue }
             PiRecipientSnapshot.sweep(folder)
-            rmdir(folder.path)  // Only once empty: a copy whose write-back failed waits for the next start.
+            rmdir(folder.path)
         }
     }
 
@@ -283,13 +312,20 @@ final class PiSession {
 
     // MARK: Starting Pi
 
-    private func ready(conversation: String, route: LaunchRoute) async throws -> PiRPCClient {
+    /// `pinned`: the online turn's prepared folder (`pinRecipient`). A running Pi for the same session and recipient takes
+    /// its credential and keeps going; otherwise Pi starts afresh in it.
+    private func ready(conversation: String, route: LaunchRoute, pinned: PiRecipientSnapshot?) async throws -> PiRPCClient {
         let session = PippaPiLaunch.sessionID(conversation: conversation, scope: route.sessionScope)
-        if !needsFreshClient, let client, sessionID == session, launchKey == route.key, snapshot?.isCurrent ?? true,
-           await client.isRunning, await client.isAnswering == false { return client }
+        if !needsFreshClient, let client, sessionID == session, launchKey == route.key,
+           await client.isRunning, await client.isAnswering == false {
+            if let pinned {
+                if let snapshot, (try? snapshot.adopt(pinned)) != nil { return client }
+            } else if snapshot == nil { return client }
+        }
         PippaMCPService.invalidateEndpoint()
         if let old = client { await old.shutdown(); client = nil }
         await retireSnapshot()
+        snapshot = pinned
         let env = ProcessInfo.processInfo.environment
         let extensions = URL(fileURLWithPath: Self.extensionsPath(env), isDirectory: true)
         guard FileManager.default.fileExists(atPath: extensions.appendingPathComponent("pippa-tools.ts").path) else {
@@ -304,8 +340,6 @@ final class PiSession {
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR"] { if let value = env[key] { extra[key] = value } }
         // An online Pi reads its provider's configuration and credential only from its own copy: what was checked is
         // what every request of this process reaches, whatever happens to ~/.pi/agent meanwhile.
-        let pinned = try await recipientSnapshot(route)
-        snapshot = pinned
         if let pinned {
             extra["PI_CODING_AGENT_DIR"] = pinned.directory.path
             // pi-web-access keeps its page cache where it was, not in the short-lived folder.
@@ -416,8 +450,8 @@ final class PiSession {
         if let model {
             await removeOnlineProvider(from: modelsJSON)
             let recipients = PiRecipient(agentDirectory: target.agent)
-            let recipient = await Task.detached { recipients.fingerprint(model) }.value
-            let destination = ShareDestination(model, recipient: recipient)
+            let identity = await Task.detached { recipients.identity(model) }.value
+            let destination = ShareDestination(model, identity: identity)
             return LaunchRoute(key: prefix + "pi|" + model.providerID + "|" + model.modelID + "|" + destination.recipient,
                                piModel: model, handoff: handoff)
                 .online(destination, choice, rules: settings.sharing, scope: scope(destination))
@@ -528,6 +562,9 @@ final class PiSession {
         if let repo = repoRuntime { return repo.appendingPathComponent("pippa-tools", isDirectory: true).path }
         return PiConversationDefault.bundledExtensions(bundle: Bundle.main.bundleURL).path
     }
+
+    /// Pi's provider bridge for `prepare`: environment (`PIPPA_PI_PROVIDERS`), in a debug run the repo, else the bundle.
+    static var providersHelper: URL? { repoRuntime?.appendingPathComponent("pippa-auth/pi-providers.mjs") }
 
     static func webPath(_ env: [String: String]) -> String? {
         if let path = env["PIPPA_PI_WEB"] { return path.isEmpty ? nil : path }

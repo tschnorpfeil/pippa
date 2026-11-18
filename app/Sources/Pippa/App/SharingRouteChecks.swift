@@ -70,6 +70,16 @@ enum SharingRouteChecks {
         let typedB = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture|account-b").online(otherAccount, .init(), rules: SourceSharing())
         check(typedA.sessionScope == online.sessionScope && typedA.sessionScope != typedB.sessionScope && typedA.key != typedB.key,
               "typed words keep one session per recipient and account; a new account starts with fresh context")
+        // GitHub Copilot: a renewal can route the same sign-in to another proxy endpoint (`PiRecipient.Identity`).
+        let copilot = PiModelSelection(providerID: "github-copilot", modelID: "copilot-fixture", providerName: "GitHub Copilot")
+        let reviewed = ShareDestination(copilot, identity: .init(recipient: "proxy-individual", account: "account-d"))
+        let moved = ShareDestination(copilot, identity: .init(recipient: "proxy-business", account: "account-d"))
+        let copilotApproval = ShareApproval(destination: reviewed, question: "Check", parts: [])
+        let typedBefore = PiSession.LaunchRoute(key: "pi|github-copilot|proxy-individual").online(reviewed, .init(), rules: SourceSharing())
+        let typedAfter = PiSession.LaunchRoute(key: "pi|github-copilot|proxy-business").online(moved, .init(), rules: SourceSharing())
+        check(changed(refused(.approved(copilotApproval), approvedRoute(moved))) && typedBefore.sessionScope == typedAfter.sessionScope
+              && typedBefore.key != typedAfter.key && (try? PiSession.message(.typed("Hello"), route: typedAfter)) == "Hello",
+              "an endpoint the sign-in moved to needs a fresh review; typed words keep the account's session in a fresh Pi")
         check(PiSession.sameRecipient(typedA, typedA) && !PiSession.sameRecipient(typedA, typedB)
               && !PiSession.sameRecipient(approvedRoute(openai), approvedRoute(openai, rules: noDocuments)),
               "the check just before sending notices another account or changed rules")

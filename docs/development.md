@@ -67,12 +67,19 @@ prompt (under 300 tokens), `--tools` with the list above, `--no-skills --skill <
 `--provider/--model` from the installer or the online route. The AI on this Mac uses the shared `~/.pi/agent`, but the
 person's extensions, context files and MCP servers do not join Pippa's sessions. An online Pi gets a private agent folder
 instead (`PiRecipientSnapshot`, `<Application Support>/Pippa/pi-recipients/<pid>/<id>`, 0700): only its provider's
-models.json entry, auth.json credential and cached catalog, plus Pi's settings. Pi 1.5 rereads auth.json for every
-request, so with the shared folder a sign-in or key change after `PiSession`'s last check would reach the request.
-`PiSession.ready` proves the copy names the checked recipient before Pi starts; a token Pi refreshes there is written back
-to the shared auth.json under Pi's lock, only while the shared entry is still the copied one; a running Pi restarts when
-the shared credential moved on. Before the first question, the client
-checks that every native tool is registered (`PiNativeReadiness`).
+models.json entry and cached catalog, Pi's settings, and the credential Pi prepared for the turn. Pi 1.5 rereads
+auth.json for every request, so with the shared folder a sign-in or key change after `PiSession`'s last check would reach
+the request. Before each online turn, `pi-providers.mjs prepare` runs the bundled Pi's own `ModelRuntime` on the shared
+folder: a sign-in expiring within 15 minutes is renewed there, under Pi's auth.json lock, so two Pippa processes (or Pi
+in the terminal) renew a rotating refresh token once. The credential then goes pinned into the private folder: an OAuth
+sign-in keeps its access token, but its refresh token is replaced by a digest and its expiry by one Pi never acts on, so
+the Pi that runs the turn never renews it. The helper resolves the folder as that Pi will and reports the endpoint Pi
+derives from the credential (GitHub Copilot routes each access token to its `proxy-ep`). `PiRecipient.Identity` binds an
+approval to configuration, account and that endpoint (`recipient`), and typed history to configuration and account only
+(`account`): a renewal that moves the endpoint needs a fresh review, while typed words continue in the account's session
+in a fresh Pi. A running Pi for the same recipient takes the next turn's credential (`adopt`); otherwise Pi restarts. Pi
+deriving an endpoint for any other provider sends nothing. Before the first question, the client checks that every native
+tool is registered (`PiNativeReadiness`).
 
 **Cards and receipts.** Pi's `tool_execution_start` and `tool_execution_end` events say what ran. `PiTurnReceipt`
 turns them into one line per call that changed something, never from model text: `move_files` to the Trash is a
@@ -225,7 +232,7 @@ python3 scripts/check-default-models.py                                 # the ca
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'            # release and fixture scripts
 node --experimental-strip-types --test $(ls runtime/pippa-tools/*.test.mjs | grep -v /real-pi-)  # extensions, no Pi needed
 PIPPA_PI_CLI=<pi>/dist/bundle/cli.js node --experimental-strip-types --test runtime/pippa-tools/real-pi-online.test.mjs  # online route, real Pi, scripted provider
-node --test runtime/pippa-auth/*.test.mjs                               # Provider/login bridge (no network)
+node --test runtime/pippa-auth/*.test.mjs                               # Provider/login bridge, turn preparation with the bundled Pi (no network)
 node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs   # terminal autostart, fake server
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first
 app/.build/debug/Pippa --check-approvals                                # questions and conversation files, no window
@@ -466,6 +473,10 @@ node scripts/provider-setup-smoke.mjs dist/Pippa.app
 python3 scripts/check-cloud-sharing.py dist/Pippa.app   # native chat, edited approval and follow-up; requires Accessibility
 node scripts/recipient-binding-smoke.mjs dist/Pippa.app   # rotates auth.json and models.json inside Pi before its request
 ```
+
+`PIPPA_SHARING_CHECKS=1` with `PIPPA_PI_PAYLOAD` runs the bundled Pi's turn preparation from Swift: two turns prepared at
+once renew a rotating sign-in once, and a GitHub Copilot renewal that moves the endpoint changes the recipient but not
+the account. Sign-in services are faked in-process (`runtime/pippa-auth/fixtures/fake-sign-in.mjs`).
 
 The focused Swift checks cover settings compatibility and the duplex helper lifecycle. The app smoke uses a fresh
 HOME and a loopback scripted responder to exercise the actual chat route without a local model or real credentials.

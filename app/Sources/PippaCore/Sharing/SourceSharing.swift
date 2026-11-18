@@ -129,14 +129,22 @@ public struct ShareDestination: Codable, Sendable, Equatable, Hashable {
     /// Digest of the effective endpoint, configuration and account (`PiRecipient`); empty when it could not be determined.
     /// Never a key or token. An unverified destination receives typed words only, never an approval.
     public var recipient: String
+    /// The same without an endpoint Pi derives from the sign-in (`PiRecipient.Identity.account`): typed history stays with
+    /// the account when only that moves. Empty: the same as `recipient`.
+    public var account: String
 
-    public init(key: String, label: String, provider: String, recipient: String = "") {
+    public init(key: String, label: String, provider: String, recipient: String = "", account: String = "") {
         self.key = key; self.label = label; self.provider = provider; self.recipient = recipient
+        self.account = account == recipient ? "" : account
     }
 
     public init(_ model: PiModelSelection, recipient: String? = nil) {
+        self.init(model, identity: recipient.map { PiRecipient.Identity(recipient: $0, account: $0) })
+    }
+
+    public init(_ model: PiModelSelection, identity: PiRecipient.Identity?) {
         self.init(key: "pi|\(model.providerID)|\(model.modelID)", label: model.providerName + " · " + model.modelDisplayName,
-                  provider: model.providerName, recipient: recipient ?? "")
+                  provider: model.providerName, recipient: identity?.recipient ?? "", account: identity?.account ?? "")
     }
 
     public init(_ connection: ModelConnection, recipient: String? = nil) {
@@ -144,7 +152,7 @@ public struct ShareDestination: Codable, Sendable, Equatable, Hashable {
                   label: connection.displayName, provider: connection.provider.displayName, recipient: recipient ?? "")
     }
 
-    enum CodingKeys: String, CodingKey { case key, label, provider, recipient }
+    enum CodingKeys: String, CodingKey { case key, label, provider, recipient, account }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -152,6 +160,16 @@ public struct ShareDestination: Codable, Sendable, Equatable, Hashable {
         label = try values.decode(String.self, forKey: .label)
         provider = try values.decode(String.self, forKey: .provider)
         recipient = try values.decodeIfPresent(String.self, forKey: .recipient) ?? ""
+        account = try values.decodeIfPresent(String.self, forKey: .account) ?? ""
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(key, forKey: .key)
+        try values.encode(label, forKey: .label)
+        try values.encode(provider, forKey: .provider)
+        try values.encode(recipient, forKey: .recipient)
+        if !account.isEmpty { try values.encode(account, forKey: .account) }
     }
 
     /// The effective recipient is known: only then may an approval go to it.
@@ -160,7 +178,7 @@ public struct ShareDestination: Codable, Sendable, Equatable, Hashable {
     /// The online AI conversations go to right now, `nil` when Pippa uses the AI on this Mac. `recipients` resolves the
     /// account behind it (default: the app's own Pi folder and Keychain, without a dialog).
     public static func active(_ settings: InferenceSettings, recipients: PiRecipient = .live()) -> Self? {
-        if let model = settings.activePiModel { return Self(model, recipient: recipients.fingerprint(model)) }
+        if let model = settings.activePiModel { return Self(model, identity: recipients.identity(model)) }
         return PiOnlineProvider.activeConnection(settings).map { Self($0, recipient: recipients.fingerprint($0)) }
     }
 
@@ -169,15 +187,16 @@ public struct ShareDestination: Codable, Sendable, Equatable, Hashable {
     public static func handoff(_ settings: InferenceSettings, recipients: PiRecipient = .live()) -> Self? {
         guard !settings.usesOnlineAI else { return nil }
         if let model = settings.handoffModel {
-            return model.isValid ? Self(model, recipient: recipients.fingerprint(model)) : nil
+            return model.isValid ? Self(model, identity: recipients.identity(model)) : nil
         }
         return settings.handoffLegacyConnection.map { Self($0, recipient: recipients.fingerprint($0)) }
     }
 
-    /// A short, Pi-safe tag for the destination's own session of typed words: history never moves to another recipient,
-    /// another account or another configuration, and never from sessions kept before the recipient was part of it.
+    /// A short, Pi-safe tag for the destination's own session of typed words: history never moves to another account or
+    /// another configuration, and never from sessions kept before the recipient was part of it. An endpoint Pi derives
+    /// from the same sign-in is not part of it (`account`).
     public var sessionTag: String {
-        let digest = (key + "\n" + recipient).utf8.reduce(UInt64(14_695_981_039_346_656_037)) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
+        let digest = (key + "\n" + (account.isEmpty ? recipient : account)).utf8.reduce(UInt64(14_695_981_039_346_656_037)) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
         return "online-" + String(digest, radix: 36)
     }
 }
