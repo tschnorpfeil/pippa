@@ -17,6 +17,7 @@ enum WindowLifecycleChecks {
         }
         check("A typed web address accepts a bare hostname and preserves HTTPS paths",
               WKBrowserSession.webAddress("example.com/path")?.absoluteString == "https://example.com/path"
+              && WKBrowserSession.webAddress("example.com:8443")?.port == 8443
               && WKBrowserSession.webAddress(" https://example.com/a?q=b ")?.absoluteString == "https://example.com/a?q=b")
         check("The browser address rejects scripts, files, local addresses and empty input",
               ["", "javascript:alert(1)", "file:///tmp/secret", "http://127.0.0.1", "http://localhost", "a b"].allSatisfy {
@@ -43,6 +44,11 @@ enum WindowLifecycleChecks {
         check("Returning to A restores the reviewed question and files", drafts.draft == "Edited A" && drafts.attachments == [fixtureFile])
         drafts.select("b")
         check("Returning to B restores its separate typed question", drafts.draft == "Different B")
+        ChatModel.shared.replaceForSnapshot([], current: nil, answering: true)
+        await WKBrowserSession.shared.navigateManually("https://example.com")
+        check("Typing a website while the AI is working waits instead of changing its navigation permissions",
+              WKBrowserSession.shared.currentURL == nil && WKBrowserSession.shared.navigationProblem != nil)
+        ChatModel.shared.replaceForSnapshot([], current: nil, answering: false)
         if let first = WKBrowserSession.makeOnline(), let next = WKBrowserSession.makeOnline() {
             let firstStore = first.webView.configuration.websiteDataStore
             let nextStore = next.webView.configuration.websiteDataStore

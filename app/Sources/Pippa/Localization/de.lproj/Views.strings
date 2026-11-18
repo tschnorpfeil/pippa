@@ -35,3 +35,5 @@
 "Enter a public website address, such as https://example.com." = "Gib die Adresse einer öffentlichen Webseite ein, etwa https://example.com.";
 
 "The website couldn’t be loaded. Try again." = "Die Webseite konnte nicht geladen werden. Versuche es erneut.";
+
+"Wait for Pippa to finish before opening a website." = "Warte, bis Pippa fertig ist, bevor du eine Webseite öffnest.";
