@@ -27,7 +27,7 @@ extension PippaMCPTools {
                  "Inboxes of all accounts, newest first. query=word in subject/sender; omit=newest; unread=true only unread; account=one account from accounts; cursor=next page.",
                  ["query": string, "unread": ["type": "boolean"], "limit": integer, "account": string, "cursor": string]),
             tool("mail_read", "Mail öffnen",
-                 "Whole inbox email from mail_search: mail_ref from the result, else message_id, else subject exact + from=its sender; attachments saved for read_document.",
+                 "Whole inbox email: use mail_ref from an account search. For combined inbox results only, use message_id or exact subject + from. Attachments saved for read_document.",
                  ["mail_ref": string, "message_id": string, "subject": string, "from": string]),
             tool("photos_search", "Fotos suchen",
                  "query=one Mac-language word; omit=newest; days=last N (no query).",

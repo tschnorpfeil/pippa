@@ -66,15 +66,21 @@ enum MailAccountScript {
             repeat 31 times
                 try
                     set parentBox to container of cur
-                    if class of parentBox is not mailbox then exit repeat
+                    if parentBox is missing value then return {acctID, boxPath}
+                    set parentClass to class of parentBox
+                    if parentClass is account then
+                        if (id of parentBox as text) is acctID then return {acctID, boxPath}
+                        error "wrong mailbox account" number -1728
+                    end if
+                    if parentClass is not mailbox and parentClass is not «class mbxc» then error "unknown mailbox root" number -1728
                     set beginning of boxPath to (name of parentBox) as text
                     set cur to parentBox
                 on error number errNum
                     my rethrowAccess(errNum)
-                    exit repeat
+                    error "unknown mailbox root" number -1728
                 end try
             end repeat
-            return {acctID, boxPath}
+            error "mailbox path too deep" number -1728
         end tell
     end identityOf
 
@@ -135,25 +141,39 @@ enum MailAccountScript {
                             set isUnread to false
                             try
                                 set theSubject to (subject of m) as text
+                            on error number errNum
+                                my rethrowAccess(errNum)
                             end try
                             try
                                 set theSender to (sender of m) as text
+                            on error number errNum
+                                my rethrowAccess(errNum)
                             end try
                             try
                                 set theDate to date received of m
+                            on error number errNum
+                                my rethrowAccess(errNum)
                             end try
                             try
                                 set boxName to (name of mailbox of m) as text
+                            on error number errNum
+                                my rethrowAccess(errNum)
                             end try
                             try
                                 set c to (content of m) as text
                                 if (length of c) > 400 then set c to text 1 thru 400 of c
+                            on error number errNum
+                                my rethrowAccess(errNum)
                             end try
                             try
                                 set mid to (message id of m) as text
+                            on error number errNum
+                                my rethrowAccess(errNum)
                             end try
                             try
                                 set isUnread to not (read status of m)
+                            on error number errNum
+                                my rethrowAccess(errNum)
                             end try
                             set ident to my identityOrNone(m)
                             set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread, item 1 of ident, item 2 of ident}
@@ -167,7 +187,7 @@ enum MailAccountScript {
         return {"ok", out}
     end accountRows
 
-    on accountMessage(acctID, mailID, theID)
+    on accountMessage(acctID, mailID, theID, expectedPath)
         tell application id "com.apple.mail"
             try
                 with timeout of 20 seconds
@@ -179,14 +199,19 @@ enum MailAccountScript {
                     set exactIdentity to false
                     try
                         set candidateID to (message id of m) as text
-                        considering case
+                        considering case, diacriticals, hyphens, punctuation and white space
                             if candidateID is theID or candidateID is ("<" & theID & ">") then set exactIdentity to true
                         end considering
                     on error number errNum
                         my rethrowAccess(errNum)
                     end try
                     if not exactIdentity then return {"ok", {}}
-                    return {"ok", {my messageInfo(m), my identityOf(m)}}
+                    set ident to my identityOf(m)
+                    considering case, diacriticals, hyphens, punctuation and white space
+                        if (id of m) is not mailID then return {"ok", {}}
+                        if item 1 of ident is not acctID or item 2 of ident is not expectedPath then return {"ok", {}}
+                    end considering
+                    return {"ok", {my messageInfo(m), ident}}
                 end timeout
             on error number errNum
                 if errNum is -1728 then return {"ok", {}}
@@ -222,10 +247,13 @@ enum MailAccountScript {
             }) { try MailSearchFlow.parseRows($0, expecting: ids.count, identity: true) }
         }
 
-        func message(account: String, mailID: Int, messageID: String) async throws -> MailInboxMessage? {
+        func message(account: String, mailID: Int, messageID: String, path: [String]) async throws -> MailInboxMessage? {
             guard !messageID.isEmpty else { return nil }
             return try await run("accountMessage", {
-                [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(int32: Int32(mailID)), NSAppleEventDescriptor(string: messageID)]
+                let expectedPath = NSAppleEventDescriptor.list()
+                for (i, name) in path.enumerated() { expectedPath.insert(NSAppleEventDescriptor(string: name), at: i + 1) }
+                return [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(int32: Int32(mailID)),
+                        NSAppleEventDescriptor(string: messageID), expectedPath]
             }) { try MailAccountParse.message($0) }
         }
 

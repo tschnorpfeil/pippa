@@ -31,8 +31,8 @@ public protocol MailAccountReading: Sendable {
     /// Header and start of the text of exactly these messages of this account's inbox, each with the account id and
     /// mailbox path Mail reports for it; a message that is gone is left out.
     func rows(account: String, ids: [Int]) async throws -> [MailSearchRow]
-    /// The message with this Mail id in this account's inbox, only when its Message-ID is exactly `messageID`, with where it is.
-    func message(account: String, mailID: Int, messageID: String) async throws -> MailInboxMessage?
+    /// The message with this Mail id in this account's inbox, only when its Message-ID and whole mailbox path match, with where it is.
+    func message(account: String, mailID: Int, messageID: String, path: [String]) async throws -> MailInboxMessage?
 }
 
 extension SystemIntegrations {
@@ -42,7 +42,7 @@ extension SystemIntegrations {
 
 /// How one account's part of a search went.
 public struct MailAccountCoverage: Sendable, Equatable {
-    public enum Status: String, Sendable { case ok, timeout, denied, failed, cancelled }
+    public enum Status: String, Sendable { case ok, timeout, denied, failed, cancelled, duplicate_candidates }
     public var account: MailAccountInfo
     /// Unique among the accounts of this search: the name, with the start of the id when two share a name.
     public var label: String
@@ -106,6 +106,7 @@ public final class MailPageStore: @unchecked Sendable {
     private var refs: [String: MailRef] = [:]
     /// Previews delivered, and previews held by pages still reading Mail.
     private var delivered = 0, reserved = 0
+    private var claimed = false
 
     public init() {}
 
@@ -115,6 +116,7 @@ public final class MailPageStore: @unchecked Sendable {
         lock.withLock {
             guard live() else { return false }
             if owner != turn { owner = turn; snapshots = [:]; cursors = [:]; refs = [:]; delivered = 0; reserved = 0 }
+            claimed = true
             return true
         }
     }
@@ -122,6 +124,8 @@ public final class MailPageStore: @unchecked Sendable {
     private func owned<T>(_ turn: UUID?, _ body: () -> T) -> T? { lock.withLock { owner == turn ? body() : nil } }
 
     func owns(_ turn: UUID?) -> Bool { lock.withLock { owner == turn } }
+
+    func requiresRef(_ turn: UUID?) -> Bool { owned(turn) { claimed } ?? false }
 
     /// Previews this answer may still show (`nil`: another answer owns the store).
     func available(turn: UUID?) -> Int? { owned(turn) { max(0, Self.rowsPerAnswer - delivered - reserved) } }
@@ -141,11 +145,11 @@ public final class MailPageStore: @unchecked Sendable {
     }
 
     /// Holds up to `wanted` previews for a page before it reads Mail; parallel pages never pass `rowsPerAnswer` together.
-    func reserve(_ wanted: Int, turn: UUID?) -> (granted: Int, left: Int)? {
+    func reserve(_ wanted: Int, turn: UUID?) -> (granted: Int, left: Int, exhausted: Bool)? {
         owned(turn) {
             let granted = min(max(0, wanted), max(0, Self.rowsPerAnswer - delivered - reserved))
             reserved += granted
-            return (granted, Self.rowsPerAnswer - delivered - reserved)
+            return (granted, Self.rowsPerAnswer - delivered - reserved, delivered == Self.rowsPerAnswer)
         }
     }
 
@@ -154,13 +158,20 @@ public final class MailPageStore: @unchecked Sendable {
     /// Records what a page actually delivered: only those rows count, the rest of the held previews go back; its
     /// references become valid, mails gone since the search add up, and the next cursor (when more remain) starts right
     /// after the last delivered entry. `false`: another answer owns the store, nothing was recorded.
-    func settle(snapshot: String, held: Int, rows: Int, refs new: [String: MailRef], gone: Int, cursor: (token: String, offset: Int)?,
-                turn: UUID?) -> Bool {
+    func settle(snapshot: String, held: Int, rows: Int, refs new: [String: MailRef], gone: Int, problems: [String: MailAccountCoverage.Status], cursor: (token: String, offset: Int)?,
+                turn: UUID?, live: () -> Bool) -> Bool {
         owned(turn) {
+            guard live() else { return false }
             reserved = max(0, reserved - held)
             delivered += rows
             refs.merge(new) { a, _ in a }
-            snapshots[snapshot]?.gone += gone
+            if var updated = snapshots[snapshot] {
+                updated.gone += gone
+                for i in updated.coverage.indices {
+                    if let problem = problems[updated.coverage[i].account.id] { updated.coverage[i].status = problem }
+                }
+                snapshots[snapshot] = updated
+            }
             if let cursor { cursors[cursor.token] = (snapshot, cursor.offset) }
             return true
         } ?? false
@@ -195,7 +206,8 @@ enum MailAccountFlow {
         let perAccount = filled.map { list in all.filter { $0.account == list.account } }
         var inWindow = Set<Key>()
         var round = 0
-        while inWindow.count < w {
+        let rounds = perAccount.map(\.count).max() ?? 0
+        while inWindow.count < w && round < rounds {
             for entry in perAccount.compactMap({ round < $0.count ? $0[round] : nil }).sorted(by: before) where inWindow.count < w { inWindow.insert(Key(entry)) }
             round += 1
         }
@@ -226,18 +238,26 @@ enum MailAccountFlow {
         return a.id > b.id
     }
 
-    /// Names that tell accounts apart: accounts with the same (or no) name get the shortest start of their id, at least
-    /// 8 characters, that differs between them.
+    /// Distinguish accounts with the same visible name using their IDs.
     static func labels(_ accounts: [MailAccountInfo]) -> [String] {
-        // Clipped first, so two names that only differ after the cut still get their ids.
-        func name(_ a: MailAccountInfo) -> String { PippaMCPTools.clip(a.name.trimmingCharacters(in: .whitespacesAndNewlines), 60, bytes: 160) }
-        return accounts.map { account in
-            let twins = accounts.filter { name($0) == name(account) }
-            if twins.count == 1 && !name(account).isEmpty { return name(account) }
-            let longest = twins.map(\.id.count).max() ?? 0
-            let length = (min(8, longest)...max(8, longest)).first { n in Set(twins.map { $0.id.prefix(n) }).count == twins.count } ?? longest
-            let id = account.id.isEmpty ? "?" : String(account.id.prefix(length))
-            return name(account).isEmpty ? "(\(id))" : "\(name(account)) (\(id))"
+        let names = accounts.map { PippaMCPTools.clip($0.name.trimmingCharacters(in: .whitespacesAndNewlines), 60, bytes: 160) }
+        let groups = Dictionary(grouping: accounts.indices, by: { names[$0].lowercased() })
+        return accounts.indices.map { i in
+            let name = names[i]
+            let twins = groups[name.lowercased(), default: []]
+            guard twins.count > 1 || name.isEmpty else { return name }
+            let ids = twins.map { accounts[$0].id }
+            let rawID = accounts[i].id
+            // Use a visible ID prefix if it distinguishes the whole group. For IDs with a long
+            // shared prefix or control characters, use their order by exact ID within the group.
+            let prefix = String(rawID.prefix(13))
+            let safe = !prefix.isEmpty && prefix.utf8.allSatisfy { (33...126).contains($0) }
+                && Set(ids.map { String($0.prefix(13)).lowercased() }).count == ids.count
+            let identity = safe ? prefix : "#\((twins.sorted { (accounts[$0].id, $0) < (accounts[$1].id, $1) }.firstIndex(of: i) ?? 0) + 1)"
+            let suffix = "(\(identity))"
+            if name.isEmpty { return suffix }
+            let stem = PippaMCPTools.clip(name, 59 - suffix.count, bytes: 159 - suffix.utf8.count)
+            return "\(stem) \(suffix)"
         }
     }
 

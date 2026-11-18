@@ -64,7 +64,7 @@ private struct MailCardRow: View {
             }
             Text(item.subject).font(Typo.callout).foregroundStyle(Theme.ink).lineLimit(1)
             if let account = item.account {
-                Text(account).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1)
+                Text(account).font(.scaled(size: 11.5)).foregroundStyle(Theme.ink3).lineLimit(1).truncationMode(.head)
             }
             if !item.preview.isEmpty {
                 Text(item.preview).font(Typo.footnote).foregroundStyle(Theme.ink3).lineLimit(2)

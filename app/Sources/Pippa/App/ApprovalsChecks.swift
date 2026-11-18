@@ -1,5 +1,6 @@
 import Foundation
 import PiRPC
+import PippaCore
 
 /// `Pippa --check-approvals`: the question flow without any window. Asks while a presenter is registered, answers,
 /// cancels and times out, and checks each answer reaches the waiting caller exactly once. Prints one line per check.
@@ -70,6 +71,21 @@ enum ApprovalsChecks {
         approvals.answer("q6", .cancelled)   // a failed check must not keep the run waiting
         check(await open.value == .confirmed(false), "the alert's answer reaches the caller")
         approvals.present("check") { revealed += 1 }
+
+        let turnA = PippaMCPTurn(), turnB = PippaMCPTurn()
+        let card = ResultCard.mail(MailCard(query: "Synthetic", mails: [], total: 0, calendar: .current))
+        let host = PippaMCPService.configured(.demo(), asksForAccess: false)
+        host.turns.begin(turnA)
+        var note = PippaMCPReadNote(tool: "mail_search", read: true, line: "Synthetic", card: card)
+        note.turnID = turnA.id
+        host.onRead?(note)
+        host.turns.end(turnA)
+        host.turns.begin(turnB)
+        note.turnID = nil
+        host.onRead?(note)
+        check(PippaMCPService.takeReadCards(turnID: turnB.id).isEmpty, "A newer answer cannot take another turn’s or unscoped cards")
+        check(PippaMCPService.takeReadCards(turnID: turnA.id) == [card], "An ended answer still collects its own cards")
+        host.turns.end(turnB)
 
         failures += Int(await HeadlessAskChecks.run())
 

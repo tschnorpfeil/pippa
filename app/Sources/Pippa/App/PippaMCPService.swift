@@ -19,8 +19,14 @@ enum PippaMCPService {
     /// What Pippa's writers did (calendar, reminders, mail drafts, prepared files), for the receipt under the answer.
     nonisolated static let writeNotes = Notes<PippaMCPWriteReceipt>()
 
+    /// Gives the caller the ID of its answer before Pi starts, so it can collect cards after the answer ends.
+    @TaskLocal static var onBeginTurn: (@MainActor @Sendable (UUID) -> Void)?
+
     /// Binds the MCP tools to one answer: writes outside an answer are refused (`requireActiveWriteTurn`).
-    static func begin(_ turn: PippaMCPTurn) { currentHost.turns.begin(turn) }
+    static func begin(_ turn: PippaMCPTurn) {
+        currentHost.turns.begin(turn)
+        onBeginTurn?(turn.id)
+    }
     static func end(_ turn: PippaMCPTurn) {
         currentHost.turns.end(turn)
         serverEgress?.onlineBrowser?.end(turn)
@@ -41,6 +47,22 @@ enum PippaMCPService {
         private var notes: [Note] = []
         func append(_ note: Note) { lock.withLock { notes.append(note) } }
         func take() -> [Note] { lock.withLock { defer { notes = [] }; return notes } }
+        func take(turnID: UUID, at keyPath: KeyPath<Note, UUID?>) -> [Note] {
+            lock.withLock {
+                var taken: [Note] = []
+                notes.removeAll { note in
+                    guard note[keyPath: keyPath] == turnID else { return false }
+                    taken.append(note)
+                    return true
+                }
+                return taken
+            }
+        }
+    }
+
+    static func takeReadCards(turnID: UUID?) -> [ResultCard] {
+        guard let turnID else { return [] }
+        return readNotes.take(turnID: turnID, at: \.turnID).compactMap(\.card)
     }
 
     enum EndpointFailure: Error, Equatable { case extensionMissing, serverUnavailable }
@@ -107,7 +129,7 @@ enum PippaMCPService {
     /// Pippa's own wiring of a host. Without `asksForAccess` neither Pippa's sentence nor a system prompt can appear.
     static func configured(_ base: PippaMCPHost, asksForAccess: Bool) -> PippaMCPHost {
         var fresh = base
-        fresh.onRead = { note in readNotes.append(note) }
+        fresh.onRead = { note in if note.turnID != nil { readNotes.append(note) } }
         fresh.onWrite = { receipt in writeNotes.append(receipt) }
         fresh.requireActiveWriteTurn = true
         fresh.askForAccess = asksForAccess

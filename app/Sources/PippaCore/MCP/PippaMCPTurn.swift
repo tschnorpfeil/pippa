@@ -14,11 +14,15 @@ public final class PippaMCPTurns: @unchecked Sendable {
     public static let shared = PippaMCPTurns()
     private let lock = NSLock()
     private var current: PippaMCPTurn?
+    private var generation = UUID()
     public init() {}
 
     public func begin(_ turn: PippaMCPTurn) {
         lock.withLock {
-            if current !== turn { current?.cancelWrites() }
+            if current !== turn {
+                current?.cancelWrites()
+                generation = UUID()
+            }
             current = turn
         }
     }
@@ -26,13 +30,16 @@ public final class PippaMCPTurns: @unchecked Sendable {
     public func end(_ turn: PippaMCPTurn) {
         lock.withLock { turn.cancelWrites(); if current === turn { current = nil } }
     }
-    public var active: PippaMCPTurn? { lock.withLock { current } }
-    /// Runs `body` only while `turn` is the running answer and was not stopped (`nil`: a request outside any answer),
-    /// under the lock `begin` takes: what a late call publishes never lands under a newer answer.
-    public func whileActive(_ turn: PippaMCPTurn?, _ body: () -> Void) {
+    public var active: PippaMCPTurn? { capture().turn }
+    func capture() -> (turn: PippaMCPTurn?, generation: UUID) { lock.withLock { (current, generation) } }
+    /// Check under the lock and invoke the callback outside it. Consumers collect notes by turn ID.
+    public func whileActive(_ turn: PippaMCPTurn?, generation: UUID? = nil, _ body: () -> Void) {
+        if !Task.isCancelled && isLive(turn, generation: generation) { body() }
+    }
+
+    func isLive(_ turn: PippaMCPTurn?, generation expected: UUID? = nil) -> Bool {
         lock.withLock {
-            guard let turn else { body(); return }
-            if current === turn, !turn.writes.snapshot.cancelled { body() }
+            current === turn && (expected == nil || expected == generation) && !(turn?.writes.snapshot.cancelled ?? false)
         }
     }
 }

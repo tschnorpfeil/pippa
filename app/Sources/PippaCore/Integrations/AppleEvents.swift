@@ -4,8 +4,9 @@ import Foundation
 
 /// Deterministic checks of the real serial queue and dispatch boundary, without scripting any app.
 public enum AppleEventsExecutionCheck {
-    public static func perform<T: Sendable>(mutation: Bool = false, _ body: @escaping @Sendable () throws -> T) async throws -> T {
-        try await AppleEvents.perform {
+    public static func perform<T: Sendable>(mutation: Bool = false, enqueued: (@Sendable () -> Void)? = nil,
+                                            _ body: @escaping @Sendable () throws -> T) async throws -> T {
+        try await AppleEvents.perform(enqueued: enqueued) {
             if mutation { try PippaMCPWriteLease.current?.beginDispatch() }
             return try body()
         }
@@ -33,7 +34,9 @@ enum AppleEvents {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else { return false }
         // LaunchServices can leave its completion pending. Bound the whole launch, not just the running-state poll,
         // so a requested Mail search/draft (and the permission page) always gets an answer.
+        let scope = MailReadScope.current
         return await firstAnswer(within: 5, fallback: false) {
+            guard scope?.live != false else { return false }
             let config = NSWorkspace.OpenConfiguration()
             config.activates = false
             config.hides = true
@@ -62,7 +65,11 @@ enum AppleEvents {
     }
 
     /// Checks waiting for the answer of a call already running, per app and kind.
-    nonisolated(unsafe) private static var waiting: [String: [@Sendable (OSStatus) -> Void]] = [:]
+    private struct PermissionWaiter: Sendable {
+        var scope: MailReadScope?
+        var resume: @Sendable (OSStatus) -> Void
+    }
+    nonisolated(unsafe) private static var waiting: [String: [PermissionWaiter]] = [:]
     private static let waitingLock = NSLock()
 
     /// As above, for apps without their own case in `Integration` (Excel).
@@ -72,19 +79,29 @@ enum AppleEvents {
     /// and after `readLimit` (`askLimit` when asking) the answer is "not responding". The hanging call stays parked; while it
     /// runs, further checks for the same app share its answer instead of starting another one.
     static func permission(bundle: String, appName: String, ask: Bool) async -> IntegrationAccess {
+        let scope = MailReadScope.current
+        guard scope?.live != false else { return .unavailable("") }
         let key = "\(bundle)|\(ask)"
         let status: OSStatus? = await withCheckedContinuation { (cont: CheckedContinuation<OSStatus?, Never>) in
             let once = ResumeOnce(cont)
             let first: Bool = waitingLock.withLock {
                 let first = waiting[key] == nil
-                waiting[key, default: []].append { once.resume($0) }
+                waiting[key, default: []].append(PermissionWaiter(scope: scope, resume: { once.resume($0) }))
                 return first
             }
             if first {
                 Thread.detachNewThread {
+                    let cancelled: [PermissionWaiter]? = waitingLock.withLock {
+                        guard waiting[key]?.contains(where: { $0.scope?.live != false }) != true else { return nil }
+                        return waiting.removeValue(forKey: key) ?? []
+                    }
+                    if let cancelled {
+                        cancelled.forEach { $0.resume(OSStatus(procNotFound)) }
+                        return
+                    }
                     let status = determine(bundle, ask)
                     let waiters = waitingLock.withLock { waiting.removeValue(forKey: key) ?? [] }
-                    waiters.forEach { $0(status) }
+                    waiters.forEach { $0.resume(status) }
                 }
             }
             DispatchQueue.global().asyncAfter(deadline: .now() + (ask ? askLimit : readLimit)) { once.resume(nil) }
@@ -114,17 +131,22 @@ enum AppleEvents {
     /// the pill. NSAppleScript is not thread-safe, so every script and the compiled cache stay on this one queue.
     private static let queue = DispatchQueue(label: "app.pippa.applescript", qos: .userInitiated)
 
-    static func perform<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
+    static func perform<T: Sendable>(enqueued: (@Sendable () -> Void)? = nil, _ body: @escaping @Sendable () throws -> T) async throws -> T {
         let lease = PippaMCPWriteLease.current
+        let read = MailReadScope.current
         return try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 continuation.resume(with: Result {
                     try PippaMCPWriteLease.$current.withValue(lease) {
                         try lease?.check()
-                        return try body()
+                        return try MailReadScope.$current.withValue(read) {
+                            try read?.check()
+                            return try body()
+                        }
                     }
                 })
             }
+            enqueued?()
         }
     }
 
@@ -152,6 +174,7 @@ enum AppleEvents {
         for (i, a) in args.enumerated() { list.insert(a, at: i + 1) }
         event.setParam(list, forKeyword: AEKeyword(keyDirectObject))
         try PippaMCPWriteLease.current?.check()
+        try MailReadScope.current?.check()
         if mutation { try PippaMCPWriteLease.current?.beginDispatch() }
         let result = script.executeAppleEvent(event, error: &error)
         if let error {

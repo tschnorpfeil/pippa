@@ -4,7 +4,15 @@ import PippaCore
 /// `mail_search` across two accounts and `mail_read` by `mail_ref`. Synthetic accounts and mails only: no Mail, no real
 /// inbox, no model. Account A has 45 mails, account B 3 with the same dates, the same Mail ids and one shared Message-ID.
 private final class FakeMailAccounts: MailAccountReading, @unchecked Sendable {
-    struct Stored { var id: Int; var date: Date?; var header: MailHeader; var body: String; var path: [String] = ["INBOX"] }
+    struct Stored {
+        var id: Int
+        var date: Date?
+        var header: MailHeader
+        var body: String
+        var path: [String] = ["INBOX"]
+        var reportsAccount = true
+        var attachments: [String] = []
+    }
     private let lock = NSLock()
     private var accountList: [MailAccountInfo]
     private var inboxes: [String: [Stored]]
@@ -12,9 +20,12 @@ private final class FakeMailAccounts: MailAccountReading, @unchecked Sendable {
     var failRows: [String: Error] = [:]
     /// Stop the running answer while this account is searched (a real `Task` cancellation).
     var cancelDuring: String?
+    var cancelDuringRows: String?
+    var queuedRows: (String, Box<Bool>, Box<Bool>)?
     private(set) var candidateCalls: [String] = []
     private(set) var rowCalls: [String] = []
     private(set) var messageCalls = 0
+    private(set) var bodyReads = 0
     /// Holds the candidates step of this account until the gate opens (an answer suspended inside Mail).
     var holdCandidates: (account: String, gate: Gate)?
     /// Holds every rows step until the gate opens (parallel pages).
@@ -22,7 +33,7 @@ private final class FakeMailAccounts: MailAccountReading, @unchecked Sendable {
 
     init(_ accounts: [(MailAccountInfo, [Stored])]) {
         accountList = accounts.map(\.0)
-        inboxes = Dictionary(uniqueKeysWithValues: accounts.map { ($0.0.id, $0.1) })
+        inboxes = Dictionary(accounts.map { ($0.0.id, $0.1) }, uniquingKeysWith: { first, _ in first })
     }
 
     func edit(_ account: String, _ change: (inout [Stored]) -> Void) { lock.withLock { change(&inboxes[account, default: []]) } }
@@ -46,17 +57,22 @@ private final class FakeMailAccounts: MailAccountReading, @unchecked Sendable {
     func rows(account: String, ids: [Int]) async throws -> [MailSearchRow] {
         let (failure, stored): (Error?, [Stored]) = lock.withLock { rowCalls.append(account); return (failRows[account], inboxes[account] ?? []) }
         if let gate = holdRows { await gate.wait() }
+        if let (id, enqueued, events) = queuedRows, id == account {
+            try await AppleEventsExecutionCheck.perform(enqueued: { enqueued.append(true) }) { events.append(true) }
+        }
+        if cancelDuringRows == account { withUnsafeCurrentTask { $0?.cancel() } }
         if let failure { throw failure }
-        return ids.compactMap { id in stored.first { $0.id == id }.map { MailSearchRow(id: id, date: $0.date, header: $0.header, accountID: account, path: $0.path) } }
+        return ids.compactMap { id in stored.first { $0.id == id }.map { MailSearchRow(id: id, date: $0.date, header: $0.header, accountID: $0.reportsAccount ? account : nil, path: $0.path) } }
     }
 
-    func message(account: String, mailID: Int, messageID: String) async throws -> MailInboxMessage? {
+    func message(account: String, mailID: Int, messageID: String, path: [String]) async throws -> MailInboxMessage? {
         let (stored, info): ([Stored], MailAccountInfo?) = lock.withLock {
             messageCalls += 1
             return (inboxes[account] ?? [], accountList.first { $0.id == account })
         }
-        guard let s = stored.first(where: { $0.id == mailID }), s.header.messageID == messageID else { return nil }
-        let mail = MailMessage(subject: s.header.subject, sender: s.header.sender, date: s.date, body: s.body, attachmentNames: [], messageID: s.header.messageID,
+        guard let s = stored.first(where: { $0.id == mailID }), s.header.messageID == messageID, s.path == path else { return nil }
+        lock.withLock { bodyReads += 1 }
+        let mail = MailMessage(subject: s.header.subject, sender: s.header.sender, date: s.date, body: s.body, attachmentNames: s.attachments, messageID: s.header.messageID,
                                locator: MailLocator(account: info?.name ?? "", path: s.path, mailID: mailID))
         return MailInboxMessage(message: mail, accountID: account, path: s.path)
     }
@@ -105,11 +121,13 @@ extension MCPCheckContext {
             FakeMailAccounts([(privat, (1...a).map { stored("A", $0) }),
                               (arbeit, [stored("B", 1, messageID: "a1@x.example"), stored("B", 2), stored("B", 3)])])
         }
-        func world(_ fake: FakeMailAccounts) -> (tools: PippaMCPTools, turns: PippaMCPTurns, demo: DemoIntegrations, notes: Box<PippaMCPReadNote>) {
+        func world(_ fake: FakeMailAccounts, confirm: (@Sendable (PippaMCPAccessSubject, String) async -> Bool)? = nil)
+            -> (tools: PippaMCPTools, turns: PippaMCPTurns, demo: DemoIntegrations, notes: Box<PippaMCPReadNote>) {
             let demo = DemoIntegrations(granted: true)
             let notes = Box<PippaMCPReadNote>()
             var host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo, now: now),
-                                    askForAccess: false, now: { now }, calendar: berlin, onRead: { notes.append($0) })
+                                    askForAccess: confirm != nil, now: { now }, calendar: berlin, explainAccess: confirm,
+                                    onRead: { notes.append($0) })
             host.mailAccounts = fake
             host.turns = PippaMCPTurns()
             host.mailFiles = dir("mail-accounts-\(UUID().uuidString)")
@@ -272,6 +290,46 @@ extension MCPCheckContext {
                 && !IntegrationScripts.mailAccountMessageIsAmbiguous(NSAppleEventDescriptor(string: "ambiguous"))
         }
 
+        await checkAsync("Mail refs: missing path cannot fall back to the combined inbox by subject or Message-ID") {
+            let fake = twoAccounts()
+            fake.edit(privat.id) { $0[44].path = []; $0[43].reportsAccount = false }
+            let w = world(fake)
+            w.demo.sampleMail = nil
+            w.demo.inboxMails = [MailMessage(subject: "A 45", sender: "a@x.example", date: at(45), body: "Synthetic body",
+                                             attachmentNames: [], messageID: "a45@x.example")]
+            let turn = PippaMCPTurn()
+            w.turns.begin(turn)
+            let page = await call(w.tools, "mail_search", ["account": privat.id, "limit": 2])
+            let rows = mails(page)
+            let byID = await call(w.tools, "mail_read", ["message_id": "a45@x.example"])
+            let bySubject = await call(w.tools, "mail_read", ["subject": "A 45"])
+            return rows.count == 2 && rows.allSatisfy { $0["mail_ref"] == nil && $0["message_id"] == nil }
+                && byID.isError && bySubject.isError
+        }
+        await checkAsync("Mail envelopes: account errors and full reads with oversized fields fit 8 KB") {
+            let accounts = (1...100).map { MailAccountInfo(id: "synthetic-\($0)", name: String(repeating: "ü", count: 60) + "\($0)") }
+            let fake = FakeMailAccounts(accounts.map { ($0, []) })
+            for account in accounts { fake.failCandidates[account.id] = MailAccountProblem.timeout }
+            let w = world(fake)
+            let unavailable = await call(w.tools, "mail_search")
+            let unknown = await call(w.tools, "mail_search", ["account": "absent"])
+            let grapheme = "x" + String(repeating: "\u{0301}", count: 9000)
+            var giant = stored("G", 1, subject: grapheme)
+            giant.header.sender = grapheme
+            giant.body = grapheme
+            giant.attachments = [grapheme, "synthetic.txt"]
+            let full = world(FakeMailAccounts([(privat, [giant])]))
+            let search = await call(full.tools, "mail_search")
+            let read = await call(full.tools, "mail_read", ["mail_ref": mails(search).first?["mail_ref"] ?? ""])
+            let invalid = await call(full.tools, "mail_search", [String(repeating: "synthetic", count: 2000): true])
+            return invalid.bytes <= PippaMCPTools.maxResultBytes && invalid.json["status"] as? String == "invalid_arguments"
+                && unavailable.bytes <= PippaMCPTools.maxResultBytes && unavailable.json["status"] as? String == "not_read" && unavailable.json["accountsOmitted"] as? Int != nil
+                && unavailable.json["retry"] as? String == "fresh_search"
+                && unknown.bytes <= PippaMCPTools.maxResultBytes && unknown.json["status"] as? String == "unknown_account"
+                && read.bytes <= PippaMCPTools.maxResultBytes && read.json["read"] as? Bool == true && data(read)["bodyTruncated"] as? Bool == true
+                && data(read)["attachmentsNotSavedOmitted"] as? Int == 2
+        }
+
         // MARK: A4 partial results, size
 
         await checkAsync("Mail accounts: a timed-out or refused account is named, never empty, and nothing claims every inbox is clear") {
@@ -290,7 +348,7 @@ extension MCPCheckContext {
                 && !dNext.contains("No email in the inbox") && card?.notice?.contains("Arbeit") == true
                 && card?.items.allSatisfy { $0.account == "Privat" } == true
         }
-        await checkAsync("Mail accounts: stopping the answer marks the accounts not yet searched as cancelled") {
+        await checkAsync("Mail accounts: cancelling candidate collection stops the search before any more reads") {
             let fake = twoAccounts()
             fake.cancelDuring = privat.id
             let w = world(fake)
@@ -300,7 +358,7 @@ extension MCPCheckContext {
                 return String(decoding: try! JSONSerialization.data(withJSONObject: r.json), as: UTF8.self)
             }.value
             let r: Reply = ((try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]) ?? [:], false, text.utf8.count)
-            return coverage(r) == ["Privat": "ok", "Arbeit": "cancelled"] && fake.candidateCalls == [privat.id] && data(r)["status"] as? String == "partial"
+            return r.json["status"] as? String == "cancelled" && fake.candidateCalls == [privat.id] && fake.rowCalls.isEmpty && w.notes.all.isEmpty
         }
         await checkAsync("Mail accounts: an empty answer from every account says no match; a page whose account stops answering says so") {
             let empty = FakeMailAccounts([(privat, []), (arbeit, [])])
@@ -421,15 +479,148 @@ extension MCPCheckContext {
             return newSearches.reduce(0, +) <= 20 && sameCursor.reduce(0, +) == 20 && sameCursor.contains(0)
                 && leftOver.json["status"] as? String == "budget_reached"
         }
-        await checkAsync("Mail pages: a page that fails gives its cursor and previews back") {
+        await checkAsync("Mail pages: a persistent timeout at the head does not discard healthy accounts or loop") {
             let fake = twoAccounts()
-            let w = world(fake)
-            let p1 = await call(w.tools, "mail_search", ["limit": 20])
             fake.failRows[privat.id] = MailAccountProblem.timeout
-            let failed = await call(w.tools, "mail_search", ["cursor": cursor(p1) ?? "", "limit": 20])
-            fake.failRows = [:]
-            let retry = await call(w.tools, "mail_search", ["cursor": cursor(p1) ?? "", "limit": 20])
-            return failed.isError && !retry.isError && data(retry)["first"] as? Int == 21 && data(retry)["preview_rows_left"] as? Int == 60
+            let w = world(fake)
+            let first = await call(w.tools, "mail_search", ["limit": 1])
+            let next = await call(w.tools, "mail_search", ["cursor": cursor(first) ?? "", "limit": 1])
+            let last = await call(w.tools, "mail_search", ["cursor": cursor(next) ?? "", "limit": 10])
+            return first.isError && first.json["status"] as? String == "account_unavailable"
+                && (keys(next) + keys(last)) == ["Arbeit/B 3", "Arbeit/B 2", "Arbeit/B 1"]
+                && coverage(last) == ["Privat": "timeout", "Arbeit": "ok"] && cursor(last) == nil && data(last)["complete"] as? Bool == false
+                && fake.rowCalls.filter { $0 == privat.id }.count == 1
+                && (last.json["next"] as? String)?.contains("fresh search") == true
+        }
+        await checkAsync("Mail pages: reserving the last slots reports busy and the fourth search preserves incomplete coverage") {
+            let fake = twoAccounts(a: 150)
+            let w = world(fake)
+            w.turns.begin(PippaMCPTurn())
+            var first = await call(w.tools, "mail_search", ["limit": 20])
+            for _ in 0..<3 { first = await call(w.tools, "mail_search", ["cursor": cursor(first) ?? "", "limit": 20]) }
+            let token = cursor(first) ?? ""
+            let gate = Gate()
+            fake.holdRows = gate
+            let held = Task {
+                let result = await call(w.tools, "mail_search", ["cursor": token, "limit": 20])
+                return result.isError
+            }
+            await until { gate.count == 1 }
+            let busy = await call(w.tools, "mail_search", ["limit": 1])
+            gate.release()
+            let heldFailed = await held.value
+            let thin = world(twoAccounts())
+            thin.turns.begin(PippaMCPTurn())
+            for _ in 0..<3 { _ = await call(thin.tools, "mail_search", ["limit": 1]) }
+            let fourth = await call(thin.tools, "mail_search", ["limit": 1])
+            let hint = fourth.json["next"] as? String ?? ""
+            return !heldFailed && busy.json["status"] as? String == "budget_busy" && data(fourth)["complete"] as? Bool == false
+                && cursor(fourth) != nil && hint.contains("remaining results are unread or unknown") && !hint.contains("found no others")
+        }
+        await checkAsync("Mail order: duplicate account and candidate IDs fail within the deadline") {
+            let malformed = FakeMailAccounts([(privat, [stored("A", 1)]), (privat, [stored("A", 1)])])
+            let repeated = FakeMailAccounts([(privat, [stored("A", 1), stored("A", 1)])])
+            let invalidTools = world(malformed).tools, repeatedTools = world(repeated).tools
+            let result = await firstAnswer(within: 2, fallback: false) {
+                let invalid = await self.call(invalidTools, "mail_search")
+                let candidates = await self.call(repeatedTools, "mail_search")
+                let info = candidates.json["accounts"] as? [[String: String]]
+                return invalid.isError && invalid.json["status"] as? String == "duplicate_accounts"
+                    && candidates.isError && info?.first?["status"] == "duplicate_candidates"
+            }
+            return result && malformed.candidateCalls.isEmpty && repeated.rowCalls.isEmpty
+        }
+        await checkAsync("Mail turns: a queued stale Apple Events read never dispatches or takes the next answer's previews") {
+            let ready = Box<Bool>(), enqueued = Box<Bool>(), events = Box<Bool>()
+            let release = DispatchSemaphore(value: 0)
+            let blocker = Task {
+                try? await AppleEventsExecutionCheck.perform {
+                    ready.append(true)
+                    _ = release.wait(timeout: .now() + 5)
+                }
+            }
+            await until { !ready.all.isEmpty }
+            let fake = twoAccounts()
+            fake.queuedRows = (privat.id, enqueued, events)
+            let w = world(fake)
+            let a = PippaMCPTurn(), b = PippaMCPTurn()
+            w.turns.begin(a)
+            let older = Task {
+                let r = await call(w.tools, "mail_search", ["account": privat.id, "limit": 1])
+                return r.json["status"] as? String
+            }
+            await until { !enqueued.all.isEmpty }
+            w.turns.begin(b)
+            let first = await call(w.tools, "mail_search", ["account": arbeit.id, "limit": 1])
+            release.signal()
+            _ = await blocker.value
+            let status = await older.value
+            let next = await call(w.tools, "mail_search", ["cursor": cursor(first) ?? "", "limit": 1])
+            return !ready.all.isEmpty && enqueued.all.count == 1 && events.all.isEmpty && status == "cancelled"
+                && keys(next) == ["Arbeit/B 2"] && data(next)["preview_rows_left"] as? Int == 98
+                && w.notes.all.count == 2 && w.notes.all.allSatisfy { $0.turnID == b.id }
+        }
+        await checkAsync("Mail turns: replacement during the permission explanation sends no permission request") {
+            let fake = twoAccounts()
+            let gate = Gate()
+            let w = world(fake, confirm: { _, _ in await gate.wait(); return true })
+            w.demo.set(.mail, .notDetermined)
+            w.turns.begin(PippaMCPTurn())
+            let older = Task {
+                let r = await call(w.tools, "mail_search")
+                return r.json["status"] as? String
+            }
+            await until { gate.count == 1 }
+            w.turns.begin(PippaMCPTurn())
+            gate.release()
+            let status = await older.value
+            let access = await w.demo.access(.mail)
+            return gate.count == 1 && status == "cancelled" && access == .notDetermined
+                && fake.candidateCalls.isEmpty && w.notes.all.isEmpty
+        }
+        await checkAsync("Mail turns: cancelling a rows call prevents reading the next account") {
+            let fake = twoAccounts()
+            fake.cancelDuringRows = privat.id
+            let w = world(fake)
+            let status = await Task {
+                let r = await call(w.tools, "mail_search", ["limit": 20])
+                return r.json["status"] as? String
+            }.value
+            return status == "cancelled" && fake.rowCalls == [privat.id] && w.notes.all.isEmpty
+        }
+        await checkAsync("Mail turns: callbacks can reenter the turn registry and a late nil-turn request cannot publish") {
+            let turns = PippaMCPTurns(), turn = PippaMCPTurn()
+            turns.begin(turn)
+            let reentered = await firstAnswer(within: 2, fallback: false) {
+                var called = false
+                turns.whileActive(turn) { called = turns.active === turn }
+                return called
+            }
+            let fake = twoAccounts()
+            let gate = Gate()
+            fake.holdCandidates = (privat.id, gate)
+            let w = world(fake)
+            let old = Task {
+                let r = await call(w.tools, "mail_search", ["limit": 1])
+                return r.json["status"] as? String
+            }
+            await until { gate.count == 1 }
+            w.turns.begin(turn)
+            w.turns.end(turn)
+            gate.release()
+            let status = await old.value
+            return reentered && gate.count == 1 && status == "cancelled" && w.notes.all.isEmpty
+        }
+        await checkAsync("Mail cards: long identical account names retain distinct readable IDs in the card") {
+            let name = String(repeating: "X", count: 100)
+            let a = MailAccountInfo(id: "SYNTHETIC-AAAAAAAAAAA1", name: name)
+            let b = MailAccountInfo(id: "SYNTHETIC-AAAAAAAAAAA2", name: name)
+            let w = world(FakeMailAccounts([(a, [stored("A", 1)]), (b, [stored("B", 1)])]))
+            _ = await call(w.tools, "mail_search")
+            guard case .mail(let card)? = w.notes.all.first?.card else { return false }
+            let labels = card.items.compactMap(\.account)
+            return labels.count == 2 && Set(labels).count == 2 && labels.allSatisfy { $0.hasSuffix(")") && $0.count <= 60 }
+                && card.items.allSatisfy { !$0.opensByMessageID }
         }
         await checkAsync("Mail order: an older mail of a small account is reached within 100 previews, whatever the first page size") {
             let big = (2...160).map { n -> FakeMailAccounts.Stored in var s = stored("A", n); s.id = n; return s }
@@ -472,7 +663,7 @@ extension MCPCheckContext {
             let renamed = await call(w.tools, "mail_read", ["mail_ref": ref("A 2") ?? ""])
             let ok = await call(w.tools, "mail_read", ["mail_ref": ref("B 1") ?? ""])
             return moved.json["status"] as? String == "stale" && renamed.json["status"] as? String == "stale" && !ok.isError
-                && ref("B 2") == nil && rows.contains { $0["subject"] as? String == "B 2" }
+                && fake.bodyReads == 1 && ref("B 2") == nil && rows.contains { $0["subject"] as? String == "B 2" }
         }
         await checkAsync("Mail read: an exact subject held by several inbox mails is ambiguous, never the newest") {
             let w = world(twoAccounts())

@@ -33,10 +33,10 @@ public struct PippaMCPTools: Sendable {
 
     /// Capture before scheduling network work, not after an await. A later answer can never inherit this request.
     public func captureRequest() -> PippaMCPRequestContext {
-        let turn = host.turns.active
+        let (turn, generation) = host.turns.capture()
         let writes = turn?.writes ?? PippaMCPWriteScope()
         if turn == nil && host.requireActiveWriteTurn { writes.cancel() }
-        return PippaMCPRequestContext(turn: turn, writes: writes, front: host.shownFront())
+        return PippaMCPRequestContext(turn: turn, writes: writes, front: host.shownFront(), turnGeneration: generation)
     }
 
     /// One HTTP message (an object or a list). `nil`: nothing to answer (notifications only) → HTTP 202.
@@ -205,7 +205,7 @@ public struct PippaMCPTools: Sendable {
 
     func call(_ name: String, _ input: ToolInput, context: PippaMCPRequestContext) async -> PippaMCPToolResult {
         let started = ContinuousClock.now
-        let outcome: PippaMCPToolResult
+        var outcome: PippaMCPToolResult
         // The receipt names what was read: `front_read` in Mail or Excel reads like `mail_selected` and `excel_selection`.
         var noted = name
         if !input.unknown.isEmpty { outcome = invalid("Unknown or invalid arguments: \(input.unknown.joined(separator: ", ")).") }
@@ -213,22 +213,27 @@ public struct PippaMCPTools: Sendable {
             switch name {
             case "calendar_read": outcome = await calendarRead(input)
             case "reminders_read": outcome = await remindersRead(input)
-            case "mail_search": outcome = await mailSearch(input, turn: context.turn)
+            case "mail_search": outcome = await scopedMail(name, input, context: context)
             case "mail_read":
                 // Read like the selected mail: same receipt, same reply identity for a draft.
-                outcome = await mailRead(input, turn: context.turn); noted = "mail_selected"
+                outcome = await scopedMail(name, input, context: context); noted = "mail_selected"
+            case "front_read" where context.front?.bundleID == Integration.mail.bundleIdentifier:
+                outcome = await scopedMail("mail_selected", input, context: context); noted = "mail_selected"
             case "photos_search": outcome = await photosSearch(input)
             default:
                 let read = await frontRead(context.front)
                 outcome = read.result; noted = read.noted
             }
         }
+        if name == "mail_search" || name == "mail_read" || noted == "mail_selected" {
+            outcome = Self.boundMailResult(outcome)
+        }
         let ms = (ContinuousClock.now - started).components.seconds * 1000
         DiagnosticsLog.shared.event("mcp-werkzeug", ["name": name, "fehler": String(outcome.isError), "ms": String(ms)])
         var note = Self.readNote(noted, input, outcome, calendar: host.calendar)
         note.turnID = context.turn?.id
         // A call that finishes after its answer was stopped or replaced leaves no card or receipt under the next one.
-        host.turns.whileActive(context.turn) { host.onRead?(note) }
+        host.turns.whileActive(context.turn, generation: context.turnGeneration) { host.onRead?(note) }
         return outcome
     }
 }

@@ -34,11 +34,14 @@ extension PippaMCPTools {
     /// Check permission; on first use (and only with `askForAccess`) show Pippa's sentence first, then the system prompt.
     /// `closed`: own sentence if the app is not open (otherwise the connection's sentence).
     func ensure(_ integration: Integration, openMail: Bool = false, closed: String? = nil) async -> Gate {
+        let scope = MailReadScope.current
+        guard scope?.live != false else { return .blocked(Self.mailCancelled) }
         var access = openMail && integration == .mail
             ? await host.integrations.prepareMailAccess() : await host.integrations.access(integration)
-        if access == .notDetermined && host.askForAccess, await mayAsk(.integration(integration)) {
+        if scope?.live != false, access == .notDetermined && host.askForAccess, await mayAsk(.integration(integration)), scope?.live != false {
             access = await host.integrations.requestAccess(integration)
         }
+        guard scope?.live != false else { return .blocked(Self.mailCancelled) }
         switch access {
         case .granted: return .open
         case .notDetermined: return .blocked(blocked("needs_access", Self.notYet(integration)))

@@ -309,7 +309,7 @@ final class ChatModel: ObservableObject {
         append(reply, to: id)
         let started = Date()
         begin(started, in: id)
-        _ = PippaMCPService.readNotes.take(); _ = PippaMCPService.writeNotes.take()
+        _ = PippaMCPService.writeNotes.take()
         evidence = DateEvidence(); pendingSources = [:]; stepLabels = [:]; pendingNotes = [:]
         switch outgoing {
         case .local(let prompt), .typed(let prompt): evidence.add(prompt: prompt)
@@ -318,8 +318,13 @@ final class ChatModel: ObservableObject {
         let turn = generation
         answer = Task {
             var refused = false
+            var mcpTurnID: UUID?
             do {
-                try await PiSession.shared.ask(outgoing, conversation: id, handoff: handoff, onStarting: { self.starting($0) }) { event in self.apply(event, in: id) }
+                try await PippaMCPService.$onBeginTurn.withValue({ mcpTurnID = $0 }) {
+                    try await PiSession.shared.ask(outgoing, conversation: id, handoff: handoff, onStarting: { self.starting($0) }) {
+                        self.apply($0, in: id)
+                    }
+                }
             } catch is CancellationError {
             } catch let failure as PiSession.Failure where failure == .needsReview || failure == .destinationChanged {
                 refused = true
@@ -343,7 +348,7 @@ final class ChatModel: ObservableObject {
                let failure = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == reply.id })?.error {
                 parkFailed(review, in: id, problem: failure)
             }
-            let cards = PippaMCPService.readNotes.take().compactMap(\.card)
+            let cards = PippaMCPService.takeReadCards(turnID: mcpTurnID)
             let receipts = PippaMCPService.writeNotes.take()
             let stopped = stopRequested
             if refused { end(); save(id); return }
