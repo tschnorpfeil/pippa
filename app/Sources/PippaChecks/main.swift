@@ -45,6 +45,7 @@ await focused("PIPPA_PROVIDER_CHECKS", "Provider") {
     await runProviderChecks()
 }
 await focused("PIPPA_PROTECTED_PATH_CHECKS", "Protected paths") { await runProtectedPathChecks() }
+await focused("PIPPA_MODEL_CONNECTION_CHECKS", "Model connection") { await runModelConnectionChecks() }
 await focused("PIPPA_SHARING_CHECKS", "Sharing") { await runSharingChecks(); runShareDeskChecks(); await runProtectedPathChecks() }
 await focused("PIPPA_MCP_EGRESS_CHECKS", "MCP egress") { await runMCPEgressChecks() }
 await focused("PIPPA_RELIABILITY_CHECKS", "Reliability") {
@@ -443,6 +444,7 @@ await runProviderChecks()
 await runSharingChecks()
 runShareDeskChecks()
 await runProtectedPathChecks()
+await runModelConnectionChecks()
 await runMCPEgressChecks()
 await runCalendarChecks()
 runCalendarStoreChecks()

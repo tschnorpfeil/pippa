@@ -16,7 +16,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { test } from "node:test";
 import { READINESS_COMMAND, REQUIRED_TOOLS } from "./pippa-mcp.ts";
 
@@ -32,7 +32,7 @@ const USEFUL = { work: "WORK-LETTER-4b5c", home: "HOME-DOCUMENT-6d7e", shell: "S
 
 test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, history, notes or Pi's credentials", {
 	skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 90_000,
-}, async () => {
+}, async (t) => {
 	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.5\./);
 	await mkdir(build, { recursive: true });
 	// Under /Users, so the same files are also reachable through /System/Volumes/Data.
@@ -42,9 +42,22 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 	const pinned = join(support, "pi-recipients", "4242", "snapshot");
 	const shared = join(root, ".pi/agent");
 	await Promise.all([work, sessions, pinned, shared, join(root, "Documents")].map((path) => mkdir(path, { recursive: true })));
+	const docs = join(root, "Documents");
+	const sortable = join(docs, "sortable"), archive = join(docs, "archive");
+	await Promise.all([sortable, archive].map((path) => mkdir(path)));
+	const protectedChild = join(sortable, "private.txt");
+	const plannedTarget = join(archive, "item.txt");
+	const alternatePath = join(docs, "Clock AM.txt");
+	const usefulAlternate = join(work, "Letter PM.txt");
+	await symlink(join(shared, "auth.json"), alternatePath.replace(" AM.", "\u202fAM."));
+	const outwardAlias = join(sessions, "outward.txt"), workAlias = join(sessions, "workspace");
+	await symlink(join(docs, "doc letter.txt"), outwardAlias);
+	await symlink(work, workAlias);
 	const settingsFile = join(support, "inference-settings.json");
 	const memoryFile = join(support, "memory.md");
 	const files = {
+		[protectedChild]: "SYNTHETIC-PRIVATE-DESCENDANT",
+		[join(docs, "item.txt")]: "SORTABLE-ITEM",
 		[settingsFile]: JSON.stringify({ policy: "online", macAccess: { key: SECRETS.settings } }),
 		[join(pinned, "auth.json")]: JSON.stringify({ "other-fixture": { type: "api_key", key: SECRETS.pinned } }),
 		[join(shared, "auth.json")]: JSON.stringify({ "other-fixture": { type: "api_key", key: SECRETS.shared } }),
@@ -52,7 +65,8 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 		[memoryFile]: `- ${SECRETS.notes}\n`,
 		[join(sessions, "other-conversation.jsonl")]: JSON.stringify({ text: SECRETS.history }) + "\n",
 		[join(work, "letter.txt")]: USEFUL.work,
-		[join(root, "Documents/doc.txt")]: USEFUL.home,
+		[usefulAlternate.replace(" PM.", "\u202fPM.")]: USEFUL.work,
+		[join(docs, "doc letter.txt")]: USEFUL.home,
 	};
 	for (const [path, text] of Object.entries(files)) await writeFile(path, text);
 	await symlink(join(shared, "auth.json"), join(work, "alias.json"));
@@ -67,6 +81,17 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 		// An ordinary write through the same (guarded) tool still works.
 		["write", { path: "~/Documents/new.txt", content: "WRITTEN-OK" }],
 		["read", { path: settingsFile }],
+		["read", { path: pathToFileURL(settingsFile).href }],
+		["read", { path: settingsFile.replace("Application Support", "Application\u00a0Support") }],
+		["read", { path: alternatePath }],
+		["write", { path: pathToFileURL(settingsFile).href, content: "FORGED" }],
+		["write", { path: pathToFileURL(join(docs, "doc letter.txt")).href, content: USEFUL.home + "-updated" }],
+		["edit", { path: pathToFileURL(join(docs, "doc letter.txt")).href, edits: [{ oldText: "-updated", newText: "-edited" }] }],
+		["move_files", { from: sortable, to: join(docs, "renamed") }],
+		["move_files", { from: outwardAlias, to: join(docs, "outward.txt") }],
+		["move_files", { folder: docs, groups: [{ into: "archive", files: ["item.txt"] }] }],
+		["bash", { command: 'printf "marker-status:%s" "${PIPPA_FIXTURE_MARKER-unset}"' }],
+		["move_files", { from: workAlias, to: join(docs, "workspace") }],
 		["read", { path: "~/.PI/agent/auth.json" }],
 		["read", { path: "alias.json" }],
 		["read", { path: `/System/Volumes/Data${memoryFile}` }],
@@ -83,9 +108,9 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 		// Paths the command does not name outright: only the sandbox stands in the way.
 		["bash", { command: `d="$HOME/.p"; cat "\${d}i/agent/auth.json"; ln "\${d}i/agent/auth.json" hard2.json; cat hard2.json; ls "$HOME/Documents/history/"` }],
 		["bash", { command: `cd "$HOME/Library/Application Support/Pippa" && cat inference-settings.json memory.md pi-recipients/*/*/auth.json; printf FORGED > inference-settings.json` }],
-		["read", { path: "letter.txt" }],
-		["read", { path: "~/Documents/doc.txt" }],
-		["bash", { command: `printf '%s-%s' SHELL-READ 8f9a; cat ~/Documents/doc.txt letter.txt` }],
+		["read", { path: "Letter PM.txt" }],
+		["read", { path: pathToFileURL(join(docs, "doc letter.txt")).href }],
+		["bash", { command: `printf '%s-%s' SHELL-READ 8f9a; cat "$HOME/Documents/doc letter.txt" letter.txt` }],
 	];
 
 	const server = createServer((req, res) => {
@@ -109,9 +134,11 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 			res.writeHead(200, { "Content-Type": "text/event-stream" });
 			const chunk = (delta, finish_reason) => `data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 0,
 				model: "test", choices: [{ index: 0, delta, finish_reason }] })}\n\n`;
-			if (++requests === 1) {
-				res.write(chunk({ role: "assistant", tool_calls: calls.map(([name, args], index) =>
-					({ index, id: `call_${index}`, type: "function", function: { name, arguments: JSON.stringify(args) } })) }, null));
+			if (++requests % 2 === 1) {
+				const start = requests === 1 ? 0 : 12;
+				const batch = requests === 1 ? calls.slice(0, 12) : calls.slice(12);
+				res.write(chunk({ role: "assistant", tool_calls: batch.map(([name, args], index) =>
+					({ index, id: `call_${start + index}`, type: "function", function: { name, arguments: JSON.stringify(args) } })) }, null));
 				res.write(chunk({}, "tool_calls"));
 			} else res.write(chunk({ role: "assistant", content: "Fixture answer." }, "stop"));
 			res.end("data: [DONE]\n\n");
@@ -127,15 +154,15 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 			baseUrl: `${base}/v1`, api: "openai-completions", apiKey: "fixture",
 			models: [{ id: "test", name: "Test", contextWindow: 16384, maxTokens: 1024 }],
 		} } }));
-		// PippaPiLaunch.tools with web search and notes off; the environment PiSession.ready and PippaPiLaunch set.
-		const tools = ["read", "bash", "write", "search_files", "list_folder", "move_files", "ask", "mcp__pippa__*"];
+		// The app loadout with web search and notes off, plus Pi’s edit tool for the guarded mutation check.
+		const tools = ["read", "bash", "write", "edit", "search_files", "list_folder", "move_files", "ask", "mcp__pippa__*"];
 		child = spawn(node, [cli, "--mode", "rpc", "--no-context-files", "--no-approve", "--no-extensions", "--no-skills",
 			...["pippa-tools.ts", "pippa-assist.ts", "pippa-mcp.ts"].flatMap((name) => ["--extension", join(here, name)]),
 			"--tools", tools.join(","), "--system-prompt", "You are a scripted test.", "--session-dir", sessions,
 			"--session-id", `${randomUUID()}_mac-abc123`, "--provider", "fixture", "--model", "test"], {
 			cwd: work, env: { HOME: root, PATH: process.env.PATH, PI_CODING_AGENT_DIR: pinned, PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1",
 				PI_TELEMETRY: "0", PIPPA_MCP_URL: `${base}/mcp`, PIPPA_MCP_TOKEN: token, PIPPA_MEMORY_FILE: memoryFile,
-				PIPPA_PROTECTED_PATHS: JSON.stringify([support, shared, pinned]), PIPPA_WORK_DIR: work, PIPPA_LANGUAGE: "en" },
+				PIPPA_PROTECTED_PATHS: JSON.stringify([support, shared, pinned, protectedChild, plannedTarget]), PIPPA_WORK_DIR: work, PIPPA_LANGUAGE: "en", PIPPA_FIXTURE_MARKER: "SYNTHETIC-CHILD-ENV" },
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 		let stderr = "", buffer = "", serial = 0, settled;
@@ -165,13 +192,16 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 		await command("prompt", { message: `/${READINESS_COMMAND} ${randomUUID()}` });
 		const receipt = entries.find((entry) => entry.customType === READINESS_COMMAND)?.data;
 		assert.equal(receipt?.status, "ready", JSON.stringify(receipt) + stderr.slice(-800));
-		let timer;
-		const finished = new Promise((resolve, reject) => { settled = { resolve, reject };
-			timer = setTimeout(() => reject(new Error(`No answer: ${stderr.slice(-1500)}`)), 60_000); });
-		const answer = await command("prompt", { message: "Look around." });
-		assert.notEqual(answer.success, false, JSON.stringify(answer));
-		await finished;
-		clearTimeout(timer);
+		for (const message of ["Check the fixtures.", "Look around."]) {
+			let timer;
+			const finished = new Promise((resolve, reject) => { settled = { resolve, reject };
+				timer = setTimeout(() => reject(new Error(`No answer: ${stderr.slice(-1500)}`)), 60_000); });
+			try {
+				const answer = await command("prompt", { message });
+				assert.notEqual(answer.success, false, JSON.stringify(answer));
+				await finished;
+			} finally { clearTimeout(timer); }
+		}
 
 		assert.equal(ended.length, calls.length, JSON.stringify(ended.map((event) => event.toolName)) + stderr.slice(-2000));
 		const result = (index) => JSON.stringify(ended.find((event) => event.toolCallId === `call_${index}`)?.result ?? "");
@@ -180,7 +210,26 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 		for (let index = 0; index < calls.length - 3; index++) {
 			for (const [name, secret] of Object.entries(SECRETS)) if (result(index).includes(secret)) leaks.push(`${calls[index][0]} #${index}: ${name}`);
 		}
-		assert.deepEqual(leaks, [], "no tool result holds a protected file's content");
+		await t.test("D1: Pi's actual file path is protected and useful URL mutations keep the previous versions", async () => {
+			assert.deepEqual(leaks, [], "no tool result holds protected content");
+			assert.equal(await readFile(settingsFile, "utf8"), files[settingsFile]);
+			assert.equal(await readFile(join(docs, "doc letter.txt"), "utf8"), USEFUL.home + "-edited");
+			const backups = join(support, "Backups");
+			const versions = await Promise.all((existsSync(backups) ? await readdir(backups) : []).map((name) => readFile(join(backups, name), "utf8")));
+			assert.ok(versions.includes(USEFUL.home), "URL write backed up the same file");
+			assert.ok(versions.includes(USEFUL.home + "-updated"), "URL edit backed up the same file");
+			const restores = entries.filter((entry) => entry.customType === "pippa-change")
+				.flatMap((entry) => entry.data.changes).filter((change) => change.kind === "restore");
+			assert.equal(restores.filter((change) => change.file === join(docs, "doc letter.txt")).length, 2, "both successful mutations can be undone");
+		});
+		await t.test("D3: protected ancestors, symlink entries and planned destinations cannot move", () => {
+			assert.deepEqual([existsSync(protectedChild), existsSync(outwardAlias), existsSync(workAlias), !existsSync(plannedTarget)], [true, true, true, true]);
+		});
+		await t.test("D4: a runtime-only marker is absent in the actual shell", () => {
+			const markerCall = calls.findIndex(([name, args]) => name === "bash" && args.command.includes("marker-status"));
+			assert.match(result(markerCall), /marker-status:unset/);
+			assert.ok(!bodies.slice(1).join("\n").includes("SYNTHETIC-CHILD-ENV"));
+		});
 		for (const index of [calls.length - 5, calls.length - 4]) assert.match(result(index), /Operation not permitted/, `the sandbox refused: ${result(index)}`);
 		const sent = bodies.slice(1).join("\n");
 		assert.ok(bodies.length >= 2, `the answer goes on after the tool results: ${stderr.slice(-800)}`);
@@ -189,9 +238,9 @@ test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, h
 		assert.ok(result(calls.length - 3).includes(USEFUL.work), "read in the working folder");
 		assert.ok(result(calls.length - 2).includes(USEFUL.home), "read in the home folder");
 		assert.deepEqual(mcpCalls, [], "the app's document reader is never asked for a protected file");
-		for (const [path, text] of Object.entries(files)) assert.equal(await readFile(path, "utf8"), text, `${path} unchanged`);
+		for (const [path, text] of Object.entries(files)) assert.equal(await readFile(path, "utf8"), path === join(docs, "doc letter.txt") ? text + "-edited" : text, `${path} unchanged`);
 		assert.equal(await readFile(join(root, "Documents/new.txt"), "utf8"), "WRITTEN-OK", "an ordinary write still works");
-		assert.deepEqual((await readdir(work)).sort(), ["alias.json", "letter.txt"], "nothing moved or copied into the working folder");
+		assert.deepEqual((await readdir(work)).sort(), ["Letter\u202fPM.txt", "alias.json", "letter.txt"], "nothing moved or copied into the working folder");
 		const backups = join(support, "Backups");
 		for (const name of existsSync(backups) ? await readdir(backups) : []) {
 			const text = await readFile(join(backups, name), "utf8");

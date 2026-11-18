@@ -33,7 +33,7 @@ import { accessSync, constants, existsSync, readdirSync, realpathSync, statSync 
 import { stat } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { isProtected, PROTECTED_REASON, protection, sandboxRules, type Protection } from "./protected.ts";
+import { invalidWorkTarget, isProtected, PROTECTED_REASON, protection, sandboxRules, type Protection } from "./protected.ts";
 
 export type Grant = "net" | "write";
 
@@ -144,7 +144,9 @@ export function sandboxProfile(grants: ReadonlySet<Grant>, where: Places, shims:
 	lines.push(`(allow file-write* (subpath ${lit(join(home, "Library", "Caches"))}) (subpath ${lit(join(home, ".cache"))}))`);
 	lines.push(`(deny file-write-unlink (subpath ${lit(home)}) (subpath "/Volumes") (subpath "/Users/Shared"))`);
 	if (where.support) lines.push(`(deny file-write* (subpath ${lit(where.support)}))`);
-	lines.push(`(allow file-write* (subpath ${lit(where.work)})${where.temporary.map((t) => ` (subpath ${lit(t)})`).join("")})`);
+	const writable = [...where.temporary];
+	if (!where.protect || (!invalidWorkTarget(where.work, where.protect) && !isProtected(where.work, where.protect))) writable.unshift(where.work);
+	if (writable.length) lines.push(`(allow file-write* ${writable.map((path) => `(subpath ${lit(path)})`).join(" ")})`);
 	// Last: no grant and no working folder opens Pippa's own or Pi's sign-in folders, except Pippa's working folder.
 	if (where.protect) lines.push(...sandboxRules(where.protect));
 	return lines.join("\n") + "\n";
@@ -352,6 +354,9 @@ export interface ShellDeps {
 	protection?: Protection;
 }
 
+const SHELL_ENV = new Set(["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "USER", "LOGNAME", "SHELL", "LANG", "LANGUAGE", "LC_ALL",
+	"LC_COLLATE", "LC_CTYPE", "LC_MESSAGES", "LC_MONETARY", "LC_NUMERIC", "LC_TIME", "TERM", "TERM_PROGRAM", "TZ"]);
+
 /**
  * Pi's own bash tool (`create` = `createBashToolDefinition`), run through the sandbox. Grants hold for one answer
  * (`resetAnswer` at each agent start). The model sees the same tool, the transcript the person's command unchanged.
@@ -385,12 +390,12 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					const where = places(cwd, env, home, protect);
 					const command = String(params?.command ?? "");
 					if (programs(command).some((word) => APPS.has(word))) return notRun(APP_CONTROL_REASON);
-					// Named outright: refused without a question (the sandbox would deny it anyway, and a write question
-					// after its failure could grant nothing there).
-					if (namedPaths(command, cwd, where.home).some((path) => isProtected(path, protect))) return notRun(PROTECTED_REASON);
 					const locked = lockedShims();
 					const shim = locked.length ? shimStarted(command, locked, env, shimDir) : undefined;
 					if (shim) return notRun(noDeveloperToolsReason(shim));
+					// Named outright: refused without a question (the sandbox would deny it anyway, and a write question
+					// after its failure could grant nothing there).
+					if (namedPaths(command, cwd, where.home).some((path) => isProtected(path, protect))) return notRun(PROTECTED_REASON);
 					// Retain copies through failures and interruptions as well as successful completion.
 					const kept = new Map<string, string>();
 					const ask = async (need: Set<Grant>): Promise<boolean> => {
@@ -413,8 +418,13 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						}
 						let dispatched = false;
 						const tool = create(cwd, { spawnHook: (spawn: any) => {
+							if (invalidWorkTarget(spawn.cwd, protect)) throw new Error(PROTECTED_REASON);
 							dispatched = true;
-							return { ...spawn, command: sandboxedCommand(spawn.command, now, where, sandbox, locked, shimDir) };
+							return {
+								...spawn,
+								env: Object.fromEntries(Object.entries(spawn.env).filter(([key]) => SHELL_ENV.has(key))),
+								command: sandboxedCommand(spawn.command, now, places(cwd, env, home, protect), sandbox, locked, shimDir),
+							};
 						} });
 						try {
 							const result = await tool.execute(id, params, signal, onUpdate, ctx);

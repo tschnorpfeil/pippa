@@ -326,7 +326,7 @@ final class ChatModel: ObservableObject {
                     }
                 }
             } catch is CancellationError {
-            } catch let failure as PiSession.Failure where failure == .needsReview || failure == .destinationChanged {
+            } catch let failure as PiSession.Failure where failure == .needsReview || failure == .destinationChanged || failure == .settingsChanged {
                 refused = true
                 let canRestore = currentID == id && draft.isEmpty && attachments.isEmpty
                 if review != nil || canRestore {

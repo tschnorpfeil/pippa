@@ -54,11 +54,13 @@ final class PiSession {
         case needsReview
         /// The approved destination is no longer the one Pippa would send to. Nothing was sent.
         case destinationChanged
+        case settingsChanged
 
         var errorDescription: String? {
             switch self {
             case .needsReview: T("Pippa uses an online AI now. Nothing was sent; check what you want to share and send again.", table: "App")
             case .destinationChanged: T("The online AI changed since you checked. Nothing was sent; check again for the new one.", table: "App")
+            case .settingsChanged: T("The AI settings changed. Nothing was sent. Send your question again when you’re ready.", table: "App")
             case .setup: T("Pippa isn't set up yet. Open Settings to finish setting up her AI.", table: "App")
             case .nativeTools: T("Pippa couldn't start her Mac tools. Quit Pippa and open her again.", table: "App")
             case .model(let message): message
@@ -67,6 +69,7 @@ final class PiSession {
     }
 
     private var client: PiRPCClient?
+    private var pendingPrompt: PiRPCPromptAdmission?
     private var startupTask: Task<(PiRPCClient, LaunchRoute, String), Error>?
     private var preloadTask: Task<Void, Never>?
     private var lastPrewarmAttempt: ContinuousClock.Instant?
@@ -108,6 +111,9 @@ final class PiSession {
         var settled = false
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
         defer { onStarting(false) }
+        let admission = PiRPCPromptAdmission()
+        pendingPrompt = admission
+        defer { if pendingPrompt === admission { pendingPrompt = nil } }
         let startup = Task { try await prepare(outgoing, conversation: conversation, handoff: handoff, onStarting: onStarting) }
         startupTask = startup
         let client: PiRPCClient
@@ -122,7 +128,7 @@ final class PiSession {
         do {
             stream = try await admitted(route, text: text, outgoing: outgoing,
                                         reread: { try await self.launchRoute(outgoing, handoff: handoff) },
-                                        send: { try await client.prompt($0) })
+                                        admission: admission, send: { try await client.prompt($0, admission: admission) })
         } catch PiRPCError.commandFailed(_, let message) {
             if route.piModel != nil, let problem = PiProviderClient.problem(in: message) {
                 throw Failure.model(problem == .limit ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
@@ -145,11 +151,18 @@ final class PiSession {
     /// keeps its Pi, `settingsChanged`).
     func admitted<Stream>(_ route: LaunchRoute, text: String, outgoing: Outgoing, reread: () async throws -> LaunchRoute,
                           latest: () -> InferenceSettings = { InferenceSettings.load(from: PiSession.settingsDirectory) },
-                          send: (String) async throws -> Stream) async throws -> Stream {
+                          admission: PiRPCPromptAdmission = .init(), send: (String) async throws -> Stream) async throws -> Stream {
+        pendingPrompt = admission
+        defer { if pendingPrompt === admission { pendingPrompt = nil } }
+        try admission.check()
         let now = try await reread()
+        try admission.check()
         guard route.destination == now.destination else { throw Failure.destinationChanged }
-        guard Self.sameRecipient(route, now), try Self.message(outgoing, route: now) == text else { throw Failure.needsReview }
+        guard Self.sameRecipient(route, now), try Self.message(outgoing, route: now) == text else {
+            throw now.destination == nil ? Failure.settingsChanged : Failure.needsReview
+        }
         try admit(now, outgoing, latest: latest)
+        try admission.check()
         return try await send(text)
     }
 
@@ -158,6 +171,7 @@ final class PiSession {
     func admit(_ route: LaunchRoute, _ outgoing: Outgoing,
                latest: () -> InferenceSettings = { InferenceSettings.load(from: PiSession.settingsDirectory) }) throws {
         guard let read = route.admission, read.revision == settingsRevision, read.settings == latest() else {
+            if route.destination == nil { throw Failure.settingsChanged }
             if case .local = outgoing { throw Failure.needsReview }
             throw Failure.destinationChanged
         }
@@ -230,6 +244,7 @@ final class PiSession {
     }
 
     func stop() async {
+        pendingPrompt?.cancel()
         preloadTask?.cancel()
         if let startupTask {
             startupTask.cancel()
@@ -266,6 +281,7 @@ final class PiSession {
     }
 
     func shutdown() async {
+        pendingPrompt?.cancel()
         let starting = startupTask
         starting?.cancel()
         preloadTask?.cancel()

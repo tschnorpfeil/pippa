@@ -44,17 +44,33 @@ func runProtectedPathChecks() async {
             && ProtectedPaths(roots: [support], open: [home]).open.isEmpty
             && ProtectedPaths.app(support: support, home: home, environment: ["PI_CODING_AGENT_DIR": "/tmp/agent-dir"]).roots.map(\.path).contains("/tmp/agent-dir")
     }
-    await checkAsync("MCP read_document: Pippa's own folder and Pi's sign-in folder are refused before anything is read") {
+    check("Protected paths: the work exception requires the original directory entry") {
+        let fm = FileManager.default
+        let sessions = support.appendingPathComponent("pi-sessions", isDirectory: true)
+        try fm.moveItem(at: work, to: support.appendingPathComponent("old-work"))
+        try fm.createSymbolicLink(at: work, withDestinationURL: sessions)
+        let target = sessions.appendingPathComponent("private.txt")
+        let symlinkClosed = paths.contains(target) && ProtectedPaths(roots: [support], open: [work]).contains(target)
+        try fm.removeItem(at: work)
+        try fm.createDirectory(at: work, withIntermediateDirectories: false)
+        return symlinkClosed && paths.contains(work.appendingPathComponent("note.txt"))
+            && paths.environment["PIPPA_WORK_ID"] == ""
+    }
+    await checkAsync("MCP read_document refuses a synthetic protected root, including its file URL spelling") {
+        let previous = ProcessInfo.processInfo.environment["PI_CODING_AGENT_DIR"]
+        setenv("PI_CODING_AGENT_DIR", agent.path, 1)
+        defer {
+            if let previous { setenv("PI_CODING_AGENT_DIR", previous, 1) }
+            else { unsetenv("PI_CODING_AGENT_DIR") }
+        }
         let reader = PippaMCPTurnTools(turns: PippaMCPTurns())
         func status(_ path: String) async -> String? {
             let result = await reader.call("read_document", ["path": path])
             return (try? JSONSerialization.jsonObject(with: Data(result.text.utf8)) as? [String: Any])?["status"] as? String
         }
-        // The app's real folders by name only: refused before any file is opened, so nothing there is read.
-        let real = [Pippa.supportDirectory.appendingPathComponent("inference-settings.json").path,
-                    ExistingModels.realHome.appendingPathComponent(".pi/agent/auth.json").path,
-                    "file://" + Pippa.supportDirectory.appendingPathComponent("pi-sessions").path]
-        for path in real where await status(path) != "protected" { return false }
+        let file = agent.appendingPathComponent("auth.json")
+        for path in [file.path, file.absoluteString] where await status(path) != "protected" { return false }
         return await status(documents.appendingPathComponent("letter.txt").path) != "protected"
     }
+
 }

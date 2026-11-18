@@ -20,6 +20,7 @@ func assistant(_ text: String, stop: String) {
 }
 
 if CommandLine.arguments.contains("--mode") {
+    var promptCount = 0
     while let line = readLine(), let data = line.data(using: .utf8),
           let request = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
         let id = request["id"] as? String ?? ""
@@ -32,6 +33,7 @@ if CommandLine.arguments.contains("--mode") {
         }
         switch command {
         case "prompt":
+            promptCount += 1
             switch request["message"] as? String {
             case "folder-permission-protocol":
                 response("started")
@@ -116,6 +118,8 @@ if CommandLine.arguments.contains("--mode") {
                 assistant("Done", stop: "stop")
                 emit(["type": "agent_settled", "aborted": false])
             }
+        case "fixture_prompt_count":
+            emit(["type": "response", "id": id, "command": command, "success": true, "data": ["count": promptCount]])
         case "abort":
             emit(["type": "tool_execution_end", "toolCallId": "pending-tool", "toolName": "fixture", "isError": true,
                   "result": ["content": [["type": "text", "text": "Cancelled"]]]])
@@ -155,6 +159,17 @@ func collect(_ prompt: String) async throws -> [PiRPCEvent] {
     var events: [PiRPCEvent] = []
     for try await event in try await client.prompt(prompt) { events.append(event) }
     return events
+}
+
+let stoppedPrompt = PiRPCPromptAdmission()
+stoppedPrompt.cancel()
+do {
+    _ = try await client.prompt("must not reach Pi", admission: stoppedPrompt)
+    check("A stopped prompt is cancelled at the RPC client", false)
+} catch is CancellationError {
+    let count = try await client.command(["type": "fixture_prompt_count"])
+    let result = try count.flatMap { try JSONSerialization.jsonObject(with: $0) as? [String: Int] }
+    check("A stopped prompt never reaches Pi's stdin", result?["count"] == 0)
 }
 
 let immediate = try await collect("immediate")

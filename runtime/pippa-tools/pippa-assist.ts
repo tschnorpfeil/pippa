@@ -22,11 +22,10 @@
  * - Undo: every change the app can take back (an old version kept, a new file, a move, the Trash) becomes a session
  *   entry `pippa-change`; the app keeps them in its journal, so "Rückgängig" under the answer undoes them.
  */
-import { constants, readFileSync, unlinkSync } from "node:fs";
-import { access, copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
-import { basename, isAbsolute, join, dirname, resolve } from "node:path";
+import { constants } from "node:fs";
+import { copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
+import { basename, join, dirname } from "node:path";
 import { homedir } from "node:os";
-import { isProtected } from "./protected.ts";
 
 type ExtensionAPI = any;
 
@@ -153,16 +152,8 @@ export function backupDirectory(env: Record<string, string | undefined> = proces
 	return env.PIPPA_MEMORY_FILE ? join(dirname(env.PIPPA_MEMORY_FILE), "Backups") : undefined;
 }
 
-/** The absolute path an `edit`/`write` call targets (Pi resolves `~` and relative paths the same way). */
-export function targetPath(raw: unknown, cwd: string, home = homedir()): string | undefined {
-	const path = typeof raw === "string" ? raw.trim() : "";
-	if (!path) return undefined;
-	if (path === "~" || path.startsWith("~/")) return join(home, path.slice(1));
-	return isAbsolute(path) ? path : resolve(cwd, path);
-}
-
 /** Copies an existing file into `directory` before it changes; the copy's path, or `undefined` (new file, folder, too big). */
-export async function backUp(file: string, directory: string, now = new Date()): Promise<string | undefined> {
+export async function backUp(file: string, directory: string, now = new Date(), validate?: () => void): Promise<string | undefined> {
 	let info;
 	try { info = await stat(file); } catch { return undefined; }
 	if (!info.isFile() || info.size > BACKUP_MAX_BYTES) return undefined;
@@ -172,6 +163,7 @@ export async function backUp(file: string, directory: string, now = new Date()):
 	for (let n = 1; n < 100; n++) {
 		const copy = join(directory, `${stamp}${n > 1 ? ` (${n})` : ""} ${basename(file)}`);
 		try {
+			validate?.();
 			await copyFile(file, copy, constants.COPYFILE_FICLONE | constants.COPYFILE_EXCL);
 			// On macOS the copy keeps the file's own dates; the age that counts for pruning is the copy's.
 			await utimes(copy, now, now);
@@ -180,11 +172,6 @@ export async function backUp(file: string, directory: string, now = new Date()):
 		catch (error: any) { if (error?.code !== "EEXIST") throw error; }
 	}
 	throw new Error(`Could not create backup for ${file}: all backup slots for ${stamp} are taken.`);
-}
-
-/** Does anything exist at `path`? */
-async function exists(path: string): Promise<boolean> {
-	try { await access(path); return true; } catch { return false; }
 }
 
 /** Removes copies older than `days` (by the time they were made, set in `backUp`). */
@@ -204,24 +191,15 @@ export type Change =
 	| { kind: "create"; file: string }
 	| { kind: "move" | "trash"; from: string; to: string };
 
-/** What a finished tool call changed, from its own result (never from the model's text). `before`: what `tool_call`
- * saw, the copy of an existing file or that the file was new. */
-export function changesOf(tool: string, details: any, isError: boolean, before?: { file: string; copy?: string; created?: boolean }): Change[] {
-	// A failed or interrupted command can already have overwritten files. Keeping its backups is independent of exit status.
+/** What a finished tool call changed, from its own result (never from the model's text). */
+export function changesOf(tool: string, details: any, isError: boolean): Change[] {
+	const before = details?.pippaBefore;
+	// A failed or interrupted command can already have overwritten files. Keep copies made before a write attempt.
 	if (tool === "bash" && Array.isArray(details?.pippaKept)) {
 		return details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
 			.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }));
 	}
 	if ((tool === "edit" || tool === "write") && before?.copy) {
-		if (isError) {
-			try {
-				if (readFileSync(before.file).equals(readFileSync(before.copy))) {
-					try { unlinkSync(before.copy); } catch { /* ignore */ }
-					delete before.copy;
-					return [];
-				}
-			} catch { /* if files cannot be compared, keep the backup for safety */ }
-		}
 		return [{ kind: "restore", file: before.file, copy: before.copy }];
 	}
 	if (isError) return [];
@@ -239,7 +217,6 @@ export function changesOf(tool: string, details: any, isError: boolean, before?:
 
 export default function (pi: ExtensionAPI) {
 	const backups = backupDirectory();
-	const kept = new Map<string, { file: string; copy?: string; created?: boolean }>();
 	if (backups) void pruneBackups(backups);
 	const counts = new Map<string, LoopCount>();
 	const keys = new Map<string, string>();
@@ -253,7 +230,7 @@ export default function (pi: ExtensionAPI) {
 	const commands = new Map<string, string>();
 	let searched = false;
 	let truncated = false;
-	const reset = () => { counts.clear(); keys.clear(); unhandled.clear(); commands.clear(); kept.clear(); stops = 0; calls = 0; searchCalls.clear(); found.clear(); searched = false; truncated = false; };
+	const reset = () => { counts.clear(); keys.clear(); unhandled.clear(); commands.clear(); stops = 0; calls = 0; searchCalls.clear(); found.clear(); searched = false; truncated = false; };
 	const recordStop = (tool: string, ctx: any) => {
 		if (++stops === 3) {
 			pi.appendEntry("pippa-loop-stop", { v: 1, tool, searched, files: [...found].slice(0, 200), truncated: truncated || found.size > 200 });
@@ -297,17 +274,7 @@ export default function (pi: ExtensionAPI) {
 		if (loop) return { block: true, reason: NATIVE_CHANGES.has(tool)
 			? JSON.stringify({ done: false, status: "not_dispatched", dispatched: false, tell: loop }) : loop };
 		if (tool === "bash") commands.set(event.toolCallId, String(event.input?.command ?? ""));
-		if (backups && (tool === "edit" || tool === "write")) {
-			const file = targetPath(event.input?.path ?? event.input?.file_path, ctx?.cwd ?? process.cwd());
-			// Pippa's own and Pi's sign-in folders: pippa-tools.ts refuses the call; never copy their files around.
-			if (file && isProtected(file)) return { block: true, reason: "Not changed: this place is protected." };
-			try {
-				const copy = file ? await backUp(file, backups) : undefined;
-				if (file) kept.set(event.toolCallId, copy ? { copy, file } : { file, created: !(await exists(file)) });
-			} catch {
-				return { block: true, reason: "Not changed: Pippa could not keep a copy of the old version first. Tell the person in one short sentence that the file stays as it was." };
-			}
-		}
+
 		if (tool === "search_files" || (tool === "bash" && /(^|\s)mdfind\b/.test(String(event.input?.command ?? "")))) {
 			searchCalls.add(event.toolCallId);
 			searched = true;
@@ -318,8 +285,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("tool_result", async (event: any) => {
 		const command = commands.get(event.toolCallId);
 		commands.delete(event.toolCallId);
-		const backup = kept.get(event.toolCallId);
-		kept.delete(event.toolCallId);
+		const backup = event.details?.pippaBefore;
 		if (event.toolName === "search_files" && searchCalls.has(event.toolCallId)) {
 			pi.appendEntry("pippa-search-result", { v: 1, files: searchFiles(event.content).slice(0, 200) });
 		}
@@ -337,7 +303,7 @@ export default function (pi: ExtensionAPI) {
 			} catch { /* Plain mdfind results have no structured truncation flag. */ }
 		}
 		outcome(event.toolCallId, event.isError === true, nativeChangeOutcome(event.toolName, event.content, event.isError === true));
-		const changes = changesOf(event.toolName, event.details, event.isError === true, backup);
+		const changes = changesOf(event.toolName, event.details, event.isError === true);
 		if (changes.length) pi.appendEntry("pippa-change", { v: 1, changes });
 		if (backup?.copy) {
 			const note = `The previous version of ${basename(backup.file)} is kept at ${backup.copy}.`;

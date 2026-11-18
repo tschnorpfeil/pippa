@@ -195,7 +195,7 @@ enum SharingRouteChecks {
 
         /// One turn: `warm` is the route the running Pi was started for; the re-read takes its settings, then waits
         /// (provider files, Keychain) while `meanwhile` runs on the main actor.
-        func turn(_ outgoing: PiSession.Outgoing, meanwhile: () -> Void, duringSend: @escaping () -> Void = {}) async -> (sent: [String], error: PiSession.Failure?) {
+        func turn(_ outgoing: PiSession.Outgoing, meanwhile: () async -> Void, duringSend: @escaping () -> Void = {}) async -> (sent: [String], error: PiSession.Failure?) {
             save(granted)
             let warm = read()
             let text = (try? PiSession.message(outgoing, route: warm)) ?? ""
@@ -212,7 +212,7 @@ enum SharingRouteChecks {
                 } catch { return error as? PiSession.Failure ?? .setup(String(describing: error)) }
             }
             while waiting == nil { await Task.yield() }
-            meanwhile()
+            await meanwhile()
             waiting?.resume()
             let error = await attempt.value
             return (sent, error)
@@ -221,6 +221,17 @@ enum SharingRouteChecks {
 
         let unchanged = await turn(.local(prompt)) {}
         check(unchanged.sent == [prompt] && unchanged.error == nil, "nothing changed: the running Pi gets the prompt once")
+        let stopped = await turn(.local(prompt)) { await session.stop() }
+        check(refused(stopped), "Stop while the final reread is suspended prevents dispatch")
+        let local = PiSession.LaunchRoute(key: "local|fixture").with(.init(web: false, memory: false))
+        let changedLocal = local.with(.init(web: false, memory: true))
+        do {
+            _ = try await session.admitted(local, text: prompt, outgoing: .local(prompt),
+                                           reread: { changedLocal }, latest: latest, send: { _ in 0 })
+            check(false, "changed local capabilities refuse the unsent question")
+        } catch {
+            check(error as? PiSession.Failure == .settingsChanged, "changed local capabilities report an AI settings change")
+        }
         let window = await turn(.local(prompt)) { save(revoked); session.settingsChanged() }
         check(refused(window) && window.error == .needsReview,
               "window and Island: Mac access revoked while the route is read again, the running Pi gets nothing")

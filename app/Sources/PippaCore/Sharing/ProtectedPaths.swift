@@ -10,12 +10,52 @@ import Foundation
 /// device and inode, so other letter case, `..`, `/private` and the `/System/Volumes/Data` firmlink name the same place.
 public struct ProtectedPaths: Sendable, Equatable {
     public var roots: [URL]
-    public var open: [URL]
+    private let work: [WorkEntry]
+
+    private struct WorkEntry: Sendable, Equatable {
+        let url: URL
+        let id: String?
+        let target: String
+
+        init(_ url: URL) {
+            self.url = url
+            id = ProtectedPaths.directoryEntryID(url.path)
+            target = ProtectedPaths.real(url)
+        }
+    }
+
+    private static let appWork = WorkEntry(PiConversationDefault.workingDirectory(support: Pippa.supportDirectory))
 
     public init(roots: [URL], open: [URL]) {
+        self.init(roots: roots, work: open.map(WorkEntry.init))
+    }
+
+    private init(roots: [URL], work: [WorkEntry]) {
         self.roots = roots
-        // An open place never contains a protected one.
-        self.open = open.filter { place in !roots.contains { Self.folded(Self.real($0)).hasPrefix(Self.folded(Self.real(place)) + "/") || Self.real($0) == Self.real(place) } }
+        self.work = work
+    }
+
+    public var open: [URL] { validWork.map(\.url) }
+
+    private var validWork: [WorkEntry] {
+        work.filter { entry in
+            guard let id = entry.id, Self.directoryEntryID(entry.url.path) == id,
+                  Self.directoryEntryID(entry.target) == id else { return false }
+            let target = Self.folded(entry.target)
+            // The working folder must never contain a protected root.
+            guard !roots.contains(where: {
+                [$0.standardizedFileURL.path, Self.real($0)].map(Self.folded).contains { root in
+                    root == target || root.hasPrefix(target.hasSuffix("/") ? target : target + "/")
+                }
+            }) else { return false }
+            return true
+        }
+    }
+
+    private static func directoryEntryID(_ path: String) -> String? {
+        var info = stat()
+        guard lstat(path, &info) == 0, (info.st_mode & S_IFMT) == S_IFDIR else { return nil }
+        return "\(UInt32(bitPattern: info.st_dev)):\(info.st_ino)"
     }
 
     /// The app's places: Pippa's support folder, the real `~/.pi`, Pi's agent folder from the environment (development
@@ -25,13 +65,14 @@ public struct ProtectedPaths: Sendable, Equatable {
         let configured = [environment["PI_CODING_AGENT_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) },
                           environment["PIPPA_PI_HOME"].map { URL(fileURLWithPath: $0, isDirectory: true).appendingPathComponent(".pi", isDirectory: true) }]
         return Self(roots: [support, home.appendingPathComponent(".pi", isDirectory: true)] + configured.compactMap { $0 } + extra,
-                    open: [PiConversationDefault.workingDirectory(support: support)])
+                    work: [support == Pippa.supportDirectory ? appWork : WorkEntry(PiConversationDefault.workingDirectory(support: support))])
     }
 
     /// The extensions' environment (protected.ts `PIPPA_PROTECTED_PATHS`, `PIPPA_WORK_DIR`).
     public var environment: [String: String] {
         let list = (try? JSONSerialization.data(withJSONObject: roots.map(\.path))).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
-        return ["PIPPA_PROTECTED_PATHS": list, "PIPPA_WORK_DIR": open.first?.path ?? ""].filter { !$0.value.isEmpty }
+        let id = work.first.flatMap { validWork.contains($0) ? $0.id : nil }
+        return ["PIPPA_PROTECTED_PATHS": list, "PIPPA_WORK_DIR": work.first?.url.path ?? "", "PIPPA_WORK_ID": id ?? ""]
     }
 
     public func contains(_ url: URL) -> Bool {
@@ -41,18 +82,16 @@ public struct ProtectedPaths: Sendable, Equatable {
            (targetInfo.st_mode & S_IFMT) == S_IFREG { return true }
         let identity = { (path: String) -> String? in
             var info = stat()
-            return stat(path, &info) == 0 ? "\(info.st_dev):\(info.st_ino)" : nil
+            return stat(path, &info) == 0 ? "\(UInt32(bitPattern: info.st_dev)):\(info.st_ino)" : nil
         }
-        let rootIDs = Set(roots.compactMap { identity(Self.real($0)) }), openIDs = Set(open.compactMap { identity(Self.real($0)) })
+        let rootIDs = Set(roots.compactMap { identity(Self.real($0)) }), openIDs = Set(validWork.compactMap(\.id))
         let rootNames = Set(roots.flatMap { [Self.folded($0.standardizedFileURL.path), Self.folded(Self.real($0))] })
-        let openNames = Set(open.flatMap { [Self.folded($0.standardizedFileURL.path), Self.folded(Self.real($0))] })
         var current = Self.real(url)
         while true {
             let id = identity(current), name = Self.folded(current)
-            if let id, openIDs.contains(id) { return false }
-            if openNames.contains(name) { return false }
             if let id, rootIDs.contains(id) { return true }
             if rootNames.contains(name) { return true }
+            if let id, openIDs.contains(id) { return false }
             let up = (current as NSString).deletingLastPathComponent
             if up == current || up.isEmpty { return false }
             current = up

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { link, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { link, mkdir, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -137,4 +137,23 @@ test("fetch with a body: a redirect comes back as an error and the other address
 	} finally {
 		for (const server of [a, b]) { server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)); }
 	}
+});
+
+test("the designated work exception requires the original directory entry", async () => {
+	const { home, support, env, where } = await fixture();
+	const work = env.PIPPA_WORK_DIR, sessions = join(support, "pi-sessions");
+	try {
+		assert.equal(isProtected(join(work, "note.txt"), where), false);
+		await rename(work, work + "-old");
+		await symlink(sessions, work);
+		assert.equal(isProtected(join(sessions, "private.txt"), where), true, "live rules reject a substituted symlink");
+		assert.equal(isProtected(join(work, "private.txt"), protection(env, home)), true, "startup also rejects a substituted symlink");
+		assert.ok(!sandboxProfile(new Set(), places(work, env, home, where)).split("\n")
+			.some((line) => line.startsWith("(allow file-") && line.includes(sessions)));
+		await rm(work);
+		await mkdir(work);
+		assert.equal(isProtected(join(work, "note.txt"), where), true, "a new directory at the same name is closed");
+		const pinned = protection({ ...env, PIPPA_WORK_ID: where.open[0].id }, home);
+		assert.equal(isProtected(join(work, "note.txt"), pinned), true, "the app's launch identity cannot be recaptured after a swap");
+	} finally { await rm(home, { recursive: true, force: true }); }
 });

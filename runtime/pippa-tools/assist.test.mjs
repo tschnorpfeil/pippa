@@ -290,47 +290,23 @@ test("today's date goes in front of each new message, a skill command stays firs
 	assert.deepEqual(await handlers.input({ type: "input", text: "Stopp", source: "rpc", streamingBehavior: "steer" }), { action: "continue" });
 });
 
-test("edit and write keep the old version first; the result says where; a new file needs no copy", async () => {
-	const { mkdtemp, writeFile, readFile, readdir } = await import("node:fs/promises");
+test("a copy of an old file has the backup date and survives pruning", async () => {
+	const { mkdtemp, writeFile, readFile, readdir, rm, utimes } = await import("node:fs/promises");
 	const { tmpdir } = await import("node:os");
 	const { join } = await import("node:path");
+	const { backUp, pruneBackups } = await import("./pippa-assist.ts");
 	const dir = await mkdtemp(join(tmpdir(), "pippa-backup-"));
-	process.env.PIPPA_BACKUP_DIR = join(dir, "Backups");
 	try {
-		const { default: fresh } = await import(`./pippa-assist.ts?backup=${Date.now()}`);
-		const handlers = {};
-		fresh({ registerTool: () => {},  on: (name, fn) => (handlers[name] = fn), getAllTools: () => tools, appendEntry: () => {} });
-		await handlers.agent_start({});
-		await writeFile(join(dir, "Brief.txt"), "alt");
-		const { utimes } = await import("node:fs/promises");
+		const file = join(dir, "Brief.txt"), backups = join(dir, "Backups");
+		await writeFile(file, "alt");
 		const lastYear = new Date(Date.now() - 400 * 86_400_000);
-		await utimes(join(dir, "Brief.txt"), lastYear, lastYear);   // an old letter: its copy still counts as new
-		const ctx = { cwd: dir };
-		assert.equal(await handlers.tool_call({ toolName: "write", input: { path: "Brief.txt", content: "neu" }, toolCallId: "w1" }, ctx), undefined);
-		await writeFile(join(dir, "Brief.txt"), "neu");
-		const result = await handlers.tool_result({ toolName: "write", toolCallId: "w1", isError: false, content: [{ type: "text", text: "ok" }] }, ctx);
-		const [copy] = await readdir(join(dir, "Backups"));
-		assert.match(copy, /^\d{4}-\d\d-\d\d \d\d\.\d\d\.\d\d Brief\.txt$/);
-		assert.equal(await readFile(join(dir, "Backups", copy), "utf8"), "alt");
-		assert.match(result.content.at(-1).text, /previous version of Brief\.txt is kept at .*Backups/);
-		assert.equal(await handlers.tool_call({ toolName: "write", input: { path: join(dir, "Neu.txt"), content: "x" }, toolCallId: "w2" }, ctx), undefined);
-		assert.equal(await handlers.tool_result({ toolName: "write", toolCallId: "w2", isError: false, content: [{ type: "text", text: "ok" }] }, ctx), undefined);
-		assert.equal((await readdir(join(dir, "Backups"))).length, 1);
-		// A failed edit that leaves the file untouched cleans up its backup and emits no backup note or pippa-change entry.
-		const entries = [];
-		const handlers2 = {};
-		fresh({ registerTool: () => {}, on: (name, fn) => (handlers2[name] = fn), getAllTools: () => tools, appendEntry: (type, data) => entries.push({ type, data }) });
-		await handlers2.agent_start({});
-		assert.equal(await handlers2.tool_call({ toolName: "edit", input: { path: "Brief.txt", edits: [] }, toolCallId: "e-fail" }, ctx), undefined);
-		const failedEdit = await handlers2.tool_result({ toolName: "edit", toolCallId: "e-fail", isError: true, content: [{ type: "text", text: "oldText not found" }] }, ctx);
-		assert.equal(failedEdit, undefined, "no false backup note when edit failed without touching the file");
-		assert.equal(entries.filter((e) => e.type === "pippa-change").length, 0, "no false restore entry");
-		assert.deepEqual(await readdir(join(dir, "Backups")), [copy], "untouched backup was cleaned up");
-		const { pruneBackups } = await import("./pippa-assist.ts");
-		await pruneBackups(join(dir, "Backups"));
-		assert.deepEqual(await readdir(join(dir, "Backups")), [copy]);
+		await utimes(file, lastYear, lastYear);
+		const copy = await backUp(file, backups);
+		assert.equal(await readFile(copy, "utf8"), "alt");
+		await pruneBackups(backups);
+		assert.equal((await readdir(backups)).length, 1);
 	} finally {
-		delete process.env.PIPPA_BACKUP_DIR;
+		await rm(dir, { recursive: true, force: true });
 	}
 });
 
@@ -350,15 +326,15 @@ test("old copies go after BACKUP_DAYS", async () => {
 
 test("what an answer changed is told to the app from the tools' own results, so it can be undone", async () => {
 	const { changesOf } = await import("./pippa-assist.ts");
-	assert.deepEqual(changesOf("edit", undefined, false, { file: "/u/a.txt", copy: "/b/a.txt" }), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
-	assert.deepEqual(changesOf("write", undefined, false, { file: "/u/new.txt", created: true }), [{ kind: "create", file: "/u/new.txt" }]);
-	assert.deepEqual(changesOf("write", undefined, true, { file: "/u/new.txt", created: true }), [], "failed: no confirmed new file to remove");
+	assert.deepEqual(changesOf("edit", { pippaBefore: { file: "/u/a.txt", copy: "/b/a.txt" } }, false), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
+	assert.deepEqual(changesOf("write", { pippaBefore: { file: "/u/new.txt", created: true } }, false), [{ kind: "create", file: "/u/new.txt" }]);
+	assert.deepEqual(changesOf("write", { pippaBefore: { file: "/u/new.txt", created: true } }, true), [], "failed: no confirmed new file to remove");
 	assert.deepEqual(changesOf("move_files", { moved: [{ from: "/d/a.pdf", to: "/d/X/a.pdf" }], failed: [] }, false), [{ kind: "move", from: "/d/a.pdf", to: "/d/X/a.pdf" }]);
 	assert.deepEqual(changesOf("move_files", { from: "/d/a.pdf", to: "/e/a.pdf" }, false), [{ kind: "move", from: "/d/a.pdf", to: "/e/a.pdf" }]);
 	assert.deepEqual(changesOf("move_files", { from: "/d/a.pdf", to: "/T/a.pdf", trash: true }, false), [{ kind: "trash", from: "/d/a.pdf", to: "/T/a.pdf" }]);
 	assert.deepEqual(changesOf("move_files", { from: "/d/a.pdf", trash: true }, false), [], "unknown place in the Trash: nothing to take back");
 	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, false), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
-	assert.deepEqual(changesOf("write", {}, true, { file: "/u/a.txt", copy: "/b/a.txt" }), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
+	assert.deepEqual(changesOf("write", { pippaBefore: { file: "/u/a.txt", copy: "/b/a.txt" } }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("read", {}, false), []);
 });

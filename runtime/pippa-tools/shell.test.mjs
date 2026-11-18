@@ -266,7 +266,7 @@ test("tool: the profile carries the shim lock only without developer tools (on t
 function pipedBash(env) {
 	return (cwd, options) => ({ name: "bash", execute: async (id, params) => {
 		const spawn = options.spawnHook({ command: params.command, cwd, env });
-		const run = spawnSync("/bin/bash", ["-c", spawn.command], { cwd, env, encoding: "utf8", timeout: 20_000 });
+		const run = spawnSync("/bin/bash", ["-c", spawn.command], { cwd, env: spawn.env, encoding: "utf8", timeout: 20_000 });
 		const text = `${run.stdout}${run.stderr}`;
 		return run.status === 0 ? { content: [{ type: "text", text }] } : { content: [{ type: "text", text: `${text}\n\nCommand exited with code ${run.status}` }], isError: true };
 	} });
