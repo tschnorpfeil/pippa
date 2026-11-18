@@ -285,16 +285,20 @@ final class ChatModel: ObservableObject {
             do {
                 try await PiSession.shared.ask(outgoing, conversation: id, handoff: handoff, onStarting: { self.starting($0) }) { event in self.apply(event, in: id) }
             } catch is CancellationError {
-            } catch PiSession.Failure.needsReview, PiSession.Failure.destinationChanged {
-                // Nothing went out: the question goes back to the composer and leaves no trace in the conversation.
+            } catch let failure as PiSession.Failure where failure == .needsReview || failure == .destinationChanged {
                 refused = true
-                if let index = conversations.firstIndex(where: { $0.id == id }) {
-                    conversations[index].messages.removeAll { $0.id == question.id || $0.id == reply.id }
+                let canRestore = currentID == id && draft.isEmpty && attachments.isEmpty
+                if review != nil || canRestore {
+                    if let index = conversations.firstIndex(where: { $0.id == id }) {
+                        conversations[index].messages.removeAll { $0.id == question.id || $0.id == reply.id }
+                    }
+                    if let review { parkFailed(review, in: id, problem: failure.localizedDescription) }
+                    else { draft = text; attachments = files.map { URL(fileURLWithPath: $0) } }
+                    if currentID == id { problem = failure.localizedDescription }
+                } else {
+                    // Keep both drafts: the refused question in its own conversation and the new text in the composer.
+                    update(reply.id, in: id) { $0.error = failure.localizedDescription }
                 }
-                let refusal = PiSession.Failure.destinationChanged.localizedDescription
-                if let review { parkFailed(review, in: id, problem: refusal) }
-                else if draft.isEmpty && attachments.isEmpty { draft = text; attachments = files.map { URL(fileURLWithPath: $0) } }
-                problem = refusal
             } catch {
                 if !stopRequested { update(reply.id, in: id) { $0.error = error.localizedDescription } }
             }

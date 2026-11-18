@@ -46,7 +46,7 @@ final class PiSession {
         case approved(ShareApproval)
     }
 
-    enum Failure: LocalizedError {
+    enum Failure: LocalizedError, Equatable {
         case setup(String)
         case nativeTools(String)
         case model(String)
@@ -110,7 +110,8 @@ final class PiSession {
         // Just before sending: Settings, the provider's configuration and account and the sharing rules are read again.
         // Starting Pi takes a moment; whatever changed meanwhile sends nothing.
         let now = try await launchRoute(outgoing, handoff: handoff)
-        guard Self.sameRecipient(route, now), try Self.message(outgoing, route: now) == text else { throw Failure.destinationChanged }
+        guard route.destination == now.destination else { throw Failure.destinationChanged }
+        guard Self.sameRecipient(route, now), try Self.message(outgoing, route: now) == text else { throw Failure.needsReview }
         let stream: AsyncThrowingStream<PiRPCEvent, Error>
 
         do { stream = try await client.prompt(text) } catch PiRPCError.commandFailed(_, let message) {
