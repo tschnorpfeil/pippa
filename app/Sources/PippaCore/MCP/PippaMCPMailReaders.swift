@@ -45,7 +45,8 @@ extension PippaMCPTools {
             guard let mail = selected else {
                 return blocked("nothing_selected", L("No email is selected in Mail. Select one and ask again.", table: "MCP"))
             }
-            return mailResult(mail, source: "Mail on this Mac (selected email)")
+            let selectedOrigin = mail.mailboxKind.map { MailFiling.FiledOrigin(mailbox: $0, locator: mail.locator) }
+            return mailResult(mail, source: "Mail on this Mac (selected email)", origin: selectedOrigin)
         } catch {
             return failure(error, .mail)
         }
@@ -95,7 +96,8 @@ extension PippaMCPTools {
 
     /// One mail for the model: text, identity for a reply draft, and its attachments saved as files (`MailFiling`), so
     /// read_document can read them. Without Mail's original message, or when saving fails, only names are known and the result says so.
-    func mailResult(_ mail: MailMessage, source: String, account: String? = nil, filingScope: [String] = [], extra: [String: Any] = [:]) -> PippaMCPToolResult {
+    func mailResult(_ mail: MailMessage, source: String, account: String? = nil, filingScope: [String] = [],
+                    origin: MailFiling.FiledOrigin? = nil, extra: [String: Any] = [:]) -> PippaMCPToolResult {
         let all = Self.compact(mail.body)
         let body = Self.byteClipped(all, characters: 6000, bytes: 6000)
         var data: [String: Any] = ["subject": mail.subject, "from": mail.sender, "body": body, "bodyTruncated": body != all,
@@ -103,19 +105,24 @@ extension PippaMCPTools {
         data.merge(extra) { a, _ in a }
         if let date = mail.date { data["date"] = Self.dateLabel(date, time: true, calendar: host.calendar) }
         if let account { data["account"] = account }
+        let kind = origin?.mailbox ?? mail.mailboxKind
+        let isDraft = kind == .drafts || mail.isUnsentDraft
         // Identity for "Als Entwurf in Mail" (reply to exactly this mail, found via the Message-ID).
-        if let source = mail.replySource {
+        if !isDraft, let source = mail.replySource {
             data["messageID"] = source.messageID
-            if let replyTo = source.replyTo { data["replyTo"] = replyTo }
+            let replyTo = kind == .sent ? mail.explicitReplyTo : source.replyTo
+            if let replyTo { data["replyTo"] = replyTo }
         }
         var next = "Use only what the email says. Never send mail; replies are drafts. "
         // Without Mail's original message there are no attachment bytes, whatever names Mail lists.
         let sourceBlank = (mail.source ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         var files: [URL] = [], notSaved = mail.attachmentNames
-        if !sourceBlank, let filed = try? MailFiling.file(mail, root: host.mailFiles, scope: filingScope) {
+        if !sourceBlank, let filed = try? MailFiling.file(mail, root: host.mailFiles, scope: filingScope, origin: origin) {
             files = filed.attachments; notSaved = filed.notSaved
             data["eml_path"] = filed.eml.path
-            next += "To reply in its thread, call mail_draft with reply_to set to its mail_ref (in this answer) or to eml_path. "
+            next += isDraft
+                ? "This is an unsent draft in Mail: do not pass it to mail_draft as reply_to. "
+                : "To reply in its thread, call mail_draft with reply_to set to its mail_ref (in this answer) or to eml_path. "
         }
         if !files.isEmpty {
             data["attachments"] = files.prefix(20).map { ["name": $0.lastPathComponent, "path": $0.path] }

@@ -395,7 +395,7 @@ final class PiSession {
         if let online = route.online { extra[PiOnlineProvider.keyVariable] = online.key }
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR"] { if let value = env[key] { extra[key] = value } }
         // Matches the extended Mail budget of its answers (`PippaMCPTurn.extendedBudget`): more tool calls per answer.
-        if route.hasMacAccess { extra["PIPPA_MAX_CALLS"] = "80" }
+        extra.merge(route.budgetEnvironment) { $1 }
         // An online Pi reads its provider's configuration and credential only from its own copy: what was checked is
         // what every request of this process reaches, whatever happens to ~/.pi/agent meanwhile.
         if let pinned {
@@ -491,6 +491,9 @@ final class PiSession {
 
         /// An online AI with the tools of the AI on this Mac (`online(_:_:rules:scope:macAccess:)`).
         var hasMacAccess: Bool { destination != nil && capabilities.online == nil }
+
+        /// Pi process environment variables tied to this route's call budget (`runtime/pippa-tools/pippa-assist.ts`).
+        var budgetEnvironment: [String: String] { hasMacAccess ? ["PIPPA_MAX_CALLS": "80"] : [:] }
     }
 
     /// A Pi provider, an existing Keychain connection, or the model on this Mac, as saved in Settings, with the effective

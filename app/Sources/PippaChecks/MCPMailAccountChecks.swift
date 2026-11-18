@@ -14,8 +14,8 @@ private final class FakeMailAccounts: MailAccountReading, @unchecked Sendable {
         var attachments: [String] = []
         /// Mail's original message, when the check wants it filed (`eml_path`).
         var source: String?
-        /// The Message-ID a sent reply or draft names in its headers (In-Reply-To/References).
-        var inReplyTo: String?
+        /// Raw RFC headers as Mail returns from `all headers` (e.g. `In-Reply-To`, `References`).
+        var headers: String = ""
     }
     private let lock = NSLock()
     private var accountList: [MailAccountInfo]
@@ -96,9 +96,11 @@ private final class FakeMailAccounts: MailAccountReading, @unchecked Sendable {
         }
         guard let s = stored.first(where: { $0.id == mailID }), s.header.messageID == messageID, s.path == path else { return nil }
         lock.withLock { bodyReads += 1 }
+        let replyTo = s.source.flatMap { MailReplySource.inspect(headers: Data($0.utf8))?.explicitReplyTo }
         let mail = MailMessage(subject: s.header.subject, sender: s.header.sender, date: s.date, body: s.body, attachmentNames: s.attachments, messageID: s.header.messageID,
-                               locator: MailLocator(account: info?.name ?? "", path: s.path, mailID: mailID), source: s.source,
-                               replied: s.header.replied, forwarded: s.header.forwarded, flagged: s.header.flagged)
+                               replyTo: replyTo ?? s.header.sender, locator: MailLocator(account: info?.name ?? "", path: s.path, mailID: mailID), source: s.source,
+                               replied: s.header.replied, forwarded: s.header.forwarded, flagged: s.header.flagged,
+                               mailboxKind: mailbox)
         return MailInboxMessage(message: mail, accountID: account, path: s.path)
     }
 
@@ -108,10 +110,23 @@ private final class FakeMailAccounts: MailAccountReading, @unchecked Sendable {
             return (failThread, stored(account, .sent), stored(account, .drafts))
         }
         if let failure { throw failure }
-        func hit(_ list: [Stored]) -> Bool {
-            list.contains { MailThreadMatch.isReply($0.header.subject, namesID: $0.inReplyTo == messageID, date: $0.date, to: subject, since: since) }
+        let core = MailThreadMatch.core(subject)
+        let wanted = MailReplySource.canonicalMessageID(messageID)
+        func check(_ list: [Stored]) -> (hit: Bool, complete: Bool) {
+            let all = list.map { MailSearchCandidate(id: $0.id, date: $0.date) }
+            let coreIDs = core.isEmpty ? Set<Int>() : Set(list.filter { $0.header.subject.localizedCaseInsensitiveContains(core) }.map(\.id))
+            let picked = MailThreadMatch.selectCandidates(all: all, coreMatches: coreIDs, since: since)
+            let byID = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
+            let hit = picked.ids.contains { id in
+                guard let s = byID[id] else { return false }
+                let own = s.header.messageID.flatMap(MailReplySource.canonicalMessageID)
+                let namesID = wanted != nil && own != wanted && MailThreadMatch.referencesMessageID(headers: s.headers, messageID: messageID)
+                return MailThreadMatch.isReply(s.header.subject, namesID: namesID, date: s.date, to: subject, since: since)
+            }
+            return (hit, picked.complete)
         }
-        return MailThreadActivity(sentReply: hit(sent), draft: hit(drafts))
+        let sentOut = check(sent), draftsOut = check(drafts)
+        return MailThreadActivity(sentReply: sentOut.hit, draft: draftsOut.hit, sentComplete: sentOut.complete, draftsComplete: draftsOut.complete)
     }
 }
 
@@ -426,9 +441,10 @@ extension MCPCheckContext {
             let pages = await allPages(w.tools, ["limit": 20])
             let ids = pages.flatMap(mails).map { "\($0["account"] as? String ?? "")#\(($0["subject"] as? String ?? "").prefix(4))" }
             let subjects = pages.flatMap(mails).compactMap { $0["subject"] as? String }
-            return pages.allSatisfy { $0.bytes <= PippaMCPTools.maxResultBytes && !$0.isError } && pages.count > 2
+            return pages.allSatisfy { $0.bytes <= PippaMCPTools.maxResultBytes && !$0.isError } && pages.count == 2
+                && mails(pages[0]).count == 20 && mails(pages[1]).count == 17
                 && ids.count == 37 && Set(ids).count == 37 && subjects.allSatisfy { $0.count <= 200 && $0.hasSuffix("…") }
-                && pages.dropLast().allSatisfy { mails($0).count < 20 }
+                && pages.flatMap(mails).allSatisfy { ($0["start"] as? String ?? "").hasSuffix("…") }
         }
         await checkAsync("Mail cards: rows carry their account, a later page names its range, older cards still decode") {
             let w = world(twoAccounts())
@@ -832,14 +848,17 @@ extension MCPCheckContext {
                 && subjects(combinedInbox) == ["Nebenkostenabrechnung 2025"] && subjects(combinedUnread) == ["Elternabend am Donnerstag"]
                 && data(combinedInbox)["read_status"] as? String == "read"
         }
-        await checkAsync("Mail triage: replied, forwarded and flagged come from Mail; mail_read finds a sent reply or a draft in the same account only") {
+        await checkAsync("Mail triage: replied, forwarded and flagged come from Mail; mail_read checks folded References/In-Reply-To headers and marks >40 candidates incomplete") {
             var a1 = stored("A", 1); a1.header.replied = true
             var a2 = stored("A", 2); a2.header.forwarded = true; a2.header.flagged = true
             let a3 = stored("A", 3, subject: "Angebot Dach"), a4 = stored("A", 4, subject: "Rechnung März")
             let fake = FakeMailAccounts([(privat, [a1, a2, a3, a4]), (arbeit, [stored("B", 1)])])
             fake.edit(privat.id, in: .sent) { box in
-                var reply = stored("S", 9, subject: "Antwort ohne Bezug im Betreff"); reply.inReplyTo = "a1@x.example"
-                box = [reply, stored("S", 2, subject: "Re: Rechnung März")]
+                var reply = stored("S", 9, subject: "Antwort ohne Bezug im Betreff")
+                reply.headers = "Subject: Antwort ohne Bezug im Betreff\r\nReferences: <older@x.example>\r\n\t<a1@x.example>\r\n"
+                var nonReply = stored("S", 10, subject: "Andere Sache")
+                nonReply.headers = "X-Other-Ref: <a4@x.example>\r\n"
+                box = [reply, nonReply, stored("S", 2, subject: "Re: Rechnung März")]
             }
             fake.edit(privat.id, in: .drafts) { $0 = [stored("D", 9, subject: "AW: Angebot Dach")] }
             fake.edit(arbeit.id, in: .sent) { $0 = [stored("S", 9, subject: "Re: Rechnung März")] }
@@ -849,6 +868,9 @@ extension MCPCheckContext {
             let read1 = await call(w.tools, "mail_read", ["mail_ref": row("A 1")["mail_ref"] ?? ""])
             let read3 = await call(w.tools, "mail_read", ["mail_ref": row("Angebot Dach")["mail_ref"] ?? ""])
             let read4 = await call(w.tools, "mail_read", ["mail_ref": row("Rechnung März")["mail_ref"] ?? ""])
+            fake.edit(privat.id, in: .sent) { $0 = (10...55).map { stored("S", $0, subject: "Unverwandt \($0)") } }
+            fake.edit(privat.id, in: .drafts) { $0 = [] }
+            let overCap = await call(w.tools, "mail_read", ["mail_ref": row("Rechnung März")["mail_ref"] ?? ""])
             fake.failThread = MailAccountProblem.timeout
             let read2 = await call(w.tools, "mail_read", ["mail_ref": row("A 2")["mail_ref"] ?? ""])
             func flags(_ value: [String: Any]) -> [Bool?] { [value["replied"] as? Bool, value["forwarded"] as? Bool, value["flagged"] as? Bool] }
@@ -857,18 +879,22 @@ extension MCPCheckContext {
                 && data(read1)["thread_checked"] as? Bool == true
                 && data(read3)["sent_replied"] as? Bool == false && data(read3)["has_draft"] as? Bool == true
                 && data(read4)["sent_replied"] as? Bool == false && data(read4)["has_draft"] as? Bool == false
+                && data(overCap)["sent_replied"] == nil && data(overCap)["has_draft"] as? Bool == false
+                && data(overCap)["thread_checked"] as? Bool == false && data(overCap)["thread_activity_complete"] as? Bool == false
                 && !read2.isError && data(read2)["body"] as? String == "Ganzer Text A 2" && flags(data(read2)) == [false, true, true]
                 && data(read2)["thread_checked"] as? Bool == false && data(read2)["thread_activity_complete"] as? Bool == false
-                && data(read2)["sent_replied"] == nil && fake.threadCalls == 4
+                && data(read2)["sent_replied"] == nil && fake.threadCalls == 5
         }
-        check("Mail triage: Mail's flags are read strictly from rows; rows without them stay valid") {
+        check("Mail triage: Mail's flags and 4-list Sent/Drafts candidates are read strictly; folded reply headers match exact Message-IDs only") {
             func list(_ items: [NSAppleEventDescriptor]) -> NSAppleEventDescriptor {
                 let l = NSAppleEventDescriptor.list()
                 for (i, item) in items.enumerated() { l.insert(item, at: i + 1) }
                 return l
             }
             let text = { (s: String) in NSAppleEventDescriptor(string: s) }
-            let base = [NSAppleEventDescriptor(int32: 7), text("S"), text("x@x.example"), NSAppleEventDescriptor(date: at(1)), text("INBOX"), text("t"),
+            let int = { (n: Int32) in NSAppleEventDescriptor(int32: n) }
+            let missing = NSAppleEventDescriptor(typeCode: 0x6d73_6e67)
+            let base = [int(7), text("S"), text("x@x.example"), NSAppleEventDescriptor(date: at(1)), text("INBOX"), text("t"),
                         text("<m@x.example>"), NSAppleEventDescriptor(boolean: false)]
             let flags = [NSAppleEventDescriptor(boolean: true), NSAppleEventDescriptor(boolean: false), NSAppleEventDescriptor(boolean: true)]
             let ident = [text("ACCT-1"), list([text("INBOX")])]
@@ -877,18 +903,49 @@ extension MCPCheckContext {
             let identified = try MailSearchFlow.parseRows(list([list(base + ident + flags)]), expecting: 1, identity: true)
             let wrongType = (try? MailSearchFlow.parseRows(list([list(base + [text("yes")] + flags.dropFirst())]), expecting: 1)) == nil
             let partial = (try? MailSearchFlow.parseRows(list([list(base + flags.prefix(2))]), expecting: 1)) == nil
+            let sentReply = try MailSearchFlow.parseCandidates(list([
+                list([int(1), int(2), int(3)]),
+                list([NSAppleEventDescriptor(date: at(1)), NSAppleEventDescriptor(date: at(2)), missing]),
+                list([int(2), int(3), int(99)]),
+                list([missing, NSAppleEventDescriptor(date: at(30)), NSAppleEventDescriptor(date: at(99))]),
+            ]))
             let h = plain.first?.header, f = flagged.first?.header, i = identified.first
             return h?.replied == false && h?.flagged == false && f?.replied == true && f?.forwarded == false && f?.flagged == true
                 && i?.accountID == "ACCT-1" && i?.header.replied == true && i?.header.flagged == true && wrongType && partial
+                && sentReply == [MailSearchCandidate(id: 1, date: at(1)), MailSearchCandidate(id: 2, date: at(2)), MailSearchCandidate(id: 3, date: at(30))]
                 && MailThreadMatch.core("AW: Re:  Angebot   Dach") == "Angebot Dach"
                 && MailThreadMatch.isReply("Re: angebot dach", namesID: false, date: at(5), to: "Angebot Dach", since: at(1))
                 && !MailThreadMatch.isReply("Fwd: Angebot Dach", namesID: false, date: at(5), to: "Angebot Dach", since: at(1))
                 && !MailThreadMatch.isReply("Re: Angebot Dach", namesID: false, date: at(1), to: "Angebot Dach", since: at(5))
+                && MailThreadMatch.referencesMessageID(headers: "In-Reply-To:\r\n <a1@x.example>\r\n", messageID: "a1@x.example")
+                && !MailThreadMatch.referencesMessageID(headers: "X-Custom: <a1@x.example>\r\n", messageID: "a1@x.example")
         }
-        await checkAsync("Mail draft: a mail_ref of this answer replies in its thread; made-up, changed or old refs write nothing; eml_path works later") {
+        await checkAsync("Mail paging: a read mail flipped to unread before the next page is skipped and counted as gone") {
+            let fake = FakeMailAccounts([(privat, (1...4).map { stored("A", $0, unread: false) }), (arbeit, [])])
+            let w = world(fake)
+            let first = await call(w.tools, "mail_search", ["read_status": "read", "limit": 2])
+            let c = cursor(first) ?? ""
+            fake.edit(privat.id) { inbox in if let i = inbox.firstIndex(where: { $0.id == 2 }) { inbox[i].header.unread = true } }
+            let second = await call(w.tools, "mail_search", ["cursor": c, "read_status": "read", "limit": 2])
+            return keys(first) == ["Privat/A 4", "Privat/A 3"] && keys(second) == ["Privat/A 1"]
+                && data(second)["gone"] as? Int == 1 && data(second)["complete"] as? Bool == false && cursor(second) == nil
+        }
+        await checkAsync("Mail draft: a mail_ref of this answer binds strictly to accountID and path; made-up, changed or old refs write nothing; Sent keeps recipients and Drafts is refused") {
             var a1 = stored("A", 1)
             a1.source = "Message-ID: <a1@x.example>\r\nFrom: Absender A <a@x.example>\r\nSubject: A 1\r\n\r\nGanzer Text A 1\r\n"
             let fake = FakeMailAccounts([(privat, [a1, stored("A", 2)]), (arbeit, [stored("B", 1)])])
+            fake.edit(privat.id, in: .sent) { box in
+                var s1 = stored("S", 1, subject: "Angebot raus")
+                s1.source = "Message-ID: <s1@x.example>\r\nFrom: Ich <ich@x.example>\r\nTo: Kundin <kundin@x.example>\r\nSubject: Angebot raus\r\n\r\nHallo\r\n"
+                var s2 = stored("S", 2, subject: "Mit Reply-To")
+                s2.source = "Message-ID: <s2@x.example>\r\nFrom: Ich <ich@x.example>\r\nReply-To: Team <team@x.example>\r\nTo: Kundin <kundin@x.example>\r\nSubject: Mit Reply-To\r\n\r\nHallo\r\n"
+                box = [s1, s2]
+            }
+            fake.edit(privat.id, in: .drafts) { box in
+                var d1 = stored("D", 1, subject: "Halbfertig")
+                d1.source = "Message-ID: <d1@x.example>\r\nFrom: Ich <ich@x.example>\r\nTo: Kundin <kundin@x.example>\r\nSubject: Halbfertig\r\n\r\nEntwurf\r\n"
+                box = [d1]
+            }
             let w = world(fake)
             w.turns.begin(PippaMCPTurn())
             let rows = mails(await call(w.tools, "mail_search", ["limit": 20]))
@@ -900,33 +957,73 @@ extension MCPCheckContext {
             let made = await call(w.tools, "mail_draft", ["body": "x", "reply_to": "m000000000000"])
             fake.edit(privat.id) { inbox in if let i = inbox.firstIndex(where: { $0.id == 2 }) { inbox[i].header.messageID = "anders@x.example" } }
             let changed = await call(w.tools, "mail_draft", ["body": "x", "reply_to": ref("A 2")])
+            let sentRows = mails(await call(w.tools, "mail_search", ["mailbox": "sent", "limit": 20]))
+            let sentRef1 = sentRows.first { $0["subject"] as? String == "Angebot raus" }?["mail_ref"] as? String ?? ""
+            let sentRef2 = sentRows.first { $0["subject"] as? String == "Mit Reply-To" }?["mail_ref"] as? String ?? ""
+            let sentRead1 = await call(w.tools, "mail_read", ["mail_ref": sentRef1])
+            let sentEml1 = data(sentRead1)["eml_path"] as? String ?? ""
+            let sentDraft1 = await call(w.tools, "mail_draft", ["body": "Nachfassen", "reply_to": sentRef1])
+            let sentDraft2 = await call(w.tools, "mail_draft", ["body": "An Team", "reply_to": sentRef2])
+            let draftRows = mails(await call(w.tools, "mail_search", ["mailbox": "drafts", "limit": 20]))
+            let draftRef = draftRows.first?["mail_ref"] as? String ?? ""
+            let draftRead = await call(w.tools, "mail_read", ["mail_ref": draftRef])
+            let draftEml = data(draftRead)["eml_path"] as? String ?? ""
+            let refuseDraftRef = await call(w.tools, "mail_draft", ["body": "x", "reply_to": draftRef])
             let refB = ref("B 1")
             w.turns.begin(PippaMCPTurn())
             let old = await call(w.tools, "mail_draft", ["body": "x", "reply_to": refB])
             let byPath = await call(w.tools, "mail_draft", ["body": "Später", "reply_to": emlPath])
+            let sentByPath = await call(w.tools, "mail_draft", ["body": "Später nachfassen", "reply_to": sentEml1])
+            let refuseDraftPath = await call(w.tools, "mail_draft", ["body": "x", "reply_to": draftEml])
+            w.demo.sampleMail = MailMessage(subject: "Offener Entwurf", sender: "ich@x.example", date: at(1), body: "x",
+                                            attachmentNames: [], messageID: "sel-draft@x.example", mailboxKind: .drafts)
+            let refuseSelectedDraft = await call(w.tools, "mail_draft", ["body": "x", "reply_to": "selected"])
+            let calls = Box<(String, [ScriptArgument])>()
+            let strictMiss: Bool
+            do {
+                _ = try await MailReplyScript.insert(afterDraft[0]) { handler, args, _ in
+                    calls.append((handler, args))
+                    return [.text("notHere")]
+                }
+                strictMiss = false
+            } catch MailReplyFailure.missingOriginal {
+                strictMiss = true
+            } catch {
+                strictMiss = false
+            }
+            let recorded = calls.all
             let drafts = w.demo.insertedDrafts
             return !read.isError && emlPath.hasSuffix(".eml") && (read.json["next"] as? String)?.contains("eml_path") == true
                 && !draft.isError && draft.json["done"] as? Bool == true && afterDraft.count == 1
                 && afterDraft[0].isReply && afterDraft[0].messageID == "a1@x.example" && afterDraft[0].locator?.mailID == 1
-                && afterDraft[0].locator?.account == "Privat" && afterDraft[0].locator?.path == ["INBOX"]
+                && afterDraft[0].locator?.account == "Privat" && afterDraft[0].locator?.accountID == privat.id
+                && afterDraft[0].locator?.strict == true && afterDraft[0].locator?.path == ["INBOX"]
+                && strictMiss && recorded.count == 1 && recorded[0].0 == "replyAt" && recorded[0].1.contains(.text(privat.id))
                 && made.isError && made.json["status"] as? String == "stale_ref"
                 && changed.isError && changed.json["status"] as? String == "not_found"
+                && !sentDraft1.isError && !sentDraft2.isError
+                && drafts[1].to == nil && drafts[1].keepMailRecipients == true && drafts[1].locator?.strict == true
+                && drafts[2].to == "team@x.example" && drafts[2].toName == "Team" && drafts[2].keepMailRecipients == false
                 && old.isError && old.json["status"] as? String == "stale_ref"
-                && !byPath.isError && drafts.count == 2 && drafts[1].messageID == "a1@x.example" && drafts[1].isReply
+                && !byPath.isError && drafts[3].messageID == "a1@x.example" && drafts[3].locator?.strict == true
+                && !sentByPath.isError && drafts[4].to == nil && drafts[4].keepMailRecipients == true && drafts[4].locator?.strict == true
+                && [refuseDraftRef, refuseDraftPath, refuseSelectedDraft].allSatisfy { $0.isError && $0.json["status"] as? String == "invalid_arguments" }
+                && drafts.count == 5
         }
-        await checkAsync("Mail budget: an extended answer triages 250 mails over three accounts in full pages; a standard answer stops at 100") {
+        await checkAsync("Mail budget: an extended answer triages up to 300 wide-header mails in full 20-row pages; standard stops at 100") {
             let verein = MailAccountInfo(id: "6F1A0C2E-CCCC-4C55-9E0B-000000000003", name: "Verein")
             let text = String(repeating: "Guten Tag, anbei die Unterlagen zur Abstimmung. ", count: 10)
+            let longPad = String(repeating: "Abstimmung-Projektstatus-Quartalsplanung-", count: 5)
             func inbox(_ prefix: String, _ n: Int) -> [FakeMailAccounts.Stored] {
                 (1...n).map { i in
-                    var s = stored(prefix, i, subject: "\(prefix) \(i) Rückfrage zum Angebot", preview: text, unread: i % 3 == 0)
-                    s.header.sender = "Vorname Nachname \(prefix) <vorname.nachname.\(prefix.lowercased())@beispiel.example>"
+                    var s = stored(prefix, i, subject: "\(prefix) \(i) \(longPad)", preview: text, unread: i % 3 == 0)
+                    s.header.sender = "Dr. Vorname Mittelname Nachname-Doppelname Abteilung Projektsteuerung \(prefix) <vorname.mittelname.nachname.\(prefix.lowercased())@unternehmensgruppe-beispiel.example>"
                     s.header.replied = i % 5 == 0
                     return s
                 }
             }
             func triage(extended: Bool) async -> [Reply] {
-                let fake = FakeMailAccounts([(privat, inbox("A", 150)), (arbeit, inbox("B", 80)), (verein, inbox("C", 20))])
+                let fake = FakeMailAccounts([(privat, inbox("A", 180)), (arbeit, inbox("B", 100)), (verein, inbox("C", 40))])
                 let w = world(fake)
                 w.turns.begin(PippaMCPTurn(extendedBudget: extended))
                 var pages = [await call(w.tools, "mail_search", ["limit": 20])]
@@ -934,14 +1031,16 @@ extension MCPCheckContext {
                 return pages
             }
             let wide = await triage(extended: true)
+            let deliveredPages = wide.dropLast()
             let rows = wide.flatMap(mails)
             let refs = Set(rows.compactMap { $0["mail_ref"] as? String })
             let standard = await triage(extended: false)
-            return rows.count == 250 && refs.count == 250 && wide.count == 13 && wide.allSatisfy { !$0.isError && $0.bytes <= PippaMCPTools.maxResultBytes }
-                // The first page also carries the triage hint; its last rows move to the next page, nothing is skipped.
-                && mails(wide[0]).count >= 18 && wide.dropFirst().dropLast().allSatisfy { mails($0).count == 20 } && data(wide.last!)["complete"] as? Bool == true
-                && rows.filter { $0["replied"] as? Bool == true }.count == 30 + 16 + 4 && rows.filter { $0["unread"] as? Bool == true }.count == 50 + 26 + 6
-                && rows.allSatisfy { !($0["start"] as? String ?? "").isEmpty }
+            return rows.count == 300 && refs.count == 300 && wide.count == 16
+                && deliveredPages.allSatisfy { !$0.isError && $0.bytes <= PippaMCPTools.maxResultBytes && mails($0).count == 20 }
+                && mails(wide[0]).count == 20
+                && rows.allSatisfy { !($0["start"] as? String ?? "").isEmpty && !($0["subject"] as? String ?? "").isEmpty && !($0["from"] as? String ?? "").isEmpty }
+                && wide.last?.isError == true && wide.last?.json["status"] as? String == "budget_reached"
+                && (wide.last?.json["error"] as? String)?.contains("300") == true
                 && standard.flatMap(mails).count == 100 && standard.last?.json["status"] as? String == "budget_reached"
                 && (standard.last?.json["error"] as? String)?.contains("100") == true
         }

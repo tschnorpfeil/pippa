@@ -82,15 +82,34 @@ public struct MailMessage: Sendable, Hashable {
     public var replied: Bool
     public var forwarded: Bool
     public var flagged: Bool
+    /// Top-level Mail container when known (`inbox`, `sent`, `drafts`).
+    public var mailboxKind: MailBoxKind?
     public var replySource: MailReplySource? {
         let target = replyTo?.trimmingCharacters(in: .whitespacesAndNewlines)
         return messageID.flatMap { MailReplySource(messageID: $0, replyTo: target.flatMap { $0.isEmpty ? nil : $0 } ?? sender, subject: subject) }
     }
+    /// An explicit RFC `Reply-To` address when present (never inferred from `From`/`sender`).
+    public var explicitReplyTo: String? {
+        if let source, !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let inspected = MailReplySource.inspect(headers: Data((source + "\n\n").utf8)) {
+            return inspected.explicitReplyTo
+        }
+        guard let target = replyTo?.trimmingCharacters(in: .whitespacesAndNewlines), !target.isEmpty,
+              let targetAddr = MailAddress.parse(target).address,
+              targetAddr.caseInsensitiveCompare(MailAddress.parse(sender).address ?? "") != .orderedSame else { return nil }
+        return target
+    }
+    public var isUnsentDraft: Bool {
+        if mailboxKind == .drafts { return true }
+        guard let source, !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        return MailReplySource.inspect(headers: Data((source + "\n\n").utf8))?.isDraft == true
+    }
     public init(subject: String, sender: String, date: Date?, body: String, attachmentNames: [String], messageID: String? = nil, replyTo: String? = nil,
-                locator: MailLocator? = nil, source: String? = nil, replied: Bool = false, forwarded: Bool = false, flagged: Bool = false) {
+                locator: MailLocator? = nil, source: String? = nil, replied: Bool = false, forwarded: Bool = false, flagged: Bool = false,
+                mailboxKind: MailBoxKind? = nil) {
         self.subject = subject; self.sender = sender; self.date = date; self.body = body; self.attachmentNames = attachmentNames
         self.messageID = messageID; self.replyTo = replyTo; self.locator = locator; self.source = source
-        self.replied = replied; self.forwarded = forwarded; self.flagged = flagged
+        self.replied = replied; self.forwarded = forwarded; self.flagged = flagged; self.mailboxKind = mailboxKind
     }
 
     /// As .eml text, so the normal flow (overview, deadlines, questions) reads it like a filed mail: Mail's own message

@@ -173,13 +173,16 @@ extension PippaMCPTools {
         let resolved = slice.map { entry -> (entry: MailPageEntry, row: MailSearchRow?, skipped: Bool) in
             let skipped = failed.contains(entry.account.id) || pageProblems[entry.account.id] != nil
             let row = rows[entry.account.id]?[entry.id]
-            // An account or date that no longer matches the snapshot cannot identify this message.
-            let same = row.flatMap { r in MailAccountFlow.sameDate(r.date, entry.date) && (r.accountID ?? entry.account.id) == entry.account.id ? r : nil }
+            // An account, date or read status that no longer matches the snapshot cannot identify this message.
+            let same = row.flatMap { r in
+                MailAccountFlow.sameDate(r.date, entry.date) && (r.accountID ?? entry.account.id) == entry.account.id
+                    && snapshot.readStatus.matches(unread: r.header.unread) ? r : nil
+            }
             return (entry, same, skipped)
         }
 
-        // Fit the result: drop entries from the end until it is small enough, down to none. The cursor continues right
-        // after the last entry in the result, so nothing is skipped and nothing repeats.
+        // Fit the result: shrink variable fields while keeping each row's identity and a start of its text; drop entries
+        // from the end only if even compact headers cannot fit. The cursor continues right after the last entry shown.
         let tokens = resolved.map { $0.row == nil ? "" : MailPageStore.token("m") }
         let refs = Dictionary(uniqueKeysWithValues: zip(tokens, resolved).compactMap { token, item -> (String, MailRef)? in
             guard let row = item.row, row.accountID == item.entry.account.id, let path = row.path, !path.isEmpty, !path.contains(where: \.isEmpty),
@@ -189,20 +192,49 @@ extension PippaMCPTools {
         })
         let nextToken = MailPageStore.token("c")
         func sized(_ count: Int) -> (text: String, headers: [MailHeader], notRead: [String], gone: Int, isError: Bool) {
-            func build(_ start: (Int, Int)) -> (text: String, headers: [MailHeader], notRead: [String], gone: Int, isError: Bool) {
+            func build(_ caps: MailRowCaps) -> (text: String, headers: [MailHeader], notRead: [String], gone: Int, isError: Bool) {
                 render(snapshot, offset: offset, resolved: resolved, tokens: tokens, refs: refs, count: count, pageProblems: pageProblems,
                        left: hold.left + hold.granted - resolved.prefix(count).filter { $0.row != nil }.count,
-                       cursor: offset + count < snapshot.entries.count ? nextToken : nil, start: start)
+                       cursor: offset + count < snapshot.entries.count ? nextToken : nil, caps: caps)
             }
-            // A dense page shows a shorter start of each email; when even that is too large, the starts share what is
-            // left, so rows already read from Mail are not dropped for their text.
             let rows = resolved.prefix(count).filter { $0.row != nil }.count
-            let built = build(rows > Self.mailDenseRows ? Self.mailDenseStart : Self.mailFieldLimits.start)
+            let initialStart = rows > Self.mailDenseRows ? Self.mailDenseStart : Self.mailFieldLimits.start
+            let full = MailRowCaps(subject: Self.mailFieldLimits.subject, from: Self.mailFieldLimits.from,
+                                   mailbox: Self.mailFieldLimits.mailbox, account: (60, 160), start: initialStart, accountsBytes: 2200)
+            let built = build(full)
             guard built.text.utf8.count > Self.maxResultBytes, rows > 0 else { return built }
-            let bare = build((0, 0))
+            var headerOnly = full; headerOnly.start = (0, 0)
+            let bare = build(headerOnly)
             let share = (Self.maxResultBytes - bare.text.utf8.count - 64) / rows
-            guard share >= 8 else { return bare }
-            return build((min(share, Self.mailDenseStart.0), min(share, Self.mailDenseStart.1)))
+            if share >= 16 {
+                var shared = full; shared.start = (min(share, Self.mailDenseStart.0), min(share, Self.mailDenseStart.1))
+                let candidate = build(shared)
+                if candidate.text.utf8.count <= Self.maxResultBytes { return candidate }
+            }
+            // Variable headers are too wide for a full page: reserve identity and a non-empty text start per row, then
+            // clip subject, sender, mailbox and account label to share what remains.
+            var fixedCaps = MailRowCaps(subject: (0, 0), from: (0, 0), mailbox: (20, 24), account: (32, 48), start: (0, 0), accountsBytes: 900)
+            var fixed = build(fixedCaps)
+            if Self.maxResultBytes - fixed.text.utf8.count - 64 < rows * 36 {
+                fixedCaps = MailRowCaps(subject: (0, 0), from: (0, 0), mailbox: (12, 16), account: (18, 24), start: (0, 0), accountsBytes: 500)
+                fixed = build(fixedCaps)
+            }
+            func packed(_ perRow: Int) -> (text: String, headers: [MailHeader], notRead: [String], gone: Int, isError: Bool) {
+                let startBytes = min(Self.mailDenseStart.1, max(12, perRow * 24 / 100))
+                let fromBytes = min(Self.mailFieldLimits.from.1, max(12, perRow * 30 / 100))
+                let subjectBytes = min(Self.mailFieldLimits.subject.1, max(12, perRow - startBytes - fromBytes))
+                var caps = fixedCaps
+                caps.subject = (min(Self.mailFieldLimits.subject.0, subjectBytes), subjectBytes)
+                caps.from = (min(Self.mailFieldLimits.from.0, fromBytes), fromBytes)
+                caps.start = (min(Self.mailDenseStart.0, startBytes), startBytes)
+                return build(caps)
+            }
+            let perRow = (Self.maxResultBytes - fixed.text.utf8.count - 64) / rows
+            guard perRow >= 36 else { return share >= 8 ? build({ var c = full; c.start = (min(share, Self.mailDenseStart.0), min(share, Self.mailDenseStart.1)); return c }()) : bare }
+            let candidate = packed(perRow)
+            guard candidate.text.utf8.count > Self.maxResultBytes else { return candidate }
+            let trim = (candidate.text.utf8.count - Self.maxResultBytes + rows - 1) / rows + 4
+            return perRow - trim >= 36 ? packed(perRow - trim) : fixed
         }
         var count = resolved.count
         var built = sized(count)
@@ -228,10 +260,18 @@ extension PippaMCPTools {
         return result
     }
 
+    private struct MailRowCaps {
+        var subject: (Int, Int)
+        var from: (Int, Int)
+        var mailbox: (Int, Int)
+        var account: (Int, Int)
+        var start: (Int, Int)
+        var accountsBytes: Int
+    }
+
     private func render(_ snapshot: MailSnapshot, offset: Int, resolved: [(entry: MailPageEntry, row: MailSearchRow?, skipped: Bool)], tokens: [String],
                         refs: [String: MailRef], count: Int, pageProblems: [String: MailAccountCoverage.Status], left: Int, cursor: String?,
-                        start: (Int, Int)) -> (text: String, headers: [MailHeader], notRead: [String], gone: Int, isError: Bool) {
-        let limits = Self.mailFieldLimits
+                        caps: MailRowCaps) -> (text: String, headers: [MailHeader], notRead: [String], gone: Int, isError: Bool) {
         func field(_ value: String, _ limit: (Int, Int)) -> String {
             guard limit.0 > 0, limit.1 > 0 else { return "" }
             return Self.jsonClipped(Self.clip(value, limit.0, bytes: limit.1), bytes: limit.1)
@@ -246,12 +286,12 @@ extension PippaMCPTools {
             }
             var m = row.header
             m.account = item.entry.label
-            var value: [String: Any] = ["subject": field(m.subject, limits.subject),
-                                        "from": field(m.sender, limits.from),
-                                        "mailbox": field(m.mailbox, limits.mailbox),
-                                        "start": field(Self.compact(m.preview), start),
+            var value: [String: Any] = ["subject": field(m.subject, caps.subject),
+                                        "from": field(m.sender, caps.from),
+                                        "mailbox": field(m.mailbox, caps.mailbox),
+                                        "start": field(Self.compact(m.preview), caps.start),
                                         "unread": m.unread, "replied": m.replied, "forwarded": m.forwarded, "flagged": m.flagged,
-                                        "account": item.entry.label]
+                                        "account": field(item.entry.label, caps.account)]
             if refs[tokens[index]] != nil { value["mail_ref"] = tokens[index] } else { unopenable += 1 }
             m.messageID = nil
             m.subject = value["subject"] as? String ?? ""
@@ -279,7 +319,7 @@ extension PippaMCPTools {
                                    "complete": notRead.isEmpty && !more && goneTotal == 0, "status": notRead.isEmpty ? "ok" : "partial",
                                    "accounts": accounts, "preview_rows_left": max(0, left),
                                    "order": snapshot.balanced ? "newest_per_account" : "newest", "read_depth": "header_and_start"]
-        Self.trimMailList("accounts", in: &data, bytes: 2200)
+        Self.trimMailList("accounts", in: &data, bytes: caps.accountsBytes)
         if skipped > 0 { data["skipped"] = skipped }
         if !notRead.isEmpty { data["retry"] = "fresh_search" }
         if let account = snapshot.account { data["account"] = Self.clip(account, 200, bytes: 400) }
@@ -303,7 +343,7 @@ extension PippaMCPTools {
         } else if mails.isEmpty && goneTotal == 0 && offset == 0 {
             next += " No email in the \(Self.boxWord(snapshot.mailbox)) of the searched accounts matches."
         }
-        if goneTotal > 0 { next += " \(goneTotal) mails changed or left the inbox since this search began; they are not shown, so this search is not complete." }
+        if goneTotal > 0 { next += " \(goneTotal) mails changed or left the \(Self.boxWord(snapshot.mailbox)) since this search began; they are not shown, so this search is not complete." }
         if offset == 0, snapshot.query.isEmpty, snapshot.mailbox == .inbox, !Self.mailTriageHint.isEmpty { next += " " + Self.mailTriageHint }
         let nothingRead = mails.isEmpty && gone == 0 && skipped > 0
         let source = snapshot.account == nil ? "Mail on this Mac (\(Self.boxWord(snapshot.mailbox)) of all accounts)" : "Mail on this Mac (\(Self.boxWord(snapshot.mailbox)) of one account)"
@@ -370,11 +410,24 @@ extension PippaMCPTools {
                     extra["thread_activity_complete"] = false
                 }
                 guard mailTurnIsLive(turn) else { return Self.mailCancelled }
-                extra["thread_checked"] = activity != nil
-                if let activity { extra["sent_replied"] = activity.sentReply; extra["has_draft"] = activity.draft }
+                if let activity {
+                    extra["thread_checked"] = activity.isComplete
+                    if !activity.isComplete { extra["thread_activity_complete"] = false }
+                    if activity.sentReply { extra["sent_replied"] = true }
+                    else if activity.sentComplete { extra["sent_replied"] = false }
+                    if activity.draft { extra["has_draft"] = true }
+                    else if activity.draftsComplete { extra["has_draft"] = false }
+                } else {
+                    extra["thread_checked"] = false
+                    extra["thread_activity_complete"] = false
+                }
             }
+            let origin = MailFiling.FiledOrigin(
+                mailbox: ref.mailbox,
+                locator: MailLocator(account: ref.account.name, path: ref.path, mailID: ref.mailID, accountID: ref.account.id, strict: true)
+            )
             return mailResult(found.message, source: "Mail on this Mac (email from the \(Self.boxWord(ref.mailbox)) of one account)", account: ref.label,
-                              filingScope: [ref.account.id, String(ref.mailID)] + ref.path, extra: extra)
+                              filingScope: [ref.account.id, String(ref.mailID)] + ref.path, origin: origin, extra: extra)
         } catch {
             return mailTurnIsLive(turn) ? failure(error, .mail) : Self.mailCancelled
         }

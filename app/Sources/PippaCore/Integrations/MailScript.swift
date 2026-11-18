@@ -111,7 +111,38 @@ enum MailScript {
             try
                 set isFlagged to (flagged status of m) as boolean
             end try
-            return {subject of m, sender of m, date received of m, content of m, attachmentNames, theID, (reply to of m) as text, theLocation, theSource, wasReplied, wasForwarded, isFlagged}
+            set boxKind to ""
+            try
+                set box to mailbox of m
+                if (mailboxes of drafts mailbox) contains box then
+                    set boxKind to "drafts"
+                else if (mailboxes of sent mailbox) contains box then
+                    set boxKind to "sent"
+                else if (mailboxes of inbox) contains box then
+                    set boxKind to "inbox"
+                end if
+            end try
+            set theDate to missing value
+            if boxKind is "sent" or boxKind is "drafts" then
+                try
+                    set theDate to date sent of m
+                end try
+                if theDate is missing value then
+                    try
+                        set theDate to date received of m
+                    end try
+                end if
+            else
+                try
+                    set theDate to date received of m
+                end try
+                if boxKind is not "inbox" and theDate is missing value then
+                    try
+                        set theDate to date sent of m
+                    end try
+                end if
+            end if
+            return {subject of m, sender of m, theDate, content of m, attachmentNames, theID, (reply to of m) as text, theLocation, theSource, wasReplied, wasForwarded, isFlagged, boxKind}
         end tell
     end messageInfo
     """
@@ -153,9 +184,10 @@ enum MailScript {
         let source = parts.count >= 9 ? parts[8].stringValue : nil
         // Mail's flags (items 10–12); an older or shorter answer leaves them false.
         let flags = (9..<12).map { i in parts.count > i && [typeBoolean, typeTrue, typeFalse].contains(parts[i].descriptorType) && parts[i].booleanValue }
+        let kind = parts.count > 12 ? MailBoxKind(rawValue: parts[12].stringValue ?? "") : nil
         return MailMessage(subject: parts[0].stringValue ?? "", sender: parts[1].stringValue ?? "", date: parts[2].dateValue,
                            body: parts[3].stringValue ?? "", attachmentNames: AppleEvents.strings(parts[4]), messageID: messageID,
                            replyTo: parts.count >= 7 ? parts[6].stringValue : nil, locator: locator, source: source,
-                           replied: flags[0], forwarded: flags[1], flagged: flags[2])
+                           replied: flags[0], forwarded: flags[1], flagged: flags[2], mailboxKind: kind)
     }
 }

@@ -159,6 +159,22 @@ enum SharingRouteChecks {
         let unverifiedRoute = PiSession.LaunchRoute(key: "pi|openai").online(ShareDestination(gpt), .init(), rules: SourceSharing(), macAccess: .init())
         check(!unverifiedRoute.hasMacAccess && unverifiedRoute.egress != nil && unverifiedRoute.capabilities.online != nil,
               "an unverified recipient keeps the limits even if Mac access were passed")
+        let dummyPaths = PippaPiLaunch.Paths(
+            extensionsDirectory: URL(fileURLWithPath: "/tmp/ext", isDirectory: true), webExtension: nil,
+            sessionDirectory: URL(fileURLWithPath: "/tmp/sessions", isDirectory: true), skillsDirectory: nil,
+            memoryFile: URL(fileURLWithPath: "/tmp/mem.md"), digestDirectory: URL(fileURLWithPath: "/tmp/digests", isDirectory: true)
+        )
+        let dummyLauncher = PippaPiLaunch.Launcher(executable: URL(fileURLWithPath: "/usr/bin/env"), launcherArguments: [], piArguments: [], environment: [:])
+        let dummyMCP = (endpoint: PippaPiLaunch.MCPEndpoint(url: URL(string: "http://127.0.0.1:1/mcp")!, token: "tok"),
+                        extension: URL(fileURLWithPath: "/tmp/ext/mcp.ts"))
+        func launchedMaxCalls(_ route: PiSession.LaunchRoute) -> String? {
+            PippaPiLaunch.configuration(launcher: dummyLauncher, workingDirectory: URL(fileURLWithPath: "/tmp", isDirectory: true),
+                                        paths: dummyPaths, sessionID: "s", language: "de", environment: route.budgetEnvironment,
+                                        mcp: dummyMCP, capabilities: route.capabilities).environment["PIPPA_MAX_CALLS"]
+        }
+        check(launchedMaxCalls(trusted) == "80" && launchedMaxCalls(local) == nil && launchedMaxCalls(online) == nil
+              && launchedMaxCalls(handoff) == nil && launchedMaxCalls(unverifiedRoute) == nil,
+              "PIPPA_MAX_CALLS=80 goes only to a verified online route with Mac access; local, restricted online and handoff keep the default")
         return failures == 0 ? 0 : 1
     }
 

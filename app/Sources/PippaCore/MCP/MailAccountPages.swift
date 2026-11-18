@@ -69,16 +69,27 @@ extension MailAccountReading {
     public func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity? { nil }
 }
 
-/// What this account's Sent and Drafts say about a message: a reply was sent, a reply draft waits.
+/// What this account's Sent and Drafts say about a message: a reply was sent, a reply draft waits, and whether each
+/// mailbox was searched completely (so an unsearched remainder is never reported as `false`).
 public struct MailThreadActivity: Sendable, Equatable {
     public var sentReply: Bool
     public var draft: Bool
-    public init(sentReply: Bool, draft: Bool) { self.sentReply = sentReply; self.draft = draft }
+    public var sentComplete: Bool
+    public var draftsComplete: Bool
+    public init(sentReply: Bool, draft: Bool, sentComplete: Bool = true, draftsComplete: Bool = true) {
+        self.sentReply = sentReply
+        self.draft = draft
+        self.sentComplete = sentComplete
+        self.draftsComplete = draftsComplete
+    }
+
+    public var isComplete: Bool { (sentComplete || sentReply) && (draftsComplete || draft) }
 }
 
-/// Is a mail in Sent or Drafts a reply to the original? Its headers name the original's Message-ID (In-Reply-To or
-/// References), or its subject is "Re:/AW: <original subject>" and it is not older than the original.
+/// Is a mail in Sent or Drafts a reply to the original? Its `In-Reply-To` or `References` header names the original's
+/// exact Message-ID, or its subject is "Re:/AW: <original subject>" and it is not older than the original.
 public enum MailThreadMatch {
+    public static let maxCandidates = 40
     static let replyPrefixes = ["re:", "aw:", "antw:", "sv:"]
     static let prefixes = replyPrefixes + ["wg:", "fwd:", "fw:"]
 
@@ -94,6 +105,67 @@ public enum MailThreadMatch {
             }
         }
         return text
+    }
+
+    /// True only when an unfolded `In-Reply-To` or `References` header contains `messageID` as an exact canonical Message-ID.
+    public static func referencesMessageID(headers: String, messageID: String) -> Bool {
+        guard let wanted = MailReplySource.canonicalMessageID(messageID), !headers.isEmpty else { return false }
+        let normalized = headers.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+        var values: [String] = []
+        var currentKey: String?
+        var currentValue = ""
+        func flush() {
+            if let key = currentKey, key == "in-reply-to" || key == "references" { values.append(currentValue) }
+            currentKey = nil
+            currentValue = ""
+        }
+        for line in normalized.split(separator: "\n", omittingEmptySubsequences: false) {
+            if line.isEmpty { flush(); break }
+            if line.hasPrefix(" ") || line.hasPrefix("\t") {
+                if currentKey != nil { currentValue += " " + line.trimmingCharacters(in: .whitespaces) }
+            } else {
+                flush()
+                guard let colon = line.firstIndex(of: ":") else { continue }
+                currentKey = line[..<colon].trimmingCharacters(in: .whitespaces).lowercased()
+                currentValue = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+            }
+        }
+        flush()
+        for value in values {
+            var cursor = value.startIndex
+            while let open = value[cursor...].firstIndex(of: "<"),
+                  let close = value[value.index(after: open)...].firstIndex(of: ">") {
+                let inside = String(value[value.index(after: open)..<close])
+                if !inside.contains("<"), MailReplySource.canonicalMessageID(inside) == wanted { return true }
+                cursor = value.index(after: close)
+            }
+            for token in value.split(whereSeparator: { $0.isWhitespace || $0 == "," }) where !token.contains("<") && !token.contains(">") {
+                if MailReplySource.canonicalMessageID(String(token)) == wanted { return true }
+            }
+        }
+        return false
+    }
+
+    /// Chooses up to `limit` candidates to inspect in Sent or Drafts without hiding changed-subject replies behind a subject
+    /// filter. `complete` is true only when every message in the mailbox was selected.
+    public static func selectCandidates(all: [MailSearchCandidate], coreMatches: Set<Int>, since: Date?,
+                                        limit: Int = maxCandidates) -> (ids: [Int], complete: Bool) {
+        guard limit > 0, !all.isEmpty else { return ([], all.isEmpty) }
+        let ordered = MailSelection.newest(all, limit: all.count, date: \.date, tie: { String(format: "%020lld", Int64($0.id)) })
+        if ordered.count <= limit { return (ordered.map(\.id), true) }
+        var chosen: [Int] = []
+        var seen = Set<Int>()
+        func add(_ candidate: MailSearchCandidate) {
+            guard chosen.count < limit, seen.insert(candidate.id).inserted else { return }
+            chosen.append(candidate.id)
+        }
+        let coreBudget = max(1, limit / 2)
+        for c in ordered where coreMatches.contains(c.id) && chosen.count < coreBudget { add(c) }
+        if let cutoff = since?.addingTimeInterval(-60) {
+            for c in ordered where c.date == nil || c.date! >= cutoff { add(c) }
+        }
+        for c in ordered { add(c) }
+        return (chosen, chosen.count == all.count)
     }
 
     public static func isReply(_ candidate: String, namesID: Bool, date: Date?, to original: String, since: Date?) -> Bool {

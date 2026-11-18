@@ -33,10 +33,18 @@ public struct MailHeader: Sendable, Equatable {
 /// Which mails a search keeps by Mail's read status.
 public enum MailReadStatus: String, Sendable, CaseIterable {
     case all, unread, read
+
+    public func matches(unread: Bool) -> Bool {
+        switch self {
+        case .all: true
+        case .unread: unread
+        case .read: !unread
+        }
+    }
 }
 
 /// Which top-level Mail container a search reads, one child mailbox per account (Mail.sdef `inbox`, `sent mailbox`, `drafts mailbox`).
-public enum MailBoxKind: String, Sendable, CaseIterable {
+public enum MailBoxKind: String, Codable, Sendable, CaseIterable {
     case inbox, sent, drafts
 }
 
@@ -366,7 +374,8 @@ public enum MailSearchFlow {
             if chosen.isEmpty { return HostFetch(items: [], total: all.count) }
             let rows = Dictionary(try native.rows(ids: chosen.map(\.id)).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             let items = chosen.compactMap { candidate -> MailHeader? in
-                guard let row = rows[candidate.id], sameDate(row.date, candidate.date) else { return nil }
+                guard let row = rows[candidate.id], sameDate(row.date, candidate.date),
+                      readStatus.matches(unread: row.header.unread) else { return nil }
                 return row.header
             }
             if items.count == chosen.count { return HostFetch(items: items, total: all.count) }
@@ -384,15 +393,42 @@ public enum MailSearchFlow {
 
     // MARK: Native answers
 
-    /// `{ids, dates}`: two lists of the same length, an integer and a date (or `missing value`) per match.
+    /// `{ids, dates}` (Inbox) or `{ids, receivedDates, sentIDs, sentDates}` (Sent/Drafts, matched per Mail id so a non-missing
+    /// `date sent` overrides `date received` even when a message arrived between the two bulk reads).
     public static func parseCandidates(_ reply: NSAppleEventDescriptor) throws -> [MailSearchCandidate] {
-        guard reply.descriptorType == typeAEList, reply.numberOfItems == 2, let ids = reply.atIndex(1), let dates = reply.atIndex(2),
-              ids.descriptorType == typeAEList, dates.descriptorType == typeAEList, ids.numberOfItems == dates.numberOfItems else {
+        guard reply.descriptorType == typeAEList, reply.numberOfItems == 2 || reply.numberOfItems == 4,
+              let ids = reply.atIndex(1), let dates = reply.atIndex(2) else {
+            throw PippaError.notAvailable
+        }
+        let received = try parsePairs(ids: ids, dates: dates)
+        guard reply.numberOfItems == 4 else {
+            return received.map { MailSearchCandidate(id: $0.id, date: $0.date) }
+        }
+        guard let sentIDs = reply.atIndex(3), let sentDates = reply.atIndex(4) else { throw PippaError.notAvailable }
+        let sentPairs = try parsePairs(ids: sentIDs, dates: sentDates)
+        var sentByID: [Int: Date] = [:]
+        for pair in sentPairs {
+            if let date = pair.date, sentByID[pair.id] == nil { sentByID[pair.id] = date }
+        }
+        return received.map { MailSearchCandidate(id: $0.id, date: sentByID[$0.id] ?? $0.date) }
+    }
+
+    static func parseIDs(_ list: NSAppleEventDescriptor) throws -> [Int] {
+        guard list.descriptorType == typeAEList else { throw PippaError.notAvailable }
+        let items = AppleEvents.items(list)
+        guard items.count == list.numberOfItems else { throw PippaError.notAvailable }
+        return try items.map(mailID)
+    }
+
+    static func parseOptionalDate(_ d: NSAppleEventDescriptor) throws -> Date? { try mailDate(d) }
+
+    private static func parsePairs(ids: NSAppleEventDescriptor, dates: NSAppleEventDescriptor) throws -> [(id: Int, date: Date?)] {
+        guard ids.descriptorType == typeAEList, dates.descriptorType == typeAEList, ids.numberOfItems == dates.numberOfItems else {
             throw PippaError.notAvailable
         }
         let idItems = AppleEvents.items(ids), dateItems = AppleEvents.items(dates)
         guard idItems.count == ids.numberOfItems, dateItems.count == dates.numberOfItems else { throw PippaError.notAvailable }
-        return try zip(idItems, dateItems).map { MailSearchCandidate(id: try mailID($0), date: try mailDate($1)) }
+        return try zip(idItems, dateItems).map { (try mailID($0), try mailDate($1)) }
     }
 
     /// One row per requested id: `{id, subject, sender, date, mailbox, start, message id, unread}`, or `{}` for a message that is gone.

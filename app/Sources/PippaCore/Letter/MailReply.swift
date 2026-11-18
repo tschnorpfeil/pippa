@@ -16,14 +16,17 @@ public struct MailDraft: Sendable, Equatable {
     /// False for an explicitly composed new message; never reads the selected mail.
     public var exactSubject: Bool
     public var isReply: Bool
-    /// Where Mail showed the original at Call time. Only a hint for the fast path: the script re-checks the
-    /// Message-ID of the message it finds there and falls back to a bounded search when it does not match.
+    /// Where Mail showed the original at Call time. A hint by default; when `strict` is true (e.g. `mail_ref`),
+    /// `replyAt` requires the exact account ID, mailbox path, Mail ID and Message-ID and never searches other accounts.
     public var locator: MailLocator?
+    /// True when replying to a Sent message without an explicit Reply-To header: keep the recipients Mail chose on `reply`
+    /// instead of replacing them with the user's own From address.
+    public var keepMailRecipients: Bool
 
     public init(messageID: String?, to: String?, toName: String?, subject: String, body: String, isReply: Bool = true,
-                exactSubject: Bool = false, locator: MailLocator? = nil) {
+                exactSubject: Bool = false, locator: MailLocator? = nil, keepMailRecipients: Bool = false) {
         self.messageID = messageID; self.to = to; self.toName = toName; self.subject = subject; self.body = body
-        self.isReply = isReply; self.exactSubject = exactSubject; self.locator = locator
+        self.isReply = isReply; self.exactSubject = exactSubject; self.locator = locator; self.keepMailRecipients = keepMailRecipients
     }
 
     /// "Re: <subject>", unless the subject already starts with Re:/AW:/WG:/Fwd: (case-insensitive).
@@ -53,6 +56,9 @@ public struct MailDraft: Sendable, Equatable {
 
     /// Subject and recipients as Mail reports them, without the body.
     public func isConfirmedEnvelope(subject: String, recipients: [String]) -> Bool {
+        if keepMailRecipients {
+            return subject == replySubject && !recipients.isEmpty && recipients.allSatisfy { MailAddress.parse($0).address != nil }
+        }
         let expectedRecipients = to.flatMap { $0.isEmpty ? nil : [$0] } ?? []
         return subject == replySubject && recipients.count == expectedRecipients.count
             && zip(recipients, expectedRecipients).allSatisfy { $0.caseInsensitiveCompare($1) == .orderedSame }
@@ -81,17 +87,39 @@ public struct MailDraft: Sendable, Equatable {
 /// The person pastes the draft (Pippa puts it on the clipboard); this is never shown as confirmed.
 public enum MailInsertResult: String, Sendable, Equatable { case reply, replyNeedsPaste, newMessage }
 
-/// Where a message lives in Mail: account name ("" for On My Mac), mailbox names from the top, Mail's own id.
-/// Captured at Call; used only to find the same message again quickly, always re-checked by Message-ID.
+/// Where a message lives in Mail: account name ("" for On My Mac), optional exact account ID, mailbox names from the top,
+/// and Mail's own id. When `strict` is true, `MailReplyScript` requires this exact location and never searches elsewhere.
 public struct MailLocator: Codable, Hashable, Sendable {
     public var account: String
+    public var accountID: String?
     public var path: [String]
     public var mailID: Int?
+    public var strict: Bool
 
-    public init?(account: String, path: [String], mailID: Int?) {
+    public init?(account: String, path: [String], mailID: Int?, accountID: String? = nil, strict: Bool = false) {
         guard !path.isEmpty, path.count <= 32, !path.contains(where: { $0.isEmpty }),
               mailID.map({ $0 > 0 && $0 <= Int(Int32.max) }) ?? true else { return nil }
-        self.account = account; self.path = path; self.mailID = mailID
+        let trimmedID = accountID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.account = account
+        self.accountID = trimmedID.flatMap { $0.isEmpty ? nil : $0 }
+        self.path = path
+        self.mailID = mailID
+        self.strict = strict
+    }
+
+    private enum CodingKeys: String, CodingKey { case account, accountID, path, mailID, strict }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let account = try c.decode(String.self, forKey: .account)
+        let path = try c.decode([String].self, forKey: .path)
+        let mailID = try c.decodeIfPresent(Int.self, forKey: .mailID)
+        let accountID = try c.decodeIfPresent(String.self, forKey: .accountID)
+        let strict = try c.decodeIfPresent(Bool.self, forKey: .strict) ?? false
+        guard let valid = Self(account: account, path: path, mailID: mailID, accountID: accountID, strict: strict) else {
+            throw DecodingError.dataCorruptedError(forKey: .path, in: c, debugDescription: "Invalid MailLocator")
+        }
+        self = valid
     }
 
     var mailbox: MailLocator { MailLocator(account: account, path: path, mailID: nil) ?? self }
