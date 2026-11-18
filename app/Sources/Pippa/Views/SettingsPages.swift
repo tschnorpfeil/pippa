@@ -94,7 +94,7 @@ struct SharingSettings: View {
         let active = settings.inferenceSettings.usesOnlineAI ? activeState.wrappedValue : nil
         let macAccess = settings.inferenceSettings.allowsMacAccess(active)
         let footer = failureState.wrappedValue
-            ?? active.flatMap { macAccess ? T("%@ has Mac access and reads these with Pippa’s tools, without this check. The rules still apply to what you share with +.", table: "Settings", $0.provider) : nil }
+            ?? active.flatMap { macAccess ? T("%@ has Mac access. Tool results and files you attach directly go to this provider without review. The rules below apply to excerpts you choose to review, such as Selected Email in Mail.", table: "Settings", $0.provider) : nil }
             ?? T("An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is.", table: "Settings")
         SettingsSection(title: T("Sharing with online AI", table: "Settings"), footer: footer) {
             if let active {

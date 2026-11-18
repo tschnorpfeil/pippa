@@ -78,7 +78,8 @@ failed is never sent again on its own: **Try again** opens the review.
 **Mac access, only if you allow it.** For the online AI you use, Settings → AI → **Allow Mac access** gives it the same
 Mac tools as the AI on this Mac: files, Pippa's command line, Mail, Calendar, Reminders and Photos, without the review.
 What those tools read, files you attach, the app in front and, with personal notes on, your notes then go to that
-provider. Pippa still asks before commands that go online or change your files, macOS still asks for each app, and app
+provider. Direct file attachments also bypass the review; the source rules still apply to explicitly reviewed excerpts,
+such as **Selected Email in Mail** in the + menu. Pippa still asks before commands that go online or change your files, macOS still asks for each app, and app
 control from the command line stays off. It is off by default and holds only for the provider, model and account it
 was turned on for: another account, key, address or model, signing out, or turning it off returns to the limits above.
 Conversations with Mac access keep their own provider session, so that history never reaches a limited session, another
