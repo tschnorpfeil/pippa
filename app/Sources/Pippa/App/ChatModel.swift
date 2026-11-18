@@ -77,6 +77,19 @@ struct Conversation: Codable, Identifiable, Equatable {
     var updated: Date
     var messages: [ChatMessage]
     var pinned: Bool?
+    /// Sources still in the local Pi history after Retry replaces a visible turn.
+    var retriedSources: [SharingSource]?
+
+    @MainActor mutating func removeTurnForRetry() {
+        let prior = ChatModel.localHistorySources(in: messages.suffix(2))
+        retriedSources = Set(retriedSources ?? []).union(prior).sorted()
+        messages.removeLast(2)
+    }
+
+    @MainActor func localSources(through index: Int) -> Set<SharingSource> {
+        ChatModel.localHistorySources(in: messages[...index]).union(retriedSources ?? [])
+    }
+
 }
 
 /// The chat: conversations on disk (what the window shows), one answer at a time through `PiSession`.
@@ -464,12 +477,12 @@ final class ChatModel: ObservableObject {
 
     /// Pippa's last answer here, by the AI on this Mac, as a part: its sources are what its tools read.
     private func lastAnswerHere() -> SharePiece? {
-        guard let messages = current?.messages, let index = messages.lastIndex(where: { $0.role == .assistant }) else { return nil }
-        let answer = messages[index]
+        guard let current, let index = current.messages.lastIndex(where: { $0.role == .assistant }) else { return nil }
+        let answer = current.messages[index]
         let text = answer.result.trimmingCharacters(in: .whitespacesAndNewlines)
         guard answer.destination == nil, answer.error == nil, !text.isEmpty else { return nil }
         // Pi can use any earlier local turn to answer a follow-up, even when it calls no tool on this turn.
-        let sources = Self.localHistorySources(in: messages[...index])
+        let sources = current.localSources(through: index)
         return SharePiece(sources: sources, title: T("Pippa’s answer on this Mac", table: "App"), text: text)
     }
 
@@ -535,7 +548,7 @@ final class ChatModel: ObservableObject {
         if question.shared != nil, let route = reviewRoute {
             // Back through the review, with the edits of the one that failed when it is parked here. The composer keeps
             // whatever was typed since.
-            conversations[index].messages.removeLast(2)
+            conversations[index].removeTurnForRetry()
             save(id)
             let parked = desk.parked(in: id, handoff: route.handoff) != nil
             startReview(route.destination, handoff: route.handoff, composer: ShareComposer(text: question.text, files: files), explicit: parked)
@@ -546,7 +559,7 @@ final class ChatModel: ObservableObject {
             if draft.isEmpty && attachments.isEmpty { draft = question.text; attachments = files }
             return
         }
-        conversations[index].messages.removeLast(2)
+        conversations[index].removeTurnForRetry()
         draft = question.text
         attachments = files
         send()

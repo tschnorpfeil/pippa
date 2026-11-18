@@ -21,6 +21,13 @@ enum SharingRouteChecks {
         check(localSources == [.mail] && !sharing.mayOffer(localSources), "a tool-free local follow-up inherits Mail provenance across an intervening online answer")
         check(!sharing.mayOffer(ChatModel.localHistorySources(in: [legacyAnswer, followUp][...])), "legacy local history without source metadata needs every source on Ask")
 
+        var retry = Conversation(id: "local-retry", title: "Fixture", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Read the mail"), mailTurn])
+        retry.removeTurnForRetry()
+        retry.messages.append(followUp)
+        let reloaded = try? JSONDecoder().decode(Conversation.self, from: JSONEncoder().encode(retry))
+        check(reloaded?.localSources(through: 0) == [.mail], "replacing a local turn for Retry preserves its sources after a reload")
+
         let gpt = PiModelSelection(providerID: "openai", modelID: "gpt-fixture", providerName: "OpenAI")
         // Recipients are digests of the effective endpoint and account (`PiRecipient`); these stand in for two accounts.
         let openai = ShareDestination(gpt, recipient: "account-a")
