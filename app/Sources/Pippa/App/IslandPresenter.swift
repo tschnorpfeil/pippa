@@ -422,9 +422,17 @@ final class IslandPresenter: NSObject {
         let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         let local = NSEvent.addLocalMonitorForEvents(matching: clicks.union(.keyDown)) { [weak self] event in
             // Escape is the island's only when typed there; in the chat window it stays the chat's.
-            let escape = event.type == .keyDown && event.keyCode == 53 && event.window === self?.panel
-            if event.type == .keyDown && !escape { return event }
             let inPanel = event.window === self?.panel
+            let escape = event.type == .keyDown && event.keyCode == 53 && inPanel
+            if event.type == .keyDown, inPanel, event.isARepeat {
+                let submit = (event.keyCode == 36 || event.keyCode == 76)
+                    && event.modifierFlags.intersection([.command, .control, .option]).isEmpty
+                // A held key can outlast the question it first answered.
+                if (escape || submit), MainActor.assumeIsolated({ !Approvals.shared.questions.isEmpty }) {
+                    return nil
+                }
+            }
+            if event.type == .keyDown && !escape { return event }
             let location = event.locationInWindow
             MainActor.assumeIsolated {
                 guard let self else { return }

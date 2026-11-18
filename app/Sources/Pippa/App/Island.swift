@@ -331,6 +331,14 @@ final class Island: ObservableObject {
         ChatWindow.shared.show()
     }
 
+    func openChat(in conversationID: String?) {
+        guard let conversationID, ChatModel.shared.conversations.contains(where: { $0.id == conversationID }) else {
+            openChat()
+            return
+        }
+        openConversation(conversationID)
+    }
+
     /// The earlier conversation under the empty field: the chat opens on it.
     func openConversation(_ id: String) {
         ChatModel.shared.select(id)

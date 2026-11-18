@@ -94,10 +94,20 @@ enum DropReader {
         queue.isSuspended = true
         let collector = PromiseCollector(expected: 0)
         let reader = promiseReader(collector, completion: completion)
+        var started = false
         for receiver in receivers {
-            receiver.receivePromisedFiles(atDestination: folder, options: [:], operationQueue: queue, reader: reader)
+            // Different receivers can promise the same filename.
+            let destination = folder.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
+            } catch {
+                continue
+            }
+            receiver.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: queue, reader: reader)
             collector.expect(max(1, receiver.fileNames.count))
+            started = true
         }
+        guard started else { return completion(nil) }
         queue.isSuspended = false
     }
 
