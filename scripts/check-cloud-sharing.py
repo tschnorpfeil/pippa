@@ -111,6 +111,10 @@ def run(app, temp, server):
                           env=env, stdout=subprocess.DEVNULL) as pippa:
         try:
             exercise(pippa.pid, helper, server.requests)
+            subprocess.run([helper, str(pippa.pid), "quit"], check=True, timeout=5)
+            pippa.wait(timeout=12)
+            snapshots = support / "pi-recipients" / str(pippa.pid)
+            assert not list(snapshots.glob("*/models.json")), "Quit left the active provider configuration on disk"
         finally:
             pippa.terminate()
             try:

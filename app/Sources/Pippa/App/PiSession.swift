@@ -219,9 +219,13 @@ final class PiSession {
     }
 
     func shutdown() async {
-        startupTask?.cancel()
+        let starting = startupTask
+        starting?.cancel()
         preloadTask?.cancel()
         await client?.cancelNativeReadiness()
+        // A cancelled preparation can still be returning from the file copy or starting its client.
+        // Let it unwind before looking up the client and recipient folder to retire.
+        _ = await starting?.result
         await client?.shutdown()
         client = nil
         await retireSnapshot()

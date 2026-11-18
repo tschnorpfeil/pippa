@@ -1,6 +1,6 @@
 // Accessibility actions for check-cloud-sharing.py, limited to the synthetic app's process.
+import AppKit
 import ApplicationServices
-import Foundation
 
 func attribute<T>(_ element: AXUIElement, _ key: String) -> T? {
     var value: CFTypeRef?
@@ -20,6 +20,9 @@ func labels(_ element: AXUIElement) -> [String] {
 
 let args = CommandLine.arguments
 guard args.count >= 3, let pid = Int32(args[1]) else { exit(2) }
+if args[2] == "quit" {
+    exit(NSRunningApplication(processIdentifier: pid)?.terminate() == true ? 0 : 1)
+}
 let app = AXUIElementCreateApplication(pid)
 let windows: [AXUIElement] = attribute(app, kAXWindowsAttribute) ?? []
 let elements = windows.flatMap { descendants($0) }
