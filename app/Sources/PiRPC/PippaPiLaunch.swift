@@ -2,8 +2,8 @@ import Foundation
 
 /// How Pippa starts the real Pi: the one place that builds the command line for the app and for `Pippa --ask`.
 ///
-/// - Shared agent directory: `~/.pi/agent` as in the terminal. **No** `PI_CODING_AGENT_DIR` is set here;
-///   only test scripts set one so ~/.pi stays untouched.
+/// - Shared agent directory: `~/.pi/agent` as in the terminal. **No** `PI_CODING_AGENT_DIR` is set here; PiSession
+///   sets a private one for an online route (`PiRecipientSnapshot`), test scripts set one so ~/.pi stays untouched.
 /// - `--extension` Pippa's file tools, its helps for small models and its web access (pi-web-access). Pi runs every
 ///   tool without asking, as in the terminal. Only the explicitly bundled extensions load.
 /// - `--no-context-files`: `AGENTS.md`/`CLAUDE.md` in user folders (and their parent folders) are an injection path.

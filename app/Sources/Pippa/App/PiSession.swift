@@ -75,9 +75,14 @@ final class PiSession {
     private var needsFreshClient = false
     private var localServer: OMLXServer?
     private var localPlan: PiLocalServer.Plan?
+    /// The online Pi's private agent folder (`PiRecipientSnapshot`); `nil` for the AI on this Mac.
+    private var snapshot: PiRecipientSnapshot?
 
     static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
     static var settingsDirectory: URL { Pippa.supportDirectory }
+    /// One folder per Pippa process, so `Pippa --ask` and the window never remove each other's live snapshot.
+    static var snapshotRoot: URL { Pippa.supportDirectory.appendingPathComponent("pi-recipients", isDirectory: true) }
+    static var snapshotDirectory: URL { snapshotRoot.appendingPathComponent(String(getpid()), isDirectory: true) }
 
     /// The local server, so quitting can stop it without the main actor.
     var ownedServer: OMLXServer? { localServer }
@@ -97,6 +102,8 @@ final class PiSession {
         var settled = false
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
         defer { onStarting(false) }
+        // A token Pi refreshed during this answer goes back to Pi's shared auth.json right away.
+        defer { if let snapshot { Task.detached { snapshot.writeBack() } } }
         let startup = Task { try await prepare(outgoing, conversation: conversation, handoff: handoff, onStarting: onStarting) }
         startupTask = startup
         let client: PiRPCClient
@@ -203,6 +210,7 @@ final class PiSession {
     func forget(_ conversation: String) async {
         if let sessionID, sessionID == conversation || sessionID.hasPrefix(conversation + ":") {
             await client?.shutdown(); client = nil; self.sessionID = nil
+            await retireSnapshot()
         }
         // With the sessions each online AI and each single question had for it.
         PiSessionFiles.trash(conversation: PippaPiLaunch.piSessionID(conversation), in: Self.sessionDirectory) { url in
@@ -216,6 +224,50 @@ final class PiSession {
         await client?.cancelNativeReadiness()
         await client?.shutdown()
         client = nil
+        await retireSnapshot()
+    }
+
+    /// After its Pi ended: a refreshed credential goes back to the shared auth.json, then the private folder is removed
+    /// (kept only when writing back failed, for the next start's sweep).
+    private func retireSnapshot() async {
+        guard let old = snapshot else { return }
+        snapshot = nil
+        await Task.detached { if old.writeBack() != .failed { old.remove() } }.value
+    }
+
+    /// Pi's agent folder for an online route, private to the Pi process about to start, and proof that it names the
+    /// recipient `route` was checked for. Any difference (a sign-in or key changed since) sends nothing.
+    private func recipientSnapshot(_ route: LaunchRoute) async throws -> PiRecipientSnapshot? {
+        guard let destination = route.destination else { return nil }
+        let agent = try Self.installation(ProcessInfo.processInfo.environment).agent
+        let root = Self.snapshotRoot, parent = Self.snapshotDirectory
+        let model = route.piModel, connection = route.online?.connection
+        return try await Task.detached {
+            Self.sweepSnapshots(root)
+            let snapshot: PiRecipientSnapshot
+            if let model {
+                do { snapshot = try PiRecipientSnapshot.create(model: model, from: agent, in: parent) }
+                catch { throw Failure.destinationChanged }
+                guard (PiRecipient(agentDirectory: snapshot.directory).fingerprint(model) ?? "") == destination.recipient else {
+                    snapshot.remove(); throw Failure.destinationChanged
+                }
+            } else if let connection {
+                // The key itself goes only into Pi's environment (`route.online.key`), checked with the route.
+                do { snapshot = try PiRecipientSnapshot.create(connection: connection, from: agent, in: parent) }
+                catch { throw Failure.destinationChanged }
+            } else { throw Failure.destinationChanged }
+            return snapshot
+        }.value
+    }
+
+    /// Folders of Pippa processes that ended: refreshed credentials written back, then removed.
+    nonisolated static func sweepSnapshots(_ root: URL) {
+        for folder in (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
+            guard let pid = Int32(folder.lastPathComponent) else { continue }
+            if pid == getpid() || kill(pid, 0) == 0 || errno != ESRCH { continue }
+            PiRecipientSnapshot.sweep(folder)
+            rmdir(folder.path)  // Only once empty: a copy whose write-back failed waits for the next start.
+        }
     }
 
     /// The model's or Pi's settings changed: the next question starts Pi afresh.
@@ -229,10 +281,11 @@ final class PiSession {
 
     private func ready(conversation: String, route: LaunchRoute) async throws -> PiRPCClient {
         let session = PippaPiLaunch.sessionID(conversation: conversation, scope: route.sessionScope)
-        if !needsFreshClient, let client, sessionID == session, launchKey == route.key,
+        if !needsFreshClient, let client, sessionID == session, launchKey == route.key, snapshot?.isCurrent ?? true,
            await client.isRunning, await client.isAnswering == false { return client }
         PippaMCPService.invalidateEndpoint()
         if let old = client { await old.shutdown(); client = nil }
+        await retireSnapshot()
         let env = ProcessInfo.processInfo.environment
         let extensions = URL(fileURLWithPath: Self.extensionsPath(env), isDirectory: true)
         guard FileManager.default.fileExists(atPath: extensions.appendingPathComponent("pippa-tools.ts").path) else {
@@ -241,9 +294,19 @@ final class PiSession {
         try FileManager.default.createDirectory(at: Self.sessionDirectory, withIntermediateDirectories: true)
         let work = PiConversationDefault.workingDirectory(support: Pippa.supportDirectory)
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
-        var extra = ["PIPPA_WEB_DIR": Pippa.supportDirectory.appendingPathComponent("pi-web", isDirectory: true).path]
+        let webDirectory = Pippa.supportDirectory.appendingPathComponent("pi-web", isDirectory: true)
+        var extra = ["PIPPA_WEB_DIR": webDirectory.path]
         if let online = route.online { extra[PiOnlineProvider.keyVariable] = online.key }
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR"] { if let value = env[key] { extra[key] = value } }
+        // An online Pi reads its provider's configuration and credential only from its own copy: what was checked is
+        // what every request of this process reaches, whatever happens to ~/.pi/agent meanwhile.
+        let pinned = try await recipientSnapshot(route)
+        snapshot = pinned
+        if let pinned {
+            extra["PI_CODING_AGENT_DIR"] = pinned.directory.path
+            // pi-web-access keeps its page cache where it was, not in the short-lived folder.
+            extra["PI_WEB_ACCESS_CACHE_ROOT"] = env["PI_CODING_AGENT_DIR"] ?? webDirectory.appendingPathComponent("pi").path
+        }
         let web = Self.webPath(env).flatMap { FileManager.default.fileExists(atPath: $0) ? URL(fileURLWithPath: $0) : nil }
         let paths = PippaPiLaunch.Paths(extensionsDirectory: extensions, webExtension: web, sessionDirectory: Self.sessionDirectory,
                                         skillsDirectory: PippaSkill.bundledDirectory(),

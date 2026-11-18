@@ -161,6 +161,84 @@ func runSharingChecks() async {
             && PiRecipient.fingerprint(connection, key: " ") == nil && PiRecipient.unresolved.fingerprint(connection) == nil
             && !(one ?? "").contains("KEY")
     }
+    // MARK: Recipient snapshot (the private agent folder of one online Pi)
+
+    let snapshots = root.appendingPathComponent("recipient-snapshots", isDirectory: true)
+    func readJSON(_ url: URL) -> [String: Any]? { (try? Data(contentsOf: url)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } }
+    func canonical(_ value: Any) -> Data? { try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]) }
+    func authEntry(_ provider: String) -> [String: Any]? { readJSON(agent.appendingPathComponent("auth.json"))?[provider] as? [String: Any] }
+    func mode(_ url: URL) -> Int { (try? fm.attributesOfItem(atPath: url.path)[.posixPermissions] as? NSNumber)?.intValue ?? -1 }
+    check("Recipient snapshot: only the active provider's entry and credential, private files, same recipient; later changes never reach it") {
+        try writeAgent(models: ["acme": entry("https://a.example.invalid/v1"), "other": entry("https://c.example.invalid")],
+                       auth: ["acme": ["type": "api_key", "key": "ACME-AUTH-1"], "other": ["type": "api_key", "key": "OTHER-AUTH"]])
+        try Data(#"{"defaultThinkingLevel":"low"}"#.utf8).write(to: agent.appendingPathComponent("settings.json"))
+        let checked = recipients.fingerprint(custom)
+        let snapshot = try PiRecipientSnapshot.create(model: custom, from: agent, in: snapshots)
+        defer { snapshot.remove() }
+        let pinned = PiRecipient(agentDirectory: snapshot.directory)
+        let copied = readJSON(snapshot.directory.appendingPathComponent("auth.json"))
+        let models = readJSON(snapshot.directory.appendingPathComponent("models.json"))?["providers"] as? [String: Any]
+        let files = (try? fm.contentsOfDirectory(atPath: snapshot.directory.path)) ?? []
+        let text = files.compactMap { try? String(contentsOf: snapshot.directory.appendingPathComponent($0), encoding: .utf8) }.joined()
+        // The person signs in elsewhere and moves the endpoint: the running Pi's copy stays the checked recipient.
+        try writeAgent(models: ["acme": entry("https://b.example.invalid/v1")], auth: ["acme": ["type": "api_key", "key": "ACME-AUTH-2"]])
+        return checked != nil && pinned.fingerprint(custom) == checked && recipients.fingerprint(custom) != checked
+            && copied?.keys.sorted() == ["acme"] && models?.keys.sorted() == ["acme"] && !text.contains("OTHER-AUTH")
+            && files.contains("settings.json") && mode(snapshot.directory) == 0o700
+            && files.allSatisfy { mode(snapshot.directory.appendingPathComponent($0)) == 0o600 }
+            && !snapshot.isCurrent && snapshot.writeBack() == .unchanged && authEntry("acme")?["key"] as? String == "ACME-AUTH-2"
+    }
+    check("Recipient snapshot: an older connection gets only Pippa's pippa-online entry, never the key") {
+        try writeAgent(models: ["acme": entry("https://a.example.invalid/v1")], auth: ["acme": ["type": "api_key", "key": "ACME-AUTH-1"]])
+        let connection = ModelConnection(id: UUID(), provider: .compatible, endpoint: URL(string: "https://llm.example.invalid/v1"), modelID: "m-fixture")
+        let snapshot = try PiRecipientSnapshot.create(connection: connection, from: agent, in: snapshots)
+        defer { snapshot.remove() }
+        let models = readJSON(snapshot.directory.appendingPathComponent("models.json"))?["providers"] as? [String: Any]
+        return models?.keys.sorted() == [PiOnlineProvider.providerKey]
+            && canonical(models?[PiOnlineProvider.providerKey] ?? [:]) == canonical(PiOnlineProvider.entry(connection))
+            && !fm.fileExists(atPath: snapshot.directory.appendingPathComponent("auth.json").path)
+    }
+    check("Recipient snapshot: a token Pi refreshes goes back to the shared auth.json, only this provider, never over a newer sign-in") {
+        let codex = PiModelSelection(providerID: "openai-codex", modelID: "gpt-fixture", providerName: "ChatGPT")
+        func oauth(_ token: String, account: String = "acct-1") -> [String: Any] {
+            ["type": "oauth", "access": "ACCESS-\(token)", "refresh": "REFRESH-\(token)", "expires": 1_700_000_000_000, "accountId": account]
+        }
+        func refresh(_ snapshot: PiRecipientSnapshot, _ token: String) throws {
+            try JSONSerialization.data(withJSONObject: ["openai-codex": oauth(token)]).write(to: snapshot.directory.appendingPathComponent("auth.json"))
+        }
+        try writeAgent(models: nil, auth: ["openai-codex": oauth("a"), "other": ["type": "api_key", "key": "OTHER-AUTH"]])
+        let snapshot = try PiRecipientSnapshot.create(model: codex, from: agent, in: snapshots)
+        defer { snapshot.remove() }
+        let untouched = snapshot.writeBack() == .unchanged && snapshot.isCurrent
+        try refresh(snapshot, "b")
+        let written = snapshot.writeBack() == .written && authEntry("openai-codex")?["refresh"] as? String == "REFRESH-b"
+            && authEntry("other")?["key"] as? String == "OTHER-AUTH" && snapshot.isCurrent && snapshot.writeBack() == .unchanged
+            && mode(agent.appendingPathComponent("auth.json")) == 0o600
+        // Pi in the terminal refreshes too (or the person signs in again): theirs stays, and the running Pi restarts.
+        var shared = readJSON(agent.appendingPathComponent("auth.json")) ?? [:]
+        shared["openai-codex"] = oauth("c")
+        try JSONSerialization.data(withJSONObject: shared).write(to: agent.appendingPathComponent("auth.json"))
+        try refresh(snapshot, "d")
+        let superseded = snapshot.writeBack() == .superseded && authEntry("openai-codex")?["refresh"] as? String == "REFRESH-c" && !snapshot.isCurrent
+        // Pi's lock is held: nothing is written, and the copy waits for the next attempt.
+        shared["openai-codex"] = oauth("b"); try JSONSerialization.data(withJSONObject: shared).write(to: agent.appendingPathComponent("auth.json"))
+        let lock = agent.appendingPathComponent("auth.json.lock")
+        try fm.createDirectory(at: lock, withIntermediateDirectories: false)
+        let locked = snapshot.writeBack() == .failed && authEntry("openai-codex")?["refresh"] as? String == "REFRESH-b"
+        try fm.removeItem(at: lock)
+        return untouched && written && superseded && locked && snapshot.writeBack() == .written
+            && authEntry("openai-codex")?["refresh"] as? String == "REFRESH-d"
+    }
+    check("Recipient snapshot: a folder left by an ended Pippa writes its refresh back, then disappears") {
+        let codex = PiModelSelection(providerID: "openai-codex", modelID: "gpt-fixture", providerName: "ChatGPT")
+        let token: (String) -> [String: Any] = { ["type": "oauth", "access": "A-\($0)", "refresh": "R-\($0)", "expires": 1, "accountId": "acct-1"] }
+        try writeAgent(models: nil, auth: ["openai-codex": token("a")])
+        let parent = snapshots.appendingPathComponent("ended", isDirectory: true)
+        let snapshot = try PiRecipientSnapshot.create(model: codex, from: agent, in: parent)
+        try JSONSerialization.data(withJSONObject: ["openai-codex": token("b")]).write(to: snapshot.directory.appendingPathComponent("auth.json"))
+        PiRecipientSnapshot.sweep(parent)
+        return authEntry("openai-codex")?["refresh"] as? String == "R-b" && !fm.fileExists(atPath: snapshot.directory.path)
+    }
     check("Single questions can go to an older connection after “Use this Mac”; removing or replacing it forgets it") {
         let id = UUID()
         let connection = ModelConnection(id: id, provider: .openAI, modelID: "gpt-fixture")

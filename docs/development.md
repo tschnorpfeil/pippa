@@ -64,8 +64,14 @@ single-question recipient `InferenceSettings.handoffModel`. Answers record what 
 `AGENTS.md` in a user folder could inject instructions), `--no-approve` (project-local `.pi/` settings are ignored),
 `--session-dir` in Pippa's support folder and `--session-id` per conversation, `--system-prompt` with Pippa's short
 prompt (under 300 tokens), `--tools` with the list above, `--no-skills --skill <bundle>/pippa-skills`, and
-`--provider/--model` from the installer or the online route. The agent directory is the shared `~/.pi/agent`, but the
-person's extensions, context files and MCP servers do not join Pippa's sessions. Before the first question, the client
+`--provider/--model` from the installer or the online route. The AI on this Mac uses the shared `~/.pi/agent`, but the
+person's extensions, context files and MCP servers do not join Pippa's sessions. An online Pi gets a private agent folder
+instead (`PiRecipientSnapshot`, `<Application Support>/Pippa/pi-recipients/<pid>/<id>`, 0700): only its provider's
+models.json entry, auth.json credential and cached catalog, plus Pi's settings. Pi 1.5 rereads auth.json for every
+request, so with the shared folder a sign-in or key change after `PiSession`'s last check would reach the request.
+`PiSession.ready` proves the copy names the checked recipient before Pi starts; a token Pi refreshes there is written back
+to the shared auth.json under Pi's lock, only while the shared entry is still the copied one; a running Pi restarts when
+the shared credential moved on. Before the first question, the client
 checks that every native tool is registered (`PiNativeReadiness`).
 
 **Cards and receipts.** Pi's `tool_execution_start` and `tool_execution_end` events say what ran. `PiTurnReceipt`
@@ -458,6 +464,7 @@ node --test runtime/pippa-auth/*.test.mjs
 PIPPA_PROVIDER_CHECKS=1 PIPPA_PI_PAYLOAD="$PWD/.build/pi-payload-1.5.0" swift run --package-path app --jobs 2 PippaChecks
 node scripts/provider-setup-smoke.mjs dist/Pippa.app
 python3 scripts/check-cloud-sharing.py dist/Pippa.app   # native chat, edited approval and follow-up; requires Accessibility
+node scripts/recipient-binding-smoke.mjs dist/Pippa.app   # rotates auth.json and models.json inside Pi before its request
 ```
 
 The focused Swift checks cover settings compatibility and the duplex helper lifecycle. The app smoke uses a fresh
