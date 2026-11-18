@@ -964,6 +964,8 @@ extension MCPCheckContext {
                 && msgWithAcctID?.locator?.accountID == privat.id && msgWithAcctID?.locator?.mailID == 11
                 && MailLocator(account: "Privat", path: ["INBOX"], mailID: 7, accountID: nil, strict: true) == nil
                 && MailLocator(account: "", path: ["Import"], mailID: 7, accountID: MailLocator.localAccountID, strict: true)?.strict == true
+                && IntegrationScripts.sources.first(where: { $0.name == "Mail" })?.source
+                    .contains("if parentClass is not mailbox and parentClass is not «class mbxc» then exit repeat") == true
         }
         await checkAsync("Mail paging: a read mail flipped to unread before the next page is skipped and counted as gone") {
             let fake = FakeMailAccounts([(privat, (1...4).map { stored("A", $0, unread: false) }), (arbeit, [])])
@@ -1027,7 +1029,8 @@ extension MCPCheckContext {
                                             attachmentNames: [], messageID: "sel-noid@x.example",
                                             locator: MailLocator(account: "Privat", path: ["INBOX"], mailID: 78),
                                             source: "Message-ID: <sel-noid@x.example>\r\nFrom: a@x.example\r\nSubject: Ohne Konto-ID\r\n\r\nx\r\n")
-            let unscopedSelectedEml = data(await call(w.tools, "mail_selected"))["eml_path"] as? String ?? ""
+            let unscopedSelected = await call(w.tools, "mail_selected")
+            let unscopedSelectedEml = data(unscopedSelected)["eml_path"] as? String ?? ""
             w.turns.begin(PippaMCPTurn())
             let old = await call(w.tools, "mail_draft", ["body": "x", "reply_to": refB])
             let byPath = await call(w.tools, "mail_draft", ["body": "Später", "reply_to": emlPath])
@@ -1073,6 +1076,8 @@ extension MCPCheckContext {
                 && !sentByPath.isError && drafts[4].to == nil && drafts[4].keepMailRecipients == true && drafts[4].locator?.strict == true
                 && !selectedByPath.isError && drafts[5].messageID == "sel-arch@x.example"
                 && drafts[5].locator?.strict == true && drafts[5].locator?.accountID == privat.id && drafts[5].locator?.path == ["Archiv"]
+                && (selectedRead.json["next"] as? String)?.contains("eml_path") == true
+                && unscopedSelectedEml.hasSuffix(".eml") && (unscopedSelected.json["next"] as? String)?.contains("eml_path") == false
                 && refuseUnscopedSelected.isError && refuseUnscopedSelected.json["status"] as? String == "not_found"
                 && [refuseDraftRef, refuseDraftPath, refuseSelectedDraft].allSatisfy { $0.isError && $0.json["status"] as? String == "invalid_arguments" }
                 && drafts.count == 6
@@ -1135,6 +1140,33 @@ extension MCPCheckContext {
                     && callsAfterOver == callsBeforeOver
                     && !paged.isError && mails(paged).count == 5
             }
+            // Concurrent fresh searches when one slot remains: only one enters Mail preparation, and a blocked preparation releases its slot (S5).
+            let raceSetup = setup()
+            let raceTurns = PippaMCPTurns()
+            raceTurns.begin(PippaMCPTurn())
+            let prepGate = Gate()
+            var raceHost = PippaMCPHost(integrations: raceSetup.demo, sheets: raceSetup.sheets, hostData: raceSetup.data,
+                                        askForAccess: true, now: { now }, calendar: berlin,
+                                        explainAccess: { _, _ in await prepGate.wait(); return false })
+            raceHost.mailAccounts = twoAccounts(a: 25)
+            raceHost.turns = raceTurns
+            raceHost.mailFiles = dir("race-cap")
+            let raceTools = PippaMCPTools(host: raceHost)
+            for i in 1...3 { _ = await call(raceTools, "mail_search", ["query": "Wort\(i)"]) }
+            raceSetup.demo.set(.mail, .notDetermined)
+            let heldSearch = Task { () -> (Bool, String) in
+                let r = await call(raceTools, "mail_search", ["query": "Vier"])
+                return (r.isError, r.json["status"] as? String ?? "")
+            }
+            await until { prepGate.count == 1 }
+            let prepDuringHold = raceSetup.demo.mailPreparations
+            let concurrentFifth = await call(raceTools, "mail_search", ["query": "Fuenf"])
+            let prepAfterFifth = raceSetup.demo.mailPreparations
+            prepGate.release()
+            let heldReply = await heldSearch.value
+            raceSetup.demo.set(.mail, .granted)
+            let recoveredFourth = await call(raceTools, "mail_search", ["limit": 5])
+            let afterRecovered = await call(raceTools, "mail_search", ["query": "Sechs"])
             let s = setup()
             let turns = PippaMCPTurns()
             turns.begin(PippaMCPTurn())
@@ -1151,6 +1183,11 @@ extension MCPCheckContext {
             let wideOK = await verifyCap(extended: true, cap: 10)
             let narrowOK = await verifyCap(extended: false, cap: 4)
             return wideOK && narrowOK
+                && concurrentFifth.isError && concurrentFifth.json["status"] as? String == "budget_reached"
+                && prepAfterFifth == prepDuringHold
+                && heldReply.0 && heldReply.1 == "needs_access"
+                && !recoveredFourth.isError && (recoveredFourth.json["next"] as? String ?? "").contains("This is Mail search 4")
+                && afterRecovered.isError && afterRecovered.json["status"] as? String == "budget_reached"
                 && combinedOver.isError && combinedOver.json["status"] as? String == "budget_reached" && s.demo.mailPreparations == prepBefore
                 && flag.extendedBudget && !PippaMCPTurn().extendedBudget
         }

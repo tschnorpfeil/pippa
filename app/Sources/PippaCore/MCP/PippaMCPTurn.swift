@@ -50,15 +50,26 @@ public actor PippaMCPTurn {
     public nonisolated let writes: PippaMCPWriteScope
     public nonisolated func cancelWrites() { writes.cancel() }
     private var documents: [String: Task<DocumentText, Error>] = [:]
+    private var reservedMailSearches = 0
     private var mailSearches = 0
     private nonisolated let budget: BudgetFlag
 
-    /// How many fresh Mail searches this answer has started so far.
-    public func mailSearchCount() -> Int { mailSearches }
+    /// Reserves one fresh Mail search slot before Mail preparation. Returns `false` when `cap` slots are already reserved.
+    public func reserveMailSearch(cap: Int) -> Bool {
+        guard reservedMailSearches < cap else { return false }
+        reservedMailSearches += 1
+        return true
+    }
 
-    /// Counts this answer's Mail searches; returns the new count.
-    public func countMailSearch() -> Int {
+    /// Releases a reserved Mail search slot when preparation fails before reading Mail.
+    public func releaseMailSearch() {
+        if reservedMailSearches > mailSearches { reservedMailSearches -= 1 }
+    }
+
+    /// Commits a reserved Mail search slot after preparation succeeds and returns its 1-based ordinal.
+    public func commitMailSearch() -> Int {
         mailSearches += 1
+        if reservedMailSearches < mailSearches { reservedMailSearches = mailSearches }
         return mailSearches
     }
 

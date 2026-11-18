@@ -96,16 +96,27 @@ enum MailScript {
                     if acctID is "" or acctID is "__local__" then set locationComplete to false
                 end if
                 set cur to box
+                set reachedRoot to false
                 repeat 31 times
                     try
                         set parentBox to container of cur
-                        if class of parentBox is not mailbox then exit repeat
+                        if parentBox is missing value then
+                            set reachedRoot to true
+                            exit repeat
+                        end if
+                        set parentClass to class of parentBox
+                        if parentClass is in {account, imap account, iCloud account, pop account} then
+                            if acctID is not "__local__" and (id of parentBox as text) is acctID then set reachedRoot to true
+                            exit repeat
+                        end if
+                        if parentClass is not mailbox and parentClass is not «class mbxc» then exit repeat
                         set beginning of boxPath to (name of parentBox) as text
                         set cur to parentBox
                     on error
                         exit repeat
                     end try
                 end repeat
+                if not reachedRoot then set locationComplete to false
                 if locationComplete then
                     set theLocation to {acctName, boxPath, (id of m)}
                     if acctID is not "" then set end of theLocation to acctID

@@ -119,13 +119,16 @@ extension PippaMCPTools {
         var next = "Use only what the email says. Never send mail; replies are drafts. "
         // Without Mail's original message there are no attachment bytes, whatever names Mail lists.
         let sourceBlank = (mail.source ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let canReply = !isDraft && (origin?.requiresStrictLocator != true || origin?.locator?.strict == true)
         var files: [URL] = [], notSaved = mail.attachmentNames
         if !sourceBlank, let filed = try? MailFiling.file(mail, root: host.mailFiles, scope: filingScope, origin: origin) {
             files = filed.attachments; notSaved = filed.notSaved
             data["eml_path"] = filed.eml.path
-            next += isDraft
-                ? "This is an unsent draft in Mail: do not pass it to mail_draft as reply_to. "
-                : "To reply in its thread, call mail_draft with reply_to set to its mail_ref (in this answer) or to eml_path. "
+            if isDraft {
+                next += "This is an unsent draft in Mail: do not pass it to mail_draft as reply_to. "
+            } else if canReply {
+                next += "To reply in its thread, call mail_draft with reply_to set to its mail_ref (in this answer) or to eml_path. "
+            }
         }
         if !files.isEmpty {
             data["attachments"] = files.prefix(20).map { ["name": $0.lastPathComponent, "path": $0.path] }
@@ -177,38 +180,42 @@ extension PippaMCPTools {
             if mailbox != .inbox { return Self.notRead("unsupported_mailbox", "Pippa can search only the inboxes here, not Sent or Drafts. Nothing was read. Omit mailbox.") }
             if input.cursor != nil { return Self.notRead("stale_cursor", "This cursor is not from a mail_search in this answer. Nothing was read. Call mail_search again without cursor.") }
             if input.account != nil { return Self.notRead("unknown_account", "Pippa cannot tell Mail accounts apart here. Nothing was read. Omit account to search every inbox.") }
-            if let used = await turn?.mailSearchCount(), used >= searchCap { return Self.searchBudgetReached(searchCap) }
             return await mailSearchCombined(query: query, readStatus: readStatus, limit: limit, turn: turn)
         }
         // Paging through one search is not guessing again: only new searches count toward the stop.
-        if input.cursor == nil, let used = await turn?.mailSearchCount(), used >= searchCap {
-            return Self.searchBudgetReached(searchCap)
+        let reservedFreshSearch: Bool
+        if input.cursor == nil, let turn {
+            guard await turn.reserveMailSearch(cap: searchCap) else { return Self.searchBudgetReached(searchCap) }
+            reservedFreshSearch = true
+        } else {
+            reservedFreshSearch = false
         }
         if case .blocked(let reply) = await ensure(.mail, openMail: true,
                                                    closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
+            if reservedFreshSearch { await turn?.releaseMailSearch() }
             return reply
         }
-        if input.cursor == nil, let count = await turn?.countMailSearch() {
-            if count > searchCap { return Self.searchBudgetReached(searchCap) }
-            if count == searchCap {
-                var result = await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
-                result.text = Self.withStop(result.text, count: count)
-                return result
-            }
+        let searchCount = reservedFreshSearch ? await turn?.commitMailSearch() : nil
+        var result = await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
+        if searchCount == searchCap {
+            result.text = Self.withStop(result.text, count: searchCap)
         }
-        return await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
+        return result
     }
 
     /// The combined inbox without accounts (stand-in readers, PIPPA_DEMO).
     private func mailSearchCombined(query: String, readStatus: MailReadStatus, limit: Int, turn: PippaMCPTurn?) async -> PippaMCPToolResult {
         let unread = readStatus == .unread
         let searchCap = Self.mailSearchesBeforeStop(turn)
+        if let turn {
+            guard await turn.reserveMailSearch(cap: searchCap) else { return Self.searchBudgetReached(searchCap) }
+        }
         if case .blocked(let reply) = await ensure(.mail, openMail: true,
                                                    closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
+            await turn?.releaseMailSearch()
             return reply
         }
-        let searchCount = await turn?.countMailSearch()
-        if let searchCount, searchCount > searchCap { return Self.searchBudgetReached(searchCap) }
+        let searchCount = await turn?.commitMailSearch()
         do {
             var fetch = try await host.hostData.searchMail(query, readStatus: readStatus, limit: limit)
             // Mail finds parts of words, not other forms: "Zahlungseingänge" misses "Zahlungseingangsliste". A small
