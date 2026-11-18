@@ -13,8 +13,47 @@ public struct NewCalendarEvent: Sendable, Equatable {
     public var allDay: Bool
     public var location: String?
     public var notes: String?
-    public init(title: String, start: Date, end: Date, allDay: Bool = false, location: String? = nil, notes: String? = nil) {
+    /// Name of the target calendar (case-insensitive); `nil` = the default calendar for new events.
+    public var calendar: String?
+    public init(title: String, start: Date, end: Date, allDay: Bool = false, location: String? = nil, notes: String? = nil, calendar: String? = nil) {
         self.title = title; self.start = start; self.end = end; self.allDay = allDay; self.location = location; self.notes = notes
+        self.calendar = calendar
+    }
+}
+
+/// A named target calendar that cannot be used. Thrown before anything is saved: never a silent fallback.
+public enum CalendarTargetError: Error, Equatable {
+    /// `writable`: the calendars one can add to, for the local answer.
+    case notFound(String, writable: [String])
+    case ambiguous(String)
+    case readOnly(String)
+
+    public var status: String {
+        switch self {
+        case .notFound: "not_found"
+        case .ambiguous: "ambiguous"
+        case .readOnly: "invalid_arguments"
+        }
+    }
+
+    var receiptReason: String {
+        switch self {
+        case .notFound: "notFound"
+        case .ambiguous: "ambiguous"
+        case .readOnly: "readOnly"
+        }
+    }
+
+    /// Exactly one calendar with this name (case-insensitive) that allows changes.
+    static func match<C>(_ name: String, in calendars: [C], title: (C) -> String, writable: (C) -> Bool) throws -> C {
+        let wanted = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let found = calendars.filter { title($0).localizedCaseInsensitiveCompare(wanted) == .orderedSame }
+        guard let only = found.first else {
+            throw notFound(wanted, writable: calendars.filter(writable).map(title).sorted())
+        }
+        guard found.count == 1 else { throw ambiguous(wanted) }
+        guard writable(only) else { throw readOnly(title(only)) }
+        return only
     }
 }
 
@@ -71,11 +110,14 @@ extension SystemIntegrations: HostWriting {
 }
 
 extension EventKitBridge {
-    /// Into the default calendar for new events. No attendees, no invitation: nothing leaves the Mac.
+    /// Into the named calendar, else the default calendar for new events. No attendees, no invitation: nothing leaves the Mac.
     func addEvent(_ e: NewCalendarEvent) throws -> HostWrite {
         guard access(.calendar) == .granted else { throw PippaError.accessDenied(Integration.calendar.appName) }
         let s = store
-        guard let calendar = s.defaultCalendarForNewEvents else { throw PippaError.entryFailed(L("I can’t find a calendar.", table: "Core")) }
+        let named = try e.calendar.map { name in
+            try CalendarTargetError.match(name, in: s.calendars(for: .event), title: \.title, writable: \.allowsContentModifications)
+        }
+        guard let calendar = named ?? s.defaultCalendarForNewEvents else { throw PippaError.entryFailed(L("I can’t find a calendar.", table: "Core")) }
         let ev = EKEvent(eventStore: s)
         ev.calendar = calendar
         ev.title = e.title

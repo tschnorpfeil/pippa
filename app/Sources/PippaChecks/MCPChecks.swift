@@ -94,6 +94,7 @@ func runMCPChecks() async {
     await context.protocolChecks()
     await context.calendarChecks()
     await context.reminderChecks()
+    await context.calendarAddChecks()
     await context.mailChecks()
     await context.photoChecks()
     await context.excelChecks()

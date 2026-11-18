@@ -53,8 +53,8 @@ final class EventKitBridge: @unchecked Sendable {
         return .removed
     }
 
-    /// Read only. All calendars for events, occurrences of recurring series as EventKit expands them; no notes,
-    /// attendees or links, only what an answer needs. Never asks for permissions.
+    /// Read only. All calendars for events, occurrences of recurring series as EventKit expands them, with organizer,
+    /// attendees, link and notes (`CalendarDigest` clips them). Never asks for permissions.
     func read(_ interval: DateInterval, limit: Int) throws -> CalendarFetch {
         guard access(.calendar) == .granted else { throw PippaError.accessDenied(Integration.calendar.appName) }
         let s = store
@@ -71,12 +71,35 @@ final class EventKitBridge: @unchecked Sendable {
             default: .none
             }
             let declined = ev.attendees?.contains { $0.isCurrentUser && $0.participantStatus == .declined } ?? false
+            let selfStatus = ev.attendees?.first(where: \.isCurrentUser).flatMap { Self.status($0.participantStatus) }
+            let attendees = (ev.attendees ?? []).compactMap { p -> CalendarEvent.Attendee? in
+                guard let name = Self.name(p) else { return nil }
+                return CalendarEvent.Attendee(name: name, status: Self.status(p.participantStatus), isCurrentUser: p.isCurrentUser)
+            }
             return CalendarEvent(id: ev.eventIdentifier ?? ev.calendarItemIdentifier, title: ev.title ?? "", start: ev.startDate, end: ev.endDate,
                                  allDay: ev.isAllDay, calendar: ev.calendar?.title ?? "", timeZone: ev.isAllDay ? nil : ev.timeZone?.identifier,
                                  status: status, declined: declined, recurring: ev.hasRecurrenceRules || ev.isDetached, location: ev.location,
-                                 color: ev.calendar?.cgColor.flatMap(Self.hex))
+                                 color: ev.calendar?.cgColor.flatMap(Self.hex), organizer: ev.organizer.flatMap(Self.name),
+                                 selfStatus: selfStatus, attendees: attendees, url: ev.url?.absoluteString, notes: ev.notes)
         }
         return CalendarFetch(events: Array(events), total: found.count, calendars: calendars.map(\.title).sorted())
+    }
+
+    static func status(_ s: EKParticipantStatus) -> CalendarEvent.ParticipantStatus? {
+        switch s {
+        case .accepted: .accepted
+        case .tentative: .tentative
+        case .pending: .pending
+        case .declined: .declined
+        default: nil
+        }
+    }
+
+    /// The participant's name, else the address without "mailto:".
+    static func name(_ p: EKParticipant) -> String? {
+        if let name = p.name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty { return name }
+        let address = p.url.absoluteString.replacingOccurrences(of: "mailto:", with: "", options: [.caseInsensitive, .anchored])
+        return address.isEmpty ? nil : address.removingPercentEncoding ?? address
     }
 
     /// "#RRGGBB" in sRGB, for the calendar card.

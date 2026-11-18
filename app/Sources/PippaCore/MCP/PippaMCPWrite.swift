@@ -38,9 +38,9 @@ public struct PippaMCPWriteTools: Sendable {
         let date = text, time = text
         return [
             tool("calendar_add", "Termin eintragen",
-                 "date=YYYY-MM-DD/today/tomorrow/weekday; time/end=HH:MM (omit=all-day); minutes=60 default; if_free=only free.",
-                 ["title": text, "date": date, "time": time, "minutes": ["type": "integer"], "end": time,
-                  "location": text, "notes": text, "if_free": ["type": "boolean"]],
+                 "date=YYYY-MM-DD/today/tomorrow/weekday; end_date=last day; time/end=HH:MM (omit=all-day); minutes=60; calendar=name; if_free=only free.",
+                 ["title": text, "date": date, "end_date": date, "time": time, "minutes": ["type": "integer"], "end": time,
+                  "calendar": text, "location": text, "notes": text, "if_free": ["type": "boolean"]],
                  required: ["title", "date"]),
             tool("reminder_add", "Erinnerung anlegen",
                  "date=YYYY-MM-DD/today/tomorrow/weekday; time=HH:MM needs date.",
@@ -60,7 +60,7 @@ public struct PippaMCPWriteTools: Sendable {
         var unknown: [String] = []
 
         static let allowed: [String: Set<String>] = [
-            "calendar_add": ["title", "date", "time", "minutes", "end", "location", "notes", "if_free"],
+            "calendar_add": ["title", "date", "end_date", "time", "minutes", "end", "calendar", "location", "notes", "if_free"],
             "reminder_add": ["title", "date", "time", "list", "notes"],
             "mail_draft": ["body", "reply_to", "subject", "to"],
         ]

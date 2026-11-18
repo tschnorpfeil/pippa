@@ -97,3 +97,7 @@
 "no access" = "kein Zugriff";
 "couldn’t be read" = "nicht lesbar";
 "stopped" = "abgebrochen";
+"There’s no calendar called “%@” that Pippa can add to. Nothing was added." = "Es gibt keinen Kalender namens „%@“, in den Pippa eintragen kann. Es wurde nichts eingetragen.";
+"There’s no calendar called “%@”. Pippa can add to: %@. Nothing was added." = "Es gibt keinen Kalender namens „%@“. Pippa kann eintragen in: %@. Es wurde nichts eingetragen.";
+"More than one calendar is called “%@”. Rename one in Calendar, then ask again. Nothing was added." = "Mehrere Kalender heißen „%@“. Benenne einen davon in Kalender um und frag dann noch einmal. Es wurde nichts eingetragen.";
+"The calendar “%@” is read-only. Choose another calendar. Nothing was added." = "Der Kalender „%@“ ist schreibgeschützt. Wähle einen anderen Kalender. Es wurde nichts eingetragen.";

@@ -97,3 +97,7 @@
 "no access" = "no access";
 "couldn’t be read" = "couldn’t be read";
 "stopped" = "stopped";
+"There’s no calendar called “%@” that Pippa can add to. Nothing was added." = "There’s no calendar called “%@” that Pippa can add to. Nothing was added.";
+"There’s no calendar called “%@”. Pippa can add to: %@. Nothing was added." = "There’s no calendar called “%@”. Pippa can add to: %@. Nothing was added.";
+"More than one calendar is called “%@”. Rename one in Calendar, then ask again. Nothing was added." = "More than one calendar is called “%@”. Rename one in Calendar, then ask again. Nothing was added.";
+"The calendar “%@” is read-only. Choose another calendar. Nothing was added." = "The calendar “%@” is read-only. Choose another calendar. Nothing was added.";

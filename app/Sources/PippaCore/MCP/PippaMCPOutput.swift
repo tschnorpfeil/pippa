@@ -114,8 +114,28 @@ extension PippaMCPTools {
         return result + "…"
     }
 
-    /// One step shorter: last event, last mail, last reminder, else halve long texts.
+    static let eventDetailKeys = ["notes", "attendees", "attendeesOmitted", "url", "organizer"]
+
+    /// One step shorter: event details (notes, attendees, link, organizer) of the last event that has them, then the last
+    /// event, last mail, reminder notes, last reminder, else halve long texts.
     private static func shrink(_ data: inout [String: Any]) -> Bool {
+        if var days = data["days"] as? [[String: Any]] {
+            for d in days.indices.reversed() {
+                guard var events = days[d]["events"] as? [[String: Any]],
+                      let e = events.lastIndex(where: { event in eventDetailKeys.contains { event[$0] != nil } }) else { continue }
+                for key in eventDetailKeys { events[e].removeValue(forKey: key) }
+                days[d]["events"] = events
+                data["days"] = days
+                data["detailsOmitted"] = true
+                return true
+            }
+        }
+        if var reminders = data["reminders"] as? [[String: Any]], let r = reminders.lastIndex(where: { $0["notes"] != nil }) {
+            reminders[r].removeValue(forKey: "notes")
+            data["reminders"] = reminders
+            data["detailsOmitted"] = true
+            return true
+        }
         if var days = data["days"] as? [[String: Any]], let index = days.lastIndex(where: { !(($0["events"] as? [Any]) ?? []).isEmpty }) {
             var events = days[index]["events"] as? [Any] ?? []
             events.removeLast()

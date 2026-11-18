@@ -55,9 +55,18 @@ extension PippaMCPWriteTools {
     }
 
     /// Short for the receipt ("Do., 8. Okt., 09:00"), for the model with year and end ("Do., 8. Okt. 2026, 09:00–10:00").
+    /// Spanning days: both ends ("Sa., 10. Okt. – Mo., 12. Okt."; an all-day end is exclusive, so the last day is shown).
     func when(_ start: Date, _ end: Date, allDay: Bool, short: Bool) -> String {
-        if allDay { return format(start, short ? "EEE d MMM" : "EEE d MMM y") }
+        let cal = host.calendar
+        if allDay {
+            let template = short ? "EEE d MMM" : "EEE d MMM y"
+            let last = end > start ? end.addingTimeInterval(-1) : start
+            return cal.isDate(start, inSameDayAs: last) ? format(start, template) : format(start, template) + " – " + format(last, template)
+        }
         let head = format(start, short ? "EEE d MMM HH:mm" : "EEE d MMM y HH:mm")
+        if !cal.isDate(start, inSameDayAs: end) && end > start {
+            return head + " – " + format(end, short ? "EEE d MMM HH:mm" : "EEE d MMM y HH:mm")
+        }
         return short ? head : head + "–" + format(end, "HH:mm")
     }
 }

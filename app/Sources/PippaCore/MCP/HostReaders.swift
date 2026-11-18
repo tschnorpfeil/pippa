@@ -55,8 +55,21 @@ public struct ReminderItem: Sendable, Equatable {
     public var due: Date?
     /// Due at a time of day (otherwise only on the day).
     public var dueHasTime: Bool
-    public init(title: String, list: String, due: Date? = nil, dueHasTime: Bool = false) {
-        self.title = title; self.list = list; self.due = due; self.dueHasTime = dueHasTime
+    public var notes: String?
+    /// "high", "medium" or "low" (EventKit 1–4, 5, 6–9); `nil` without priority.
+    public var priority: String?
+    public init(title: String, list: String, due: Date? = nil, dueHasTime: Bool = false, notes: String? = nil, priority: String? = nil) {
+        self.title = title; self.list = list; self.due = due; self.dueHasTime = dueHasTime; self.notes = notes; self.priority = priority
+    }
+
+    /// EventKit's 0–9 scale as a word.
+    public static func priority(_ value: Int) -> String? {
+        switch value {
+        case 1...4: "high"
+        case 5: "medium"
+        case 6...9: "low"
+        default: nil
+        }
     }
 }
 
@@ -124,7 +137,8 @@ extension SystemIntegrations: HostDataReading {
                 done.resume(returning: (found ?? []).map { r in
                     let parts = r.dueDateComponents
                     let due = parts.flatMap { Calendar.autoupdatingCurrent.date(from: $0) }
-                    return ReminderItem(title: r.title ?? "", list: r.calendar?.title ?? "", due: due, dueHasTime: parts?.hour != nil)
+                    return ReminderItem(title: r.title ?? "", list: r.calendar?.title ?? "", due: due, dueHasTime: parts?.hour != nil,
+                                        notes: r.notes.map { String($0.prefix(400)) }, priority: ReminderItem.priority(r.priority))
                 })
             }
         }

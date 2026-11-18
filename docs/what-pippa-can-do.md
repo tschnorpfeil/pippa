@@ -31,21 +31,24 @@ minutes old, and the pencil (⌘N) always starts a new one. You can switch it of
 ## Everyday jobs
 
 Ask **“Go through my inboxes”** for priorities and proposed next steps. Pippa keeps accounts separate and names any
-account she could not read. One answer shows at most 100 previews in bounded pages, taking the newest messages from
-each account so a busy inbox does not hide a smaller one. A preview is only the header and start of a message; Pippa
-uses its exact reference to read the whole message before assessing it in detail. This overview does not move, flag,
-mark as read, delete or send messages. Account-specific rows do not open an ambiguous `message://` link: find the
-message in the account named on its card. This requires the local AI or an online AI with explicit Mac access.
+account she could not read. She can keep to unread or read messages, check Sent and Drafts, and see whether Mail marks a
+message as replied to, forwarded or flagged, so she does not propose answering what you already answered. One answer
+shows at most 100 previews with the local AI, or 300 with an online AI that has Mac access, in bounded pages, taking the
+newest messages from each account so a busy inbox does not hide a smaller one. A preview is only the header and start of
+a message; Pippa uses its exact reference to read the whole message before assessing it in detail, and can save a
+threaded reply draft straight from that reference. This overview does not move, flag, mark as read, delete or send
+messages. Account-specific rows do not open an ambiguous `message://` link: find the message in the account named on
+its card. This requires the local AI or an online AI with explicit Mac access.
 
 | What you need | How Pippa helps |
 |---|---|
 | **A letter you can act on** | Ask what it says, what you need to do and by when. She quotes the passage her answer comes from, and flags full dates (with a year, including nearby ones) in her answer that do not appear in what she read; dates without a year and deadlines measured from receipt still need checking against the original. A PDF or a phone photo works. |
 | **A PDF ready to send** | Drop photos or scans and press **One PDF**, or ask for one PDF in your own words. Pippa keeps your order, checks every page and reports the real file size. Give a size limit, such as 10 MB, and she aims for it. Your originals stay unchanged. |
-| **An appointment or a reminder** | Ask Pippa to add it to Calendar or Reminders, or to add the deadline from a letter. A card under her answer shows what was actually added. |
-| **What's coming up** | Ask about today, this week or a range of dates. She reads your calendar and your open reminders. |
+| **An appointment or a reminder** | Ask Pippa to add it to Calendar or Reminders, or to add the deadline from a letter. She can put an appointment in the calendar you name and span several days, such as a trip from Friday to Sunday. If that calendar does not exist, is read-only or its name is ambiguous, she adds nothing and says so. A card under her answer shows what was actually added. |
+| **What's coming up** | Ask about today, this week or a range of dates. She reads your calendar, including who organized a meeting, who accepted, your own answer, meeting links and notes, and your open reminders with their notes and priority. |
 | **A file you can't find** | Ask "Where is the invoice for my helmet?" Pippa searches your Mac's Spotlight index by content, file name and folder, optionally by year or kind, and lists the newest first. |
 | **A tidier folder** | Ask her to rename a file, move it, or sort a folder's files into subfolders. Moves never overwrite another file. A file she removes goes to the Trash, never deleted for good. |
-| **A reply ready to review** | Pippa finds and reads your newest matching mails in Apple Mail, including document attachments, keeps the account and original message identity for a reply, and saves an unsent draft in Mail for you to review and send. She never sends mail. |
+| **A reply ready to review** | Pippa finds and reads your newest matching mails in Apple Mail, including document attachments, keeps the account and original message identity for a reply, and saves an unsent draft in the same thread, from a mail she read or a search result, for you to review and send. She never sends mail. |
 | **A clearer piece of writing** | Shorten a text, make it clearer and friendlier, fix spelling, summarize it or turn notes into a checklist. |
 
 A few more things she can do when you ask:

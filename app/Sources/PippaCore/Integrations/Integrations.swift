@@ -190,6 +190,8 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
     /// Synthetic events (never real); `nil` = `sampleCalendar` relative to now. Tests and PIPPA_DEMO only.
     public var calendarEvents: [CalendarEvent]?
     public var calendarNames = ["Arbeit", "Privat"]
+    /// Tests: calendars that refuse new events (subscriptions, birthdays).
+    public var readOnlyCalendars: Set<String> = []
     /// Tests: reading fails technically (e.g. calendar database unreachable).
     public var calendarFails = false
     private var reads: [DateInterval] = []
@@ -342,7 +344,10 @@ extension DemoIntegrations: HostWriting {
         try requireGranted(.calendar)
         let id = "demo-\(UUID().uuidString)"
         let item = CreatedItem(integration: .calendar, identifier: id, modified: Date(), fingerprint: "demo-\(id)")
-        let calendar = calendarNames.last ?? "Privat"
+        let readOnly = readOnlyCalendars
+        let calendar = try event.calendar.map { name in
+            try CalendarTargetError.match(name, in: calendarNames, title: { $0 }, writable: { !readOnly.contains($0) })
+        } ?? calendarNames.last ?? "Privat"
         try PippaMCPWriteLease.current?.beginDispatch()
         lock.withLock {
             items[id] = (item, event.title)

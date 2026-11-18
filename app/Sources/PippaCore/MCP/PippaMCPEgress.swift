@@ -27,11 +27,12 @@ public struct PippaMCPEgress: Sendable, Equatable {
 
     public func allows(_ tool: String) -> Bool { tools.contains(tool) }
 
-    /// The arguments an online AI may not use: replying needs the original mail, `if_free` reads the calendar.
-    func refusal(_ tool: String, _ arguments: [String: Any]) -> String? {
+    /// The arguments an online AI may not use: replying needs the original mail, `if_free` and `calendar` read the calendar.
+    package func refusal(_ tool: String, _ arguments: [String: Any]) -> String? {
         if !allows(tool) { return "stays_on_mac" }
         if tool == "mail_draft", arguments["reply_to"] != nil { return "reply_needs_mail" }
-        if tool == "calendar_add", arguments["if_free"] as? Bool == true { return "needs_calendar" }
+        // Naming a calendar would let the online AI probe calendar names (not_found vs done): any value is refused.
+        if tool == "calendar_add", arguments["if_free"] as? Bool == true || arguments["calendar"] != nil { return "needs_calendar" }
         return nil
     }
 

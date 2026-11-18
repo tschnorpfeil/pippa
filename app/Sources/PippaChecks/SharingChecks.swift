@@ -688,11 +688,19 @@ func runSharingChecks() async {
         let today = ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withFullDate])
         let added = await mcpCall(online, "calendar_add", ["title": "Fixture", "date": today, "time": "16:15", "minutes": 30])
         let ifFree = await mcpCall(online, "calendar_add", ["title": "Fixture", "date": today, "time": "16:15", "if_free": true])
+        let before = demo.createdCount
+        var probes: [(String, Bool)] = []
+        for value in ["Arbeit", "Private-CALENDAR-MARKER", "", 1, NSNull()] as [Any] {
+            probes.append(await mcpCall(online, "calendar_add", ["title": "Probe", "date": today, "calendar": value]))
+        }
+        let probed = demo.createdCount - before
         let reminder = await mcpCall(online, "reminder_add", ["title": "Fixture reminder", "list": "Private-LIST-MARKER"])
         let reply = await mcpCall(online, "mail_draft", ["body": "Hi", "reply_to": "selected"])
         let fresh = await mcpCall(online, "mail_draft", ["body": "Hi", "subject": "New", "to": "a@example.invalid"])
         return !added.isError && added.text.contains("\"done\":true") && !added.text.contains("Zahnarzt") && !added.text.contains("conflicts")
             && ifFree.isError && ifFree.text.contains("needs_calendar")
+            && probes.allSatisfy { $0.1 && $0.0.contains("needs_calendar") && !$0.0.contains("Arbeit") }
+            && probed == 0
             && !reminder.isError && !reminder.text.contains("\"list\"") && !reminder.text.contains("Erinnerungen")
             && reply.isError && reply.text.contains("reply_needs_mail") && !fresh.isError
             && demo.insertedDrafts.count == 1 && demo.insertedDrafts.first?.isReply == false
