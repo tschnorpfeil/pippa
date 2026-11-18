@@ -32,6 +32,8 @@ enum PippaMCPService {
         serverEgress?.onlineBrowser?.end(turn)
     }
 
+    static func cancelNativeTurn() { currentHost.turns.active?.cancelWrites() }
+
     /// Photos and PDFs into one PDF without the model: the same tool Pi calls, started by a button.
     static func makePDF(_ files: [URL]) async -> (card: ResultCard?, text: String, failed: Bool) {
         let turn = PippaMCPTurn()

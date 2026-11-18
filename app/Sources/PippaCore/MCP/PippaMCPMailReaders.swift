@@ -95,7 +95,7 @@ extension PippaMCPTools {
 
     /// One mail for the model: text, identity for a reply draft, and its attachments saved as files (`MailFiling`), so
     /// read_document can read them. Without Mail's original message, or when saving fails, only names are known and the result says so.
-    func mailResult(_ mail: MailMessage, source: String, account: String? = nil) -> PippaMCPToolResult {
+    func mailResult(_ mail: MailMessage, source: String, account: String? = nil, filingScope: [String] = []) -> PippaMCPToolResult {
         let all = Self.compact(mail.body)
         let body = Self.byteClipped(all, characters: 6000, bytes: 6000)
         var data: [String: Any] = ["subject": mail.subject, "from": mail.sender, "body": body, "bodyTruncated": body != all]
@@ -110,7 +110,7 @@ extension PippaMCPTools {
         // Without Mail's original message there are no attachment bytes, whatever names Mail lists.
         let sourceBlank = (mail.source ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         var files: [URL] = [], notSaved = mail.attachmentNames
-        if !sourceBlank, let filed = try? MailFiling.file(mail, root: host.mailFiles) { files = filed.attachments; notSaved = filed.notSaved }
+        if !sourceBlank, let filed = try? MailFiling.file(mail, root: host.mailFiles, scope: filingScope) { files = filed.attachments; notSaved = filed.notSaved }
         if !files.isEmpty {
             data["attachments"] = files.prefix(20).map { ["name": $0.lastPathComponent, "path": $0.path] }
             next += "Its attachments are saved as files: read one with mcp__pippa__read_document and its path. "

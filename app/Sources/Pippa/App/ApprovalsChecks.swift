@@ -199,6 +199,17 @@ enum ConversationStoreChecks {
               "an account-specific Mail source never opens an account-blind message link")
         check(SourceLog.detail(result: #"{"data":{"bodyTruncated":true}}"#) == T("Beginning only", table: "App"),
               "a clipped email body is identified as a partial read")
+        do {
+            let chat = ChatModel.shared, saved = (ChatModel.shared.conversations, ChatModel.shared.currentID)
+            let id = "mail-partial-check"
+            chat.showSample([Conversation(id: id, title: "Synthetic", updated: Date(), messages: [ChatMessage(role: .assistant, text: "")])],
+                            current: id, answering: true)
+            chat.apply(.toolEnded(id: "synthetic-mail", name: "mcp__pippa__mail_read", isError: false,
+                                  result: #"{"data":{"subject":"Synthetic mail","account":"Work","bodyTruncated":true}}"#), in: id)
+            check(chat.conversations.first?.messages.last?.sources?.first?.detail == T("Beginning only", table: "App"),
+                  "a completed Mail tool updates the actual chat source with its partial-read disclosure")
+            chat.showSample(saved.0, current: saved.1, answering: false)
+        }
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",
               "a mail read by id gets its title and openable identity from the result")
         check(firstMail != nil && secondMail != nil && Set([firstMail, secondMail]).count == 2,

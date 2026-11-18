@@ -74,6 +74,15 @@ public struct ProtectedPaths: Sendable, Equatable {
         return ["PIPPA_PROTECTED_PATHS": list, "PIPPA_WORK_DIR": work.first?.url.path ?? "", "PIPPA_WORK_ID": id ?? ""]
     }
 
+    public struct Refused: Error {}
+
+    /// Freeze the effective path first, then authorize that same URL for the operation that opens it.
+    public func authorizedURL(_ url: URL) throws -> URL {
+        let resolved = URL(fileURLWithPath: Self.real(url)).standardizedFileURL.resolvingSymlinksInPath()
+        guard !contains(resolved) else { throw Refused() }
+        return resolved
+    }
+
     public func contains(_ url: URL) -> Bool {
         // A hard link has no canonical parent; an open alias cannot establish that the file is outside our folders.
         var targetInfo = stat()

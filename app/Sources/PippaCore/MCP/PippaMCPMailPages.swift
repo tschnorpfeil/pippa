@@ -333,7 +333,8 @@ extension PippaMCPTools {
                 return Self.notRead("stale", "This email changed or left the inbox of \(ref.label) since the search. Nothing was read; do not use another email instead.")
             }
             guard mailTurnIsLive(turn) else { return Self.mailCancelled }
-            return mailResult(found.message, source: "Mail on this Mac (email from the inbox of one account)", account: ref.label)
+            return mailResult(found.message, source: "Mail on this Mac (email from the inbox of one account)", account: ref.label,
+                              filingScope: [ref.account.id, String(ref.mailID)] + ref.path)
         } catch {
             return mailTurnIsLive(turn) ? failure(error, .mail) : Self.mailCancelled
         }

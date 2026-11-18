@@ -221,7 +221,11 @@ enum SharingRouteChecks {
 
         let unchanged = await turn(.local(prompt)) {}
         check(unchanged.sent == [prompt] && unchanged.error == nil, "nothing changed: the running Pi gets the prompt once")
+        let native = PippaMCPTurn()
+        PippaMCPService.begin(native)
         let stopped = await turn(.local(prompt)) { await session.stop() }
+        check(native.writes.snapshot.cancelled, "Stop cancels native read/write dispatch before awaiting Pi")
+        PippaMCPService.end(native)
         check(refused(stopped), "Stop while the final reread is suspended prevents dispatch")
         let local = PiSession.LaunchRoute(key: "local|fixture").with(.init(web: false, memory: false))
         let changedLocal = local.with(.init(web: false, memory: true))

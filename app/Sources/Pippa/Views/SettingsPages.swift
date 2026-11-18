@@ -133,7 +133,7 @@ struct SharingSettings: View {
     private func macAccessRow(_ active: ShareDestination, allowed: Bool) -> some View {
         let title = T("Allow Mac access", table: "Settings")
         let detail = active.isVerified
-            ? T("%@ can use the same Mac tools as the AI on this Mac: files, shell commands, Mail, Calendar, Reminders, Photos and the app in front. What they read, files you add and your personal notes, if they’re on, go to %@. Pippa still asks before commands and changes. Only for this provider, model and account. Changes apply from your next question; an answer already running keeps its access until it finishes or you stop it.", table: "Settings", active.label, active.provider)
+            ? T("%@ can use the same Mac tools as the AI on this Mac: files, shell commands, Mail, Calendar, Reminders, Photos and the app in front. What they read, files you add and your personal notes, if they’re on, go to %@. Pippa’s existing confirmations and macOS permissions still apply. Only for this provider, model and account. Changes apply from your next question; an answer already running keeps its access until it finishes or you stop it.", table: "Settings", active.label, active.provider)
             : T("Pippa can’t confirm which account %@ uses, so it can’t get Mac access.", table: "Settings", active.label)
         return SettingsRow(title: title, detail: detail) {
             Toggle(title, isOn: Binding(get: { allowed }, set: { on in

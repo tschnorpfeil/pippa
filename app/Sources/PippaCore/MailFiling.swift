@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// A mail as files Pippa can read: the message as .eml and each real attachment as its own file, in Pippa's cache (never
 /// next to a person's own file). Signature logos and icons shown inside the text are left out. `InboxCleanup` removes
@@ -68,11 +69,15 @@ public enum MailFiling {
     /// A mail read from Mail as files: the .eml (Mail's original message when it gave one) and its attachments, in one
     /// folder per message under `root`, so reading the same mail again reuses them. `notSaved` names every attachment
     /// Mail lists whose bytes are not in a file (not even a name-only stand-in is readable content).
-    public static func file(_ mail: MailMessage, root: URL = inbox) throws -> (eml: URL, attachments: [URL], notSaved: [String]) {
+    public static func file(_ mail: MailMessage, root: URL = inbox, scope: [String] = []) throws -> (eml: URL, attachments: [URL], notSaved: [String]) {
         let text = mail.emlText
-        // Without a Message-ID the text joins the identity: two mails with the same subject, sender and date never share a folder.
-        let identity = mail.messageID ?? (mail.subject + "|" + mail.sender + "|" + String(mail.date?.timeIntervalSince1970 ?? 0) + "|" + stableHash(text))
-        let folder = root.appendingPathComponent("mail-" + stableHash(identity), isDirectory: true)
+        // A Message-ID can occur in several accounts. Content changes must also leave earlier attachment paths intact.
+        let identity: [String: Any] = ["messageID": mail.messageID ?? "", "account": mail.locator?.account ?? "",
+                                      "path": mail.locator?.path ?? [], "mailID": mail.locator?.mailID ?? 0,
+                                      "scope": scope, "content": text]
+        let bytes = try JSONSerialization.data(withJSONObject: identity, options: .sortedKeys)
+        let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        let folder = root.appendingPathComponent("mail-" + digest, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let eml = folder.appendingPathComponent(mail.fileName)
         if (try? String(contentsOf: eml, encoding: .utf8)) != text { try text.write(to: eml, atomically: true, encoding: .utf8) }

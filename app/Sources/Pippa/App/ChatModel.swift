@@ -720,7 +720,7 @@ final class ChatModel: ObservableObject {
         }
     }
 
-    private func apply(_ event: PiRPCEvent, in id: String) {
+    func apply(_ event: PiRPCEvent, in id: String) {
         evidence.observe(event)
         let writing = Self.writing(isWriting, after: event)
         if writing != isWriting { isWriting = writing }
@@ -762,7 +762,7 @@ final class ChatModel: ObservableObject {
             // A source counts once it was read; the same file read twice shows once, with its latest pages.
             let pendingSource = pendingSources.removeValue(forKey: call)
             if !failed, var source = SourceLog.source(tool: name, arguments: "{}", result: result) ?? pendingSource {
-                if name.hasSuffix("read_document") { source.detail = SourceLog.detail(result: result) }
+                if name.hasSuffix("read_document") || name.hasSuffix("mail_read") { source.detail = SourceLog.detail(result: result) }
                 if source.kind == .file { source.notes = notes }
                 updateLast(in: id) { message in
                     var sources = message.sources ?? []

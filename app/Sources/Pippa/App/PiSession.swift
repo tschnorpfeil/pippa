@@ -244,6 +244,7 @@ final class PiSession {
     }
 
     func stop() async {
+        PippaMCPService.cancelNativeTurn()
         pendingPrompt?.cancel()
         preloadTask?.cancel()
         if let startupTask {

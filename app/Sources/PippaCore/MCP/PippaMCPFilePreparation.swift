@@ -93,8 +93,8 @@ public struct PippaMCPFilePreparation: Sendable {
             var request = try Request(raw)
             // Pippa's own folder and Pi's sign-in folders never become a prepared file (ProtectedPaths), also behind a symlink.
             let protected = ProtectedPaths.app()
-            guard !request.paths.contains(where: { protected.contains(URL(fileURLWithPath: $0)) }) else { throw ProtectedPathRefused() }
-            request.paths = request.paths.map { URL(fileURLWithPath: $0).standardizedFileURL.resolvingSymlinksInPath().path }
+            do { request.paths = try request.paths.map { try protected.authorizedURL(URL(fileURLWithPath: $0)).path } }
+            catch { throw ProtectedPathRefused() }
             let normalized = request
             let worker = Task.detached(priority: .userInitiated) { await execute(normalized, turn: turn, lease: lease) }
             // Ending a Pi turn cancels its native scope even if the HTTP task itself stays alive.
@@ -157,7 +157,7 @@ public struct PippaMCPFilePreparation: Sendable {
                 lease.bindOperationID(existing.id, nativeRevision: existing.revision)
                 return Execution(result: try await existingResult(existing, store: store, plan: request.plan, lease: lease))
             }
-            let urls = request.paths.map { URL(fileURLWithPath: $0) }
+            let urls = try request.paths.map { try ProtectedPaths.app().authorizedURL(URL(fileURLWithPath: $0)) }
             guard FilePreparation.accepts(urls) else { throw DurableJobError.invalidRequest }
             var sources: [FilePreparationSource] = [], inputs: [DurableJobInput] = [], items: [TrayItem] = []
             for url in urls {
@@ -221,6 +221,9 @@ public struct PippaMCPFilePreparation: Sendable {
             if stopped {
                 return Execution(result: Self.failure(retired ? "not_dispatched" : "unclear", retired ? "Stopped. No prepared result was published." : "Stopped while saving the result. Review the saved request before retrying.",
                                     reason: "stopped", outcome: retired ? "cancelled" : "unclear", dispatched: !retired))
+            }
+            if error is ProtectedPaths.Refused {
+                return Execution(result: Self.failure("not_dispatched", ProtectedPaths.reason, reason: "protected"))
             }
             if PermissionRepairTarget.isFileAccessDenied(error as NSError) {
                 var failure = Self.failure("denied", "Pippa cannot read one of these files. Review file access; do not try another way.", reason: "denied")

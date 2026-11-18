@@ -381,6 +381,21 @@ extension MCPCheckContext {
             let result = MailFiling.save(of: eml, into: folder)
             return result.unsaved == ["Vertrag.pdf"] && result.saved.map(\.name) == ["Zweite.pdf"]
         }
+        check("Mail attachments: account copies with the same Message-ID keep their original attachment bytes") {
+            func copy(_ account: String, _ bytes: String) -> MailMessage {
+                let part = "Content-Type: application/octet-stream; name=\"copy.txt\"\nContent-Disposition: attachment; filename=\"copy.txt\"\nContent-Transfer-Encoding: base64\n\n" + Data(bytes.utf8).base64EncodedString()
+                var value = mail(names: ["copy.txt"], source: mime(part))
+                value.messageID = "shared@fixture.example"
+                value.locator = MailLocator(account: account, path: ["INBOX"], mailID: 7)
+                return value
+            }
+            let root = dir("mail-same-id-copies")
+            let a = try MailFiling.file(copy("Private", "FIRST"), root: root, scope: ["account-A", "7", "INBOX"])
+            let b = try MailFiling.file(copy("Work", "SECOND"), root: root, scope: ["account-B", "7", "INBOX"])
+            guard let first = a.attachments.first, let second = b.attachments.first else { return false }
+            let firstData = try Data(contentsOf: first), secondData = try Data(contentsOf: second)
+            return first != second && firstData == Data("FIRST".utf8) && secondData == Data("SECOND".utf8)
+        }
         check("Mail attachments: two mails with the same subject, sender and no Message-ID keep separate folders") {
             let root = dir("mail-same-subject")
             func plain(_ text: String) -> MailMessage {

@@ -37,6 +37,18 @@ func runProtectedPathChecks() async {
         let open = [work.appendingPathComponent("note.txt").path, documents.appendingPathComponent("letter.txt").path, work.path]
         return closed.allSatisfy { paths.contains(URL(fileURLWithPath: $0)) } && !open.contains { paths.contains(URL(fileURLWithPath: $0)) }
     }
+    check("Protected paths: authorization returns the same resolved URL the reader opens") {
+        let policy = ProtectedPaths(roots: [agent, support], open: [work])
+        let alias = documents.appendingPathComponent("input.txt")
+        let original = documents.appendingPathComponent("letter.txt")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: original)
+        let admitted = try policy.authorizedURL(alias)
+        try FileManager.default.removeItem(at: alias)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: agent.appendingPathComponent("auth.json"))
+        let read = try String(contentsOf: admitted, encoding: .utf8)
+        return admitted.lastPathComponent == original.lastPathComponent && read == "ok"
+            && (try? policy.authorizedURL(alias)) == nil
+    }
     check("Protected paths: the extensions get the same places; a working folder that holds a protected one is not open") {
         let env = ProtectedPaths.app(support: support, home: home, extra: [URL(fileURLWithPath: "/tmp/pinned")], environment: [:]).environment
         let listed = (try? JSONSerialization.jsonObject(with: Data((env["PIPPA_PROTECTED_PATHS"] ?? "").utf8))) as? [String] ?? []
