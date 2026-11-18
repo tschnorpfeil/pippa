@@ -101,6 +101,19 @@ func runSharingChecks() async {
             && ShareDestination(custom, recipient: first).sessionTag != ShareDestination(custom, recipient: rekeyed).sessionTag
             && !(first ?? "").contains("ACME") && !(first ?? "").contains("example")
     }
+    check("Recipient: a cached model endpoint change invalidates an open review") {
+        let store = agent.appendingPathComponent("models-store.json")
+        defer { try? fm.removeItem(at: store) }
+        try writeAgent(models: nil, auth: ["acme": ["type": "api_key", "key": "FIXTURE"]])
+        func catalog(_ endpoint: String) throws {
+            let model = ["id": custom.modelID, "provider": custom.providerID, "baseUrl": endpoint, "api": "openai-completions"]
+            try JSONSerialization.data(withJSONObject: [custom.providerID: ["models": [model]]]).write(to: store)
+        }
+        try catalog("https://a.example.invalid")
+        let first = recipients.fingerprint(custom)
+        try catalog("https://b.example.invalid")
+        return first != nil && first != recipients.fingerprint(custom)
+    }
     check("Recipient: a built-in provider changes with its stored key or sign-in; token refreshes keep a named account") {
         try writeAgent(models: nil, auth: ["openai": ["type": "api_key", "key": "SK-FIXTURE-1"]])
         let keyOne = recipients.fingerprint(model)

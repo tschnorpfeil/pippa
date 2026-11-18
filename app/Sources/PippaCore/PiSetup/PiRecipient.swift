@@ -45,6 +45,17 @@ public struct PiRecipient: Sendable {
                 parts["config"] = entry
             }
         }
+        // Pi also restores dynamic models (including their endpoint and headers) from the provider catalog on disk.
+        let catalog = agent.appendingPathComponent("models-store.json")
+        if fm.fileExists(atPath: catalog.path) {
+            guard let document = JSONFile.readObject(catalog) else { return nil }
+            if let entry = document[model.providerID] {
+                guard let record = entry as? [String: Any], let models = record["models"] as? [[String: Any]] else { return nil }
+                let selected = models.filter { $0["id"] as? String == model.modelID && $0["provider"] as? String == model.providerID }
+                guard Self.hasStaticRouting(selected) else { return nil }
+                if !selected.isEmpty { parts["catalogModel"] = selected }
+            }
+        }
         let authJSON = agent.appendingPathComponent("auth.json")
         if fm.fileExists(atPath: authJSON.path) {
             guard let document = JSONFile.readObject(authJSON) else { return nil }
