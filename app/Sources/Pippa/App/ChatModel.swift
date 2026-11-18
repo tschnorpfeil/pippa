@@ -100,6 +100,10 @@ final class ChatModel: ObservableObject {
 
     @Published private(set) var conversations: [Conversation] = []
     @Published var currentID: String?
+    private var composers: [String: ShareComposer] = [:]
+    var hasReviewHere: Bool {
+        review != nil || desk.parked(in: currentID, handoff: false) != nil || desk.parked(in: currentID, handoff: true) != nil
+    }
     @Published var draft = ""
     @Published var attachments: [URL] = []
     /// The app that was in front when Pippa was called ("Mail"), told to Pi with the next question so "this mail"
@@ -171,17 +175,32 @@ final class ChatModel: ObservableObject {
     // MARK: Conversations
 
     func newConversation() {
-        if let current, current.messages.isEmpty { return }
+        if let current, current.messages.isEmpty && !hasReviewHere { return }
+        if let currentID { saveComposer(for: currentID) }
         desk.select(nil)
         currentID = nil
         draft = ""; attachments = []
     }
 
-    /// Works while an answer runs: it keeps arriving in its own conversation.
-    func select(_ id: String) {
-        // An open review stays with the conversation it was opened in, with its edits (`ShareDesk`).
-        desk.select(id)
-        currentID = id
+    private func saveComposer(for id: String) {
+        let composer = ShareComposer(text: draft, files: attachments)
+        composers[id] = composer.isEmpty ? nil : composer
+    }
+
+    /// Opening an Island result carries ordinary unsent input. A reviewed draft always belongs to its source chat.
+    func select(_ id: String, carryingIslandDraft: Bool = false) {
+        if currentID != id {
+            let carry = carryingIslandDraft && !hasReviewHere && (!draft.isEmpty || !attachments.isEmpty)
+            if let currentID {
+                if carry { composers[currentID] = nil } else { saveComposer(for: currentID) }
+            }
+            desk.select(id)
+            currentID = id
+            if !carry {
+                let saved = composers.removeValue(forKey: id)
+                draft = saved?.text ?? ""; attachments = saved?.files ?? []
+            }
+        }
         unseenIDs.remove(id)
     }
 
@@ -189,7 +208,8 @@ final class ChatModel: ObservableObject {
         guard !isAnswering || id != answeringID else { return }
         unseenIDs.remove(id)
         conversations.removeAll { $0.id == id }
-        if currentID == id { currentID = nil }
+        if currentID == id { currentID = nil; draft = ""; attachments = [] }
+        composers[id] = nil
         desk.forget(id)
         store.trash(id)
         Task { await PiSession.shared.forget(id) }
@@ -436,6 +456,13 @@ final class ChatModel: ObservableObject {
     /// Opens the review for the conversation shown, resuming one parked there with its edits (`ShareDesk.open`), and
     /// reads the files it does not have yet. `composer`: what it is made from, the composer itself unless a retry says.
     private func startReview(_ destination: ShareDestination, handoff: Bool, composer: ShareComposer? = nil, explicit: Bool = false) {
+        if currentID == nil {
+            let id = UUID().uuidString.lowercased()
+            let words = (composer?.text ?? draft).trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = words.isEmpty ? T("New Conversation", table: "App") : String(words.prefix(60))
+            conversations.insert(Conversation(id: id, title: title, updated: Date(), messages: []), at: 0)
+            currentID = id
+        }
         let rules = SettingsModel.shared.inferenceSettings.sharing
         let fresh = handoff ? lastAnswerHere().map { [$0] } ?? [] : []
         let unread = desk.open(in: currentID, destination: destination, handoff: handoff,
