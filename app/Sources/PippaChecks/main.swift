@@ -44,7 +44,7 @@ await focused("PIPPA_PROVIDER_CHECKS", "Provider") {
     await runInferenceChecks()
     await runProviderChecks()
 }
-await focused("PIPPA_SHARING_CHECKS", "Sharing") { await runSharingChecks() }
+await focused("PIPPA_SHARING_CHECKS", "Sharing") { await runSharingChecks(); runShareDeskChecks() }
 await focused("PIPPA_RELIABILITY_CHECKS", "Reliability") {
     runSkillChecks()
     await runSheetChecks()
@@ -439,6 +439,7 @@ await runLetterChecks()
 await runSheetChecks()
 await runProviderChecks()
 await runSharingChecks()
+runShareDeskChecks()
 await runCalendarChecks()
 runCalendarStoreChecks()
 await runResultCardChecks()

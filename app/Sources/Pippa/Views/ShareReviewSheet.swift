@@ -4,7 +4,8 @@ import SwiftUI
 
 /// Before anything from the Mac goes to an online AI: who receives it, the person's words, and each part Pippa read
 /// here with where it came from, editable and each one can be left out. Parts whose source is set to "Only on this
-/// Mac" are named, never shown or sent. Cancel keeps the draft and files in the composer; nothing is sent until Send.
+/// Mac" are named, never shown or sent. Nothing is sent until Send; Cancel or closing keeps every edit with the
+/// conversation it was opened in (`ShareDesk`), and the composer offers to continue it.
 struct ShareReviewSheet: View {
     @ObservedObject var chat: ChatModel
 

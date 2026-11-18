@@ -250,3 +250,11 @@
 "Stays on this Mac" = "Stays on this Mac";
 "The online AI changed since you checked. Nothing was sent; check again for the new one." = "The online AI changed since you checked. Nothing was sent; check again for the new one.";
 "Your message" = "Your message";
+"Photo" = "Photo";
+"Photo from Photos…" = "Photo from Photos…";
+"Pippa couldn’t read this photo." = "Pippa couldn’t read this photo.";
+"Your check for %@ is kept" = "Your check for %@ is kept";
+"Continue Checking…" = "Continue Checking…";
+"Open the check again with your edits; nothing is sent until you press Send" = "Open the check again with your edits; nothing is sent until you press Send";
+"Discard the check" = "Discard the check";
+"For one question to %@" = "For one question to %@";

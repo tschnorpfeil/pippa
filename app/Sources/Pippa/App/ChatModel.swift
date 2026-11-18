@@ -57,20 +57,9 @@ struct ChatMessage: Codable, Identifiable, Equatable {
 }
 
 /// The review before anything from the Mac goes to an online AI: the provider, the person's words and each part Pippa
-/// read on this Mac, editable, and what stays here. Nothing is sent until the person presses Send.
-struct ShareReview: Identifiable {
-    let id = UUID()
-    var plan: SharePlan
-    /// A single question for the recipient while conversations stay on this Mac.
-    var handoff: Bool
-    /// The attached files it was made from: they leave the composer only once the approved text is sent.
-    var files: [URL]
-    /// Reads on this Mac still running; Send waits for them.
-    var pending = 0
-    var loading: Bool { pending > 0 }
-    /// Why it can't be sent (the online AI changed, a source could not be read).
-    var problem: String?
-}
+/// read on this Mac, editable, and what stays here. Nothing is sent until the person presses Send. Its lifecycle
+/// (cancel, switching conversations, a failed send) is `ShareDesk`.
+typealias ShareReview = ShareDraft
 
 extension ChatMessage {
     /// What she found, without what she said on the way there: the text after the last tool call, or all of it when
@@ -133,8 +122,13 @@ final class ChatModel: ObservableObject {
     private var stopRequested = false
     /// Counts answers, so a late result of an earlier one never lands on a newer one.
     private var generation = 0
-    /// Open while the person checks what goes to an online AI (`ShareReview`).
-    @Published var review: ShareReview?
+    /// The review open while the person checks what goes to an online AI, and the ones parked with their edits.
+    @Published private(set) var desk = ShareDesk()
+    /// Open while the person checks what goes to an online AI (`ShareReview`). Set directly only by snapshots.
+    var review: ShareReview? {
+        get { desk.open }
+        set { desk.present(newValue) }
+    }
 
     private static var folder: URL { Pippa.supportDirectory.appendingPathComponent("conversations", isDirectory: true) }
     /// Reading and writing conversation files, away from the window.
@@ -165,12 +159,15 @@ final class ChatModel: ObservableObject {
 
     func newConversation() {
         if let current, current.messages.isEmpty { return }
+        desk.select(nil)
         currentID = nil
         draft = ""; attachments = []
     }
 
     /// Works while an answer runs: it keeps arriving in its own conversation.
     func select(_ id: String) {
+        // An open review stays with the conversation it was opened in, with its edits (`ShareDesk`).
+        desk.select(id)
         currentID = id
         unseenIDs.remove(id)
     }
@@ -180,6 +177,7 @@ final class ChatModel: ObservableObject {
         unseenIDs.remove(id)
         conversations.removeAll { $0.id == id }
         if currentID == id { currentID = nil }
+        desk.forget(id)
         store.trash(id)
         Task { await PiSession.shared.forget(id) }
     }
@@ -256,12 +254,13 @@ final class ChatModel: ObservableObject {
         return files.isEmpty ? .typed(text) : nil
     }
 
-    /// One question and its answer. `destination`: the online AI it goes to (shown on both). `restore`: put the
-    /// question back into the composer if it was not sent or failed, so nothing the person wrote is lost.
-    private func ask(_ text: String, files: [String], outgoing: PiSession.Outgoing, handoff: Bool = false, destination: String? = nil,
-                     shared: [String]? = nil, restore: (text: String, files: [URL])? = nil) {
-        let id = currentID ?? UUID().uuidString.lowercased()
-        if current == nil {
+    /// One question and its answer, in `conversation` (the one shown when `nil`). `destination`: the online AI it goes to
+    /// (shown on both). `review`: the approved review it came from; if the answer fails, refused or mid-way, the review is
+    /// parked there with its edits and its words go back only into an empty composer (`ShareDesk.failed`), never resent.
+    private func ask(_ text: String, files: [String], outgoing: PiSession.Outgoing, in conversation: String? = nil, handoff: Bool = false,
+                     destination: String? = nil, shared: [String]? = nil, review: ShareReview? = nil) {
+        let id = conversation ?? currentID ?? UUID().uuidString.lowercased()
+        if !conversations.contains(where: { $0.id == id }) {
             let title = String((text.isEmpty ? files.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? shared?.first ?? "" : text).prefix(60))
             conversations.insert(Conversation(id: id, title: title, updated: Date(), messages: []), at: 0)
             currentID = id
@@ -292,13 +291,17 @@ final class ChatModel: ObservableObject {
                 if let index = conversations.firstIndex(where: { $0.id == id }) {
                     conversations[index].messages.removeAll { $0.id == question.id || $0.id == reply.id }
                 }
-                if draft.isEmpty && attachments.isEmpty { draft = restore?.text ?? text; attachments = restore?.files ?? files.map { URL(fileURLWithPath: $0) } }
-                problem = PiSession.Failure.destinationChanged.localizedDescription
+                let refusal = PiSession.Failure.destinationChanged.localizedDescription
+                if let review { parkFailed(review, in: id, problem: refusal) }
+                else if draft.isEmpty && attachments.isEmpty { draft = text; attachments = files.map { URL(fileURLWithPath: $0) } }
+                problem = refusal
             } catch {
-                if !stopRequested {
-                    update(reply.id, in: id) { $0.error = error.localizedDescription }
-                    if let restore, draft.isEmpty && attachments.isEmpty { draft = restore.text; attachments = restore.files }
-                }
+                if !stopRequested { update(reply.id, in: id) { $0.error = error.localizedDescription } }
+            }
+            // A failure Pi streamed (the provider's error, the answer cut off) counts like a thrown one.
+            if let review, !refused, !stopRequested,
+               let failure = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == reply.id })?.error {
+                parkFailed(review, in: id, problem: failure)
             }
             let cards = PippaMCPService.readNotes.take().compactMap(\.card)
             let receipts = PippaMCPService.writeNotes.take()
@@ -352,15 +355,23 @@ final class ChatModel: ObservableObject {
         startReview(destination, handoff: true)
     }
 
-    /// The + menu while an online AI answers: one source read on this Mac by Pippa herself, then the review.
+    /// Where a review opened now would go: the online AI conversations use, or else the recipient of single questions.
+    private var reviewRoute: (destination: ShareDestination, handoff: Bool)? {
+        let settings = SettingsModel.shared.inferenceSettings
+        if let active = ShareDestination.active(settings) { return (active, false) }
+        return ShareDestination.handoff(settings).map { ($0, true) }
+    }
+
+    /// The + menu: one source read on this Mac by Pippa herself, then the review for the online AI, or with the AI on
+    /// this Mac for one question to the recipient of single questions.
     func share(_ source: SharingSource) {
-        guard !isAnswering, let destination = review?.plan.destination ?? ShareDestination.active(SettingsModel.shared.inferenceSettings) else { return }
+        guard !isAnswering, let route = review.map({ ($0.plan.destination, $0.handoff) }) ?? reviewRoute else { return }
         let rules = SettingsModel.shared.inferenceSettings.sharing
-        guard rules[source] == .ask else { return }
-        if review == nil { startReview(destination, handoff: false) }
+        guard rules[source] == .ask, source != .photos, source != .documents else { return }
+        if review == nil { startReview(route.destination, handoff: route.handoff) }
         let extraction = ShareExtraction(host: PippaMCPService.currentHost)
-        let reviewID = review?.id
-        review?.pending += 1
+        guard let reviewID = review?.id else { return }
+        desk.reading()
         Task {
             let piece: SharePiece?
             var problem: String?
@@ -374,40 +385,77 @@ final class ChatModel: ObservableObject {
             } catch {
                 piece = nil; problem = error.localizedDescription
             }
-            guard review?.id == reviewID else { return }
-            review?.pending -= 1
-            if let piece { addCandidates([piece]) }
-            if let problem { review?.problem = problem }
+            // Into the review it was read for, even if that one was cancelled or parked meanwhile.
+            desk.add(piece.map { [$0] } ?? [], problem: problem, to: reviewID, rules: SettingsModel.shared.inferenceSettings.sharing)
         }
     }
 
-    private func startReview(_ destination: ShareDestination, handoff: Bool) {
-        let files = attachments
-        var candidates: [SharePiece] = []
-        if handoff, let answer = lastAnswerHere() { candidates.append(answer) }
-        review = ShareReview(plan: SharePlan(destination: destination, question: draft.trimmingCharacters(in: .whitespacesAndNewlines),
-                                             candidates: candidates, rules: SettingsModel.shared.inferenceSettings.sharing),
-                             handoff: handoff, files: files, pending: files.isEmpty ? 0 : 1)
+    /// One picture chosen in the Photos picker: only the text recognized in it on this Mac joins the review, under the
+    /// Photos rule; the picture itself never leaves the Mac. `data` is the picture's bytes, read into a temporary file
+    /// for local OCR and removed right after.
+    func sharePhoto(_ data: Data?, type: UTType?) {
+        guard !isAnswering, let route = review.map({ ($0.plan.destination, $0.handoff) }) ?? reviewRoute,
+              SettingsModel.shared.inferenceSettings.sharing.photos == .ask else { return }
+        if review == nil { startReview(route.destination, handoff: route.handoff) }
+        guard let reviewID = review?.id else { return }
+        desk.reading()
+        let name = T("Photo", table: "App")
+        Task {
+            let piece: SharePiece? = await Task.detached(priority: .userInitiated) { () -> SharePiece? in
+                guard let data else { return nil }
+                let folder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-photo-\(UUID().uuidString)", isDirectory: true)
+                defer { try? FileManager.default.removeItem(at: folder) }
+                let file = folder.appendingPathComponent(name).appendingPathExtension(type?.preferredFilenameExtension ?? "jpg")
+                guard (try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)) != nil,
+                      (try? data.write(to: file)) != nil else { return nil }
+                return ShareExtraction.files([file]).first
+            }.value
+            desk.add(piece.map { [$0] } ?? [], problem: piece == nil ? T("Pippa couldn’t read this photo.", table: "App") : nil,
+                     to: reviewID, rules: SettingsModel.shared.inferenceSettings.sharing)
+        }
+    }
+
+    /// Opens the review for the conversation shown, resuming one parked there with its edits (`ShareDesk.open`), and
+    /// reads the files it does not have yet. `composer`: what it is made from, the composer itself unless a retry says.
+    private func startReview(_ destination: ShareDestination, handoff: Bool, composer: ShareComposer? = nil, explicit: Bool = false) {
+        let rules = SettingsModel.shared.inferenceSettings.sharing
+        let fresh = handoff ? lastAnswerHere().map { [$0] } ?? [] : []
+        let unread = desk.open(in: currentID, destination: destination, handoff: handoff,
+                               composer: composer ?? ShareComposer(text: draft, files: attachments), fresh: fresh, rules: rules, explicit: explicit)
         problem = nil
         ChatWindow.shared.show()
-        guard !files.isEmpty, let reviewID = review?.id else { return }
-        let rules = SettingsModel.shared.inferenceSettings.sharing
+        guard !unread.isEmpty, let reviewID = review?.id else { return }
         Task {
-            let pieces = await Task.detached(priority: .userInitiated) { ShareExtraction.files(files, rules: rules) }.value
-            guard review?.id == reviewID else { return }
-            review?.pending -= 1
-            addCandidates(pieces)
+            let pieces = await Task.detached(priority: .userInitiated) { ShareExtraction.files(unread, rules: rules) }.value
+            desk.add(pieces, files: unread, to: reviewID, rules: SettingsModel.shared.inferenceSettings.sharing)
         }
     }
 
-    /// New parts join the review under the rules as they are now: a part on "Only on this Mac" is listed, never offered.
-    private func addCandidates(_ pieces: [SharePiece]) {
-        guard var current = review else { return }
-        let rules = SettingsModel.shared.inferenceSettings.sharing
-        let added = SharePlan(destination: current.plan.destination, question: current.plan.question, candidates: pieces, rules: rules)
-        current.plan.pieces += added.pieces
-        current.plan.withheld += added.withheld
-        review = current
+    /// A review parked in the conversation shown (cancelled, or not answered), for "Continue checking".
+    var parkedReview: ShareReview? {
+        guard let route = reviewRoute else { return nil }
+        return desk.parked(in: currentID, handoff: route.handoff)
+    }
+
+    /// "Continue checking": the parked review as it was, with every edit, for the recipient as it is now.
+    func resumeReview() {
+        guard !isAnswering, review == nil, let route = reviewRoute, desk.parked(in: currentID, handoff: route.handoff) != nil else { return }
+        startReview(route.destination, handoff: route.handoff, explicit: true)
+    }
+
+    /// The person no longer wants the parked review.
+    func discardParkedReview() {
+        guard let route = reviewRoute else { return }
+        desk.discard(in: currentID, handoff: route.handoff)
+    }
+
+    /// The approved review failed: parked in its conversation, its words back into the composer only if that is empty.
+    private func parkFailed(_ review: ShareReview, in conversation: String, problem: String?) {
+        var review = review
+        review.conversation = conversation
+        if let back = desk.failed(review, problem: problem, current: currentID, composer: ShareComposer(text: draft, files: attachments)) {
+            draft = back.text; attachments = back.files
+        }
     }
 
     /// Pippa's last answer here, by the AI on this Mac, as a part: its sources are what its tools read.
@@ -435,31 +483,34 @@ final class ChatModel: ObservableObject {
     }
 
     /// The person's changes in the review sheet (their words, a part's text, leaving a part out).
-    func updateReview(_ change: (inout SharePlan) -> Void) {
-        guard var current = review else { return }
-        change(&current.plan)
-        review = current
-    }
+    func updateReview(_ change: (inout SharePlan) -> Void) { desk.update(change) }
 
-    /// Cancel: nothing is sent, the words and files stay in the composer.
-    func dismissReview() { review = nil }
+    /// Cancel or closing the sheet: nothing is sent; the edits stay, parked with the conversation, and the edited words
+    /// go into the composer if it still holds what the review opened with.
+    func dismissReview() {
+        guard review != nil else { return }
+        if let back = desk.cancel(current: currentID, composer: ShareComposer(text: draft, files: attachments)) {
+            draft = back.text; attachments = back.files
+        }
+    }
 
     /// Send: the approval is fixed now (`ShareApproval`), for the destination shown and the rules as they are now. If the
     /// online AI changed while the review was open, nothing is sent and the review says so.
+    /// The answer goes to the review's own conversation; a draft typed in the composer meanwhile stays there.
     func approveReview() {
-        guard let current = review, !current.loading, !isAnswering else { return }
+        guard let current = review, !isAnswering else { return }
         let settings = SettingsModel.shared.inferenceSettings
         let now = current.handoff ? ShareDestination.handoff(settings) : ShareDestination.active(settings)
-        guard now == current.plan.destination else {
-            review?.problem = PiSession.Failure.destinationChanged.localizedDescription
-            return
+        switch desk.approve(current: currentID, destination: now, composer: ShareComposer(text: draft, files: attachments), rules: settings.sharing) {
+        case .send(let approval, let sent, let clearComposer):
+            if clearComposer { draft = ""; attachments = []; frontApp = nil }
+            ask(approval.question, files: sent.files.map(\.path), outgoing: .approved(approval), in: sent.conversation, handoff: sent.handoff,
+                destination: approval.destination.label, shared: approval.parts.map(\.title), review: sent)
+        case .destinationChanged:
+            desk.setProblem(PiSession.Failure.destinationChanged.localizedDescription)
+        case .parked, .nothing:
+            break
         }
-        guard let approval = current.plan.approve(rules: settings.sharing) else { return }
-        let restore = (text: draft, files: attachments)
-        review = nil
-        draft = ""; attachments = []; frontApp = nil
-        ask(approval.question, files: current.files.map(\.path), outgoing: .approved(approval), handoff: current.handoff,
-            destination: approval.destination.label, shared: approval.parts.map(\.title), restore: restore)
     }
 
     /// The person picks up their question again: its words and files go back into the composer.
@@ -476,16 +527,25 @@ final class ChatModel: ObservableObject {
         let messages = conversations[index].messages
         guard messages.count >= 2, messages[messages.count - 1].role == .assistant, messages[messages.count - 2].role == .user else { return }
         let question = messages[messages.count - 2]
+        let files = question.files.map { URL(fileURLWithPath: $0) }
+        if question.shared != nil, let route = reviewRoute {
+            // Back through the review, with the edits of the one that failed when it is parked here. The composer keeps
+            // whatever was typed since.
+            conversations[index].messages.removeLast(2)
+            save(id)
+            let parked = desk.parked(in: id, handoff: route.handoff) != nil
+            startReview(route.destination, handoff: route.handoff, composer: ShareComposer(text: question.text, files: files), explicit: parked)
+            return
+        }
+        guard question.shared == nil else {
+            // No online AI to check it for any more: the words go back into an empty composer, nothing is sent.
+            if draft.isEmpty && attachments.isEmpty { draft = question.text; attachments = files }
+            return
+        }
         conversations[index].messages.removeLast(2)
         draft = question.text
-        attachments = question.files.map { URL(fileURLWithPath: $0) }
-        if question.shared != nil, let destination = handoffDestination, destination.label == question.destination {
-            startReview(destination, handoff: true)
-        } else if question.shared != nil, let destination = ShareDestination.active(SettingsModel.shared.inferenceSettings) {
-            startReview(destination, handoff: false)
-        } else {
-            send()
-        }
+        attachments = files
+        send()
     }
 
     /// Dropped photos or PDFs, one PDF: done by the app itself, no model needed.

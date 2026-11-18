@@ -1,4 +1,5 @@
 import AppKit
+import PhotosUI
 import PippaCore
 import SwiftUI
 
@@ -8,6 +9,9 @@ struct Composer: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
     @FocusState private var focused: Bool
+    /// The Photos picker for one picture to share (its text, read on this Mac).
+    private let pickingPhoto = State(initialValue: false)
+    private let pickedPhoto = State<PhotosPickerItem?>(initialValue: nil)
 
     /// How far the drawer reaches under the body.
     private let tuck: CGFloat = 16
@@ -31,6 +35,16 @@ struct Composer: View {
         .padding(.horizontal, Layout.gutter).padding(.top, Space.s).padding(.bottom, Space.xl)
         .frame(maxWidth: .infinity)
         .onAppear { focused = true }
+        .photosPicker(isPresented: pickingPhoto.projectedValue, selection: pickedPhoto.projectedValue, matching: .images,
+                      preferredItemEncoding: .compatible)
+        .onChange(of: pickedPhoto.wrappedValue) { _, item in
+            guard let item else { return }
+            pickedPhoto.wrappedValue = nil
+            Task { @MainActor in
+                let data = try? await item.loadTransferable(type: Data.self)
+                chat.sharePhoto(data, type: item.supportedContentTypes.first)
+            }
+        }
     }
 
     private var drawer: some View {
@@ -61,6 +75,7 @@ struct Composer: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: Space.ml) {
+            if chat.review == nil, let parked = chat.parkedReview { parkedRow(parked) }
             TextField(T("Ask Pippa…", table: "App"), text: $chat.draft, axis: .vertical)
                 .textFieldStyle(.plain).font(Typo.body).lineSpacing(4).lineLimit(1...10)
                 .focused($focused)
@@ -95,17 +110,51 @@ struct Composer: View {
             .contentShape(Circle())
     }
 
-    /// Files, and while an online AI answers also what Pippa reads for it on this Mac first: each opens the review that
-    /// names the provider. A source set to "Only on this Mac" is shown, but can't be chosen.
+    /// A review cancelled or not answered in this conversation, with every edit: continue it or let it go.
+    private func parkedRow(_ parked: ShareReview) -> some View {
+        HStack(spacing: Space.m) {
+            Image(systemName: "cloud").foregroundStyle(Theme.ink2).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(T("Your check for %@ is kept", table: "App", parked.plan.destination.provider)).font(Typo.footnote.weight(.medium))
+                if let problem = parked.problem {
+                    Text(problem).font(Typo.caption).foregroundStyle(Theme.need).lineLimit(2)
+                }
+            }
+            Spacer(minLength: Space.m)
+            Button(T("Continue Checking…", table: "App")) { chat.resumeReview() }
+                .controlSize(.small).disabled(chat.isAnswering)
+                .help(T("Open the check again with your edits; nothing is sent until you press Send", table: "App"))
+            Button { chat.discardParkedReview() } label: {
+                Image(systemName: "xmark").font(Typo.caption.weight(.bold)).imageScale(.small).foregroundStyle(Theme.ink3)
+                    .frame(width: 24, height: 24).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(T("Discard the check", table: "App"))
+            .accessibilityLabel(T("Discard the check", table: "App"))
+        }
+        .font(Typo.footnote).foregroundStyle(Theme.ink)
+        .padding(.horizontal, Space.xs)
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Files, and with an online AI (or one for single questions) also what Pippa reads for it on this Mac first: each
+    /// opens the review that names the provider. A source set to "Only on this Mac" is shown, but can't be chosen.
     @ViewBuilder private var addButton: some View {
-        if SettingsModel.shared.inferenceSettings.usesOnlineAI {
-            let rules = SettingsModel.shared.inferenceSettings.sharing
+        let settings = SettingsModel.shared.inferenceSettings
+        if settings.usesOnlineAI || chat.handoffDestination != nil {
+            let rules = settings.sharing
             Menu {
                 Button(T("Add Files…", table: "App")) { addFiles() }
                 Divider()
+                if !settings.usesOnlineAI, let recipient = chat.handoffDestination {
+                    Text(T("For one question to %@", table: "App", recipient.provider))
+                }
                 shareItem(T("Selected Email in Mail", table: "App"), .mail, rules)
                 shareItem(T("Calendar, Next 7 Days", table: "App"), .calendar, rules)
                 shareItem(T("Open Reminders", table: "App"), .reminders, rules)
+                let photo = T("Photo from Photos…", table: "App")
+                Button(rules.photos == .ask ? photo : T("%@ (only on this Mac)", table: "App", photo)) { pickingPhoto.wrappedValue = true }
+                    .disabled(rules.photos != .ask)
             } label: { plus }
             .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
             .disabled(chat.isAnswering)
