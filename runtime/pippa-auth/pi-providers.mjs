@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
-import { renameSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 
 const clean = value => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 4096);
 const aborted = () => new Error('cancelled');
@@ -113,15 +113,20 @@ export const TURN_HEADROOM_MS = 15 * 60_000;
 
 /** The credential a pinned Pi gets: an OAuth sign-in keeps its access token and account fields, but Pi can never renew
  * it (no refresh token, no expiry it would act on), so no second process rotates the person's refresh token and the
- * endpoint Pi derives from the access token stays the one checked. Other credentials are copied as they are. */
+ * endpoint Pi derives from the access token stays the one checked. A sign-in without a refresh token (OpenRouter's:
+ * a lasting key as `access`, `refresh: ""`) keeps it empty, so Pippa names it by its key in both copies. Other
+ * credentials are copied as they are. */
 export function frozen(credential) {
   if (credential?.type !== 'oauth') return credential;
   const refresh = String(credential.refresh ?? '');
+  if (!refresh) return { ...credential, expires: Number.MAX_SAFE_INTEGER };
   const digest = refresh.startsWith(FROZEN_REFRESH) ? refresh.slice(FROZEN_REFRESH.length) : createHash('sha256').update(refresh).digest('hex');
   return { ...credential, refresh: FROZEN_REFRESH + digest, expires: Number.MAX_SAFE_INTEGER };
 }
 
+/** Writes `value` privately, or removes the file when there is nothing to write. */
 function writePrivate(file, value) {
+  if (value === undefined) { rmSync(file, { force: true }); return; }
   const temporary = `${file}.${randomUUID()}`;
   try {
     writeFileSync(temporary, JSON.stringify(value, null, 2), { mode: 0o600, flag: 'wx' });
@@ -133,12 +138,18 @@ function writePrivate(file, value) {
  * Prepares one online turn with Pi's own code. In Pi's shared agent folder (`agent`), `ModelRuntime.getAuth` renews a
  * sign-in that would expire within the turn, under Pi's auth.json lock and re-checked there, so two Pippa processes (or
  * Pi in the terminal) renew a rotating refresh token once, not twice. The credential as stored then goes frozen into
- * `target/auth.json`, the private folder of the Pi that runs the turn. That folder is resolved as that Pi will resolve it,
- * and the endpoint Pi derives from the credential (GitHub Copilot: from the access token) is returned for the recipient
- * check. Nothing here sends a model request; only a due renewal reaches the provider's sign-in service.
+ * `target/auth.json`, the private folder of the Pi that runs the turn, with the provider's models.json entry (read by
+ * Pi's own `ModelConfig`: comments, trailing commas, its schema) and cached catalog. That folder is resolved as that Pi
+ * will resolve it, and the endpoint Pi derives from the credential (GitHub Copilot: from the access token) is returned
+ * for the recipient check. Nothing here sends a model request; only a due renewal reaches the provider's sign-in service.
  */
 export async function prepareRecipient(pi, { agent, target, providerId, modelId, signal }) {
-  const { ModelRuntime, readStoredCredential } = pi;
+  const { ModelRuntime, ModelConfig, readStoredCredential } = pi;
+  // A models.json Pi cannot use would leave the shared Pi on other settings than the ones Pippa named: send nothing.
+  const config = await ModelConfig.load(join(agent, 'models.json'));
+  if (config.getError()) throw Object.assign(new Error('models.json unreadable'), { code: 'unreadable_config' });
+  const entry = config.getProvider(providerId);
+  writePrivate(join(target, 'models.json'), entry && { providers: { [providerId]: entry } });
   const shared = await ModelRuntime.create({ authPath: join(agent, 'auth.json'), modelsPath: join(agent, 'models.json'), allowModelNetwork: false, signal });
   const model = shared.getModel(providerId, modelId);
   if (!model) throw Object.assign(new Error('unknown model'), { code: 'unknown_model' });
@@ -149,10 +160,16 @@ export async function prepareRecipient(pi, { agent, target, providerId, modelId,
     if (!/expires too soon/.test(String(error?.message))) throw error;
   }
   signal.throwIfAborted();
+  // The catalog as Pi's FileModelsStore parses it, after a renewal that may have refreshed it.
+  let catalog;
+  try {
+    const content = readFileSync(join(agent, 'models-store.json'), 'utf8');
+    catalog = content ? JSON.parse(content.replace(/^\uFEFF/, '')) : {};
+  } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+  writePrivate(join(target, 'models-store.json'), catalog?.[providerId] === undefined ? undefined : { [providerId]: catalog[providerId] });
   const credential = readStoredCredential(providerId, join(agent, 'auth.json'));
   const pinnedAuth = join(target, 'auth.json');
-  if (credential) writePrivate(pinnedAuth, { [providerId]: frozen(credential) });
-  else rmSync(pinnedAuth, { force: true });
+  writePrivate(pinnedAuth, credential ? { [providerId]: frozen(credential) } : undefined);
   const pinned = await ModelRuntime.create({ authPath: pinnedAuth, modelsPath: join(target, 'models.json'), allowModelNetwork: false, signal });
   const pinnedModel = pinned.getModel(providerId, modelId);
   const resolution = pinnedModel && await pinned.getAuth(pinnedModel, { signal });
@@ -206,7 +223,9 @@ export async function main(args = process.argv.slice(2)) {
     } catch { write({ event: 'error', code: 'pi_missing' }); return 2; }
     const { ModelRuntime, SettingsManager } = pi;
     if (command === 'prepare') {
-      const prepared = await prepareRecipient(pi, { agent: process.env.PI_CODING_AGENT_DIR, target, providerId, modelId: authType, signal: controller.signal });
+      // Pi's models.json reader is not on its public index; the pinned release is checked by pi-prepare.test.mjs.
+      const { ModelConfig } = await import(pathToFileURL(join(release, 'node_modules/@earendil-works/pi-coding-agent/dist/core/model-config.js')).href);
+      const prepared = await prepareRecipient({ ...pi, ModelConfig }, { agent: process.env.PI_CODING_AGENT_DIR, target, providerId, modelId: authType, signal: controller.signal });
       write({ event: 'done', endpoint: prepared.endpoint }); return 0;
     }
     const runtime = await ModelRuntime.create({ allowModelNetwork: false, signal: controller.signal });

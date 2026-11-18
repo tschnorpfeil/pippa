@@ -8,7 +8,8 @@ import Foundation
 /// refresh. With the shared folder a sign-in or key change between PiSession's last check and the request would send an
 /// approved message, or history kept for one account, to another. Here Pi gets `PI_CODING_AGENT_DIR` = this folder with:
 ///
-/// - `models.json`: only the active provider's entry (or Pippa's `pippa-online` entry built from the connection);
+/// - `models.json`: only the active provider's entry as Pi parsed it (comments and trailing commas as Pi allows them), or
+///   Pippa's `pippa-online` entry built from the connection;
 /// - `auth.json`: only that provider's credential, prepared by Pi itself (`prepare`) and pinned: an OAuth sign-in keeps
 ///   its access token but no refresh token and no expiry Pi would act on, so this Pi never renews it;
 /// - `models-store.json`: only that provider's cached catalog, so its models stay known offline;
@@ -39,7 +40,8 @@ public struct PiRecipientSnapshot: Sendable {
 
     /// One online turn's folder for a Pi provider (built in or registered in models.json) from `agent`, Pi's shared folder.
     /// `pi` runs Pi's own resolver there (`pi-providers.mjs prepare`), renewing a sign-in due within the turn and writing
-    /// the pinned credential here; the folder's identity is then read from what Pi will use.
+    /// the provider's configuration and pinned credential here, read with Pi's own parser; the folder's identity is then
+    /// read from what Pi will use, and the endpoint Pi derives from the credential must be the one that identity names.
     public static func prepare(model: PiModelSelection, from agent: URL, in parent: URL, pi: PiProviderClient) async throws -> PiRecipientSnapshot {
         let snapshot = try copy(model: model, from: agent, in: parent)
         do {
@@ -47,9 +49,11 @@ public struct PiRecipientSnapshot: Sendable {
             do { prepared = try await pi.run(["prepare", model.providerID, model.modelID, snapshot.directory.path]) }
             catch PiProviderClient.Failure.signedOut { throw Failure.signedOut }
             catch { throw Failure.unavailable }
-            if prepared.endpoint != nil, !PiRecipient.credentialRoutedProviders.contains(model.providerID) { throw Failure.unboundEndpoint }
+            let pinned = PiRecipient(agentDirectory: snapshot.directory)
+            // Pi's endpoint for this credential, exactly as the recipient digest names it; none for any other provider.
+            guard prepared.endpoint == pinned.endpoint(model) else { throw Failure.unboundEndpoint }
             // `nil`: a recipient Pippa cannot name (typed words only, never an approval; see `ShareDestination.isVerified`).
-            let identity = PiRecipient(agentDirectory: snapshot.directory).identity(model)
+            let identity = pinned.identity(model)
             return PiRecipientSnapshot(directory: snapshot.directory, providerID: model.providerID, identity: identity)
         } catch {
             snapshot.remove()
@@ -57,16 +61,9 @@ public struct PiRecipientSnapshot: Sendable {
         }
     }
 
-    /// The provider's configuration and catalog from `agent`; the credential comes from Pi (`prepare`).
+    /// Pi's settings from `agent`; the provider's configuration, catalog and credential come from Pi (`prepare`).
     static func copy(model: PiModelSelection, from agent: URL, in parent: URL) throws -> PiRecipientSnapshot {
-        let modelsJSON = agent.appendingPathComponent("models.json")
-        var models: [String: Any]?
-        if FileManager.default.fileExists(atPath: modelsJSON.path) {
-            guard let document = JSONFile.readObject(modelsJSON) else { throw PiInstallFailure.modelsJSONUnreadable(modelsJSON.path) }
-            if let entry = (document["providers"] as? [String: Any])?[model.providerID] { models = [model.providerID: entry] }
-        }
-        let store = JSONFile.readObject(agent.appendingPathComponent("models-store.json"))?[model.providerID]
-        return try write(provider: model.providerID, agent: agent, parent: parent, models: models, store: store)
+        try write(provider: model.providerID, agent: agent, parent: parent, models: nil, store: nil)
     }
 
     /// Snapshot for an older Keychain connection: `pippa-online` exactly as PiSession describes it; the key stays in

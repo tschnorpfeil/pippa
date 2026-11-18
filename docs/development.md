@@ -476,7 +476,8 @@ node scripts/recipient-binding-smoke.mjs dist/Pippa.app   # rotates auth.json an
 
 `PIPPA_SHARING_CHECKS=1` with `PIPPA_PI_PAYLOAD` runs the bundled Pi's turn preparation from Swift: two turns prepared at
 once renew a rotating sign-in once, and a GitHub Copilot renewal that moves the endpoint changes the recipient but not
-the account. Sign-in services are faked in-process (`runtime/pippa-auth/fixtures/fake-sign-in.mjs`).
+the account. It also checks that a commented models.json, an empty `proxy-ep` ahead of the real one and an OpenRouter
+sign-in without a refresh token name the same recipient in Pippa's reading as in the folder Pi prepares. Sign-in services are faked in-process (`runtime/pippa-auth/fixtures/fake-sign-in.mjs`).
 
 The focused Swift checks cover settings compatibility and the duplex helper lifecycle. The app smoke uses a fresh
 HOME and a loopback scripted responder to exercise the actual chat route without a local model or real credentials.

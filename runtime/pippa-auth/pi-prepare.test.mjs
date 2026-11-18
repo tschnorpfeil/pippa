@@ -60,6 +60,49 @@ test('a pinned credential cannot be renewed and keeps only a digest of the refre
   assert.deepEqual(frozen(pinned), pinned);
   const key = { type: 'api_key', key: 'K' };
   assert.equal(frozen(key), key);
+  // OpenRouter: a lasting key as `access` and no refresh token. Nothing to hide; the empty refresh stays empty.
+  const lasting = frozen({ type: 'oauth', access: 'sk-or-FIXTURE', refresh: '', expires: 1 });
+  assert.deepEqual(lasting, { type: 'oauth', access: 'sk-or-FIXTURE', refresh: '', expires: Number.MAX_SAFE_INTEGER });
+  assert.deepEqual(frozen(lasting), lasting);
+});
+
+test('models.json with comments and trailing commas, as Pi allows: the private folder gets Pi\'s own parse of the entry', { skip, timeout: 60_000 }, async () => {
+  const f = fixture({ acme: { type: 'api_key', key: 'ACME-KEY-FIXTURE' } }, {});
+  try {
+    writeFileSync(join(f.agent, 'models.json'), '\uFEFF// Pi supports comments here\n{ "providers": { "acme": { // the fixture\n'
+      + '  "baseUrl": "https://a.example.invalid/v1", "api": "openai-completions", "headers": { "x-note": "// not a comment" },\n'
+      + '  "models": [{ "id": "acme-fixture", }], },\n  "other": { "baseUrl": "https://c.example.invalid", "api": "openai-completions", "apiKey": "OTHER", "models": [{ "id": "o" }] },\n} }\n');
+    writeFileSync(join(f.agent, 'models-store.json'), '\uFEFF' + JSON.stringify({ acme: { models: [] }, other: { models: [] } }));
+    const target = f.target('jsonc');
+    const result = await prepare(f, 'acme', 'acme-fixture', target);
+    assert.equal(result.status, 0, JSON.stringify(result.events));
+    assert.deepEqual(result.events.at(-1), { event: 'done', endpoint: null });
+    assert.deepEqual(read(join(target, 'models.json')), { providers: { acme: { baseUrl: 'https://a.example.invalid/v1', api: 'openai-completions',
+      headers: { 'x-note': '// not a comment' }, models: [{ id: 'acme-fixture' }] } } });
+    assert.deepEqual(read(join(target, 'models-store.json')), { acme: { models: [] } });
+    assert.deepEqual(read(join(target, 'auth.json')), { acme: { type: 'api_key', key: 'ACME-KEY-FIXTURE' } });
+    for (const file of ['models.json', 'models-store.json', 'auth.json']) assert.equal(statSync(join(target, file)).mode & 0o777, 0o600);
+    // A models.json Pi cannot read sends nothing.
+    writeFileSync(join(f.agent, 'models.json'), '{ /* block comments are not Pi\'s */ "providers": {} }');
+    const refused = await prepare(f, 'acme', 'acme-fixture', f.target('refused'));
+    assert.deepEqual(refused.events.at(-1), { event: 'error', code: 'failed' });
+  } finally { f.cleanup(); }
+});
+
+test('OpenRouter sign-in without a refresh token: pinned as it is, resolved by the pinned Pi, nothing renewed', { skip, timeout: 60_000 }, async () => {
+  const f = fixture({ openrouter: { type: 'oauth', access: 'sk-or-FIXTURE', refresh: '', expires: Number.MAX_SAFE_INTEGER } }, {});
+  try {
+    const target = f.target('openrouter');
+    const result = await prepare(f, 'openrouter', 'anthropic/claude-haiku-4.5', target);
+    assert.equal(result.status, 0, JSON.stringify(result.events));
+    assert.deepEqual(result.events.at(-1), { event: 'done', endpoint: null });
+    assert.deepEqual(read(join(target, 'auth.json')), read(join(f.agent, 'auth.json')));
+    assert.deepEqual(f.calls(), []);
+    const { ModelRuntime } = await piIndex();
+    const pinned = await ModelRuntime.create({ authPath: join(target, 'auth.json'), modelsPath: join(target, 'models.json'), allowModelNetwork: false });
+    const resolution = await pinned.getAuth(pinned.getModel('openrouter', 'anthropic/claude-haiku-4.5'), { minOAuthValidityMs: 24 * 3600_000 });
+    assert.equal(resolution.auth.apiKey, 'sk-or-FIXTURE');
+  } finally { f.cleanup(); }
 });
 
 test('two Pippa processes preparing at once renew a rotating sign-in once, through Pi\'s shared lock', { skip, timeout: 60_000 }, async () => {
@@ -149,6 +192,11 @@ test('of the bundled Pi\'s sign-ins, only GitHub Copilot derives an endpoint, an
   }
   assert.deepEqual(derived, { 'github-copilot': ['https://api.one.example', 'https://api.one.example', 'https://api.two.example'] });
   const copilot = runtime.getProvider('github-copilot').auth.oauth;
+  // Pi takes the first non-empty proxy-ep (`/proxy-ep=([^;]+)/`), not the first proxy-ep: PiRecipient.endpoint does the same.
+  const later = await copilot.toAuth({ type: 'oauth', access: 'tid=1;proxy-ep=;proxy-ep=proxy.later.example;', refresh: 'R', expires: 0 });
+  assert.equal(later.baseUrl, 'https://api.later.example');
+  const none = await copilot.toAuth({ type: 'oauth', access: 'tid=1;', refresh: 'R', expires: 0 });
+  assert.equal(none.baseUrl, 'https://api.individual.githubcopilot.com');
   const enterprise = await copilot.toAuth({ type: 'oauth', access: 'tid=1;', refresh: 'R', expires: 0, enterpriseUrl: 'ghe.example.com' });
   assert.equal(enterprise.baseUrl, 'https://copilot-api.ghe.example.com');
 });

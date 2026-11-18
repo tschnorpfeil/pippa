@@ -165,6 +165,53 @@ func runSharingChecks() async {
         return [nothing, unreadable, unknownType, reserved, noFolder].allSatisfy { $0 == nil }
             && !ShareDestination(model, recipient: nothing).isVerified
     }
+    check("Recipient: models.json is read as Pi reads it (byte order mark, // comments, trailing commas); block comments fail closed") {
+        try writeAgent(models: ["acme": entry("https://a.example.invalid/v1")], auth: nil)
+        let plain = recipients.identity(custom)
+        let commented = "\u{FEFF}// Pi supports comments here\n{ \"providers\": { \"acme\": { // the fixture\n"
+            + "\"baseUrl\": \"https://a.example.invalid/v1\", \"api\": \"openai-completions\", \"apiKey\": \"ACME-KEY-FIXTURE\",\n"
+            + "\"models\": [{ \"id\": \"acme-fixture\", }], }, } }\n"
+        try Data(commented.utf8).write(to: agent.appendingPathComponent("models.json"))
+        let jsonc = recipients.identity(custom)
+        try Data(commented.replacingOccurrences(of: "a.example", with: "b.example").utf8).write(to: agent.appendingPathComponent("models.json"))
+        let moved = recipients.identity(custom)
+        try Data(commented.replacingOccurrences(of: "https://a.example.invalid/v1", with: "https://a.example.invalid/v1 // kept").utf8)
+            .write(to: agent.appendingPathComponent("models.json"))
+        let inString = recipients.identity(custom)
+        try Data("{ /* not Pi's */ \"providers\": {} }".utf8).write(to: agent.appendingPathComponent("models.json"))
+        let block = recipients.identity(custom)
+        return plain != nil && jsonc == plain && moved != nil && moved != plain && inString != nil && inString != plain && block == nil
+    }
+    check("Recipient: GitHub Copilot's endpoint is the first non-empty proxy-ep, as Pi derives it, so an empty one hides nothing") {
+        let copilot = PiModelSelection(providerID: "github-copilot", modelID: "copilot-fixture", providerName: "GitHub Copilot")
+        func identity(_ access: String, enterprise: String? = nil) throws -> PiRecipient.Identity? {
+            var credential: [String: Any] = ["type": "oauth", "access": access, "refresh": "GHU-FIXTURE", "expires": 1]
+            if let enterprise { credential["enterpriseUrl"] = enterprise }
+            try writeAgent(models: nil, auth: ["github-copilot": credential])
+            return recipients.identity(copilot)
+        }
+        let one = try identity("tid=1;proxy-ep=;proxy-ep=proxy.one.example;"), other = try identity("tid=1;proxy-ep=;proxy-ep=proxy.two.example;")
+        let direct = try identity("tid=1;proxy-ep=proxy.one.example;")
+        let endpoints = [PiRecipient(agentDirectory: agent).endpoint(copilot), PiRecipient.endpoint("github-copilot", ["type": "oauth", "access": "tid=1;"]),
+                         PiRecipient.endpoint("github-copilot", ["type": "oauth", "access": "proxy-ep=;", "enterpriseUrl": "GHE.Example.com"]),
+                         PiRecipient.endpoint("github-copilot", ["type": "oauth", "access": "proxy-ep=host.example;"]),
+                         PiRecipient.endpoint("openai", ["type": "oauth", "access": "proxy-ep=proxy.one.example;"])]
+        return one != nil && one?.recipient != other?.recipient && one?.account == other?.account && one == direct
+            && endpoints == ["https://api.one.example", "https://api.individual.githubcopilot.com", "https://copilot-api.ghe.example.com",
+                             "https://host.example", nil]
+    }
+    check("Recipient: a sign-in without a refresh token (OpenRouter) is named by its key, the same in the pinned copy") {
+        let openrouter = PiModelSelection(providerID: "openrouter", modelID: "anthropic/claude-haiku-4.5", providerName: "OpenRouter")
+        func identity(_ credential: [String: Any]) throws -> PiRecipient.Identity? {
+            try writeAgent(models: nil, auth: ["openrouter": credential]); return recipients.identity(openrouter)
+        }
+        let shared = try identity(["type": "oauth", "access": "sk-or-FIXTURE-1", "refresh": "", "expires": 1])
+        let pinned = try identity(["type": "oauth", "access": "sk-or-FIXTURE-1", "refresh": "", "expires": 9_007_199_254_740_991])
+        let missing = try identity(["type": "oauth", "access": "sk-or-FIXTURE-1", "expires": 1])
+        let other = try identity(["type": "oauth", "access": "sk-or-FIXTURE-2", "refresh": "", "expires": 1])
+        let nothing = try identity(["type": "oauth", "access": "", "refresh": "", "expires": 1])
+        return shared != nil && shared == pinned && shared == missing && other != nil && other != shared && nothing == nil
+    }
     check("Recipient: an older connection changes with its key, endpoint or model; no key means unverified") {
         let id = UUID()
         let connection = ModelConnection(id: id, provider: .compatible, endpoint: URL(string: "https://llm.example.invalid/v1"), modelID: "m-fixture")
@@ -224,8 +271,11 @@ func runSharingChecks() async {
         try? """
             import { readFileSync, writeFileSync } from 'node:fs';
             const [, , , , provider, , target] = process.argv;
-            const shared = JSON.parse(readFileSync(process.env.PI_CODING_AGENT_DIR + '/auth.json', 'utf8'));
+            const read = name => { try { return JSON.parse(readFileSync(process.env.PI_CODING_AGENT_DIR + '/' + name, 'utf8')); } catch { return {}; } };
+            const shared = read('auth.json'), entry = read('models.json').providers?.[provider], store = read('models-store.json')[provider];
             if (shared[provider]) writeFileSync(target + '/auth.json', JSON.stringify({ [provider]: shared[provider] }), { mode: 0o600 });
+            if (entry) writeFileSync(target + '/models.json', JSON.stringify({ providers: { [provider]: entry } }), { mode: 0o600 });
+            if (store) writeFileSync(target + '/models-store.json', JSON.stringify({ [provider]: store }), { mode: 0o600 });
             process.stdout.write(JSON.stringify(\(reply)) + '\\n');
             """.write(to: file, atomically: true, encoding: .utf8)
         return PiProviderClient(node: URL(fileURLWithPath: nodePath), release: snapshots, helper: file,
@@ -283,9 +333,23 @@ func runSharingChecks() async {
             catch { return error as? PiRecipientSnapshot.Failure }
         }
         let unbound = await outcome("{event:'done',endpoint:'https://elsewhere.example.invalid'}")
+        // A credential-routed provider: Pi's endpoint must be the one Pippa derives (and binds) for the same credential.
+        try writeAgent(models: nil, auth: ["github-copilot": ["type": "oauth", "access": "tid=1;proxy-ep=;proxy-ep=proxy.two.example;",
+                                                              "refresh": "GHU-FIXTURE", "expires": 1]])
+        let copilot = PiModelSelection(providerID: "github-copilot", modelID: "claude-haiku-4.5", providerName: "GitHub Copilot")
+        func copilotOutcome(_ reply: String) async -> PiRecipientSnapshot.Failure?? {
+            guard let pi = standIn(reply) else { return nil }
+            do { let snapshot = try await PiRecipientSnapshot.prepare(model: copilot, from: agent, in: parent, pi: pi); snapshot.remove(); return .some(nil) }
+            catch { return error as? PiRecipientSnapshot.Failure }
+        }
+        let firstProxy = await copilotOutcome("{event:'done',endpoint:'https://api.one.example'}")
+        let matching = await copilotOutcome("{event:'done',endpoint:'https://api.two.example'}")
+        let noEndpoint = await copilotOutcome("{event:'done',endpoint:null}")
+        try writeAgent(models: nil, auth: ["acme": ["type": "api_key", "key": "ACME-AUTH-1"]])
         let signedOut = await outcome("{event:'error',code:'signed_out'}")
         let failed = await outcome("{event:'error',code:'failed'}")
         return unbound == .unboundEndpoint && signedOut == .signedOut && failed == .unavailable
+            && firstProxy == .some(.unboundEndpoint) && matching == .some(nil) && noEndpoint == .some(.unboundEndpoint)
             && ((try? fm.contentsOfDirectory(atPath: parent.path)) ?? []).isEmpty
     }
     check("Recipient snapshot: an older connection gets only Pippa's pippa-online entry, never the key") {
@@ -299,6 +363,30 @@ func runSharingChecks() async {
         return models?.keys.sorted() == [PiOnlineProvider.providerKey]
             && canonical(models?[PiOnlineProvider.providerKey] ?? [:]) == canonical(PiOnlineProvider.entry(connection))
             && !fm.fileExists(atPath: snapshot.directory.appendingPathComponent("auth.json").path) && !fm.fileExists(atPath: next.directory.path)
+    }
+    await checkAsync("Stop does not wait for a turn's preparation; what it prepares later is removed, never used") {
+        final class Log: @unchecked Sendable { let lock = NSLock(); var items: [String] = []; func add(_ s: String) { lock.withLock { items.append(s) } } }
+        let log = Log()
+        // A renewal still running when the person presses Stop (here: 1.5 s), then finishing and storing its result.
+        let late = Handoff<String> { log.add("orphan " + $0) }
+        let work = Task.detached { try? await Task.sleep(for: .milliseconds(1500)); late.deliver("late-folder") }
+        let started = ContinuousClock.now
+        let waiter = Task { try await late.value() }
+        try await Task.sleep(for: .milliseconds(100))
+        waiter.cancel()
+        let stopped = (try? await waiter.value) == nil
+        let released = ContinuousClock.now - started < .milliseconds(800)
+        await work.value
+        // Delivered before the wait, or before cancellation: the waiter gets it, nothing is orphaned.
+        let early = Handoff<String> { log.add("orphan " + $0) }
+        early.deliver("early")
+        let got = try await early.value()
+        // Already cancelled before waiting: returns at once, and a delivery afterwards is orphaned.
+        let cancelledFirst = Handoff<String> { log.add("orphan " + $0) }
+        let gone = Task { withUnsafeCurrentTask { $0?.cancel() }; return try await cancelledFirst.value() }
+        let refused = (try? await gone.value) == nil
+        cancelledFirst.deliver("after-cancel")
+        return stopped && released && got == "early" && refused && log.items == ["orphan late-folder", "orphan after-cancel"]
     }
     check("Recipient snapshot: folders left by an ended Pippa disappear") {
         let parent = snapshots.appendingPathComponent("ended", isDirectory: true)
@@ -342,6 +430,50 @@ func runSharingChecks() async {
                 && ShareDestination(copilot, identity: reviewed).sessionTag == ShareDestination(copilot, identity: moved).sessionTag
                 && (pinned?["access"] as? String)?.contains("proxy.business") == true && !"\(pinned ?? [:])".contains("GHU-FIXTURE")
                 && calls() == ["copilot-token", "copilot-models"]
+        }
+        await checkAsync("Bundled Pi: a commented models.json reaches the private folder as Pi parsed it, with the recipient Pippa named") {
+            // Each variant: Pippa's own reading of the shared file must name the recipient Pi's parse gives the private folder.
+            let base = "\"baseUrl\": \"https://a.example.invalid/v1\", \"api\": \"openai-completions\", \"apiKey\": \"ACME-KEY-FIXTURE\""
+            let variants = [
+                "// Pi supports comments here\n{ \"providers\": { \"acme\": { \(base), \"models\": [{ \"id\": \"acme-fixture\" }] } } }",
+                "\u{FEFF}{ \"providers\": { \"acme\": { // inline\n\(base),\n \"models\": [{ \"id\": \"acme-fixture\", },], }, }, }\n",
+                "{ \"providers\": { \"acme\": { \(base), \"headers\": { \"x-a\": \"// kept\", \"x-b\": \"a,}\\\"// still kept\" },\n\"models\": [{ \"id\": \"acme-fixture\" }] } } }",
+                "{\"providers\":{\"acme\":{\(base),\"models\":[{\"id\":\"acme-fixture\",\"name\":\"Tab\\t, ]\"}\t,\r\n]}}}",
+            ]
+            var results: [Bool] = []
+            for text in variants {
+                try writeAgent(models: nil, auth: nil)
+                try Data(text.utf8).write(to: agent.appendingPathComponent("models.json"))
+                let named = recipients.identity(custom)
+                let snapshot = try await PiRecipientSnapshot.prepare(model: custom, from: agent, in: snapshots, pi: bundledPi())
+                defer { snapshot.remove() }
+                results.append(named != nil && snapshot.identity == named)
+            }
+            if !results.allSatisfy({ $0 }) { print("  variants:", results) }
+            return results.allSatisfy { $0 }
+        }
+        await checkAsync("Bundled Pi: an empty proxy-ep before the real one routes where Pi sends, and that recipient is bound") {
+            let copilot = PiModelSelection(providerID: "github-copilot", modelID: "claude-haiku-4.5", providerName: "GitHub Copilot")
+            _ = try signInService([:])
+            func prepared(_ proxy: String) async throws -> (PiRecipient.Identity?, PiRecipientSnapshot) {
+                try writeAgent(models: nil, auth: ["github-copilot": ["type": "oauth", "access": "tid=1;proxy-ep=;proxy-ep=\(proxy);",
+                                                                      "refresh": "GHU-FIXTURE", "expires": Date().timeIntervalSince1970 * 1000 + 3_600_000]])
+                return (recipients.identity(copilot), try await PiRecipientSnapshot.prepare(model: copilot, from: agent, in: snapshots, pi: bundledPi()))
+            }
+            let (namedOne, one) = try await prepared("proxy.one.example"), (namedTwo, two) = try await prepared("proxy.two.example")
+            defer { one.remove(); two.remove() }
+            return namedOne != nil && one.identity == namedOne && two.identity == namedTwo && namedOne?.recipient != namedTwo?.recipient
+                && namedOne?.account == namedTwo?.account
+        }
+        await checkAsync("Bundled Pi: an OpenRouter sign-in without a refresh token prepares the recipient Pippa named, renews nothing") {
+            let openrouter = PiModelSelection(providerID: "openrouter", modelID: "anthropic/claude-haiku-4.5", providerName: "OpenRouter")
+            let calls = try signInService([:])
+            try writeAgent(models: nil, auth: ["openrouter": ["type": "oauth", "access": "sk-or-FIXTURE", "refresh": "", "expires": 9_007_199_254_740_991]])
+            let named = recipients.identity(openrouter)
+            let snapshot = try await PiRecipientSnapshot.prepare(model: openrouter, from: agent, in: snapshots, pi: bundledPi())
+            defer { snapshot.remove() }
+            let destination = ShareDestination(openrouter, identity: named)
+            return named != nil && snapshot.identity == named && destination.isVerified && calls().isEmpty
         }
         await checkAsync("Bundled Pi: two turns prepared at once renew a rotating sign-in once and pin the same credential") {
             let codex = PiModelSelection(providerID: "openai-codex", modelID: "gpt-5.6-terra", providerName: "ChatGPT")

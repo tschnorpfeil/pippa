@@ -58,8 +58,9 @@ public struct PiRecipient: Sendable {
         let fm = FileManager.default
         let modelsJSON = agent.appendingPathComponent("models.json")
         if fm.fileExists(atPath: modelsJSON.path) {
-            // Present but unreadable (also: comments): Pi might still use an entry Pippa cannot see. Fail closed.
-            guard let document = JSONFile.readObject(modelsJSON) else { return nil }
+            // Read as Pi reads it (comments, trailing commas). Present but unreadable: Pi might still use an entry Pippa
+            // cannot see. Fail closed.
+            guard let document = JSONFile.readPiObject(modelsJSON, comments: true) else { return nil }
             guard document["providers"] == nil || document["providers"] is [String: Any] else { return nil }
             if let entry = (document["providers"] as? [String: Any])?[model.providerID] {
                 guard Self.hasStaticRouting(entry) else { return nil }
@@ -69,7 +70,7 @@ public struct PiRecipient: Sendable {
         // Pi also restores dynamic models (including their endpoint and headers) from the provider catalog on disk.
         let catalog = agent.appendingPathComponent("models-store.json")
         if fm.fileExists(atPath: catalog.path) {
-            guard let document = JSONFile.readObject(catalog) else { return nil }
+            guard let document = JSONFile.readPiObject(catalog) else { return nil }
             if let entry = document[model.providerID] {
                 guard let record = entry as? [String: Any], let models = record["models"] as? [[String: Any]] else { return nil }
                 let selected = models.filter { $0["id"] as? String == model.modelID && $0["provider"] as? String == model.providerID }
@@ -79,11 +80,11 @@ public struct PiRecipient: Sendable {
         }
         let authJSON = agent.appendingPathComponent("auth.json")
         if fm.fileExists(atPath: authJSON.path) {
-            guard let document = JSONFile.readObject(authJSON) else { return nil }
+            guard let document = JSONFile.readPiObject(authJSON) else { return nil }
             if let credential = document[model.providerID] {
                 guard let account = Self.account(credential) else { return nil }
                 parts["account"] = account
-                routing = Self.routing(model.providerID, credential)
+                routing = Self.endpoint(model.providerID, credential)
             }
         }
         // Neither a configuration nor a credential: Pi could not reach anyone Pippa can name.
@@ -93,14 +94,39 @@ public struct PiRecipient: Sendable {
         return Self.digest(parts).map { Identity(recipient: $0, account: account) }
     }
 
-    /// What Pi derives the request endpoint from in a credential of a credential-routed provider. GitHub Copilot: the
-    /// access token's `proxy-ep` (empty without one; Pi then uses `enterpriseUrl`, part of the account, or its default).
-    static func routing(_ provider: String, _ credential: Any) -> String? {
+    /// The endpoint in this folder's credential that Pi sends `model`'s requests to instead of the model's own
+    /// (`endpoint(_:_:)`); `nil` when there is none.
+    public func endpoint(_ model: PiModelSelection) -> String? {
+        guard let agent = agentDirectory, let credential = JSONFile.readPiObject(agent.appendingPathComponent("auth.json"))?[model.providerID]
+        else { return nil }
+        return Self.endpoint(model.providerID, credential)
+    }
+
+    /// The endpoint Pi derives from a credential of a credential-routed provider (`toAuth().baseUrl`), computed as the
+    /// bundled Pi computes it. GitHub Copilot (`getGitHubCopilotBaseUrl`): the first non-empty `proxy-ep` value in the
+    /// access token, `proxy.` turned into `api.`; else `https://copilot-api.` and the `enterpriseUrl`'s host; else its
+    /// default. `PiRecipientSnapshot.prepare` compares this with the endpoint Pi reports, so a difference sends nothing.
+    public static func endpoint(_ provider: String, _ credential: Any) -> String? {
         guard credentialRoutedProviders.contains(provider), let fields = credential as? [String: Any],
               fields["type"] as? String == "oauth" else { return nil }
-        let access = fields["access"] as? String ?? ""
-        guard let start = access.range(of: "proxy-ep=") else { return "" }
-        return String(access[start.upperBound...].prefix { $0 != ";" })
+        if let access = fields["access"] as? String, !access.isEmpty,
+           let expression = try? NSRegularExpression(pattern: "proxy-ep=([^;]+)"),
+           let match = expression.firstMatch(in: access, range: NSRange(location: 0, length: (access as NSString).length)) {
+            let proxy = (access as NSString).substring(with: match.range(at: 1))
+            return "https://" + (proxy.hasPrefix("proxy.") ? "api." + proxy.dropFirst("proxy.".count) : proxy)
+        }
+        if let enterprise = fields["enterpriseUrl"] as? String, !enterprise.isEmpty, let domain = hostname(enterprise) {
+            return "https://copilot-api." + domain
+        }
+        return "https://api.individual.githubcopilot.com"
+    }
+
+    /// Pi's `normalizeDomain`: the host of the value read as a URL (with `https://` when it names no scheme).
+    private static func hostname(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let url = URL(string: trimmed.contains("://") ? trimmed : "https://" + trimmed)
+        return url?.host(percentEncoded: false)?.lowercased()
     }
 
     /// An older Keychain connection (`pippa-online`), with the key read without a dialog.
@@ -141,6 +167,8 @@ public struct PiRecipient: Sendable {
 
     /// Bind OAuth to an explicit account ID, or to the sign-in itself (its refresh token's digest) if Pi supplies only
     /// workspace metadata. Fields a renewal replaces (tokens, expiry, Copilot's current model list) are not the account.
+    /// A sign-in without a refresh token (OpenRouter's issues a lasting key as `access`, `refresh: ""`) never renews:
+    /// its access token's digest names it, in the shared and in the pinned copy alike (`frozen` keeps it as it is).
     static func account(_ value: Any) -> [String: Any]? {
         guard let credential = value as? [String: Any], let type = credential["type"] as? String else { return nil }
         switch type {
@@ -151,13 +179,22 @@ public struct PiRecipient: Sendable {
             var stable = credential
             for volatile in ["access", "refresh", "expires", "availableModelIds"] { stable.removeValue(forKey: volatile) }
             if let id = stable["accountId"] as? String, !id.isEmpty { return stable }
-            guard let refresh = credential["refresh"] as? String, !refresh.isEmpty else { return nil }
-            stable["signIn"] = refresh.hasPrefix(frozenRefreshPrefix) ? String(refresh.dropFirst(frozenRefreshPrefix.count))
-                : SHA256.hash(data: Data(refresh.utf8)).map { String(format: "%02x", $0) }.joined()
+            let refresh = credential["refresh"] as? String ?? ""
+            if refresh.isEmpty {
+                guard credential["refresh"] == nil || credential["refresh"] is String,
+                      let access = credential["access"] as? String, !access.isEmpty else { return nil }
+                stable["key"] = sha256(access)
+            } else {
+                stable["signIn"] = refresh.hasPrefix(frozenRefreshPrefix) ? String(refresh.dropFirst(frozenRefreshPrefix.count)) : sha256(refresh)
+            }
             return stable
         default:
             return nil
         }
+    }
+
+    private static func sha256(_ text: String) -> String {
+        SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     static func digest(_ parts: [String: Any]) -> String? {

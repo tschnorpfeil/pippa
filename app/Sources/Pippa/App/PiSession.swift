@@ -77,6 +77,9 @@ final class PiSession {
     private var localPlan: PiLocalServer.Plan?
     /// The online Pi's private agent folder (`PiRecipientSnapshot`); `nil` for the AI on this Mac.
     private var snapshot: PiRecipientSnapshot?
+    /// Turn preparations still running after Stop: a renewal that has started is stored, and its folder then removed.
+    /// Quit waits for them (`shutdown`).
+    private var preparations: [UUID: Task<Void, Never>] = [:]
 
     static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
     static var settingsDirectory: URL { Pippa.supportDirectory }
@@ -245,6 +248,7 @@ final class PiSession {
         await client?.shutdown()
         client = nil
         await retireSnapshot()
+        for preparation in preparations.values { await preparation.value }
     }
 
     /// After its Pi ended, its private folder goes too.
@@ -276,13 +280,17 @@ final class PiSession {
             throw Failure.setup("pi-providers.mjs missing")
         }
         // Not cancelled with the question: a renewal that has started must be stored, or the rotated refresh token is lost.
-        // Pi bounds it (lock wait, then 15 s for the renewal).
-        let prepared = await Task.detached { () -> Result<PiRecipientSnapshot, Error> in
+        // Pi bounds it (lock wait, then 15 s for the renewal). Stop does not wait for it; a folder it prepares after Stop
+        // is removed, and Quit waits for it (`preparations`).
+        let handoff = Handoff<Result<PiRecipientSnapshot, Error>> { late in if case .success(let snapshot) = late { snapshot.remove() } }
+        let id = UUID()
+        let work = Task.detached {
             Self.sweepSnapshots(root)
-            do { return .success(try await PiRecipientSnapshot.prepare(model: model, from: agent, in: parent, pi: pi)) }
-            catch { return .failure(error) }
-        }.value
-        switch prepared {
+            do { handoff.deliver(.success(try await PiRecipientSnapshot.prepare(model: model, from: agent, in: parent, pi: pi))) }
+            catch { handoff.deliver(.failure(error)) }
+        }
+        preparations[id] = Task { await work.value; self.preparations[id] = nil }
+        switch try await handoff.value() {
         case .success(let snapshot):
             if Task.isCancelled { snapshot.remove(); throw CancellationError() }
             return snapshot
