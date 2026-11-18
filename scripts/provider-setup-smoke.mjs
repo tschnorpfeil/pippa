@@ -12,15 +12,14 @@ const app = resolve(process.argv[2] ?? 'dist/Pippa.app');
 const home = await mkdtemp(join(tmpdir(), 'pippa-provider-smoke-'));
 const agent = join(home, '.pi/agent');
 const support = join(home, 'Library/Application Support/Pippa');
-let calls = 0;
-let requestModel;
+const requests = [];
+const privateNote = "PRIVATE_LOCAL_NOTE_0_8";
 const server = createServer((req, res) => {
   if (req.url !== '/v1/chat/completions') { res.writeHead(404).end(); return; }
   let body = '';
   req.on('data', chunk => { body += chunk; });
   req.on('end', () => {
-    calls++;
-    requestModel = JSON.parse(body).model;
+    requests.push(JSON.parse(body));
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     const chunk = (delta, finish_reason = null) => `data: ${JSON.stringify({ id: 'fixture', object: 'chat.completion.chunk', created: 0, model: 'cloud-fixture', choices: [{ index: 0, delta, finish_reason }] })}\n\n`;
     res.end(chunk({ role: 'assistant', content: 'PIPPA_PROVIDER_OK' }) + chunk({}, 'stop') + 'data: [DONE]\n\n');
@@ -35,6 +34,7 @@ try {
     'cloud-fixture': { baseUrl: `http://127.0.0.1:${server.address().port}/v1`, api: 'openai-completions', apiKey: 'test-only',
       models: [{ id: 'cloud-fixture', name: 'Fixture', contextWindow: 32768, maxTokens: 1024 }] },
   } }));
+  await writeFile(join(support, 'memory.md'), privateNote);
   await writeFile(join(support, 'inference-settings.json'), JSON.stringify({ policy: 'localOnly',
     piModel: { providerID: 'cloud-fixture', modelID: 'cloud-fixture', providerName: 'Fixture' } }));
   child = spawn(join(app, 'Contents/MacOS/Pippa'), ['--ask', 'Reply with PIPPA_PROVIDER_OK. Do not use tools.'], {
@@ -51,8 +51,15 @@ try {
   assert.equal(code, 0, stdout + stderr);
   assert.ok(stdout.includes('PIPPA_PROVIDER_OK'), stdout);
   assert.ok(!stdout.includes('FAILED:'), stdout);
-  assert.ok(calls > 0, 'selected provider must receive the request');
-  assert.equal(requestModel, 'cloud-fixture');
+  assert.equal(requests.length, 1, 'one typed question reaches the selected provider once');
+  const [request] = requests;
+  assert.equal(request.model, 'cloud-fixture');
+  assert.ok(!JSON.stringify(request).includes(privateNote), 'personal notes stay on the Mac');
+  const toolNames = request.tools.map(tool => tool.function.name);
+  for (const tool of ['read', 'bash', 'remember', 'mcp__pippa__read_document', 'mcp__pippa__mail_read',
+    'mcp__pippa__calendar_read', 'mcp__pippa__reminders_read', 'mcp__pippa__photos_search']) {
+    assert.ok(!toolNames.includes(tool), `online provider was offered local tool ${tool}`);
+  }
   console.log('Provider setup smoke passed: fresh HOME → selected Pi provider → actual app answer; no local model.');
 } finally {
   clearTimeout(timeout);

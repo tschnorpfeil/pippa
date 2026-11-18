@@ -17,6 +17,20 @@ final class SettingsModel: ObservableObject {
         SetupModel.shared.objectWillChange.send()
     }
 
+    /// Sharing rules and the single-question recipient save like the capabilities: the next online Pi starts with them.
+    func saveSharing(_ sharing: SourceSharing, removeRecipient: Bool) throws {
+        var settings = removeRecipient ? inferenceSettings.withoutHandoff() : inferenceSettings
+        settings.sharing = sharing
+        try settings.save(to: PiSession.settingsDirectory)
+        inferenceSettings = settings
+        ChatModel.shared.updateReview { plan in
+            let permitted = SharePlan(destination: plan.destination, question: plan.question, candidates: plan.pieces, rules: sharing)
+            plan.pieces = permitted.pieces
+            plan.withheld += permitted.withheld
+        }
+        SetupModel.shared.objectWillChange.send()
+    }
+
     /// Optional capabilities save even while an answer runs: that answer keeps its Pi, the next question starts one
     /// with the new choice (`PiSession.LaunchRoute.key`). The route itself stays as it is.
     func saveCapabilities(_ capabilities: OptionalCapabilities) throws {

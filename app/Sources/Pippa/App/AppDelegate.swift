@@ -157,18 +157,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return main
     }
 
-    /// Stop Pi and the local model cleanly, then quit; at most 5 seconds.
+    /// Both process shutdowns have their own deadlines. Finish Pi’s credential cleanup before allowing Quit.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !shuttingDown else { return .terminateLater }
         shuttingDown = true
         let server = PiSession.shared.ownedServer
         let reply = TerminateReply()
-        Task { @MainActor in await PiSession.shared.shutdown() }
-        Task.detached {
-            await server?.stop()
+        Task { @MainActor in
+            async let stoppingLocalModel: Void? = server?.stop()
+            await PiSession.shared.shutdown()
+            _ = await stoppingLocalModel
             reply.send()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { reply.send() }
         return .terminateLater
     }
 

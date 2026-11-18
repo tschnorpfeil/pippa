@@ -29,10 +29,9 @@ struct ModelConnectionSettings: View {
     private var onBinding: Binding<Bool> {
         Binding(get: { model.inferenceSettings.policy != .localOnly }, set: { on in
             guard !blocked else { return }
-            var settings = model.inferenceSettings
-            settings.policy = on ? .ask : .localOnly
+            var settings = on ? model.inferenceSettings : model.inferenceSettings.onThisMac()
             // One cloud service at a time: the ChatGPT subscription goes off.
-            if on { settings.subscriptionModel = nil; settings.piModel = nil }
+            if on { settings.policy = .ask; settings.subscriptionModel = nil; settings.piModel = nil }
             do { try model.saveInferenceSettings(settings); statusState.wrappedValue = nil }
             catch { report(error) }
         })
@@ -207,6 +206,7 @@ struct ModelConnectionSettings: View {
         do {
             var settings = model.inferenceSettings
             settings.connection = nil
+            if settings.handoffConnection == connection.id { settings.handoffConnection = nil }
             settings.policy = .localOnly
             let previousKey = try ModelCredentialStore.read(connection.id)
             try ModelCredentialStore.delete(connection.id)

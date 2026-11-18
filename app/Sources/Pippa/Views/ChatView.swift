@@ -81,6 +81,9 @@ struct ChatView: View {
                 }
             }
         }
+        .sheet(isPresented: Binding(get: { chat.review != nil }, set: { if !$0 { chat.dismissReview() } })) {
+            ShareReviewSheet(chat: chat)
+        }
         .sheet(isPresented: $setup.showsOnlineSetup) {
             OnlineSetupSheet(settings: .shared, setup: setup) { setup.showsOnlineSetup = false }
         }

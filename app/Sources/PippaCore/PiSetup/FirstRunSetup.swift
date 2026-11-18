@@ -68,12 +68,14 @@ public enum FirstRunSetup {
         return .activate(picked, model: model)
     }
 
-    /// What "Use <provider>" saves: the provider and model as Pi's route, and nothing else of the settings changes
-    /// (abilities stay, an older Keychain connection stays saved for Settings).
+    /// What "Use <provider>" saves: the provider and model as Pi's route, also as the recipient for single questions once
+    /// the person switches back to this Mac. Nothing else changes (abilities and sharing rules stay, an older Keychain
+    /// connection stays saved for Settings).
     public static func activated(_ settings: InferenceSettings, provider: PiProvider, model: PiProvider.Model) -> InferenceSettings {
         var saved = settings
         saved.piModel = PiModelSelection(providerID: provider.id, modelID: model.id, providerName: provider.name, modelName: model.name)
         saved.subscriptionModel = nil; saved.policy = .localOnly
+        saved.handoffModel = saved.piModel
         return saved
     }
 }

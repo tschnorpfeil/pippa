@@ -1,4 +1,5 @@
 import AppKit
+import PhotosUI
 import PippaCore
 import SwiftUI
 
@@ -8,6 +9,9 @@ struct Composer: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
     @FocusState private var focused: Bool
+    /// The Photos picker for one picture to share (its text, read on this Mac).
+    private let pickingPhoto = State(initialValue: false)
+    private let pickedPhoto = State<PhotosPickerItem?>(initialValue: nil)
 
     /// How far the drawer reaches under the body.
     private let tuck: CGFloat = 16
@@ -31,6 +35,15 @@ struct Composer: View {
         .padding(.horizontal, Layout.gutter).padding(.top, Space.s).padding(.bottom, Space.xl)
         .frame(maxWidth: .infinity)
         .onAppear { focused = true }
+        .photosPicker(isPresented: pickingPhoto.projectedValue, selection: pickedPhoto.projectedValue, matching: .images,
+                      preferredItemEncoding: .compatible)
+        .onChange(of: pickedPhoto.wrappedValue) { _, item in
+            guard let item else { return }
+            pickedPhoto.wrappedValue = nil
+            chat.sharePhoto(type: item.supportedContentTypes.first) {
+                try? await item.loadTransferable(type: Data.self)
+            }
+        }
     }
 
     private var drawer: some View {
@@ -61,6 +74,7 @@ struct Composer: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: Space.ml) {
+            if chat.review == nil, let parked = chat.parkedReview { parkedRow(parked) }
             TextField(T("Ask Pippa…", table: "App"), text: $chat.draft, axis: .vertical)
                 .textFieldStyle(.plain).font(Typo.body).lineSpacing(4).lineLimit(1...10)
                 .focused($focused)
@@ -71,17 +85,14 @@ struct Composer: View {
                 }
                 .onSubmit { if canSend { chat.send() } }
                 .padding(.horizontal, Space.xs)
+            if let problem = chat.problem {
+                Text(problem).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, Space.xs)
+            }
             HStack(spacing: Space.m) {
-                Button { addFiles() } label: {
-                    Image(systemName: "plus").font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink2)
-                        .frame(width: 28, height: 28)
-                        .background(Theme.rowHover, in: Circle())
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .help(T("Add Files…", table: "App"))
-                .accessibilityLabel(T("Add Files…", table: "App"))
+                addButton
                 Spacer(minLength: Space.m)
+                if let recipient = chat.handoffDestination { askOnlineButton(recipient) }
                 AIBadge(setup: setup)
                 sendButton
             }
@@ -89,6 +100,90 @@ struct Composer: View {
         .padding(.horizontal, Space.ml).padding(.top, 13).padding(.bottom, Space.ml)
         .glass(Radius.chat, lifted: focused)
         .animation(Theme.quick, value: focused)
+    }
+
+    private var plus: some View {
+        Image(systemName: "plus").font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink2)
+            .frame(width: 28, height: 28)
+            .background(Theme.rowHover, in: Circle())
+            .contentShape(Circle())
+    }
+
+    /// A review cancelled or not answered in this conversation, with every edit: continue it or let it go.
+    private func parkedRow(_ parked: ShareReview) -> some View {
+        HStack(spacing: Space.m) {
+            Image(systemName: "cloud").foregroundStyle(Theme.ink2).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(T("Your check for %@ is kept", table: "App", parked.plan.destination.provider)).font(Typo.footnote.weight(.medium))
+                if let problem = parked.problem {
+                    Text(problem).font(Typo.caption).foregroundStyle(Theme.need).lineLimit(2)
+                }
+            }
+            Spacer(minLength: Space.m)
+            Button(T("Continue Checking…", table: "App")) { chat.resumeReview() }
+                .controlSize(.small).disabled(chat.isAnswering)
+                .help(T("Open the check again with your edits; nothing is sent until you press Send", table: "App"))
+            Button { chat.discardParkedReview() } label: {
+                Image(systemName: "xmark").font(Typo.caption.weight(.bold)).imageScale(.small).foregroundStyle(Theme.ink3)
+                    .frame(width: 24, height: 24).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(T("Discard the check", table: "App"))
+            .accessibilityLabel(T("Discard the check", table: "App"))
+        }
+        .font(Typo.footnote).foregroundStyle(Theme.ink)
+        .padding(.horizontal, Space.xs)
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Files, and with an online AI (or one for single questions) also what Pippa reads for it on this Mac first: each
+    /// opens the review that names the provider. A source set to "Only on this Mac" is shown, but can't be chosen.
+    @ViewBuilder private var addButton: some View {
+        let settings = SettingsModel.shared.inferenceSettings
+        if settings.usesOnlineAI || chat.handoffDestination != nil {
+            let rules = settings.sharing
+            Menu {
+                Button(T("Add Files…", table: "App")) { addFiles() }
+                Divider()
+                if !settings.usesOnlineAI, let recipient = chat.handoffDestination {
+                    Text(T("For one question to %@", table: "App", recipient.provider))
+                }
+                shareItem(T("Selected Email in Mail", table: "App"), .mail, rules)
+                shareItem(T("Calendar, Next 7 Days", table: "App"), .calendar, rules)
+                shareItem(T("Open Reminders", table: "App"), .reminders, rules)
+                let photo = T("Photo from Photos…", table: "App")
+                Button(rules.photos == .ask ? photo : T("%@ (only on this Mac)", table: "App", photo)) { pickingPhoto.wrappedValue = true }
+                    .disabled(rules.photos != .ask)
+            } label: { plus }
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+            .disabled(chat.isAnswering)
+            .help(T("Add files, or share something from your Mac after checking it", table: "App"))
+            .accessibilityLabel(T("Add", table: "App"))
+        } else {
+            Button { addFiles() } label: { plus }
+                .buttonStyle(.plain)
+                .help(T("Add Files…", table: "App"))
+                .accessibilityLabel(T("Add Files…", table: "App"))
+        }
+    }
+
+    private func shareItem(_ title: String, _ source: SharingSource, _ rules: SourceSharing) -> some View {
+        Button(rules[source] == .ask ? title : T("%@ (only on this Mac)", table: "App", title)) { chat.share(source) }
+            .disabled(rules[source] != .ask)
+    }
+
+    /// While conversations stay on this Mac: one question to the online AI used before, after the review.
+    private func askOnlineButton(_ recipient: ShareDestination) -> some View {
+        Button { chat.askOnline() } label: {
+            Label(T("Ask %@…", table: "App", recipient.provider), systemImage: "cloud")
+                .font(Typo.caption.weight(.medium)).foregroundStyle(Theme.ink2)
+                .padding(.horizontal, 9).frame(height: 24)
+                .background(Theme.rowHover, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(chat.isAnswering || !(hasContent || chat.current?.messages.isEmpty == false))
+        .help(T("Check what goes to %@, then send this one question there", table: "App", recipient.label))
     }
 
     /// One 32 pt circle in one place: Send (the accent as soon as there is something to send, quiet grey before), or

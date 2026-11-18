@@ -44,6 +44,8 @@ await focused("PIPPA_PROVIDER_CHECKS", "Provider") {
     await runInferenceChecks()
     await runProviderChecks()
 }
+await focused("PIPPA_SHARING_CHECKS", "Sharing") { await runSharingChecks(); runShareDeskChecks() }
+await focused("PIPPA_MCP_EGRESS_CHECKS", "MCP egress") { await runMCPEgressChecks() }
 await focused("PIPPA_RELIABILITY_CHECKS", "Reliability") {
     runSkillChecks()
     await runSheetChecks()
@@ -437,6 +439,9 @@ await runMCPFilePreparationChecks()
 await runLetterChecks()
 await runSheetChecks()
 await runProviderChecks()
+await runSharingChecks()
+runShareDeskChecks()
+await runMCPEgressChecks()
 await runCalendarChecks()
 runCalendarStoreChecks()
 await runResultCardChecks()

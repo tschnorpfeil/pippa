@@ -82,5 +82,5 @@ For developers:
 ## Online AI instead
 
 If you prefer, Pippa can work with an online AI: sign in with your ChatGPT subscription, or add your own OpenAI or
-Anthropic key in Settings. While it's on, your conversations and what Pippa reads for them go to that service. See
+Anthropic key in Settings. While it's on, what you type goes to that service; anything from your Mac goes along only after you check the exact text. See
 [Privacy and permissions](privacy-and-permissions.md#online-ai-only-if-you-switch-it-on).

@@ -195,6 +195,7 @@ check("RPC keeps absent and malformed results uncertain, permits valid empty suc
       outcomeReceipt.records.map(\.outcome) == [.unclear, .unclear, .done, .unclear])
 runOutcomeChecks()
 runLaunchChecks()
+runOnlineLaunchChecks()
 var moveReceipt = PiTurnReceipt()
 for event in try await collect("move-protocol") { moveReceipt.observe(event) }
 check("move_files to the Trash is a trash line; to a folder it is a move with the folder's name",

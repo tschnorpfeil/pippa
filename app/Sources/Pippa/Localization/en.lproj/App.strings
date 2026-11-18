@@ -130,7 +130,6 @@
 "Done" = "Done";
 "In what I read" = "In what I read";
 "Nothing changed on your Mac" = "Nothing changed on your Mac";
-"Nothing leaves this Mac." = "Nothing leaves this Mac.";
 "Nothing read for this answer" = "Nothing read for this answer";
 "Nothing yet" = "Nothing yet";
 "Pages %@ of %lld" = "Pages %@ of %lld";
@@ -167,7 +166,6 @@
 "Thought for %@" = "Thought for %@";
 "Worked for %@ · %lld steps" = "Worked for %@ · %lld steps";
 "Worked for %@ · 1 step" = "Worked for %@ · 1 step";
-"Your conversation goes to the online AI you chose." = "Your conversation goes to the online AI you chose.";
 
 "Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings." = "Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.";
 
@@ -223,5 +221,44 @@
 "Choose where Pippa’s AI runs. You can change it later in Settings." = "Choose where Pippa’s AI runs. You can change it later in Settings.";
 "One-time download of %@. Your conversations and files stay on this Mac." = "One-time download of %@. Your conversations and files stay on this Mac.";
 "Online AI" = "Online AI";
-"No download. Your conversations and what Pippa reads for them go to the provider you choose." = "No download. Your conversations and what Pippa reads for them go to the provider you choose.";
+"No download. What you type goes to the provider you choose; Pippa asks before anything from your Mac goes along." = "No download. What you type goes to the provider you choose; Pippa asks before anything from your Mac goes along.";
 "Needs an account with a provider such as OpenAI or Anthropic." = "Needs an account with a provider such as OpenAI or Anthropic.";
+
+/* Sharing with an online AI (issue #193) */
+"%@ (only on this Mac)" = "%@ (only on this Mac)";
+"Add" = "Add";
+"Add files, or share something from your Mac after checking it" = "Add files, or share something from your Mac after checking it";
+"Answer from %@" = "Answer from %@";
+"Ask %@…" = "Ask %@…";
+"Calendar, Next 7 Days" = "Calendar, Next 7 Days";
+"Check what goes to %@, then send this one question there" = "Check what goes to %@, then send this one question there";
+"From %@" = "From %@";
+"Nothing read from your Mac" = "Nothing read from your Mac";
+"Only your message and the selected excerpts go to %@. You can edit both before sending." = "Only your message and the selected excerpts go to %@. You can edit both before sending.";
+"Pippa uses an online AI now. Nothing was sent; check what you want to share and send again." = "Pippa uses an online AI now. Nothing was sent; check what you want to share and send again.";
+"Pippa’s answer on this Mac" = "Pippa’s answer on this Mac";
+"Read before Pippa noted its sources" = "Read before Pippa noted its sources";
+"Reading on this Mac…" = "Reading on this Mac…";
+"Selected Email in Mail" = "Selected Email in Mail";
+"Send to %@" = "Send to %@";
+"Sent to %@" = "Sent to %@";
+"Sent to %@ with %@" = "Sent to %@ with %@";
+"To include a source, set it to “Ask before sharing” and add it again." = "To include a source, set it to “Ask before sharing” and add it again.";
+"Sharing Settings…" = "Sharing Settings…";
+"Stays on this Mac" = "Stays on this Mac";
+"The online AI changed since you checked. Nothing was sent; check again for the new one." = "The online AI changed since you checked. Nothing was sent; check again for the new one.";
+"Your message" = "Your message";
+"Photo" = "Photo";
+"Photo from Photos…" = "Photo from Photos…";
+"Pippa couldn’t read this photo." = "Pippa couldn’t read this photo.";
+"Your check for %@ is kept" = "Your check for %@ is kept";
+"Continue Checking…" = "Continue Checking…";
+"Open the check again with your edits; nothing is sent until you press Send" = "Open the check again with your edits; nothing is sent until you press Send";
+"Discard the check" = "Discard the check";
+"For one question to %@" = "For one question to %@";
+
+"Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review." = "Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review.";
+"AI for this answer · %@" = "AI for this answer · %@";
+"AI for this answer · On this Mac" = "AI for this answer · On this Mac";
+"Your next question goes to your selected online AI." = "Your next question goes to your selected online AI.";
+"Your next question uses the AI on this Mac." = "Your next question uses the AI on this Mac.";

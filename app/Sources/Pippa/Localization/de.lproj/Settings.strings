@@ -56,7 +56,7 @@
 "Use this Mac" = "Diesen Mac verwenden";
 "Using %@ · %@" = "Aktiv: %@ · %@";
 "Waiting for sign-in…" = "Warten auf die Anmeldung …";
-"Your conversations and everything Pippa reads for them will be sent to %@." = "Deine Gespräche und alles, was Pippa dafür liest, werden an %@ gesendet.";
+"What you type will be sent to %@. Anything from your Mac goes along only after you check it." = "Was du schreibst, wird an %@ gesendet. Etwas von deinem Mac geht nur mit, nachdem du es geprüft hast.";
 
 "Reconnect" = "Erneut verbinden";
 
@@ -90,11 +90,10 @@
 "Web search" = "Websuche";
 "Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission." = "Pippa kann für eine Antwort im Web suchen und Seiten abrufen. Mit deiner Erlaubnis kann Pippa weiterhin Seiten in ihrem Browser öffnen.";
 "Personal notes" = "Persönliche Notizen";
-"Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes." = "Pippa kann persönliche Notizen speichern und in anderen Gesprächen nutzen. Beim Ausschalten bleiben gespeicherte Notizen erhalten.";
 "Online" = "Online";
 /* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
 "Use an Online AI" = "Online-KI verwenden";
-"No download. Your conversations and everything Pippa reads for them go to the provider you choose. You can switch back to this Mac at any time in Settings." = "Kein Download. Deine Gespräche und alles, was Pippa dafür liest, gehen an den Anbieter, den du wählst. In den Einstellungen kannst du jederzeit zu diesem Mac zurückwechseln.";
+"No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings." = "Kein Download. Was du schreibst, geht an den Anbieter, den du wählst. Bevor etwas aus Mail, Dokumenten, Kalender, Erinnerungen oder Fotos mitgeht, zeigt dir Pippa den genauen Text. In den Einstellungen kannst du jederzeit zu diesem Mac zurückwechseln.";
 "The download for this Mac keeps going." = "Der Download für diesen Mac läuft weiter.";
 "More Providers and Models…" = "Weitere Anbieter und Modelle …";
 "Sign in to %@" = "Bei %@ anmelden";
@@ -102,3 +101,12 @@
 "%@ doesn’t recommend a model. Choose one under More Providers and Models." = "%@ empfiehlt kein Modell. Wähle eins unter „Weitere Anbieter und Modelle“.";
 "Model: %@" = "Modell: %@";
 "No providers are available. Try refreshing the list." = "Es sind keine Anbieter verfügbar. Versuche, die Liste zu aktualisieren.";
+
+/* Sharing with an online AI (issue #193) */
+"An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is." = "Eine Online-KI liest hier nie selbst. Bevor etwas daraus gesendet wird, zeigt Pippa, welcher Anbieter es bekommt, und den genauen Text, den du ändern kannst. Was du selbst schreibst, wird so gesendet, wie es ist.";
+"Ask before sharing" = "Vor dem Teilen fragen";
+"Lets the AI on this Mac save and use personal notes across chats. An online AI never gets them. Turning this off keeps your saved notes." = "Die KI auf diesem Mac kann sich persönliche Notizen über Gespräche hinweg merken und nutzen. Eine Online-KI bekommt sie nie. Ausschalten behält deine gespeicherten Notizen.";
+"Only on this Mac" = "Nur auf diesem Mac";
+"Sharing with online AI" = "Teilen mit Online-KI";
+"Single questions" = "Einzelne Fragen";
+"While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@." = "Während Pippa diesen Mac nutzt, schickt „%@ fragen …“ im Chat eine geprüfte Frage an %@.";

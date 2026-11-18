@@ -75,8 +75,51 @@ struct AISettings: View {
             if settings.inferenceSettings.activePiModel == nil, settings.inferenceSettings.connection != nil {
                 ModelConnectionSettings(model: settings)
             }
+            SharingSettings(settings: settings)
             OptionalCapabilitySettings(settings: settings)
         }
+    }
+}
+
+/// What may go to an online AI, per source: "Ask before sharing" (Pippa shows the provider and the excerpt first) or
+/// "Only on this Mac". And the online AI that single questions go to while conversations stay on this Mac.
+struct SharingSettings: View {
+    @ObservedObject var settings: SettingsModel
+    private let failureState = State<String?>(initialValue: nil)
+
+    var body: some View {
+        SettingsSection(title: T("Sharing with online AI", table: "Settings"),
+                        footer: failureState.wrappedValue ?? T("An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is.", table: "Settings")) {
+            ForEach(Array(SharingSource.allCases.enumerated()), id: \.element) { index, source in
+                if index > 0 { SettingsDivider() }
+                SettingsRow(title: source.displayName) {
+                    Picker(source.displayName, selection: Binding(
+                        get: { settings.inferenceSettings.sharing[source] },
+                        set: { rule in
+                            var sharing = settings.inferenceSettings.sharing
+                            sharing[source] = rule
+                            save(sharing)
+                        })) {
+                        Text(T("Ask before sharing", table: "Settings")).tag(SharingRule.ask)
+                        Text(T("Only on this Mac", table: "Settings")).tag(SharingRule.localOnly)
+                    }
+                    .labelsHidden().fixedSize()
+                }
+            }
+            if let handoff = ShareDestination.handoff(settings.inferenceSettings, recipients: .unresolved) {
+                SettingsDivider()
+                SettingsRow(title: T("Single questions", table: "Settings"),
+                            detail: T("While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@.", table: "Settings",
+                                      handoff.provider, handoff.label)) {
+                    Button(T("Remove", table: "Settings")) { save(settings.inferenceSettings.sharing, removeRecipient: true) }.pippa(.quiet)
+                }
+            }
+        }
+    }
+
+    private func save(_ sharing: SourceSharing, removeRecipient: Bool = false) {
+        do { try settings.saveSharing(sharing, removeRecipient: removeRecipient); failureState.wrappedValue = nil }
+        catch { failureState.wrappedValue = error.localizedDescription }
     }
 }
 
@@ -94,17 +137,18 @@ struct OptionalCapabilitySettings: View {
                 detail: T("Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission.", table: "Settings"),
                 \.web)
             SettingsDivider()
+            // Online AI never gets the notes (PippaPiLaunch.Capabilities.online): only the switch for this Mac.
             row(T("Personal notes", table: "Settings"),
-                detail: T("Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes.", table: "Settings"),
-                \.memory)
+                detail: T("Lets the AI on this Mac save and use personal notes across chats. An online AI never gets them. Turning this off keeps your saved notes.", table: "Settings"),
+                \.memory, online: false)
         }
     }
 
-    private func row(_ title: String, detail: String, _ key: WritableKeyPath<OptionalCapabilities.Choice, Bool>) -> some View {
+    private func row(_ title: String, detail: String, _ key: WritableKeyPath<OptionalCapabilities.Choice, Bool>, online: Bool = true) -> some View {
         SettingsRow(title: title, detail: detail) {
             VStack(alignment: .trailing, spacing: Space.xs) {
                 toggle(T("On this Mac", table: "App"), title: title, online: false, key)
-                toggle(T("Online", table: "Settings"), title: title, online: true, key)
+                if online { toggle(T("Online", table: "Settings"), title: title, online: true, key) }
             }
         }
     }

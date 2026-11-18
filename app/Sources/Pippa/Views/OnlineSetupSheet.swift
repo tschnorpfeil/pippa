@@ -38,7 +38,7 @@ struct OnlineSetupSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xl) {
             Text(T("Use an Online AI", table: "Settings")).font(Typo.headline)
-            SettingsNote(T("No download. Your conversations and everything Pippa reads for them go to the provider you choose. You can switch back to this Mac at any time in Settings.", table: "Settings"))
+            SettingsNote(T("No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings.", table: "Settings"))
             content
             if let problem = provider.problem, stage != .unavailable {
                 Text(problem).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
@@ -131,7 +131,7 @@ struct OnlineSetupSheet: View {
                 SettingsStatus(symbol: "checkmark.circle.fill", color: Theme.ok, text: T("Connected", table: "Settings"))
             }
             Text(T("Model: %@", table: "Settings", model)).foregroundStyle(Theme.ink2)
-            SettingsNote(T("Your conversations and everything Pippa reads for them will be sent to %@.", table: "Settings", item.name))
+            SettingsNote(T("What you type will be sent to %@. Anything from your Mac goes along only after you check it.", table: "Settings", item.name))
         }
     }
 

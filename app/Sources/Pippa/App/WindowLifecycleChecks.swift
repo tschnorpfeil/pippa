@@ -1,5 +1,7 @@
 import AppKit
 import PiRPC
+import PippaCore
+import WebKit
 
 /// Focused AppKit acceptance checks in a cloned app with its own bundle ID and temporary HOME.
 /// No setup, updater, single-instance notifications, model server, or account login runs here.
@@ -12,6 +14,45 @@ enum WindowLifecycleChecks {
         func check(_ name: String, _ result: Bool) {
             print("\(result ? "✓" : "✗") \(name)")
             if !result { failures += 1 }
+        }
+        let drafts = ChatModel()
+        let chats = ["a", "b"].map { Conversation(id: $0, title: $0, updated: Date(), messages: []) }
+        drafts.replaceForSnapshot(chats, current: "a", answering: false)
+        drafts.draft = "Original A"
+        let fixtureFile = URL(fileURLWithPath: "/synthetic/notice.txt")
+        drafts.attachments = [fixtureFile]
+        let plan = SharePlan(destination: ShareDestination(key: "fixture", label: "Fixture", provider: "Fixture"),
+                             question: "Edited A", candidates: [], rules: SourceSharing())
+        drafts.review = ShareReview(plan: plan, handoff: false, files: [fixtureFile], conversation: "a",
+                                   composer: ShareComposer(text: drafts.draft, files: drafts.attachments))
+        drafts.dismissReview()
+        drafts.select("b", carryingIslandDraft: true)
+        check("An Island context switch leaves the reviewed question and files in A", drafts.draft.isEmpty && drafts.attachments.isEmpty)
+        drafts.draft = "Different B"
+        drafts.select("a")
+        check("Returning to A restores the reviewed question and files", drafts.draft == "Edited A" && drafts.attachments == [fixtureFile])
+        drafts.select("b")
+        check("Returning to B restores its separate typed question", drafts.draft == "Different B")
+        if let first = WKBrowserSession.makeOnline(), let next = WKBrowserSession.makeOnline() {
+            let firstStore = first.webView.configuration.websiteDataStore
+            let nextStore = next.webView.configuration.websiteDataStore
+            let cookie = HTTPCookie(properties: [.domain: "fixture.invalid", .path: "/", .name: "isolated", .value: "first"])!
+            await firstStore.httpCookieStore.setCookie(cookie)
+            let firstCookies = await firstStore.httpCookieStore.allCookies()
+            let nextCookies = await nextStore.httpCookieStore.allCookies()
+            check("Separate online answers have separate, nonpersistent WebKit cookies",
+                  !firstStore.isPersistent && !nextStore.isPersistent && firstCookies.contains { $0.name == "isolated" }
+                  && !nextCookies.contains { $0.name == "isolated" })
+            let protectionSpace = URLProtectionSpace(host: "fixture.invalid", port: 443, protocol: "https", realm: "fixture",
+                                                     authenticationMethod: NSURLAuthenticationMethodHTTPBasic)
+            let challenge = URLAuthenticationChallenge(protectionSpace: protectionSpace, proposedCredential: nil,
+                                                       previousFailureCount: 0, failureResponse: nil, error: nil,
+                                                       sender: FixtureChallengeSender())
+            let (result, credential) = await first.webView(first.webView, didReceive: challenge)
+            check("Online WebKit declines HTTP Basic authentication", result == .cancelAuthenticationChallenge && credential == nil)
+        } else {
+            print("– This WebKit cannot disable managed sign-in, so online browsing is unavailable")
+            skipped += 1
         }
         func foregroundCheck(_ name: String, _ result: Bool) {
             if foregroundAvailable { check(name, result) }
@@ -298,4 +339,11 @@ private final class LegacyPromiseFixture: NSFilePromiseReceiver {
 private final class PromiseFixtureCallback: @unchecked Sendable {
     let read: (URL, Error?) -> Void
     init(_ read: @escaping (URL, Error?) -> Void) { self.read = read }
+}
+
+
+private final class FixtureChallengeSender: NSObject, URLAuthenticationChallengeSender {
+    func use(_ credential: URLCredential, for challenge: URLAuthenticationChallenge) {}
+    func continueWithoutCredential(for challenge: URLAuthenticationChallenge) {}
+    func cancel(_ challenge: URLAuthenticationChallenge) {}
 }

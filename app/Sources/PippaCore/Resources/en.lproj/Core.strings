@@ -90,3 +90,26 @@
 "The old version is no longer there." = "The old version is no longer there.";
 "Pippa’s AI on this Mac needs 16 GB of memory. Use an online AI in Settings instead." = "Pippa’s AI on this Mac needs 16 GB of memory. Use an online AI in Settings instead.";
 "%@ can’t be read with Apple Events." = "%@ can’t be read with Apple Events.";
+
+/* Sharing with an online AI (issue #193) */
+"(No open reminders.)" = "(No open reminders.)";
+"(No text was found in this picture. The picture itself is never sent.)" = "(No text was found in this picture. The picture itself is never sent.)";
+"(Nothing in the calendar.)" = "(Nothing in the calendar.)";
+"(Pippa couldn’t read text from this file.)" = "(Pippa couldn’t read text from this file.)";
+"(Pippa couldn’t read this email.)" = "(Pippa couldn’t read this email.)";
+"(The folder is empty.)" = "(The folder is empty.)";
+"Attachments (not shared): %@" = "Attachments (not shared): %@";
+"Calendar, next %lld days" = "Calendar, next %lld days";
+"Date: %@" = "Date: %@";
+"Documents" = "Documents";
+"Email “%@”" = "Email “%@”";
+"Folder “%@”" = "Folder “%@”";
+"From: %@" = "From: %@";
+"Open reminders" = "Open reminders";
+"Picture “%@”" = "Picture “%@”";
+"Select an email in Mail first, then try again." = "Select an email in Mail first, then try again.";
+"Subject: %@" = "Subject: %@";
+"Text recognized in the picture on this Mac:" = "Text recognized in the picture on this Mac:";
+"[… shortened on this Mac]" = "[… shortened on this Mac]";
+"all day" = "all day";
+"… and %lld more" = "… and %lld more";

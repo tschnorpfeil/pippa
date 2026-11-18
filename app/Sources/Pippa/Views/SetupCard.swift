@@ -119,7 +119,7 @@ struct SetupCard: View {
     /// An online AI: no download, and where the conversation goes. The button opens the short sign-in sheet.
     private func onlineChoice(primary: Bool) -> some View {
         choice(symbol: "globe", title: T("Online AI", table: "App"),
-               text: T("No download. Your conversations and what Pippa reads for them go to the provider you choose.", table: "App"),
+               text: T("No download. What you type goes to the provider you choose; Pippa asks before anything from your Mac goes along.", table: "App"),
                note: T("Needs an account with a provider such as OpenAI or Anthropic.", table: "App")) {
             ActionPill(title: T("Use an Online AI…", table: "App"), primary: primary) { openOnline() }
         }

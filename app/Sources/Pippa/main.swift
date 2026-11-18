@@ -50,7 +50,7 @@ if let index = CommandLine.arguments.firstIndex(of: "--snapshot-island"), Comman
 if CommandLine.arguments.dropFirst().contains("--check-approvals") {
     Task { @MainActor in
         let approvals = await ApprovalsChecks.run()
-        exit(max(approvals, ConversationStoreChecks.run()))
+        exit(max(approvals, ConversationStoreChecks.run(), SharingRouteChecks.run()))
     }
     app.run()
 }

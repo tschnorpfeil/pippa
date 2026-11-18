@@ -60,10 +60,12 @@ public struct PiProviderEvent: Decodable, Sendable {
     public var userCode: String?
     public var verificationUri: String?
     public var code: String?
+    /// `prepare`: the endpoint Pi derives from the credential for the turn's requests, `nil` when it uses the model's own.
+    public var endpoint: String?
 }
 
 public final class PiProviderClient: @unchecked Sendable {
-    public enum Failure: Error { case unavailable, failed, cancelled, portBusy }
+    public enum Failure: Error { case unavailable, failed, cancelled, portBusy, signedOut }
 
     public enum Problem: String, Sendable, Equatable { case signedOut, limit }
 
@@ -87,13 +89,15 @@ public final class PiProviderClient: @unchecked Sendable {
     }
 
     /// Uses the bundled release even before local model setup. No model download or server is needed for login.
+    /// `offline`: no model catalog from the network (an online turn's `prepare`; a due sign-in renewal still runs).
     public static func bundled(roots: PiInstallRoots, agentDirectory: URL,
-                               environment: [String: String] = ProcessInfo.processInfo.environment) -> PiProviderClient? {
-        let helper = environment["PIPPA_PI_PROVIDERS"].map { URL(fileURLWithPath: $0) }
+                               environment: [String: String] = ProcessInfo.processInfo.environment,
+                               helper fallback: URL? = nil, offline: Bool = false) -> PiProviderClient? {
+        let helper = environment["PIPPA_PI_PROVIDERS"].map { URL(fileURLWithPath: $0) } ?? fallback
             ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/pippa-auth/pi-providers.mjs")
         guard FileManager.default.fileExists(atPath: helper.path) else { return nil }
         var env = PiInstaller.baseEnvironment(roots)
-        env.removeValue(forKey: "PI_OFFLINE")
+        if !offline { env.removeValue(forKey: "PI_OFFLINE") }
         env["PI_CODING_AGENT_DIR"] = agentDirectory.path
         return PiProviderClient(node: roots.payload.node, release: roots.payload.release, helper: helper, environment: env)
     }
@@ -127,7 +131,9 @@ public final class PiProviderClient: @unchecked Sendable {
                 }
                 // A broken helper cannot keep an operation alive indefinitely.
                 let deadline = DispatchWorkItem { [state] in state.cancel(reason: .failed) }
-                DispatchQueue.global().asyncAfter(deadline: .now() + (arguments.first == "login" ? 610 : 45), execute: deadline)
+                // `prepare` may wait for Pi's auth.json lock (up to 30 s) and then for a renewal (up to 15 s).
+                DispatchQueue.global().asyncAfter(deadline: .now() + (arguments.first == "login" ? 610 : arguments.first == "prepare" ? 60 : 45),
+                                                  execute: deadline)
                 defer { deadline.cancel() }
                 var buffer = Data(), total = 0
                 var last: PiProviderEvent?
@@ -154,6 +160,7 @@ public final class PiProviderClient: @unchecked Sendable {
                     case "cancelled": throw Failure.cancelled
                     case "port_busy": throw Failure.portBusy
                     case "pi_missing": throw Failure.unavailable
+                    case "signed_out": throw Failure.signedOut
                     default: throw Failure.failed
                     }
                 }

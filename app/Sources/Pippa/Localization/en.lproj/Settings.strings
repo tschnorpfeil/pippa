@@ -56,7 +56,7 @@
 "Use this Mac" = "Use this Mac";
 "Using %@ · %@" = "Using %@ · %@";
 "Waiting for sign-in…" = "Waiting for sign-in…";
-"Your conversations and everything Pippa reads for them will be sent to %@." = "Your conversations and everything Pippa reads for them will be sent to %@.";
+"What you type will be sent to %@. Anything from your Mac goes along only after you check it." = "What you type will be sent to %@. Anything from your Mac goes along only after you check it.";
 
 "Reconnect" = "Reconnect";
 
@@ -90,11 +90,10 @@
 "Web search" = "Web search";
 "Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission." = "Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission.";
 "Personal notes" = "Personal notes";
-"Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes." = "Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes.";
 "Online" = "Online";
 /* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
 "Use an Online AI" = "Use an Online AI";
-"No download. Your conversations and everything Pippa reads for them go to the provider you choose. You can switch back to this Mac at any time in Settings." = "No download. Your conversations and everything Pippa reads for them go to the provider you choose. You can switch back to this Mac at any time in Settings.";
+"No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings." = "No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings.";
 "The download for this Mac keeps going." = "The download for this Mac keeps going.";
 "More Providers and Models…" = "More Providers and Models…";
 "Sign in to %@" = "Sign in to %@";
@@ -102,3 +101,12 @@
 "%@ doesn’t recommend a model. Choose one under More Providers and Models." = "%@ doesn’t recommend a model. Choose one under More Providers and Models.";
 "Model: %@" = "Model: %@";
 "No providers are available. Try refreshing the list." = "No providers are available. Try refreshing the list.";
+
+/* Sharing with an online AI (issue #193) */
+"An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is." = "An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is.";
+"Ask before sharing" = "Ask before sharing";
+"Lets the AI on this Mac save and use personal notes across chats. An online AI never gets them. Turning this off keeps your saved notes." = "Lets the AI on this Mac save and use personal notes across chats. An online AI never gets them. Turning this off keeps your saved notes.";
+"Only on this Mac" = "Only on this Mac";
+"Sharing with online AI" = "Sharing with online AI";
+"Single questions" = "Single questions";
+"While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@." = "While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@.";

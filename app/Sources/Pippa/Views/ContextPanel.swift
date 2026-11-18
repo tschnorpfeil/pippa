@@ -123,11 +123,25 @@ struct ContextPanel: View {
         .help(T("%@ of %@ tokens", table: "App", usage.tokens.formatted(), usage.window.formatted()))
     }
 
-    /// Where the conversation goes. The model's name is not repeated here: the composer shows it.
+    /// An answer keeps its recipient even when the next question will use a different AI.
     private var footer: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Space.s) {
-            Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer").foregroundStyle(Theme.ink2)
-            Text(setup.usesOnlineAI ? T("Your conversation goes to the online AI you chose.", table: "App") : T("Nothing leaves this Mac.", table: "App"))
+        let online: Bool
+        let label: String
+        if let provider = answer?.destination {
+            online = true
+            label = T("AI for this answer · %@", table: "App", provider)
+        } else if answer?.provenance != nil {
+            online = false
+            label = T("AI for this answer · On this Mac", table: "App")
+        } else {
+            // Older answers and PDF actions have no recorded AI recipient.
+            online = setup.usesOnlineAI
+            label = online ? T("Your next question goes to your selected online AI.", table: "App")
+                           : T("Your next question uses the AI on this Mac.", table: "App")
+        }
+        return HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+            Image(systemName: online ? "cloud" : "laptopcomputer").foregroundStyle(Theme.ink2)
+            Text(label)
                 .foregroundStyle(Theme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
         }

@@ -341,7 +341,7 @@ final class Island: ObservableObject {
 
     /// The earlier conversation under the empty field: the chat opens on it.
     func openConversation(_ id: String) {
-        ChatModel.shared.select(id)
+        ChatModel.shared.select(id, carryingIslandDraft: true)
         openChat()
     }
 
@@ -358,7 +358,7 @@ final class Island: ObservableObject {
     func continueConversation(_ id: String) {
         startsFresh = false
         continuing = id
-        ChatModel.shared.select(id)
+        ChatModel.shared.select(id, carryingIslandDraft: true)
         wantsFocus = true
         focusToken += 1
     }
@@ -391,6 +391,10 @@ final class Island: ObservableObject {
         // Like the composer: until the AI can answer, the question stays in the field (the island shows the setup above it).
         guard !chat.isAnswering, SetupModel.shared.canAnswer,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !files.isEmpty else { return }
+        if chat.hasReviewHere, followUp?.id != chat.currentID {
+            openChat(in: chat.currentID)
+            return
+        }
         if let followUp { chat.select(followUp.id) } else { chat.newConversation() }
         startsFresh = false
         chat.draft = text
