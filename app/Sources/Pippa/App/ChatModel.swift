@@ -391,8 +391,9 @@ final class ChatModel: ObservableObject {
         problem = nil
         ChatWindow.shared.show()
         guard !files.isEmpty, let reviewID = review?.id else { return }
+        let rules = SettingsModel.shared.inferenceSettings.sharing
         Task {
-            let pieces = await Task.detached(priority: .userInitiated) { ShareExtraction.files(files) }.value
+            let pieces = await Task.detached(priority: .userInitiated) { ShareExtraction.files(files, rules: rules) }.value
             guard review?.id == reviewID else { return }
             review?.pending -= 1
             addCandidates(pieces)

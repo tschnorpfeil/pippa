@@ -17,10 +17,14 @@ public struct ShareExtraction: Sendable {
 
     /// One part per file or folder, by its kind (`SharingSource.of`). Reading is local: PDFs, Office files and scans
     /// through `TextReader`, emails through `MailParser`.
-    public static func files(_ urls: [URL]) -> [SharePiece] {
+    public static func files(_ urls: [URL], rules: SourceSharing = SourceSharing()) -> [SharePiece] {
         urls.map { url in
+            let sources = SharingSource.sources(forFile: url)
+            guard rules.mayOffer(sources) else {
+                return SharePiece(sources: sources, title: url.lastPathComponent, text: "")
+            }
             var piece = file(url.resolvingSymlinksInPath())
-            piece.sources.formUnion(SharingSource.sources(forFile: url))
+            piece.sources.formUnion(sources)
             return piece
         }
     }
