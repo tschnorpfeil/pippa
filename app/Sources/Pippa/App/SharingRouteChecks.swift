@@ -117,6 +117,48 @@ enum SharingRouteChecks {
         check(ChatModel.outgoing("Hi", files: ["/Users/fixture/a.pdf"], frontApp: "Mail", undone: [], online: false)
               == .local(ChatModel.prompt("Hi", files: ["/Users/fixture/a.pdf"], frontApp: "Mail")),
               "on this Mac: unchanged")
+
+        // Mac access (issue #196): the person's grant for one verified recipient, never inferred, with a session of its own.
+        let legacySettings = try? JSONDecoder().decode(InferenceSettings.self, from: Data(#"{"policy":"localOnly"}"#.utf8))
+        check(legacySettings?.macAccess == nil && InferenceSettings().allowsMacAccess(openai) == false,
+              "Mac access is off by default, also for settings saved before it existed")
+        let privatemode = ShareDestination(PiModelSelection(providerID: "privatemode", modelID: "glm-5.3", providerName: "Privatemode"),
+                                           recipient: "account-p")
+        var granted = InferenceSettings(piModel: gpt); granted.macAccess = openai
+        let otherModel = ShareDestination(PiModelSelection(providerID: "openai", modelID: "gpt-other", providerName: "OpenAI"), recipient: "account-a")
+        check(granted.allowsMacAccess(openai) && !granted.allowsMacAccess(otherAccount) && !granted.allowsMacAccess(otherModel)
+              && !granted.allowsMacAccess(privatemode) && !granted.allowsMacAccess(nil),
+              "Mac access holds only for the recipient it was given to: another account, model or provider name gets none")
+        var unverifiedGrant = InferenceSettings(piModel: gpt); unverifiedGrant.macAccess = ShareDestination(gpt)
+        check(!unverifiedGrant.allowsMacAccess(ShareDestination(gpt)), "a recipient Pippa cannot verify never has Mac access")
+        check(granted.disconnected(provider: "openai").macAccess == nil && granted.disconnected(provider: "anthropic").macAccess == openai,
+              "signing out of the provider removes its Mac access")
+        var choices = granted; choices.capabilities = .init(local: .init(web: true, memory: false), online: .init(web: false, memory: true))
+        check(PiSession.macAccess(granted, openai, approved: false, handoff: false) != nil
+              && PiSession.macAccess(granted, openai, approved: true, handoff: false) == nil
+              && PiSession.macAccess(granted, openai, approved: true, handoff: true) == nil
+              && PiSession.macAccess(granted, otherAccount, approved: false, handoff: false) == nil
+              && PiSession.macAccess(choices, openai, approved: false, handoff: false) == .init(web: false, memory: false),
+              "Mac access for the person's own words only; approvals and single questions keep the limits; web as online, notes as on this Mac")
+
+        let trusted = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture|account-a").online(openai, .init(), rules: SourceSharing(), macAccess: .init())
+        check(trusted.hasMacAccess && trusted.egress == nil && trusted.destination == openai
+              && trusted.capabilities == local.capabilities && PippaPiLaunch.tools(trusted.capabilities) == PippaPiLaunch.tools(local.capabilities)
+              && ["read", "bash", "write", "mcp__pippa__*"].allSatisfy(PippaPiLaunch.tools(trusted.capabilities).contains)
+              && PippaPiLaunch.nativeTools(trusted.capabilities) == PiNativeReadiness.tools,
+              "with Mac access the online AI gets the tools of the AI on this Mac, and is still shown as the online AI")
+        check((try? PiSession.message(.local(prompt), route: trusted)) == prompt && changed(refused(.approved(approval), trusted)),
+              "with Mac access files and the app in front go as on this Mac; an approval still needs its own session")
+        let trustedB = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture|account-b").online(otherAccount, .init(), rules: SourceSharing(), macAccess: .init())
+        check(trusted.sessionScope == openai.macAccessTag && trusted.sessionScope != typedA.sessionScope && trusted.sessionScope != nil
+              && trusted.sessionScope != trustedB.sessionScope && trusted.key != typedA.key,
+              "Mac access has its own session per recipient: revoking it or another account never reuses that history")
+        check(!PiSession.sameRecipient(trusted, typedA) && !PiSession.sameRecipient(typedA, trusted)
+              && refused(.local(prompt), typedA).map { if case .needsReview = $0 { true } else { false } } == true,
+              "Mac access revoked or granted while Pi starts: the check before sending refuses the message")
+        let unverifiedRoute = PiSession.LaunchRoute(key: "pi|openai").online(ShareDestination(gpt), .init(), rules: SourceSharing(), macAccess: .init())
+        check(!unverifiedRoute.hasMacAccess && unverifiedRoute.egress != nil && unverifiedRoute.capabilities.online != nil,
+              "an unverified recipient keeps the limits even if Mac access were passed")
         return failures == 0 ? 0 : 1
     }
 }

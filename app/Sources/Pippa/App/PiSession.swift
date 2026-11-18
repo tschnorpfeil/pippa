@@ -37,7 +37,7 @@ final class PiSession {
     /// disk and before Pi starts (`message(_:route:)`), so a route that changed meanwhile never receives the wrong one.
     enum Outgoing: Equatable {
         /// For the AI on this Mac: the person's words with their files and the app in front (`ChatModel.prompt`).
-        /// Refused for an online AI.
+        /// Refused for an online AI unless the person allowed it Mac access (issue #196).
         case local(String)
         /// Exactly what the person typed, nothing added. Any route.
         case typed(String)
@@ -177,7 +177,7 @@ final class PiSession {
         switch outgoing {
         case .typed(let text): return text
         case .local(let prompt):
-            guard route.destination == nil else { throw Failure.needsReview }
+            guard route.destination == nil || route.hasMacAccess else { throw Failure.needsReview }
             return prompt
         case .approved(let approval):
             guard let destination = route.destination, destination.isVerified, destination == approval.destination,
@@ -413,17 +413,28 @@ final class PiSession {
 
         /// An online AI (issue #193): no Mac reading tools, no personal notes, its own session, writers by the sharing
         /// rules. Never inferred from a sign-in: only the active route or an approved single question gets here.
+        /// `macAccess`: the person allowed this verified recipient Mac access (issue #196); it gets the tools of the AI on
+        /// this Mac with these choices, in a session of its own (`ShareDestination.macAccessTag`). Pippa's approvals and
+        /// macOS permissions still apply.
         func online(_ destination: ShareDestination, _ choice: OptionalCapabilities.Choice, rules: SourceSharing,
-                    scope: String? = nil) -> Self {
+                    scope: String? = nil, macAccess: OptionalCapabilities.Choice? = nil) -> Self {
             var route = self
-            let egress = PippaMCPEgress(rules: rules, web: choice.web)
             route.destination = destination
-            route.egress = egress
-            route.sessionScope = scope ?? destination.sessionTag
-            route.capabilities = PippaPiLaunch.Capabilities(web: choice.web, memory: false, online: .init(mcpTools: egress.tools))
+            if let macAccess, destination.isVerified {
+                route.sessionScope = destination.macAccessTag
+                route.capabilities = PippaPiLaunch.Capabilities(web: macAccess.web, memory: macAccess.memory)
+            } else {
+                let egress = PippaMCPEgress(rules: rules, web: choice.web)
+                route.egress = egress
+                route.sessionScope = scope ?? destination.sessionTag
+                route.capabilities = PippaPiLaunch.Capabilities(web: choice.web, memory: false, online: .init(mcpTools: egress.tools))
+            }
             route.key += "|" + route.capabilities.key + "|" + (route.sessionScope ?? "")
             return route
         }
+
+        /// An online AI with the tools of the AI on this Mac (`online(_:_:rules:scope:macAccess:)`).
+        var hasMacAccess: Bool { destination != nil && capabilities.online == nil }
     }
 
     /// A Pi provider, an existing Keychain connection, or the model on this Mac, as saved in Settings, with the effective
@@ -455,6 +466,9 @@ final class PiSession {
             return destination.isVerified ? destination.sessionTag : "unverified-" + UUID().uuidString.lowercased()
         }
         let prefix = handoff ? "handoff|" : ""
+        func macAccess(_ destination: ShareDestination) -> OptionalCapabilities.Choice? {
+            Self.macAccess(settings, destination, approved: approval != nil, handoff: handoff)
+        }
         if let model {
             await removeOnlineProvider(from: modelsJSON)
             let recipients = PiRecipient(agentDirectory: target.agent)
@@ -462,7 +476,7 @@ final class PiSession {
             let destination = ShareDestination(model, identity: identity)
             return LaunchRoute(key: prefix + "pi|" + model.providerID + "|" + model.modelID + "|" + destination.recipient,
                                piModel: model, handoff: handoff)
-                .online(destination, choice, rules: settings.sharing, scope: scope(destination))
+                .online(destination, choice, rules: settings.sharing, scope: scope(destination), macAccess: macAccess(destination))
         }
         guard let connection else {
             await removeOnlineProvider(from: modelsJSON)
@@ -475,7 +489,16 @@ final class PiSession {
         let routeKey = [prefix + "online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
                         connection.modelID, String(connection.contextWindow), destination.recipient].joined(separator: "|")
         return LaunchRoute(key: routeKey, online: (connection, key), handoff: handoff)
-            .online(destination, choice, rules: settings.sharing, scope: scope(destination))
+            .online(destination, choice, rules: settings.sharing, scope: scope(destination), macAccess: macAccess(destination))
+    }
+
+    /// What the online AI gets with Mac access (issue #196), or `nil` for the limits: only the active recipient the person
+    /// allowed it, verified and unchanged, and only for their own words and files. An approved message or a single question
+    /// keeps the limits. Web search as chosen for the online AI; personal notes by the switch for this Mac.
+    static func macAccess(_ settings: InferenceSettings, _ destination: ShareDestination, approved: Bool,
+                          handoff: Bool) -> OptionalCapabilities.Choice? {
+        guard !approved, !handoff, settings.allowsMacAccess(destination) else { return nil }
+        return .init(web: settings.capabilities.online.web, memory: settings.capabilities.local.memory)
     }
 
     /// Pi's models.json keeps no online entry while another route is active. Best effort: a failure is only logged.

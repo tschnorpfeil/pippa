@@ -266,18 +266,21 @@ final class ChatModel: ObservableObject {
         guard !isAnswering, review == nil, !text.isEmpty || !attachments.isEmpty else { return }
         problem = nil
         // An online AI answers: typed words go as they are; files only after the review (issue #193). The app in front
-        // and earlier undos are notes for the AI on this Mac and stay here.
-        let destination = ShareDestination.active(SettingsModel.shared.inferenceSettings)
+        // and earlier undos are notes for the AI on this Mac and stay here. One the person allowed Mac access (issue #196)
+        // gets what the AI on this Mac gets; PiSession checks that again before anything goes out.
+        let settings = SettingsModel.shared.inferenceSettings
+        let destination = ShareDestination.active(settings)
+        let limited = destination != nil && !settings.allowsMacAccess(destination)
         let files = attachments.map(\.path)
         let id = currentID ?? UUID().uuidString.lowercased()
-        guard let outgoing = Self.outgoing(text, files: files, frontApp: frontApp, undone: destination == nil ? undoneNotes[id] ?? [] : [],
-                                           online: destination != nil) else {
+        guard let outgoing = Self.outgoing(text, files: files, frontApp: frontApp, undone: limited ? [] : undoneNotes[id] ?? [],
+                                           online: limited) else {
             if let destination { startReview(destination, handoff: false) }
             return
         }
-        if destination == nil { undoneNotes[id] = nil }
+        if !limited { undoneNotes[id] = nil }
         draft = ""; attachments = []; frontApp = nil
-        ask(text, files: destination == nil ? files : [], outgoing: outgoing, destination: destination?.label)
+        ask(text, files: limited ? [] : files, outgoing: outgoing, destination: destination?.label)
     }
 
     /// What goes to Pi for the composer's content: everything for the AI on this Mac; for an online AI only typed words,

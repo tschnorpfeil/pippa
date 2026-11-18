@@ -105,8 +105,15 @@
 /* Sharing with an online AI (issue #193) */
 "An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is." = "An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is.";
 "Ask before sharing" = "Ask before sharing";
-"Lets the AI on this Mac save and use personal notes across chats. An online AI never gets them. Turning this off keeps your saved notes." = "Lets the AI on this Mac save and use personal notes across chats. An online AI never gets them. Turning this off keeps your saved notes.";
+"Lets the AI on this Mac save and use personal notes across chats. An online AI gets them only with Mac access. Turning this off keeps your saved notes." = "Lets the AI on this Mac save and use personal notes across chats. An online AI gets them only with Mac access. Turning this off keeps your saved notes.";
 "Only on this Mac" = "Only on this Mac";
 "Sharing with online AI" = "Sharing with online AI";
 "Single questions" = "Single questions";
 "While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@." = "While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@.";
+
+/* Mac access for a trusted online AI (issue #196) */
+"Allow Mac access" = "Allow Mac access";
+"%@ can use the same Mac tools as the AI on this Mac: files, shell commands, Mail, Calendar, Reminders, Photos and the app in front. What they read, files you add and your personal notes, if they’re on, go to %@. Pippa still asks before commands and changes. Only for this provider, model and account." = "%@ can use the same Mac tools as the AI on this Mac: files, shell commands, Mail, Calendar, Reminders, Photos and the app in front. What they read, files you add and your personal notes, if they’re on, go to %@. Pippa still asks before commands and changes. Only for this provider, model and account.";
+"Pippa can’t confirm which account %@ uses, so it can’t get Mac access." = "Pippa can’t confirm which account %@ uses, so it can’t get Mac access.";
+"%@ has Mac access and reads these with Pippa’s tools, without this check. The rules still apply to what you share with +." = "%@ has Mac access and reads these with Pippa’s tools, without this check. The rules still apply to what you share with +.";
+"The online AI changed. Check it and try again." = "The online AI changed. Check it and try again.";

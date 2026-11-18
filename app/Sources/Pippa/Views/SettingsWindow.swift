@@ -31,6 +31,23 @@ final class SettingsModel: ObservableObject {
         SetupModel.shared.objectWillChange.send()
     }
 
+    /// "Allow Mac access" (issue #196): on only for `shown`, the online AI the page names, while it is still the verified
+    /// recipient in use; off at any time. The next question starts Pi with the new tools in a session of its own.
+    func saveMacAccess(_ shown: ShareDestination, allowed: Bool) throws {
+        var settings = inferenceSettings
+        if allowed {
+            guard shown.isVerified, ShareDestination.active(settings) == shown else {
+                throw InferenceError.invalidConnection(T("The online AI changed. Check it and try again.", table: "Settings"))
+            }
+            settings.macAccess = shown
+        } else {
+            settings.macAccess = nil
+        }
+        try settings.save(to: PiSession.settingsDirectory)
+        inferenceSettings = settings
+        PiSession.shared.settingsChanged()
+    }
+
     /// Optional capabilities save even while an answer runs: that answer keeps its Pi, the next question starts one
     /// with the new choice (`PiSession.LaunchRoute.key`). The route itself stays as it is.
     func saveCapabilities(_ capabilities: OptionalCapabilities) throws {

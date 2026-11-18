@@ -105,8 +105,15 @@
 /* Sharing with an online AI (issue #193) */
 "An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is." = "Eine Online-KI liest hier nie selbst. Bevor etwas daraus gesendet wird, zeigt Pippa, welcher Anbieter es bekommt, und den genauen Text, den du ändern kannst. Was du selbst schreibst, wird so gesendet, wie es ist.";
 "Ask before sharing" = "Vor dem Teilen fragen";
-"Lets the AI on this Mac save and use personal notes across chats. An online AI never gets them. Turning this off keeps your saved notes." = "Die KI auf diesem Mac kann sich persönliche Notizen über Gespräche hinweg merken und nutzen. Eine Online-KI bekommt sie nie. Ausschalten behält deine gespeicherten Notizen.";
+"Lets the AI on this Mac save and use personal notes across chats. An online AI gets them only with Mac access. Turning this off keeps your saved notes." = "Die KI auf diesem Mac kann sich persönliche Notizen über Gespräche hinweg merken und nutzen. Eine Online-KI bekommt sie nur mit Mac-Zugriff. Ausschalten behält deine gespeicherten Notizen.";
 "Only on this Mac" = "Nur auf diesem Mac";
 "Sharing with online AI" = "Teilen mit Online-KI";
 "Single questions" = "Einzelne Fragen";
 "While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@." = "Während Pippa diesen Mac nutzt, schickt „%@ fragen …“ im Chat eine geprüfte Frage an %@.";
+
+/* Mac access for a trusted online AI (issue #196) */
+"Allow Mac access" = "Mac-Zugriff erlauben";
+"%@ can use the same Mac tools as the AI on this Mac: files, shell commands, Mail, Calendar, Reminders, Photos and the app in front. What they read, files you add and your personal notes, if they’re on, go to %@. Pippa still asks before commands and changes. Only for this provider, model and account." = "%@ kann dieselben Mac-Werkzeuge nutzen wie die KI auf diesem Mac: Dateien, Shell-Befehle, Mail, Kalender, Erinnerungen, Fotos und die App im Vordergrund. Was sie lesen, Dateien, die du hinzufügst, und deine persönlichen Notizen, wenn sie an sind, gehen an %@. Pippa fragt weiterhin vor Befehlen und Änderungen. Nur für diesen Anbieter, dieses Modell und dieses Konto.";
+"Pippa can’t confirm which account %@ uses, so it can’t get Mac access." = "Pippa kann nicht bestätigen, welches Konto %@ nutzt, darum ist kein Mac-Zugriff möglich.";
+"%@ has Mac access and reads these with Pippa’s tools, without this check. The rules still apply to what you share with +." = "%@ hat Mac-Zugriff und liest hier mit Pippas Werkzeugen, ohne diese Prüfung. Für das, was du mit + teilst, gelten die Regeln weiter.";
+"The online AI changed. Check it and try again." = "Die Online-KI hat sich geändert. Prüfe sie und versuch es noch einmal.";

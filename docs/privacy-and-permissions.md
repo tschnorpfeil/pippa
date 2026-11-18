@@ -75,6 +75,15 @@ to the AI on this Mac again. Settings → AI → **Single questions** removes th
 If the online AI changes while a review is open, nothing is sent and Pippa asks you to check again. An answer that
 failed is never sent again on its own: **Try again** opens the review.
 
+**Mac access, only if you allow it.** For the online AI you use, Settings → AI → **Allow Mac access** gives it the same
+Mac tools as the AI on this Mac: files, Pippa's command line, Mail, Calendar, Reminders and Photos, without the review.
+What those tools read, files you attach, the app in front and, with personal notes on, your notes then go to that
+provider. Pippa still asks before commands that go online or change your files, macOS still asks for each app, and app
+control from the command line stays off. It is off by default and holds only for the provider, model and account it
+was turned on for: another account, key, address or model, signing out, or turning it off returns to the limits above.
+Conversations with Mac access keep their own provider session, so that history never reaches a limited session, another
+account or the AI on this Mac. Messages you approve in a review and single questions keep the limits.
+
 ## When Pippa goes online
 
 | What | When |
@@ -150,7 +159,7 @@ given. Check results, especially for actions you didn't expect.
 
 - **Facts you can check.** She keeps the facts you tell her about yourself in `memory.md` in her folder; ask her to
   forget one, or edit the file. She keeps at most 30, and refuses account, card, ID, tax and phone numbers and passwords.
-  Only the AI on this Mac uses them; an online AI never gets them.
+  Only the AI on this Mac uses them; an online AI gets them only with **Allow Mac access**.
 - **Stored on your Mac.** Facts, conversations and task records are stored on your Mac.
 - **A log without contents.** The log in `~/Library/Logs/Pippa` records the version and events, not file contents.
 

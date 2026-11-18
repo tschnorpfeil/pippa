@@ -59,6 +59,16 @@ Files and app content reach an online AI only through `ShareExtraction` (Pippa's
 single-question recipient `InferenceSettings.handoffModel`. Answers record what their tools read
 (`ChatMessage.provenance`, from tool names); answers saved before that count as every source.
 
+**Mac access (issue #196).** `InferenceSettings.macAccess` holds the one online recipient the person allowed the AI on
+this Mac's tools (Settings → AI → **Allow Mac access**, `SettingsModel.saveMacAccess`), as a verified `ShareDestination`;
+`allowsMacAccess` matches only the same configured key and recipient digest, so another account, key, endpoint or model
+ends it, and `disconnected(provider:)` clears it. `PiSession.macAccess` grants it only to the active route for typed or
+`.local` messages, never to approvals or single questions. Such a route keeps its destination, pinned recipient folder
+and label, but launches with the local capabilities (web as chosen for online, notes by the local switch), so none of
+the three limits apply, and uses its own session (`ShareDestination.macAccessTag`). `ChatModel.send` sends `.local` to
+it; `PiSession.message` accepts `.local` there only, and the pre-send route comparison refuses a turn whose grant
+changed while Pi started.
+
 **Conversation path.** `PiSession` (app) starts the pinned Pi with Pippa's Node through `PippaPiLaunch` and
 `PiRPCClient` (`app/Sources/PiRPC`). Flags: `--no-extensions` plus explicit `--extension`s, `--no-context-files` (an
 `AGENTS.md` in a user folder could inject instructions), `--no-approve` (project-local `.pi/` settings are ignored),
