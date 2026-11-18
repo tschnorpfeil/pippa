@@ -7,7 +7,11 @@ func runProtectedPathChecks() async {
     let fixture = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-protected-\(UUID().uuidString)", isDirectory: true)
     try? FileManager.default.createDirectory(at: fixture, withIntermediateDirectories: true)
     // The real path (/private/var/…), so the firmlink form below names the same folder.
-    let home = URL(fileURLWithPath: realpath(fixture.path, nil).map { defer { free($0) }; return String(cString: $0) } ?? fixture.path, isDirectory: true)
+    let resolved = realpath(fixture.path, nil).map { pointer in
+        defer { free(pointer) }
+        return String(cString: pointer)
+    }
+    let home = URL(fileURLWithPath: resolved ?? fixture.path, isDirectory: true)
     defer { try? FileManager.default.removeItem(at: fixture) }
     let support = home.appendingPathComponent("Library/Application Support/Pippa", isDirectory: true)
     let work = support.appendingPathComponent("pi-work", isDirectory: true)
