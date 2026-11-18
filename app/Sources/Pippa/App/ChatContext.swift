@@ -52,12 +52,13 @@ enum SourceLog {
     }
 
     /// `read_document`'s pages and whether it read only part, from its result.
-    static func detail(result: String) -> String? {
+    static func detail(result: String, mail: Bool = false) -> String? {
         guard let object = (try? JSONSerialization.jsonObject(with: Data(result.utf8))) as? [String: Any],
               let data = object["data"] as? [String: Any] else { return nil }
+        if mail { return data["bodyTruncated"] as? Bool == true ? T("Beginning only", table: "App") : nil }
         let pages = data["pages"] as? String
         let total = data["pageCount"] as? Int
-        if data["truncated"] as? Bool == true || data["bodyTruncated"] as? Bool == true {
+        if data["truncated"] as? Bool == true {
             return pages.map { T("Pages %@, more not read", table: "App", $0) } ?? T("Beginning only", table: "App")
         }
         if let pages, let total { return pages == "1" && total == 1 ? T("Whole page", table: "App") : T("Pages %@ of %lld", table: "App", pages, total) }

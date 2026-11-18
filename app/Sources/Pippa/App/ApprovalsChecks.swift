@@ -197,7 +197,7 @@ enum ConversationStoreChecks {
                                           result: #"{"data":{"subject":"Repeated subject","messageID":"old@example.test","account":"Work","bodyTruncated":true}}"#)
         check(accountMail?.location.isEmpty == true && accountMail?.name.contains("Work") == true,
               "an account-specific Mail source never opens an account-blind message link")
-        check(SourceLog.detail(result: #"{"data":{"bodyTruncated":true}}"#) == T("Beginning only", table: "App"),
+        check(SourceLog.detail(result: #"{"data":{"bodyTruncated":true}}"#, mail: true) == T("Beginning only", table: "App"),
               "a clipped email body is identified as a partial read")
         do {
             let chat = ChatModel.shared, saved = (ChatModel.shared.conversations, ChatModel.shared.currentID)
@@ -208,6 +208,14 @@ enum ConversationStoreChecks {
                                   result: #"{"data":{"subject":"Synthetic mail","account":"Work","bodyTruncated":true}}"#), in: id)
             check(chat.conversations.first?.messages.last?.sources?.first?.detail == T("Beginning only", table: "App"),
                   "a completed Mail tool updates the actual chat source with its partial-read disclosure")
+            chat.apply(.toolEnded(id: "synthetic-mail-metadata", name: "mcp__pippa__mail_read", isError: false,
+                                  result: #"{"data":{"subject":"Synthetic mail","account":"Work","bodyTruncated":false,"truncated":true}}"#), in: id)
+            check(chat.conversations.first?.messages.last?.sources?.first?.detail == nil,
+                  "an attachment-list limit never claims that the email body was clipped")
+            chat.apply(.toolEnded(id: "synthetic-mail-whole", name: "mcp__pippa__mail_read", isError: false,
+                                  result: #"{"data":{"subject":"Synthetic mail","account":"Work","bodyTruncated":false}}"#), in: id)
+            check(chat.conversations.first?.messages.last?.sources?.first?.detail == nil,
+                  "a complete email is not labeled as a whole document")
             chat.showSample(saved.0, current: saved.1, answering: false)
         }
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",
