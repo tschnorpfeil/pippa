@@ -58,9 +58,10 @@ export function overBudget(calls: number, limit = MAX_CALLS): string | undefined
 
 export interface LoopCount { runs: number; failures: number; successes: number; uncertain: number }
 
-// These statuses are emitted before any effect by PippaMCPWrite.swift. Unknown/new statuses fail closed.
+// These statuses are emitted before any effect by PippaMCPWrite.swift / PippaMCPEgress.swift. Unknown/new statuses fail closed.
 const NATIVE_NO_EFFECT = new Set(["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
-	"not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created", "stale_ref"]);
+	"not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
+	"stale_ref", "needs_calendar", "reply_needs_mail", "stays_on_mac"]);
 
 /** Only Pippa's top-level native write result establishes an effect. A lost/malformed reply proves neither outcome. */
 function nativeChangeOutcome(tool: string, content: any[], isError: boolean): "success" | "failure" | "uncertain" | undefined {

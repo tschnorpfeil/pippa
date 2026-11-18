@@ -90,6 +90,7 @@
 
 /* Sharing with an online AI (issue #193) */
 "The online AI can’t look into your calendar. Ask the AI on this Mac, or share the days with + first." = "The online AI can’t look into your calendar. Ask the AI on this Mac, or share the days with + first.";
+"The online AI can’t choose a calendar by name. Pippa can add to your default calendar, or use the AI on this Mac (or allow Mac access) to pick a calendar." = "The online AI can’t choose a calendar by name. Pippa can add to your default calendar, or use the AI on this Mac (or allow Mac access) to pick a calendar.";
 "The online AI can’t open your emails. Pippa saves a new draft instead, or the AI on this Mac can reply in the thread." = "The online AI can’t open your emails. Pippa saves a new draft instead, or the AI on this Mac can reply in the thread.";
 "This stays on this Mac while you use an online AI. Add what’s needed with + to check it before it’s sent, or ask the AI on this Mac." = "This stays on this Mac while you use an online AI. Add what’s needed with + to check it before it’s sent, or ask the AI on this Mac.";
 "Mail on this Mac · %lld–%lld of %lld" = "Mail on this Mac · %lld–%lld of %lld";

@@ -131,6 +131,7 @@ public struct PiTurnReceipt: Sendable {
     // Emitted before an effect by PippaMCPWrite.swift; unknown future statuses stay unconfirmed.
     private static let nativeNoEffect: Set<String> = ["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
         "not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
+        "needs_calendar", "reply_needs_mail", "stays_on_mac",
         // `browse` (PippaMCPBrowser.swift): refused address, stale ref, or the person's login step before any click.
         "blocked", "stale_ref", "handoff_required"]
 

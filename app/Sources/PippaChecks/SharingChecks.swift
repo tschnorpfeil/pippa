@@ -634,9 +634,24 @@ func runSharingChecks() async {
     }
     await checkAsync("Extraction: Calendar, Reminders and the selected email come from the apps, with permission checks") {
         let demo = DemoIntegrations(granted: true)
-        let host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo))
+        var fixedCal = Calendar(identifier: .gregorian)
+        fixedCal.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        let baseNow = fixedCal.date(from: DateComponents(year: 2026, month: 10, day: 8, hour: 9))!
+        demo.calendarEvents = [
+            CalendarEvent(id: "d1", title: "Zahnarzt (Beispiel)", start: fixedCal.date(from: DateComponents(year: 2026, month: 10, day: 8, hour: 16))!,
+                          end: fixedCal.date(from: DateComponents(year: 2026, month: 10, day: 8, hour: 17))!, calendar: "Privat"),
+            CalendarEvent(id: "d2", title: "Reise", start: fixedCal.date(from: DateComponents(year: 2026, month: 10, day: 10))!,
+                          end: fixedCal.date(from: DateComponents(year: 2026, month: 10, day: 13))!, allDay: true, calendar: "Privat"),
+            CalendarEvent(id: "d3", title: "Konferenz", start: fixedCal.date(from: DateComponents(year: 2026, month: 10, day: 10, hour: 9))!,
+                          end: fixedCal.date(from: DateComponents(year: 2026, month: 10, day: 12, hour: 17))!, calendar: "Arbeit"),
+        ]
+        let host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo),
+                                now: { baseNow }, calendar: fixedCal)
         let extraction = ShareExtraction(host: host)
         let calendar = try await extraction.calendar(days: 7)
+        let lines = calendar.text.split(separator: "\n").map(String.init)
+        let tripLine = lines.first { $0.contains("Reise") } ?? ""
+        let confLine = lines.first { $0.contains("Konferenz") } ?? ""
         let reminders = try await extraction.reminders()
         let mail = try await extraction.selectedMail()
         let denied = DemoIntegrations(granted: true); denied.set(.calendar, .denied)
@@ -645,6 +660,8 @@ func runSharingChecks() async {
                                                                hostData: DemoHostData(integrations: denied))).calendar() }
         catch ShareExtraction.Failure.blocked { blocked = true }
         return calendar.sources == [.calendar] && calendar.text.contains("Zahnarzt (Beispiel)")
+            && tripLine.contains("10") && tripLine.contains("12") && !tripLine.contains("13")
+            && confLine.contains("10") && confLine.contains("12") && confLine.contains("17:00")
             && reminders.sources == [.reminders] && reminders.text.contains("Nebenkosten überweisen (Beispiel)")
             && mail.sources == [.mail] && mail.text.contains("312,48") && blocked && denied.calendarReads.isEmpty
     }
@@ -698,8 +715,8 @@ func runSharingChecks() async {
         let reply = await mcpCall(online, "mail_draft", ["body": "Hi", "reply_to": "selected"])
         let fresh = await mcpCall(online, "mail_draft", ["body": "Hi", "subject": "New", "to": "a@example.invalid"])
         return !added.isError && added.text.contains("\"done\":true") && !added.text.contains("Zahnarzt") && !added.text.contains("conflicts")
-            && ifFree.isError && ifFree.text.contains("needs_calendar")
-            && probes.allSatisfy { $0.1 && $0.0.contains("needs_calendar") && !$0.0.contains("Arbeit") }
+            && ifFree.isError && ifFree.text.contains("needs_calendar") && ifFree.text.contains("+")
+            && probes.allSatisfy { $0.1 && $0.0.contains("needs_calendar") && !$0.0.contains("Arbeit") && !$0.0.contains(" + ") && !$0.0.contains("mit +") }
             && probed == 0
             && !reminder.isError && !reminder.text.contains("\"list\"") && !reminder.text.contains("Erinnerungen")
             && reply.isError && reply.text.contains("reply_needs_mail") && !fresh.isError

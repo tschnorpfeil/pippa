@@ -18,21 +18,25 @@ extension PippaMCPWriteTools {
             }
             endDay = last
         }
-        let maxSpan: TimeInterval = 31 * 86_400
+        guard let daySpan = Self.dayOffset(from: day, to: endDay, calendar: cal), daySpan >= 0 else {
+            return Self.invalid("end_date must be YYYY-MM-DD (or a relative day) on or after date.")
+        }
         let start: Date, end: Date, allDay: Bool
         if let rawTime = input.text("time") {
-            guard let t = Self.time(rawTime), let begin = cal.date(bySettingHour: t.hour, minute: t.minute, second: 0, of: day) else {
-                return Self.invalid("time must be HH:MM.")
+            guard let t = Self.time(rawTime), let begin = Self.exactTime(t, on: day, calendar: cal) else {
+                return Self.invalid("time must be a valid local HH:MM.")
             }
             if input.minutes != nil && input.text("end") != nil { return Self.invalid("Use minutes or end, not both.") }
-            if endDay > day && (input.minutes != nil || input.text("end") == nil) {
+            if daySpan > 0 && (input.minutes != nil || input.text("end") == nil) {
                 return Self.invalid("With end_date and time, give end (HH:MM), not minutes.")
             }
             if let rawEnd = input.text("end") {
-                guard let e = Self.time(rawEnd), let finish = cal.date(bySettingHour: e.hour, minute: e.minute, second: 0, of: endDay), finish > begin else {
-                    return Self.invalid("end must be HH:MM after time.")
+                guard let e = Self.time(rawEnd), let finish = Self.exactTime(e, on: endDay, calendar: cal), finish > begin else {
+                    return Self.invalid("end must be a valid local HH:MM after time.")
                 }
-                guard finish.timeIntervalSince(begin) <= maxSpan else { return Self.invalid("An event can span at most 31 days.") }
+                guard daySpan < 31 || (daySpan == 31 && (e.hour, e.minute) <= (t.hour, t.minute)) else {
+                    return Self.invalid("An event can span at most 31 days.")
+                }
                 end = finish
             } else {
                 let minutes = input.minutes ?? 60
@@ -42,12 +46,18 @@ extension PippaMCPWriteTools {
             start = begin; allDay = false
         } else {
             guard input.minutes == nil, input.text("end") == nil else { return Self.invalid("minutes and end need a time.") }
-            // end_date is inclusive: the event ends at the start of the following day.
-            let after = cal.date(byAdding: .day, value: 1, to: endDay) ?? endDay.addingTimeInterval(86_400)
-            guard (cal.dateComponents([.day], from: day, to: after).day ?? 0) <= 31 else { return Self.invalid("An event can span at most 31 days.") }
-            start = day; end = after; allDay = true
+            // end_date is inclusive: 1 day when end_date == date, at most 31 inclusive days.
+            guard daySpan + 1 <= 31 else { return Self.invalid("An event can span at most 31 days.") }
+            start = day; end = Self.dayAfter(endDay, calendar: cal); allDay = true
         }
-        let target = input.text("calendar").map { Self.singleLine($0, max: 120) }
+        let target: String?
+        if let rawCalendar = input.strings["calendar"] {
+            let trimmed = rawCalendar.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return Self.invalid("calendar must not be empty.") }
+            target = trimmed
+        } else {
+            target = nil
+        }
         let short = "\(when(start, end, allDay: allDay, short: true)) – \(Self.singleLine(title, max: 80))"
         func notDone(_ reason: String) -> PippaMCPWriteReceipt { PippaMCPWriteReceipt(action: "calendarAdd", outcome: "failed", name: short, reason: reason) }
         guard let writer = host.writer else {
@@ -110,13 +120,13 @@ extension PippaMCPWriteTools {
         let tell: String = switch error {
         case .notFound(let name, let writable):
             writable.isEmpty
-                ? L("There’s no calendar called “%@” that Pippa can add to. Nothing was added.", table: "MCP", name)
-                : L("There’s no calendar called “%@”. Pippa can add to: %@. Nothing was added.", table: "MCP", name,
-                    writable.prefix(12).joined(separator: ", "))
+                ? L("There’s no calendar called “%@” that Pippa can add to. Nothing was added.", table: "MCP", Self.singleLine(name, max: 120))
+                : L("There’s no calendar called “%@”. Pippa can add to: %@. Nothing was added.", table: "MCP", Self.singleLine(name, max: 120),
+                    writable.prefix(12).map { Self.singleLine($0, max: 80) }.joined(separator: ", "))
         case .ambiguous(let name):
-            L("More than one calendar is called “%@”. Rename one in Calendar, then ask again. Nothing was added.", table: "MCP", name)
+            L("More than one calendar is called “%@”. Rename one in Calendar, then ask again. Nothing was added.", table: "MCP", Self.singleLine(name, max: 120))
         case .readOnly(let name):
-            L("The calendar “%@” is read-only. Choose another calendar. Nothing was added.", table: "MCP", name)
+            L("The calendar “%@” is read-only. Choose another calendar. Nothing was added.", table: "MCP", Self.singleLine(name, max: 120))
         }
         return Self.blocked(error.status, tell, receipt: receipt)
     }

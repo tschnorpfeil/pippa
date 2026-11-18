@@ -133,7 +133,7 @@ public struct CalendarDigest: Sendable, Equatable {
             }
             entry.attendees = Array(attendees.prefix(Self.maxAttendees))
             entry.attendeesOmitted = attendees.count - entry.attendees.count
-            entry.url = Self.oneLine(event.url, max: 200)
+            entry.url = Self.wholeURL(event.url, maxBytes: 500)
             entry.notes = event.notes.flatMap { Self.oneLine(PippaMCPTools.compact($0), max: 280) }
                 .map { PippaMCPTools.byteClipped($0, characters: 280, bytes: 400) }
             if event.allDay {
@@ -182,6 +182,15 @@ public struct CalendarDigest: Sendable, Equatable {
             .trimmingCharacters(in: .whitespaces)
         guard !line.isEmpty else { return nil }
         return line.count > max ? String(line.prefix(max - 1)) + "…" : line
+    }
+
+    /// A link is either returned intact or omitted: shortening a URL with `…` would alter its target.
+    static func wholeURL(_ raw: String?, maxBytes: Int) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty,
+              !trimmed.contains(where: { $0.isWhitespace || $0.isNewline }),
+              trimmed.utf8.count <= maxBytes else { return nil }
+        return trimmed
     }
 
     /// The native answer: short, grouped by day, with the exact period and the source.

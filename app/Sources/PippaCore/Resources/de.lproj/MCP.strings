@@ -90,6 +90,7 @@
 
 /* Sharing with an online AI (issue #193) */
 "The online AI can’t look into your calendar. Ask the AI on this Mac, or share the days with + first." = "Die Online-KI kann nicht in deinen Kalender schauen. Frag die KI auf diesem Mac, oder teile die Tage vorher mit +.";
+"The online AI can’t choose a calendar by name. Pippa can add to your default calendar, or use the AI on this Mac (or allow Mac access) to pick a calendar." = "Die Online-KI kann keinen Kalender namentlich auswählen. Pippa kann in deinen Standardkalender eintragen, oder nutze für die Kalenderwahl die KI auf diesem Mac (bzw. erlaube Mac-Zugriff).";
 "The online AI can’t open your emails. Pippa saves a new draft instead, or the AI on this Mac can reply in the thread." = "Die Online-KI kann deine E-Mails nicht öffnen. Pippa legt stattdessen einen neuen Entwurf an, oder die KI auf diesem Mac antwortet im Verlauf.";
 "This stays on this Mac while you use an online AI. Add what’s needed with + to check it before it’s sent, or ask the AI on this Mac." = "Das bleibt auf diesem Mac, solange du eine Online-KI nutzt. Füge mit + hinzu, was gebraucht wird, und prüfe es vor dem Senden, oder frag die KI auf diesem Mac.";
 "Mail on this Mac · %lld–%lld of %lld" = "Mail auf diesem Mac · %lld–%lld von %lld";

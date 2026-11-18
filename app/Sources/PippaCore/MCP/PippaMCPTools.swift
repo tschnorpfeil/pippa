@@ -98,9 +98,10 @@ public struct PippaMCPTools: Sendable {
                 return Self.error(id: id, code: -32602, message: "Unknown tool")
             }
             // Refuse before dispatch. A permitted tool runs once and its result is encoded once.
-            if let egress = host.egress, let reason = egress.refusal(name, params["arguments"] as? [String: Any] ?? [:]) {
+            let rawArguments = params["arguments"] as? [String: Any] ?? [:]
+            if let egress = host.egress, let reason = egress.refusal(name, rawArguments) {
                 DiagnosticsLog.shared.event("mcp-online-refused", ["name": name, "reason": reason])
-                let outcome = egress.refused(name, reason: reason)
+                let outcome = egress.refused(name, reason: reason, arguments: rawArguments)
                 return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
             }
             let arguments: [String: Any]

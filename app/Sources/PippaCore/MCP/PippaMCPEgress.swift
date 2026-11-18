@@ -37,18 +37,26 @@ public struct PippaMCPEgress: Sendable, Equatable {
     }
 
     /// A refused call, for the model: what to tell the person and the safe way that remains.
-    func refused(_ tool: String, reason: String) -> PippaMCPToolResult {
+    func refused(_ tool: String, reason: String, arguments: [String: Any] = [:]) -> PippaMCPToolResult {
+        let namedCalendarOnly = tool == "calendar_add" && reason == "needs_calendar"
+            && arguments["calendar"] != nil && arguments["if_free"] as? Bool != true
         let tell: String = switch reason {
         case "reply_needs_mail":
             L("The online AI can’t open your emails. Pippa saves a new draft instead, or the AI on this Mac can reply in the thread.", table: "MCP")
+        case "needs_calendar" where namedCalendarOnly:
+            L("The online AI can’t choose a calendar by name. Pippa can add to your default calendar, or use the AI on this Mac (or allow Mac access) to pick a calendar.", table: "MCP")
         case "needs_calendar":
             L("The online AI can’t look into your calendar. Ask the AI on this Mac, or share the days with + first.", table: "MCP")
         default:
             L("This stays on this Mac while you use an online AI. Add what’s needed with + to check it before it’s sent, or ask the AI on this Mac.", table: "MCP")
         }
-        let next = reason == "reply_needs_mail"
-            ? "Nothing was created. Offer a new draft with subject and to instead, or repeat the sentence in tell."
-            : "Nothing was read or changed. Repeat the sentence in tell. Do not try another tool for it."
+        let next: String = if reason == "reply_needs_mail" {
+            "Nothing was created. Offer a new draft with subject and to instead, or repeat the sentence in tell."
+        } else if namedCalendarOnly {
+            "Nothing was read or changed. Offer adding to the default calendar without calendar, or repeat the sentence in tell."
+        } else {
+            "Nothing was read or changed. Repeat the sentence in tell. Do not try another tool for it."
+        }
         return PippaMCPToolResult(text: PippaMCPTools.json(["done": false, "read": false, "status": reason, "tell": tell, "next": next]),
                                   isError: true)
     }
