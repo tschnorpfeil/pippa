@@ -23,21 +23,30 @@ public struct ShareExtraction: Sendable {
             guard rules.mayOffer(sources) else {
                 return SharePiece(sources: sources, title: url.lastPathComponent, text: "")
             }
-            var piece = file(url.resolvingSymlinksInPath())
+            var piece = file(url.resolvingSymlinksInPath(), rules: rules)
             piece.sources.formUnion(sources)
             return piece
         }
     }
 
-    static func file(_ url: URL) -> SharePiece {
+    private static func file(_ url: URL, rules: SourceSharing) -> SharePiece {
         let name = url.lastPathComponent
         var isFolder: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isFolder), isFolder.boolValue {
-            let names = ((try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
+            let children = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil,
+                                                                          options: .skipsHiddenFiles)) ?? []
+            var sources = SharingSource.sources(forFile: url)
+            let names = children.compactMap { child -> String? in
+                let childSources = SharingSource.sources(forFile: child)
+                guard rules.mayOffer(childSources) else { return nil }
+                sources.formUnion(childSources)
+                return child.lastPathComponent
+            }.sorted()
             let shown = names.prefix(50).map { "- " + $0 }.joined(separator: "\n")
             let more = names.count > 50 ? "\n" + L("… and %lld more", table: "Core", names.count - 50) : ""
-            return SharePiece(sources: SharingSource.sources(forFile: url), title: L("Folder “%@”", table: "Core", name),
-                              text: names.isEmpty ? L("(The folder is empty.)", table: "Core") : shown + more)
+            let empty = children.isEmpty ? L("(The folder is empty.)", table: "Core") : ""
+            return SharePiece(sources: sources, title: L("Folder “%@”", table: "Core", name),
+                              text: names.isEmpty ? empty : shown + more)
         }
         switch SharingSource.of(file: url) {
         case .mail:

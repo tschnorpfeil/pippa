@@ -268,6 +268,17 @@ func runSharingChecks() async {
 
     // MARK: Extraction on this Mac
 
+    check("Folder listings respect each child’s source and retain provenance when rules later change") {
+        let folder = root.appendingPathComponent("mixed-share-folder")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data().write(to: folder.appendingPathComponent("Private subject.eml"))
+        try Data().write(to: folder.appendingPathComponent("Allowed.txt"))
+        var rules = SourceSharing(); rules.mail = .localOnly
+        let filtered = ShareExtraction.files([folder], rules: rules)[0]
+        let unrestricted = ShareExtraction.files([folder])[0]
+        return filtered.text == "- Allowed.txt" && filtered.sources == [.documents]
+            && unrestricted.text.contains("Private subject.eml") && !rules.mayOffer(unrestricted.sources)
+    }
     await checkAsync("Extraction: a saved email, a document, a folder and a picture become parts with their source, by name only") {
         let folder = root.appendingPathComponent("share-extraction", isDirectory: true)
         try fm.createDirectory(at: folder.appendingPathComponent("Box"), withIntermediateDirectories: true)
