@@ -167,6 +167,10 @@ public struct PippaMCPTools: Sendable {
             browserHost.onBrowserHandoff = nil
         }
         var (outcome, note) = await PippaMCPBrowserTool(host: browserHost, turn: context.turn?.id, writes: context.writes).call(arguments)
+        defer {
+            note.turnID = context.turn?.id
+            host.onRead?(note)
+        }
         if let online, let turn = context.turn {
             guard !Task.isCancelled, !context.writes.snapshot.cancelled, host.turns.active === turn else {
                 return PippaMCPBrowserTool.notDone("cancelled", isError: true)
@@ -180,12 +184,10 @@ public struct PippaMCPTools: Sendable {
                                                       isError: true, dispatched: payload["dispatched"] as? Bool == true)
                 note = Self.browseNote(action: "", detail: "", result: outcome)
             } else if (payload["data"] as? [String: Any])?["closed"] as? Bool == true {
-                await online.end(turn)
+                await online.end(turn, alreadyClosed: true)
                 outcome = PippaMCPBrowserTool.done(["closed": true], source: nil, next: "The browser for this answer is closed.")
             }
         }
-        note.turnID = context.turn?.id
-        host.onRead?(note)
         return outcome
     }
 

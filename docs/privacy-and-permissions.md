@@ -58,7 +58,8 @@ folder. What it receives:
 - **Follow-up questions.** Ordinary typed messages share history within the same conversation and provider account.
   Each message you approve in the review starts a separate provider session. To ask about the same excerpt again,
   include it in a new review. Switching back to the Mac resumes the local history.
-- **Web pages**, when web search is on for the online AI. The first search in an answer still asks you.
+- **Public web pages**, when web search is on for the online AI. The first search in an answer asks you. Each answer
+  opens pages in a fresh browser session with an empty cookie store. To work with a signed-in page, use the AI on this Mac.
 
 **Choose per source.** In Settings under **AI → Sharing with online AI**, set Mail, Documents, Calendar, Reminders and
 Photos each to **Ask before sharing** (the default) or **Only on this Mac**. A source on **Only on this Mac** is never
@@ -82,7 +83,7 @@ failed is never sent again on its own: **Try again** opens the review.
 | Update checks | Once a day, from this repository's releases. Updates install when you quit or after a while without input. |
 | Web searches | The first search in an answer shows you the exact search text and waits for your OK. |
 | Reading web pages | Pages from your own message or from that answer's search results are read without asking again. Any other address is asked for. Addresses on your Mac or your local network are never read. |
-| Pippa's browser | When a page needs clicking through, Pippa opens it in a browser panel in her window; open the window (from Pippa Island: **Open Pippa**) to watch along or to sign in. She asks before each new website and before every click, typed text or choice. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
+| Pippa's browser | With the AI on this Mac, Pippa opens a page that needs clicking through in a browser panel in her window; open the window (from Pippa Island: **Open Pippa**) to watch along or to sign in. She asks before each new website and before every click, typed text or choice. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
 | Provider setup | Browser sign-in, credential setup, and model catalog refresh when requested in Settings. No conversation contents. |
 | Online AI | Only while you have it switched on, or for one question you sent with **Ask [provider]…**: what you typed and what you checked and shared (see above). |
 | Commands that go online | Pippa's command-line helper asks before a command that goes online, such as downloading a file. |

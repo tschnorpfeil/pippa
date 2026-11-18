@@ -140,16 +140,24 @@ public final class PippaMCPOnlineBrowser {
         guard !invalidated, !Task.isCancelled, turns.active === turn, !turn.writes.snapshot.cancelled else { return nil }
         if let active, active.turn === turn { return active.browser }
         guard let browser = makeSession(turn) else { return nil }
+        closeActive()
         active = (turn, browser)
         return browser
     }
 
-    public func end(_ turn: PippaMCPTurn) {
-        if active?.turn === turn { active = nil }
+    public func end(_ turn: PippaMCPTurn, alreadyClosed: Bool = false) {
+        guard active?.turn === turn else { return }
+        if alreadyClosed { active = nil } else { closeActive() }
     }
 
     public func invalidate() {
         invalidated = true
+        closeActive()
+    }
+
+    private func closeActive() {
+        guard let browser = active?.browser else { return }
         active = nil
+        Task { _ = try? await browser.perform(.close) }
     }
 }

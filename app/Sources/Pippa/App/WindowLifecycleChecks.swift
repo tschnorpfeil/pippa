@@ -1,5 +1,6 @@
 import AppKit
 import PiRPC
+import WebKit
 
 /// Focused AppKit acceptance checks in a cloned app with its own bundle ID and temporary HOME.
 /// No setup, updater, single-instance notifications, model server, or account login runs here.
@@ -12,6 +13,27 @@ enum WindowLifecycleChecks {
         func check(_ name: String, _ result: Bool) {
             print("\(result ? "✓" : "✗") \(name)")
             if !result { failures += 1 }
+        }
+        if let first = WKBrowserSession.makeOnline(), let next = WKBrowserSession.makeOnline() {
+            let firstStore = first.webView.configuration.websiteDataStore
+            let nextStore = next.webView.configuration.websiteDataStore
+            let cookie = HTTPCookie(properties: [.domain: "fixture.invalid", .path: "/", .name: "isolated", .value: "first"])!
+            await firstStore.httpCookieStore.setCookie(cookie)
+            let firstCookies = await firstStore.httpCookieStore.allCookies()
+            let nextCookies = await nextStore.httpCookieStore.allCookies()
+            check("Separate online answers have separate, nonpersistent WebKit cookies",
+                  !firstStore.isPersistent && !nextStore.isPersistent && firstCookies.contains { $0.name == "isolated" }
+                  && !nextCookies.contains { $0.name == "isolated" })
+            let protectionSpace = URLProtectionSpace(host: "fixture.invalid", port: 443, protocol: "https", realm: "fixture",
+                                                     authenticationMethod: NSURLAuthenticationMethodHTTPBasic)
+            let challenge = URLAuthenticationChallenge(protectionSpace: protectionSpace, proposedCredential: nil,
+                                                       previousFailureCount: 0, failureResponse: nil, error: nil,
+                                                       sender: FixtureChallengeSender())
+            let (result, credential) = await first.webView(first.webView, didReceive: challenge)
+            check("Online WebKit declines HTTP Basic authentication", result == .cancelAuthenticationChallenge && credential == nil)
+        } else {
+            print("– This WebKit cannot disable managed sign-in, so online browsing is unavailable")
+            skipped += 1
         }
         func foregroundCheck(_ name: String, _ result: Bool) {
             if foregroundAvailable { check(name, result) }
@@ -298,4 +320,11 @@ private final class LegacyPromiseFixture: NSFilePromiseReceiver {
 private final class PromiseFixtureCallback: @unchecked Sendable {
     let read: (URL, Error?) -> Void
     init(_ read: @escaping (URL, Error?) -> Void) { self.read = read }
+}
+
+
+private final class FixtureChallengeSender: NSObject, URLAuthenticationChallengeSender {
+    func use(_ credential: URLCredential, for challenge: URLAuthenticationChallenge) {}
+    func continueWithoutCredential(for challenge: URLAuthenticationChallenge) {}
+    func cancel(_ challenge: URLAuthenticationChallenge) {}
 }
