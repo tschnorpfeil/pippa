@@ -82,7 +82,8 @@ provider. Pippa still asks before commands that go online or change your files, 
 control from the command line stays off. It is off by default and holds only for the provider, model and account it
 was turned on for: another account, key, address or model, signing out, or turning it off returns to the limits above.
 Conversations with Mac access keep their own provider session, so that history never reaches a limited session, another
-account or the AI on this Mac. Messages you approve in a review and single questions keep the limits.
+account or the AI on this Mac. Changes apply to the next question; an answer already running keeps its original access
+until it finishes or you press Stop. Messages you approve in a review and single questions keep the limits.
 
 ## When Pippa goes online
 
