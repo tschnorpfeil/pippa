@@ -109,8 +109,11 @@ in-process MCP server's own read and write notes (`PippaMCPService`), so no `str
   placeholders that would open the install dialog are refused before a command starts and denied in the profile.
   A PDF or Word text too long for one result comes back from `read` as notes on the whole document, taken part by
   part by the model and kept per document in `PIPPA_DIGEST_DIR` (`digest.ts`).
+- `protected.ts` and native `ProtectedPaths` keep app settings, account configuration and sessions out of model-facing
+  filesystem tools. The working-directory exception is tied to its original entry; the shell receives an explicit
+  environment. `transport.ts` refuses redirects for fetch requests carrying a body.
 - `pippa-assist.ts` keeps a small local model on track: it stops identical repeated calls, sends documents that Pi's
-  `read` would return as bytes to `read_document` (`document.ts`), and copies a file to `Backups` before it is changed.
+  `read` would return as bytes to `read_document` (`document.ts`). The guarded file tools keep a backup of the same canonical target they change.
 - `pippa-memory.ts`: "what Pippa knows about you", one fact per line in `memory.md` (`PIPPA_MEMORY_FILE`), added to the
   system prompt as its own section. `remember` refuses account, card, ID, tax and phone numbers and passwords.
 - `pippa-mcp.ts` registers the app's MCP server for this Pi session with `pi.registerMcpServer`, from `PIPPA_MCP_URL`
@@ -308,6 +311,15 @@ export PIPPA_PI_CLI="$PWD/.build/pi-release/node_modules/@earendil-works/pi-codi
 node --experimental-strip-types --test runtime/pippa-tools/*.test.mjs runtime/pippa-local-server/test/*.test.mjs
 (cd runtime/pippa-web && npm ci --ignore-scripts && npm test)           # web access in the real Pi
 ```
+
+The `real-pi-protected.test.mjs` and `real-pi-redirect.test.mjs` fixtures use synthetic files and loopback providers
+to check protected paths, normal workspace operations, shell environment and redirect refusal. Native path checks
+also run with `PIPPA_PROTECTED_PATH_CHECKS=1 swift run --package-path app PippaChecks`.
+
+`MCPMailAccountChecks.swift` covers account-qualified snapshots, exact references, cancellation at native dispatch,
+turn-scoped cards and byte-bounded Mail results. Mail search pages share a 100-preview turn budget. Account discovery
+and mailbox-root classes were checked with a metadata-only run on a three-account Mac; actual message reads are
+covered by synthetic readers and compiled AppleScripts, without reading real user mail in the development checks.
 
 `scripts/bump-pi.sh <version>` runs these, `scripts/pi-rpc-smoke.mjs` and the installer checks against a new Pi release.
 
