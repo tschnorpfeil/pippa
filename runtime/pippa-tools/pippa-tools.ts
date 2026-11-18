@@ -22,13 +22,17 @@
  *
  * With PIPPA_EGRESS=online (an online AI answers) only `ask` is registered and everything else is blocked (egress.ts).
  *
+ * Pippa's own folder and Pi's sign-in folders stay closed to every tool here, on every route (protected.ts): a call
+ * that names them is refused before it runs, `read`, `write` and `move_files` check again as they run, listings and
+ * searches leave them out, and the shell's sandbox denies them.
+ *
  * Two hooks keep what the model reads small (budget.ts): shorter parameter texts of Pi's built-in tools in every
  * provider request, and a cap on each tool result from the model's context window.
  */
 import { mkdir, rename } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
-import { createBashToolDefinition, createReadToolDefinition } from "@earendil-works/pi-coding-agent";
+import { createBashToolDefinition, createReadToolDefinition, createWriteToolDefinition } from "@earendil-works/pi-coding-agent";
 import { backupDirectory, backUp } from "./pippa-assist.ts";
 import { capResult, FACT_RESULT_CHARS, resultLimit, shortenParameters } from "./budget.ts";
 import { exists, folderLabel, isTrash, moveOne, planMoves, resolvePath, trashOne } from "./files.ts";
@@ -38,6 +42,8 @@ import { listFolder } from "./list-folder.ts";
 import { readTool } from "./document.ts";
 import { askTool } from "./ask.ts";
 import { blockReason, egress, hideWorkingFolder, onlyAllowedTools } from "./egress.ts";
+import { guarded, isProtected, PROTECTED_REASON, protection, toolCallReason } from "./protected.ts";
+import { refuseRedirects } from "./transport.ts";
 
 type ExtensionAPI = any;
 
@@ -51,6 +57,8 @@ export const BUILTIN_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function (pi: ExtensionAPI) {
+	// A provider request is never replayed to another address (transport.ts).
+	refuseRedirects();
 	// An online AI answers: only `ask`, every other call blocked, no working-folder path (egress.ts).
 	const online = egress();
 	if (online) {
@@ -64,12 +72,21 @@ export default function (pi: ExtensionAPI) {
 		pi.registerTool(askTool());
 		return;
 	}
+	// First of all tool_call handlers (this extension loads first; Pi stops at the first block): nothing that names a
+	// protected place runs, and no copy of it is kept (pippa-assist.ts).
+	const where = protection();
+	const outside = (path: string) => !isProtected(path, where);
+	pi.on("tool_call", (event: any, ctx: any) => {
+		const reason = toolCallReason(String(event?.toolName ?? ""), event?.input, ctx?.cwd ?? process.cwd(), where);
+		return reason ? { block: true, reason } : undefined;
+	});
 	pi.on("before_provider_request", (event: any) => shortenParameters(event?.payload));
 	const backups = backupDirectory();
-	const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined });
+	const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined, protection: where });
 	pi.on("agent_start", () => shell.resetAnswer());
 	pi.registerTool(shell.definition(process.cwd()));
-	pi.registerTool(readTool(createReadToolDefinition).definition(process.cwd()));
+	pi.registerTool(guarded(readTool(createReadToolDefinition).definition(process.cwd()), () => where));
+	pi.registerTool(guarded(createWriteToolDefinition(process.cwd()), () => where));
 	// Pi's direct RPC shell (`!command`) bypasses the tool wrapper and its sandbox; Pippa never offers it.
 	pi.on("user_bash", () => ({ result: { output: "Direct shell execution is disabled in Pippa.", exitCode: 1, cancelled: false, truncated: false } }));
 	// One result must not fill a 16k window (Pi's read and bash allow 50 KB, ~14k tokens).
@@ -93,7 +110,7 @@ export default function (pi: ExtensionAPI) {
 		annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 		async execute(_id: string, params: any) {
 			const result = await search(String(params?.query ?? ""), params?.year ? String(params.year) : undefined, undefined,
-				{ kind: params?.kind ? String(params.kind) : undefined, sort: params?.sort === "name" ? "name" : "newest", maxChars: FACT_RESULT_CHARS });
+				{ kind: params?.kind ? String(params.kind) : undefined, sort: params?.sort === "name" ? "name" : "newest", maxChars: FACT_RESULT_CHARS, keep: outside });
 			return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
 		},
 	});
@@ -114,11 +131,12 @@ export default function (pi: ExtensionAPI) {
 		}),
 		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
 			const folder = resolvePath(params?.path || ".", ctx?.cwd ?? process.cwd());
-			return listFolder(folder);
+			if (isProtected(folder, where)) throw new Error(PROTECTED_REASON);
+			return listFolder(folder, undefined, undefined, outside);
 		},
 	});
 
-	pi.registerTool({
+	pi.registerTool(guarded({
 		name: "move_files",
 		label: "Dateien einsortieren",
 		description: "Rename or move one item: from, to (new name, folder, or \"trash\" for the Trash). Sort many: folder, groups (subfolders, created if missing). Never overwrites.",
@@ -163,5 +181,5 @@ export default function (pi: ExtensionAPI) {
 			if (moved.length === 0) throw new Error(`${text || "No files given."} Nothing was changed.`);
 			return { content: [{ type: "text", text }], details: { folder: plan.folder, moved, failed } };
 		},
-	});
+	}, () => where));
 }

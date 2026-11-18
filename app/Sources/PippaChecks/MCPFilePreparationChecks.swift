@@ -51,6 +51,17 @@ func runMCPFilePreparationChecks() async {
             && PippaMCPTools.toolNames.filter { $0 == "prepare_files" }.count == 1
     }
 
+    await checkAsync("MCP prepare_files: a path in Pippa's own folder or Pi's sign-in folder creates no job and reads nothing") {
+        let (host, turn, store) = try setup("protected")
+        let adapter = PippaMCPFilePreparation(host: host, turn: turn, scope: turn.writes)
+        // The app's real folders by name only: refused before any file is opened.
+        let settings = await adapter.call(["paths": [first.path, Pippa.supportDirectory.appendingPathComponent("inference-settings.json").path]])
+        let auth = await adapter.call(["paths": [ExistingModels.realHome.appendingPathComponent(".pi/agent/auth.json").path]])
+        let records = try await store.records()
+        return settings.isError && settings.receipt?.reason == "protected" && auth.receipt?.reason == "protected"
+            && settings.card == nil && records.isEmpty
+    }
+
     await checkAsync("MCP prepare_files: invalid arguments, inactive scope and draft-only requests create no jobs") {
         let (host, turn, store) = try setup("invalid")
         let adapter = PippaMCPFilePreparation(host: host, turn: turn, scope: turn.writes)

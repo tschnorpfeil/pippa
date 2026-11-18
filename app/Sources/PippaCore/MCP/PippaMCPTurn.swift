@@ -154,6 +154,8 @@ public struct PippaMCPTurnTools: Sendable {
         if path.hasPrefix("file://"), let url = URL(string: path) { path = url.path }
         path = (path as NSString).expandingTildeInPath
         guard path.hasPrefix("/") else { return Self.failure("invalid_arguments", "Use the exact absolute path from the message.") }
+        // Pippa's own folder and Pi's sign-in folders are never read for the model (ProtectedPaths), also behind a symlink.
+        guard !ProtectedPaths.app().contains(URL(fileURLWithPath: path)) else { return Self.failure("protected", ProtectedPaths.reason) }
         let from = input.fromPage ?? 1
         guard from >= 1 else { return Self.failure("invalid_arguments", "from_page must be 1 or more.") }
         let url = URL(fileURLWithPath: path)

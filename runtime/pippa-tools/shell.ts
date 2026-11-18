@@ -23,12 +23,17 @@
  * `move_files` with `to: "trash"`), or write to `~/Library` (except iCloud Drive and cloud folders), dot folders such as `~/.ssh` or
  * `~/.pi`, and Pippa's own folder. An approved network grant still permits network requests; these rules are not
  * a universal no-send guarantee for standard tasks. Other executors have their own policies.
+ *
+ * Never read or write, whatever was granted: Pippa's own folder (her settings, conversations, notes, sign-in copies)
+ * and Pi's sign-in folders, except Pippa's working folder (protected.ts `sandboxRules`). A command that names such a
+ * place is refused before it runs; one that reaches it some other way fails in the sandbox.
  */
 import { spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isProtected, PROTECTED_REASON, protection, sandboxRules, type Protection } from "./protected.ts";
 
 export type Grant = "net" | "write";
 
@@ -80,16 +85,18 @@ export interface Places {
 	/** Pippa's own folder (memory, backups, settings): never writable by bash, except `work` inside it. */
 	support?: string;
 	temporary: string[];
+	/** Places never read or written (protected.ts); `undefined`: no such rules (profile tests). */
+	protect?: Protection;
 }
 
 function real(path: string): string {
 	try { return realpathSync(path); } catch { return resolve(path); }
 }
 
-export function places(work: string, env: Record<string, string | undefined> = process.env, home = homedir()): Places {
+export function places(work: string, env: Record<string, string | undefined> = process.env, home = homedir(), protect = protection(env, home)): Places {
 	const memory = env.PIPPA_MEMORY_FILE;
 	const temporary = [...new Set([tmpdir(), env.TMPDIR ?? "", "/private/tmp", "/private/var/tmp"].filter(Boolean).map(real))];
-	return { home: real(home), work: real(work), support: memory ? real(join(memory, "..")) : undefined, temporary };
+	return { home: real(home), work: real(work), support: memory ? real(join(memory, "..")) : undefined, temporary, protect };
 }
 
 /** An SBPL string literal. */
@@ -138,6 +145,8 @@ export function sandboxProfile(grants: ReadonlySet<Grant>, where: Places, shims:
 	lines.push(`(deny file-write-unlink (subpath ${lit(home)}) (subpath "/Volumes") (subpath "/Users/Shared"))`);
 	if (where.support) lines.push(`(deny file-write* (subpath ${lit(where.support)}))`);
 	lines.push(`(allow file-write* (subpath ${lit(where.work)})${where.temporary.map((t) => ` (subpath ${lit(t)})`).join("")})`);
+	// Last: no grant and no working folder opens Pippa's own or Pi's sign-in folders, except Pippa's working folder.
+	if (where.protect) lines.push(...sandboxRules(where.protect));
 	return lines.join("\n") + "\n";
 }
 
@@ -306,6 +315,7 @@ export async function filesToKeep(paths: string[], where: Places, limit = 1024 *
 	const home = real(where.home), work = real(where.work), temps = where.temporary.map(real);
 	for (const path of paths) {
 		const resolved = real(path);
+		if (where.protect && isProtected(resolved, where.protect)) continue;
 		const inside = (folder: string) => resolved === folder || resolved.startsWith(folder + "/");
 		if (!(inside(home) || inside("/Volumes"))) continue;
 		if (inside(work) || temps.some(inside)) continue;
@@ -338,6 +348,8 @@ export interface ShellDeps {
 	developerTools?: () => boolean;
 	/** Where the placeholders live (default /usr/bin). */
 	shimDir?: string;
+	/** Places never read or written (default: protected.ts from `env`). */
+	protection?: Protection;
 }
 
 /**
@@ -351,6 +363,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 	const home = deps.home ?? homedir();
 	const developerTools = deps.developerTools ?? (() => developerToolsInstalled(env));
 	const shimDir = deps.shimDir ?? SHIM_DIR;
+	const protect = deps.protection ?? protection(env, home);
 	let shims: string[] | undefined;
 	/** The placeholders to keep out, or none when the tools are installed. */
 	const lockedShims = (): string[] => developerTools() ? [] : (shims ??= developerShims(shimDir));
@@ -369,9 +382,12 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						details: { pippaExecution: "not_dispatched" } });
 					if (signal?.aborted) return notRun("Stopped before running the command.");
 					if (!available()) return notRun(NO_SANDBOX_REASON);
-					const where = places(cwd, env, home);
+					const where = places(cwd, env, home, protect);
 					const command = String(params?.command ?? "");
 					if (programs(command).some((word) => APPS.has(word))) return notRun(APP_CONTROL_REASON);
+					// Named outright: refused without a question (the sandbox would deny it anyway, and a write question
+					// after its failure could grant nothing there).
+					if (namedPaths(command, cwd, where.home).some((path) => isProtected(path, protect))) return notRun(PROTECTED_REASON);
 					const locked = lockedShims();
 					const shim = locked.length ? shimStarted(command, locked, env, shimDir) : undefined;
 					if (shim) return notRun(noDeveloperToolsReason(shim));

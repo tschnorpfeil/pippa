@@ -91,6 +91,9 @@ public struct PippaMCPFilePreparation: Sendable {
             try lease.check()
             guard let turn, scope.turnID == turn.id, host.turns.active === turn else { throw CancellationError() }
             var request = try Request(raw)
+            // Pippa's own folder and Pi's sign-in folders never become a prepared file (ProtectedPaths), also behind a symlink.
+            let protected = ProtectedPaths.app()
+            guard !request.paths.contains(where: { protected.contains(URL(fileURLWithPath: $0)) }) else { throw ProtectedPathRefused() }
             request.paths = request.paths.map { URL(fileURLWithPath: $0).standardizedFileURL.resolvingSymlinksInPath().path }
             let normalized = request
             let worker = Task.detached(priority: .userInitiated) { await execute(normalized, turn: turn, lease: lease) }
@@ -124,6 +127,8 @@ public struct PippaMCPFilePreparation: Sendable {
                                           reason: "stopped", outcome: retired ? "cancelled" : "unclear", dispatched: !retired)
                 }
             }
+        } catch is ProtectedPathRefused {
+            result = Self.failure("not_dispatched", ProtectedPaths.reason, reason: "protected")
         } catch is PippaMCPWritePolicyDenied {
             result = Self.failure("not_dispatched", "This request permits text drafts only. Do not retry through another tool.", reason: "draftOnly")
         } catch is CancellationError {
@@ -276,3 +281,6 @@ public struct PippaMCPFilePreparation: Sendable {
                            isError: true, receipt: .init(action: "create", outcome: outcome, name: L("Ready to send", table: "FilePreparation"), reason: reason))
     }
 }
+
+/// A path in Pippa's own or Pi's sign-in folders (ProtectedPaths): nothing is prepared.
+struct ProtectedPathRefused: Error {}

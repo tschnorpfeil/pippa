@@ -26,6 +26,7 @@ import { constants, readFileSync, unlinkSync } from "node:fs";
 import { access, copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
 import { basename, isAbsolute, join, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
+import { isProtected } from "./protected.ts";
 
 type ExtensionAPI = any;
 
@@ -298,6 +299,8 @@ export default function (pi: ExtensionAPI) {
 		if (tool === "bash") commands.set(event.toolCallId, String(event.input?.command ?? ""));
 		if (backups && (tool === "edit" || tool === "write")) {
 			const file = targetPath(event.input?.path ?? event.input?.file_path, ctx?.cwd ?? process.cwd());
+			// Pippa's own and Pi's sign-in folders: pippa-tools.ts refuses the call; never copy their files around.
+			if (file && isProtected(file)) return { block: true, reason: "Not changed: this place is protected." };
 			try {
 				const copy = file ? await backUp(file, backups) : undefined;
 				if (file) kept.set(event.toolCallId, copy ? { copy, file } : { file, created: !(await exists(file)) });

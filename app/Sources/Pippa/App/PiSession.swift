@@ -80,6 +80,9 @@ final class PiSession {
     /// Turn preparations still running after Stop: a renewal that has started is stored, and its folder then removed.
     /// Quit waits for them (`shutdown`).
     private var preparations: [UUID: Task<Void, Never>] = [:]
+    /// Counts every saved change of the AI settings in this process (`settingsChanged`, on the main actor). A route read
+    /// before a change is never admitted (`admit`).
+    private(set) var settingsRevision = 0
 
     static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
     static var settingsDirectory: URL { Pippa.supportDirectory }
@@ -115,14 +118,12 @@ final class PiSession {
         startupTask = nil
         onStarting(false)
         try Task.checkCancellation()
-        // Just before sending: Settings, the provider's configuration and account and the sharing rules are read again.
-        // Starting Pi takes a moment; whatever changed meanwhile sends nothing.
-        let now = try await launchRoute(outgoing, handoff: handoff)
-        guard route.destination == now.destination else { throw Failure.destinationChanged }
-        guard Self.sameRecipient(route, now), try Self.message(outgoing, route: now) == text else { throw Failure.needsReview }
         let stream: AsyncThrowingStream<PiRPCEvent, Error>
-
-        do { stream = try await client.prompt(text) } catch PiRPCError.commandFailed(_, let message) {
+        do {
+            stream = try await admitted(route, text: text, outgoing: outgoing,
+                                        reread: { try await self.launchRoute(outgoing, handoff: handoff) },
+                                        send: { try await client.prompt($0) })
+        } catch PiRPCError.commandFailed(_, let message) {
             if route.piModel != nil, let problem = PiProviderClient.problem(in: message) {
                 throw Failure.model(problem == .limit ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
                                                       : T("Reconnect your online AI in Settings.", table: "App"))
@@ -132,6 +133,33 @@ final class PiSession {
         for try await event in stream {
             onEvent(event)
             if case .settled = event { settled = true }
+        }
+    }
+
+    /// The last step before Pi's first request of the turn. Starting Pi takes a moment, so Settings, the provider's
+    /// configuration and account and the sharing rules are read again (`reread`); a different recipient or limits send
+    /// nothing. Reading them again awaits the provider's files and the Keychain, and the person can change Settings
+    /// meanwhile (revoke Mac access, sign out): `admit` then compares the settings that read used with the ones saved
+    /// now, without awaiting anything in between, on the main actor where every change is saved. Only an admitted
+    /// prompt goes to `send`, the running Pi; a change after admission reaches the next question (the answer that runs
+    /// keeps its Pi, `settingsChanged`).
+    func admitted<Stream>(_ route: LaunchRoute, text: String, outgoing: Outgoing, reread: () async throws -> LaunchRoute,
+                          latest: () -> InferenceSettings = { InferenceSettings.load(from: PiSession.settingsDirectory) },
+                          send: (String) async throws -> Stream) async throws -> Stream {
+        let now = try await reread()
+        guard route.destination == now.destination else { throw Failure.destinationChanged }
+        guard Self.sameRecipient(route, now), try Self.message(outgoing, route: now) == text else { throw Failure.needsReview }
+        try admit(now, outgoing, latest: latest)
+        return try await send(text)
+    }
+
+    /// Whether `route` may still receive the prompt: read from the settings saved now and unchanged in this process since.
+    /// Synchronous, so no change of Settings can come in between this check and the prompt being handed to Pi.
+    func admit(_ route: LaunchRoute, _ outgoing: Outgoing,
+               latest: () -> InferenceSettings = { InferenceSettings.load(from: PiSession.settingsDirectory) }) throws {
+        guard let read = route.admission, read.revision == settingsRevision, read.settings == latest() else {
+            if case .local = outgoing { throw Failure.needsReview }
+            throw Failure.destinationChanged
         }
     }
 
@@ -313,6 +341,7 @@ final class PiSession {
 
     /// The model's or Pi's settings changed: the next question starts Pi afresh.
     func settingsChanged() {
+        settingsRevision += 1
         needsFreshClient = true
         preloadTask?.cancel()
         lastPrewarmAttempt = nil
@@ -353,6 +382,10 @@ final class PiSession {
             // pi-web-access keeps its page cache where it was, not in the short-lived folder.
             extra["PI_WEB_ACCESS_CACHE_ROOT"] = env["PI_CODING_AGENT_DIR"] ?? webDirectory.appendingPathComponent("pi").path
         }
+        // No tool the model calls reads or changes Pippa's own folder, Pi's shared agent folder or this pinned copy
+        // (runtime/pippa-tools/protected.ts), on every route.
+        let agent = try Self.installation(env).agent
+        extra.merge(ProtectedPaths.app(extra: [agent] + (pinned.map { [$0.directory] } ?? [])).environment) { $1 }
         let web = Self.webPath(env).flatMap { FileManager.default.fileExists(atPath: $0) ? URL(fileURLWithPath: $0) : nil }
         let paths = PippaPiLaunch.Paths(extensionsDirectory: extensions, webExtension: web, sessionDirectory: Self.sessionDirectory,
                                         skillsDirectory: PippaSkill.bundledDirectory(),
@@ -401,6 +434,8 @@ final class PiSession {
         var sessionScope: String?
         /// The recipient for single questions while conversations stay on this Mac.
         var handoff = false
+        /// The settings this route was read from, and when (`PiSession.admit`).
+        var admission: Admission?
 
         /// The capabilities chosen in Settings → AI for this route become part of the key, so a change reaches the next
         /// question, also in an open conversation, while an answer that is running keeps its Pi.
@@ -442,9 +477,23 @@ final class PiSession {
     /// or an older connection), only while it is still that recipient. The session: typed words keep the conversation's
     /// session per recipient and account; each approved message gets a fresh one; an unverified recipient never reuses one.
     private func launchRoute(_ outgoing: Outgoing, handoff: Bool) async throws -> LaunchRoute {
+        // Read before anything is awaited, with the revision of that moment (`admit`).
+        let settings = InferenceSettings.load(from: Self.settingsDirectory)
+        let admission = Admission(settings: settings, revision: settingsRevision)
+        var route = try await launchRoute(outgoing, handoff: handoff, settings: settings)
+        route.admission = admission
+        return route
+    }
+
+    /// The settings a route was read from (`LaunchRoute.admission`).
+    struct Admission: Equatable {
+        var settings: InferenceSettings
+        var revision: Int
+    }
+
+    private func launchRoute(_ outgoing: Outgoing, handoff: Bool, settings: InferenceSettings) async throws -> LaunchRoute {
         let target = try Self.installation(ProcessInfo.processInfo.environment)
         let modelsJSON = target.agent.appendingPathComponent("models.json")
-        let settings = InferenceSettings.load(from: Self.settingsDirectory)
         let choice = settings.capabilities.online
         var approval: ShareApproval?
         if case .approved(let approved) = outgoing { approval = approved }
