@@ -54,6 +54,24 @@ import PiRPC
     check("Only Pippa's extensions load, web access last",
           configured.extensions == ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts"].map { t.appendingPathComponent($0) } + [web])
 
+    check("All optional abilities on is today's launch: same tools, same extensions",
+          PippaPiLaunch.tools(.all) == PippaPiLaunch.tools && PippaPiLaunch.extensions(paths, capabilities: .all) == PippaPiLaunch.extensions(paths))
+    let noWeb = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: nil, language: "en",
+                                            capabilities: .init(web: false, memory: true))
+    check("Web search off leaves out pi-web-access and its tools, nothing else",
+          noWeb.extensions == ["pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts"].map { t.appendingPathComponent($0) }
+          && value(noWeb.arguments, after: "--tools") == PippaPiLaunch.tools.filter { !["web_search", "fetch_content"].contains($0) }.joined(separator: ","))
+    let noMemory = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: nil, language: "en",
+                                               capabilities: .init(web: true, memory: false))
+    check("Personal notes off leaves out pippa-memory.ts and remember; the notes file still guards the shell and backups",
+          noMemory.extensions == ["pippa-tools.ts", "pippa-assist.ts"].map { t.appendingPathComponent($0) } + [web]
+          && value(noMemory.arguments, after: "--tools") == PippaPiLaunch.tools.filter { $0 != "remember" }.joined(separator: ",")
+          && noMemory.environment[PippaPiLaunch.memoryVariable] == memory.path)
+    let none = PippaPiLaunch.Capabilities(web: false, memory: false)
+    check("Required tools and the Mac tools stay whatever is off",
+          ["read", "bash", "write", "search_files", "list_folder", "move_files", "ask", "mcp__pippa__*"] == PippaPiLaunch.tools(none)
+          && none.key != PippaPiLaunch.Capabilities.all.key && PippaPiLaunch.Capabilities(web: false).key != PippaPiLaunch.Capabilities(memory: false).key)
+
     let endpoint = PippaPiLaunch.MCPEndpoint(url: URL(string: "http://127.0.0.1:4711/mcp")!, token: String(repeating: "a", count: 64))
     let mcpFile = t.appendingPathComponent("pippa-mcp.ts")
     var withMCP = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: nil, language: "en",

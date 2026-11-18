@@ -83,3 +83,12 @@
 "Open Files & Folders…" = "Open Files & Folders…";
 "Change…" = "Change…";
 "Accessibility" = "Accessibility";
+
+/* Settings → AI: optional abilities per route */
+"Optional abilities" = "Optional abilities";
+"Only enabled tools take up space in the model’s context. Changes apply from your next question." = "Only enabled tools take up space in the model’s context. Changes apply from your next question.";
+"Web search" = "Web search";
+"Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission." = "Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission.";
+"Personal notes" = "Personal notes";
+"Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes." = "Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes.";
+"Online" = "Online";

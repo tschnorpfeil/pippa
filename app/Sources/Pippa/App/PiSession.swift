@@ -196,7 +196,7 @@ final class PiSession {
         catch { throw Failure.nativeTools(String(describing: error)) }
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: conversation,
-                                                        language: language, environment: extra, mcp: mcp)
+                                                        language: language, environment: extra, mcp: mcp, capabilities: route.capabilities)
         let fresh = PiRPCClient(configuration: configuration)
         try Task.checkCancellation()
         client = fresh
@@ -215,9 +215,20 @@ final class PiSession {
     }
 
     struct LaunchRoute {
+        /// Route and optional capabilities: a running Pi is reused only while both match (`ready`).
         var key: String
         var online: (connection: ModelConnection, key: String)?
         var piModel: PiModelSelection?
+        var capabilities = PippaPiLaunch.Capabilities.all
+
+        /// The capabilities chosen in Settings → AI for this route become part of the key, so a change reaches the next
+        /// question, also in an open conversation, while an answer that is running keeps its Pi.
+        func with(_ choice: OptionalCapabilities.Choice) -> Self {
+            var route = self
+            route.capabilities = PippaPiLaunch.Capabilities(web: choice.web, memory: choice.memory)
+            route.key += "|" + route.capabilities.key
+            return route
+        }
     }
 
     /// A Pi provider, an existing Keychain connection, or the model on this Mac, as saved in Settings.
@@ -227,17 +238,18 @@ final class PiSession {
         let settings = InferenceSettings.load(from: Self.settingsDirectory)
         if let model = settings.activePiModel {
             await removeOnlineProvider(from: modelsJSON)
-            return LaunchRoute(key: "pi|" + model.providerID + "|" + model.modelID, piModel: model)
+            return LaunchRoute(key: "pi|" + model.providerID + "|" + model.modelID, piModel: model).with(settings.capabilities.online)
         }
         guard let connection = PiOnlineProvider.activeConnection(settings) else {
             await removeOnlineProvider(from: modelsJSON)
             return LaunchRoute(key: "local|" + (try Self.installTarget(ProcessInfo.processInfo.environment)).model)
+                .with(settings.capabilities.local)
         }
         let key = try await Task.detached { try ModelCredentialStore.read(connection.id) }.value ?? ""
         _ = try await Task.detached { try PiOnlineProvider.sync(connection, modelsJSON: modelsJSON) }.value
         let routeKey = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
                         connection.modelID, String(connection.contextWindow), String(key.hashValue)].joined(separator: "|")
-        return LaunchRoute(key: routeKey, online: (connection, key))
+        return LaunchRoute(key: routeKey, online: (connection, key)).with(settings.capabilities.online)
     }
 
     /// Pi's models.json keeps no online entry while another route is active. Best effort: a failure is only logged.

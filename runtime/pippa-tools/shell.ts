@@ -294,7 +294,7 @@ export function limitsNote(grants: ReadonlySet<Grant>, work: string, noDeveloper
 	const no: string[] = [];
 	if (!grants.has("write")) no.push(`write only in ${work} and temporary folders (save results there, then move_files them where they belong; for one text file use write)`);
 	no.push("never delete outside that folder (move_files to \"trash\" moves to the Trash)");
-	if (!grants.has("net")) no.push("no internet (use web_search and fetch_content)");
+	if (!grants.has("net")) no.push("no internet");
 	no.push("no app control (Pippa’s native tools cover Mail, Calendar, Reminders and Photos)");
 	if (noDeveloperTools) no.push("no developer tools (python3, git, make, …): use bash, awk, sed");
 	return `Note: bash runs in Pippa's sandbox: ${no.join("; ")}. Do not retry the same command.`;

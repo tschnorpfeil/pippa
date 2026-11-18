@@ -75,7 +75,51 @@ struct AISettings: View {
             if settings.inferenceSettings.activePiModel == nil, settings.inferenceSettings.connection != nil {
                 ModelConnectionSettings(model: settings)
             }
+            OptionalCapabilitySettings(settings: settings)
         }
+    }
+}
+
+/// Web search and personal notes, each switched separately for the AI on this Mac and the online AI. Off leaves out the
+/// capability's tools, so a small local model reads fewer tool descriptions. Mac tools, the browser panel and shell
+/// approvals are not optional.
+struct OptionalCapabilitySettings: View {
+    @ObservedObject var settings: SettingsModel
+    private let failureState = State<String?>(initialValue: nil)
+
+    var body: some View {
+        SettingsSection(title: T("Optional abilities", table: "Settings"),
+                        footer: failureState.wrappedValue ?? T("Only enabled tools take up space in the model’s context. Changes apply from your next question.", table: "Settings")) {
+            row(T("Web search", table: "Settings"),
+                detail: T("Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission.", table: "Settings"),
+                \.web)
+            SettingsDivider()
+            row(T("Personal notes", table: "Settings"),
+                detail: T("Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes.", table: "Settings"),
+                \.memory)
+        }
+    }
+
+    private func row(_ title: String, detail: String, _ key: WritableKeyPath<OptionalCapabilities.Choice, Bool>) -> some View {
+        SettingsRow(title: title, detail: detail) {
+            VStack(alignment: .trailing, spacing: Space.xs) {
+                toggle(T("On this Mac", table: "App"), title: title, online: false, key)
+                toggle(T("Online", table: "Settings"), title: title, online: true, key)
+            }
+        }
+    }
+
+    private func toggle(_ label: String, title: String, online: Bool, _ key: WritableKeyPath<OptionalCapabilities.Choice, Bool>) -> some View {
+        Toggle(label, isOn: Binding(
+            get: { settings.inferenceSettings.capabilities[online: online][keyPath: key] },
+            set: { on in
+                var capabilities = settings.inferenceSettings.capabilities
+                capabilities[online: online][keyPath: key] = on
+                do { try settings.saveCapabilities(capabilities); failureState.wrappedValue = nil }
+                catch { failureState.wrappedValue = error.localizedDescription }
+            }))
+        .toggleStyle(.switch).controlSize(.small)
+        .accessibilityLabel("\(title), \(label)")
     }
 }
 
