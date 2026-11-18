@@ -1,5 +1,6 @@
 import AppKit
 import PiRPC
+import PippaCore
 import WebKit
 
 /// Focused AppKit acceptance checks in a cloned app with its own bundle ID and temporary HOME.
@@ -14,6 +15,24 @@ enum WindowLifecycleChecks {
             print("\(result ? "✓" : "✗") \(name)")
             if !result { failures += 1 }
         }
+        let drafts = ChatModel()
+        let chats = ["a", "b"].map { Conversation(id: $0, title: $0, updated: Date(), messages: []) }
+        drafts.replaceForSnapshot(chats, current: "a", answering: false)
+        drafts.draft = "Original A"
+        let fixtureFile = URL(fileURLWithPath: "/synthetic/notice.txt")
+        drafts.attachments = [fixtureFile]
+        let plan = SharePlan(destination: ShareDestination(key: "fixture", label: "Fixture", provider: "Fixture"),
+                             question: "Edited A", candidates: [], rules: SourceSharing())
+        drafts.review = ShareReview(plan: plan, handoff: false, files: [fixtureFile], conversation: "a",
+                                   composer: ShareComposer(text: drafts.draft, files: drafts.attachments))
+        drafts.dismissReview()
+        drafts.select("b", carryingIslandDraft: true)
+        check("An Island context switch leaves the reviewed question and files in A", drafts.draft.isEmpty && drafts.attachments.isEmpty)
+        drafts.draft = "Different B"
+        drafts.select("a")
+        check("Returning to A restores the reviewed question and files", drafts.draft == "Edited A" && drafts.attachments == [fixtureFile])
+        drafts.select("b")
+        check("Returning to B restores its separate typed question", drafts.draft == "Different B")
         if let first = WKBrowserSession.makeOnline(), let next = WKBrowserSession.makeOnline() {
             let firstStore = first.webView.configuration.websiteDataStore
             let nextStore = next.webView.configuration.websiteDataStore
