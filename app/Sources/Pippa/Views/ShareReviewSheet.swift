@@ -14,7 +14,7 @@ struct ShareReviewSheet: View {
             VStack(alignment: .leading, spacing: Space.l) {
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Label(T("Send to %@", table: "App", review.plan.destination.label), systemImage: "cloud").font(Typo.headline)
-                    SettingsNote(T("Only what is below goes to %@. Edit or leave out anything first. Web searches are asked separately.", table: "App",
+                    SettingsNote(T("Only your message and the selected excerpts go to %@. You can edit both before sending.", table: "App",
                                    review.plan.destination.provider))
                 }
                 ScrollView {

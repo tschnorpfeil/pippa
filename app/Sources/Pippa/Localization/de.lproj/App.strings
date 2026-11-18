@@ -234,9 +234,9 @@
 "Ask %@…" = "%@ fragen …";
 "Calendar, Next 7 Days" = "Kalender, nächste 7 Tage";
 "Check what goes to %@, then send this one question there" = "Prüfe, was an %@ geht, und schick diese eine Frage dorthin";
-"From %@" = "Aus %@";
+"From %@" = "Herkunft · %@";
 "Nothing read from your Mac" = "Nichts von deinem Mac gelesen";
-"Only what is below goes to %@. Edit or leave out anything first. Web searches are asked separately." = "Nur was unten steht, geht an %@. Ändere oder lass vorher weg, was du willst. Websuchen fragt Pippa gesondert.";
+"Only your message and the selected excerpts go to %@. You can edit both before sending." = "Nur deine Nachricht und die ausgewählten Ausschnitte gehen an %@. Du kannst beides vor dem Senden bearbeiten.";
 "Pippa uses an online AI now. Nothing was sent; check what you want to share and send again." = "Pippa nutzt jetzt eine Online-KI. Es wurde nichts gesendet; prüfe, was du teilen willst, und sende noch einmal.";
 "Pippa’s answer on this Mac" = "Pippas Antwort auf diesem Mac";
 "Read before Pippa noted its sources" = "Gelesen, bevor Pippa Quellen notiert hat";

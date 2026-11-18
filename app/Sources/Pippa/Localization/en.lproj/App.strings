@@ -236,7 +236,7 @@
 "Check what goes to %@, then send this one question there" = "Check what goes to %@, then send this one question there";
 "From %@" = "From %@";
 "Nothing read from your Mac" = "Nothing read from your Mac";
-"Only what is below goes to %@. Edit or leave out anything first. Web searches are asked separately." = "Only what is below goes to %@. Edit or leave out anything first. Web searches are asked separately.";
+"Only your message and the selected excerpts go to %@. You can edit both before sending." = "Only your message and the selected excerpts go to %@. You can edit both before sending.";
 "Pippa uses an online AI now. Nothing was sent; check what you want to share and send again." = "Pippa uses an online AI now. Nothing was sent; check what you want to share and send again.";
 "Pippa’s answer on this Mac" = "Pippa’s answer on this Mac";
 "Read before Pippa noted its sources" = "Read before Pippa noted its sources";
