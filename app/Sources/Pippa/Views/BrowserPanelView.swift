@@ -6,6 +6,12 @@ import WebKit
 /// (login, 2FA, CAPTCHA) as a banner. The page itself is `WKBrowserSession`'s one web view.
 struct BrowserPanelView: View {
     @ObservedObject var browser: WKBrowserSession
+    private let addressState = State(initialValue: "")
+    private var enteredAddress: String {
+        get { addressState.wrappedValue }
+        nonmutating set { addressState.wrappedValue = newValue }
+    }
+    @FocusState private var editingAddress: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,16 +43,39 @@ struct BrowserPanelView: View {
                 .background(Theme.accentTint)
             }
             Divider()
-            BrowserWebView(webView: browser.webView)
+            if let problem = browser.navigationProblem {
+                Text(problem).font(Typo.footnote).foregroundStyle(Theme.need)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(Space.l)
+            }
+            ZStack {
+                BrowserWebView(webView: browser.webView)
+                if browser.currentURL == nil && !browser.isLoading {
+                    ContentUnavailableView {
+                        Label(T("Open a website", table: "Views"), systemImage: "globe")
+                    } description: {
+                        Text(T("Enter a web address above.", table: "Views"))
+                    }
+                }
+            }
+        }
+        .onAppear { enteredAddress = browser.currentURL?.absoluteString ?? "" }
+        .onChange(of: browser.currentURL) { _, url in
+            if !editingAddress { enteredAddress = url?.absoluteString ?? "" }
         }
     }
 
-    /// The host only, like Safari's compact address field; the full address as a tooltip.
+    /// The person's address field works before any page or AI task is open.
     private var address: some View {
         HStack(spacing: Space.xs) {
             if browser.currentURL?.scheme == "https" { Image(systemName: "lock.fill").font(.system(size: 10)) }
-            Text(verbatim: host ?? T("No page open", table: "Views"))
-                .lineLimit(1).truncationMode(.middle)
+            TextField(T("Website address", table: "Views"), text: addressState.projectedValue)
+                .textFieldStyle(.plain)
+                .focused($editingAddress)
+                .accessibilityLabel(T("Website address", table: "Views"))
+                .onSubmit {
+                    editingAddress = false
+                    Task { await browser.navigateManually(enteredAddress) }
+                }
         }
         .font(Typo.footnote)
         .foregroundStyle(Theme.ink2)
@@ -57,10 +86,7 @@ struct BrowserPanelView: View {
         .help(browser.currentURL?.absoluteString ?? "")
     }
 
-    private var host: String? {
-        guard let host = browser.currentURL?.host(percentEncoded: false) else { return nil }
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-    }
+
 }
 
 /// The session's persistent web view; SwiftUI only places it.

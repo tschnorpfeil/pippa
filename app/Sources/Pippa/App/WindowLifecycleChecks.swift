@@ -15,6 +15,16 @@ enum WindowLifecycleChecks {
             print("\(result ? "✓" : "✗") \(name)")
             if !result { failures += 1 }
         }
+        check("A typed web address accepts a bare hostname and preserves HTTPS paths",
+              WKBrowserSession.webAddress("example.com/path")?.absoluteString == "https://example.com/path"
+              && WKBrowserSession.webAddress(" https://example.com/a?q=b ")?.absoluteString == "https://example.com/a?q=b")
+        check("The browser address rejects scripts, files, local addresses and empty input",
+              ["", "javascript:alert(1)", "file:///tmp/secret", "http://127.0.0.1", "http://localhost", "a b"].allSatisfy {
+                  WKBrowserSession.webAddress($0) == nil
+              })
+        await WKBrowserSession.shared.navigateManually("file:///tmp/synthetic")
+        check("Invalid manual navigation shows a problem without opening a page",
+              WKBrowserSession.shared.navigationProblem != nil && WKBrowserSession.shared.currentURL == nil)
         let drafts = ChatModel()
         let chats = ["a", "b"].map { Conversation(id: $0, title: $0, updated: Date(), messages: []) }
         drafts.replaceForSnapshot(chats, current: "a", answering: false)

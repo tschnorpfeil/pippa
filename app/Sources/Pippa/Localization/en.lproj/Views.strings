@@ -23,6 +23,15 @@
 "Reload" = "Reload";
 "Hide the browser" = "Hide the browser";
 "Done" = "Done";
-"No page open" = "No page open";
 /* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
 "Works right away, without any AI: drop photos or PDFs here to make one PDF." = "Works right away, without any AI: drop photos or PDFs here to make one PDF.";
+
+"Website address" = "Website address";
+
+"Open a website" = "Open a website";
+
+"Enter a web address above." = "Enter a web address above.";
+
+"Enter a public website address, such as https://example.com." = "Enter a public website address, such as https://example.com.";
+
+"The website couldn’t be loaded. Try again." = "The website couldn’t be loaded. Try again.";
