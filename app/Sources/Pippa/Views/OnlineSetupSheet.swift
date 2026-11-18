@@ -109,7 +109,9 @@ struct OnlineSetupSheet: View {
                 SettingsNote(T("Signing in doesn’t switch anything yet: you choose afterwards.", table: "Settings"))
             }
         case .noModels:
+            if provider.loading { ProgressView().controlSize(.small) }
             SettingsNote(T("No chat models are available for this account yet. Refresh or reconnect to try again.", table: "Settings"))
+            Button(T("Try again", table: "Settings")) { provider.refresh(online: true) }.pippa(.secondary).disabled(provider.busy)
         case .chooseModel(let item):
             VStack(alignment: .leading, spacing: Space.m) {
                 SettingsStatus(symbol: "checkmark.circle.fill", color: Theme.ok, text: T("Connected", table: "Settings"))

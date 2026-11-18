@@ -101,3 +101,4 @@
 "Signing in doesn’t switch anything yet: you choose afterwards." = "Die Anmeldung stellt noch nichts um: Das entscheidest du danach.";
 "%@ doesn’t recommend a model. Choose one under More Providers and Models." = "%@ empfiehlt kein Modell. Wähle eins unter „Weitere Anbieter und Modelle“.";
 "Model: %@" = "Modell: %@";
+"No providers are available. Try refreshing the list." = "Es sind keine Anbieter verfügbar. Versuche, die Liste zu aktualisieren.";

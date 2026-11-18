@@ -101,3 +101,4 @@
 "Signing in doesn’t switch anything yet: you choose afterwards." = "Signing in doesn’t switch anything yet: you choose afterwards.";
 "%@ doesn’t recommend a model. Choose one under More Providers and Models." = "%@ doesn’t recommend a model. Choose one under More Providers and Models.";
 "Model: %@" = "Model: %@";
+"No providers are available. Try refreshing the list." = "No providers are available. Try refreshing the list.";

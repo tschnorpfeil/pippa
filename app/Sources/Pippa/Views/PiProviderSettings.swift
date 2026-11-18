@@ -42,6 +42,10 @@ final class PiProviderSettingsModel: ObservableObject {
                 let result = try await client.run(online ? ["catalog", selectedID] : ["catalog"])
                 guard self.generation == generation, !Task.isCancelled else { return }
                 providers = PiProvider.ordered(result.providers ?? [])
+                if providers.isEmpty {
+                    problem = T("No providers are available. Try refreshing the list.", table: "Settings")
+                    return
+                }
                 let preferred = selection?.providerID ?? selectedID
                 let id = providers.contains(where: { $0.id == preferred }) ? preferred : providers.first?.id ?? ""
                 select(id, preferredModel: selection?.modelID ?? modelID)
