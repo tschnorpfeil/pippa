@@ -99,7 +99,7 @@ function mdfind(args) {
  return new Promise(done => execFile('/usr/bin/mdfind', args, { timeout: 30000, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => done({ stdout: String(stdout ?? ''), error })));
 }
 
-export async function search(query, year, home = process.env.CFFIXED_USER_HOME || homedir(), { kind, sort = 'newest', run = mdfind, maxChars = 5500 } = {}) {
+export async function search(query, year, home = process.env.CFFIXED_USER_HOME || homedir(), { kind, sort = 'newest', run = mdfind, maxChars = 5500, keep = () => true } = {}) {
  checkYear(year);
  const parsed = parseQuery(query, kind);
  const { words } = parsed;
@@ -143,6 +143,8 @@ export async function search(query, year, home = process.env.CFFIXED_USER_HOME |
  for (const path of paths) {
   // A named file type is a filter: "die PDF" means only PDFs.
   if (kindExt && !kindExt.includes(extname(path).toLowerCase().slice(1))) continue;
+  // `keep`: Pippa's own and Pi's folders stay out, also behind a symlink (protected.ts).
+  if (!keep(path)) continue;
   try {
    const info = await stat(path);
    if (info.isFile()) found.push({ path, info });

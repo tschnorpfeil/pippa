@@ -49,12 +49,22 @@ public enum ModelConnectionTest {
         try await run(connection, apiKey: apiKey)
     }
 
-    public static func run(_ connection: ModelConnection, apiKey: String, session: URLSession = .shared) async throws {
+    /// The default transport refuses every redirect. An injected session supplies its own redirect policy.
+    public static func run(_ connection: ModelConnection, apiKey: String, session: URLSession? = nil) async throws {
         let request = try request(connection, apiKey: apiKey)
+        let transport = session ?? URLSession(configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
+        defer { if session == nil { transport.finishTasksAndInvalidate() } }
         let response: URLResponse
-        do { (_, response) = try await session.data(for: request) } catch is CancellationError { throw CancellationError() } catch {
+        do { (_, response) = try await transport.data(for: request) } catch is CancellationError { throw CancellationError() } catch {
             throw AnswerFailure.pi(.providerUnreachable, AnswerFailureCode.providerUnreachable.fallbackText)
         }
         if let failure = failure(status: (response as? HTTPURLResponse)?.statusCode ?? 0) { throw failure }
+    }
+
+    private final class NoRedirects: NSObject, URLSessionTaskDelegate {
+        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+            completionHandler(nil)
+        }
     }
 }

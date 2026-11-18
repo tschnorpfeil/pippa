@@ -95,7 +95,7 @@ function hasText(text: string): boolean {
 
 /** Pi's read (`create` = `createReadToolDefinition`) with documents read to text in the same call.
  * `options` (tests): the model call and the folder digest.ts uses; by default Pi's model registry and PIPPA_DIGEST_DIR. */
-export function readTool(create: (cwd: string, options?: any) => any, exec: Run = run, options: { complete?: Complete; digestDirectory?: string } = {}) {
+export function readTool(create: (cwd: string, options?: any) => any, exec: Run = run, options: { complete?: Complete; digestDirectory?: string; path?: (raw: string, cwd: string) => string } = {}) {
 	return {
 		definition(defaultCwd: string) {
 			const base = create(defaultCwd);
@@ -103,7 +103,9 @@ export function readTool(create: (cwd: string, options?: any) => any, exec: Run 
 				...base,
 				description: "Read a file: text, image, or a document (PDF, Word, Excel, RTF, Pages …) as text; long files in parts by line (offset/limit).",
 				async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: any, ctx: any) {
-					const path = resolvePath(params?.path ?? params?.file_path, ctx?.cwd || defaultCwd);
+					const raw = params?.path ?? params?.file_path;
+					const cwd = ctx?.cwd || defaultCwd;
+					const path = (options.path ?? resolvePath)(raw, cwd);
 					if (extname(path).toLowerCase() === ".csv") {
 						const decoded = await windows1252Csv(path);
 						if (decoded !== undefined) {

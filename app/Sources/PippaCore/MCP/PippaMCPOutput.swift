@@ -26,6 +26,94 @@ extension PippaMCPTools {
         return PippaMCPToolResult(text: text, isError: false)
     }
 
+    /// Trim a list at item boundaries, accounting for JSON escaping as well as UTF-8.
+    static func trimMailList(_ key: String, in fields: inout [String: Any], bytes: Int) {
+        guard let items = fields[key] as? [Any] else { return }
+        var kept: [Any] = []
+        var used = 2
+        for item in items {
+            used += encode([item]).count - 1
+            guard used <= bytes else { break }
+            kept.append(item)
+        }
+        if kept.count < items.count {
+            fields[key] = kept
+            let omitted = key + "Omitted"
+            fields[omitted] = (fields[omitted] as? Int ?? 0) + items.count - kept.count
+            fields["truncated"] = true
+        }
+    }
+
+    /// Mail envelopes are bounded after serialization so long headers, escaping, and attachment
+    /// metadata cannot exceed the same limit as previews. Identifiers and paths stay exact.
+    static func boundMailResult(_ result: PippaMCPToolResult) -> PippaMCPToolResult {
+        guard result.text.utf8.count > maxResultBytes,
+              var envelope = (try? JSONSerialization.jsonObject(with: Data(result.text.utf8))) as? [String: Any] else { return result }
+        var output = result
+        trimMailList("accounts", in: &envelope, bytes: 4800)
+        for key in ["next", "error", "tell"] {
+            if let value = envelope[key] as? String {
+                let clipped = jsonClipped(value, bytes: 1200)
+                if clipped != value { envelope[key] = clipped; envelope["truncated"] = true }
+            }
+        }
+        if var data = envelope["data"] as? [String: Any], data["body"] != nil {
+            for key in ["subject", "from", "account", "body", "messageID", "replyTo"] {
+                guard let value = data[key] as? String else { continue }
+                let budget = key == "body" ? 3200 : 420
+                let text = jsonClipped(value, bytes: budget)
+                if text != value {
+                    if key == "messageID" || key == "replyTo" { data.removeValue(forKey: key) }
+                    else { data[key] = text }
+                    data["truncated"] = true
+                    if key == "body" { data["bodyTruncated"] = true }
+                }
+            }
+            trimMailList("attachments", in: &data, bytes: 800)
+            trimMailList("attachmentsNotSaved", in: &data, bytes: 500)
+            envelope["data"] = data
+        }
+        let text = json(envelope)
+        if text.utf8.count <= maxResultBytes {
+            output.text = text
+        } else {
+            // Preserve the protocol fields even if a future caller adds unbounded metadata.
+            let keys = ["read", "status", "error", "tell", "next", "cursor", "retry", "untrusted"]
+            var minimal = envelope.filter { keys.contains($0.key) }
+            if let data = envelope["data"] as? [String: Any] {
+                minimal["data"] = data.filter { ["cursor", "status", "total", "complete", "preview_rows_left"].contains($0.key) }
+                minimal["dataOmitted"] = true
+            }
+            minimal["truncated"] = true
+            output.text = json(minimal)
+        }
+        return output
+    }
+
+    static func jsonClipped(_ value: String, bytes: Int) -> String {
+        var room = bytes - 2
+        var text = byteClipped(value, characters: 6000, bytes: room)
+        while encode([text]).count - 2 > bytes {
+            room /= 2
+            text = byteClipped(value, characters: 6000, bytes: room)
+        }
+        return text
+    }
+
+    /// Clip only at a grapheme boundary, leaving the original whitespace intact.
+    static func byteClipped(_ text: String, characters: Int, bytes: Int) -> String {
+        if text.utf8.count <= bytes && text.count <= characters { return text }
+        guard bytes >= 3, characters > 0 else { return "" }
+        var result = "", used = 0
+        for character in text.prefix(characters - 1) {
+            let size = character.utf8.count
+            guard used + size <= bytes - 3 else { break }
+            result.append(character)
+            used += size
+        }
+        return result + "…"
+    }
+
     /// One step shorter: last event, last mail, last reminder, else halve long texts.
     private static func shrink(_ data: inout [String: Any]) -> Bool {
         if var days = data["days"] as? [[String: Any]], let index = days.lastIndex(where: { !(($0["events"] as? [Any]) ?? []).isEmpty }) {

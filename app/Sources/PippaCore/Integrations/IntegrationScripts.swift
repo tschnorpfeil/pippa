@@ -7,13 +7,20 @@ public enum IntegrationScripts {
         try MailReplyScript.searchMailboxes(ScriptValue(response).items)
     }
 
+    /// The per-account answers (`{"ok", payload}` or a reason), parsed without Mail.
+    public static func mailAccountPayload(_ response: NSAppleEventDescriptor) throws -> NSAppleEventDescriptor {
+        try MailAccountParse.payload(response)
+    }
+
+    public static func mailAccountMessageIsAmbiguous(_ response: NSAppleEventDescriptor) -> Bool { MailScript.isAmbiguous(response) }
+
     public static func mailSearchMatches(_ response: NSAppleEventDescriptor, in box: MailLocator) throws -> [MailLocator] {
         try MailReplyScript.searchMatches(ScriptValue(response).items, in: box)
     }
 
     /// Name and text of all scripts, for `compileAll` and the check that none calls `send`.
     public static var sources: [(name: String, source: String)] {
-        [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("Excel", ExcelScript.source),
+        [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("MailAccounts", MailAccountScript.source), ("Excel", ExcelScript.source),
          ("PhotosSearch", PhotosSearchScript.source), ("PhotosShow", PhotosShowScript.source),
          ("Safari", FrontAppScript.safari), ("Chrome", FrontAppScript.chrome), ("FrontDocument", FrontAppScript.documentSource)]
     }

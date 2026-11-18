@@ -38,6 +38,10 @@ enum SourceLog {
                   let data = object["data"] as? [String: Any], let subject = data["subject"] as? String, !subject.isEmpty else { return nil }
             let id = (data["messageID"] as? String).flatMap(MailReplySource.canonicalMessageID)
             let location = id.flatMap { "<\($0)>".addingPercentEncoding(withAllowedCharacters: .alphanumerics) }.map { "message://" + $0 } ?? ""
+            if let account = data["account"] as? String {
+                // A message URL cannot distinguish copies delivered to different accounts.
+                return ChatSource(kind: .mail, name: subject + " · " + account, location: "")
+            }
             return ChatSource(kind: .mail, name: subject, location: location)
         case "fetch_content":
             guard let url = (args["url"] as? String) ?? (args["urls"] as? [String])?.first, let host = URL(string: url)?.host() else { return nil }
@@ -48,9 +52,10 @@ enum SourceLog {
     }
 
     /// `read_document`'s pages and whether it read only part, from its result.
-    static func detail(result: String) -> String? {
+    static func detail(result: String, mail: Bool = false) -> String? {
         guard let object = (try? JSONSerialization.jsonObject(with: Data(result.utf8))) as? [String: Any],
               let data = object["data"] as? [String: Any] else { return nil }
+        if mail { return data["bodyTruncated"] as? Bool == true ? T("Beginning only", table: "App") : nil }
         let pages = data["pages"] as? String
         let total = data["pageCount"] as? Int
         if data["truncated"] as? Bool == true {

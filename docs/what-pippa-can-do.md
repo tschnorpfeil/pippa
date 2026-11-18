@@ -18,6 +18,9 @@ the window's sidebar, so you can search for it and pick it up later.
 While using the local AI, choose **Ask [provider]…** to get one online answer. Pippa shows who will receive the question
 and which text you can include. You can shorten an excerpt before sending it. Your next question uses the Mac again.
 Settings → **AI → Sharing with online AI** has a separate rule for Mail, Documents, Calendar, Reminders and Photos.
+An explicitly enabled **Allow Mac access** grant lets the selected online AI use Pippa’s Mac tools directly; tool
+results and direct file attachments then go to that provider without an excerpt review. The grant is off by default
+and belongs to that provider, model and account. See [privacy and permissions](privacy-and-permissions.md).
 
 **Pippa Island** sits at the notch, or under Pippa's menu bar symbol on a Mac without one. It shows what she is working
 on, such as the file she is reading. Press ⌥ Space to open it for a quick question, drop a file on it, or click
@@ -27,6 +30,13 @@ minutes old, and the pencil (⌘N) always starts a new one. You can switch it of
 
 ## Everyday jobs
 
+Ask **“Go through my inboxes”** for priorities and proposed next steps. Pippa keeps accounts separate and names any
+account she could not read. One answer shows at most 100 previews in bounded pages, taking the newest messages from
+each account so a busy inbox does not hide a smaller one. A preview is only the header and start of a message; Pippa
+uses its exact reference to read the whole message before assessing it in detail. This overview does not move, flag,
+mark as read, delete or send messages. Account-specific rows do not open an ambiguous `message://` link: find the
+message in the account named on its card. This requires the local AI or an online AI with explicit Mac access.
+
 | What you need | How Pippa helps |
 |---|---|
 | **A letter you can act on** | Ask what it says, what you need to do and by when. She quotes the passage her answer comes from, and flags full dates (with a year, including nearby ones) in her answer that do not appear in what she read; dates without a year and deadlines measured from receipt still need checking against the original. A PDF or a phone photo works. |
@@ -35,7 +45,7 @@ minutes old, and the pencil (⌘N) always starts a new one. You can switch it of
 | **What's coming up** | Ask about today, this week or a range of dates. She reads your calendar and your open reminders. |
 | **A file you can't find** | Ask "Where is the invoice for my helmet?" Pippa searches your Mac's Spotlight index by content, file name and folder, optionally by year or kind, and lists the newest first. |
 | **A tidier folder** | Ask her to rename a file, move it, or sort a folder's files into subfolders. Moves never overwrite another file. A file she removes goes to the Trash, never deleted for good. |
-| **A reply ready to review** | Pippa finds and reads your newest matching mails in Apple Mail, including document attachments, opens the exact read message when you click its source under her answer, and saves an unsent draft in Mail for you to review and send. She never sends mail. |
+| **A reply ready to review** | Pippa finds and reads your newest matching mails in Apple Mail, including document attachments, keeps the account and original message identity for a reply, and saves an unsent draft in Mail for you to review and send. She never sends mail. |
 | **A clearer piece of writing** | Shorten a text, make it clearer and friendlier, fix spelling, summarize it or turn notes into a checklist. |
 
 A few more things she can do when you ask:

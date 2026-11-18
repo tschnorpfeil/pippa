@@ -30,14 +30,13 @@ extension PippaMCPTools {
 
     // MARK: App in front
 
-    /// What is open in the app of the chip. Mail and Excel: their own readers (same receipt, same draft offer).
+    /// What is open in the app of the chip. Mail is dispatched by the caller with its read scope.
     /// Without a chip nothing is read, whatever is in front now.
     func frontRead(_ capturedApp: FrontApp?) async -> (result: PippaMCPToolResult, noted: String) {
         guard let app = capturedApp else {
             return (blocked("nothing_shown", L("I don’t see which app you mean. Copy the text you mean or drop the file on me, then ask again.", table: "MCP")),
                     "front_read")
         }
-        if app.bundleID == Integration.mail.bundleIdentifier { return (await mailSelected(), "mail_selected") }
         if app.bundleID == ExcelScript.bundleIdentifier { return (await excelSelection(), "excel_selection") }
         func tagged(_ result: PippaMCPToolResult) -> PippaMCPToolResult {
             // The app's name for the receipt line ("Nicht gelesen: Safari"): from the chip, not from the app.

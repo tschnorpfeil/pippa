@@ -14,6 +14,9 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     static let shared = WKBrowserSession()
 
     @Published var isOpen = false
+    @Published private(set) var navigationProblem: String?
+    private var manualNavigation = false
+    private var modelActions = 0
     @Published private(set) var currentURL: URL?
     @Published private(set) var pageTitle = ""
     @Published private(set) var isLoading = false
@@ -79,6 +82,43 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         isOpen = true
     }
 
+    /// A web address typed by the person uses the panel without requiring an active AI turn.
+    func navigateManually(_ text: String) async {
+        guard !isOnline else { return }
+        guard modelActions == 0, !ChatModel.shared.isAnswering else {
+            navigationProblem = T("Wait for Pippa to finish before opening a website.", table: "Views")
+            return
+        }
+        navigationProblem = nil
+        guard let url = Self.webAddress(text),
+              let host = PippaMCPBrowserTool.normalizedHost(url),
+              !(await PippaMCPBrowserTool.resolvesToPrivateAddress(host)) else {
+            navigationProblem = T("Enter a public website address, such as https://example.com.", table: "Views")
+            return
+        }
+        do { try await installRules() }
+        catch { navigationProblem = T("The website couldn’t be loaded. Try again.", table: "Views"); return }
+        guard modelActions == 0, !ChatModel.shared.isAnswering else {
+            navigationProblem = T("Wait for Pippa to finish before opening a website.", table: "Views")
+            return
+        }
+        manualNavigation = true
+        isOpen = true
+        webView.load(URLRequest(url: url))
+    }
+
+    static func webAddress(_ text: String) -> URL? {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !text.contains(where: { $0.isWhitespace }) else { return nil }
+        if let scheme = URLComponents(string: text)?.scheme, !["http", "https"].contains(scheme.lowercased()) {
+            let hostAndPort = URLComponents(string: "https://" + text)
+            guard hostAndPort?.port != nil, hostAndPort?.host?.contains(".") == true else { return nil }
+        }
+        let address = text.contains("://") ? text : "https://" + text
+        guard let url = URL(string: address), PippaMCPBrowserTool.isAllowedURL(url) else { return nil }
+        return url
+    }
+
     func goBack() { if webView.canGoBack { webView.goBack() } }
     func reload() { if currentURL != nil { webView.reload() } }
     func stop() { webView.stopLoading() }
@@ -96,6 +136,10 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     func currentSnapshot() async -> BrowserSnapshot? { latest }
 
     func perform(_ action: BrowserAction) async throws -> BrowserSnapshot? {
+        modelActions += 1
+        defer { modelActions -= 1 }
+        manualNavigation = false
+        navigationProblem = nil
         switch action {
         case .open(let url):
             guard PippaMCPBrowserTool.isAllowedURL(url), let host = PippaMCPBrowserTool.normalizedHost(url) else {
@@ -287,7 +331,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             if mainFrame || isPopup { blockedNavigation = true }
             return false
         }
-        if confirmHost && (mainFrame || isPopup) {
+        if confirmHost && (mainFrame || isPopup) && !manualNavigation {
             guard let authorizeNavigation else {
                 declinedNavigation = true
                 return false
@@ -398,6 +442,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         awaitingNavigationStart = false
+        navigationProblem = nil
         // A new document: refs of the old one are gone.
         latest = nil
         sync()
@@ -423,7 +468,10 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         let error = error as NSError
         let replaced = (error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled)
             || (error.domain == "WebKitErrorDomain" && error.code == 102)
-        if !replaced { navigationFailed = true }
+        if !replaced {
+            navigationFailed = true
+            navigationProblem = T("The website couldn’t be loaded. Try again.", table: "Views")
+        }
         sync()
     }
 

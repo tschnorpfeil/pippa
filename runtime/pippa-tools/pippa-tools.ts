@@ -22,13 +22,18 @@
  *
  * With PIPPA_EGRESS=online (an online AI answers) only `ask` is registered and everything else is blocked (egress.ts).
  *
+ * Pippa's own folder and Pi's sign-in folders stay closed to every tool here, on every route (protected.ts): a call
+ * that names them is refused before it runs, `read`, `write` and `move_files` check again as they run, listings and
+ * searches leave them out, and the shell's sandbox denies them.
+ *
  * Two hooks keep what the model reads small (budget.ts): shorter parameter texts of Pi's built-in tools in every
  * provider request, and a cap on each tool result from the model's context window.
  */
-import { mkdir, rename } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
-import { createBashToolDefinition, createReadToolDefinition } from "@earendil-works/pi-coding-agent";
+import { createBashToolDefinition, createEditToolDefinition, createReadToolDefinition, createWriteToolDefinition, detectSupportedImageMimeTypeFromFile } from "@earendil-works/pi-coding-agent";
 import { backupDirectory, backUp } from "./pippa-assist.ts";
 import { capResult, FACT_RESULT_CHARS, resultLimit, shortenParameters } from "./budget.ts";
 import { exists, folderLabel, isTrash, moveOne, planMoves, resolvePath, trashOne } from "./files.ts";
@@ -38,6 +43,8 @@ import { listFolder } from "./list-folder.ts";
 import { readTool } from "./document.ts";
 import { askTool } from "./ask.ts";
 import { blockReason, egress, hideWorkingFolder, onlyAllowedTools } from "./egress.ts";
+import { assertMovableEntry, checkedFile, fileToolPath, guarded, isProtected, PROTECTED_REASON, protection, toolCallReason } from "./protected.ts";
+import { refuseRedirects } from "./transport.ts";
 
 type ExtensionAPI = any;
 
@@ -51,6 +58,8 @@ export const BUILTIN_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function (pi: ExtensionAPI) {
+	// A provider request is never replayed to another address (transport.ts).
+	refuseRedirects();
 	// An online AI answers: only `ask`, every other call blocked, no working-folder path (egress.ts).
 	const online = egress();
 	if (online) {
@@ -64,12 +73,72 @@ export default function (pi: ExtensionAPI) {
 		pi.registerTool(askTool());
 		return;
 	}
+	// First of all tool_call handlers (this extension loads first; Pi stops at the first block): nothing that names a
+	// protected place runs, and no copy of it is kept (pippa-assist.ts).
+	const where = protection();
+	const outside = (path: string) => !isProtected(path, where);
+	pi.on("tool_call", (event: any, ctx: any) => {
+		const reason = toolCallReason(String(event?.toolName ?? ""), event?.input, ctx?.cwd ?? process.cwd(), where);
+		return reason ? { block: true, reason } : undefined;
+	});
 	pi.on("before_provider_request", (event: any) => shortenParameters(event?.payload));
 	const backups = backupDirectory();
-	const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined });
+	const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined, protection: where });
 	pi.on("agent_start", () => shell.resetAnswer());
 	pi.registerTool(shell.definition(process.cwd()));
-	pi.registerTool(readTool(createReadToolDefinition).definition(process.cwd()));
+	const checked = (path: string) => checkedFile(path, where);
+	pi.registerTool(readTool((cwd) => createReadToolDefinition(cwd, { operations: {
+		access: (path) => access(checked(path), constants.R_OK),
+		readFile: (path) => readFile(checked(path)),
+		detectImageMimeType: (path) => detectSupportedImageMimeTypeFromFile(checked(path)),
+	} }), undefined, { path: (raw, cwd) => checked(fileToolPath(raw, cwd)) }).definition(process.cwd()));
+	for (const create of [createWriteToolDefinition, createEditToolDefinition]) {
+		const cwd = process.cwd();
+		pi.registerTool({
+			...create(cwd),
+			async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: any, ctx: any) {
+				let file: string | undefined;
+				let before: { file: string; copy?: string; created?: boolean } | undefined;
+				let attempted = false;
+				// Pi resolves the input before passing it to these operations. Freeze the canonical target for
+				// edit's read and write and revalidate it after awaiting the backup.
+				const target = (path: string) => {
+					const current = checked(path);
+					if (file !== undefined && current !== file) throw new Error(PROTECTED_REASON);
+					return file = current;
+				};
+				const tool = create(cwd, { operations: {
+					access: (path: string) => access(target(path), constants.R_OK | constants.W_OK),
+					readFile: (path: string) => readFile(target(path)),
+					mkdir: async (dir: string) => { await mkdir(checked(dir), { recursive: true }); },
+					writeFile: async (path: string, content: string) => {
+						const resolved = target(path);
+						if (backups) {
+							const created = !(await exists(resolved));
+							try {
+								const copy = await backUp(resolved, backups, undefined, () => { target(path); });
+								before = { file: resolved, copy, created };
+							} catch {
+								throw new Error("Not changed: Pippa could not keep a copy of the old version first.");
+							}
+						}
+						signal?.throwIfAborted();
+						const destination = target(path);
+						attempted = true;
+						await writeFile(destination, content, "utf8");
+					},
+				} });
+				try {
+					const result = await tool.execute(id, params, signal, onUpdate, ctx);
+					return before ? { ...result, details: { ...result.details, pippaBefore: before } } : result;
+				} catch (error) {
+					if (!attempted || !before?.copy) throw error;
+					return { content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+						details: { pippaBefore: before }, isError: true };
+				}
+			},
+		});
+	}
 	// Pi's direct RPC shell (`!command`) bypasses the tool wrapper and its sandbox; Pippa never offers it.
 	pi.on("user_bash", () => ({ result: { output: "Direct shell execution is disabled in Pippa.", exitCode: 1, cancelled: false, truncated: false } }));
 	// One result must not fill a 16k window (Pi's read and bash allow 50 KB, ~14k tokens).
@@ -93,7 +162,7 @@ export default function (pi: ExtensionAPI) {
 		annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 		async execute(_id: string, params: any) {
 			const result = await search(String(params?.query ?? ""), params?.year ? String(params.year) : undefined, undefined,
-				{ kind: params?.kind ? String(params.kind) : undefined, sort: params?.sort === "name" ? "name" : "newest", maxChars: FACT_RESULT_CHARS });
+				{ kind: params?.kind ? String(params.kind) : undefined, sort: params?.sort === "name" ? "name" : "newest", maxChars: FACT_RESULT_CHARS, keep: outside });
 			return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
 		},
 	});
@@ -114,11 +183,12 @@ export default function (pi: ExtensionAPI) {
 		}),
 		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
 			const folder = resolvePath(params?.path || ".", ctx?.cwd ?? process.cwd());
-			return listFolder(folder);
+			if (isProtected(folder, where)) throw new Error(PROTECTED_REASON);
+			return listFolder(folder, undefined, undefined, outside);
 		},
 	});
 
-	pi.registerTool({
+	pi.registerTool(guarded({
 		name: "move_files",
 		label: "Dateien einsortieren",
 		description: "Rename or move one item: from, to (new name, folder, or \"trash\" for the Trash). Sort many: folder, groups (subfolders, created if missing). Never overwrites.",
@@ -133,8 +203,9 @@ export default function (pi: ExtensionAPI) {
 		executionMode: "sequential",
 		async execute(_id: string, params: any, _signal: AbortSignal | undefined, _onUpdate: unknown, ctx: any) {
 			const cwd = ctx?.cwd ?? process.cwd();
-			if (params?.from && isTrash(params?.to) && !params?.groups) return trashOne(params.from, cwd);
-			if (params?.from && params?.to && !params?.groups) return moveOne(params.from, params.to, cwd);
+			const check = (path: string) => assertMovableEntry(path, where);
+			if (params?.from && isTrash(params?.to) && !params?.groups) return trashOne(params.from, cwd, check);
+			if (params?.from && params?.to && !params?.groups) return moveOne(params.from, params.to, cwd, check);
 			const plan = await planMoves(params?.folder, params?.groups, cwd);
 			if (!(await exists(plan.folder))) throw new Error(`There is no folder at ${plan.folder}. Nothing was changed.`);
 			const moved: { from: string; to: string }[] = [];
@@ -144,7 +215,12 @@ export default function (pi: ExtensionAPI) {
 				try {
 					// Checked again right before the move: never overwrite, even if something appeared since planning.
 					if (await exists(item.to)) throw new Error(`'${basename(item.to)}' already exists there`);
+					check(item.from);
+					check(item.to);
+					if (isProtected(item.into, where)) throw new Error(PROTECTED_REASON);
 					await mkdir(item.into, { recursive: true });
+					check(item.from);
+					check(item.to);
 					await rename(item.from, item.to);
 					moved.push({ from: item.from, to: item.to });
 				} catch (error) {
@@ -163,5 +239,5 @@ export default function (pi: ExtensionAPI) {
 			if (moved.length === 0) throw new Error(`${text || "No files given."} Nothing was changed.`);
 			return { content: [{ type: "text", text }], details: { folder: plan.folder, moved, failed } };
 		},
-	});
+	}, () => where));
 }

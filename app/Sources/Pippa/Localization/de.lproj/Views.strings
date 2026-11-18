@@ -3,6 +3,7 @@
 "More sources: %lld" = "Weitere Quellen: %lld";
 "Newest in Mail" = "Neueste in Mail";
 "Newest in Photos" = "Neueste in Fotos";
+"Find this email in Mail in the account shown. Pippa can’t open this exact copy for you." = "Such diese E-Mail in Mail im angezeigten Konto. Genau diese Kopie kann Pippa nicht für dich öffnen.";
 "Open in Mail" = "In Mail öffnen";
 "Open in Photos" = "In Fotos öffnen";
 "Open in Reminders" = "In Erinnerungen öffnen";
@@ -23,6 +24,17 @@
 "Reload" = "Neu laden";
 "Hide the browser" = "Browser ausblenden";
 "Done" = "Fertig";
-"No page open" = "Keine Seite geöffnet";
 /* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
 "Works right away, without any AI: drop photos or PDFs here to make one PDF." = "Geht sofort, ganz ohne KI: Fotos oder PDFs hier ablegen und daraus ein PDF machen.";
+
+"Website address" = "Webadresse";
+
+"Open a website" = "Webseite öffnen";
+
+"Enter a web address above." = "Gib oben eine Webadresse ein.";
+
+"Enter a public website address, such as https://example.com." = "Gib die Adresse einer öffentlichen Webseite ein, etwa https://example.com.";
+
+"The website couldn’t be loaded. Try again." = "Die Webseite konnte nicht geladen werden. Versuche es erneut.";
+
+"Wait for Pippa to finish before opening a website." = "Warte, bis Pippa fertig ist, bevor du eine Webseite öffnest.";

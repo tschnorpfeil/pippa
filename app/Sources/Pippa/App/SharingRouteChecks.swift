@@ -117,6 +117,146 @@ enum SharingRouteChecks {
         check(ChatModel.outgoing("Hi", files: ["/Users/fixture/a.pdf"], frontApp: "Mail", undone: [], online: false)
               == .local(ChatModel.prompt("Hi", files: ["/Users/fixture/a.pdf"], frontApp: "Mail")),
               "on this Mac: unchanged")
+
+        // Mac access (issue #196): the person's grant for one verified recipient, never inferred, with a session of its own.
+        let legacySettings = try? JSONDecoder().decode(InferenceSettings.self, from: Data(#"{"policy":"localOnly"}"#.utf8))
+        check(legacySettings?.macAccess == nil && InferenceSettings().allowsMacAccess(openai) == false,
+              "Mac access is off by default, also for settings saved before it existed")
+        let privatemode = ShareDestination(PiModelSelection(providerID: "privatemode", modelID: "glm-5.3", providerName: "Privatemode"),
+                                           recipient: "account-p")
+        var granted = InferenceSettings(piModel: gpt); granted.macAccess = openai
+        let otherModel = ShareDestination(PiModelSelection(providerID: "openai", modelID: "gpt-other", providerName: "OpenAI"), recipient: "account-a")
+        check(granted.allowsMacAccess(openai) && !granted.allowsMacAccess(otherAccount) && !granted.allowsMacAccess(otherModel)
+              && !granted.allowsMacAccess(privatemode) && !granted.allowsMacAccess(nil),
+              "Mac access holds only for the recipient it was given to: another account, model or provider name gets none")
+        var unverifiedGrant = InferenceSettings(piModel: gpt); unverifiedGrant.macAccess = ShareDestination(gpt)
+        check(!unverifiedGrant.allowsMacAccess(ShareDestination(gpt)), "a recipient Pippa cannot verify never has Mac access")
+        check(granted.disconnected(provider: "openai").macAccess == nil && granted.disconnected(provider: "anthropic").macAccess == openai,
+              "signing out of the provider removes its Mac access")
+        var choices = granted; choices.capabilities = .init(local: .init(web: true, memory: false), online: .init(web: false, memory: true))
+        check(PiSession.macAccess(granted, openai, approved: false, handoff: false) != nil
+              && PiSession.macAccess(granted, openai, approved: true, handoff: false) == nil
+              && PiSession.macAccess(granted, openai, approved: true, handoff: true) == nil
+              && PiSession.macAccess(granted, otherAccount, approved: false, handoff: false) == nil
+              && PiSession.macAccess(choices, openai, approved: false, handoff: false) == .init(web: false, memory: false),
+              "Mac access for the person's own words only; approvals and single questions keep the limits; web as online, notes as on this Mac")
+
+        let trusted = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture|account-a").online(openai, .init(), rules: SourceSharing(), macAccess: .init())
+        check(trusted.hasMacAccess && trusted.egress == nil && trusted.destination == openai
+              && trusted.capabilities == local.capabilities && PippaPiLaunch.tools(trusted.capabilities) == PippaPiLaunch.tools(local.capabilities)
+              && ["read", "bash", "write", "mcp__pippa__*"].allSatisfy(PippaPiLaunch.tools(trusted.capabilities).contains)
+              && PippaPiLaunch.nativeTools(trusted.capabilities) == PiNativeReadiness.tools,
+              "with Mac access the online AI gets the tools of the AI on this Mac, and is still shown as the online AI")
+        check((try? PiSession.message(.local(prompt), route: trusted)) == prompt && changed(refused(.approved(approval), trusted)),
+              "with Mac access files and the app in front go as on this Mac; an approval still needs its own session")
+        let trustedB = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture|account-b").online(otherAccount, .init(), rules: SourceSharing(), macAccess: .init())
+        check(trusted.sessionScope == openai.macAccessTag && trusted.sessionScope != typedA.sessionScope && trusted.sessionScope != nil
+              && trusted.sessionScope != trustedB.sessionScope && trusted.key != typedA.key,
+              "Mac access has its own session per recipient: revoking it or another account never reuses that history")
+        check(!PiSession.sameRecipient(trusted, typedA) && !PiSession.sameRecipient(typedA, trusted)
+              && refused(.local(prompt), typedA).map { if case .needsReview = $0 { true } else { false } } == true,
+              "Mac access revoked or granted while Pi starts: the check before sending refuses the message")
+        let unverifiedRoute = PiSession.LaunchRoute(key: "pi|openai").online(ShareDestination(gpt), .init(), rules: SourceSharing(), macAccess: .init())
+        check(!unverifiedRoute.hasMacAccess && unverifiedRoute.egress != nil && unverifiedRoute.capabilities.online != nil,
+              "an unverified recipient keeps the limits even if Mac access were passed")
+        return failures == 0 ? 0 : 1
+    }
+
+    /// The last step before Pi's first request (`PiSession.admitted`), with the settings in a temporary folder and a
+    /// stand-in for the already running Pi that counts every prompt it is given. Reading the route again awaits the
+    /// provider's files and the Keychain; Mac access revoked meanwhile must send nothing, from the window, the Island
+    /// (both `.local` through ChatModel.send) and `Pippa --ask` (`.typed`).
+    static func admission() async -> Int32 {
+        var failures = 0
+        func check(_ ok: Bool, _ name: String) {
+            print("\(ok ? "PASS" : "FAIL") \(name)")
+            if !ok { failures += 1 }
+        }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-admission-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let gpt = PiModelSelection(providerID: "openai", modelID: "gpt-fixture", providerName: "OpenAI")
+        let openai = ShareDestination(gpt, recipient: "account-a")
+        var granted = InferenceSettings(piModel: gpt); granted.macAccess = openai
+        var revoked = granted; revoked.macAccess = nil
+        let latest = { InferenceSettings.load(from: folder) }
+        func save(_ settings: InferenceSettings) { try? settings.save(to: folder) }
+        let session = PiSession()
+        /// What `launchRoute` does: the settings first, the route from them, and the revision of that moment.
+        func read() -> PiSession.LaunchRoute {
+            let settings = latest()
+            var route = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture|account-a")
+                .online(openai, settings.capabilities.online, rules: settings.sharing,
+                        macAccess: PiSession.macAccess(settings, openai, approved: false, handoff: false))
+            route.admission = .init(settings: settings, revision: session.settingsRevision)
+            return route
+        }
+        let prompt = ChatModel.prompt("Sort these", files: ["/Users/fixture/Documents/Lease.pdf"], frontApp: "Mail")
+
+        /// One turn: `warm` is the route the running Pi was started for; the re-read takes its settings, then waits
+        /// (provider files, Keychain) while `meanwhile` runs on the main actor.
+        func turn(_ outgoing: PiSession.Outgoing, meanwhile: () async -> Void, duringSend: @escaping () -> Void = {}) async -> (sent: [String], error: PiSession.Failure?) {
+            save(granted)
+            let warm = read()
+            let text = (try? PiSession.message(outgoing, route: warm)) ?? ""
+            var sent: [String] = []
+            var waiting: CheckedContinuation<Void, Never>?
+            let attempt = Task { @MainActor () -> PiSession.Failure? in
+                do {
+                    _ = try await session.admitted(warm, text: text, outgoing: outgoing, reread: {
+                        let route = read()
+                        await withCheckedContinuation { waiting = $0 }
+                        return route
+                    }, latest: latest, send: { text in sent.append(text); duringSend(); return 0 })
+                    return nil
+                } catch { return error as? PiSession.Failure ?? .setup(String(describing: error)) }
+            }
+            while waiting == nil { await Task.yield() }
+            await meanwhile()
+            waiting?.resume()
+            let error = await attempt.value
+            return (sent, error)
+        }
+        func refused(_ result: (sent: [String], error: PiSession.Failure?)) -> Bool { result.sent.isEmpty && result.error != nil }
+
+        let unchanged = await turn(.local(prompt)) {}
+        check(unchanged.sent == [prompt] && unchanged.error == nil, "nothing changed: the running Pi gets the prompt once")
+        let native = PippaMCPTurn()
+        PippaMCPService.begin(native)
+        let stopped = await turn(.local(prompt)) { await session.stop() }
+        check(native.writes.snapshot.cancelled, "Stop cancels native read/write dispatch before awaiting Pi")
+        PippaMCPService.end(native)
+        check(refused(stopped), "Stop while the final reread is suspended prevents dispatch")
+        let local = PiSession.LaunchRoute(key: "local|fixture").with(.init(web: false, memory: false))
+        let changedLocal = local.with(.init(web: false, memory: true))
+        do {
+            _ = try await session.admitted(local, text: prompt, outgoing: .local(prompt),
+                                           reread: { changedLocal }, latest: latest, send: { _ in 0 })
+            check(false, "changed local capabilities refuse the unsent question")
+        } catch {
+            check(error as? PiSession.Failure == .settingsChanged, "changed local capabilities report an AI settings change")
+        }
+        let window = await turn(.local(prompt)) { save(revoked); session.settingsChanged() }
+        check(refused(window) && window.error == .needsReview,
+              "window and Island: Mac access revoked while the route is read again, the running Pi gets nothing")
+        let headless = await turn(.typed("Hello")) { save(revoked); session.settingsChanged() }
+        check(refused(headless) && headless.error == .destinationChanged, "Pippa --ask: the same revocation sends nothing either")
+        let elsewhere = await turn(.local(prompt)) { save(revoked) }
+        check(refused(elsewhere), "revoked by another Pippa process (only on disk): nothing is sent")
+        let signedOut = await turn(.local(prompt)) { save(granted.disconnected(provider: "openai")); session.settingsChanged() }
+        check(refused(signedOut), "signed out of the provider meanwhile: nothing is sent")
+        let rules = await turn(.local(prompt)) { var stricter = granted; stricter.sharing.mail = .localOnly; save(stricter) }
+        check(refused(rules), "a sharing rule saved meanwhile: nothing is sent")
+        let saved = await turn(.local(prompt)) { session.settingsChanged() }
+        check(refused(saved), "any change saved in this process meanwhile: nothing is sent")
+        var revision = 0
+        let admitted = await turn(.local(prompt), meanwhile: {}, duringSend: { save(revoked); session.settingsChanged(); revision = session.settingsRevision })
+        check(admitted.sent == [prompt] && admitted.error == nil,
+              "revoked after the prompt was admitted: that answer goes on, as Settings says (the next question)")
+        save(revoked)
+        let next = read()
+        check(revision == session.settingsRevision && !next.hasMacAccess && (try? PiSession.message(.local(prompt), route: next)) == nil,
+              "the next question reads the revoked settings: the limits, and files and the app in front need review")
         return failures == 0 ? 0 : 1
     }
 }

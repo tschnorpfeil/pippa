@@ -1,10 +1,32 @@
 import Foundation
 import Darwin
 import CoreFoundation
+import os
 
 // Pippa drives the real Pi via `pi --mode rpc`. Protocol: JSONL on stdin/stdout,
 // see the Pi docs rpc.md, rpc-commands.md, rpc-extension-ui.md.
 // Deliberately no dependency on PippaCore, so the probe program builds fast.
+
+/// A Stop request and the write of a prompt to Pi are ordered through the same lock.
+public final class PiRPCPromptAdmission: Sendable {
+    private let cancelled = OSAllocatedUnfairLock(initialState: false)
+
+    public init() {}
+
+    public func cancel() { cancelled.withLock { $0 = true } }
+
+    public func check() throws {
+        try dispatch {}
+    }
+
+    fileprivate func dispatch(_ write: @Sendable () throws -> Void) throws {
+        try cancelled.withLock { value in
+            try Task.checkCancellation()
+            guard !value else { throw CancellationError() }
+            try write()
+        }
+    }
+}
 
 /// Drives a `pi --mode rpc` process. One response at a time; deliver more via `steer`.
 public actor PiRPCClient {
@@ -124,8 +146,10 @@ public actor PiRPCClient {
     // MARK: Commands
 
     /// Sends a question. The stream ends with `.settled` or throws (`.processExited`, …).
-    public func prompt(_ text: String) async throws -> AsyncThrowingStream<PiRPCEvent, Error> {
+    public func prompt(_ text: String, admission: PiRPCPromptAdmission? = nil) async throws -> AsyncThrowingStream<PiRPCEvent, Error> {
         guard process?.isRunning == true else { throw PiRPCError.notRunning }
+        try admission?.check()
+        try Task.checkCancellation()
         guard events == nil else { throw PiRPCError.busy }
         // Listen first, then send (rpc.md "Run lifecycle").
         let (stream, continuation) = AsyncThrowingStream<PiRPCEvent, Error>.makeStream()
@@ -142,10 +166,10 @@ public actor PiRPCClient {
             if compacting { try await abort() }
             var response: Response
             do {
-                response = try await send(["type": "prompt", "message": text])
+                response = try await send(["type": "prompt", "message": text], admission: admission)
             } catch let error as PiRPCError where Self.isCompactionBusy(error) {
                 try await abort()
-                response = try await send(["type": "prompt", "message": text])
+                response = try await send(["type": "prompt", "message": text], admission: admission)
             }
             if Self.disposition(response) == "handled" { finish(nil) }
         } catch {
@@ -170,7 +194,7 @@ public actor PiRPCClient {
     public func command(_ payload: [String: any Sendable], timeout: Duration? = nil) async throws -> Data? {
         try await send(payload, timeout: timeout).data
     }
-    private func send(_ payload: [String: any Sendable], timeout: Duration? = nil) async throws -> Response {
+    private func send(_ payload: [String: any Sendable], timeout: Duration? = nil, admission: PiRPCPromptAdmission? = nil) async throws -> Response {
         guard let stdin, process?.isRunning == true else { throw PiRPCError.notRunning }
         nextID += 1
         let id = "pippa-\(nextID)"
@@ -186,7 +210,10 @@ public actor PiRPCClient {
                     do { try await Task.sleep(for: timeout ?? .seconds(300)) } catch { return }
                     await self?.cancelPending(id, error: PiRPCError.commandFailed(command: payload["type"] as? String ?? "?", message: "Command timed out"))
                 }
-                do { try stdin.write(contentsOf: data) } catch { cancelPending(id, error: error) }
+                do {
+                    if let admission { try admission.dispatch { [data] in try stdin.write(contentsOf: data) } }
+                    else { try Task.checkCancellation(); try stdin.write(contentsOf: data) }
+                } catch { cancelPending(id, error: error) }
             }
         } onCancel: { Task { await self.cancelPending(id, error: CancellationError()) } }
         guard response.success else {

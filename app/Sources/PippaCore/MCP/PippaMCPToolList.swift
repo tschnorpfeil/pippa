@@ -24,11 +24,11 @@ extension PippaMCPTools {
             tool("reminders_read", "Erinnerungen lesen",
                  "Open; days=due within N (1=today).", ["days": integer]),
             tool("mail_search", "Mail suchen",
-                 "Inbox, newest first. query=word in subject/sender; omit=newest; unread=true only unread.",
-                 ["query": string, "unread": ["type": "boolean"], "limit": integer]),
+                 "Inboxes of all accounts, newest first. query=word in subject/sender; omit=newest; unread=true only unread; account=one account from accounts; cursor=next page.",
+                 ["query": string, "unread": ["type": "boolean"], "limit": integer, "account": string, "cursor": string]),
             tool("mail_read", "Mail öffnen",
-                 "Whole inbox email from mail_search: message_id from the result, else subject exact + from=its sender; attachments saved for read_document.",
-                 ["message_id": string, "subject": string, "from": string]),
+                 "Whole inbox email: use mail_ref from an account search. For combined inbox results only, use message_id or exact subject + from. Attachments saved for read_document.",
+                 ["mail_ref": string, "message_id": string, "subject": string, "from": string]),
             tool("photos_search", "Fotos suchen",
                  "query=one Mac-language word; omit=newest; days=last N (no query).",
                  ["query": string, "days": integer, "limit": integer]),
@@ -45,14 +45,15 @@ extension PippaMCPTools {
     /// an omitted filter: `photos_search(query: 123)` must not fall through to reading the newest pictures.
     struct ToolInput: Sendable {
         var period: String?, start: String?, end: String?, query: String?, subject: String?, from: String?, messageID: String?
+        var account: String?, cursor: String?, mailRef: String?
         var days: Int?, limit: Int?
         var unread: Bool?
         var unknown: [String]
         static let allowed: [String: Set<String>] = [
             "calendar_read": ["period", "days", "start", "end"],
             "reminders_read": ["days"],
-            "mail_search": ["query", "unread", "limit"],
-            "mail_read": ["subject", "from", "message_id"],
+            "mail_search": ["query", "unread", "limit", "account", "cursor"],
+            "mail_read": ["subject", "from", "message_id", "mail_ref"],
             "photos_search": ["query", "days", "limit"],
             "front_read": [],
         ]
@@ -65,6 +66,7 @@ extension PippaMCPTools {
             period = raw["period"] as? String; start = raw["start"] as? String; end = raw["end"] as? String
             query = raw["query"] as? String; days = int("days"); limit = int("limit")
             subject = raw["subject"] as? String; from = raw["from"] as? String; messageID = raw["message_id"] as? String
+            account = raw["account"] as? String; cursor = raw["cursor"] as? String; mailRef = raw["mail_ref"] as? String
             func bool(_ key: String) -> Bool? {
                 guard let n = raw[key] as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() else { return nil }
                 return n.boolValue

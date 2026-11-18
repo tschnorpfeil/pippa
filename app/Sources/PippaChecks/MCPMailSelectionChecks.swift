@@ -193,19 +193,19 @@ extension MCPCheckContext {
             return rejected && none.isError && none.json["status"] as? String == "invalid_arguments"
                 && w.demo.mailLookups == 0 && w.demo.mailPreparations == 0
         }
-        await checkAsync("MCP mail_read: without a message_id the subject and sender still select the newest matching mail") {
+        await checkAsync("MCP mail_read: without a message_id, a subject and sender held by several mails is ambiguous, never the newest") {
             let w = repeatedWorld()
             let legacy = await call(w.tools, "mail_read", ["subject": "Nachricht zur Abrechnung", "from": sender])
             let bare = await call(w.tools, "mail_read", ["subject": "Nachricht zur Abrechnung"])
             let wrongSender = await call(w.tools, "mail_read", ["subject": "Nachricht zur Abrechnung", "from": "fremd@example.com"])
-            return body(legacy) == "Neu: Frist verlängert." && body(bare) == "Neu: Frist verlängert."
+            return legacy.json["status"] as? String == "ambiguous" && body(legacy) == nil && bare.json["status"] as? String == "ambiguous"
                 && wrongSender.isError && wrongSender.json["status"] as? String == "not_found"
         }
-        check("MCP tool list: mail_read takes an optional message_id and no longer requires a subject; mail_search hits carry no other new field") {
+        check("MCP tool list: mail_read takes an optional mail_ref or message_id and no longer requires a subject") {
             let tools = PippaMCPTools.toolList()
             guard let read = tools.first(where: { $0["name"] as? String == "mail_read" }),
                   let schema = read["inputSchema"] as? [String: Any], let properties = schema["properties"] as? [String: Any] else { return false }
-            return Set(properties.keys) == ["message_id", "subject", "from"] && (schema["required"] as? [String] ?? []).isEmpty
+            return Set(properties.keys) == ["mail_ref", "message_id", "subject", "from"] && (schema["required"] as? [String] ?? []).isEmpty
                 && schema["additionalProperties"] as? Bool == false
                 && (properties["message_id"] as? [String: Any])?["type"] as? String == "string"
         }
@@ -380,6 +380,21 @@ extension MCPCheckContext {
             try FileManager.default.createDirectory(at: folder.appendingPathComponent("Vertrag.pdf"), withIntermediateDirectories: true)
             let result = MailFiling.save(of: eml, into: folder)
             return result.unsaved == ["Vertrag.pdf"] && result.saved.map(\.name) == ["Zweite.pdf"]
+        }
+        check("Mail attachments: account copies with the same Message-ID keep their original attachment bytes") {
+            func copy(_ account: String, _ bytes: String) -> MailMessage {
+                let part = "Content-Type: application/octet-stream; name=\"copy.txt\"\nContent-Disposition: attachment; filename=\"copy.txt\"\nContent-Transfer-Encoding: base64\n\n" + Data(bytes.utf8).base64EncodedString()
+                var value = mail(names: ["copy.txt"], source: mime(part))
+                value.messageID = "shared@fixture.example"
+                value.locator = MailLocator(account: account, path: ["INBOX"], mailID: 7)
+                return value
+            }
+            let root = dir("mail-same-id-copies")
+            let a = try MailFiling.file(copy("Private", "FIRST"), root: root, scope: ["account-A", "7", "INBOX"])
+            let b = try MailFiling.file(copy("Work", "SECOND"), root: root, scope: ["account-B", "7", "INBOX"])
+            guard let first = a.attachments.first, let second = b.attachments.first else { return false }
+            let firstData = try Data(contentsOf: first), secondData = try Data(contentsOf: second)
+            return first != second && firstData == Data("FIRST".utf8) && secondData == Data("SECOND".utf8)
         }
         check("Mail attachments: two mails with the same subject, sender and no Message-ID keep separate folders") {
             let root = dir("mail-same-subject")

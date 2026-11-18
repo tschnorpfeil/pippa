@@ -134,6 +134,7 @@ public struct PippaMCPRequestContext: Sendable {
     let turn: PippaMCPTurn?
     let writes: PippaMCPWriteScope
     let front: FrontApp?
+    let turnGeneration: UUID
 }
 
 /// The trusted app scope permits producing a draft, but no native mutation.

@@ -14,19 +14,34 @@ public final class PippaMCPTurns: @unchecked Sendable {
     public static let shared = PippaMCPTurns()
     private let lock = NSLock()
     private var current: PippaMCPTurn?
+    private var generation = UUID()
     public init() {}
 
     public func begin(_ turn: PippaMCPTurn) {
         lock.withLock {
-            if current !== turn { current?.cancelWrites() }
+            if current !== turn {
+                current?.cancelWrites()
+                generation = UUID()
+            }
             current = turn
         }
     }
     /// End only its own answer (a later one may have already replaced it).
     public func end(_ turn: PippaMCPTurn) {
-        lock.withLock { turn.cancelWrites(); if current === turn { current = nil } }
+        lock.withLock { turn.cancelWrites(); if current === turn { current = nil; generation = UUID() } }
     }
-    public var active: PippaMCPTurn? { lock.withLock { current } }
+    public var active: PippaMCPTurn? { capture().turn }
+    func capture() -> (turn: PippaMCPTurn?, generation: UUID) { lock.withLock { (current, generation) } }
+    /// Check under the lock and invoke the callback outside it. Consumers collect notes by turn ID.
+    public func whileActive(_ turn: PippaMCPTurn?, generation: UUID? = nil, _ body: () -> Void) {
+        if !Task.isCancelled && isLive(turn, generation: generation) { body() }
+    }
+
+    func isLive(_ turn: PippaMCPTurn?, generation expected: UUID? = nil) -> Bool {
+        lock.withLock {
+            current === turn && (expected == nil || expected == generation) && !(turn?.writes.snapshot.cancelled ?? false)
+        }
+    }
 }
 
 /// An answer on the Pi RPC path: who is told about phases, what Pi has read via `read_document`.
@@ -34,7 +49,7 @@ public actor PippaMCPTurn {
     public nonisolated let id: UUID
     public nonisolated let writes: PippaMCPWriteScope
     public nonisolated func cancelWrites() { writes.cancel() }
-    private var documents: [String: Task<DocumentText, Never>] = [:]
+    private var documents: [String: Task<DocumentText, Error>] = [:]
     private var mailSearches = 0
 
     /// Counts this answer's Mail searches; returns the new count.
@@ -51,14 +66,15 @@ public actor PippaMCPTurn {
 
     /// Text of a file, read once per path and page count per answer (Vision pages are additionally in the
     /// session cache of DocumentOCR, which the answer check also uses).
-    func text(of url: URL, maxPages: Int) async -> DocumentText {
+    func text(of url: URL, maxPages: Int) async throws -> DocumentText {
         let key = url.standardizedFileURL.path + "|\(maxPages)"
-        if let running = documents[key] { return await running.value }
+        if let running = documents[key] { return try await running.value }
         let task = Task.detached(priority: .userInitiated) { () -> DocumentText in
-            TextReader.read(url, options: TextReader.Options(maxPages: maxPages, ocr: true))
+            let target = try ProtectedPaths.app().authorizedURL(url)
+            return TextReader.read(target, options: TextReader.Options(maxPages: maxPages, ocr: true))
         }
         documents[key] = task
-        return await task.value
+        return try await task.value
     }
 }
 
@@ -139,9 +155,12 @@ public struct PippaMCPTurnTools: Sendable {
         if path.hasPrefix("file://"), let url = URL(string: path) { path = url.path }
         path = (path as NSString).expandingTildeInPath
         guard path.hasPrefix("/") else { return Self.failure("invalid_arguments", "Use the exact absolute path from the message.") }
+        // Pippa's own folder and Pi's sign-in folders are never read for the model (ProtectedPaths), also behind a symlink.
+        let url: URL
+        do { url = try ProtectedPaths.app().authorizedURL(URL(fileURLWithPath: path)) }
+        catch { return Self.failure("protected", ProtectedPaths.reason) }
         let from = input.fromPage ?? 1
         guard from >= 1 else { return Self.failure("invalid_arguments", "from_page must be 1 or more.") }
-        let url = URL(fileURLWithPath: path)
         let granted = url.startAccessingSecurityScopedResource()
         defer { if granted { url.stopAccessingSecurityScopedResource() } }
         let attributes: [FileAttributeKey: Any]
@@ -184,7 +203,11 @@ public struct PippaMCPTurnTools: Sendable {
         if size > 100_000_000 { return Self.failure("too_large", "This file is larger than 100 MB; Pippa does not read it.") }
 
         let window = from - 1 + Self.pagesPerCall
-        let document = await turn?.text(of: source, maxPages: window) ?? TextReader.read(source, options: .init(maxPages: window, ocr: true))
+        let document: DocumentText
+        do {
+            if let turn { document = try await turn.text(of: source, maxPages: window) }
+            else { document = TextReader.read(try ProtectedPaths.app().authorizedURL(source), options: .init(maxPages: window, ocr: true)) }
+        } catch { return Self.failure("protected", ProtectedPaths.reason) }
         switch document.problem {
         case .protected: return Self.failure("protected", "This file is password-protected. Pippa cannot read it.")
         case .cloudOnly: return Self.failure("cloud_only", "This file is only in iCloud and not downloaded to this Mac.")

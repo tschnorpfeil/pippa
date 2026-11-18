@@ -195,9 +195,14 @@ public struct ShareDestination: Codable, Sendable, Equatable, Hashable {
     /// A short, Pi-safe tag for the destination's own session of typed words: history never moves to another account or
     /// another configuration, and never from sessions kept before the recipient was part of it. An endpoint Pi derives
     /// from the same sign-in is not part of it (`account`).
-    public var sessionTag: String {
-        let digest = (key + "\n" + (account.isEmpty ? recipient : account)).utf8.reduce(UInt64(14_695_981_039_346_656_037)) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
-        return "online-" + String(digest, radix: 36)
+    public var sessionTag: String { "online-" + Self.tag(key + "\n" + (account.isEmpty ? recipient : account)) }
+
+    /// The session of typed words while this recipient has Mac access (issue #196): bound to the whole recipient, endpoint
+    /// included, and never the same as `sessionTag`, so history that holds Mac content never reaches a restricted session.
+    public var macAccessTag: String { "mac-" + Self.tag(key + "\n" + recipient) }
+
+    private static func tag(_ text: String) -> String {
+        String(text.utf8.reduce(UInt64(14_695_981_039_346_656_037)) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }, radix: 36)
     }
 }
 

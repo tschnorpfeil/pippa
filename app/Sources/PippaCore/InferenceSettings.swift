@@ -146,14 +146,20 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
     /// The same for an older Keychain connection that was the online AI: its id, valid only while `connection` is still
     /// that connection. Set by `onThisMac()`; at most one of the two is set.
     public var handoffConnection: UUID?
+    /// Settings → AI → "Allow Mac access" (issue #196): the one online AI the person allowed the same Mac tools as the AI
+    /// on this Mac, as it was verified when they turned it on. Missing: none, also for settings saved before.
+    public var macAccess: ShareDestination?
     public init(policy: InferencePolicy = .localOnly, connection: ModelConnection? = nil, subscriptionModel: String? = nil,
                 piModel: PiModelSelection? = nil, capabilities: OptionalCapabilities = OptionalCapabilities(),
-                sharing: SourceSharing = SourceSharing(), handoffModel: PiModelSelection? = nil, handoffConnection: UUID? = nil) {
+                sharing: SourceSharing = SourceSharing(), handoffModel: PiModelSelection? = nil, handoffConnection: UUID? = nil,
+                macAccess: ShareDestination? = nil) {
         self.policy = policy; self.connection = connection; self.subscriptionModel = subscriptionModel
         self.piModel = piModel; self.capabilities = capabilities; self.sharing = sharing; self.handoffModel = handoffModel
-        self.handoffConnection = handoffConnection
+        self.handoffConnection = handoffConnection; self.macAccess = macAccess
     }
-    enum CodingKeys: String, CodingKey { case policy, connection, subscriptionModel, piModel, capabilities, sharing, handoffModel, handoffConnection }
+    enum CodingKeys: String, CodingKey {
+        case policy, connection, subscriptionModel, piModel, capabilities, sharing, handoffModel, handoffConnection, macAccess
+    }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         policy = try values.decode(InferencePolicy.self, forKey: .policy)
@@ -164,6 +170,14 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
         sharing = try values.decodeIfPresent(SourceSharing.self, forKey: .sharing) ?? SourceSharing()
         handoffModel = try values.decodeIfPresent(PiModelSelection.self, forKey: .handoffModel)
         handoffConnection = try values.decodeIfPresent(UUID.self, forKey: .handoffConnection)
+        macAccess = try values.decodeIfPresent(ShareDestination.self, forKey: .macAccess)
+    }
+
+    /// Whether `destination` has the person's Mac access: only a verified recipient, and only while its configuration,
+    /// endpoint and account are exactly the ones they allowed. Never inferred from a provider's name or address.
+    public func allowsMacAccess(_ destination: ShareDestination?) -> Bool {
+        guard let destination, destination.isVerified, let allowed = macAccess else { return false }
+        return allowed.key == destination.key && allowed.recipient == destination.recipient
     }
     /// "Use this Mac": conversations stay here; the online AI used until now stays the recipient for single questions.
     public func onThisMac() -> Self {
@@ -196,6 +210,7 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
         var saved = self
         if activePiModel?.providerID == provider { saved.piModel = nil; saved.subscriptionModel = nil; saved.policy = .localOnly }
         if handoffModel?.providerID == provider { saved.handoffModel = nil }
+        if saved.macAccess?.key.hasPrefix("pi|\(provider)|") == true { saved.macAccess = nil }
         return saved
     }
 

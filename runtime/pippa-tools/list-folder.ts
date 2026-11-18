@@ -9,7 +9,8 @@ import { entryFacts, fitting } from "./facts.mjs";
 import { FACT_RESULT_CHARS } from "./budget.ts";
 
 /** Keep real filesystem denial separate from absence; the app chooses a privacy pane, never the model. */
-export async function listFolder(folder: string, io = { readdir, stat }, maxChars = FACT_RESULT_CHARS) {
+/** `keep`: entries to show; Pippa's own and Pi's folders (also behind a symlink) are left out (protected.ts). */
+export async function listFolder(folder: string, io = { readdir, stat }, maxChars = FACT_RESULT_CHARS, keep: (path: string) => boolean = () => true) {
 	let names: string[];
 	try {
 		names = (await io.readdir(folder)).filter((name) => !name.startsWith("."));
@@ -26,6 +27,7 @@ export async function listFolder(folder: string, io = { readdir, stat }, maxChar
 	const all: { path: string; info: any }[] = [];
 	for (const name of names) {
 		const path = join(folder, name);
+		if (!keep(path)) continue;
 		try { all.push({ path, info: await io.stat(path) }); } catch { /* vanished or unreadable: not listed */ }
 	}
 	all.sort((a, b) => Number(b.info.isDirectory()) - Number(a.info.isDirectory())

@@ -1,5 +1,6 @@
 import Foundation
 import PiRPC
+import PippaCore
 
 /// `Pippa --check-approvals`: the question flow without any window. Asks while a presenter is registered, answers,
 /// cancels and times out, and checks each answer reaches the waiting caller exactly once. Prints one line per check.
@@ -70,6 +71,24 @@ enum ApprovalsChecks {
         approvals.answer("q6", .cancelled)   // a failed check must not keep the run waiting
         check(await open.value == .confirmed(false), "the alert's answer reaches the caller")
         approvals.present("check") { revealed += 1 }
+
+        let turnA = PippaMCPTurn(), turnB = PippaMCPTurn()
+        let card = ResultCard.mail(MailCard(query: "Synthetic", mails: [], total: 0, calendar: .current))
+        let host = PippaMCPService.configured(.demo(), asksForAccess: false)
+        host.turns.begin(turnA)
+        var note = PippaMCPReadNote(tool: "mail_search", read: true, line: "Synthetic", card: card)
+        note.turnID = turnA.id
+        host.onRead?(note)
+        host.turns.end(turnA)
+        host.turns.begin(turnB)
+        note.turnID = nil
+        host.onRead?(note)
+        check(PippaMCPService.takeReadCards(turnID: turnB.id).isEmpty, "A newer answer cannot take another turn’s or unscoped cards")
+        check(PippaMCPService.takeReadCards(turnID: turnA.id) == [card], "An ended answer still collects its own cards")
+        note.turnID = turnA.id
+        host.onRead?(note)
+        check(PippaMCPService.takeReadCards(turnID: turnA.id).isEmpty, "A note arriving after its cards were collected is discarded")
+        host.turns.end(turnB)
 
         failures += Int(await HeadlessAskChecks.run())
 
@@ -174,6 +193,31 @@ enum ConversationStoreChecks {
               && StepLabel.progress(reading, part: 1, of: 2, merging: true) != StepLabel.progress(reading, part: 1, of: 2, merging: false),
               "a long document's step says which part is being read, in the app's language")
         let firstMail = mailSource("old@example.test"), secondMail = mailSource("new@example.test")
+        let accountMail = SourceLog.source(tool: "mail_read", arguments: #"{"mail_ref":"m123456789012"}"#,
+                                          result: #"{"data":{"subject":"Repeated subject","messageID":"old@example.test","account":"Work","bodyTruncated":true}}"#)
+        check(accountMail?.location.isEmpty == true && accountMail?.name.contains("Work") == true,
+              "an account-specific Mail source never opens an account-blind message link")
+        check(SourceLog.detail(result: #"{"data":{"bodyTruncated":true}}"#, mail: true) == T("Beginning only", table: "App"),
+              "a clipped email body is identified as a partial read")
+        do {
+            let chat = ChatModel.shared, saved = (ChatModel.shared.conversations, ChatModel.shared.currentID)
+            let id = "mail-partial-check"
+            chat.showSample([Conversation(id: id, title: "Synthetic", updated: Date(), messages: [ChatMessage(role: .assistant, text: "")])],
+                            current: id, answering: true)
+            chat.apply(.toolEnded(id: "synthetic-mail", name: "mcp__pippa__mail_read", isError: false,
+                                  result: #"{"data":{"subject":"Synthetic mail","account":"Work","bodyTruncated":true}}"#), in: id)
+            check(chat.conversations.first?.messages.last?.sources?.first?.detail == T("Beginning only", table: "App"),
+                  "a completed Mail tool updates the actual chat source with its partial-read disclosure")
+            chat.apply(.toolEnded(id: "synthetic-mail-metadata", name: "mcp__pippa__mail_read", isError: false,
+                                  result: #"{"data":{"subject":"Synthetic mail","account":"Work","bodyTruncated":false,"truncated":true}}"#), in: id)
+            check(chat.conversations.first?.messages.last?.sources?.first?.detail == nil,
+                  "an attachment-list limit never claims that the email body was clipped")
+            chat.apply(.toolEnded(id: "synthetic-mail-whole", name: "mcp__pippa__mail_read", isError: false,
+                                  result: #"{"data":{"subject":"Synthetic mail","account":"Work","bodyTruncated":false}}"#), in: id)
+            check(chat.conversations.first?.messages.last?.sources?.first?.detail == nil,
+                  "a complete email is not labeled as a whole document")
+            chat.showSample(saved.0, current: saved.1, answering: false)
+        }
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",
               "a mail read by id gets its title and openable identity from the result")
         check(firstMail != nil && secondMail != nil && Set([firstMail, secondMail]).count == 2,

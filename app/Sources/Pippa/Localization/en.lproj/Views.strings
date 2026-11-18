@@ -3,6 +3,7 @@
 "More sources: %lld" = "More sources: %lld";
 "Newest in Mail" = "Newest in Mail";
 "Newest in Photos" = "Newest in Photos";
+"Find this email in Mail in the account shown. Pippa can’t open this exact copy for you." = "Find this email in Mail in the account shown. Pippa can’t open this exact copy for you.";
 "Open in Mail" = "Open in Mail";
 "Open in Photos" = "Open in Photos";
 "Open in Reminders" = "Open in Reminders";
@@ -23,6 +24,17 @@
 "Reload" = "Reload";
 "Hide the browser" = "Hide the browser";
 "Done" = "Done";
-"No page open" = "No page open";
 /* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
 "Works right away, without any AI: drop photos or PDFs here to make one PDF." = "Works right away, without any AI: drop photos or PDFs here to make one PDF.";
+
+"Website address" = "Website address";
+
+"Open a website" = "Open a website";
+
+"Enter a web address above." = "Enter a web address above.";
+
+"Enter a public website address, such as https://example.com." = "Enter a public website address, such as https://example.com.";
+
+"The website couldn’t be loaded. Try again." = "The website couldn’t be loaded. Try again.";
+
+"Wait for Pippa to finish before opening a website." = "Wait for Pippa to finish before opening a website.";

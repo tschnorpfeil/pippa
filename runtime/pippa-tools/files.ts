@@ -127,17 +127,24 @@ export function folderLabel(into: string, folder: string): string {
 }
 
 /** One file or folder renamed or moved (`move_files` with `from`, `to`); validates both, never overwrites. */
-export async function moveOne(rawFrom: string, rawTo: string, cwd: string) {
+export async function moveOne(rawFrom: string, rawTo: string, cwd: string, check: (path: string) => void) {
 	const from = resolvePath(rawFrom, cwd);
 	const to = await moveTarget(from, rawTo, cwd);
 	if (!(await exists(from))) throw new Error(`Not found: ${from}`);
 	if (from === to || ((await exists(to)) && !(await sameEntry(from, to)))) throw new Error(`Something named '${basename(to)}' already exists in ${dirname(to)}. Nothing was changed.`);
 	if (!(await exists(dirname(to)))) throw new Error(`The folder ${dirname(to)} does not exist. Nothing was changed.`);
+	check(from);
+	check(to);
 	try {
 		await rename(from, to);
 	} catch (error: any) {
 		if (error?.code !== "EXDEV") throw error;
+		// A cross-volume rename fallback must not copy the target of a symlink entry.
+		if ((await lstat(from)).isSymbolicLink()) throw error;
+		check(from);
+		check(to);
 		await copyFile(from, to, constants.COPYFILE_EXCL);
+		check(from);
 		await unlink(from);
 	}
 	return { content: [{ type: "text", text: `Moved to ${to}.` }], details: { from, to } };
@@ -152,17 +159,22 @@ let trashSeq = 0;
 
 /** The Mac's trash via /usr/bin/trash (macOS 15+, FileManager.trashItem; no Finder automation, no system prompt).
  * For tests: `PIPPA_TRASH_DIR` instead of the real trash. Returns the location inside the trash. */
-export async function moveToTrash(path: string): Promise<string | undefined> {
+export async function moveToTrash(path: string, check?: (path: string) => void): Promise<string | undefined> {
 	const fake = process.env.PIPPA_TRASH_DIR;
 	if (fake) {
 		const dir = join(fake, `${Date.now()}-${++trashSeq}`);
-		await mkdir(dir, { recursive: true });
 		const target = join(dir, basename(path));
+		check?.(path);
+		check?.(target);
+		await mkdir(dir, { recursive: true });
+		check?.(path);
+		check?.(target);
 		await rename(path, target);
 		return target;
 	}
 	// Absolute path (starts with "/"): can never be read as an option; /usr/bin/trash has no "--".
 	const output = await new Promise<string>((done, fail) => {
+		check?.(path);
 		execFile("/usr/bin/trash", ["-v", path], { timeout: 30_000 }, (error, stdout, stderr) => {
 			if (error) fail(new Error(String(stderr || error.message).trim().split("\n").pop() || "trash failed"));
 			else done(`${stdout}\n${stderr}`);
@@ -176,9 +188,9 @@ export async function moveToTrash(path: string): Promise<string | undefined> {
 
 /** `move_files` with `to: "trash"`: one file or folder to the Trash, never deleted for good. `details.to` is its place
  * in the Trash (for undo), when the system names it. */
-export async function trashOne(rawFrom: string, cwd: string) {
+export async function trashOne(rawFrom: string, cwd: string, check: (path: string) => void) {
 	const from = resolvePath(rawFrom, cwd);
 	if (!(await exists(from))) throw new Error(`Not found: ${from}`);
-	const to = await moveToTrash(from);
+	const to = await moveToTrash(from, check);
 	return { content: [{ type: "text", text: `Moved ${from} to the Trash.` }], details: { from, trash: true, ...(to ? { to } : {}) } };
 }

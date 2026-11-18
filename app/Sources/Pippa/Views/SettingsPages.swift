@@ -82,14 +82,25 @@ struct AISettings: View {
 }
 
 /// What may go to an online AI, per source: "Ask before sharing" (Pippa shows the provider and the excerpt first) or
-/// "Only on this Mac". And the online AI that single questions go to while conversations stay on this Mac.
+/// "Only on this Mac". "Allow Mac access" for the online AI in use (issue #196), and the online AI that single questions
+/// go to while conversations stay on this Mac.
 struct SharingSettings: View {
     @ObservedObject var settings: SettingsModel
     private let failureState = State<String?>(initialValue: nil)
+    /// The online AI in use with its effective recipient, read off the main thread; `nil` on this Mac or while reading.
+    private let activeState = State<ShareDestination?>(initialValue: nil)
 
     var body: some View {
-        SettingsSection(title: T("Sharing with online AI", table: "Settings"),
-                        footer: failureState.wrappedValue ?? T("An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is.", table: "Settings")) {
+        let active = settings.inferenceSettings.usesOnlineAI ? activeState.wrappedValue : nil
+        let macAccess = settings.inferenceSettings.allowsMacAccess(active)
+        let footer = failureState.wrappedValue
+            ?? active.flatMap { macAccess ? T("%@ has Mac access. Tool results and files you attach directly go to this provider without review. The rules below apply to excerpts you choose to review, such as Selected Email in Mail.", table: "Settings", $0.provider) : nil }
+            ?? T("An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is.", table: "Settings")
+        SettingsSection(title: T("Sharing with online AI", table: "Settings"), footer: footer) {
+            if let active {
+                macAccessRow(active, allowed: macAccess)
+                SettingsDivider()
+            }
             ForEach(Array(SharingSource.allCases.enumerated()), id: \.element) { index, source in
                 if index > 0 { SettingsDivider() }
                 SettingsRow(title: source.displayName) {
@@ -115,6 +126,29 @@ struct SharingSettings: View {
                 }
             }
         }
+        .task(id: settings.inferenceSettings) { await resolve() }
+    }
+
+    /// Off unless the person turns it on; it can only be turned on for a recipient Pippa could verify.
+    private func macAccessRow(_ active: ShareDestination, allowed: Bool) -> some View {
+        let title = T("Allow Mac access", table: "Settings")
+        let detail = active.isVerified
+            ? T("%@ can use the same Mac tools as the AI on this Mac: files, shell commands, Mail, Calendar, Reminders, Photos and the app in front. What they read, files you add and your personal notes, if they’re on, go to %@. Pippa’s existing confirmations and macOS permissions still apply. Only for this provider, model and account. Changes apply from your next question; an answer already running keeps its access until it finishes or you stop it.", table: "Settings", active.label, active.provider)
+            : T("Pippa can’t confirm which account %@ uses, so it can’t get Mac access.", table: "Settings", active.label)
+        return SettingsRow(title: title, detail: detail) {
+            Toggle(title, isOn: Binding(get: { allowed }, set: { on in
+                do { try settings.saveMacAccess(active, allowed: on); failureState.wrappedValue = nil }
+                catch { failureState.wrappedValue = error.localizedDescription; Task { await resolve() } }
+            }))
+            .labelsHidden().toggleStyle(.switch)
+            .disabled(!allowed && !active.isVerified)
+        }
+    }
+
+    /// Reads the recipient behind the online AI in use as `PiSession` would (Pi's files, the Keychain without a dialog).
+    private func resolve() async {
+        let current = settings.inferenceSettings
+        activeState.wrappedValue = await Task.detached { ShareDestination.active(current) }.value
     }
 
     private func save(_ sharing: SourceSharing, removeRecipient: Bool = false) {
@@ -137,9 +171,10 @@ struct OptionalCapabilitySettings: View {
                 detail: T("Lets Pippa search the web and fetch pages for an answer. Pippa can still open pages in her browser with your permission.", table: "Settings"),
                 \.web)
             SettingsDivider()
-            // Online AI never gets the notes (PippaPiLaunch.Capabilities.online): only the switch for this Mac.
+            // Online AI never gets the notes (PippaPiLaunch.Capabilities.online), except with Mac access, which uses this
+            // switch: only the one for this Mac.
             row(T("Personal notes", table: "Settings"),
-                detail: T("Lets the AI on this Mac save and use personal notes across chats. An online AI never gets them. Turning this off keeps your saved notes.", table: "Settings"),
+                detail: T("Lets the AI on this Mac save and use personal notes across chats. An online AI gets them only with Mac access. Turning this off keeps your saved notes.", table: "Settings"),
                 \.memory, online: false)
         }
     }
