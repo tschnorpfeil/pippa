@@ -1,9 +1,19 @@
 import Foundation
 
 /// One occurrence as the calendar store reports it (EventKit already expands recurring series into occurrences).
-/// Only what an answer needs: no notes, no attendees, no URLs.
+/// Details beyond time and place (organizer, attendees, link, notes) are optional and bounded before they reach a tool.
 public struct CalendarEvent: Sendable, Equatable {
     public enum Status: String, Sendable { case none, confirmed, tentative, cancelled }
+    /// One attendee's answer to the invitation.
+    public enum ParticipantStatus: String, Sendable, Equatable { case accepted, tentative, pending, declined }
+    public struct Attendee: Sendable, Equatable {
+        public var name: String
+        public var status: ParticipantStatus?
+        public var isCurrentUser: Bool
+        public init(name: String, status: ParticipantStatus? = nil, isCurrentUser: Bool = false) {
+            self.name = name; self.status = status; self.isCurrentUser = isCurrentUser
+        }
+    }
     /// Identifier of the series or single event; together with `start` it names one occurrence.
     public var id: String
     public var title: String
@@ -20,11 +30,20 @@ public struct CalendarEvent: Sendable, Equatable {
     public var location: String?
     /// The calendar's colour as "#RRGGBB" (for the card), `nil` when unknown.
     public var color: String?
+    /// Name or address of the organizer.
+    public var organizer: String?
+    /// The person's own answer to the invitation; `.declined` always comes with `declined == true`.
+    public var selfStatus: ParticipantStatus?
+    public var attendees: [Attendee]
+    public var url: String?
+    public var notes: String?
     public init(id: String, title: String, start: Date, end: Date, allDay: Bool = false, calendar: String, timeZone: String? = nil,
-                status: Status = .none, declined: Bool = false, recurring: Bool = false, location: String? = nil, color: String? = nil) {
+                status: Status = .none, declined: Bool = false, recurring: Bool = false, location: String? = nil, color: String? = nil,
+                organizer: String? = nil, selfStatus: ParticipantStatus? = nil, attendees: [Attendee] = [], url: String? = nil, notes: String? = nil) {
         self.id = id; self.title = title; self.start = start; self.end = end; self.allDay = allDay; self.calendar = calendar
-        self.timeZone = timeZone; self.status = status; self.declined = declined; self.recurring = recurring; self.location = location
-        self.color = color
+        self.timeZone = timeZone; self.status = status; self.declined = declined || selfStatus == .declined; self.recurring = recurring
+        self.location = location; self.color = color; self.organizer = organizer; self.selfStatus = selfStatus; self.attendees = attendees
+        self.url = url; self.notes = notes
     }
 }
 
@@ -59,7 +78,16 @@ public struct CalendarDigest: Sendable, Equatable {
         public var start: Date
         public var color: String?
         public var eventID: String
+        /// Details for the tool only (never in `markdown`), already single-line and clipped.
+        public var organizer: String? = nil
+        public var selfStatus: CalendarEvent.ParticipantStatus? = nil
+        /// At most `maxAttendees`; `attendeesOmitted` counts the rest.
+        public var attendees: [CalendarEvent.Attendee] = []
+        public var attendeesOmitted: Int = 0
+        public var url: String? = nil
+        public var notes: String? = nil
     }
+    public static let maxAttendees = 8
     public struct Day: Sendable, Equatable {
         public var date: DayDate
         public var label: String
@@ -98,6 +126,16 @@ public struct CalendarDigest: Sendable, Equatable {
                               recurring: event.recurring, span: nil, otherZone: nil,
                               location: event.location.map { String($0.replacingOccurrences(of: "\n", with: " ").prefix(80)) }.flatMap { $0.isEmpty ? nil : $0 },
                               start: event.start, color: event.color, eventID: event.id)
+            entry.organizer = Self.oneLine(event.organizer, max: 80)
+            entry.selfStatus = event.selfStatus ?? (event.declined ? .declined : nil)
+            let attendees = event.attendees.compactMap { a in
+                Self.oneLine(a.name, max: 60).map { CalendarEvent.Attendee(name: $0, status: a.status, isCurrentUser: a.isCurrentUser) }
+            }
+            entry.attendees = Array(attendees.prefix(Self.maxAttendees))
+            entry.attendeesOmitted = attendees.count - entry.attendees.count
+            entry.url = Self.wholeURL(event.url, maxBytes: 500)
+            entry.notes = event.notes.flatMap { Self.oneLine(PippaMCPTools.compact($0), max: 280) }
+                .map { PippaMCPTools.byteClipped($0, characters: 280, bytes: 400) }
             if event.allDay {
                 entry.time = L("All day", table: "Calendar")
                 if lastDay > startDay { entry.span = L("until %@", table: "Calendar", format.shortDay.string(from: lastDay)) }
@@ -134,6 +172,25 @@ public struct CalendarDigest: Sendable, Equatable {
         return CalendarDigest(range: range, title: format.title(of: range, now: now), rangeLabel: format.rangeLabel(range),
                               days: days, calendars: fetch.calendars.map { String($0.prefix(80)) }, total: max(placed.count, fetch.total - (fetch.events.count - placed.count)),
                               readAt: now, timeZone: calendar.timeZone.identifier, readAtLabel: format.time.string(from: now))
+    }
+
+    /// Foreign text as one clipped line; empty is `nil`.
+    static func oneLine(_ raw: String?, max: Int) -> String? {
+        guard let raw else { return nil }
+        let line = raw.split(whereSeparator: \.isNewline).joined(separator: " ")
+            .split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
+        guard !line.isEmpty else { return nil }
+        return line.count > max ? String(line.prefix(max - 1)) + "…" : line
+    }
+
+    /// A link is either returned intact or omitted: shortening a URL with `…` would alter its target.
+    static func wholeURL(_ raw: String?, maxBytes: Int) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty,
+              !trimmed.contains(where: { $0.isWhitespace || $0.isNewline }),
+              trimmed.utf8.count <= maxBytes else { return nil }
+        return trimmed
     }
 
     /// The native answer: short, grouped by day, with the exact period and the source.
@@ -206,6 +263,19 @@ public struct CalendarDigest: Sendable, Equatable {
                     if let span = entry.span { value["span"] = span }
                     if let zone = entry.otherZone { value["otherZone"] = zone }
                     if let location = entry.location { value["location"] = location }
+                    if let organizer = entry.organizer { value["organizer"] = organizer }
+                    if let status = entry.selfStatus { value["selfStatus"] = status.rawValue }
+                    if !entry.attendees.isEmpty {
+                        value["attendees"] = entry.attendees.map { a -> [String: Any] in
+                            var item: [String: Any] = ["name": a.name]
+                            if let status = a.status { item["status"] = status.rawValue }
+                            if a.isCurrentUser { item["self"] = true }
+                            return item
+                        }
+                    }
+                    if entry.attendeesOmitted > 0 { value["attendeesOmitted"] = entry.attendeesOmitted }
+                    if let url = entry.url { value["url"] = url }
+                    if let notes = entry.notes { value["notes"] = notes }
                     return value
                 }]
             },

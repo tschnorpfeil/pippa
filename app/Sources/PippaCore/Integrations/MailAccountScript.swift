@@ -42,8 +42,20 @@ enum MailAccountScript {
     end rethrowAccess
 
     on inboxOf(acctID)
+        return my boxOf(acctID, "inbox")
+    end inboxOf
+
+    -- The account's child of Mail's top-level In, Sent or Drafts mailbox.
+    on boxOf(acctID, boxKind)
         tell application id "com.apple.mail"
-            repeat with box in (mailboxes of inbox)
+            if boxKind is "sent" then
+                set boxes to mailboxes of sent mailbox
+            else if boxKind is "drafts" then
+                set boxes to mailboxes of drafts mailbox
+            else
+                set boxes to mailboxes of inbox
+            end if
+            repeat with box in boxes
                 set boxID to ""
                 try
                     set boxID to (id of (account of box)) as text
@@ -54,7 +66,29 @@ enum MailAccountScript {
             end repeat
         end tell
         error "gone" number -1728
-    end inboxOf
+    end boxOf
+
+    -- When a message is dated: received for the inbox; sent (else received) for Sent and Drafts.
+    on dateOf(m, boxKind)
+        tell application id "com.apple.mail"
+            set d to missing value
+            if boxKind is not "inbox" then
+                try
+                    set d to date sent of m
+                on error number errNum
+                    my rethrowAccess(errNum)
+                end try
+            end if
+            if d is missing value then
+                try
+                    set d to date received of m
+                on error number errNum
+                    my rethrowAccess(errNum)
+                end try
+            end if
+            return d
+        end tell
+    end dateOf
 
     -- Where Mail says a message is: its account's id and the whole mailbox path, top first.
     on identityOf(m)
@@ -93,38 +127,106 @@ enum MailAccountScript {
         end try
     end identityOrNone
 
-    on accountCandidates(acctID, q, onlyUnread)
+    -- Every match is read in bulk (one Apple Event per property), never message by message: a large mailbox stays
+    -- within the timeout. Sent and Drafts pair `date sent` by Mail id and fall back to `date received` per message.
+    on accountCandidates(acctID, q, readMode, boxKind)
         tell application id "com.apple.mail"
             try
                 with timeout of 20 seconds
-                    set box to my inboxOf(acctID)
-                    if q is "" and onlyUnread then
-                        set theIDs to id of (messages of box whose read status is false)
-                        set theDates to date received of (messages of box whose read status is false)
-                    else if q is "" then
-                        set theIDs to id of (messages of box)
-                        set theDates to date received of (messages of box)
-                    else if onlyUnread then
-                        set theIDs to id of (messages of box whose (subject contains q or sender contains q) and read status is false)
-                        set theDates to date received of (messages of box whose (subject contains q or sender contains q) and read status is false)
-                    else
-                        set theIDs to id of (messages of box whose subject contains q or sender contains q)
-                        set theDates to date received of (messages of box whose subject contains q or sender contains q)
+                    set box to my boxOf(acctID, boxKind)
+                    set theIDs to my matchIDs(box, q, readMode) as list
+                    set theDates to my matchDates(box, q, readMode, false) as list
+                    if (count of theIDs) is not (count of theDates) then
+                        set theIDs to my matchIDs(box, q, readMode) as list
+                        set theDates to my matchDates(box, q, readMode, false) as list
+                    end if
+                    if boxKind is not "inbox" then
+                        set sentIDs to {}
+                        set sentDates to {}
+                        set bulkOK to false
+                        try
+                            set sentIDs to my matchIDs(box, q, readMode) as list
+                            set sentDates to my matchDates(box, q, readMode, true) as list
+                            if (count of sentIDs) is not (count of sentDates) then
+                                set sentIDs to my matchIDs(box, q, readMode) as list
+                                set sentDates to my matchDates(box, q, readMode, true) as list
+                            end if
+                            if (count of sentIDs) is (count of sentDates) then set bulkOK to true
+                        on error number errNum
+                            my rethrowAccess(errNum)
+                        end try
+                        if not bulkOK then
+                            set sentIDs to {}
+                            set sentDates to {}
+                            if (count of theIDs) ≤ 200 then
+                                repeat with i from 1 to count of theIDs
+                                    set wanted to item i of theIDs
+                                    set found to (messages of box whose id is wanted)
+                                    if (count of found) is 1 then
+                                        set d to missing value
+                                        try
+                                            set d to date sent of (item 1 of found)
+                                        on error number errNum
+                                            my rethrowAccess(errNum)
+                                        end try
+                                        set end of sentIDs to wanted
+                                        set end of sentDates to d
+                                    end if
+                                end repeat
+                            end if
+                        end if
+                        return {"ok", {theIDs, theDates, sentIDs, sentDates}}
                     end if
                 end timeout
             on error number errNum
                 return my problem(errNum)
             end try
-            return {"ok", {theIDs as list, theDates as list}}
+            return {"ok", {theIDs, theDates}}
         end tell
     end accountCandidates
 
-    on accountRows(acctID, wantedIDs)
+    on matchIDs(box, q, readMode)
+        tell application id "com.apple.mail"
+            if q is "" then
+                if readMode is "unread" then return id of (messages of box whose read status is false)
+                if readMode is "read" then return id of (messages of box whose read status is true)
+                return id of (messages of box)
+            end if
+            if readMode is "unread" then return id of (messages of box whose (subject contains q or sender contains q) and read status is false)
+            if readMode is "read" then return id of (messages of box whose (subject contains q or sender contains q) and read status is true)
+            return id of (messages of box whose subject contains q or sender contains q)
+        end tell
+    end matchIDs
+
+    on matchDates(box, q, readMode, bySent)
+        tell application id "com.apple.mail"
+            if bySent then
+                if q is "" then
+                    if readMode is "unread" then return date sent of (messages of box whose read status is false)
+                    if readMode is "read" then return date sent of (messages of box whose read status is true)
+                    return date sent of (messages of box)
+                end if
+                if readMode is "unread" then return date sent of (messages of box whose (subject contains q or sender contains q) and read status is false)
+                if readMode is "read" then return date sent of (messages of box whose (subject contains q or sender contains q) and read status is true)
+                return date sent of (messages of box whose subject contains q or sender contains q)
+            end if
+            if q is "" then
+                if readMode is "unread" then return date received of (messages of box whose read status is false)
+                if readMode is "read" then return date received of (messages of box whose read status is true)
+                return date received of (messages of box)
+            end if
+            if readMode is "unread" then return date received of (messages of box whose (subject contains q or sender contains q) and read status is false)
+            if readMode is "read" then return date received of (messages of box whose (subject contains q or sender contains q) and read status is true)
+            return date received of (messages of box whose subject contains q or sender contains q)
+        end tell
+    end matchDates
+
+    on accountRows(acctID, wantedIDs, boxKind)
         set out to {}
         tell application id "com.apple.mail"
             try
                 with timeout of 20 seconds
-                    set box to my inboxOf(acctID)
+                    set box to my boxOf(acctID, boxKind)
                     repeat with i from 1 to count of wantedIDs
                         set wanted to item i of wantedIDs
                         set found to (messages of box whose id is wanted)
@@ -139,6 +241,9 @@ enum MailAccountScript {
                             set c to ""
                             set mid to ""
                             set isUnread to false
+                            set wasReplied to false
+                            set wasForwarded to false
+                            set isFlagged to false
                             try
                                 set theSubject to (subject of m) as text
                             on error number errNum
@@ -149,11 +254,7 @@ enum MailAccountScript {
                             on error number errNum
                                 my rethrowAccess(errNum)
                             end try
-                            try
-                                set theDate to date received of m
-                            on error number errNum
-                                my rethrowAccess(errNum)
-                            end try
+                            set theDate to my dateOf(m, boxKind)
                             try
                                 set boxName to (name of mailbox of m) as text
                             on error number errNum
@@ -175,8 +276,23 @@ enum MailAccountScript {
                             on error number errNum
                                 my rethrowAccess(errNum)
                             end try
+                            try
+                                set wasReplied to (was replied to of m) as boolean
+                            on error number errNum
+                                my rethrowAccess(errNum)
+                            end try
+                            try
+                                set wasForwarded to (was forwarded of m) as boolean
+                            on error number errNum
+                                my rethrowAccess(errNum)
+                            end try
+                            try
+                                set isFlagged to (flagged status of m) as boolean
+                            on error number errNum
+                                my rethrowAccess(errNum)
+                            end try
                             set ident to my identityOrNone(m)
-                            set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread, item 1 of ident, item 2 of ident}
+                            set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread, item 1 of ident, item 2 of ident, wasReplied, wasForwarded, isFlagged}
                         end if
                     end repeat
                 end timeout
@@ -187,11 +303,11 @@ enum MailAccountScript {
         return {"ok", out}
     end accountRows
 
-    on accountMessage(acctID, mailID, theID, expectedPath)
+    on accountMessage(acctID, mailID, theID, expectedPath, boxKind)
         tell application id "com.apple.mail"
             try
                 with timeout of 20 seconds
-                    set box to my inboxOf(acctID)
+                    set box to my boxOf(acctID, boxKind)
                     set found to (messages of box whose id is mailID)
                     if (count of found) is not 1 then return {"ok", {}}
                     set m to item 1 of found
@@ -211,7 +327,10 @@ enum MailAccountScript {
                         if (id of m) is not mailID then return {"ok", {}}
                         if item 1 of ident is not acctID or item 2 of ident is not expectedPath then return {"ok", {}}
                     end considering
-                    return {"ok", {my messageInfo(m), ident}}
+                    set info to my messageInfo(m)
+                    -- The same date the search showed, so the reference still matches (Sent and Drafts: date sent).
+                    if boxKind is not "inbox" then set item 3 of info to my dateOf(m, boxKind)
+                    return {"ok", {info, ident}}
                 end timeout
             on error number errNum
                 if errNum is -1728 then return {"ok", {}}
@@ -219,6 +338,136 @@ enum MailAccountScript {
             end try
         end tell
     end accountMessage
+
+    -- Bulk candidate ids and dates in this account's Sent and Drafts, plus ids whose subject contains `core`.
+    -- No message headers are read here, so a large Sent mailbox stays fast and changed-subject replies are not dropped.
+    on accountThreadCandidates(acctID, core)
+        set out to {}
+        tell application id "com.apple.mail"
+            try
+                with timeout of 6 seconds
+                    repeat with boxKind in {"sent", "drafts"}
+                        set entry to {{{}, {}}, {}}
+                        try
+                            set box to my boxOf(acctID, boxKind as text)
+                            set recvIDs to (id of (messages of box)) as list
+                            set recvDates to (date received of (messages of box)) as list
+                            if (count of recvIDs) is not (count of recvDates) then
+                                set recvIDs to (id of (messages of box)) as list
+                                set recvDates to (date received of (messages of box)) as list
+                            end if
+                            set sentIDs to {}
+                            set sentDates to {}
+                            try
+                                set sentIDs to (id of (messages of box)) as list
+                                set sentDates to (date sent of (messages of box)) as list
+                                if (count of sentIDs) is not (count of sentDates) then
+                                    set sentIDs to (id of (messages of box)) as list
+                                    set sentDates to (date sent of (messages of box)) as list
+                                end if
+                                if (count of sentIDs) is not (count of sentDates) then
+                                    set sentIDs to {}
+                                    set sentDates to {}
+                                end if
+                            on error number errNum
+                                my rethrowAccess(errNum)
+                                set sentIDs to {}
+                                set sentDates to {}
+                            end try
+                            set coreIDs to {}
+                            if core is not "" then
+                                try
+                                    set coreIDs to (id of (messages of box whose subject contains core)) as list
+                                on error number errNum
+                                    my rethrowAccess(errNum)
+                                end try
+                            end if
+                            set entry to {{recvIDs, recvDates, sentIDs, sentDates}, coreIDs}
+                        on error number errNum
+                            my rethrowAccess(errNum)
+                            if errNum is not -1728 then error number errNum
+                        end try
+                        set end of out to entry
+                    end repeat
+                end timeout
+            on error number errNum
+                return my problem(errNum)
+            end try
+        end tell
+        return {"ok", out}
+    end accountThreadCandidates
+
+    -- Reads headers, own Message-ID and completeness flags for the chosen Sent and Drafts ids (at most 40 per mailbox).
+    on accountThreadHeaders(acctID, sentWanted, draftsWanted)
+        set out to {}
+        set pairs to {{"sent", sentWanted}, {"drafts", draftsWanted}}
+        tell application id "com.apple.mail"
+            try
+                with timeout of 8 seconds
+                    repeat with pair in pairs
+                        set boxKind to item 1 of pair
+                        set wantedIDs to item 2 of pair
+                        set found to {}
+                        if (count of wantedIDs) > 0 then
+                            try
+                                set box to my boxOf(acctID, boxKind)
+                                repeat with i from 1 to count of wantedIDs
+                                    set wanted to item i of wantedIDs
+                                    set hits to (messages of box whose id is wanted)
+                                    if (count of hits) is not 1 then
+                                        set end of found to {}
+                                    else
+                                        set m to item 1 of hits
+                                        set hdrs to ""
+                                        set hdrsComplete to false
+                                        try
+                                            set rawHdrs to (all headers of m) as text
+                                            if (length of rawHdrs) > 65536 then
+                                                set hdrs to text 1 thru 65536 of rawHdrs
+                                            else
+                                                set hdrs to rawHdrs
+                                                set hdrsComplete to true
+                                            end if
+                                        on error number errNum
+                                            my rethrowAccess(errNum)
+                                        end try
+                                        set ownID to ""
+                                        set ownComplete to false
+                                        try
+                                            set rawOwn to message id of m
+                                            if rawOwn is missing value then
+                                                set ownComplete to true
+                                            else
+                                                set ownID to rawOwn as text
+                                                set ownComplete to true
+                                            end if
+                                        on error number errNum
+                                            my rethrowAccess(errNum)
+                                        end try
+                                        set end of found to {hdrs, ownID, hdrsComplete, ownComplete}
+                                    end if
+                                end repeat
+                            on error number errNum
+                                my rethrowAccess(errNum)
+                                if errNum is -1728 then
+                                    set found to {}
+                                    repeat (count of wantedIDs) times
+                                        set end of found to {}
+                                    end repeat
+                                else
+                                    error number errNum
+                                end if
+                            end try
+                        end if
+                        set end of out to found
+                    end repeat
+                end timeout
+            on error number errNum
+                return my problem(errNum)
+            end try
+        end tell
+        return {"ok", out}
+    end accountThreadHeaders
 
     on problem(errNum)
         if errNum is -1712 then return {"timeout"}
@@ -234,27 +483,64 @@ enum MailAccountScript {
         }
 
         func candidates(account: String, query: String, unread: Bool) async throws -> [MailSearchCandidate] {
+            try await candidates(account: account, query: query, readStatus: unread ? .unread : .all, mailbox: .inbox)
+        }
+
+        func candidates(account: String, query: String, readStatus: MailReadStatus, mailbox: MailBoxKind) async throws -> [MailSearchCandidate] {
             try await run("accountCandidates", {
-                [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(boolean: unread)]
+                [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(string: readStatus.rawValue),
+                 NSAppleEventDescriptor(string: mailbox.rawValue)]
             }) { try MailSearchFlow.parseCandidates($0) }
         }
 
         func rows(account: String, ids: [Int]) async throws -> [MailSearchRow] {
+            try await rows(account: account, ids: ids, mailbox: .inbox)
+        }
+
+        func rows(account: String, ids: [Int], mailbox: MailBoxKind) async throws -> [MailSearchRow] {
             try await run("accountRows", {
                 let list = NSAppleEventDescriptor.list()
                 for (i, id) in ids.enumerated() { list.insert(NSAppleEventDescriptor(int32: Int32(id)), at: i + 1) }
-                return [NSAppleEventDescriptor(string: account), list]
+                return [NSAppleEventDescriptor(string: account), list, NSAppleEventDescriptor(string: mailbox.rawValue)]
             }) { try MailSearchFlow.parseRows($0, expecting: ids.count, identity: true) }
         }
 
         func message(account: String, mailID: Int, messageID: String, path: [String]) async throws -> MailInboxMessage? {
+            try await message(account: account, mailID: mailID, messageID: messageID, path: path, mailbox: .inbox)
+        }
+
+        func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage? {
             guard !messageID.isEmpty else { return nil }
             return try await run("accountMessage", {
                 let expectedPath = NSAppleEventDescriptor.list()
                 for (i, name) in path.enumerated() { expectedPath.insert(NSAppleEventDescriptor(string: name), at: i + 1) }
                 return [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(int32: Int32(mailID)),
-                        NSAppleEventDescriptor(string: messageID), expectedPath]
+                        NSAppleEventDescriptor(string: messageID), expectedPath, NSAppleEventDescriptor(string: mailbox.rawValue)]
             }) { try MailAccountParse.message($0) }
+        }
+
+        func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity? {
+            let core = MailThreadMatch.core(subject)
+            let boxes = try await run("accountThreadCandidates", {
+                [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(string: core)]
+            }) { try MailAccountParse.threadCandidates($0) }
+            let sentPick = MailThreadMatch.selectCandidates(all: boxes.sent.all, coreMatches: boxes.sent.coreIDs, since: since)
+            let draftsPick = MailThreadMatch.selectCandidates(all: boxes.drafts.all, coreMatches: boxes.drafts.coreIDs, since: since)
+            if sentPick.ids.isEmpty && draftsPick.ids.isEmpty {
+                return MailThreadActivity(sentReply: false, draft: false, sentComplete: sentPick.complete, draftsComplete: draftsPick.complete)
+            }
+            return try await run("accountThreadHeaders", {
+                func idList(_ ids: [Int]) -> NSAppleEventDescriptor {
+                    let list = NSAppleEventDescriptor.list()
+                    for (i, id) in ids.enumerated() { list.insert(NSAppleEventDescriptor(int32: Int32(id)), at: i + 1) }
+                    return list
+                }
+                return [NSAppleEventDescriptor(string: account), idList(sentPick.ids), idList(draftsPick.ids)]
+            }) {
+                try MailAccountParse.threadHeaders($0, messageID: messageID,
+                                                   expecting: (sentPick.ids.count, draftsPick.ids.count),
+                                                   complete: (sentPick.complete, draftsPick.complete))
+            }
         }
 
         /// One step: descriptors are built and read on the AppleScript queue, only Swift values leave it.
@@ -298,6 +584,58 @@ public enum MailAccountParse {
             return name
         }
         return MailInboxMessage(message: message, accountID: account.trimmingCharacters(in: .whitespacesAndNewlines), path: path)
+    }
+
+    /// `{sent, drafts}`, each `{candidatesReply, coreIDs}`.
+    public static func threadCandidates(_ payload: NSAppleEventDescriptor) throws
+        -> (sent: (all: [MailSearchCandidate], coreIDs: Set<Int>), drafts: (all: [MailSearchCandidate], coreIDs: Set<Int>)) {
+        guard payload.numberOfItems == 2 else { throw MailAccountProblem.failed }
+        let parsed = try AppleEvents.items(payload).map { entry -> (all: [MailSearchCandidate], coreIDs: Set<Int>) in
+            guard entry.descriptorType == typeAEList, entry.numberOfItems == 2,
+                  let candidates = entry.atIndex(1), let coreList = entry.atIndex(2) else { throw MailAccountProblem.failed }
+            do {
+                let all = try MailSearchFlow.parseCandidates(candidates)
+                guard Set(all.map(\.id)).count == all.count else { throw MailAccountProblem.failed }
+                return (all, Set(try MailSearchFlow.parseIDs(coreList)))
+            } catch {
+                throw MailAccountProblem.failed
+            }
+        }
+        return (parsed[0], parsed[1])
+    }
+
+    /// `{sent, drafts}`, each `{{headers, own Message-ID, headersComplete, ownComplete} or {}, …}`.
+    public static func threadHeaders(_ payload: NSAppleEventDescriptor, messageID: String,
+                                     expecting: (Int, Int), complete: (Bool, Bool)) throws -> MailThreadActivity {
+        guard payload.numberOfItems == 2 else { throw MailAccountProblem.failed }
+        let boolTypes: Set<DescType> = [typeBoolean, typeTrue, typeFalse]
+        let counts = [expecting.0, expecting.1]
+        let boxes = try zip(AppleEvents.items(payload), counts).map { box, expected -> (hit: Bool, allPresent: Bool) in
+            guard box.descriptorType == typeAEList, box.numberOfItems == expected else { throw MailAccountProblem.failed }
+            var hit = false
+            var allPresent = true
+            for entry in AppleEvents.items(box) {
+                guard entry.descriptorType == typeAEList else { throw MailAccountProblem.failed }
+                if entry.numberOfItems == 0 { allPresent = false; continue }
+                guard entry.numberOfItems == 4,
+                      entry.atIndex(1)?.descriptorType != typeAEList, let hdrs = entry.atIndex(1)?.stringValue,
+                      entry.atIndex(2)?.descriptorType != typeAEList, let ownRaw = entry.atIndex(2)?.stringValue,
+                      let hdrsFlag = entry.atIndex(3), boolTypes.contains(hdrsFlag.descriptorType),
+                      let ownFlag = entry.atIndex(4), boolTypes.contains(ownFlag.descriptorType) else { throw MailAccountProblem.failed }
+                let hdrsComplete = hdrsFlag.booleanValue
+                let ownComplete = ownFlag.booleanValue
+                if !hdrsComplete || !ownComplete { allPresent = false }
+                let safeHdrs = hdrsComplete ? hdrs : MailThreadMatch.completeHeaderLines(hdrs)
+                let canExcludeSelf = ownComplete || MailReplySource.capture(headers: Data(safeHdrs.utf8))?.messageID != nil
+                if canExcludeSelf, MailThreadMatch.isConfirmedReply(headers: safeHdrs, ownMessageID: ownRaw, to: messageID) {
+                    hit = true
+                }
+            }
+            return (hit, allPresent)
+        }
+        return MailThreadActivity(sentReply: boxes[0].hit, draft: boxes[1].hit,
+                                  sentComplete: complete.0 && boxes[0].allPresent,
+                                  draftsComplete: complete.1 && boxes[1].allPresent)
     }
 
     /// `{{id, name}, …}`. An inbox whose account Mail could not name keeps an empty id: it is reported, never dropped.

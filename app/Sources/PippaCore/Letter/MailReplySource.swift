@@ -21,16 +21,28 @@ public struct MailReplySource: Codable, Equatable, Sendable {
         return value
     }
 
+    public struct Inspected: Equatable, Sendable {
+        public let source: MailReplySource
+        public let explicitReplyTo: String?
+        public let isDraft: Bool
+    }
+
     /// Reads only a bounded RFC header block; .emlx's byte count never exposes its trailing plist.
-    public static func capture(from url: URL) -> Self? {
+    public static func capture(from url: URL) -> Self? { inspect(from: url)?.source }
+
+    public static func inspect(from url: URL) -> Inspected? {
         guard ["eml", "emlx"].contains(url.pathExtension.lowercased()),
               let file = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? file.close() }
         guard let data = try? file.read(upToCount: 65_536), !data.isEmpty else { return nil }
-        return capture(headers: data, emlx: url.pathExtension.lowercased() == "emlx")
+        return inspect(headers: data, emlx: url.pathExtension.lowercased() == "emlx")
     }
 
     public static func capture(headers data: Data, emlx: Bool = false) -> Self? {
+        inspect(headers: data, emlx: emlx)?.source
+    }
+
+    public static func inspect(headers data: Data, emlx: Bool = false) -> Inspected? {
         guard data.count <= 65_536 else { return nil }
         var text = String(data: data, encoding: .isoLatin1) ?? ""
         if emlx {
@@ -55,7 +67,10 @@ public struct MailReplySource: Codable, Equatable, Sendable {
         }
         guard let id = fields["message-id"] else { return nil }
         func decoded(_ value: String) -> String { MailParser.decodeWords(MailParser.decode(MailParser.bytes(value), charset: "utf-8")) }
-        return Self(messageID: id, replyTo: (fields["reply-to"] ?? fields["from"]).map(decoded), subject: decoded(fields["subject"] ?? ""))
+        let explicit = fields["reply-to"].map(decoded).flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+        guard let source = Self(messageID: id, replyTo: explicit ?? fields["from"].map(decoded), subject: decoded(fields["subject"] ?? "")) else { return nil }
+        let uti = fields["x-uniform-type-identifier"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return Inspected(source: source, explicitReplyTo: explicit, isDraft: uti == "com.apple.mail.draft")
     }
 }
 

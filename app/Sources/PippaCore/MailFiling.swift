@@ -46,7 +46,7 @@ public enum MailFiling {
             result.unsaved += parts.map(\.name)
             return result
         }
-        var taken: Set<String> = [eml.lastPathComponent.lowercased()]
+        var taken: Set<String> = [eml.lastPathComponent.lowercased(), sidecarName]
         for part in parts {
             let url = folder.appendingPathComponent(uniqueName(part.name, taken: &taken))
             if (try? Data(contentsOf: url, options: .mappedIfSafe)) != part.data {
@@ -55,6 +55,39 @@ public enum MailFiling {
             result.saved.append(SavedFile(name: part.name, url: url))
         }
         return result
+    }
+
+    static let sidecarName = ".pippa-mail.json"
+
+    /// Where a filed `.eml` came from in Mail (`inbox`, `sent` or `drafts` when known) and its exact locator.
+    public struct FiledOrigin: Codable, Equatable, Sendable {
+        public var mailbox: MailBoxKind?
+        public var locator: MailLocator?
+        public var requiresStrictLocator: Bool
+
+        public init(mailbox: MailBoxKind? = nil, locator: MailLocator? = nil, requiresStrictLocator: Bool = false) {
+            self.mailbox = mailbox
+            self.locator = locator
+            self.requiresStrictLocator = requiresStrictLocator
+        }
+
+        private enum CodingKeys: String, CodingKey { case mailbox, locator, requiresStrictLocator }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.mailbox = try c.decodeIfPresent(MailBoxKind.self, forKey: .mailbox)
+            self.locator = try c.decodeIfPresent(MailLocator.self, forKey: .locator)
+            self.requiresStrictLocator = try c.decodeIfPresent(Bool.self, forKey: .requiresStrictLocator) ?? false
+        }
+    }
+
+    /// Reads the origin recorded when Pippa filed `eml`, if `eml` is Pippa's own cached copy.
+    public static func origin(for eml: URL) -> FiledOrigin? {
+        guard ["eml", "emlx"].contains(eml.pathExtension.lowercased()) else { return nil }
+        let folder = eml.standardizedFileURL.deletingLastPathComponent()
+        guard folder.lastPathComponent.hasPrefix("mail-"),
+              let data = try? Data(contentsOf: folder.appendingPathComponent(sidecarName)) else { return nil }
+        return try? JSONDecoder().decode(FiledOrigin.self, from: data)
     }
 
     /// Where the attachments of `eml` go: beside it when it is already Pippa's copy, otherwise a folder of the inbox named
@@ -69,16 +102,23 @@ public enum MailFiling {
     /// A mail read from Mail as files: the .eml (Mail's original message when it gave one) and its attachments, in one
     /// folder per message under `root`, so reading the same mail again reuses them. `notSaved` names every attachment
     /// Mail lists whose bytes are not in a file (not even a name-only stand-in is readable content).
-    public static func file(_ mail: MailMessage, root: URL = inbox, scope: [String] = []) throws -> (eml: URL, attachments: [URL], notSaved: [String]) {
+    public static func file(_ mail: MailMessage, root: URL = inbox, scope: [String] = [], origin: FiledOrigin? = nil) throws -> (eml: URL, attachments: [URL], notSaved: [String]) {
         let text = mail.emlText
         // A Message-ID can occur in several accounts. Content changes must also leave earlier attachment paths intact.
-        let identity: [String: Any] = ["messageID": mail.messageID ?? "", "account": mail.locator?.account ?? "",
-                                      "path": mail.locator?.path ?? [], "mailID": mail.locator?.mailID ?? 0,
-                                      "scope": scope, "content": text]
+        let effectiveLocator = origin?.locator ?? mail.locator
+        var identity: [String: Any] = ["messageID": mail.messageID ?? "", "account": effectiveLocator?.account ?? "",
+                                       "accountID": effectiveLocator?.accountID ?? "",
+                                       "path": effectiveLocator?.path ?? [], "mailID": effectiveLocator?.mailID ?? 0,
+                                       "scope": scope, "content": text]
+        if let kind = origin?.mailbox { identity["mailbox"] = kind.rawValue }
+        if origin?.requiresStrictLocator == true { identity["strictOrigin"] = true }
         let bytes = try JSONSerialization.data(withJSONObject: identity, options: .sortedKeys)
         let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
         let folder = root.appendingPathComponent("mail-" + digest, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        if let origin, let encoded = try? JSONEncoder().encode(origin) {
+            try encoded.write(to: folder.appendingPathComponent(sidecarName), options: .atomic)
+        }
         let eml = folder.appendingPathComponent(mail.fileName)
         if (try? String(contentsOf: eml, encoding: .utf8)) != text { try text.write(to: eml, atomically: true, encoding: .utf8) }
         let result = save(of: eml, into: folder)

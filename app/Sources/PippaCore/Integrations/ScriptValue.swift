@@ -2,13 +2,14 @@ import Carbon
 import Foundation
 
 /// Handler parameters as plain values, so they can cross to the AppleScript queue.
-enum ScriptArgument: Sendable {
-    case text(String), number(Int32), texts([String])
+public enum ScriptArgument: Sendable, Equatable {
+    case text(String), number(Int32), flag(Bool), texts([String])
 
     var descriptor: NSAppleEventDescriptor {
         switch self {
         case .text(let s): return NSAppleEventDescriptor(string: s)
         case .number(let n): return NSAppleEventDescriptor(int32: n)
+        case .flag(let b): return NSAppleEventDescriptor(boolean: b)
         case .texts(let strings):
             let list = NSAppleEventDescriptor.list()
             for (i, s) in strings.enumerated() { list.insert(NSAppleEventDescriptor(string: s), at: i + 1) }
@@ -18,7 +19,7 @@ enum ScriptArgument: Sendable {
 }
 
 /// A script result as plain values (lists, texts, integers), read on the AppleScript queue.
-indirect enum ScriptValue: Sendable {
+public indirect enum ScriptValue: Sendable, Equatable {
     case text(String), number(Int), flag(Bool), list([ScriptValue]), other
 
     init(_ d: NSAppleEventDescriptor) {

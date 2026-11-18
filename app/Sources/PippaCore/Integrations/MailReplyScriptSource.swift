@@ -2,12 +2,12 @@ import Foundation
 
 extension MailReplyScript {
     static let source = """
-    on replyAt(theID, mailID, acctName, boxPath, theAddress, theSubject, theBody, quoteHeader)
+    on replyAt(theID, mailID, acctID, acctName, boxPath, theAddress, keepRecipients, theSubject, theBody, quoteHeader)
         if theID is "" then return {"missing"}
         tell application id "com.apple.mail"
             try
                 with timeout of 20 seconds
-                    set box to my mailboxAt(acctName, boxPath)
+                    set box to my mailboxAtAccount(acctID, acctName, boxPath)
                     set found to (messages of box whose id is mailID)
                 end timeout
             on error number errNum
@@ -20,16 +20,55 @@ extension MailReplyScript {
             set exactIdentity to false
             try
                 set candidateID to (message id of m) as text
-                considering case
-                    if candidateID is theID or candidateID is ("<" & theID & ">") then set exactIdentity to true
+                considering case, diacriticals, hyphens, punctuation and white space
+                    if (id of m) is mailID and (candidateID is theID or candidateID is ("<" & theID & ">")) then set exactIdentity to true
                 end considering
             end try
             if not exactIdentity then return {"notHere"}
+            if acctID is not "" then
+                if not (my matchesIdentity(m, acctID, boxPath)) then return {"notHere"}
+            end if
         end tell
-        return my openReply(m, theAddress, theSubject, theBody, quoteHeader)
+        return my openReply(m, theAddress, keepRecipients, theSubject, theBody, quoteHeader)
     end replyAt
 
-    on openReply(m, theAddress, theSubject, theBody, quoteHeader)
+    on matchesIdentity(m, acctID, expectedPath)
+        tell application id "com.apple.mail"
+            try
+                set box to mailbox of m
+                set boxAcct to account of box
+                if acctID is "__local__" then
+                    if boxAcct is not missing value then return false
+                    set foundAcct to "__local__"
+                else
+                    if boxAcct is missing value then return false
+                    set foundAcct to (id of boxAcct) as text
+                end if
+                set boxPath to {(name of box) as text}
+                set cur to box
+                repeat 31 times
+                    set parentBox to container of cur
+                    if parentBox is missing value then exit repeat
+                    set parentClass to class of parentBox
+                    if parentClass is in {account, imap account, iCloud account, pop account} then
+                        if acctID is "__local__" then return false
+                        if (id of parentBox as text) is not foundAcct then return false
+                        exit repeat
+                    end if
+                    if parentClass is not mailbox and parentClass is not «class mbxc» then return false
+                    set beginning of boxPath to (name of parentBox) as text
+                    set cur to parentBox
+                end repeat
+                considering case, diacriticals, hyphens, punctuation and white space
+                    return foundAcct is acctID and boxPath is expectedPath
+                end considering
+            on error
+                return false
+            end try
+        end tell
+    end matchesIdentity
+
+    on openReply(m, theAddress, keepRecipients, theSubject, theBody, quoteHeader)
         set quoteText to ""
         try
             set quoteText to my quoteOf(m, quoteHeader)
@@ -50,9 +89,11 @@ extension MailReplyScript {
             try
                 with timeout of 30 seconds
                     set subject of r to theSubject
-                    delete every to recipient of r
-                    if theAddress is not "" then
-                        tell r to make new to recipient at end of to recipients with properties {address:theAddress}
+                    if not keepRecipients then
+                        delete every to recipient of r
+                        if theAddress is not "" then
+                            tell r to make new to recipient at end of to recipients with properties {address:theAddress}
+                        end if
                     end if
                     tell r to make new paragraph at end of content with data (theBody & linefeed)
                     if quoteText is not "" then tell r to make new paragraph at end of content with data (linefeed & quoteText & linefeed)
@@ -103,6 +144,7 @@ extension MailReplyScript {
             with timeout of 20 seconds
                 set original to (content of m) as text
                 set d to date received of m
+                if d is missing value then set d to date sent of m
                 set who to (sender of m) as text
             end timeout
         end tell
@@ -140,6 +182,24 @@ extension MailReplyScript {
         set AppleScript's text item delimiters to ""
         return joined
     end replaced
+
+    on mailboxAtAccount(acctID, acctName, boxPath)
+        tell application id "com.apple.mail"
+            if acctID is "__local__" then
+                return my mailboxAt("", boxPath)
+            end if
+            if acctID is not "" then
+                set matchingAccounts to (accounts whose id is acctID)
+                if (count of matchingAccounts) is not 1 then error "missing account" number -1728
+                set box to mailbox (item 1 of boxPath) of (item 1 of matchingAccounts)
+                repeat with i from 2 to count of boxPath
+                    set box to mailbox (item i of boxPath) of box
+                end repeat
+                return box
+            end if
+            return my mailboxAt(acctName, boxPath)
+        end tell
+    end mailboxAtAccount
 
     on mailboxAt(acctName, boxPath)
         tell application id "com.apple.mail"

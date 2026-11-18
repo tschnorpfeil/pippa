@@ -3,6 +3,8 @@ import Foundation
 extension PippaMCPWriteTools {
     // MARK: mail_draft
 
+    static let draftReplyError = "reply_to cannot be an unsent draft from Drafts. Open or edit the draft in Mail, or reply to an inbox or sent email."
+
     func mailDraft(_ input: Input) async -> PippaMCPToolResult {
         guard var body = input.text("body") else { return Self.invalid("body is required.") }
         // In the proof of concept, a 12B model wrote line breaks doubly escaped ("\\n" instead of a break): without a real break
@@ -15,34 +17,69 @@ extension PippaMCPWriteTools {
             func notDone(_ reason: String) -> PippaMCPWriteReceipt { PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: label, reason: reason) }
             let source: MailReplySource
             var locator: MailLocator?
+            var mailbox: MailBoxKind?
+            var explicitReplyTo: String?
             if replyTo.lowercased() == "selected" {
                 if case .blocked(let status, let tell) = await ensure(.mail) { return Self.blocked(status, tell, receipt: notDone(status)) }
                 do {
                     guard let mail = try await host.integrations.selectedMail() else {
                         return Self.blocked("nothing_selected", L("No email is selected in Mail. Select one and ask again.", table: "MCP"), receipt: notDone("nothingSelected"))
                     }
+                    if mail.isUnsentDraft { return Self.invalid(Self.draftReplyError) }
                     guard let found = mail.replySource else {
                         return Self.blocked("no_message_id", L("Pippa can’t reply to this email in its thread. Copy the text and reply in Mail yourself.", table: "MCP"),
                                             receipt: notDone("noMessageID"))
                     }
-                    source = found; locator = mail.locator
+                    let strictSelected = mail.locator.flatMap {
+                        MailLocator(account: $0.account, path: $0.path, mailID: $0.mailID, accountID: $0.accountID, strict: true)
+                    }
+                    source = found; locator = strictSelected ?? mail.locator; mailbox = mail.mailboxKind; explicitReplyTo = mail.explicitReplyTo
                 } catch {
                     return failure(error, .mail, receipt: notDone("failed"))
+                }
+            } else if MailPageStore.isToken(replyTo, prefix: "m") {
+                // A mail_ref from this answer's mail_search: exactly that message, checked like mail_read checks it.
+                switch await replySource(ref: replyTo) {
+                case .found(let found, let at, let kind, let explicit):
+                    source = found; locator = at; mailbox = kind; explicitReplyTo = explicit
+                case .notDone(let result): return result
                 }
             } else {
                 var path = replyTo
                 if path.hasPrefix("file://"), let url = URL(string: path) { path = url.path }
                 path = (path as NSString).expandingTildeInPath
-                guard path.hasPrefix("/") else { return Self.invalid("reply_to must be the exact absolute path of the email file from the message, or selected.") }
-                guard let found = MailReplySource.capture(from: URL(fileURLWithPath: path)) else {
+                guard path.hasPrefix("/") else { return Self.invalid("reply_to must be a mail_ref from mail_search, the exact absolute path of the email file (eml_path), or selected.") }
+                let url = URL(fileURLWithPath: path)
+                let filedOrigin = MailFiling.origin(for: url)
+                if filedOrigin?.mailbox == .drafts { return Self.invalid(Self.draftReplyError) }
+                guard let inspected = MailReplySource.inspect(from: url) else {
                     return Self.invalid("reply_to is not an email file Pippa can reply to (.eml with Message-ID). Use the exact path from the message, or selected.")
                 }
+                if inspected.isDraft { return Self.invalid(Self.draftReplyError) }
+                if filedOrigin?.requiresStrictLocator == true, filedOrigin?.locator?.strict != true {
+                    return Self.blocked("not_found", L("Pippa couldn’t find the original email in Mail, so no reply was created.", table: "MCP"),
+                                        receipt: notDone("not_found"))
+                }
                 if case .blocked(let status, let tell) = await ensure(.mail, openMail: true) { return Self.blocked(status, tell, receipt: notDone(status)) }
-                source = found
+                source = inspected.source
+                locator = filedOrigin?.locator
+                mailbox = filedOrigin?.mailbox
+                explicitReplyTo = inspected.explicitReplyTo
             }
-            let address = source.replyTo.map(MailAddress.parse)
-            draft = MailDraft(messageID: source.messageID, to: address?.address, toName: address?.name, subject: source.subject, body: body,
-                              isReply: true, locator: locator)
+            if mailbox == .sent {
+                let explicit = explicitReplyTo.map(MailAddress.parse)
+                if let explicit, let address = explicit.address {
+                    draft = MailDraft(messageID: source.messageID, to: address, toName: explicit.name, subject: source.subject, body: body,
+                                      isReply: true, locator: locator, keepMailRecipients: false)
+                } else {
+                    draft = MailDraft(messageID: source.messageID, to: nil, toName: nil, subject: source.subject, body: body,
+                                      isReply: true, locator: locator, keepMailRecipients: true)
+                }
+            } else {
+                let address = source.replyTo.map(MailAddress.parse)
+                draft = MailDraft(messageID: source.messageID, to: address?.address, toName: address?.name, subject: source.subject, body: body,
+                                  isReply: true, locator: locator, keepMailRecipients: false)
+            }
         } else {
             guard let subject = input.text("subject") else {
                 return Self.invalid("A new email needs subject (and to). To reply, give reply_to: the exact path of the shown email file, or selected.")
@@ -55,6 +92,42 @@ extension PippaMCPWriteTools {
             draft = MailDraft(messageID: nil, to: to, toName: nil, subject: Self.singleLine(subject, max: 200), body: body, isReply: false, exactSubject: true)
         }
         return await insert(draft)
+    }
+
+    private enum RefSource { case found(MailReplySource, MailLocator?, MailBoxKind, String?), notDone(PippaMCPToolResult) }
+
+    /// The original a `mail_ref` names, only in the answer that searched and only when the whole locator still matches
+    /// (account id, mailbox path, Mail id, Message-ID, date). An unknown, old or changed reference writes nothing.
+    private func replySource(ref token: String) async -> RefSource {
+        let label = L("reply", table: "MCP")
+        func notDone(_ status: String) -> RefSource {
+            .notDone(Self.blocked(status, L("Pippa couldn’t find the original email in Mail, so no reply was created.", table: "MCP"),
+                                  receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: label, reason: status)))
+        }
+        // The answer this request belongs to owns the search's references; any other answer finds none.
+        let (active, generation) = host.turns.capture()
+        guard active == nil || active?.writes === scope, let reader = host.mailAccounts,
+              let ref = host.mailPages.ref(token, turn: generation) else { return notDone("stale_ref") }
+        if ref.mailbox == .drafts { return .notDone(Self.invalid(Self.draftReplyError)) }
+        if case .blocked(let status, let tell) = await ensure(.mail, openMail: true) {
+            return .notDone(Self.blocked(status, tell, receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: label, reason: status)))
+        }
+        guard host.turns.isLive(active, generation: generation) else {
+            return .notDone(Self.stopped(receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "cancelled", name: label, reason: "stopped")))
+        }
+        do {
+            guard let found = try await PippaMCPTools.resolve(ref, reader: reader), let source = found.message.replySource else { return notDone("not_found") }
+            if found.message.isUnsentDraft { return .notDone(Self.invalid(Self.draftReplyError)) }
+            guard host.turns.isLive(active, generation: generation) else {
+                return .notDone(Self.stopped(receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "cancelled", name: label, reason: "stopped")))
+            }
+            guard let strictLocator = MailLocator(account: ref.account.name, path: ref.path, mailID: ref.mailID, accountID: ref.account.id, strict: true) else {
+                return notDone("not_found")
+            }
+            return .found(source, strictLocator, ref.mailbox, found.message.explicitReplyTo)
+        } catch {
+            return .notDone(failure(error, .mail, receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: label, reason: "failed")))
+        }
     }
 
     private func insert(_ draft: MailDraft) async -> PippaMCPToolResult {

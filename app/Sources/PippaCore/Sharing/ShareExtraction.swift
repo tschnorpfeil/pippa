@@ -113,13 +113,24 @@ public struct ShareExtraction: Sendable {
     /// Appointments from today through the next `days` days, as in `calendar_read`: no cancelled or declined ones.
     public func calendar(days: Int = 7) async throws -> SharePiece {
         try await open(.calendar)
-        let start = host.calendar.startOfDay(for: host.now())
-        let end = host.calendar.date(byAdding: .day, value: days, to: start) ?? start.addingTimeInterval(Double(days) * 86_400)
+        let cal = host.calendar
+        let start = cal.startOfDay(for: host.now())
+        let end = cal.date(byAdding: .day, value: days, to: start) ?? start.addingTimeInterval(Double(days) * 86_400)
         let fetch = try await host.integrations.events(in: DateInterval(start: start, end: end), limit: 60)
         let events = fetch.events.filter { $0.status != .cancelled && !$0.declined }.sorted { $0.start < $1.start }
         let lines = events.map { event -> String in
-            let when = event.allDay ? Self.format(event.start, "EEE d MMM") + " · " + L("all day", table: "Core")
-                : Self.format(event.start, "EEE d MMM HH:mm") + "–" + Self.format(event.end, "HH:mm")
+            let when: String
+            if event.allDay {
+                let last = event.end > event.start ? event.end.addingTimeInterval(-1) : event.start
+                let daysText = cal.isDate(event.start, inSameDayAs: last)
+                    ? Self.format(event.start, "EEE d MMM", calendar: cal)
+                    : Self.format(event.start, "EEE d MMM", calendar: cal) + " – " + Self.format(last, "EEE d MMM", calendar: cal)
+                when = daysText + " · " + L("all day", table: "Core")
+            } else if !cal.isDate(event.start, inSameDayAs: event.end) && event.end > event.start {
+                when = Self.format(event.start, "EEE d MMM HH:mm", calendar: cal) + " – " + Self.format(event.end, "EEE d MMM HH:mm", calendar: cal)
+            } else {
+                when = Self.format(event.start, "EEE d MMM HH:mm", calendar: cal) + "–" + Self.format(event.end, "HH:mm", calendar: cal)
+            }
             return "- " + when + " · " + SharePiece.line(event.title) + (event.location.map { " · " + SharePiece.line($0) } ?? "")
         }
         return SharePiece(sources: [.calendar], title: L("Calendar, next %lld days", table: "Core", days),
@@ -131,7 +142,7 @@ public struct ShareExtraction: Sendable {
         try await open(.reminders)
         let fetch = try await host.hostData.openReminders(dueBefore: nil, limit: 50)
         let lines = fetch.items.map { item -> String in
-            let due = item.due.map { " · " + Self.format($0, item.dueHasTime ? "EEE d MMM HH:mm" : "EEE d MMM") } ?? ""
+            let due = item.due.map { " · " + Self.format($0, item.dueHasTime ? "EEE d MMM HH:mm" : "EEE d MMM", calendar: host.calendar) } ?? ""
             return "- " + SharePiece.line(item.title) + due
         }
         return SharePiece(sources: [.reminders], title: L("Open reminders", table: "Core"),
@@ -150,8 +161,10 @@ public struct ShareExtraction: Sendable {
         }
     }
 
-    static func format(_ date: Date, _ template: String) -> String {
+    static func format(_ date: Date, _ template: String, calendar: Calendar = .autoupdatingCurrent) -> String {
         let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
         formatter.locale = Locale.current
         formatter.setLocalizedDateFormatFromTemplate(template)
         return formatter.string(from: date)

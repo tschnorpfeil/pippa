@@ -78,28 +78,98 @@ enum MailScript {
             try
                 set box to mailbox of m
                 set boxPath to {(name of box) as text}
+                set acct to account of box
                 set acctName to ""
-                try
-                    set acctName to (name of account of box) as text
-                end try
+                set acctID to ""
+                set locationComplete to true
+                if acct is missing value then
+                    set acctID to "__local__"
+                else
+                    try
+                        set acctName to (name of acct) as text
+                    end try
+                    try
+                        set acctID to (id of acct) as text
+                    on error
+                        set locationComplete to false
+                    end try
+                    if acctID is "" or acctID is "__local__" then set locationComplete to false
+                end if
                 set cur to box
+                set reachedRoot to false
                 repeat 31 times
                     try
                         set parentBox to container of cur
-                        if class of parentBox is not mailbox then exit repeat
+                        if parentBox is missing value then
+                            set reachedRoot to true
+                            exit repeat
+                        end if
+                        set parentClass to class of parentBox
+                        if parentClass is in {account, imap account, iCloud account, pop account} then
+                            if acctID is not "__local__" and (id of parentBox as text) is acctID then set reachedRoot to true
+                            exit repeat
+                        end if
+                        if parentClass is not mailbox and parentClass is not «class mbxc» then exit repeat
                         set beginning of boxPath to (name of parentBox) as text
                         set cur to parentBox
                     on error
                         exit repeat
                     end try
                 end repeat
-                set theLocation to {acctName, boxPath, (id of m)}
+                if not reachedRoot then set locationComplete to false
+                if locationComplete then
+                    set theLocation to {acctName, boxPath, (id of m)}
+                    if acctID is not "" then set end of theLocation to acctID
+                end if
             end try
             set theSource to ""
             try
                 set theSource to (source of m) as text
             end try
-            return {subject of m, sender of m, date received of m, content of m, attachmentNames, theID, (reply to of m) as text, theLocation, theSource}
+            set wasReplied to false
+            set wasForwarded to false
+            set isFlagged to false
+            try
+                set wasReplied to (was replied to of m) as boolean
+            end try
+            try
+                set wasForwarded to (was forwarded of m) as boolean
+            end try
+            try
+                set isFlagged to (flagged status of m) as boolean
+            end try
+            set boxKind to ""
+            try
+                set box to mailbox of m
+                if (mailboxes of drafts mailbox) contains box then
+                    set boxKind to "drafts"
+                else if (mailboxes of sent mailbox) contains box then
+                    set boxKind to "sent"
+                else if (mailboxes of inbox) contains box then
+                    set boxKind to "inbox"
+                end if
+            end try
+            set theDate to missing value
+            if boxKind is "sent" or boxKind is "drafts" then
+                try
+                    set theDate to date sent of m
+                end try
+                if theDate is missing value then
+                    try
+                        set theDate to date received of m
+                    end try
+                end if
+            else
+                try
+                    set theDate to date received of m
+                end try
+                if boxKind is not "inbox" and theDate is missing value then
+                    try
+                        set theDate to date sent of m
+                    end try
+                end if
+            end if
+            return {subject of m, sender of m, theDate, content of m, attachmentNames, theID, (reply to of m) as text, theLocation, theSource, wasReplied, wasForwarded, isFlagged, boxKind}
         end tell
     end messageInfo
     """
@@ -139,8 +209,12 @@ enum MailScript {
         let messageID: String? = rawID.isEmpty ? nil : rawID
         let locator = parts.count >= 8 ? MailReplyScript.locator(ScriptValue(parts[7])) : nil
         let source = parts.count >= 9 ? parts[8].stringValue : nil
+        // Mail's flags (items 10–12); an older or shorter answer leaves them false.
+        let flags = (9..<12).map { i in parts.count > i && [typeBoolean, typeTrue, typeFalse].contains(parts[i].descriptorType) && parts[i].booleanValue }
+        let kind = parts.count > 12 ? MailBoxKind(rawValue: parts[12].stringValue ?? "") : nil
         return MailMessage(subject: parts[0].stringValue ?? "", sender: parts[1].stringValue ?? "", date: parts[2].dateValue,
                            body: parts[3].stringValue ?? "", attachmentNames: AppleEvents.strings(parts[4]), messageID: messageID,
-                           replyTo: parts.count >= 7 ? parts[6].stringValue : nil, locator: locator, source: source)
+                           replyTo: parts.count >= 7 ? parts[6].stringValue : nil, locator: locator, source: source,
+                           replied: flags[0], forwarded: flags[1], flagged: flags[2], mailboxKind: kind)
     }
 }

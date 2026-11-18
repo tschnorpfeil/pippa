@@ -44,6 +44,36 @@ extension PippaMCPWriteTools {
         return (hour, minute)
     }
 
+    /// Exact wall-clock time on `day` in `calendar`; `nil` if a DST spring-forward gap skips that local minute.
+    static func exactTime(_ t: (hour: Int, minute: Int), on day: Date, calendar: Calendar) -> Date? {
+        let d = calendar.dateComponents([.year, .month, .day], from: day)
+        guard let y = d.year, let m = d.month, let dom = d.day,
+              let resolved = calendar.date(from: DateComponents(year: y, month: m, day: dom, hour: t.hour, minute: t.minute, second: 0)) else {
+            return nil
+        }
+        let check = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: resolved)
+        guard check.year == y, check.month == m, check.day == dom, check.hour == t.hour, check.minute == t.minute else { return nil }
+        return resolved
+    }
+
+    /// Whole civil-calendar days between `start` and `end` (0 for the same date), independent of DST transitions.
+    static func dayOffset(from start: Date, to end: Date, calendar: Calendar) -> Int? {
+        let a = calendar.dateComponents([.year, .month, .day], from: start)
+        let b = calendar.dateComponents([.year, .month, .day], from: end)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        guard let d0 = utc.date(from: DateComponents(year: a.year, month: a.month, day: a.day)),
+              let d1 = utc.date(from: DateComponents(year: b.year, month: b.month, day: b.day)) else { return nil }
+        return utc.dateComponents([.day], from: d0, to: d1).day
+    }
+
+    /// Start of the calendar day following `day` (exact even when `day` started at 01:00 after a midnight DST jump).
+    static func dayAfter(_ day: Date, calendar: Calendar) -> Date {
+        if let end = calendar.dateInterval(of: .day, for: day)?.end, end > day { return end }
+        if let next = calendar.date(byAdding: .day, value: 1, to: day) { return calendar.startOfDay(for: next) }
+        return day.addingTimeInterval(86_400)
+    }
+
     /// Single line and shortened (titles come from the model, which reads mails).
     static func singleLine(_ text: String, max: Int) -> String {
         let one = text.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
@@ -55,9 +85,18 @@ extension PippaMCPWriteTools {
     }
 
     /// Short for the receipt ("Do., 8. Okt., 09:00"), for the model with year and end ("Do., 8. Okt. 2026, 09:00–10:00").
+    /// Spanning days: both ends ("Sa., 10. Okt. – Mo., 12. Okt."; an all-day end is exclusive, so the last day is shown).
     func when(_ start: Date, _ end: Date, allDay: Bool, short: Bool) -> String {
-        if allDay { return format(start, short ? "EEE d MMM" : "EEE d MMM y") }
+        let cal = host.calendar
+        if allDay {
+            let template = short ? "EEE d MMM" : "EEE d MMM y"
+            let last = end > start ? end.addingTimeInterval(-1) : start
+            return cal.isDate(start, inSameDayAs: last) ? format(start, template) : format(start, template) + " – " + format(last, template)
+        }
         let head = format(start, short ? "EEE d MMM HH:mm" : "EEE d MMM y HH:mm")
+        if !cal.isDate(start, inSameDayAs: end) && end > start {
+            return head + " – " + format(end, short ? "EEE d MMM HH:mm" : "EEE d MMM y HH:mm")
+        }
         return short ? head : head + "–" + format(end, "HH:mm")
     }
 }

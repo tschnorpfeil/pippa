@@ -99,6 +99,7 @@ test("structured native refusals can retry; result prose and nested data do not 
 	const payloads = [
 		{ done: false, status: "failed", dispatched: false },
 		{ done: false, status: "invalid_arguments" },
+		{ done: false, status: "stale_ref", dispatched: false },
 		{ done: false, status: "failed", tell: "unclear dispatched" },
 		{ done: false, status: "failed", data: { state: "unclear", dispatched: true } },
 	];
@@ -337,4 +338,46 @@ test("what an answer changed is told to the app from the tools' own results, so 
 	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("write", { pippaBefore: { file: "/u/a.txt", copy: "/b/a.txt" } }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("read", {}, false), []);
+});
+
+test('call budget: callBudget uses route-provided PIPPA_MAX_CALLS and defaults to 20 when absent or invalid', async () => {
+ const { MAX_CALLS, EXTENDED_MAX_CALLS, callBudget } = await import('./pippa-assist.ts');
+ assert.equal(MAX_CALLS,20);
+ assert.equal(EXTENDED_MAX_CALLS,80);
+ assert.equal(callBudget({}),20);
+ assert.equal(callBudget({PIPPA_MAX_CALLS:'80'}),80);
+ assert.equal(callBudget({PIPPA_MAX_CALLS:' 200 '}),200);
+ for(const bad of ['','abc','5','19','201','999','-80','80.5']){
+  assert.equal(callBudget({PIPPA_MAX_CALLS:bad}),20);
+ }
+});
+
+test('call budget: attempt keeps restricted online routes and handoffs at 20 even on 128k models unless PIPPA_MAX_CALLS grants more', async () => {
+ const { overBudget } = await import('./pippa-assist.ts');
+ assert.equal(overBudget(21,80),undefined);
+ assert.match(overBudget(81,80),/used 80 tool calls/);
+ const run=async(ctx)=>{
+  const handlers={};
+  assist({ registerTool: () => {}, on:(name,fn)=>handlers[name]=fn,getAllTools:()=>tools,appendEntry:()=>{}});
+  await handlers.agent_start({});
+  let blockedAt=0;
+  for(let i=1;i<=90&&!blockedAt;i++){
+   const event={toolName:'mcp__pippa__read_document',input:{path:`/fake/Downloads/beleg_${i}.pdf`},toolCallId:'b'+i};
+   const block=await handlers.tool_call(event,ctx);
+   if(block)blockedAt=i;else await handlers.tool_result({...event,isError:false,content:[{type:'text',text:'ok'}]},ctx);
+  }
+  return blockedAt;
+ };
+ const saved=process.env.PIPPA_MAX_CALLS;
+ try{
+  delete process.env.PIPPA_MAX_CALLS;
+  assert.equal(await run({abort:()=>{},model:{contextWindow:16_384}}),21);
+  assert.equal(await run({abort:()=>{},model:{contextWindow:128_000}}),21);
+  process.env.PIPPA_MAX_CALLS='80';
+  assert.equal(await run({abort:()=>{},model:{contextWindow:128_000}}),81);
+  process.env.PIPPA_MAX_CALLS='40';
+  assert.equal(await run({abort:()=>{}}),41);
+ }finally{
+  if(saved===undefined)delete process.env.PIPPA_MAX_CALLS;else process.env.PIPPA_MAX_CALLS=saved;
+ }
 });

@@ -78,14 +78,38 @@ public struct MailMessage: Sendable, Hashable {
     public var locator: MailLocator?
     /// The whole message as Mail keeps it (RFC 822, attachments included), when Mail gave it.
     public var source: String?
+    /// Mail's own flags (Mail.sdef `was replied to`, `was forwarded`, `flagged status`); false when Mail did not say.
+    public var replied: Bool
+    public var forwarded: Bool
+    public var flagged: Bool
+    /// Top-level Mail container when known (`inbox`, `sent`, `drafts`).
+    public var mailboxKind: MailBoxKind?
     public var replySource: MailReplySource? {
         let target = replyTo?.trimmingCharacters(in: .whitespacesAndNewlines)
         return messageID.flatMap { MailReplySource(messageID: $0, replyTo: target.flatMap { $0.isEmpty ? nil : $0 } ?? sender, subject: subject) }
     }
+    /// An explicit RFC `Reply-To` address when present (never inferred from `From`/`sender`).
+    public var explicitReplyTo: String? {
+        if let source, !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let inspected = MailReplySource.inspect(headers: Data((source + "\n\n").utf8)) {
+            return inspected.explicitReplyTo
+        }
+        guard let target = replyTo?.trimmingCharacters(in: .whitespacesAndNewlines), !target.isEmpty,
+              let targetAddr = MailAddress.parse(target).address,
+              targetAddr.caseInsensitiveCompare(MailAddress.parse(sender).address ?? "") != .orderedSame else { return nil }
+        return target
+    }
+    public var isUnsentDraft: Bool {
+        if mailboxKind == .drafts { return true }
+        guard let source, !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        return MailReplySource.inspect(headers: Data((source + "\n\n").utf8))?.isDraft == true
+    }
     public init(subject: String, sender: String, date: Date?, body: String, attachmentNames: [String], messageID: String? = nil, replyTo: String? = nil,
-                locator: MailLocator? = nil, source: String? = nil) {
+                locator: MailLocator? = nil, source: String? = nil, replied: Bool = false, forwarded: Bool = false, flagged: Bool = false,
+                mailboxKind: MailBoxKind? = nil) {
         self.subject = subject; self.sender = sender; self.date = date; self.body = body; self.attachmentNames = attachmentNames
         self.messageID = messageID; self.replyTo = replyTo; self.locator = locator; self.source = source
+        self.replied = replied; self.forwarded = forwarded; self.flagged = flagged; self.mailboxKind = mailboxKind
     }
 
     /// As .eml text, so the normal flow (overview, deadlines, questions) reads it like a filed mail: Mail's own message
@@ -166,6 +190,8 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
     /// Synthetic events (never real); `nil` = `sampleCalendar` relative to now. Tests and PIPPA_DEMO only.
     public var calendarEvents: [CalendarEvent]?
     public var calendarNames = ["Arbeit", "Privat"]
+    /// Tests: calendars that refuse new events (subscriptions, birthdays).
+    public var readOnlyCalendars: Set<String> = []
     /// Tests: reading fails technically (e.g. calendar database unreachable).
     public var calendarFails = false
     private var reads: [DateInterval] = []
@@ -318,7 +344,10 @@ extension DemoIntegrations: HostWriting {
         try requireGranted(.calendar)
         let id = "demo-\(UUID().uuidString)"
         let item = CreatedItem(integration: .calendar, identifier: id, modified: Date(), fingerprint: "demo-\(id)")
-        let calendar = calendarNames.last ?? "Privat"
+        let readOnly = readOnlyCalendars
+        let calendar = try event.calendar.map { name in
+            try CalendarTargetError.match(name, in: calendarNames, title: { $0 }, writable: { !readOnly.contains($0) })
+        } ?? calendarNames.last ?? "Privat"
         try PippaMCPWriteLease.current?.beginDispatch()
         lock.withLock {
             items[id] = (item, event.title)

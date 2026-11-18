@@ -35,18 +35,31 @@ const CHANGES = new Set(["write", "edit", "move_files", ...NATIVE_CHANGES]);
 
 /** Tool calls per answer before Pi is told to answer with what it has (docs/archive/measurements/model-compare). */
 export const MAX_CALLS = 20;
+/** Budget passed via `PIPPA_MAX_CALLS` for verified online routes with Mac access (`PiSession.LaunchRoute`). */
+export const EXTENDED_MAX_CALLS = 80;
+
+/** Budget for one answer: a valid route-provided `PIPPA_MAX_CALLS` (integer, 20..200) wins, otherwise `MAX_CALLS`. */
+export function callBudget(env: NodeJS.ProcessEnv = process.env): number {
+	const raw = env.PIPPA_MAX_CALLS?.trim();
+	if (raw && /^\d+$/.test(raw)) {
+		const set = Number(raw);
+		if (set >= MAX_CALLS && set <= 200) return set;
+	}
+	return MAX_CALLS;
+}
 
 /** Over budget: the reason Pi gets instead of the call. */
-export function overBudget(calls: number): string | undefined {
-	if (calls <= MAX_CALLS) return undefined;
-	return `Stopped: you already used ${MAX_CALLS} tool calls for this answer. Do not call any more tools. Answer the user now with what you found, and say in one short sentence what you could not check.`;
+export function overBudget(calls: number, limit = MAX_CALLS): string | undefined {
+	if (calls <= limit) return undefined;
+	return `Stopped: you already used ${limit} tool calls for this answer. Do not call any more tools. Answer the user now with what you found, and say in one short sentence what you could not check.`;
 }
 
 export interface LoopCount { runs: number; failures: number; successes: number; uncertain: number }
 
-// These statuses are emitted before any effect by PippaMCPWrite.swift. Unknown/new statuses fail closed.
+// These statuses are emitted before any effect by PippaMCPWrite.swift / PippaMCPEgress.swift. Unknown/new statuses fail closed.
 const NATIVE_NO_EFFECT = new Set(["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
-	"not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created"]);
+	"not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
+	"stale_ref", "needs_calendar", "reply_needs_mail", "stays_on_mac"]);
 
 /** Only Pippa's top-level native write result establishes an effect. A lost/malformed reply proves neither outcome. */
 function nativeChangeOutcome(tool: string, content: any[], isError: boolean): "success" | "failure" | "uncertain" | undefined {
@@ -238,7 +251,7 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 	const attempt = (event: any, ctx: any) => {
-		const reason = overBudget(++calls) ?? loopBrake(counts, keys, event.toolCallId, event.toolName, event.input, CHANGES.has(event.toolName));
+		const reason = overBudget(++calls, callBudget()) ?? loopBrake(counts, keys, event.toolCallId, event.toolName, event.input, CHANGES.has(event.toolName));
 		if (reason) recordStop(event.toolName, ctx);
 		return reason;
 	};

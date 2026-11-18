@@ -168,6 +168,24 @@ func runMCPEgressChecks() async {
             && demo.createdCount == 4 && demo.insertedDrafts.count == 2 && demo.insertedDrafts.last?.isReply == false
     }
 
+    await checkAsync("Egress: calendar_add naming any calendar is refused before Calendar is touched; native not_found/ambiguous stay typed") {
+        let host = PippaMCPHost.demo()
+        guard let demo = host.integrations as? DemoIntegrations else { return false }
+        demo.calendarNames = ["PRIVATE-CAL-A", "dup", "Dup"]
+        let egress = PippaMCPEgress(rules: SourceSharing(), web: false)
+        let probes: [Any] = ["PRIVATE-CAL-A", "", "  ", 0, false, NSNull(), ["x"]]
+        let refusedAll = probes.allSatisfy { egress.refusal("calendar_add", ["title": "x", "date": "today", "calendar": $0]) == "needs_calendar" }
+        let plain = egress.refusal("calendar_add", ["title": "x", "date": "today"])
+        let tools = PippaMCPWriteTools(host: host)
+        let missing = await tools.call("calendar_add", ["title": "x", "date": "tomorrow", "calendar": "Nope"])
+        let twice = await tools.call("calendar_add", ["title": "x", "date": "tomorrow", "calendar": "dup"])
+        let scrubbed = [egress.scrubWriter("calendar_add", missing), egress.scrubWriter("calendar_add", twice)]
+        return refusedAll && plain == nil && demo.createdCount == 0
+            && scrubbed[0].isError && scrubbed[0].text.contains("\"status\":\"not_found\"")
+            && scrubbed[1].isError && scrubbed[1].text.contains("\"status\":\"ambiguous\"")
+            && scrubbed.allSatisfy { !$0.text.contains("PRIVATE-CAL-A") && !$0.text.contains("unclear") }
+    }
+
     await checkAsync("H3: malformed native outcomes fail closed and unknown fields are discarded") {
         let host = PippaMCPHost.demo()
         let egress = PippaMCPEgress(rules: SourceSharing(), web: false)

@@ -8,17 +8,30 @@ import Foundation
 /// Mail's own quote is replaced that way, so the script appends a plain quote built from the original.
 /// Order: find the original (captured mailbox first, then a bounded search in steps), reply, fill, save,
 /// then read the fields back. Only failures before `reply` leave nothing in Mail.
-enum MailReplyScript {
-    static func insert(_ draft: MailDraft) async throws -> MailInsertResult {
-        guard draft.isReply else { return try await newMessage(draft) }
+public enum MailReplyScript {
+    public typealias StepRunner = @Sendable (_ handler: String, _ args: [ScriptArgument], _ mutation: Bool) async throws -> [ScriptValue]
+
+    public static func insert(_ draft: MailDraft) async throws -> MailInsertResult {
+        try await insert(draft, runner: run)
+    }
+
+    public static func insert(_ draft: MailDraft, runner: StepRunner) async throws -> MailInsertResult {
+        guard draft.isReply else { return try await newMessage(draft, runner: runner) }
         guard let id = draft.messageID.flatMap(MailReplySource.canonicalMessageID) else { throw MailReplyFailure.missingOriginal }
+        if let hint = draft.locator, hint.strict {
+            guard hint.mailID != nil else { throw MailReplyFailure.missingOriginal }
+            let response = try await replyAt(hint, id: id, draft: draft, runner: runner)
+            // Bound to one exact message (e.g. mail_ref): never search other accounts or mailboxes when it left its spot.
+            if response.first?.text == "notHere" { throw MailReplyFailure.missingOriginal }
+            return try outcome(response, draft: draft)
+        }
         // Fast path: the mailbox and Mail id captured at Call, re-checked by Message-ID in the script.
         if let hint = draft.locator, hint.mailID != nil {
-            let response = try await replyAt(hint, id: id, draft: draft)
+            let response = try await replyAt(hint, id: id, draft: draft, runner: runner)
             if response.first?.text != "notHere" { return try outcome(response, draft: draft) }
         }
-        let match = try await search(id, hint: draft.locator)
-        let response = try await replyAt(match, id: id, draft: draft)
+        let match = try await search(id, hint: draft.locator, runner: runner)
+        let response = try await replyAt(match, id: id, draft: draft, runner: runner)
         // Moved again between search and reply: nothing was created.
         if response.first?.text == "notHere" { throw MailReplyFailure.notCreated }
         return try outcome(response, draft: draft)
@@ -26,9 +39,9 @@ enum MailReplyScript {
 
     /// Bounded search in steps: one Apple Event per mailbox, so Stop (task cancellation) and progress work
     /// between mailboxes and no single event waits for Mail's whole store.
-    private static func search(_ id: String, hint: MailLocator?) async throws -> MailLocator {
+    private static func search(_ id: String, hint: MailLocator?, runner: StepRunner) async throws -> MailLocator {
         try Task.checkCancellation()
-        let listed = try await run("mailboxList", [])
+        let listed = try await runner("mailboxList", [], false)
         let boxes = MailOriginalSearch.ordered(try searchMailboxes(listed), preferring: hint)
         let clock = ContinuousClock(), deadline = clock.now + MailOriginalSearch.budget
         var matches: [MailLocator] = [], incomplete = false
@@ -36,7 +49,7 @@ enum MailReplyScript {
             try Task.checkCancellation()
             MailOriginalSearch.progress?(index, boxes.count)
             if clock.now > deadline { incomplete = true; break }
-            let found = try await run("findIn", [.text(id), .text(box.account), .texts(box.path)])
+            let found = try await runner("findIn", [.text(id), .text(box.account), .texts(box.path)], false)
             do {
                 matches += try searchMatches(found, in: box)
             } catch {
@@ -83,12 +96,13 @@ enum MailReplyScript {
         }
     }
 
-    private static func replyAt(_ box: MailLocator, id: String, draft: MailDraft) async throws -> [ScriptValue] {
+    private static func replyAt(_ box: MailLocator, id: String, draft: MailDraft, runner: StepRunner) async throws -> [ScriptValue] {
         guard let mailID = box.mailID else { return [.text("notHere")] }
         try Task.checkCancellation()
         let header = L("On {date}, {sender} wrote:", table: "Core")
-        let result = try await run("replyAt", [.text(id), .number(Int32(mailID)), .text(box.account), .texts(box.path),
-                                             .text(draft.to ?? ""), .text(draft.replySubject), .text(draft.body), .text(header)], mutation: true)
+        let result = try await runner("replyAt", [.text(id), .number(Int32(mailID)), .text(box.accountID ?? ""), .text(box.account), .texts(box.path),
+                                                  .text(draft.to ?? ""), .flag(draft.keepMailRecipients),
+                                                  .text(draft.replySubject), .text(draft.body), .text(header)], true)
         // These script statuses are returned before opening a reply. A later cancellation can still promise no change.
         if ["notHere", "busy"].contains(result.first?.text ?? "") { PippaMCPWriteLease.current?.confirmNoMutation() }
         return result
@@ -104,8 +118,8 @@ enum MailReplyScript {
                                       saved: filled && response[4].flag == true)
     }
 
-    private static func newMessage(_ draft: MailDraft) async throws -> MailInsertResult {
-        let created = try await run("newMessage", [.text(draft.to ?? ""), .text(draft.toName ?? ""), .text(draft.replySubject), .text(draft.body)], mutation: true)
+    private static func newMessage(_ draft: MailDraft, runner: StepRunner) async throws -> MailInsertResult {
+        let created = try await runner("newMessage", [.text(draft.to ?? ""), .text(draft.toName ?? ""), .text(draft.replySubject), .text(draft.body)], true)
         guard created.count == 3,
               draft.isConfirmed(subject: created[0].text ?? "", body: created[1].text ?? "",
                                 recipients: created[2].items.map { $0.text ?? "" }) else { throw PippaError.notAvailable }
@@ -113,7 +127,7 @@ enum MailReplyScript {
     }
 
     /// One short step on the AppleScript queue.
-    private static func run(_ handler: String, _ args: [ScriptArgument], mutation: Bool = false) async throws -> [ScriptValue] {
+    private static func run(_ handler: String, _ args: [ScriptArgument], _ mutation: Bool) async throws -> [ScriptValue] {
         let result = try await AppleEvents.perform {
             ScriptValue(try AppleEvents.call(source, handler: handler, args.map(\.descriptor), app: .mail, mutation: mutation))
         }.items
@@ -121,10 +135,11 @@ enum MailReplyScript {
         return result
     }
 
-    /// `{account, {mailbox names…}, id}` from `selectedMessage`, or `{account, {names…}, key}` from `mailboxList`.
+    /// `{account, {mailbox names…}, id[, accountID]}` from `selectedMessage`, or `{account, {names…}, key}` from `mailboxList`.
     static func locator(_ value: ScriptValue) -> MailLocator? {
         let parts = value.items
-        guard parts.count == 3, let account = parts[0].text else { return nil }
-        return MailLocator(account: account, path: parts[1].items.compactMap(\.text), mailID: parts[2].number)
+        guard (3...4).contains(parts.count), let account = parts[0].text else { return nil }
+        let accountID = parts.count == 4 ? parts[3].text : nil
+        return MailLocator(account: account, path: parts[1].items.compactMap(\.text), mailID: parts[2].number, accountID: accountID)
     }
 }
