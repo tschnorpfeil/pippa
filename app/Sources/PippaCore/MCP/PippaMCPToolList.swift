@@ -24,8 +24,9 @@ extension PippaMCPTools {
             tool("reminders_read", "Erinnerungen lesen",
                  "Open; days=due within N (1=today).", ["days": integer]),
             tool("mail_search", "Mail suchen",
-                 "Inboxes of all accounts, newest first. query=word in subject/sender; omit=newest; unread=true only unread; account=one account from accounts; cursor=next page.",
-                 ["query": string, "unread": ["type": "boolean"], "limit": integer, "account": string, "cursor": string]),
+                 "All accounts, newest first. query=word in subject/sender; omit=newest; read_status; mailbox; account=one from accounts; cursor=next page.",
+                 ["query": string, "unread": ["type": "boolean"], "read_status": ["enum": MailReadStatus.allCases.map(\.rawValue)],
+                  "mailbox": ["enum": MailBoxKind.allCases.map(\.rawValue)], "limit": integer, "account": string, "cursor": string]),
             tool("mail_read", "Mail öffnen",
                  "Whole inbox email: use mail_ref from an account search. For combined inbox results only, use message_id or exact subject + from. Attachments saved for read_document.",
                  ["mail_ref": string, "message_id": string, "subject": string, "from": string]),
@@ -45,14 +46,14 @@ extension PippaMCPTools {
     /// an omitted filter: `photos_search(query: 123)` must not fall through to reading the newest pictures.
     struct ToolInput: Sendable {
         var period: String?, start: String?, end: String?, query: String?, subject: String?, from: String?, messageID: String?
-        var account: String?, cursor: String?, mailRef: String?
+        var account: String?, cursor: String?, mailRef: String?, readStatus: String?, mailbox: String?
         var days: Int?, limit: Int?
         var unread: Bool?
         var unknown: [String]
         static let allowed: [String: Set<String>] = [
             "calendar_read": ["period", "days", "start", "end"],
             "reminders_read": ["days"],
-            "mail_search": ["query", "unread", "limit", "account", "cursor"],
+            "mail_search": ["query", "unread", "read_status", "mailbox", "limit", "account", "cursor"],
             "mail_read": ["subject", "from", "message_id", "mail_ref"],
             "photos_search": ["query", "days", "limit"],
             "front_read": [],
@@ -67,6 +68,7 @@ extension PippaMCPTools {
             query = raw["query"] as? String; days = int("days"); limit = int("limit")
             subject = raw["subject"] as? String; from = raw["from"] as? String; messageID = raw["message_id"] as? String
             account = raw["account"] as? String; cursor = raw["cursor"] as? String; mailRef = raw["mail_ref"] as? String
+            readStatus = raw["read_status"] as? String; mailbox = raw["mailbox"] as? String
             func bool(_ key: String) -> Bool? {
                 guard let n = raw[key] as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() else { return nil }
                 return n.boolValue

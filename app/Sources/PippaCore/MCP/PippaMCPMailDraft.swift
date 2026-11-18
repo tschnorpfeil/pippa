@@ -29,11 +29,17 @@ extension PippaMCPWriteTools {
                 } catch {
                     return failure(error, .mail, receipt: notDone("failed"))
                 }
+            } else if MailPageStore.isToken(replyTo, prefix: "m") {
+                // A mail_ref from this answer's mail_search: exactly that message, checked like mail_read checks it.
+                switch await replySource(ref: replyTo) {
+                case .found(let found, let at): source = found; locator = at
+                case .notDone(let result): return result
+                }
             } else {
                 var path = replyTo
                 if path.hasPrefix("file://"), let url = URL(string: path) { path = url.path }
                 path = (path as NSString).expandingTildeInPath
-                guard path.hasPrefix("/") else { return Self.invalid("reply_to must be the exact absolute path of the email file from the message, or selected.") }
+                guard path.hasPrefix("/") else { return Self.invalid("reply_to must be a mail_ref from mail_search, the exact absolute path of the email file (eml_path), or selected.") }
                 guard let found = MailReplySource.capture(from: URL(fileURLWithPath: path)) else {
                     return Self.invalid("reply_to is not an email file Pippa can reply to (.eml with Message-ID). Use the exact path from the message, or selected.")
                 }
@@ -55,6 +61,37 @@ extension PippaMCPWriteTools {
             draft = MailDraft(messageID: nil, to: to, toName: nil, subject: Self.singleLine(subject, max: 200), body: body, isReply: false, exactSubject: true)
         }
         return await insert(draft)
+    }
+
+    private enum RefSource { case found(MailReplySource, MailLocator?), notDone(PippaMCPToolResult) }
+
+    /// The original a `mail_ref` names, only in the answer that searched and only when the whole locator still matches
+    /// (account id, mailbox path, Mail id, Message-ID, date). An unknown, old or changed reference writes nothing.
+    private func replySource(ref token: String) async -> RefSource {
+        let label = L("reply", table: "MCP")
+        func notDone(_ status: String) -> RefSource {
+            .notDone(Self.blocked(status, L("Pippa couldn’t find the original email in Mail, so no reply was created.", table: "MCP"),
+                                  receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: label, reason: status)))
+        }
+        // The answer this request belongs to owns the search's references; any other answer finds none.
+        let (active, generation) = host.turns.capture()
+        guard active == nil || active?.writes === scope, let reader = host.mailAccounts,
+              let ref = host.mailPages.ref(token, turn: generation) else { return notDone("stale_ref") }
+        if case .blocked(let status, let tell) = await ensure(.mail, openMail: true) {
+            return .notDone(Self.blocked(status, tell, receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: label, reason: status)))
+        }
+        guard host.turns.isLive(active, generation: generation) else {
+            return .notDone(Self.stopped(receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "cancelled", name: label, reason: "stopped")))
+        }
+        do {
+            guard let found = try await PippaMCPTools.resolve(ref, reader: reader), let source = found.message.replySource else { return notDone("not_found") }
+            guard host.turns.isLive(active, generation: generation) else {
+                return .notDone(Self.stopped(receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "cancelled", name: label, reason: "stopped")))
+            }
+            return .found(source, found.message.locator ?? MailLocator(account: ref.account.name, path: ref.path, mailID: ref.mailID))
+        } catch {
+            return .notDone(failure(error, .mail, receipt: PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: label, reason: "failed")))
+        }
     }
 
     private func insert(_ draft: MailDraft) async -> PippaMCPToolResult {

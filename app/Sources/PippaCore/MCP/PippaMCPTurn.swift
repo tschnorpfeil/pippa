@@ -51,6 +51,7 @@ public actor PippaMCPTurn {
     public nonisolated func cancelWrites() { writes.cancel() }
     private var documents: [String: Task<DocumentText, Error>] = [:]
     private var mailSearches = 0
+    private nonisolated let budget: BudgetFlag
 
     /// Counts this answer's Mail searches; returns the new count.
     public func countMailSearch() -> Int {
@@ -58,10 +59,24 @@ public actor PippaMCPTurn {
         return mailSearches
     }
 
-    public init(origin: PippaMCPOrigin? = nil, allowsNativeWrites: Bool = true) {
+    /// An answer with an extended Mail budget (an online AI with the tools of the AI on this Mac): more previews per
+    /// answer (`MailPageStore.extendedRowsPerAnswer`) and more searches before the stop. Readable without awaiting.
+    public nonisolated var extendedBudget: Bool { budget.value }
+    public nonisolated func setExtendedBudget(_ on: Bool) { budget.set(on) }
+
+    public init(origin: PippaMCPOrigin? = nil, allowsNativeWrites: Bool = true, extendedBudget: Bool = false) {
         let id = UUID()
         self.id = id
         self.writes = PippaMCPWriteScope(turnID: id, origin: origin, allowsNativeWrites: allowsNativeWrites)
+        self.budget = BudgetFlag(extendedBudget)
+    }
+
+    final class BudgetFlag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var on: Bool
+        init(_ on: Bool) { self.on = on }
+        var value: Bool { lock.withLock { on } }
+        func set(_ value: Bool) { lock.withLock { on = value } }
     }
 
     /// Text of a file, read once per path and page count per answer (Vision pages are additionally in the

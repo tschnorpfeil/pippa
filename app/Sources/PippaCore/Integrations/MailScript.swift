@@ -99,7 +99,19 @@ enum MailScript {
             try
                 set theSource to (source of m) as text
             end try
-            return {subject of m, sender of m, date received of m, content of m, attachmentNames, theID, (reply to of m) as text, theLocation, theSource}
+            set wasReplied to false
+            set wasForwarded to false
+            set isFlagged to false
+            try
+                set wasReplied to (was replied to of m) as boolean
+            end try
+            try
+                set wasForwarded to (was forwarded of m) as boolean
+            end try
+            try
+                set isFlagged to (flagged status of m) as boolean
+            end try
+            return {subject of m, sender of m, date received of m, content of m, attachmentNames, theID, (reply to of m) as text, theLocation, theSource, wasReplied, wasForwarded, isFlagged}
         end tell
     end messageInfo
     """
@@ -139,8 +151,11 @@ enum MailScript {
         let messageID: String? = rawID.isEmpty ? nil : rawID
         let locator = parts.count >= 8 ? MailReplyScript.locator(ScriptValue(parts[7])) : nil
         let source = parts.count >= 9 ? parts[8].stringValue : nil
+        // Mail's flags (items 10–12); an older or shorter answer leaves them false.
+        let flags = (9..<12).map { i in parts.count > i && [typeBoolean, typeTrue, typeFalse].contains(parts[i].descriptorType) && parts[i].booleanValue }
         return MailMessage(subject: parts[0].stringValue ?? "", sender: parts[1].stringValue ?? "", date: parts[2].dateValue,
                            body: parts[3].stringValue ?? "", attachmentNames: AppleEvents.strings(parts[4]), messageID: messageID,
-                           replyTo: parts.count >= 7 ? parts[6].stringValue : nil, locator: locator, source: source)
+                           replyTo: parts.count >= 7 ? parts[6].stringValue : nil, locator: locator, source: source,
+                           replied: flags[0], forwarded: flags[1], flagged: flags[2])
     }
 }

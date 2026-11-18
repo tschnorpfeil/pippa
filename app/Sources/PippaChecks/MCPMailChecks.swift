@@ -1,6 +1,18 @@
 import Foundation
 import PippaCore
 
+/// A host reader that knows only `searchMail(_:unread:limit:)`, as test doubles did before `read_status`.
+private struct LegacyMailReader: HostDataReading {
+    let data: DemoHostData
+    func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> { try await data.searchMail(query, unread: unread, limit: limit) }
+    func openReminders(dueBefore: Date?, limit: Int) async throws -> HostFetch<ReminderItem> { try await data.openReminders(dueBefore: dueBefore, limit: limit) }
+    func photosAccess(ask: Bool) async -> IntegrationAccess { await data.photosAccess(ask: ask) }
+    func searchPhotos(_ query: String, limit: Int) async throws -> HostFetch<PhotoHit> { try await data.searchPhotos(query, limit: limit) }
+    func photoPreviewAccess(ask: Bool) async -> Bool { await data.photoPreviewAccess(ask: ask) }
+    func photoLibraryAccess(ask: Bool) async -> IntegrationAccess { await data.photoLibraryAccess(ask: ask) }
+    func recentPhotos(since: Date?, limit: Int) async throws -> HostFetch<PhotoHit> { try await data.recentPhotos(since: since, limit: limit) }
+}
+
 extension MCPCheckContext {
     func mailChecks() async {
         // MARK: Mail
@@ -167,6 +179,27 @@ extension MCPCheckContext {
                 && refused.isError && refused.json["status"] as? String == "denied"
                 && unavailable.isError && unavailable.json["status"] as? String == "unavailable" && unavailable.json["data"] == nil
                 && !granted.isError && firstUse.demo.mailPreparations == 1
+        }
+        await checkAsync("MCP mail combined: rows and the selected mail carry Mail's reply, forward and flag state; read_status filters, a test double without it still works") {
+            let s = setup()
+            s.demo.sampleMail?.replied = true
+            s.demo.sampleMail?.flagged = true
+            let selected = await call(s.tools, "mail_selected")
+            let data = DemoHostData(integrations: s.demo, mails: [
+                MailHeader(subject: "Gelesen", sender: "a@x.example", date: at(5, 9), mailbox: "INBOX", preview: "", replied: true),
+                MailHeader(subject: "Neu", sender: "b@x.example", date: at(6, 9), mailbox: "INBOX", preview: "", unread: true, forwarded: true, flagged: true),
+            ], now: now)
+            let tools = PippaMCPTools(host: PippaMCPHost(integrations: s.demo, sheets: s.sheets, hostData: data, askForAccess: false, now: { now }, calendar: berlin))
+            let read = await call(tools, "mail_search", ["read_status": "read"])
+            let unread = await call(tools, "mail_search", ["unread": true])
+            // A reader written before read_status: read mails come from the protocol's default (all minus unread).
+            let viaDefault = try await LegacyMailReader(data: DemoHostData(integrations: s.demo, now: now)).searchMail("", readStatus: .read, limit: 10).items.map(\.subject)
+            func rows(_ r: (json: [String: Any], isError: Bool, bytes: Int)) -> [[String: Any]] { (r.json["data"] as? [String: Any])?["mails"] as? [[String: Any]] ?? [] }
+            let sel = selected.json["data"] as? [String: Any] ?? [:]
+            return sel["replied"] as? Bool == true && sel["flagged"] as? Bool == true && sel["forwarded"] as? Bool == false
+                && rows(read).map { $0["subject"] as? String } == ["Gelesen"] && rows(read).first?["replied"] as? Bool == true
+                && rows(unread).map { $0["subject"] as? String } == ["Neu"] && rows(unread).first?["forwarded"] as? Bool == true
+                && rows(unread).first?["flagged"] as? Bool == true && viaDefault == ["Nebenkostenabrechnung 2025"]
         }
         await mailSelectionChecks()
         await mailAccountChecks()

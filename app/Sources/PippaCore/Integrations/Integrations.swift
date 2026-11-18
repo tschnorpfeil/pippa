@@ -78,14 +78,19 @@ public struct MailMessage: Sendable, Hashable {
     public var locator: MailLocator?
     /// The whole message as Mail keeps it (RFC 822, attachments included), when Mail gave it.
     public var source: String?
+    /// Mail's own flags (Mail.sdef `was replied to`, `was forwarded`, `flagged status`); false when Mail did not say.
+    public var replied: Bool
+    public var forwarded: Bool
+    public var flagged: Bool
     public var replySource: MailReplySource? {
         let target = replyTo?.trimmingCharacters(in: .whitespacesAndNewlines)
         return messageID.flatMap { MailReplySource(messageID: $0, replyTo: target.flatMap { $0.isEmpty ? nil : $0 } ?? sender, subject: subject) }
     }
     public init(subject: String, sender: String, date: Date?, body: String, attachmentNames: [String], messageID: String? = nil, replyTo: String? = nil,
-                locator: MailLocator? = nil, source: String? = nil) {
+                locator: MailLocator? = nil, source: String? = nil, replied: Bool = false, forwarded: Bool = false, flagged: Bool = false) {
         self.subject = subject; self.sender = sender; self.date = date; self.body = body; self.attachmentNames = attachmentNames
         self.messageID = messageID; self.replyTo = replyTo; self.locator = locator; self.source = source
+        self.replied = replied; self.forwarded = forwarded; self.flagged = flagged
     }
 
     /// As .eml text, so the normal flow (overview, deadlines, questions) reads it like a filed mail: Mail's own message

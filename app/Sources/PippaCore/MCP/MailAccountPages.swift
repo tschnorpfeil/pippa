@@ -33,6 +33,78 @@ public protocol MailAccountReading: Sendable {
     func rows(account: String, ids: [Int]) async throws -> [MailSearchRow]
     /// The message with this Mail id in this account's inbox, only when its Message-ID and whole mailbox path match, with where it is.
     func message(account: String, mailID: Int, messageID: String, path: [String]) async throws -> MailInboxMessage?
+    /// As `candidates(account:query:unread:)`, by read status and in the account's Inbox, Sent or Drafts.
+    func candidates(account: String, query: String, readStatus: MailReadStatus, mailbox: MailBoxKind) async throws -> [MailSearchCandidate]
+    /// As `rows(account:ids:)`, in the account's Inbox, Sent or Drafts.
+    func rows(account: String, ids: [Int], mailbox: MailBoxKind) async throws -> [MailSearchRow]
+    /// As `message(account:mailID:messageID:path:)`, in the account's Inbox, Sent or Drafts.
+    func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage?
+    /// Whether this account's Sent or Drafts already hold a reply to this message (`nil`: this reader cannot tell).
+    func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity?
+}
+
+extension MailAccountReading {
+    /// Readers that know only the inbox and `unread`: read mails are every match minus the unread ones; Sent and Drafts fail.
+    public func candidates(account: String, query: String, readStatus: MailReadStatus, mailbox: MailBoxKind) async throws -> [MailSearchCandidate] {
+        guard mailbox == .inbox else { throw MailAccountProblem.failed }
+        switch readStatus {
+        case .all: return try await candidates(account: account, query: query, unread: false)
+        case .unread: return try await candidates(account: account, query: query, unread: true)
+        case .read:
+            let unread = Set(try await candidates(account: account, query: query, unread: true).map(\.id))
+            return try await candidates(account: account, query: query, unread: false).filter { !unread.contains($0.id) }
+        }
+    }
+
+    public func rows(account: String, ids: [Int], mailbox: MailBoxKind) async throws -> [MailSearchRow] {
+        guard mailbox == .inbox else { throw MailAccountProblem.failed }
+        return try await rows(account: account, ids: ids)
+    }
+
+    public func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage? {
+        guard mailbox == .inbox else { throw MailAccountProblem.failed }
+        return try await message(account: account, mailID: mailID, messageID: messageID, path: path)
+    }
+
+    public func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity? { nil }
+}
+
+/// What this account's Sent and Drafts say about a message: a reply was sent, a reply draft waits.
+public struct MailThreadActivity: Sendable, Equatable {
+    public var sentReply: Bool
+    public var draft: Bool
+    public init(sentReply: Bool, draft: Bool) { self.sentReply = sentReply; self.draft = draft }
+}
+
+/// Is a mail in Sent or Drafts a reply to the original? Its headers name the original's Message-ID (In-Reply-To or
+/// References), or its subject is "Re:/AW: <original subject>" and it is not older than the original.
+public enum MailThreadMatch {
+    static let replyPrefixes = ["re:", "aw:", "antw:", "sv:"]
+    static let prefixes = replyPrefixes + ["wg:", "fwd:", "fw:"]
+
+    /// The subject without reply and forward prefixes, whitespace collapsed.
+    public static func core(_ subject: String) -> String {
+        var text = subject.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        var changed = true
+        while changed {
+            changed = false
+            for prefix in prefixes where text.lowercased().hasPrefix(prefix) {
+                text = String(text.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+                changed = true
+            }
+        }
+        return text
+    }
+
+    public static func isReply(_ candidate: String, namesID: Bool, date: Date?, to original: String, since: Date?) -> Bool {
+        if namesID { return true }
+        let wanted = core(original)
+        let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !wanted.isEmpty, replyPrefixes.contains(where: { trimmed.hasPrefix($0) }),
+              core(candidate).compare(wanted, options: [.caseInsensitive]) == .orderedSame else { return false }
+        if let since, let date, date < since.addingTimeInterval(-60) { return false }
+        return true
+    }
 }
 
 extension SystemIntegrations {
@@ -63,7 +135,8 @@ struct MailPageEntry: Sendable, Equatable {
 struct MailSnapshot: Sendable {
     var id: String
     var query: String
-    var unread: Bool
+    var readStatus: MailReadStatus = .all
+    var mailbox: MailBoxKind = .inbox
     var account: String?
     var entries: [MailPageEntry]
     var coverage: [MailAccountCoverage]
@@ -82,6 +155,8 @@ struct MailRef: Sendable, Equatable {
     var messageID: String
     var date: Date?
     var path: [String]
+    /// The top-level container the search read (Inbox, Sent or Drafts).
+    var mailbox: MailBoxKind = .inbox
 }
 
 /// One message read by its account, with where Mail says it is: the account id and the whole mailbox path.
@@ -99,8 +174,11 @@ public struct MailInboxMessage: Sendable {
 public final class MailPageStore: @unchecked Sendable {
     /// Preview rows `mail_search` may return in one answer, over all its pages.
     public static let rowsPerAnswer = 100
+    /// The same for an answer with an extended budget (an online AI with the tools of the AI on this Mac).
+    public static let extendedRowsPerAnswer = 300
     private let lock = NSLock()
     private var owner: UUID?
+    private var limit = MailPageStore.rowsPerAnswer
     private var snapshots: [String: MailSnapshot] = [:]
     private var cursors: [String: (snapshot: String, offset: Int)] = [:]
     private var refs: [String: MailRef] = [:]
@@ -112,14 +190,18 @@ public final class MailPageStore: @unchecked Sendable {
 
     /// The answer `turn` takes the store, dropping an earlier answer's state. `live` runs under the store's lock: an
     /// answer that is no longer the running one can never take the store back from a newer one.
-    func claim(_ turn: UUID?, live: () -> Bool) -> Bool {
+    func claim(_ turn: UUID?, extended: Bool = false, live: () -> Bool) -> Bool {
         lock.withLock {
             guard live() else { return false }
             if owner != turn { owner = turn; snapshots = [:]; cursors = [:]; refs = [:]; delivered = 0; reserved = 0 }
+            limit = extended ? Self.extendedRowsPerAnswer : Self.rowsPerAnswer
             claimed = true
             return true
         }
     }
+
+    /// Previews the owning answer may show in all (`rowsPerAnswer` or `extendedRowsPerAnswer`).
+    func rowLimit(turn: UUID?) -> Int { owned(turn) { limit } ?? Self.rowsPerAnswer }
 
     private func owned<T>(_ turn: UUID?, _ body: () -> T) -> T? { lock.withLock { owner == turn ? body() : nil } }
 
@@ -128,7 +210,7 @@ public final class MailPageStore: @unchecked Sendable {
     func requiresRef(_ turn: UUID?) -> Bool { owned(turn) { claimed } ?? false }
 
     /// Previews this answer may still show (`nil`: another answer owns the store).
-    func available(turn: UUID?) -> Int? { owned(turn) { max(0, Self.rowsPerAnswer - delivered - reserved) } }
+    func available(turn: UUID?) -> Int? { owned(turn) { max(0, limit - delivered - reserved) } }
 
     func save(_ snapshot: MailSnapshot, turn: UUID?) -> Bool { owned(turn) { snapshots[snapshot.id] = snapshot; return true } ?? false }
 
@@ -147,9 +229,9 @@ public final class MailPageStore: @unchecked Sendable {
     /// Holds up to `wanted` previews for a page before it reads Mail; parallel pages never pass `rowsPerAnswer` together.
     func reserve(_ wanted: Int, turn: UUID?) -> (granted: Int, left: Int, exhausted: Bool)? {
         owned(turn) {
-            let granted = min(max(0, wanted), max(0, Self.rowsPerAnswer - delivered - reserved))
+            let granted = min(max(0, wanted), max(0, limit - delivered - reserved))
             reserved += granted
-            return (granted, Self.rowsPerAnswer - delivered - reserved, delivered == Self.rowsPerAnswer)
+            return (granted, limit - delivered - reserved, delivered >= limit)
         }
     }
 

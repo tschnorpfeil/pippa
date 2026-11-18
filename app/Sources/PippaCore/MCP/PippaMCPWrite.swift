@@ -46,7 +46,7 @@ public struct PippaMCPWriteTools: Sendable {
                  "date=YYYY-MM-DD/today/tomorrow/weekday; time=HH:MM needs date.",
                  ["title": text, "date": date, "time": time, "list": text, "notes": text], required: ["title"]),
             tool("mail_draft", "Mail-Entwurf",
-                 "Unsent Mail; reply_to=exact shown email path/selected; omit=new subject/to.",
+                 "Unsent Mail; reply_to=mail_ref/email path/selected; omit=new subject/to.",
                  ["body": text, "reply_to": text, "subject": text, "to": text],
                  required: ["body"]),
         ]

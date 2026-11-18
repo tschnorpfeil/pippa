@@ -123,6 +123,8 @@ final class PiSession {
         catch { startupTask = nil; throw error }
         startupTask = nil
         onStarting(false)
+        // An online AI with the tools of the AI on this Mac sorts a whole inbox: a larger Mail budget for this answer.
+        turn.setExtendedBudget(route.hasMacAccess)
         try Task.checkCancellation()
         let stream: AsyncThrowingStream<PiRPCEvent, Error>
         do {
@@ -392,6 +394,8 @@ final class PiSession {
         var extra = ["PIPPA_WEB_DIR": webDirectory.path]
         if let online = route.online { extra[PiOnlineProvider.keyVariable] = online.key }
         for key in ["PI_CODING_AGENT_DIR", "PIPPA_TRASH_DIR"] { if let value = env[key] { extra[key] = value } }
+        // Matches the extended Mail budget of its answers (`PippaMCPTurn.extendedBudget`): more tool calls per answer.
+        if route.hasMacAccess { extra["PIPPA_MAX_CALLS"] = "80" }
         // An online Pi reads its provider's configuration and credential only from its own copy: what was checked is
         // what every request of this process reaches, whatever happens to ~/.pi/agent meanwhile.
         if let pinned {

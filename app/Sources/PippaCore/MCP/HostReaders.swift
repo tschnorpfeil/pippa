@@ -18,11 +18,26 @@ public struct MailHeader: Sendable, Equatable {
     public var unread: Bool
     /// The account whose inbox holds it, as the person named it in Mail; `nil` from the combined inbox search.
     public var account: String?
+    /// Mail's own flags (Mail.sdef `was replied to`, `was forwarded`, `flagged status`).
+    public var replied: Bool
+    public var forwarded: Bool
+    public var flagged: Bool
     public init(subject: String, sender: String, date: Date?, mailbox: String, preview: String, messageID: String? = nil, unread: Bool = false,
-                account: String? = nil) {
+                account: String? = nil, replied: Bool = false, forwarded: Bool = false, flagged: Bool = false) {
         self.subject = subject; self.sender = sender; self.date = date; self.mailbox = mailbox; self.preview = preview
         self.messageID = messageID; self.unread = unread; self.account = account
+        self.replied = replied; self.forwarded = forwarded; self.flagged = flagged
     }
+}
+
+/// Which mails a search keeps by Mail's read status.
+public enum MailReadStatus: String, Sendable, CaseIterable {
+    case all, unread, read
+}
+
+/// Which top-level Mail container a search reads, one child mailbox per account (Mail.sdef `inbox`, `sent mailbox`, `drafts mailbox`).
+public enum MailBoxKind: String, Sendable, CaseIterable {
+    case inbox, sent, drafts
 }
 
 /// An open reminder, read only.
@@ -49,6 +64,8 @@ public struct HostFetch<Item: Sendable & Equatable>: Sendable, Equatable {
 public protocol HostDataReading: Sendable {
     /// Inboxes of all accounts: subject or sender contains `query` (empty: every mail); `unread` keeps only unread ones.
     func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader>
+    /// As `searchMail(_:unread:limit:)`, filtered by read status (`read`: only mails already read).
+    func searchMail(_ query: String, readStatus: MailReadStatus, limit: Int) async throws -> HostFetch<MailHeader>
     /// Reminders not done; with `dueBefore` only those due by then (those without a date are dropped).
     func openReminders(dueBefore: Date?, limit: Int) async throws -> HostFetch<ReminderItem>
     /// May Pippa search Photos (automation)? `ask: true` shows the system prompt. Starts Photos invisibly if needed.
@@ -63,10 +80,30 @@ public protocol HostDataReading: Sendable {
     func recentPhotos(since: Date?, limit: Int) async throws -> HostFetch<PhotoHit>
 }
 
+extension HostDataReading {
+    /// For readers that only know `unread`: read mails are every match minus the unread ones, so nothing is guessed.
+    public func searchMail(_ query: String, readStatus: MailReadStatus, limit: Int) async throws -> HostFetch<MailHeader> {
+        switch readStatus {
+        case .all: return try await searchMail(query, unread: false, limit: limit)
+        case .unread: return try await searchMail(query, unread: true, limit: limit)
+        case .read:
+            let wide = 1000
+            let all = try await searchMail(query, unread: false, limit: wide)
+            let unread = try await searchMail(query, unread: true, limit: wide)
+            let read = all.items.filter { !$0.unread }
+            return HostFetch(items: Array(read.prefix(limit)), total: max(read.count, all.total - unread.total))
+        }
+    }
+}
+
 extension SystemIntegrations: HostDataReading {
     public func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> {
+        try await searchMail(query, readStatus: unread ? .unread : .all, limit: limit)
+    }
+
+    public func searchMail(_ query: String, readStatus: MailReadStatus, limit: Int) async throws -> HostFetch<MailHeader> {
         guard AppleEvents.isRunning(.mail) else { throw PippaError.appNotOpen(Integration.mail.appName) }
-        return try await MailSearchScript.search(query, unread: unread, limit: limit)
+        return try await MailSearchScript.search(query, readStatus: readStatus, limit: limit)
     }
 
     /// Own `EKEventStore` per read: after a fresh permission an old store sees nothing.
@@ -193,12 +230,16 @@ public final class DemoHostData: HostDataReading, @unchecked Sendable {
     }
 
     public func searchMail(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> {
+        try await searchMail(query, readStatus: unread ? .unread : .all, limit: limit)
+    }
+
+    public func searchMail(_ query: String, readStatus: MailReadStatus, limit: Int) async throws -> HostFetch<MailHeader> {
         guard await integrations.access(.mail) == .granted else { throw PippaError.accessDenied(Integration.mail.appName) }
         let (closed, mails) = lock.withLock { (mailClosed, storedMails) }
         if closed { throw PippaError.appNotOpen(Integration.mail.appName) }
         let found = mails.filter { m in
             (query.isEmpty || m.subject.localizedCaseInsensitiveContains(query) || m.sender.localizedCaseInsensitiveContains(query))
-                && (!unread || m.unread)
+                && (readStatus == .all || m.unread == (readStatus == .unread))
         }
         return HostFetch(items: MailSelection.newest(found, limit: limit, date: \.date, tie: { $0.messageID ?? "" }), total: found.count)
     }
@@ -289,8 +330,23 @@ public protocol MailSearchNative: Sendable {
     /// Every match (subject or sender contains `query`, empty: all; `unread`), in any order, with its date. Throws when
     /// the answer is malformed.
     func candidates(query: String, unread: Bool) throws -> [MailSearchCandidate]
+    /// Every match with this read status (`read`: already read).
+    func candidates(query: String, readStatus: MailReadStatus) throws -> [MailSearchCandidate]
     /// Header and start of the text of exactly these messages. A message that is gone is left out. Throws when the answer is malformed.
     func rows(ids: [Int]) throws -> [MailSearchRow]
+}
+
+extension MailSearchNative {
+    /// For sources that only know `unread`: read mails are every match minus the unread ones.
+    public func candidates(query: String, readStatus: MailReadStatus) throws -> [MailSearchCandidate] {
+        switch readStatus {
+        case .all: return try candidates(query: query, unread: false)
+        case .unread: return try candidates(query: query, unread: true)
+        case .read:
+            let unread = Set(try candidates(query: query, unread: true).map(\.id))
+            return try candidates(query: query, unread: false).filter { !unread.contains($0.id) }
+        }
+    }
 }
 
 /// Choose the newest matches from all matching dates, then read only those. Sorting is never left to Mail's order.
@@ -299,8 +355,12 @@ public enum MailSearchFlow {
     static let attempts = 2
 
     public static func search(_ native: any MailSearchNative, query: String, unread: Bool, limit: Int) throws -> HostFetch<MailHeader> {
+        try search(native, query: query, readStatus: unread ? .unread : .all, limit: limit)
+    }
+
+    public static func search(_ native: any MailSearchNative, query: String, readStatus: MailReadStatus, limit: Int) throws -> HostFetch<MailHeader> {
         for _ in 0..<attempts {
-            let all = try native.candidates(query: query, unread: unread)
+            let all = try native.candidates(query: query, readStatus: readStatus)
             guard Set(all.map(\.id)).count == all.count else { throw PippaError.notAvailable }
             let chosen = MailSelection.newest(all, limit: limit, date: \.date, tie: { String(format: "%020lld", Int64($0.id)) })
             if chosen.isEmpty { return HostFetch(items: [], total: all.count) }
@@ -337,15 +397,24 @@ public enum MailSearchFlow {
 
     /// One row per requested id: `{id, subject, sender, date, mailbox, start, message id, unread}`, or `{}` for a message that is gone.
     /// `identity`: each row also ends with the account id and the mailbox path (`{…, acctID, {box, …}}`, per-account search).
+    /// Either form may end with Mail's flags `{…, replied, forwarded, flagged}`; without them all three are false.
     public static func parseRows(_ reply: NSAppleEventDescriptor, expecting count: Int, identity: Bool = false) throws -> [MailSearchRow] {
-        let fields = identity ? 10 : 8
+        let base = identity ? 10 : 8
         guard reply.descriptorType == typeAEList, reply.numberOfItems == count else { throw PippaError.notAvailable }
         var rows: [MailSearchRow] = []
         for row in AppleEvents.items(reply) {
             guard row.descriptorType == typeAEList else { throw PippaError.notAvailable }
             if row.numberOfItems == 0 { continue }
             let f = AppleEvents.items(row)
-            guard f.count == fields, row.numberOfItems == fields else { throw PippaError.notAvailable }
+            guard f.count == row.numberOfItems, f.count == base || f.count == base + 3 else { throw PippaError.notAvailable }
+            let booleans: Set<DescType> = [typeBoolean, typeTrue, typeFalse]
+            var flags = [false, false, false]
+            if f.count == base + 3 {
+                flags = try (base..<(base + 3)).map { i -> Bool in
+                    guard booleans.contains(f[i].descriptorType) else { throw PippaError.notAvailable }
+                    return f[i].booleanValue
+                }
+            }
             let text = try [1, 2, 4, 5, 6].map { i -> String in
                 guard let value = f[i].stringValue, f[i].descriptorType != typeAEList else { throw PippaError.notAvailable }
                 return value
@@ -364,7 +433,7 @@ public enum MailSearchFlow {
             }
             rows.append(MailSearchRow(id: id, date: date, header: MailHeader(
                 subject: text[0], sender: text[1], date: date, mailbox: text[2], preview: text[3],
-                messageID: messageID.isEmpty ? nil : messageID, unread: f[7].booleanValue),
+                messageID: messageID.isEmpty ? nil : messageID, unread: f[7].booleanValue, replied: flags[0], forwarded: flags[1], flagged: flags[2]),
                 accountID: where_.map { $0.account.isEmpty ? nil : $0.account } ?? nil, path: where_.map { $0.path.isEmpty ? nil : $0.path } ?? nil))
         }
         return rows
@@ -393,18 +462,24 @@ public enum MailSearchFlow {
 /// neither could be proven without reading a real mailbox. Both steps are bounded by their own 20 second timeout.
 enum MailSearchScript {
     static let source = """
-    on searchCandidates(q, onlyUnread)
+    on searchCandidates(q, readMode)
         tell application id "com.apple.mail"
             with timeout of 20 seconds
-                if q is "" and onlyUnread then
+                if q is "" and readMode is "unread" then
                     set theIDs to id of (messages of inbox whose read status is false)
                     set theDates to date received of (messages of inbox whose read status is false)
+                else if q is "" and readMode is "read" then
+                    set theIDs to id of (messages of inbox whose read status is true)
+                    set theDates to date received of (messages of inbox whose read status is true)
                 else if q is "" then
                     set theIDs to id of (messages of inbox)
                     set theDates to date received of (messages of inbox)
-                else if onlyUnread then
+                else if readMode is "unread" then
                     set theIDs to id of (messages of inbox whose (subject contains q or sender contains q) and read status is false)
                     set theDates to date received of (messages of inbox whose (subject contains q or sender contains q) and read status is false)
+                else if readMode is "read" then
+                    set theIDs to id of (messages of inbox whose (subject contains q or sender contains q) and read status is true)
+                    set theDates to date received of (messages of inbox whose (subject contains q or sender contains q) and read status is true)
                 else
                     set theIDs to id of (messages of inbox whose subject contains q or sender contains q)
                     set theDates to date received of (messages of inbox whose subject contains q or sender contains q)
@@ -432,6 +507,9 @@ enum MailSearchScript {
                         set c to ""
                         set mid to ""
                         set isUnread to false
+                        set wasReplied to false
+                        set wasForwarded to false
+                        set isFlagged to false
                         try
                             set theSubject to (subject of m) as text
                         end try
@@ -454,7 +532,16 @@ enum MailSearchScript {
                         try
                             set isUnread to not (read status of m)
                         end try
-                        set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread}
+                        try
+                            set wasReplied to (was replied to of m) as boolean
+                        end try
+                        try
+                            set wasForwarded to (was forwarded of m) as boolean
+                        end try
+                        try
+                            set isFlagged to (flagged status of m) as boolean
+                        end try
+                        set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread, wasReplied, wasForwarded, isFlagged}
                     end if
                 end repeat
             end timeout
@@ -466,9 +553,13 @@ enum MailSearchScript {
     /// The real Mail, through Apple Events. Only inside `AppleEvents.perform`.
     struct Live: MailSearchNative {
         func candidates(query: String, unread: Bool) throws -> [MailSearchCandidate] {
+            try candidates(query: query, readStatus: unread ? .unread : .all)
+        }
+
+        func candidates(query: String, readStatus: MailReadStatus) throws -> [MailSearchCandidate] {
             try MailSearchFlow.parseCandidates(try AppleEvents.call(
                 MailSearchScript.source, handler: "searchCandidates",
-                [NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(boolean: unread)], app: .mail))
+                [NSAppleEventDescriptor(string: query), NSAppleEventDescriptor(string: readStatus.rawValue)], app: .mail))
         }
 
         func rows(ids: [Int]) throws -> [MailSearchRow] {
@@ -479,9 +570,9 @@ enum MailSearchScript {
         }
     }
 
-    static func search(_ query: String, unread: Bool, limit: Int) async throws -> HostFetch<MailHeader> {
+    static func search(_ query: String, readStatus: MailReadStatus, limit: Int) async throws -> HostFetch<MailHeader> {
         try await AppleEvents.perform { () throws -> HostFetch<MailHeader> in
-            try MailSearchFlow.search(Live(), query: query, unread: unread, limit: limit)
+            try MailSearchFlow.search(Live(), query: query, readStatus: readStatus, limit: limit)
         }
     }
 }

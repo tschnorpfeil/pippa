@@ -95,10 +95,12 @@ extension PippaMCPTools {
 
     /// One mail for the model: text, identity for a reply draft, and its attachments saved as files (`MailFiling`), so
     /// read_document can read them. Without Mail's original message, or when saving fails, only names are known and the result says so.
-    func mailResult(_ mail: MailMessage, source: String, account: String? = nil, filingScope: [String] = []) -> PippaMCPToolResult {
+    func mailResult(_ mail: MailMessage, source: String, account: String? = nil, filingScope: [String] = [], extra: [String: Any] = [:]) -> PippaMCPToolResult {
         let all = Self.compact(mail.body)
         let body = Self.byteClipped(all, characters: 6000, bytes: 6000)
-        var data: [String: Any] = ["subject": mail.subject, "from": mail.sender, "body": body, "bodyTruncated": body != all]
+        var data: [String: Any] = ["subject": mail.subject, "from": mail.sender, "body": body, "bodyTruncated": body != all,
+                                   "replied": mail.replied, "forwarded": mail.forwarded, "flagged": mail.flagged]
+        data.merge(extra) { a, _ in a }
         if let date = mail.date { data["date"] = Self.dateLabel(date, time: true, calendar: host.calendar) }
         if let account { data["account"] = account }
         // Identity for "Als Entwurf in Mail" (reply to exactly this mail, found via the Message-ID).
@@ -110,7 +112,11 @@ extension PippaMCPTools {
         // Without Mail's original message there are no attachment bytes, whatever names Mail lists.
         let sourceBlank = (mail.source ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         var files: [URL] = [], notSaved = mail.attachmentNames
-        if !sourceBlank, let filed = try? MailFiling.file(mail, root: host.mailFiles, scope: filingScope) { files = filed.attachments; notSaved = filed.notSaved }
+        if !sourceBlank, let filed = try? MailFiling.file(mail, root: host.mailFiles, scope: filingScope) {
+            files = filed.attachments; notSaved = filed.notSaved
+            data["eml_path"] = filed.eml.path
+            next += "To reply in its thread, call mail_draft with reply_to set to its mail_ref (in this answer) or to eml_path. "
+        }
         if !files.isEmpty {
             data["attachments"] = files.prefix(20).map { ["name": $0.lastPathComponent, "path": $0.path] }
             next += "Its attachments are saved as files: read one with mcp__pippa__read_document and its path. "
@@ -134,7 +140,22 @@ extension PippaMCPTools {
         let query = (input.query ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         // No query: the newest mails ("Habe ich neue Mails?"), not a made-up search word.
         guard query.isEmpty || ((2...100).contains(query.count) && query.utf8.count <= 400) else { return invalid("query must be 2 to 100 characters, or omitted for the newest mails.") }
-        let unread = input.unread ?? false
+        var readStatus = MailReadStatus.all
+        if let raw = input.readStatus {
+            guard let status = MailReadStatus(rawValue: raw) else { return invalid("read_status must be all, unread or read.") }
+            readStatus = status
+        }
+        // `unread` stays for older callers: true is read_status unread, false is all (or read, when asked for).
+        switch (input.unread, input.readStatus.flatMap(MailReadStatus.init(rawValue:))) {
+        case (true?, nil): readStatus = .unread
+        case (true?, .unread?), (false?, nil), (false?, .all?), (false?, .read?), (nil, _): break
+        case (true?, _?), (false?, .unread?): return invalid("unread and read_status contradict each other: pass only read_status.")
+        }
+        var mailbox = MailBoxKind.inbox
+        if let raw = input.mailbox {
+            guard let kind = MailBoxKind(rawValue: raw) else { return invalid("mailbox must be inbox, sent or drafts.") }
+            mailbox = kind
+        }
         let limit = input.limit ?? 10
         guard (1...20).contains(limit) else { return invalid("limit must be 1 to 20.") }
         if input.cursor == nil, let account = input.account?.trimmingCharacters(in: .whitespacesAndNewlines), !(1...200).contains(account.count) || account.utf8.count > 400 {
@@ -142,42 +163,44 @@ extension PippaMCPTools {
         }
         // Without the per-account reader there are no accounts, cursors or references to continue: never a wider search.
         guard let reader = host.mailAccounts else {
+            if mailbox != .inbox { return Self.notRead("unsupported_mailbox", "Pippa can search only the inboxes here, not Sent or Drafts. Nothing was read. Omit mailbox.") }
             if input.cursor != nil { return Self.notRead("stale_cursor", "This cursor is not from a mail_search in this answer. Nothing was read. Call mail_search again without cursor.") }
             if input.account != nil { return Self.notRead("unknown_account", "Pippa cannot tell Mail accounts apart here. Nothing was read. Omit account to search every inbox.") }
-            return await mailSearchCombined(query: query, unread: unread, limit: limit, turn: turn)
+            return await mailSearchCombined(query: query, readStatus: readStatus, limit: limit, turn: turn)
         }
         if case .blocked(let reply) = await ensure(.mail, openMail: true,
                                                    closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
             return reply
         }
         // Paging through one search is not guessing again: only new searches count toward the stop.
-        if input.cursor == nil, let count = await turn?.countMailSearch(), count >= Self.mailSearchesBeforeStop {
-            var result = await mailSearchAccounts(reader, input, query: query, unread: unread, limit: limit, turn: turn)
+        if input.cursor == nil, let count = await turn?.countMailSearch(), count >= Self.mailSearchesBeforeStop(turn) {
+            var result = await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
             result.text = Self.withStop(result.text, count: count)
             return result
         }
-        return await mailSearchAccounts(reader, input, query: query, unread: unread, limit: limit, turn: turn)
+        return await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
     }
 
     /// The combined inbox without accounts (stand-in readers, PIPPA_DEMO).
-    private func mailSearchCombined(query: String, unread: Bool, limit: Int, turn: PippaMCPTurn?) async -> PippaMCPToolResult {
+    private func mailSearchCombined(query: String, readStatus: MailReadStatus, limit: Int, turn: PippaMCPTurn?) async -> PippaMCPToolResult {
+        let unread = readStatus == .unread
         if case .blocked(let reply) = await ensure(.mail, openMail: true,
                                                    closed: L("Open %@ first. Then ask again.", table: "MCP", Integration.mail.appName)) {
             return reply
         }
         do {
-            var fetch = try await host.hostData.searchMail(query, unread: unread, limit: limit)
+            var fetch = try await host.hostData.searchMail(query, readStatus: readStatus, limit: limit)
             // Mail finds parts of words, not other forms: "Zahlungseingänge" misses "Zahlungseingangsliste". A small
             // model then guesses word after word; one retry with the singular saves those turns.
             var searched = query
             if fetch.items.isEmpty, let singular = Self.mailSingular(query) {
-                let retry = try await host.hostData.searchMail(singular, unread: unread, limit: limit)
+                let retry = try await host.hostData.searchMail(singular, readStatus: readStatus, limit: limit)
                 if !retry.items.isEmpty { fetch = retry; searched = singular }
             }
             let query = searched
             let mails = fetch.items.map { m -> [String: Any] in
                 var value: [String: Any] = ["subject": m.subject, "from": m.sender, "mailbox": m.mailbox, "start": Self.compact(m.preview),
-                                            "unread": m.unread]
+                                            "unread": m.unread, "replied": m.replied, "forwarded": m.forwarded, "flagged": m.flagged]
                 // Only an id mail_read accepts: the exact mail, even when subject and sender repeat.
                 if let id = m.messageID.flatMap(MailReplySource.canonicalMessageID) { value["message_id"] = id }
                 if let date = m.date { value["date"] = Self.dateLabel(date, time: true, calendar: host.calendar) }
@@ -186,10 +209,10 @@ extension PippaMCPTools {
             let next = "If mails is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences. start is only the beginning of each email; for the whole email or its attachments call mail_read with its message_id (without one: its subject and from). If total is zero, no email in the inbox matches. If truncated is true, say that only part of the matches could be shown."
             // A small model asked for "the last three" when there are two keeps searching until time runs out.
             var result = Self.bounded(source: query.isEmpty ? "Mail on this Mac (newest in the inbox)" : "Mail on this Mac (inbox search by subject or sender)",
-                                      data: ["query": query, "unread": unread, "mails": mails, "shown": mails.count, "total": fetch.total,
+                                      data: ["query": query, "unread": unread, "read_status": readStatus.rawValue, "mails": mails, "shown": mails.count, "total": fetch.total,
                                              "truncated": fetch.total > mails.count],
                                       next: next)
-            if let count = await turn?.countMailSearch(), count >= Self.mailSearchesBeforeStop {
+            if let count = await turn?.countMailSearch(), count >= Self.mailSearchesBeforeStop(turn) {
                 result.text = Self.withStop(result.text, count: count)
             }
             if !fetch.items.isEmpty {
@@ -203,6 +226,12 @@ extension PippaMCPTools {
 
     /// From this Mail search on in one answer, the result tells the model to stop and work with what it found.
     static let mailSearchesBeforeStop = 4
+    /// The same for an answer with an extended budget (`PippaMCPTurn.extendedBudget`).
+    static let extendedMailSearchesBeforeStop = 10
+
+    static func mailSearchesBeforeStop(_ turn: PippaMCPTurn?) -> Int {
+        turn?.extendedBudget == true ? extendedMailSearchesBeforeStop : mailSearchesBeforeStop
+    }
 
     static func stopSentence(_ count: Int) -> String {
         "This is Mail search \(count) in this answer: stop searching. Tell the person which mails you found and that you found no others, then work with those."
