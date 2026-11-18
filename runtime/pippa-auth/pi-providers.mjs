@@ -149,7 +149,9 @@ export async function main(args = process.argv.slice(2)) {
     const runtime = await ModelRuntime.create({ allowModelNetwork: false, signal: controller.signal });
     if (command === 'catalog') {
       if (providerId && runtime.getProvider(providerId)) await refreshProvider(runtime, providerId, controller.signal);
-      write(catalog(runtime, await piDefaults(release))); return 0;
+      const defaults = await piDefaults(release);
+      controller.signal.throwIfAborted();
+      write(catalog(runtime, defaults)); return 0;
     }
     const provider = runtime.getProvider(providerId);
     if (!provider || (command === 'login' && !((authType === 'oauth' && provider.auth.oauth) || (authType === 'api_key' && provider.auth.apiKey?.login)))) {

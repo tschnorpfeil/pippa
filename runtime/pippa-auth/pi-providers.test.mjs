@@ -90,6 +90,25 @@ test('provider refresh is scoped and bounded, and a refresh failure does not und
   assert.ok(options.signal instanceof AbortSignal);
 });
 
+test('catalog initialization that resolves after cancellation sends no provider list', () => {
+  const root = mkdtempSync(join(tmpdir(), 'pippa-provider-abort-'));
+  try {
+    const sdk = join(root, 'node_modules/@earendil-works/pi-coding-agent/dist');
+    mkdirSync(sdk, { recursive: true });
+    writeFileSync(join(sdk, 'index.js'), `
+      export class ModelRuntime {
+        static async create() { process.emit('SIGTERM'); return new ModelRuntime(); }
+        getAvailableSnapshot() { return []; }
+        getProviders() { return []; }
+      }
+    `);
+    const run = spawnSync(process.execPath, [join(here, 'pi-providers.mjs'), root, 'catalog'],
+      { env: { HOME: root, PATH: process.env.PATH }, encoding: 'utf8', timeout: 5000 });
+    assert.deepEqual(JSON.parse(run.stdout.trim()), { event: 'error', code: 'cancelled' });
+    assert.equal(run.status, 1);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('broken releases and unknown commands return bounded protocol errors without stderr', () => {
   const home = mkdtempSync(join(tmpdir(), 'pippa-provider-missing-'));
   try {
