@@ -130,7 +130,6 @@
 "Done" = "Done";
 "In what I read" = "In what I read";
 "Nothing changed on your Mac" = "Nothing changed on your Mac";
-"Nothing leaves this Mac." = "Nothing leaves this Mac.";
 "Nothing read for this answer" = "Nothing read for this answer";
 "Nothing yet" = "Nothing yet";
 "Pages %@ of %lld" = "Pages %@ of %lld";
@@ -167,7 +166,6 @@
 "Thought for %@" = "Thought for %@";
 "Worked for %@ · %lld steps" = "Worked for %@ · %lld steps";
 "Worked for %@ · 1 step" = "Worked for %@ · 1 step";
-"Your conversation goes to the online AI you chose." = "Your conversation goes to the online AI you chose.";
 
 "Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings." = "Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.";
 
@@ -260,3 +258,7 @@
 "For one question to %@" = "For one question to %@";
 
 "Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review." = "Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review.";
+"AI for this answer · %@" = "AI for this answer · %@";
+"AI for this answer · On this Mac" = "AI for this answer · On this Mac";
+"Your next question goes to your selected online AI." = "Your next question goes to your selected online AI.";
+"Your next question uses the AI on this Mac." = "Your next question uses the AI on this Mac.";

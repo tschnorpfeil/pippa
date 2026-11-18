@@ -130,7 +130,6 @@
 "Done" = "Erledigt";
 "In what I read" = "Steht in dem, was ich gelesen habe";
 "Nothing changed on your Mac" = "Nichts auf deinem Mac geändert";
-"Nothing leaves this Mac." = "Nichts verlässt diesen Mac.";
 "Nothing read for this answer" = "Für diese Antwort nichts gelesen";
 "Nothing yet" = "Noch nichts";
 "Pages %@ of %lld" = "Seiten %1$@ von %2$lld";
@@ -167,7 +166,6 @@
 "Thought for %@" = "%@ nachgedacht";
 "Worked for %@ · %lld steps" = "%@ gearbeitet · %lld Schritte";
 "Worked for %@ · 1 step" = "%@ gearbeitet · 1 Schritt";
-"Your conversation goes to the online AI you chose." = "Dein Gespräch geht an die Online-KI, die du gewählt hast.";
 
 "Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings." = "Dein Online-KI-Limit ist vorerst erreicht. Versuche es später erneut oder wechsle in den Einstellungen zur KI auf diesem Mac.";
 
@@ -260,3 +258,7 @@
 "For one question to %@" = "Für eine Frage an %@";
 
 "Pippa couldn’t verify this provider’s connection. Check it in AI settings, then reopen this review." = "Pippa konnte die Verbindung zu diesem Anbieter nicht bestätigen. Prüfe sie in den KI-Einstellungen und öffne die Freigabe erneut.";
+"AI for this answer · %@" = "KI für diese Antwort · %@";
+"AI for this answer · On this Mac" = "KI für diese Antwort · Auf diesem Mac";
+"Your next question goes to your selected online AI." = "Deine nächste Frage geht an die ausgewählte Online-KI.";
+"Your next question uses the AI on this Mac." = "Deine nächste Frage beantwortet die KI auf diesem Mac.";
