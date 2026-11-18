@@ -306,7 +306,7 @@ export default function (pi: ExtensionAPI) {
 		const changes = changesOf(event.toolName, event.details, event.isError === true);
 		if (changes.length) pi.appendEntry("pippa-change", { v: 1, changes });
 		if (backup?.copy) {
-			const note = `The previous version of ${basename(backup.file)} is kept at ${backup.copy}.`;
+			const note = `The previous version of ${basename(backup.file)} is kept locally. Use Pippa's Undo button to restore it.`;
 			return { content: [...(event.content ?? []), { type: "text", text: note }] };
 		}
 		return undefined;

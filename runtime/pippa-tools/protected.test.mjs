@@ -4,13 +4,13 @@
 //   node --experimental-strip-types --test runtime/pippa-tools/protected.test.mjs
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { link, mkdir, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { isProtected, namedPaths, protection, PROTECTED_REASON, sandboxRules, toolCallReason } from "./protected.ts";
+import { assertMovableEntry, isProtected, namedPaths, protection, PROTECTED_REASON, sandboxRules, toolCallReason } from "./protected.ts";
 import { guardFetch, refuseRedirects } from "./transport.ts";
 import { places, sandboxProfile } from "./shell.ts";
 
@@ -54,6 +54,18 @@ test("hard-linked files cannot alias a credential through an open folder", async
 		await link(join(home, ".pi/agent/auth.json"), alias);
 		assert.equal(isProtected(alias, where), true);
 		assert.equal(toolCallReason("read", { path: alias }, join(support, "pi-work"), where), PROTECTED_REASON);
+	} finally { await rm(home, { recursive: true, force: true }); }
+});
+
+test("system hard links on a different volume stay usable, and the working directory itself cannot move", async () => {
+	const { home, support, where } = await fixture();
+	try {
+		const program = "/usr/bin/grep";
+		if (existsSync(program) && statSync(program).dev !== statSync(support).dev) {
+			assert.equal(isProtected(program, where), false);
+		}
+		assert.throws(() => assertMovableEntry(join(support, "pi-work"), where), /protected/);
+		assert.doesNotThrow(() => assertMovableEntry(join(support, "pi-work", "note.txt"), where));
 	} finally { await rm(home, { recursive: true, force: true }); }
 });
 

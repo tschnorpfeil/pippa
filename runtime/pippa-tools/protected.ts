@@ -110,14 +110,22 @@ function protectedLocation(target: string, where: Protection, follow = true): bo
 /** Whether an absolute path lies in a protected place, by the path it actually opens. */
 export function isProtected(path: string, where: Protection = protection()): boolean {
 	const target = real(path);
-	// A hard link has no canonical parent. Refuse multiply linked regular files rather than trusting an open alias.
-	try { const info = statSync(target); if (info.isFile() && info.nlink > 1) return true; } catch { /* not there yet */ }
+	// Hard links cannot cross volumes. System-volume programs cannot alias files in the protected data volume.
+	try {
+		const info = statSync(target);
+		if (info.isFile() && info.nlink > 1 && where.roots.some((root) => {
+			try { return statSync(real(root)).dev === info.dev; } catch { return false; }
+		})) return true;
+	} catch { /* not there yet */ }
 	return protectedLocation(target, where);
 }
 
 /** A rename or trash changes directory entries, even when the last component is an outward-pointing symlink. */
 export function assertMovableEntry(path: string, where: Protection): void {
 	const entries = [resolve(path), join(real(dirname(path)), basename(path))];
+	if (where.open.some((entry) => entries.some((path) => fold(path) === fold(entry.path) || fold(path) === fold(entry.target)))) {
+		throw new Error(PROTECTED_REASON);
+	}
 	const candidates = [...entries, real(path)];
 	const roots = where.roots.flatMap((root) => [resolve(root), real(root)]);
 	if (isProtected(path, where) || entries.some((entry) => protectedLocation(entry, where, false))

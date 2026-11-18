@@ -24,7 +24,6 @@ public struct ProtectedPaths: Sendable, Equatable {
         }
     }
 
-    private static let appWork = WorkEntry(PiConversationDefault.workingDirectory(support: Pippa.supportDirectory))
 
     public init(roots: [URL], open: [URL]) {
         self.init(roots: roots, work: open.map(WorkEntry.init))
@@ -65,7 +64,7 @@ public struct ProtectedPaths: Sendable, Equatable {
         let configured = [environment["PI_CODING_AGENT_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) },
                           environment["PIPPA_PI_HOME"].map { URL(fileURLWithPath: $0, isDirectory: true).appendingPathComponent(".pi", isDirectory: true) }]
         return Self(roots: [support, home.appendingPathComponent(".pi", isDirectory: true)] + configured.compactMap { $0 } + extra,
-                    work: [support == Pippa.supportDirectory ? appWork : WorkEntry(PiConversationDefault.workingDirectory(support: support))])
+                    work: [WorkEntry(PiConversationDefault.workingDirectory(support: support))])
     }
 
     /// The extensions' environment (protected.ts `PIPPA_PROTECTED_PATHS`, `PIPPA_WORK_DIR`).
@@ -79,7 +78,11 @@ public struct ProtectedPaths: Sendable, Equatable {
         // A hard link has no canonical parent; an open alias cannot establish that the file is outside our folders.
         var targetInfo = stat()
         if stat(Self.real(url), &targetInfo) == 0, targetInfo.st_nlink > 1,
-           (targetInfo.st_mode & S_IFMT) == S_IFREG { return true }
+           (targetInfo.st_mode & S_IFMT) == S_IFREG,
+           roots.contains(where: { root in
+               var info = stat()
+               return stat(Self.real(root), &info) == 0 && info.st_dev == targetInfo.st_dev
+           }) { return true }
         let identity = { (path: String) -> String? in
             var info = stat()
             return stat(path, &info) == 0 ? "\(UInt32(bitPattern: info.st_dev)):\(info.st_ino)" : nil
