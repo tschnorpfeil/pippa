@@ -237,6 +237,8 @@ func runSharingChecks() async {
         shared["openai-codex"] = oauth("b"); try JSONSerialization.data(withJSONObject: shared).write(to: agent.appendingPathComponent("auth.json"))
         let lock = agent.appendingPathComponent("auth.json.lock")
         try fm.createDirectory(at: lock, withIntermediateDirectories: false)
+        // Pi's async lock can remain valid for 30 seconds between creation and staleness checks.
+        try fm.setAttributes([.modificationDate: Date().addingTimeInterval(-12)], ofItemAtPath: lock.path)
         let locked = snapshot.writeBack() == .failed && authEntry("openai-codex")?["refresh"] as? String == "REFRESH-b"
         try fm.removeItem(at: lock)
         return untouched && written && superseded && locked && snapshot.writeBack() == .written

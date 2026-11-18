@@ -162,14 +162,12 @@ public struct PiRecipientSnapshot: Sendable {
         }
     }
 
-    /// proper-lockfile's lock as Pi takes it: the folder `<file>.lock`, stale after 10 s without an update.
+    /// Use Pi's lock directory. A busy lock belongs to Pi, which manages its own heartbeat and stale-lock recovery.
     static func lock(_ file: URL, attempts: Int = 40) -> URL? {
         let lock = URL(fileURLWithPath: file.path + ".lock")
         for _ in 0..<attempts {
             if mkdir(lock.path, 0o700) == 0 { return lock }
             guard errno == EEXIST else { return nil }
-            let modified = (try? FileManager.default.attributesOfItem(atPath: lock.path)[.modificationDate] as? Date) ?? Date()
-            if Date().timeIntervalSince(modified) > 10 { rmdir(lock.path); continue }
             usleep(50_000)
         }
         return nil
