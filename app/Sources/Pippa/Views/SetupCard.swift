@@ -2,8 +2,9 @@ import AppKit
 import PippaCore
 import SwiftUI
 
-/// First run, one card: load the AI for this Mac, or use an online AI in Settings. One primary button; while the AI
-/// downloads, it says what already works.
+/// First run, one card: the AI on this Mac (with its download size) or an online AI (no download, answers come from
+/// the chosen provider), one above the other. A Mac that can't run the AI itself leads with the online one. Before any AI,
+/// and while it downloads, the card says what already works: making one PDF from dropped files.
 struct SetupCard: View {
     @ObservedObject var setup: SetupModel
     var showsOnlineOption = true
@@ -47,16 +48,17 @@ struct SetupCard: View {
                     ProgressView().controlSize(.small)
                     Text(source.map { T("Taking over the AI from %@…", table: "App", $0) } ?? T("Getting ready…", table: "App"))
                 }
+            case .askDownload(let bytes) where showsOnlineOption:
+                Text(T("Choose where Pippa’s AI runs. You can change it later in Settings.", table: "App"))
+                    .fixedSize(horizontal: false, vertical: true)
+                localChoice(bytes)
+                onlineChoice(primary: false)
+                pdfHint
             case .askDownload(let bytes):
                 Text(T("Pippa’s AI runs on this Mac. It needs a one-time download of %@.", table: "App",
                        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)))
                 Text(T("Picked to fit your Mac: %@", table: "App", setup.hardware)).font(Typo.footnote).foregroundStyle(Theme.ink3)
-                HStack(spacing: Space.m) {
-                    ActionPill(title: T("Load Pippa’s AI", table: "App"), primary: true) { setup.load() }
-                    if showsOnlineOption {
-                        ActionPill(title: T("Use an Online AI…", table: "App")) { SettingsWindow.shared.show(.ai) }
-                    }
-                }
+                ActionPill(title: T("Load Pippa’s AI", table: "App"), primary: true) { setup.load() }
             case .downloading(let progress, let remaining):
                 ProgressBar(value: progress)
                 HStack {
@@ -65,12 +67,19 @@ struct SetupCard: View {
                         .contentTransition(.numericText())
                         .animation(Theme.quick, value: remaining)
                     Spacer()
+                    if showsOnlineOption { ActionPill(title: T("Use an Online AI…", table: "App")) { openOnline() } }
                     ActionPill(title: T("Stop", table: "App")) { setup.stopDownload() }
                 }
                 Label(T("Meanwhile, drop photos or PDFs here to make one PDF.", table: "Views"), systemImage: "doc.richtext")
                     .font(Typo.footnote).foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, Space.xs)
+            case .failed(let problem) where showsOnlineOption && setup.lead == .online:
+                // This Mac can't run the AI: the online AI leads, the PDF path works without any.
+                Text(problem.message).fixedSize(horizontal: false, vertical: true)
+                onlineChoice(primary: true)
+                pdfHint
+                details(problem)
             case .failed(let problem):
                 Text(problem.message).fixedSize(horizontal: false, vertical: true)
                 // Never a dead end: even when this Mac can't run the AI itself (too little memory), an online AI can.
@@ -80,25 +89,10 @@ struct SetupCard: View {
                     if space { ActionPill(title: T("Open Storage Settings…", table: "App"), primary: true) { NSWorkspace.shared.open(Self.storageSettingsURL) } }
                     if problem.canRetry { ActionPill(title: T("Try Again", table: "App"), primary: !space) { setup.begin() } }
                     if showsOnlineOption {
-                        ActionPill(title: T("Use an Online AI…", table: "App"), primary: !problem.canRetry) { SettingsWindow.shared.show(.ai) }
+                        ActionPill(title: T("Use an Online AI…", table: "App"), primary: !problem.canRetry) { openOnline() }
                     }
                 }
-                if !problem.details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    DisclosureGroup(isExpanded: detailsState.projectedValue) {
-                        VStack(alignment: .leading, spacing: Space.s) {
-                            Text(problem.details)
-                                .font(Typo.caption.monospaced()).foregroundStyle(Theme.ink2)
-                                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                            copyButton(problem.details)
-                        }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(Space.m)
-                            .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-                            .padding(.top, Space.xs)
-                    } label: {
-                        Text(T("Details", table: "App")).font(Typo.caption).foregroundStyle(Theme.ink3)
-                    }
-                }
+                details(problem)
             case .ready:
                 Label(T("Ready", table: "App"), systemImage: "checkmark.circle").foregroundStyle(Theme.ok)
             }
@@ -108,6 +102,66 @@ struct SetupCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .raised(Radius.panel)
         .animation(Theme.arrive, value: stage)
+    }
+
+    private func openOnline() { setup.showsOnlineSetup = true }
+
+    /// The AI on this Mac: what it downloads, that nothing leaves the Mac, and the one button that starts it.
+    private func localChoice(_ bytes: Int64) -> some View {
+        choice(symbol: "laptopcomputer", title: T("On this Mac", table: "App"),
+               text: T("One-time download of %@. Your conversations and files stay on this Mac.", table: "App",
+                       ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)),
+               note: T("Picked to fit your Mac: %@", table: "App", setup.hardware)) {
+            ActionPill(title: T("Load Pippa’s AI", table: "App"), primary: true) { setup.load() }
+        }
+    }
+
+    /// An online AI: no download, and where the conversation goes. The button opens the short sign-in sheet.
+    private func onlineChoice(primary: Bool) -> some View {
+        choice(symbol: "globe", title: T("Online AI", table: "App"),
+               text: T("No download. Your conversations and what Pippa reads for them go to the provider you choose.", table: "App"),
+               note: T("Needs an account with a provider such as OpenAI or Anthropic.", table: "App")) {
+            ActionPill(title: T("Use an Online AI…", table: "App"), primary: primary) { openOnline() }
+        }
+    }
+
+    private func choice<Action: View>(symbol: String, title: String, text: String, note: String,
+                                      @ViewBuilder action: () -> Action) -> some View {
+        VStack(alignment: .leading, spacing: Space.s) {
+            Label(title, systemImage: symbol).font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink)
+            Text(text).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
+            Text(note).font(Typo.footnote).foregroundStyle(Theme.ink3).fixedSize(horizontal: false, vertical: true)
+            action().padding(.top, Space.xs)
+        }
+        .padding(Space.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.fill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+    }
+
+    /// What works before any AI is set up.
+    private var pdfHint: some View {
+        Label(T("Works right away, without any AI: drop photos or PDFs here to make one PDF.", table: "Views"), systemImage: "doc.richtext")
+            .font(Typo.footnote).foregroundStyle(Theme.ink2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private func details(_ problem: PiSetupProblem) -> some View {
+        if !problem.details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            DisclosureGroup(isExpanded: detailsState.projectedValue) {
+                VStack(alignment: .leading, spacing: Space.s) {
+                    Text(problem.details)
+                        .font(Typo.caption.monospaced()).foregroundStyle(Theme.ink2)
+                        .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                    copyButton(problem.details)
+                }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(Space.m)
+                    .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                    .padding(.top, Space.xs)
+            } label: {
+                Text(T("Details", table: "App")).font(Typo.caption).foregroundStyle(Theme.ink3)
+            }
+        }
     }
 
     /// Copies the details for a request for help; shows "Copied" with a check mark for a moment (a fade, with Reduce Motion).

@@ -219,3 +219,9 @@
 "Browser" = "Browser";
 "Show or hide Pippa’s browser" = "Pippas Browser ein- oder ausblenden";
 "Please sign in or finish the check here. Pippa never sees your password. Click Done, then tell Pippa to continue." = "Bitte melde dich hier an oder schließ die Prüfung ab. Pippa sieht dein Passwort nie. Klick auf „Fertig“ und sag Pippa dann, dass sie weitermachen soll.";
+/* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
+"Choose where Pippa’s AI runs. You can change it later in Settings." = "Wähle, wo Pippas KI läuft. Du kannst das später in den Einstellungen ändern.";
+"One-time download of %@. Your conversations and files stay on this Mac." = "Einmaliger Download von %@. Deine Gespräche und Dateien bleiben auf diesem Mac.";
+"Online AI" = "Online-KI";
+"No download. Your conversations and what Pippa reads for them go to the provider you choose." = "Kein Download. Deine Gespräche und was Pippa dafür liest, gehen an den Anbieter, den du wählst.";
+"Needs an account with a provider such as OpenAI or Anthropic." = "Dafür brauchst du ein Konto bei einem Anbieter wie OpenAI oder Anthropic.";

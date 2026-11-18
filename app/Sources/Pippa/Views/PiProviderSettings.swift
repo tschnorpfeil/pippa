@@ -30,7 +30,7 @@ final class PiProviderSettingsModel: ObservableObject {
         modelID = selected.preselected(preferredModel)
         problem = nil
     }
-    func refresh(selection: PiModelSelection? = nil, online: Bool = false, then done: ((PiProvider) -> Void)? = nil) {
+    func refresh(selection: PiModelSelection? = nil, online: Bool = false) {
         guard !busy else { return }
         guard let client = client() else { problem = T("The provider setup is unavailable. Please reopen Pippa.", table: "Settings"); return }
         loading = true; problem = nil
@@ -42,15 +42,18 @@ final class PiProviderSettingsModel: ObservableObject {
                 let result = try await client.run(online ? ["catalog", selectedID] : ["catalog"])
                 guard self.generation == generation, !Task.isCancelled else { return }
                 providers = PiProvider.ordered(result.providers ?? [])
+                if providers.isEmpty {
+                    problem = T("No providers are available. Try refreshing the list.", table: "Settings")
+                    return
+                }
                 let preferred = selection?.providerID ?? selectedID
                 let id = providers.contains(where: { $0.id == preferred }) ? preferred : providers.first?.id ?? ""
                 select(id, preferredModel: selection?.modelID ?? modelID)
-                if let done, let selected = self.selected { done(selected) }
             } catch { if !Task.isCancelled { report(error) } }
         }
     }
-    /// `connected`: after a successful sign-in, with the refreshed provider (its models and Pi's default).
-    func connect(method: String, connected: ((PiProvider) -> Void)? = nil) {
+    /// Signs in only: the refreshed list shows the account's models, and "Use <provider>" switches it on.
+    func connect(method: String) {
         guard !busy, let selected, let client = client() else { return }
         connecting = true; problem = nil; prompt = nil; progress = ""; browserURL = nil; deviceCode = nil
         operation = client
@@ -65,7 +68,7 @@ final class PiProviderSettingsModel: ObservableObject {
                 }
                 guard self.generation == generation, !Task.isCancelled else { return }
                 connecting = false; operation = nil; task = nil; prompt = nil
-                refresh(online: true, then: connected)
+                refresh(online: true)
             } catch {
                 guard self.generation == generation else { return }
                 connecting = false; operation = nil; task = nil; prompt = nil
@@ -251,7 +254,7 @@ struct PiProviderSettings: View {
                         if !selected.methods.isEmpty {
                             Menu(T("Reconnect", table: "Settings")) {
                                 ForEach(selected.methods) { method in
-                                    Button(method.name) { provider.connect(method: method.id, connected: signedIn) }
+                                    Button(method.name) { provider.connect(method: method.id) }
                                 }
                             }.menuStyle(.borderlessButton).foregroundStyle(Theme.accent).fixedSize().disabled(blocked)
                         }
@@ -263,7 +266,7 @@ struct PiProviderSettings: View {
                 SettingsDivider()
                 VStack(alignment: .leading, spacing: Space.l) {
                     ForEach(selected.methods) { method in
-                        Button(method.name) { provider.connect(method: method.id, connected: signedIn) }.pippa(.secondary).disabled(blocked)
+                        Button(method.name) { provider.connect(method: method.id) }.pippa(.secondary).disabled(blocked)
                     }
                     SettingsNote(T("Sign-in and credentials are managed by Pi and shared with Pi in Terminal.", table: "Settings"))
                     if selected.methods.isEmpty {
@@ -358,22 +361,11 @@ struct PiProviderSettings: View {
         saved.piModel = nil; saved.subscriptionModel = nil; saved.policy = .localOnly
         do { try settings.saveInferenceSettings(saved) } catch { provider.report(error) }
     }
-    /// Signing in is the person's choice of this provider: without another online AI in use, Pippa uses it right away
-    /// with Pi's default model, instead of leaving "Connected" while answers still come from this Mac.
-    private func signedIn(_ selected: PiProvider) {
-        let current = settings.inferenceSettings
-        guard current.activePiModel == nil || current.activePiModel?.providerID == selected.id,
-              PiOnlineProvider.activeConnection(current) == nil,
-              selected.configured, selected.models.contains(where: { $0.id == provider.modelID }) else { return }
-        useSelected(selected)
-    }
-
+    /// Signing in only connects; this button, naming the provider, is what sends conversations there.
     private func useSelected(_ selected: PiProvider) {
-        var saved = settings.inferenceSettings
-        saved.piModel = PiModelSelection(providerID: selected.id, modelID: provider.modelID, providerName: selected.name,
-                                         modelName: selected.models.first { $0.id == provider.modelID }?.name)
-        saved.subscriptionModel = nil; saved.policy = .localOnly
-        do { try settings.saveInferenceSettings(saved) } catch { provider.report(error) }
+        guard let model = selected.models.first(where: { $0.id == provider.modelID }) else { return }
+        do { try settings.saveInferenceSettings(FirstRunSetup.activated(settings.inferenceSettings, provider: selected, model: model)) }
+        catch { provider.report(error) }
     }
 }
 

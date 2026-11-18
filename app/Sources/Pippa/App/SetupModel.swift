@@ -5,6 +5,7 @@ import PippaCore
 /// question is the download. An online AI chosen in Settings needs none of this.
 @MainActor
 final class SetupModel: ObservableObject {
+    @Published var showsOnlineSetup = false
     static let shared = SetupModel()
 
     @Published private(set) var state: PiSetupState = .preparing(adoptingFrom: nil)
@@ -24,14 +25,10 @@ final class SetupModel: ObservableObject {
         return settings.usesOnlineAI
     }
     var canAnswer: Bool { isReady || usesOnlineAI }
-    /// The setup card shows: a question, a download or a problem, and no online AI to fall back on.
-    var needsAttention: Bool {
-        if usesOnlineAI { return false }
-        switch state {
-        case .askDownload, .downloading, .failed: return true
-        case .preparing, .ready: return false
-        }
-    }
+    /// The setup card shows: a question, a download or a problem, and no online AI in use already.
+    var needsAttention: Bool { FirstRunSetup.needsAttention(state, usesOnlineAI: usesOnlineAI) }
+    /// Online leads on the card only when this Mac can't run the AI itself.
+    var lead: FirstRunSetup.Lead { FirstRunSetup.lead(state) }
 
     /// Snapshots only: they cannot click "Details", so the card starts with it open.
     private(set) var detailsOpenForSnapshot = false

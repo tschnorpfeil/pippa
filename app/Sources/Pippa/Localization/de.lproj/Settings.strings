@@ -92,3 +92,13 @@
 "Personal notes" = "Persönliche Notizen";
 "Lets Pippa save and use personal notes across chats. Turning this off keeps your saved notes." = "Pippa kann persönliche Notizen speichern und in anderen Gesprächen nutzen. Beim Ausschalten bleiben gespeicherte Notizen erhalten.";
 "Online" = "Online";
+/* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
+"Use an Online AI" = "Online-KI verwenden";
+"No download. Your conversations and everything Pippa reads for them go to the provider you choose. You can switch back to this Mac at any time in Settings." = "Kein Download. Deine Gespräche und alles, was Pippa dafür liest, gehen an den Anbieter, den du wählst. In den Einstellungen kannst du jederzeit zu diesem Mac zurückwechseln.";
+"The download for this Mac keeps going." = "Der Download für diesen Mac läuft weiter.";
+"More Providers and Models…" = "Weitere Anbieter und Modelle …";
+"Sign in to %@" = "Bei %@ anmelden";
+"Signing in doesn’t switch anything yet: you choose afterwards." = "Die Anmeldung stellt noch nichts um: Das entscheidest du danach.";
+"%@ doesn’t recommend a model. Choose one under More Providers and Models." = "%@ empfiehlt kein Modell. Wähle eins unter „Weitere Anbieter und Modelle“.";
+"Model: %@" = "Modell: %@";
+"No providers are available. Try refreshing the list." = "Es sind keine Anbieter verfügbar. Versuche, die Liste zu aktualisieren.";

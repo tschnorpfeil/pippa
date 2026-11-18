@@ -24,3 +24,5 @@
 "Hide the browser" = "Browser ausblenden";
 "Done" = "Fertig";
 "No page open" = "Keine Seite geöffnet";
+/* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
+"Works right away, without any AI: drop photos or PDFs here to make one PDF." = "Geht sofort, ganz ohne KI: Fotos oder PDFs hier ablegen und daraus ein PDF machen.";

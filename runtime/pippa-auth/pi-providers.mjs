@@ -117,14 +117,18 @@ export async function main(args = process.argv.slice(2)) {
   }
   const controller = new AbortController();
   let hardStop;
+  let stopCode = 'cancelled';
   const stop = () => {
     controller.abort();
     // A provider which ignores AbortSignal must not leave a callback process alive indefinitely.
     hardStop ??= setTimeout(() => {
-      process.stdout.write(JSON.stringify({ event: 'error', code: 'cancelled' }) + '\n', () => process.exit(1));
+      process.stdout.write(JSON.stringify({ event: 'error', code: stopCode }) + '\n', () => process.exit(1));
     }, 2000);
   };
-  const timer = setTimeout(stop, command === 'login' ? 10 * 60_000 : 30_000);
+  const timer = setTimeout(() => {
+    if (!controller.signal.aborted) stopCode = 'timeout';
+    stop();
+  }, command === 'login' ? 10 * 60_000 : 30_000);
   process.on('SIGTERM', stop);
   let bridge;
   let buffer = '';
@@ -145,7 +149,9 @@ export async function main(args = process.argv.slice(2)) {
     const runtime = await ModelRuntime.create({ allowModelNetwork: false, signal: controller.signal });
     if (command === 'catalog') {
       if (providerId && runtime.getProvider(providerId)) await refreshProvider(runtime, providerId, controller.signal);
-      write(catalog(runtime, await piDefaults(release))); return 0;
+      const defaults = await piDefaults(release);
+      controller.signal.throwIfAborted();
+      write(catalog(runtime, defaults)); return 0;
     }
     const provider = runtime.getProvider(providerId);
     if (!provider || (command === 'login' && !((authType === 'oauth' && provider.auth.oauth) || (authType === 'api_key' && provider.auth.apiKey?.login)))) {
@@ -164,7 +170,7 @@ export async function main(args = process.argv.slice(2)) {
     await refreshProvider(runtime, providerId, controller.signal);
     write({ event: 'done' }); return 0;
   } catch (error) {
-    write({ event: 'error', code: controller.signal.aborted ? 'cancelled' : /EADDRINUSE/.test(String(error?.code ?? '') + String(error?.message ?? '')) ? 'port_busy' : 'failed' });
+    write({ event: 'error', code: controller.signal.aborted ? stopCode : /EADDRINUSE/.test(String(error?.code ?? '') + String(error?.message ?? '')) ? 'port_busy' : 'failed' });
     return 1;
   } finally {
     clearTimeout(timer); clearTimeout(hardStop);
