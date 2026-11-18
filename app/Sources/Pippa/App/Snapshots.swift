@@ -291,12 +291,13 @@ enum Snapshots {
         """)
         let mail: MailCard? = decode("""
         {"query": "Nebenkosten", "unread": false, "total": 7, "footer": "Mail auf diesem Mac · 3 von 7",
+         "notice": "Nicht gelesen: Reisen (Zeitüberschreitung)",
          "items": [
-          {"subject": "Nebenkostenabrechnung 2025", "sender": "Hausverwaltung Berger", "dateLabel": "Fr., 31. Okt.",
+          {"subject": "Nebenkostenabrechnung 2025", "sender": "Hausverwaltung Berger", "account": "Privat", "dateLabel": "Fr., 31. Okt.",
            "preview": "Sehr geehrte Frau Schneider, anbei erhalten Sie die Abrechnung der Betriebskosten für das Jahr 2025 mit einer Nachzahlung von 184,37 €."},
-          {"subject": "Re: Zählerstand Wasser", "sender": "Stadtwerke Kundenservice", "dateLabel": "Di., 21. Okt.",
+          {"subject": "Re: Zählerstand Wasser", "sender": "Stadtwerke Kundenservice", "account": "Arbeit", "dateLabel": "Di., 21. Okt.",
            "preview": "Vielen Dank für Ihre Meldung. Der Zählerstand wurde übernommen."},
-          {"subject": "Termin Ablesung Heizung", "sender": "Techem", "dateLabel": "09:12", "preview": ""}]}
+          {"subject": "Termin Ablesung Heizung", "sender": "Techem", "account": "Privat", "dateLabel": "09:12", "preview": ""}]}
         """)
         let reminders: ReminderCard? = decode("""
         {"title": "Erinnerungen · offen", "total": 3, "showsList": true, "footer": "Erinnerungen auf diesem Mac",
