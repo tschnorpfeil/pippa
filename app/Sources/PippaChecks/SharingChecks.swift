@@ -329,7 +329,7 @@ func runSharingChecks() async {
         let parent = snapshots.appendingPathComponent("outcomes", isDirectory: true)
         func outcome(_ reply: String) async -> PiRecipientSnapshot.Failure? {
             guard let pi = standIn(reply) else { return nil }
-            do { _ = try await PiRecipientSnapshot.prepare(model: custom, from: agent, in: parent, pi: pi); return nil }
+            do { let snapshot = try await PiRecipientSnapshot.prepare(model: custom, from: agent, in: parent, pi: pi); snapshot.remove(); return nil }
             catch { return error as? PiRecipientSnapshot.Failure }
         }
         let unbound = await outcome("{event:'done',endpoint:'https://elsewhere.example.invalid'}")

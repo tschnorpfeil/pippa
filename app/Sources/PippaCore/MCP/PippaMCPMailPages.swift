@@ -132,9 +132,11 @@ extension PippaMCPTools {
             store.release(held, turn: owner)
             if let cursorToken { store.restoreCursor(cursorToken, snapshot: snapshot.id, offset: offset, turn: owner) }
         }
-        let failed = Set(snapshot.coverage.filter { $0.status != .ok }.map { $0.account.id })
+        // Keyed by the whole account, not its id: Mail can list several accounts without an id, and one must never stand in
+        // for another.
+        let failed = Set(snapshot.coverage.filter { $0.status != .ok }.map(\.account))
         let remaining = snapshot.entries.dropFirst(offset)
-        let wanted = remaining.lazy.filter { !failed.contains($0.account.id) }.prefix(limit).count
+        let wanted = remaining.lazy.filter { !failed.contains($0.account) }.prefix(limit).count
         guard let hold = store.reserve(wanted, turn: owner) else { return Self.mailCancelled }
         if hold.granted == 0 && wanted > 0 {
             giveBack(0)
@@ -147,32 +149,32 @@ extension PippaMCPTools {
         }
         var available = hold.granted
         let slice = remaining.prefix { entry in
-            if failed.contains(entry.account.id) { return true }
+            if failed.contains(entry.account) { return true }
             guard available > 0 else { return false }
             available -= 1
             return true
         }
-        var rows: [String: [Int: MailSearchRow]] = [:]
-        var pageProblems: [String: MailAccountCoverage.Status] = [:]
-        let eligible = slice.filter { !failed.contains($0.account.id) }
+        var rows: [MailAccountInfo: [Int: MailSearchRow]] = [:]
+        var pageProblems: [MailAccountInfo: MailAccountCoverage.Status] = [:]
+        let eligible = slice.filter { !failed.contains($0.account) }
         for account in Self.unique(eligible.map(\.account)) {
             guard stillOwns(turn) else { giveBack(hold.granted); return Self.mailCancelled }
             do {
                 let ids = eligible.filter { $0.account == account }.map(\.id)
                 let result = try await reader.rows(account: account.id, ids: ids, mailbox: snapshot.mailbox)
                 guard Set(result.map(\.id)).count == result.count else {
-                    pageProblems[account.id] = .duplicate_candidates
+                    pageProblems[account] = .duplicate_candidates
                     continue
                 }
-                rows[account.id] = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
+                rows[account] = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
             } catch {
-                pageProblems[account.id] = MailAccountFlow.status(error)
+                pageProblems[account] = MailAccountFlow.status(error)
             }
         }
         guard stillOwns(turn) else { giveBack(hold.granted); return Self.mailCancelled }
         let resolved = slice.map { entry -> (entry: MailPageEntry, row: MailSearchRow?, skipped: Bool) in
-            let skipped = failed.contains(entry.account.id) || pageProblems[entry.account.id] != nil
-            let row = rows[entry.account.id]?[entry.id]
+            let skipped = failed.contains(entry.account) || pageProblems[entry.account] != nil
+            let row = rows[entry.account]?[entry.id]
             // An account, date or read status that no longer matches the snapshot cannot identify this message.
             let same = row.flatMap { r in
                 MailAccountFlow.sameDate(r.date, entry.date) && (r.accountID ?? entry.account.id) == entry.account.id
@@ -270,7 +272,7 @@ extension PippaMCPTools {
     }
 
     private func render(_ snapshot: MailSnapshot, offset: Int, resolved: [(entry: MailPageEntry, row: MailSearchRow?, skipped: Bool)], tokens: [String],
-                        refs: [String: MailRef], count: Int, pageProblems: [String: MailAccountCoverage.Status], left: Int, cursor: String?,
+                        refs: [String: MailRef], count: Int, pageProblems: [MailAccountInfo: MailAccountCoverage.Status], left: Int, cursor: String?,
                         caps: MailRowCaps) -> (text: String, headers: [MailHeader], notRead: [String], gone: Int, isError: Bool) {
         func field(_ value: String, _ limit: (Int, Int)) -> String {
             guard limit.0 > 0, limit.1 > 0 else { return "" }
@@ -305,7 +307,7 @@ extension PippaMCPTools {
         let end = offset + count
         let goneTotal = snapshot.gone + gone
         var coverage = snapshot.coverage
-        for i in coverage.indices { if let problem = pageProblems[coverage[i].account.id] { coverage[i].status = problem } }
+        for i in coverage.indices { if let problem = pageProblems[coverage[i].account] { coverage[i].status = problem } }
         let notRead = coverage.filter { $0.status != .ok }
         let accounts: [[String: Any]] = coverage.map { c in
             var a: [String: Any] = ["account": c.label, "account_id": Self.clip(c.account.id, 200, bytes: Self.mailAccountIDBytes), "status": c.status.rawValue]

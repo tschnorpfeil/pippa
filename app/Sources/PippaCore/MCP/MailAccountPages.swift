@@ -320,7 +320,7 @@ public final class MailPageStore: @unchecked Sendable {
     /// Records what a page actually delivered: only those rows count, the rest of the held previews go back; its
     /// references become valid, mails gone since the search add up, and the next cursor (when more remain) starts right
     /// after the last delivered entry. `false`: another answer owns the store, nothing was recorded.
-    func settle(snapshot: String, held: Int, rows: Int, refs new: [String: MailRef], gone: Int, problems: [String: MailAccountCoverage.Status], cursor: (token: String, offset: Int)?,
+    func settle(snapshot: String, held: Int, rows: Int, refs new: [String: MailRef], gone: Int, problems: [MailAccountInfo: MailAccountCoverage.Status], cursor: (token: String, offset: Int)?,
                 turn: UUID?, live: () -> Bool) -> Bool {
         owned(turn) {
             guard live() else { return false }
@@ -330,7 +330,7 @@ public final class MailPageStore: @unchecked Sendable {
             if var updated = snapshots[snapshot] {
                 updated.gone += gone
                 for i in updated.coverage.indices {
-                    if let problem = problems[updated.coverage[i].account.id] { updated.coverage[i].status = problem }
+                    if let problem = problems[updated.coverage[i].account] { updated.coverage[i].status = problem }
                 }
                 snapshots[snapshot] = updated
             }

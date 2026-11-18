@@ -34,6 +34,24 @@ test("egress: provider requests carry only listed tools, in every request shape"
 	assert.equal(onlyAllowedTools(guard, { tools: [{ name: "ask" }] }), undefined, "unchanged requests stay as they are");
 });
 
+test("egress: a forced tool_choice naming a removed tool goes with it, in every request shape", () => {
+	const guard = egress(online);
+	const chat = { tools: [{ type: "function", function: { name: "read" } }, { type: "function", function: { name: "ask" } }],
+		tool_choice: { type: "function", function: { name: "read" } } };
+	const responses = { tools: [{ type: "function", name: "bash" }, { type: "function", name: "ask" }], tool_choice: { type: "function", name: "bash" } };
+	const anthropic = { tools: [{ name: "write", input_schema: {} }, { name: "ask", input_schema: {} }], tool_choice: { type: "tool", name: "write" } };
+	for (const payload of [chat, responses, anthropic]) {
+		const next = onlyAllowedTools(guard, payload);
+		assert.equal(next.tools.length, 1);
+		assert.equal("tool_choice" in next, false, JSON.stringify(payload.tool_choice));
+	}
+	const kept = onlyAllowedTools(guard, { ...anthropic, tool_choice: { type: "tool", name: "ask" } });
+	assert.deepEqual(kept.tool_choice, { type: "tool", name: "ask" }, "a choice naming a kept tool stays");
+	assert.deepEqual(onlyAllowedTools(guard, { ...chat, tool_choice: "auto" }).tool_choice, "auto", "a choice naming no tool stays");
+	const allowedOnly = onlyAllowedTools(guard, { tools: [{ name: "ask" }], tool_choice: { type: "tool", name: "bash" } });
+	assert.equal("tool_choice" in allowedOnly, false, "a disallowed tool_choice is dropped even when tools needed no filtering");
+});
+
 test("egress: Pi's working-folder section is replaced", () => {
 	const event = { systemPromptOptions: { sections: { memory: "x" } } };
 	hideWorkingFolder(event);

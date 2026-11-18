@@ -10,18 +10,24 @@ final class Buffer: @unchecked Sendable {
     func lines(appending chunk: Data) -> [Data] {
         lock.lock(); defer { lock.unlock() }
         var result: [Data] = []
-        // Scan only new bytes and discard oversized frames through the next LF.
-        for byte in chunk {
-            if byte == 10 {
-                if !discarding {
-                    if data.last == 13 { data.removeLast() }
-                    result.append(data)
-                }
-                data.removeAll(keepingCapacity: true); discarding = false
-            } else if !discarding {
-                if data.count >= 16 * 1024 * 1024 { data.removeAll(keepingCapacity: true); discarding = true }
-                else { data.append(byte) }
+        // Scan only new bytes, a segment up to each LF at a time, and discard oversized frames through the next LF.
+        let cap = 16 * 1024 * 1024
+        var start = chunk.startIndex
+        while start < chunk.endIndex {
+            let newline = chunk[start...].firstIndex(of: 10)
+            let segment = chunk[start..<(newline ?? chunk.endIndex)]
+            if !discarding {
+                // A frame that would grow past the cap is dropped whole, up to and including its LF.
+                if segment.count > cap - data.count { data.removeAll(keepingCapacity: true); discarding = true }
+                else { data.append(segment) }
             }
+            guard let newline else { break }
+            if !discarding {
+                if data.last == 13 { data.removeLast() }
+                result.append(data)
+            }
+            data.removeAll(keepingCapacity: true); discarding = false
+            start = chunk.index(after: newline)
         }
         return result
     }

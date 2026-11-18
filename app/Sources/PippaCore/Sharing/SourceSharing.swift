@@ -9,7 +9,18 @@ import UniformTypeIdentifiers
 public enum SharingSource: String, Codable, Sendable, CaseIterable, Hashable, Comparable {
     case mail, documents, calendar, reminders, photos
 
-    public static func < (a: Self, b: Self) -> Bool { allCases.firstIndex(of: a)! < allCases.firstIndex(of: b)! }
+    public static func < (a: Self, b: Self) -> Bool { a.order < b.order }
+
+    /// Declaration order, the order the app lists the sources in.
+    private var order: Int {
+        switch self {
+        case .mail: 0
+        case .documents: 1
+        case .calendar: 2
+        case .reminders: 3
+        case .photos: 4
+        }
+    }
 
     public var displayName: String {
         switch self {

@@ -77,6 +77,14 @@ export function developerShims(dir = SHIM_DIR): string[] {
 	} catch { return [...SHIM_NAMES]; }
 }
 
+/** `developerShims` per folder, read once per process: /usr/bin is on the sealed system volume and does not change. */
+const shimCache = new Map<string, string[]>();
+function cachedDeveloperShims(dir: string): string[] {
+	let names = shimCache.get(dir);
+	if (!names) { names = developerShims(dir); shimCache.set(dir, names); }
+	return names;
+}
+
 /** The folders the profile is built from, as real paths (the sandbox compares resolved paths: /var is /private/var). */
 export interface Places {
 	home: string;
@@ -369,9 +377,8 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 	const developerTools = deps.developerTools ?? (() => developerToolsInstalled(env));
 	const shimDir = deps.shimDir ?? SHIM_DIR;
 	const protect = deps.protection ?? protection(env, home);
-	let shims: string[] | undefined;
 	/** The placeholders to keep out, or none when the tools are installed. */
-	const lockedShims = (): string[] => developerTools() ? [] : (shims ??= developerShims(shimDir));
+	const lockedShims = (): string[] => developerTools() ? [] : cachedDeveloperShims(shimDir);
 	let grants = new Set<Grant>();
 
 	return {
@@ -395,12 +402,12 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					if (shim) return notRun(noDeveloperToolsReason(shim));
 					// Named outright: refused without a question (the sandbox would deny it anyway, and a write question
 					// after its failure could grant nothing there).
-					if (namedPaths(command, cwd, where.home).some((path) => isProtected(path, protect))) return notRun(PROTECTED_REASON);
+					const named = namedPaths(command, cwd, where.home);
+					if (named.some((path) => isProtected(path, protect))) return notRun(PROTECTED_REASON);
 					// Retain copies through failures and interruptions as well as successful completion.
 					const kept = new Map<string, string>();
 					const ask = async (need: Set<Grant>): Promise<boolean> => {
 						if (!ctx?.hasUI || !ctx?.ui?.confirm) return false;
-						const named = namedPaths(command, cwd, where.home);
 						const candidates = named.length ? named : [real(cwd)];
 						const outside = candidates.filter((p) => !(p === where.work || p.startsWith(where.work + "/")));
 						const { title, message } = grantAskText(need, command, folderNames(outside, where.home, env.PIPPA_LANGUAGE ?? ""), env.PIPPA_LANGUAGE ?? "");
@@ -410,7 +417,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						const now = new Set(grants);
 						if (signal?.aborted) return notRun("Stopped before running the command.");
 						if (now.has("write") && deps.keep) {
-							for (const file of await filesToKeep(namedPaths(command, cwd, where.home), where)) {
+							for (const file of await filesToKeep(named, where)) {
 								if (kept.has(file)) continue;
 								const copy = await deps.keep(file);
 								if (copy) kept.set(file, copy);
