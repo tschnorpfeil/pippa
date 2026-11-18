@@ -21,11 +21,20 @@ enum SharingRouteChecks {
         check(localSources == [.mail] && !sharing.mayOffer(localSources), "a tool-free local follow-up inherits Mail provenance across an intervening online answer")
         check(!sharing.mayOffer(ChatModel.localHistorySources(in: [legacy, followUp][...])), "legacy local history without source metadata needs every source on Ask")
 
-        let openai = ShareDestination(PiModelSelection(providerID: "openai", modelID: "gpt-fixture", providerName: "OpenAI"))
-        let anthropic = ShareDestination(PiModelSelection(providerID: "anthropic", modelID: "claude-fixture", providerName: "Anthropic"))
+        let gpt = PiModelSelection(providerID: "openai", modelID: "gpt-fixture", providerName: "OpenAI")
+        // Recipients are digests of the effective endpoint and account (`PiRecipient`); these stand in for two accounts.
+        let openai = ShareDestination(gpt, recipient: "account-a")
+        let anthropic = ShareDestination(PiModelSelection(providerID: "anthropic", modelID: "claude-fixture", providerName: "Anthropic"), recipient: "account-c")
         let local = PiSession.LaunchRoute(key: "local|m").with(.init())
         let online = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture").online(openai, .init(), rules: SourceSharing())
         let approval = ShareApproval(destination: openai, question: "Check", parts: [.init(title: "Lease.pdf", sources: [.documents], text: "DOC-MARKER")])
+        func approvedRoute(_ destination: ShareDestination, rules: SourceSharing = SourceSharing(), handoff: Bool = false) -> PiSession.LaunchRoute {
+            var route = PiSession.LaunchRoute(key: "pi|fixture").online(destination, .init(), rules: rules,
+                                                                       scope: PiSession.approvedScope(approval, handoff: handoff))
+            route.handoff = handoff
+            return route
+        }
+        func changed(_ failure: PiSession.Failure?) -> Bool { if case .destinationChanged = failure { true } else { false } }
         func refused(_ outgoing: PiSession.Outgoing, _ route: PiSession.LaunchRoute) -> PiSession.Failure? {
             do { _ = try PiSession.message(outgoing, route: route); return nil } catch { return error as? PiSession.Failure }
         }
@@ -34,10 +43,29 @@ enum SharingRouteChecks {
         check(refused(.local(prompt), online).map { if case .needsReview = $0 { true } else { false } } == true,
               "a prompt with file paths and the app in front never goes to an online AI")
         check((try? PiSession.message(.typed("Hello"), route: online)) == "Hello", "typed words go to the online AI as they are")
-        check((try? PiSession.message(.approved(approval), route: online)) == approval.message, "an approval goes out exactly as approved")
+        check((try? PiSession.message(.approved(approval), route: approvedRoute(openai))) == approval.message,
+              "an approval goes out exactly as approved, in a session of its own")
+        check(changed(refused(.approved(approval), online)),
+              "an approval never goes into the conversation's typed session, so later questions cannot carry it again")
         let elsewhere = PiSession.LaunchRoute(key: "pi|anthropic|claude-fixture").online(anthropic, .init(), rules: SourceSharing())
         check(refused(.approved(approval), elsewhere).map { if case .destinationChanged = $0 { true } else { false } } == true,
               "an approval for one provider is refused when another one would receive it")
+        let otherAccount = ShareDestination(gpt, recipient: "account-b")
+        check(changed(refused(.approved(approval), approvedRoute(otherAccount))),
+              "same Pi provider id with another endpoint, key or sign-in: the approval is refused")
+        check(changed(refused(.approved(ShareApproval(destination: ShareDestination(gpt), question: "Check", parts: [])),
+                              approvedRoute(ShareDestination(gpt)))),
+              "a recipient whose endpoint or account cannot be determined never receives an approval")
+        var noDocuments = SourceSharing(); noDocuments.documents = .localOnly
+        check(refused(.approved(approval), approvedRoute(openai, rules: noDocuments)).map { if case .needsReview = $0 { true } else { false } } == true,
+              "a rule set to “Only on this Mac” after the review stops the approved message when it is sent")
+        let typedA = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture|account-a").online(openai, .init(), rules: SourceSharing())
+        let typedB = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture|account-b").online(otherAccount, .init(), rules: SourceSharing())
+        check(typedA.sessionScope == online.sessionScope && typedA.sessionScope != typedB.sessionScope && typedA.key != typedB.key,
+              "typed words keep one session per recipient and account; a new account starts with fresh context")
+        check(PiSession.sameRecipient(typedA, typedA) && !PiSession.sameRecipient(typedA, typedB)
+              && !PiSession.sameRecipient(approvedRoute(openai), approvedRoute(openai, rules: noDocuments)),
+              "the check just before sending notices another account or changed rules")
         check(refused(.approved(approval), local).map { if case .destinationChanged = $0 { true } else { false } } == true,
               "an approval is not replayed to the AI on this Mac either")
         check((try? PiSession.message(.local(prompt), route: local)) == prompt, "the AI on this Mac still gets files and the app in front")
@@ -49,10 +77,21 @@ enum SharingRouteChecks {
         let stricter = PiSession.LaunchRoute(key: "pi|openai|gpt-fixture").online(openai, .init(), rules: strict)
         check(stricter.key != online.key && stricter.egress?.tools.contains("calendar_add") == false,
               "a changed sharing rule starts the online AI's Pi afresh with fewer tools")
-        let handoff = PiSession.LaunchRoute(key: "handoff|openai|gpt-fixture")
-            .online(openai, .init(), rules: SourceSharing(), scope: "handoff-" + approval.id.uuidString.lowercased())
-        check(handoff.sessionScope?.hasPrefix("handoff-") == true && handoff.key != online.key,
+        let handoff = approvedRoute(openai, handoff: true)
+        check(handoff.sessionScope?.hasPrefix("handoff-") == true && handoff.key != online.key
+              && (try? PiSession.message(.approved(approval), route: handoff)) == approval.message,
               "a single question gets a fresh session of its own")
+        let connection = ModelConnection(provider: .compatible, endpoint: URL(string: "https://llm.example.invalid/v1"), modelID: "m-fixture")
+        let legacy = ShareDestination(connection, recipient: PiRecipient.fingerprint(connection, key: "KEY-ONE"))
+        let legacyApproval = ShareApproval(destination: legacy, question: "Check", parts: [])
+        var legacyRoute = PiSession.LaunchRoute(key: "handoff|online", online: (connection, "KEY-ONE"))
+            .online(legacy, .init(), rules: SourceSharing(), scope: PiSession.approvedScope(legacyApproval, handoff: true))
+        legacyRoute.handoff = true
+        let rekeyed = ShareDestination(connection, recipient: PiRecipient.fingerprint(connection, key: "KEY-TWO"))
+        var rekeyedRoute = legacyRoute; rekeyedRoute.destination = rekeyed
+        check((try? PiSession.message(.approved(legacyApproval), route: legacyRoute)) == legacyApproval.message
+              && changed(refused(.approved(legacyApproval), rekeyedRoute)),
+              "a single question to an older connection works, and a changed key refuses it")
 
         check(ChatModel.outgoing("Hi", files: [], frontApp: "Mail", undone: ["x"], online: true) == .typed("Hi"),
               "online: the app in front and undo notes stay here")

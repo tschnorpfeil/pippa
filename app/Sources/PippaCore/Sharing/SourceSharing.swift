@@ -116,43 +116,68 @@ public struct SourceSharing: Codable, Sendable, Equatable {
     public var key: String { SharingSource.allCases.map { "\($0.rawValue)=\(self[$0] == .ask ? "ask" : "local")" }.joined(separator: ",") }
 }
 
-/// Who receives an approved excerpt: the online AI as Settings names it, and the route it was approved for. An approval
-/// is only sent while the active route (or the configured recipient for a single question) is still exactly this one.
+/// Who receives an approved excerpt: the online AI as Settings names it, the route it was approved for, and the effective
+/// recipient behind it (`PiRecipient`: endpoint, configuration and account). An approval is only sent while the active
+/// route (or the configured recipient for a single question) is still exactly this one, account included.
 public struct ShareDestination: Codable, Sendable, Equatable, Hashable {
-    /// Stable identity of the recipient: `pi|<provider>|<model>` or `connection|<id>|<endpoint>|<model>`.
+    /// Configured identity of the recipient: `pi|<provider>|<model>` or `connection|<id>|<endpoint>|<model>`.
     public var key: String
     /// "OpenAI · GPT-6.1 Terra", shown before sending and under the answer.
     public var label: String
     /// The service alone ("OpenAI"), for buttons: "Send to OpenAI".
     public var provider: String
+    /// Digest of the effective endpoint, configuration and account (`PiRecipient`); empty when it could not be determined.
+    /// Never a key or token. An unverified destination receives typed words only, never an approval.
+    public var recipient: String
 
-    public init(key: String, label: String, provider: String) { self.key = key; self.label = label; self.provider = provider }
+    public init(key: String, label: String, provider: String, recipient: String = "") {
+        self.key = key; self.label = label; self.provider = provider; self.recipient = recipient
+    }
 
-    public init(_ model: PiModelSelection) {
+    public init(_ model: PiModelSelection, recipient: String? = nil) {
         self.init(key: "pi|\(model.providerID)|\(model.modelID)", label: model.providerName + " · " + model.modelDisplayName,
-                  provider: model.providerName)
+                  provider: model.providerName, recipient: recipient ?? "")
     }
 
-    public init(_ connection: ModelConnection) {
+    public init(_ connection: ModelConnection, recipient: String? = nil) {
         self.init(key: "connection|\(connection.id.uuidString)|\(connection.endpoint.absoluteString)|\(connection.modelID)",
-                  label: connection.displayName, provider: connection.provider.displayName)
+                  label: connection.displayName, provider: connection.provider.displayName, recipient: recipient ?? "")
     }
 
-    /// The online AI conversations go to right now, `nil` when Pippa uses the AI on this Mac.
-    public static func active(_ settings: InferenceSettings) -> Self? {
-        if let model = settings.activePiModel { return Self(model) }
-        return PiOnlineProvider.activeConnection(settings).map(Self.init)
+    enum CodingKeys: String, CodingKey { case key, label, provider, recipient }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        key = try values.decode(String.self, forKey: .key)
+        label = try values.decode(String.self, forKey: .label)
+        provider = try values.decode(String.self, forKey: .provider)
+        recipient = try values.decodeIfPresent(String.self, forKey: .recipient) ?? ""
     }
 
-    /// The online AI a single question can go to while conversations stay on this Mac (`InferenceSettings.handoffModel`).
-    public static func handoff(_ settings: InferenceSettings) -> Self? {
-        guard active(settings) == nil, let model = settings.handoffModel, model.isValid else { return nil }
-        return Self(model)
+    /// The effective recipient is known: only then may an approval go to it.
+    public var isVerified: Bool { !recipient.isEmpty }
+
+    /// The online AI conversations go to right now, `nil` when Pippa uses the AI on this Mac. `recipients` resolves the
+    /// account behind it (default: the app's own Pi folder and Keychain, without a dialog).
+    public static func active(_ settings: InferenceSettings, recipients: PiRecipient = .live()) -> Self? {
+        if let model = settings.activePiModel { return Self(model, recipient: recipients.fingerprint(model)) }
+        return PiOnlineProvider.activeConnection(settings).map { Self($0, recipient: recipients.fingerprint($0)) }
     }
 
-    /// A short, Pi-safe tag for the destination's own session: history never moves to another recipient.
+    /// The online AI a single question can go to while conversations stay on this Mac (`InferenceSettings.handoffModel`,
+    /// or the older Keychain connection in `handoffConnection`).
+    public static func handoff(_ settings: InferenceSettings, recipients: PiRecipient = .live()) -> Self? {
+        guard !settings.usesOnlineAI else { return nil }
+        if let model = settings.handoffModel {
+            return model.isValid ? Self(model, recipient: recipients.fingerprint(model)) : nil
+        }
+        return settings.handoffLegacyConnection.map { Self($0, recipient: recipients.fingerprint($0)) }
+    }
+
+    /// A short, Pi-safe tag for the destination's own session of typed words: history never moves to another recipient,
+    /// another account or another configuration, and never from sessions kept before the recipient was part of it.
     public var sessionTag: String {
-        let digest = key.utf8.reduce(UInt64(14_695_981_039_346_656_037)) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
+        let digest = (key + "\n" + recipient).utf8.reduce(UInt64(14_695_981_039_346_656_037)) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
         return "online-" + String(digest, radix: 36)
     }
 }
@@ -217,7 +242,9 @@ public struct SharePlan: Sendable, Equatable {
     /// The person's OK, fixed at this moment. Rules are checked again: an edit in Settings while the review was open counts.
     public func approve(rules: SourceSharing) -> ShareApproval? {
         let parts = pieces.filter { $0.included && rules.mayOffer($0.sources, unknownOrigin: $0.unknownOrigin) }
-            .map { ShareApproval.Part(title: $0.title, sources: $0.sources, text: $0.text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            // Unknown origin counts as every source, so the check when sending applies all five rules to it.
+            .map { ShareApproval.Part(title: $0.title, sources: $0.unknownOrigin ? Set(SharingSource.allCases) : $0.sources,
+                                      text: $0.text.trimmingCharacters(in: .whitespacesAndNewlines)) }
             .filter { !$0.text.isEmpty }
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty || !parts.isEmpty else { return nil }
@@ -226,7 +253,8 @@ public struct SharePlan: Sendable, Equatable {
 }
 
 /// The person's OK for one message to one online AI. Immutable: the text that goes out is composed once, here, and
-/// sending re-checks only that the destination is still this one. Used once; a retry needs a new review.
+/// sending re-checks that the destination (account included) is still this one and the rules still allow every part.
+/// Used once, in a Pi session of its own; a retry needs a new review.
 public struct ShareApproval: Sendable, Equatable, Identifiable {
     public struct Part: Sendable, Equatable {
         public let title: String

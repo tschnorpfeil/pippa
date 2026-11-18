@@ -143,13 +143,17 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
     /// The online AI a single question can go to ("Ask OpenAI…") while conversations stay on this Mac. Remembered when the
     /// person switches back to this Mac; it is an address, not a permission: every message to it is reviewed first.
     public var handoffModel: PiModelSelection?
+    /// The same for an older Keychain connection that was the online AI: its id, valid only while `connection` is still
+    /// that connection. Set by `onThisMac()`; at most one of the two is set.
+    public var handoffConnection: UUID?
     public init(policy: InferencePolicy = .localOnly, connection: ModelConnection? = nil, subscriptionModel: String? = nil,
                 piModel: PiModelSelection? = nil, capabilities: OptionalCapabilities = OptionalCapabilities(),
-                sharing: SourceSharing = SourceSharing(), handoffModel: PiModelSelection? = nil) {
+                sharing: SourceSharing = SourceSharing(), handoffModel: PiModelSelection? = nil, handoffConnection: UUID? = nil) {
         self.policy = policy; self.connection = connection; self.subscriptionModel = subscriptionModel
         self.piModel = piModel; self.capabilities = capabilities; self.sharing = sharing; self.handoffModel = handoffModel
+        self.handoffConnection = handoffConnection
     }
-    enum CodingKeys: String, CodingKey { case policy, connection, subscriptionModel, piModel, capabilities, sharing, handoffModel }
+    enum CodingKeys: String, CodingKey { case policy, connection, subscriptionModel, piModel, capabilities, sharing, handoffModel, handoffConnection }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         policy = try values.decode(InferencePolicy.self, forKey: .policy)
@@ -159,12 +163,31 @@ public struct InferenceSettings: Codable, Sendable, Equatable {
         capabilities = try values.decodeIfPresent(OptionalCapabilities.self, forKey: .capabilities) ?? OptionalCapabilities()
         sharing = try values.decodeIfPresent(SourceSharing.self, forKey: .sharing) ?? SourceSharing()
         handoffModel = try values.decodeIfPresent(PiModelSelection.self, forKey: .handoffModel)
+        handoffConnection = try values.decodeIfPresent(UUID.self, forKey: .handoffConnection)
     }
     /// "Use this Mac": conversations stay here; the online AI used until now stays the recipient for single questions.
     public func onThisMac() -> Self {
         var saved = self
-        saved.handoffModel = activePiModel ?? handoffModel
+        if let model = activePiModel {
+            saved.handoffModel = model; saved.handoffConnection = nil
+        } else if let connection = PiOnlineProvider.activeConnection(self) {
+            saved.handoffConnection = connection.id; saved.handoffModel = nil
+        }
         saved.piModel = nil; saved.subscriptionModel = nil; saved.policy = .localOnly
+        return saved
+    }
+
+    /// The older Keychain connection single questions go to, while it is still saved, valid and the remembered one.
+    public var handoffLegacyConnection: ModelConnection? {
+        guard handoffModel == nil, let id = handoffConnection, let connection, connection.id == id,
+              (try? connection.validated()) != nil else { return nil }
+        return connection
+    }
+
+    /// "Remove" under single questions: no recipient for single questions, neither a provider nor a connection.
+    public func withoutHandoff() -> Self {
+        var saved = self
+        saved.handoffModel = nil; saved.handoffConnection = nil
         return saved
     }
 
@@ -229,6 +252,22 @@ public enum ModelCredentialStore {
         var result: CFTypeRef?
         let status = SecItemCopyMatching(request as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess, let data = result as? Data, let value = String(data: data, encoding: .utf8) else {
+            throw InferenceError.credentialStorage(status)
+        }
+        return value
+    }
+    /// Like `read`, but never shows a dialog: a key that would need the person's approval counts as unavailable (`nil`).
+    public static func readWithoutPrompt(_ id: UUID, service: String = defaultService) throws -> String? {
+        var request = query(id, service: service)
+        request[kSecReturnData as String] = true
+        request[kSecMatchLimit as String] = kSecMatchLimitOne
+        let context = LAContext()
+        context.interactionNotAllowed = true
+        request[kSecUseAuthenticationContext as String] = context
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(request as CFDictionary, &result)
+        if status == errSecItemNotFound || status == errSecInteractionNotAllowed { return nil }
         guard status == errSecSuccess, let data = result as? Data, let value = String(data: data, encoding: .utf8) else {
             throw InferenceError.credentialStorage(status)
         }

@@ -55,19 +55,118 @@ func runSharingChecks() async {
         let local = online.onThisMac()
         let other = local.disconnected(provider: "anthropic")
         let gone = local.disconnected(provider: "openai")
-        return !local.usesOnlineAI && local.handoffModel == model && ShareDestination.handoff(local) == destination
-            && ShareDestination.handoff(online) == nil && ShareDestination.active(online) == destination
-            && other.handoffModel == model && gone.handoffModel == nil && ShareDestination.handoff(gone) == nil
+        return !local.usesOnlineAI && local.handoffModel == model && ShareDestination.handoff(local, recipients: .unresolved) == destination
+            && ShareDestination.handoff(online, recipients: .unresolved) == nil && ShareDestination.active(online, recipients: .unresolved) == destination
+            && other.handoffModel == model && gone.handoffModel == nil && ShareDestination.handoff(gone, recipients: .unresolved) == nil
     }
     check("A sign-in or a saved provider alone never makes a destination: only the active route or the saved recipient") {
         let signedInOnly = InferenceSettings()
-        return ShareDestination.active(signedInOnly) == nil && ShareDestination.handoff(signedInOnly) == nil
+        return ShareDestination.active(signedInOnly, recipients: .unresolved) == nil && ShareDestination.handoff(signedInOnly, recipients: .unresolved) == nil
     }
     check("Each online destination has its own Pi-safe session tag; the same one keeps it") {
         let other = ShareDestination(PiModelSelection(providerID: "anthropic", modelID: "claude-fixture", providerName: "Anthropic"))
         let tag = destination.sessionTag
         return tag == ShareDestination(model).sessionTag && tag != other.sessionTag
             && tag.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" } && tag.hasPrefix("online-")
+            && tag != ShareDestination(model, recipient: "account-a").sessionTag
+            && ShareDestination(model, recipient: "account-a").sessionTag != ShareDestination(model, recipient: "account-b").sessionTag
+    }
+
+    // MARK: Effective recipient (provider identity)
+
+    let agent = root.appendingPathComponent("recipient-agent", isDirectory: true)
+    func writeAgent(models: [String: Any]?, auth: [String: Any]?, raw auth2: String? = nil) throws {
+        try? fm.removeItem(at: agent)
+        try fm.createDirectory(at: agent, withIntermediateDirectories: true)
+        if let models { try JSONSerialization.data(withJSONObject: ["providers": models]).write(to: agent.appendingPathComponent("models.json")) }
+        if let auth { try JSONSerialization.data(withJSONObject: auth).write(to: agent.appendingPathComponent("auth.json")) }
+        if let auth2 { try Data(auth2.utf8).write(to: agent.appendingPathComponent("auth.json")) }
+    }
+    let recipients = PiRecipient(agentDirectory: agent)
+    let custom = PiModelSelection(providerID: "acme", modelID: "acme-fixture", providerName: "Acme")
+    func entry(_ base: String, key: String = "ACME-KEY-FIXTURE") -> [String: Any] {
+        ["baseUrl": base, "api": "openai-completions", "apiKey": key, "models": [["id": "acme-fixture"]]]
+    }
+    check("Recipient: a custom provider with the same Pi id is another recipient when its endpoint or key changes") {
+        try writeAgent(models: ["acme": entry("https://a.example.invalid/v1")], auth: nil)
+        let first = recipients.fingerprint(custom)
+        try writeAgent(models: ["acme": entry("https://b.example.invalid/v1")], auth: nil)
+        let moved = recipients.fingerprint(custom)
+        try writeAgent(models: ["acme": entry("https://a.example.invalid/v1", key: "ACME-KEY-OTHER")], auth: nil)
+        let rekeyed = recipients.fingerprint(custom)
+        try writeAgent(models: ["acme": entry("https://a.example.invalid/v1"), "other": entry("https://c.example.invalid")], auth: nil)
+        let unrelated = recipients.fingerprint(custom)
+        return first != nil && moved != nil && rekeyed != nil && first != moved && first != rekeyed && first == unrelated
+            && ShareDestination(custom, recipient: first) != ShareDestination(custom, recipient: moved)
+            && ShareDestination(custom, recipient: first).sessionTag != ShareDestination(custom, recipient: rekeyed).sessionTag
+            && !(first ?? "").contains("ACME") && !(first ?? "").contains("example")
+    }
+    check("Recipient: a built-in provider changes with its stored key or sign-in; token refreshes keep a named account") {
+        try writeAgent(models: nil, auth: ["openai": ["type": "api_key", "key": "SK-FIXTURE-1"]])
+        let keyOne = recipients.fingerprint(model)
+        try writeAgent(models: nil, auth: ["openai": ["type": "api_key", "key": "SK-FIXTURE-2"]])
+        let keyTwo = recipients.fingerprint(model)
+        try writeAgent(models: ["openai": ["baseUrl": "https://proxy.example.invalid/v1"]], auth: ["openai": ["type": "api_key", "key": "SK-FIXTURE-1"]])
+        let proxied = recipients.fingerprint(model)
+        let codex = PiModelSelection(providerID: "openai-codex", modelID: "gpt-fixture", providerName: "ChatGPT")
+        func oauth(_ account: String?, _ token: String) -> [String: Any] {
+            var value: [String: Any] = ["type": "oauth", "access": "ACCESS-\(token)", "refresh": "REFRESH-\(token)", "expires": 1]
+            if let account { value["accountId"] = account }
+            return value
+        }
+        try writeAgent(models: nil, auth: ["openai-codex": oauth("acct-1", "a")])
+        let accountA = recipients.fingerprint(codex)
+        try writeAgent(models: nil, auth: ["openai-codex": oauth("acct-1", "b")])
+        let refreshed = recipients.fingerprint(codex)
+        try writeAgent(models: nil, auth: ["openai-codex": oauth("acct-2", "b")])
+        let otherAccount = recipients.fingerprint(codex)
+        let claude = PiModelSelection(providerID: "anthropic", modelID: "claude-fixture", providerName: "Anthropic")
+        try writeAgent(models: nil, auth: ["anthropic": oauth(nil, "a")])
+        let signInA = recipients.fingerprint(claude)
+        try writeAgent(models: nil, auth: ["anthropic": oauth(nil, "b")])
+        let signInB = recipients.fingerprint(claude)
+        return keyOne != nil && keyOne != keyTwo && keyOne != proxied && accountA != nil && accountA == refreshed
+            && accountA != otherAccount && signInA != nil && signInA != signInB
+    }
+    check("Recipient: unknown or unreadable configuration fails closed (no destination may receive an approval)") {
+        try writeAgent(models: nil, auth: nil)
+        let nothing = recipients.fingerprint(model)
+        try writeAgent(models: nil, auth: nil, raw: "{ // comment\n }")
+        let unreadable = recipients.fingerprint(model)
+        try writeAgent(models: nil, auth: ["openai": ["type": "magic", "key": "x"]])
+        let unknownType = recipients.fingerprint(model)
+        let reserved = recipients.fingerprint(PiModelSelection(providerID: "pippa-online", modelID: "m", providerName: "x"))
+        let noFolder = PiRecipient.unresolved.fingerprint(model)
+        return [nothing, unreadable, unknownType, reserved, noFolder].allSatisfy { $0 == nil }
+            && !ShareDestination(model, recipient: nothing).isVerified
+    }
+    check("Recipient: an older connection changes with its key, endpoint or model; no key means unverified") {
+        let id = UUID()
+        let connection = ModelConnection(id: id, provider: .compatible, endpoint: URL(string: "https://llm.example.invalid/v1"), modelID: "m-fixture")
+        var moved = connection; moved.endpoint = URL(string: "https://other.example.invalid/v1")!
+        let one = PiRecipient.fingerprint(connection, key: "KEY-ONE"), two = PiRecipient.fingerprint(connection, key: "KEY-TWO")
+        let viaStore = PiRecipient(agentDirectory: nil, credential: { $0 == id ? "KEY-ONE" : nil }).fingerprint(connection)
+        return one != nil && one != two && one == viaStore && one != PiRecipient.fingerprint(moved, key: "KEY-ONE")
+            && PiRecipient.fingerprint(connection, key: " ") == nil && PiRecipient.unresolved.fingerprint(connection) == nil
+            && !(one ?? "").contains("KEY")
+    }
+    check("Single questions can go to an older connection after “Use this Mac”; removing or replacing it forgets it") {
+        let id = UUID()
+        let connection = ModelConnection(id: id, provider: .openAI, modelID: "gpt-fixture")
+        let online = InferenceSettings(policy: .ask, connection: connection, handoffModel: model)
+        let local = online.onThisMac()
+        let keyed = PiRecipient(agentDirectory: nil, credential: { $0 == id ? "KEY-ONE" : nil })
+        let target = ShareDestination.handoff(local, recipients: keyed)
+        var replaced = local; replaced.connection = ModelConnection(provider: .openAI, modelID: "gpt-fixture")
+        var removed = local; removed.connection = nil
+        let base = root.appendingPathComponent("handoff-connection")
+        try local.save(to: base)
+        return !local.usesOnlineAI && local.handoffModel == nil && local.handoffConnection == id
+            && target == ShareDestination(connection, recipient: PiRecipient.fingerprint(connection, key: "KEY-ONE")) && target?.isVerified == true
+            && ShareDestination.handoff(online, recipients: keyed) == nil
+            && ShareDestination.handoff(local.withoutHandoff(), recipients: keyed) == nil
+            && ShareDestination.handoff(replaced, recipients: keyed) == nil && ShareDestination.handoff(removed, recipients: keyed) == nil
+            && InferenceSettings.load(from: base).handoffConnection == id
     }
 
     // MARK: Provenance

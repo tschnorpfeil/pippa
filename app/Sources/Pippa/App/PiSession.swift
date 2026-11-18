@@ -41,7 +41,8 @@ final class PiSession {
         case local(String)
         /// Exactly what the person typed, nothing added. Any route.
         case typed(String)
-        /// What the person reviewed and approved for one online AI. Only to exactly that destination.
+        /// What the person reviewed and approved for one online AI. Only to exactly that destination and account, in a
+        /// Pi session of its own: later questions in the conversation never carry it again.
         case approved(ShareApproval)
     }
 
@@ -106,6 +107,10 @@ final class PiSession {
         startupTask = nil
         onStarting(false)
         try Task.checkCancellation()
+        // Just before sending: Settings, the provider's configuration and account and the sharing rules are read again.
+        // Starting Pi takes a moment; whatever changed meanwhile sends nothing.
+        let now = try await launchRoute(outgoing, handoff: handoff)
+        guard Self.sameRecipient(route, now), try Self.message(outgoing, route: now) == text else { throw Failure.destinationChanged }
         let stream: AsyncThrowingStream<PiRPCEvent, Error>
 
         do { stream = try await client.prompt(text) } catch PiRPCError.commandFailed(_, let message) {
@@ -123,7 +128,7 @@ final class PiSession {
 
     private func prepare(_ outgoing: Outgoing, conversation: String, handoff: Bool,
                          onStarting: (Bool) -> Void) async throws -> (PiRPCClient, LaunchRoute, String) {
-        let route = try await launchRoute(handoff: handoff ? outgoing : nil)
+        let route = try await launchRoute(outgoing, handoff: handoff)
         // Before anything starts: a refused message never reaches a Pi process.
         let text = try Self.message(outgoing, route: route)
         if route.online == nil && route.piModel == nil {
@@ -148,9 +153,25 @@ final class PiSession {
             guard route.destination == nil else { throw Failure.needsReview }
             return prompt
         case .approved(let approval):
-            guard let destination = route.destination, destination == approval.destination else { throw Failure.destinationChanged }
+            guard let destination = route.destination, destination.isVerified, destination == approval.destination,
+                  route.sessionScope == Self.approvedScope(approval, handoff: route.handoff) else { throw Failure.destinationChanged }
+            // The rules as they are now: a source set to "Only on this Mac" after the review stops the whole message.
+            guard let rules = route.egress?.rules, approval.parts.allSatisfy({ rules.mayOffer($0.sources) }) else { throw Failure.needsReview }
             return approval.message
         }
+    }
+
+    /// The Pi session an approved message goes to: one per approval, so the conversation's typed session never holds it.
+    static func approvedScope(_ approval: ShareApproval, handoff: Bool) -> String {
+        (handoff ? "handoff-" : "approved-") + approval.id.uuidString.lowercased()
+    }
+
+    /// Two reads of the route name the same recipient, account, model and limits (the session scope may differ only for
+    /// an unverified recipient, which gets a fresh session each time).
+    static func sameRecipient(_ a: LaunchRoute, _ b: LaunchRoute) -> Bool {
+        a.destination == b.destination && a.piModel == b.piModel && a.online?.connection == b.online?.connection
+            && a.online?.key == b.online?.key && a.egress == b.egress && a.capabilities == b.capabilities && a.handoff == b.handoff
+            && (a.destination != nil || a.key == b.key)
     }
 
     func stop() async {
@@ -265,8 +286,11 @@ final class PiSession {
         var destination: ShareDestination?
         /// The app MCP server's limits for this Pi process (online only).
         var egress: PippaMCPEgress?
-        /// Pi session beside the conversation's own: per online destination, or fresh for a single question.
+        /// Pi session beside the conversation's own: per online destination and account for typed words, or fresh for
+        /// each approved message.
         var sessionScope: String?
+        /// The recipient for single questions while conversations stay on this Mac.
+        var handoff = false
 
         /// The capabilities chosen in Settings → AI for this route become part of the key, so a change reaches the next
         /// question, also in an open conversation, while an answer that is running keeps its Pi.
@@ -292,37 +316,56 @@ final class PiSession {
         }
     }
 
-    /// A Pi provider, an existing Keychain connection, or the model on this Mac, as saved in Settings. `handoff`: the
-    /// approved single question for the saved recipient, only while it is still that recipient.
-    private func launchRoute(handoff: Outgoing? = nil) async throws -> LaunchRoute {
+    /// A Pi provider, an existing Keychain connection, or the model on this Mac, as saved in Settings, with the effective
+    /// recipient behind it (`PiRecipient`). `handoff`: the approved single question for the saved recipient (a Pi provider
+    /// or an older connection), only while it is still that recipient. The session: typed words keep the conversation's
+    /// session per recipient and account; each approved message gets a fresh one; an unverified recipient never reuses one.
+    private func launchRoute(_ outgoing: Outgoing, handoff: Bool) async throws -> LaunchRoute {
         let target = try Self.installation(ProcessInfo.processInfo.environment)
         let modelsJSON = target.agent.appendingPathComponent("models.json")
         let settings = InferenceSettings.load(from: Self.settingsDirectory)
-        let online = settings.capabilities.online
-        if let handoff {
-            guard case .approved(let approval) = handoff else { throw Failure.needsReview }
-            guard let model = settings.handoffModel, ShareDestination.handoff(settings) == approval.destination else {
-                throw Failure.destinationChanged
-            }
-            await removeOnlineProvider(from: modelsJSON)
-            return LaunchRoute(key: "handoff|" + model.providerID + "|" + model.modelID, piModel: model)
-                .online(approval.destination, online, rules: settings.sharing, scope: "handoff-" + approval.id.uuidString.lowercased())
+        let choice = settings.capabilities.online
+        var approval: ShareApproval?
+        if case .approved(let approved) = outgoing { approval = approved }
+        let model: PiModelSelection?
+        let connection: ModelConnection?
+        if handoff {
+            // Only an approved single question, only while conversations stay on this Mac.
+            guard approval != nil else { throw Failure.needsReview }
+            guard !settings.usesOnlineAI else { throw Failure.destinationChanged }
+            model = settings.handoffModel.flatMap { $0.isValid ? $0 : nil }
+            connection = settings.handoffModel == nil ? settings.handoffLegacyConnection : nil
+            guard model != nil || connection != nil else { throw Failure.destinationChanged }
+        } else {
+            model = settings.activePiModel
+            connection = model == nil ? PiOnlineProvider.activeConnection(settings) : nil
         }
-        if let model = settings.activePiModel {
-            await removeOnlineProvider(from: modelsJSON)
-            return LaunchRoute(key: "pi|" + model.providerID + "|" + model.modelID, piModel: model)
-                .online(ShareDestination(model), online, rules: settings.sharing)
+        func scope(_ destination: ShareDestination) -> String {
+            if let approval { return Self.approvedScope(approval, handoff: handoff) }
+            return destination.isVerified ? destination.sessionTag : "unverified-" + UUID().uuidString.lowercased()
         }
-        guard let connection = PiOnlineProvider.activeConnection(settings) else {
+        let prefix = handoff ? "handoff|" : ""
+        if let model {
+            await removeOnlineProvider(from: modelsJSON)
+            let recipients = PiRecipient(agentDirectory: target.agent)
+            let recipient = await Task.detached { recipients.fingerprint(model) }.value
+            let destination = ShareDestination(model, recipient: recipient)
+            return LaunchRoute(key: prefix + "pi|" + model.providerID + "|" + model.modelID + "|" + destination.recipient,
+                               piModel: model, handoff: handoff)
+                .online(destination, choice, rules: settings.sharing, scope: scope(destination))
+        }
+        guard let connection else {
             await removeOnlineProvider(from: modelsJSON)
             return LaunchRoute(key: "local|" + (try Self.installTarget(ProcessInfo.processInfo.environment)).model)
                 .with(settings.capabilities.local)
         }
         let key = try await Task.detached { try ModelCredentialStore.read(connection.id) }.value ?? ""
         _ = try await Task.detached { try PiOnlineProvider.sync(connection, modelsJSON: modelsJSON) }.value
-        let routeKey = ["online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
-                        connection.modelID, String(connection.contextWindow), String(key.hashValue)].joined(separator: "|")
-        return LaunchRoute(key: routeKey, online: (connection, key)).online(ShareDestination(connection), online, rules: settings.sharing)
+        let destination = ShareDestination(connection, recipient: PiRecipient.fingerprint(connection, key: key))
+        let routeKey = [prefix + "online", connection.id.uuidString, connection.provider.rawValue, connection.endpoint.absoluteString,
+                        connection.modelID, String(connection.contextWindow), destination.recipient].joined(separator: "|")
+        return LaunchRoute(key: routeKey, online: (connection, key), handoff: handoff)
+            .online(destination, choice, rules: settings.sharing, scope: scope(destination))
     }
 
     /// Pi's models.json keeps no online entry while another route is active. Best effort: a failure is only logged.
