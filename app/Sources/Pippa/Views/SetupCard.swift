@@ -10,7 +10,6 @@ struct SetupCard: View {
     var showsOnlineOption = true
     private let detailsState: State<Bool>
     private let copiedState = State(initialValue: false)
-    private let onlineState = State(initialValue: false)
 
     /// Settings > General > Storage, where the person sees what takes up room and can free some.
     static let storageSettingsURL = URL(string: "x-apple.systempreferences:com.apple.settings.Storage")!
@@ -103,12 +102,9 @@ struct SetupCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .raised(Radius.panel)
         .animation(Theme.arrive, value: stage)
-        .sheet(isPresented: onlineState.projectedValue) {
-            OnlineSetupSheet(settings: .shared, setup: setup) { onlineState.wrappedValue = false }
-        }
     }
 
-    private func openOnline() { onlineState.wrappedValue = true }
+    private func openOnline() { setup.showsOnlineSetup = true }
 
     /// The AI on this Mac: what it downloads, that nothing leaves the Mac, and the one button that starts it.
     private func localChoice(_ bytes: Int64) -> some View {

@@ -126,7 +126,7 @@ public final class PiProviderClient: @unchecked Sendable {
                     state.finish(); try? input.fileHandleForWriting.close(); try? output.fileHandleForReading.close()
                 }
                 // A broken helper cannot keep an operation alive indefinitely.
-                let deadline = DispatchWorkItem { [state] in state.cancel() }
+                let deadline = DispatchWorkItem { [state] in state.cancel(reason: .failed) }
                 DispatchQueue.global().asyncAfter(deadline: .now() + (arguments.first == "login" ? 610 : 45), execute: deadline)
                 defer { deadline.cancel() }
                 var buffer = Data(), total = 0
@@ -147,7 +147,7 @@ public final class PiProviderClient: @unchecked Sendable {
                     }
                 }
                 process.waitUntilExit()
-                if state.isCancelled { throw Failure.cancelled }
+                if let reason = state.stopReason { throw reason }
                 guard let last else { throw Failure.failed }
                 if last.event == "error" {
                     switch last.code {
@@ -168,25 +168,26 @@ private final class ProviderProcessState: @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?
     private var input: Pipe?
-    private var cancelled = false
-    var isCancelled: Bool { lock.withLock { cancelled } }
+    private var reason: PiProviderClient.Failure?
+    var stopReason: PiProviderClient.Failure? { lock.withLock { reason } }
     func start(_ process: Process, input: Pipe) throws {
         try lock.withLock {
-            guard !cancelled, self.process == nil else { throw PiProviderClient.Failure.cancelled }
+            guard reason == nil, self.process == nil else { throw PiProviderClient.Failure.cancelled }
             self.process = process; self.input = input
             do { try process.run() } catch { self.process = nil; self.input = nil; throw PiProviderClient.Failure.unavailable }
         }
     }
     func respond(id: String, value: String) throws {
         try lock.withLock {
-            guard !cancelled, let input, process?.isRunning == true else { throw PiProviderClient.Failure.cancelled }
+            guard reason == nil, let input, process?.isRunning == true else { throw PiProviderClient.Failure.cancelled }
             let data = try JSONSerialization.data(withJSONObject: ["id": id, "value": value]) + Data([10])
             try input.fileHandleForWriting.write(contentsOf: data)
         }
     }
-    func cancel() {
+    func cancel(reason: PiProviderClient.Failure = .cancelled) {
         lock.withLock {
-            cancelled = true
+            guard self.reason == nil else { return }
+            self.reason = reason
             if process?.isRunning == true { process?.terminate() }
         }
         DispatchQueue.global().asyncAfter(deadline: .now() + 3) { [self] in

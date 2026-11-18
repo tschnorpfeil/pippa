@@ -59,7 +59,7 @@ public enum FirstRunSetup {
     public static func onlineStage(providers: [PiProvider], picked: PiProvider?, modelID: String, loading: Bool,
                                    connecting: Bool, failed: Bool, active: PiModelSelection?) -> OnlineStage {
         if providers.isEmpty { return loading ? .loading : failed ? .unavailable : .loading }
-        guard let picked else { return .choose }
+        guard let picked else { return recommended(providers).isEmpty ? .unavailable : .choose }
         if connecting { return .signingIn(picked) }
         guard picked.configured else { return .signIn(picked) }
         if picked.models.isEmpty { return .noModels(picked) }

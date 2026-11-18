@@ -73,7 +73,7 @@ struct OnlineSetupSheet: View {
             HStack(spacing: Space.m) { ProgressView().controlSize(.small); Text(T("Loading providers…", table: "Settings")) }
         case .unavailable:
             HStack(spacing: Space.l) {
-                Text(provider.problem ?? "").font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
+                Text(provider.problem ?? T("No providers are available. Try refreshing the list.", table: "Settings")).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: Space.m)
                 Button(T("Try again", table: "Settings")) { provider.refresh(selection: settings.inferenceSettings.activePiModel) }
                     .pippa(.secondary).disabled(provider.busy).fixedSize()

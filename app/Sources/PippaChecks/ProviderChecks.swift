@@ -105,7 +105,8 @@ func runProviderChecks() async {
         }
         let inUse = PiModelSelection(providerID: "openai", modelID: "best", providerName: "OpenAI")
         let other = PiModelSelection(providerID: "anthropic", modelID: "fixture", providerName: "Anthropic")
-        guard stage([], nil, loading: true) == .loading, stage([], nil, failed: true) == .unavailable,
+        let external = PiProvider(id: "external", name: "External", configured: false, methods: [], models: [])
+        guard stage([external], nil) == .unavailable, stage([], nil, loading: true) == .loading, stage([], nil, failed: true) == .unavailable,
               stage([signedOut], nil) == .choose, stage([signedOut], signedOut) == .signIn(signedOut),
               stage([signedOut], signedOut, connecting: true) == .signingIn(signedOut),
               // Cancelled or failed sign-in: back to the same buttons, nothing saved.

@@ -5,6 +5,7 @@ import PippaCore
 /// question is the download. An online AI chosen in Settings needs none of this.
 @MainActor
 final class SetupModel: ObservableObject {
+    @Published var showsOnlineSetup = false
     static let shared = SetupModel()
 
     @Published private(set) var state: PiSetupState = .preparing(adoptingFrom: nil)

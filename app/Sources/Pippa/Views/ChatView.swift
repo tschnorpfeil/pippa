@@ -81,6 +81,9 @@ struct ChatView: View {
                 }
             }
         }
+        .sheet(isPresented: $setup.showsOnlineSetup) {
+            OnlineSetupSheet(settings: .shared, setup: setup) { setup.showsOnlineSetup = false }
+        }
     }
 
     /// What the latest answer read and did: shown on the panel button while the panel is closed.
