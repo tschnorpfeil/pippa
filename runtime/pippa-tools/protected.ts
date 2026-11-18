@@ -72,6 +72,8 @@ function identity(path: string): string | undefined {
 /** Whether `path` (absolute) lies in a protected place, by real location: the nearest of open or protected wins. */
 export function isProtected(path: string, where: Protection = protection()): boolean {
 	const target = real(path);
+	// A hard link has no canonical parent. Refuse multiply linked regular files rather than trusting an open alias.
+	try { const info = statSync(target); if (info.isFile() && info.nlink > 1) return true; } catch { /* not there yet */ }
 	const ids = (paths: string[]) => new Set(paths.map((p) => identity(real(p))).filter(Boolean));
 	const names = (paths: string[]) => paths.flatMap((p) => [fold(resolve(p)), fold(real(p))]);
 	const rootIds = ids(where.roots), openIds = ids(where.open);
@@ -85,7 +87,7 @@ export function isProtected(path: string, where: Protection = protection()): boo
 	}
 }
 
-export const PROTECTED_REASON = "Not done: this is Pippa's own folder (her settings, conversations, notes and sign-ins) or Pi's sign-in folder. "
+export const PROTECTED_REASON = "Not done: this path is protected, or the file has multiple hard links and its origin cannot be verified. Pippa keeps her settings, conversations, notes and sign-ins private. "
 	+ "No tool may read or change it. Do not try another way; tell the person in one short sentence that Pippa keeps it to herself.";
 
 /** Keys whose string values (or lists of them) name files or folders in a tool's arguments. The app's MCP tools name

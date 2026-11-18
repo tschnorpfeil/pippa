@@ -18,6 +18,13 @@ func runProtectedPathChecks() async {
     }
     try? Data("{}".utf8).write(to: agent.appendingPathComponent("auth.json"))
     try? Data("ok".utf8).write(to: documents.appendingPathComponent("letter.txt"))
+    await checkAsync("Protected paths: a hard link in the working folder cannot alias a credential") {
+        let alias = work.appendingPathComponent("hardlink.txt")
+        do {
+            try FileManager.default.linkItem(at: agent.appendingPathComponent("auth.json"), to: alias)
+            return ProtectedPaths(roots: [support, agent], open: [work]).contains(alias)
+        } catch { return false }
+    }
     try? FileManager.default.createSymbolicLink(at: work.appendingPathComponent("alias.json"), withDestinationURL: agent.appendingPathComponent("auth.json"))
     try? FileManager.default.createSymbolicLink(at: documents.appendingPathComponent("sessions"), withDestinationURL: support.appendingPathComponent("pi-sessions"))
     let paths = ProtectedPaths.app(support: support, home: home, environment: [:])

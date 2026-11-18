@@ -35,6 +35,10 @@ public struct ProtectedPaths: Sendable, Equatable {
     }
 
     public func contains(_ url: URL) -> Bool {
+        // A hard link has no canonical parent; an open alias cannot establish that the file is outside our folders.
+        var targetInfo = stat()
+        if stat(Self.real(url), &targetInfo) == 0, targetInfo.st_nlink > 1,
+           (targetInfo.st_mode & S_IFMT) == S_IFREG { return true }
         let identity = { (path: String) -> String? in
             var info = stat()
             return stat(path, &info) == 0 ? "\(info.st_dev):\(info.st_ino)" : nil
@@ -75,5 +79,5 @@ public struct ProtectedPaths: Sendable, Equatable {
     static func folded(_ path: String) -> String { path.precomposedStringWithCanonicalMapping.lowercased() }
 
     /// What the model is told, as protected.ts says it.
-    public static let reason = "Not done: this is Pippa's own folder (her settings, conversations, notes and sign-ins) or Pi's sign-in folder. No tool may read or change it. Do not try another way; tell the person in one short sentence that Pippa keeps it to herself."
+    public static let reason = "Not done: this path is protected, or the file has multiple hard links and its origin cannot be verified. Pippa keeps her settings, conversations, notes and sign-ins private. No tool may read or change it. Do not try another way; tell the person in one short sentence that Pippa keeps it to herself."
 }

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { link, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,6 +44,16 @@ test("Pippa's folder and ~/.pi are protected by real location; the working folde
 		const no = [join(support, "pi-work/note.txt"), join(support, "pi-work/new.txt"), join(support, "pi-work"), join(home, "Documents/a.txt"),
 			join(home, "Library/Application Support/Other/x"), join(home, ".pippa-elsewhere")];
 		for (const path of no) assert.equal(isProtected(path, where), false, path);
+	} finally { await rm(home, { recursive: true, force: true }); }
+});
+
+test("hard-linked files cannot alias a credential through an open folder", async () => {
+	const { home, support, where } = await fixture();
+	try {
+		const alias = join(support, "pi-work", "letter.txt");
+		await link(join(home, ".pi/agent/auth.json"), alias);
+		assert.equal(isProtected(alias, where), true);
+		assert.equal(toolCallReason("read", { path: alias }, join(support, "pi-work"), where), PROTECTED_REASON);
 	} finally { await rm(home, { recursive: true, force: true }); }
 });
 
