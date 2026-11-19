@@ -630,6 +630,21 @@ extension MCPCheckContext {
                 && inbox.count == 28 && !inbox.contains("m30@x.example") && fake.ids(privat.id, ["Rechnungen"]) == ["m900@x.example"]
         }
 
+        await checkAsync("mail_move Undo: only the mail the move verified goes back; another mail with its Message-ID put into the target since is left, also when Mail gives moved mails new ids") {
+            let fake = fakeMail()
+            fake.newIDsOnMove = true
+            let w = try world(fake)
+            _ = await call(w.tools, "mail_move", ["refs": Array(await refs(w).prefix(3)), "to": "Rechnungen"])
+            // The person moves m30 on to Archiv/2025 and puts another mail with the same Message-ID into Rechnungen.
+            fake.edit(privat.id, ["Rechnungen"]) { $0.removeAll { $0.messageID == "m30@x.example" }; var other = mail(30); other.id = 77_777; $0.append(other) }
+            fake.edit(privat.id, ["Archiv", "2025"]) { $0.append(mail(30)) }
+            let report = try await w.host.undoRun(w.turn.id)
+            return report.undone.count == 2 && report.left.count == 1 && report.failed.isEmpty
+                && report.left.first?.object.fields["messageID"] == "m30@x.example" && fake.moveCalls.last?.count == 2
+                && fake.mails(privat.id, ["Rechnungen"]).contains { $0.id == 77_777 } && !fake.ids(privat.id, ["INBOX"]).contains("m30@x.example")
+                && fake.ids(privat.id, ["INBOX"]).count == 29
+        }
+
         // MARK: A7b settling (IMAP shows moved mails a moment later)
 
         await checkAsync("mail_move settle: moved mails that show up in the target only after 3 lookups verify n of n; the wait polls, never moves again") {
@@ -880,6 +895,7 @@ extension MCPCheckContext {
             return r.json["state"] as? String == "unclear" && data(r)["unclear"] as? Int == 5 && data(r)["no_answer"] as? Int == 5
                 && data(r)["moved"] as? Int == 0 && (data(r)["not_moved"] as? Int ?? 0) == 0 && !r.isError
                 && tell.contains("did not answer in time") && tell.contains("won’t move them again") && next.contains("Nothing was retried")
+                && !tell.contains("moved 0") && !tell.contains("checked them") && next.contains("never call the 5 unclear mails moved")
                 && rows.count == 5 && rows.allSatisfy { $0.state == .unclear && $0.note == MailMover.noAnswerNote }
                 && fake.moveCalls.count == 1 && w.clock.now >= MailMoveSettle.boundAfterTimeout
                 && w.clock.now < MailMoveSettle.boundAfterTimeout + .seconds(MailMoveSettle.lookupEventTimeout + 1) && took < .seconds(5)

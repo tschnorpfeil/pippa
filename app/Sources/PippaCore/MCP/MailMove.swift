@@ -571,7 +571,8 @@ public struct MailMover: Sendable {
 
     /// Puts the moved mails of one run back, `rows` in undo order (newest first). Consecutive rows of one account and
     /// folder pair go together, up to `batchSize`: one settled lookup, one move, one settled read-back per batch. A mail
-    /// goes back only when its Message-ID is exactly once in the target folder and not in the source; anything else
+    /// goes back only when its Message-ID is exactly once in the target folder and not in the source, and for a verified
+    /// row only when Mail's id there is still the one read back after the move; anything else
     /// stays and counts as left (`changed`). A row the move left unclear is looked up again: in the target it goes back
     /// like the others, in the source it was never moved (`nothing`). Live in both folders, before or after the move
     /// back, is `inBoth`: nothing more is moved and nothing deleted. A row an earlier Undo left unclear because Mail did
@@ -616,7 +617,12 @@ public struct MailMover: Sendable {
                 var eligible: [(row: RunAction, item: MailMoveItem)] = []
                 for (row, id) in batch {
                     let there = before.there(id), here = before.here(id)
-                    if there.count == 1 && here.isEmpty { eligible.append((row, MailMoveItem(mailID: there[0], messageID: id))) }
+                    // Only the mail the move verified: a verified row holds Mail's id in the target, read back after the
+                    // move (or at the later look). Another mail with this Message-ID put there since stays.
+                    if there.count == 1 && here.isEmpty && row.verified == true && row.object.fields["mailID"] != String(there[0]) {
+                        outcomes[row.id] = .changed
+                    }
+                    else if there.count == 1 && here.isEmpty { eligible.append((row, MailMoveItem(mailID: there[0], messageID: id))) }
                     else if row.state == .unclear && here.count == 1 && there.isEmpty {
                         outcomes[row.id] = row.note == Self.undoNoAnswerNote ? .undone : .nothing
                     }

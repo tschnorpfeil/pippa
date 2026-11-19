@@ -232,27 +232,30 @@ extension PippaMCPWriteTools {
         if o.unclear > 0 {
             data["unclear"] = o.unclear
             data["unclear_batch"] = o.unclearBatch ?? 0
+            // Moved means read back in the target: an unclear mail is never counted or worded as moved.
+            let movedLead = o.verified > 0 ? L("Pippa moved %lld mails into “%@” and checked them.", table: "MCP", o.verified, to) + " " : ""
+            let unclearNote = " Only the \(o.verified) mails in moved were read back in \(to); never call the \(o.unclear) unclear mails moved."
             if o.noAnswer > 0 {
                 // Mail did not answer the read-back in time: where they are is not known yet, nothing was retried.
                 data["no_answer"] = o.noAnswer
-                let tell = L("Pippa moved %lld mails into “%@” and checked them. For %lld mails Mail did not answer in time, so Pippa can’t say yet where they are. Please check “%@” and “%@” in Mail. Pippa didn’t retry and won’t move them again by herself.",
-                             table: "MCP", o.verified, to, o.noAnswer, from, to)
+                let tell = movedLead + L("For %lld mails Mail did not answer in time, so Pippa can’t say yet where they are. Please check “%@” and “%@” in Mail. Pippa didn’t retry and won’t move them again by herself.",
+                                         table: "MCP", o.noAnswer, from, to)
                 return response(["done": false, "state": "unclear", "data": data, "tell": tell,
-                                 "next": "Unclear: Mail did not answer in time, so where \(o.noAnswer) mails are is not known yet (see no_answer). Nothing was retried. Do not retry, repeat or undo this move, and do not move these mails again in this answer; Pippa looks once more when the answer ends. Repeat tell."])
+                                 "next": "Unclear: Mail did not answer in time, so where \(o.noAnswer) mails are is not known yet (see no_answer). Nothing was retried. Do not retry, repeat or undo this move, and do not move these mails again in this answer; Pippa looks once more when the answer ends." + unclearNote + " Repeat tell."])
             }
             let neither = o.unclear - o.inBoth
             var tell: String
             if neither > 0 {
-                tell = L("Pippa moved %lld mails into “%@” and checked them. %lld mails are now neither in “%@” nor in “%@”. Please look for them in Mail. Pippa stopped and won’t repeat the move.",
-                         table: "MCP", o.verified, to, neither, from, to)
+                tell = movedLead + L("%lld mails are now neither in “%@” nor in “%@”. Please look for them in Mail. Pippa stopped and won’t repeat the move.",
+                                     table: "MCP", neither, from, to)
                 if o.inBoth > 0 {
                     tell += " " + L("%lld mails are in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail.", table: "MCP", o.inBoth, from, to)
                 }
             } else {
-                tell = L("Pippa moved %lld mails into “%@” and checked them. %lld mails are now in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail. Pippa stopped and won’t repeat the move.",
-                         table: "MCP", o.verified, to, o.inBoth, from, to)
+                tell = movedLead + L("%lld mails are now in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail. Pippa stopped and won’t repeat the move.",
+                                     table: "MCP", o.inBoth, from, to)
             }
-            var next = "Unclear: do not retry, repeat or undo this move, and do not move these mails again in this answer. Repeat tell."
+            var next = "Unclear: do not retry, repeat or undo this move, and do not move these mails again in this answer." + unclearNote + " Repeat tell."
             if o.inBoth > 0 {
                 data["in_both"] = o.inBoth
                 next += " \(o.inBoth) mails are in both \(from) and \(to) (see in_both): Pippa does not delete mail, so never offer to delete or move either copy."

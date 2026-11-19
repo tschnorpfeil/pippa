@@ -153,7 +153,16 @@ struct RunReceiptRow: View {
             if s.unclear > 0, s.undoFinished { parts.append(T("%lld unclear, please check", table: "App", s.unclear)) }
             if s.undoFinished { return parts.joined(separator: ", ") }
         }
-        // Only mail moves: say what moved, in plain words ("18 mails moved, all checked").
+        // Only mail moves: say what moved, in plain words ("18 mails moved, all checked"). Moved are only the mails read
+        // back in the target; unclear ones are counted apart and never called moved.
+        if s.mailMoves == s.changes, s.unclear > 0 {
+            let moved = s.checked
+            if moved == 0 {
+                return ([s.unclear == 1 ? T("1 mail unclear, please check", table: "App") : T("%lld mails unclear, please check", table: "App", s.unclear)] + parts).joined(separator: ", ")
+            }
+            let count = moved == 1 ? T("1 mail moved and checked", table: "App") : T("%lld mails moved and checked", table: "App", moved)
+            return ([T("%@, %@", table: "App", count, T("%lld unclear, please check", table: "App", s.unclear))] + parts).joined(separator: ", ")
+        }
         let count = s.mailMoves == s.changes
             ? (s.changes == 1 ? T("1 mail moved", table: "App") : T("%lld mails moved", table: "App", s.changes))
             : (s.changes == 1 ? T("1 change", table: "App") : T("%lld changes", table: "App", s.changes))

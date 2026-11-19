@@ -285,6 +285,10 @@
 "%lld changes" = "%lld Änderungen";
 "1 mail moved" = "1 Mail verschoben";
 "%lld mails moved" = "%lld Mails verschoben";
+"1 mail moved and checked" = "1 Mail verschoben und geprüft";
+"%lld mails moved and checked" = "%lld Mails verschoben und geprüft";
+"1 mail unclear, please check" = "1 Mail unklar, bitte nachsehen";
+"%lld mails unclear, please check" = "%lld Mails unklar, bitte nachsehen";
 "unclear, please check" = "unklar, bitte nachsehen";
 "checked" = "geprüft";
 "all checked" = "alle geprüft";

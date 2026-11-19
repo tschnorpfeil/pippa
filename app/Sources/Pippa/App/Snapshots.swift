@@ -350,8 +350,8 @@ enum Snapshots {
         var undone = ChatMessage(role: .assistant, text: "Drei Erinnerungen für die Steuer sind angelegt.")
         undone.run = RunSummary(run: UUID(), changes: 3, checked: 3, undone: 2, left: 1)
         undone.duration = 5
-        var sorted = ChatMessage(role: .assistant, text: "Erledigt: 18 Rechnungen liegen jetzt im Ordner „Rechnungen“.")
-        sorted.run = RunSummary(run: UUID(), changes: 18, checked: 18, undoable: 18, mailMoves: 18)
+        var sorted = ChatMessage(role: .assistant, text: "17 Rechnungen liegen jetzt im Ordner „Rechnungen“. Bei einer hat Mail nicht rechtzeitig geantwortet; sieh bitte in Mail nach.")
+        sorted.run = RunSummary(run: UUID(), changes: 18, checked: 17, unclear: 1, undoable: 17, mailMoves: 18)
         sorted.duration = 31
         return [Conversation(id: "runs", title: "Woche vorbereiten", updated: Date(), messages: [
             ChatMessage(role: .user, text: "Trag die Termine aus dem Brief ein und leg die Rechnung ins Archiv."), tidy,

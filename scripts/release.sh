@@ -7,6 +7,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$ROOT/scripts/lib.sh"
+# Developer probes (build-app.sh PIPPA_PROBES=1) make folders and move mail: never in a release.
+[[ -z "${PIPPA_PROBES:-}" ]] || die 'PIPPA_PROBES is set; a release never carries the developer probes. Unset it.'
 [[ "${PIPPA_SIGN_IDENTITY:-}" == 'Developer ID Application:'* ]] || die 'PIPPA_SIGN_IDENTITY with a Developer ID Application is missing'
 [[ -n "${PIPPA_NOTARY_PROFILE:-}" ]] || die 'PIPPA_NOTARY_PROFILE is missing'
 [[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=normal)" ]] || die 'commit the working tree locally first; a release must match a clean commit'

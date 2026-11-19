@@ -218,6 +218,11 @@ enum ConversationStoreChecks {
             let german = Bundle.module.preferredLocalizations.first == "de"
             let moved = RunReceiptRow.title(RunSummary(run: UUID(), changes: 18, checked: 18, undoable: 18, mailMoves: 18))
             let mixed = RunReceiptRow.title(RunSummary(run: UUID(), changes: 3, checked: 3, undoable: 3, mailMoves: 2))
+            let unclearOnly = RunReceiptRow.title(RunSummary(run: UUID(), changes: 1, unclear: 1, mailMoves: 1))
+            let unclearSome = RunReceiptRow.title(RunSummary(run: UUID(), changes: 18, checked: 17, unclear: 1, undoable: 17, mailMoves: 18))
+            check(unclearOnly == (german ? "1 Mail unklar, bitte nachsehen" : "1 mail unclear, please check")
+                  && unclearSome == (german ? "17 Mails verschoben und geprüft, 1 unklar, bitte nachsehen" : "17 mails moved and checked, 1 unclear, please check"),
+                  "a mail move receipt calls only mails read back in the target moved; unclear ones are counted apart")
             let old = try? JSONDecoder().decode(RunSummary.self, from: Data(#"{"run":"6F1A0C2E-AAAA-4C55-9E0B-000000000001","changes":2,"checked":2,"unclear":0,"undoable":2,"undone":0,"left":0,"failed":0}"#.utf8))
             check(moved == (german ? "18 Mails verschoben, alle geprüft" : "18 mails moved, all checked")
                   && mixed == (german ? "3 Änderungen, alle geprüft" : "3 changes, all checked") && old?.mailMoves == nil && old?.changes == 2,

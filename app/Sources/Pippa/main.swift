@@ -9,12 +9,15 @@ if CommandLine.arguments.dropFirst().contains("--memory-probe") {
     Task { exit(await MemoryProbeCommand.run(arguments)) }
     dispatchMain()
 }
-// `Pippa --mail-move-probe [--account …]`: the same, for the mail-move spike on two test folders.
+// `Pippa --mail-move-probe [--account …]`: the same, for the mail-move spike on two test folders. Only in debug builds
+// and builds with `PIPPA_PROBES=1` (scripts/build-app.sh): it makes folders and copies and moves mail.
+#if DEBUG || PIPPA_PROBES
 if CommandLine.arguments.dropFirst().contains("--mail-move-probe") {
     let arguments = Array(CommandLine.arguments.dropFirst())
     Task { exit(await MailMoveProbeCommand.run(arguments)) }
     dispatchMain()
 }
+#endif
 let app = NSApplication.shared
 if CommandLine.arguments.dropFirst().contains("--verify-runtime") {
     do { try BundleVerification.run(); exit(0) }

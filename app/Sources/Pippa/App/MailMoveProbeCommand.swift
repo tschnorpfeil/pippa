@@ -1,6 +1,7 @@
 import Foundation
 import PippaCore
 
+#if DEBUG || PIPPA_PROBES
 /// `Pippa --mail-move-probe [--account <name>]`: the mail-move spike on two test folders, one JSON report on stdout
 /// (see `MailMoveProbe`). Runs before any app setup: no window, model or Pi. Mail is asked only after the arguments parsed.
 enum MailMoveProbeCommand {
@@ -11,3 +12,4 @@ enum MailMoveProbeCommand {
         return result.exitCode
     }
 }
+#endif

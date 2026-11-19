@@ -1,5 +1,8 @@
 import Foundation
 
+// A developer probe: compiled only into debug builds and builds with `PIPPA_PROBES` (scripts/build-app.sh), never shipped.
+#if DEBUG || PIPPA_PROBES
+
 /// What the probe needs beyond `mail_move`'s reader: the account kinds, a test folder, copies of inbox mails.
 public protocol MailMoveProbeMail: MailAccountReading {
     func accountKinds() async throws -> [MailMoveProbe.AccountKind]
@@ -616,3 +619,4 @@ public enum MailMoveProbe {
         String(decoding: (try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys, .prettyPrinted, .withoutEscapingSlashes])) ?? Data("{}".utf8), as: UTF8.self)
     }
 }
+#endif

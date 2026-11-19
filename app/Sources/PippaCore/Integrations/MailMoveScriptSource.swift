@@ -400,6 +400,12 @@ extension MailAccountScript {
         end tell
         return {"ok", out}
     end accountMove
+    """ + probeSource
+
+    // The probe's handlers (`MailMoveProbe`) exist only in builds with the developer probes (`DEBUG`, `PIPPA_PROBES`):
+    // a shipped app has neither the probe nor its folder, copy and listing handlers.
+    #if DEBUG || PIPPA_PROBES
+    static let probeSource = """
 
     -- The probe (`Pippa --mail-move-probe`): every account with Mail's id, name, account type and class.
     on accountKinds()
@@ -561,6 +567,9 @@ extension MailAccountScript {
         return {"ok", out}
     end accountDuplicate
     """
+    #else
+    static let probeSource = ""
+    #endif
 }
 
 extension MailAccountScript {
@@ -617,6 +626,7 @@ extension MailAccountScript {
     end pathListed
     """
 
+    #if DEBUG || PIPPA_PROBES
     /// The probe's `--diagnose` only: the same listing as `accountFolders`, timed in milliseconds through
     /// AppleScriptObjC's clock. A source of its own, so `use framework` never reaches the scripts the tools run.
     static let diagnoseSource = """
@@ -647,6 +657,7 @@ extension MailAccountScript {
         return {"ok", {item 1 of stats, item 2 of stats, item 2 of r, item 3 of r, item 3 of stats, item 4 of stats, item 5 of stats, item 6 of stats, item 7 of stats}}
     end accountFolderTimings
     """
+    #endif
 }
 
 extension MailAccountScript.Live {
@@ -681,6 +692,7 @@ extension MailAccountScript.Live {
     }
 }
 
+#if DEBUG || PIPPA_PROBES
 /// The probe's extra steps on the real Mail (`MailMoveProbe`): account kinds, a test folder, copies of inbox mails.
 extension MailAccountScript.Live: MailMoveProbeMail {
     func accountKinds() async throws -> [MailMoveProbe.AccountKind] {
@@ -752,6 +764,7 @@ extension MailAccountScript.Live: MailMoveProbeMail {
         }) { try MailMoveParse.statuses($0, expecting: inboxIDs.count) }
     }
 }
+#endif
 
 /// Checks run the pure comparison handlers (`MailAccountScript.compareSource`) through NSAppleScript: nothing in that
 /// source talks to Mail.
@@ -840,6 +853,7 @@ public enum MailMoveParse {
         return out
     }
 
+    #if DEBUG || PIPPA_PROBES
     /// The probe's `{{Message-IDs}, {deleted statuses}}` of one test folder, as many of each.
     public static func listed(_ payload: NSAppleEventDescriptor) throws -> [MailMoveProbe.Listed] {
         guard payload.numberOfItems == 2, let ids = payload.atIndex(1), ids.descriptorType == typeAEList,
@@ -848,6 +862,7 @@ public enum MailMoveParse {
         }
         return zip(AppleEvents.items(ids), AppleEvents.items(flags)).map { MailMoveProbe.Listed(messageID: $0.stringValue ?? "", deleted: $1.booleanValue) }
     }
+    #endif
 
     public static func statuses(_ payload: NSAppleEventDescriptor, expecting: Int) throws -> [String] {
         let statuses = AppleEvents.strings(payload)

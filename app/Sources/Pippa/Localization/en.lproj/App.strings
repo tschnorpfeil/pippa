@@ -285,6 +285,10 @@
 "%lld changes" = "%lld changes";
 "1 mail moved" = "1 mail moved";
 "%lld mails moved" = "%lld mails moved";
+"1 mail moved and checked" = "1 mail moved and checked";
+"%lld mails moved and checked" = "%lld mails moved and checked";
+"1 mail unclear, please check" = "1 mail unclear, please check";
+"%lld mails unclear, please check" = "%lld mails unclear, please check";
 "unclear, please check" = "unclear, please check";
 "checked" = "checked";
 "all checked" = "all checked";
