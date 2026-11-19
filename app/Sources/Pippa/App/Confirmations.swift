@@ -15,6 +15,18 @@ enum Confirmations {
         request.options.count == 2 ? (request.options[0], request.options[1]) : (T("Don’t Allow", table: "App"), T("Allow", table: "App"))
     }
 
+    /// No, then yes. No is the default button (Return) and has the focus (Space with keyboard navigation): a confirm
+    /// may send a mail or change things for good, so only a click on yes says yes. Returns yes's response.
+    static func addConfirmButtons(_ alert: NSAlert, _ request: PiUIRequest) -> NSApplication.ModalResponse {
+        let labels = confirmLabels(request)
+        let no = alert.addButton(withTitle: labels.no)
+        let yes = alert.addButton(withTitle: labels.yes)
+        no.keyEquivalent = "\r"
+        yes.keyEquivalent = ""
+        alert.window.initialFirstResponder = no
+        return .alertSecondButtonReturn
+    }
+
     static func alert(_ request: PiUIRequest) -> PiUIResponse {
         let alert = NSAlert()
         // Pi's `select` has no message, only a title and answers; "question\n\nsentence" may come in the title.
@@ -52,10 +64,8 @@ enum Confirmations {
         NSApp.activate()
         switch request.method {
         case "confirm":
-            let labels = confirmLabels(request)
-            alert.addButton(withTitle: labels.yes)
-            alert.addButton(withTitle: labels.no)
-            return .confirmed(alert.runModal() == .alertFirstButtonReturn)
+            let yes = addConfirmButtons(alert, request)
+            return .confirmed(alert.runModal() == yes)
         case "select" where !request.options.isEmpty && request.options.count <= 3:
             for option in request.options { alert.addButton(withTitle: option) }
             let index = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue

@@ -48,7 +48,8 @@ enum HeadlessAskChecks {
             lock.withLock { sends += 1 }
             return .sent
         }
-        func sent(subject: String, since: Date) async throws -> [MailSentEntry] { [] }
+        func sentMessageIDs(subject: String, from address: String, since: Date) async throws -> Set<String> { [] }
+        func sent(subject: String, from address: String, since: Date) async throws -> [MailSentEntry] { [] }
     }
 
     private struct Fixture {

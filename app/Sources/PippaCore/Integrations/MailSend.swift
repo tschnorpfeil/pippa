@@ -72,16 +72,17 @@ public enum MailSendDispatch: Sendable, Equatable {
     case unclear
 }
 
-/// One mail in Sent, as the lookup reports it, for comparing in Swift. `id` is Mail's id of the message: a mail that
-/// was in Sent before the send event is never the one just sent.
+/// One mail in Sent, as the lookup reports it, for comparing in Swift. `messageID` is the RFC Message-ID: Mail's own
+/// id of a message changes when Sent syncs (iCloud), the Message-ID does not. "" when Mail has none: such a mail is
+/// never told apart from one that was there before.
 public struct MailSentEntry: Sendable, Equatable {
-    public var id: Int
+    public var messageID: String
     public var sender: String
     public var to: [String]
     public var cc: [String]
     public var bcc: [String]
-    public init(id: Int, sender: String, to: [String], cc: [String] = [], bcc: [String] = []) {
-        self.id = id; self.sender = sender; self.to = to; self.cc = cc; self.bcc = bcc
+    public init(messageID: String, sender: String, to: [String], cc: [String] = [], bcc: [String] = []) {
+        self.messageID = messageID; self.sender = sender; self.to = to; self.cc = cc; self.bcc = bcc
     }
 }
 
@@ -94,8 +95,12 @@ public protocol MailSending: Sendable {
     /// The single mutating Apple Event: sends window `id` of Mail process `process` only while it still holds exactly
     /// `expected`. Never repeated.
     func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch
-    /// Mails in Sent with exactly this subject, sent since `since`. Read only.
-    func sent(subject: String, since: Date) async throws -> [MailSentEntry]
+    /// The Message-IDs in the Sent mailbox of the one account that has `address`, with exactly this subject, sent at
+    /// or after `since` (a fixed time, the same one every later `sent` gets). Bounded short: it runs before the send
+    /// event, and its failure only makes the outcome unclear. Read only.
+    func sentMessageIDs(subject: String, from address: String, since: Date) async throws -> Set<String>
+    /// The mails in that same Sent mailbox with exactly this subject, sent at or after `since`. Read only.
+    func sent(subject: String, from address: String, since: Date) async throws -> [MailSentEntry]
 }
 
 extension MailSentEntry {
@@ -119,9 +124,13 @@ extension SystemIntegrations: MailSending {
     public func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch {
         try await MailSendScript.send(id, process: process, expected: expected)
     }
-    public func sent(subject: String, since: Date) async throws -> [MailSentEntry] {
+    public func sentMessageIDs(subject: String, from address: String, since: Date) async throws -> Set<String> {
         guard AppleEvents.isRunning(.mail) else { throw PippaError.appNotOpen(Integration.mail.appName) }
-        return try await MailSendScript.sent(subject: subject, since: since)
+        return try await MailSendScript.sentMessageIDs(subject: subject, from: address, since: since, runner: MailSendScript.run)
+    }
+    public func sent(subject: String, from address: String, since: Date) async throws -> [MailSentEntry] {
+        guard AppleEvents.isRunning(.mail) else { throw PippaError.appNotOpen(Integration.mail.appName) }
+        return try await MailSendScript.sent(subject: subject, from: address, since: since, runner: MailSendScript.run)
     }
 }
 
@@ -133,7 +142,8 @@ public enum MailSendScript {
     public static func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch {
         try await send(id, expected: expected, runner: run(in: process))
     }
-    public static func sent(subject: String, since: Date) async throws -> [MailSentEntry] { try await sent(subject: subject, since: since, now: Date(), runner: run) }
+    /// Seconds each Apple Event of the snapshot before the send event may take; the later looks take up to 15.
+    public static let snapshotTimeout: Int32 = 5
 
     public static func outgoing(_ id: Int, runner: StepRunner) async throws -> MailOutgoingLookup {
         guard let id = Int32(exactly: id) else { return .gone }
@@ -163,15 +173,21 @@ public enum MailSendScript {
         }
     }
 
-    public static func sent(subject: String, since: Date, now: Date, runner: StepRunner) async throws -> [MailSentEntry] {
-        // A minute of slack for Mail's own clock and rounding to seconds.
-        let age = Int32(clamping: Int(max(0, now.timeIntervalSince(since)).rounded(.up)) + 60)
-        let response = try await runner("findSent", [.text(subject), .number(age)], false)
+    /// `since` goes to Mail as the date itself, never as an age from Mail's clock: the snapshot and every later look
+    /// compare with the same instant.
+    public static func sentMessageIDs(subject: String, from address: String, since: Date, runner: StepRunner) async throws -> Set<String> {
+        let response = try await runner("sentIDs", [.text(subject), .text(address), .date(since), .number(snapshotTimeout)], false)
+        guard response.count == 2, response[0].text == "ok" else { throw PippaError.notAvailable }
+        return Set(response[1].items.compactMap(\.text))
+    }
+
+    public static func sent(subject: String, from address: String, since: Date, runner: StepRunner) async throws -> [MailSentEntry] {
+        let response = try await runner("findSent", [.text(subject), .text(address), .date(since), .number(15)], false)
         guard response.count == 2, response[0].text == "ok" else { throw PippaError.notAvailable }
         return response[1].items.compactMap { entry in
             let parts = entry.items
-            guard parts.count == 5, let id = parts[0].number, let sender = parts[1].text else { return nil }
-            return MailSentEntry(id: id, sender: sender, to: parts[2].items.compactMap(\.text), cc: parts[3].items.compactMap(\.text),
+            guard parts.count == 5, let id = parts[0].text, let sender = parts[1].text else { return nil }
+            return MailSentEntry(messageID: id, sender: sender, to: parts[2].items.compactMap(\.text), cc: parts[3].items.compactMap(\.text),
                                  bcc: parts[4].items.compactMap(\.text))
         }
     }
@@ -194,7 +210,7 @@ public enum MailSendScript {
         }
     }
 
-    private static func run(_ handler: String, _ args: [ScriptArgument], _ mutation: Bool) async throws -> [ScriptValue] {
+    static func run(_ handler: String, _ args: [ScriptArgument], _ mutation: Bool) async throws -> [ScriptValue] {
         let result = try await AppleEvents.perform {
             ScriptValue(try AppleEvents.call(source, handler: handler, args.map(\.descriptor), app: .mail, mutation: mutation))
         }.items
@@ -358,13 +374,56 @@ public enum MailSendScript {
         return true
     end sameAddresses
 
-    on findSent(theSubject, ageSeconds)
-        set out to {}
+    -- The Sent mailbox of the one account that has theAddress among its addresses, as a list of one; {} when no
+    -- account or more than one has it, or that account has no Sent mailbox. Only that mailbox is ever searched.
+    on sentBoxFor(theAddress, theTimeout)
         tell application id "com.apple.mail"
-            try
-                with timeout of 15 seconds
-                    set sinceDate to (current date) - ageSeconds
-                    set found to (every message of sent mailbox whose subject is theSubject and date sent is greater than or equal to sinceDate)
+            with timeout of theTimeout seconds
+                set owners to {}
+                repeat with acct in accounts
+                    if (email addresses of acct) contains theAddress then set end of owners to ((id of acct) as text)
+                end repeat
+                if (count of owners) is not 1 then return {}
+                set boxes to {}
+                repeat with box in (mailboxes of sent mailbox)
+                    if ((id of (account of box)) as text) is (item 1 of owners) then set end of boxes to (contents of box)
+                end repeat
+            end timeout
+        end tell
+        if (count of boxes) is not 1 then return {}
+        return boxes
+    end sentBoxFor
+
+    on sentIDs(theSubject, theAddress, sinceDate, theTimeout)
+        set out to {}
+        try
+            set boxes to my sentBoxFor(theAddress, theTimeout)
+            if (count of boxes) is 0 then return {"nobox"}
+            set box to item 1 of boxes
+            tell application id "com.apple.mail"
+                with timeout of theTimeout seconds
+                    set found to message id of (every message of box whose subject is theSubject and date sent is greater than or equal to sinceDate)
+                end timeout
+            end tell
+            repeat with theID in found
+                set end of out to my textOf(contents of theID)
+            end repeat
+        on error number errNum
+            if errNum is -1712 then return {"busy"}
+            return {"failed"}
+        end try
+        return {"ok", out}
+    end sentIDs
+
+    on findSent(theSubject, theAddress, sinceDate, theTimeout)
+        set out to {}
+        try
+            set boxes to my sentBoxFor(theAddress, theTimeout)
+            if (count of boxes) is 0 then return {"nobox"}
+            set box to item 1 of boxes
+            tell application id "com.apple.mail"
+                with timeout of theTimeout seconds
+                    set found to (every message of box whose subject is theSubject and date sent is greater than or equal to sinceDate)
                     repeat with m in found
                         set toList to {}
                         repeat with r in to recipients of m
@@ -378,14 +437,14 @@ public enum MailSendScript {
                         repeat with r in bcc recipients of m
                             set end of bccList to my textOf(address of r)
                         end repeat
-                        set end of out to {(id of m) as integer, my textOf(sender of m), toList, ccList, bccList}
+                        set end of out to {my textOf(message id of m), my textOf(sender of m), toList, ccList, bccList}
                     end repeat
                 end timeout
-            on error number errNum
-                if errNum is -1712 then return {"busy"}
-                return {"failed"}
-            end try
-        end tell
+            end tell
+        on error number errNum
+            if errNum is -1712 then return {"busy"}
+            return {"failed"}
+        end try
         return {"ok", out}
     end findSent
     """

@@ -8,14 +8,22 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
     private let lock = NSLock()
     private var windows: [Int: MailOutgoing] = [:]
     private var nextID = 100
-    private var sentMails: [MailOutgoing] = []
+    /// What left, and when (the real clock: the tool's cut-offs come from it as well).
+    private var sentMails: [(mail: MailOutgoing, at: Date)] = []
     private var sends = 0, sendCalls = 0, polls = 0
     /// Sent shows the mail from this look on (1 = the first look, the one before the send event); `Int.max`: never.
     var visibleFrom = 1
-    /// Mails in Sent from before (an earlier reply in the same thread): there on every look.
+    /// Mails in Sent from before (an earlier reply in the same thread), sent at `earlierAt`: on every look that reaches
+    /// back that far.
     var earlier: [MailSentEntry] = []
-    /// Another mail that lands in Sent after the send event, whatever `visibleFrom` says.
+    var earlierAt = Date().addingTimeInterval(-10)
+    /// Another mail that lands in Sent at the send event, whatever `visibleFrom` says.
     var other: [MailSentEntry] = []
+    /// The snapshot before the send event fails, as with a slow Mail or an account without a Sent mailbox.
+    var snapshotFails = false
+    /// Every look into Sent: the snapshot or a later look, the address and the cut-off it got.
+    private var looks: [(snapshot: Bool, from: String, since: Date)] = []
+    var sentLooks: [(snapshot: Bool, from: String, since: Date)] { lock.withLock { looks } }
     /// Mail's process now; `restartMail` gives it a new one, as after quitting and opening Mail again.
     private var process: Int32 = 4242
     func restartMail() { lock.withLock { process += 1 } }
@@ -61,17 +69,29 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
         guard window.matches(expected) else { return .changed }
         try PippaMCPWriteLease.current?.beginDispatch()
         return lock.withLock {
-            sends += 1; windows[id] = nil; sentMails.append(window)
+            sends += 1; windows[id] = nil; sentMails.append((window, Date()))
             return outcome
         }
     }
 
-    func sent(subject: String, since: Date) async throws -> [MailSentEntry] {
-        lock.withLock {
+    func sentMessageIDs(subject: String, from address: String, since: Date) async throws -> Set<String> {
+        Set(try look(snapshot: true, subject: subject, from: address, since: since).map(\.messageID))
+    }
+
+    func sent(subject: String, from address: String, since: Date) async throws -> [MailSentEntry] {
+        try look(snapshot: false, subject: subject, from: address, since: since)
+    }
+
+    private func look(snapshot: Bool, subject: String, from address: String, since: Date) throws -> [MailSentEntry] {
+        try lock.withLock {
             polls += 1
-            let new = polls >= visibleFrom ? sentMails.enumerated().filter { $0.element.subject == subject }
-                .map { MailSentEntry(id: 900 + $0.offset, sender: $0.element.sender, to: $0.element.to, cc: $0.element.cc, bcc: $0.element.bcc) } : []
-            return earlier + (polls >= 2 ? other : []) + new
+            looks.append((snapshot, address, since))
+            if snapshot && snapshotFails { throw PippaError.notAvailable }
+            let new = polls >= visibleFrom ? sentMails.enumerated().filter { $0.element.mail.subject == subject && $0.element.at >= since }
+                .map { MailSentEntry(messageID: "<sent-\($0.offset)@example.test>", sender: $0.element.mail.sender, to: $0.element.mail.to,
+                                     cc: $0.element.mail.cc, bcc: $0.element.mail.bcc) } : []
+            let others = sentMails.contains { $0.at >= since } ? other : []
+            return (earlierAt >= since ? earlier : []) + others + new
         }
     }
 }
@@ -138,6 +158,27 @@ func runMCPMailSendChecks() async {
             && classify(["done": true, "state": "sent", "sent": true], isError: false) == .done
             && classify(["done": false, "state": "unclear"], isError: false) == .unclear
             && classify(["done": false, "status": "draft_changed", "dispatched": false], isError: true) == .blocked
+    }
+    check("Mail send: every status mail_send returns before the send event is a no-effect status for the receipt and for pippa-assist") {
+        let checkout = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        guard let tool = try? String(contentsOf: checkout.appendingPathComponent("app/Sources/PippaCore/MCP/PippaMCPMailSend.swift"), encoding: .utf8),
+              let assist = try? String(contentsOf: checkout.appendingPathComponent("runtime/pippa-tools/pippa-assist.ts"), encoding: .utf8),
+              let open = assist.range(of: "const NATIVE_NO_EFFECT = new Set(["),
+              let close = assist.range(of: "]);", range: open.upperBound..<assist.endIndex),
+              let literal = try? NSRegularExpression(pattern: #"(?:refuse|notSent)\("([a-z_]+)""#) else { return false }
+        let listed = String(assist[open.upperBound..<close.lowerBound])
+        // Each status the tool's own code refuses with, plus those of the shared steps before the send event: the
+        // argument check, the egress rule, Mail's access (`ensure`) and the card (`gate`).
+        let own = literal.matches(in: tool, range: NSRange(tool.startIndex..., in: tool)).compactMap { Range($0.range(at: 1), in: tool).map { String(tool[$0]) } }
+        let statuses = Set(own + ["draft_changed", "invalid_arguments", "stays_on_mac", "needs_access", "denied", "unavailable", "failed",
+                                  "cancelled", "declined"])
+        func outcome(_ status: String) -> PiActionRecord.Outcome {
+            let text = String(decoding: try! JSONSerialization.data(withJSONObject: ["done": false, "status": status, "dispatched": false]), as: UTF8.self)
+            return PiTurnReceipt.classify(tool: "mcp__pippa__mail_send", isError: true, result: ["content": [["type": "text", "text": text]]])
+        }
+        let missing = statuses.filter { !listed.contains("\"\($0)\"") || outcome($0) != .blocked }
+        if !missing.isEmpty { print("  not in both no-effect lists: \(missing.sorted())") }
+        return own.contains("no_sender") && own.contains("unknown_draft") && missing.isEmpty
     }
     await checkAsync("Mail send: an online AI without Mac access can neither list nor call mail_send") {
         let world = World(answer: yes)
@@ -278,12 +319,12 @@ func runMCPMailSendChecks() async {
         // An earlier reply in the thread: same subject, sender and To, in Sent before the send event.
         let thread = World(answer: yes)
         thread.fake.visibleFrom = .max
-        thread.fake.earlier = [MailSentEntry(id: 7, sender: "Pippa Check <me@example.test>", to: ["anna@example.test"])]
+        thread.fake.earlier = [MailSentEntry(messageID: "<earlier@example.test>", sender: "Pippa Check <me@example.test>", to: ["anna@example.test"])]
         let earlier = await send(thread, await draft(thread))
         // A Cc-only mail: another mail to nobody in To, Cc someone else, lands in Sent at the same time.
         let ccOnly = World(answer: yes)
         ccOnly.fake.visibleFrom = .max
-        ccOnly.fake.other = [MailSentEntry(id: 8, sender: "Pippa Check <me@example.test>", to: [], cc: ["chris@example.test"])]
+        ccOnly.fake.other = [MailSentEntry(messageID: "<other@example.test>", sender: "Pippa Check <me@example.test>", to: [], cc: ["chris@example.test"])]
         let ccID = await draft(ccOnly, to: nil)
         ccOnly.fake.edit(ccOnly.fake.lastID) { $0.cc = ["ben@example.test"] }
         let cc = await send(ccOnly, ccID)
@@ -294,6 +335,47 @@ func runMCPMailSendChecks() async {
         let verified = await send(found, foundID)
         return [earlier, cc].allSatisfy { $0.json["state"] as? String == "unclear" && $0.json["verified"] == nil }
             && thread.fake.sendCount == 1 && ccOnly.fake.sendCount == 1 && verified.json["verified"] as? String == "1 of 1"
+    }
+    await checkAsync("Mail send: the snapshot of Sent and every later look get one fixed cut-off and the sender's address; Sent mails count by Message-ID") {
+        let world = World(answer: yes)
+        world.fake.visibleFrom = 3
+        let result = await send(world, await draft(world))
+        let looks = world.fake.sentLooks
+        // The script gets the cut-off itself, never an age from Mail's clock, and reads Message-IDs, not Mail's ids.
+        let cutoff = Date(timeIntervalSince1970: 1_800_000_000)
+        let args = LockedBox<[[ScriptArgument]]>([])
+        let runner: MailSendScript.StepRunner = { handler, given, _ in
+            args.mutate { $0.append(given) }
+            if handler == "sentIDs" { return [.text("ok"), .list([.text("<a@example.test>")])] }
+            return [.text("ok"), .list([.list([.text("<a@example.test>"), .text("Me <me@example.test>"), .list([.text("anna@example.test")]),
+                                               .list([]), .list([])])])]
+        }
+        let ids = try await MailSendScript.sentMessageIDs(subject: "S", from: "me@example.test", since: cutoff, runner: runner)
+        let entries = try await MailSendScript.sent(subject: "S", from: "me@example.test", since: cutoff, runner: runner)
+        return result.json["verified"] as? String == "1 of 1" && looks.count == 3 && looks[0].snapshot && !looks[1].snapshot
+            && Set(looks.map(\.since)).count == 1 && looks.allSatisfy { $0.from == "me@example.test" }
+            && looks[0].since.timeIntervalSince1970 == looks[0].since.timeIntervalSince1970.rounded(.down)
+            && args.value.count == 2 && args.value.allSatisfy { $0.count == 4 && $0[1] == .text("me@example.test") && $0[2] == .date(cutoff) }
+            && ids == ["<a@example.test>"] && entries.map(\.messageID) == ["<a@example.test>"]
+    }
+    await checkAsync("Mail send: an unreadable snapshot of Sent never blocks the send; then only exactly one copy sent from the send event on verifies") {
+        // One copy: verified. An identical earlier reply, sent before the send event, is out of reach and changes nothing.
+        let one = World(answer: yes)
+        one.fake.snapshotFails = true
+        one.fake.earlier = [MailSentEntry(messageID: "<earlier@example.test>", sender: "Pippa Check <me@example.test>", to: ["anna@example.test"])]
+        let verified = await send(one, await draft(one))
+        let looks = one.fake.sentLooks
+        // Another identical copy at the same time: the two cannot be told apart, so it is unclear, and never sent again.
+        let two = World(answer: yes)
+        two.fake.snapshotFails = true
+        two.fake.other = [MailSentEntry(messageID: "<other@example.test>", sender: "Pippa Check <me@example.test>", to: ["anna@example.test"])]
+        let twoID = await draft(two)
+        let unclear = await send(two, twoID)
+        let again = await send(two, twoID)
+        return verified.json["verified"] as? String == "1 of 1" && one.fake.sendCount == 1 && one.cards.value.count == 1
+            && looks.count >= 2 && looks[0].snapshot && looks.dropFirst().allSatisfy { !$0.snapshot && $0.since > looks[0].since }
+            && unclear.json["state"] as? String == "unclear" && two.fake.sendCount == 1 && two.fake.sendCallCount == 1
+            && again.json["status"] as? String == "already_sent" && twoID.flatMap { two.host.mailDrafts.state($0) } == .unclear
     }
     await checkAsync("Mail send: a draft without a sender address, or from a Mail that restarted since, is refused before any card") {
         let world = World(answer: yes)

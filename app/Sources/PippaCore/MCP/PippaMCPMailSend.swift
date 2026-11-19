@@ -5,8 +5,9 @@ import Foundation
 // it at that moment. Nothing else can be sent: no free text, no forwarding, no attachments beyond the draft's own.
 //
 // Order: the draft id → read the draft from Mail → refuse what cannot be sent → the card (`PippaMCPTools.gate`) → read
-// again and compare → a run journal row, dispatched → the one send event (`MailSending.send`, which compares once more
-// in the same event) → look for the mail in Sent, bounded. Anything in doubt sends nothing; after the event nothing is
+// again and compare → the Message-IDs already in the sending account's Sent (bounded; unreadable never stops the send)
+// → a run journal row, dispatched → the one send event (`MailSending.send`, which compares once more in the same event)
+// → look for the mail in that Sent, bounded. Anything in doubt sends nothing; after the event nothing is
 // ever sent again. The gate sits in the app's server, so it holds for a call from a codemode script as well: the server
 // cannot tell such a call apart, and it does not need to.
 
@@ -16,6 +17,9 @@ public enum PippaMCPMailSend {
     /// leaves room for a slow server, then the outcome is unclear (never sent again).
     public static let sentBound: Duration = .seconds(30)
     public static let sentInterval: Duration = .seconds(2)
+    /// How far before the send event the snapshot of Sent reaches: room for Mail's clock. The later looks reach exactly
+    /// as far, never further.
+    public static let sentSlack: TimeInterval = 60
     public static let journalKind = "mail.send"
 
     static func toolList() -> [[String: Any]] {
@@ -136,14 +140,17 @@ extension PippaMCPWriteTools {
         case .notSent(let status, let tell): return refuse(status, tell)
         }
 
-        // What Sent already holds under this subject (an earlier reply in the thread): never taken for this mail.
-        let sentAt = host.now()
-        let before: Set<Int>
+        // What the sending account's Sent already holds under this subject (an earlier reply in the thread), by
+        // Message-ID: never taken for this mail. One cut-off, a whole second, for the snapshot and every later look.
+        // Unreadable (slow, no Sent mailbox): the person said yes, so it sends anyway; only verifying gets stricter.
+        let address = current.senderAddress ?? ""
+        let cutoff = Self.wholeSecond(host.now()).addingTimeInterval(-PippaMCPMailSend.sentSlack)
+        let before: Set<String>?
         do {
-            before = Set(try await sender.sent(subject: current.subject, since: sentAt).map(\.id))
+            before = try await sender.sentMessageIDs(subject: current.subject, from: address, since: cutoff)
         } catch {
             if error is CancellationError { return refuse("cancelled", Self.stoppedText) }
-            return refuse("busy", L("Mail didn’t answer, so Pippa sent nothing. Try again in a moment.", table: "MCP"))
+            before = nil
         }
 
         let lease = PippaMCPWriteLease.current
@@ -160,6 +167,8 @@ extension PippaMCPWriteTools {
             return refuse("unavailable", L("Pippa’s journal is unavailable, so she sent nothing.", table: "MCP"))
         }
 
+        // Without a snapshot only mails sent from this second on count (see `inSent`).
+        let sendStart = Self.wholeSecond(host.now())
         let dispatch: MailSendDispatch
         do {
             dispatch = try await sender.send(outgoingID, process: process, expected: current)
@@ -192,7 +201,7 @@ extension PippaMCPWriteTools {
                                 receipt: receipt("unclear", "unconfirmed"))
         }
 
-        guard await inSent(current, since: sentAt, before: before, sender: sender) else {
+        guard await inSent(current, from: address, since: before == nil ? sendStart : cutoff, before: before, sender: sender) else {
             await row?.abandon(dispatched: true)
             final = .unclear
             return Self.unclear(L("Mail took the mail, but Pippa could not confirm it in Sent. Please look in Sent; Pippa won’t send it again.", table: "MCP"),
@@ -226,21 +235,31 @@ extension PippaMCPWriteTools {
         }
     }
 
-    /// Looks for the sent copy in Sent until `PippaMCPMailSend.sentBound`; mails that were there before the send event
-    /// (`before`) never count. Stop ends the wait: then it is unclear.
-    private func inSent(_ mail: MailOutgoing, since: Date, before: Set<Int>, sender: any MailSending) async -> Bool {
+    /// Looks for the sent copy in the account's Sent until `PippaMCPMailSend.sentBound`. With the snapshot (`before`), a
+    /// copy whose Message-ID was not there before the send event counts. Without it, `since` is the second the send
+    /// event started: exactly one copy dated from then on counts, as nothing older can be; two or more cannot be told
+    /// apart, so it is unclear. Stop ends the wait: then it is unclear.
+    private func inSent(_ mail: MailOutgoing, from address: String, since: Date, before: Set<String>?, sender: any MailSending) async -> Bool {
         let settle = host.mailSendSettle
         let start = settle.now()
         while !Task.isCancelled, !scope.snapshot.cancelled {
-            if let entries = try? await sender.sent(subject: mail.subject, since: since),
-               entries.contains(where: { !before.contains($0.id) && $0.isCopy(of: mail) }) {
-                return true
+            if let entries = try? await sender.sent(subject: mail.subject, from: address, since: since) {
+                let copies = entries.filter { $0.isCopy(of: mail) }
+                if let before {
+                    if copies.contains(where: { !$0.messageID.isEmpty && !before.contains($0.messageID) }) { return true }
+                } else if copies.count == 1 {
+                    return true
+                } else if copies.count > 1 {
+                    return false
+                }
             }
             guard settle.now() - start < PippaMCPMailSend.sentBound, !Task.isCancelled, !scope.snapshot.cancelled else { return false }
             await settle.sleep(PippaMCPMailSend.sentInterval)
         }
         return false
     }
+
+    static func wholeSecond(_ date: Date) -> Date { Date(timeIntervalSince1970: date.timeIntervalSince1970.rounded(.down)) }
 
     /// The card: recipients, subject, sender and attachments, then the whole text as Mail has it.
     public static func sendCard(_ mail: MailOutgoing) -> PippaMCPConfirmation {

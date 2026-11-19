@@ -67,6 +67,8 @@ struct IslandOpenButton: View {
 /// title and answers; "question\n\nsentence" may come in the title.
 struct IslandQuestionText: View {
     let request: PiUIRequest
+    /// More of the text lies below what shows (a long recipient list, a whole mail). No `@State`: no SwiftUI macros.
+    private let continues = State(initialValue: false)
 
     private var parts: (title: String, message: String, detail: String) {
         var title = request.title, message = request.message
@@ -100,10 +102,32 @@ struct IslandQuestionText: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollIndicators(.visible)
+            .onScrollGeometryChange(for: Bool.self) { $0.contentSize.height - $0.visibleRect.maxY > 1 } action: { _, more in continues.wrappedValue = more }
             .frame(maxHeight: 220)
             .fixedSize(horizontal: false, vertical: true)
+            // Until the end is in view, a fade and an arrow over the last line: the list never looks complete before
+            // it is, even where macOS hides the scroll bar.
+            .overlay(alignment: .bottom) { if continues.wrappedValue { IslandMoreBelow() } }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// "There is more below" over the bottom edge of a scrolling question text; clicks and VoiceOver pass through.
+private struct IslandMoreBelow: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(colors: [Color.black.opacity(0), Color.black], startPoint: .top, endPoint: .bottom)
+                .frame(height: 40)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(IslandStyle.white(0.18)))
+        }
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

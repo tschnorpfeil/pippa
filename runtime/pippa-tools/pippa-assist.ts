@@ -80,7 +80,7 @@ const NATIVE_NO_EFFECT = new Set(["invalid_arguments", "cancelled", "needs_acces
 	"plan_required", "stale_plan", "cross_account", "not_inbox", "unknown_folder", "ambiguous_folder", "target_not_allowed", "same_folder",
 	"folders_incomplete", "not_moved", "move_running",
 	// mail_send (PippaMCPMailSend.swift): refused before the send event, or the draft changed after the card.
-	"unknown_draft", "already_sent", "draft_gone", "no_recipient", "empty_body", "draft_changed", "not_sent",
+	"unknown_draft", "already_sent", "draft_gone", "no_sender", "no_recipient", "empty_body", "draft_changed", "not_sent",
 	// The class gate (PippaMCPActionClass.swift): no class, or the person said no on the card.
 	"blocked", "declined"]);
 
