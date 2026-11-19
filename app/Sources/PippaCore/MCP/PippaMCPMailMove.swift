@@ -16,7 +16,7 @@ extension PippaMCPWriteTools {
             return Self.blocked("unavailable", L("Pippa can’t move mails here.", table: "MCP"), receipt: nil)
         }
         let store = host.mailPages
-        let mover = MailMover(reader: reader)
+        let mover = MailMover(reader: reader, settle: host.mailMoveSettle)
         if let token = input.text("plan") {
             guard input.refs == nil, input.text("to") == nil, input.dryRun == nil else { return Self.invalid("With plan, pass only plan.") }
             guard MailPageStore.isToken(token, prefix: "p") else { return Self.invalid("plan must be the plan from a mail_move dry run in this answer.") }

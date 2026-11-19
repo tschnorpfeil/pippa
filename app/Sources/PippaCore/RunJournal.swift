@@ -120,10 +120,14 @@ public struct RunActionResult: Sendable {
     }
 }
 
-/// What one undo step did. `changed`: the object was changed since Pippa touched it, so it stays.
-public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed }
+/// What one undo step did. `changed`: the object was changed since Pippa touched it, so it stays. `nothing`: an unclear
+/// row whose action provably did not happen (a mail move found back in its source): nothing to undo.
+public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing }
 /// Puts one row back, only if its object is unchanged since Pippa touched it. Supplied per kind by the tool.
 public typealias RunUndoRecipe = @Sendable (RunAction) async -> RunUndoOutcome
+/// Puts several rows of one kind back in one step (mail moves go back in batches), `rows` in undo order. It also gets
+/// the kind's unclear rows, to look at them once more. A row without an outcome counts as failed.
+public typealias RunUndoBatchRecipe = @Sendable ([RunAction]) async -> [UUID: RunUndoOutcome]
 
 public struct RunUndoReport: Sendable, Equatable {
     public var undone: [RunAction] = []
@@ -350,6 +354,7 @@ extension Executor {
         case .undone, .gone: row.state = .undone; row.note = outcome == .gone ? "gone" : nil
         case .changed: row.note = "changed"
         case .failed: row.state = .undoFailed; row.note = "failed"
+        case .nothing: row.state = .undone; row.note = "not_moved"
         }
         return row
     }
@@ -382,23 +387,43 @@ extension Executor {
     public func endRunUndo(_ run: UUID) { undoingRuns.remove(run) }
 
     /// Goes backwards through the run's done rows. Each step runs only if its recipe finds the object unchanged since
-    /// Pippa touched it; the rest of the run continues either way. One Undo per run at a time.
-    public func undoRun(_ run: UUID, recipe: @Sendable (String) -> RunUndoRecipe?) async throws -> RunUndoReport {
+    /// Pippa touched it; the rest of the run continues either way. Consecutive rows of a kind with a `batch` recipe go
+    /// in one step, together with that kind's unclear rows. One Undo per run at a time.
+    public func undoRun(_ run: UUID, recipe: @Sendable (String) -> RunUndoRecipe?,
+                        batch: @Sendable (String) -> RunUndoBatchRecipe? = { _ in nil }) async throws -> RunUndoReport {
         try beginRunUndo(run)
         defer { endRunUndo(run) }
         var report = RunUndoReport()
-        for row in try runActions(run: run).reversed() where row.state == .done && row.note != "changed" {
-            guard let undo = recipe(row.object.kind) else { continue }
-            let outcome = await undo(row)
-            // Only from done: a concurrent single-row Undo may have finished it meanwhile.
-            guard let stored = try runTransaction({ try self.row(row.id) }), stored.state == .done else { continue }
+        func record(_ row: RunAction, _ outcome: RunUndoOutcome) throws {
+            // Only from the state it was taken in: a concurrent single-row Undo may have finished it meanwhile.
+            guard let stored = try runTransaction({ try self.row(row.id) }), stored.state == row.state else { return }
             let current = Self.applying(outcome, to: stored)
             switch outcome {
             case .undone, .gone: report.undone.append(current)
             case .changed: report.left.append(current)
             case .failed: report.failed.append(current)
+            case .nothing: break
             }
             try runTransaction { try save(current) }
+        }
+        let rows = try runActions(run: run).reversed().filter { row in
+            row.note != "changed" && (row.state == .done || (row.state == .unclear && batch(row.object.kind) != nil))
+        }
+        var index = 0
+        while index < rows.count {
+            let row = rows[index]
+            if let many = batch(row.object.kind) {
+                var end = index
+                while end < rows.count, rows[end].object.kind == row.object.kind { end += 1 }
+                let group = Array(rows[index..<end])
+                index = end
+                let outcomes = await many(group)
+                for member in group { try record(member, outcomes[member.id] ?? .failed) }
+                continue
+            }
+            index += 1
+            guard let undo = recipe(row.object.kind) else { continue }
+            try record(row, await undo(row))
         }
         return report
     }

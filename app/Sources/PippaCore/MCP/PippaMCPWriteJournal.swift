@@ -90,7 +90,8 @@ extension PippaMCPHost {
             }
         case MailMover.kind:
             guard let reader = mailAccounts else { return nil }
-            return { row in await MailMover.undo(row, reader: reader) }
+            let mover = MailMover(reader: reader, settle: mailMoveSettle)
+            return { row in await mover.undo([row]).outcomes[row.id] ?? .failed }
         case "file.prepared":
             guard let journal = reminderJournal else { return nil }
             return { row in
@@ -102,6 +103,14 @@ extension PippaMCPHost {
         default:
             return RunFileRecipes.recipe(kind)
         }
+    }
+
+    /// Undo of several rows in one step, by kind: mail moves go back in batches (MailMover.undo). A check's own
+    /// per-row recipe for the kind wins.
+    public func runUndoBatchRecipe(_ kind: String) -> RunUndoBatchRecipe? {
+        guard kind == MailMover.kind, runRecipes[kind] == nil, let reader = mailAccounts else { return nil }
+        let mover = MailMover(reader: reader, settle: mailMoveSettle)
+        return { rows in await mover.undo(rows).outcomes }
     }
 
     /// Undo from one receipt row of `run`, under the same lock as Undo of the whole answer; its run row then takes the
@@ -126,7 +135,7 @@ extension PippaMCPHost {
     public func undoRun(_ run: UUID) async throws -> RunUndoReport {
         guard let journal = reminderJournal else { throw NativeReminderJournalError.unreadable }
         let host = self
-        return try await journal.undoRun(run) { host.runUndoRecipe($0) }
+        return try await journal.undoRun(run, recipe: { host.runUndoRecipe($0) }, batch: { host.runUndoBatchRecipe($0) })
     }
 
     /// The receipts for these runs, from the journal. A run without rows (or pruned) is missing.

@@ -3,7 +3,8 @@ import Foundation
 // Moving mail between folders of one account (docs/pippa-1.0.md "Tools in 1.0", "Journal, verification and undo for
 // whole runs"). The engine is shared by `mail_move` (PippaMCPMailMove.swift) and `Pippa --mail-move-probe`: a dry run
 // looks every mail up by its RFC Message-ID, the moves go in batches of 10, every mail of a batch is looked up again in
-// the source and the target folder, and a mail found in neither makes the batch unclear and stops the run. Mail's own id
+// the source and the target folder until Mail settled (`MailMoveSettle`), and a mail found in neither makes the batch
+// unclear and stops the run. Undo goes back in the same batches with the same settling. Mail's own id
 // is only a handle for the next Apple Event: it changes on Exchange when a mail moves.
 
 /// One mailbox of an account, as Mail lists it.
@@ -111,7 +112,40 @@ public struct MailMoveOutcome: Sendable, Equatable {
     public var idsChanged = 0
     /// What Mail's move step said per mail ("moved", "changed", "gone", an error number), counted. Diagnostics only.
     public var statuses: [String: Int] = [:]
+    /// The read-backs' waits for Mail to settle, over all batches.
+    public var settle = MailMoveSettleStats()
     public init() {}
+}
+
+/// How long a read-back waits for Mail to show what it moved. On IMAP (iCloud) a moved mail shows up in the target
+/// folder a moment after Mail answered "moved", so one lookup right after the move is too early. The read-back looks the
+/// batch up again every `interval` until every mail Mail reported as moved is in its new folder, or `bound` passed.
+/// Polling is a lookup, never a repeated move. Checks inject `sleep` and `now` and run in milliseconds.
+public struct MailMoveSettle: Sendable {
+    /// One lookup of a batch of 10 takes Mail about as long on IMAP; a shorter pause would mostly add Apple Events.
+    public static let interval: Duration = .seconds(1)
+    /// Per batch. The iCloud probe saw the late mail within a few seconds; 20 s leaves room for a slow server while a
+    /// batch that never settles holds the run for 20 s only, and then counts as unclear.
+    public static let bound: Duration = .seconds(20)
+    public var sleep: @Sendable (Duration) async -> Void
+    /// A monotonic time, only differences count.
+    public var now: @Sendable () -> Duration
+    public init(sleep: @escaping @Sendable (Duration) async -> Void, now: @escaping @Sendable () -> Duration) { self.sleep = sleep; self.now = now }
+
+    private static let start = ContinuousClock.now
+    public static let live = MailMoveSettle(sleep: { try? await Task.sleep(for: $0) }, now: { start.duration(to: .now) })
+}
+
+public struct MailMoveSettleStats: Sendable, Equatable {
+    /// Lookups of source and target (one per poll), counting the first.
+    public var lookups = 0
+    public var waitedMs = 0
+    /// The longest wait of one batch.
+    public var longestMs = 0
+    public init() {}
+    mutating func add(_ other: MailMoveSettleStats) {
+        lookups += other.lookups; waitedMs += other.waitedMs; longestMs = max(longestMs, other.longestMs)
+    }
 }
 
 /// The engine. Checks hand it a synthetic `MailAccountReading`; the app and the probe the real Mail.
@@ -122,7 +156,8 @@ public struct MailMover: Sendable {
     public static let kind = "mail.move"
 
     let reader: any MailAccountReading
-    public init(reader: any MailAccountReading) { self.reader = reader }
+    let settle: MailMoveSettle
+    public init(reader: any MailAccountReading, settle: MailMoveSettle = .live) { self.reader = reader; self.settle = settle }
 
     // MARK: Dry run
 
@@ -222,17 +257,25 @@ public struct MailMover: Sendable {
             outcome.batches += 1
             outcome.attempted += eligible.count
             var moveError: Error?
+            var reported = Set<String>()
             do {
-                for status in try await reader.move(account: plan.account.id, from: plan.source, mails: eligible, to: plan.target) {
+                let statuses = try await reader.move(account: plan.account.id, from: plan.source, mails: eligible, to: plan.target)
+                for (item, status) in zip(eligible, statuses) {
                     let word = status.allSatisfy({ $0.isNumber || $0 == "-" }) || ["moved", "changed", "gone"].contains(status) ? status : "other"
                     outcome.statuses[word, default: 0] += 1
+                    if status == "moved" { reported.insert(item.messageID) }
                 }
             } catch { moveError = error }
-            // The read-back belongs to the move, also after Stop: it runs outside the lease.
+            // The read-back belongs to the move, also after Stop: it runs outside the lease. It waits until every mail
+            // Mail reported as moved is in the target; Stop ends the wait at once and what is missing then is unclear.
             let after: (src: [String: [Int]], tgt: [String: [Int]])
             do {
                 after = try await PippaMCPWriteLease.$current.withValue(nil) {
-                    try await lookup(account: plan.account.id, source: plan.source, target: plan.target, eligible.map(\.messageID))
+                    try await settled(account: plan.account.id, source: plan.source, target: plan.target, eligible.map(\.messageID),
+                                      waitingFor: reported, stats: &outcome.settle,
+                                      stopped: { Task.isCancelled || !live() || (lease.map { (try? $0.check()) == nil } ?? false) }) { src, tgt in
+                        tgt.count == 1 && src.isEmpty
+                    }
                 }
             } catch {
                 if let journal { try? await journal.executor.unclearRunActions(eligible.compactMap { rows[$0.messageID] }, note: "unverified") }
@@ -295,26 +338,104 @@ public struct MailMover: Sendable {
         return (src, tgt)
     }
 
+    /// Looks `ids` up in source and target until every id of `waitingFor` is `arrived`, `bound` passed or `stopped`. The
+    /// last lookup is the answer; whatever has not arrived is for the caller to judge (unclear, left, failed).
+    func settled(account: String, source: [String], target: [String], _ ids: [String], waitingFor: Set<String>,
+                 stats: inout MailMoveSettleStats, stopped: () -> Bool = { false },
+                 arrived: ([Int], [Int]) -> Bool) async throws -> (src: [String: [Int]], tgt: [String: [Int]]) {
+        let start = settle.now()
+        var waited = MailMoveSettleStats()
+        defer {
+            let d = settle.now() - start
+            waited.waitedMs = Int(d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000)
+            waited.longestMs = waited.waitedMs
+            stats.add(waited)
+        }
+        func done(_ r: (src: [String: [Int]], tgt: [String: [Int]])) -> Bool {
+            waitingFor.allSatisfy { arrived(r.src[$0] ?? [], r.tgt[$0] ?? []) }
+        }
+        var result = try await lookup(account: account, source: source, target: target, ids)
+        waited.lookups += 1
+        while !done(result), !stopped() {
+            let elapsed = settle.now() - start
+            guard elapsed < MailMoveSettle.bound else { break }
+            await settle.sleep(min(MailMoveSettle.interval, MailMoveSettle.bound - elapsed))
+            if stopped() { break }
+            result = try await lookup(account: account, source: source, target: target, ids)
+            waited.lookups += 1
+        }
+        return result
+    }
+
     // MARK: Undo
 
-    /// Puts one moved mail back: only when its Message-ID is exactly once in the target folder and not in the source;
-    /// anything else stays and counts as left. Checked by Message-ID afterwards.
-    public static func undo(_ row: RunAction, reader: any MailAccountReading) async -> RunUndoOutcome {
-        guard let account = row.object.fields["account"], let id = row.object.fields["messageID"],
-              let from = row.object.fields["from"].flatMap(decode), let to = row.object.fields["to"].flatMap(decode) else { return .failed }
-        do {
-            let there = try await reader.locate(account: account, path: to, messageIDs: [id])[id] ?? []
-            let here = try await reader.locate(account: account, path: from, messageIDs: [id])[id] ?? []
-            guard there.count == 1, here.isEmpty else { return .changed }
-            try? await reader.move(account: account, from: to, mails: [MailMoveItem(mailID: there[0], messageID: id)], to: from)
-            let back = try await reader.locate(account: account, path: from, messageIDs: [id])[id] ?? []
-            let still = try await reader.locate(account: account, path: to, messageIDs: [id])[id] ?? []
-            return back.count == 1 && still.isEmpty ? .undone : .failed
-        } catch MailMoveProblem.noFolder {
-            return .changed
-        } catch {
-            return .failed
+    /// Puts the moved mails of one run back, `rows` in undo order (newest first). Consecutive rows of one account and
+    /// folder pair go together, up to `batchSize`: one settled lookup, one move, one settled read-back per batch. A mail
+    /// goes back only when its Message-ID is exactly once in the target folder and not in the source; anything else
+    /// stays and counts as left (`changed`). A row the move left unclear is looked up again: in the target it goes back
+    /// like the others, in the source it was never moved (`nothing`). `failed` only when Mail returned an error for the
+    /// move back, or the mail is in neither folder afterwards.
+    public func undo(_ rows: [RunAction]) async -> (outcomes: [UUID: RunUndoOutcome], settle: MailMoveSettleStats) {
+        var outcomes: [UUID: RunUndoOutcome] = [:]
+        var stats = MailMoveSettleStats()
+        struct Pair: Equatable { var account: String, from: [String], to: [String] }
+        var batches: [(pair: Pair, rows: [(row: RunAction, id: String)])] = []
+        for row in rows {
+            guard let account = row.object.fields["account"], let id = row.object.fields["messageID"],
+                  let from = row.object.fields["from"].flatMap(Self.decode), let to = row.object.fields["to"].flatMap(Self.decode) else {
+                outcomes[row.id] = .failed; continue
+            }
+            let pair = Pair(account: account, from: from, to: to)
+            if let last = batches.last, last.pair == pair, last.rows.count < Self.batchSize, !last.rows.contains(where: { $0.id == id }) {
+                batches[batches.count - 1].rows.append((row, id))
+            } else {
+                batches.append((pair, [(row, id)]))
+            }
         }
+        for (pair, batch) in batches {
+            let ids = batch.map(\.id)
+            var sent = false
+            do {
+                // Mail may not show the latest moves in the target yet: wait until each mail is in one folder only.
+                let before = try await settled(account: pair.account, source: pair.from, target: pair.to, ids, waitingFor: Set(ids), stats: &stats) { src, tgt in
+                    (tgt.count == 1 && src.isEmpty) || (src.count == 1 && tgt.isEmpty)
+                }
+                var eligible: [(row: RunAction, item: MailMoveItem)] = []
+                for (row, id) in batch {
+                    let there = before.tgt[id] ?? [], here = before.src[id] ?? []
+                    if there.count == 1 && here.isEmpty { eligible.append((row, MailMoveItem(mailID: there[0], messageID: id))) }
+                    else if row.state == .unclear && here.count == 1 && there.isEmpty { outcomes[row.id] = .nothing }
+                    else { outcomes[row.id] = .changed }
+                }
+                guard !eligible.isEmpty else { continue }
+                var errors = Set<String>(), reported = Set<String>()
+                sent = true
+                do {
+                    let statuses = try await reader.move(account: pair.account, from: pair.to, mails: eligible.map(\.item), to: pair.from)
+                    for (entry, status) in zip(eligible, statuses) {
+                        if status == "moved" { reported.insert(entry.item.messageID) }
+                        else if status.allSatisfy({ $0.isNumber || $0 == "-" }) { errors.insert(entry.item.messageID) }
+                    }
+                } catch {
+                    errors.formUnion(eligible.map(\.item.messageID))
+                }
+                let after = try await settled(account: pair.account, source: pair.from, target: pair.to, eligible.map(\.item.messageID),
+                                              waitingFor: reported, stats: &stats) { src, tgt in src.count == 1 && tgt.isEmpty }
+                for (row, item) in eligible {
+                    let back = after.src[item.messageID] ?? [], still = after.tgt[item.messageID] ?? []
+                    if back.count == 1 && still.isEmpty { outcomes[row.id] = .undone }
+                    // Mail did not move it and said no error: it stays in the target, as it was.
+                    else if still.count == 1 && back.isEmpty && !errors.contains(item.messageID) { outcomes[row.id] = .changed }
+                    else { outcomes[row.id] = .failed }
+                }
+            } catch MailMoveProblem.noFolder where !sent {
+                // A folder is gone before anything moved back: the mails stay where they are.
+                for (row, _) in batch where outcomes[row.id] == nil { outcomes[row.id] = .changed }
+            } catch {
+                for (row, _) in batch where outcomes[row.id] == nil { outcomes[row.id] = .failed }
+            }
+        }
+        return (outcomes, stats)
     }
 
     // MARK: Helpers

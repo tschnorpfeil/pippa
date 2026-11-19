@@ -329,6 +329,25 @@ extension MailAccountScript {
         end tell
     end accountMakeFolder
 
+    -- The probe: the Message-ID of every message in the mailbox at wantedPath (only its two test folders ask).
+    on accountMessageIDs(acctID, wantedPath)
+        set out to {}
+        tell application id "com.apple.mail"
+            try
+                with timeout of 30 seconds
+                    set box to my boxAt(acctID, wantedPath)
+                    if box is missing value then return {"nobox"}
+                    if (count of messages of box) is 0 then return {"ok", {}}
+                    set out to (message id of messages of box) as list
+                end timeout
+            on error number errNum
+                if errNum is -1728 then return {"nobox"}
+                return my problem(errNum)
+            end try
+        end tell
+        return {"ok", out}
+    end accountMessageIDs
+
     -- The probe: copies of these inbox messages into the mailbox at toPath. Never a move: the inbox stays as it is.
     on accountDuplicate(acctID, mailIDs, toPath)
         set out to {}
@@ -404,6 +423,12 @@ extension MailAccountScript.Live: MailMoveProbeMail {
         try await run("accountMakeFolder", mutation: true, { [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(string: name)] }) {
             AppleEvents.strings($0).first == "made"
         }
+    }
+
+    func messageIDs(account: String, path: [String]) async throws -> [String] {
+        // Only the probe's own test folders, never any other mailbox.
+        guard path == [MailMoveProbe.folderA] || path == [MailMoveProbe.folderB] else { throw MailAccountProblem.failed }
+        return try await run("accountMessageIDs", { [NSAppleEventDescriptor(string: account), MailMoveParse.list(path)] }) { AppleEvents.strings($0) }
     }
 
     func duplicate(account: String, inboxIDs: [Int], to: [String]) async throws -> [String] {
