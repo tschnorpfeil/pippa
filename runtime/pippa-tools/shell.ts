@@ -458,7 +458,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						for (const g of before) { now.add(g); if (g !== "net") grants.add(g); }
 					}
 					let result = await run();
-					let allowedNow = false;
+					let allowedNow = false, reran = false;
 					if (result?.isError) {
 						const missing = missingGrants(command, textOf(result), now);
 						if (!signal?.aborted && result.details?.pippaExecution !== "uncertain" && missing.size && (await ask(missing)) && !signal?.aborted) {
@@ -467,6 +467,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 								// The yes is for this command now: it runs again at once, online. No yes is kept for a later
 								// call, which could send something else under the same words.
 								now.add("net");
+								reran = true;
 								result = withNote(await run(), "The first try failed without the internet; after the person's yes this same command ran a second time, online. Any other command that goes online asks again.");
 							} else {
 								for (const g of missing) grants.add(g);
@@ -477,7 +478,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						}
 						// Not after a fresh yes for the rest of the answer: the note above already says what to do. A second
 						// run that failed too gets the limits it ran under.
-						if (result?.isError && (!allowedNow || now.has("net"))) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
+						if (result?.isError && (!allowedNow || reran)) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
 					}
 					if (kept.size) {
 						const copies = [...kept].map(([file, copy]) => ({ file, copy }));
