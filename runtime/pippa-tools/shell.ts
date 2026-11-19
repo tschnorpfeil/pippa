@@ -420,16 +420,18 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					};
 					/** Grants of this one call: the answer's, plus `net` when the person allowed this command. */
 					const now = new Set(grants);
+					let ran = false, dispatched = false;
 					const run = async () => {
 						if (signal?.aborted) return notRun("Stopped before running the command.");
-						if (now.has("write") && deps.keep) {
+						// Copies once, before the first run: a second run must not keep what the first one left behind.
+						if (now.has("write") && deps.keep && !ran) {
 							for (const file of await filesToKeep(named, where)) {
 								if (kept.has(file)) continue;
 								const copy = await deps.keep(file);
 								if (copy) kept.set(file, copy);
 							}
 						}
-						let dispatched = false;
+						ran = true;
 						const tool = create(cwd, { spawnHook: (spawn: any) => {
 							if (invalidWorkTarget(spawn.cwd, protect)) throw new Error(PROTECTED_REASON);
 							dispatched = true;
@@ -473,8 +475,9 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 								result = withNote(result, "Permission is now available for this answer, but the failed command was not rerun. It may already have changed something before failing. Check its effects, then use a separate, narrowly scoped call for only the remaining work. Do not repeat completed steps.");
 							}
 						}
-						// Not after a fresh yes: the note above already says what happened.
-						if (result?.isError && !allowedNow) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
+						// Not after a fresh yes for the rest of the answer: the note above already says what to do. A second
+						// run that failed too gets the limits it ran under.
+						if (result?.isError && (!allowedNow || now.has("net"))) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
 					}
 					if (kept.size) {
 						const copies = [...kept].map(([file, copy]) => ({ file, copy }));
