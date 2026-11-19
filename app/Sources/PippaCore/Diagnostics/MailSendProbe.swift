@@ -1,5 +1,8 @@
 import Foundation
 
+// A developer probe: compiled only into debug builds and builds with `PIPPA_PROBES` (scripts/build-app.sh), never shipped.
+#if DEBUG || PIPPA_PROBES
+
 /// What the send probe needs beyond `mail_send`'s own Mail: the account list and one account's own addresses.
 public protocol MailSendProbeMail: MailSending {
     /// Every account with Mail's id, name, type and class (the move probe's listing).
@@ -484,3 +487,5 @@ struct MailSendProbeLive: MailSendProbeMail {
     end accountAddresses
     """
 }
+
+#endif
