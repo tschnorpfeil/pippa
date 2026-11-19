@@ -41,8 +41,9 @@ public protocol MailAccountReading: Sendable {
     func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage?
     /// Whether this account's Sent or Drafts already hold a reply to this message (`nil`: this reader cannot tell).
     func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity?
-    /// Every mailbox of this account with its whole path, message count, role and up to `samples` mails (sender, subject).
-    func folders(account: String, samples: Int) async throws -> [MailFolderInfo]
+    /// Every mailbox of this account with its whole path, message count, role and up to `samples` mails (sender, subject),
+    /// as far as Mail answered within `MailFolderListing`'s bounds; what is missing is counted in the list.
+    func folders(account: String, samples: Int) async throws -> MailFolderList
     /// Mail's ids of the messages in the mailbox at `path` that carry each Message-ID (MailMove.swift). Never Mail's id
     /// as identity: it changes on Exchange when a mail moves. `MailMoveProblem.noFolder` when the mailbox is gone.
     func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: [Int]]
@@ -78,7 +79,7 @@ extension MailAccountReading {
     public func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity? { nil }
 
     /// Readers that cannot list, find or move: nothing is listed or moved.
-    public func folders(account: String, samples: Int) async throws -> [MailFolderInfo] { throw MailAccountProblem.failed }
+    public func folders(account: String, samples: Int) async throws -> MailFolderList { throw MailAccountProblem.failed }
     public func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: [Int]] { throw MailAccountProblem.failed }
     @discardableResult
     public func move(account: String, from: [String], mails: [MailMoveItem], to: [String]) async throws -> [String] { throw MailAccountProblem.failed }

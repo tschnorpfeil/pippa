@@ -42,6 +42,17 @@ final class FakeFolderMail: MailMoveProbeMail, @unchecked Sendable {
     var failAll: Error?
     /// After the probe's copies: puts a foreign mail into this folder.
     var foreignAfterDuplicate: [String]?
+    /// The listing: Mail does not answer in time for the count of these folders (`MailFolderGap.slow`).
+    var slowFolders: Set<[String]> = []
+    /// The listing: from this many folders on, the count bound is reached (`MailFolderGap.pathOnly`).
+    var countBoundAfter: Int?
+    /// The listing: mailboxes Mail did not name in time, and listed ones whose subfolders it did not list.
+    var unnamedFolders = 0, unexpandedFolders = 0
+    /// The probe's test folders: this Apple event ("resolve" or "count") times out.
+    var testFolderTimeout: String?
+    /// The move Apple event times out without moving anything (Mail may still do it later).
+    var moveTimesOut = false
+    private(set) var folderCalls = 0
 
     init(_ accounts: [MailAccountInfo]) { accountList = accounts }
 
@@ -82,14 +93,18 @@ final class FakeFolderMail: MailMoveProbeMail, @unchecked Sendable {
 
     func message(account: String, mailID: Int, messageID: String, path: [String]) async throws -> MailInboxMessage? { nil }
 
-    func folders(account: String, samples: Int) async throws -> [MailFolderInfo] {
+    func folders(account: String, samples: Int) async throws -> MailFolderList {
         try fail()
         return lock.withLock {
-            (order[account] ?? []).map { path in
+            folderCalls += 1
+            let folders = (order[account] ?? []).enumerated().map { index, path in
                 let list = boxes[account]?[path] ?? []
+                if let after = countBoundAfter, index >= after { return MailFolderInfo(path: path, count: nil, role: roles[account]?[path], gap: .pathOnly) }
+                if slowFolders.contains(path) { return MailFolderInfo(path: path, count: nil, role: roles[account]?[path], gap: .slow) }
                 return MailFolderInfo(path: path, count: list.count, role: roles[account]?[path],
                                       samples: list.prefix(samples).map { MailFolderSample(sender: $0.sender, subject: $0.subject) })
             }
+            return MailFolderList(folders: folders, unnamed: unnamedFolders, unexpanded: unexpandedFolders)
         }
     }
 
@@ -125,6 +140,7 @@ final class FakeFolderMail: MailMoveProbeMail, @unchecked Sendable {
         try fail()
         let call = lock.withLock { moveCalls.append(mails); return moveCalls.count }
         await onMove?(call, mails)
+        if moveTimesOut { throw MailAccountProblem.timeout }
         return try lock.withLock {
             guard boxes[account]?[from] != nil, boxes[account]?[to] != nil else { throw MailMoveProblem.noFolder }
             var statuses: [String] = []
@@ -149,6 +165,26 @@ final class FakeFolderMail: MailMoveProbeMail, @unchecked Sendable {
     func accountKinds() async throws -> [MailMoveProbe.AccountKind] {
         try fail()
         return lock.withLock { accountList.map { MailMoveProbe.AccountKind(id: $0.id, name: $0.name, type: kinds[$0.id]?.type ?? "imap", className: kinds[$0.id]?.className ?? "imap account") } }
+    }
+
+    func testFolders(account: String) async throws -> [MailMoveProbe.TestFolder] {
+        try fail()
+        return lock.withLock {
+            [MailMoveProbe.folderA, MailMoveProbe.folderB].map { name in
+                if let event = testFolderTimeout { return MailMoveProbe.TestFolder(path: [name], count: nil, exists: event == "count", timedOut: event) }
+                guard let list = boxes[account]?[[name]] else { return MailMoveProbe.TestFolder(path: [name], count: nil, exists: false) }
+                return MailMoveProbe.TestFolder(path: [name], count: list.count)
+            }
+        }
+    }
+
+    func folderTimings(account: String, samples: Int) async throws -> MailMoveProbe.ListingTimings {
+        let list = try await folders(account: account, samples: samples)
+        let slow = list.folders.filter { $0.gap == .slow }.count
+        return MailMoveProbe.ListingTimings(asked: list.folders.count + list.unnamed, listed: list.folders.count, unnamed: list.unnamed,
+                                            unexpanded: list.unexpanded, timeouts: ["path": list.unnamed, "count": slow, "sample": 0, "subfolders": list.unexpanded],
+                                            slowestMs: slow > 0 ? 5000 : 12, totalMs: 300, countBoundReached: list.folders.contains { $0.gap == .pathOnly },
+                                            pathBoundReached: false)
     }
 
     func makeFolder(account: String, name: String) async throws -> Bool {
@@ -284,6 +320,59 @@ extension MCPCheckContext {
                 && data(r)["folders"] as? Int == 200 && next.contains("Samples are left out")
                 && (omitted == 0 || next.contains("\(omitted) folders at the end are left out"))
                 && folders.allSatisfy { $0["count"] as? Int == 2 }
+        }
+
+        await checkAsync("mail_folders: one folder Mail does not answer for in time is listed without count or samples, the others are complete, and the result names the gap") {
+            let fake = fakeMail()
+            fake.slowFolders = [["Rechnungen"]]
+            let w = try world(fake)
+            let r = await call(w.tools, "mail_folders", ["account": "Privat"])
+            let folders = (data(r)["accounts"] as? [[String: Any]])?.first?["folders"] as? [[String: Any]] ?? []
+            let slow = folders.first { $0["path"] as? String == "Rechnungen" }
+            let others = folders.filter { $0["path"] as? String != "Rechnungen" }
+            let next = r.json["next"] as? String ?? ""
+            return !r.isError && folders.count == 8 && slow?["count"] == nil && slow?["samples"] == nil && slow?["incomplete"] as? String == "slow"
+                && others.allSatisfy { $0["count"] is Int && $0["incomplete"] == nil }
+                && others.first { $0["path"] as? String == "INBOX" }?["samples"] as? [[String: Any]] != nil
+                && data(r)["folders_incomplete"] as? Int == 1 && next.contains("Counts and samples are missing for 1 folders")
+                && next.contains("Never say such a folder is empty") && !next.contains("did not list every folder")
+        }
+        await checkAsync("mail_folders: past the listing's count bound the rest has paths only; mailboxes Mail did not name are counted, never silent") {
+            let fake = fakeMail()
+            fake.countBoundAfter = 3
+            fake.unnamedFolders = 2
+            fake.unexpandedFolders = 1
+            let w = try world(fake)
+            let r = await call(w.tools, "mail_folders", ["account": "Privat"])
+            let account = (data(r)["accounts"] as? [[String: Any]])?.first ?? [:]
+            let folders = account["folders"] as? [[String: Any]] ?? []
+            let next = r.json["next"] as? String ?? ""
+            return !r.isError && folders.count == 8 && folders.prefix(3).allSatisfy { $0["count"] is Int && $0["incomplete"] == nil }
+                && folders.dropFirst(3).allSatisfy { $0["count"] == nil && $0["samples"] == nil && $0["incomplete"] as? String == "path_only" && $0["path"] is String }
+                && folders.contains { $0["path"] as? String == "Deleted Messages" && $0["role"] as? String == "trash" }
+                && account["folders_not_listed"] as? Int == 2 && account["subfolders_not_listed"] as? Int == 1
+                && data(r)["folders_incomplete"] as? Int == 5 && next.contains("ran out of time before 5 more were counted")
+                && next.contains("Mail did not list every folder in time") && next.contains("Never say a folder does not exist")
+        }
+        await checkAsync("mail_folders: Mail's answer with gaps parses strictly: slow and path-only folders lose count and samples, unnamed ones are counted") {
+            func list(_ items: [NSAppleEventDescriptor]) -> NSAppleEventDescriptor {
+                let l = NSAppleEventDescriptor.list()
+                for (i, item) in items.enumerated() { l.insert(item, at: i + 1) }
+                return l
+            }
+            func text(_ s: String) -> NSAppleEventDescriptor { NSAppleEventDescriptor(string: s) }
+            func int(_ n: Int) -> NSAppleEventDescriptor { NSAppleEventDescriptor(int32: Int32(n)) }
+            func folder(_ path: [String], _ count: Int, gap: String) -> NSAppleEventDescriptor {
+                list([list(path.map(text)), int(count), text(""), list([list([text("a@x.example"), text("Hallo")])]), text(gap)])
+            }
+            let payload = list([list([folder(["INBOX"], 3, gap: ""), folder(["Archiv", "2025"], 7, gap: "slow"), folder(["Neu"], -1, gap: "path_only")]), int(2), int(1)])
+            let parsed = try MailMoveParse.folders(payload)
+            let wrongGap = (try? MailMoveParse.folders(list([list([folder(["INBOX"], 3, gap: "later")]), int(0), int(0)]))) == nil
+            let oldShape = (try? MailMoveParse.folders(list([folder(["INBOX"], 3, gap: "")]))) == nil
+            return parsed.folders.map(\.path) == [["INBOX"], ["Archiv", "2025"], ["Neu"]] && parsed.folders[0].count == 3 && parsed.folders[0].samples.count == 1
+                && parsed.folders[1].count == nil && parsed.folders[1].samples.isEmpty && parsed.folders[1].gap == .slow
+                && parsed.folders[2].count == nil && parsed.folders[2].gap == .pathOnly && parsed.unnamed == 2 && parsed.unexpanded == 1
+                && !parsed.allListed && wrongGap && oldShape
         }
 
         // MARK: A2 mail_search with limit 100
@@ -575,6 +664,28 @@ extension MCPCheckContext {
                 && both.count == 2 && mixed.json["status"] as? String == "cross_account" && old.json["status"] as? String == "stale_ref"
                 && [unknown, foreign, mixed, old].allSatisfy { $0.isError && $0.json["dispatched"] as? Bool == false } && fake.moveCalls.isEmpty
         }
+        await checkAsync("mail_move: when Mail did not list every folder in time, only an exact path is a target; a near match is refused, nothing moves") {
+            let fake = fakeMail()
+            fake.unnamedFolders = 1
+            let w = try world(fake)
+            let mine = Array(await refs(w).prefix(2))
+            let near = await call(w.tools, "mail_move", ["refs": mine, "to": "rechnungen"])
+            let missing = await call(w.tools, "mail_move", ["refs": mine, "to": "Steuer"])
+            let nothing = fake.moveCalls.isEmpty
+            let exact = await call(w.tools, "mail_move", ["refs": mine, "to": "Rechnungen"])
+            return near.json["status"] as? String == "folders_incomplete" && missing.json["status"] as? String == "folders_incomplete"
+                && near.isError && near.json["dispatched"] as? Bool == false && nothing && data(exact)["verified"] as? String == "2 of 2"
+        }
+        await checkAsync("mail_move: a move Mail times out on is unclear, never not moved: rows stay for undo, and the read-back waits for every mail of the batch") {
+            let fake = fakeMail()
+            fake.moveTimesOut = true
+            let w = try world(fake)
+            let r = await call(w.tools, "mail_move", ["refs": Array(await refs(w).prefix(3)), "to": "Rechnungen"])
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            let states = Dictionary(grouping: rows, by: \.state).mapValues(\.count)
+            return r.json["state"] as? String == "unclear" && data(r)["unclear"] as? Int == 3 && (data(r)["not_moved"] as? Int ?? 0) == 0
+                && states == [.unclear: 3] && fake.moveCalls.count == 1 && w.clock.sleeps > 0 && fake.ids(privat.id, ["INBOX"]).count == 30
+        }
         await checkAsync("mail_move: Trash, Junk, Sent, Drafts and Outbox are never targets") {
             let fake = fakeMail()
             let w = try world(fake)
@@ -638,7 +749,7 @@ extension MCPCheckContext {
 
         await checkAsync("Mail folder, Message-ID lookup and move scripts compile without running") {
             let result = await MainActor.run { IntegrationScripts.compileAll() }
-            return result["MailMove"] == true && result["MailAccounts"] == true
+            return result["MailMove"] == true && result["MailAccounts"] == true && result["MailMoveDiagnose"] == true
         }
 
         // MARK: A12 the probe
@@ -653,12 +764,14 @@ extension MCPCheckContext {
             let wrong = await run(["--mail-move-probe", "--acount", "Privat"])
             let twice = await run(["--mail-move-probe", "--account", "A", "--account", "B"])
             let empty = await run(["--mail-move-probe", "--account"])
+            let lonely = await run(["--mail-move-probe", "--diagnose"])
             let untouched = made.value == 0
             let list = await run(["--mail-move-probe"])
             let listed = (try? JSONSerialization.jsonObject(with: Data(list.stdout.utf8))) as? [String: Any]
             let accounts = listed?["accounts"] as? [[String: Any]] ?? []
             return help.exitCode == 0 && help.stdout.contains("usage: Pippa --mail-move-probe") && wrong.exitCode == 2 && wrong.stderr.contains("usage:")
-                && twice.exitCode == 2 && empty.exitCode == 2 && untouched && list.exitCode == 0
+                && twice.exitCode == 2 && empty.exitCode == 2 && lonely.exitCode == 2 && lonely.stderr.contains("--diagnose needs --account")
+                && help.stdout.contains("--diagnose") && untouched && list.exitCode == 0
                 && accounts.map { $0["name"] as? String ?? "" } == ["Privat", "Arbeit"] && accounts.allSatisfy { $0["type"] as? String == "imap" }
         }
         await checkAsync("Mail move probe: copies the oldest inbox mails into A, moves them to B as mail_move does, undoes and checks they are back; JSON without personal data") {
@@ -679,6 +792,7 @@ extension MCPCheckContext {
                 && fake.moveCalls.map(\.count) == [10, 10, 10, 10] && report["reused_copies"] as? Int == 0
                 && (report["settle"] as? [String: Any])?["undo"] as? [String: Int] != nil
                 && personal.allSatisfy { !result.stdout.contains($0) } && report["timings_ms"] is [String: Int]
+                && fake.folderCalls == 0
         }
         await checkAsync("Mail move probe: runs again on an earlier run's copies: B goes back to A through the move path, A is used again, with settling; never another folder") {
             let fake = fakeMail()
@@ -704,7 +818,47 @@ extension MCPCheckContext {
                 && fake.duplicateCalls == 0 && fake.ids(privat.id, ["INBOX"]) == inboxBefore
                 && fake.ids(privat.id, [MailMoveProbe.folderA]) == (1...6).map { "m\($0)@x.example" }.sorted() && fake.ids(privat.id, [MailMoveProbe.folderB]).isEmpty
                 && fake.listedPaths.allSatisfy { $0 == [MailMoveProbe.folderA] || $0 == [MailMoveProbe.folderB] }
-                && personal.allSatisfy { !first.stdout.contains($0) && !again.stdout.contains($0) }
+                && personal.allSatisfy { !first.stdout.contains($0) && !again.stdout.contains($0) } && fake.folderCalls == 0
+        }
+        await checkAsync("Mail move probe: a test folder's count timing out names the step, the time and the Apple event; a timed-out move names it too") {
+            let fake = fakeMail()
+            fake.add(privat.id, [MailMoveProbe.folderA])
+            fake.add(privat.id, [MailMoveProbe.folderB])
+            fake.testFolderTimeout = "count"
+            let result = await MailMoveProbe.execute(["--mail-move-probe", "--account", "Privat"], mail: { fake }, pause: {}, settle: FakeSettleClock().settle)
+            let report = (try? JSONSerialization.jsonObject(with: Data(result.stdout.utf8))) as? [String: Any] ?? [:]
+            let error = report["error"] as? [String: String] ?? [:]
+            let slowMove = fakeMail()
+            slowMove.moveTimesOut = true
+            let moved = await MailMoveProbe.execute(["--mail-move-probe", "--account", "Privat"], mail: { slowMove }, journalDirectory: dir("probe-\(UUID().uuidString)"),
+                                                    pause: {}, settle: FakeSettleClock().settle)
+            let movedReport = (try? JSONSerialization.jsonObject(with: Data(moved.stdout.utf8))) as? [String: Any] ?? [:]
+            let counts = movedReport["counts"] as? [String: Any] ?? [:]
+            let move = counts["move"] as? [String: Any] ?? [:]
+            return result.exitCode == 1 && error == ["step": "folders", "kind": "timeout", "event": "count"]
+                && (report["timings_ms"] as? [String: Int])?["folders"] != nil && fake.moveCalls.isEmpty && fake.folderCalls == 0
+                && movedReport["move_error"] as? String == "timeout" && movedReport["move_error_event"] as? String == "move"
+                && move["unclear"] as? Int == 10 && move["not_moved"] as? Int == 0 && slowMove.folderCalls == 0
+        }
+        await checkAsync("Mail move probe --diagnose: times the test folders and the mail_folders listing in numbers only and changes nothing") {
+            let fake = fakeMail()
+            fake.add(privat.id, [MailMoveProbe.folderA], mails: (1...4).map { var m = mail($0); m.id += 70_000; return m })
+            fake.slowFolders = [["Rechnungen"]]
+            let inboxBefore = fake.ids(privat.id, ["INBOX"])
+            let result = await MailMoveProbe.execute(["--mail-move-probe", "--account", "Privat", "--diagnose"], mail: { fake }, pause: {})
+            let after = try await fake.testFolders(account: privat.id)
+            let report = (try? JSONSerialization.jsonObject(with: Data(result.stdout.utf8))) as? [String: Any] ?? [:]
+            let tests = report["test_folders"] as? [String: Any] ?? [:]
+            let a = tests[MailMoveProbe.folderA] as? [String: Any] ?? [:], b = tests[MailMoveProbe.folderB] as? [String: Any] ?? [:]
+            let listing = report["listing"] as? [String: Any] ?? [:]
+            let personal = ["Rechnung", "Absender", "@x.example", "Privat", privat.id, "INBOX", "Archiv", "Junk"]
+            return result.exitCode == 0 && report["mode"] as? String == "diagnose" && report["changed"] as? String == "nothing"
+                && a["exists"] as? Bool == true && a["messages"] as? Int == 4 && a["message_ids"] as? Int == 4 && a["list_ids_ms"] is Int
+                && b["exists"] as? Bool == false && b["message_ids"] == nil && tests["resolve_and_count_ms"] is Int
+                && listing["folders_listed"] as? Int == 9 && listing["timed_out_mailboxes"] as? Int == 1
+                && (listing["timeouts"] as? [String: Int])?["count"] == 1 && listing["slowest_mailbox_ms"] as? Int == 5000 && listing["total_ms"] is Int
+                && fake.moveCalls.isEmpty && fake.duplicateCalls == 0 && after.map(\.exists) == [true, false] && after[0].count == 4
+                && fake.ids(privat.id, ["INBOX"]) == inboxBefore && personal.allSatisfy { !result.stdout.contains($0) }
         }
         await checkAsync("Mail move probe: an empty A that gets mail the probe did not copy is refused, and nothing moves") {
             let foreign = fakeMail()

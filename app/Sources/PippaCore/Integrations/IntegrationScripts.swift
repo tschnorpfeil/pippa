@@ -23,7 +23,7 @@ public enum IntegrationScripts {
     /// Name and text of all scripts, for `compileAll` and the check that none calls `send`.
     public static var sources: [(name: String, source: String)] {
         [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("MailAccounts", MailAccountScript.source),
-         ("MailMove", MailAccountScript.moveSource), ("Excel", ExcelScript.source),
+         ("MailMove", MailAccountScript.moveSource), ("MailMoveDiagnose", MailAccountScript.diagnoseSource), ("Excel", ExcelScript.source),
          ("PhotosSearch", PhotosSearchScript.source), ("PhotosShow", PhotosShowScript.source),
          ("Safari", FrontAppScript.safari), ("Chrome", FrontAppScript.chrome), ("FrontDocument", FrontAppScript.documentSource)]
     }

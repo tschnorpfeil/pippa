@@ -2,7 +2,8 @@ import Foundation
 
 // `mail_folders`: the folder tree per account, with counts and two sample mails per folder, read only. Sorting into
 // existing folders needs them (docs/pippa-1.0.md "Tools in 1.0"). Fits `maxResultBytes`: samples go first, then folders
-// from the end, and the result says what was left out.
+// from the end, and the result says what was left out. A mailbox Mail did not answer for in time
+// (`MailFolderListing`) is listed without count or samples, and the result says so.
 
 extension PippaMCPTools {
     static let folderSamples = 2
@@ -37,15 +38,18 @@ extension PippaMCPTools {
             scope = match
         }
         guard !scope.isEmpty else { return Self.notRead("no_accounts", "Mail lists no account with an inbox. Nothing was read.") }
-        var lists: [(label: String, id: String, status: MailAccountCoverage.Status, folders: [MailFolderInfo])] = []
+        var lists: [FolderAccount] = []
         for (account, label) in scope {
-            guard live() else { lists.append((label, account.id, .cancelled, [])); continue }
-            guard !account.id.isEmpty, account.id.utf8.count <= Self.mailAccountIDBytes else { lists.append((label, account.id, .failed, [])); continue }
+            guard live() else { lists.append((label, account.id, .cancelled, MailFolderList(folders: []))); continue }
+            guard !account.id.isEmpty, account.id.utf8.count <= Self.mailAccountIDBytes else {
+                lists.append((label, account.id, .failed, MailFolderList(folders: []))); continue
+            }
             do {
-                let folders = try await reader.folders(account: account.id, samples: Self.folderSamples)
-                lists.append((label, account.id, .ok, folders.filter { !$0.path.isEmpty && !$0.path.contains(where: \.isEmpty) }))
+                var list = try await reader.folders(account: account.id, samples: Self.folderSamples)
+                list.folders = list.folders.filter { !$0.path.isEmpty && !$0.path.contains(where: \.isEmpty) }
+                lists.append((label, account.id, .ok, list))
             } catch {
-                lists.append((label, account.id, MailAccountFlow.status(error), []))
+                lists.append((label, account.id, MailAccountFlow.status(error), MailFolderList(folders: [])))
             }
         }
         guard live() else { return Self.mailCancelled }
@@ -71,7 +75,10 @@ extension PippaMCPTools {
 
     /// The largest result that fits: every folder with samples, then samples only for the first folders, then folders
     /// from the end. What was left out is counted, never silent.
-    static func renderFolders(_ lists: [(label: String, id: String, status: MailAccountCoverage.Status, folders: [MailFolderInfo])]) -> PippaMCPToolResult {
+    typealias FolderAccount = (label: String, id: String, status: MailAccountCoverage.Status, list: MailFolderList)
+
+    static func renderFolders(_ accountsRead: [FolderAccount]) -> PippaMCPToolResult {
+        let lists = accountsRead.map { (label: $0.label, id: $0.id, status: $0.status, folders: $0.list.folders, list: $0.list) }
         let total = lists.reduce(0) { $0 + $1.folders.count }
         func build(folders: Int, samples: Int) -> String {
             var index = 0
@@ -86,6 +93,7 @@ extension PippaMCPTools {
                     var row: [String: Any] = ["path": jsonClipped(clip(folder.display, 160, bytes: 300), bytes: 300)]
                     if let count = folder.count { row["count"] = count }
                     if let role = MailFolderRole.of(folder) { row["role"] = role.rawValue }
+                    if let gap = folder.gap { row["incomplete"] = gap.rawValue }
                     if index < samples, !folder.samples.isEmpty {
                         row["samples"] = folder.samples.prefix(folderSamples).map {
                             ["from": jsonClipped(clip($0.sender, 60, bytes: 100), bytes: 100), "subject": jsonClipped(clip($0.subject, 80, bytes: 140), bytes: 140)]
@@ -93,7 +101,11 @@ extension PippaMCPTools {
                     }
                     rows.append(row)
                 }
-                if list.status == .ok { account["folders"] = rows }
+                if list.status == .ok {
+                    account["folders"] = rows
+                    if list.list.unnamed > 0 { account["folders_not_listed"] = list.list.unnamed }
+                    if list.list.unexpanded > 0 { account["subfolders_not_listed"] = list.list.unexpanded }
+                }
                 accounts.append(account)
             }
             var data: [String: Any] = ["accounts": accounts, "folders": total]
@@ -108,6 +120,21 @@ extension PippaMCPTools {
             if folders < total {
                 data["folders_omitted"] = total - folders
                 next += " \(total - folders) folders at the end are left out to fit: call mail_folders with account for one account."
+            }
+            let shown = lists.flatMap(\.folders).prefix(folders)
+            let slow = shown.filter { $0.gap == .slow }.count, pathOnly = shown.filter { $0.gap == .pathOnly }.count
+            if slow + pathOnly > 0 {
+                data["folders_incomplete"] = slow + pathOnly
+                var why: [String] = []
+                if slow > 0 { why.append("Mail did not answer in time for \(slow) (incomplete: slow)") }
+                if pathOnly > 0 { why.append("the listing ran out of time before \(pathOnly) more were counted (incomplete: path_only)") }
+                next += " Counts and samples are missing for \(slow + pathOnly) folders: \(why.joined(separator: ", and ")). Never say such a folder is empty;"
+                    + " tell the person their counts are unknown."
+            }
+            let unlisted = lists.filter { $0.status == .ok && !$0.list.allListed }
+            if !unlisted.isEmpty {
+                next += " Mail did not list every folder in time (see folders_not_listed and subfolders_not_listed): more folders may exist."
+                    + " Never say a folder does not exist; say the list is incomplete."
             }
             let notRead = lists.filter { $0.status != .ok }
             if !notRead.isEmpty { next += " Not every account was read (see status); never say a folder is missing there." }

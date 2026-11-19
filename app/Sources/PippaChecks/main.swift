@@ -396,10 +396,10 @@ await checkAsync("Script for reading mail compiles (nothing is sent)") {
     let result = await MainActor.run { IntegrationScripts.compileAll() }
     // Excel is missing from the result when Excel isn't installed (CI); its script is then not compiled.
     return result["Mail"] == true && result["MailReply"] == true && result["MailSearch"] == true && result["MailAccounts"] == true && (result["Excel"] ?? true)
-        && result["MailMove"] == true
+        && result["MailMove"] == true && result["MailMoveDiagnose"] == true
         && result["PhotosSearch"] == true && result["PhotosShow"] == true
         && result["Safari"] == true && result["FrontDocument"] == true && (result["Chrome"] ?? true)
-        && Set(result.keys).isSubset(of: ["Mail", "MailReply", "MailSearch", "MailAccounts", "MailMove", "Excel", "PhotosSearch", "PhotosShow", "Safari", "Chrome", "FrontDocument"])
+        && Set(result.keys).isSubset(of: ["Mail", "MailReply", "MailSearch", "MailAccounts", "MailMove", "MailMoveDiagnose", "Excel", "PhotosSearch", "PhotosShow", "Safari", "Chrome", "FrontDocument"])
 }
 
 // MARK: - Found in real runs

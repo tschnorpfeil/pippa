@@ -3,6 +3,11 @@ import Foundation
 /// What the probe needs beyond `mail_move`'s reader: the account kinds, a test folder, copies of inbox mails.
 public protocol MailMoveProbeMail: MailAccountReading {
     func accountKinds() async throws -> [MailMoveProbe.AccountKind]
+    /// The two test folders only, each by its exact top-level path, with their message counts. Never lists the
+    /// account's other mailboxes.
+    func testFolders(account: String) async throws -> [MailMoveProbe.TestFolder]
+    /// `--diagnose`: the listing `mail_folders` uses, timed, as numbers only. Reads, never changes anything.
+    func folderTimings(account: String, samples: Int) async throws -> MailMoveProbe.ListingTimings
     /// A top-level folder with this name; `true` when it was made now, `false` when it was there.
     func makeFolder(account: String, name: String) async throws -> Bool
     /// The Message-ID of every mail in `path`, one of the two test folders only (an earlier run's copies).
@@ -21,23 +26,30 @@ extension SystemIntegrations {
 /// B". Whatever is in them is a test copy of an earlier run: copies left in B go back to A first, and the copies in A are
 /// used again; only an empty A gets up to 20 copies of the inbox's oldest mails (copies, never moves). It moves the copies
 /// A → B through `MailMover` (dry run, plan, batches, settled check by Message-ID), undoes the run and checks they are
-/// back in A. It prints one JSON object of counts, kinds, timings and settle waits: never subjects, senders, addresses,
-/// account names or Message-IDs.
+/// back in A. It never lists the account's other mailboxes: the two folders are asked for by exact path. It prints one
+/// JSON object of counts, kinds, timings and settle waits, and on a timeout which kind of Apple event did not answer:
+/// never subjects, senders, addresses, account names, folder names other than its own, or Message-IDs.
+/// `--diagnose` only times read-only questions (the test folders, the listing behind `mail_folders`) and changes nothing.
 public enum MailMoveProbe {
     public static let folderA = "Pippa Test A"
     public static let folderB = "Pippa Test B"
     public static let copies = 20
 
     public static let usage = """
-        usage: Pippa --mail-move-probe [--account <name>]
+        usage: Pippa --mail-move-probe [--account <name> [--diagnose]]
           Without --account: lists Mail's accounts with their types and exits.
+          With --account and --diagnose: changes nothing in Mail. Times only read-only questions: finding and counting
+          "\(folderA)" and "\(folderB)" and listing their Message-IDs, and the folder listing mail_folders uses (how many
+          mailboxes, how many Apple events timed out and of which kind, the slowest mailbox, the total). Numbers only,
+          no names. Each Apple event about one mailbox may take \(MailFolderListing.eventTimeout) s.
           With --account: uses only the folders "\(folderA)" and "\(folderB)" of that account (made if missing). Everything
           in them counts as a test copy from an earlier run: mail in "\(folderB)" goes back to "\(folderA)" first, and the
           mails in "\(folderA)" are used again. Only when "\(folderA)" is empty, up to \(copies) of the inbox's oldest mails
           are copied into it (the inbox stays untouched). Moves the copies to "\(folderB)" as mail_move does, undoes the
           move and checks they are back in "\(folderA)". Prints one JSON report without subjects, senders, addresses or
           Message-IDs, with lookups and milliseconds waited for Mail to settle per step. The copies stay in "\(folderA)"
-          for the next run; never put other mail into the two test folders.
+          for the next run; never put other mail into the two test folders. On a timeout, the report names the step
+          and the kind of Apple event that did not answer (resolve, count, list_ids, duplicate, move, locate).
         """
 
     public struct AccountKind: Sendable, Equatable {
@@ -45,14 +57,36 @@ public enum MailMoveProbe {
         public init(id: String, name: String, type: String, className: String) { self.id = id; self.name = name; self.type = type; self.className = className }
     }
 
-    public enum Invocation: Equatable, Sendable { case help, list, run(account: String) }
+    /// One test folder: `count` when Mail answered, `exists` false when it is not there, `timedOut` the Apple event that
+    /// did not answer ("resolve" or "count").
+    public struct TestFolder: Sendable, Equatable {
+        public var path: [String], count: Int?, exists: Bool, timedOut: String?
+        public init(path: [String], count: Int?, exists: Bool = true, timedOut: String? = nil) {
+            self.path = path; self.count = count; self.exists = exists; self.timedOut = timedOut
+        }
+    }
+
+    /// `--diagnose`: the folder listing in numbers. `timeouts` per kind of Apple event: path, count, sample, subfolders.
+    public struct ListingTimings: Sendable, Equatable {
+        public var asked: Int, listed: Int, unnamed: Int, unexpanded: Int
+        public var timeouts: [String: Int]
+        public var slowestMs: Int, totalMs: Int
+        public var countBoundReached: Bool, pathBoundReached: Bool
+        public init(asked: Int, listed: Int, unnamed: Int, unexpanded: Int, timeouts: [String: Int], slowestMs: Int, totalMs: Int,
+                    countBoundReached: Bool, pathBoundReached: Bool) {
+            self.asked = asked; self.listed = listed; self.unnamed = unnamed; self.unexpanded = unexpanded; self.timeouts = timeouts
+            self.slowestMs = slowestMs; self.totalMs = totalMs; self.countBoundReached = countBoundReached; self.pathBoundReached = pathBoundReached
+        }
+    }
+
+    public enum Invocation: Equatable, Sendable { case help, list, run(account: String), diagnose(account: String) }
 
     public struct UsageError: Error, Equatable, Sendable { public let message: String }
 
     /// Strict: a missing, repeated or unknown argument is an error, before Mail is asked anything.
     public static func parse(_ arguments: [String]) throws -> Invocation {
         var account: String?
-        var sawCommand = false
+        var sawCommand = false, diagnose = false
         var rest = arguments[...]
         while let argument = rest.popFirst() {
             switch argument {
@@ -60,6 +94,9 @@ public enum MailMoveProbe {
             case "--mail-move-probe":
                 guard !sawCommand else { throw UsageError(message: "--mail-move-probe given twice.") }
                 sawCommand = true
+            case "--diagnose":
+                guard !diagnose else { throw UsageError(message: "--diagnose given twice.") }
+                diagnose = true
             case "--account":
                 guard account == nil else { throw UsageError(message: "--account given twice.") }
                 guard let value = rest.popFirst(), !value.hasPrefix("--"), !value.trimmingCharacters(in: .whitespaces).isEmpty else {
@@ -70,7 +107,11 @@ public enum MailMoveProbe {
             }
         }
         guard sawCommand else { throw UsageError(message: "Missing --mail-move-probe.") }
-        return account.map { .run(account: $0) } ?? .list
+        guard let account else {
+            if diagnose { throw UsageError(message: "--diagnose needs --account.") }
+            return .list
+        }
+        return diagnose ? .diagnose(account: account) : .run(account: account)
     }
 
     /// `mail` is only made after the arguments parsed. `pause` waits between read-backs while Mail settles copies.
@@ -94,12 +135,74 @@ public enum MailMoveProbe {
             defer { if journalDirectory == nil { try? FileManager.default.removeItem(at: directory) } }
             let report = await run(account: name, mail: mail(), directory: directory, pause: pause, settle: settle)
             return (report["refused"] == nil && report["error"] == nil ? 0 : 1, json(report), "")
+        case .diagnose(let name):
+            let report = await diagnose(account: name, mail: mail())
+            return (report["refused"] == nil && report["error"] == nil ? 0 : 1, json(report), "")
         }
     }
 
+    // MARK: --diagnose
+
+    /// Read-only questions, each timed; one that fails is reported and the next is still asked.
+    static func diagnose(account name: String, mail: any MailMoveProbeMail) async -> [String: Any] {
+        var report: [String: Any] = ["probe": "mail-move-probe", "mode": "diagnose", "folders": [folderA, folderB],
+                                     "event_timeout_s": MailFolderListing.eventTimeout, "count_bound_s": MailFolderListing.countBound,
+                                     "path_bound_s": MailFolderListing.pathBound]
+        func ms(_ start: ContinuousClock.Instant) -> Int { milliseconds(ContinuousClock.now - start) }
+        var start = ContinuousClock.now
+        let kinds: [AccountKind]
+        do { kinds = try await mail.accountKinds() } catch {
+            return report.merging(["error": ["step": "accounts", "kind": MailMover.describe(error), "ms": ms(start)]]) { _, b in b }
+        }
+        report["accounts_ms"] = ms(start)
+        let matches = kinds.filter { $0.id == name || $0.name.compare(name, options: .caseInsensitive) == .orderedSame }
+        guard matches.count == 1, let kind = matches.first, !kind.id.isEmpty else {
+            return report.merging(["refused": matches.isEmpty ? "unknown_account" : "ambiguous_account",
+                                   "next": "Run Pippa --mail-move-probe without --account to list the accounts."]) { _, b in b }
+        }
+        report["account_type"] = kind.type
+        report["account_class"] = kind.className
+        var tests: [String: Any] = [:]
+        start = ContinuousClock.now
+        do {
+            let found = try await mail.testFolders(account: kind.id)
+            tests["resolve_and_count_ms"] = ms(start)
+            for folder in found {
+                var entry: [String: Any] = ["exists": folder.exists]
+                if let count = folder.count { entry["messages"] = count }
+                if let event = folder.timedOut { entry["timeout"] = event }
+                if folder.exists, folder.timedOut == nil {
+                    let listStart = ContinuousClock.now
+                    do { entry["message_ids"] = try await mail.messageIDs(account: kind.id, path: folder.path).count }
+                    catch { entry["list_ids_error"] = MailMover.describe(error) }
+                    entry["list_ids_ms"] = ms(listStart)
+                }
+                tests[folder.path.joined(separator: "/")] = entry
+            }
+        } catch {
+            tests["resolve_and_count_ms"] = ms(start)
+            tests["error"] = MailMover.describe(error)
+        }
+        report["test_folders"] = tests
+        start = ContinuousClock.now
+        do {
+            let t = try await mail.folderTimings(account: kind.id, samples: PippaMCPTools.folderSamples)
+            report["listing"] = ["mailboxes_asked": t.asked, "folders_listed": t.listed, "not_listed": t.unnamed, "subfolders_not_listed": t.unexpanded,
+                                 "timeouts": t.timeouts, "timed_out_mailboxes": t.timeouts.values.reduce(0, +),
+                                 "slowest_mailbox_ms": t.slowestMs, "total_ms": t.totalMs, "call_ms": ms(start),
+                                 "count_bound_reached": t.countBoundReached, "path_bound_reached": t.pathBoundReached]
+        } catch {
+            report["listing"] = ["error": MailMover.describe(error), "call_ms": ms(start)]
+        }
+        report["changed"] = "nothing"
+        return report
+    }
+
+    static func milliseconds(_ d: Duration) -> Int { Int(d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000) }
+
     // MARK: The run
 
-    static func run(account name: String, mail: any MailMoveProbeMail, directory: URL, pause: @Sendable () async -> Void,
+    static func run(account name: String, mail probeMail: any MailMoveProbeMail, directory: URL, pause: @Sendable () async -> Void,
                     settle: MailMoveSettle) async -> [String: Any] {
         var report: [String: Any] = ["probe": "mail-move-probe", "folders": [folderA, folderB]]
         var timings: [String: Int] = [:]
@@ -109,10 +212,13 @@ public enum MailMoveProbe {
             report["counts"] = counts
             return report.merging(extra) { _, b in b }
         }
+        let witness = TimeoutWitness(probeMail)
+        let mail: any MailMoveProbeMail = witness
         func timed<T>(_ step: String, _ body: () async throws -> T) async throws -> T {
             let start = ContinuousClock.now
-            defer { let d = ContinuousClock.now - start; timings[step] = Int(d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000) }
-            do { return try await body() } catch { throw ProbeFailure(step: step, error: error) }
+            defer { timings[step] = milliseconds(ContinuousClock.now - start) }
+            witness.clear()
+            do { return try await body() } catch { throw ProbeFailure(step: step, error: error, event: witness.event) }
         }
         do {
             let kinds = try await timed("accounts") { try await mail.accountKinds() }
@@ -127,20 +233,20 @@ public enum MailMoveProbe {
             let a = [folderA], b = [folderB]
             // Only these two folders, made when missing. They exist for this probe alone: whatever is in them is a test
             // copy from an earlier run, and the probe uses it again instead of asking anyone to delete the folders.
-            let before = try await timed("folders") { try await mail.folders(account: account.id, samples: 0) }
+            let before = try await timed("folders") { try await mail.testFolders(account: account.id) }
             var made: [String] = []
-            for path in [a, b] where !before.contains(where: { $0.path == path }) {
+            for path in [a, b] where !before.contains(where: { $0.path == path && $0.exists }) {
                 let newly = try await timed("make_folder") { try await mail.makeFolder(account: account.id, name: path[0]) }
                 if newly { made.append(path[0]) }
             }
             counts["folders_made"] = made.count
-            var ready: [MailFolderInfo] = []
+            var ready: [TestFolder] = []
             for _ in 0..<10 {
-                ready = try await timed("folders") { try await mail.folders(account: account.id, samples: 0) }
-                if [a, b].allSatisfy({ path in ready.contains { $0.path == path } }) { break }
+                ready = try await timed("folders") { try await mail.testFolders(account: account.id) }
+                if [a, b].allSatisfy({ path in ready.contains { $0.path == path && $0.exists } }) { break }
                 await pause()
             }
-            guard let folderInA = ready.first(where: { $0.path == a }), let folderInB = ready.first(where: { $0.path == b }) else {
+            guard let folderInA = ready.first(where: { $0.path == a && $0.exists }), let folderInB = ready.first(where: { $0.path == b && $0.exists }) else {
                 return finish(["refused": "test_folders_not_ready", "next": "Mail did not show both test folders. Check them in Mail."])
             }
             let mover = MailMover(reader: mail, settle: settle)
@@ -196,7 +302,7 @@ public enum MailMoveProbe {
                 for _ in 0..<10 {
                     located = try await timed("locate_copies") { try await mail.locate(account: account.id, path: a, messageIDs: wanted) }
                     let found = located.values.reduce(0) { $0 + $1.count }
-                    let folder = try await timed("folders") { try await mail.folders(account: account.id, samples: 0) }.first { $0.path == a }
+                    let folder = try await timed("folders") { try await mail.testFolders(account: account.id) }.first { $0.path == a }
                     // A was empty: everything in it now must be one of the copies made now.
                     if let total = folder?.count, total > found { return finish(["refused": "test_folder_has_other_mail", "next": "\(folderA) holds mail the probe did not copy. Nothing was moved."]) }
                     if found >= copyStatuses.filter({ $0 == "copied" }).count, folder?.count == found { settled = true; break }
@@ -236,7 +342,10 @@ public enum MailMoveProbe {
             report["verified"] = "\(outcome.verified) of \(outcome.attempted)"
             report["mail_ids_changed"] = outcome.idsChanged == 0 ? "no" : outcome.idsKept == 0 ? "yes" : "some"
             counts["mail_ids"] = ["kept": outcome.idsKept, "changed": outcome.idsChanged]
-            if let failure = outcome.failure { report["move_error"] = failure }
+            if let failure = outcome.failure {
+                report["move_error"] = failure
+                if let event = witness.event { report["move_error_event"] = event }
+            }
             if !outcome.statuses.isEmpty { counts["move_statuses"] = outcome.statuses }
             let rowsAfter = try await journal.runActions(run: runID)
             counts["journal_rows"] = tally(rowsAfter.map(\.state.rawValue))
@@ -264,13 +373,76 @@ public enum MailMoveProbe {
             report["cleanup"] = "The copies stay in \(folderA); the next run uses them again."
             return finish()
         } catch let failure as ProbeFailure {
-            return finish(["error": ["step": failure.step, "kind": MailMover.describe(failure.error)]])
+            var error: [String: Any] = ["step": failure.step, "kind": MailMover.describe(failure.error)]
+            if let event = failure.event { error["event"] = event }
+            return finish(["error": error])
         } catch {
             return finish(["error": ["step": "journal", "kind": MailMover.describe(error)]])
         }
     }
 
-    struct ProbeFailure: Error { var step: String; var error: Error }
+    struct ProbeFailure: Error { var step: String; var error: Error; var event: String? }
+
+    /// Passes every call on to Mail and notes which kind of Apple event last timed out (resolve, count, list_ids,
+    /// duplicate, move, locate, …), so a timeout in the report says what did not answer. Never a name or an id.
+    final class TimeoutWitness: MailMoveProbeMail, @unchecked Sendable {
+        private let mail: any MailMoveProbeMail
+        private let lock = NSLock()
+        private var last: String?
+        init(_ mail: any MailMoveProbeMail) { self.mail = mail }
+        var event: String? { lock.withLock { last } }
+        func clear() { lock.withLock { last = nil } }
+        private func note<T>(_ event: String, _ body: () async throws -> T) async throws -> T {
+            do { return try await body() } catch MailAccountProblem.timeout {
+                lock.withLock { last = event }
+                throw MailAccountProblem.timeout
+            }
+        }
+
+        func inboxAccounts() async throws -> [MailAccountInfo] { try await note("accounts") { try await mail.inboxAccounts() } }
+        func candidates(account: String, query: String, unread: Bool) async throws -> [MailSearchCandidate] {
+            try await note("inbox") { try await mail.candidates(account: account, query: query, unread: unread) }
+        }
+        func candidates(account: String, query: String, readStatus: MailReadStatus, mailbox: MailBoxKind) async throws -> [MailSearchCandidate] {
+            try await note("inbox") { try await mail.candidates(account: account, query: query, readStatus: readStatus, mailbox: mailbox) }
+        }
+        func rows(account: String, ids: [Int]) async throws -> [MailSearchRow] { try await note("inbox_rows") { try await mail.rows(account: account, ids: ids) } }
+        func rows(account: String, ids: [Int], mailbox: MailBoxKind) async throws -> [MailSearchRow] {
+            try await note("inbox_rows") { try await mail.rows(account: account, ids: ids, mailbox: mailbox) }
+        }
+        func message(account: String, mailID: Int, messageID: String, path: [String]) async throws -> MailInboxMessage? {
+            try await mail.message(account: account, mailID: mailID, messageID: messageID, path: path)
+        }
+        func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage? {
+            try await mail.message(account: account, mailID: mailID, messageID: messageID, path: path, mailbox: mailbox)
+        }
+        func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity? {
+            try await mail.threadActivity(account: account, messageID: messageID, subject: subject, since: since)
+        }
+        func folders(account: String, samples: Int) async throws -> MailFolderList { try await note("list_folders") { try await mail.folders(account: account, samples: samples) } }
+        func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: [Int]] {
+            try await note("locate") { try await mail.locate(account: account, path: path, messageIDs: messageIDs) }
+        }
+        @discardableResult
+        func move(account: String, from: [String], mails: [MailMoveItem], to: [String]) async throws -> [String] {
+            try await note("move") { try await mail.move(account: account, from: from, mails: mails, to: to) }
+        }
+        func accountKinds() async throws -> [AccountKind] { try await note("accounts") { try await mail.accountKinds() } }
+        func testFolders(account: String) async throws -> [TestFolder] {
+            let found = try await mail.testFolders(account: account)
+            if let event = found.compactMap(\.timedOut).first {
+                lock.withLock { last = event }
+                throw MailAccountProblem.timeout
+            }
+            return found
+        }
+        func folderTimings(account: String, samples: Int) async throws -> ListingTimings { try await mail.folderTimings(account: account, samples: samples) }
+        func makeFolder(account: String, name: String) async throws -> Bool { try await note("make_folder") { try await mail.makeFolder(account: account, name: name) } }
+        func messageIDs(account: String, path: [String]) async throws -> [String] { try await note("list_ids") { try await mail.messageIDs(account: account, path: path) } }
+        func duplicate(account: String, inboxIDs: [Int], to: [String]) async throws -> [String] {
+            try await note("duplicate") { try await mail.duplicate(account: account, inboxIDs: inboxIDs, to: to) }
+        }
+    }
 
     /// Lookups (polls) and milliseconds the read-backs waited for Mail to settle in one step.
     static func settleJSON(_ s: MailMoveSettleStats) -> [String: Int] { ["lookups": s.lookups, "waited_ms": s.waitedMs, "longest_batch_ms": s.longestMs] }

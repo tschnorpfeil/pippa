@@ -95,11 +95,16 @@ extension PippaMCPWriteTools {
     /// `to` among this account's folders, freshly listed: exact path, then the same path ignoring case, then a unique
     /// folder name. Not there: another account's folder is named as such. Roles (Trash, Junk, Sent, Drafts, Outbox) never.
     private func resolveTarget(_ to: String, account: MailAccountInfo, reader: any MailAccountReading) async -> Target {
-        let folders: [MailFolderInfo]
-        do { folders = try await reader.folders(account: account.id, samples: 0) } catch { return .failed(error) }
+        let list: MailFolderList
+        do { list = try await reader.folders(account: account.id, samples: 0) } catch { return .failed(error) }
+        let folders = list.folders
         let wanted = to.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         func pick(_ match: (MailFolderInfo) -> Bool) -> [MailFolderInfo] { folders.filter(match) }
         var found = pick { $0.display == wanted }
+        // Mail did not list every folder in time: a folder it left out may match too, so only the exact path counts.
+        if found.isEmpty, !list.allListed {
+            return .refused(Self.moveRefused("folders_incomplete", "Mail did not list every folder of this account in time, and no listed folder has exactly this path. Nothing was moved. Pass a whole path exactly as mail_folders lists it, or try again in a moment."))
+        }
         if found.isEmpty { found = pick { $0.display.compare(wanted, options: .caseInsensitive) == .orderedSame } }
         if found.isEmpty, !wanted.contains("/") { found = pick { $0.path.last?.compare(wanted, options: .caseInsensitive) == .orderedSame } }
         if found.count > 1 {
@@ -122,7 +127,7 @@ extension PippaMCPWriteTools {
         guard let accounts = try? await reader.inboxAccounts() else { return false }
         let labels = MailAccountFlow.labels(accounts)
         for (other, label) in zip(accounts, labels) where other.id != account.id && !other.id.isEmpty {
-            guard let folders = try? await reader.folders(account: other.id, samples: 0) else { continue }
+            guard let folders = try? await reader.folders(account: other.id, samples: 0).folders else { continue }
             for folder in folders {
                 let names = [folder.display, "\(label)/\(folder.display)", "\(other.name)/\(folder.display)"]
                 if names.contains(where: { $0.compare(wanted, options: .caseInsensitive) == .orderedSame }) { return true }

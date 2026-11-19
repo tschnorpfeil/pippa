@@ -16,12 +16,47 @@ public struct MailFolderInfo: Sendable, Equatable {
     public var role: MailFolderRole?
     /// Up to two mails as Mail lists them first: sender and subject only.
     public var samples: [MailFolderSample]
-    public init(path: [String], count: Int?, role: MailFolderRole? = nil, samples: [MailFolderSample] = []) {
-        self.path = path; self.count = count; self.role = role; self.samples = samples
+    /// Why `count` and `samples` are missing, when the listing left them out (`nil`: Mail was asked and answered).
+    public var gap: MailFolderGap?
+    public init(path: [String], count: Int?, role: MailFolderRole? = nil, samples: [MailFolderSample] = [], gap: MailFolderGap? = nil) {
+        self.path = path; self.count = count; self.role = role; self.samples = samples; self.gap = gap
     }
 
     /// The path the model reads and writes: names joined with "/".
     public var display: String { path.joined(separator: "/") }
+}
+
+public enum MailFolderGap: String, Sendable, Equatable {
+    /// Mail did not answer the count or a sample within `MailFolderListing.eventTimeout`.
+    case slow
+    /// The listing passed `MailFolderListing.countBound`: path only, Mail was not asked for count or samples.
+    case pathOnly = "path_only"
+}
+
+/// Every mailbox of one account, as far as Mail answered in time.
+public struct MailFolderList: Sendable, Equatable {
+    public var folders: [MailFolderInfo]
+    /// Mailboxes Mail did not name in time, or that the listing did not reach (`MailFolderListing.pathBound`, 500
+    /// mailboxes): they are not in `folders`.
+    public var unnamed: Int
+    /// Listed mailboxes whose subfolders Mail did not list in time: more folders may exist under them.
+    public var unexpanded: Int
+    public init(folders: [MailFolderInfo], unnamed: Int = 0, unexpanded: Int = 0) { self.folders = folders; self.unnamed = unnamed; self.unexpanded = unexpanded }
+
+    /// Every mailbox of the account is in `folders` (counts may still be missing, see `MailFolderInfo.gap`).
+    public var allListed: Bool { unnamed == 0 && unexpanded == 0 }
+}
+
+/// Bounds of the folder listing (`accountFolders`). One mailbox that Mail does not answer for must not cost the whole
+/// listing: each question about one mailbox (its path, its count, one sample, its subfolders) is one Apple event with
+/// its own timeout, and a timeout (-1712) leaves only that mailbox incomplete.
+public enum MailFolderListing {
+    /// Seconds per Apple event about one mailbox. Mail answers these in well under a second when it is well.
+    public static let eventTimeout = 5
+    /// Seconds after the listing started from which the remaining mailboxes get their path only, no count or samples.
+    public static let countBound = 20
+    /// Seconds after the listing started from which the remaining mailboxes are not asked at all, only counted.
+    public static let pathBound = 40
 }
 
 public struct MailFolderSample: Sendable, Equatable {
@@ -258,6 +293,10 @@ public struct MailMover: Sendable {
             outcome.attempted += eligible.count
             var moveError: Error?
             var reported = Set<String>()
+            // A move that timed out is not a move that failed: Mail may still carry it out after Pippa stopped waiting.
+            // The read-back waits for every mail of the batch, and one still in the source counts as unclear, never as
+            // not moved (its row stays, so undo can still find it).
+            var timedOut = false
             do {
                 let statuses = try await reader.move(account: plan.account.id, from: plan.source, mails: eligible, to: plan.target)
                 for (item, status) in zip(eligible, statuses) {
@@ -265,14 +304,17 @@ public struct MailMover: Sendable {
                     outcome.statuses[word, default: 0] += 1
                     if status == "moved" { reported.insert(item.messageID) }
                 }
-            } catch { moveError = error }
+            } catch {
+                moveError = error
+                timedOut = error as? MailAccountProblem == .timeout
+            }
             // The read-back belongs to the move, also after Stop: it runs outside the lease. It waits until every mail
             // Mail reported as moved is in the target; Stop ends the wait at once and what is missing then is unclear.
             let after: (src: [String: [Int]], tgt: [String: [Int]])
             do {
                 after = try await PippaMCPWriteLease.$current.withValue(nil) {
                     try await settled(account: plan.account.id, source: plan.source, target: plan.target, eligible.map(\.messageID),
-                                      waitingFor: reported, stats: &outcome.settle,
+                                      waitingFor: timedOut ? Set(eligible.map(\.messageID)) : reported, stats: &outcome.settle,
                                       stopped: { Task.isCancelled || !live() || (lease.map { (try? $0.check()) == nil } ?? false) }) { src, tgt in
                         tgt.count == 1 && src.isEmpty
                     }
@@ -300,7 +342,7 @@ public struct MailMover: Sendable {
                         object.fields["mailID"] = String(there[0])
                         results.append(RunActionResult(id: id, verified: true, object: object, after: ["mailbox": toName]))
                     }
-                } else if there.isEmpty && here.count == 1 {
+                } else if there.isEmpty && here.count == 1 && !timedOut {
                     unmoved.append(item.messageID)
                 } else {
                     unclearHere += 1
@@ -314,6 +356,7 @@ public struct MailMover: Sendable {
             if unclearHere > 0 {
                 outcome.unclear += unclearHere
                 outcome.unclearBatch = outcome.batches
+                if let moveError { outcome.failure = Self.describe(moveError) }
                 outcome.notStarted = rest - batch.count
                 break
             }
