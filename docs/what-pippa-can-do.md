@@ -56,7 +56,6 @@ A few more things she can do when you ask:
 
 - **Documents.** Questions about PDFs, Word files, spreadsheets and photos of documents, with text recognition for
   scans.
-- **The app in front.** Ask about what's open, for example the mail you're reading.
 - **Photos.** Find matching photos in your Photos library.
 - **The web.** Look something up online, after showing you the exact search text and getting your OK. When a page needs
   clicking through, she opens it in a browser panel in her window, asks before each new site and each click, typed text

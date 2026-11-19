@@ -24,9 +24,15 @@ struct ContextUsage: Codable, Equatable {
 
 /// Sources from tool calls, never from the model's text.
 enum SourceLog {
+    /// A tool's own name, without the prefix Pi gives Pippa's MCP tools ("mcp__pippa__read_document" → "read_document").
+    static func bareToolName(_ tool: String) -> String {
+        let prefix = "mcp__pippa__"
+        return tool.hasPrefix(prefix) ? String(tool.dropFirst(prefix.count)) : tool
+    }
+
     static func source(tool: String, arguments: String, result: String? = nil) -> ChatSource? {
         let args = (try? JSONSerialization.jsonObject(with: Data(arguments.utf8))) as? [String: Any] ?? [:]
-        let name = tool.hasPrefix("mcp__pippa__") ? String(tool.dropFirst("mcp__pippa__".count)) : tool
+        let name = bareToolName(tool)
         switch name {
         case "read", "read_document":
             guard let path = args["path"] as? String, !path.isEmpty else { return nil }
@@ -67,13 +73,17 @@ enum SourceLog {
 }
 
 extension Conversation {
+    /// Compiled once: the sidebar asks for every preview on each redraw.
+    private static let markdownLead = try! NSRegularExpression(pattern: #"^[#>\-\*\d\.\s]+"#)
+    private static let markdownMarks = try! NSRegularExpression(pattern: #"[\*_`]"#)
+
     /// One line for the sidebar: the start of the last answer, without Markdown.
     var preview: String {
         guard let last = messages.last(where: { $0.role == .assistant }) else { return "" }
         if last.text.isEmpty, let error = last.error { return error }
         let line = last.text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty } ?? ""
-        return line.replacingOccurrences(of: #"^[#>\-\*\d\.\s]+"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"[\*_`]"#, with: "", options: .regularExpression)
+        let lead = Self.markdownLead.stringByReplacingMatches(in: line, range: NSRange(line.startIndex..., in: line), withTemplate: "")
+        return Self.markdownMarks.stringByReplacingMatches(in: lead, range: NSRange(lead.startIndex..., in: lead), withTemplate: "")
     }
 
     /// A symbol for what the conversation was about: its files, what it read or added.

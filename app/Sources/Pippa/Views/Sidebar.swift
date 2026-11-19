@@ -86,13 +86,17 @@ struct Sidebar: View {
                 || conversation.messages.contains { $0.text.localizedCaseInsensitiveContains(query) }
         }
         let calendar = Calendar.current
+        // The day boundaries once, not a date calculation per conversation.
         let today = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+        let sevenDaysAgo = calendar.date(byAdding: .day, value: -6, to: today) ?? today
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -29, to: today) ?? today
         func title(_ date: Date) -> String {
-            if calendar.isDateInToday(date) { return T("Today", table: "App") }
-            if calendar.isDateInYesterday(date) { return T("Yesterday", table: "App") }
-            let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: today).day ?? 0
-            if days < 7 { return T("Previous 7 Days", table: "App") }
-            if days < 30 { return T("Previous 30 Days", table: "App") }
+            if date >= today && date < tomorrow { return T("Today", table: "App") }
+            if date >= yesterday && date < today { return T("Yesterday", table: "App") }
+            if date >= sevenDaysAgo { return T("Previous 7 Days", table: "App") }
+            if date >= thirtyDaysAgo { return T("Previous 30 Days", table: "App") }
             return T("Older", table: "App")
         }
         let pinned = found.filter { $0.pinned == true }

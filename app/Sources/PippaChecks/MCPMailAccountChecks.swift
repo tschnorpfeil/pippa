@@ -440,6 +440,16 @@ extension MCPCheckContext {
             return !e.isError && mails(e).isEmpty && data(e)["complete"] as? Bool == true && (e.json["next"] as? String)?.contains("No email") == true
                 && second.isError && second.json["status"] as? String == "account_unavailable" && (second.json["error"] as? String)?.contains("Privat") == true
         }
+        await checkAsync("Mail pages: two accounts without an id are reported each on their own and never stand in for each other") {
+            // Mail lists inboxes without a known account with an empty id. Each keeps its own coverage row; neither is
+            // searched or read under the other's (empty) id, and the account with an id still shows its mails.
+            let first = MailAccountInfo(id: "", name: "Konto Eins"), second = MailAccountInfo(id: "", name: "Konto Zwei")
+            let fake = FakeMailAccounts([(first, (1...3).map { stored("X", $0) }), (second, [stored("Y", 1)]), (privat, (1...3).map { stored("A", $0) })])
+            let r = await call(world(fake).tools, "mail_search", ["limit": 20])
+            return !r.isError && keys(r) == ["Privat/A 3", "Privat/A 2", "Privat/A 1"]
+                && coverage(r) == ["Konto Eins": "failed", "Konto Zwei": "failed", "Privat": "ok"] && data(r)["status"] as? String == "partial"
+                && fake.candidateCalls == [privat.id] && fake.rowCalls == [privat.id]
+        }
         await checkAsync("Mail pages: huge Unicode fields stay under 8 KB per page, and the cursor skips nothing that was cut") {
             let long = String(repeating: "Grüße 😀 ", count: 400), start = String(repeating: "Ä€😀", count: 140)
             let fake = FakeMailAccounts([(privat, (1...30).map { stored("A", $0, subject: "\($0) " + long, preview: start) }),

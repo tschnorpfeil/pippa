@@ -111,6 +111,8 @@ public struct CalendarDigest: Sendable, Equatable {
 
     public static func make(_ fetch: CalendarFetch, range: CalendarRange, now: Date, calendar: Calendar) -> CalendarDigest {
         let format = CalendarFormat(calendar: calendar)
+        // One formatter per other time zone for this digest, not one per event.
+        var zoneFormatters: [String: DateFormatter] = [:]
         let firstDay = calendar.startOfDay(for: range.start)
         var seen = Set<String>()
         var placed: [(day: Date, entry: Entry)] = []
@@ -155,8 +157,12 @@ public struct CalendarDigest: Sendable, Equatable {
             }
             if !event.allDay, let id = event.timeZone, let zone = TimeZone(identifier: id),
                zone.secondsFromGMT(for: event.start) != calendar.timeZone.secondsFromGMT(for: event.start) {
-                let other = DateFormatter()
-                other.locale = format.time.locale; other.timeZone = zone; other.timeStyle = .short; other.dateStyle = .none
+                let other = zoneFormatters[id] ?? {
+                    let made = DateFormatter()
+                    made.locale = format.time.locale; made.timeZone = zone; made.timeStyle = .short; made.dateStyle = .none
+                    zoneFormatters[id] = made
+                    return made
+                }()
                 let city = id.split(separator: "/").last.map { $0.replacingOccurrences(of: "_", with: " ") } ?? id
                 entry.otherZone = L("%@ in %@", table: "Calendar", other.string(from: event.start), city)
             }

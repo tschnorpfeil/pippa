@@ -57,7 +57,8 @@ private struct CalendarCardRow: View {
                 Capsule().fill(color).frame(width: 3, height: 15).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 3 }
                 Text(entry.time)
                     .font(Typo.footnote.monospacedDigit()).foregroundStyle(Theme.ink2)
-                    .frame(width: 92, alignment: .leading)
+                    .frame(minWidth: 92, alignment: .leading)
+                    .fixedSize(horizontal: true, vertical: false)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(entry.title)
                         .font(.scaled(size: 13.5, weight: .medium)).foregroundStyle(entry.inactive ? Theme.ink3 : Theme.ink)

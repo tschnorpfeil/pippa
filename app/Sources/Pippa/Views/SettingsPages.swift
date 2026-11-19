@@ -89,6 +89,7 @@ struct SharingSettings: View {
     private let failureState = State<String?>(initialValue: nil)
     /// The online AI in use with its effective recipient, read off the main thread; `nil` on this Mac or while reading.
     private let activeState = State<ShareDestination?>(initialValue: nil)
+    private let expandedState = State(initialValue: false)
 
     var body: some View {
         let active = settings.inferenceSettings.usesOnlineAI ? activeState.wrappedValue : nil
@@ -96,28 +97,28 @@ struct SharingSettings: View {
         let footer = failureState.wrappedValue
             ?? active.flatMap { macAccess ? T("%@ has Mac access. Tool results and files you attach directly go to this provider without review. The rules below apply to excerpts you choose to review, such as Selected Email in Mail.", table: "Settings", $0.provider) : nil }
             ?? T("An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is.", table: "Settings")
+        let handoff = ShareDestination.handoff(settings.inferenceSettings, recipients: .unresolved)
+        // Nothing is shared and nothing is set up: five identical rows would only crowd the page.
+        let collapsed = !settings.inferenceSettings.usesOnlineAI && handoff == nil
         SettingsSection(title: T("Sharing with online AI", table: "Settings"), footer: footer) {
             if let active {
                 macAccessRow(active, allowed: macAccess)
                 SettingsDivider()
             }
-            ForEach(Array(SharingSource.allCases.enumerated()), id: \.element) { index, source in
-                if index > 0 { SettingsDivider() }
-                SettingsRow(title: source.displayName) {
-                    Picker(source.displayName, selection: Binding(
-                        get: { settings.inferenceSettings.sharing[source] },
-                        set: { rule in
-                            var sharing = settings.inferenceSettings.sharing
-                            sharing[source] = rule
-                            save(sharing)
-                        })) {
-                        Text(T("Ask before sharing", table: "Settings")).tag(SharingRule.ask)
-                        Text(T("Only on this Mac", table: "Settings")).tag(SharingRule.localOnly)
+            if collapsed && !expandedState.wrappedValue {
+                SettingsRow(title: summary) {
+                    Button(T("Configure…", table: "Settings")) { expandedState.wrappedValue = true }.pippa(.quiet)
+                }
+            } else {
+                sourceRows
+                if collapsed {
+                    SettingsDivider()
+                    SettingsRow(title: summary) {
+                        Button(T("Hide", table: "Settings")) { expandedState.wrappedValue = false }.pippa(.quiet)
                     }
-                    .labelsHidden().fixedSize()
                 }
             }
-            if let handoff = ShareDestination.handoff(settings.inferenceSettings, recipients: .unresolved) {
+            if let handoff {
                 SettingsDivider()
                 SettingsRow(title: T("Single questions", table: "Settings"),
                             detail: T("While Pippa uses this Mac, “Ask %@…” in the chat sends one checked question to %@.", table: "Settings",
@@ -127,6 +128,34 @@ struct SharingSettings: View {
             }
         }
         .task(id: settings.inferenceSettings) { await resolve() }
+    }
+
+    /// "All sources ask before sharing", or how many ask and how many stay on this Mac.
+    private var summary: String {
+        let asking = SharingSource.allCases.filter { settings.inferenceSettings.sharing[$0] == .ask }.count
+        let total = SharingSource.allCases.count
+        return asking == total
+            ? T("All sources ask before sharing", table: "Settings")
+            : T("Ask before sharing: %lld · Only on this Mac: %lld", table: "Settings", asking, total - asking)
+    }
+
+    private var sourceRows: some View {
+        ForEach(Array(SharingSource.allCases.enumerated()), id: \.element) { index, source in
+            if index > 0 { SettingsDivider() }
+            SettingsRow(title: source.displayName) {
+                Picker(source.displayName, selection: Binding(
+                    get: { settings.inferenceSettings.sharing[source] },
+                    set: { rule in
+                        var sharing = settings.inferenceSettings.sharing
+                        sharing[source] = rule
+                        save(sharing)
+                    })) {
+                    Text(T("Ask before sharing", table: "Settings")).tag(SharingRule.ask)
+                    Text(T("Only on this Mac", table: "Settings")).tag(SharingRule.localOnly)
+                }
+                .labelsHidden().fixedSize()
+            }
+        }
     }
 
     /// Off unless the person turns it on; it can only be turned on for a recipient Pippa could verify.

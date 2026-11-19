@@ -31,6 +31,8 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     private var declinedNavigation = false
     private var navigationFailed = false
     private var rulesInstalled = false
+    /// The rule list being compiled: concurrent callers wait for it, so it is added to the view only once.
+    private var installingRules: Task<Void, Error>?
     private var pendingPolicyDecisions = 0
     private var pendingPopupTasks: [UUID: Task<Void, Never>] = [:]
     private var preapprovedPopupURL: URL?
@@ -125,10 +127,12 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
 
     private func sync() {
         let url = webView.url.flatMap { $0.scheme?.lowercased() == "about" ? nil : $0 }
-        currentURL = url
-        pageTitle = url == nil ? "" : webView.title ?? ""
-        isLoading = webView.isLoading
-        canGoBack = webView.canGoBack
+        // Navigation callbacks fire often with nothing new: assign only changes, so SwiftUI redraws only then.
+        let title = url == nil ? "" : webView.title ?? ""
+        if currentURL != url { currentURL = url }
+        if pageTitle != title { pageTitle = title }
+        if isLoading != webView.isLoading { isLoading = webView.isLoading }
+        if canGoBack != webView.canGoBack { canGoBack = webView.canGoBack }
     }
 
     // MARK: BrowserOperating
@@ -314,12 +318,19 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     /// Subresources (images, scripts, fetch) are not navigations: block this Mac and private networks for them too.
     private func installRules() async throws {
         guard !rulesInstalled else { return }
-        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(
-            forIdentifier: "PippaBrowserLocalBlock", encodedContentRuleList: Self.localContentRuleJSON) else {
-            throw BrowserError.failed
+        if let installingRules { return try await installingRules.value }
+        let task = Task { @MainActor in
+            guard let list = try await WKContentRuleListStore.default().compileContentRuleList(
+                forIdentifier: "PippaBrowserLocalBlock", encodedContentRuleList: Self.localContentRuleJSON) else {
+                throw BrowserError.failed
+            }
+            webView.configuration.userContentController.add(list)
+            rulesInstalled = true
         }
-        webView.configuration.userContentController.add(list)
-        rulesInstalled = true
+        installingRules = task
+        // A failed compile is tried again by the next caller.
+        defer { installingRules = nil }
+        try await task.value
     }
 
     private func allowNavigation(_ url: URL, mainFrame: Bool, isPopup: Bool, confirmHost: Bool = true) async -> Bool {

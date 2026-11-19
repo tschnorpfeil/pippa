@@ -190,7 +190,7 @@ private final class StallingServer: @unchecked Sendable {
                 let offset = head.range(of: #"(?i)range: bytes=(\d+)-"#, options: .regularExpression)
                     .flatMap { Int(head[$0].split(separator: "=").last!.dropLast()) } ?? 0
                 let rest = payload.dropFirst(offset)
-                var reply: Data
+                let reply: Data
                 if head.contains("/stall-end/") {
                     reply = Data("HTTP/1.1 200 OK\r\nContent-Length: \(payload.count + 16)\r\n\r\n".utf8) + payload
                 } else if offset == 0 {
@@ -242,7 +242,7 @@ private final class RangeServer: @unchecked Sendable {
                 let head = String(decoding: data ?? Data(), as: UTF8.self)
                 let bounds = head.range(of: #"(?i)range: bytes=(\d+)-(\d*)"#, options: .regularExpression)
                     .map { head[$0].split(separator: "=").last!.split(separator: "-", omittingEmptySubsequences: false).map { Int($0) } }
-                var reply: Data
+                let reply: Data
                 if !ignoresRange, let first = bounds?.first ?? nil {
                     let last = min(payload.count - 1, (bounds?.last ?? nil) ?? payload.count - 1)
                     lock.withLock { ranges.append(first..<(last + 1)) }

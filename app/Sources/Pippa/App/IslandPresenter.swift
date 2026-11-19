@@ -248,6 +248,9 @@ final class IslandPresenter: NSObject {
     /// does not take the keyboard from the app in front.
     func open(key: Bool) {
         guard let placement else { return }
+        // Already open, with the keyboard where it should be: the window order stays, so the window list (a synchronous
+        // `CGWindowListCopyWindowInfo`) is not read again. Opening and taking the keyboard still order it.
+        if isPresented, !key || panel.isKeyWindow { return }
         panel.allowsKey = true
         if key { panel.makeKeyAndOrderFront(nil) } else { panel.orderFrontRegardless() }
         keepBehindNotchTool(placement)

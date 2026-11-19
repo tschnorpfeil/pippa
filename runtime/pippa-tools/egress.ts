@@ -40,9 +40,13 @@ export function onlyAllowedTools(egress: Egress, payload: any): any {
 		const name = tool?.function?.name ?? tool?.name;
 		return typeof name === "string" && allows(egress, name);
 	});
-	if (tools.length === payload.tools.length) return undefined;
+	const chosen = payload.tool_choice?.function?.name ?? payload.tool_choice?.name;
+	// A forced choice (OpenAI chat `{function: {name}}`, Responses and Anthropic `{name}`) may name a disallowed tool.
+	const dropChoice = typeof chosen === "string" && !allows(egress, chosen);
+	if (tools.length === payload.tools.length && !dropChoice) return undefined;
 	const next = { ...payload, tools };
 	if (tools.length === 0) { delete next.tools; delete next.tool_choice; }
+	else if (dropChoice) delete next.tool_choice;
 	return next;
 }
 

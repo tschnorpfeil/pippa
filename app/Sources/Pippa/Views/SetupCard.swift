@@ -83,7 +83,7 @@ struct SetupCard: View {
             case .failed(let problem):
                 Text(problem.message).fixedSize(horizontal: false, vertical: true)
                 // Never a dead end: even when this Mac can't run the AI itself (too little memory), an online AI can.
-                HStack(spacing: Space.m) {
+                FlowRow(spacing: Space.m, maxItemWidth: 260) {
                     // Out of room: Storage settings is the way forward, then Try Again checks once more.
                     let space = isOutOfSpace(problem)
                     if space { ActionPill(title: T("Open Storage Settings…", table: "App"), primary: true) { NSWorkspace.shared.open(Self.storageSettingsURL) } }

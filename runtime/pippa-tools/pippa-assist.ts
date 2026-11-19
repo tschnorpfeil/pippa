@@ -61,16 +61,24 @@ const NATIVE_NO_EFFECT = new Set(["invalid_arguments", "cancelled", "needs_acces
 	"not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
 	"stale_ref", "needs_calendar", "reply_needs_mail", "stays_on_mac"]);
 
+/** A tool result's text parts, joined, and parsed once as JSON when they are JSON (`ok`). */
+export interface ResultText { text: string; ok: boolean; json?: any }
+
+export function resultText(content: any[] | undefined): ResultText {
+	const text = (content ?? []).filter((p) => p?.type === "text").map((p) => String(p.text ?? "")).join("\n");
+	try { return { text, ok: true, json: JSON.parse(text) }; } catch { return { text, ok: false }; }
+}
+
 /** Only Pippa's top-level native write result establishes an effect. A lost/malformed reply proves neither outcome. */
-function nativeChangeOutcome(tool: string, content: any[], isError: boolean): "success" | "failure" | "uncertain" | undefined {
+function nativeChangeOutcome(tool: string, parsed: ResultText, isError: boolean): "success" | "failure" | "uncertain" | undefined {
 	if (!NATIVE_CHANGES.has(tool)) return undefined;
-	try {
-		const result = JSON.parse(content.filter((part) => part?.type === "text").map((part) => part.text).join("\n"));
-		if (result?.state === "unclear" || result?.status === "unclear" || result?.state === "dispatched" || result?.status === "dispatched") return "uncertain";
-		if (result && Object.hasOwn(result, "dispatched") && typeof result.dispatched !== "boolean") return "uncertain";
-		if (result?.done === true && !isError) return "success";
-		if (result?.done === false && result.dispatched !== true && NATIVE_NO_EFFECT.has(result.status)) return "failure";
-	} catch { /* No structured confirmation: a transport error may arrive after the native app changed. */ }
+	// No structured confirmation: a transport error may arrive after the native app changed.
+	if (!parsed.ok) return "uncertain";
+	const result = parsed.json;
+	if (result?.state === "unclear" || result?.status === "unclear" || result?.state === "dispatched" || result?.status === "dispatched") return "uncertain";
+	if (result && Object.hasOwn(result, "dispatched") && typeof result.dispatched !== "boolean") return "uncertain";
+	if (result?.done === true && !isError) return "success";
+	if (result?.done === false && result.dispatched !== true && NATIVE_NO_EFFECT.has(result.status)) return "failure";
 	return "uncertain";
 }
 
@@ -110,25 +118,21 @@ export function loopBrake(counts: Map<string, LoopCount>, keys: Map<string, stri
 }
 
 /** File locations from a search result, never inferred from the model's prose. */
-export function searchFiles(content: any[]): string[] {
-	const text = (content ?? []).filter((p) => p?.type === "text").map((p) => String(p.text ?? "")).join("\n");
-	try {
-		const result = JSON.parse(text);
+export function searchFiles(content: any[], parsed: ResultText = resultText(content)): string[] {
+	const result = parsed.json;
+	if (parsed.ok && result !== null && result !== undefined) {
 		return Array.isArray(result.files) ? result.files.map((f: any) => f?.path).filter((p: any) => typeof p === "string" && p.startsWith("/")) : [];
-	} catch {
-		return text.split(/[\n\0]/).filter((p) => p.startsWith("/") && !/[\r\t]/.test(p));
 	}
+	return parsed.text.split(/[\n\0]/).filter((p) => p.startsWith("/") && !/[\r\t]/.test(p));
 }
 
 /** Files a folder listing or a shell command showed: `list_folder`'s file entries, otherwise full paths on their own
  * line. Folders stay out. */
-export function listedFiles(tool: string, content: any[], command = ""): string[] {
-	const text = (content ?? []).filter((p) => p?.type === "text").map((p) => String(p.text ?? "")).join("\n");
+export function listedFiles(tool: string, content: any[], command = "", parsed: ResultText = resultText(content)): string[] {
+	const text = parsed.text;
 	if (tool === "list_folder") {
-		try {
-			const entries = JSON.parse(text)?.entries;
-			return Array.isArray(entries) ? entries.filter((e: any) => e?.kind === "file" && typeof e?.path === "string").map((e: any) => e.path) : [];
-		} catch { return []; }
+		const entries = parsed.ok ? parsed.json?.entries : undefined;
+		return Array.isArray(entries) ? entries.filter((e: any) => e?.kind === "file" && typeof e?.path === "string").map((e: any) => e.path) : [];
 	}
 	// `ls /folder` or `ls ~/folder` (no long format): plain names below that folder.
 	const ls = command.match(/^\s*ls((?:\s+-[A-Za-z1]+)*)\s+(["']?)((?:\/|~\/)[^"'|;&<>`$]*?)\2\s*$/);
@@ -277,7 +281,7 @@ export default function (pi: ExtensionAPI) {
 		if (missed) attempt(missed, ctx);
 		// tool_result already recorded executed calls; only rejected calls still have a key. Never count twice.
 		// A call that never reached tool_call was rejected by Pi's validation; no native request was attempted.
-		outcome(event.toolCallId, event.isError === true, missed ? undefined : nativeChangeOutcome(event.toolName, event.result?.content, event.isError === true));
+		outcome(event.toolCallId, event.isError === true, missed ? undefined : nativeChangeOutcome(event.toolName, resultText(event.result?.content), event.isError === true));
 	});
 
 	pi.on("tool_call", async (event: any, ctx: any) => {
@@ -299,23 +303,25 @@ export default function (pi: ExtensionAPI) {
 		const command = commands.get(event.toolCallId);
 		commands.delete(event.toolCallId);
 		const backup = event.details?.pippaBefore;
-		if (event.toolName === "search_files" && searchCalls.has(event.toolCallId)) {
-			pi.appendEntry("pippa-search-result", { v: 1, files: searchFiles(event.content).slice(0, 200) });
+		// One parse of the result text for every reader below.
+		const parsed = resultText(event.content);
+		const searching = searchCalls.delete(event.toolCallId);
+		const searchHits = searching ? searchFiles(event.content, parsed) : [];
+		if (event.toolName === "search_files" && searching) {
+			pi.appendEntry("pippa-search-result", { v: 1, files: searchHits.slice(0, 200) });
 		}
 		else if ((event.toolName === "list_folder" || event.toolName === "bash") && !event.isError) {
-			const files = listedFiles(event.toolName, event.content, command).slice(0, 200);
+			const files = listedFiles(event.toolName, event.content, command, parsed).slice(0, 200);
 			if (files.length) pi.appendEntry("pippa-listed-files", { v: 1, files });
 		}
-		if (searchCalls.delete(event.toolCallId)) {
+		if (searching) {
 			// Failed or time-limited searches may still return useful partial locations.
-			for (const path of searchFiles(event.content)) if (found.size < 201) found.add(path);
-			try {
-				const text = (event.content ?? []).filter((p: any) => p?.type === "text").map((p: any) => p.text).join("\n");
-				const result = JSON.parse(text);
-				truncated ||= result.truncated === true || Number(result.left_out) > 0;
-			} catch { /* Plain mdfind results have no structured truncation flag. */ }
+			for (const path of searchHits) if (found.size < 201) found.add(path);
+			// Plain mdfind results have no structured truncation flag.
+			const result = parsed.ok ? parsed.json : undefined;
+			truncated ||= result?.truncated === true || Number(result?.left_out) > 0;
 		}
-		outcome(event.toolCallId, event.isError === true, nativeChangeOutcome(event.toolName, event.content, event.isError === true));
+		outcome(event.toolCallId, event.isError === true, nativeChangeOutcome(event.toolName, parsed, event.isError === true));
 		const changes = changesOf(event.toolName, event.details, event.isError === true);
 		if (changes.length) pi.appendEntry("pippa-change", { v: 1, changes });
 		if (backup?.copy) {

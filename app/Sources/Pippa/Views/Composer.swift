@@ -227,7 +227,7 @@ struct AIBadge: View {
         Button { SettingsWindow.shared.show(.ai) } label: {
             HStack(spacing: Space.xs) {
                 if case .preparing = setup.state, !setup.usesOnlineAI { ProgressView().controlSize(.mini) }
-                else { Image(systemName: setup.usesOnlineAI ? "cloud" : "laptopcomputer").font(Typo.caption.weight(.medium)) }
+                else { Image(systemName: Self.symbol(setup)).font(Typo.caption.weight(.medium)) }
                 Text(Self.label(setup)).lineLimit(1)
             }
             .font(Typo.caption.weight(.medium)).foregroundStyle(Theme.ink2)
@@ -238,6 +238,9 @@ struct AIBadge: View {
         .buttonStyle(.plain)
         .help(T("Change in Settings", table: "App"))
     }
+
+    /// A laptop for this Mac, a cloud for an online AI; the island's badge uses the same.
+    @MainActor static func symbol(_ setup: SetupModel) -> String { setup.usesOnlineAI ? "cloud" : "laptopcomputer" }
 
     /// Which AI answers: on this Mac, ChatGPT or the connected model, by the names Settings shows ("OpenAI · GPT-6.1
     /// Terra"); the model's ID only when it has no name. From the settings in memory, never from disk: the composer
