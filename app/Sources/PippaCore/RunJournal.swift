@@ -125,8 +125,10 @@ public struct RunActionResult: Sendable {
 /// move whose mail is live in both folders (IMAP copied but did not delete); the row becomes unclear, nothing is deleted.
 /// `unclear`: Mail did not answer in time, so whether it went back is not known (`MailMover.undoNoAnswerNote`); never
 /// retried, looked at once more later (`resolveUnclearMailRows`). `unanswered`: Mail did not answer before anything was
-/// put back, so nothing moved; the row keeps its state and note and Undo can be pressed again.
-public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing, inBoth = "in_both", unclear, unanswered }
+/// put back, so nothing moved; the row keeps its state and note and Undo can be pressed again. `noIdentity`: an unclear
+/// mail move found in the target, but without Mail's id there from the move's read-back or the later look; nothing
+/// moved, the row stays unclear as it was.
+public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing, inBoth = "in_both", unclear, unanswered, noIdentity = "no_identity" }
 /// Puts one row back, only if its object is unchanged since Pippa touched it. Supplied per kind by the tool.
 public typealias RunUndoRecipe = @Sendable (RunAction) async -> RunUndoOutcome
 /// Puts several rows of one kind back in one step (mail moves go back in batches), `rows` in undo order. It also gets
@@ -137,7 +139,7 @@ public struct RunUndoReport: Sendable, Equatable {
     public var undone: [RunAction] = []
     public var left: [RunAction] = []
     public var failed: [RunAction] = []
-    /// Rows Undo left unclear (`RunUndoOutcome.inBoth`, `.unclear`).
+    /// Rows Undo left unclear (`RunUndoOutcome.inBoth`, `.unclear`, `.noIdentity`).
     public var unclear: [RunAction] = []
     /// Rows Undo did not touch because Mail did not answer in time (`RunUndoOutcome.unanswered`): as they were.
     public var unanswered: [RunAction] = []
@@ -366,7 +368,7 @@ extension Executor {
         case .nothing: row.state = .undone; row.note = "not_moved"
         case .inBoth: row.state = .unclear; row.note = MailMover.inBothNote
         case .unclear: row.state = .unclear; row.note = MailMover.undoNoAnswerNote
-        case .unanswered: break
+        case .unanswered, .noIdentity: break
         }
         return row
     }
@@ -434,7 +436,7 @@ extension Executor {
             case .undone, .gone: report.undone.append(current)
             case .changed: report.left.append(current)
             case .failed: report.failed.append(current)
-            case .inBoth, .unclear: report.unclear.append(current)
+            case .inBoth, .unclear, .noIdentity: report.unclear.append(current)
             case .unanswered: report.unanswered.append(current)
             case .nothing: break
             }

@@ -770,8 +770,8 @@ extension MCPCheckContext {
                 && report.left.first?.object.fields["messageID"] == "m30@x.example"
                 && failed.failed.count == 3 && failed.undone.isEmpty && failed.left.isEmpty
         }
-        await checkAsync("mail_move Undo: a row the move left unclear is looked at once more: in the target it goes back, in the source nothing is undone") {
-            func unclearRun(_ into: [String]?) async throws -> (RunUndoReport, [RunAction], FakeFolderMail) {
+        await checkAsync("mail_move Undo: a row the move left unclear is looked at once more: in the target without Mail's id it stays, after the later look it goes back; in the source nothing is undone") {
+            func unclearRun(_ into: [String]?) async throws -> (RunUndoReport, [RunAction], FakeFolderMail, World) {
                 let fake = fakeMail()
                 fake.neverArrive = "m28@x.example"
                 let w = try world(fake)
@@ -779,16 +779,83 @@ extension MCPCheckContext {
                 fake.neverArrive = nil
                 fake.release(into: into)
                 let report = try await w.host.undoRun(w.turn.id)
-                return (report, try await w.journal.runActions(run: w.turn.id), fake)
+                return (report, try await w.journal.runActions(run: w.turn.id), fake, w)
             }
-            let (late, lateRows, lateFake) = try await unclearRun(nil)
-            let (back, backRows, backFake) = try await unclearRun(["INBOX"])
+            let (late, lateRows, lateFake, lateWorld) = try await unclearRun(nil)
+            let lateRow = lateRows.first { $0.object.fields["messageID"] == "m28@x.example" }
+            let stayed = lateFake.ids(privat.id, ["Rechnungen"]).contains("m28@x.example")
+            // The answer's later look reads Mail's id in the target: from then on Undo moves it back.
+            await lateWorld.host.recheckUnclearMail(lateWorld.turn.id)
+            let later = try await lateWorld.host.undoRun(lateWorld.turn.id)
+            let laterRows = try await lateWorld.journal.runActions(run: lateWorld.turn.id)
+            let (back, backRows, backFake, _) = try await unclearRun(["INBOX"])
             let untouched = backRows.first { $0.object.fields["messageID"] == "m28@x.example" }
-            return late.undone.count == 5 && late.left.isEmpty && late.failed.isEmpty && lateRows.allSatisfy { $0.state == .undone }
-                && lateFake.mails(privat.id, ["INBOX"]).count == 30
+            return late.undone.count == 4 && late.unclear.count == 1 && late.left.isEmpty && late.failed.isEmpty
+                && lateRow?.state == .unclear && lateRow?.note == "mismatch" && stayed
+                && later.undone.count == 1 && later.failed.isEmpty && lateFake.mails(privat.id, ["INBOX"]).count == 30
+                && laterRows.allSatisfy { $0.state == .undone }
                 && back.undone.count == 4 && back.left.isEmpty && back.failed.isEmpty
                 && untouched?.state == .undone && untouched?.note == "not_moved" && backFake.mails(privat.id, ["INBOX"]).count == 30
                 && backFake.moveCalls.last?.count == 4
+        }
+
+        /// Three mails moved and verified, then two more to Archiv/2025 whose read-back Mail never answers, nor the
+        /// answer's later look: those two rows stay unclear without Mail's id in the target.
+        func stalledRun() async throws -> (World, FakeFolderMail, [String]) {
+            let fake = fakeMail()
+            let w = try world(fake)
+            fake.clock = w.clock
+            let picked = await refs(w)
+            _ = await call(w.tools, "mail_move", ["refs": Array(picked.prefix(3)), "to": "Rechnungen"])
+            fake.onMove = { call, _ in if call == 2 { fake.locateStalls = true } }
+            _ = await call(w.tools, "mail_move", ["refs": Array(picked.dropFirst(3).prefix(2)), "to": "Archiv/2025"])
+            await w.host.recheckUnclearMail(w.turn.id)
+            fake.locateStalls = false
+            fake.onMove = nil
+            let unclear = try await w.journal.runActions(run: w.turn.id).filter { $0.state == .unclear }.compactMap { $0.object.fields["messageID"] }
+            return (w, fake, unclear)
+        }
+        await checkAsync("mail_move Undo: an unclear row without Mail's id in the target is never moved on its Message-ID: a replacement there stays, the verified mails go back") {
+            let (w, fake, unclear) = try await stalledRun()
+            guard unclear.count == 2 else { return false }
+            // The person moves one unconfirmed original elsewhere and puts another mail with its Message-ID into the target.
+            fake.edit(privat.id, ["Archiv", "2025"]) { $0.removeAll { $0.messageID == unclear[0] } }
+            fake.edit(privat.id, ["Archiv", "2025"]) { $0.append(mail(777, messageID: unclear[0])) }
+            let moves = fake.moveCalls.count
+            let report = try await w.host.undoRun(w.turn.id)
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            let moved = fake.moveCalls.dropFirst(moves).flatMap { $0.map(\.messageID) }
+            return report.undone.count == 3 && report.unclear.count == 2 && report.left.isEmpty && report.failed.isEmpty
+                && moved.count == 3 && !moved.contains(unclear[0]) && !moved.contains(unclear[1])
+                && fake.mails(privat.id, ["Archiv", "2025"]).contains { $0.id == 777 } && fake.ids(privat.id, ["Archiv", "2025"]) == unclear.sorted()
+                && rows.filter { $0.state == .unclear }.count == 2 && rows.filter { $0.state == .unclear }.allSatisfy { $0.note == MailMover.noAnswerNote }
+                && fake.mails(privat.id, ["INBOX"]).count == 28
+        }
+        await checkAsync("mail_move Undo: unclear rows the answer's later look confirms in the target go back with the verified ones") {
+            let (w, fake, unclear) = try await stalledRun()
+            await w.host.recheckUnclearMail(w.turn.id)
+            let confirmed = try await w.journal.runActions(run: w.turn.id)
+            let report = try await w.host.undoRun(w.turn.id)
+            return unclear.count == 2 && confirmed.allSatisfy { $0.state == .done && $0.verified == true && $0.object.fields["mailID"] != nil }
+                && report.undone.count == 5 && report.unclear.isEmpty && report.failed.isEmpty && report.left.isEmpty
+                && fake.mails(privat.id, ["INBOX"]).count == 30 && fake.mails(privat.id, ["Archiv", "2025"]).isEmpty
+        }
+        await checkAsync("mail_move Undo: an unclear row whose mail is back in the source counts as not moved; the other unclear row in the target is not moved either") {
+            let (w, fake, unclear) = try await stalledRun()
+            guard unclear.count == 2 else { return false }
+            // Mail's move did not happen for the first one after all: it is in the inbox again.
+            let original = fake.mails(privat.id, ["Archiv", "2025"]).first { $0.messageID == unclear[0] }
+            fake.edit(privat.id, ["Archiv", "2025"]) { $0.removeAll { $0.messageID == unclear[0] } }
+            if let original { fake.edit(privat.id, ["INBOX"]) { $0.append(original) } }
+            let moves = fake.moveCalls.count
+            let report = try await w.host.undoRun(w.turn.id)
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            let moved = fake.moveCalls.dropFirst(moves).flatMap { $0.map(\.messageID) }
+            let source = rows.first { $0.object.fields["messageID"] == unclear[0] }, target = rows.first { $0.object.fields["messageID"] == unclear[1] }
+            return original != nil && report.undone.count == 3 && report.unclear.count == 1 && report.failed.isEmpty
+                && moved.count == 3 && !moved.contains(unclear[0]) && !moved.contains(unclear[1])
+                && source?.state == .undone && source?.note == "not_moved" && target?.state == .unclear
+                && fake.ids(privat.id, ["Archiv", "2025"]) == [unclear[1]] && fake.mails(privat.id, ["INBOX"]).count == 29
         }
 
         // MARK: A8 refusals and skips
@@ -1281,6 +1348,23 @@ extension MCPCheckContext {
                 && (report["timings_ms"] as? [String: Int])?["folders"] != nil && fake.moveCalls.isEmpty && fake.folderCalls == 0
                 && movedReport["move_error"] as? String == "timeout" && movedReport["move_error_event"] as? String == "move"
                 && move["unclear"] as? Int == 10 && move["not_moved"] as? Int == 0 && slowMove.folderCalls == 0
+        }
+        await checkAsync("Mail move probe: Mail not answering the read-back of a move leaves its rows unclear; the look before the Undo confirms them, and the Undo moves them back: as intended") {
+            let fake = fakeMail()
+            let clock = FakeSettleClock()
+            fake.clock = clock
+            // The second move batch: Mail does not answer its read-back (7 polls until the bound after a timeout), then again.
+            fake.onMove = { call, _ in if call == 2 { fake.locateTimeouts = 7 } }
+            let result = await MailMoveProbe.execute(["--mail-move-probe", "--account", "Privat", "--recheck", "0"], mail: { fake },
+                                                     journalDirectory: dir("probe-\(UUID().uuidString)"), pause: {}, settle: clock.settle)
+            let report = (try? JSONSerialization.jsonObject(with: Data(result.stdout.utf8))) as? [String: Any] ?? [:]
+            let counts = report["counts"] as? [String: Any] ?? [:]
+            let move = counts["move"] as? [String: Any] ?? [:]
+            return result.exitCode == 0 && report["result"] as? String == "as_intended" && report["verified"] as? String == "10 of 20"
+                && move["unclear"] as? Int == 10 && counts["recheck_before_undo"] as? [String: Int] == ["unclear": 10, "moved": 10, "not_moved": 0]
+                && counts["undo_without_identity"] as? Int == 0
+                && counts["undo"] as? [String: Int] == ["undone": 20, "left": 0, "failed": 0, "unclear": 0, "unanswered": 0]
+                && counts["back_in_a"] as? Int == 20 && fake.moveCalls.count == 4 && fake.ids(privat.id, [MailMoveProbe.folderA]).count == 20
         }
         await checkAsync("Mail move probe: Mail not answering after the Undo makes steps unclear, verify_back polls and counts timeouts, and the final read after --recheck decides: as intended, exit 0") {
             let fake = fakeMail()

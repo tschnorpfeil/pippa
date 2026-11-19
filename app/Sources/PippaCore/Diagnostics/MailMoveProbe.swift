@@ -481,6 +481,17 @@ public enum MailMoveProbe {
             if !outcome.statuses.isEmpty { counts["move_statuses"] = outcome.statuses }
             let rowsAfter = try await journal.runActions(run: runID)
             counts["journal_rows"] = tally(rowsAfter.map(\.state.rawValue))
+            // As the answer's receipt does before anyone can press Undo: one more look at the unclear rows, which records
+            // Mail's id in the target for the mails that did move. Undo moves back only rows with that id.
+            let unclearRows = rowsAfter.filter { $0.state == .unclear && $0.object.kind == MailMover.kind }
+            if !unclearRows.isEmpty {
+                let found = try await timed("recheck_unclear") { await mover.recheck(unclearRows) }
+                try await journal.resolveUnclearMailRows(found)
+                let rows = try await journal.runActions(run: runID)
+                counts["recheck_before_undo"] = ["unclear": unclearRows.count, "moved": found.values.filter { if case .moved = $0 { true } else { false } }.count,
+                                                 "not_moved": found.values.filter { $0 == .notMoved }.count]
+                counts["undo_without_identity"] = rows.filter { $0.object.kind == MailMover.kind && $0.state == .unclear && $0.verified != true }.count
+            }
 
             // Undo as the receipt does it: mail moves go back in batches, unclear rows are looked at once more.
             let undoSettle = SettleTally()

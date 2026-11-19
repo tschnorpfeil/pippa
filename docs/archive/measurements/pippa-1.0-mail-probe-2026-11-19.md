@@ -3,7 +3,7 @@
 2026-11-19, for [pippa-1.0.md](../../pippa-1.0.md). `Pippa --mail-move-probe` on one iCloud account (IMAP) in a
 Developer ID build, so the app's own Mail permission applied. It touched only two folders made for it, "Pippa Test A"
 and "Pippa Test B", and copies of six old inbox mails. The inbox and every other folder stayed as they were. The
-report holds counts and times only.
+report holds counts and times only. The probe exists only in debug builds and builds made with `PIPPA_PROBES=1`.
 
 ## What the runs showed
 
@@ -14,6 +14,7 @@ report holds counts and times only.
 | 3 | timeouts are "not known yet" | 6 moved, 2.7 s | 6 of 6 | 6 undone, 3.3 s | as intended |
 | 4 | after the review fixes | 6 moved, 3.3 s | 6 of 6 | 6 undone, 3.5 s | as intended |
 | 5 | after the second review round | 6 moved, 3.8 s | 6 of 6 | 6 undone, 3.9 s | as intended |
+| 6 | after the third review round | Mail did not answer during the move (82.9 s) | 1 of 6, 5 unclear | 1 undone | as intended: the 5 unclear mails had not moved |
 
 Runs 3, 4 and 5 ended with six live mails in A, none live in B, no mail in both folders, and the same picture 45
 seconds later.
@@ -30,7 +31,8 @@ seconds later.
   to 30 seconds in about half of the probe starts made within a few minutes of an earlier run, and in none after a
   five-minute pause. A lookup that times out is "not known yet": the wait goes on for up to 60 seconds, then the row
   is unclear and is read once more at the end of the answer and at Undo. In run 2 the Undo had worked while the
-  report said failed; that is fixed.
+  report said failed; that is fixed. A stall can also hit the move event itself (run 6); the rows then stay unclear
+  until the later read.
 - **The first question after starting the app sometimes times out** (5 of 14 starts). The probe asks once more; the
   cause is unknown.
 

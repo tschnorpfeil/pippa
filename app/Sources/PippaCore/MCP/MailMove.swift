@@ -571,10 +571,10 @@ public struct MailMover: Sendable {
 
     /// Puts the moved mails of one run back, `rows` in undo order (newest first). Consecutive rows of one account and
     /// folder pair go together, up to `batchSize`: one settled lookup, one move, one settled read-back per batch. A mail
-    /// goes back only when its Message-ID is exactly once in the target folder and not in the source, and for a verified
-    /// row only when Mail's id there is still the one read back after the move; anything else
-    /// stays and counts as left (`changed`). A row the move left unclear is looked up again: in the target it goes back
-    /// like the others, in the source it was never moved (`nothing`). Live in both folders, before or after the move
+    /// goes back only when its Message-ID is exactly once in the target folder and not in the source, and only when
+    /// Mail's id there is the one read back after the move or at the later look (`recheck`); anything else
+    /// stays and counts as left (`changed`). A row the move left unclear is looked up again: in the target without that
+    /// id it stays unclear and is not moved (`noIdentity`), in the source it was never moved (`nothing`). Live in both folders, before or after the move
     /// back, is `inBoth`: nothing more is moved and nothing deleted. A row an earlier Undo left unclear because Mail did
     /// not answer (`undoNoAnswerNote`) and that is now in the source only is `undone`. Mail not answering the lookups in
     /// time after the move back, or the move back timing out, is `unclear`: nothing is retried. Mail not answering the
@@ -618,11 +618,14 @@ public struct MailMover: Sendable {
                 for (row, id) in batch {
                     let there = before.there(id), here = before.here(id)
                     // Only the mail the move verified: a verified row holds Mail's id in the target, read back after the
-                    // move (or at the later look). Another mail with this Message-ID put there since stays.
-                    if there.count == 1 && here.isEmpty && row.verified == true && row.object.fields["mailID"] != String(there[0]) {
-                        outcomes[row.id] = .changed
+                    // move (or at the later look, `recheck`). Another mail with this Message-ID put there since stays. A
+                    // row without that id (still unclear) never goes back on its Message-ID alone; this lookup does not
+                    // give it one either, so it stays unclear until the later look reads Mail's id in the target.
+                    if there.count == 1 && here.isEmpty, row.verified == true, let recorded = row.object.fields["mailID"] {
+                        if recorded == String(there[0]) { eligible.append((row, MailMoveItem(mailID: there[0], messageID: id))) }
+                        else { outcomes[row.id] = .changed }
                     }
-                    else if there.count == 1 && here.isEmpty { eligible.append((row, MailMoveItem(mailID: there[0], messageID: id))) }
+                    else if there.count == 1 && here.isEmpty { outcomes[row.id] = row.state == .unclear ? .noIdentity : .changed }
                     else if row.state == .unclear && here.count == 1 && there.isEmpty {
                         outcomes[row.id] = row.note == Self.undoNoAnswerNote ? .undone : .nothing
                     }
