@@ -39,7 +39,7 @@ Open Pippa from the Dock or press ⌥ Space, then just ask.
   <br><sub>Pippa Island asking for your OK, and with an answer. Drawn by the app's snapshot mode with made-up sample data; her sample answers are in German.</sub>
 </p>
 
-When she needs your OK, for example before sending a mail, a web search or a command that changes files, she asks right where you are, in the conversation and on Pippa Island, with one clear **Allow** next to **Don’t Allow**, never in a separate window.
+When she needs your OK, for example before sending a mail, a web search or a command that changes files, she asks right where you are, in the conversation and on Pippa Island, with one clear button next to its opposite (**Allow** and **Don’t Allow**, or **Send** and **Don’t Send**), never in a separate window.
 
 The chat window, Pippa Island and Settings share one look. The window and Settings are almost black in Dark Mode and warm paper in Light Mode; Pippa Island is always black, like the notch. Blue marks Pippa herself and the button to press. Each conversation stays in the sidebar, which you can search. The question field says which AI answers: the one on this Mac, or the online AI you chose. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
 

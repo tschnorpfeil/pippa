@@ -15,8 +15,9 @@ report holds counts and times only. The probe exists only in debug builds and bu
 | 4 | after the review fixes | 6 moved, 3.3 s | 6 of 6 | 6 undone, 3.5 s | as intended |
 | 5 | after the second review round | 6 moved, 3.8 s | 6 of 6 | 6 undone, 3.9 s | as intended |
 | 6 | after the third review round | Mail did not answer during the move (82.9 s) | 1 of 6, 5 unclear | 1 undone | as intended: the 5 unclear mails had not moved |
+| 7 | Undo needs an established identity | 6 moved, 4.2 s | 6 of 6 | 6 undone, 4.3 s | as intended |
 
-Runs 3, 4 and 5 ended with six live mails in A, none live in B, no mail in both folders, and the same picture 45
+Runs 3, 4, 5 and 7 ended with six live mails in A, none live in B, no mail in both folders, and the same picture 45
 seconds later.
 
 ## What Mail does

@@ -40,11 +40,14 @@ Pippa.app (Swift, SwiftUI)
 
 `mail_folders` lists an account's folders with counts and sample mails. `mail_move` moves inbox mails into one existing
 folder of the same account per call, never into Trash, Junk, Sent or Drafts: a dry run first, then batches, each
-verified in the target folder by Message-ID. Verification waits up to 20 seconds per batch for Mail to show a moved
-mail, and a mail it cannot find there makes the batch unclear and stops the run. `mail_send` sends one draft Pippa
+verified in the target folder by Message-ID, counting only live messages (IMAP leaves deleted-status leftovers in the
+source). Verification looks again every second for up to 20 seconds per batch, 60 once Mail did not answer a lookup;
+a lookup without an answer is "not known yet" and is read once more at the end of the answer and at Undo. A mail in
+both folders or without an answer makes the batch unclear and stops the run. Undo moves back only a mail whose
+identity in the target was read after the move and is unchanged. `mail_send` sends one draft Pippa
 saved in this conversation, after the card. `codemode` is on only for an online AI with Mac access. The AI on this Mac
-stays `direct`. `PIPPA_MCP_EXPOSURE` in `runtime/pippa-tools/pippa-mcp.ts` (`direct` or `codemode`) sets how the MCP
-tools are declared to Pi.
+stays `direct`. `PIPPA_MCP_EXPOSURE` in `runtime/pippa-tools/pippa-mcp.ts` sets it per Pi process: `direct`,
+`direct+codemode` for the Mac-access route, or `codemode` for measuring only.
 
 **Action classes.** Every tool has exactly one class in one table, `PippaActionClasses.table` in
 `app/Sources/PippaCore/MCP/PippaMCPActionClass.swift`: `read`, `undoable`, `irreversible` or `external`. A tool
@@ -340,8 +343,13 @@ are not assigned to the window. Limited access and truncation are explicit. The 
 A bare development binary may lack the signed app's grants; `notDetermined` is not an empty library. Fixture checks
 and aggregate coverage measurements do not establish that a recall feature is useful. See [the 0.6 scope](plan-0.6.md).
 
-`Pippa --mail-move-probe` is developer-only. It moves real mail through `mail_move`, so run it only on test folders
-of a test account, never on a person's inbox. It has run on iCloud. Gmail and Exchange are unchecked.
+`Pippa --mail-move-probe` and `Pippa --mail-send-probe` are developer-only and exist only in debug builds and builds
+made with `PIPPA_PROBES=1 scripts/build-app.sh`; `release.sh` refuses that flag and `verify-app.sh` fails a
+distribution build that contains them. The move probe works only in two folders named "Pippa Test A" and "Pippa Test
+B" with copies of old inbox mails; the send probe sends one test mail to the account's own address. Both need a
+Developer ID build started with `open -n dist/Pippa.app --args …`, so the app's own Mail permission applies. The move
+probe has run on iCloud ([measurement](archive/measurements/pippa-1.0-mail-probe-2026-11-19.md)). Gmail and Exchange
+are unchecked.
 
 **Against the real Pi.** `runtime/pippa-tools/real-pi-*.test.mjs`, `runtime/pippa-local-server/test/real-pi.test.mjs`
 and the Pi-dependent parts of `shell.test.mjs` load the pinned Pi and are skipped without one. Point them at it with
