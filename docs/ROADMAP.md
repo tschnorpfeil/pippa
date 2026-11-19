@@ -5,7 +5,7 @@ The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); 
 
 ## Where Pippa stands
 
-The last release is 0.8.1. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
+The last release is 0.8.2. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
 conversation sidebar, a first-run card offering local or online AI, and settings for the AI (on this Mac, or an online
 AI with per-source sharing review and optional Mac access), optional abilities, the shortcut, login item, permissions
 and updates. Dropped photos and PDFs become one PDF with a button, without the model.
@@ -29,6 +29,8 @@ tool or card.
 2. **UI polish, second pass:** card views, onboarding text.
 3. **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
    real menu bar); motion and drag and drop at the real notch still need a look.
+
+Released in 0.8.2: updated bundled Pi release from 1.5.0 to 1.5.2 (latest provider catalog, Anthropic OAuth / OpenRouter / OpenCode / MCP tool-schema and stdio fixes).
 
 Released in 0.8.1: explicit **Allow Mac access** grant for one verified online AI (scoped to provider, model and account, off by default), account-aware paged Mail triage across unread/read/Sent/Drafts with reply-state detection and threaded drafts, richer Calendar details and multi-day/named-calendar events, direct browser URL bar when empty, quieter collapsed Sharing settings when online AI is off, cleaner online setup copy, modularized Swift core/app/view files, and main-thread/runtime performance and reliability fixes.
 
