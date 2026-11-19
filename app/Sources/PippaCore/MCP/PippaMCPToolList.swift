@@ -3,8 +3,6 @@ import Foundation
 extension PippaMCPTools {
     // MARK: Tools
 
-    static var readOnly: [String: Any] { ["readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false] }
-
     /// Short descriptions: every word costs prompt time with the local model. Schemas declare fields and types;
     /// values and unknown arguments are checked here (`ToolInput`, each tool), with an error the model can act on.
     public static func toolList() -> [[String: Any]] {
@@ -12,7 +10,7 @@ extension PippaMCPTools {
             var schema: [String: Any] = ["type": "object", "properties": properties, "additionalProperties": false]
             if !required.isEmpty { schema["required"] = required }
             return ["name": name, "title": title, "description": description, "inputSchema": schema,
-                    "annotations": readOnly.merging(["title": title]) { a, _ in a }]
+                    "annotations": PippaActionClasses.annotations(name, title: title)]
         }
         let string: [String: Any] = ["type": "string"], integer: [String: Any] = ["type": "integer"]
         // Closed enums already restrict their value types; repeating type adds no validation.

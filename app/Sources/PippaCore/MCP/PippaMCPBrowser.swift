@@ -111,7 +111,7 @@ public struct PippaMCPBrowserTool: Sendable {
         self.host = host; self.turn = turn; self.writes = writes
     }
 
-    /// Changes things on web pages and goes online (`openWorldHint`), but deletes nothing on the Mac.
+    /// Changes things on web pages and goes online (class `external`, asked per step), but deletes nothing on the Mac.
     public static func toolList() -> [[String: Any]] {
         let string: [String: Any] = ["type": "string"]
         return [["name": name, "title": "Browser",
@@ -120,7 +120,7 @@ public struct PippaMCPBrowserTool: Sendable {
                     "action": ["enum": actions], "url": string, "ref": ["type": "string", "pattern": "^@e[1-9][0-9]*$"],
                     "text": string, "value": string, "snapshot_id": string,
                   ]],
-                  "annotations": ["title": "Browser", "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true]]]
+                  "annotations": PippaActionClasses.annotations(name, title: "Browser")]]
     }
 
     // MARK: Addresses

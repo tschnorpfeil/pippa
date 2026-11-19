@@ -122,18 +122,17 @@ public struct PippaMCPTurnTools: Sendable {
 
     /// Tool descriptions, short (every word costs prompt time with the local model).
     public static func toolList() -> [[String: Any]] {
-        let readOnly: [String: Any] = ["readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false]
         // Only names and types: lengths and ranges are checked in `call` (see PippaMCPTools.toolList).
-        func tool(_ name: String, _ title: String, _ description: String, _ properties: [String: Any], required: [String], _ hints: [String: Any]) -> [String: Any] {
+        func tool(_ name: String, _ title: String, _ description: String, _ properties: [String: Any], required: [String]) -> [String: Any] {
             ["name": name, "title": title, "description": description,
              "inputSchema": ["type": "object", "properties": properties, "required": required],
-             "annotations": hints.merging(["title": title]) { a, _ in a }]
+             "annotations": PippaActionClasses.annotations(name, title: title)]
         }
         let string: [String: Any] = ["type": "string"]
         return [
             tool("read_document", "Dokument lesen",
                  "PDF/scan/photo/Word/Excel/email text. [S. n] pages; from_page resumes.",
-                 ["path": string, "from_page": ["type": "integer"]], required: ["path"], readOnly),
+                 ["path": string, "from_page": ["type": "integer"]], required: ["path"]),
         ]
     }
 

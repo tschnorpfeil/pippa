@@ -90,10 +90,72 @@ enum ApprovalsChecks {
         check(PippaMCPService.takeReadCards(turnID: turnA.id).isEmpty, "A note arriving after its cards were collected is discarded")
         host.turns.end(turnB)
 
+        await actionCardChecks(approvals, check: check)
         failures += Int(await HeadlessAskChecks.run())
 
         print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
         return failures == 0 ? 0 : 1
+    }
+}
+
+extension ApprovalsChecks {
+    /// Irreversible and external tools ask on the same question card (`PippaMCPService.configured` → `confirmAction`),
+    /// with a check-only tool: only the button dispatches, Stop and a late press do not, `--ask` never asks.
+    static func actionCardChecks(_ approvals: Approvals, check expect: (Bool, String) -> Void) async {
+        final class Runs: @unchecked Sendable {
+            private let lock = NSLock(); private var count = 0
+            func add() { lock.withLock { count += 1 } }
+            var value: Int { lock.withLock { count } }
+        }
+        let runs = Runs()
+        func host(asksForAccess: Bool) -> (PippaMCPTools, PippaMCPTurns, PippaMCPTurn) {
+            var host = PippaMCPService.configured(.demo(), asksForAccess: asksForAccess)
+            host.turns = PippaMCPTurns()
+            host.extraTools = [PippaMCPHostTool(name: "check_send", actionClass: .external, describe: { arguments in
+                PippaMCPConfirmation(tool: "check_send", actionClass: .external, title: "Send this message?",
+                                     recipient: arguments["to"] as? String, content: arguments["text"] as? String ?? "")
+            }, run: { _ in runs.add(); return PippaMCPToolResult(text: #"{"done":true}"#, isError: false) })]
+            let turn = PippaMCPTurn()
+            host.turns.begin(turn)
+            return (PippaMCPTools(host: host), host.turns, turn)
+        }
+        struct Outcome: Sendable { let done: Bool?; let dispatched: Bool? }
+        nonisolated func send(_ tools: PippaMCPTools) async -> Outcome {
+            let body = try! JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": [
+                "name": "check_send", "arguments": ["to": "anna@example.test", "text": "Hallo Anna, bis morgen."]]])
+            let reply = await tools.handle(body).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            let text = (((reply?["result"] as? [String: Any])?["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
+            let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]) ?? [:]
+            return Outcome(done: json["done"] as? Bool, dispatched: json["dispatched"] as? Bool)
+        }
+        func question() async -> Approvals.Question? {
+            for _ in 0..<200 {
+                if let first = approvals.questions.first { return first }
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+            return nil
+        }
+        let (tools, turns, turn) = host(asksForAccess: true)
+        let allowed = Task { await send(tools) }
+        let card = await question()
+        expect(card?.request.method == "confirm" && card?.request.title == "Send this message?"
+               && card?.request.message == "anna@example.test\n\nHallo Anna, bis morgen.", "an external tool asks on the question card with recipient and exact text")
+        expect(runs.value == 0, "nothing runs while the card is open")
+        if let card { approvals.answer(card.id, .confirmed(true)) }
+        expect(await allowed.value.done == true && runs.value == 1, "the button's yes dispatches the tool once")
+
+        let stopped = Task { await send(tools) }
+        let open = await question()
+        // Stop: the answer ends, its questions go with it; the button pressed afterwards finds nothing.
+        turns.end(turn)
+        approvals.cancelAll()
+        let result = await stopped.value
+        if let open { approvals.answer(open.id, .confirmed(true)) }
+        expect(open != nil && result.dispatched == false && runs.value == 1, "Stop while the card is open: not dispatched, a late yes does nothing")
+
+        let (headless, _, _) = host(asksForAccess: false)
+        let declined = await send(headless)
+        expect(approvals.questions.isEmpty && declined.dispatched == false && runs.value == 1, "Pippa --ask answers no without a card")
     }
 }
 

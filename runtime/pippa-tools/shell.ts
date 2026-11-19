@@ -7,10 +7,11 @@
  * - read everything the person can read;
  * - write in Pippa's working folder (Pi's `cwd`), the temporary folders and the programs' caches, delete there too.
  *
- * Only after the person's OK (one card per kind and answer, `ctx.ui.confirm`):
- * - `net`: the internet. Asked before a command that plainly goes online (curl, pip, git clone, …), and after one
- *   that failed for lack of it.
- * - `write`: change files in the person's folders and on external drives. Asked after a command failed because it
+ * Only after the person's OK (`ctx.ui.confirm`):
+ * - `net`: the internet, for one command (action class `external`: a later command could send what an earlier tool
+ *   read). Asked before a command that plainly goes online (curl, pip, git clone, …). After one that failed for lack
+ *   of it, a yes lets exactly that command go online once more; it is not rerun by itself.
+ * - `write`: change files in the person's folders and on external drives, for the rest of the answer. Asked after a command failed because it
  *   was not allowed to write there. The failed command is never replayed: partial effects must be checked before a
  *   later call does the remaining work. Before an approved write call runs, every existing file it names gets a
  *   copy (pippa-assist.ts `backUp`), so it can be undone.
@@ -298,11 +299,12 @@ export function grantAskText(grants: ReadonlySet<Grant>, command: string, folder
 	}
 	const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} ${de ? "und" : "and"} ${parts[parts.length - 1]}` : parts[0];
 	const shown = command.length > 300 ? command.slice(0, 299) + "…" : command;
+	// Going online holds for this one command; changing files for the rest of the answer.
 	return de
 		? { title: grants.has("net") ? "Darf Pippa ins Internet?" : "Darf Pippa deine Dateien ändern?",
-			message: `Für diese Antwort möchte Pippa mit einem Befehl ${list}.\n\nDetails:\n${shown}` }
+			message: `${grants.has("net") ? "Pippa möchte mit diesem einen Befehl" : "Für diese Antwort möchte Pippa mit einem Befehl"} ${list}.\n\nDetails:\n${shown}` }
 		: { title: grants.has("net") ? "May Pippa go online?" : "May Pippa change your files?",
-			message: `For this answer Pippa wants to use a command to ${list}.\n\nDetails:\n${shown}` };
+			message: `${grants.has("net") ? "Pippa wants to use this one command to" : "For this answer Pippa wants to use a command to"} ${list}.\n\nDetails:\n${shown}` };
 }
 
 export const SHELL_DECLINED_REASON = "Not run: the person said no. Do not try another way; tell them in one short sentence what you could not do.";
@@ -366,8 +368,8 @@ const SHELL_ENV = new Set(["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "USER", "LOG
 	"LC_COLLATE", "LC_CTYPE", "LC_MESSAGES", "LC_MONETARY", "LC_NUMERIC", "LC_TIME", "TERM", "TERM_PROGRAM", "TZ"]);
 
 /**
- * Pi's own bash tool (`create` = `createBashToolDefinition`), run through the sandbox. Grants hold for one answer
- * (`resetAnswer` at each agent start). The model sees the same tool, the transcript the person's command unchanged.
+ * Pi's own bash tool (`create` = `createBashToolDefinition`), run through the sandbox. `write` holds for one answer
+ * (`resetAnswer` at each agent start), `net` for one command. The model sees the same tool, the transcript the person's command unchanged.
  */
 export function shellTool(create: (cwd: string, options?: any) => any, deps: ShellDeps = {}) {
 	const sandbox = deps.sandbox ?? SANDBOX_EXEC;
@@ -379,10 +381,13 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 	const protect = deps.protection ?? protection(env, home);
 	/** The placeholders to keep out, or none when the tools are installed. */
 	const lockedShims = (): string[] => developerTools() ? [] : cachedDeveloperShims(shimDir);
+	/** Per answer: only `write`. `net` never lands here. */
 	let grants = new Set<Grant>();
+	/** Commands the person let go online after they failed without it: each passes once, exactly as asked. */
+	let onlineOnce: string[] = [];
 
 	return {
-		resetAnswer() { grants = new Set(); },
+		resetAnswer() { grants = new Set(); onlineOnce = []; },
 		get grants(): ReadonlySet<Grant> { return grants; },
 		definition(defaultCwd: string) {
 			const base = create(defaultCwd);
@@ -413,8 +418,11 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						const { title, message } = grantAskText(need, command, folderNames(outside, where.home, env.PIPPA_LANGUAGE ?? ""), env.PIPPA_LANGUAGE ?? "");
 						return Boolean(await ctx.ui.confirm(title, message));
 					};
+					/** Grants of this one call: the answer's, plus `net` when the person allowed this command. */
+					const now = new Set(grants);
+					const once = onlineOnce.indexOf(command);
+					if (once >= 0) { onlineOnce.splice(once, 1); now.add("net"); }
 					const run = async () => {
-						const now = new Set(grants);
 						if (signal?.aborted) return notRun("Stopped before running the command.");
 						if (now.has("write") && deps.keep) {
 							for (const file of await filesToKeep(named, where)) {
@@ -444,19 +452,21 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						}
 					};
 
-					const before = new Set([...neededGrants(command)].filter((g) => !grants.has(g)));
+					const before = new Set([...neededGrants(command)].filter((g) => !now.has(g)));
 					if (before.size) {
 						if (!(await ask(before))) return notRun(SHELL_DECLINED_REASON);
-						for (const g of before) grants.add(g);
+						for (const g of before) { now.add(g); if (g !== "net") grants.add(g); }
 					}
 					let result = await run();
 					if (result?.isError) {
-						const missing = missingGrants(command, textOf(result), grants);
+						const missing = missingGrants(command, textOf(result), now);
 						if (!signal?.aborted && result.details?.pippaExecution !== "uncertain" && missing.size && (await ask(missing))) {
-							for (const g of missing) grants.add(g);
+							for (const g of missing) { if (g === "net") onlineOnce.push(command); else grants.add(g); }
 							// A compound command can have completed earlier steps before the permission error.
 							// Granting access cannot make replay safe; return the original failure for recovery.
-							result = withNote(result, "Permission is now available for this answer, but the failed command was not rerun. It may already have changed something before failing. Check its effects, then use a separate, narrowly scoped call for only the remaining work. Do not repeat completed steps.");
+							result = withNote(result, missing.has("net")
+								? "The person allowed this exact command to go online once, but it was not rerun. It may already have changed something before failing. Check its effects; only if repeating it is safe, run exactly the same command again. Any other command that goes online asks again."
+								: "Permission is now available for this answer, but the failed command was not rerun. It may already have changed something before failing. Check its effects, then use a separate, narrowly scoped call for only the remaining work. Do not repeat completed steps.");
 						}
 						if (result?.isError) result = withNote(result, limitsNote(grants, where.work, locked.length > 0));
 					}

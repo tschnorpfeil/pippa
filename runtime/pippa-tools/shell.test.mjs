@@ -150,6 +150,9 @@ test("the question names everyday folders, not paths; the command only under Det
 	assert.equal(de.title, "Darf Pippa deine Dateien ändern?");
 	assert.match(de.message, /^Für diese Antwort möchte Pippa mit einem Befehl Dateien in Schreibtisch ändern \(vorher legt Pippa Kopien an\)\.\n\nDetails:\nsips …$/);
 	assert.equal(grantAskText(new Set(["net"]), "curl", [], "en").title, "May Pippa go online?");
+	// Going online is asked per command, so the question must not promise the rest of the answer.
+	assert.equal(grantAskText(new Set(["net"]), "curl", [], "en").message, "Pippa wants to use this one command to go online.\n\nDetails:\ncurl");
+	assert.equal(grantAskText(new Set(["net"]), "curl", [], "de").message, "Pippa möchte mit diesem einen Befehl ins Internet gehen.\n\nDetails:\ncurl");
 });
 
 test("namedPaths resolves relative files in cwd that exist on disk, and filesToKeep resolves symlinks", async () => {
@@ -333,7 +336,74 @@ test("tool: Pi's bash runs through the sandbox; the transcript keeps the command
 	assert.deepEqual(await none.execute("t2", { command: "ls" }, undefined, undefined, plain(work)), { content: [{ type: "text", text: NO_SANDBOX_REASON }], isError: true, details: { pippaExecution: "not_dispatched" } });
 });
 
-test("tool: asks once per answer before going online; no means not run; without a person nothing is granted", { skip: !piIndex && "PIPPA_PI_CLI not set" }, async () => {
+/** A stand-in for Pi's bash: records the profile each call would run under, and what it ran. */
+function profiles() {
+	const runs = [];
+	const create = (cwd, options) => ({ name: "bash", execute: async (id, params) => {
+		const command = options.spawnHook({ command: params.command, cwd, env: {} }).command;
+		runs.push({ command: params.command, online: !command.includes("(deny network*)") });
+		return { content: [{ type: "text", text: "ok" }] };
+	} });
+	return { runs, create };
+}
+
+test("tool: going online is asked per command; a later command never inherits it", async () => {
+	const { runs, create } = profiles();
+	const tool = shellTool(create, { available: () => true, env: { PIPPA_LANGUAGE: "en" }, home: "/Users/renate" });
+	const bash = tool.definition("/fixture");
+	const person = ui([true, true, false]);
+	await bash.execute("n1", { command: "curl -sO https://example.org/a.pdf" }, undefined, undefined, person.ctx("/fixture"));
+	await bash.execute("n2", { command: "curl -sO https://example.org/b.pdf" }, undefined, undefined, person.ctx("/fixture"));
+	assert.deepEqual(person.asked, ["May Pippa go online?", "May Pippa go online?"], "two network commands in one answer ask twice");
+	await bash.execute("n3", { command: "ls -la" }, undefined, undefined, person.ctx("/fixture"));
+	const declined = await bash.execute("n4", { command: "curl -sO https://example.org/c.pdf" }, undefined, undefined, person.ctx("/fixture"));
+	assert.equal(declined.content[0].text, SHELL_DECLINED_REASON);
+	assert.deepEqual(runs, [
+		{ command: "curl -sO https://example.org/a.pdf", online: true },
+		{ command: "curl -sO https://example.org/b.pdf", online: true },
+		{ command: "ls -la", online: false },
+	], "a command after an approved one runs without the internet; a no runs nothing");
+	assert.deepEqual([...tool.grants], [], "nothing is kept for the answer");
+});
+
+test("tool: a yes after a command failed offline lets exactly that command online once, never another one", async () => {
+	const runs = [];
+	const create = (cwd, options) => ({ name: "bash", execute: async (id, params) => {
+		const online = !options.spawnHook({ command: params.command, cwd, env: {} }).command.includes("(deny network*)");
+		runs.push({ command: params.command, online });
+		return online ? { content: [{ type: "text", text: "ok" }] }
+			: { content: [{ type: "text", text: "urllib.error.URLError: <urlopen error [Errno 8] nodename nor servname provided>" }], isError: true };
+	} });
+	const bash = shellTool(create, { available: () => true, env: { PIPPA_LANGUAGE: "en" }, home: "/Users/renate" }).definition("/fixture");
+	const person = ui([true]);
+	const failed = await bash.execute("f1", { command: "./fetch.sh" }, undefined, undefined, person.ctx("/fixture"));
+	assert.match(failed.content.map((part) => part.text).join("\n"), /allowed this exact command to go online once, but it was not rerun/);
+	await bash.execute("f2", { command: "./other.sh" }, undefined, undefined, plain("/fixture"));
+	await bash.execute("f3", { command: "./fetch.sh" }, undefined, undefined, plain("/fixture"));
+	await bash.execute("f4", { command: "./fetch.sh" }, undefined, undefined, plain("/fixture"));
+	assert.deepEqual(runs.map((run) => run.online), [false, false, true, false]);
+	assert.equal(person.asked.length, 1);
+});
+
+test("codemode-style script: nested bash calls through the registered tool ask per network command", async () => {
+	// Pi 1.5.2 runs a codemode script's tool calls through the registered definitions and the tool_call hooks. This
+	// stand-in runner does the same with the definition Pippa registers; the real Pi path is checked end to end separately.
+	const { runs, create } = profiles();
+	const registered = new Map([["bash", shellTool(create, { available: () => true, env: {}, home: "/Users/renate" }).definition("/fixture")]]);
+	const person = ui([true, true]);
+	const ctx = person.ctx("/fixture");
+	const tools = Object.fromEntries([...registered].map(([name, definition]) =>
+		[name, (params) => definition.execute(`script-${name}`, params, undefined, undefined, ctx)]));
+	const script = async ({ bash }) => {
+		for (const file of ["a", "b"]) await bash({ command: `curl -sO https://example.org/${file}.pdf` });
+		await bash({ command: "wc -c a.pdf b.pdf" });
+	};
+	await script(tools);
+	assert.equal(person.asked.length, 2, "one question per network command, also from a script");
+	assert.deepEqual(runs.map((run) => run.online), [true, true, false]);
+});
+
+test("tool: asks per command before going online; no means not run; without a person nothing is granted", { skip: !piIndex && "PIPPA_PI_CLI not set" }, async () => {
 	const { createBashToolDefinition } = await import(piIndex);
 	const { root, home, work } = scratch("ask");
 	const tool = shellTool(createBashToolDefinition, { sandbox: fakeSandbox(root), available: () => true, home, env: { PIPPA_LANGUAGE: "de" } });
@@ -342,14 +412,13 @@ test("tool: asks once per answer before going online; no means not run; without 
 	assert.deepEqual(await bash.execute("a1", { command: "curl --version >/dev/null; echo ok" }, undefined, undefined, no.ctx(work)),
 		{ content: [{ type: "text", text: SHELL_DECLINED_REASON }], isError: true, details: { pippaExecution: "not_dispatched" } });
 	assert.deepEqual(no.asked, ["Darf Pippa ins Internet?"]);
-	const yes = ui([true]);
+	const yes = ui([true, true]);
 	await bash.execute("a2", { command: "curl --version >/dev/null; echo ok" }, undefined, undefined, yes.ctx(work));
-	await bash.execute("a3", { command: "curl --version >/dev/null; echo again" }, undefined, undefined, yes.ctx(work));
-	assert.equal(yes.asked.length, 1, "once per answer");
 	assert.doesNotMatch(readFileSync(join(root, "profile.sb"), "utf8"), /deny network/);
-	tool.resetAnswer();
-	await bash.execute("a4", { command: "echo new answer" }, undefined, undefined, plain(work));
-	assert.match(readFileSync(join(root, "profile.sb"), "utf8"), /deny network/, "a new answer starts without grants");
+	await bash.execute("a3", { command: "curl --version >/dev/null; echo again" }, undefined, undefined, yes.ctx(work));
+	assert.equal(yes.asked.length, 2, "once per command");
+	await bash.execute("a4", { command: "echo later" }, undefined, undefined, plain(work));
+	assert.match(readFileSync(join(root, "profile.sb"), "utf8"), /deny network/, "a later command runs without the internet");
 	assert.equal((await bash.execute("a5", { command: "curl https://x.example" }, undefined, undefined, plain(work))).content[0].text, SHELL_DECLINED_REASON,
 		"no one to ask: not run");
 });

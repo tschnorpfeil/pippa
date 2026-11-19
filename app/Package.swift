@@ -23,7 +23,7 @@ let package = Package(
         .executableTarget(name: "Pippa", dependencies: ["PippaCore", "PiRPC", .product(name: "Sparkle", package: "Sparkle")],
                           resources: [.process("Localization")]),
         // Without Xcode there is neither XCTest nor Swift Testing: checks run as `swift run PippaChecks`.
-        .executableTarget(name: "PippaChecks", dependencies: ["PippaCore"]),
+        .executableTarget(name: "PippaChecks", dependencies: ["PippaCore", "PiRPC"]),
         .executableTarget(name: "PippaUpdateProbe", dependencies: [.product(name: "Sparkle", package: "Sparkle")]),
         // Pi's RPC client (`pi --mode rpc`), used by the app.
         .target(name: "PiRPC"),
