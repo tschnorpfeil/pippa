@@ -66,7 +66,7 @@ function loopHarness() {
 }
 
 test("uncertain native writes are terminal for this answer and never reported as successful duplicates", async () => {
-	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__prepare_files"]) {
+	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__mail_move", "mcp__pippa__prepare_files"]) {
 		for (const isError of [false, true]) {
 			const run = loopHarness();
 			const input = { title: "Fixture", date: "2026-10-22" };

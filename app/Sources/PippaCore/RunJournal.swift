@@ -120,15 +120,29 @@ public struct RunActionResult: Sendable {
     }
 }
 
-/// What one undo step did. `changed`: the object was changed since Pippa touched it, so it stays.
-public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed }
+/// What one undo step did. `changed`: the object was changed since Pippa touched it, so it stays. `nothing`: an unclear
+/// row whose action provably did not happen (a mail move found back in its source): nothing to undo. `inBoth`: a mail
+/// move whose mail is live in both folders (IMAP copied but did not delete); the row becomes unclear, nothing is deleted.
+/// `unclear`: Mail did not answer in time, so whether it went back is not known (`MailMover.undoNoAnswerNote`); never
+/// retried, looked at once more later (`resolveUnclearMailRows`). `unanswered`: Mail did not answer before anything was
+/// put back, so nothing moved; the row keeps its state and note and Undo can be pressed again. `noIdentity`: an unclear
+/// mail move found in the target, but without Mail's id there from the move's read-back or the later look; nothing
+/// moved, the row stays unclear as it was.
+public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing, inBoth = "in_both", unclear, unanswered, noIdentity = "no_identity" }
 /// Puts one row back, only if its object is unchanged since Pippa touched it. Supplied per kind by the tool.
 public typealias RunUndoRecipe = @Sendable (RunAction) async -> RunUndoOutcome
+/// Puts several rows of one kind back in one step (mail moves go back in batches), `rows` in undo order. It also gets
+/// the kind's unclear rows, to look at them once more. A row without an outcome counts as failed.
+public typealias RunUndoBatchRecipe = @Sendable ([RunAction]) async -> [UUID: RunUndoOutcome]
 
 public struct RunUndoReport: Sendable, Equatable {
     public var undone: [RunAction] = []
     public var left: [RunAction] = []
     public var failed: [RunAction] = []
+    /// Rows Undo left unclear (`RunUndoOutcome.inBoth`, `.unclear`, `.noIdentity`).
+    public var unclear: [RunAction] = []
+    /// Rows Undo did not touch because Mail did not answer in time (`RunUndoOutcome.unanswered`): as they were.
+    public var unanswered: [RunAction] = []
 }
 
 /// Counts for the one receipt under an answer, from its rows.
@@ -144,15 +158,20 @@ public struct RunSummary: Codable, Sendable, Equatable {
     /// Left by Undo because they changed since.
     public var left: Int
     public var failed: Int
-    public init(run: UUID, changes: Int = 0, checked: Int = 0, unclear: Int = 0, undoable: Int = 0, undone: Int = 0, left: Int = 0, failed: Int = 0) {
+    /// Rows that are mail moves (`mail.move`); `nil` when there are none (and in receipts saved before mail moves).
+    public var mailMoves: Int?
+    public init(run: UUID, changes: Int = 0, checked: Int = 0, unclear: Int = 0, undoable: Int = 0, undone: Int = 0, left: Int = 0, failed: Int = 0,
+                mailMoves: Int? = nil) {
         self.run = run; self.changes = changes; self.checked = checked; self.unclear = unclear; self.undoable = undoable
-        self.undone = undone; self.left = left; self.failed = failed
+        self.undone = undone; self.left = left; self.failed = failed; self.mailMoves = mailMoves
     }
 
     public init(run: UUID, rows: [RunAction], canUndo: (String) -> Bool) {
         self.init(run: run)
-        for row in rows where row.state != .planned {
+        // A row found never carried out (`not_moved`) changed nothing.
+        for row in rows where row.state != .planned && row.note != "not_moved" {
             changes += 1
+            if row.object.kind == MailMover.kind { mailMoves = (mailMoves ?? 0) + 1 }
             if row.verified == true { checked += 1 }
             switch row.state {
             case .dispatched, .unclear: unclear += 1
@@ -346,8 +365,32 @@ extension Executor {
         case .undone, .gone: row.state = .undone; row.note = outcome == .gone ? "gone" : nil
         case .changed: row.note = "changed"
         case .failed: row.state = .undoFailed; row.note = "failed"
+        case .nothing: row.state = .undone; row.note = "not_moved"
+        case .inBoth: row.state = .unclear; row.note = MailMover.inBothNote
+        case .unclear: row.state = .unclear; row.note = MailMover.undoNoAnswerNote
+        case .unanswered, .noIdentity: break
         }
         return row
+    }
+
+    /// What one more look at unclear mail rows found (`MailMover.recheck`): moved → done and verified, not moved → as
+    /// Undo's `nothing`, undone → undone, not undone → done again (Undo can be pressed again). Only rows still unclear
+    /// change; nothing was moved for this.
+    public func resolveUnclearMailRows(_ found: [UUID: MailMover.Recheck]) throws {
+        try runTransaction {
+            for (id, recheck) in found {
+                guard var row = try row(id), row.state == .unclear, row.object.kind == MailMover.kind else { continue }
+                switch recheck {
+                case .moved(let mailID):
+                    row.state = .done; row.note = nil; row.verified = true
+                    row.object.fields["mailID"] = String(mailID)
+                case .notMoved: row = Self.applying(.nothing, to: row)
+                case .undone: row = Self.applying(.undone, to: row)
+                case .notUndone: row.state = .done; row.note = nil
+                }
+                try save(row)
+            }
+        }
     }
 
     // MARK: Reading
@@ -378,23 +421,45 @@ extension Executor {
     public func endRunUndo(_ run: UUID) { undoingRuns.remove(run) }
 
     /// Goes backwards through the run's done rows. Each step runs only if its recipe finds the object unchanged since
-    /// Pippa touched it; the rest of the run continues either way. One Undo per run at a time.
-    public func undoRun(_ run: UUID, recipe: @Sendable (String) -> RunUndoRecipe?) async throws -> RunUndoReport {
+    /// Pippa touched it; the rest of the run continues either way. Consecutive rows of a kind with a `batch` recipe go
+    /// in one step, together with that kind's unclear rows. One Undo per run at a time.
+    public func undoRun(_ run: UUID, recipe: @Sendable (String) -> RunUndoRecipe?,
+                        batch: @Sendable (String) -> RunUndoBatchRecipe? = { _ in nil }) async throws -> RunUndoReport {
         try beginRunUndo(run)
         defer { endRunUndo(run) }
         var report = RunUndoReport()
-        for row in try runActions(run: run).reversed() where row.state == .done && row.note != "changed" {
-            guard let undo = recipe(row.object.kind) else { continue }
-            let outcome = await undo(row)
-            // Only from done: a concurrent single-row Undo may have finished it meanwhile.
-            guard let stored = try runTransaction({ try self.row(row.id) }), stored.state == .done else { continue }
+        func record(_ row: RunAction, _ outcome: RunUndoOutcome) throws {
+            // Only from the state it was taken in: a concurrent single-row Undo may have finished it meanwhile.
+            guard let stored = try runTransaction({ try self.row(row.id) }), stored.state == row.state else { return }
             let current = Self.applying(outcome, to: stored)
             switch outcome {
             case .undone, .gone: report.undone.append(current)
             case .changed: report.left.append(current)
             case .failed: report.failed.append(current)
+            case .inBoth, .unclear, .noIdentity: report.unclear.append(current)
+            case .unanswered: report.unanswered.append(current)
+            case .nothing: break
             }
             try runTransaction { try save(current) }
+        }
+        let rows = try runActions(run: run).reversed().filter { row in
+            row.note != "changed" && (row.state == .done || (row.state == .unclear && batch(row.object.kind) != nil))
+        }
+        var index = 0
+        while index < rows.count {
+            let row = rows[index]
+            if let many = batch(row.object.kind) {
+                var end = index
+                while end < rows.count, rows[end].object.kind == row.object.kind { end += 1 }
+                let group = Array(rows[index..<end])
+                index = end
+                let outcomes = await many(group)
+                for member in group { try record(member, outcomes[member.id] ?? .failed) }
+                continue
+            }
+            index += 1
+            guard let undo = recipe(row.object.kind) else { continue }
+            try record(row, await undo(row))
         }
         return report
     }

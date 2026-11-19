@@ -31,10 +31,14 @@ enum MailAccountScript {
         }
 
         func rows(account: String, ids: [Int], mailbox: MailBoxKind) async throws -> [MailSearchRow] {
+            try await rows(account: account, ids: ids, mailbox: mailbox, headerOnly: false)
+        }
+
+        func rows(account: String, ids: [Int], mailbox: MailBoxKind, headerOnly: Bool) async throws -> [MailSearchRow] {
             try await run("accountRows", {
                 let list = NSAppleEventDescriptor.list()
                 for (i, id) in ids.enumerated() { list.insert(NSAppleEventDescriptor(int32: Int32(id)), at: i + 1) }
-                return [NSAppleEventDescriptor(string: account), list, NSAppleEventDescriptor(string: mailbox.rawValue)]
+                return [NSAppleEventDescriptor(string: account), list, NSAppleEventDescriptor(string: mailbox.rawValue), NSAppleEventDescriptor(boolean: headerOnly)]
             }) { try MailSearchFlow.parseRows($0, expecting: ids.count, identity: true) }
         }
 
@@ -76,15 +80,17 @@ enum MailAccountScript {
             }
         }
 
-        /// One step: descriptors are built and read on the AppleScript queue, only Swift values leave it.
-        private func run<T: Sendable>(_ handler: String, _ args: @escaping @Sendable () -> [NSAppleEventDescriptor],
-                                      _ parse: @escaping @Sendable (NSAppleEventDescriptor) throws -> T) async throws -> T {
+        /// One step: descriptors are built and read on the AppleScript queue, only Swift values leave it. `mutation`: the
+        /// write lease is dispatched right before the Apple Event (`AppleEvents.call`), and once it was sent its answer
+        /// is returned even when the caller was cancelled meanwhile: what Mail did must reach the read-back.
+        func run<T: Sendable>(_ handler: String, mutation: Bool = false, _ args: @escaping @Sendable () -> [NSAppleEventDescriptor],
+                              _ parse: @escaping @Sendable (NSAppleEventDescriptor) throws -> T) async throws -> T {
             try Task.checkCancellation()
             guard AppleEvents.isRunning(.mail) else { throw PippaError.appNotOpen(Integration.mail.appName) }
             let value = try await AppleEvents.perform {
-                try parse(try MailAccountParse.payload(try AppleEvents.call(MailAccountScript.source, handler: handler, args(), app: .mail)))
+                try parse(try MailAccountParse.payload(try AppleEvents.call(MailAccountScript.source, handler: handler, args(), app: .mail, mutation: mutation)))
             }
-            try Task.checkCancellation()
+            if !mutation { try Task.checkCancellation() }
             return value
         }
     }
@@ -102,6 +108,7 @@ public enum MailAccountParse {
             return payload
         case "timeout": throw MailAccountProblem.timeout
         case "denied": throw PippaError.accessDenied(Integration.mail.appName)
+        case "nobox": throw MailMoveProblem.noFolder
         default: throw MailAccountProblem.failed
         }
     }

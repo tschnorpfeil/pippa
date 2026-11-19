@@ -22,11 +22,11 @@ export const SERVER_NAME = "pippa";
 
 /** Read-only tools of the server (app/Sources/PippaCore/MCP/PippaMCPTools.swift, PippaMCPTurn.swift). None changes
  * anything on the Mac. Web search is not here: it is the Pi package pi-web-access (runtime/pippa-web). */
-export const TOOLS = ["calendar_read", "reminders_read", "mail_search", "mail_read", "photos_search", "front_read", "read_document"];
+export const TOOLS = ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "read_document"];
 
-/** Native changes stay on the Mac (no sending or invitation). Events and reminders can be undone,
+/** Native changes stay on the Mac (no sending or invitation). Events, reminders and mail moves can be undone,
  * mail drafts remain unsent, and prepared PDFs preserve their original files. */
-export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft", "prepare_files"];
+export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files"];
 
 /** Pippa's browser panel (app/Sources/PippaCore/MCP/PippaMCPBrowser.swift): goes online, so the app asks the person
  * before it opens a new site and before every click, typed text or choice. Logins stay with the person. */
@@ -50,7 +50,7 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		url: parsed.toString(),
 		headers: { Authorization: `Bearer ${token}` },
 		exposure,
-		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and unsent Mail drafts; prepare verified PDFs locally; browse web pages in Pippa's panel with the person's OK.",
+		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and unsent Mail drafts; move mails into existing folders; prepare verified PDFs locally; browse web pages in Pippa's panel with the person's OK.",
 		// Text recognition on many pages takes a while: 5 minutes instead of 1. The app's server keeps the connection
 		// open accordingly (PippaMCPServer).
 		timeout: 300,

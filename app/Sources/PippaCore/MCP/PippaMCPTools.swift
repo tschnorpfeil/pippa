@@ -17,7 +17,7 @@ public struct PippaMCPTools: Sendable {
     public static let protocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
     public static let maxResultBytes = 8000
     /// The selected mail and Excel selection are read through `front_read` with that app's chip (same readers, same receipts).
-    public static let toolNames = ["calendar_read", "reminders_read", "mail_search", "mail_read", "photos_search", "front_read"]
+    public static let toolNames = ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read"]
         + PippaMCPTurnTools.names
         + PippaMCPWriteTools.names
         + [PippaMCPFilePreparation.name, PippaMCPBrowserTool.name]
@@ -249,7 +249,7 @@ public struct PippaMCPTools: Sendable {
             switch name {
             case "calendar_read": outcome = await calendarRead(input)
             case "reminders_read": outcome = await remindersRead(input)
-            case "mail_search": outcome = await scopedMail(name, input, context: context)
+            case "mail_search", "mail_folders": outcome = await scopedMail(name, input, context: context)
             case "mail_read":
                 // Read like the selected mail: same receipt, same reply identity for a draft.
                 outcome = await scopedMail(name, input, context: context); noted = "mail_selected"
@@ -261,7 +261,7 @@ public struct PippaMCPTools: Sendable {
                 outcome = read.result; noted = read.noted
             }
         }
-        if name == "mail_search" || name == "mail_read" || noted == "mail_selected" {
+        if name == "mail_search" || name == "mail_read" || name == "mail_folders" || noted == "mail_selected" {
             outcome = Self.boundMailResult(outcome)
         }
         let ms = (ContinuousClock.now - started).components.seconds * 1000

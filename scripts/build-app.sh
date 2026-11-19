@@ -12,6 +12,9 @@
 #   PIPPA_REQUIRE_DISTRIBUTION=1  Developer ID mandatory (release pipeline)
 #   PIPPA_BUILD_JOBS     parallel compile jobs for swift build (default: cores - 2, at least 1),
 #                        so a build leaves the Mac usable
+#   PIPPA_PROBES=1       compile the developer probes in (`Pippa --mail-move-probe`, -DPIPPA_PROBES): they make
+#                        folders and copy and move mail. Local test builds only; release.sh refuses it and
+#                        verify-app.sh fails a distribution build that contains one
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -53,6 +56,10 @@ fi
 
 # --- SwiftPM-Release ---------------------------------------------------------
 SWIFT_ARGS=(-c release --arch arm64)
+if [[ "${PIPPA_PROBES:-0}" == 1 ]]; then
+  warn "PIPPA_PROBES=1: developer probes compiled in; never ship this build"
+  SWIFT_ARGS+=(-Xswiftc -DPIPPA_PROBES)
+fi
 if [[ "${PIPPA_SKIP_BUILD:-}" != 1 ]]; then
   say "swift build -c release --arch arm64 ($JOBS jobs)"
   (cd "$APP_SRC" && swift build "${SWIFT_ARGS[@]}" --jobs "$JOBS" --product Pippa)

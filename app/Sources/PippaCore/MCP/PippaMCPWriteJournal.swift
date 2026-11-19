@@ -88,6 +88,10 @@ extension PippaMCPHost {
                     }
                 } catch { return .failed }
             }
+        case MailMover.kind:
+            guard let reader = mailAccounts else { return nil }
+            let mover = MailMover(reader: reader, settle: mailMoveSettle)
+            return { row in await mover.undo([row]).outcomes[row.id] ?? .failed }
         case "file.prepared":
             guard let journal = reminderJournal else { return nil }
             return { row in
@@ -99,6 +103,14 @@ extension PippaMCPHost {
         default:
             return RunFileRecipes.recipe(kind)
         }
+    }
+
+    /// Undo of several rows in one step, by kind: mail moves go back in batches (MailMover.undo). A check's own
+    /// per-row recipe for the kind wins.
+    public func runUndoBatchRecipe(_ kind: String) -> RunUndoBatchRecipe? {
+        guard kind == MailMover.kind, runRecipes[kind] == nil, let reader = mailAccounts else { return nil }
+        let mover = MailMover(reader: reader, settle: mailMoveSettle)
+        return { rows in await mover.undo(rows).outcomes }
     }
 
     /// Undo from one receipt row of `run`, under the same lock as Undo of the whole answer; its run row then takes the
@@ -123,7 +135,21 @@ extension PippaMCPHost {
     public func undoRun(_ run: UUID) async throws -> RunUndoReport {
         guard let journal = reminderJournal else { throw NativeReminderJournalError.unreadable }
         let host = self
-        return try await journal.undoRun(run) { host.runUndoRecipe($0) }
+        return try await journal.undoRun(run, recipe: { host.runUndoRecipe($0) }, batch: { host.runUndoBatchRecipe($0) })
+    }
+
+    /// One more look at the run's unclear mail moves, when its receipt is built at the end of the answer
+    /// (`MailMover.recheck`): one lookup per folder pair, never a move. Skipped while an Undo of the run runs.
+    public func recheckUnclearMail(_ run: UUID) async {
+        // A mail_move still reading back (after Stop or a dropped connection) writes its rows first.
+        await mailMoveRuns.wait(run)
+        guard let journal = reminderJournal, let reader = mailAccounts,
+              let rows = try? await journal.runActions(run: run) else { return }
+        let unclear = rows.filter { $0.state == .unclear && $0.object.kind == MailMover.kind }
+        guard !unclear.isEmpty, (try? await journal.beginRunUndo(run)) != nil else { return }
+        let found = await MailMover(reader: reader, settle: mailMoveSettle).recheck(unclear)
+        try? await journal.resolveUnclearMailRows(found)
+        await journal.endRunUndo(run)
     }
 
     /// The receipts for these runs, from the journal. A run without rows (or pruned) is missing.

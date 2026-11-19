@@ -252,7 +252,7 @@ func runNativeReminderChecks() async {
         }
         let records = try await f.journal.nativeReminderRecords()
         let writes = await f.writer.writes
-        return records.isEmpty && scope.snapshot.receipts.count == 3 && writes == 0
+        return records.isEmpty && scope.snapshot.receipts.count == PippaMCPWriteTools.names.count && writes == 0
     }
 
     await checkAsync("A retried pre-dispatch operation keeps one identity in pending and final receipts") {

@@ -25,6 +25,15 @@
 "Searched Mail for “%@”: %lld found" = "Mail durchsucht nach „%@“: %lld gefunden";
 "Read Mail: %lld unread" = "Mail gelesen: %lld ungelesen";
 "Read Mail: newest emails" = "Mail gelesen: neueste E-Mails";
+"Read Mail: folders" = "Mail gelesen: Ordner";
+"Pippa can’t move mails here." = "Pippa kann hier keine Mails verschieben.";
+"Pippa couldn’t move the mails just now. Nothing was moved." = "Pippa konnte die Mails gerade nicht verschieben. Es wurde nichts verschoben.";
+"To do this, I need access to Mail on this Mac – I only move mails into your folders and never send anything." = "Dafür brauche ich Zugriff auf Mail auf diesem Mac – ich verschiebe nur Mails in deine Ordner und verschicke nie etwas.";
+"%lld mails are in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail." = "%lld Mails sind in „%@“ und in „%@“. Pippa löscht keine Mails; sieh bitte in Mail in beiden Ordnern nach.";
+"Pippa moved %lld mails into “%@” and checked them." = "Pippa hat %lld Mails nach „%@“ verschoben und geprüft.";
+"%lld mails are now neither in “%@” nor in “%@”. Please look for them in Mail. Pippa stopped and won’t repeat the move." = "%lld Mails sind jetzt weder in „%@“ noch in „%@“. Sieh bitte in Mail nach. Pippa hat aufgehört und verschiebt nichts erneut.";
+"%lld mails are now in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail. Pippa stopped and won’t repeat the move." = "%lld Mails sind jetzt in „%@“ und in „%@“. Pippa löscht keine Mails; sieh bitte in Mail in beiden Ordnern nach. Pippa hat aufgehört und verschiebt nichts erneut.";
+"For %lld mails Mail did not answer in time, so Pippa can’t say yet where they are. Please check “%@” and “%@” in Mail. Pippa didn’t retry and won’t move them again by herself." = "Für %lld Mails hat Mail nicht rechtzeitig geantwortet, deshalb kann Pippa noch nicht sagen, wo sie sind. Sieh bitte in Mail in „%@“ und „%@“ nach. Pippa hat nichts wiederholt und verschiebt sie nicht von sich aus noch einmal.";
 "Read Excel: active sheet" = "Excel gelesen: aktives Blatt";
 "today" = "heute";
 "tomorrow" = "morgen";

@@ -96,6 +96,14 @@ class ReleaseChecks(unittest.TestCase):
         self.assertIn("PIPPA_SIGN_IDENTITY", result.stderr)
         self.assertNotIn("swift", result.stdout)
 
+    def test_release_refuses_developer_probes(self):
+        env = {"PATH": "/usr/bin:/bin", "PIPPA_PROBES": "1", "PIPPA_SIGN_IDENTITY": "Developer ID Application: Test (TEAM)",
+               "PIPPA_NOTARY_PROFILE": "test"}
+        result = subprocess.run(["bash", str(ROOT / "scripts/release.sh")], env=env, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("PIPPA_PROBES", result.stderr)
+        self.assertNotIn("swift", result.stdout)
+
     def test_sparkle_key_matches_newest_release_tag(self):
         tag = newest_release_tag()
         if tag is None:

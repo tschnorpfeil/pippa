@@ -40,10 +40,12 @@ extension MCPCheckContext {
                 return a["readOnlyHint"] as? Bool == true && a["destructiveHint"] as? Bool == false && a["openWorldHint"] as? Bool == false
                     && (tool["inputSchema"] as? [String: Any])?["type"] as? String == "object"
             }
-            // Keep the reader list under 3,500 bytes and the full 12-tool `tools/list` under 6,000 bytes.
+            // Keep the reader list under 3,500 bytes and the full 14-tool `tools/list` under 7,000 bytes (6,000 for 12 tools before
+            // mail_folders and mail_move).
             let readerBytes = (try? JSONSerialization.data(withJSONObject: tools))?.count ?? .max
             let allBytes = (try? JSONSerialization.data(withJSONObject: all))?.count ?? .max
-            return names == PippaMCPTools.toolNames && hintsOK && readerBytes < 3500 && allBytes < 6000 && tools.count == 7 && all.count == 12
+            if readerBytes >= 3500 || allBytes >= 7000 { print("  tools/list bytes: readers \(readerBytes), all \(allBytes)") }
+            return names == PippaMCPTools.toolNames && hintsOK && readerBytes < 3500 && allBytes < 7000 && tools.count == 8 && all.count == 14
         }
         await checkAsync("MCP: browse is listed once, open world, not destructive, not read-only") {
             let s = setup()

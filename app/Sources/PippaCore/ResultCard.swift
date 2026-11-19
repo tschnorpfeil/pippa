@@ -39,7 +39,7 @@ public struct MailCard: Codable, Sendable, Equatable {
     public var footer: String
     /// Accounts that could not be read, so the card never looks like every inbox was checked. `nil`: all answered (or an older card).
     public var notice: String?
-    /// More rows than the search tool ever returns (mail_search allows at most 20).
+    /// Rows a card shows. A header-only `mail_search` page has more; its card then says how many it shows, never a range.
     public static let maxItems = 20
 
     /// `first`, `last`: positions among all `total` matches this page covers (a later page starts after 1; mails that left
@@ -61,7 +61,9 @@ public struct MailCard: Codable, Sendable, Equatable {
                         messageID: m.messageID.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "<> ")) }.flatMap { $0.isEmpty ? nil : $0 },
                         account: m.account.map { Self.line($0, 60) })
         }
-        if first > 1, !items.isEmpty {
+        if mails.count > Self.maxItems {
+            footer = L("Mail on this Mac · %lld of %lld", table: "MCP", items.count, total)
+        } else if first > 1, !items.isEmpty {
             footer = L("Mail on this Mac · %lld–%lld of %lld", table: "MCP", first, last ?? (first + items.count - 1), total)
         } else {
             footer = total > items.count ? L("Mail on this Mac · %lld of %lld", table: "MCP", items.count, total) : L("Mail on this Mac", table: "MCP")

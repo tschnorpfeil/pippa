@@ -37,10 +37,27 @@ public protocol MailAccountReading: Sendable {
     func candidates(account: String, query: String, readStatus: MailReadStatus, mailbox: MailBoxKind) async throws -> [MailSearchCandidate]
     /// As `rows(account:ids:)`, in the account's Inbox, Sent or Drafts.
     func rows(account: String, ids: [Int], mailbox: MailBoxKind) async throws -> [MailSearchRow]
+    /// As `rows(account:ids:mailbox:)`; `headerOnly`: sender, subject, date, Message-ID, read status and where it is,
+    /// without the start of the text or other flags (header-only `mail_search` pages).
+    func rows(account: String, ids: [Int], mailbox: MailBoxKind, headerOnly: Bool) async throws -> [MailSearchRow]
     /// As `message(account:mailID:messageID:path:)`, in the account's Inbox, Sent or Drafts.
     func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage?
     /// Whether this account's Sent or Drafts already hold a reply to this message (`nil`: this reader cannot tell).
     func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity?
+    /// Every mailbox of this account with its whole path, message count, role and up to `samples` mails (sender, subject),
+    /// as far as Mail answered within `MailFolderListing`'s bounds; what is missing is counted in the list.
+    func folders(account: String, samples: Int) async throws -> MailFolderList
+    /// Mail's ids of the messages in the mailbox at `path` that carry each Message-ID (MailMove.swift), live ones apart
+    /// from ones marked deleted. Never Mail's id as identity: it changes on Exchange when a mail moves.
+    /// `MailMoveProblem.noFolder` when the mailbox is gone.
+    func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated]
+    /// As `locate(account:path:messageIDs:)`, each Apple event bounded by `eventTimeout` seconds
+    /// (`MailMoveSettle.lookupEventTimeout` while Pippa waits for Mail to settle).
+    func locate(account: String, path: [String], messageIDs: [String], eventTimeout: Int) async throws -> [String: MailLocated]
+    /// Moves these messages from `from` to `to`, each only when its Mail id still carries its Message-ID. One mutating
+    /// Apple Event; what happened is read back with `locate`, never taken from this call (its statuses are diagnostics).
+    @discardableResult
+    func move(account: String, from: [String], mails: [MailMoveItem], to: [String]) async throws -> [String]
 }
 
 extension MailAccountReading {
@@ -61,12 +78,27 @@ extension MailAccountReading {
         return try await rows(account: account, ids: ids)
     }
 
+    /// Readers without a header-only read read the whole row.
+    public func rows(account: String, ids: [Int], mailbox: MailBoxKind, headerOnly: Bool) async throws -> [MailSearchRow] {
+        try await rows(account: account, ids: ids, mailbox: mailbox)
+    }
+
     public func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage? {
         guard mailbox == .inbox else { throw MailAccountProblem.failed }
         return try await message(account: account, mailID: mailID, messageID: messageID, path: path)
     }
 
     public func threadActivity(account: String, messageID: String, subject: String, since: Date?) async throws -> MailThreadActivity? { nil }
+
+    /// Readers that cannot list, find or move: nothing is listed or moved.
+    public func folders(account: String, samples: Int) async throws -> MailFolderList { throw MailAccountProblem.failed }
+    public func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated] { throw MailAccountProblem.failed }
+    /// Readers without their own event timeout look up as usual.
+    public func locate(account: String, path: [String], messageIDs: [String], eventTimeout: Int) async throws -> [String: MailLocated] {
+        try await locate(account: account, path: path, messageIDs: messageIDs)
+    }
+    @discardableResult
+    public func move(account: String, from: [String], mails: [MailMoveItem], to: [String]) async throws -> [String] { throw MailAccountProblem.failed }
 }
 
 /// What this account's Sent and Drafts say about a message: a reply was sent, a reply draft waits, and whether each
@@ -262,6 +294,8 @@ public final class MailPageStore: @unchecked Sendable {
     private var snapshots: [String: MailSnapshot] = [:]
     private var cursors: [String: (snapshot: String, offset: Int)] = [:]
     private var refs: [String: MailRef] = [:]
+    /// `mail_move` dry runs of this answer, each usable once (MailMove.swift).
+    private var plans: [String: MailMovePlan] = [:]
     /// Previews delivered, and previews held by pages still reading Mail.
     private var delivered = 0, reserved = 0
     private var claimed = false
@@ -273,7 +307,7 @@ public final class MailPageStore: @unchecked Sendable {
     func claim(_ turn: UUID?, extended: Bool = false, live: () -> Bool) -> Bool {
         lock.withLock {
             guard live() else { return false }
-            if owner != turn { owner = turn; snapshots = [:]; cursors = [:]; refs = [:]; delivered = 0; reserved = 0 }
+            if owner != turn { owner = turn; snapshots = [:]; cursors = [:]; refs = [:]; plans = [:]; delivered = 0; reserved = 0 }
             limit = extended ? Self.extendedRowsPerAnswer : Self.rowsPerAnswer
             claimed = true
             return true
@@ -340,6 +374,13 @@ public final class MailPageStore: @unchecked Sendable {
     }
 
     func ref(_ token: String, turn: UUID?) -> MailRef? { owned(turn) { refs[token] } ?? nil }
+
+    func savePlan(_ plan: MailMovePlan, turn: UUID?) -> Bool { owned(turn) { plans[plan.id] = plan; return true } ?? false }
+
+    /// Takes the plan: it works once. `restorePlan` gives it back only when nothing was dispatched.
+    func takePlan(_ token: String, turn: UUID?) -> MailMovePlan? { owned(turn) { plans.removeValue(forKey: token) } ?? nil }
+
+    func restorePlan(_ plan: MailMovePlan, turn: UUID?) { _ = owned(turn) { plans[plan.id] = plan } }
 
     static func token(_ prefix: String) -> String {
         prefix + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased().prefix(12)

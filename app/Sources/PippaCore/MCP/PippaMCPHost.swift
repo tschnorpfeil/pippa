@@ -35,6 +35,10 @@ public struct PippaMCPHost: Sendable {
     public var shownFront: @Sendable () -> FrontApp? = { FrontAppStage.shared.current }
     /// Mail one account at a time (`mail_search` accounts, cursors and `mail_ref`). `nil`: the combined inbox search only.
     public var mailAccounts: (any MailAccountReading)?
+    /// How `mail_move` and its Undo wait for Mail to settle after a move; checks inject a fake clock.
+    public var mailMoveSettle: MailMoveSettle = .live
+    /// `mail_move` calls still running per answer (shared by every copy of this host); the receipt waits for them.
+    public var mailMoveRuns = MailMoveRuns()
     /// Snapshots, cursors and mail references of the running answer (shared by every copy of this host).
     public var mailPages = MailPageStore()
     /// Where read mails and their attachments are saved as files (`MailFiling`); checks use their own folder.

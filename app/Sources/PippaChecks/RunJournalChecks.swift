@@ -402,7 +402,7 @@ func runRunJournalChecks() async {
         let summary = await f.host.runSummaries([f.run])[f.run]
         let report = try await f.host.undoRun(f.run)
         return planned.allSatisfy { $0.state == .planned } && checked.map(\.state) == [.done, .done, .unclear] && refused
-            && summary == RunSummary(run: f.run, changes: 3, checked: 2, unclear: 1, undoable: 2)
+            && summary == RunSummary(run: f.run, changes: 3, checked: 2, unclear: 1, undoable: 2, mailMoves: 3)
             && report.undone.map(\.label) == ["<2@x>", "<1@x>"] && mailbox.value == ["<1@x>": "INBOX", "<2@x>": "INBOX", "<3@x>": "Other"]
     }
 }
