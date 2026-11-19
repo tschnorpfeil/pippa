@@ -595,19 +595,25 @@ final class ChatModel: ObservableObject {
         return PiSession.typedScope(settings, ShareDestination.active(settings))
     }
 
-    /// The answer offers Continue: it stopped at the limit and the route still leads to its session (another AI, account
-    /// or Mac access would get an empty one).
-    func offersResume(_ message: ChatMessage) -> Bool {
-        guard message.resumeAfter != nil else { return false }
-        return showsSample || (message.resumeScope != nil && message.resumeScope == Self.typedScope())
-    }
+    /// The answer offers Continue: it stopped at the limit. Whether the route still leads to its session is checked when
+    /// the button is pressed (`resume`), not on every redraw: that reads the provider's files and the Keychain.
+    func offersResume(_ message: ChatMessage) -> Bool { message.resumeAfter != nil }
 
     /// Continue after the online AI stayed at its limit: one follow-up in the same conversation's Pi session, never the
     /// question again. Not before `resumeAfter`.
     func resume(now: Date = Date()) {
         guard !isAnswering, review == nil, let id = currentID, let index = conversations.firstIndex(where: { $0.id == id }),
-              Self.resumable(conversations[index].messages, now: now, scope: Self.typedScope()),
-              let last = conversations[index].messages.indices.last else { return }
+              let last = conversations[index].messages.indices.last, let after = conversations[index].messages[last].resumeAfter,
+              after <= now else { return }
+        let scope = Self.typedScope()
+        // Another AI, account or Mac access since the answer stopped: its session is not reachable from here. Continue
+        // goes, and the answer offers Try Again like any other failed one.
+        if scope == nil || conversations[index].messages[last].resumeScope != scope {
+            conversations[index].messages[last].resumeAfter = nil
+            conversations[index].messages[last].resumeScope = nil
+            return
+        }
+        guard Self.resumable(conversations[index].messages, now: now, scope: scope) else { return }
         let settings = SettingsModel.shared.inferenceSettings
         let destination = ShareDestination.active(settings)
         let limited = destination != nil && !settings.allowsMacAccess(destination)
