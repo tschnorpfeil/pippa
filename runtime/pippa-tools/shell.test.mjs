@@ -366,7 +366,7 @@ test("tool: going online is asked per command; a later command never inherits it
 	assert.deepEqual([...tool.grants], [], "nothing is kept for the answer");
 });
 
-test("tool: a yes after a command failed offline lets exactly that command online once, only as the very next call", async () => {
+test("tool: a yes after a command failed offline runs that command again online at once and keeps nothing", async () => {
 	const runs = [];
 	const create = (cwd, options) => ({ name: "bash", execute: async (id, params) => {
 		const online = !options.spawnHook({ command: params.command, cwd, env: {} }).command.includes("(deny network*)");
@@ -374,30 +374,19 @@ test("tool: a yes after a command failed offline lets exactly that command onlin
 		return online ? { content: [{ type: "text", text: "ok" }] }
 			: { content: [{ type: "text", text: "urllib.error.URLError: <urlopen error [Errno 8] nodename nor servname provided>" }], isError: true };
 	} });
-	const tool = shellTool(create, { available: () => true, env: { PIPPA_LANGUAGE: "en" }, home: "/Users/renate" });
-	const bash = tool.definition("/fixture");
-	const person = ui([true, true, true]);
-	const failed = await bash.execute("f1", { command: "./fetch.sh" }, undefined, undefined, person.ctx("/fixture"));
-	const note = failed.content.map((part) => part.text).join("\n");
-	assert.match(note, /allowed this exact command to go online once, but it was not rerun/);
-	assert.doesNotMatch(note, /Do not retry the same command/, "the fresh yes is not contradicted by the limits note");
-	await bash.execute("f2", { command: "./fetch.sh" }, undefined, undefined, plain("/fixture"));
-	await bash.execute("f3", { command: "./fetch.sh" }, undefined, undefined, plain("/fixture"));
-	assert.deepEqual(runs.map((run) => run.online), [false, true, false], "once, then offline again");
-
-	// Another bash call in between could have rewritten the script: the yes is gone.
-	runs.length = 0;
-	await bash.execute("g1", { command: "./fetch.sh" }, undefined, undefined, person.ctx("/fixture"));
-	await bash.execute("g2", { command: "echo changed > fetch.sh" }, undefined, undefined, plain("/fixture"));
-	await bash.execute("g3", { command: "./fetch.sh" }, undefined, undefined, plain("/fixture"));
-	assert.deepEqual(runs.map((run) => run.online), [false, false, false]);
-
-	// So could any other tool (pippa-tools.ts calls forgetOnline on every tool call that is not bash).
-	runs.length = 0;
-	await bash.execute("h1", { command: "./fetch.sh" }, undefined, undefined, person.ctx("/fixture"));
-	tool.forgetOnline();
-	await bash.execute("h2", { command: "./fetch.sh" }, undefined, undefined, plain("/fixture"));
-	assert.deepEqual(runs.map((run) => run.online), [false, false]);
+	const definition = shellTool(create, { available: () => true, env: { PIPPA_LANGUAGE: "en" }, home: "/Users/renate" }).definition("/fixture");
+	assert.equal(definition.executionMode, "sequential", "no sibling call runs while bash asks or runs");
+	const person = ui([true, false]);
+	const first = await definition.execute("f1", { command: "./fetch.sh" }, undefined, undefined, person.ctx("/fixture"));
+	const note = first.content.map((part) => part.text).join("\n");
+	assert.match(note, /ran a second time, online/);
+	assert.doesNotMatch(note, /Do not retry the same command/);
+	assert.ok(!first.isError);
+	// The same words later: offline again, and a no leaves it there.
+	const second = await definition.execute("f2", { command: "./fetch.sh" }, undefined, undefined, person.ctx("/fixture"));
+	assert.ok(second.isError);
+	assert.deepEqual(runs.map((run) => run.online), [false, true, false]);
+	assert.equal(person.asked.length, 2);
 });
 
 test("codemode-style script: nested bash calls through the registered tool ask per network command", async () => {

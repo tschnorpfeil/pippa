@@ -10,7 +10,8 @@
  * Only after the person's OK (`ctx.ui.confirm`):
  * - `net`: the internet, for one command (action class `external`: a later command could send what an earlier tool
  *   read). Asked before a command that plainly goes online (curl, pip, git clone, …). After one that failed for lack
- *   of it, a yes lets exactly that command go online once more; it is not rerun by itself.
+ *   of it, a yes runs that same command again at once, online; no yes is kept for a later call. bash runs one call
+ *   at a time (`executionMode: "sequential"`), so no sibling call can change a script while its question is open.
  * - `write`: change files in the person's folders and on external drives, for the rest of the answer. Asked after a command failed because it
  *   was not allowed to write there. The failed command is never replayed: partial effects must be checked before a
  *   later call does the remaining work. Before an approved write call runs, every existing file it names gets a
@@ -383,19 +384,15 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 	const lockedShims = (): string[] => developerTools() ? [] : cachedDeveloperShims(shimDir);
 	/** Per answer: only `write`. `net` never lands here. */
 	let grants = new Set<Grant>();
-	/** The one command the person let go online after it failed without it. It passes only as the very next tool
-	 * call, with the same text and folder: any other call in between (`forgetOnline`) could have changed what it sends. */
-	let onlineOnce: { command: string; cwd: string } | undefined;
 
 	return {
-		resetAnswer() { grants = new Set(); onlineOnce = undefined; },
-		/** Any tool call other than bash ends a pending yes for one command. */
-		forgetOnline() { onlineOnce = undefined; },
+		resetAnswer() { grants = new Set(); },
 		get grants(): ReadonlySet<Grant> { return grants; },
 		definition(defaultCwd: string) {
 			const base = create(defaultCwd);
 			return {
 				...base,
+				executionMode: "sequential",
 				async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: unknown, ctx: any) {
 					const cwd = ctx?.cwd || defaultCwd;
 					const notRun = (reason: string) => ({ content: [{ type: "text", text: reason }], isError: true,
@@ -423,9 +420,6 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					};
 					/** Grants of this one call: the answer's, plus `net` when the person allowed this command. */
 					const now = new Set(grants);
-					const once = onlineOnce;
-					onlineOnce = undefined;
-					if (once && once.command === command && once.cwd === cwd) now.add("net");
 					const run = async () => {
 						if (signal?.aborted) return notRun("Stopped before running the command.");
 						if (now.has("write") && deps.keep) {
@@ -466,15 +460,20 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					if (result?.isError) {
 						const missing = missingGrants(command, textOf(result), now);
 						if (!signal?.aborted && result.details?.pippaExecution !== "uncertain" && missing.size && (await ask(missing)) && !signal?.aborted) {
-							for (const g of missing) { if (g === "net") onlineOnce = { command, cwd }; else grants.add(g); }
 							allowedNow = true;
-							// A compound command can have completed earlier steps before the permission error.
-							// Granting access cannot make replay safe; return the original failure for recovery.
-							result = withNote(result, missing.has("net")
-								? "The person allowed this exact command to go online once, but it was not rerun. It may already have changed something before failing. Check its effects; only if repeating it is safe, run exactly the same command again as your very next tool call. After any other tool call, going online asks again."
-								: "Permission is now available for this answer, but the failed command was not rerun. It may already have changed something before failing. Check its effects, then use a separate, narrowly scoped call for only the remaining work. Do not repeat completed steps.");
+							if (missing.has("net")) {
+								// The yes is for this command now: it runs again at once, online. No yes is kept for a later
+								// call, which could send something else under the same words.
+								now.add("net");
+								result = withNote(await run(), "The first try failed without the internet; after the person's yes this same command ran a second time, online. Any other command that goes online asks again.");
+							} else {
+								for (const g of missing) grants.add(g);
+								// A compound command can have completed earlier steps before the permission error.
+								// Granting access cannot make replay safe; return the original failure for recovery.
+								result = withNote(result, "Permission is now available for this answer, but the failed command was not rerun. It may already have changed something before failing. Check its effects, then use a separate, narrowly scoped call for only the remaining work. Do not repeat completed steps.");
+							}
 						}
-						// Not after a fresh yes: the note above already says what to do next.
+						// Not after a fresh yes: the note above already says what happened.
 						if (result?.isError && !allowedNow) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
 					}
 					if (kept.size) {
