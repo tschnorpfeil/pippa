@@ -100,7 +100,9 @@ public struct PiRecipientSnapshot: Sendable {
     static func settings(from shared: URL) throws -> Data {
         guard FileManager.default.fileExists(atPath: shared.path) else { return try JSONFile.encode(["retry": retry]) }
         guard var object = JSONFile.readPiObject(shared) else { return try (try? Data(contentsOf: shared)) ?? JSONFile.encode(["retry": retry]) }
+        // Waits on, also where the person switched Pi's retry off for the terminal.
         object["retry"] = (object["retry"] as? [String: Any] ?? [:]).merging(retry.mapValues { $0 as Any }) { $1 }
+            .merging(["enabled": true]) { $1 }
         return try JSONFile.encode(object)
     }
 

@@ -364,10 +364,10 @@ func runSharingChecks() async {
             && canonical(models?[PiOnlineProvider.providerKey] ?? [:]) == canonical(PiOnlineProvider.entry(connection))
             && !fm.fileExists(atPath: snapshot.directory.appendingPathComponent("auth.json").path) && !fm.fileExists(atPath: next.directory.path)
     }
-    check("Recipient snapshot: an online Pi waits 15, 30, 60 and 60 s on a rate limit; the shared settings stay as they are") {
+    check("Recipient snapshot: an online Pi always waits 15, 30, 60 and 60 s on a rate limit; the shared settings stay as they are") {
         try writeAgent(models: nil, auth: nil)
         let shared = agent.appendingPathComponent("settings.json")
-        let original = Data(#"{"defaultThinkingLevel":"high","retry":{"enabled":true,"maxRetries":9,"provider":{"maxRetries":0}}}"#.utf8)
+        let original = Data(#"{"defaultThinkingLevel":"high","retry":{"enabled":false,"maxRetries":9,"provider":{"maxRetries":0}}}"#.utf8)
         try original.write(to: shared)
         let connection = ModelConnection(id: UUID(), provider: .compatible, endpoint: URL(string: "https://llm.example.invalid/v1"), modelID: "m-fixture")
         let snapshot = try PiRecipientSnapshot.create(connection: connection, from: agent, in: snapshots)

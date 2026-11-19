@@ -57,6 +57,8 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     /// Answer: the online AI stayed at its limit after all of Pi's tries. From this time on, Continue picks the answer
     /// up in the same Pi session (`ChatModel.resume`).
     var resumeAfter: Date?
+    /// The Pi session that answer ran in (`PiSession.resumeScope`): Continue only while typed words still go there.
+    var resumeScope: String?
 }
 
 /// The review before anything from the Mac goes to an online AI: the provider, the person's words and each part Pippa
@@ -376,6 +378,8 @@ final class ChatModel: ObservableObject {
                 message.duration = Date().timeIntervalSince(started)
                 if stopped {
                     message.stopped = true
+                    message.resumeAfter = nil
+                    message.resumeScope = nil
                     // Pi reports the abort as an error; the person asked for it, so it is no failure.
                     message.error = nil
                 }
@@ -492,6 +496,7 @@ final class ChatModel: ObservableObject {
             }
             return
         }
+        waitForRetry(nil)
         let running = answer
         Task { await PiSession.shared.stop() }
         Task {
@@ -561,6 +566,8 @@ final class ChatModel: ObservableObject {
                 try? await Task.sleep(for: .seconds(1))
                 if !Task.isCancelled { retryWait?.seconds = seconds() }
             }
+            // The wait is over and Pi tries again: the answer shows its work, not "Continuing in 0 s".
+            if !Task.isCancelled { retryWait = nil }
         }
     }
 
@@ -568,22 +575,45 @@ final class ChatModel: ObservableObject {
     static let resumePrompt = "[Your last answer stopped because the online AI was at its limit. Continue where you stopped. "
         + "Do not repeat changes that are already done; if you are unsure whether one was, check first.]"
 
-    /// Whether Continue may go now: the last answer stopped at the online AI's limit and its minute is over.
-    static func resumable(_ messages: [ChatMessage], now: Date) -> Bool {
-        guard let last = messages.last, last.role == .assistant, let after = last.resumeAfter else { return false }
+    /// Whether Continue may go now: the last answer stopped at the online AI's limit, its minute is over, and typed
+    /// words still go to its Pi session (`scope`, `PiSession.typedScope`).
+    static func resumable(_ messages: [ChatMessage], now: Date, scope: String?) -> Bool {
+        guard let last = messages.last, last.role == .assistant, let after = last.resumeAfter, scope != nil,
+              last.resumeScope == scope else { return false }
         return after <= now
+    }
+
+    /// When the Continue countdown changes: each whole second from `now` until `until`, none after it.
+    static func resumeTicks(until: Date, now: Date = Date()) -> [Date] {
+        let left = max(0, Int(until.timeIntervalSince(now).rounded(.up)))
+        return [now] + (0..<left).map { until.addingTimeInterval(-Double(left - 1 - $0)) }
+    }
+
+    /// The session typed words go to now (`PiSession.typedScope`).
+    private static func typedScope() -> String? {
+        let settings = SettingsModel.shared.inferenceSettings
+        return PiSession.typedScope(settings, ShareDestination.active(settings))
+    }
+
+    /// The answer offers Continue: it stopped at the limit and the route still leads to its session (another AI, account
+    /// or Mac access would get an empty one).
+    func offersResume(_ message: ChatMessage) -> Bool {
+        guard message.resumeAfter != nil else { return false }
+        return showsSample || (message.resumeScope != nil && message.resumeScope == Self.typedScope())
     }
 
     /// Continue after the online AI stayed at its limit: one follow-up in the same conversation's Pi session, never the
     /// question again. Not before `resumeAfter`.
     func resume(now: Date = Date()) {
         guard !isAnswering, review == nil, let id = currentID, let index = conversations.firstIndex(where: { $0.id == id }),
-              Self.resumable(conversations[index].messages, now: now), let last = conversations[index].messages.indices.last else { return }
+              Self.resumable(conversations[index].messages, now: now, scope: Self.typedScope()),
+              let last = conversations[index].messages.indices.last else { return }
         let settings = SettingsModel.shared.inferenceSettings
         let destination = ShareDestination.active(settings)
         let limited = destination != nil && !settings.allowsMacAccess(destination)
         guard let outgoing = Self.outgoing(Self.resumePrompt, files: [], frontApp: nil, undone: [], online: limited) else { return }
         conversations[index].messages[last].resumeAfter = nil
+        conversations[index].messages[last].resumeScope = nil
         ask(T("Continue", table: "App"), files: [], outgoing: outgoing, destination: destination?.label)
     }
 
@@ -630,8 +660,18 @@ final class ChatModel: ObservableObject {
         }
     }
 
+    /// A single question to an online AI is online too, while Settings still says "this Mac".
+    private func answersOnline(_ id: String) -> Bool {
+        SettingsModel.shared.inferenceSettings.usesOnlineAI || conversations.first(where: { $0.id == id })?.messages.last?.destination != nil
+    }
+
     func apply(_ event: PiRPCEvent, in id: String) {
         evidence.observe(event)
+        // The model is at work again: Pi's next try has started (it reports the try's end only after its whole answer).
+        switch event {
+        case .textDelta, .thinkingDelta, .toolStarted: if retryWait != nil { waitForRetry(nil) }
+        default: break
+        }
         let writing = Self.writing(isWriting, after: event)
         if writing != isWriting { isWriting = writing }
         switch event {
@@ -686,9 +726,7 @@ final class ChatModel: ObservableObject {
             }
         case .assistantEnded(_, let reason, let error):
             if reason == "toolUse" { updateLast(in: id) { if !$0.text.isEmpty, !$0.text.hasSuffix("\n") { $0.text += "\n\n" } } }
-            // A single question to an online AI is online too, while Settings still says "this Mac".
-            let online = SettingsModel.shared.inferenceSettings.usesOnlineAI
-                || conversations.first(where: { $0.id == id })?.messages.last?.destination != nil
+            let online = answersOnline(id)
             if reason == "error", let error { updateLast(in: id) { $0.error = Self.modelError(error, online: online) } }
             // The model used up its answer length (usually while thinking) and stopped mid-way: say so, never end quietly.
             if reason == "length" {
@@ -700,17 +738,20 @@ final class ChatModel: ObservableObject {
         case .retryScheduled(_, _, let delay, let error):
             // The failed try is not the end of the answer: Pi waits and tries again.
             updateLast(in: id) { $0.error = nil }
-            waitForRetry(Date().addingTimeInterval(Double(delay) / 1000), rateLimit: PiProviderClient.problem(in: error) == .rateLimit)
+            waitForRetry(Date().addingTimeInterval(Double(delay) / 1000),
+                         rateLimit: answersOnline(id) && PiProviderClient.problem(in: error) == .rateLimit)
         case .retryEnded(let success, _, let finalError):
             waitForRetry(nil)
             // Still at its limit after every try: the answer can go on later where it stopped. Only a typed question's
             // session holds the conversation; an approved one ran in a session of its own.
-            guard !success, !stopRequested, let finalError, PiProviderClient.problem(in: finalError) == .rateLimit,
+            guard !success, !stopRequested, let scope = PiSession.shared.answerScope, let finalError,
+                  PiProviderClient.problem(in: finalError) == .rateLimit,
                   let messages = conversations.first(where: { $0.id == id })?.messages, messages.count >= 2,
                   messages[messages.count - 2].shared == nil else { break }
             updateLast(in: id) {
                 $0.error = T("The online AI is still at its limit. Wait a minute, then continue where it stopped.", table: "App")
                 $0.resumeAfter = Date().addingTimeInterval(Self.resumeDelay)
+                $0.resumeScope = scope
             }
         case .notice(let text, let kind) where kind == "error" || kind == "warning":
             updateLast(in: id) { $0.error = text }

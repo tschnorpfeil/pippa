@@ -78,9 +78,14 @@ public final class PiProviderClient: @unchecked Sendable {
         }
         // A used-up allowance often comes as 429 too: its words decide first, as in Pi's own retry rule. OpenAI's
         // per-minute "Rate limit reached for …" is no used-up allowance.
+        // Google's per-minute "429 Resource has been exhausted (e.g. check quota)." passes on, as Pi retries it.
+        if text.contains("resource has been exhausted") || text.contains("resource_exhausted") { return .rateLimit }
         let allowance = text.replacingOccurrences(of: "rate limit reached", with: "")
-        if ["usage limit", "quota", "limit reached", "billing", "out of budget", "available balance"].contains(where: allowance.contains) { return .quota }
-        if ["429", "rate limit", "rate_limit", "too many requests"].contains(where: text.contains) { return .rateLimit }
+        if ["usage limit", "usage_limit", "usagelimit", "quota", "limit reached", "billing", "out of budget", "available balance"]
+            .contains(where: allowance.contains) { return .quota }
+        if ["rate limit", "rate_limit", "too many requests"].contains(where: text.contains) { return .rateLimit }
+        // A status code only on its own, never inside a port, byte count or request id (as in Pi's rule).
+        if text.range(of: "(?<![a-z0-9])429(?![a-z0-9])", options: .regularExpression) != nil { return .rateLimit }
         return nil
     }
 

@@ -29,6 +29,7 @@ enum AnswerRetryChecks {
         check(waiting?.rateLimit == true && (41...42).contains(waiting?.seconds ?? 0) && answer?.error == nil,
               "a wait on a rate limit counts down from its delay, and the failed try is no error on the answer")
         chat.apply(.textDelta("Erledigt."), in: "r")
+        check(chat.retryWait == nil, "the next try's first words end the countdown, before Pi reports the try's end")
         chat.apply(.retryEnded(success: true, attempt: 1, finalError: nil), in: "r")
         check(chat.retryWait == nil && answer?.error == nil && answer?.resumeAfter == nil,
               "a successful try ends the wait and the answer goes on as usual")
@@ -41,11 +42,18 @@ enum AnswerRetryChecks {
         start()
         chat.apply(.retryScheduled(attempt: 1, maxAttempts: 4, delayMs: 15_000, error: limit), in: "r")
         chat.stop()
+        let stoppedWait = chat.retryWait
         chat.apply(.retryEnded(success: false, attempt: 1, finalError: limit), in: "r")
-        check(chat.retryWait == nil && answer?.resumeAfter == nil && answer?.error == nil,
-              "Stop during the wait ends the countdown and offers no Continue")
+        check(stoppedWait == nil && chat.retryWait == nil && answer?.resumeAfter == nil && answer?.error == nil,
+              "Stop during the wait ends the countdown at once and offers no Continue")
 
-        // The provider keeps answering 429: after the last try the answer offers Continue, not before a minute.
+        // The provider keeps answering 429: after the last try the answer offers Continue, not before a minute, and only
+        // while typed words still go to the session it ran in.
+        let session = PiSession.shared.answerScope
+        defer { PiSession.shared.answerScope = session }
+        let scope = ShareDestination(PiModelSelection(providerID: "openai", modelID: "gpt-fixture", providerName: "OpenAI"),
+                                     recipient: "account-a").sessionTag
+        PiSession.shared.answerScope = scope
         start()
         let failed = Date()
         for attempt in 1...4 {
@@ -57,12 +65,28 @@ enum AnswerRetryChecks {
         let messages = chat.conversations.first?.messages ?? []
         let after = answer?.resumeAfter?.timeIntervalSince(failed) ?? 0
         check(chat.retryWait == nil && answer?.error != nil && (60...61).contains(after)
-              && !ChatModel.resumable(messages, now: failed.addingTimeInterval(59))
-              && ChatModel.resumable(messages, now: failed.addingTimeInterval(61)),
+              && answer?.resumeScope == scope
+              && !ChatModel.resumable(messages, now: failed.addingTimeInterval(59), scope: scope)
+              && ChatModel.resumable(messages, now: failed.addingTimeInterval(61), scope: scope),
               "a rate limit after every try ends the answer with a sentence and Continue, available 60 s later")
         chat.replaceForSnapshot(chat.conversations, current: "r", answering: false)
         chat.resume(now: failed.addingTimeInterval(30))
         check(chat.isAnswering == false && answer?.resumeAfter != nil, "Continue before its minute sends nothing")
+        check(!ChatModel.resumable(messages, now: failed.addingTimeInterval(61), scope: "mac-other")
+              && !ChatModel.resumable(messages, now: failed.addingTimeInterval(61), scope: nil),
+              "another AI, account, Mac access or the AI on this Mac: no Continue into a session the answer never ran in")
+        let until = failed.addingTimeInterval(3)
+        let ticks = ChatModel.resumeTicks(until: until, now: failed)
+        check(ticks.last == until && ticks.count == 4 && ChatModel.resumeTicks(until: failed, now: until) == [until],
+              "the Continue countdown ticks once a second until it may go, then no more")
+
+        // The AI on this Mac or an unverified recipient: Pi's session is not one to go back to.
+        PiSession.shared.answerScope = nil
+        start()
+        chat.apply(.assistantEnded(text: "", stopReason: "error", error: limit), in: "r")
+        chat.apply(.retryEnded(success: false, attempt: 4, finalError: limit), in: "r")
+        check(answer?.resumeAfter == nil && answer?.resumeScope == nil, "an answer outside a resumable session offers no Continue")
+        PiSession.shared.answerScope = scope
 
         // An approved question ran in a session of its own: no Continue there.
         start(shared: ["Mail"])

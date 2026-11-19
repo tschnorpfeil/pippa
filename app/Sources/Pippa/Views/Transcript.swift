@@ -51,6 +51,7 @@ struct Transcript: View {
                                     writing: answeringHere && last && chat.isWriting,
                                     answering: chat.isAnswering, started: answeringHere && last ? chat.answerStarted : nil,
                                     waiting: answeringHere && last ? chat.retryWait.map(ChatModel.retryLabel) : nil,
+                                    resumes: last && chat.offersResume(message),
                                     undoing: chat.undoing)
                             .equatable()
                             .arrives(arrives, delay: message.role == .assistant ? Theme.stagger : 0)

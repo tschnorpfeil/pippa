@@ -53,6 +53,8 @@ enum HeadlessAsk {
     /// from the answer text) and from the questions `--ask` declined. Failed beats needs_access beats needs_input.
     struct Outcome {
         private var failed = false
+        /// The last model turn failed; Pi trying again after it (`retryScheduled`) means it does not count.
+        private var modelFailed = false
         private var access = false
         /// Tools Pi stopped before any effect for a reason that is not access (e.g. a declined question).
         private var blocked = 0
@@ -68,7 +70,9 @@ enum HeadlessAsk {
                 else if isError || outcome == .failed || outcome == .unclear { failed = true }
             case .assistantEnded(_, let reason, let error):
                 // "length" is a turn cut off by the model's output limit: ChatModel reports it as failed too.
-                if reason == "error" || reason == "aborted" || reason == "length" || error != nil { failed = true }
+                if reason == "error" || reason == "aborted" || reason == "length" || error != nil { modelFailed = true }
+            case .retryScheduled:
+                modelFailed = false
             case .settled(let aborted):
                 if aborted { failed = true }
             default:
@@ -77,7 +81,7 @@ enum HeadlessAsk {
         }
 
         func status(declinedQuestions: Int) -> Status {
-            if failed || (blocked > 0 && declinedQuestions == 0) { return .failed }
+            if failed || modelFailed || (blocked > 0 && declinedQuestions == 0) { return .failed }
             if access { return .needs_access }
             return declinedQuestions > 0 ? .needs_input : .completed
         }

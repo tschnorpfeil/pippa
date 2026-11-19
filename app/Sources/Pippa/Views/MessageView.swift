@@ -20,6 +20,8 @@ struct MessageView: View, Equatable {
     var started: Date?
     /// Pi waits before it tries the online AI again: what the row says instead (`ChatModel.retryLabel`).
     var waiting: String?
+    /// The answer stopped at the online AI's limit and typed words still go to its session (`ChatModel.offersResume`).
+    var resumes = false
     var undoing: Set<String>
     private let hoverState = State(initialValue: false)
     /// Cards, receipts and an error already there when the answer came on screen; ones that come later arrive.
@@ -29,7 +31,7 @@ struct MessageView: View, Equatable {
 
     nonisolated static func == (a: MessageView, b: MessageView) -> Bool {
         a.message == b.message && a.live == b.live && a.isLast == b.isLast && a.starting == b.starting && a.writing == b.writing && a.answering == b.answering
-            && a.started == b.started && a.waiting == b.waiting && a.undoing == b.undoing
+            && a.started == b.started && a.waiting == b.waiting && a.resumes == b.resumes && a.undoing == b.undoing
     }
 
     var body: some View {
@@ -107,7 +109,7 @@ struct MessageView: View, Equatable {
             }
             if let error = message.error {
                 ErrorBox(text: error, retry: isLast && !answering ? { chat.retry() } : nil,
-                         resumeAfter: isLast && !answering ? message.resumeAfter : nil, resume: { chat.resume() })
+                         resumeAfter: isLast && !answering && resumes ? message.resumeAfter : nil, resume: { chat.resume() })
                     .arrives(seen.map { !$0.error } ?? false)
             }
             if !live { footer }
@@ -174,7 +176,8 @@ private struct ErrorBox: View {
                 .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             Spacer(minLength: Space.m)
             if let resumeAfter {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
+                // Once a second until Continue may go, then no more ticks.
+                TimelineView(.explicit(ChatModel.resumeTicks(until: resumeAfter))) { context in
                     let left = Int(resumeAfter.timeIntervalSince(context.date).rounded(.up))
                     ActionPill(title: left > 0 ? T("Continue in %lld s", table: "App", left) : T("Continue", table: "App"),
                                primary: left <= 0, action: resume)

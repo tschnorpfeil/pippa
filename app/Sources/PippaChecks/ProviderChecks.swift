@@ -13,8 +13,12 @@ func runProviderChecks() async {
          "429 Rate limit reached for gpt-4o in organization org-x on requests per min (RPM): Limit 500"]
             .allSatisfy { PiProviderClient.problem(in: $0) == .rateLimit }
             && ["You have reached your usage limit", "insufficient_quota", "Monthly limit reached", "Billing hard limit hit",
-                "429 Too Many Requests: usage limit reached", "Rate limit: your quota is used up"]
+                "429 Too Many Requests: usage limit reached", "Rate limit: your quota is used up",
+                "{\"type\":\"usage_limit_reached\"}", "FreeUsageLimitError", "429 insufficient_quota"]
             .allSatisfy { PiProviderClient.problem(in: $0) == .quota }
+            && PiProviderClient.problem(in: "429 Resource has been exhausted (e.g. check quota).") == .rateLimit
+            && ["connect ECONNREFUSED 127.0.0.1:8429", "request id req_42900a failed", "read 14290 bytes"]
+            .allSatisfy { PiProviderClient.problem(in: $0) == nil }
     }
     check("After Sign in with ChatGPT the model in use stays, else Pi's default is preselected, never the oldest on the list") {
         let models = ["gpt-4", "gpt-5.5", "o3"].map { PiProvider.Model(id: $0, name: $0) }
