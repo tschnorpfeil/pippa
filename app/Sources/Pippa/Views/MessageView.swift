@@ -107,6 +107,12 @@ struct MessageView: View, Equatable {
                     }
                 }
             }
+            // One receipt for the whole answer when it changed more than one thing, something is unclear, nothing else
+            // under the answer names the change (Pi's file changes), or it can undo more than the receipts above (`RunSummary.shows`).
+            if !live, let run = message.run, run.shows(beside: message.receipts) {
+                RunReceiptRow(summary: run, undoing: undoing.contains(ChatModel.undoKey(message.id, -1)),
+                              undo: { chat.undoRun(in: message.id) })
+            }
             if let error = message.error {
                 ErrorBox(text: error, retry: isLast && !answering ? { chat.retry() } : nil,
                          resumeAfter: isLast && !answering && resumes ? message.resumeAfter : nil, resume: { chat.resume() })

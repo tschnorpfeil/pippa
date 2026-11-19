@@ -115,11 +115,17 @@ public actor Executor {
     private let supportDirectory: URL
     static let nativeProcessSession = UUID()
     let nativeSessionID: UUID
+    /// The run journal's clock (timestamps, pruning after `runRetentionDays`); checks inject one.
+    let now: @Sendable () -> Date
+    var undoingRuns: Set<UUID> = []
+    var inRunTransaction = false
 
     /// `nativeRecoverySessionID` lets synthetic checks simulate an app restart without creating native items.
-    public init(baseDirectory: URL = Pippa.supportDirectory, nativeRecoverySessionID: UUID? = nil) throws {
+    public init(baseDirectory: URL = Pippa.supportDirectory, nativeRecoverySessionID: UUID? = nil,
+                now: @escaping @Sendable () -> Date = { Date() }) throws {
         supportDirectory = baseDirectory.standardizedFileURL.resolvingSymlinksInPath()
         nativeSessionID = nativeRecoverySessionID ?? Self.nativeProcessSession
+        self.now = now
         try FileManager.default.createDirectory(at: baseDirectory, withIntermediateDirectories: true)
         db = try SQLiteDB(path: baseDirectory.appendingPathComponent("journal.sqlite").path)
         try db.exec("""
@@ -130,6 +136,8 @@ public actor Executor {
                 state TEXT, fp TEXT, note TEXT, PRIMARY KEY(job, seq));
             """)
         try db.exec(Self.nativeReminderSchema)
+        try db.exec(Self.runActionSchema)
+        try Self.pruneRunActions(db, now: now())
         // Older journals: the folder grant (bookmark) is missing; jobs without it continue with the path.
         let columns = try db.query("PRAGMA table_info(jobs)").compactMap { $0.count > 1 ? $0[1].string : nil }
         if !columns.contains("bookmark") { try db.exec("ALTER TABLE jobs ADD COLUMN bookmark TEXT") }
@@ -231,7 +239,7 @@ public actor Executor {
         guard fm.fileExists(atPath: copy.path) else { return L("The old version is no longer there.", table: "Core") }
         if fm.fileExists(atPath: target.path) {
             guard let fp, fp.matches(FileFingerprint.of(target)) else { return L("The file has changed since then, so it stays.", table: "Core") }
-            try fm.trashItem(at: target, resultingItemURL: nil)
+            try RunFileRecipes.moveToTrash(target)
         }
         try fm.copyItem(at: copy, to: target)
         return nil
@@ -258,7 +266,7 @@ public actor Executor {
             _ = rmdir(target.deletingLastPathComponent().path)
             return true
         }
-        try fm.trashItem(at: target, resultingItemURL: nil)
+        try RunFileRecipes.moveToTrash(target)
         return true
     }
 
@@ -295,7 +303,7 @@ public actor Executor {
                 guard let fp, fp.matches(FileFingerprint.of(target)) else {
                     conflicts.append((target, L("The file has changed since then, so it stays.", table: "Core"))); continue
                 }
-                try fm.trashItem(at: target, resultingItemURL: nil)
+                try RunFileRecipes.moveToTrash(target)
                 try journalMark(jobID, seq, "undone")
                 restored += 1
             case "trash":

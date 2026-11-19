@@ -136,17 +136,42 @@ extension PippaMCPWriteTools {
             PippaMCPWriteReceipt(action: "mailDraft", outcome: outcome, name: name, reason: reason)
         }
         let result: MailInsertResult
+        let lease = PippaMCPWriteLease.current
+        let row: PippaMCPRunRow?
         do {
-            try PippaMCPWriteLease.current?.check()
+            try lease?.check()
+            var fields = ["subject": draft.replySubject]
+            fields["inReplyTo"] = draft.messageID
+            row = try await PippaMCPRunRow.dispatch(host, lease: lease, tool: "mail_draft", object: RunObject(kind: "mail.draft", fields: fields),
+                                                    label: name, after: ["mailbox": "Drafts"])
+        } catch {
+            if error is CancellationError { return Self.stopped(receipt: receipt("cancelled", "stopped")) }
+            return Self.blocked("unavailable", L("Mail didn’t create the reply. Nothing is in Mail; try again in a moment.", table: "MCP"),
+                                receipt: receipt("failed", "journalUnavailable"))
+        }
+        do {
+            try lease?.check()
             result = try await host.integrations.insertReply(draft)
-        } catch MailReplyFailure.unconfirmed {
+        } catch {
+            await row?.abandon(dispatched: lease?.hasDispatched == true || error as? MailReplyFailure == .unconfirmed)
+            return insertFailure(error, receipt: receipt)
+        }
+        // Mail itself confirms the text of a saved reply; an opened window or a new mail cannot be read back.
+        await row?.complete(verified: result == .reply ? true : nil)
+        let done = inserted(draft, result: result)
+        return row != nil && result == .reply ? Self.verified(done, matched: true, integration: .mail) : done
+    }
+
+    private func insertFailure(_ error: Error, receipt: (String, String) -> PippaMCPWriteReceipt) -> PippaMCPToolResult {
+        switch error {
+        case MailReplyFailure.unconfirmed:
             // A reply window may be open, its content is unknown: neither "created" nor "not created".
             return PippaMCPToolResult(text: PippaMCPTools.json([
                 "done": false, "state": "unclear", "sent": false,
                 "tell": L("Pippa isn’t sure whether a reply opened in Mail. Please look in Mail before trying again. Nothing was sent.", table: "MCP"),
                 "next": "Repeat the sentence in tell. Do not try again in this answer.",
             ]), isError: false, receipt: receipt("unclear", "unconfirmed"))
-        } catch let failure as MailReplyFailure {
+        case let failure as MailReplyFailure:
             let (status, tell): (String, String) = switch failure {
             case .missingOriginal: ("not_found", L("Pippa couldn’t find the original email in Mail, so no reply was created.", table: "MCP"))
             case .ambiguousOriginal: ("ambiguous", L("Mail has several emails with the same identity, so Pippa created no reply.", table: "MCP"))
@@ -154,8 +179,15 @@ extension PippaMCPWriteTools {
             default: ("not_created", L("Mail didn’t create the reply. Nothing is in Mail; try again in a moment.", table: "MCP"))
             }
             return Self.blocked(status, tell, receipt: receipt("failed", status))
-        } catch {
+        default:
             return self.failure(error, .mail, receipt: receipt("failed", "failed"))
+        }
+    }
+
+    private func inserted(_ draft: MailDraft, result: MailInsertResult) -> PippaMCPToolResult {
+        let name = Self.quoted(draft.replySubject)
+        func receipt(_ outcome: String, _ reason: String) -> PippaMCPWriteReceipt {
+            PippaMCPWriteReceipt(action: "mailDraft", outcome: outcome, name: name, reason: reason)
         }
         let (state, reason, next): (String, String, String) = switch result {
         case .reply: ("draft_saved", "reply",

@@ -337,6 +337,13 @@ test("what an answer changed is told to the app from the tools' own results, so 
 	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, false), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("bash", { pippaKept: [{ file: "/u/a.txt", copy: "/b/a.txt" }] }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
 	assert.deepEqual(changesOf("write", { pippaBefore: { file: "/u/a.txt", copy: "/b/a.txt" } }, true), [{ kind: "restore", file: "/u/a.txt", copy: "/b/a.txt" }]);
+	assert.deepEqual(changesOf("bash", { pippaOnline: { command: "curl -sO\n https://example.org/a.pdf" } }, true),
+		[{ kind: "external", label: "curl -sO https://example.org/a.pdf", unclear: true }], "an allowed online command that failed becomes an unclear external row");
+	assert.deepEqual(changesOf("bash", { pippaOnline: { command: "curl -sO https://example.org/a.pdf", failed: true } }, false),
+		[{ kind: "external", label: "curl -sO https://example.org/a.pdf", unclear: true }], "so does one shell.ts reports as failed");
+	assert.deepEqual(changesOf("bash", { pippaOnline: { command: "curl -sO https://example.org/a.pdf", failed: false } }, false),
+		[{ kind: "external", label: "curl -sO https://example.org/a.pdf" }], "one that ran is a plain external row");
+	assert.deepEqual(changesOf("bash", {}, false), [], "a command that asked nothing has no row");
 	assert.deepEqual(changesOf("read", {}, false), []);
 });
 

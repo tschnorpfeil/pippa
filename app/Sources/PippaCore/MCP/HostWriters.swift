@@ -81,6 +81,14 @@ public struct HostWrite: Sendable, Equatable, Codable {
     }
 }
 
+/// An event or reminder as the store has it now, read by its EventKit identifier (run journal verification).
+public enum CreatedItemReadBack: Sendable, Equatable {
+    case found(title: String, start: Date?, end: Date?, container: String?, fingerprint: String?)
+    case gone
+    /// No permission or no store: nothing could be read, so nothing is confirmed.
+    case unavailable
+}
+
 /// Create events and reminders. Never asks for permissions itself; without permission `PippaError.accessDenied`.
 public protocol HostWriting: Sendable {
     func addEvent(_ event: NewCalendarEvent) async throws -> HostWrite
@@ -88,6 +96,9 @@ public protocol HostWriting: Sendable {
     func reminderTarget(for reminder: NewReminder) async throws -> NativeReminderTarget
     func addReminder(_ reminder: NewReminder, target: NativeReminderTarget, marker: URL) async throws -> HostWrite
     func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup
+    /// Reads what Pippa created back from the store, never from the object she saved. `container`: the calendar or
+    /// list identifier for reminders, the calendar title for events.
+    func readBack(_ item: CreatedItem) async -> CreatedItemReadBack
 }
 
 extension HostWriting {
@@ -95,6 +106,8 @@ extension HostWriting {
     public func reminderTarget(for reminder: NewReminder) async throws -> NativeReminderTarget { throw PippaError.notAvailable }
     public func addReminder(_ reminder: NewReminder, target: NativeReminderTarget, marker: URL) async throws -> HostWrite { throw PippaError.notAvailable }
     public func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup { .unavailable }
+    /// A writer that cannot read back confirms nothing.
+    public func readBack(_ item: CreatedItem) async -> CreatedItemReadBack { .unavailable }
 }
 
 extension SystemIntegrations: HostWriting {
@@ -107,9 +120,20 @@ extension SystemIntegrations: HostWriting {
     public func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup {
         await eventKit.lookupReminder(marker: marker, target: target, identifier: identifier)
     }
+    public func readBack(_ item: CreatedItem) async -> CreatedItemReadBack { eventKit.readBack(item) }
 }
 
 extension EventKitBridge {
+    func readBack(_ item: CreatedItem) -> CreatedItemReadBack {
+        guard access(item.integration) == .granted else { return .unavailable }
+        guard let found = store.calendarItem(withIdentifier: item.identifier) else { return .gone }
+        if let event = found as? EKEvent {
+            return .found(title: event.title ?? "", start: event.startDate, end: event.endDate, container: event.calendar?.title,
+                          fingerprint: fingerprint(event))
+        }
+        return .found(title: found.title ?? "", start: nil, end: nil, container: found.calendar?.calendarIdentifier, fingerprint: fingerprint(found))
+    }
+
     /// Into the named calendar, else the default calendar for new events. No attendees, no invitation: nothing leaves the Mac.
     func addEvent(_ e: NewCalendarEvent) throws -> HostWrite {
         guard access(.calendar) == .granted else { throw PippaError.accessDenied(Integration.calendar.appName) }

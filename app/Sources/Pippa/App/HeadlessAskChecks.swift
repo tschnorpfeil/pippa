@@ -261,6 +261,25 @@ enum HeadlessAskChecks {
         check(thrown.ended(with: .failed) && thrown.lines.contains { $0.contains("FAILED: provider unreachable") }, "--ask: an error ends with failed, exit code 1 and one summary line")
         check(PiSession.shared.interaction.asksForAccess && PippaMCPService.asksForAccess, "the interactive default survives every run")
 
+        // Pi's file changes during `--ask` join that answer's run journal, under its own turn id.
+        let journalFolder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-ask-journal-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: journalFolder) }
+        var journaled = Fixture(granted: true)
+        let journal = try? Executor(baseDirectory: journalFolder)
+        journaled.host.reminderJournal = journal
+        let created = journalFolder.appendingPathComponent("New.txt")
+        try? "new".write(to: created, atomically: true, encoding: .utf8)
+        var askTurn: UUID?
+        _ = await headless(journaled) { emit in
+            askTurn = PippaMCPService.currentHost.turns.active?.id
+            let entry: [String: Any] = ["v": 1, "tool": "write", "changes": [["kind": "create", "file": created.path]]]
+            emit(.notice(String(decoding: try JSONSerialization.data(withJSONObject: entry), as: UTF8.self), kind: "pippa-change"))
+        }
+        var rows: [RunAction]?
+        if let askTurn { rows = try? await journal?.runActions(run: askTurn) }
+        check(rows?.map(\.object.kind) == ["file.create"] && rows?.first?.state == .done,
+              "--ask: a file Pi created is in the journal under that answer")
+
         // Optional abilities: the launch key carries the route's choice, so the next question starts Pi with it and an
         // unchanged choice reuses the running Pi.
         let local = PiSession.LaunchRoute(key: "local|fixture")

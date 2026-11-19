@@ -20,7 +20,8 @@
  * - Safety net, without asking: before `edit` or `write` changes an existing file, a copy goes to Pippa's backup
  *   folder (APFS clone, free on the same disk) and the tool result says where; copies older than `BACKUP_DAYS` go.
  * - Undo: every change the app can take back (an old version kept, a new file, a move, the Trash) becomes a session
- *   entry `pippa-change`; the app keeps them in its journal, so "Rückgängig" under the answer undoes them.
+ *   entry `pippa-change` with the tool that made it; the app adds them to the answer's run journal, so Undo for the
+ *   whole answer takes them back.
  */
 import { constants } from "node:fs";
 import { copyFile, mkdir, readdir, rm, stat, utimes } from "node:fs/promises";
@@ -203,20 +204,30 @@ export async function pruneBackups(directory: string, days = BACKUP_DAYS, now = 
 	}
 }
 
-/** One change Pippa can take back (app: Executor.recordAgentChanges). `restore`: copy `copy` back over `file`;
- * `create`: the file is new, undo moves it to the Trash; `move`/`trash`: put `to` back at `from`. */
+/** One change Pippa can take back (app: Executor.recordFileChanges). `restore`: copy `copy` back over `file`;
+ * `create`: the file is new, undo moves it to the Trash; `move`/`trash`: put `to` back at `from`. `external`: a shell
+ * command the person allowed online; it gets a row, but nothing to take back (`unclear` when it failed or was stopped). */
 export type Change =
 	| { kind: "restore"; file: string; copy: string }
+	| { kind: "external"; label: string; unclear?: true }
 	| { kind: "create"; file: string }
 	| { kind: "move" | "trash"; from: string; to: string };
 
 /** What a finished tool call changed, from its own result (never from the model's text). */
 export function changesOf(tool: string, details: any, isError: boolean): Change[] {
 	const before = details?.pippaBefore;
-	// A failed or interrupted command can already have overwritten files. Keep copies made before a write attempt.
-	if (tool === "bash" && Array.isArray(details?.pippaKept)) {
-		return details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
-			.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }));
+	if (tool === "bash") {
+		// A failed or interrupted command can already have overwritten files. Keep copies made before a write attempt.
+		const kept: Change[] = Array.isArray(details?.pippaKept)
+			? details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
+				.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }))
+			: [];
+		// A command the person allowed online (shell.ts): an `external` row, named by the command, without its output.
+		const command = details?.pippaOnline?.command;
+		const failed = isError || details?.pippaOnline?.failed === true;
+		const online: Change[] = typeof command === "string" && command.trim()
+			? [{ kind: "external", label: command.replace(/\s+/g, " ").trim().slice(0, 200), ...(failed ? { unclear: true } : {}) }] : [];
+		return [...kept, ...online];
 	}
 	if ((tool === "edit" || tool === "write") && before?.copy) {
 		return [{ kind: "restore", file: before.file, copy: before.copy }];
@@ -325,7 +336,7 @@ export default function (pi: ExtensionAPI) {
 		}
 		outcome(event.toolCallId, event.isError === true, nativeChangeOutcome(event.toolName, parsed, event.isError === true));
 		const changes = changesOf(event.toolName, event.details, event.isError === true);
-		if (changes.length) pi.appendEntry("pippa-change", { v: 1, changes });
+		if (changes.length) pi.appendEntry("pippa-change", { v: 1, tool: event.toolName, changes });
 		if (backup?.copy) {
 			const note = `The previous version of ${basename(backup.file)} is kept locally.`;
 			return { content: [...(event.content ?? []), { type: "text", text: note }] };

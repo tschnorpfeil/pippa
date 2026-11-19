@@ -89,6 +89,32 @@ func runMCPActionClassChecks() async {
             && card?.message.contains("Hallo Anna, bis morgen.") == true && card?.turnID == yes.turn.id
             && irreversible.runs.value.count == 1 && irreversible.cards.value.count == 1
     }
+    await checkAsync("Action classes: a tool run after the yes gets a run journal row before its body, done after, without Undo") {
+        let gate = Gate(.external, answer: { _ in true })
+        let journal = try Executor(baseDirectory: root.appendingPathComponent("gate-journal-" + UUID().uuidString))
+        gate.host.reminderJournal = journal; gate.host.requiresReminderJournal = true
+        let seen = LockedBox<[RunAction.State]>([])
+        let run = gate.turn.id
+        var tools = gate.host
+        tools.extraTools = gate.host.extraTools.map { tool in
+            var tool = tool
+            let body = tool.run
+            tool.run = { arguments in
+                let states = (try? await journal.runActions(run: run))?.map(\.state) ?? []
+                seen.mutate { $0 += states }
+                return await body(arguments)
+            }
+            return tool
+        }
+        _ = await context.call(PippaMCPTools(host: tools), "check_send", message)
+        let declined = Gate(.external, answer: { _ in false })
+        declined.host.reminderJournal = journal
+        _ = await context.call(declined.tools, "check_send", message)
+        let rows = try await journal.runActions(run: run), none = try await journal.runActions(run: declined.turn.id)
+        return seen.value == [.dispatched] && rows.count == 1 && rows[0].state == .done && rows[0].actionClass == .external
+            && rows[0].tool == "check_send" && rows[0].label.contains("Send this message?") && rows[0].label.contains("anna@example.test")
+            && gate.host.runUndoRecipe(rows[0].object.kind) == nil && none.isEmpty
+    }
     await checkAsync("Action classes: a confirmed class with nothing to show runs nothing and asks nothing") {
         let gate = Gate(.external, answer: { _ in true })
         let result = await context.call(gate.tools, "check_send", ["to": "anna@example.test"])

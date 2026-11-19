@@ -127,16 +127,21 @@ enum HeadlessAsk {
         var thrown = false
         evidence.add(prompt: question)
         _ = PippaMCPService.readNotes.take(); _ = PippaMCPService.writeNotes.take()
+        // The answer's turn id, for its rows in the run journal (Pi's file changes arrive as session entries).
+        var turnID: UUID?
         do {
-            try await ask(question, "ask-" + UUID().uuidString.lowercased()) { event in
+            try await PippaMCPService.$onBeginTurn.withValue({ turnID = $0 }) {
+                try await ask(question, "ask-" + UUID().uuidString.lowercased()) { event in
                 evidence.observe(event)
                 outcome.observe(event)
                 switch event {
+                case .notice(let text, "pippa-change"): PippaMCPService.recordFileChanges(text, run: turnID)
                 case .textDelta(let delta): answer += delta
                 case .toolStarted(_, let name, let arguments): say("→ \(name) \(arguments.prefix(300))")
                 case .toolEnded(_, let name, let isError, let result, _, _): say("← \(name)\(isError ? " ERROR" : "") \(result.prefix(300).replacingOccurrences(of: "\n", with: " "))")
                 case .assistantEnded(_, let reason, let error): say("· model turn ended: \(reason)\(error.map { " " + $0 } ?? "")")
                 default: break
+                }
                 }
             }
         } catch {
@@ -145,6 +150,8 @@ enum HeadlessAsk {
         }
         for card in PippaMCPService.readNotes.take().compactMap(\.card) { say("[card] \(String(describing: card).prefix(200))") }
         for receipt in PippaMCPService.writeNotes.take() { say("[done] \(receipt.action) \(receipt.outcome) \(receipt.name)") }
+        // The file changes it reported are in the journal before the process ends.
+        _ = await PippaMCPService.runSummary(turnID)
         if !thrown {
             say("ANSWER (\(Int(Date().timeIntervalSince(started))) s):\n\(answer)")
             let dates = evidence.unsupported(in: answer)

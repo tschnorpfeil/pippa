@@ -27,6 +27,8 @@ public struct PippaMCPHost: Sendable {
     /// Uses the existing execution journal; a system host fails closed if it cannot open the journal.
     public var reminderJournal: Executor?
     public var requiresReminderJournal = false
+    /// Undo recipes for run journal rows of kinds Pippa does not know herself (a later tool's `mail.move`, checks).
+    public var runRecipes: [String: RunUndoRecipe] = [:]
     /// The same durable file jobs used by the native tray; unavailable storage blocks preparation.
     public var filePreparationStore: DurableJobStore?
     /// The app in front at the call, as the chip shows it for the running answer (`front_read`). `nil`: no chip.

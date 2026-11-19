@@ -300,6 +300,7 @@ public struct PippaMCPBrowserTool: Sendable {
         }
         let action: BrowserAction
         var detail = ""
+        var row: PippaMCPRunRow?
         switch request.action {
         case "open":
             let url = request.url!
@@ -356,10 +357,34 @@ public struct PippaMCPBrowserTool: Sendable {
             if writes.snapshot.cancelled {
                 return (Self.notDone("cancelled", tell: L("Not done: the answer was stopped.", table: "Tools"), isError: true), detail)
             }
+            // After the yes: a run journal row (external, no Undo) on disk before the step acts on the page.
+            do {
+                row = try await PippaMCPRunRow.dispatch(host, run: turn, tool: Self.name, actionClass: .external,
+                                                        object: RunObject(kind: "browser." + request.action, fields: ["page": page]),
+                                                        label: String(message.split(whereSeparator: \.isNewline).joined(separator: " ").prefix(200)))
+            } catch {
+                return (Self.notDone("unavailable", tell: L("Pippa’s browser isn’t available right now.", table: "Tools"), isError: true), detail)
+            }
         case "back": action = .back
         case "close": action = .close
         default: action = .snapshot
         }
+        let (result, shown) = await perform(action, request: request, browser: browser, detail: detail, mutating: mutating)
+        if let row {
+            // Done when the page took the step; unclear when it may have; no row when it provably did nothing.
+            let payload = (try? JSONSerialization.jsonObject(with: Data(result.text.utf8))) as? [String: Any] ?? [:]
+            if payload["done"] as? Bool == true || payload["status"] as? String == "handoff_required" && payload["dispatched"] as? Bool == true {
+                await row.complete(verified: nil)
+            } else {
+                await row.abandon(dispatched: payload["dispatched"] as? Bool == true)
+            }
+        }
+        return (result, shown)
+    }
+
+    private func perform(_ action: BrowserAction, request: Request, browser: any BrowserOperating, detail: String,
+                         mutating: Bool) async -> (PippaMCPToolResult, String) {
+        var detail = detail
         do {
             guard let snapshot = try await browser.perform(action) else {
                 return (Self.done(["closed": true], source: nil, next: "The browser panel is closed."), detail)
@@ -375,13 +400,15 @@ public struct PippaMCPBrowserTool: Sendable {
             switch error {
             case .staleRef: return (Self.stale("The page changed since that snapshot. Call browse with action snapshot and use its refs."), detail)
             case .passwordField: return (handoff("password", url: nil, snapshot: nil, dispatched: false), detail)
-            case .blockedAddress: return (Self.blockedAddress(), detail)
+            // After a click, fill or select these come only once the step reached the page (a blocked redirect, or a
+            // Stop that closed the browser before the capture): its outcome is unknown, so its row stays, unclear.
+            case .blockedAddress: return (Self.blockedAddress(dispatched: mutating), detail)
             case .declinedNavigation:
                 return (Self.notDone("cancelled", tell: L("Not done: you said no.", table: "Tools"), isError: mutating, dispatched: mutating,
                                      next: "Nothing happened. Do not try another way; answer with what you have."), detail)
             case .nothingOpen:
                 return (Self.notDone("unavailable", tell: L("Nothing is open in Pippa’s browser yet.", table: "Tools"),
-                                     error: "Open a page first: browse with action open and a url.", isError: true), detail)
+                                     error: "Open a page first: browse with action open and a url.", isError: true, dispatched: mutating), detail)
             case .noSuchOption:
                 return (Self.notDone("invalid_arguments", error: "That option is not in this list. Use an option's text or value from the snapshot.", isError: true), detail)
             case .failed: return (failed(dispatched: mutating), detail)
@@ -452,8 +479,9 @@ public struct PippaMCPBrowserTool: Sendable {
 
     static func stale(_ why: String) -> PippaMCPToolResult { notDone("stale_ref", error: why + " Nothing was done.", isError: true) }
 
-    static func blockedAddress() -> PippaMCPToolResult {
-        notDone("blocked", tell: L("Pippa only opens web pages on the internet, not addresses on this Mac or your local network.", table: "Tools"), isError: true)
+    static func blockedAddress(dispatched: Bool = false) -> PippaMCPToolResult {
+        notDone("blocked", tell: L("Pippa only opens web pages on the internet, not addresses on this Mac or your local network.", table: "Tools"), isError: true,
+                dispatched: dispatched)
     }
 
     static func data(_ snapshot: BrowserSnapshot) -> [String: Any] {

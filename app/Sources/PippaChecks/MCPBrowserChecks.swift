@@ -15,7 +15,8 @@ func runMCPBrowserChecks() async {
     }
     /// `confirm`: the person's answer per action; `nil` leaves `confirmBrowser` unset (nothing can ask).
     func world(confirm: (@Sendable (String) -> Bool)? = { _ in true }, ask: Bool = true, page: DemoBrowserOperator.Page? = nil,
-               privateHost: @escaping @Sendable (String) async -> Bool = { _ in false }) -> World {
+               privateHost: @escaping @Sendable (String) async -> Bool = { _ in false }, journal: Executor? = nil,
+               operating: (any BrowserOperating)? = nil) -> World {
         let demo = DemoIntegrations(granted: true)
         var host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo, now: Date()),
                                 askForAccess: ask)
@@ -25,7 +26,8 @@ func runMCPBrowserChecks() async {
         host.turns = turns
         let browser = DemoBrowserOperator(page: page)
         let asked = LockedBox<[String]>([]), handoffs = LockedBox<[String]>([]), notes = LockedBox<[PippaMCPReadNote]>([])
-        host.browser = browser
+        host.browser = operating ?? browser
+        host.reminderJournal = journal
         host.resolveHostIsPrivate = privateHost
         if let confirm { host.confirmBrowser = { action, _, _ in asked.mutate { $0.append(action) }; return confirm(action) } }
         host.onBrowserHandoff = { reason, _ in handoffs.mutate { $0.append(reason) } }
@@ -137,6 +139,37 @@ func runMCPBrowserChecks() async {
             && filled?["value"] as? String == "Öffnungszeiten" && w.asked.value == ["open", "click", "fill", "select"]
             && declined.json["status"] as? String == "cancelled" && declined.json["dispatched"] as? Bool == false
             && no.asked.value == ["open", "click"] && no.browser.actions.count == 1
+    }
+
+    await checkAsync("MCP browse: a click, fill or select after the yes gets an external run journal row; open, snapshot and a no get none") {
+        let journal = try Executor(baseDirectory: root.appendingPathComponent("browse-journal-" + UUID().uuidString))
+        let w = world(confirm: { $0 != "select" }, journal: journal)
+        _ = await browse(w, ["action": "open", "url": page])
+        _ = await browse(w, ["action": "click", "ref": "@e1", "snapshot_id": "s1"])
+        _ = await browse(w, ["action": "snapshot"])
+        _ = await browse(w, ["action": "fill", "ref": "@e2", "text": "Öffnungszeiten"])
+        _ = await browse(w, ["action": "select", "ref": "@e4", "value": "English"])
+        let rows = try await journal.runActions(run: w.turn.id)
+        return rows.map(\.object.kind) == ["browser.click", "browser.fill"] && rows.allSatisfy { $0.actionClass == .external && $0.state == .done }
+            && rows.allSatisfy { $0.tool == "browse" && !$0.label.isEmpty }
+    }
+
+    await checkAsync("MCP browse: a click that reached the page, then a blocked redirect or a closed browser, leaves an unclear row") {
+        /// The page as the demo shows it; every click then ends with `error`, as after the step acted.
+        struct AfterClick: BrowserOperating {
+            let error: BrowserError
+            func currentSnapshot() async -> BrowserSnapshot? { DemoBrowserOperator.example(URL(string: "https://example.org/kontakt")!, "s1") }
+            func perform(_ action: BrowserAction) async throws -> BrowserSnapshot? { throw error }
+        }
+        var states: [RunAction.State] = []
+        for error in [BrowserError.blockedAddress, .nothingOpen] {
+            let journal = try Executor(baseDirectory: root.appendingPathComponent("browse-after-" + UUID().uuidString))
+            let w = world(journal: journal, operating: AfterClick(error: error))
+            let r = await browse(w, ["action": "click", "ref": "@e3", "snapshot_id": "s1"])
+            guard r.isError, r.json["dispatched"] as? Bool == true else { return false }
+            states += try await journal.runActions(run: w.turn.id).map(\.state)
+        }
+        return states == [.unclear, .unclear]
     }
 
     await checkAsync("MCP browse: stale or unknown refs fail before asking or acting") {

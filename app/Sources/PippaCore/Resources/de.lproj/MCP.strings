@@ -103,3 +103,4 @@
 "More than one calendar is called “%@”. Rename one in Calendar, then ask again. Nothing was added." = "Mehrere Kalender heißen „%@“. Benenne einen davon in Kalender um und frag dann noch einmal. Es wurde nichts eingetragen.";
 "The calendar “%@” is read-only. Choose another calendar. Nothing was added." = "Der Kalender „%@“ ist schreibgeschützt. Wähle einen anderen Kalender. Es wurde nichts eingetragen.";
 "Pippa can only do this when you can confirm it." = "Das kann Pippa nur tun, wenn du es bestätigen kannst.";
+"Pippa couldn’t confirm the change in %@ when she checked it. Please look there. She won’t repeat it." = "Pippa konnte die Änderung in %@ beim Nachsehen nicht bestätigen. Schau bitte dort nach. Pippa wiederholt sie nicht.";

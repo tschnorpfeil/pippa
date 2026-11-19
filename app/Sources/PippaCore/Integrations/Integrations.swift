@@ -251,9 +251,16 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
 
     public func remove(_ item: CreatedItem) async throws -> RemoveResult {
         lock.withLock {
+            // Like EventKit: an entry changed since it was created stays.
+            if let stored = items[item.identifier], let expected = item.fingerprint, stored.item.fingerprint != expected { return .changed }
             addedEvents.removeValue(forKey: item.identifier)
             return items.removeValue(forKey: item.identifier) != nil ? .removed : .gone
         }
+    }
+
+    /// Tests only: the person edits an entry Pippa created (its fingerprint changes).
+    public func touch(_ identifier: String) {
+        lock.withLock { items[identifier]?.item.fingerprint = "edited-\(UUID().uuidString)" }
     }
 
     /// Tests only: number of created entries.
@@ -366,5 +373,13 @@ extension DemoIntegrations: HostWriting {
         try PippaMCPWriteLease.current?.beginDispatch()
         lock.withLock { items[id] = (item, reminder.title) }
         return HostWrite(item: item, container: named ?? reminderLists.first ?? "Erinnerungen", containerMatched: wanted == nil || named != nil)
+    }
+
+    public func readBack(_ item: CreatedItem) async -> CreatedItemReadBack {
+        lock.withLock {
+            guard let stored = items[item.identifier] else { return .gone }
+            let event = addedEvents[item.identifier]
+            return .found(title: stored.title, start: event?.start, end: event?.end, container: event?.calendar, fingerprint: stored.item.fingerprint)
+        }
     }
 }

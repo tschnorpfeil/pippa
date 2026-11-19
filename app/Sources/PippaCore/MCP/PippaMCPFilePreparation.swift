@@ -31,6 +31,7 @@ public struct PippaMCPFilePreparation: Sendable {
         var run: DurableJobRun? = nil
         var artifacts: [DurableJobArtifact] = []
         var undoReceipt: JobReceipt? = nil
+        var row: PippaMCPRunRow? = nil
     }
 
     public init(host: PippaMCPHost, turn: PippaMCPTurn?, scope: PippaMCPWriteScope,
@@ -119,6 +120,9 @@ public struct PippaMCPFilePreparation: Sendable {
                         }
                     }
                     let retired = retirement != nil
+                    if retired, let row = execution.row, let file = execution.artifacts.first {
+                        try? await row.journal.markRunObject(run: row.run, key: file.url.path, .undone)
+                    }
                     if let retirement {
                         lease.confirmNoMutation()
                         lease.bindOperationID(retirement.id, nativeRevision: retirement.revision)
@@ -149,6 +153,7 @@ public struct PippaMCPFilePreparation: Sendable {
         var artifacts: [DurableJobArtifact] = []
         var undoReceipt: JobReceipt?
         var capturingInput: URL?
+        var row: PippaMCPRunRow?
         do {
             try lease.check()
             let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
@@ -181,6 +186,9 @@ public struct PippaMCPFilePreparation: Sendable {
                 return Execution(result: try await existingResult(existing, store: store, plan: request.plan, lease: lease))
             }
             lease.bindOperationID(record.id, nativeRevision: record.revision)
+            // On disk before the conversion starts; the file's identity is added once it is retained.
+            row = try await PippaMCPRunRow.dispatch(host, lease: lease, tool: Self.name, object: RunObject(kind: "file.prepared", fields: [:]),
+                                                    label: L("Ready to send", table: "FilePreparation"))
             let attempt = try await store.start(id: record.id, expectedRevision: record.revision)
             run = attempt
             lease.bindOperationID(record.id, nativeRevision: attempt.revision)
@@ -200,9 +208,19 @@ public struct PippaMCPFilePreparation: Sendable {
             let saved = FilePreparationSavedResult(items: resultItems, sources: items)
             let completed = try await store.finish(run: attempt, state: .completed, resultData: encoder.encode(saved), artifacts: artifacts)
             try lease.check()
-            let result = try await completedResult(completed, store: store, plan: request.plan, lease: lease)
+            var result = try await completedResult(completed, store: store, plan: request.plan, lease: lease)
             Self.removeCacheFiles(cacheFiles)
-            return Execution(result: result, run: attempt, artifacts: artifacts, undoReceipt: undoReceipt)
+            if let row, let file = artifacts.first {
+                // Read back by path and content identity, as retained.
+                let matched = (try? DurableFileIdentity.capture(file.url)) == file.identity
+                await row.complete(verified: matched, object: .file(kind: "file.prepared", path: file.url.path, identity: file.identity,
+                                                                    extra: undoReceipt.map { ["job": $0.id.uuidString] } ?? [:]),
+                                   after: ["path": file.url.path])
+                result = matched ? PippaMCPWriteTools.verified(result, matched: true, integration: .mail)
+                    : Self.failure("unclear", "The prepared PDF changed right after it was saved. Review it before trying again.",
+                                   reason: "notVerified", outcome: "unclear", dispatched: true)
+            }
+            return Execution(result: result, run: attempt, artifacts: artifacts, undoReceipt: undoReceipt, row: row)
         } catch {
             let stopped = error is CancellationError || scope.snapshot.cancelled || Task.isCancelled
             var retirement: DurableJobRecord?
@@ -215,6 +233,7 @@ public struct PippaMCPFilePreparation: Sendable {
             if discarded, let undoReceipt { _ = try? await journal.undo(jobID: undoReceipt.id) }
             Self.removeCacheFiles(cacheFiles)
             let retired = run == nil || retirement != nil
+            await row?.abandon(dispatched: !retired)
             if retired { lease.confirmNoMutation() }
             if let retirement { lease.bindOperationID(retirement.id, nativeRevision: retirement.revision) }
             let reason = (error as? LocalizedError)?.errorDescription

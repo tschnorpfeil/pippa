@@ -269,3 +269,20 @@
 "The online AI is still at its limit. Wait a minute, then continue where it stopped." = "The online AI is still at its limit. Wait a minute, then continue where it stopped.";
 "Continue in %lld s" = "Continue in %lld s";
 "Continue" = "Continue";
+
+/* Run receipt: everything one answer changed (ReceiptRow.swift) */
+"Unclear, please check" = "Unclear, please check";
+"1 change undone" = "1 change undone";
+"%lld changes undone" = "%lld changes undone";
+"1 left because it changed since" = "1 left because it changed since";
+"%lld left because they changed since" = "%lld left because they changed since";
+"1 couldn’t be undone" = "1 couldn’t be undone";
+"%lld couldn’t be undone" = "%lld couldn’t be undone";
+"%lld unclear, please check" = "%lld unclear, please check";
+"1 change" = "1 change";
+"%lld changes" = "%lld changes";
+"unclear, please check" = "unclear, please check";
+"checked" = "checked";
+"all checked" = "all checked";
+"%lld checked" = "%lld checked";
+"%@, %@" = "%@, %@";

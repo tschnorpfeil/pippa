@@ -10,7 +10,12 @@ actor ReminderJournalWriter: HostWriting {
     var stored: [URL: [HostWrite]] = [:]
     var lookupUnavailable = false
     var afterDispatch: (@Sendable () -> Void)?
+    /// What Reminders shows for each created identifier, for the run journal's read-back; `edited` stands for a change
+    /// made in the app right after the save.
+    var titles: [String: String] = [:]
+    var edited = false
     func setAfterDispatch(_ action: @escaping @Sendable () -> Void) { afterDispatch = action }
+    func setEdited(_ value: Bool) { edited = value }
     func setUnavailable(_ value: Bool) { lookupUnavailable = value }
     func duplicate(_ marker: URL) { if let item = stored[marker]?.first { stored[marker, default: []].append(item) } }
     func forget(_ marker: URL) { stored[marker] = nil }
@@ -24,8 +29,15 @@ actor ReminderJournalWriter: HostWriting {
         let item = CreatedItem(integration: .reminders, identifier: "fixture-native-\(writes)", modified: Date(), fingerprint: "fixture-fingerprint-\(writes)")
         let result = HostWrite(item: item, container: target.title, containerMatched: target.matched, containerIdentifier: target.identifier)
         stored[marker, default: []].append(result)
+        titles[item.identifier] = reminder.title
         afterDispatch?()
         return result
+    }
+    func readBack(_ item: CreatedItem) async -> CreatedItemReadBack {
+        guard let title = titles[item.identifier],
+              let write = stored.values.joined().first(where: { $0.item.identifier == item.identifier }) else { return .gone }
+        return .found(title: edited ? title + " (edited)" : title, start: nil, end: nil, container: write.containerIdentifier,
+                      fingerprint: write.item.fingerprint)
     }
     func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup {
         lookups.append(marker)

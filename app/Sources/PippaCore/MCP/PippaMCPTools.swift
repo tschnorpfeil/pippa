@@ -123,11 +123,25 @@ public struct PippaMCPTools: Sendable {
             }
             // The class gate runs before every body (PippaMCPActionClass.swift). No shipped tool needs a card yet.
             let actionClass = extra.map(\.actionClass) ?? PippaActionClasses.of(name)
-            if let refused = await gate(name, actionClass, card: extra?.describe(arguments), context: context) {
+            let card = extra?.describe(arguments)
+            if let refused = await gate(name, actionClass, card: card, context: context) {
                 return Self.toolResult(id: id, refused.text, isError: refused.isError)
             }
             if let extra {
+                // After the yes on the card: a run journal row (no Undo) before the body, done or unclear after it.
+                var row: PippaMCPRunRow?
+                if let actionClass, let card, actionClass.needsConfirmation {
+                    do {
+                        row = try await PippaMCPRunRow.dispatch(host, run: context.turn?.id, tool: name, actionClass: actionClass,
+                                                                object: RunObject(kind: "confirmed." + actionClass.rawValue, fields: [:]),
+                                                                label: Self.cardLabel(card))
+                    } catch {
+                        let refused = Self.notDispatched("unavailable", error: "Pippa's journal is unavailable, so nothing ran.")
+                        return Self.toolResult(id: id, refused.text, isError: true)
+                    }
+                }
                 let outcome = await extra.run(arguments)
+                if outcome.isError { await row?.abandon(dispatched: true) } else { await row?.complete(verified: nil) }
                 return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
             }
             // Reading a document and looking up online live in PippaMCPTurn.swift (own arguments, own limits).
@@ -170,6 +184,11 @@ public struct PippaMCPTools: Sendable {
         default:
             return Self.error(id: id, code: -32601, message: "Method not found")
         }
+    }
+
+    /// What the card showed, in one line, as the journal row's name.
+    static func cardLabel(_ card: PippaMCPConfirmation) -> String {
+        String(([card.title] + [card.recipient].compactMap { $0 } + card.objects).joined(separator: " · ").prefix(200))
     }
 
     private func browse(_ arguments: [String: Any], context: PippaMCPRequestContext) async -> PippaMCPToolResult {
