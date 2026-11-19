@@ -201,7 +201,8 @@ final class ChatModel: ObservableObject {
             if !carry {
                 let saved = composers.removeValue(forKey: id)
                 draft = saved?.text ?? ""; attachments = saved?.files ?? []
-                frontApp = nil
+                // Switching from Pippa Island keeps the app-in-front context captured when the island opened.
+                if !carryingIslandDraft { frontApp = nil }
             }
         }
         unseenIDs.remove(id)
