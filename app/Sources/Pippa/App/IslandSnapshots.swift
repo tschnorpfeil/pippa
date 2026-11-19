@@ -111,6 +111,12 @@ enum IslandSnapshots {
                 island.showForSnapshot(status())
             }),
             ("writing", false, {}),
+            // The online AI said "too many requests": the wing counts down until Pi tries again.
+            ("rate-limit-wait", false, {
+                chat.showSample(sample(.thinking), current: "s1", answering: true, waiting: 42)
+                island.showForSnapshot(status())
+            }),
+            ("rate-limit-wait-open", true, {}),
             // A file dragged toward the island, then over its tray.
             ("drop-tray", true, {
                 chat.showSample(sample(.answered), current: "s1", answering: false)

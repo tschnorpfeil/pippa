@@ -10,6 +10,8 @@ struct WorkView: View {
     /// Words of the answer are coming in right now (not: there is text already).
     var writing = false
     var started: Date?
+    /// Pi waits before it tries the online AI again: this replaces what she is doing and the seconds.
+    var waiting: String?
     @Environment(\.expandsWork) private var expandsWork
     private let openState = State(initialValue: false)
     private let hoverState = State(initialValue: false)
@@ -86,7 +88,7 @@ struct WorkView: View {
                 Text(nowLabel).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle)
                     .contentTransition(.opacity)
                     .animation(Theme.quick, value: nowLabel)
-                if let started {
+                if let started, waiting == nil {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
                         let seconds = Int(context.date.timeIntervalSince(started))
                         if seconds >= 1 {
@@ -159,6 +161,7 @@ struct WorkView: View {
     /// What she is doing right now: the running step, the AI starting, words coming in, else thinking. With the steps
     /// open the running one shows right below, so the row only says she is working.
     private var nowLabel: String {
+        if let waiting { return waiting }
         if let step = message.steps.last(where: { !$0.done }) { return open ? T("Working…", table: "App") : step.label }
         if showsStarting { return T("Starting my AI…", table: "App") }
         return writing ? T("Writing…", table: "App") : T("Thinking…", table: "App")

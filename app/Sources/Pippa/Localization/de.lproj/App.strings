@@ -263,3 +263,9 @@
 "AI for this answer · On this Mac" = "KI für diese Antwort · Auf diesem Mac";
 "Your next question goes to your selected online AI." = "Deine nächste Frage geht an die ausgewählte Online-KI.";
 "Your next question uses the AI on this Mac." = "Deine nächste Frage beantwortet die KI auf diesem Mac.";
+"The online AI is at its limit. Continuing in %lld s" = "Die Online-KI ist gerade an ihrer Grenze. Weiter in %lld s";
+"The AI didn’t answer. Trying again in %lld s" = "Die KI hat nicht geantwortet. Neuer Versuch in %lld s";
+"The online AI is at its limit right now. Try again in a minute." = "Die Online-KI ist gerade an ihrer Grenze. Versuche es in einer Minute erneut.";
+"The online AI is still at its limit. Wait a minute, then continue where it stopped." = "Die Online-KI ist noch an ihrer Grenze. Warte eine Minute und mach dann dort weiter, wo sie aufgehört hat.";
+"Continue in %lld s" = "Weiter in %lld s";
+"Continue" = "Weiter";

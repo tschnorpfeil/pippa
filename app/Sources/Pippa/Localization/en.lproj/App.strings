@@ -263,3 +263,9 @@
 "AI for this answer · On this Mac" = "AI for this answer · On this Mac";
 "Your next question goes to your selected online AI." = "Your next question goes to your selected online AI.";
 "Your next question uses the AI on this Mac." = "Your next question uses the AI on this Mac.";
+"The online AI is at its limit. Continuing in %lld s" = "The online AI is at its limit. Continuing in %lld s";
+"The AI didn’t answer. Trying again in %lld s" = "The AI didn’t answer. Trying again in %lld s";
+"The online AI is at its limit right now. Try again in a minute." = "The online AI is at its limit right now. Try again in a minute.";
+"The online AI is still at its limit. Wait a minute, then continue where it stopped." = "The online AI is still at its limit. Wait a minute, then continue where it stopped.";
+"Continue in %lld s" = "Continue in %lld s";
+"Continue" = "Continue";

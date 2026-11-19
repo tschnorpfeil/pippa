@@ -67,14 +67,25 @@ public struct PiProviderEvent: Decodable, Sendable {
 public final class PiProviderClient: @unchecked Sendable {
     public enum Failure: Error { case unavailable, failed, cancelled, portBusy, signedOut }
 
-    public enum Problem: String, Sendable, Equatable { case signedOut, limit }
+    /// `rateLimit`: too many requests for now, gone within a minute or so (Pi waits and tries again). `quota`: the
+    /// account's allowance is used up for hours or days (Pi does not try again).
+    public enum Problem: String, Sendable, Equatable { case signedOut, rateLimit, quota }
 
     public static func problem(in errorText: String) -> Problem? {
         let text = errorText.lowercased()
         if ["401", "unauthorized", "invalid_grant", "token expired", "refresh token", "not logged in", "no api key", "sign in again"].contains(where: text.contains) {
             return .signedOut
         }
-        if ["429", "rate limit", "usage limit", "quota", "too many requests", "limit reached"].contains(where: text.contains) { return .limit }
+        // A used-up allowance often comes as 429 too: its words decide first, as in Pi's own retry rule. OpenAI's
+        // per-minute "Rate limit reached for …" is no used-up allowance.
+        // Google's per-minute "429 Resource has been exhausted (e.g. check quota)." passes on, as Pi retries it.
+        if text.contains("resource has been exhausted") || text.contains("resource_exhausted") { return .rateLimit }
+        let allowance = text.replacingOccurrences(of: "rate limit reached", with: "")
+        if ["usage limit", "usage_limit", "usagelimit", "quota", "limit reached", "billing", "out of budget", "available balance"]
+            .contains(where: allowance.contains) { return .quota }
+        if ["rate limit", "rate_limit", "too many requests"].contains(where: text.contains) { return .rateLimit }
+        // A status code only on its own, never inside a port, byte count or request id (as in Pi's rule).
+        if text.range(of: "(?<![a-z0-9])429(?![a-z0-9])", options: .regularExpression) != nil { return .rateLimit }
         return nil
     }
 

@@ -44,6 +44,7 @@ struct IslandStatus: Equatable {
         if targeted { return IslandStatus(tone: .working, label: T("Drop something on me!", table: "App"), targeted: true) }
         if questions > 0 { return IslandStatus(tone: .needsYou, label: T("Pippa has a question", table: "Island")) }
         if chat.isAnswering {
+            if let wait = chat.retryWait { return IslandStatus(tone: .working, label: ChatModel.retryLabel(wait)) }
             let last = chat.answering?.messages.last
             if let step = last?.steps.last(where: { !$0.done }) { return IslandStatus(tone: .working, label: step.label) }
             if chat.isWriting { return IslandStatus(tone: .working, label: T("Writing…", table: "App"), writing: true) }

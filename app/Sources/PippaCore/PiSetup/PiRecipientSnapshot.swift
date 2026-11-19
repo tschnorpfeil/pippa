@@ -13,7 +13,7 @@ import Foundation
 /// - `auth.json`: only that provider's credential, prepared by Pi itself (`prepare`) and pinned: an OAuth sign-in keeps
 ///   its access token but no refresh token and no expiry Pi would act on, so this Pi never renews it;
 /// - `models-store.json`: only that provider's cached catalog, so its models stay known offline;
-/// - `settings.json`: Pi's settings as they are (no credentials).
+/// - `settings.json`: Pi's settings (no credentials) with Pippa's waits for a provider's rate limit (`retry`).
 ///
 /// Renewal happens only in the shared folder, before each online turn, with Pi's own `ModelRuntime` under Pi's lock: two
 /// Pippa processes (or Pi in the terminal) renew a rotating refresh token once, and the endpoint Pi derives from the
@@ -84,14 +84,26 @@ public struct PiRecipientSnapshot: Sendable {
         do {
             if let models { try secureWrite(JSONFile.encode(["providers": models]), to: directory.appendingPathComponent("models.json")) }
             if let store { try secureWrite(JSONFile.encode([provider: store]), to: directory.appendingPathComponent("models-store.json")) }
-            if let settings = try? Data(contentsOf: agent.appendingPathComponent("settings.json")) {
-                try secureWrite(settings, to: directory.appendingPathComponent("settings.json"))
-            }
+            try secureWrite(settings(from: agent.appendingPathComponent("settings.json")), to: directory.appendingPathComponent("settings.json"))
         } catch {
             snapshot.remove()
             throw error
         }
         return snapshot
+    }
+
+    /// How an online Pi waits when the provider says "too many requests": 15, 30, 60 and 60 seconds, so the waits span a
+    /// one-minute limit. Only in this private folder; the shared `~/.pi/agent/settings.json` keeps the person's own.
+    static let retry: [String: Int] = ["maxRetries": 4, "baseDelayMs": 15_000, "maxAgentDelayMs": 60_000]
+
+    /// The shared settings with `retry` over them. A file Pippa cannot read as Pi does is copied as it is.
+    static func settings(from shared: URL) throws -> Data {
+        guard FileManager.default.fileExists(atPath: shared.path) else { return try JSONFile.encode(["retry": retry]) }
+        guard var object = JSONFile.readPiObject(shared) else { return try (try? Data(contentsOf: shared)) ?? JSONFile.encode(["retry": retry]) }
+        // Waits on, also where the person switched Pi's retry off for the terminal.
+        object["retry"] = (object["retry"] as? [String: Any] ?? [:]).merging(retry.mapValues { $0 as Any }) { $1 }
+            .merging(["enabled": true]) { $1 }
+        return try JSONFile.encode(object)
     }
 
     /// A running Pi keeps going with the credential `prepared` for the next turn: only when both name the same recipient

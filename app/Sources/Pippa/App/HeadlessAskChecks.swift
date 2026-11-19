@@ -214,6 +214,21 @@ enum HeadlessAskChecks {
         check(foreign.ended(with: .failed), "--ask: only Pippa's own tools can report needs_access")
         let modelError = await headless(Fixture(granted: true)) { emit in emit(.assistantEnded(text: "", stopReason: "error", error: "provider down")) }
         check(modelError.ended(with: .failed), "--ask: a model error is failed")
+        let limit = "429 Too Many Requests"
+        let recovered = await headless(Fixture(granted: true)) { emit in
+            emit(.assistantEnded(text: "", stopReason: "error", error: limit))
+            emit(.retryScheduled(attempt: 1, maxAttempts: 4, delayMs: 15_000, error: limit))
+            emit(.assistantEnded(text: "ok", stopReason: "stop", error: nil))
+            emit(.retryEnded(success: true, attempt: 1, finalError: nil))
+        }
+        let exhausted = await headless(Fixture(granted: true)) { emit in
+            emit(.assistantEnded(text: "", stopReason: "error", error: limit))
+            emit(.retryScheduled(attempt: 1, maxAttempts: 1, delayMs: 15_000, error: limit))
+            emit(.assistantEnded(text: "", stopReason: "error", error: limit))
+            emit(.retryEnded(success: false, attempt: 1, finalError: limit))
+        }
+        check(recovered.ended(with: .completed) && exhausted.ended(with: .failed),
+              "--ask: a failed try Pi then retried successfully is completed; one still failing after the last try is failed")
         let cutOff = await headless(Fixture(granted: true), answer: "A later, complete-looking answer.") { emit in
             emit(.assistantEnded(text: "partial", stopReason: "length", error: nil))
         }

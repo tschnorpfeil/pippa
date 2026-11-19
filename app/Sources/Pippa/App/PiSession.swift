@@ -86,6 +86,8 @@ final class PiSession {
     /// Counts every saved change of the AI settings in this process (`settingsChanged`, on the main actor). A route read
     /// before a change is never admitted (`admit`).
     private(set) var settingsRevision = 0
+    /// The Pi session scope of the running answer when Continue may pick it up later (`resumeScope(_:)`), else `nil`.
+    var answerScope: String?
 
     static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
     static var settingsDirectory: URL { Pippa.supportDirectory }
@@ -111,6 +113,7 @@ final class PiSession {
         var settled = false
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
         defer { onStarting(false) }
+        answerScope = nil
         let admission = PiRPCPromptAdmission()
         pendingPrompt = admission
         defer { if pendingPrompt === admission { pendingPrompt = nil } }
@@ -123,6 +126,7 @@ final class PiSession {
         catch { startupTask = nil; throw error }
         startupTask = nil
         onStarting(false)
+        answerScope = Self.resumeScope(route)
         // An online AI with the tools of the AI on this Mac sorts a whole inbox: a larger Mail budget for this answer.
         turn.setExtendedBudget(route.hasMacAccess)
         try Task.checkCancellation()
@@ -133,8 +137,7 @@ final class PiSession {
                                         admission: admission, send: { try await client.prompt($0, admission: admission) })
         } catch PiRPCError.commandFailed(_, let message) {
             if route.piModel != nil, let problem = PiProviderClient.problem(in: message) {
-                throw Failure.model(problem == .limit ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
-                                                      : T("Reconnect your online AI in Settings.", table: "App"))
+                throw Failure.model(ChatModel.limitMessage(problem))
             }
             throw Failure.model(route.online == nil && route.piModel == nil ? ChatModel.modelError(message, online: false) : message)
         }
@@ -235,6 +238,21 @@ final class PiSession {
     /// The Pi session an approved message goes to: one per approval, so the conversation's typed session never holds it.
     static func approvedScope(_ approval: ShareApproval, handoff: Bool) -> String {
         (handoff ? "handoff-" : "approved-") + approval.id.uuidString.lowercased()
+    }
+
+    /// The session Continue may go back to: typed words to a verified online AI, never an approved message, a single
+    /// question, an unverified recipient or the AI on this Mac.
+    static func resumeScope(_ route: LaunchRoute) -> String? {
+        guard let destination = route.destination, destination.isVerified, !route.handoff, let scope = route.sessionScope,
+              scope == destination.sessionTag || scope == destination.macAccessTag else { return nil }
+        return scope
+    }
+
+    /// The session typed words go to now (as `launchRoute` picks it), for Continue: `nil` for the AI on this Mac or an
+    /// unverified recipient.
+    static func typedScope(_ settings: InferenceSettings, _ destination: ShareDestination?) -> String? {
+        guard let destination, destination.isVerified else { return nil }
+        return settings.allowsMacAccess(destination) ? destination.macAccessTag : destination.sessionTag
     }
 
     /// Two reads of the route name the same recipient, account, model and limits (the session scope may differ only for

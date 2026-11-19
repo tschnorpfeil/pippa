@@ -18,6 +18,10 @@ struct MessageView: View, Equatable {
     /// An answer runs somewhere: Edit and Ask Again wait.
     var answering: Bool
     var started: Date?
+    /// Pi waits before it tries the online AI again: what the row says instead (`ChatModel.retryLabel`).
+    var waiting: String?
+    /// The answer stopped at the online AI's limit and typed words still go to its session (`ChatModel.offersResume`).
+    var resumes = false
     var undoing: Set<String>
     private let hoverState = State(initialValue: false)
     /// Cards, receipts and an error already there when the answer came on screen; ones that come later arrive.
@@ -27,7 +31,7 @@ struct MessageView: View, Equatable {
 
     nonisolated static func == (a: MessageView, b: MessageView) -> Bool {
         a.message == b.message && a.live == b.live && a.isLast == b.isLast && a.starting == b.starting && a.writing == b.writing && a.answering == b.answering
-            && a.started == b.started && a.undoing == b.undoing
+            && a.started == b.started && a.waiting == b.waiting && a.resumes == b.resumes && a.undoing == b.undoing
     }
 
     var body: some View {
@@ -86,7 +90,7 @@ struct MessageView: View, Equatable {
         let seen = seenState.wrappedValue
         return VStack(alignment: .leading, spacing: Space.l) {
             if live || !message.steps.isEmpty || !(message.thinking ?? "").isEmpty || message.stopped == true {
-                WorkView(message: message, live: live, starting: starting, writing: writing, started: started)
+                WorkView(message: message, live: live, starting: starting, writing: writing, started: started, waiting: waiting)
             }
             if !message.text.isEmpty {
                 MarkdownText(text: message.text, highlights: live ? [] : message.unsupportedDates ?? [])
@@ -104,7 +108,8 @@ struct MessageView: View, Equatable {
                 }
             }
             if let error = message.error {
-                ErrorBox(text: error, retry: isLast && !answering ? { chat.retry() } : nil)
+                ErrorBox(text: error, retry: isLast && !answering ? { chat.retry() } : nil,
+                         resumeAfter: isLast && !answering && resumes ? message.resumeAfter : nil, resume: { chat.resume() })
                     .arrives(seen.map { !$0.error } ?? false)
             }
             if !live { footer }
@@ -160,6 +165,9 @@ private struct FractionalWidth: SwiftUI.Layout {
 private struct ErrorBox: View {
     var text: String
     var retry: (() -> Void)?
+    /// The online AI stayed at its limit: Continue instead of Try Again, counting down until it may go.
+    var resumeAfter: Date?
+    var resume: () -> Void = {}
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Space.ml) {
@@ -167,7 +175,16 @@ private struct ErrorBox: View {
             Text(text).font(Typo.callout).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             Spacer(minLength: Space.m)
-            if let retry { ActionPill(title: T("Try Again", table: "App"), action: retry) }
+            if let resumeAfter {
+                // Once a second until Continue may go, then no more ticks.
+                TimelineView(.explicit(ChatModel.resumeTicks(until: resumeAfter))) { context in
+                    let left = Int(resumeAfter.timeIntervalSince(context.date).rounded(.up))
+                    ActionPill(title: left > 0 ? T("Continue in %lld s", table: "App", left) : T("Continue", table: "App"),
+                               primary: left <= 0, action: resume)
+                        .monospacedDigit()
+                        .disabled(left > 0)
+                }
+            } else if let retry { ActionPill(title: T("Try Again", table: "App"), action: retry) }
         }
         .padding(.horizontal, Space.card).padding(.vertical, Space.l)
         .frame(maxWidth: Layout.cardMax, alignment: .leading)
