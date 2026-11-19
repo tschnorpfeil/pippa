@@ -175,6 +175,15 @@ enum SharingRouteChecks {
         check(launchedMaxCalls(trusted) == "80" && launchedMaxCalls(local) == nil && launchedMaxCalls(online) == nil
               && launchedMaxCalls(handoff) == nil && launchedMaxCalls(unverifiedRoute) == nil,
               "PIPPA_MAX_CALLS=80 goes only to a verified online route with Mac access; local, restricted online and handoff keep the default")
+        func launchedExposure(_ route: PiSession.LaunchRoute) -> String? {
+            var mcp = dummyMCP
+            mcp.endpoint.exposure = route.mcpExposure
+            return PippaPiLaunch.configuration(launcher: dummyLauncher, workingDirectory: URL(fileURLWithPath: "/tmp", isDirectory: true),
+                                               paths: dummyPaths, sessionID: "s", language: "de", environment: route.budgetEnvironment,
+                                               mcp: mcp, capabilities: route.capabilities).environment["PIPPA_MCP_EXPOSURE"]
+        }
+        check(launchedExposure(trusted) == "direct+codemode" && [local, online, handoff, unverifiedRoute].allSatisfy { launchedExposure($0) == "direct" },
+              "only an online AI with Mac access gets Pi's codemode tool; this Mac, the limited online AI and single questions keep direct tools only")
         return failures == 0 ? 0 : 1
     }
 

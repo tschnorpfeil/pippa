@@ -319,6 +319,17 @@ enum ConversationStoreChecks {
                                   result: #"{"data":{"subject":"Synthetic mail","account":"Work","bodyTruncated":false}}"#), in: id)
             check(chat.conversations.first?.messages.last?.sources?.first?.detail == nil,
                   "a complete email is not labeled as a whole document")
+            // A codemode script: one step in plain words; the calls it makes add no steps but still count as read.
+            chat.apply(.toolStarted(id: "script", name: "codemode", arguments: #"{"code":"…"}"#), in: id)
+            for n in 1...3 {
+                chat.apply(.toolStarted(id: "script/\(n)", name: "mcp__pippa__mail_search", arguments: "{}", parent: "script"), in: id)
+                chat.apply(.toolEnded(id: "script/\(n)", name: "mcp__pippa__mail_search", isError: false, result: "{}", parent: "script"), in: id)
+            }
+            chat.apply(.toolEnded(id: "script", name: "codemode", isError: false, result: "Script completed"), in: id)
+            let scripted = chat.conversations.first?.messages.last
+            check(scripted?.steps.map(\.label) == [T("Working through the list", table: "App")] && scripted?.steps.first?.done == true
+                  && scripted?.provenance?.contains(.mail) == true,
+                  "a script is one plain step, not one per call it makes; what its calls read still counts")
             chat.showSample(saved.0, current: saved.1, answering: false)
         }
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",

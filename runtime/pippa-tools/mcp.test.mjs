@@ -134,3 +134,63 @@ test("readiness rejects a registration with narrowed or widened tool exposure", 
 	f.pi.getMcpServers = () => [{ name: "pippa", config: { ...f.config, toolExposure: { "*": "hidden" } } }];
 	assert.equal((await discoverNativeTools(f.pi, f.config, 0)).status, "registrationMismatch");
 });
+
+test("direct+codemode keeps the server direct and loads Pi's codemode tool with mode on and no model catalog", async () => {
+	const { CODEMODE_EXPOSURE, withCodemode } = await import("./pippa-mcp.ts");
+	const env = { PIPPA_MCP_URL: "http://127.0.0.1:53124/mcp", PIPPA_MCP_TOKEN: token, PIPPA_MCP_EXPOSURE: CODEMODE_EXPOSURE };
+	assert.equal(serverConfig(env).exposure, "direct");
+	assert.equal(withCodemode(env), true);
+	assert.equal(withCodemode({ ...env, PIPPA_MCP_EXPOSURE: "direct" }), false);
+	const run = async (extra) => {
+		const registered = [];
+		let codemodeOptions;
+		const pi = { registerMcpServer: (name, config) => registered.push({ name, config }), registerCommand: () => {} };
+		const saved = { ...process.env };
+		for (const key of ["PIPPA_MCP_URL", "PIPPA_MCP_TOKEN", "PIPPA_MCP_EXPOSURE", "PIPPA_EGRESS", "PIPPA_EGRESS_TOOLS"]) delete process.env[key];
+		Object.assign(process.env, env, extra);
+		try {
+			await register(pi, () => () => {}, (options) => { codemodeOptions = options; return () => {}; });
+		} finally {
+			for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+			Object.assign(process.env, saved);
+		}
+		return { registered, codemodeOptions };
+	};
+	const mac = await run({});
+	assert.deepEqual(mac.codemodeOptions, { mode: "on", models: false });
+	assert.equal(mac.registered[0].config.exposure, "direct");
+	// The limits of an online AI without Mac access win over the switch: no scripts there.
+	const limited = await run({ PIPPA_EGRESS: "online", PIPPA_EGRESS_TOOLS: "ask" });
+	assert.equal(limited.codemodeOptions, undefined);
+	const plain = await run({ PIPPA_MCP_EXPOSURE: "direct" });
+	assert.equal(plain.codemodeOptions, undefined);
+});
+
+test("readiness with codemode: ready once codemode is active too; codemode where it was not asked for is a mismatch", async () => {
+	const { requiredTools } = await import("./pippa-mcp.ts");
+	const f = fixture();
+	const expected = requiredTools({ PIPPA_MCP_EXPOSURE: "direct+codemode" });
+	assert.equal(expected.codemode, true);
+	assert.equal(requiredTools({}).codemode, false);
+	assert.equal(requiredTools({ PIPPA_MCP_EXPOSURE: "direct+codemode", PIPPA_EGRESS: "online", PIPPA_EGRESS_TOOLS: "ask" }).codemode, false);
+	const withScripts = [...REQUIRED_TOOLS, "codemode"];
+	f.pi.getAllTools = () => withScripts.map((name) => ({ name }));
+	// Registered, not yet active: waits, then gives up.
+	f.pi.getActiveTools = () => REQUIRED_TOOLS;
+	assert.equal((await discoverNativeTools(f.pi, f.config, 0, undefined, expected)).status, "toolsUnavailable");
+	f.pi.getActiveTools = () => withScripts;
+	const ready = await discoverNativeTools(f.pi, f.config, 0, undefined, expected);
+	assert.equal(ready.status, "ready");
+	assert.deepEqual(ready.tools, REQUIRED_TOOLS, "the receipt names Pippa's tools only, as the app expects");
+	// The AI on this Mac and an online AI without Mac access: an active codemode is unexpected.
+	assert.equal((await discoverNativeTools(f.pi, f.config, 0, undefined, requiredTools({}))).status, "registrationMismatch");
+	const limited = requiredTools({ PIPPA_EGRESS: "online", PIPPA_EGRESS_TOOLS: "mcp__pippa__calendar_add" });
+	f.pi.getActiveTools = () => ["mcp__pippa__calendar_add", "codemode"];
+	f.pi.getAllTools = () => ["mcp__pippa__calendar_add", "codemode"].map((name) => ({ name }));
+	assert.equal((await discoverNativeTools(f.pi, f.config, 0, undefined, limited)).status, "registrationMismatch");
+	// Anything else unexpected still counts with codemode on: a forbidden tool, a changed registration.
+	f.pi.getActiveTools = () => withScripts;
+	f.pi.getAllTools = () => withScripts.map((name) => ({ name }));
+	f.pi.getMcpServers = () => [{ name: "pippa", config: { ...f.config, exposure: "codemode" } }];
+	assert.equal((await discoverNativeTools(f.pi, f.config, 0, undefined, expected)).status, "registrationMismatch");
+});

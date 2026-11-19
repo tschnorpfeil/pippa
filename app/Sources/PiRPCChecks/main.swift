@@ -90,6 +90,23 @@ if CommandLine.arguments.contains("--mode") {
                           "result": ["content": [["type": "text", "text": call.text]], "details": call.details]])
                 }
                 emit(["type": "agent_settled", "aborted": false])
+            case "script-protocol":
+                response("started")
+                // A codemode script (Pi 1.5.2): its calls carry `parentToolCallId` and the id `<parent>/<n>`; the
+                // script then fails after them. Calls already made stay made.
+                emit(["type": "tool_execution_start", "toolCallId": "script", "toolName": "codemode", "args": ["code": "…"]])
+                for (n, tool, text) in [(1, "mcp__pippa__mail_search", "{\"mails\":[]}"), (2, "mcp__pippa__reminder_add", "{\"done\":true}")] {
+                    emit(["type": "tool_execution_start", "toolCallId": "script/\(n)", "toolName": tool, "args": [:], "parentToolCallId": "script"])
+                    emit(["type": "tool_execution_end", "toolCallId": "script/\(n)", "toolName": tool, "isError": false,
+                          "result": ["content": [["type": "text", "text": text]]], "parentToolCallId": "script"])
+                }
+                // An empty or non-string parent is no parent.
+                emit(["type": "tool_execution_start", "toolCallId": "odd", "toolName": "read", "args": [:], "parentToolCallId": ""])
+                emit(["type": "tool_execution_end", "toolCallId": "odd", "toolName": "read", "isError": false,
+                      "result": ["content": [["type": "text", "text": "x"]]], "parentToolCallId": 7])
+                emit(["type": "tool_execution_end", "toolCallId": "script", "toolName": "codemode", "isError": true,
+                      "result": ["content": [["type": "text", "text": "Script failed\nScript error: Error: fixture"]]]])
+                emit(["type": "agent_settled", "aborted": false])
             case "retry-recovered", "retry-exhausted", "retry-wait":
                 response("started")
                 emitRetryFixture(request["message"] as? String ?? "")
@@ -238,11 +255,26 @@ let digestProgress = digest.compactMap { event -> [Int]? in
     return nil
 }
 let notesAt = digest.firstIndex(of: .toolNotes(id: "long-read", path: "/Users/fixture/Library/Application Support/Pippa/digests/Thesis.docx.0123456789.md"))
-let endedAt = digest.firstIndex { if case .toolEnded(let id, _, let isError, _, _, _) = $0 { return id == "long-read" && !isError }; return false }
+let endedAt = digest.firstIndex { if case .toolEnded(let id, _, let isError, _, _, _, _) = $0 { return id == "long-read" && !isError }; return false }
 check("A long document's read reports each part and the merge round; other tools' partial output is no progress",
       digestProgress == [[1, 3, 0], [2, 3, 0], [3, 3, 0], [1, 1, 1]])
 check("The notes file of a long document reaches the app right before the read ends",
       notesAt != nil && endedAt != nil && notesAt! + 1 == endedAt!)
+let script = try await collect("script-protocol")
+let parents = script.compactMap { event -> String? in
+    switch event {
+    case .toolStarted(let id, _, _, let parent): return id + "<" + (parent ?? "-")
+    case .toolEnded(let id, _, _, _, _, _, let parent): return id + ">" + (parent ?? "-")
+    default: return nil
+    }
+}
+check("Tool events carry the script that made them; the model's own calls and malformed parents carry none",
+      parents == ["script<-", "script/1<script", "script/1>script", "script/2<script", "script/2>script", "odd<-", "odd>-", "script>-"])
+var scriptReceipt = PiTurnReceipt()
+for event in script { scriptReceipt.observe(event) }
+check("A failed script leaves no line of its own; the calls it made before failing are reported as done",
+      scriptReceipt.records.map(\.tool) == ["mcp__pippa__mail_search", "mcp__pippa__reminder_add"]
+      && scriptReceipt.records.map(\.outcome) == [.done, .done])
 try await runRetryChecks(client)
 try await runNativeReadinessChecks(executable: executable, temporary: temporary)
 await client.shutdown()

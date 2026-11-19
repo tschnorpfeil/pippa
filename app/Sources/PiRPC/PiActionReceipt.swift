@@ -49,8 +49,12 @@ public struct PiTurnReceipt: Sendable {
     /// Tools that only read: no receipt line.
     public static let readOnlyTools: Set<String> = ["read", "grep", "find", "ls", "list_folder", "search_files", "ask"]
     /// Pippa's own housekeeping without a receipt line. `remember` (pippa-memory.ts) gets one: "Gemerkt: …" is how the
-    /// person sees what Pippa keeps about them, from the call's own arguments.
-    public static let quietTools: Set<String> = []
+    /// person sees what Pippa keeps about them, from the call's own arguments. A script (`scriptTool`) changes nothing
+    /// itself: each call it makes has its own line.
+    public static let quietTools: Set<String> = [scriptTool]
+    /// Pi's `codemode`: a script that calls other tools (an online AI with Mac access). Its calls arrive as tool events
+    /// with `parent` set to the script's call.
+    public static let scriptTool = "codemode"
 
     private var order: [String] = []
     private var started: [String: (name: String, arguments: String)] = [:]
@@ -67,10 +71,10 @@ public struct PiTurnReceipt: Sendable {
 
     public mutating func observe(_ event: PiRPCEvent) {
         switch event {
-        case .toolStarted(let id, let name, let arguments):
+        case .toolStarted(let id, let name, let arguments, _):
             if started[id] == nil { order.append(id) }
             started[id] = (name, arguments)
-        case .toolEnded(let id, let name, let isError, let result, let outcome, let fileAccessFailure):
+        case .toolEnded(let id, let name, let isError, let result, let outcome, let fileAccessFailure, _):
             if started[id] == nil { order.append(id); started[id] = (name, "") }
             // Older in-process callers have only text. RPC supplies the full result's classification before truncation.
             let state = outcome ?? Self.classify(tool: name, isError: isError, result: ["content": [["type": "text", "text": result]]])

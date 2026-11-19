@@ -143,6 +143,9 @@ export default function (pi: ExtensionAPI) {
 	pi.on("user_bash", () => ({ result: { output: "Direct shell execution is disabled in Pippa.", exitCode: 1, cancelled: false, truncated: false } }));
 	// One result must not fill a 16k window (Pi's read and bash allow 50 KB, ~14k tokens).
 	pi.on("tool_result", (event: any, ctx: any) => {
+		// A script's own calls never enter the conversation: the script gets the whole result, structured fields
+		// included (returning `content` here would drop them); only the script's output is capped, as a top-level result.
+		if (event?.parentToolCallId) return undefined;
 		const content = capResult(String(event?.toolName ?? ""), event?.content, resultLimit(ctx?.model?.contextWindow), event?.input);
 		return content ? { content } : undefined;
 	});

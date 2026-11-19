@@ -53,6 +53,21 @@ characters. Applying it needed one more call. The model instead paged through th
 ("Do a dry run first, check it"), went through five compactions and ended on the answer limit while looking for
 mails for an empty folder. It never applied the plan.
 
+## The same task on an online model
+
+GLM 5.3 through an OpenAI-compatible endpoint, same harness, same server, same prompt, window set to 128,000, one run
+per variant (`SPIKE_ONLINE_URL`, `SPIKE_ONLINE_MODEL`, `SPIKE_ONLINE_KEY_FILE`).
+
+| Variant | Mails moved (of 190) | Wrong moves | Kept right (of 50) | Time | Model turns | Prompt tokens, all turns | Output tokens | Failed calls |
+|---|---|---|---|---|---|---|---|---|
+| `direct` | 190 | 0 | 50 | 145 s | 15 | 112,286 | 7,127 | 0 |
+| `only` | 190 | 0 | 50 | 160 s | 4 | 49,285 | 6,695 | 0 of 3 scripts |
+| `both` | 190 | 0 | 50 | 168 s | 6 | 36,546 | 7,191 | 0 of 4 scripts |
+
+Every variant made five dry runs and five moves and left the six trap mails in the inbox. With `both` the model read
+the folders and one page directly and then chose scripts by itself. Scripts cut the prompt tokens to a third and the
+model turns from 15 to 6 or 4; the time did not change, because output tokens dominate it.
+
 ## Reading
 
 - **Ornith did not finish this task in any shape,** not even with the dry run handed to it. Nothing was moved, so
@@ -63,5 +78,5 @@ mails for an empty folder. It never applied the plan.
   fourth hit it just before the memory abort, the same way the Mail totals task fails in [omlx-switch.md](../../omlx-switch.md).
 - **Nested calls are visible.** Pi reported every tool call a script made as `tool_execution_start` with
   `parentToolCallId` (54 in `only`, 12 in `both`), and the scripts received `structuredContent`.
-- **Not measured:** an online model on the same harness, a 32K window, more than one run per variant, a gate
+- **Not measured:** a 32K window, more than one run per variant, a gate
   question in the middle of a script, and real Mail.

@@ -7,7 +7,8 @@
  * address and key only in the environment of this Pi process:
  * - `PIPPA_MCP_URL`   e.g. http://127.0.0.1:53124/mcp (only loopback is accepted)
  * - `PIPPA_MCP_TOKEN` 64 hex characters, new for every Pi process
- * - `PIPPA_MCP_EXPOSURE` optional, `direct` (default) or `codemode` (for measuring only)
+ * - `PIPPA_MCP_EXPOSURE` optional, `direct` (default), `direct+codemode` (an online AI with Mac access: the tools stay
+ *   declared and Pi's `codemode` tool is active next to them, `codemode.mode: "on"`) or `codemode` (for measuring only)
  *
  * `pi.registerMcpServer` instead of `~/.pi/agent/mcp.json`: nothing is written into the person's configuration, a
  * terminal Pi never sees the server, and restarting the app makes the old key worthless. The key is deleted from
@@ -43,6 +44,7 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		return undefined;
 	}
 	if (parsed.protocol !== "http:" || parsed.hostname !== "127.0.0.1" || parsed.pathname !== "/mcp") return undefined;
+	// `direct+codemode` keeps the server `direct`; the codemode tool is the extension's own (`withCodemode`).
 	const exposure = env.PIPPA_MCP_EXPOSURE === "codemode" ? "codemode" : "direct";
 	return {
 		url: parsed.toString(),
@@ -55,16 +57,28 @@ export function serverConfig(env: Record<string, string | undefined>) {
 	};
 }
 
+/** `PIPPA_MCP_EXPOSURE` for an online AI with Mac access (PippaPiLaunch.MCPEndpoint.directWithCodemode). */
+export const CODEMODE_EXPOSURE = "direct+codemode";
+export const CODEMODE_TOOL = "codemode";
+
+/** Whether this Pi gets Pi's `codemode` tool next to the declared tools. Only by the app's switch; the person's
+ * settings (`defaultTools`, `codemode.mode`) never decide it, and this process alone is affected. */
+export function withCodemode(env: Record<string, string | undefined> = process.env): boolean {
+	return env.PIPPA_MCP_EXPOSURE === CODEMODE_EXPOSURE;
+}
+
 export const READINESS_COMMAND = "pippa-native-ready";
 export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS, ...BROWSER_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
 
 /** The tools this process must have: all of them for the AI on this Mac; for an online AI exactly the app's list
- * (egress.ts), and none of the others may even be registered (the app's server lists only those). */
-export function requiredTools(env: Record<string, string | undefined> = process.env): { required: string[]; forbidden: string[] } {
+ * (egress.ts), and none of the others may even be registered (the app's server lists only those). `codemode`: whether
+ * the codemode tool must be active (`withCodemode`); otherwise it must not be. */
+export function requiredTools(env: Record<string, string | undefined> = process.env): { required: string[]; forbidden: string[]; codemode: boolean } {
 	const online = egress(env);
-	if (!online) return { required: REQUIRED_TOOLS, forbidden: [] };
+	const codemode = !online && withCodemode(env);
+	if (!online) return { required: REQUIRED_TOOLS, forbidden: [], codemode };
 	const required = REQUIRED_TOOLS.filter((name) => online.tools.has(name));
-	return { required, forbidden: REQUIRED_TOOLS.filter((name) => !online.tools.has(name)) };
+	return { required, forbidden: REQUIRED_TOOLS.filter((name) => !online.tools.has(name)), codemode };
 }
 
 /** Background discovery may still be connecting when RPC starts accepting commands. No model call or mutation. */
@@ -72,6 +86,7 @@ export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<t
 	waitMilliseconds = 8_000, signal?: AbortSignal, expected = requiredTools()) {
 	const deadline = Date.now() + waitMilliseconds;
 	const { required, forbidden } = expected;
+	const codemode = expected.codemode === true;
 	for (;;) {
 		if (signal?.aborted) return { status: "cancelled" };
 		const registered = pi.getMcpServers().find((server: any) => server.name === SERVER_NAME)?.config;
@@ -83,7 +98,10 @@ export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<t
 		const registeredTools = pi.getAllTools().map((tool: any) => tool.name);
 		const active = pi.getActiveTools();
 		if (forbidden.some((name) => registeredTools.includes(name) || active.includes(name))) return { status: "registrationMismatch" };
-		if (required.every((name) => registeredTools.includes(name) && active.includes(name))) {
+		// Scripts reach every tool of this process: never active unless the app asked for it.
+		if (!codemode && (registeredTools.includes(CODEMODE_TOOL) || active.includes(CODEMODE_TOOL))) return { status: "registrationMismatch" };
+		const scripts = !codemode || (registeredTools.includes(CODEMODE_TOOL) && active.includes(CODEMODE_TOOL));
+		if (scripts && required.every((name) => registeredTools.includes(name) && active.includes(name))) {
 			return { status: "ready", tools: required, registeredTools: required };
 		}
 		if (Date.now() >= deadline) return { status: "toolsUnavailable" };
@@ -91,15 +109,26 @@ export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<t
 	}
 }
 
-export default async function (pi: ExtensionAPI, connectorFactory?: (options: any) => (pi: ExtensionAPI) => unknown) {
+type Factory = (options: any) => (pi: ExtensionAPI) => unknown;
+
+export default async function (pi: ExtensionAPI, connectorFactory?: Factory, codemodeFactory?: Factory) {
 	const config = serverConfig(process.env);
+	const codemode = withCodemode(process.env) && !egress(process.env);
 	delete process.env.PIPPA_MCP_TOKEN;
 	if (!config) return;
 	// --no-extensions also disables Pi's built-in MCP connector. Use the same pinned public implementation,
 	// scoped to extension registrations: never start unrelated servers from shared or project mcp.json files.
-	const createConnector = connectorFactory ?? (await import("@earendil-works/pi-coding-agent")).createMcpExtension;
+	const pippaPi = connectorFactory && (!codemode || codemodeFactory) ? undefined : await import("@earendil-works/pi-coding-agent");
+	const createConnector = connectorFactory ?? pippaPi!.createMcpExtension;
 	await createConnector({ loadConfig: () => ({ servers: [], errors: [], autoEnableCodemode: false }) })(pi);
 	pi.registerMcpServer(SERVER_NAME, config);
+	if (codemode) {
+		// The built-in codemode is dropped with --no-extensions too. Mode and the model catalog are fixed here, so the
+		// person's `codemode.mode` cannot hide the declared tools, and scripts reach no other model or provider.
+		// Registered inactive: the app names it in this process's `--tools` (PippaPiLaunch.addMCP), which Pi needs anyway,
+		// since a tool `--tools` does not name is not registered at all.
+		await (codemodeFactory ?? pippaPi!.createCodemodeExtension)({ mode: "on", models: false })(pi);
+	}
 	pi.registerCommand(READINESS_COMMAND, {
 		description: "Check Pippa's native tools before starting a conversation.",
 		handler: async (args: string, ctx: any) => {

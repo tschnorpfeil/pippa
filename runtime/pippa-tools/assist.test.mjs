@@ -388,3 +388,55 @@ test('call budget: attempt keeps restricted online routes and handoffs at 20 eve
   if(saved===undefined)delete process.env.PIPPA_MAX_CALLS;else process.env.PIPPA_MAX_CALLS=saved;
  }
 });
+
+test("script calls: nested calls leave the answer's budget alone, have their own bound, and never end the answer by it", async () => {
+	const { MAX_CALLS, MAX_SCRIPT_CALLS, overScriptBudget } = await import("./pippa-assist.ts");
+	assert.equal(MAX_SCRIPT_CALLS, 200);
+	assert.equal(overScriptBudget(200), undefined);
+	assert.match(overScriptBudget(201), /scripts already made 200 tool calls/);
+	const handlers = {}, entries = [];
+	let aborted = 0;
+	assist({ registerTool: () => {}, on: (name, fn) => handlers[name] = fn, getAllTools: () => tools, appendEntry: (type, data) => entries.push({ type, data }) });
+	const ctx = { abort: () => aborted++ };
+	const saved = process.env.PIPPA_MAX_CALLS;
+	delete process.env.PIPPA_MAX_CALLS;
+	try {
+		await handlers.agent_start({});
+		assert.equal(await handlers.tool_call({ toolName: "codemode", input: { code: "…" }, toolCallId: "s" }, ctx), undefined);
+		const blocked = [];
+		for (let i = 1; i <= MAX_SCRIPT_CALLS + 5; i++) {
+			const event = { toolName: "mcp__pippa__mail_search", input: { cursor: `c${i}` }, toolCallId: `s/${i}`, parentToolCallId: "s" };
+			const block = await handlers.tool_call(event, ctx);
+			if (block) blocked.push([i, block.reason]);
+			else await handlers.tool_result({ ...event, isError: false, content: [{ type: "text", text: "{}" }] }, ctx);
+		}
+		assert.equal(blocked[0][0], MAX_SCRIPT_CALLS + 1, "the first call over the bound is stopped");
+		assert.equal(blocked.length, 5);
+		assert.match(blocked[0][1], /Return what the script has so far/);
+		assert.equal(aborted, 0, "the script's bound does not end the answer");
+		// The model's own calls still have their whole budget (the codemode call itself used one).
+		for (let i = 1; i < MAX_CALLS; i++) {
+			const event = { toolName: "read", input: { path: `/fake/${i}.txt` }, toolCallId: `top${i}` };
+			assert.equal(await handlers.tool_call(event, ctx), undefined, `top-level call ${i}`);
+			await handlers.tool_result({ ...event, isError: false, content: [{ type: "text", text: "ok" }] }, ctx);
+		}
+		assert.match((await handlers.tool_call({ toolName: "read", input: { path: "/fake/last.txt" }, toolCallId: "top-last" }, ctx)).reason, /used 20 tool calls/);
+		// A new answer: the script bound starts fresh.
+		await handlers.agent_start({});
+		assert.equal(await handlers.tool_call({ toolName: "read", input: { path: "/x" }, toolCallId: "n/1", parentToolCallId: "n" }, ctx), undefined);
+	} finally {
+		if (saved === undefined) delete process.env.PIPPA_MAX_CALLS; else process.env.PIPPA_MAX_CALLS = saved;
+	}
+});
+
+test("script calls: the loop brake still stops an identical change a script repeats, also from another script", async () => {
+	const handlers = {};
+	assist({ registerTool: () => {}, on: (name, fn) => handlers[name] = fn, getAllTools: () => tools, appendEntry: () => {} });
+	const ctx = { abort: () => {} };
+	await handlers.agent_start({});
+	const event = (id, parent) => ({ toolName: "mcp__pippa__reminder_add", input: { title: "Müll" }, toolCallId: `${parent}/${id}`, parentToolCallId: parent });
+	assert.equal(await handlers.tool_call(event(1, "a"), ctx), undefined);
+	await handlers.tool_result({ ...event(1, "a"), isError: false, content: [{ type: "text", text: '{"done":true}' }] }, ctx);
+	assert.match(JSON.parse((await handlers.tool_call(event(2, "a"), ctx)).reason).tell, /already worked/);
+	assert.match(JSON.parse((await handlers.tool_call(event(1, "b"), ctx)).reason).tell, /already worked/);
+});

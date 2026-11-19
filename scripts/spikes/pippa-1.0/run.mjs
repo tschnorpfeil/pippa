@@ -9,6 +9,8 @@
 //           both     tools declared and codemode active: does the model pick scripts by itself?
 //           plan     like direct, plus mail_sort: a dry run without the model that mail_move applies by plan id
 //           smoke    one sentence, no tools: checks the setup
+// Online model instead: SPIKE_ONLINE_URL (OpenAI-compatible base URL), SPIKE_ONLINE_MODEL, SPIKE_ONLINE_KEY_FILE and
+// SPIKE_WINDOW; the output folder gets the model's name.
 // Needs the local oMLX server running (port and key file from Pippa's launch file). Uses a fake HOME under .build/, so
 // ~/.pi is never read or written. Results: .build/spike-1.0/<variant>/{events.jsonl,calls.jsonl,summary.json}.
 import { spawn } from "node:child_process";
@@ -29,22 +31,26 @@ if (!existsSync(cli) || !["direct", "only", "both", "plan", "smoke"].includes(va
 	process.exit(2);
 }
 
-const launch = JSON.parse(readFileSync(process.env.PIPPA_LAUNCH_FILE ?? join(homedir(), "Library/Application Support/Pippa/pippa-local-server.json"), "utf8"));
-const WINDOW = Number(process.env.SPIKE_WINDOW ?? 16384), MAX_TOKENS = 4096;
-const out = join(repo, ".build/spike-1.0", variant);
+const online = process.env.SPIKE_ONLINE_URL;
+const launch = online
+	? { modelID: process.env.SPIKE_ONLINE_MODEL, keyFile: process.env.SPIKE_ONLINE_KEY_FILE }
+	: JSON.parse(readFileSync(process.env.PIPPA_LAUNCH_FILE ?? join(homedir(), "Library/Application Support/Pippa/pippa-local-server.json"), "utf8"));
+const WINDOW = Number(process.env.SPIKE_WINDOW ?? 16384), MAX_TOKENS = online ? 16384 : 4096;
+const out = join(repo, ".build/spike-1.0", online ? `${launch.modelID.replace(/[^\w.-]/g, "_")}-${variant}` : variant);
 const home = join(out, "home"), agent = join(home, ".pi/agent"), work = join(home, "work");
 await rm(out, { recursive: true, force: true });
 await Promise.all([agent, work].map((dir) => mkdir(dir, { recursive: true })));
 
 const modelKey = `pippa-local/${launch.modelID}`;
 await writeFile(join(agent, "models.json"), JSON.stringify({ providers: { "pippa-local": {
-	api: "openai-completions", baseUrl: `http://127.0.0.1:${launch.port}/v1`, apiKey: `!/bin/cat '${launch.keyFile}'`,
-	models: [{ id: launch.modelID, name: "Ornith 1.5 9B", contextWindow: WINDOW, maxTokens: MAX_TOKENS, reasoning: true,
+	api: "openai-completions", baseUrl: online ?? `http://127.0.0.1:${launch.port}/v1`, apiKey: `!/bin/cat '${launch.keyFile}'`,
+	models: [online ? { id: launch.modelID, name: launch.modelID, contextWindow: WINDOW, maxTokens: MAX_TOKENS, reasoning: true }
+		: { id: launch.modelID, name: "Ornith 1.5 9B", contextWindow: WINDOW, maxTokens: MAX_TOKENS, reasoning: true,
 		compat: { thinkingFormat: "qwen-chat-template" },
 		thinkingLevelMap: { off: "off", minimal: null, low: null, medium: "medium", high: null, xhigh: null, max: null } }],
 } } }, null, 1));
 // Compaction as PiModelTuning sets it: reserve min(maxTokens, window / 4), keep window * 3 / 8.
-const settings = {
+const settings = online ? { ...(variant === "only" ? { codemode: { mode: "only" } } : {}) } : {
 	compaction: { modelOverrides: { [modelKey]: { reserveTokens: Math.min(MAX_TOKENS, WINDOW / 4), keepRecentTokens: WINDOW * 3 / 8 } } },
 	modelThinkingLevels: { [modelKey]: "medium" },
 	...(variant === "only" ? { codemode: { mode: "only" } } : {}),

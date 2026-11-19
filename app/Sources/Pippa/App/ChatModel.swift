@@ -748,10 +748,13 @@ final class ChatModel: ObservableObject {
             updateLast(in: id) { $0.text += delta }
         case .thinkingDelta(let delta):
             updateLast(in: id) { $0.thinking = ($0.thinking ?? "") + delta }
-        case .toolStarted(let call, let name, let arguments):
-            updateLast(in: id) {
-                $0.steps.append(ChatStep(id: call, label: StepLabel.text(tool: name, arguments: arguments), started: Date()))
-                $0.lead = $0.text.count
+        case .toolStarted(let call, let name, let arguments, let parent):
+            // A script's own calls stay inside its one step ("Working through the list"); what they read still counts.
+            if parent == nil {
+                updateLast(in: id) {
+                    $0.steps.append(ChatStep(id: call, label: StepLabel.text(tool: name, arguments: arguments), started: Date()))
+                    $0.lead = $0.text.count
+                }
             }
             if let source = SourceLog.source(tool: name, arguments: arguments) { pendingSources[call] = source }
             // What the answer may rest on, from the tool's name; counted when it starts, read or not.
@@ -766,7 +769,7 @@ final class ChatModel: ObservableObject {
             }
         case .toolNotes(let call, let path):
             pendingNotes[call] = path
-        case .toolEnded(let call, let name, let isError, let result, let outcome, _):
+        case .toolEnded(let call, let name, let isError, let result, let outcome, _, _):
             let failed = isError || (outcome.map { $0 != .done } ?? false)
             let label = stepLabels.removeValue(forKey: call)
             let notes = pendingNotes.removeValue(forKey: call)
@@ -979,6 +982,7 @@ enum StepLabel {
         case "front_read": return T("Reading the app in front", table: "App")
         case "prepare_files": return T("Preparing files", table: "App")
         case "browse": return T("Browsing a web page", table: "App")
+        case PiTurnReceipt.scriptTool: return T("Working through the list", table: "App")
         default: return name
         }
     }

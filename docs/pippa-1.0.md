@@ -44,7 +44,9 @@ The spike ran one mail triage (240 invented mails, seven folders, a synthetic Ma
 - One script read all 240 mails in 0.1 seconds and returned 100 characters. Codemode solves the reading problem.
 - Ornith then failed at the next step every time: carrying a plan across several calls.
 - Pi reported the calls made inside scripts with `parentToolCallId`, and scripts received `structuredContent`.
-- Not measured: an online model, a 32K window, repeated runs, a gate question inside a script, real Mail.
+- GLM 5.3 on the same harness sorted all 190 mails correctly in every variant; with codemode it needed a third of
+  the prompt tokens.
+- Not measured: a 32K window, repeated runs, a gate question inside a script, real Mail.
 
 ## Action classes
 
@@ -184,13 +186,11 @@ Decision per model class:
 | Model class | Default in 1.0 | Basis |
 |---|---|---|
 | The AI on this Mac (Ornith 1.5 9B) | `direct`, codemode off | Measured: scripts did not make it finish, 3 of 10 failed, and one script put 15,102 characters into a 16K window. |
-| Online AI with Mac access | Open. Hypothesis: tools declared and `codemode` active (`codemode.mode: "on"`). | Not measured. The terminal session that sorted 245 mails had a shell and wrote scripts; codemode gives that without the shell. |
+| Online AI with Mac access | Tools declared and `codemode` active (`codemode.mode: "on"`). | Measured on GLM 5.3: 190 of 190 mails right in every variant; with codemode a third of the prompt tokens (36,546 against 112,286) and 6 model turns instead of 15, no failed script, and the model chose scripts by itself. |
 | Online AI without Mac access | No change: it has no reading tools to script. | |
 
-To settle the open row, run the same harness with the online model (`scripts/spikes/pippa-1.0/run.mjs`, provider and
-model exchanged), then the five acceptance tasks with `PIPPA_MCP_EXPOSURE` in both settings. This costs provider
-tokens and waits for the owner's go. Pass for switching codemode on: the triage ends with every mail in the right
-place or in the inbox, in fewer model turns than `direct`, and none of the five tasks gets worse.
+The five acceptance tasks with `PIPPA_MCP_EXPOSURE` in both settings decide whether this default ships: none may
+get worse.
 
 Still to check before codemode ships for any class:
 

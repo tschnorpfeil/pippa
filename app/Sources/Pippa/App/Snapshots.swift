@@ -117,6 +117,8 @@ enum Snapshots {
             // The question is out, the AI on this Mac still loads: nothing from Pi yet.
             ("starting", { chat.showSample(sampleConversations(answering: true, starting: true), current: "c1", answering: true, starting: true) }, 760, false, false),
             ("steps", { chat.showSample(sampleConversations(answering: true), current: "c1", answering: true) }, 760, true, false),
+            // An online AI with Mac access went through the inbox with a script: one step for all its calls.
+            ("steps-script", { chat.showSample(sampleScript() + sampleConversations(), current: "script", answering: false) }, 760, true, false),
             // Words of the answer coming in: her handwriting instead of the mark.
             ("writing", { chat.showSample(sampleConversations(answering: true, writing: true), current: "c1", answering: true, writing: true) }, 760, false, false),
             ("approval", {
@@ -372,6 +374,22 @@ enum Snapshots {
         answer.context = ContextUsage(tokens: 9_870, window: 16_384)
         return [Conversation(id: "thesis", title: "Thesis zusammenfassen", updated: Date(), messages: [
             ChatMessage(role: .user, text: "Fass mir die Thesis zusammen.", files: ["/Users/me/Documents/Thesis.docx"]), answer,
+        ])]
+    }
+
+    private static func sampleScript() -> [Conversation] {
+        var answer = ChatMessage(role: .assistant, text: """
+        In deinem Posteingang sind **240 Mails**. **31** davon sind Rechnungen, **4** warten auf deine Antwort.
+
+        Ich habe dir eine Erinnerung gesetzt, die vier Antworten morgen zu schreiben.
+        """)
+        answer.steps = [step("s1", "mail_search", ["query": "Posteingang"], seconds: 2),
+                        step("s2", "codemode", ["code": "…"], seconds: 9)]
+        let sample = CreatedItem(integration: .reminders, identifier: "snapshot-script", modified: nil)
+        answer.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Vier Mails beantworten · Fr., 20. Nov.", created: sample)]
+        answer.duration = 14
+        return [Conversation(id: "script", title: "Was liegt im Posteingang?", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Was liegt in meinem Posteingang, und was muss ich beantworten?"), answer,
         ])]
     }
 
