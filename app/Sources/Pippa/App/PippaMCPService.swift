@@ -170,10 +170,12 @@ enum PippaMCPService {
             }
         }
         fresh.confirmBrowser = { _, title, message in await confirmBrowser(title: title, message: message, asksForAccess: asksForAccess) }
+        // Irreversible and external tools: the same question card, answered only by its button (PippaMCPTools.gate).
+        fresh.confirmAction = { card in await confirmBrowser(title: card.title, message: card.message, asksForAccess: asksForAccess) }
         return fresh
     }
 
-    /// The person's OK for `browse`, in Pippa's own approval. `Pippa --ask` never shows it: the question counts as
+    /// The person's OK for `browse` and for irreversible or external tools, in Pippa's own approval. `Pippa --ask` never shows it: the question counts as
     /// declined (`PiSession.Interaction.headless`), so the run reports needs_input.
     static func confirmBrowser(title: String, message: String, asksForAccess: Bool) async -> Bool {
         let request = PiUIRequest(id: UUID().uuidString, method: "confirm", title: title, message: message,

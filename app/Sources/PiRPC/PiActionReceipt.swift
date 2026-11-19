@@ -133,7 +133,9 @@ public struct PiTurnReceipt: Sendable {
         "not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
         "needs_calendar", "reply_needs_mail", "stays_on_mac",
         // `browse` (PippaMCPBrowser.swift): refused address, stale ref, or the person's login step before any click.
-        "blocked", "stale_ref", "handoff_required"]
+        "blocked", "stale_ref", "handoff_required",
+        // The class gate (PippaMCPActionClass.swift): the person said no on the card.
+        "declined"]
 
     /// Interpret the complete tool envelope, not display text or answer prose. Called before the RPC preview is cut.
     public static func classify(tool: String, isError: Bool, result: [String: Any]?) -> PiActionRecord.Outcome {

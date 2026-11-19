@@ -59,7 +59,9 @@ export interface LoopCount { runs: number; failures: number; successes: number; 
 // These statuses are emitted before any effect by PippaMCPWrite.swift / PippaMCPEgress.swift. Unknown/new statuses fail closed.
 const NATIVE_NO_EFFECT = new Set(["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
 	"not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
-	"stale_ref", "needs_calendar", "reply_needs_mail", "stays_on_mac"]);
+	"stale_ref", "needs_calendar", "reply_needs_mail", "stays_on_mac",
+	// The class gate (PippaMCPActionClass.swift): no class, or the person said no on the card.
+	"blocked", "declined"]);
 
 /** A tool result's text parts, joined, and parsed once as JSON when they are JSON (`ok`). */
 export interface ResultText { text: string; ok: boolean; json?: any }

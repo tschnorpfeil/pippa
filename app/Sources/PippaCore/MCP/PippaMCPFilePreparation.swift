@@ -46,7 +46,7 @@ public struct PippaMCPFilePreparation: Sendable {
             "quality": ["enum": ["original", "balanced", "compact"]],
             "size_limit_mb": ["enum": [5, 10, 20]],
           ]],
-          "annotations": ["readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false]]]
+          "annotations": PippaActionClasses.annotations(name, title: "Prepare files")]]
     }
 
     /// Native permission repairs travel outside model-visible JSON, including when no output card exists.

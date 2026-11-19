@@ -43,6 +43,11 @@ public struct PippaMCPHost: Sendable {
     public var browser: (any BrowserOperating)?
     /// The person's OK before `browse` opens a new host or clicks, types or chooses. `nil`: nothing happens.
     public var confirmBrowser: (@Sendable (_ action: String, _ title: String, _ message: String) async -> Bool)?
+    /// The person's yes on a card before an `irreversible` or `external` tool runs (`PippaMCPTools.gate`). The app answers
+    /// from a button on its question card; `Pippa --ask` answers no. `nil`: nothing of those classes runs.
+    public var confirmAction: (@Sendable (PippaMCPConfirmation) async -> Bool)?
+    /// Checks only: extra tools that pass the same class gate. The app never sets any.
+    public var extraTools: [PippaMCPHostTool] = []
     /// A login, 2FA or CAPTCHA page is the person's to finish: the app reveals its browser panel.
     public var onBrowserHandoff: (@Sendable (_ reason: String, _ url: String?) -> Void)?
     /// Hosts the person already allowed in this answer (shared by every copy of this host).
@@ -139,4 +144,9 @@ public struct PippaMCPToolResult: Sendable, Equatable {
     public var card: ResultCard? = nil
     /// Kept outside model-visible text; only native access checks can supply a repair destination.
     public var permissionRepair: PermissionRepairTarget? = nil
+
+    public init(text: String, isError: Bool, receipt: PippaMCPWriteReceipt? = nil, card: ResultCard? = nil,
+                permissionRepair: PermissionRepairTarget? = nil) {
+        self.text = text; self.isError = isError; self.receipt = receipt; self.card = card; self.permissionRepair = permissionRepair
+    }
 }

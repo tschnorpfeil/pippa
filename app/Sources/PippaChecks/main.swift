@@ -70,6 +70,7 @@ await focused("PIPPA_LOCAL_SERVER_CHECKS", "Local server") { await runTerminalAu
 await focused("PIPPA_SETUP_CHECKS", "Installer") { await runSetupChecks() }
 // Only Pippa's MCP server (stand-in readers, no real Mail/Calendar/Excel).
 await focused("PIPPA_MCP_CHECKS", "MCP") {
+    await runMCPActionClassChecks()
     await runMCPChecks()
     await runMCPBrowserChecks()
     await runNativeReminderChecks()
@@ -451,6 +452,7 @@ runCalendarStoreChecks()
 await runResultCardChecks()
 runIslandChecks()
 await runSetupChecks()
+await runMCPActionClassChecks()
 await runMCPChecks()
 await runMCPBrowserChecks()
 await runNativeReminderChecks()

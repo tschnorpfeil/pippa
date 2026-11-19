@@ -21,17 +21,13 @@ public struct PippaMCPWriteTools: Sendable {
     let scope: PippaMCPWriteScope
     public init(host: PippaMCPHost, scope: PippaMCPWriteScope = PippaMCPWriteScope()) { self.host = host; self.scope = scope }
 
-    /// Changes something on the Mac (`readOnlyHint: false`), deletes nothing and is at most a draft
-    /// (`destructiveHint: false`), does not leave the Mac (`openWorldHint: false`).
-    static var hints: [String: Any] { ["readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false] }
-
     /// Short: every word costs prompt time with the local model.
     public static func toolList() -> [[String: Any]] {
         // Only names and types: lengths and ranges are checked in `call` (see PippaMCPTools.toolList).
         func tool(_ name: String, _ title: String, _ description: String, _ properties: [String: Any], required: [String]) -> [String: Any] {
             ["name": name, "title": title, "description": description,
              "inputSchema": ["type": "object", "properties": properties, "required": required],
-             "annotations": hints.merging(["title": title]) { a, _ in a }]
+             "annotations": PippaActionClasses.annotations(name, title: title)]
         }
         let text: [String: Any] = ["type": "string"]
         // Formats once in the description instead of per parameter.

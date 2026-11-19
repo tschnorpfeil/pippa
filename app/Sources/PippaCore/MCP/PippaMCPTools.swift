@@ -5,7 +5,7 @@ import Foundation
 // HTTP on 127.0.0.1 lives in PippaMCPServer.swift.
 //
 // Rules for every tool:
-// - read-only: `readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: false` (the guard then does not ask);
+// - one action class each (PippaMCPActionClass.swift): it decides the annotations and whether a card asks first;
 // - terse: at most `PippaMCPTools.maxResultBytes` per result, truncations are announced, never silent;
 // - foreign content (mail, events, cells) goes under `data` with `untrusted: true` and a rule for it;
 // - no permission, app not open, error: `isError: true` and one sentence for the person in the app language (`tell`),
@@ -84,7 +84,11 @@ public struct PippaMCPTools: Sendable {
         case "ping":
             return Self.result(id: id, [:])
         case "tools/list":
-            let tools = Self.toolList()
+            let tools = Self.toolList() + host.extraTools.filter { !Self.toolNames.contains($0.name) }.map { extra in
+                ["name": extra.name, "title": extra.name, "description": "Check only.",
+                 "inputSchema": ["type": "object", "properties": [String: Any]()],
+                 "annotations": (extra.actionClass?.annotations ?? [:]).merging(["title": extra.name]) { a, _ in a }] as [String: Any]
+            }
             guard let egress = host.egress else { return Self.result(id: id, ["tools": tools]) }
             let allowed = tools.filter { egress.allows($0["name"] as? String ?? "") }.map { tool in
                 guard tool["name"] as? String == PippaMCPBrowserTool.name else { return tool }
@@ -94,7 +98,10 @@ public struct PippaMCPTools: Sendable {
             }
             return Self.result(id: id, ["tools": allowed])
         case "tools/call":
-            guard let name = params["name"] as? String, Self.toolNames.contains(name) else {
+            guard let name = params["name"] as? String else { return Self.error(id: id, code: -32602, message: "Unknown tool") }
+            // Pippa's own tools first: a host tool never replaces one.
+            let extra = Self.toolNames.contains(name) ? nil : host.extraTools.first { $0.name == name }
+            guard Self.toolNames.contains(name) || extra != nil else {
                 return Self.error(id: id, code: -32602, message: "Unknown tool")
             }
             // Refuse before dispatch. A permitted tool runs once and its result is encoded once.
@@ -113,6 +120,15 @@ public struct PippaMCPTools: Sendable {
                 arguments = object
             } else {
                 arguments = [:]
+            }
+            // The class gate runs before every body (PippaMCPActionClass.swift). No shipped tool needs a card yet.
+            let actionClass = extra.map(\.actionClass) ?? PippaActionClasses.of(name)
+            if let refused = await gate(name, actionClass, card: extra?.describe(arguments), context: context) {
+                return Self.toolResult(id: id, refused.text, isError: refused.isError)
+            }
+            if let extra {
+                let outcome = await extra.run(arguments)
+                return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
             }
             // Reading a document and looking up online live in PippaMCPTurn.swift (own arguments, own limits).
             if PippaMCPTurnTools.names.contains(name) {
