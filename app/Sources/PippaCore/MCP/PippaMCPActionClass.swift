@@ -124,7 +124,8 @@ extension PippaMCPTools {
             && (context.turn != nil || !host.requireActiveWriteTurn)
             && host.turns.isLive(context.turn, generation: context.turnGeneration) }
         guard live() else { return Self.notDispatched("cancelled", tell: PippaMCPWriteTools.stoppedText) }
-        guard var card, let confirm = host.confirmAction else {
+        // A card with nothing on it is no confirmation of anything.
+        guard var card, !card.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let confirm = host.confirmAction else {
             return Self.notDispatched("cancelled", tell: L("Pippa can only do this when you can confirm it.", table: "MCP"))
         }
         card.turnID = context.turn?.id

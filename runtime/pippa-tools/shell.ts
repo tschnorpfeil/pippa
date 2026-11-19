@@ -383,11 +383,14 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 	const lockedShims = (): string[] => developerTools() ? [] : cachedDeveloperShims(shimDir);
 	/** Per answer: only `write`. `net` never lands here. */
 	let grants = new Set<Grant>();
-	/** Commands the person let go online after they failed without it: each passes once, exactly as asked. */
-	let onlineOnce: string[] = [];
+	/** The one command the person let go online after it failed without it. It passes only as the very next tool
+	 * call, with the same text and folder: any other call in between (`forgetOnline`) could have changed what it sends. */
+	let onlineOnce: { command: string; cwd: string } | undefined;
 
 	return {
-		resetAnswer() { grants = new Set(); onlineOnce = []; },
+		resetAnswer() { grants = new Set(); onlineOnce = undefined; },
+		/** Any tool call other than bash ends a pending yes for one command. */
+		forgetOnline() { onlineOnce = undefined; },
 		get grants(): ReadonlySet<Grant> { return grants; },
 		definition(defaultCwd: string) {
 			const base = create(defaultCwd);
@@ -420,8 +423,9 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					};
 					/** Grants of this one call: the answer's, plus `net` when the person allowed this command. */
 					const now = new Set(grants);
-					const once = onlineOnce.indexOf(command);
-					if (once >= 0) { onlineOnce.splice(once, 1); now.add("net"); }
+					const once = onlineOnce;
+					onlineOnce = undefined;
+					if (once && once.command === command && once.cwd === cwd) now.add("net");
 					const run = async () => {
 						if (signal?.aborted) return notRun("Stopped before running the command.");
 						if (now.has("write") && deps.keep) {
@@ -458,17 +462,20 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						for (const g of before) { now.add(g); if (g !== "net") grants.add(g); }
 					}
 					let result = await run();
+					let allowedNow = false;
 					if (result?.isError) {
 						const missing = missingGrants(command, textOf(result), now);
-						if (!signal?.aborted && result.details?.pippaExecution !== "uncertain" && missing.size && (await ask(missing))) {
-							for (const g of missing) { if (g === "net") onlineOnce.push(command); else grants.add(g); }
+						if (!signal?.aborted && result.details?.pippaExecution !== "uncertain" && missing.size && (await ask(missing)) && !signal?.aborted) {
+							for (const g of missing) { if (g === "net") onlineOnce = { command, cwd }; else grants.add(g); }
+							allowedNow = true;
 							// A compound command can have completed earlier steps before the permission error.
 							// Granting access cannot make replay safe; return the original failure for recovery.
 							result = withNote(result, missing.has("net")
-								? "The person allowed this exact command to go online once, but it was not rerun. It may already have changed something before failing. Check its effects; only if repeating it is safe, run exactly the same command again. Any other command that goes online asks again."
+								? "The person allowed this exact command to go online once, but it was not rerun. It may already have changed something before failing. Check its effects; only if repeating it is safe, run exactly the same command again as your very next tool call. After any other tool call, going online asks again."
 								: "Permission is now available for this answer, but the failed command was not rerun. It may already have changed something before failing. Check its effects, then use a separate, narrowly scoped call for only the remaining work. Do not repeat completed steps.");
 						}
-						if (result?.isError) result = withNote(result, limitsNote(grants, where.work, locked.length > 0));
+						// Not after a fresh yes: the note above already says what to do next.
+						if (result?.isError && !allowedNow) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
 					}
 					if (kept.size) {
 						const copies = [...kept].map(([file, copy]) => ({ file, copy }));

@@ -85,6 +85,8 @@ export default function (pi: ExtensionAPI) {
 	const backups = backupDirectory();
 	const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined, protection: where });
 	pi.on("agent_start", () => shell.resetAnswer());
+	// A yes for one command to go online holds only until the next tool call (shell.ts `onlineOnce`).
+	pi.on("tool_call", (event: any) => { if (event?.toolName !== "bash") shell.forgetOnline(); });
 	pi.registerTool(shell.definition(process.cwd()));
 	const checked = (path: string) => checkedFile(path, where);
 	pi.registerTool(readTool((cwd) => createReadToolDefinition(cwd, { operations: {
