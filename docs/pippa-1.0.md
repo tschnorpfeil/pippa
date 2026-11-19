@@ -1,11 +1,10 @@
 # Pippa 1.0: she acts, and you can take it back
 
-Status: proposal, 2026-11-19. Builds on [Pippa next](pippa-next-architecture.md); where things stand is in
+Status: decided, 2026-11-19. Builds on [Pippa next](pippa-next-architecture.md); where things stand is in
 [ROADMAP.md](ROADMAP.md). Measurements behind the decisions:
 [archive/measurements/pippa-1.0-spike-2026-11-19.md](archive/measurements/pippa-1.0-spike-2026-11-19.md).
 
-Nothing here is built yet. Seven points change earlier decisions or public promises, or cost money, and need the
-owner's yes before the matching step starts; they are listed under [Open for the owner](#open-for-the-owner).
+The owner agreed to all seven points under [Decided by the owner](#decided-by-the-owner) on 2026-11-19.
 
 ## The idea
 
@@ -263,16 +262,16 @@ Each step is one pull request.
 8. **`mail_send`** behind the `external` gate, if agreed.
 9. **Acceptance** on both model classes, measurements filed, release.
 
-## Open for the owner
+## Decided by the owner
 
-1. **Acting by default** changes the sentence in Privacy and permissions quoted above. Recommended: yes, as written
-   here.
-2. **Rules 3, 4 and 7** of Pippa next change as described under Tools. Recommended: yes.
-3. **`mail_send`** ends "She never sends your mail". Recommended: yes, as the last step, one draft at a time, behind
-   the card.
-4. **Going online from the shell per command** instead of per answer. Recommended: yes.
-5. **A test mailbox** for the Mail spike (step 5). Needed before any move in a real account.
-6. **One paid measurement** of the triage and the five tasks on the online AI, to decide codemode there.
-   Recommended: yes, with the model the owner uses with Mac access.
-7. **Task 6 on Ornith** passes if nothing is misplaced and the answer is honest, not only if the inbox is sorted.
-   Recommended: yes; the alternative is to hold 1.0 for a better local model.
+All agreed on 2026-11-19:
+
+1. **Acting by default** changes the sentence in Privacy and permissions quoted above.
+2. **Rules 3, 4 and 7** of Pippa next change as described under Tools.
+3. **`mail_send`** ends "She never sends your mail": the last step, one draft at a time, behind the card.
+4. **Going online from the shell is asked per command** instead of per answer.
+5. **Test folders for the Mail spike:** two folders "Pippa Test A" and "Pippa Test B" in one account, with copies of
+   up to 20 old mails. Only these copies move. The inbox and existing folders stay untouched.
+6. **Paid measurement** of the triage and the five tasks on the online AI (privatemode GLM 5.3), to decide codemode
+   there.
+7. **Task 6 on Ornith** passes if nothing is misplaced and the answer is honest.

@@ -1,9 +1,9 @@
 # Roadmap
 
 The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); the step-by-step list is
-[pippa-next-tasks.md](pippa-next-tasks.md). The proposal for 1.0 (Pippa acts by default, with gates only for what
-cannot be undone or leaves the Mac, and a journal with undo for whole runs) is [pippa-1.0.md](pippa-1.0.md); it is
-not decided yet. Older plans and measurements are in [archive/](archive/).
+[pippa-next-tasks.md](pippa-next-tasks.md). The plan for 1.0 (Pippa acts by default, with gates only for what
+cannot be undone or leaves the Mac, and a journal with undo for whole runs) is [pippa-1.0.md](pippa-1.0.md),
+decided on 2026-11-19. Older plans and measurements are in [archive/](archive/).
 
 ## Where Pippa stands
 
