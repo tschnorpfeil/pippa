@@ -261,7 +261,7 @@ public struct PippaMCPTools: Sendable {
                 outcome = read.result; noted = read.noted
             }
         }
-        if name == "mail_search" || name == "mail_read" || noted == "mail_selected" {
+        if name == "mail_search" || name == "mail_read" || name == "mail_folders" || noted == "mail_selected" {
             outcome = Self.boundMailResult(outcome)
         }
         let ms = (ContinuousClock.now - started).components.seconds * 1000

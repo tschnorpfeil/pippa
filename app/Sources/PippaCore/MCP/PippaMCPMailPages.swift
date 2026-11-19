@@ -165,7 +165,17 @@ extension PippaMCPTools {
             guard stillOwns(turn) else { giveBack(hold.granted); return Self.mailCancelled }
             do {
                 let ids = eligible.filter { $0.account == account }.map(\.id)
-                let result = try await reader.rows(account: account.id, ids: ids, mailbox: snapshot.mailbox)
+                var result: [MailSearchRow] = []
+                if limit > Self.mailDenseLimit {
+                    // Header-only pages read headers only, a dense page's rows per Apple Event: 100 rows never share one timeout.
+                    for start in stride(from: 0, to: ids.count, by: Self.mailDenseLimit) {
+                        guard stillOwns(turn) else { giveBack(hold.granted); return Self.mailCancelled }
+                        result += try await reader.rows(account: account.id, ids: Array(ids[start..<min(start + Self.mailDenseLimit, ids.count)]),
+                                                        mailbox: snapshot.mailbox, headerOnly: true)
+                    }
+                } else {
+                    result = try await reader.rows(account: account.id, ids: ids, mailbox: snapshot.mailbox)
+                }
                 guard Set(result.map(\.id)).count == result.count else {
                     pageProblems[account] = .duplicate_candidates
                     continue

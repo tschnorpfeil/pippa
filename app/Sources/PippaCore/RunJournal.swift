@@ -124,8 +124,9 @@ public struct RunActionResult: Sendable {
 /// row whose action provably did not happen (a mail move found back in its source): nothing to undo. `inBoth`: a mail
 /// move whose mail is live in both folders (IMAP copied but did not delete); the row becomes unclear, nothing is deleted.
 /// `unclear`: Mail did not answer in time, so whether it went back is not known (`MailMover.undoNoAnswerNote`); never
-/// retried, looked at once more later (`resolveUnclearMailRows`).
-public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing, inBoth = "in_both", unclear }
+/// retried, looked at once more later (`resolveUnclearMailRows`). `unanswered`: Mail did not answer before anything was
+/// put back, so nothing moved; the row keeps its state and note and Undo can be pressed again.
+public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing, inBoth = "in_both", unclear, unanswered }
 /// Puts one row back, only if its object is unchanged since Pippa touched it. Supplied per kind by the tool.
 public typealias RunUndoRecipe = @Sendable (RunAction) async -> RunUndoOutcome
 /// Puts several rows of one kind back in one step (mail moves go back in batches), `rows` in undo order. It also gets
@@ -138,6 +139,8 @@ public struct RunUndoReport: Sendable, Equatable {
     public var failed: [RunAction] = []
     /// Rows Undo left unclear (`RunUndoOutcome.inBoth`, `.unclear`).
     public var unclear: [RunAction] = []
+    /// Rows Undo did not touch because Mail did not answer in time (`RunUndoOutcome.unanswered`): as they were.
+    public var unanswered: [RunAction] = []
 }
 
 /// Counts for the one receipt under an answer, from its rows.
@@ -363,6 +366,7 @@ extension Executor {
         case .nothing: row.state = .undone; row.note = "not_moved"
         case .inBoth: row.state = .unclear; row.note = MailMover.inBothNote
         case .unclear: row.state = .unclear; row.note = MailMover.undoNoAnswerNote
+        case .unanswered: break
         }
         return row
     }
@@ -431,6 +435,7 @@ extension Executor {
             case .changed: report.left.append(current)
             case .failed: report.failed.append(current)
             case .inBoth, .unclear: report.unclear.append(current)
+            case .unanswered: report.unanswered.append(current)
             case .nothing: break
             }
             try runTransaction { try save(current) }

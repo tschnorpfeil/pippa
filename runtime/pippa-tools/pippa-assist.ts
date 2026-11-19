@@ -75,7 +75,8 @@ const NATIVE_NO_EFFECT = new Set(["invalid_arguments", "cancelled", "needs_acces
 	"not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
 	"stale_ref", "needs_calendar", "reply_needs_mail", "stays_on_mac",
 	// mail_move (PippaMCPMailMove.swift): refused before anything moved, or read back and nothing moved.
-	"plan_required", "stale_plan", "cross_account", "not_inbox", "unknown_folder", "ambiguous_folder", "target_not_allowed", "same_folder", "not_moved",
+	"plan_required", "stale_plan", "cross_account", "not_inbox", "unknown_folder", "ambiguous_folder", "target_not_allowed", "same_folder",
+	"folders_incomplete", "not_moved",
 	// The class gate (PippaMCPActionClass.swift): no class, or the person said no on the card.
 	"blocked", "declined"]);
 

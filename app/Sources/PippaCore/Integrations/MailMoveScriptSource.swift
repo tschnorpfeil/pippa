@@ -4,7 +4,7 @@ extension MailAccountScript {
     /// Folders, lookup by Message-ID and moves, one account at a time (MailMove.swift). Appended to `source`, so the
     /// helpers there (`boxOf`, `rethrowAccess`, `problem`) are shared. Texts and ids come in as parameters, never as
     /// script text. A mailbox is named by its whole path, top first, as `boxPathOf` walks its containers.
-    static let moveSource = """
+    static let moveSource = compareSource + """
 
     -- The account itself, by Mail's id.
     on accountOf(acctID)
@@ -226,7 +226,7 @@ extension MailAccountScript {
                         my rethrowAccess(errNum)
                     end if
                 end try
-                if (count of boxPath) > 0 and not (seen contains {boxPath}) then
+                if (count of boxPath) > 0 and not my pathListed(seen, boxPath) then
                     set end of seen to boxPath
                     set role to ""
                     repeat with r in roles
@@ -327,7 +327,7 @@ extension MailAccountScript {
         return {"ok", {item 1 of r, item 2 of r, item 3 of r}}
     end accountFolders
 
-    -- For each Message-ID, Mail's ids of the messages in this mailbox that carry it (with or without angle brackets):
+    -- For each Message-ID, Mail's ids of the messages in this mailbox that carry exactly it (with or without angle brackets):
     -- {live ids, ids marked deleted}. On IMAP a moved mail's old copy can stay listed with deleted status until expunged.
     -- Each Apple event bounded by secs seconds; a timeout raises -1712.
     on accountLocate(acctID, wantedPath, wantedIDs, secs)
@@ -344,10 +344,13 @@ extension MailAccountScript {
                         set goneIDs to {}
                         repeat with hit in found
                             set m to contents of hit
-                            if (deleted status of m) is true then
-                                set end of goneIDs to (id of m)
-                            else
-                                set end of liveIDs to (id of m)
+                            -- Mail's whose may ignore case: only a Message-ID that is exactly x counts.
+                            if my sameMessageID((message id of m) as text, x) then
+                                if (deleted status of m) is true then
+                                    set end of goneIDs to (id of m)
+                                else
+                                    set end of liveIDs to (id of m)
+                                end if
                             end if
                         end repeat
                         set end of out to {liveIDs, goneIDs}
@@ -379,12 +382,7 @@ extension MailAccountScript {
                             set found to (messages of src whose id is wanted)
                             if (count of found) is 1 then
                                 set m to item 1 of found
-                                set candidateID to (message id of m) as text
-                                set same to false
-                                considering case, diacriticals, hyphens, punctuation and white space
-                                    if candidateID is theID or candidateID is ("<" & theID & ">") then set same to true
-                                end considering
-                                if same then
+                                if my sameMessageID((message id of m) as text, theID) then
                                     move m to dst
                                     set status to "moved"
                                 else
@@ -569,6 +567,25 @@ extension MailAccountScript {
 }
 
 extension MailAccountScript {
+    /// Exact comparisons, outside any tell block (AppleScript ignores case by default, and Mail's `whose` may too). Pure
+    /// handlers without Mail, so checks can run them (`MailMoveScriptCheck`).
+    static let compareSource = """
+
+    -- Whether a message's Message-ID is exactly theID, with or without angle brackets.
+    on sameMessageID(candidateID, theID)
+        considering case, diacriticals, hyphens, punctuation and white space
+            return (candidateID is theID or candidateID is ("<" & theID & ">"))
+        end considering
+    end sameMessageID
+
+    -- Whether the listing already has a mailbox at exactly this path: names that differ only in case are other mailboxes.
+    on pathListed(seen, boxPath)
+        considering case, diacriticals, hyphens, punctuation and white space
+            return (seen contains {boxPath})
+        end considering
+    end pathListed
+    """
+
     /// The probe's `--diagnose` only: the same listing as `accountFolders`, timed in milliseconds through
     /// AppleScriptObjC's clock. A source of its own, so `use framework` never reaches the scripts the tools run.
     static let diagnoseSource = """
@@ -702,6 +719,26 @@ extension MailAccountScript.Live: MailMoveProbeMail {
             for (i, id) in inboxIDs.enumerated() { ids.insert(NSAppleEventDescriptor(int32: Int32(truncatingIfNeeded: id)), at: i + 1) }
             return [NSAppleEventDescriptor(string: account), ids, MailMoveParse.list(to)]
         }) { try MailMoveParse.statuses($0, expecting: inboxIDs.count) }
+    }
+}
+
+/// Checks run the pure comparison handlers (`MailAccountScript.compareSource`) through NSAppleScript: nothing in that
+/// source talks to Mail.
+public enum MailMoveScriptCheck {
+    public static func sameMessageID(_ candidate: String, _ wanted: String) async throws -> Bool {
+        try await call("sameMessageID") { [NSAppleEventDescriptor(string: candidate), NSAppleEventDescriptor(string: wanted)] }
+    }
+
+    public static func pathListed(_ seen: [[String]], _ path: [String]) async throws -> Bool {
+        try await call("pathListed") {
+            let list = NSAppleEventDescriptor.list()
+            for (i, one) in seen.enumerated() { list.insert(MailMoveParse.list(one), at: i + 1) }
+            return [list, MailMoveParse.list(path)]
+        }
+    }
+
+    private static func call(_ handler: String, _ args: @escaping @Sendable () -> [NSAppleEventDescriptor]) async throws -> Bool {
+        try await AppleEvents.perform { try AppleEvents.call(MailAccountScript.compareSource, handler: handler, args(), appName: "Pippa").booleanValue }
     }
 }
 

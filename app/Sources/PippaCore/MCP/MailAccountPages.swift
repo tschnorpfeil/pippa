@@ -37,6 +37,9 @@ public protocol MailAccountReading: Sendable {
     func candidates(account: String, query: String, readStatus: MailReadStatus, mailbox: MailBoxKind) async throws -> [MailSearchCandidate]
     /// As `rows(account:ids:)`, in the account's Inbox, Sent or Drafts.
     func rows(account: String, ids: [Int], mailbox: MailBoxKind) async throws -> [MailSearchRow]
+    /// As `rows(account:ids:mailbox:)`; `headerOnly`: sender, subject, date, Message-ID, read status and where it is,
+    /// without the start of the text or other flags (header-only `mail_search` pages).
+    func rows(account: String, ids: [Int], mailbox: MailBoxKind, headerOnly: Bool) async throws -> [MailSearchRow]
     /// As `message(account:mailID:messageID:path:)`, in the account's Inbox, Sent or Drafts.
     func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage?
     /// Whether this account's Sent or Drafts already hold a reply to this message (`nil`: this reader cannot tell).
@@ -73,6 +76,11 @@ extension MailAccountReading {
     public func rows(account: String, ids: [Int], mailbox: MailBoxKind) async throws -> [MailSearchRow] {
         guard mailbox == .inbox else { throw MailAccountProblem.failed }
         return try await rows(account: account, ids: ids)
+    }
+
+    /// Readers without a header-only read read the whole row.
+    public func rows(account: String, ids: [Int], mailbox: MailBoxKind, headerOnly: Bool) async throws -> [MailSearchRow] {
+        try await rows(account: account, ids: ids, mailbox: mailbox)
     }
 
     public func message(account: String, mailID: Int, messageID: String, path: [String], mailbox: MailBoxKind) async throws -> MailInboxMessage? {

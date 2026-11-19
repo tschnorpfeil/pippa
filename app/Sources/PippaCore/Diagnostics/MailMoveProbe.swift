@@ -490,7 +490,8 @@ public enum MailMoveProbe {
                 }
             }
             let undo = try await timed("undo") { try await journal.undoRun(runID, recipe: { _ in nil }, batch: batch) }
-            counts["undo"] = ["undone": undo.undone.count, "left": undo.left.count, "failed": undo.failed.count, "unclear": undo.unclear.count]
+            counts["undo"] = ["undone": undo.undone.count, "left": undo.left.count, "failed": undo.failed.count, "unclear": undo.unclear.count,
+                              "unanswered": undo.unanswered.count]
             settles["undo"] = settleJSON(undoSettle.value)
             // The same settling as the moves: a lookup Mail does not answer in time is one poll, never "not there".
             var verify = MailMoveSettleStats()
@@ -504,12 +505,13 @@ public enum MailMoveProbe {
             counts["back_in_a"] = copies.filter { back.here($0).count == 1 && back.there($0).isEmpty }.count
             counts["left_in_b"] = copies.reduce(0) { $0 + back.there($1).count }
             counts["deleted_status_after"] = back.deleted(copies)
-            // A second Undo must find nothing to do. With rows still unclear it could move a mail again: skipped then.
-            if undo.unclear.isEmpty {
+            // A second Undo must find nothing to do. With rows still unclear it could move a mail again, and rows Mail did not
+            // answer for are still to undo: skipped then.
+            if undo.unclear.isEmpty && undo.unanswered.isEmpty {
                 let again = try await journal.undoRun(runID, recipe: { _ in nil }, batch: batch)
                 counts["second_undo_steps"] = again.undone.count + again.left.count + again.failed.count + again.unclear.count
             } else {
-                counts["second_undo_skipped"] = "unclear_rows"
+                counts["second_undo_skipped"] = undo.unclear.isEmpty ? "unanswered_rows" : "unclear_rows"
             }
             report["cleanup"] = "The copies stay in \(folderA); the next run uses them again."
             return await final(doubles: doubles.count)

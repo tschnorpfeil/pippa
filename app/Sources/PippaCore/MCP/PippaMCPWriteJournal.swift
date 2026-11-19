@@ -141,6 +141,8 @@ extension PippaMCPHost {
     /// One more look at the run's unclear mail moves, when its receipt is built at the end of the answer
     /// (`MailMover.recheck`): one lookup per folder pair, never a move. Skipped while an Undo of the run runs.
     public func recheckUnclearMail(_ run: UUID) async {
+        // A mail_move still reading back (after Stop or a dropped connection) writes its rows first.
+        await mailMoveRuns.wait(run)
         guard let journal = reminderJournal, let reader = mailAccounts,
               let rows = try? await journal.runActions(run: run) else { return }
         let unclear = rows.filter { $0.state == .unclear && $0.object.kind == MailMover.kind }

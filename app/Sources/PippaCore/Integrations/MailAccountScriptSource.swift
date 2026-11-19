@@ -213,7 +213,8 @@ extension MailAccountScript {
         end tell
     end matchDates
 
-    on accountRows(acctID, wantedIDs, boxKind)
+    -- headerOnly: subject, sender, date, mailbox, Message-ID, read status and where it is; no content and no other flags.
+    on accountRows(acctID, wantedIDs, boxKind, headerOnly)
         set out to {}
         tell application id "com.apple.mail"
             try
@@ -252,12 +253,14 @@ extension MailAccountScript {
                             on error number errNum
                                 my rethrowAccess(errNum)
                             end try
-                            try
-                                set c to (content of m) as text
-                                if (length of c) > 400 then set c to text 1 thru 400 of c
-                            on error number errNum
-                                my rethrowAccess(errNum)
-                            end try
+                            if not headerOnly then
+                                try
+                                    set c to (content of m) as text
+                                    if (length of c) > 400 then set c to text 1 thru 400 of c
+                                on error number errNum
+                                    my rethrowAccess(errNum)
+                                end try
+                            end if
                             try
                                 set mid to (message id of m) as text
                             on error number errNum
@@ -268,21 +271,23 @@ extension MailAccountScript {
                             on error number errNum
                                 my rethrowAccess(errNum)
                             end try
-                            try
-                                set wasReplied to (was replied to of m) as boolean
-                            on error number errNum
-                                my rethrowAccess(errNum)
-                            end try
-                            try
-                                set wasForwarded to (was forwarded of m) as boolean
-                            on error number errNum
-                                my rethrowAccess(errNum)
-                            end try
-                            try
-                                set isFlagged to (flagged status of m) as boolean
-                            on error number errNum
-                                my rethrowAccess(errNum)
-                            end try
+                            if not headerOnly then
+                                try
+                                    set wasReplied to (was replied to of m) as boolean
+                                on error number errNum
+                                    my rethrowAccess(errNum)
+                                end try
+                                try
+                                    set wasForwarded to (was forwarded of m) as boolean
+                                on error number errNum
+                                    my rethrowAccess(errNum)
+                                end try
+                                try
+                                    set isFlagged to (flagged status of m) as boolean
+                                on error number errNum
+                                    my rethrowAccess(errNum)
+                                end try
+                            end if
                             set ident to my identityOrNone(m)
                             set end of out to {wanted, theSubject, theSender, theDate, boxName, c, mid, isUnread, item 1 of ident, item 2 of ident, wasReplied, wasForwarded, isFlagged}
                         end if
