@@ -46,6 +46,22 @@ enum IslandSnapshots {
                 for _ in 0..<5 { await Task.yield() }
                 island.showForSnapshot(status(questions: approvals.questions.count))
             }),
+            // mail_send's card: its own buttons, and the whole mail scrolling inside the island.
+            ("needs-you-send", true, {
+                approvals.cancelAll()
+                _ = await question?.value
+                question = Task { await approvals.ask(sendQuestion) }
+                for _ in 0..<5 { await Task.yield() }
+                island.showForSnapshot(status(questions: approvals.questions.count))
+            }),
+            // A recipient list longer than the island: it must visibly go on below before Send.
+            ("needs-you-send-recipients", true, {
+                approvals.cancelAll()
+                _ = await question?.value
+                question = Task { await approvals.ask(sendManyQuestion) }
+                for _ in 0..<5 { await Task.yield() }
+                island.showForSnapshot(status(questions: approvals.questions.count))
+            }),
             // A choice of three, and a text answer: "Open Pippa" gets its own row under them.
             ("needs-you-select", true, {
                 approvals.cancelAll()
@@ -283,6 +299,28 @@ enum IslandSnapshots {
     private static let sampleQuestion = PiUIRequest(
         id: "island-snapshot", method: "confirm", title: "Darf Pippa im Internet suchen?",
         message: "Pippa möchte bei DuckDuckGo suchen nach:\n\n„Widerspruchsfrist Nebenkostenabrechnung“")
+
+    /// The card `mail_send` shows, built by the server's own code from a made-up long draft with Cc and Bcc.
+    private static var sendQuestion: PiUIRequest {
+        let body = "Hallo Anna,\n\npasst dir Freitag um 10 Uhr für die Übergabe der Wohnung?\n\n"
+            + (1...6).map { "Punkt \($0): Zählerstände ablesen, Fotos der Räume machen und die Nebenkostenabrechnung durchgehen." }.joined(separator: "\n")
+            + "\n\nViele Grüße\nTobias"
+        let card = PippaMCPWriteTools.sendCard(MailOutgoing(
+            sender: "Beispiel <ich@example.org>", subject: "Wohnungsübergabe am Freitag", body: body,
+            to: ["anna@example.org", "ben.mitbewohner@example.org"], cc: ["hausverwaltung@example.org"], bcc: ["archiv@example.org"],
+            attachments: ["Protokoll.pdf"]))
+        return PiUIRequest(id: "island-snapshot-send", method: "confirm", title: card.title, message: card.message,
+                           options: [card.declineLabel, card.confirmLabel].compactMap { $0 })
+    }
+
+    /// The same card to 30 people.
+    private static var sendManyQuestion: PiUIRequest {
+        let card = PippaMCPWriteTools.sendCard(MailOutgoing(
+            sender: "Beispiel <ich@example.org>", subject: "Hoffest am Samstag", body: "Hallo zusammen,\n\nbis Samstag!",
+            to: (1...30).map { "nachbar\($0)@example.org" }))
+        return PiUIRequest(id: "island-snapshot-send-many", method: "confirm", title: card.title, message: card.message,
+                           options: [card.declineLabel, card.confirmLabel].compactMap { $0 })
+    }
 
     private static let selectQuestion = PiUIRequest(
         id: "island-snapshot-select", method: "select", title: "Welche Datei soll Pippa lesen?", message: "",

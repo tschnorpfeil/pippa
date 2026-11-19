@@ -5,9 +5,10 @@ import Foundation
 // the receipt through the app (`PippaMCPService.writeNotes`). Mail: exact states (created, opened, unclear), never "sent".
 extension ActionReceipt.Item {
     /// Actions of the writing MCP tools.
-    public static let appActions: Set<String> = ["calendarAdd", "reminderAdd", "mailDraft"]
+    public static let appActions: Set<String> = ["calendarAdd", "reminderAdd", "mailDraft", "mailSend"]
 
     func appLine(language: String?) -> String {
+        if action == "mailSend" { return sendLine(language: language) }
         if outcome == "cancelled" {
             return switch action {
             case "calendarAdd": L("Stopped before adding anything to Calendar", table: "Thought", language: language)
@@ -55,6 +56,18 @@ extension ActionReceipt.Item {
             return suffix(base, language: language)
         default:
             return L("Unclear whether it happened: %@", table: "Thought", language: language, what)
+        }
+    }
+
+    /// `mail_send`: sent and found in Sent, unclear (never "sent" without the check), or not sent.
+    private func sendLine(language: String?) -> String {
+        let what = name ?? "?"
+        if outcome == "cancelled" { return L("Stopped before sending a mail", table: "Thought", language: language) }
+        if reason == "pending" { return L("Mail hasn’t confirmed the send yet. Look in Sent before trying again.", table: "Thought", language: language) }
+        switch outcome {
+        case "done": return L("Mail sent to %@", table: "Thought", language: language, what)
+        case "unclear": return L("Unclear whether the mail was sent: %@ · please look in Sent", table: "Thought", language: language, what)
+        default: return suffix(L("Mail not sent: %@", table: "Thought", language: language, what), language: language)
         }
     }
 

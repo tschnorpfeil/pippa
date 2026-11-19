@@ -171,15 +171,20 @@ enum PippaMCPService {
         }
         fresh.confirmBrowser = { _, title, message in await confirmBrowser(title: title, message: message, asksForAccess: asksForAccess) }
         // Irreversible and external tools: the same question card, answered only by its button (PippaMCPTools.gate).
-        fresh.confirmAction = { card in await confirmBrowser(title: card.title, message: card.message, asksForAccess: asksForAccess) }
+        fresh.confirmAction = { card in
+            // Buttons in plain words when the card names them ("Don’t Send", "Send"): `confirm` reads them from options.
+            let labels = [card.declineLabel, card.confirmLabel].compactMap { $0 }
+            return await confirmBrowser(title: card.title, message: card.message, asksForAccess: asksForAccess, options: labels.count == 2 ? labels : [])
+        }
         return fresh
     }
 
     /// The person's OK for `browse` and for irreversible or external tools, in Pippa's own approval. `Pippa --ask` never shows it: the question counts as
     /// declined (`PiSession.Interaction.headless`), so the run reports needs_input.
-    static func confirmBrowser(title: String, message: String, asksForAccess: Bool) async -> Bool {
+    /// `options`: for `confirm`, the labels of no and yes, in that order; empty for Don’t Allow and Allow.
+    static func confirmBrowser(title: String, message: String, asksForAccess: Bool, options: [String] = []) async -> Bool {
         let request = PiUIRequest(id: UUID().uuidString, method: "confirm", title: title, message: message,
-                                  options: [], placeholder: nil, prefill: nil, timeout: nil)
+                                  options: options, placeholder: nil, prefill: nil, timeout: nil)
         guard asksForAccess else {
             if case .headless(let declined) = PiSession.shared.interaction { declined(request) }
             return false

@@ -540,7 +540,7 @@ func runSharingChecks() async {
     // MARK: Provenance
 
     check("Provenance comes from tool names: readers and writers map to their source, web tools to none") {
-        SharingSource.read(byTool: "mcp__pippa__mail_read") == [.mail]
+        SharingSource.read(byTool: "mcp__pippa__mail_read") == [.mail] && SharingSource.read(byTool: "mcp__pippa__mail_send") == [.mail]
             && SharingSource.read(byTool: "mcp__pippa__calendar_read") == [.calendar]
             && SharingSource.read(byTool: "mcp__pippa__reminders_read") == [.reminders]
             && SharingSource.read(byTool: "mcp__pippa__photos_search") == [.photos]

@@ -255,7 +255,7 @@ if [[ "${PIPPA_REQUIRE_DISTRIBUTION:-0}" == 1 ]]; then
   spctl --assess --type open --context context:primary-signature "$DMG" >/dev/null 2>&1 || fail "Gatekeeper rejects the DMG"
   ok "Developer ID, notarization ticket and Gatekeeper for distribution"
   # Developer probes compile only under DEBUG or PIPPA_PROBES (build-app.sh); add each new probe's argument here.
-  probe_strings=(mail-move-probe)
+  probe_strings=(mail-move-probe mail-send-probe)
   for probe in "${probe_strings[@]}"; do
     ! grep -q -a -F -- "$probe" "$APP/Contents/MacOS/Pippa" || fail "app binary contains the developer probe '$probe' (built with PIPPA_PROBES=1?)"
   done

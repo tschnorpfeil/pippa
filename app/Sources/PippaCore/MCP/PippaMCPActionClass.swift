@@ -38,6 +38,8 @@ public enum PippaActionClasses {
         // and select: `PippaMCPHost.confirmBrowser`), listed in `asksPerStep`, instead of one card per call:
         // a snapshot or a page on an approved host reaches no one new.
         PippaMCPBrowserTool.name: .external,
+        // Sends one draft Pippa saved in this conversation, after a card with the draft as Mail has it (PippaMCPMailSend.swift).
+        PippaMCPMailSend.name: .external,
 
         // Pi's tools (runtime/pippa-tools). Their gate is Pi's `tool_call` hook and the shell sandbox, which also see
         // calls from codemode scripts; the MCP server never dispatches them.
@@ -81,11 +83,15 @@ public struct PippaMCPConfirmation: Sendable, Equatable {
     public var content: String
     /// The answer the card belongs to.
     public var turnID: UUID?
+    /// The buttons in plain words ("Send", "Don’t Send"); `nil`: the card's usual Allow and Don’t Allow.
+    public var confirmLabel: String?
+    public var declineLabel: String?
 
     public init(tool: String, actionClass: PippaActionClass, title: String, recipient: String? = nil, objects: [String] = [],
-                content: String, turnID: UUID? = nil) {
+                content: String, turnID: UUID? = nil, confirmLabel: String? = nil, declineLabel: String? = nil) {
         self.tool = tool; self.actionClass = actionClass; self.title = title; self.recipient = recipient
         self.objects = objects; self.content = content; self.turnID = turnID
+        self.confirmLabel = confirmLabel; self.declineLabel = declineLabel
     }
 
     /// The card's text: recipient or objects first, then the exact content.

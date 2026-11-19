@@ -4,6 +4,8 @@ import Foundation
 /// Handler parameters as plain values, so they can cross to the AppleScript queue.
 public enum ScriptArgument: Sendable, Equatable {
     case text(String), number(Int32), flag(Bool), texts([String])
+    /// An absolute date (an AppleScript date), never an age from the other side's clock.
+    case date(Date)
 
     var descriptor: NSAppleEventDescriptor {
         switch self {
@@ -14,6 +16,7 @@ public enum ScriptArgument: Sendable, Equatable {
             let list = NSAppleEventDescriptor.list()
             for (i, s) in strings.enumerated() { list.insert(NSAppleEventDescriptor(string: s), at: i + 1) }
             return list
+        case .date(let d): return NSAppleEventDescriptor(date: d)
         }
     }
 }

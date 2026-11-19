@@ -67,6 +67,8 @@ struct IslandOpenButton: View {
 /// title and answers; "question\n\nsentence" may come in the title.
 struct IslandQuestionText: View {
     let request: PiUIRequest
+    /// More of the text lies below what shows (a long recipient list, a whole mail). No `@State`: no SwiftUI macros.
+    private let continues = State(initialValue: false)
 
     private var parts: (title: String, message: String, detail: String) {
         var title = request.title, message = request.message
@@ -83,17 +85,49 @@ struct IslandQuestionText: View {
         VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
             Text(parts.title).font(IslandStyle.title).foregroundStyle(IslandStyle.white(IslandStyle.primary))
                 .fixedSize(horizontal: false, vertical: true)
-            if !parts.message.isEmpty {
-                Text(parts.message).font(IslandStyle.small).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
-                    .lineLimit(6).fixedSize(horizontal: false, vertical: true)
+            // Everything the person allows, never cut (recipients, a whole mail): a long text scrolls inside the island,
+            // so the buttons below stay in reach.
+            ScrollView {
+                VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
+                    if !parts.message.isEmpty {
+                        Text(parts.message).font(IslandStyle.small).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if !parts.detail.isEmpty {
+                        // In full, as on the chat's card: the command or address the person allows (bounded by its sender).
+                        Text(parts.detail).font(IslandStyle.detail).foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if !parts.detail.isEmpty {
-                // In full, as on the chat's card: the command or address the person allows (bounded by its sender).
-                Text(parts.detail).font(IslandStyle.detail).foregroundStyle(IslandStyle.white(IslandStyle.primary))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            .scrollIndicators(.visible)
+            .onScrollGeometryChange(for: Bool.self) { $0.contentSize.height - $0.visibleRect.maxY > 1 } action: { _, more in continues.wrappedValue = more }
+            .frame(maxHeight: 220)
+            .fixedSize(horizontal: false, vertical: true)
+            // Until the end is in view, a fade and an arrow over the last line: the list never looks complete before
+            // it is, even where macOS hides the scroll bar.
+            .overlay(alignment: .bottom) { if continues.wrappedValue { IslandMoreBelow() } }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// "There is more below" over the bottom edge of a scrolling question text; clicks and VoiceOver pass through.
+private struct IslandMoreBelow: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(colors: [Color.black.opacity(0), Color.black], startPoint: .top, endPoint: .bottom)
+                .frame(height: 40)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(IslandStyle.white(0.18)))
+        }
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -117,8 +151,10 @@ struct IslandQuestionAnswers: View {
         if request.method == "confirm" {
             IslandButtonRow(lead: true) {
                 IslandOpenButton(hint: false, action: onOpen)
-                button(T("Don’t Allow", table: "App"), .confirmed(false))
-                button(T("Allow", table: "App"), .confirmed(true), prominent: true)
+                // The card's own words when it names them ("Don’t Send", "Send"), as in the chat.
+                let labels = Confirmations.confirmLabels(request)
+                button(labels.no, .confirmed(false))
+                button(labels.yes, .confirmed(true), prominent: true)
             }
         } else if request.method == "select" {
             // Every choice in sight, one row each and in full: a pop-up menu hid them behind a click and opened over

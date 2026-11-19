@@ -175,7 +175,7 @@ extension PippaMCPWriteTools {
     }
 
     private func moveAccess() async -> Gate {
-        await ensure(.mail, openMail: true, explanation: L("To do this, I need access to Mail on this Mac – I only move mails into your folders and never send anything.", table: "MCP"))
+        await ensure(.mail, openMail: true, explanation: L("To do this, I need access to Mail on this Mac – I only move mails into your folders and send nothing without your click on Send.", table: "MCP"))
     }
 
     /// `saved`: the plan came from the store, and goes back there when this call is refused before anything moved.

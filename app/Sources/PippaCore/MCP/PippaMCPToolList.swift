@@ -38,7 +38,7 @@ extension PippaMCPTools {
             tool("front_read", "Geöffnetes lesen", "Front content."),
         ]
         return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList() + PippaMCPFilePreparation.toolList()
-            + PippaMCPBrowserTool.toolList()
+            + PippaMCPBrowserTool.toolList() + PippaMCPMailSend.toolList()
 
     }
 

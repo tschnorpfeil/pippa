@@ -107,7 +107,7 @@ final class PiSession {
     /// question goes out, then `false`.
     func ask(_ outgoing: Outgoing, conversation: String, handoff: Bool = false, onStarting: @escaping (Bool) -> Void = { _ in },
              onEvent: @escaping (PiRPCEvent) -> Void) async throws {
-        let turn = PippaMCPTurn()
+        let turn = PippaMCPTurn(conversation: conversation)
         PippaMCPService.begin(turn)
         defer { PippaMCPService.end(turn) }
         var settled = false

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import PiRPC
 import PippaCore
@@ -32,6 +33,20 @@ enum ApprovalsChecks {
         check(await allow.value == .confirmed(true), "Allow reaches the caller")
         check(approvals.questions.isEmpty, "an answered question disappears")
         approvals.answer("q1", .confirmed(false))   // late or double click: ignored
+
+        // mail_send names its buttons; the chat's card, the island and the alert all take them from here.
+        let named = Confirmations.confirmLabels(request("q-send", options: ["Don’t Send", "Send"]))
+        let plain = Confirmations.confirmLabels(request("q-plain"))
+        check(named == ("Don’t Send", "Send") && plain == (T("Don’t Allow", table: "App"), T("Allow", table: "App")),
+              "a confirm shows its own button words (Don’t Send / Send), otherwise Don’t Allow / Allow")
+        // The alert (no view on screen): Return and the focus say no, so only a click sends.
+        let sendAlert = NSAlert()
+        let yesResponse = Confirmations.addConfirmButtons(sendAlert, request("q-send", options: ["Don’t Send", "Send"]))
+        let yesIndex = yesResponse.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        let yesButton = sendAlert.buttons.indices.contains(yesIndex) ? sendAlert.buttons[yesIndex] : nil
+        check(sendAlert.buttons.filter { $0.keyEquivalent == "\r" }.map(\.title) == ["Don’t Send"] && yesButton?.title == "Send"
+              && yesButton?.keyEquivalent == "" && (sendAlert.window.initialFirstResponder as? NSButton)?.title == "Don’t Send",
+              "in the alert Return and the focus are on Don’t Send; only a click on Send sends")
 
         let pick = Task { await approvals.ask(request("q2", "select", options: ["Once", "Always"])) }
         await settle()

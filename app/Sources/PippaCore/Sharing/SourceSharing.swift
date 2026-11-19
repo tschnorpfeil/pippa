@@ -37,7 +37,7 @@ public enum SharingSource: String, Codable, Sendable, CaseIterable, Hashable, Co
     public static func read(byTool tool: String) -> Set<SharingSource> {
         let name = tool.hasPrefix("mcp__pippa__") ? String(tool.dropFirst("mcp__pippa__".count)) : tool
         switch name {
-        case "mail_search", "mail_read", "mail_selected", "mail_draft", "mail_folders", "mail_move": return [.mail]
+        case "mail_search", "mail_read", "mail_selected", "mail_draft", "mail_folders", "mail_move", "mail_send": return [.mail]
         case "calendar_read", "calendar_add": return [.calendar]
         case "reminders_read", "reminder_add": return [.reminders]
         case "photos_search": return [.photos]

@@ -979,6 +979,7 @@ enum StepLabel {
         case "mail_search", "mail_read", "mail_folders": return T("Reading Mail", table: "App")
         case "mail_move": return T("Moving mails", table: "App")
         case "mail_draft": return T("Writing a Mail draft", table: "App")
+        case "mail_send": return T("Sending a mail", table: "App")
         case "photos_search": return T("Searching Photos", table: "App")
         case "front_read": return T("Reading the app in front", table: "App")
         case "prepare_files": return T("Preparing files", table: "App")

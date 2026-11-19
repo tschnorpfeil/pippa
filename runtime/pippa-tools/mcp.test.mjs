@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { default: register, serverConfig, SERVER_NAME, TOOLS, WRITE_TOOLS, BROWSER_TOOLS, discoverNativeTools, REQUIRED_TOOLS, READINESS_COMMAND } = await import("./pippa-mcp.ts");
+const { default: register, serverConfig, SERVER_NAME, TOOLS, WRITE_TOOLS, BROWSER_TOOLS, SEND_TOOLS, discoverNativeTools, REQUIRED_TOOLS, READINESS_COMMAND } = await import("./pippa-mcp.ts");
 
 const token = "ab".repeat(32);
 
@@ -58,7 +58,12 @@ test("tool names as in the Swift server, none writes or sends", () => {
 
 test("admission requires exactly the readers and writers of the Swift server", () => {
 	assert.deepEqual(REQUIRED_TOOLS, ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "read_document",
-		"calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files", "browse"].map((name) => `mcp__pippa__${name}`));
+		"calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files", "browse", "mail_send"].map((name) => `mcp__pippa__${name}`));
+});
+
+test("the one sending tool is separate from the Mac-only writers", () => {
+	assert.deepEqual(SEND_TOOLS, ["mail_send"]);
+	assert.ok(!WRITE_TOOLS.includes("mail_send") && !TOOLS.includes("mail_send") && !BROWSER_TOOLS.includes("mail_send"));
 });
 
 test("the browser tool is separate from the readers and the Mac-only writers", () => {

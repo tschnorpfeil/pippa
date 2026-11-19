@@ -125,6 +125,12 @@ enum Snapshots {
                 chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
                 askSampleQuestion()
             }, 760, false, false),
+            // mail_send: the card with the draft as Mail has it (a long text scrolls inside the card), then its receipt.
+            ("mail-send-card", {
+                chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
+                askSampleMailSend()
+            }, 900, false, false),
+            ("mail-send-receipt", { chat.showSample(sampleMailSend() + sampleConversations(), current: "send", answering: false) }, 760, false, false),
             ("error", { chat.showSample(sampleConversations(failed: true), current: "c1", answering: false) }, 760, false, false),
             // The online AI said "too many requests": Pi waits and tries again, the row counts down.
             ("rate-limit-wait", { chat.showSample(sampleConversations(answering: true, starting: true), current: "c1", answering: true, waiting: 42) }, 760, false, false),
@@ -212,6 +218,36 @@ enum Snapshots {
             _ = await approvals.ask(request)
             approvals.dismiss("snapshot")
         }
+    }
+
+    /// The card `mail_send` shows before it sends, built by the server's own code from a made-up draft.
+    private static func askSampleMailSend() {
+        let approvals = Approvals.shared
+        for _ in 0..<20 where approvals.hasPresenter { approvals.dismiss("chat") }
+        approvals.present("snapshot")
+        let body = "Hallo Anna,\n\npasst dir Freitag um 10 Uhr für die Übergabe der Wohnung? Ich bringe beide Schlüssel und das Protokoll mit.\n\n"
+            + (1...6).map { "Punkt \($0): Zählerstände ablesen, Fotos der Räume machen und die Nebenkostenabrechnung durchgehen." }.joined(separator: "\n")
+            + "\n\nViele Grüße\nTobias"
+        let mail = MailOutgoing(sender: "Beispiel <ich@example.org>", subject: "Wohnungsübergabe am Freitag", body: body,
+                                to: ["anna@example.org"], cc: ["hausverwaltung@example.org"], attachments: ["Protokoll.pdf"])
+        let card = PippaMCPWriteTools.sendCard(mail)
+        let request = PiUIRequest(id: "snapshot-send", method: "confirm", title: card.title, message: card.message,
+                                  options: [card.declineLabel, card.confirmLabel].compactMap { $0 })
+        Task {
+            _ = await approvals.ask(request)
+            approvals.dismiss("snapshot")
+        }
+    }
+
+    /// The receipt after `mail_send`: sent and found in Sent, no Undo; the draft before it.
+    private static func sampleMailSend() -> [Conversation] {
+        var sent = ChatMessage(role: .assistant, text: "Die Mail an Anna ist raus, und sie liegt in „Gesendet“.")
+        sent.receipts = [PippaMCPWriteReceipt(action: "mailSend", outcome: "done", name: "anna@example.org · “Wohnungsübergabe am Freitag”", reason: "verified")]
+        sent.run = RunSummary(run: UUID(), changes: 1, checked: 1)
+        sent.duration = 6
+        return [Conversation(id: "send", title: "Mail an Anna", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Schick Anna den Entwurf von eben."), sent,
+        ])]
     }
 
     /// `chrome`: a titled window with its buttons (the chat); without, just the view (a settings page). `fits`: the

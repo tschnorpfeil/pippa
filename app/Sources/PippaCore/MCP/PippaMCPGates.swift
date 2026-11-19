@@ -9,7 +9,7 @@ extension PippaMCPTools {
         case .integration(.reminders):
             L("To answer this, I need to read your reminders on this Mac – only when you ask, and I don’t change anything.", table: "MCP")
         case .integration(.mail):
-            L("To answer this, I need to read Mail on this Mac – only when you ask, and I never send anything.", table: "MCP")
+            L("To answer this, I need to read Mail on this Mac – only when you ask, and I send nothing without your click on Send.", table: "MCP")
         case .excel:
             L("To answer this, I need to read the open table in Excel – only when you ask, and I don’t change it.", table: "MCP")
         case .photos:

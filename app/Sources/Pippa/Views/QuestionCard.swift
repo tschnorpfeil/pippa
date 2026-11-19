@@ -49,11 +49,18 @@ struct QuestionCard: View {
             }
             // What exactly would happen (the search words, the address): right on the card, selectable to check.
             if text.paragraphs.count > 1 {
-                Text(text.paragraphs.dropFirst().joined(separator: "\n\n"))
+                let detail = text.paragraphs.dropFirst().joined(separator: "\n\n")
+                let shown = Text(detail)
                     .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink).lineSpacing(2)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                // A long text (a whole mail) scrolls inside the card, so the buttons stay in reach; nothing is cut.
+                if detail.count > Self.scrollsAfter {
+                    ScrollView { shown.padding(.trailing, Space.m) }.frame(maxHeight: Self.detailHeight)
+                } else {
+                    shown
+                }
             }
             answers
         }
@@ -63,13 +70,18 @@ struct QuestionCard: View {
         .accessibilityElement(children: .contain)
     }
 
+    static let scrollsAfter = 700
+    static let detailHeight: CGFloat = 280
+
     @ViewBuilder private var answers: some View {
         switch request.method {
         case "confirm":
             HStack(spacing: Space.m) {
                 Spacer(minLength: 0)
-                ActionPill(title: T("Don’t Allow", table: "App"), shortcut: escape) { answer(.confirmed(false)) }
-                ActionPill(title: T("Allow", table: "App"), primary: true) { answer(.confirmed(true)) }
+                // A card may name its buttons in plain words (no, yes): "Don’t Send", "Send".
+                let labels = Confirmations.confirmLabels(request)
+                ActionPill(title: labels.no, shortcut: escape) { answer(.confirmed(false)) }
+                ActionPill(title: labels.yes, primary: true) { answer(.confirmed(true)) }
             }
         case "select" where request.options.count <= 3:
             HStack(spacing: Space.m) {

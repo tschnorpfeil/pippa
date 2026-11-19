@@ -92,3 +92,10 @@
 "Steps not remembered: %@" = "Steps not remembered: %@";
 
 // make_chart: a chart card computed from a table file (PippaMCPChart.swift).
+
+// mail_send receipts (ActionReceipt+Apps.swift).
+"Mail sent to %@" = "Mail sent to %@";
+"Unclear whether the mail was sent: %@ · please look in Sent" = "Unclear whether the mail was sent: %@ · please look in Sent";
+"Mail not sent: %@" = "Mail not sent: %@";
+"Stopped before sending a mail" = "Stopped before sending a mail";
+"Mail hasn’t confirmed the send yet. Look in Sent before trying again." = "Mail hasn’t confirmed the send yet. Look in Sent before trying again.";

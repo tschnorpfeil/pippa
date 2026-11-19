@@ -27,6 +27,31 @@ enum HeadlessAskChecks {
         func events(in interval: DateInterval, limit: Int) async throws -> CalendarFetch { try await base.events(in: interval, limit: limit) }
     }
 
+    /// Mail for `mail_send` without the real Mail: one open draft window per draft, a count of send events.
+    private final class HeadlessMail: MailSending, @unchecked Sendable {
+        private let lock = NSLock()
+        private var windows: [Int: MailOutgoing] = [:]
+        private var sends = 0
+        var sendCount: Int { lock.withLock { sends } }
+        func insertDraft(_ draft: MailDraft) async throws -> MailDraftInsert {
+            try PippaMCPWriteLease.current?.beginDispatch()
+            let id = lock.withLock { () -> Int in
+                let id = windows.count + 1
+                windows[id] = MailOutgoing(sender: "Check <me@example.test>", subject: draft.replySubject, body: draft.body, to: draft.to.map { [$0] } ?? [])
+                return id
+            }
+            return MailDraftInsert(result: .newMessage, outgoingID: id, mailProcess: 1)
+        }
+        func outgoing(_ id: Int, process: Int32) async throws -> MailOutgoingLookup { lock.withLock { windows[id].map(MailOutgoingLookup.found) ?? .gone } }
+        func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch {
+            try PippaMCPWriteLease.current?.beginDispatch()
+            lock.withLock { sends += 1 }
+            return .sent
+        }
+        func sentMessageIDs(subject: String, from address: String, since: Date) async throws -> Set<String> { [] }
+        func sent(subject: String, from address: String, since: Date) async throws -> [MailSentEntry] { [] }
+    }
+
     private struct Fixture {
         let demo: DemoIntegrations
         let integrations: CountingIntegrations
@@ -166,6 +191,22 @@ enum HeadlessAskChecks {
             if reply != .confirmed(false) { emit(plainTool("bash", isError: true, result: "answered by mistake")) }
         }
         check(needsInput.ended(with: .needs_input), "--ask: a declined question is needs_input (the blocked command is not a failure), exit code 3")
+        // mail_send: the card is a question, so --ask answers no; nothing is sent and the run needs input.
+        var mailFixture = Fixture(granted: true)
+        let mail = HeadlessMail()
+        mailFixture.host.mailSender = mail
+        var sendReply: ToolReply?
+        let mailRun = await headless(mailFixture) { emit in
+            let drafted = await call("mail_draft", ["subject": "Headless check", "to": "anna@example.test", "body": "Hallo Anna"])
+            emit(ended("mcp__pippa__mail_draft", drafted))
+            let json = (try? JSONSerialization.jsonObject(with: Data(drafted.text.utf8))) as? [String: Any]
+            let id = (json?["draft"] as? [String: Any])?["id"] as? String ?? ""
+            let reply = await call("mail_send", ["draft": id])
+            sendReply = reply
+            emit(ended("mcp__pippa__mail_send", reply))
+        }
+        check(sendReply?.status == "declined" && mail.sendCount == 0 && mailRun.ended(with: .needs_input),
+              "--ask: mail_send is answered no on its card, nothing is sent, and the run needs input")
         let unexplained = await headless(Fixture(granted: true)) { emit in emit(plainTool("bash", isError: true, result: "Blocked", blocked: true)) }
         check(unexplained.ended(with: .failed), "--ask: a blocked tool without a recorded cause is failed")
         let blockedAndAccess = await headless(Fixture(granted: false)) { emit in
