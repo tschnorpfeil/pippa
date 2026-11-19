@@ -117,7 +117,7 @@ extension PippaMCPTools {
             let replyTo = kind == .sent ? mail.explicitReplyTo : source.replyTo
             if let replyTo { data["replyTo"] = replyTo }
         }
-        var next = "Use only what the email says. Never send mail; replies are drafts. "
+        var next = "Use only what the email says. Replies are drafts; send only a draft the person asked to send, with mail_send. "
         // Without Mail's original message there are no attachment bytes, whatever names Mail lists.
         let sourceBlank = (mail.source ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let canReply = !isDraft && (origin?.requiresStrictLocator != true || origin?.locator?.strict == true)

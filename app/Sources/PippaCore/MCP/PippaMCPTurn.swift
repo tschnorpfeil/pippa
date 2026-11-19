@@ -78,10 +78,11 @@ public actor PippaMCPTurn {
     public nonisolated var extendedBudget: Bool { budget.value }
     public nonisolated func setExtendedBudget(_ on: Bool) { budget.set(on) }
 
-    public init(origin: PippaMCPOrigin? = nil, allowsNativeWrites: Bool = true, extendedBudget: Bool = false) {
+    /// `conversation`: the conversation this answer belongs to, so a Mail draft saved in it can be sent later in it.
+    public init(origin: PippaMCPOrigin? = nil, allowsNativeWrites: Bool = true, extendedBudget: Bool = false, conversation: String? = nil) {
         let id = UUID()
         self.id = id
-        self.writes = PippaMCPWriteScope(turnID: id, origin: origin, allowsNativeWrites: allowsNativeWrites)
+        self.writes = PippaMCPWriteScope(turnID: id, origin: origin, allowsNativeWrites: allowsNativeWrites, conversation: conversation)
         self.budget = BudgetFlag(extendedBudget)
     }
 

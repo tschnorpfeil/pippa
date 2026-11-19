@@ -30,8 +30,9 @@ enum Confirmations {
         NSApp.activate()
         switch request.method {
         case "confirm":
-            alert.addButton(withTitle: T("Allow", table: "App"))
-            alert.addButton(withTitle: T("Don’t Allow", table: "App"))
+            let named = request.options.count == 2
+            alert.addButton(withTitle: named ? request.options[1] : T("Allow", table: "App"))
+            alert.addButton(withTitle: named ? request.options[0] : T("Don’t Allow", table: "App"))
             return .confirmed(alert.runModal() == .alertFirstButtonReturn)
         case "select" where !request.options.isEmpty && request.options.count <= 3:
             for option in request.options { alert.addButton(withTitle: option) }

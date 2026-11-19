@@ -100,7 +100,7 @@ public struct PippaMCPWriteTools: Sendable {
         return await withLease(action: action) { await callScoped(name, raw) }
     }
 
-    private func withLease(action: String, _ operation: () async -> PippaMCPToolResult) async -> PippaMCPToolResult {
+    func withLease(action: String, _ operation: () async -> PippaMCPToolResult) async -> PippaMCPToolResult {
         let lease = scope.lease(action: action)
         var result = await withTaskCancellationHandler {
             await PippaMCPWriteLease.$current.withValue(lease) {

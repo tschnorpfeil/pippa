@@ -30,7 +30,7 @@ extension PippaMCPWriteTools {
         switch integration {
         case .calendar: L("To do this, I need access to your calendar on this Mac – I only add what you ask for.", table: "MCP")
         case .reminders: L("To do this, I need access to your reminders on this Mac – I only add what you ask for.", table: "MCP")
-        case .mail: L("To do this, I need access to Mail on this Mac – I only create drafts and never send anything.", table: "MCP")
+        case .mail: L("To do this, I need access to Mail on this Mac – I create drafts and send nothing without your click on Send.", table: "MCP")
         }
     }
 

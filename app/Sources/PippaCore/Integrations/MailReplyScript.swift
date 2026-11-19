@@ -16,6 +16,15 @@ public enum MailReplyScript {
     }
 
     public static func insert(_ draft: MailDraft, runner: StepRunner) async throws -> MailInsertResult {
+        try await insertDraft(draft, runner: runner).result
+    }
+
+    /// As `insert`, with the id of the open draft window when Mail confirmed its fields (`mail_send` sends only that one).
+    public static func insertDraft(_ draft: MailDraft) async throws -> MailDraftInsert {
+        try await insertDraft(draft, runner: run)
+    }
+
+    public static func insertDraft(_ draft: MailDraft, runner: StepRunner) async throws -> MailDraftInsert {
         guard draft.isReply else { return try await newMessage(draft, runner: runner) }
         guard let id = draft.messageID.flatMap(MailReplySource.canonicalMessageID) else { throw MailReplyFailure.missingOriginal }
         if let hint = draft.locator, hint.strict {
@@ -108,23 +117,27 @@ public enum MailReplyScript {
         return result
     }
 
-    private static func outcome(_ response: [ScriptValue], draft: MailDraft) throws -> MailInsertResult {
+    private static func outcome(_ response: [ScriptValue], draft: MailDraft) throws -> MailDraftInsert {
         let status = response.first?.text ?? ""
-        let filled = response.count == 5
+        let filled = (5...6).contains(response.count)
         if status == "reply", !filled { throw MailReplyFailure.unconfirmed }
-        return try draft.replyOutcome(status: status, subject: filled ? (response[1].text ?? "") : "",
-                                      body: filled ? (response[2].text ?? "") : "",
-                                      recipients: filled ? response[3].items.map { $0.text ?? "" } : [],
-                                      saved: filled && response[4].flag == true)
+        let result = try draft.replyOutcome(status: status, subject: filled ? (response[1].text ?? "") : "",
+                                            body: filled ? (response[2].text ?? "") : "",
+                                            recipients: filled ? response[3].items.map { $0.text ?? "" } : [],
+                                            saved: filled && response[4].flag == true)
+        return MailDraftInsert(result: result, outgoingID: result == .reply && response.count == 6 ? outgoingID(response[5]) : nil)
     }
 
-    private static func newMessage(_ draft: MailDraft, runner: StepRunner) async throws -> MailInsertResult {
+    private static func newMessage(_ draft: MailDraft, runner: StepRunner) async throws -> MailDraftInsert {
         let created = try await runner("newMessage", [.text(draft.to ?? ""), .text(draft.toName ?? ""), .text(draft.replySubject), .text(draft.body)], true)
-        guard created.count == 3,
+        guard (3...4).contains(created.count),
               draft.isConfirmed(subject: created[0].text ?? "", body: created[1].text ?? "",
                                 recipients: created[2].items.map { $0.text ?? "" }) else { throw PippaError.notAvailable }
-        return .newMessage
+        return MailDraftInsert(result: .newMessage, outgoingID: created.count == 4 ? outgoingID(created[3]) : nil)
     }
+
+    /// Mail's id of an open draft window; 0 or anything else means Mail did not report one.
+    private static func outgoingID(_ value: ScriptValue) -> Int? { value.number.flatMap { $0 > 0 ? $0 : nil } }
 
     /// One short step on the AppleScript queue.
     private static func run(_ handler: String, _ args: [ScriptArgument], _ mutation: Bool) async throws -> [ScriptValue] {

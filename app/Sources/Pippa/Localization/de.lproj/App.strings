@@ -294,3 +294,8 @@
 "all checked" = "alle geprüft";
 "%lld checked" = "%lld geprüft";
 "%@, %@" = "%@, %@";
+
+// mail_send: receipt row and progress.
+"Mail sent" = "Mail gesendet";
+"Mail not sent" = "Mail nicht gesendet";
+"Sending a mail" = "Sende eine Mail";

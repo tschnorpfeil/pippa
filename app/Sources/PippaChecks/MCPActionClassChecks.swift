@@ -19,7 +19,7 @@ func runMCPActionClassChecks() async {
                        "read", "search_files", "list_folder"]
         let undoable = ["calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files", "move_files", "write"]
         return readers.allSatisfy { PippaActionClasses.of($0) == .read } && undoable.allSatisfy { PippaActionClasses.of($0) == .undoable }
-            && ["bash", "browse", "web_search", "fetch_content"].allSatisfy { PippaActionClasses.of($0) == .external }
+            && ["bash", "browse", "web_search", "fetch_content", "mail_send"].allSatisfy { PippaActionClasses.of($0) == .external }
     }
     check("Action classes: MCP annotations match the class of every listed tool") {
         func expected(_ c: PippaActionClass) -> (readOnly: Bool, destructive: Bool, openWorld: Bool) {

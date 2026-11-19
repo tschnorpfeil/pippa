@@ -130,12 +130,19 @@ extension MailReplyScript {
             on error
                 return {"shown"}
             end try
+            -- The window's id lets mail_send find exactly this draft later; 0 when Mail does not report one.
+            set outgoingID to 0
+            try
+                with timeout of 5 seconds
+                    set outgoingID to (id of r) as integer
+                end timeout
+            end try
             try
                 with timeout of 5 seconds
                     activate
                 end timeout
             end try
-            return {"reply", readSubject, readBody, addresses, saved}
+            return {"reply", readSubject, readBody, addresses, saved, outgoingID}
         end tell
     end openReply
 
@@ -295,7 +302,11 @@ extension MailReplyScript {
                 repeat with targetRecipient in to recipients of nm
                     set end of recipientAddresses to (address of targetRecipient) as text
                 end repeat
-                return {(subject of nm) as text, (content of nm) as text, recipientAddresses}
+                set outgoingID to 0
+                try
+                    set outgoingID to (id of nm) as integer
+                end try
+                return {(subject of nm) as text, (content of nm) as text, recipientAddresses, outgoingID}
             end timeout
         end tell
     end newMessage

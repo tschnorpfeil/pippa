@@ -20,10 +20,10 @@ public enum IntegrationScripts {
         try MailReplyScript.searchMatches(ScriptValue(response).items, in: box)
     }
 
-    /// Name and text of all scripts, for `compileAll` and the check that none calls `send`.
+    /// Name and text of all scripts, for `compileAll` and the check that only `MailSend` calls `send`, once.
     public static var sources: [(name: String, source: String)] {
         var all = [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("MailAccounts", MailAccountScript.source),
-                   ("MailMove", MailAccountScript.moveSource), ("Excel", ExcelScript.source),
+                   ("MailMove", MailAccountScript.moveSource), ("MailSend", MailSendScript.source), ("Excel", ExcelScript.source),
                    ("PhotosSearch", PhotosSearchScript.source), ("PhotosShow", PhotosShowScript.source),
                    ("Safari", FrontAppScript.safari), ("Chrome", FrontAppScript.chrome), ("FrontDocument", FrontAppScript.documentSource)]
         #if DEBUG || PIPPA_PROBES

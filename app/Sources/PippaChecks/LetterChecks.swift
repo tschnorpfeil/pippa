@@ -51,7 +51,7 @@ func runLetterChecks() async {
               let envelope = source.range(of: "set readSubject to (subject of r) as text", range: read.upperBound..<source.endIndex),
               let recipients = source.range(of: "repeat with targetRecipient in to recipients of r", range: envelope.upperBound..<source.endIndex),
               let unconfirmed = source.range(of: "return {\"shown\"}", range: recipients.upperBound..<source.endIndex),
-              let report = source.range(of: "return {\"reply\", readSubject, readBody, addresses, saved}", range: unconfirmed.upperBound..<source.endIndex)
+              let report = source.range(of: "return {\"reply\", readSubject, readBody, addresses, saved, outgoingID}", range: unconfirmed.upperBound..<source.endIndex)
         else { return false }
         // `set content` has no effect on replies in Mail 16 ; `save` makes the window show the text.
         let noDeadEnds = !source.contains("set content of r") && !source.contains("with opening window")
@@ -68,7 +68,7 @@ func runLetterChecks() async {
         guard let timeout = handler.range(of: "with timeout of 30 seconds"),
               let create = handler.range(of: "set nm to make new outgoing message", range: timeout.upperBound..<handler.endIndex),
               let recipients = handler.range(of: "repeat with targetRecipient in to recipients of nm", range: create.upperBound..<handler.endIndex),
-              let read = handler.range(of: "return {(subject of nm) as text, (content of nm) as text, recipientAddresses}", range: recipients.upperBound..<handler.endIndex),
+              let read = handler.range(of: "return {(subject of nm) as text, (content of nm) as text, recipientAddresses, outgoingID}", range: recipients.upperBound..<handler.endIndex),
               let endTimeout = handler.range(of: "end timeout", range: read.upperBound..<handler.endIndex) else { return false }
         return endTimeout.lowerBound > read.lowerBound
             && handler.components(separatedBy: "make new outgoing message").count == 2
@@ -256,16 +256,19 @@ func runLetterChecks() async {
             return error == .notAvailable
         }
     }
-    check("Mail: no script calls \"send\"; reply opens a window, new mail is visible") {
-        // Any bare `send` token, not only `send r`: the script may never name the command at all.
+    check("Mail: only the send script names \"send\", exactly once; reply opens a window, new mail is visible") {
+        // Any bare `send` token, not only `send r`: every other script may never name the command at all.
         let pattern = #"\bsend\b"#
         let sources = IntegrationScripts.sources
-        let clean = sources.allSatisfy { $0.source.range(of: pattern, options: [.regularExpression, .caseInsensitive]) == nil }
+        let clean = sources.filter { $0.name != "MailSend" }.allSatisfy { $0.source.range(of: pattern, options: [.regularExpression, .caseInsensitive]) == nil }
+        let sender = sources.first { $0.name == "MailSend" }?.source ?? ""
+        let once = sender.components(separatedBy: "set didSend to send om").count == 2
+            && (try? NSRegularExpression(pattern: pattern, options: .caseInsensitive))?.numberOfMatches(in: sender, range: NSRange(sender.startIndex..., in: sender)) == 1
         let reply = sources.first { $0.name == "MailReply" }?.source ?? ""
         let shape = reply.contains("set r to reply m\n") && reply.contains("visible:true") && !reply.contains("reply to all")
         let names = sources.map(\.name)
-        let expected: [String] = ["Mail", "MailReply", "MailSearch", "MailAccounts", "MailMove", "MailMoveDiagnose", "Excel", "PhotosSearch", "PhotosShow", "Safari", "Chrome", "FrontDocument"]
-        return clean && shape && names == expected
+        let expected: [String] = ["Mail", "MailReply", "MailSearch", "MailAccounts", "MailMove", "MailMoveDiagnose", "MailSend", "Excel", "PhotosSearch", "PhotosShow", "Safari", "Chrome", "FrontDocument"]
+        return clean && once && shape && names == expected
     }
     await checkAsync("Mail: reply script is among the compiled scripts") {
         let result = await MainActor.run { IntegrationScripts.compileAll() }

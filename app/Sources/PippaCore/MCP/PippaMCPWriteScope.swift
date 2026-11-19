@@ -32,6 +32,10 @@ public final class PippaMCPWriteScope: @unchecked Sendable {
     public let turnID: UUID?
     public let origin: PippaMCPOrigin?
     public let allowsNativeWrites: Bool
+    /// The conversation the answer belongs to: Mail drafts saved in it can be sent from a later answer (`mail_send`).
+    public let conversation: String?
+    /// Who owns a draft saved under this scope: the conversation, else the one answer. `nil`: an independent action.
+    var draftOwner: String? { conversation.map { "conversation:" + $0 } ?? turnID.map { "answer:" + $0.uuidString } }
     private let lock = NSLock()
     private var cancelled = false
     private var operations: [UUID: State] = [:]
@@ -39,8 +43,8 @@ public final class PippaMCPWriteScope: @unchecked Sendable {
     private var observer: (@Sendable (PippaMCPWriteReceipt) -> Void)?
 
     /// No turn ID: an independent native action, such as the person's Save Draft button.
-    public init(turnID: UUID? = nil, origin: PippaMCPOrigin? = nil, allowsNativeWrites: Bool = true) {
-        self.turnID = turnID; self.origin = origin; self.allowsNativeWrites = allowsNativeWrites
+    public init(turnID: UUID? = nil, origin: PippaMCPOrigin? = nil, allowsNativeWrites: Bool = true, conversation: String? = nil) {
+        self.turnID = turnID; self.origin = origin; self.allowsNativeWrites = allowsNativeWrites; self.conversation = conversation
     }
 
     public func cancel() { lock.withLock { cancelled = true } }

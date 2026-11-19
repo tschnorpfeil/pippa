@@ -28,6 +28,10 @@ export const TOOLS = ["calendar_read", "reminders_read", "mail_search", "mail_re
  * mail drafts remain unsent, and prepared PDFs preserve their original files. */
 export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files"];
 
+/** Sends one draft Pippa saved with mail_draft in this conversation, only after the person pressed Send on Pippa's
+ * card (app/Sources/PippaCore/MCP/PippaMCPMailSend.swift). The card and the gate live in the app's server. */
+export const SEND_TOOLS = ["mail_send"];
+
 /** Pippa's browser panel (app/Sources/PippaCore/MCP/PippaMCPBrowser.swift): goes online, so the app asks the person
  * before it opens a new site and before every click, typed text or choice. Logins stay with the person. */
 export const BROWSER_TOOLS = ["browse"];
@@ -50,7 +54,7 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		url: parsed.toString(),
 		headers: { Authorization: `Bearer ${token}` },
 		exposure,
-		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and unsent Mail drafts; move mails into existing folders; prepare verified PDFs locally; browse web pages in Pippa's panel with the person's OK.",
+		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and Mail drafts; send a saved draft after the person's click on Send; move mails into existing folders; prepare verified PDFs locally; browse web pages in Pippa's panel with the person's OK.",
 		// Text recognition on many pages takes a while: 5 minutes instead of 1. The app's server keeps the connection
 		// open accordingly (PippaMCPServer).
 		timeout: 300,
@@ -68,7 +72,7 @@ export function withCodemode(env: Record<string, string | undefined> = process.e
 }
 
 export const READINESS_COMMAND = "pippa-native-ready";
-export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS, ...BROWSER_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
+export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS, ...BROWSER_TOOLS, ...SEND_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
 
 /** The tools this process must have: all of them for the AI on this Mac; for an online AI exactly the app's list
  * (egress.ts), and none of the others may even be registered (the app's server lists only those). `codemode`: whether

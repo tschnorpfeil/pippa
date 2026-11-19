@@ -48,6 +48,7 @@ struct ReceiptRow: View {
         case "calendarAdd": return "calendar.badge.plus"
         case "reminderAdd": return "checklist"
         case "mailDraft": return "envelope"
+        case "mailSend": return "paperplane"
         default: return "checkmark"
         }
     }
@@ -62,11 +63,12 @@ struct ReceiptRow: View {
             }
         }
         // Checked against the app and it did not match, or the save was cut off: never "not added".
-        if receipt.outcome == "unclear", ["calendarAdd", "reminderAdd", "mailDraft"].contains(receipt.action) { return T("Unclear, please check", table: "App") }
+        if receipt.outcome == "unclear", ["calendarAdd", "reminderAdd", "mailDraft", "mailSend"].contains(receipt.action) { return T("Unclear, please check", table: "App") }
         switch receipt.action {
         case "calendarAdd": return done ? T("Added to Calendar", table: "App") : T("Not added to Calendar", table: "App")
         case "reminderAdd": return done ? T("Reminder added", table: "App") : T("No reminder added", table: "App")
         case "mailDraft": return done ? T("Draft in Mail, not sent", table: "App") : T("No Mail draft", table: "App")
+        case "mailSend": return done ? T("Mail sent", table: "App") : T("Mail not sent", table: "App")
         default: return receipt.name
         }
     }
@@ -85,7 +87,7 @@ struct ReceiptRow: View {
         switch receipt.action {
         case "calendarAdd": return T("Open Calendar", table: "App")
         case "reminderAdd": return T("Open Reminders", table: "App")
-        case "mailDraft": return T("Open Mail", table: "App")
+        case "mailDraft", "mailSend": return T("Open Mail", table: "App")
         default: return nil
         }
     }
@@ -94,7 +96,7 @@ struct ReceiptRow: View {
     static func openAction(_ receipt: PippaMCPWriteReceipt) -> (() -> Void)? {
         guard receipt.outcome == "done" else { return nil }
         switch receipt.action {
-        case "mailDraft": return { Task { await PippaMCPService.showMail() } }
+        case "mailDraft", "mailSend": return { Task { await PippaMCPService.showMail() } }
         case "calendarAdd": return { bringForward(.calendar) }
         case "reminderAdd": return { bringForward(.reminders) }
         default: return nil

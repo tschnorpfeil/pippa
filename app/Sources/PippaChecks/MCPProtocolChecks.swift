@@ -33,19 +33,19 @@ extension MCPCheckContext {
             let list = (await rpc(s.tools, "tools/list"))?["result"] as? [String: Any]
             let all = list?["tools"] as? [[String: Any]] ?? []
             let names = all.compactMap { $0["name"] as? String }
-            // calendar_add/reminder_add/mail_draft and prepare_files change something on the Mac; browse goes online.
-            let tools = all.filter { !(PippaMCPWriteTools.names + [PippaMCPFilePreparation.name, PippaMCPBrowserTool.name]).contains($0["name"] as? String ?? "") }
+            // calendar_add/reminder_add/mail_draft and prepare_files change something on the Mac; browse and mail_send go online.
+            let tools = all.filter { !(PippaMCPWriteTools.names + [PippaMCPFilePreparation.name, PippaMCPBrowserTool.name, PippaMCPMailSend.name]).contains($0["name"] as? String ?? "") }
             let hintsOK = tools.allSatisfy { tool in
                 let a = tool["annotations"] as? [String: Any] ?? [:]
                 return a["readOnlyHint"] as? Bool == true && a["destructiveHint"] as? Bool == false && a["openWorldHint"] as? Bool == false
                     && (tool["inputSchema"] as? [String: Any])?["type"] as? String == "object"
             }
-            // Keep the reader list under 3,500 bytes and the full 14-tool `tools/list` under 7,000 bytes (6,000 for 12 tools before
-            // mail_folders and mail_move).
+            // Keep the reader list under 3,500 bytes and the full 15-tool `tools/list` under 7,300 bytes (6,000 for 12 tools before
+            // mail_folders and mail_move, 7,000 for 14 before mail_send).
             let readerBytes = (try? JSONSerialization.data(withJSONObject: tools))?.count ?? .max
             let allBytes = (try? JSONSerialization.data(withJSONObject: all))?.count ?? .max
-            if readerBytes >= 3500 || allBytes >= 7000 { print("  tools/list bytes: readers \(readerBytes), all \(allBytes)") }
-            return names == PippaMCPTools.toolNames && hintsOK && readerBytes < 3500 && allBytes < 7000 && tools.count == 8 && all.count == 14
+            if readerBytes >= 3500 || allBytes >= 7300 { print("  tools/list bytes: readers \(readerBytes), all \(allBytes)") }
+            return names == PippaMCPTools.toolNames && hintsOK && readerBytes < 3500 && allBytes < 7300 && tools.count == 8 && all.count == 15
         }
         await checkAsync("MCP: browse is listed once, open world, not destructive, not read-only") {
             let s = setup()
@@ -57,7 +57,7 @@ extension MCPCheckContext {
         }
         await checkAsync("MCP: unknown tool is a protocol error, unknown arguments a tool error") {
             let s = setup()
-            let unknown = await rpc(s.tools, "tools/call", ["name": "mail_send", "arguments": [:]])
+            let unknown = await rpc(s.tools, "tools/call", ["name": "mail_forward", "arguments": [:]])
             let extra = await call(s.tools, "calendar_read", ["period": "today", "recipient": "x"])
             let wrongType = await call(s.tools, "mail_search", ["query": "Berger", "limit": "3"])
             return (unknown?["error"] as? [String: Any])?["code"] as? Int == -32602

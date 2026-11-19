@@ -41,6 +41,12 @@ public struct PippaMCPHost: Sendable {
     public var mailMoveRuns = MailMoveRuns()
     /// Snapshots, cursors and mail references of the running answer (shared by every copy of this host).
     public var mailPages = MailPageStore()
+    /// Sends one saved draft for `mail_send` (PippaMCPMailSend.swift). `nil`: drafts get no id and nothing can be sent.
+    public var mailSender: (any MailSending)?
+    /// The drafts `mail_draft` saved, by conversation (shared by every copy of this host).
+    public var mailDrafts = MailSendDrafts()
+    /// How `mail_send` waits for the sent mail to show up in Sent; checks inject a fake clock.
+    public var mailSendSettle: MailMoveSettle = .live
     /// Where read mails and their attachments are saved as files (`MailFiling`); checks use their own folder.
     public var mailFiles: URL = MailFiling.inbox
     /// Reads that app (Safari, Chrome, the front document); Mail and Excel go through their own readers.
@@ -79,6 +85,7 @@ public struct PippaMCPHost: Sendable {
         let system = SystemIntegrations()
         var host = PippaMCPHost(integrations: system, sheets: system, hostData: system)
         host.writer = system
+        host.mailSender = system
         host.mailAccounts = system.mailAccounts
         host.requiresReminderJournal = true
         host.reminderJournal = try? Executor()

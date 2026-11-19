@@ -136,6 +136,7 @@ extension PippaMCPWriteTools {
             PippaMCPWriteReceipt(action: "mailDraft", outcome: outcome, name: name, reason: reason)
         }
         let result: MailInsertResult
+        var outgoingID: Int?
         let lease = PippaMCPWriteLease.current
         let row: PippaMCPRunRow?
         do {
@@ -151,14 +152,21 @@ extension PippaMCPWriteTools {
         }
         do {
             try lease?.check()
-            result = try await host.integrations.insertReply(draft)
+            if let sender = host.mailSender {
+                let inserted = try await sender.insertDraft(draft)
+                result = inserted.result; outgoingID = inserted.outgoingID
+            } else {
+                result = try await host.integrations.insertReply(draft)
+            }
         } catch {
             await row?.abandon(dispatched: lease?.hasDispatched == true || error as? MailReplyFailure == .unconfirmed)
             return insertFailure(error, receipt: receipt)
         }
         // Mail itself confirms the text of a saved reply; an opened window or a new mail cannot be read back.
         await row?.complete(verified: result == .reply ? true : nil)
-        let done = inserted(draft, result: result)
+        // Only a draft whose fields Mail confirmed gets an id `mail_send` accepts, and only for this conversation.
+        let draftID = result == .replyNeedsPaste ? nil : outgoingID.flatMap { id in scope.draftOwner.map { host.mailDrafts.register(outgoingID: id, owner: $0) } }
+        let done = inserted(draft, result: result, draftID: draftID)
         return row != nil && result == .reply ? Self.verified(done, matched: true, integration: .mail) : done
     }
 
@@ -184,7 +192,7 @@ extension PippaMCPWriteTools {
         }
     }
 
-    private func inserted(_ draft: MailDraft, result: MailInsertResult) -> PippaMCPToolResult {
+    private func inserted(_ draft: MailDraft, result: MailInsertResult, draftID: String?) -> PippaMCPToolResult {
         let name = Self.quoted(draft.replySubject)
         func receipt(_ outcome: String, _ reason: String) -> PippaMCPWriteReceipt {
             PippaMCPWriteReceipt(action: "mailDraft", outcome: outcome, name: name, reason: reason)
@@ -199,7 +207,9 @@ extension PippaMCPWriteTools {
         }
         var data: [String: Any] = ["subject": draft.replySubject]
         if let to = draft.to { data["to"] = to }
-        return PippaMCPToolResult(text: PippaMCPTools.json(["done": true, "state": state, "sent": false, "draft": data, "next": next]),
+        if let draftID { data["id"] = draftID }
+        let sendable = draftID == nil ? "" : " Only if the person asks to send it: mail_send with draft.id."
+        return PippaMCPToolResult(text: PippaMCPTools.json(["done": true, "state": state, "sent": false, "draft": data, "next": next + sendable]),
                                   isError: false, receipt: receipt("done", reason))
     }
 

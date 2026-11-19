@@ -66,7 +66,8 @@ function loopHarness() {
 }
 
 test("uncertain native writes are terminal for this answer and never reported as successful duplicates", async () => {
-	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__mail_move", "mcp__pippa__prepare_files"]) {
+	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__mail_move", "mcp__pippa__prepare_files",
+		"mcp__pippa__mail_send"]) {
 		for (const isError of [false, true]) {
 			const run = loopHarness();
 			const input = { title: "Fixture", date: "2026-10-22" };
@@ -84,6 +85,22 @@ test("uncertain native writes are terminal for this answer and never reported as
 			assert.equal(await run.call("new-answer", tool, input), undefined, "uncertainty does not persist across answers");
 		}
 	}
+});
+
+test("mail_send: an identical call after a sent or unclear outcome is stopped; a changed draft may be asked again", async () => {
+	const tool = "mcp__pippa__mail_send", input = { draft: "d0123456789ab" };
+	const sent = loopHarness();
+	const done = [{ type: "text", text: JSON.stringify({ done: true, state: "sent", sent: true, verified: "1 of 1" }) }];
+	assert.equal(await sent.call("first", tool, input, { content: done }), undefined);
+	assert.match((await sent.call("again", tool, input)).reason, /already worked/);
+	const unclear = loopHarness();
+	const notInSent = [{ type: "text", text: JSON.stringify({ done: false, state: "unclear", tell: "Mail took the mail, but Pippa could not confirm it in Sent." }) }];
+	assert.equal(await unclear.call("first", tool, input, { content: notInSent }), undefined);
+	assert.match((await unclear.call("again", tool, input)).reason, /an unclear outcome/);
+	const changed = loopHarness();
+	const notSent = [{ type: "text", text: JSON.stringify({ done: false, status: "draft_changed", dispatched: false, sent: false }) }];
+	assert.equal(await changed.call("first", tool, input, { content: notSent, isError: true }), undefined);
+	assert.equal(await changed.call("ask-again", tool, input), undefined, "nothing left, so the person may be asked once more");
 });
 
 test("explicit native dispatched/unclear status blocks retries even when MCP flags an error", async () => {
