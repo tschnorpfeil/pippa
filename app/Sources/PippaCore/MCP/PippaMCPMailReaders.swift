@@ -27,6 +27,7 @@ extension PippaMCPTools {
                 switch name {
                 case "mail_search": result = await mailSearch(input, turn: turn)
                 case "mail_read": result = await mailRead(input, turn: turn)
+                case "mail_folders": result = await mailFolders(input)
                 default: result = await mailSelected()
                 }
                 guard scope.live, !Task.isCancelled else { return Self.mailCancelled }
@@ -170,7 +171,7 @@ extension PippaMCPTools {
             mailbox = kind
         }
         let limit = input.limit ?? 10
-        guard (1...20).contains(limit) else { return invalid("limit must be 1 to 20.") }
+        guard (1...Self.mailHeaderRowsLimit).contains(limit) else { return invalid("limit must be 1 to \(Self.mailHeaderRowsLimit).") }
         if input.cursor == nil, let account = input.account?.trimmingCharacters(in: .whitespacesAndNewlines), !(1...200).contains(account.count) || account.utf8.count > 400 {
             return invalid("account must be an account or account_id from accounts, or omitted for all accounts.")
         }
@@ -229,6 +230,8 @@ extension PippaMCPTools {
             let mails = fetch.items.map { m -> [String: Any] in
                 var value: [String: Any] = ["subject": m.subject, "from": m.sender, "mailbox": m.mailbox, "start": Self.compact(m.preview),
                                             "unread": m.unread, "replied": m.replied, "forwarded": m.forwarded, "flagged": m.flagged]
+                // More than a page of 20: header only (Rule 4 holds for what the model reads, not for a script).
+                if limit > Self.mailDenseLimit { value = ["subject": m.subject, "from": m.sender] }
                 // Only an id mail_read accepts: the exact mail, even when subject and sender repeat.
                 if let id = m.messageID.flatMap(MailReplySource.canonicalMessageID) { value["message_id"] = id }
                 if let date = m.date { value["date"] = Self.dateLabel(date, time: true, calendar: host.calendar) }

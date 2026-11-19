@@ -144,15 +144,19 @@ public struct RunSummary: Codable, Sendable, Equatable {
     /// Left by Undo because they changed since.
     public var left: Int
     public var failed: Int
-    public init(run: UUID, changes: Int = 0, checked: Int = 0, unclear: Int = 0, undoable: Int = 0, undone: Int = 0, left: Int = 0, failed: Int = 0) {
+    /// Rows that are mail moves (`mail.move`); `nil` when there are none (and in receipts saved before mail moves).
+    public var mailMoves: Int?
+    public init(run: UUID, changes: Int = 0, checked: Int = 0, unclear: Int = 0, undoable: Int = 0, undone: Int = 0, left: Int = 0, failed: Int = 0,
+                mailMoves: Int? = nil) {
         self.run = run; self.changes = changes; self.checked = checked; self.unclear = unclear; self.undoable = undoable
-        self.undone = undone; self.left = left; self.failed = failed
+        self.undone = undone; self.left = left; self.failed = failed; self.mailMoves = mailMoves
     }
 
     public init(run: UUID, rows: [RunAction], canUndo: (String) -> Bool) {
         self.init(run: run)
         for row in rows where row.state != .planned {
             changes += 1
+            if row.object.kind == MailMover.kind { mailMoves = (mailMoves ?? 0) + 1 }
             if row.verified == true { checked += 1 }
             switch row.state {
             case .dispatched, .unclear: unclear += 1

@@ -103,8 +103,11 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
     }
     check("Native file preparation is required for registration and Pi may call every Pippa MCP tool",
           PiNativeReadiness.tools.contains("mcp__pippa__prepare_files") && PippaPiLaunch.tools.contains("mcp__pippa__*"))
-    check("Pippa's browser tool is required for registration, exactly once, among twelve native tools",
-          PiNativeReadiness.tools.filter { $0 == "mcp__pippa__browse" }.count == 1 && PiNativeReadiness.tools.count == 12)
+    check("Pippa's browser tool is required for registration, exactly once, among fourteen native tools",
+          PiNativeReadiness.tools.filter { $0 == "mcp__pippa__browse" }.count == 1 && PiNativeReadiness.tools.count == 14)
+    check("Mail folders and mail moves are required for registration, and a mail move is a native write with a receipt",
+          PiNativeReadiness.tools.contains("mcp__pippa__mail_folders") && PiNativeReadiness.tools.contains("mcp__pippa__mail_move")
+          && PiTurnReceipt.pippaWriters.contains("mail_move") && !PiTurnReceipt.pippaWriters.contains("mail_folders"))
     let (fresh, _) = make("ready")
     try await fresh.start()
     try await fresh.verifyNativeTools(timeout: .seconds(1))

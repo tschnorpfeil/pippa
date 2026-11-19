@@ -130,12 +130,14 @@ public struct PiTurnReceipt: Sendable {
 
     /// Pippa's native MCP tools that create a local result or change something on the Mac, or on a web page in
     /// Pippa's browser panel (`browse`: click, fill and select).
-    public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft", "prepare_files", "browse"]
+    public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files", "browse"]
 
     // Emitted before an effect by PippaMCPWrite.swift; unknown future statuses stay unconfirmed.
     private static let nativeNoEffect: Set<String> = ["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
         "not_dispatched", "not_checked", "busy", "nothing_selected", "no_message_id", "not_found", "ambiguous", "search_incomplete", "not_created",
         "needs_calendar", "reply_needs_mail", "stays_on_mac",
+        // `mail_move` (PippaMCPMailMove.swift): refused before anything moved, or read back and nothing moved.
+        "plan_required", "stale_plan", "cross_account", "not_inbox", "unknown_folder", "ambiguous_folder", "target_not_allowed", "same_folder", "not_moved",
         // `browse` (PippaMCPBrowser.swift): refused address, stale ref, or the person's login step before any click.
         "blocked", "stale_ref", "handoff_required",
         // The class gate (PippaMCPActionClass.swift): the person said no on the card.

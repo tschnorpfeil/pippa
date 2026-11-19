@@ -6,13 +6,13 @@ extension PippaMCPWriteTools {
     enum Gate { case open, blocked(String, String) }
 
     /// As for reading, but with Pippa's sentence about adding (before the first system prompt).
-    func ensure(_ integration: Integration, openMail: Bool = false) async -> Gate {
+    func ensure(_ integration: Integration, openMail: Bool = false, explanation: String? = nil) async -> Gate {
         do { try PippaMCPWriteLease.current?.check() } catch { return .blocked("cancelled", Self.stoppedText) }
         var access = openMail && integration == .mail
             ? await host.integrations.prepareMailAccess() : await host.integrations.access(integration)
         do { try PippaMCPWriteLease.current?.check() } catch { return .blocked("cancelled", Self.stoppedText) }
         if access == .notDetermined && host.askForAccess {
-            let go = await host.explainAccess?(.integration(integration), Self.writeExplanation(integration)) ?? true
+            let go = await host.explainAccess?(.integration(integration), explanation ?? Self.writeExplanation(integration)) ?? true
             do { try PippaMCPWriteLease.current?.check() } catch { return .blocked("cancelled", Self.stoppedText) }
             if go { access = await host.integrations.requestAccess(integration) }
         }
@@ -66,7 +66,7 @@ extension PippaMCPWriteTools {
     }
 
     /// Not done: a sentence for the person, which the model passes on.
-    static func blocked(_ status: String, _ tell: String, receipt: PippaMCPWriteReceipt) -> PippaMCPToolResult {
+    static func blocked(_ status: String, _ tell: String, receipt: PippaMCPWriteReceipt?) -> PippaMCPToolResult {
         if status == "cancelled" { return stopped(receipt: receipt) }
         return PippaMCPToolResult(text: PippaMCPTools.json(["done": false, "status": status, "tell": tell,
                                                      "next": "Nothing was changed. Repeat the sentence in tell word for word."]),
@@ -74,9 +74,9 @@ extension PippaMCPWriteTools {
     }
 
     static var stoppedText: String { L("Stopped before anything was changed.", table: "MCP") }
-    static func stopped(receipt: PippaMCPWriteReceipt) -> PippaMCPToolResult {
+    static func stopped(receipt: PippaMCPWriteReceipt?) -> PippaMCPToolResult {
         var receipt = receipt
-        receipt.outcome = "cancelled"; receipt.reason = "stopped"
+        receipt?.outcome = "cancelled"; receipt?.reason = "stopped"
         return PippaMCPToolResult(text: PippaMCPTools.json([
             "done": false, "status": "cancelled", "dispatched": false, "tell": stoppedText,
             "next": "Nothing was changed. The request was stopped; do not retry it automatically.",

@@ -9,6 +9,10 @@ extension PippaMCPTools {
     /// The start of each email on a page of more than `mailDenseRows` rows: a full page fits `maxResultBytes`.
     static let mailDenseStart = (160, 300)
     static let mailDenseRows = 12
+    /// Up to this `limit` a page shows the start of each email; above it (up to `mailHeaderRowsLimit`) only ref, sender,
+    /// subject and date, as many as fit `maxResultBytes`.
+    static let mailDenseLimit = 20
+    static let mailHeaderRowsLimit = 100
     /// Longest Mail account id Pippa can name exactly; a longer one is reported as not read.
     static let mailAccountIDBytes = 128
 
@@ -199,6 +203,10 @@ extension PippaMCPTools {
                        left: hold.left + hold.granted - resolved.prefix(count).filter { $0.row != nil }.count,
                        cursor: offset + count < snapshot.entries.count ? nextToken : nil, caps: caps)
             }
+            // Header-only rows keep fixed caps; the loop below drops rows from the end until the page fits.
+            if limit > Self.mailDenseLimit {
+                return build(MailRowCaps(subject: (120, 200), from: (80, 120), mailbox: (0, 0), account: (40, 80), start: (0, 0), accountsBytes: 900, headerOnly: true))
+            }
             let rows = resolved.prefix(count).filter { $0.row != nil }.count
             let initialStart = rows > Self.mailDenseRows ? Self.mailDenseStart : Self.mailFieldLimits.start
             let full = MailRowCaps(subject: Self.mailFieldLimits.subject, from: Self.mailFieldLimits.from,
@@ -269,6 +277,8 @@ extension PippaMCPTools {
         var account: (Int, Int)
         var start: (Int, Int)
         var accountsBytes: Int
+        /// ref, sender, subject and date (and the account when the search covers several).
+        var headerOnly = false
     }
 
     private func render(_ snapshot: MailSnapshot, offset: Int, resolved: [(entry: MailPageEntry, row: MailSearchRow?, skipped: Bool)], tokens: [String],
@@ -294,6 +304,10 @@ extension PippaMCPTools {
                                         "start": field(Self.compact(m.preview), caps.start),
                                         "unread": m.unread, "replied": m.replied, "forwarded": m.forwarded, "flagged": m.flagged,
                                         "account": field(item.entry.label, caps.account)]
+            if caps.headerOnly {
+                value = ["subject": field(m.subject, caps.subject), "from": field(m.sender, caps.from)]
+                if snapshot.coverage.count > 1 { value["account"] = field(item.entry.label, caps.account) }
+            }
             if refs[tokens[index]] != nil { value["mail_ref"] = tokens[index] } else { unopenable += 1 }
             m.messageID = nil
             m.subject = value["subject"] as? String ?? ""
@@ -320,7 +334,7 @@ extension PippaMCPTools {
                                    "total": snapshot.entries.count, "first": offset + 1, "truncated": more,
                                    "complete": notRead.isEmpty && !more && goneTotal == 0, "status": notRead.isEmpty ? "ok" : "partial",
                                    "accounts": accounts, "preview_rows_left": max(0, left),
-                                   "order": snapshot.balanced ? "newest_per_account" : "newest", "read_depth": "header_and_start"]
+                                   "order": snapshot.balanced ? "newest_per_account" : "newest", "read_depth": caps.headerOnly ? "header_only" : "header_and_start"]
         Self.trimMailList("accounts", in: &data, bytes: caps.accountsBytes)
         if skipped > 0 { data["skipped"] = skipped }
         if !notRead.isEmpty { data["retry"] = "fresh_search" }
@@ -328,7 +342,9 @@ extension PippaMCPTools {
         if let cursor { data["cursor"] = cursor }
         if gone > 0 { data["gone"] = gone }
         if goneTotal > 0 { data["gone_total"] = goneTotal }
-        var next = "If mails is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences. Each mail names its account. You see only the header and the start of each email: for the whole email call mail_read with its mail_ref."
+        var next = caps.headerOnly
+            ? "If mails is not empty, the person sees them as a card under your answer: do not list them again. You see only sender, subject and date: for the whole email call mail_read with its mail_ref; to sort, pass mail_refs to mail_move."
+            : "If mails is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences. Each mail names its account. You see only the header and the start of each email: for the whole email call mail_read with its mail_ref."
         if snapshot.balanced {
             next += " Mails are mixed so each account shows up: they are the newest of each account, not the newest overall; say so."
         }

@@ -2,7 +2,7 @@ import Foundation
 
 extension MailAccountScript {
     /// `MailScript.messageInfo` is reused for reading one message, so the same fields come back as from `mail_read`.
-    static let source = MailScript.source + """
+    static let source = MailScript.source + moveSource + """
 
     on accountInboxes()
         set out to {}

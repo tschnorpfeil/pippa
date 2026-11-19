@@ -77,6 +77,7 @@
 "What’s on my calendar this week?" = "Was steht diese Woche in meinem Kalender?";
 "Writing %@" = "Schreibe %@";
 "Writing a Mail draft" = "Schreibe einen Mail-Entwurf";
+"Moving mails" = "Verschiebe Mails";
 "Your Mac will ask you in a moment." = "Dein Mac fragt dich gleich.";
 "Your PDF is ready" = "Dein PDF ist fertig";
 "⌃⇧ Space" = "⌃⇧ Leertaste";
@@ -282,6 +283,8 @@
 "%lld unclear, please check" = "%lld unklar, bitte nachsehen";
 "1 change" = "1 Änderung";
 "%lld changes" = "%lld Änderungen";
+"1 mail moved" = "1 Mail verschoben";
+"%lld mails moved" = "%lld Mails verschoben";
 "unclear, please check" = "unklar, bitte nachsehen";
 "checked" = "geprüft";
 "all checked" = "alle geprüft";

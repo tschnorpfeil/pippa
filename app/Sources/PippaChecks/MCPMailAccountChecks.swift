@@ -1218,7 +1218,7 @@ extension MCPCheckContext {
                 && !(query.json["next"] as? String ?? "").contains(hint)
                 && w.demo.createdCount == 0 && w.demo.mailLookups == 0
         }
-        check("MCP tool list: no new tool; mail_search and mail_read stay read-only with optional account, cursor and mail_ref") {
+        check("MCP tool list: mail_search and mail_read stay read-only with optional account, cursor and mail_ref; Mail's tools are search, read, folders, draft and move") {
             let tools = PippaMCPTools.toolList()
             func schema(_ name: String) -> (properties: Set<String>, required: [String], closed: Bool, readOnly: Bool) {
                 let tool = tools.first { $0["name"] as? String == name } ?? [:]
@@ -1229,7 +1229,7 @@ extension MCPCheckContext {
             let search = schema("mail_search"), read = schema("mail_read")
             return search.properties == ["query", "unread", "read_status", "mailbox", "limit", "account", "cursor"] && search.required.isEmpty && search.closed && search.readOnly
                 && read.properties == ["mail_ref", "message_id", "subject", "from"] && read.required.isEmpty && read.closed && read.readOnly
-                && PippaMCPTools.toolNames.filter { $0.hasPrefix("mail") } == ["mail_search", "mail_read", "mail_draft"]
+                && PippaMCPTools.toolNames.filter { $0.hasPrefix("mail") } == ["mail_search", "mail_read", "mail_folders", "mail_draft", "mail_move"]
         }
         await checkAsync("MCP mail_search: account and cursor of the wrong type are refused; without the account reader they never widen") {
             let w = world(twoAccounts())

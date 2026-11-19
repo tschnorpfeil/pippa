@@ -88,6 +88,9 @@ extension PippaMCPHost {
                     }
                 } catch { return .failed }
             }
+        case MailMover.kind:
+            guard let reader = mailAccounts else { return nil }
+            return { row in await MailMover.undo(row, reader: reader) }
         case "file.prepared":
             guard let journal = reminderJournal else { return nil }
             return { row in

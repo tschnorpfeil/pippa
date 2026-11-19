@@ -9,7 +9,7 @@ extension PippaMCPTools {
         let app: String = switch name {
         case "calendar_read": Integration.calendar.appName
         case "reminders_read": Integration.reminders.appName
-        case "mail_selected", "mail_search": Integration.mail.appName
+        case "mail_selected", "mail_search", "mail_folders": Integration.mail.appName
         case "photos_search": PhotosLibrary.appName
         case "front_read": Self.frontAppName(outcome)
         default: ExcelScript.appName
@@ -39,6 +39,7 @@ extension PippaMCPTools {
             case (true, true): L("Read Mail: %lld unread", table: "MCP", total)
             case (true, false): L("Read Mail: newest emails", table: "MCP")
             }
+        case "mail_folders": line = L("Read Mail: folders", table: "MCP")
         case "photos_search":
             line = switch (data["query"] as? String, data["days"] as? Int) {
             case let (query?, _): L("Searched Photos for “%@”: %lld found", table: "MCP", short(query), data["total"] as? Int ?? 0)

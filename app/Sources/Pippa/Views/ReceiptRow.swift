@@ -153,7 +153,10 @@ struct RunReceiptRow: View {
             if s.unclear > 0, s.undoFinished { parts.append(T("%lld unclear, please check", table: "App", s.unclear)) }
             if s.undoFinished { return parts.joined(separator: ", ") }
         }
-        let count = s.changes == 1 ? T("1 change", table: "App") : T("%lld changes", table: "App", s.changes)
+        // Only mail moves: say what moved, in plain words ("18 mails moved, all checked").
+        let count = s.mailMoves == s.changes
+            ? (s.changes == 1 ? T("1 mail moved", table: "App") : T("%lld mails moved", table: "App", s.changes))
+            : (s.changes == 1 ? T("1 change", table: "App") : T("%lld changes", table: "App", s.changes))
         let status: String
         if s.unclear > 0 {
             status = s.unclear == s.changes ? T("unclear, please check", table: "App") : T("%lld unclear, please check", table: "App", s.unclear)

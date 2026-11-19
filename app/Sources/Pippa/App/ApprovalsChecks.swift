@@ -213,6 +213,16 @@ enum ConversationStoreChecks {
             let result = #"{"data":{"subject":"Repeated subject","messageID":"\#(id)"}}"#
             return SourceLog.source(tool: "mcp__pippa__mail_read", arguments: arguments, result: result)
         }
+        // One receipt for a run of mail moves, in plain words; receipts saved before mail moves still load.
+        do {
+            let german = Bundle.module.preferredLocalizations.first == "de"
+            let moved = RunReceiptRow.title(RunSummary(run: UUID(), changes: 18, checked: 18, undoable: 18, mailMoves: 18))
+            let mixed = RunReceiptRow.title(RunSummary(run: UUID(), changes: 3, checked: 3, undoable: 3, mailMoves: 2))
+            let old = try? JSONDecoder().decode(RunSummary.self, from: Data(#"{"run":"6F1A0C2E-AAAA-4C55-9E0B-000000000001","changes":2,"checked":2,"unclear":0,"undoable":2,"undone":0,"left":0,"failed":0}"#.utf8))
+            check(moved == (german ? "18 Mails verschoben, alle geprüft" : "18 mails moved, all checked")
+                  && mixed == (german ? "3 Änderungen, alle geprüft" : "3 changes, all checked") && old?.mailMoves == nil && old?.changes == 2,
+                  "a run of mail moves reads \"18 mails moved, all checked\"; mixed runs count changes; older receipts load")
+        }
         // "Writing…" follows what comes in right now, not whether the answer has text already.
         let events: [PiRPCEvent] = [.textDelta("\n\n"), .thinkingDelta("hm"), .textDelta("Ich schaue nach."),
                                     .assistantEnded(text: "", stopReason: "toolUse", error: nil), .thinkingDelta("weiter"),

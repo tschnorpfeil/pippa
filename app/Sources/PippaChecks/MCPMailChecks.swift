@@ -57,7 +57,7 @@ extension MCPCheckContext {
             let hit = await call(s.tools, "mail_search", ["query": "Berger"])
             let none = await call(s.tools, "mail_search", ["query": "Steuer"])
             let short = await call(s.tools, "mail_search", ["query": "B"])
-            let many = await call(s.tools, "mail_search", ["query": "Berger", "limit": 50])
+            let many = await call(s.tools, "mail_search", ["query": "Berger", "limit": 101])
             s.data.mailClosed = true
             let closed = await call(s.tools, "mail_search", ["query": "Berger"])
             let mails = (hit.json["data"] as? [String: Any])?["mails"] as? [[String: Any]] ?? []
@@ -203,5 +203,6 @@ extension MCPCheckContext {
         }
         await mailSelectionChecks()
         await mailAccountChecks()
+        await mailMoveChecks()
     }
 }

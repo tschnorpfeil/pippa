@@ -5,8 +5,8 @@ import Foundation
 /// uses a scoped Pi connector without shared MCP configuration and checks the app-provided endpoint registration.
 public enum PiNativeReadiness {
     public static let command = "pippa-native-ready"
-    public static let tools = ["calendar_read", "reminders_read", "mail_search", "mail_read",
-                               "photos_search", "front_read", "read_document", "calendar_add", "reminder_add", "mail_draft", "prepare_files",
+    public static let tools = ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders",
+                               "photos_search", "front_read", "read_document", "calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files",
                                "browse"]
         .map { "mcp__pippa__" + $0 }
 

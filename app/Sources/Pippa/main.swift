@@ -9,6 +9,12 @@ if CommandLine.arguments.dropFirst().contains("--memory-probe") {
     Task { exit(await MemoryProbeCommand.run(arguments)) }
     dispatchMain()
 }
+// `Pippa --mail-move-probe [--account …]`: the same, for the mail-move spike on two test folders.
+if CommandLine.arguments.dropFirst().contains("--mail-move-probe") {
+    let arguments = Array(CommandLine.arguments.dropFirst())
+    Task { exit(await MailMoveProbeCommand.run(arguments)) }
+    dispatchMain()
+}
 let app = NSApplication.shared
 if CommandLine.arguments.dropFirst().contains("--verify-runtime") {
     do { try BundleVerification.run(); exit(0) }
