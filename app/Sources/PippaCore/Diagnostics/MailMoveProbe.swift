@@ -36,9 +36,12 @@ public enum MailMoveProbe {
     public static let folderA = "Pippa Test A"
     public static let folderB = "Pippa Test B"
     public static let copies = 20
+    /// Seconds the probe waits before it reads both test folders a last time (`--recheck`). The iCloud probe of
+    /// November 2026 saw Mail answer for a test folder again about a minute after the moves.
+    public static let recheckDefault = 45
 
     public static let usage = """
-        usage: Pippa --mail-move-probe [--account <name> [--diagnose]]
+        usage: Pippa --mail-move-probe [--account <name> [--diagnose | --recheck <seconds>]]
           Without --account: lists Mail's accounts with their types and exits.
           With --account and --diagnose: changes nothing in Mail. Times only read-only questions: finding and counting
           "\(folderA)" and "\(folderB)" and listing their Message-IDs, and the folder listing mail_folders uses (how many
@@ -52,7 +55,11 @@ public enum MailMoveProbe {
           is reported (in_both) and left alone, never deleted. Prints one JSON report without subjects, senders, addresses or
           Message-IDs, with lookups and milliseconds waited for Mail to settle per step. The copies stay in "\(folderA)"
           for the next run; never put other mail into the two test folders. On a timeout, the report names the step
-          and the kind of Apple event that did not answer (resolve, count, list_ids, duplicate, move, locate).
+          and the kind of Apple event that did not answer (resolve, count, list_ids, duplicate, move, locate). A lookup
+          Mail does not answer within \(MailMoveSettle.lookupEventTimeout) s counts as one poll of the wait (timeouts per
+          step). At the end the probe waits --recheck seconds (default \(recheckDefault)) and reads both test folders once
+          more: "result" is as_intended (every copy live in "\(folderA)", none live in "\(folderB)"), not_as_intended or
+          unknown, and the exit code is 0 when it is as_intended, even if earlier steps were unclear.
         """
 
     /// One message of a test folder: its Message-ID and whether Mail marked it deleted (not yet expunged).
@@ -101,13 +108,14 @@ public enum MailMoveProbe {
         }
     }
 
-    public enum Invocation: Equatable, Sendable { case help, list, run(account: String), diagnose(account: String) }
+    public enum Invocation: Equatable, Sendable { case help, list, run(account: String, recheck: Int), diagnose(account: String) }
 
     public struct UsageError: Error, Equatable, Sendable { public let message: String }
 
     /// Strict: a missing, repeated or unknown argument is an error, before Mail is asked anything.
     public static func parse(_ arguments: [String]) throws -> Invocation {
         var account: String?
+        var recheck: Int?
         var sawCommand = false, diagnose = false
         var rest = arguments[...]
         while let argument = rest.popFirst() {
@@ -125,15 +133,23 @@ public enum MailMoveProbe {
                     throw UsageError(message: "--account needs an account name.")
                 }
                 account = value
+            case "--recheck":
+                guard recheck == nil else { throw UsageError(message: "--recheck given twice.") }
+                guard let value = rest.popFirst(), let seconds = Int(value), (0...600).contains(seconds) else {
+                    throw UsageError(message: "--recheck needs seconds from 0 to 600.")
+                }
+                recheck = seconds
             default: throw UsageError(message: "Unknown argument.")
             }
         }
         guard sawCommand else { throw UsageError(message: "Missing --mail-move-probe.") }
         guard let account else {
             if diagnose { throw UsageError(message: "--diagnose needs --account.") }
+            if recheck != nil { throw UsageError(message: "--recheck needs --account.") }
             return .list
         }
-        return diagnose ? .diagnose(account: account) : .run(account: account)
+        if diagnose, recheck != nil { throw UsageError(message: "--recheck does not go with --diagnose.") }
+        return diagnose ? .diagnose(account: account) : .run(account: account, recheck: recheck ?? recheckDefault)
     }
 
     /// `mail` is only made after the arguments parsed. `pause` waits between read-backs while Mail settles copies.
@@ -154,11 +170,14 @@ public enum MailMoveProbe {
             } catch {
                 return (1, json(["probe": "mail-move-probe", "first_event_retries": retries, "error": ["step": "accounts", "kind": MailMover.describe(error)]]), "")
             }
-        case .run(let name):
+        case .run(let name, let recheck):
             let directory = journalDirectory ?? FileManager.default.temporaryDirectory.appendingPathComponent("pippa-mail-move-probe-\(UUID().uuidString)")
             defer { if journalDirectory == nil { try? FileManager.default.removeItem(at: directory) } }
-            let report = await run(account: name, mail: mail(), directory: directory, pause: pause, settle: settle)
-            return (report["refused"] == nil && report["error"] == nil ? 0 : 1, json(report), "")
+            let report = await run(account: name, mail: mail(), directory: directory, pause: pause, settle: settle, recheck: recheck)
+            // The final state decides once the probe got that far; earlier unclear steps do not.
+            let code: Int32 = if let result = report["result"] as? String { result == "as_intended" ? 0 : 1 }
+                else { report["refused"] == nil && report["error"] == nil ? 0 : 1 }
+            return (code, json(report), "")
         case .diagnose(let name):
             let report = await diagnose(account: name, mail: mail(), pause: pause)
             return (report["refused"] == nil && report["error"] == nil ? 0 : 1, json(report), "")
@@ -241,11 +260,14 @@ public enum MailMoveProbe {
     // MARK: The run
 
     static func run(account name: String, mail probeMail: any MailMoveProbeMail, directory: URL, pause: @Sendable () async -> Void,
-                    settle: MailMoveSettle) async -> [String: Any] {
+                    settle: MailMoveSettle, recheck: Int = recheckDefault) async -> [String: Any] {
         var report: [String: Any] = ["probe": "mail-move-probe", "folders": [folderA, folderB]]
         var timings: [String: Int] = [:]
         var counts: [String: Any] = [:]
         var retries = 0
+        var settles: [String: Any] = [:]
+        // Set once the probe picked its copies: from then on the run ends with the final read of both test folders.
+        var intended: (account: String, copies: [String])?
         func finish(_ extra: [String: Any] = [:]) -> [String: Any] {
             report["timings_ms"] = timings
             report["counts"] = counts
@@ -259,6 +281,42 @@ public enum MailMoveProbe {
             defer { timings[step] = milliseconds(ContinuousClock.now - start) }
             witness.clear()
             do { return try await body() } catch { throw ProbeFailure(step: step, error: error, event: witness.event) }
+        }
+        /// After `recheck` seconds, both test folders read once more: what the run intended is every copy live once in
+        /// A and none live in B. Only once the copies were picked; before that nothing moved.
+        func final(doubles: Int?) async -> [String: Any] {
+            if !settles.isEmpty { report["settle"] = settles }
+            guard let intended else { return finish() }
+            let start = ContinuousClock.now
+            await settle.sleep(.seconds(recheck))
+            var folders: [String: Any] = [:]
+            var live: [[String]] = []
+            for (key, path) in [("a", [folderA]), ("b", [folderB])] {
+                witness.clear()
+                do {
+                    let listed = try await mail.messageIDs(account: intended.account, path: path)
+                    folders[key] = ["live": listed.filter { !$0.deleted }.count, "deleted_status": listed.filter(\.deleted).count]
+                    live.append(Self.live(listed))
+                } catch {
+                    var entry: [String: Any] = ["error": MailMover.describe(error)]
+                    if let event = witness.event { entry["event"] = event }
+                    folders[key] = entry
+                }
+            }
+            timings["recheck"] = milliseconds(ContinuousClock.now - start)
+            folders["recheck_after_ms"] = recheck * 1000
+            let result: String
+            if live.count == 2 {
+                let inA = Dictionary(grouping: live[0], by: { $0 }).mapValues(\.count), inB = Set(live[1])
+                result = intended.copies.allSatisfy { inA[$0] == 1 && !inB.contains($0) } ? "as_intended" : "not_as_intended"
+                if let doubles { report["in_both"] = ["before": doubles, "after": Set(live[0]).intersection(live[1]).count] }
+            } else {
+                result = "unknown"
+            }
+            folders["matches"] = result == "as_intended"
+            report["recheck"] = folders
+            report["result"] = result
+            return finish()
         }
         do {
             let kinds = try await timed("accounts") { try await firstAccounts(mail, pause: pause) { retries += 1 } }
@@ -290,7 +348,6 @@ public enum MailMoveProbe {
                 return finish(["refused": "test_folders_not_ready", "next": "Mail did not show both test folders. Check them in Mail."])
             }
             let mover = MailMover(reader: mail, settle: settle)
-            var settles: [String: Any] = [:]
             var reused = 0
 
             // An earlier run's copies left in B go back to A first, through the same move path (dry run, batches, settled
@@ -356,8 +413,20 @@ public enum MailMoveProbe {
                 let wanted = Array(Set(picked.map(\.messageID))).sorted()
                 var located: [String: [Int]] = [:]
                 var settled = false
+                var copyLookups = MailMoveSettleStats()
+                defer { settles["locate_copies"] = settleJSON(copyLookups) }
                 for _ in 0..<10 {
-                    located = try await timed("locate_copies") { try await mail.locate(account: account.id, path: a, messageIDs: wanted) }.mapValues(\.live)
+                    copyLookups.lookups += 1
+                    // A lookup Mail does not answer in time is one poll, not a failure.
+                    do {
+                        located = try await timed("locate_copies") {
+                            try await mail.locate(account: account.id, path: a, messageIDs: wanted, eventTimeout: MailMoveSettle.lookupEventTimeout)
+                        }.mapValues(\.live)
+                    } catch let failure as ProbeFailure where failure.error as? MailAccountProblem == .timeout {
+                        copyLookups.timeouts += 1
+                        await pause()
+                        continue
+                    }
                     let found = located.values.reduce(0) { $0 + $1.count }
                     let folder = try await timed("folders") { try await mail.testFolders(account: account.id) }.first { $0.path == a }
                     // A was empty: everything in it now must be one of the copies made now.
@@ -371,6 +440,7 @@ public enum MailMoveProbe {
                 guard settled, !copies.isEmpty else { return finish(["refused": "copies_not_found", "next": "Mail did not show the copies in \(folderA). Nothing was moved."]) }
             }
             report["reused_copies"] = reused
+            intended = (account.id, copies)
 
             // The same path as mail_move: dry run, plan, batches, read-back by Message-ID.
             let owner = UUID()
@@ -422,26 +492,37 @@ public enum MailMoveProbe {
             let undo = try await timed("undo") { try await journal.undoRun(runID, recipe: { _ in nil }, batch: batch) }
             counts["undo"] = ["undone": undo.undone.count, "left": undo.left.count, "failed": undo.failed.count, "unclear": undo.unclear.count]
             settles["undo"] = settleJSON(undoSettle.value)
-            let backA = try await timed("verify_back") { try await mail.locate(account: account.id, path: a, messageIDs: copies) }
-            let stillB = try await timed("verify_back") { try await mail.locate(account: account.id, path: b, messageIDs: copies) }
-            counts["back_in_a"] = copies.filter { (backA[$0]?.live ?? []).count == 1 && (stillB[$0]?.live ?? []).isEmpty }.count
-            counts["left_in_b"] = stillB.values.reduce(0) { $0 + $1.live.count }
-            counts["deleted_status_after"] = Set(copies.filter { !(backA[$0]?.deleted ?? []).isEmpty || !(stillB[$0]?.deleted ?? []).isEmpty }).count
-            let again = try await journal.undoRun(runID, recipe: { _ in nil }, batch: batch)
-            counts["second_undo_steps"] = again.undone.count + again.left.count + again.failed.count + again.unclear.count
-            let finalA = Self.live(try await timed("list_after") { try await mail.messageIDs(account: account.id, path: a) })
-            let finalB = Self.live(try await timed("list_after") { try await mail.messageIDs(account: account.id, path: b) })
-            report["in_both"] = ["before": doubles.count, "after": Set(finalA).intersection(finalB).count]
-            report["settle"] = settles
+            // The same settling as the moves: a lookup Mail does not answer in time is one poll, never "not there".
+            var verify = MailMoveSettleStats()
+            let back = try await timed("verify_back") {
+                try await mover.settled(account: account.id, source: a, target: b, copies, waitingFor: Set(copies), stats: &verify) { inA, inB in
+                    inA.count == 1 && inB.isEmpty
+                }
+            }
+            settles["verify_back"] = settleJSON(verify)
+            counts["verify_back_answered"] = back.answered
+            counts["back_in_a"] = copies.filter { back.here($0).count == 1 && back.there($0).isEmpty }.count
+            counts["left_in_b"] = copies.reduce(0) { $0 + back.there($1).count }
+            counts["deleted_status_after"] = back.deleted(copies)
+            // A second Undo must find nothing to do. With rows still unclear it could move a mail again: skipped then.
+            if undo.unclear.isEmpty {
+                let again = try await journal.undoRun(runID, recipe: { _ in nil }, batch: batch)
+                counts["second_undo_steps"] = again.undone.count + again.left.count + again.failed.count + again.unclear.count
+            } else {
+                counts["second_undo_skipped"] = "unclear_rows"
+            }
             report["cleanup"] = "The copies stay in \(folderA); the next run uses them again."
-            return finish()
+            return await final(doubles: doubles.count)
         } catch let failure as ProbeFailure {
             var error: [String: Any] = ["step": failure.step, "kind": MailMover.describe(failure.error)]
             if let event = failure.event { error["event"] = event }
-            return finish(["error": error])
+            report["error"] = error
+            return await final(doubles: nil)
         } catch {
-            return finish(["error": ["step": "journal", "kind": MailMover.describe(error)]])
+            report["error"] = ["step": "journal", "kind": MailMover.describe(error)]
+            return await final(doubles: nil)
         }
+
     }
 
     struct ProbeFailure: Error { var step: String; var error: Error; var event: String? }
@@ -486,6 +567,9 @@ public enum MailMoveProbe {
         func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated] {
             try await note("locate") { try await mail.locate(account: account, path: path, messageIDs: messageIDs) }
         }
+        func locate(account: String, path: [String], messageIDs: [String], eventTimeout: Int) async throws -> [String: MailLocated] {
+            try await note("locate") { try await mail.locate(account: account, path: path, messageIDs: messageIDs, eventTimeout: eventTimeout) }
+        }
         @discardableResult
         func move(account: String, from: [String], mails: [MailMoveItem], to: [String]) async throws -> [String] {
             try await note("move") { try await mail.move(account: account, from: from, mails: mails, to: to) }
@@ -508,7 +592,9 @@ public enum MailMoveProbe {
     }
 
     /// Lookups (polls) and milliseconds the read-backs waited for Mail to settle in one step.
-    static func settleJSON(_ s: MailMoveSettleStats) -> [String: Int] { ["lookups": s.lookups, "waited_ms": s.waitedMs, "longest_batch_ms": s.longestMs] }
+    static func settleJSON(_ s: MailMoveSettleStats) -> [String: Int] {
+        ["lookups": s.lookups, "waited_ms": s.waitedMs, "longest_batch_ms": s.longestMs, "timeouts": s.timeouts]
+    }
 
     private final class SettleTally: @unchecked Sendable {
         private let lock = NSLock()

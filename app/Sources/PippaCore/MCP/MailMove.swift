@@ -11,6 +11,9 @@ import Foundation
 // deleted (`deleted status`) may stay listed until the server expunges it: such entries are counted apart
 // (`MailLocated.deleted`) and never moved. A mail live in both folders after the bound is unclear ("in both folders"):
 // Pippa never deletes mail and never repeats the move.
+//
+// A lookup Mail did not answer in time is "not known yet": never "not there", never a failure of the move. Mail that
+// still did not answer after the bound leaves the mail unclear (`noAnswerNote`), and `recheck` looks once more later.
 
 /// One mailbox of an account, as Mail lists it.
 public struct MailFolderInfo: Sendable, Equatable {
@@ -156,6 +159,8 @@ public struct MailMoveOutcome: Sendable, Equatable {
     public var inBoth = 0
     /// Mails whose last read-back found entries marked deleted (not yet expunged): never counted as there.
     public var deleted = 0
+    /// Of `unclear`: Mail did not answer the read-back in time, so where they are is not known yet (`noAnswerNote`).
+    public var noAnswer = 0
     public var unclearBatch: Int?
     /// Mails of batches that never started (Stop, an unclear batch, an error).
     public var notStarted = 0
@@ -183,6 +188,14 @@ public struct MailMoveSettle: Sendable {
     /// Per batch. The iCloud probe saw the late mail within a few seconds; 20 s leaves room for a slow server while a
     /// batch that never settles holds the run for 20 s only, and then counts as unclear.
     public static let bound: Duration = .seconds(20)
+    /// Seconds each Apple event of a lookup may take while Pippa waits for Mail to settle. The iCloud probe of
+    /// November 2026 saw Mail not answer the lookup of one folder for 30 s and more right after moves (and an Undo),
+    /// while the other folder answered in 0.3 s; the first event after Mail's launch sometimes stalls too. A short
+    /// timeout turns such a stall into one poll that is not known yet, and the wait goes on.
+    public static let lookupEventTimeout = 8
+    /// The bound once a lookup of the wait timed out: long enough to outlast such a stall of 30 s and more and still
+    /// read where the mails are. Without timeouts `bound` stays.
+    public static let boundAfterTimeout: Duration = .seconds(60)
     public var sleep: @Sendable (Duration) async -> Void
     /// A monotonic time, only differences count.
     public var now: @Sendable () -> Duration
@@ -198,9 +211,11 @@ public struct MailMoveSettleStats: Sendable, Equatable {
     public var waitedMs = 0
     /// The longest wait of one batch.
     public var longestMs = 0
+    /// Lookups Mail did not answer within `MailMoveSettle.lookupEventTimeout` (each one poll).
+    public var timeouts = 0
     public init() {}
     mutating func add(_ other: MailMoveSettleStats) {
-        lookups += other.lookups; waitedMs += other.waitedMs; longestMs = max(longestMs, other.longestMs)
+        lookups += other.lookups; waitedMs += other.waitedMs; longestMs = max(longestMs, other.longestMs); timeouts += other.timeouts
     }
 }
 
@@ -208,6 +223,9 @@ public struct MailMoveSettleStats: Sendable, Equatable {
 struct MailFound {
     var src: [String: MailLocated]
     var tgt: [String: MailLocated]
+    /// `false`: Mail did not answer the last lookup in time; `src` and `tgt` are the last answer before it (empty when
+    /// there was none). A mail not where it should be in them is not known yet, never "not there".
+    var answered = true
     /// Live in the source (the folder the mail comes from).
     func here(_ id: String) -> [Int] { src[id]?.live ?? [] }
     /// Live in the target.
@@ -367,7 +385,7 @@ public struct MailMover: Sendable {
                 break
             }
             var results: [RunActionResult] = []
-            var unmoved: [String] = [], doubled: [UUID] = []
+            var unmoved: [String] = [], doubled: [UUID] = [], unanswered: [UUID] = []
             var unclearHere = 0, movedHere = 0
             outcome.deleted += after.deleted(eligible.map(\.messageID))
             for item in eligible {
@@ -382,6 +400,11 @@ public struct MailMover: Sendable {
                         object.fields["mailID"] = String(there[0])
                         results.append(RunActionResult(id: id, verified: true, object: object, after: ["mailbox": toName]))
                     }
+                } else if !after.answered {
+                    // Mail did not answer the read-back in time: not known yet. Unclear, never retried.
+                    unclearHere += 1
+                    outcome.noAnswer += 1
+                    if let id = rows[item.messageID] { unanswered.append(id) }
                 } else if there.isEmpty && here.count == 1 && !timedOut {
                     unmoved.append(item.messageID)
                 } else if !there.isEmpty && !here.isEmpty {
@@ -396,6 +419,7 @@ public struct MailMover: Sendable {
             }
             if let journal, !results.isEmpty { _ = try? await journal.executor.completeRunActions(results) }
             if let journal, !doubled.isEmpty { try? await journal.executor.unclearRunActions(doubled, note: Self.inBothNote) }
+            if let journal, !unanswered.isEmpty { try? await journal.executor.unclearRunActions(unanswered, note: Self.noAnswerNote) }
             await drop(unmoved)
             outcome.verified += movedHere
             outcome.notMoved += unmoved.count
@@ -422,16 +446,26 @@ public struct MailMover: Sendable {
 
     /// The journal's note on a row whose mail is live in both folders.
     public static let inBothNote = "in_both"
+    /// The journal's note on a move row whose read-back Mail did not answer in time: where the mail is, is not known.
+    public static let noAnswerNote = "no_answer"
+    /// The same for a row whose move back (Undo) Mail did not confirm in time.
+    public static let undoNoAnswerNote = "undo_no_answer"
 
-    private func lookup(account: String, source: [String], target: [String], _ ids: [String]) async throws -> MailFound {
+    private func lookup(account: String, source: [String], target: [String], _ ids: [String], eventTimeout: Int? = nil) async throws -> MailFound {
         guard !ids.isEmpty else { return MailFound(src: [:], tgt: [:]) }
-        let src = try await reader.locate(account: account, path: source, messageIDs: ids)
-        let tgt = try await reader.locate(account: account, path: target, messageIDs: ids)
+        func one(_ path: [String]) async throws -> [String: MailLocated] {
+            if let eventTimeout { return try await reader.locate(account: account, path: path, messageIDs: ids, eventTimeout: eventTimeout) }
+            return try await reader.locate(account: account, path: path, messageIDs: ids)
+        }
+        let src = try await one(source)
+        let tgt = try await one(target)
         return MailFound(src: src, tgt: tgt)
     }
 
-    /// Looks `ids` up in source and target until every id of `waitingFor` is `arrived`, `bound` passed or `stopped`. The
-    /// last lookup is the answer; whatever has not arrived is for the caller to judge (unclear, left, failed).
+    /// Looks `ids` up in source and target until every id of `waitingFor` is `arrived`, the bound passed or `stopped`.
+    /// The last lookup is the answer; whatever has not arrived is for the caller to judge (unclear, left, failed). A
+    /// lookup Mail does not answer within `lookupEventTimeout` counts as one poll and the wait goes on, then up to
+    /// `boundAfterTimeout`; when the last poll was not answered the result says so (`MailFound.answered`).
     func settled(account: String, source: [String], target: [String], _ ids: [String], waitingFor: Set<String>,
                  stats: inout MailMoveSettleStats, stopped: () -> Bool = { false },
                  arrived: ([Int], [Int]) -> Bool) async throws -> MailFound {
@@ -444,17 +478,22 @@ public struct MailMover: Sendable {
             stats.add(waited)
         }
         func done(_ r: MailFound) -> Bool {
-            waitingFor.allSatisfy { arrived(r.here($0), r.there($0)) }
+            r.answered && waitingFor.allSatisfy { arrived(r.here($0), r.there($0)) }
         }
-        var result = try await lookup(account: account, source: source, target: target, ids)
-        waited.lookups += 1
+        var result = MailFound(src: [:], tgt: [:], answered: false)
+        func poll() async throws {
+            waited.lookups += 1
+            do { result = try await lookup(account: account, source: source, target: target, ids, eventTimeout: MailMoveSettle.lookupEventTimeout) }
+            catch MailAccountProblem.timeout { waited.timeouts += 1; result.answered = false }
+        }
+        try await poll()
         while !done(result), !stopped() {
             let elapsed = settle.now() - start
-            guard elapsed < MailMoveSettle.bound else { break }
-            await settle.sleep(min(MailMoveSettle.interval, MailMoveSettle.bound - elapsed))
+            let bound = waited.timeouts > 0 ? MailMoveSettle.boundAfterTimeout : MailMoveSettle.bound
+            guard elapsed < bound else { break }
+            await settle.sleep(min(MailMoveSettle.interval, bound - elapsed))
             if stopped() { break }
-            result = try await lookup(account: account, source: source, target: target, ids)
-            waited.lookups += 1
+            try await poll()
         }
         return result
     }
@@ -466,9 +505,11 @@ public struct MailMover: Sendable {
     /// goes back only when its Message-ID is exactly once in the target folder and not in the source; anything else
     /// stays and counts as left (`changed`). A row the move left unclear is looked up again: in the target it goes back
     /// like the others, in the source it was never moved (`nothing`). Live in both folders, before or after the move
-    /// back, is `inBoth`: nothing more is moved and nothing deleted. `failed` only when Mail returned an error for the
-    /// move back, or the mail is in neither folder afterwards. Only live messages count; `deleted` counts the mails
-    /// whose lookups also found entries marked deleted.
+    /// back, is `inBoth`: nothing more is moved and nothing deleted. A row an earlier Undo left unclear because Mail did
+    /// not answer (`undoNoAnswerNote`) and that is now in the source only is `undone`. Mail not answering the lookups in
+    /// time (before or after the move back), or the move back timing out, is `unclear`: nothing is retried. `failed`
+    /// only when Mail returned an error for the move back, or the mail is in neither folder afterwards. Only live
+    /// messages count; `deleted` counts the mails whose lookups also found entries marked deleted.
     public func undo(_ rows: [RunAction]) async -> (outcomes: [UUID: RunUndoOutcome], settle: MailMoveSettleStats, deleted: Int) {
         var outcomes: [UUID: RunUndoOutcome] = [:]
         var stats = MailMoveSettleStats()
@@ -495,16 +536,25 @@ public struct MailMover: Sendable {
                 let before = try await settled(account: pair.account, source: pair.from, target: pair.to, ids, waitingFor: Set(ids), stats: &stats) { src, tgt in
                     (tgt.count == 1 && src.isEmpty) || (src.count == 1 && tgt.isEmpty)
                 }
+                // Mail did not say where they are: nothing moves back on an old answer.
+                guard before.answered else {
+                    for (row, _) in batch { outcomes[row.id] = .unclear }
+                    continue
+                }
                 var eligible: [(row: RunAction, item: MailMoveItem)] = []
                 for (row, id) in batch {
                     let there = before.there(id), here = before.here(id)
                     if there.count == 1 && here.isEmpty { eligible.append((row, MailMoveItem(mailID: there[0], messageID: id))) }
-                    else if row.state == .unclear && here.count == 1 && there.isEmpty { outcomes[row.id] = .nothing }
+                    else if row.state == .unclear && here.count == 1 && there.isEmpty {
+                        outcomes[row.id] = row.note == Self.undoNoAnswerNote ? .undone : .nothing
+                    }
                     else if !here.isEmpty && !there.isEmpty { outcomes[row.id] = .inBoth }
                     else { outcomes[row.id] = .changed }
                 }
                 guard !eligible.isEmpty else { deleted += before.deleted(ids); continue }
                 var errors = Set<String>(), reported = Set<String>()
+                // As in `apply`: a move back that timed out may still be carried out; the read-back waits for all.
+                var timedOut = false
                 sent = true
                 do {
                     let statuses = try await reader.move(account: pair.account, from: pair.to, mails: eligible.map(\.item), to: pair.from)
@@ -512,19 +562,26 @@ public struct MailMover: Sendable {
                         if status == "moved" { reported.insert(entry.item.messageID) }
                         else if status.allSatisfy({ $0.isNumber || $0 == "-" }) { errors.insert(entry.item.messageID) }
                     }
+                } catch MailAccountProblem.timeout {
+                    timedOut = true
                 } catch {
                     errors.formUnion(eligible.map(\.item.messageID))
                 }
                 let after = try await settled(account: pair.account, source: pair.from, target: pair.to, eligible.map(\.item.messageID),
-                                              waitingFor: reported, stats: &stats) { src, tgt in src.count == 1 && tgt.isEmpty }
+                                              waitingFor: timedOut ? Set(eligible.map(\.item.messageID)) : reported, stats: &stats) { src, tgt in
+                    src.count == 1 && tgt.isEmpty
+                }
                 deleted += after.deleted(ids)
                 for (row, item) in eligible {
                     let back = after.here(item.messageID), still = after.there(item.messageID)
                     if back.count == 1 && still.isEmpty { outcomes[row.id] = .undone }
-                    // Mail did not move it and said no error: it stays in the target, as it was.
-                    else if still.count == 1 && back.isEmpty && !errors.contains(item.messageID) { outcomes[row.id] = .changed }
+                    // Mail did not answer the read-back in time: not known yet, never failed.
+                    else if !after.answered { outcomes[row.id] = .unclear }
                     // Copied back but not deleted from the target after the bound: Pippa deletes neither copy.
                     else if !back.isEmpty && !still.isEmpty { outcomes[row.id] = .inBoth }
+                    else if timedOut { outcomes[row.id] = .unclear }
+                    // Mail did not move it and said no error: it stays in the target, as it was.
+                    else if still.count == 1 && back.isEmpty && !errors.contains(item.messageID) { outcomes[row.id] = .changed }
                     else { outcomes[row.id] = .failed }
                 }
             } catch MailMoveProblem.noFolder where !sent {
@@ -535,6 +592,50 @@ public struct MailMover: Sendable {
             }
         }
         return (outcomes, stats, deleted)
+    }
+
+    // MARK: Later look
+
+    /// What one more look at an unclear row found (`recheck`).
+    public enum Recheck: Sendable, Equatable {
+        /// The move happened: live once in the target and not in the source; `mailID` is Mail's id there now.
+        case moved(mailID: Int)
+        /// The move did not happen: live once in the source, not in the target.
+        case notMoved
+        /// The move back (an Undo Mail did not confirm in time) happened: live once in the source only.
+        case undone
+        /// The move back did not happen: live once in the target only, as after the move.
+        case notUndone
+    }
+
+    /// One more look at a run's unclear mail rows, later and without anyone asking: one lookup per folder pair (source
+    /// and target once, with `lookupEventTimeout`), no settling and never a move. A row whose mail is not live in exactly
+    /// one of the two folders, or that Mail did not answer for, gets no entry and stays unclear.
+    public func recheck(_ rows: [RunAction]) async -> [UUID: Recheck] {
+        struct Pair: Hashable { var account: String, from: [String], to: [String] }
+        var groups: [Pair: [(row: RunAction, id: String)]] = [:]
+        var order: [Pair] = []
+        for row in rows where row.state == .unclear && row.object.kind == Self.kind {
+            guard let account = row.object.fields["account"], let id = row.object.fields["messageID"],
+                  let from = row.object.fields["from"].flatMap(Self.decode), let to = row.object.fields["to"].flatMap(Self.decode) else { continue }
+            let pair = Pair(account: account, from: from, to: to)
+            if groups[pair] == nil { order.append(pair) }
+            groups[pair, default: []].append((row, id))
+        }
+        var out: [UUID: Recheck] = [:]
+        for pair in order {
+            let members = groups[pair] ?? []
+            let ids = Array(Set(members.map(\.id))).sorted()
+            guard let found = try? await lookup(account: pair.account, source: pair.from, target: pair.to, ids,
+                                                eventTimeout: MailMoveSettle.lookupEventTimeout) else { continue }
+            for (row, id) in members {
+                let here = found.here(id), there = found.there(id)
+                let back = row.note == Self.undoNoAnswerNote
+                if there.count == 1 && here.isEmpty { out[row.id] = back ? .notUndone : .moved(mailID: there[0]) }
+                else if here.count == 1 && there.isEmpty { out[row.id] = back ? .undone : .notMoved }
+            }
+        }
+        return out
     }
 
     // MARK: Helpers

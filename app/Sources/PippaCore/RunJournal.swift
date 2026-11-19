@@ -123,7 +123,9 @@ public struct RunActionResult: Sendable {
 /// What one undo step did. `changed`: the object was changed since Pippa touched it, so it stays. `nothing`: an unclear
 /// row whose action provably did not happen (a mail move found back in its source): nothing to undo. `inBoth`: a mail
 /// move whose mail is live in both folders (IMAP copied but did not delete); the row becomes unclear, nothing is deleted.
-public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing, inBoth = "in_both" }
+/// `unclear`: Mail did not answer in time, so whether it went back is not known (`MailMover.undoNoAnswerNote`); never
+/// retried, looked at once more later (`resolveUnclearMailRows`).
+public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing, inBoth = "in_both", unclear }
 /// Puts one row back, only if its object is unchanged since Pippa touched it. Supplied per kind by the tool.
 public typealias RunUndoRecipe = @Sendable (RunAction) async -> RunUndoOutcome
 /// Puts several rows of one kind back in one step (mail moves go back in batches), `rows` in undo order. It also gets
@@ -134,7 +136,7 @@ public struct RunUndoReport: Sendable, Equatable {
     public var undone: [RunAction] = []
     public var left: [RunAction] = []
     public var failed: [RunAction] = []
-    /// Rows Undo left unclear (`RunUndoOutcome.inBoth`).
+    /// Rows Undo left unclear (`RunUndoOutcome.inBoth`, `.unclear`).
     public var unclear: [RunAction] = []
 }
 
@@ -161,7 +163,8 @@ public struct RunSummary: Codable, Sendable, Equatable {
 
     public init(run: UUID, rows: [RunAction], canUndo: (String) -> Bool) {
         self.init(run: run)
-        for row in rows where row.state != .planned {
+        // A row found never carried out (`not_moved`) changed nothing.
+        for row in rows where row.state != .planned && row.note != "not_moved" {
             changes += 1
             if row.object.kind == MailMover.kind { mailMoves = (mailMoves ?? 0) + 1 }
             if row.verified == true { checked += 1 }
@@ -359,8 +362,29 @@ extension Executor {
         case .failed: row.state = .undoFailed; row.note = "failed"
         case .nothing: row.state = .undone; row.note = "not_moved"
         case .inBoth: row.state = .unclear; row.note = MailMover.inBothNote
+        case .unclear: row.state = .unclear; row.note = MailMover.undoNoAnswerNote
         }
         return row
+    }
+
+    /// What one more look at unclear mail rows found (`MailMover.recheck`): moved → done and verified, not moved → as
+    /// Undo's `nothing`, undone → undone, not undone → done again (Undo can be pressed again). Only rows still unclear
+    /// change; nothing was moved for this.
+    public func resolveUnclearMailRows(_ found: [UUID: MailMover.Recheck]) throws {
+        try runTransaction {
+            for (id, recheck) in found {
+                guard var row = try row(id), row.state == .unclear, row.object.kind == MailMover.kind else { continue }
+                switch recheck {
+                case .moved(let mailID):
+                    row.state = .done; row.note = nil; row.verified = true
+                    row.object.fields["mailID"] = String(mailID)
+                case .notMoved: row = Self.applying(.nothing, to: row)
+                case .undone: row = Self.applying(.undone, to: row)
+                case .notUndone: row.state = .done; row.note = nil
+                }
+                try save(row)
+            }
+        }
     }
 
     // MARK: Reading
@@ -406,7 +430,7 @@ extension Executor {
             case .undone, .gone: report.undone.append(current)
             case .changed: report.left.append(current)
             case .failed: report.failed.append(current)
-            case .inBoth: report.unclear.append(current)
+            case .inBoth, .unclear: report.unclear.append(current)
             case .nothing: break
             }
             try runTransaction { try save(current) }

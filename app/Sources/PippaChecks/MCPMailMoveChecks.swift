@@ -54,6 +54,11 @@ final class FakeFolderMail: MailMoveProbeMail, @unchecked Sendable {
     var testFolderTimeout: String?
     /// The move Apple event times out without moving anything (Mail may still do it later).
     var moveTimesOut = false
+    /// Lookups (`locate`) Mail does not answer in time: the next this many, or every one while `locateStalls`. Each
+    /// advances `clock` by its event timeout, as the real wait would take.
+    var locateTimeouts = 0
+    var locateStalls = false
+    var clock: FakeSettleClock?
     /// IMAP moves by copy plus delete: the copy lands in the target at once; the source entry is then marked deleted
     /// (`leaveDeleted`), marked deleted only after this many lookups of the source (`lateDelete`), or never (`noDelete`).
     enum CopyMove { case leaveDeleted, lateDelete(Int), noDelete }
@@ -128,7 +133,21 @@ final class FakeFolderMail: MailMoveProbeMail, @unchecked Sendable {
     }
 
     func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated] {
+        try await locate(account: account, path: path, messageIDs: messageIDs, eventTimeout: 30)
+    }
+
+    func locate(account: String, path: [String], messageIDs: [String], eventTimeout: Int) async throws -> [String: MailLocated] {
         try fail()
+        let stalled = lock.withLock { () -> Bool in
+            guard locateStalls || locateTimeouts > 0 else { return false }
+            if !locateStalls { locateTimeouts -= 1 }
+            locateCalls += 1
+            return true
+        }
+        if stalled {
+            clock?.advance(.seconds(eventTimeout))
+            throw MailAccountProblem.timeout
+        }
         return try lock.withLock {
             locateCalls += 1
             pendingDeletes = pendingDeletes.compactMap { entry in
@@ -260,6 +279,8 @@ final class FakeSettleClock: @unchecked Sendable {
     /// Runs at each sleep (Stop during the wait).
     var onSleep: (@Sendable () -> Void)?
     var now: Duration { lock.withLock { time } }
+    /// Time an Apple event took without a sleep (a lookup that timed out).
+    func advance(_ d: Duration) { lock.withLock { time += d } }
     var settle: MailMoveSettle {
         MailMoveSettle(sleep: { [self] d in lock.withLock { time += d; sleeps += 1 }; onSleep?() }, now: { [self] in now })
     }
@@ -652,7 +673,7 @@ extension MCPCheckContext {
             let failing = fakeMail()
             let f = try world(failing)
             _ = await call(f.tools, "mail_move", ["refs": Array(await refs(f).prefix(3)), "to": "Rechnungen"])
-            failing.onMove = { _, _ in failing.failAll = MailAccountProblem.timeout }
+            failing.onMove = { _, _ in failing.failAll = MailAccountProblem.failed }
             let failed = try await f.host.undoRun(f.turn.id)
             return report.undone.count == 3 && report.left.count == 1 && report.failed.isEmpty
                 && report.left.first?.object.fields["messageID"] == "m30@x.example"
@@ -719,6 +740,91 @@ extension MCPCheckContext {
             return r.json["state"] as? String == "unclear" && data(r)["unclear"] as? Int == 3 && (data(r)["not_moved"] as? Int ?? 0) == 0
                 && states == [.unclear: 3] && fake.moveCalls.count == 1 && w.clock.sleeps > 0 && fake.ids(privat.id, ["INBOX"]).count == 30
         }
+        // MARK: A7c Mail not answering lookups in time (iCloud after moves)
+
+        await checkAsync("mail_move settle: lookups that time out twice and then answer verify n of n; a timeout is one poll, not a failure") {
+            let fake = fakeMail()
+            let w = try world(fake)
+            fake.clock = w.clock
+            fake.onMove = { _, _ in fake.locateTimeouts = 2 }
+            let r = await call(w.tools, "mail_move", ["refs": Array(await refs(w).prefix(5)), "to": "Rechnungen"])
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            // Two timed-out polls of 8 s each and a 1 s pause after each, then the answer.
+            return data(r)["verified"] as? String == "5 of 5" && r.json["done"] as? Bool == true && data(r)["unclear"] == nil
+                && rows.count == 5 && rows.allSatisfy { $0.state == .done && $0.verified == true } && fake.moveCalls.count == 1
+                && w.clock.now == .seconds(2 * MailMoveSettle.lookupEventTimeout + 2) && fake.ids(privat.id, ["Rechnungen"]).count == 6
+        }
+        /// Five mails moved while Mail stops answering lookups for good: unclear after the longer bound.
+        func stalledMove(keep: String? = nil) async throws -> (World, FakeFolderMail, (json: [String: Any], isError: Bool, bytes: Int), Duration) {
+            let fake = fakeMail()
+            fake.silentlyKeep = keep
+            let w = try world(fake)
+            fake.clock = w.clock
+            fake.onMove = { _, _ in fake.locateStalls = true }
+            let started = ContinuousClock.now
+            let r = await call(w.tools, "mail_move", ["refs": Array(await refs(w).prefix(5)), "to": "Rechnungen"])
+            fake.onMove = nil
+            return (w, fake, r, ContinuousClock.now - started)
+        }
+        await checkAsync("mail_move settle: lookups that time out until the bound leave the mails unclear with the reason; the move is never retried") {
+            let (w, fake, r, took) = try await stalledMove()
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            let tell = r.json["tell"] as? String ?? "", next = r.json["next"] as? String ?? ""
+            return r.json["state"] as? String == "unclear" && data(r)["unclear"] as? Int == 5 && data(r)["no_answer"] as? Int == 5
+                && data(r)["moved"] as? Int == 0 && (data(r)["not_moved"] as? Int ?? 0) == 0 && !r.isError
+                && tell.contains("did not answer in time") && tell.contains("won’t move them again") && next.contains("Nothing was retried")
+                && rows.count == 5 && rows.allSatisfy { $0.state == .unclear && $0.note == MailMover.noAnswerNote }
+                && fake.moveCalls.count == 1 && w.clock.now >= MailMoveSettle.boundAfterTimeout
+                && w.clock.now < MailMoveSettle.boundAfterTimeout + .seconds(MailMoveSettle.lookupEventTimeout + 1) && took < .seconds(5)
+        }
+        await checkAsync("mail_move: the later look turns unclear rows into done (in the target) or not moved (still in the source), one lookup per folder pair, no move") {
+            let (w, fake, _, _) = try await stalledMove(keep: "m30@x.example")
+            fake.locateStalls = false
+            let lookups = fake.locateCalls
+            await w.host.recheckUnclearMail(w.turn.id)
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            let kept = rows.first { $0.object.fields["messageID"] == "m30@x.example" }
+            let summary = await w.host.runSummaries([w.turn.id])[w.turn.id]
+            let moved = rows.filter { $0.object.fields["messageID"] != "m30@x.example" }
+            return fake.locateCalls - lookups == 2 && fake.moveCalls.count == 1
+                && moved.count == 4 && moved.allSatisfy { $0.state == .done && $0.verified == true && $0.note == nil }
+                && kept?.state == .undone && kept?.note == "not_moved"
+                && summary == RunSummary(run: w.turn.id, changes: 4, checked: 4, undoable: 4, mailMoves: 4)
+        }
+        await checkAsync("mail_move: the later look leaves a row unclear while Mail still does not answer") {
+            let (w, fake, _, _) = try await stalledMove()
+            await w.host.recheckUnclearMail(w.turn.id)
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            return rows.count == 5 && rows.allSatisfy { $0.state == .unclear && $0.note == MailMover.noAnswerNote } && fake.moveCalls.count == 1
+        }
+        await checkAsync("mail_move Undo: a move back Mail does not confirm in time is unclear, never failed; the later look and a second Undo find it undone without moving again") {
+            func stalledUndo() async throws -> (World, FakeFolderMail, RunUndoReport) {
+                let fake = fakeMail()
+                let w = try world(fake)
+                fake.clock = w.clock
+                _ = await call(w.tools, "mail_move", ["refs": Array(await refs(w).prefix(3)), "to": "Rechnungen"])
+                fake.onMove = { _, _ in fake.locateStalls = true }
+                let report = try await w.host.undoRun(w.turn.id)
+                fake.onMove = nil
+                fake.locateStalls = false
+                return (w, fake, report)
+            }
+            let (w, fake, report) = try await stalledUndo()
+            let unclearRows = try await w.journal.runActions(run: w.turn.id)
+            await w.host.recheckUnclearMail(w.turn.id)
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            let summary = await w.host.runSummaries([w.turn.id])[w.turn.id]
+            let (v, again, _) = try await stalledUndo()
+            let pressed = try await v.host.undoRun(v.turn.id)
+            let pressedRows = try await v.journal.runActions(run: v.turn.id)
+            return report.unclear.count == 3 && report.failed.isEmpty && report.undone.isEmpty && report.left.isEmpty
+                && unclearRows.allSatisfy { $0.state == .unclear && $0.note == MailMover.undoNoAnswerNote }
+                && rows.allSatisfy { $0.state == .undone && $0.note == nil } && fake.moveCalls.count == 2
+                && summary?.undone == 3 && summary?.unclear == 0 && fake.ids(privat.id, ["INBOX"]).count == 30
+                && pressed.undone.count == 3 && pressed.failed.isEmpty && again.moveCalls.count == 2
+                && pressedRows.allSatisfy { $0.state == .undone }
+        }
+
         await checkAsync("mail_move: Trash, Junk, Sent, Drafts and Outbox are never targets") {
             let fake = fakeMail()
             let w = try world(fake)
@@ -872,6 +978,39 @@ extension MCPCheckContext {
                 && (report["timings_ms"] as? [String: Int])?["folders"] != nil && fake.moveCalls.isEmpty && fake.folderCalls == 0
                 && movedReport["move_error"] as? String == "timeout" && movedReport["move_error_event"] as? String == "move"
                 && move["unclear"] as? Int == 10 && move["not_moved"] as? Int == 0 && slowMove.folderCalls == 0
+        }
+        await checkAsync("Mail move probe: Mail not answering after the Undo makes steps unclear, verify_back polls and counts timeouts, and the final read after --recheck decides: as intended, exit 0") {
+            let fake = fakeMail()
+            let clock = FakeSettleClock()
+            fake.clock = clock
+            // Calls 1 and 2 move A → B, 3 and 4 move back; after the last one Mail stops answering lookups.
+            fake.onMove = { call, _ in if call == 4 { fake.locateStalls = true } }
+            let result = await MailMoveProbe.execute(["--mail-move-probe", "--account", "Privat", "--recheck", "30"], mail: { fake },
+                                                     journalDirectory: dir("probe-\(UUID().uuidString)"), pause: {}, settle: clock.settle)
+            let report = (try? JSONSerialization.jsonObject(with: Data(result.stdout.utf8))) as? [String: Any] ?? [:]
+            let counts = report["counts"] as? [String: Any] ?? [:]
+            let settle = report["settle"] as? [String: [String: Int]] ?? [:]
+            let recheck = report["recheck"] as? [String: Any] ?? [:]
+            let undo = counts["undo"] as? [String: Int] ?? [:]
+            // Keeps one mail in B on the way back: the final read is not as intended.
+            let kept = fakeMail()
+            kept.onMove = { call, _ in if call >= 3 { kept.silentlyKeep = "m1@x.example" } }
+            let off = await MailMoveProbe.execute(["--mail-move-probe", "--account", "Privat", "--recheck", "0"], mail: { kept }, pause: {},
+                                                  settle: FakeSettleClock().settle)
+            let offReport = (try? JSONSerialization.jsonObject(with: Data(off.stdout.utf8))) as? [String: Any] ?? [:]
+            func usage(_ arguments: [String]) async -> Int32 { await MailMoveProbe.execute(arguments, mail: { fake }, pause: {}).exitCode }
+            let wrong = [await usage(["--mail-move-probe", "--account", "Privat", "--recheck", "x"]),
+                         await usage(["--mail-move-probe", "--account", "Privat", "--diagnose", "--recheck", "5"]),
+                         await usage(["--mail-move-probe", "--recheck", "5"])]
+            return result.exitCode == 0 && report["result"] as? String == "as_intended" && report["verified"] as? String == "20 of 20"
+                && undo == ["undone": 10, "left": 0, "failed": 0, "unclear": 10] && counts["second_undo_skipped"] as? String == "unclear_rows"
+                && counts["verify_back_answered"] as? Bool == false && (settle["verify_back"]?["timeouts"] ?? 0) > 0
+                && (settle["undo"]?["timeouts"] ?? 0) > 0 && settle["move"]?["timeouts"] == 0
+                && recheck["recheck_after_ms"] as? Int == 30_000 && recheck["matches"] as? Bool == true
+                && recheck["a"] as? [String: Int] == ["live": 20, "deleted_status": 0] && recheck["b"] as? [String: Int] == ["live": 0, "deleted_status": 0]
+                && fake.moveCalls.count == 4 && fake.ids(privat.id, [MailMoveProbe.folderA]).count == 20
+                && off.exitCode == 1 && offReport["result"] as? String == "not_as_intended" && (offReport["recheck"] as? [String: Any])?["matches"] as? Bool == false
+                && wrong == [2, 2, 2]
         }
         await checkAsync("Mail move probe --diagnose: times the test folders and the mail_folders listing in numbers only and changes nothing") {
             let fake = fakeMail()

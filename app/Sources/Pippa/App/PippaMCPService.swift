@@ -214,6 +214,8 @@ enum PippaMCPService {
     static func runSummary(_ run: UUID?) async -> RunSummary? {
         guard let run else { return nil }
         await fileChanges?.value
+        // Mail moves Mail did not confirm in time get one more look before the receipt counts them.
+        await currentHost.recheckUnclearMail(run)
         return await currentHost.runSummaries([run])[run]
     }
 

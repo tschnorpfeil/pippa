@@ -329,11 +329,12 @@ extension MailAccountScript {
 
     -- For each Message-ID, Mail's ids of the messages in this mailbox that carry it (with or without angle brackets):
     -- {live ids, ids marked deleted}. On IMAP a moved mail's old copy can stay listed with deleted status until expunged.
-    on accountLocate(acctID, wantedPath, wantedIDs)
+    -- Each Apple event bounded by secs seconds; a timeout raises -1712.
+    on accountLocate(acctID, wantedPath, wantedIDs, secs)
         set out to {}
         tell application id "com.apple.mail"
             try
-                with timeout of 30 seconds
+                with timeout of secs seconds
                     set box to my boxAt(acctID, wantedPath)
                     if box is missing value then return {"nobox"}
                     repeat with i from 1 to count of wantedIDs
@@ -612,8 +613,12 @@ extension MailAccountScript.Live {
     }
 
     func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated] {
+        try await locate(account: account, path: path, messageIDs: messageIDs, eventTimeout: 30)
+    }
+
+    func locate(account: String, path: [String], messageIDs: [String], eventTimeout: Int) async throws -> [String: MailLocated] {
         try await run("accountLocate", {
-            [NSAppleEventDescriptor(string: account), MailMoveParse.list(path), MailMoveParse.list(messageIDs)]
+            [NSAppleEventDescriptor(string: account), MailMoveParse.list(path), MailMoveParse.list(messageIDs), NSAppleEventDescriptor(int32: Int32(eventTimeout))]
         }) { try MailMoveParse.located($0, messageIDs: messageIDs) }
     }
 

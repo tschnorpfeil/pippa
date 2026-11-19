@@ -48,6 +48,9 @@ public protocol MailAccountReading: Sendable {
     /// from ones marked deleted. Never Mail's id as identity: it changes on Exchange when a mail moves.
     /// `MailMoveProblem.noFolder` when the mailbox is gone.
     func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated]
+    /// As `locate(account:path:messageIDs:)`, each Apple event bounded by `eventTimeout` seconds
+    /// (`MailMoveSettle.lookupEventTimeout` while Pippa waits for Mail to settle).
+    func locate(account: String, path: [String], messageIDs: [String], eventTimeout: Int) async throws -> [String: MailLocated]
     /// Moves these messages from `from` to `to`, each only when its Mail id still carries its Message-ID. One mutating
     /// Apple Event; what happened is read back with `locate`, never taken from this call (its statuses are diagnostics).
     @discardableResult
@@ -82,6 +85,10 @@ extension MailAccountReading {
     /// Readers that cannot list, find or move: nothing is listed or moved.
     public func folders(account: String, samples: Int) async throws -> MailFolderList { throw MailAccountProblem.failed }
     public func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated] { throw MailAccountProblem.failed }
+    /// Readers without their own event timeout look up as usual.
+    public func locate(account: String, path: [String], messageIDs: [String], eventTimeout: Int) async throws -> [String: MailLocated] {
+        try await locate(account: account, path: path, messageIDs: messageIDs)
+    }
     @discardableResult
     public func move(account: String, from: [String], mails: [MailMoveItem], to: [String]) async throws -> [String] { throw MailAccountProblem.failed }
 }

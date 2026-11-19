@@ -187,6 +187,14 @@ extension PippaMCPWriteTools {
         if o.unclear > 0 {
             data["unclear"] = o.unclear
             data["unclear_batch"] = o.unclearBatch ?? 0
+            if o.noAnswer > 0 {
+                // Mail did not answer the read-back in time: where they are is not known yet, nothing was retried.
+                data["no_answer"] = o.noAnswer
+                let tell = L("Pippa moved %lld mails into “%@” and checked them. For %lld mails Mail did not answer in time, so Pippa can’t say yet where they are. Please check “%@” and “%@” in Mail. Pippa didn’t retry and won’t move them again by herself.",
+                             table: "MCP", o.verified, to, o.noAnswer, from, to)
+                return response(["done": false, "state": "unclear", "data": data, "tell": tell,
+                                 "next": "Unclear: Mail did not answer in time, so where \(o.noAnswer) mails are is not known yet (see no_answer). Nothing was retried. Do not retry, repeat or undo this move, and do not move these mails again in this answer; Pippa looks once more when the answer ends. Repeat tell."])
+            }
             let neither = o.unclear - o.inBoth
             var tell: String
             if neither > 0 {
