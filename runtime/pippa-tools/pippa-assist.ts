@@ -267,6 +267,7 @@ export default function (pi: ExtensionAPI) {
 	// attempts, including those failures. Keep only starts that have not reached our tool_call handler.
 	const unhandled = new Map<string, { toolName: string; input: unknown; toolCallId: string; parentToolCallId?: string }>();
 	let stops = 0;
+	const stoppedScripts = new Set<string>();
 	let calls = 0;
 	let scriptCalls = 0;
 	const searchCalls = new Set<string>();
@@ -274,7 +275,7 @@ export default function (pi: ExtensionAPI) {
 	const commands = new Map<string, string>();
 	let searched = false;
 	let truncated = false;
-	const reset = () => { counts.clear(); keys.clear(); unhandled.clear(); commands.clear(); stops = 0; calls = 0; scriptCalls = 0; searchCalls.clear(); found.clear(); searched = false; truncated = false; };
+	const reset = () => { counts.clear(); keys.clear(); unhandled.clear(); commands.clear(); stops = 0; stoppedScripts.clear(); calls = 0; scriptCalls = 0; searchCalls.clear(); found.clear(); searched = false; truncated = false; };
 	const recordStop = (tool: string, ctx: any) => {
 		if (++stops === 3) {
 			pi.appendEntry("pippa-loop-stop", { v: 1, tool, searched, files: [...found].slice(0, 200), truncated: truncated || found.size > 200 });
@@ -289,7 +290,11 @@ export default function (pi: ExtensionAPI) {
 		}
 		const reason = (event.parentToolCallId ? undefined : overBudget(++calls, callBudget()))
 			?? loopBrake(counts, keys, event.toolCallId, event.toolName, event.input, CHANGES.has(event.toolName));
-		if (reason) recordStop(event.toolName, ctx);
+		// One script counts once toward ending the answer: it may batch many items and stop several of them at once.
+		if (reason && !(event.parentToolCallId && stoppedScripts.has(event.parentToolCallId))) {
+			if (event.parentToolCallId) stoppedScripts.add(event.parentToolCallId);
+			recordStop(event.toolName, ctx);
+		}
 		return reason;
 	};
 	const outcome = (id: string, isError: boolean, native?: "success" | "failure" | "uncertain") => {

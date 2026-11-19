@@ -99,7 +99,7 @@ export async function discoverNativeTools(pi: ExtensionAPI, config: ReturnType<t
 		const active = pi.getActiveTools();
 		if (forbidden.some((name) => registeredTools.includes(name) || active.includes(name))) return { status: "registrationMismatch" };
 		// Scripts reach every tool of this process: never active unless the app asked for it.
-		if (!codemode && active.includes(CODEMODE_TOOL)) return { status: "registrationMismatch" };
+		if (!codemode && (registeredTools.includes(CODEMODE_TOOL) || active.includes(CODEMODE_TOOL))) return { status: "registrationMismatch" };
 		const scripts = !codemode || (registeredTools.includes(CODEMODE_TOOL) && active.includes(CODEMODE_TOOL));
 		if (scripts && required.every((name) => registeredTools.includes(name) && active.includes(name))) {
 			return { status: "ready", tools: required, registeredTools: required };

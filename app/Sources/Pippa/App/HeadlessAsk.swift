@@ -62,7 +62,9 @@ enum HeadlessAsk {
         mutating func observe(_ event: PiRPCEvent) {
             switch event {
             // A failed script is not a failed tool: the calls it made report their own results.
-            case .toolEnded(_, let name, _, _, _, _, _) where name == PiTurnReceipt.scriptTool:
+            // A call that never ran as a script (unknown tool, blocked, over budget) falls through as a failed tool.
+            case .toolEnded(_, let name, let isError, let result, _, _, _)
+                where name == PiTurnReceipt.scriptTool && (!isError || result.hasPrefix("Script failed")):
                 break
             case .toolEnded(_, let name, let isError, let result, let outcome, let fileAccessFailure, _):
                 if fileAccessFailure != nil || (isError && Self.needsAccess(tool: name, result: result)) { access = true }
