@@ -5,9 +5,10 @@ The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); 
 
 ## Where Pippa stands
 
-The last release is 0.7.0. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
-conversation sidebar, a first-run card, and settings for the AI (on this Mac, ChatGPT, or an own online AI), the
-shortcut, login item, permissions and updates. Dropped photos and PDFs become one PDF with a button, without the model.
+The last release is 0.8.1. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
+conversation sidebar, a first-run card offering local or online AI, and settings for the AI (on this Mac, or an online
+AI with per-source sharing review and optional Mac access), optional abilities, the shortcut, login item, permissions
+and updates. Dropped photos and PDFs become one PDF with a button, without the model.
 
 Pi does the work through a fixed list of tools: Pi's `read`, `bash` and `write`; the web; Pippa's file tools
 (`search_files`, `list_folder`, `move_files`, `remember`, `ask`); and the app's MCP server for Calendar, Reminders, Mail,
@@ -28,6 +29,10 @@ tool or card.
 2. **UI polish, second pass:** card views, onboarding text.
 3. **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
    real menu bar); motion and drag and drop at the real notch still need a look.
+
+Released in 0.8.1: explicit **Allow Mac access** grant for one verified online AI (scoped to provider, model and account, off by default), account-aware paged Mail triage across unread/read/Sent/Drafts with reply-state detection and threaded drafts, richer Calendar details and multi-day/named-calendar events, direct browser URL bar when empty, quieter collapsed Sharing settings when online AI is off, cleaner online setup copy, modularized Swift core/app/view files, and main-thread/runtime performance and reliability fixes.
+
+Released in 0.8.0: choosing local or online AI directly in first-run setup, per-source reviewed sharing with online AI (Mail, Documents, Calendar, Reminders, Photos) with editable excerpts and single-question handoff (**Ask [provider]…**), separate Web search and Personal notes switches for local and online AI, and keeping Island conversations and drafts when opening the full window.
 
 Released in 0.7.0: Pippa's browser (a `WKWebView` panel in the chat window and the `browse` tool; she asks before each new site and each click, typed text or choice, and hands sign-ins to the person), a read-only Accessibility fallback for `front_read`, a tighter shell sandbox (Mach service lookups limited to an allowlist, no inherited Accessibility trust), and continuing an earlier conversation from Pippa Island with a fixed follow-up rule (`Island.followUp`).
 
