@@ -1,5 +1,9 @@
 # Pippa next: a native Mac front end for Pi
 
+Pippa 1.0 changed rules 3, 4 and 7 below: a token budget for the fixed prompt instead of a tool count, scripts may
+read more than 20 entries, and the five tasks gate the release instead of new work. See
+[pippa-1.0.md](pippa-1.0.md#tools-in-10).
+
 Status: proposal, 2026-11-01. Replaces the plans in [archive/](archive/) (`next-level-plan-2026-10-30.md`,
 `pippa-next-evolution-2026-10-21.md`, `roadmap-0.4.md`) if accepted. Where things stand: [ROADMAP.md](ROADMAP.md).
 

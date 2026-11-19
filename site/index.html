@@ -74,7 +74,7 @@
       ],
       "description": "Kostenlose Mac-Helferin für Papierkram: Aus Fotos wird ein versandfertiges PDF, aus Amtsdeutsch Klartext samt Frist, aus Download-Chaos Ordnung. Pippas KI läuft auf deinem Mac, ohne Konto.",
       "operatingSystem": "macOS 26.2+",
-      "softwareVersion": "0.6.0",
+      "softwareVersion": "1.0.0",
       "applicationCategory": "UtilitiesApplication",
       "processorRequirements": "Apple silicon (M1 or later)",
       "isAccessibleForFree": true,
@@ -786,7 +786,7 @@ strong, b { font-weight: 600; }
                 <p>Antworte der Hausverwaltung, dass Dienstag passt.</p>
               </div>
               <div class="pw-answer">
-                <p class="rv" style="--d:.1s">Deine Antwort liegt als Entwurf in Mail. Gesendet wird nichts, das machst du selbst.</p>
+                <p class="rv" style="--d:.1s">Deine Antwort liegt als Entwurf in Mail. Gesendet wird sie erst, wenn du auf „Senden“ klickst.</p>
               </div>
               <div class="pw-rcpt rv" style="--d:.4s">
                 <span class="ri"><svg class="ic"><use href="#s-env"/></svg></span>
@@ -1027,7 +1027,7 @@ strong, b { font-weight: 600; }
   <div class="wrap">
     <div class="sh">
       <h2 id="h-apps">Arbeitet mit deinen Mac-Apps.</h2>
-      <p>Fristen landen in Erinnerungen, Termine im Kalender, Antworten als Entwurf in Mail. Sie liest Mails samt Anhängen, öffnet die gelesene Nachricht auf Klick, findet Dateien und rechnet Summen in Excel. Muss sie sich durch eine Webseite klicken, tut sie das in einem Browserbereich ihres Fensters und fragt vorher.</p>
+      <p>Fristen landen in Erinnerungen, Termine im Kalender, Antworten als Entwurf in Mail. Mails sortiert sie in die Ordner, die du schon hast. Sie liest Mails samt Anhängen, öffnet die gelesene Nachricht auf Klick, findet Dateien und rechnet Summen in Excel. Muss sie sich durch eine Webseite klicken, tut sie das in einem Browserbereich ihres Fensters und fragt vorher.</p>
     </div>
     <ul class="apps" role="img" aria-label="Sechs App-Symbole nebeneinander: Mail, Kalender, Erinnerungen, Finder, Excel und Fotos.">
       <li aria-hidden="true"><span class="tile t-mail"><svg viewBox="0 0 52 52"><rect x="9" y="14" width="34" height="24" rx="4" fill="#fff"/><path d="M10.5 16.5 26 28l15.5-11.5" fill="none" stroke="#2a82ef" stroke-width="2.2" stroke-linejoin="round"/></svg></span>Mail</li>
@@ -1045,7 +1045,7 @@ strong, b { font-weight: 600; }
   <div class="wrap">
     <div class="sh">
       <h2 id="h-access"><span>Du bestimmst,</span> <span>was Pippa darf.</span></h2>
-      <p>Bevor Pippa an deine Ordner, Kalender oder Fotos kommt, fragt macOS dich. Will Pippa ins Internet oder mit einem Befehl Dateien ändern, fragt sie selbst, direkt im Gespräch: Erlauben oder Nicht erlauben.</p>
+      <p>Bevor Pippa an deine Ordner, Kalender oder Fotos kommt, fragt macOS dich. Was sich zurücknehmen lässt, erledigt Pippa gleich. Bevor etwas deinen Mac verlässt oder sich nicht zurücknehmen lässt, fragt sie dich im Gespräch, und erst dein Klick lässt es geschehen.</p>
     </div>
     <div class="access" role="img" aria-label="Pippas Einstellungen mit den Seiten Allgemein, KI, Zugriff und Updates, geöffnet ist Zugriff: Was Pippa auf diesem Mac nutzen darf. Kalender erlaubt, Erinnerungen noch nicht gefragt, Mail prüft Pippa, während Mail geöffnet ist, Fotos nicht erlaubt, für Dateien und Ordner fragt Pippa beim ersten Mal. Davor die Frage von macOS: „Pippa“ möchte auf Dateien in deinem Ordner „Downloads“ zugreifen, mit Nicht erlauben und Erlauben.">
       <div class="card perm" aria-hidden="true">
@@ -1066,7 +1066,7 @@ strong, b { font-weight: 600; }
         <div class="ask-btns"><span>Nicht erlauben</span><span class="on">Erlauben</span></div>
       </div>
     </div>
-    <p class="note">Pippas Einstellungen haben vier Seiten: Allgemein, KI, Zugriff und Updates. Unter „Zugriff“ siehst du, was Pippa nutzen darf. Online-KI wie ChatGPT nutzt Pippa nur, wenn du sie einschaltest; unter „KI &gt; Teilen mit Online-KI“ legst du je Quelle fest, ob Pippa vorher fragt oder alles auf dem Mac bleibt, und kannst einem vertrauten Konto bei Bedarf ausdrücklich Mac-Zugriff erlauben. Mail-Entwürfe schickt sie nie selbst ab. Mehr in der <a href="datenschutz.html">Datenschutzerklärung</a>.</p>
+    <p class="note">Pippas Einstellungen haben vier Seiten: Allgemein, KI, Zugriff und Updates. Unter „Zugriff“ siehst du, was Pippa nutzen darf. Online-KI wie ChatGPT nutzt Pippa nur, wenn du sie einschaltest; unter „KI &gt; Teilen mit Online-KI“ legst du je Quelle fest, ob Pippa vorher fragt oder alles auf dem Mac bleibt, und kannst einem vertrauten Konto bei Bedarf ausdrücklich Mac-Zugriff erlauben. Eine Mail sendet sie erst nach deinem Klick auf „Senden“. Mehr in der <a href="datenschutz.html">Datenschutzerklärung</a>.</p>
   </div>
 </section>
 
@@ -1074,10 +1074,10 @@ strong, b { font-weight: 600; }
   <h2 id="h-faq">Noch Fragen?</h2>
   <details id="passt"><summary>Passt mein Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Du brauchst einen Mac mit Apple-Chip (M1 oder neuer) und macOS 26.2 oder neuer. Nachsehen kannst du im Apple-Menü unter „Über diesen Mac“; ein älteres macOS aktualisierst du kostenlos in den Systemeinstellungen unter „Allgemein“ &gt; „Softwareupdate“. Intel-Macs werden nicht unterstützt. Der Download ist unter 100&nbsp;MB groß. Für ihre KI auf dem Mac braucht Pippa 16&nbsp;GB Arbeitsspeicher und fragt vor dem Download, rund 5,4&nbsp;GB. Vorher prüft sie, ob genug Platz frei ist, und sagt dir, wie viel fehlt. Liegt dasselbe Modell schon bei oMLX, LM Studio oder im Hugging-Face-Cache, nimmt Pippa das. Mit weniger Arbeitsspeicher, oder wenn du lieber willst, nutzt Pippa eine Online-KI: ChatGPT-Anmeldung oder dein eigener Schlüssel. Ein PDF aus Fotos geht immer, auch ohne KI.</p></details>
   <details><summary>Geht’s auch ohne KI-Download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Ja, für ein PDF: Fotos, Scans und PDFs werden mit „Ein PDF“ direkt nach der Installation ein PDF. Für Briefe, Fragen und alles andere, auch zum Aufräumen eines Ordners, lädt Pippa ihre KI, erst nach deinem Okay, und die Größe sagt sie dir vorher.</p></details>
-  <details><summary>Brauche ich Internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Zum Laden der App und ihrer KI, für Updates und für Websuchen. Danach arbeiten Pippas KI und die PDF-Werkzeuge auch ohne Verbindung. Braucht ein Befehl das Internet, fragt Pippa dich vorher im Gespräch. Schaltest du eine Online-KI ein, braucht die natürlich Internet.</p></details>
+  <details><summary>Brauche ich Internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Zum Laden der App und ihrer KI, für Updates und für Websuchen. Danach arbeiten Pippas KI und die PDF-Werkzeuge auch ohne Verbindung. Braucht ein Befehl das Internet, fragt Pippa dich vorher im Gespräch, bei jedem Befehl neu. Schaltest du eine Online-KI ein, braucht die natürlich Internet.</p></details>
   <details><summary>Kann ich ChatGPT weiter nutzen?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Ja. Wähle in Pippas Einstellungen unter „KI“ einen Anbieter, melde dich an oder gib einen API-Schlüssel ein und wähle ein Modell. Unterstützt werden die Anbieter der mitgelieferten Pi-Version, etwa Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode und xAI. Aktiviere den gewünschten Anbieter, dann nutzt Pippa ihn als Online-KI. Solange das an ist, gehen deine Gespräche dorthin. Ausschalten kannst du es jederzeit in den Einstellungen.</p></details>
   <details><summary>Was darf Pippa auf meinem Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Bevor Pippa an Schreibtisch, Dokumente, Downloads, Kalender, Erinnerungen oder Fotos kommt oder Mail steuert, fragt macOS dich um Erlaubnis. In Pippas Einstellungen zeigt die Seite „Zugriff“, was erlaubt ist, und öffnet die passende Stelle in den Systemeinstellungen unter „Datenschutz &amp; Sicherheit“. Pippa läuft außerhalb von Apples App-Sandbox, damit sie mit deinen Ordnern und Mac-Apps arbeiten kann; in einer Sandbox könnte sie das nur eingeschränkt.</p></details>
-  <details><summary>Was, wenn Pippa danebenliegt?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Das kann passieren: Auch eine KI übersieht mal ein Detail. Prüf wichtige Beträge und Fristen deshalb im Original. Beim Aufräumen überschreibt Pippa keine Datei, und was sie entfernt, landet im Papierkorb. Hakt etwas, <a href="https://github.com/tschnorpfeil/pippa/issues">melde es auf GitHub</a>: Beschreib die Schritte, aber lass private Dokumente weg.</p></details>
+  <details><summary>Was, wenn Pippa danebenliegt?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Das kann passieren: Auch eine KI übersieht mal ein Detail. Prüf wichtige Beträge und Fristen deshalb im Original. Beim Aufräumen überschreibt Pippa keine Datei, und was sie entfernt, landet im Papierkorb. Unter jeder Antwort steht, was sie geändert und nachgeprüft hat, und „Rückgängig“ nimmt alles auf einmal zurück. Hakt etwas, <a href="https://github.com/tschnorpfeil/pippa/issues">melde es auf GitHub</a>: Beschreib die Schritte, aber lass private Dokumente weg.</p></details>
 </section>
 
 <section class="closing" id="loslegen" aria-labelledby="h-home">

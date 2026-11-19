@@ -1,10 +1,22 @@
 # Pippa 1.0: she acts, and you can take it back
 
-Status: decided, 2026-11-19. Builds on [Pippa next](pippa-next-architecture.md); where things stand is in
+Status: shipped in 1.0.0. Decided 2026-11-19. What differs from this plan is under [As built](#as-built). Builds on [Pippa next](pippa-next-architecture.md); where things stand is in
 [ROADMAP.md](ROADMAP.md). Measurements behind the decisions:
 [archive/measurements/pippa-1.0-spike-2026-11-19.md](archive/measurements/pippa-1.0-spike-2026-11-19.md).
 
 The owner agreed to all seven points under [Decided by the owner](#decided-by-the-owner) on 2026-11-19.
+
+## As built
+
+1.0.0 follows this plan with these deviations:
+
+- **Journal rows** exist for MCP writes, Pi-side file changes, card-confirmed tools, acting browse steps and online
+  shell commands. Web searches, page reads and `remember` are not journaled.
+- **`mail_move`** takes one target folder per call and moves only inbox mails.
+- **Verification** waits up to 20 seconds per batch for Mail to show a moved mail in its target folder.
+- **The real-mail probe** (`Pippa --mail-move-probe`) ran on iCloud only. Gmail and Exchange are unchecked.
+- **Codemode** is on for an online AI with Mac access and off for the AI on this Mac. On the synthetic inbox of 240
+  mails, GLM 5.3 sorted all 190 sortable mails correctly, with a third of the text sent to the provider.
 
 ## The idea
 

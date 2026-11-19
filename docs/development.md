@@ -35,7 +35,43 @@ Pippa.app (Swift, SwiftUI)
 | pi-web-access (`runtime/pippa-web`) | `web_search`, `fetch_content` |
 | `runtime/pippa-tools/pippa-tools.ts` | `search_files` (Spotlight), `list_folder`, `move_files` (`to: "trash"` moves to the Trash), `ask` (one question to the person) |
 | `runtime/pippa-tools/pippa-memory.ts` | `remember` (facts in `memory.md`, at most 30 lines) |
-| App MCP server (`mcp__pippa__*`) | `calendar_read`, `reminders_read`, `mail_search`, `mail_read`, `photos_search`, `front_read`, `read_document`, `calendar_add`, `reminder_add`, `mail_draft`, `prepare_files` |
+| App MCP server (`mcp__pippa__*`) | `calendar_read`, `reminders_read`, `mail_search`, `mail_read`, `mail_folders`, `photos_search`, `front_read`, `read_document`, `calendar_add`, `reminder_add`, `mail_draft`, `mail_move`, `mail_send`, `prepare_files` |
+| Pi, Mac-access route only | `codemode`: a short script that calls the same tools through the same hooks and gates |
+
+`mail_folders` lists an account's folders with counts and sample mails. `mail_move` moves inbox mails into one existing
+folder of the same account per call, never into Trash, Junk, Sent or Drafts: a dry run first, then batches, each
+verified in the target folder by Message-ID. Verification waits up to 20 seconds per batch for Mail to show a moved
+mail, and a mail it cannot find there makes the batch unclear and stops the run. `mail_send` sends one draft Pippa
+saved in this conversation, after the card. `codemode` is on only for an online AI with Mac access. The AI on this Mac
+stays `direct`. `PIPPA_MCP_EXPOSURE` in `runtime/pippa-tools/pippa-mcp.ts` (`direct` or `codemode`) sets how the MCP
+tools are declared to Pi.
+
+**Action classes.** Every tool has exactly one class in one table, `PippaActionClasses.table` in
+`app/Sources/PippaCore/MCP/PippaMCPActionClass.swift`: `read`, `undoable`, `irreversible` or `external`. A tool
+without a class does not run. `irreversible` and `external` tools run only after the person pressed the button on a
+card (`PippaMCPHost.confirmAction`). Tool arguments and model text cannot supply the yes, and headless runs (`--ask`)
+answer no. MCP annotations are derived from the class. Pi's own tools are gated by the `tool_call` hook and the shell
+sandbox, which also see calls from codemode scripts. `bash` is `external`: `runtime/pippa-tools/shell.ts` asks per
+command before a command goes online and keeps no yes for a later call. Changing files in the person's folders is
+still asked once per answer, with copies of the files the command names. `browse` keeps its own question per step
+(`PippaActionClasses.asksPerStep`).
+
+**Run journal.** `app/Sources/PippaCore/RunJournal.swift` writes one row per action into `journal.sqlite` before the
+action starts, as `dispatched`, and after it reads the object back from its source (a mail by Message-ID in the target
+mailbox, an event or reminder by its EventKit identifier, a file by path and identity) to mark it `done` or `unclear`.
+Rows exist for MCP writes, Pi-side file changes, card-confirmed tools, acting browse steps and online shell commands.
+Web searches, pages read and `remember` are not journaled. A row still `dispatched` at the next start was interrupted:
+the receipt shows it as "unclear, please check" and nothing repeats it. The receipt under an answer comes from these
+rows, with one Undo for the whole answer that walks the rows backwards and skips objects changed since. Rows are kept
+30 days.
+
+**Rate limits.** An online Pi gets retry settings in its private agent folder
+(`PiRecipientSnapshot.retry` in `app/Sources/PippaCore/PiSetup/PiRecipientSnapshot.swift`: `maxRetries` 4,
+`baseDelayMs` 15000, `maxAgentDelayMs` 60000, so 15, 30, 60 and 60 seconds). The shared `~/.pi/agent/settings.json`
+keeps the person's own. `PiRPCClient` reads `auto_retry_start` and `auto_retry_end` and the chat and Pippa Island show
+the countdown with Stop (`abort_retry`). When the retries run out on a rate limit, the answer offers **Continue** after
+60 seconds, which sends one follow-up to the same Pi session. `PiProviderClient` tells a rate limit from a used-up
+allowance, and only a rate limit gets Continue.
 
 Settings → AI switches web search (pi-web-access) separately for the AI on this Mac and the online AI, and personal
 notes (`pippa-memory.ts`) for the AI on this Mac (`InferenceSettings.capabilities`; missing values mean on). Off leaves
@@ -247,6 +283,8 @@ python3 scripts/check-default-models.py                                 # the ca
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'            # release and fixture scripts
 node --experimental-strip-types --test $(ls runtime/pippa-tools/*.test.mjs | grep -v /real-pi-)  # extensions, no Pi needed
 PIPPA_PI_CLI=<pi>/dist/bundle/cli.js node --experimental-strip-types --test runtime/pippa-tools/real-pi-online.test.mjs  # online route, real Pi, scripted provider
+PIPPA_PI_CLI=<pi>/dist/bundle/cli.js node --experimental-strip-types --test runtime/pippa-tools/real-pi-retry.test.mjs   # scripted 429s: Pi waits and the answer finishes
+PIPPA_PI_CLI=<pi>/dist/bundle/cli.js node --experimental-strip-types --test runtime/pippa-tools/real-pi-codemode.test.mjs  # codemode scripts keep the hooks and gates
 node --test runtime/pippa-auth/*.test.mjs                               # Provider/login bridge, turn preparation with the bundled Pi (no network)
 node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs   # terminal autostart, fake server
 scripts/check-downloads.sh                                              # downloader fixtures; build PippaChecks first
@@ -301,6 +339,9 @@ identifiers or coordinates. Photos includes visible photo/video assets and exclu
 are not assigned to the window. Limited access and truncation are explicit. The OS fetch has no application timeout.
 A bare development binary may lack the signed app's grants; `notDetermined` is not an empty library. Fixture checks
 and aggregate coverage measurements do not establish that a recall feature is useful. See [the 0.6 scope](plan-0.6.md).
+
+`Pippa --mail-move-probe` is developer-only. It moves real mail through `mail_move`, so run it only on test folders
+of a test account, never on a person's inbox. It has run on iCloud. Gmail and Exchange are unchecked.
 
 **Against the real Pi.** `runtime/pippa-tools/real-pi-*.test.mjs`, `runtime/pippa-local-server/test/real-pi.test.mjs`
 and the Pi-dependent parts of `shell.test.mjs` load the pinned Pi and are skipped without one. Point them at it with

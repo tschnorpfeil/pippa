@@ -74,7 +74,7 @@
       ],
       "description": "Free Mac helper for paperwork: photos turn into one PDF ready to send, a German letter into plain words with its deadline, a messy Downloads folder into order. Pippa’s built-in AI runs on your Mac, with no account.",
       "operatingSystem": "macOS 26.2+",
-      "softwareVersion": "0.6.0",
+      "softwareVersion": "1.0.0",
       "applicationCategory": "UtilitiesApplication",
       "processorRequirements": "Apple silicon (M1 or later)",
       "isAccessibleForFree": true,
@@ -786,7 +786,7 @@ strong, b { font-weight: 600; }
                 <p>Reply to the property manager that Tuesday works.</p>
               </div>
               <div class="pw-answer">
-                <p class="rv" style="--d:.1s">Your reply is waiting as a draft in Mail. Nothing is sent; you send it yourself.</p>
+                <p class="rv" style="--d:.1s">Your reply is waiting as a draft in Mail. It goes out only when you click Send.</p>
               </div>
               <div class="pw-rcpt rv" style="--d:.4s">
                 <span class="ri"><svg class="ic"><use href="#s-env"/></svg></span>
@@ -1027,7 +1027,7 @@ strong, b { font-weight: 600; }
   <div class="wrap">
     <div class="sh">
       <h2 id="h-apps">Works with your Mac apps.</h2>
-      <p>Deadlines go to Reminders, appointments to Calendar, replies to Mail as drafts. She reads emails and their attachments, opens the read message on click, finds your files and adds up columns in Excel. When a web page needs clicking through, she does it in a browser panel in her window and asks first.</p>
+      <p>Deadlines go to Reminders, appointments to Calendar, replies to Mail as drafts. She sorts emails into the folders you already have. She reads emails and their attachments, opens the read message on click, finds your files and adds up columns in Excel. When a web page needs clicking through, she does it in a browser panel in her window and asks first.</p>
     </div>
     <ul class="apps" role="img" aria-label="Six app symbols in a row: Mail, Calendar, Reminders, Finder, Excel and Photos.">
       <li aria-hidden="true"><span class="tile t-mail"><svg viewBox="0 0 52 52"><rect x="9" y="14" width="34" height="24" rx="4" fill="#fff"/><path d="M10.5 16.5 26 28l15.5-11.5" fill="none" stroke="#2a82ef" stroke-width="2.2" stroke-linejoin="round"/></svg></span>Mail</li>
@@ -1045,7 +1045,7 @@ strong, b { font-weight: 600; }
   <div class="wrap">
     <div class="sh">
       <h2 id="h-access"><span>You decide</span> <span>what Pippa can do.</span></h2>
-      <p>macOS asks you before Pippa can reach your folders, calendar or photos. If Pippa wants to go online or change files with a command, she asks you herself, right in the conversation: Allow or Don’t Allow.</p>
+      <p>macOS asks you before Pippa can reach your folders, calendar or photos. What can be taken back, Pippa just does. Before anything leaves your Mac or can’t be taken back, she asks you in the conversation, and only your click lets it happen.</p>
     </div>
     <div class="access" role="img" aria-label="Pippa’s Settings with the pages General, AI, Permissions and Updates, open at Permissions: What Pippa may use on this Mac. Calendar allowed, Reminders not asked yet, Mail checked while Mail is open, Photos not allowed, for Files and Folders Pippa asks the first time. In front, the macOS question: “Pippa” would like to access files in your Downloads folder, with Don’t Allow and Allow.">
       <div class="card perm" aria-hidden="true">
@@ -1066,7 +1066,7 @@ strong, b { font-weight: 600; }
         <div class="ask-btns"><span>Don’t Allow</span><span class="on">Allow</span></div>
       </div>
     </div>
-    <p class="note">Pippa’s Settings have four pages: General, AI, Permissions and Updates. Permissions shows what Pippa may use. Pippa uses an online AI such as ChatGPT only if you turn it on; under AI &gt; Sharing with online AI, you choose per source whether Pippa asks first or keeps it on this Mac, and can explicitly allow Mac access for one verified account. She never sends Mail drafts herself. More in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p>
+    <p class="note">Pippa’s Settings have four pages: General, AI, Permissions and Updates. Permissions shows what Pippa may use. Pippa uses an online AI such as ChatGPT only if you turn it on; under AI &gt; Sharing with online AI, you choose per source whether Pippa asks first or keeps it on this Mac, and can explicitly allow Mac access for one verified account. She sends an email only after you click Send. More in the <a href="../datenschutz.html" hreflang="de">privacy policy (German)</a>.</p>
   </div>
 </section>
 
@@ -1074,10 +1074,10 @@ strong, b { font-weight: 600; }
   <h2 id="h-faq">Questions?</h2>
   <details id="passt"><summary>Will it run on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>You need a Mac with Apple silicon (M1 or later) and macOS 26.2 or later. Check under Apple menu, About This Mac; an older macOS updates for free in System Settings under General &gt; Software Update. Intel Macs are not supported. The download is under 100&nbsp;MB. Her AI on your Mac needs 16&nbsp;GB of memory; she asks before downloading it, about 5.4&nbsp;GB. First she checks that there is enough free space and tells you how much is missing. If oMLX, LM Studio or the Hugging Face cache already has the same model, she uses it. With less memory, or if you prefer, Pippa uses an online AI: sign in with ChatGPT or add your own key. One PDF from photos always works, without any AI.</p></details>
   <details><summary>Can I start without the AI download?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes, for one PDF: photos, scans and PDFs become one PDF with One PDF right after you install her. For letters, questions and everything else, including tidying a folder, she loads her AI, but only after your OK, and she tells you the size first.</p></details>
-  <details><summary>Do I need internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>To download the app and her AI, for updates and for web lookups. After that, her AI and the PDF tools work without a connection. If a command needs the internet, she asks you first in the conversation. An online AI, if you turn one on, needs the internet, of course.</p></details>
+  <details><summary>Do I need internet?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>To download the app and her AI, for updates and for web lookups. After that, her AI and the PDF tools work without a connection. If a command needs the internet, she asks you first in the conversation, for each command. An online AI, if you turn one on, needs the internet, of course.</p></details>
   <details><summary>Can I keep using ChatGPT?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>Yes. Choose a provider in Pippa’s Settings under AI, sign in or enter an API key, and choose a model. Providers come from the bundled Pi version, including Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. Activate your chosen provider and Pippa uses it as her online AI. While that is on, your conversations go to it. You can turn it off any time in Settings.</p></details>
   <details><summary>What can Pippa access on my Mac?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>macOS asks you before she can reach your Desktop, Documents, Downloads, Calendar, Reminders or Photos, or control Mail. In Pippa’s Settings, the Permissions page shows what is allowed and opens the right place in System Settings under Privacy &amp; Security. Pippa runs outside Apple’s App Sandbox so she can work with your folders and Mac apps; a sandboxed app couldn’t do that in full.</p></details>
-  <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. When tidying, Pippa never overwrites a file, and anything she removes goes to the Trash. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
+  <details><summary>What if Pippa gets something wrong?<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11"/><path class="v" d="M8 2.5v11"/></svg></summary><p>It happens: AI can miss details, so check important amounts and dates against the original. When tidying, Pippa never overwrites a file, and anything she removes goes to the Trash. Under each answer she says what she changed and checked, and Undo takes it all back at once. If something goes wrong, <a href="https://github.com/tschnorpfeil/pippa/issues">report it on GitHub</a>: describe the steps, but leave private documents out.</p></details>
 </section>
 
 <section class="closing" id="loslegen" aria-labelledby="h-home">

@@ -27,7 +27,7 @@ Cloud assistants read your documents on their servers, and most local AI apps st
 - **Ready to send.** Photos and scans become one PDF in your order; she checks that every page made it in and can aim for a size limit you set (say, 10 MB). Drop them and press **One PDF**: that works without any AI download.
 - **Found and sorted.** Files by what's in them, the newest version first. Ask her to rename or move them; a file she removes goes to the Trash, never deleted for good.
 
-Also: unsent reply drafts in Mail (you send them; she never does), Calendar entries, reminders, photos from your library and the web after she asks you. When a web page needs clicking through, she does it in a browser panel in her window, where you can watch along, and asks before each new site and each click.
+Also: reply drafts in Mail (sent only when you press **Send** on her card), mails sorted into the folders you already have, Calendar entries, reminders, photos from your library and the web after she asks you. When a web page needs clicking through, she does it in a browser panel in her window, where you can watch along, and asks before each new site and each click.
 
 Open Pippa from the Dock or press ⌥ Space, then just ask.
 
@@ -39,7 +39,7 @@ Open Pippa from the Dock or press ⌥ Space, then just ask.
   <br><sub>Pippa Island asking for your OK, and with an answer. Drawn by the app's snapshot mode with made-up sample data; her sample answers are in German.</sub>
 </p>
 
-When she needs your OK, for example before a web search or a command that changes files, she asks right where you are, in the conversation and on Pippa Island, with one clear **Allow** next to **Don’t Allow**, never in a separate window.
+When she needs your OK, for example before sending a mail, a web search or a command that changes files, she asks right where you are, in the conversation and on Pippa Island, with one clear **Allow** next to **Don’t Allow**, never in a separate window.
 
 The chat window, Pippa Island and Settings share one look. The window and Settings are almost black in Dark Mode and warm paper in Light Mode; Pippa Island is always black, like the notch. Blue marks Pippa herself and the button to press. Each conversation stays in the sidebar, which you can search. The question field says which AI answers: the one on this Mac, or the online AI you chose. Next to the answer, a side panel shows what she read (which pages), what she changed on your Mac, which dates she checked against the source, and how full the conversation is. Settings has four pages, **General**, **AI**, **Permissions** and **Updates**; Permissions shows at a glance what Pippa may use on this Mac.
 
@@ -50,7 +50,7 @@ The chat window, Pippa Island and Settings share one look. The window and Settin
 <p align="center"><img src="docs/images/demo-letter.gif" width="960" alt="Scripted website demo with made-up files: asked when notice is due before moving out at the end of March, Pippa answers 'By December 31', explains the three-month notice period and quotes the passage from the lease"><br>
 <sub>Scripted demo from an earlier version of the website, with made-up files. Not a live AI session.</sub></p>
 
-**Private by default.** Her built-in AI runs on your Mac. No account, no tracking in the app. You can choose an online AI during setup or later in Settings. Sign in or enter an API key, then press **Use [provider]** to select it. Providers and login methods come from the bundled Pi release, including Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. While it's on, what you type goes to that service; anything from Mail, documents, Calendar, Reminders or Photos goes along only after you check the exact text (unless you explicitly turn on **Allow Mac access** for that verified account). Mail, Calendar and Reminders may sync through your accounts, and she asks before searching the web. More in [Privacy and permissions](docs/privacy-and-permissions.md).
+**Private by default.** Her built-in AI runs on your Mac. No account, no tracking in the app. You can choose an online AI during setup or later in Settings. Sign in or enter an API key, then press **Use [provider]** to select it. Providers and login methods come from the bundled Pi release, including Anthropic, OpenAI/ChatGPT, OpenRouter, OpenCode, and xAI. While it's on, what you type goes to that service; anything from Mail, documents, Calendar, Reminders or Photos goes along only after you check the exact text (unless you explicitly turn on **Allow Mac access** for that verified account). She never sends anything without your click on **Send**. Mail, Calendar and Reminders may sync through your accounts, and she asks before searching the web. More in [Privacy and permissions](docs/privacy-and-permissions.md).
 
 ## Why Pippa
 
@@ -62,7 +62,7 @@ Keep ChatGPT if you like it: Pippa can use your subscription as her online AI.
 | First useful result | One PDF from your photos right after install; the rest after a one-time AI download, or right away with an online AI | After you sign in | After an AI download | On by default on supported Macs, once Apple's download has finished |
 | Where your letter is read | On your Mac by default; online AI only if you turn it on | On the provider's servers | On your computer by default | On the device, or on Apple's Private Cloud Compute |
 | Letters and deadlines | Quotes the sentence behind each deadline | Capable, once you upload the letter | General-purpose chat | General summaries |
-| Mail, Calendar, Reminders | Unsent Mail drafts, Calendar events, reminders | Through connectors, mostly to online accounts | Varies; a few draft mail or add events | Built into Apple's apps |
+| Mail, Calendar, Reminders | Mail drafts that go out only after your click, mails sorted into folders, Calendar events, reminders | Through connectors, mostly to online accounts | Varies; a few draft mail or add events | Built into Apple's apps |
 | Cost, account, code | Free, no account, open source (MIT) | Account needed; paid plans for more; closed source | Mostly free, no account; many open source | Included with supported Macs; closed source |
 
 <sub>As of November 2026; other apps change quickly.</sub>
@@ -71,7 +71,7 @@ Keep ChatGPT if you like it: Pippa can use your subscription as her online AI.
 
 - **Files and PDFs:** one PDF from photos and scans, aimed at a size limit if you give one; files found by what's in them; renaming, moving and sorting into folders, with the Trash instead of deleting.
 - **Letters and documents:** what a letter wants and by when, with the passage that says so; questions about PDFs, Word files, spreadsheets and photos of documents; summaries, shorter or clearer text, checklists from your notes.
-- **Mail, Calendar and Reminders:** triage inboxes per account (unread or read, checking Sent and Drafts so replied threads aren't flagged again), read matching mails and their document attachments, and write unsent reply drafts in the right thread for you to review and send; read your calendar (organizers, attendees, links, notes) and reminders, and add single- or multi-day appointments (to your default or a named calendar) and reminders when you ask.
+- **Mail, Calendar and Reminders:** triage inboxes per account (unread or read, checking Sent and Drafts so replied threads aren't flagged again), read matching mails and their document attachments, write unsent reply drafts in the right thread and send one after you press **Send** on its card, and sort inbox mails into your existing folders, checking each one in its new folder; read your calendar (organizers, attendees, links, notes) and reminders, and add single- or multi-day appointments (to your default or a named calendar) and reminders when you ask.
 - **Finding things:** files on your Mac and in iCloud Drive, photos in your library, and the web after she asks you.
 - **The web:** pages that need clicking through open in a browser panel in her window. She asks before each new site and before every click, typed text or choice, and leaves sign-ins, passwords and codes to you.
 - **The app in front:** ask about what's open, and she reads it. For apps that can't hand over their content, she reads the text its window hands to macOS Accessibility, read only, after you allow it.
@@ -99,8 +99,9 @@ Before the download, Pippa checks that there is enough free disk space and tells
 - **Local AI can miss details.** Check important names, amounts and dates against the original. Full dates (with a year, including nearby ones) in her answer that appear in nothing she read get a note saying she worked them out herself; dates written without a year are not checked. If Pippa gets something wrong, [open an issue](https://github.com/tschnorpfeil/pippa/issues) with the version, what you asked and what happened, using made-up examples.
 - **Answers may be in German.** Pippa's own abilities for letters and deadlines are written in German.
 - **Nothing is deleted for good.** A file she removes goes to the Trash, and moves never overwrite another file.
-- **She acts when you ask.** If you ask her to add a reminder or move a file, she does it without asking again. The card under her answer shows what she actually did; check the result.
-- **She asks in the conversation.** Before her first web search in an answer, or before a command that goes online or changes your files, a card in the conversation (and in Pippa Island) asks you: **Allow** or **Don’t Allow**.
+- **She acts, and you can take it back.** What she can undo, such as adding a reminder, moving files or sorting mails, she does without asking. The line under her answer says what she did and checked, with one **Undo** for the whole answer.
+- **She asks in the conversation.** Before sending a mail, before her first web search in an answer, or before each command that goes online or one that changes your files, a card in the conversation (and in Pippa Island) asks you.
+- **A busy online AI is waited out.** When it says "too many requests", Pippa shows a countdown and continues by herself. If it stays busy, **Continue** picks the answer up again.
 - **She runs outside the App Sandbox** so she can work with your folders and Mac apps; a sandboxed app couldn't. macOS still asks before she reaches Documents, Calendar or Photos, and **Settings > Permissions** shows what you have allowed. Details: [Privacy and permissions](docs/privacy-and-permissions.md).
 - **Updates arrive inside the app.** Pippa checks daily and installs when you quit or after a while without input, never in the middle of your work. **Settings > Updates** shows your version and checks by hand.
 - **Uninstall:** [how to remove Pippa and her files](docs/privacy-and-permissions.md#remove-pippa).
