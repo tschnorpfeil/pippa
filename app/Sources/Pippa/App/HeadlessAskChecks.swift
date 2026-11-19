@@ -244,6 +244,19 @@ enum HeadlessAskChecks {
             emit(.toolEnded(id: "u", name: "mcp__pippa__calendar_add", isError: false, result: "{}", outcome: .unclear, fileAccessFailure: nil))
         }
         check(unclear.ended(with: .failed), "--ask: a write with an unclear outcome is failed")
+        // A codemode script that throws after its calls: the script is no failed tool; a call it made can be.
+        let scriptFailed = await headless(Fixture(granted: true)) { emit in
+            emit(.toolStarted(id: "s", name: "codemode", arguments: "{}"))
+            emit(.toolEnded(id: "s/1", name: "mcp__pippa__calendar_add", isError: false, result: #"{"done":true}"#, outcome: .done, parent: "s"))
+            emit(.toolEnded(id: "s", name: "codemode", isError: true, result: "Script failed", outcome: .failed))
+            emit(.assistantEnded(text: "ok", stopReason: "stop", error: nil))
+        }
+        let nestedFailed = await headless(Fixture(granted: true)) { emit in
+            emit(.toolEnded(id: "s/1", name: "write", isError: true, result: "EIO", outcome: .failed, parent: "s"))
+            emit(.toolEnded(id: "s", name: "codemode", isError: true, result: "Script failed", outcome: .failed))
+        }
+        check(scriptFailed.ended(with: .completed) && nestedFailed.ended(with: .failed),
+              "--ask: a script that throws is not a failed tool by itself; a real tool failing inside it is")
         let folder = await headless(Fixture(granted: true)) { emit in
             emit(.toolEnded(id: "f", name: "list_folder", isError: true, result: "denied", outcome: .failed,
                             fileAccessFailure: PiFileAccessFailure.decode(

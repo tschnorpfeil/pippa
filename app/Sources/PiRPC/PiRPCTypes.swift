@@ -57,9 +57,11 @@ public enum PiRPCEvent: Sendable, Equatable {
     /// A piece of the model's reasoning before or between answers (only when thinking is on).
     case thinkingDelta(String)
     /// Pi calls a tool. `arguments`: JSON with long string values shortened, never cut mid-structure.
-    case toolStarted(id: String, name: String, arguments: String)
+    /// `parent`: the call of the tool that made this one (`parentToolCallId`), e.g. a `codemode` script; `nil` for the
+    /// model's own calls.
+    case toolStarted(id: String, name: String, arguments: String, parent: String? = nil)
     case toolEnded(id: String, name: String, isError: Bool, result: String, outcome: PiActionRecord.Outcome? = nil,
-                   fileAccessFailure: PiFileAccessFailure? = nil)
+                   fileAccessFailure: PiFileAccessFailure? = nil, parent: String? = nil)
     /// A running tool says where it is (`tool_execution_update` with `details.pippaProgress`, runtime/pippa-tools/digest.ts):
     /// part `part` of `of` of a long document; `merging`: the notes on the parts are being merged.
     case toolProgress(id: String, part: Int, of: Int, merging: Bool)

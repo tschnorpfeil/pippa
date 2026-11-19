@@ -435,9 +435,10 @@ final class PiSession {
         if let model = route.piModel { launcher.piArguments = model.launchArguments }
         // An existing session must start in the folder it was created in, or Pi doesn't find it.
         let cwd = PiSessionFiles.pinnedWorkingDirectory(id: PippaPiLaunch.piSessionID(session), in: Self.sessionDirectory) ?? work
-        let mcp: (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL)
+        var mcp: (endpoint: PippaPiLaunch.MCPEndpoint, extension: URL)
         do { mcp = try await PippaMCPService.endpoint(extensions: extensions, egress: route.egress) }
         catch { throw Failure.nativeTools(String(describing: error)) }
+        mcp.endpoint.exposure = route.mcpExposure
         let language = Bundle.module.preferredLocalizations.first ?? "en"
         let configuration = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: cwd, paths: paths, sessionID: session,
                                                         language: language, environment: extra, mcp: mcp, capabilities: route.capabilities)
@@ -509,6 +510,10 @@ final class PiSession {
 
         /// An online AI with the tools of the AI on this Mac (`online(_:_:rules:scope:macAccess:)`).
         var hasMacAccess: Bool { destination != nil && capabilities.online == nil }
+
+        /// How the model reaches Pippa's MCP tools (`PippaPiLaunch.MCPEndpoint.exposure`): an online AI with Mac access
+        /// also gets Pi's `codemode` (measured on GLM 5.3, docs/pippa-1.0.md "Codemode"); every other route as before.
+        var mcpExposure: String { hasMacAccess ? PippaPiLaunch.MCPEndpoint.directWithCodemode : "direct" }
 
         /// Pi process environment variables tied to this route's call budget (`runtime/pippa-tools/pippa-assist.ts`).
         var budgetEnvironment: [String: String] { hasMacAccess ? ["PIPPA_MAX_CALLS": "80"] : [:] }

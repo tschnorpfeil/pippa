@@ -11,7 +11,9 @@
  *   apart from the person's Stop). Execution events also cover unknown tools, invalid arguments and blocked calls,
  *   which skip Pi's tool hooks.
  * - Call budget: after `MAX_CALLS` tool calls in one answer every further call is stopped (Qwen3.5 9B once made 48
- *   calls in 4 minutes); the measured tasks needed at most 14.
+ *   calls in 4 minutes); the measured tasks needed at most 14. Calls a `codemode` script makes (`parentToolCallId`)
+ *   have their own bound, `MAX_SCRIPT_CALLS` per answer, and do not use up the answer's budget; the loop brake holds
+ *   for them as for the model's own calls.
  * - File search results: `search_files` results become a session entry `pippa-search-result`, so Pippa shows the
  *   files found from the tool's output, never from the model's prose. Files that `list_folder` listed or `bash`
  *   printed as full paths become `pippa-listed-files`.
@@ -47,6 +49,17 @@ export function callBudget(env: NodeJS.ProcessEnv = process.env): number {
 		if (set >= MAX_CALLS && set <= 200) return set;
 	}
 	return MAX_CALLS;
+}
+
+/** Calls from `codemode` scripts per answer. Paging through a few hundred mails takes 10 to 30 calls (pages of 20
+ * to 50) plus one read per mail that needs a closer look; 200 leaves room for that and still ends a runaway loop well
+ * before it floods an app with requests. */
+export const MAX_SCRIPT_CALLS = 200;
+
+/** A script's calls over their bound: the reason the script's `await tools.…` rejects with. */
+export function overScriptBudget(calls: number, limit = MAX_SCRIPT_CALLS): string | undefined {
+	if (calls <= limit) return undefined;
+	return `Stopped: scripts already made ${limit} tool calls in this answer. Do not call more tools from scripts. Return what the script has so far, and answer the user with it; say in one short sentence what is left.`;
 }
 
 /** Over budget: the reason Pi gets instead of the call. */
@@ -252,15 +265,16 @@ export default function (pi: ExtensionAPI) {
 	const keys = new Map<string, string>();
 	// Pi validates before tool_call and skips tool_result for blocked/invalid calls. Execution events bracket all
 	// attempts, including those failures. Keep only starts that have not reached our tool_call handler.
-	const unhandled = new Map<string, { toolName: string; input: unknown; toolCallId: string }>();
+	const unhandled = new Map<string, { toolName: string; input: unknown; toolCallId: string; parentToolCallId?: string }>();
 	let stops = 0;
 	let calls = 0;
+	let scriptCalls = 0;
 	const searchCalls = new Set<string>();
 	const found = new Set<string>();
 	const commands = new Map<string, string>();
 	let searched = false;
 	let truncated = false;
-	const reset = () => { counts.clear(); keys.clear(); unhandled.clear(); commands.clear(); stops = 0; calls = 0; searchCalls.clear(); found.clear(); searched = false; truncated = false; };
+	const reset = () => { counts.clear(); keys.clear(); unhandled.clear(); commands.clear(); stops = 0; calls = 0; scriptCalls = 0; searchCalls.clear(); found.clear(); searched = false; truncated = false; };
 	const recordStop = (tool: string, ctx: any) => {
 		if (++stops === 3) {
 			pi.appendEntry("pippa-loop-stop", { v: 1, tool, searched, files: [...found].slice(0, 200), truncated: truncated || found.size > 200 });
@@ -268,7 +282,13 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 	const attempt = (event: any, ctx: any) => {
-		const reason = overBudget(++calls, callBudget()) ?? loopBrake(counts, keys, event.toolCallId, event.toolName, event.input, CHANGES.has(event.toolName));
+		// A script's own calls: their bound tells the script, not the model, and does not end the answer by itself.
+		if (event.parentToolCallId) {
+			const over = overScriptBudget(++scriptCalls);
+			if (over) return over;
+		}
+		const reason = (event.parentToolCallId ? undefined : overBudget(++calls, callBudget()))
+			?? loopBrake(counts, keys, event.toolCallId, event.toolName, event.input, CHANGES.has(event.toolName));
 		if (reason) recordStop(event.toolName, ctx);
 		return reason;
 	};
@@ -286,7 +306,8 @@ export default function (pi: ExtensionAPI) {
 	pi.on("agent_start", async () => reset());
 	pi.on("agent_end", async () => reset());
 	pi.on("tool_execution_start", (event: any) => {
-		unhandled.set(event.toolCallId, { toolName: event.toolName, input: event.args, toolCallId: event.toolCallId });
+		unhandled.set(event.toolCallId, { toolName: event.toolName, input: event.args, toolCallId: event.toolCallId,
+			parentToolCallId: event.parentToolCallId });
 	});
 	pi.on("tool_execution_end", (event: any, ctx: any) => {
 		const missed = unhandled.get(event.toolCallId);

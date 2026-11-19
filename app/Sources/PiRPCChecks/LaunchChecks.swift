@@ -82,6 +82,25 @@ import PiRPC
           && withMCP.environment["PIPPA_MCP_URL"] == "http://127.0.0.1:4711/mcp"
           && withMCP.environment["PIPPA_MCP_TOKEN"] == endpoint.token && withMCP.environment["PIPPA_MCP_EXPOSURE"] == "direct")
 
+    // An online AI with Mac access (PiSession.LaunchRoute.mcpExposure): the AI on this Mac's launch, byte for byte, except
+    // the one switch that gives this Pi the codemode tool (runtime/pippa-tools/pippa-mcp.ts `withCodemode`).
+    var scripts = endpoint
+    scripts.exposure = PippaPiLaunch.MCPEndpoint.directWithCodemode
+    let plain = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: "s", language: "en", mcp: (endpoint, mcpFile))
+    let withScripts = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: "s", language: "en", mcp: (scripts, mcpFile))
+    var expected = plain.environment
+    expected["PIPPA_MCP_EXPOSURE"] = "direct+codemode"
+    var expectedArguments = plain.arguments
+    if let flag = expectedArguments.firstIndex(of: "--tools") { expectedArguments[flag + 1] += ",codemode" }
+    var twice = withScripts
+    PippaPiLaunch.addMCP(scripts, extension: mcpFile, to: &twice)
+    check("Mac access adds only the codemode switch and codemode at the end of the tool list; no settings file",
+          withScripts.arguments == expectedArguments && withScripts.arguments != plain.arguments && twice.arguments == withScripts.arguments
+          && withScripts.extensions == plain.extensions && withScripts.launcherArguments == plain.launcherArguments
+          && withScripts.environment == expected && plain.environment["PIPPA_MCP_EXPOSURE"] == "direct"
+          && !plain.arguments.contains { $0.contains("codemode") }
+          && !withScripts.arguments.contains { $0.contains("settings") || $0.hasPrefix("--codemode") })
+
     let broken: [String: Any] = ["content": [["type": "text", "text": "EACCES"]]]
     let moved: [String: Any] = ["content": [["type": "text", "text": "Moved a.pdf to the Trash."]], "details": ["trash": true]]
     check("A tool's own error stays a failure; a finished move is done",

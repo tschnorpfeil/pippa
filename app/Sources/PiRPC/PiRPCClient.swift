@@ -285,7 +285,8 @@ public actor PiRPCClient {
         case "tool_execution_start":
             let name = record["toolName"] as? String ?? ""
             events?.yield(.toolStarted(id: record["toolCallId"] as? String ?? "", name: name,
-                                       arguments: Self.json(record["args"], valueLimit: Self.argumentValueLimit)))
+                                       arguments: Self.json(record["args"], valueLimit: Self.argumentValueLimit),
+                                       parent: Self.parent(record)))
         case "tool_execution_update":
             // Only Pippa's own progress (a long document read part by part); bash's partial output needs no display.
             guard let details = (record["partialResult"] as? [String: Any])?["details"] as? [String: Any],
@@ -314,7 +315,8 @@ public actor PiRPCClient {
             events?.yield(.toolEnded(id: record["toolCallId"] as? String ?? "", name: name,
                                      isError: isError, result: String(result.prefix(limit)),
                                      outcome: PiTurnReceipt.classify(tool: name, isError: isError, result: validResult ? payload : nil),
-                                     fileAccessFailure: PiFileAccessFailure.decode(tool: name, isError: isError, result: validResult ? payload : nil)))
+                                     fileAccessFailure: PiFileAccessFailure.decode(tool: name, isError: isError, result: validResult ? payload : nil),
+                                     parent: Self.parent(record)))
         case "entry_appended":
             if let entry = record["entry"] as? [String: Any], entry["type"] as? String == "custom",
                let kind = entry["customType"] as? String, ["pippa-loop-stop", "pippa-search-result", "pippa-listed-files", "pippa-change", PiNativeReadiness.command].contains(kind), let data = entry["data"],
@@ -374,5 +376,13 @@ public actor PiRPCClient {
         retrying = false
         if let error { events?.finish(throwing: error) } else { events?.finish() }
         events = nil
+    }
+}
+
+extension PiRPCClient {
+    /// The calling tool's id on a nested call (a `codemode` script's), only when it is a non-empty string.
+    static func parent(_ record: [String: Any]) -> String? {
+        guard let parent = record["parentToolCallId"] as? String, !parent.isEmpty else { return nil }
+        return parent
     }
 }

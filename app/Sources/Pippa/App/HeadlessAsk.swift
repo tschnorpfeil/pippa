@@ -61,7 +61,10 @@ enum HeadlessAsk {
 
         mutating func observe(_ event: PiRPCEvent) {
             switch event {
-            case .toolEnded(_, let name, let isError, let result, let outcome, let fileAccessFailure):
+            // A failed script is not a failed tool: the calls it made report their own results.
+            case .toolEnded(_, let name, _, _, _, _, _) where name == PiTurnReceipt.scriptTool:
+                break
+            case .toolEnded(_, let name, let isError, let result, let outcome, let fileAccessFailure, _):
                 if fileAccessFailure != nil || (isError && Self.needsAccess(tool: name, result: result)) { access = true }
                 // A native validation/read/write error is not an unanswered question. Keep its failure even when
                 // another tool needs access or an unrelated Pi question was declined later in this run.
@@ -137,8 +140,8 @@ enum HeadlessAsk {
                 switch event {
                 case .notice(let text, "pippa-change"): PippaMCPService.recordFileChanges(text, run: turnID)
                 case .textDelta(let delta): answer += delta
-                case .toolStarted(_, let name, let arguments): say("→ \(name) \(arguments.prefix(300))")
-                case .toolEnded(_, let name, let isError, let result, _, _): say("← \(name)\(isError ? " ERROR" : "") \(result.prefix(300).replacingOccurrences(of: "\n", with: " "))")
+                case .toolStarted(_, let name, let arguments, _): say("→ \(name) \(arguments.prefix(300))")
+                case .toolEnded(_, let name, let isError, let result, _, _, _): say("← \(name)\(isError ? " ERROR" : "") \(result.prefix(300).replacingOccurrences(of: "\n", with: " "))")
                 case .assistantEnded(_, let reason, let error): say("· model turn ended: \(reason)\(error.map { " " + $0 } ?? "")")
                 default: break
                 }
