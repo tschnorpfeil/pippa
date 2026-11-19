@@ -135,11 +135,11 @@ extension MailAccountScript {
         return missing value
     end boxAt
 
-    -- Paths of the account's Inbox, Sent, Drafts, Trash and Junk, as Mail's top-level mailboxes list them.
+    -- Paths of the account's Inbox, Sent, Drafts, Trash, Junk and Outbox, as Mail's top-level mailboxes list them.
     on rolePaths(acctID)
         set out to {}
         tell application id "com.apple.mail"
-            repeat with roleName in {"inbox", "sent", "drafts", "trash", "junk"}
+            repeat with roleName in {"inbox", "sent", "drafts", "trash", "junk", "outbox"}
                 set kids to {}
                 try
                     if (roleName as text) is "inbox" then set kids to (mailboxes of inbox) as list
@@ -147,6 +147,7 @@ extension MailAccountScript {
                     if (roleName as text) is "drafts" then set kids to (mailboxes of drafts mailbox) as list
                     if (roleName as text) is "trash" then set kids to (mailboxes of trash mailbox) as list
                     if (roleName as text) is "junk" then set kids to (mailboxes of junk mailbox) as list
+                    if (roleName as text) is "outbox" then set kids to (mailboxes of outbox) as list
                 on error number errNum
                     my rethrowAccess(errNum)
                 end try
@@ -228,12 +229,7 @@ extension MailAccountScript {
                 end try
                 if (count of boxPath) > 0 and not my pathListed(seen, boxPath) then
                     set end of seen to boxPath
-                    set role to ""
-                    repeat with r in roles
-                        considering case, diacriticals, hyphens, punctuation and white space
-                            if (item 2 of r) is boxPath then set role to item 1 of r
-                        end considering
-                    end repeat
+                    set role to my roleOfPath(roles, boxPath)
                     set n to -1
                     set picks to {}
                     set gap to "path_only"
@@ -339,7 +335,8 @@ extension MailAccountScript {
                     if box is missing value then return {"nobox"}
                     repeat with i from 1 to count of wantedIDs
                         set x to item i of wantedIDs
-                        set found to (messages of box whose message id is x or message id is ("<" & x & ">")) as list
+                        -- contains, not is: Mail may give the Message-ID with white space around it.
+                        set found to (messages of box whose message id contains x) as list
                         set liveIDs to {}
                         set goneIDs to {}
                         repeat with hit in found
@@ -571,12 +568,46 @@ extension MailAccountScript {
     /// handlers without Mail, so checks can run them (`MailMoveScriptCheck`).
     static let compareSource = """
 
-    -- Whether a message's Message-ID is exactly theID, with or without angle brackets.
+    -- Whether a message's Message-ID is exactly theID (canonical: no angle brackets, no white space around it) once
+    -- spaces and tabs around it and one pair of angle brackets are taken away, as MailReplySource.canonicalMessageID does.
     on sameMessageID(candidateID, theID)
         considering case, diacriticals, hyphens, punctuation and white space
-            return (candidateID is theID or candidateID is ("<" & theID & ">"))
+            set c to candidateID as text
+            set i to 1
+            set j to count of c
+            repeat while i ≤ j and {space, tab} contains (character i of c)
+                set i to i + 1
+            end repeat
+            repeat while j ≥ i and {space, tab} contains (character j of c)
+                set j to j - 1
+            end repeat
+            if j < i then return false
+            set c to text i thru j of c
+            if c begins with "<" and c ends with ">" then
+                if (count of c) < 3 then return false
+                set c to text 2 thru -2 of c
+            end if
+            return c is theID
         end considering
     end sameMessageID
+
+    -- The role of the mailbox at boxPath, from rolePaths: the role whose mailbox is exactly there, else the role of a
+    -- Sent, Drafts, Trash, Junk or Outbox mailbox it lies in (a folder inside the Inbox is an ordinary folder). "": none.
+    on roleOfPath(roles, boxPath)
+        set inside to ""
+        considering case, diacriticals, hyphens, punctuation and white space
+            repeat with r in roles
+                set roleName to (item 1 of r) as text
+                set rolePath to item 2 of r
+                set k to count of rolePath
+                if rolePath is boxPath then return roleName
+                if inside is "" and roleName is not "inbox" and k > 0 and k < (count of boxPath) then
+                    if (items 1 thru k of boxPath) is rolePath then set inside to roleName
+                end if
+            end repeat
+        end considering
+        return inside
+    end roleOfPath
 
     -- Whether the listing already has a mailbox at exactly this path: names that differ only in case are other mailboxes.
     on pathListed(seen, boxPath)
@@ -734,6 +765,20 @@ public enum MailMoveScriptCheck {
             let list = NSAppleEventDescriptor.list()
             for (i, one) in seen.enumerated() { list.insert(MailMoveParse.list(one), at: i + 1) }
             return [list, MailMoveParse.list(path)]
+        }
+    }
+
+    /// The listing's role for `path`, given the role mailboxes' paths as `rolePaths` returns them; "" for none.
+    public static func roleOfPath(_ roles: [(role: String, path: [String])], _ path: [String]) async throws -> String {
+        try await AppleEvents.perform {
+            let list = NSAppleEventDescriptor.list()
+            for (i, one) in roles.enumerated() {
+                let pair = NSAppleEventDescriptor.list()
+                pair.insert(NSAppleEventDescriptor(string: one.role), at: 1)
+                pair.insert(MailMoveParse.list(one.path), at: 2)
+                list.insert(pair, at: i + 1)
+            }
+            return try AppleEvents.call(MailAccountScript.compareSource, handler: "roleOfPath", [list, MailMoveParse.list(path)], appName: "Pippa").stringValue ?? ""
         }
     }
 

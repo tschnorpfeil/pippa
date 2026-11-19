@@ -656,16 +656,73 @@ extension MCPCheckContext {
                 && states == [.done: 4, .unclear: 1] && fake.moveCalls.count == 1
                 && w.clock.now == MailMoveSettle.bound && w.clock.sleeps == 20 && took < .seconds(5)
         }
-        await checkAsync("mail_move settle: Stop during the wait ends it at once; what is missing then is unclear, never moved again") {
+        await checkAsync("mail_move settle: Stop, a cancelled request and the answer's end after the first poll leave the read-back to its bound; no further batch starts; the receipt waits for it") {
             let fake = fakeMail()
-            fake.lagLookups = 5
+            // The moved mails show up in the target only at the fourth poll.
+            fake.lagLookups = 3
             let w = try world(fake)
-            let turn = w.turn
-            w.clock.onSleep = { turn.cancelWrites() }
-            let r = await call(w.tools, "mail_move", ["refs": Array(await refs(w).prefix(5)), "to": "Rechnungen"])
-            return r.json["state"] as? String == "unclear" && data(r)["unclear"] as? Int == 5 && w.clock.sleeps == 1
-                // Dry run, the batch's fresh lookup, and the one read-back before Stop ended the wait (2 locates each).
-                && fake.moveCalls.count == 1 && fake.locateCalls == 2 + 2 + 2
+            let picked = Array(await refs(w).prefix(15))
+            let request = LockedBox<Task<Void, Never>?>(nil)
+            let once = LockedBox(false)
+            let turn = w.turn, turns = w.host.turns
+            w.clock.onSleep = {
+                guard !once.value else { return }
+                once.mutate { $0 = true }
+                request.value?.cancel()
+                turn.cancelWrites()
+                turns.end(turn)
+                // The rest of the read-back takes real time, so the receipt below must wait for it.
+                fake.lookupDelay = .milliseconds(100)
+            }
+            let tools = w.tools
+            let result = LockedBox<[String: Any]>([:])
+            let task = Task {
+                let r = await call(tools, "mail_move", ["refs": picked, "to": "Rechnungen"])
+                result.mutate { $0 = data(r) }
+            }
+            request.mutate { $0 = task }
+            for _ in 0..<400 where w.clock.sleeps == 0 { try await Task.sleep(for: .milliseconds(5)) }
+            // As the answer's receipt: waits for the read-back, then looks at the rows.
+            await w.host.recheckUnclearMail(w.turn.id)
+            let rows = try await w.journal.runActions(run: w.turn.id)
+            await task.value
+            return result.value["verified"] as? String == "10 of 10" && result.value["not_started"] as? Int == 5
+                && rows.count == 10 && rows.allSatisfy { $0.state == .done && $0.verified == true }
+                && fake.moveCalls.count == 1 && w.clock.sleeps == 3 && fake.ids(privat.id, ["Rechnungen"]).count == 11
+        }
+        await checkAsync("mail_move: a second mail_move of the answer while the first one still reads back is refused as move_running, moves nothing and keeps its plan") {
+            let fake = fakeMail()
+            let w = try world(fake)
+            let picked = await refs(w)
+            let plan = data(await call(w.tools, "mail_move", ["refs": Array(picked.dropFirst(5).prefix(5)), "to": "Archiv/2025", "dry_run": true]))["plan"] as? String ?? ""
+            fake.lagLookups = 3
+            let request = LockedBox<Task<Void, Never>?>(nil)
+            let second = LockedBox<Task<Void, Never>?>(nil)
+            let secondResult = LockedBox<[String: Any]>([:])
+            let tools = w.tools
+            w.clock.onSleep = {
+                guard second.value == nil else { return }
+                // The first request's connection drops after the first poll; the answer goes on and calls again.
+                request.value?.cancel()
+                fake.lookupDelay = .milliseconds(200)
+                second.mutate { $0 = Task { let json = await call(tools, "mail_move", ["plan": plan]).json; secondResult.mutate { $0 = json } } }
+            }
+            let first = LockedBox<String?>(nil)
+            let task = Task {
+                let text = data(await call(tools, "mail_move", ["refs": Array(picked.prefix(5)), "to": "Rechnungen"]))["verified"] as? String
+                first.mutate { $0 = text }
+            }
+            request.mutate { $0 = task }
+            await task.value
+            for _ in 0..<400 where second.value == nil { try await Task.sleep(for: .milliseconds(5)) }
+            await second.value?.value
+            let refused = secondResult.value
+            let movesThen = fake.moveCalls.count
+            fake.lookupDelay = nil
+            fake.lagLookups = 0
+            let again = await call(w.tools, "mail_move", ["plan": plan])
+            return first.value == "5 of 5" && refused["status"] as? String == "move_running" && refused["dispatched"] as? Bool == false
+                && movesThen == 1 && data(again)["verified"] as? String == "5 of 5" && fake.ids(privat.id, ["Archiv", "2025"]).count == 5
         }
         await checkAsync("mail_move Undo: 12 mails in two folders go back in one batch per folder, with settling, in a bounded number of Mail calls") {
             let fake = fakeMail()
@@ -748,6 +805,37 @@ extension MCPCheckContext {
             let exact = await call(w.tools, "mail_move", ["refs": mine, "to": "Rechnungen"])
             return near.json["status"] as? String == "folders_incomplete" && missing.json["status"] as? String == "folders_incomplete"
                 && near.isError && near.json["dispatched"] as? Bool == false && nothing && data(exact)["verified"] as? String == "2 of 2"
+        }
+        await checkAsync("mail_move: below a refused role nothing is a target: the listing marks every folder inside Trash, Junk, Sent, Drafts or Outbox; with an incomplete listing a folder whose parent Mail did not list is refused; a role folder matched only in case is target_not_allowed") {
+            // The listing script: a folder inside a role mailbox takes its role, a folder inside the Inbox does not.
+            let roles: [(role: String, path: [String])] = [("inbox", ["INBOX"]), ("trash", ["Corbeille"]), ("outbox", ["Out"])]
+            let inTrash = try await MailMoveScriptCheck.roleOfPath(roles, ["Corbeille", "2025", "Q1"])
+            let trash = try await MailMoveScriptCheck.roleOfPath(roles, ["Corbeille"])
+            let inOutbox = try await MailMoveScriptCheck.roleOfPath(roles, ["Out", "Warten"])
+            let inInbox = try await MailMoveScriptCheck.roleOfPath(roles, ["INBOX", "Projekte"])
+            let otherCase = try await MailMoveScriptCheck.roleOfPath(roles, ["corbeille", "2025"])
+            let knowsOutbox = IntegrationScripts.sources.first { $0.name == "MailMove" }?.source.contains("mailboxes of outbox") == true
+            // A localized Trash Mail did not list in time, while its subfolder was listed.
+            let fake = fakeMail()
+            fake.add(privat.id, ["Corbeille", "2025"])
+            fake.add(privat.id, ["Ablage"])
+            fake.add(privat.id, ["Ablage", "2025"])
+            fake.unnamedFolders = 1
+            let w = try world(fake)
+            let mine = Array(await refs(w).prefix(2))
+            let below = await call(w.tools, "mail_move", ["refs": mine, "to": "Corbeille/2025", "dry_run": true])
+            let unlisted = await call(w.tools, "mail_move", ["refs": mine, "to": "Archiv/2025", "dry_run": true])
+            let listed = await call(w.tools, "mail_move", ["refs": mine, "to": "Ablage/2025", "dry_run": true])
+            // Complete listing: a localized Trash, and another account with a folder of that name.
+            let cased = fakeMail()
+            cased.add(privat.id, ["Corbeille"], role: .trash)
+            cased.add(arbeit.id, ["Corbeille"])
+            let c = try world(cased)
+            let near = await call(c.tools, "mail_move", ["refs": Array(await refs(c).prefix(2)), "to": "corbeille"])
+            return inTrash == "trash" && trash == "trash" && inOutbox == "outbox" && inInbox == "" && otherCase == "" && knowsOutbox
+                && below.json["status"] as? String == "folders_incomplete" && unlisted.json["status"] as? String == "folders_incomplete"
+                && data(listed)["plan"] is String && near.json["status"] as? String == "target_not_allowed"
+                && fake.moveCalls.isEmpty && cased.moveCalls.isEmpty
         }
         await checkAsync("mail_move: a move Mail times out on is unclear, never not moved: rows stay for undo, and the read-back waits for every mail of the batch") {
             let fake = fakeMail()
@@ -866,9 +954,10 @@ extension MCPCheckContext {
             let r = await call(w.tools, "mail_move", ["refs": wanted, "to": "Rechnungen"])
             let plan = try await MailMover(reader: fake).plan(account: privat, label: "Privat", source: ["INBOX"], target: ["Rechnungen"],
                                                               messageIDs: [nil, "kein-message-id", "m3@x.example"])
-            return wanted.count == 4 && data(dry)["skipped"] as? [String: Int] == ["duplicate": 1, "already_in_target": 1]
+            // Mails 1 and 31 share a Message-ID: both are skipped, each counted.
+            return wanted.count == 4 && data(dry)["skipped"] as? [String: Int] == ["duplicate": 2, "already_in_target": 1]
                 && data(dry)["moves"] as? [String: Int] == ["Rechnungen": 1] && data(r)["verified"] as? String == "1 of 1"
-                && data(r)["skipped"] as? [String: Int] == ["duplicate": 1, "already_in_target": 1]
+                && data(r)["skipped"] as? [String: Int] == ["duplicate": 2, "already_in_target": 1]
                 && plan.skipped == ["no_message_id": 2] && plan.entries.isEmpty && plan.notFound == 1
                 && fake.ids(privat.id, ["INBOX"]).filter { $0 == "m1@x.example" }.count == 2
         }
@@ -929,7 +1018,22 @@ extension MCPCheckContext {
                 && fake.moveCalls.isEmpty && fake.ids(privat.id, ["Rechnungen"]) == ["m900@x.example"]
                 && exact && bracketed && !otherCase
         }
-        await checkAsync("mail_move: Stop during the read-back of mails Mail reported moved that still show in the source keeps every row unclear, never dropped; the later look settles them") {
+        await checkAsync("mail_move: a Message-ID with white space around it compares in its canonical form in the scripts too; two searched mails that share a Message-ID are both skipped and counted, the same mail named twice is one") {
+            let spaced = try await MailMoveScriptCheck.sameMessageID("  <m30@x.example>\t", "m30@x.example")
+            let spacedBare = try await MailMoveScriptCheck.sameMessageID(" m30@x.example ", "m30@x.example")
+            let inner = try await MailMoveScriptCheck.sameMessageID("< m30@x.example>", "m30@x.example")
+            let empty = try await MailMoveScriptCheck.sameMessageID("<>", "m30@x.example")
+            let fake = fakeMail()
+            fake.edit(privat.id, ["INBOX"]) { $0.append(mail(31, messageID: " <m30@x.example> ")) }
+            let w = try world(fake)
+            let picked = Array(await refs(w).prefix(3))  // 31 and 30 share a Message-ID; 29
+            let dry = await call(w.tools, "mail_move", ["refs": picked, "to": "Rechnungen", "dry_run": true])
+            let twice = await call(w.tools, "mail_move", ["refs": [picked[2], picked[2]], "to": "Rechnungen", "dry_run": true])
+            return spaced && spacedBare && !inner && !empty
+                && data(dry)["skipped"] as? [String: Int] == ["duplicate": 2] && data(dry)["moves"] as? [String: Int] == ["Rechnungen": 1]
+                && data(twice)["moves"] as? [String: Int] == ["Rechnungen": 1] && data(twice)["skipped"] == nil && fake.moveCalls.isEmpty
+        }
+        await checkAsync("mail_move: Stop during the read-back of mails Mail reported moved that still show in the source does not cut it: every row is read back done, none dropped") {
             let fake = fakeMail()
             fake.copyMove = .late(1)
             let w = try world(fake)
@@ -937,11 +1041,9 @@ extension MCPCheckContext {
             w.clock.onSleep = { turn.cancelWrites() }
             let r = await call(w.tools, "mail_move", ["refs": Array(await refs(w).prefix(5)), "to": "Rechnungen"])
             let rows = try await w.journal.runActions(run: w.turn.id)
-            await w.host.recheckUnclearMail(w.turn.id)
-            let later = try await w.journal.runActions(run: w.turn.id)
-            return r.json["state"] as? String == "unclear" && data(r)["not_checked"] as? Int == 5 && (data(r)["not_moved"] as? Int ?? 0) == 0
-                && rows.count == 5 && rows.allSatisfy { $0.state == .unclear && $0.note == MailMover.unverifiedNote } && fake.moveCalls.count == 1
-                && later.count == 5 && later.allSatisfy { $0.state == .done && $0.verified == true } && fake.ids(privat.id, ["Rechnungen"]).count == 6
+            return data(r)["verified"] as? String == "5 of 5" && (data(r)["not_moved"] as? Int ?? 0) == 0
+                && rows.count == 5 && rows.allSatisfy { $0.state == .done && $0.verified == true } && fake.moveCalls.count == 1
+                && fake.ids(privat.id, ["Rechnungen"]).count == 6
         }
         await checkAsync("mail_move: a request cancelled after the move was sent still reads back and writes every row; the receipt waits for it") {
             let fake = fakeMail()

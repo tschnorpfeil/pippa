@@ -12,6 +12,8 @@ public enum MailMoveStatus: String, CaseIterable, Sendable {
     case notInbox = "not_inbox", unknownFolder = "unknown_folder", ambiguousFolder = "ambiguous_folder"
     case targetNotAllowed = "target_not_allowed", sameFolder = "same_folder", foldersIncomplete = "folders_incomplete"
     case notMoved = "not_moved"
+    /// An earlier `mail_move` of this answer is still reading back where its mails are.
+    case moveRunning = "move_running"
 }
 
 extension PippaMCPWriteTools {
@@ -44,7 +46,7 @@ extension PippaMCPWriteTools {
             case .found(let folder) where folder.path == plan.target: break
             case .found: return Self.moveRefused(.unknownFolder, "The target folder changed since the dry run. Nothing was moved. Make a new dry run.")
             }
-            return await apply(plan, mover: mover, active: active, generation: generation)
+            return await apply(plan, mover: mover, active: active, generation: generation, saved: true)
         }
         guard let tokens = input.refs, !tokens.isEmpty else { return Self.invalid("refs must list mail_refs from mail_search, or pass plan from a dry run.") }
         guard tokens.count <= Self.mailMoveRefsLimit else { return Self.invalid("refs takes at most \(Self.mailMoveRefsLimit) mail_refs.") }
@@ -105,8 +107,9 @@ extension PippaMCPWriteTools {
 
     /// `to` among this account's folders, freshly listed: the exact path, else (no "/") the one folder with exactly this
     /// name. Names compare exactly: folders that differ only in case are different folders, and a match only in case is
-    /// refused with the exact path. Never a folder at or below a role (Trash, Junk, Sent, Drafts, Outbox). Not there:
-    /// another account's folder is named as such.
+    /// refused with the exact path. Never a folder at or below a role (Trash, Junk, Sent, Drafts, Outbox), also when it
+    /// matches only in case. When Mail did not list every folder, a target counts only if it and every folder it lies in
+    /// were listed, so their roles are known. Not there: another account's folder is named as such.
     private func resolveTarget(_ to: String, account: MailAccountInfo, reader: any MailAccountReading) async -> Target {
         let list: MailFolderList
         do { list = try await reader.folders(account: account.id, samples: 0) } catch { return .failed(error) }
@@ -116,14 +119,22 @@ extension PippaMCPWriteTools {
             .refused(Self.moveRefused(.targetNotAllowed, "Pippa does not move mails into \(role.rawValue) or a folder inside it. Nothing was moved. Choose an ordinary folder from mail_folders."))
         }
         func allowed(_ folder: MailFolderInfo) -> Bool { MailFolderRole.refused(folder, in: folders) == nil }
+        let incomplete = Self.moveRefused(.foldersIncomplete, "Mail did not list every folder of this account in time, and no listed folder has exactly this path. Nothing was moved. Pass a whole path exactly as mail_folders lists it, or try again in a moment.")
         if let folder = folders.first(where: { $0.display == wanted }) {
             if let role = MailFolderRole.refused(folder, in: folders) { return notAllowed(role) }
+            // A folder it lies in that Mail did not list may be a Trash or Junk under another name.
+            let ancestorsListed = (1..<folder.path.count).allSatisfy { depth in folders.contains { $0.path == Array(folder.path.prefix(depth)) } }
+            guard list.allListed || ancestorsListed else {
+                return .refused(Self.moveRefused(.foldersIncomplete, "Mail did not list every folder of this account in time, among them a folder this path lies in, so Pippa can't tell whether it is inside Trash, Junk, Sent, Drafts or Outbox. Nothing was moved. Try again in a moment."))
+            }
             return .found(folder)
         }
-        // Mail did not list every folder in time: a folder it left out may match too, so only the exact path counts.
-        if !list.allListed {
-            return .refused(Self.moveRefused(.foldersIncomplete, "Mail did not list every folder of this account in time, and no listed folder has exactly this path. Nothing was moved. Pass a whole path exactly as mail_folders lists it, or try again in a moment."))
+        func caseMatch(_ folder: MailFolderInfo) -> Bool {
+            folder.display.compare(wanted, options: .caseInsensitive) == .orderedSame
+                || (!wanted.contains("/") && folder.path.last?.compare(wanted, options: .caseInsensitive) == .orderedSame)
         }
+        // Mail did not list every folder in time: a folder it left out may match too, so only the exact path counts.
+        if !list.allListed { return .refused(incomplete) }
         if !wanted.contains("/") {
             let named = folders.filter { $0.path.last == wanted }
             let open = named.filter(allowed)
@@ -136,10 +147,9 @@ extension PippaMCPWriteTools {
                 return .found(folder)
             }
         }
-        let caseOnly = folders.filter {
-            allowed($0) && ($0.display.compare(wanted, options: .caseInsensitive) == .orderedSame
-                || (!wanted.contains("/") && $0.path.last?.compare(wanted, options: .caseInsensitive) == .orderedSame))
-        }
+        // A match only in case with a role folder is that role's folder for the person: refused, never another account's.
+        if let role = folders.lazy.filter(caseMatch).compactMap({ MailFolderRole.refused($0, in: folders) }).first { return notAllowed(role) }
+        let caseOnly = folders.filter { allowed($0) && caseMatch($0) }
         if !caseOnly.isEmpty {
             return .refused(Self.moveRefused(.unknownFolder, "No folder of this account has exactly this path; folder names differ in case (see candidates). Nothing was moved. Pass the whole path exactly as written in candidates.",
                                              candidates: caseOnly.map(\.display)))
@@ -168,7 +178,8 @@ extension PippaMCPWriteTools {
         await ensure(.mail, openMail: true, explanation: L("To do this, I need access to Mail on this Mac – I only move mails into your folders and never send anything.", table: "MCP"))
     }
 
-    private func apply(_ plan: MailMovePlan, mover: MailMover, active: PippaMCPTurn?, generation: UUID) async -> PippaMCPToolResult {
+    /// `saved`: the plan came from the store, and goes back there when this call is refused before anything moved.
+    private func apply(_ plan: MailMovePlan, mover: MailMover, active: PippaMCPTurn?, generation: UUID, saved: Bool = false) async -> PippaMCPToolResult {
         let lease = PippaMCPWriteLease.current
         var journal: MailMover.Journal?
         if let lease, let run = lease.turnID {
@@ -180,9 +191,13 @@ extension PippaMCPWriteTools {
         let host = self.host, journalRows = journal
         // Its own task: once a batch's move was sent, its read-back and rows finish even if this request is cancelled,
         // and the answer's receipt waits for them (`MailMoveRuns`).
-        let finished: Result<MailMoveOutcome, Error> = await host.mailMoveRuns.run(lease?.turnID) {
+        let finished: Result<MailMoveOutcome, Error>? = await host.mailMoveRuns.run(lease?.turnID) {
             do { return .success(try await mover.apply(plan, journal: journalRows, live: { host.turns.isLive(active, generation: generation) })) }
             catch { return .failure(error) }
+        }
+        guard let finished else {
+            if saved { host.mailPages.restorePlan(plan, turn: generation) }
+            return Self.moveRefused(.moveRunning, "An earlier mail_move of this answer is still checking where its mails are. Nothing was moved by this call. Do not repeat the earlier move; wait for its result, then call this mail_move again.")
         }
         guard case .success(let outcome) = finished else {
             return Self.blocked("unavailable", L("Pippa couldn’t move the mails just now. Nothing was moved.", table: "MCP"), receipt: nil)
@@ -217,14 +232,6 @@ extension PippaMCPWriteTools {
         if o.unclear > 0 {
             data["unclear"] = o.unclear
             data["unclear_batch"] = o.unclearBatch ?? 0
-            if o.notChecked > 0 {
-                // Stop ended the read-back: where they are is not known yet, nothing was retried.
-                data["not_checked"] = o.notChecked
-                let tell = L("Pippa moved %lld mails into “%@” and checked them. She was stopped before she could check %lld more, so she can’t say yet where they are. Please check “%@” and “%@” in Mail. Pippa won’t move them again by herself.",
-                             table: "MCP", o.verified, to, o.notChecked, from, to)
-                return response(["done": false, "state": "unclear", "data": data, "tell": tell,
-                                 "next": "Unclear: the move was stopped before \(o.notChecked) mails could be checked (see not_checked). Do not retry, repeat or undo this move, and do not move these mails again in this answer; Pippa looks once more when the answer ends. Repeat tell."])
-            }
             if o.noAnswer > 0 {
                 // Mail did not answer the read-back in time: where they are is not known yet, nothing was retried.
                 data["no_answer"] = o.noAnswer

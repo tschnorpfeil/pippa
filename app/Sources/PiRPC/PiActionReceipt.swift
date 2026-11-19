@@ -138,7 +138,7 @@ public struct PiTurnReceipt: Sendable {
         "needs_calendar", "reply_needs_mail", "stays_on_mac",
         // `mail_move` (PippaMCPMailMove.swift): refused before anything moved, or read back and nothing moved.
         "plan_required", "stale_plan", "cross_account", "not_inbox", "unknown_folder", "ambiguous_folder", "target_not_allowed", "same_folder",
-        "folders_incomplete", "not_moved",
+        "folders_incomplete", "not_moved", "move_running",
         // `browse` (PippaMCPBrowser.swift): refused address, stale ref, or the person's login step before any click.
         "blocked", "stale_ref", "handoff_required",
         // The class gate (PippaMCPActionClass.swift): the person said no on the card.
