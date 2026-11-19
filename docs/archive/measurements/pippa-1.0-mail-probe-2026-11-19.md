@@ -13,8 +13,9 @@ report holds counts and times only.
 | 2 | waits for Mail to settle | 6 moved, 2.3 s | 6 of 6 | reported 6 failed after a 30 s lookup timeout | all 6 back in A |
 | 3 | timeouts are "not known yet" | 6 moved, 2.7 s | 6 of 6 | 6 undone, 3.3 s | as intended |
 | 4 | after the review fixes | 6 moved, 3.3 s | 6 of 6 | 6 undone, 3.5 s | as intended |
+| 5 | after the second review round | 6 moved, 3.8 s | 6 of 6 | 6 undone, 3.9 s | as intended |
 
-Runs 3 and 4 ended with six live mails in A, none live in B, no mail in both folders, and the same picture 45
+Runs 3, 4 and 5 ended with six live mails in A, none live in B, no mail in both folders, and the same picture 45
 seconds later.
 
 ## What Mail does
