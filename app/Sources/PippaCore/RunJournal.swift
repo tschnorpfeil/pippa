@@ -121,8 +121,9 @@ public struct RunActionResult: Sendable {
 }
 
 /// What one undo step did. `changed`: the object was changed since Pippa touched it, so it stays. `nothing`: an unclear
-/// row whose action provably did not happen (a mail move found back in its source): nothing to undo.
-public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing }
+/// row whose action provably did not happen (a mail move found back in its source): nothing to undo. `inBoth`: a mail
+/// move whose mail is live in both folders (IMAP copied but did not delete); the row becomes unclear, nothing is deleted.
+public enum RunUndoOutcome: String, Sendable { case undone, gone, changed, failed, nothing, inBoth = "in_both" }
 /// Puts one row back, only if its object is unchanged since Pippa touched it. Supplied per kind by the tool.
 public typealias RunUndoRecipe = @Sendable (RunAction) async -> RunUndoOutcome
 /// Puts several rows of one kind back in one step (mail moves go back in batches), `rows` in undo order. It also gets
@@ -133,6 +134,8 @@ public struct RunUndoReport: Sendable, Equatable {
     public var undone: [RunAction] = []
     public var left: [RunAction] = []
     public var failed: [RunAction] = []
+    /// Rows Undo left unclear (`RunUndoOutcome.inBoth`).
+    public var unclear: [RunAction] = []
 }
 
 /// Counts for the one receipt under an answer, from its rows.
@@ -355,6 +358,7 @@ extension Executor {
         case .changed: row.note = "changed"
         case .failed: row.state = .undoFailed; row.note = "failed"
         case .nothing: row.state = .undone; row.note = "not_moved"
+        case .inBoth: row.state = .unclear; row.note = MailMover.inBothNote
         }
         return row
     }
@@ -402,6 +406,7 @@ extension Executor {
             case .undone, .gone: report.undone.append(current)
             case .changed: report.left.append(current)
             case .failed: report.failed.append(current)
+            case .inBoth: report.unclear.append(current)
             case .nothing: break
             }
             try runTransaction { try save(current) }

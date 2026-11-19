@@ -30,6 +30,8 @@
 "Pippa couldn’t move the mails just now. Nothing was moved." = "Pippa couldn’t move the mails just now. Nothing was moved.";
 "To do this, I need access to Mail on this Mac – I only move mails into your folders and never send anything." = "To do this, I need access to Mail on this Mac – I only move mails into your folders and never send anything.";
 "Pippa moved %lld mails into “%@” and checked them. %lld mails are now neither in “%@” nor in “%@”. Please look for them in Mail. Pippa stopped and won’t repeat the move." = "Pippa moved %lld mails into “%@” and checked them. %lld mails are now neither in “%@” nor in “%@”. Please look for them in Mail. Pippa stopped and won’t repeat the move.";
+"%lld mails are in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail." = "%lld mails are in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail.";
+"Pippa moved %lld mails into “%@” and checked them. %lld mails are now in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail. Pippa stopped and won’t repeat the move." = "Pippa moved %lld mails into “%@” and checked them. %lld mails are now in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail. Pippa stopped and won’t repeat the move.";
 "Read Excel: active sheet" = "Read Excel: active sheet";
 "today" = "today";
 "tomorrow" = "tomorrow";

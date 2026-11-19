@@ -327,7 +327,8 @@ extension MailAccountScript {
         return {"ok", {item 1 of r, item 2 of r, item 3 of r}}
     end accountFolders
 
-    -- For each Message-ID, Mail's ids of the messages in this mailbox that carry it (with or without angle brackets).
+    -- For each Message-ID, Mail's ids of the messages in this mailbox that carry it (with or without angle brackets):
+    -- {live ids, ids marked deleted}. On IMAP a moved mail's old copy can stay listed with deleted status until expunged.
     on accountLocate(acctID, wantedPath, wantedIDs)
         set out to {}
         tell application id "com.apple.mail"
@@ -337,8 +338,18 @@ extension MailAccountScript {
                     if box is missing value then return {"nobox"}
                     repeat with i from 1 to count of wantedIDs
                         set x to item i of wantedIDs
-                        set found to (id of (messages of box whose message id is x or message id is ("<" & x & ">"))) as list
-                        set end of out to found
+                        set found to (messages of box whose message id is x or message id is ("<" & x & ">")) as list
+                        set liveIDs to {}
+                        set goneIDs to {}
+                        repeat with hit in found
+                            set m to contents of hit
+                            if (deleted status of m) is true then
+                                set end of goneIDs to (id of m)
+                            else
+                                set end of liveIDs to (id of m)
+                            end if
+                        end repeat
+                        set end of out to {liveIDs, goneIDs}
                     end repeat
                 end timeout
             on error number errNum
@@ -499,7 +510,8 @@ extension MailAccountScript {
         end tell
     end accountMakeFolder
 
-    -- The probe: the Message-ID of every message in the mailbox at wantedPath (only its two test folders ask).
+    -- The probe: the Message-ID and deleted status of every message in the mailbox at wantedPath (only its two test
+    -- folders ask): {{Message-IDs}, {deleted statuses}}, in the same order.
     on accountMessageIDs(acctID, wantedPath)
         set out to {}
         tell application id "com.apple.mail"
@@ -507,8 +519,10 @@ extension MailAccountScript {
                 with timeout of 30 seconds
                     set box to my testBoxOf(my accountOf(acctID), acctID, item 1 of wantedPath, 10)
                     if box is missing value then return {"nobox"}
-                    if (count of messages of box) is 0 then return {"ok", {}}
-                    set out to (message id of messages of box) as list
+                    if (count of messages of box) is 0 then return {"ok", {{}, {}}}
+                    set theIDs to (message id of messages of box) as list
+                    set flags to (deleted status of messages of box) as list
+                    set out to {theIDs, flags}
                 end timeout
             on error number errNum
                 if errNum is -1728 then return {"nobox"}
@@ -597,7 +611,7 @@ extension MailAccountScript.Live {
         }
     }
 
-    func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: [Int]] {
+    func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated] {
         try await run("accountLocate", {
             [NSAppleEventDescriptor(string: account), MailMoveParse.list(path), MailMoveParse.list(messageIDs)]
         }) { try MailMoveParse.located($0, messageIDs: messageIDs) }
@@ -670,10 +684,10 @@ extension MailAccountScript.Live: MailMoveProbeMail {
         }
     }
 
-    func messageIDs(account: String, path: [String]) async throws -> [String] {
+    func messageIDs(account: String, path: [String]) async throws -> [MailMoveProbe.Listed] {
         // Only the probe's own test folders, never any other mailbox.
         guard path == [MailMoveProbe.folderA] || path == [MailMoveProbe.folderB] else { throw MailAccountProblem.failed }
-        return try await run("accountMessageIDs", { [NSAppleEventDescriptor(string: account), MailMoveParse.list(path)] }) { AppleEvents.strings($0) }
+        return try await run("accountMessageIDs", { [NSAppleEventDescriptor(string: account), MailMoveParse.list(path)] }) { try MailMoveParse.listed($0) }
     }
 
     func duplicate(account: String, inboxIDs: [Int], to: [String]) async throws -> [String] {
@@ -721,15 +735,31 @@ public enum MailMoveParse {
         return MailFolderList(folders: folders, unnamed: max(0, Int(unnamed.int32Value)), unexpanded: max(0, Int(unexpanded.int32Value)))
     }
 
-    /// One list of Mail ids per asked Message-ID, in order.
-    public static func located(_ payload: NSAppleEventDescriptor, messageIDs: [String]) throws -> [String: [Int]] {
-        let lists = AppleEvents.items(payload)
-        guard lists.count == messageIDs.count || (messageIDs.isEmpty && payload.numberOfItems == 0) else { throw MailAccountProblem.failed }
-        var out: [String: [Int]] = [:]
-        for (id, list) in zip(messageIDs, lists) {
-            out[id, default: []] += list.descriptorType == typeAEList ? AppleEvents.items(list).map { Int($0.int32Value) } : [Int(list.int32Value)]
+    /// `{live ids, deleted ids}` per asked Message-ID, in order.
+    public static func located(_ payload: NSAppleEventDescriptor, messageIDs: [String]) throws -> [String: MailLocated] {
+        let entries = AppleEvents.items(payload)
+        guard entries.count == messageIDs.count || (messageIDs.isEmpty && payload.numberOfItems == 0) else { throw MailAccountProblem.failed }
+        func ids(_ list: NSAppleEventDescriptor?) throws -> [Int] {
+            guard let list, list.descriptorType == typeAEList else { throw MailAccountProblem.failed }
+            return AppleEvents.items(list).map { Int($0.int32Value) }
+        }
+        var out: [String: MailLocated] = [:]
+        for (id, entry) in zip(messageIDs, entries) {
+            guard entry.descriptorType == typeAEList, entry.numberOfItems == 2 else { throw MailAccountProblem.failed }
+            let live = try ids(entry.atIndex(1)), deleted = try ids(entry.atIndex(2))
+            out[id, default: MailLocated()].live += live
+            out[id, default: MailLocated()].deleted += deleted
         }
         return out
+    }
+
+    /// The probe's `{{Message-IDs}, {deleted statuses}}` of one test folder, as many of each.
+    public static func listed(_ payload: NSAppleEventDescriptor) throws -> [MailMoveProbe.Listed] {
+        guard payload.numberOfItems == 2, let ids = payload.atIndex(1), ids.descriptorType == typeAEList,
+              let flags = payload.atIndex(2), flags.descriptorType == typeAEList, ids.numberOfItems == flags.numberOfItems else {
+            throw MailAccountProblem.failed
+        }
+        return zip(AppleEvents.items(ids), AppleEvents.items(flags)).map { MailMoveProbe.Listed(messageID: $0.stringValue ?? "", deleted: $1.booleanValue) }
     }
 
     public static func statuses(_ payload: NSAppleEventDescriptor, expecting: Int) throws -> [String] {

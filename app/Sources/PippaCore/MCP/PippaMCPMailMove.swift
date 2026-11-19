@@ -78,14 +78,15 @@ extension PippaMCPWriteTools {
         if dryRun {
             var data = Self.planData(plan)
             data["moved"] = 0
+            let both = Self.inBothNote(plan)
             guard !plan.entries.isEmpty else {
                 return Self.response(["done": true, "dry_run": true, "dispatched": false, "data": data,
-                                      "next": "Nothing to move: none of these mails can be moved (see not_found and skipped). Tell the person why."])
+                                      "next": "Nothing to move: none of these mails can be moved (see not_found and skipped). Tell the person why." + both])
             }
             guard store.savePlan(plan, turn: generation) else { return Self.stopped(receipt: nil) }
             data["plan"] = plan.id
             return Self.response(["done": true, "dry_run": true, "dispatched": false, "data": data,
-                                  "next": "Nothing moved yet. To move these \(plan.entries.count) mails into \(target.display), call mail_move with only plan."])
+                                  "next": "Nothing moved yet. To move these \(plan.entries.count) mails into \(target.display), call mail_move with only plan." + both])
         }
         return await apply(plan, mover: mover, active: active, generation: generation)
     }
@@ -163,7 +164,16 @@ extension PippaMCPWriteTools {
         var data: [String: Any] = ["account": plan.label, "from": plan.source.joined(separator: "/"), "to": plan.target.joined(separator: "/"),
                                    "moves": [plan.target.joined(separator: "/"): plan.entries.count], "not_found": plan.notFound]
         if !plan.skipped.isEmpty { data["skipped"] = plan.skipped }
+        if plan.inBoth > 0 { data["in_both"] = plan.inBoth }
+        if plan.deleted > 0 { data["deleted_status"] = plan.deleted }
         return data
+    }
+
+    /// For the dry run's `next`: mails already in the target that are also still in the source.
+    static func inBothNote(_ plan: MailMovePlan) -> String {
+        guard plan.inBoth > 0 else { return "" }
+        let from = plan.source.joined(separator: "/"), to = plan.target.joined(separator: "/")
+        return " \(plan.inBoth) of the mails already in \(to) are also still in \(from) (see in_both): they are in both folders. Pippa leaves them and does not delete either copy; tell the person so they can look in Mail."
     }
 
     /// The result from the read-back only: `verified n of m` is what Pippa found in the target folder.
@@ -173,13 +183,28 @@ extension PippaMCPWriteTools {
                                    "verified": "\(o.verified) of \(o.attempted)", "not_moved": o.notMoved, "not_found": o.notFound]
         if !o.skipped.isEmpty { data["skipped"] = o.skipped }
         if o.notStarted > 0 { data["not_started"] = o.notStarted }
+        if o.deleted > 0 { data["deleted_status"] = o.deleted }
         if o.unclear > 0 {
             data["unclear"] = o.unclear
             data["unclear_batch"] = o.unclearBatch ?? 0
-            return response(["done": false, "state": "unclear", "data": data,
-                             "tell": L("Pippa moved %lld mails into “%@” and checked them. %lld mails are now neither in “%@” nor in “%@”. Please look for them in Mail. Pippa stopped and won’t repeat the move.",
-                                       table: "MCP", o.verified, to, o.unclear, from, to),
-                             "next": "Unclear: do not retry, repeat or undo this move, and do not move these mails again in this answer. Repeat tell."])
+            let neither = o.unclear - o.inBoth
+            var tell: String
+            if neither > 0 {
+                tell = L("Pippa moved %lld mails into “%@” and checked them. %lld mails are now neither in “%@” nor in “%@”. Please look for them in Mail. Pippa stopped and won’t repeat the move.",
+                         table: "MCP", o.verified, to, neither, from, to)
+                if o.inBoth > 0 {
+                    tell += " " + L("%lld mails are in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail.", table: "MCP", o.inBoth, from, to)
+                }
+            } else {
+                tell = L("Pippa moved %lld mails into “%@” and checked them. %lld mails are now in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail. Pippa stopped and won’t repeat the move.",
+                         table: "MCP", o.verified, to, o.inBoth, from, to)
+            }
+            var next = "Unclear: do not retry, repeat or undo this move, and do not move these mails again in this answer. Repeat tell."
+            if o.inBoth > 0 {
+                data["in_both"] = o.inBoth
+                next += " \(o.inBoth) mails are in both \(from) and \(to) (see in_both): Pippa does not delete mail, so never offer to delete or move either copy."
+            }
+            return response(["done": false, "state": "unclear", "data": data, "tell": tell, "next": next])
         }
         if o.verified == 0 {
             if o.stopped && o.attempted == 0 { return stopped(receipt: nil) }
@@ -203,6 +228,9 @@ extension PippaMCPWriteTools {
         if o.notMoved > 0 { next += " \(o.notMoved) mails stayed in \(from): Mail did not move them." }
         if o.notFound > 0 { next += " \(o.notFound) mails were no longer in \(from)." }
         if !o.skipped.isEmpty { next += " Skipped mails (see skipped) were not moved: no or repeated Message-ID, or already in \(to)." }
+        if let already = o.skipped["already_in_target"], already > 0 {
+            next += " Mails already in \(to) were still in \(from) too: they are in both folders, and Pippa left them and deletes neither copy."
+        }
         return response(["done": true, "dispatched": true, "complete": o.notStarted == 0, "data": data, "next": next])
     }
 

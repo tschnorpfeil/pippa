@@ -10,8 +10,8 @@ public protocol MailMoveProbeMail: MailAccountReading {
     func folderTimings(account: String, samples: Int) async throws -> MailMoveProbe.ListingTimings
     /// A top-level folder with this name; `true` when it was made now, `false` when it was there.
     func makeFolder(account: String, name: String) async throws -> Bool
-    /// The Message-ID of every mail in `path`, one of the two test folders only (an earlier run's copies).
-    func messageIDs(account: String, path: [String]) async throws -> [String]
+    /// The Message-ID and deleted status of every mail in `path`, one of the two test folders only (an earlier run's copies).
+    func messageIDs(account: String, path: [String]) async throws -> [MailMoveProbe.Listed]
     /// Copies of these inbox mails into `to`; the inbox stays as it is. One status per mail (diagnostics only).
     func duplicate(account: String, inboxIDs: [Int], to: [String]) async throws -> [String]
 }
@@ -30,6 +30,8 @@ extension SystemIntegrations {
 /// JSON object of counts, kinds, timings and settle waits, and on a timeout which kind of Apple event did not answer:
 /// never subjects, senders, addresses, account names, folder names other than its own, or Message-IDs.
 /// `--diagnose` only times read-only questions (the test folders, the listing behind `mail_folders`) and changes nothing.
+/// Only live messages count as in a folder; entries marked deleted (IMAP, not yet expunged) are counted apart. A mail
+/// live in both test folders ("in_both") is reported and left alone: the probe never deletes mail.
 public enum MailMoveProbe {
     public static let folderA = "Pippa Test A"
     public static let folderB = "Pippa Test B"
@@ -46,11 +48,31 @@ public enum MailMoveProbe {
           in them counts as a test copy from an earlier run: mail in "\(folderB)" goes back to "\(folderA)" first, and the
           mails in "\(folderA)" are used again. Only when "\(folderA)" is empty, up to \(copies) of the inbox's oldest mails
           are copied into it (the inbox stays untouched). Moves the copies to "\(folderB)" as mail_move does, undoes the
-          move and checks they are back in "\(folderA)". Prints one JSON report without subjects, senders, addresses or
+          move and checks they are back in "\(folderA)". Entries Mail marked deleted count as gone; a mail in both folders
+          is reported (in_both) and left alone, never deleted. Prints one JSON report without subjects, senders, addresses or
           Message-IDs, with lookups and milliseconds waited for Mail to settle per step. The copies stay in "\(folderA)"
           for the next run; never put other mail into the two test folders. On a timeout, the report names the step
           and the kind of Apple event that did not answer (resolve, count, list_ids, duplicate, move, locate).
         """
+
+    /// One message of a test folder: its Message-ID and whether Mail marked it deleted (not yet expunged).
+    public struct Listed: Sendable, Equatable {
+        public var messageID: String, deleted: Bool
+        public init(messageID: String, deleted: Bool = false) { self.messageID = messageID; self.deleted = deleted }
+    }
+
+    /// The live Message-IDs of a listing, canonical.
+    static func live(_ listed: [Listed]) -> [String] { listed.filter { !$0.deleted }.compactMap { MailReplySource.canonicalMessageID($0.messageID) } }
+
+    /// The first, read-only question of every mode: asked once more after `pause` when it times out (Mail sometimes
+    /// does not answer the first Apple event of a launch). Never used for a mutating event.
+    static func firstAccounts(_ mail: any MailMoveProbeMail, pause: @Sendable () async -> Void, retried: () -> Void) async throws -> [AccountKind] {
+        do { return try await mail.accountKinds() } catch MailAccountProblem.timeout {
+            retried()
+            await pause()
+            return try await mail.accountKinds()
+        }
+    }
 
     public struct AccountKind: Sendable, Equatable {
         public var id: String, name: String, type: String, className: String
@@ -124,11 +146,13 @@ public enum MailMoveProbe {
         switch invocation {
         case .help: return (0, usage, "")
         case .list:
+            var retries = 0
             do {
-                let kinds = try await mail().accountKinds()
-                return (0, json(["probe": "mail-move-probe", "accounts": kinds.map { ["name": $0.name, "type": $0.type, "class": $0.className] }]), "")
+                let kinds = try await firstAccounts(mail(), pause: pause) { retries += 1 }
+                return (0, json(["probe": "mail-move-probe", "first_event_retries": retries,
+                                 "accounts": kinds.map { ["name": $0.name, "type": $0.type, "class": $0.className] }]), "")
             } catch {
-                return (1, json(["probe": "mail-move-probe", "error": ["step": "accounts", "kind": MailMover.describe(error)]]), "")
+                return (1, json(["probe": "mail-move-probe", "first_event_retries": retries, "error": ["step": "accounts", "kind": MailMover.describe(error)]]), "")
             }
         case .run(let name):
             let directory = journalDirectory ?? FileManager.default.temporaryDirectory.appendingPathComponent("pippa-mail-move-probe-\(UUID().uuidString)")
@@ -136,7 +160,7 @@ public enum MailMoveProbe {
             let report = await run(account: name, mail: mail(), directory: directory, pause: pause, settle: settle)
             return (report["refused"] == nil && report["error"] == nil ? 0 : 1, json(report), "")
         case .diagnose(let name):
-            let report = await diagnose(account: name, mail: mail())
+            let report = await diagnose(account: name, mail: mail(), pause: pause)
             return (report["refused"] == nil && report["error"] == nil ? 0 : 1, json(report), "")
         }
     }
@@ -144,16 +168,19 @@ public enum MailMoveProbe {
     // MARK: --diagnose
 
     /// Read-only questions, each timed; one that fails is reported and the next is still asked.
-    static func diagnose(account name: String, mail: any MailMoveProbeMail) async -> [String: Any] {
+    static func diagnose(account name: String, mail: any MailMoveProbeMail, pause: @Sendable () async -> Void) async -> [String: Any] {
         var report: [String: Any] = ["probe": "mail-move-probe", "mode": "diagnose", "folders": [folderA, folderB],
                                      "event_timeout_s": MailFolderListing.eventTimeout, "count_bound_s": MailFolderListing.countBound,
                                      "path_bound_s": MailFolderListing.pathBound]
         func ms(_ start: ContinuousClock.Instant) -> Int { milliseconds(ContinuousClock.now - start) }
         var start = ContinuousClock.now
         let kinds: [AccountKind]
-        do { kinds = try await mail.accountKinds() } catch {
+        var retries = 0
+        do { kinds = try await firstAccounts(mail, pause: pause) { retries += 1 } } catch {
+            report["first_event_retries"] = retries
             return report.merging(["error": ["step": "accounts", "kind": MailMover.describe(error), "ms": ms(start)]]) { _, b in b }
         }
+        report["first_event_retries"] = retries
         report["accounts_ms"] = ms(start)
         let matches = kinds.filter { $0.id == name || $0.name.compare(name, options: .caseInsensitive) == .orderedSame }
         guard matches.count == 1, let kind = matches.first, !kind.id.isEmpty else {
@@ -167,18 +194,29 @@ public enum MailMoveProbe {
         do {
             let found = try await mail.testFolders(account: kind.id)
             tests["resolve_and_count_ms"] = ms(start)
+            var liveIn: [Set<String>] = []
             for folder in found {
                 var entry: [String: Any] = ["exists": folder.exists]
                 if let count = folder.count { entry["messages"] = count }
                 if let event = folder.timedOut { entry["timeout"] = event }
                 if folder.exists, folder.timedOut == nil {
                     let listStart = ContinuousClock.now
-                    do { entry["message_ids"] = try await mail.messageIDs(account: kind.id, path: folder.path).count }
+                    do {
+                        let listed = try await mail.messageIDs(account: kind.id, path: folder.path)
+                        let live = Self.live(listed)
+                        entry["message_ids"] = listed.count
+                        entry["live"] = listed.filter { !$0.deleted }.count
+                        entry["deleted_status"] = listed.filter(\.deleted).count
+                        entry["distinct_message_ids"] = Set(listed.compactMap { MailReplySource.canonicalMessageID($0.messageID) }).count
+                        liveIn.append(Set(live))
+                    }
                     catch { entry["list_ids_error"] = MailMover.describe(error) }
                     entry["list_ids_ms"] = ms(listStart)
                 }
                 tests[folder.path.joined(separator: "/")] = entry
             }
+            // Message-IDs live in both test folders; only when both could be listed.
+            if liveIn.count == 2 { tests["live_in_both"] = liveIn[0].intersection(liveIn[1]).count }
         } catch {
             tests["resolve_and_count_ms"] = ms(start)
             tests["error"] = MailMover.describe(error)
@@ -207,9 +245,11 @@ public enum MailMoveProbe {
         var report: [String: Any] = ["probe": "mail-move-probe", "folders": [folderA, folderB]]
         var timings: [String: Int] = [:]
         var counts: [String: Any] = [:]
+        var retries = 0
         func finish(_ extra: [String: Any] = [:]) -> [String: Any] {
             report["timings_ms"] = timings
             report["counts"] = counts
+            report["first_event_retries"] = retries
             return report.merging(extra) { _, b in b }
         }
         let witness = TimeoutWitness(probeMail)
@@ -221,7 +261,7 @@ public enum MailMoveProbe {
             do { return try await body() } catch { throw ProbeFailure(step: step, error: error, event: witness.event) }
         }
         do {
-            let kinds = try await timed("accounts") { try await mail.accountKinds() }
+            let kinds = try await timed("accounts") { try await firstAccounts(mail, pause: pause) { retries += 1 } }
             let matches = kinds.filter { $0.id == name || $0.name.compare(name, options: .caseInsensitive) == .orderedSame }
             guard matches.count == 1, let kind = matches.first, !kind.id.isEmpty else {
                 return finish(["refused": matches.isEmpty ? "unknown_account" : "ambiguous_account",
@@ -254,35 +294,52 @@ public enum MailMoveProbe {
             var reused = 0
 
             // An earlier run's copies left in B go back to A first, through the same move path (dry run, batches, settled
-            // read-back by Message-ID).
+            // read-back by Message-ID). Entries marked deleted count as gone. A mail live in both A and B stays as it
+            // is (`in_both`): the probe deletes nothing and goes on with the mails that are only in A.
             var resetB = false
+            var doubles = Set<String>()
             if folderInB.count != 0 {
-                let inB = try await timed("list_b") { try await mail.messageIDs(account: account.id, path: b) }
+                let listedB = try await timed("list_b") { try await mail.messageIDs(account: account.id, path: b) }
+                let inB = Self.live(listedB)
                 if !inB.isEmpty {
-                    resetB = true
-                    let plan = try await timed("reset_dry_run") { try await mover.plan(account: account, label: "probe", source: b, target: a, messageIDs: inB) }
-                    let back = try await timed("reset_move") { try await mover.apply(plan, journal: nil) }
-                    counts["reset_b_to_a"] = ["in_b": inB.count, "will_move": plan.entries.count, "not_found": plan.notFound, "skipped": plan.skipped,
-                                              "verified": back.verified, "not_moved": back.notMoved, "unclear": back.unclear]
-                    settles["reset_move"] = settleJSON(back.settle)
-                    guard plan.entries.count == inB.count, back.verified == plan.entries.count, back.failure == nil else {
-                        return finish(["refused": "test_folder_b_not_reset",
-                                       "next": "Not every mail in \(folderB) went back to \(folderA). Look at both folders in Mail; nothing else was touched."])
+                    let liveA = folderInA.count != 0 ? Self.live(try await timed("list_a") { try await mail.messageIDs(account: account.id, path: a) }) : []
+                    doubles = Set(inB).intersection(liveA)
+                    let onlyB = Array(Set(inB).subtracting(doubles)).sorted()
+                    var reset: [String: Any] = ["in_b": inB.count, "deleted_in_b": listedB.count(where: \.deleted), "in_both": doubles.count]
+                    if !onlyB.isEmpty {
+                        resetB = true
+                        let plan = try await timed("reset_dry_run") { try await mover.plan(account: account, label: "probe", source: b, target: a, messageIDs: onlyB) }
+                        let back = try await timed("reset_move") { try await mover.apply(plan, journal: nil) }
+                        reset.merge(["will_move": plan.entries.count, "not_found": plan.notFound, "skipped": plan.skipped,
+                                     "verified": back.verified, "not_moved": back.notMoved, "unclear": back.unclear, "unclear_in_both": back.inBoth]) { _, b in b }
+                        counts["reset_b_to_a"] = reset
+                        settles["reset_move"] = settleJSON(back.settle)
+                        guard plan.entries.count == onlyB.count, back.verified == plan.entries.count, back.failure == nil else {
+                            report["in_both"] = ["before": doubles.count]
+                            return finish(["refused": "test_folder_b_not_reset",
+                                           "next": "Not every mail only in \(folderB) went back to \(folderA). Look at both folders in Mail; nothing else was touched and nothing was deleted."])
+                        }
                     }
+                    counts["reset_b_to_a"] = reset
                 }
             }
+            report["in_both"] = ["before": doubles.count]
 
             var copies: [String]
             let inA = folderInA.count != 0 || resetB ? try await timed("list_a") { try await mail.messageIDs(account: account.id, path: a) } : []
-            let reusable = inA.compactMap(MailReplySource.canonicalMessageID)
+            let reusable = Self.live(inA)
             if !reusable.isEmpty {
-                // Everything in A is a test copy: move what has a Message-ID that occurs once there.
+                // Everything live in A is a test copy: move what has a Message-ID that occurs once there and is not also in B.
                 let seen = Dictionary(grouping: reusable, by: { $0 }).mapValues(\.count)
-                copies = seen.filter { $0.value == 1 }.map(\.key).sorted()
-                counts["copies_in_a"] = inA.count
+                copies = seen.filter { $0.value == 1 && !doubles.contains($0.key) }.map(\.key).sorted()
+                counts["copies_in_a"] = reusable.count
+                counts["deleted_in_a"] = inA.count(where: \.deleted)
                 counts["copies_unique"] = copies.count
                 reused = copies.count
-                guard !copies.isEmpty else { return finish(["refused": "copies_not_found", "next": "\(folderA) holds no mail the probe can move. Nothing was moved."]) }
+                guard !copies.isEmpty else {
+                    return finish(["refused": "copies_not_found",
+                                   "next": "\(folderA) holds no mail the probe can move (mails in both test folders are left alone). Nothing was moved."])
+                }
             } else {
                 // The oldest inbox mails with a Message-ID, copied into A.
                 let candidates = try await timed("inbox") { try await mail.candidates(account: account.id, query: "", readStatus: .all, mailbox: .inbox) }
@@ -300,7 +357,7 @@ public enum MailMoveProbe {
                 var located: [String: [Int]] = [:]
                 var settled = false
                 for _ in 0..<10 {
-                    located = try await timed("locate_copies") { try await mail.locate(account: account.id, path: a, messageIDs: wanted) }
+                    located = try await timed("locate_copies") { try await mail.locate(account: account.id, path: a, messageIDs: wanted) }.mapValues(\.live)
                     let found = located.values.reduce(0) { $0 + $1.count }
                     let folder = try await timed("folders") { try await mail.testFolders(account: account.id) }.first { $0.path == a }
                     // A was empty: everything in it now must be one of the copies made now.
@@ -322,7 +379,8 @@ public enum MailMoveProbe {
             let plan = try await timed("dry_run") {
                 try await mover.plan(account: account, label: "probe", source: a, target: b, messageIDs: copies)
             }
-            counts["dry_run"] = ["will_move": plan.entries.count, "not_found": plan.notFound, "skipped": plan.skipped]
+            counts["dry_run"] = ["will_move": plan.entries.count, "not_found": plan.notFound, "skipped": plan.skipped, "in_both": plan.inBoth,
+                                 "deleted_status": plan.deleted]
             guard store.savePlan(plan, turn: owner), let applied = store.takePlan(plan.id, turn: owner), store.takePlan(plan.id, turn: owner) == nil else {
                 return finish(["error": ["step": "plan", "kind": "failed"]])
             }
@@ -337,7 +395,8 @@ public enum MailMoveProbe {
             }
             _ = lease.finish(nil)
             counts["move"] = ["batches": outcome.batches, "attempted": outcome.attempted, "verified": outcome.verified, "not_moved": outcome.notMoved,
-                              "not_found": outcome.notFound, "skipped": outcome.skipped, "unclear": outcome.unclear, "not_started": outcome.notStarted]
+                              "not_found": outcome.notFound, "skipped": outcome.skipped, "unclear": outcome.unclear, "in_both": outcome.inBoth,
+                              "deleted_status": outcome.deleted, "not_started": outcome.notStarted]
             settles["move"] = settleJSON(outcome.settle)
             report["verified"] = "\(outcome.verified) of \(outcome.attempted)"
             report["mail_ids_changed"] = outcome.idsChanged == 0 ? "no" : outcome.idsKept == 0 ? "yes" : "some"
@@ -361,14 +420,18 @@ public enum MailMoveProbe {
                 }
             }
             let undo = try await timed("undo") { try await journal.undoRun(runID, recipe: { _ in nil }, batch: batch) }
-            counts["undo"] = ["undone": undo.undone.count, "left": undo.left.count, "failed": undo.failed.count]
+            counts["undo"] = ["undone": undo.undone.count, "left": undo.left.count, "failed": undo.failed.count, "unclear": undo.unclear.count]
             settles["undo"] = settleJSON(undoSettle.value)
             let backA = try await timed("verify_back") { try await mail.locate(account: account.id, path: a, messageIDs: copies) }
             let stillB = try await timed("verify_back") { try await mail.locate(account: account.id, path: b, messageIDs: copies) }
-            counts["back_in_a"] = copies.filter { (backA[$0] ?? []).count == 1 && (stillB[$0] ?? []).isEmpty }.count
-            counts["left_in_b"] = stillB.values.reduce(0) { $0 + $1.count }
+            counts["back_in_a"] = copies.filter { (backA[$0]?.live ?? []).count == 1 && (stillB[$0]?.live ?? []).isEmpty }.count
+            counts["left_in_b"] = stillB.values.reduce(0) { $0 + $1.live.count }
+            counts["deleted_status_after"] = Set(copies.filter { !(backA[$0]?.deleted ?? []).isEmpty || !(stillB[$0]?.deleted ?? []).isEmpty }).count
             let again = try await journal.undoRun(runID, recipe: { _ in nil }, batch: batch)
-            counts["second_undo_steps"] = again.undone.count + again.left.count + again.failed.count
+            counts["second_undo_steps"] = again.undone.count + again.left.count + again.failed.count + again.unclear.count
+            let finalA = Self.live(try await timed("list_after") { try await mail.messageIDs(account: account.id, path: a) })
+            let finalB = Self.live(try await timed("list_after") { try await mail.messageIDs(account: account.id, path: b) })
+            report["in_both"] = ["before": doubles.count, "after": Set(finalA).intersection(finalB).count]
             report["settle"] = settles
             report["cleanup"] = "The copies stay in \(folderA); the next run uses them again."
             return finish()
@@ -420,7 +483,7 @@ public enum MailMoveProbe {
             try await mail.threadActivity(account: account, messageID: messageID, subject: subject, since: since)
         }
         func folders(account: String, samples: Int) async throws -> MailFolderList { try await note("list_folders") { try await mail.folders(account: account, samples: samples) } }
-        func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: [Int]] {
+        func locate(account: String, path: [String], messageIDs: [String]) async throws -> [String: MailLocated] {
             try await note("locate") { try await mail.locate(account: account, path: path, messageIDs: messageIDs) }
         }
         @discardableResult
@@ -438,7 +501,7 @@ public enum MailMoveProbe {
         }
         func folderTimings(account: String, samples: Int) async throws -> ListingTimings { try await mail.folderTimings(account: account, samples: samples) }
         func makeFolder(account: String, name: String) async throws -> Bool { try await note("make_folder") { try await mail.makeFolder(account: account, name: name) } }
-        func messageIDs(account: String, path: [String]) async throws -> [String] { try await note("list_ids") { try await mail.messageIDs(account: account, path: path) } }
+        func messageIDs(account: String, path: [String]) async throws -> [Listed] { try await note("list_ids") { try await mail.messageIDs(account: account, path: path) } }
         func duplicate(account: String, inboxIDs: [Int], to: [String]) async throws -> [String] {
             try await note("duplicate") { try await mail.duplicate(account: account, inboxIDs: inboxIDs, to: to) }
         }

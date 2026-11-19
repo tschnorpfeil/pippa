@@ -6,6 +6,11 @@ import Foundation
 // the source and the target folder until Mail settled (`MailMoveSettle`), and a mail found in neither makes the batch
 // unclear and stops the run. Undo goes back in the same batches with the same settling. Mail's own id
 // is only a handle for the next Apple Event: it changes on Exchange when a mail moves.
+//
+// Only live messages count as "in a folder". On IMAP (iCloud) Mail moves by copy plus delete, and a copy it marked
+// deleted (`deleted status`) may stay listed until the server expunges it: such entries are counted apart
+// (`MailLocated.deleted`) and never moved. A mail live in both folders after the bound is unclear ("in both folders"):
+// Pippa never deletes mail and never repeats the move.
 
 /// One mailbox of an account, as Mail lists it.
 public struct MailFolderInfo: Sendable, Equatable {
@@ -90,6 +95,14 @@ public enum MailFolderRole: String, Sendable, Equatable {
     }
 }
 
+/// The messages of one mailbox that carry one Message-ID, by Mail's id: `live` ones are in the folder, `deleted` ones
+/// are marked deleted and only wait to be expunged (IMAP). Only `live` counts as being in the folder.
+public struct MailLocated: Sendable, Equatable {
+    public var live: [Int]
+    public var deleted: [Int]
+    public init(live: [Int] = [], deleted: [Int] = []) { self.live = live; self.deleted = deleted }
+}
+
 /// One mail for a move: Mail's id in the source folder right now, and the Message-ID it must still carry.
 public struct MailMoveItem: Sendable, Equatable {
     public var mailID: Int
@@ -118,8 +131,12 @@ public struct MailMovePlan: Sendable, Equatable {
     /// Mails of the request that are no longer in the source folder.
     public var notFound: Int
     /// Mails that are not moved, by reason: `no_message_id`, `duplicate` (the Message-ID occurs more than once in the
-    /// source), `already_in_target`.
+    /// source), `already_in_target` (live in the target while still live in the source).
     public var skipped: [String: Int]
+    /// Of `already_in_target`: also still live in the source. Pippa leaves both and deletes neither.
+    public var inBoth = 0
+    /// Mails whose lookup found entries marked deleted (not yet expunged) in source or target: never counted, never moved.
+    public var deleted = 0
 }
 
 /// What a move did, from the read-back only.
@@ -135,6 +152,10 @@ public struct MailMoveOutcome: Sendable, Equatable {
     public var skipped: [String: Int] = [:]
     /// Neither (or both) in source and target after the move: the batch is unclear.
     public var unclear = 0
+    /// Of `unclear`: live in both folders after the bound (IMAP copied but did not delete). Pippa deletes neither.
+    public var inBoth = 0
+    /// Mails whose last read-back found entries marked deleted (not yet expunged): never counted as there.
+    public var deleted = 0
     public var unclearBatch: Int?
     /// Mails of batches that never started (Stop, an unclear batch, an error).
     public var notStarted = 0
@@ -183,6 +204,20 @@ public struct MailMoveSettleStats: Sendable, Equatable {
     }
 }
 
+/// One lookup of some Message-IDs in a move's source and target folder.
+struct MailFound {
+    var src: [String: MailLocated]
+    var tgt: [String: MailLocated]
+    /// Live in the source (the folder the mail comes from).
+    func here(_ id: String) -> [Int] { src[id]?.live ?? [] }
+    /// Live in the target.
+    func there(_ id: String) -> [Int] { tgt[id]?.live ?? [] }
+    /// How many of `ids` have entries marked deleted in either folder.
+    func deleted(_ ids: [String]) -> Int {
+        Set(ids).filter { !(src[$0]?.deleted ?? []).isEmpty || !(tgt[$0]?.deleted ?? []).isEmpty }.count
+    }
+}
+
 /// The engine. Checks hand it a synthetic `MailAccountReading`; the app and the probe the real Mail.
 public struct MailMover: Sendable {
     public static let batchSize = 10
@@ -206,18 +241,22 @@ public struct MailMover: Sendable {
             // The same mail named twice is one mail.
             if seen.insert(id).inserted { wanted.append(id) }
         }
-        let (src, tgt) = try await lookup(account: account.id, source: source, target: target, wanted)
+        let found = try await lookup(account: account.id, source: source, target: target, wanted)
         var entries: [MailMovePlan.Entry] = []
-        var notFound = 0
+        var notFound = 0, inBoth = 0
         for id in wanted {
-            let here = src[id] ?? [], there = tgt[id] ?? []
+            let here = found.here(id), there = found.there(id)
             if here.isEmpty { notFound += 1 }
             else if here.count > 1 { skipped["duplicate", default: 0] += 1 }
-            else if !there.isEmpty { skipped["already_in_target", default: 0] += 1 }
+            else if !there.isEmpty {
+                // Live in the target and still live in the source: in both folders.
+                skipped["already_in_target", default: 0] += 1
+                inBoth += 1
+            }
             else { entries.append(.init(messageID: id, mailID: here[0])) }
         }
         return MailMovePlan(id: MailPageStore.token("p"), account: account, label: label, source: source, target: target,
-                            entries: entries, notFound: notFound, skipped: skipped)
+                            entries: entries, notFound: notFound, skipped: skipped, inBoth: inBoth, deleted: found.deleted(wanted))
     }
 
     // MARK: Apply
@@ -268,13 +307,13 @@ public struct MailMover: Sendable {
             guard live() else { outcome.stopped = true; outcome.notStarted = rest; break }
             let ids = batch.map(\.messageID)
             // Fresh: the folder may have changed since the dry run or the last batch.
-            let before: (src: [String: [Int]], tgt: [String: [Int]])
+            let before: MailFound
             do { before = try await lookup(account: plan.account.id, source: plan.source, target: plan.target, ids) }
             catch { outcome.failure = Self.describe(error); outcome.notStarted = rest; break }
             var eligible: [MailMoveItem] = []
             var leftOut: [String] = []
             for id in ids {
-                let here = before.src[id] ?? [], there = before.tgt[id] ?? []
+                let here = before.here(id), there = before.there(id)
                 if here.isEmpty { outcome.notFound += 1; leftOut.append(id) }
                 else if here.count > 1 { outcome.skipped["duplicate", default: 0] += 1; leftOut.append(id) }
                 else if !there.isEmpty { outcome.skipped["already_in_target", default: 0] += 1; leftOut.append(id) }
@@ -310,7 +349,7 @@ public struct MailMover: Sendable {
             }
             // The read-back belongs to the move, also after Stop: it runs outside the lease. It waits until every mail
             // Mail reported as moved is in the target; Stop ends the wait at once and what is missing then is unclear.
-            let after: (src: [String: [Int]], tgt: [String: [Int]])
+            let after: MailFound
             do {
                 after = try await PippaMCPWriteLease.$current.withValue(nil) {
                     try await settled(account: plan.account.id, source: plan.source, target: plan.target, eligible.map(\.messageID),
@@ -328,10 +367,11 @@ public struct MailMover: Sendable {
                 break
             }
             var results: [RunActionResult] = []
-            var unmoved: [String] = []
+            var unmoved: [String] = [], doubled: [UUID] = []
             var unclearHere = 0, movedHere = 0
+            outcome.deleted += after.deleted(eligible.map(\.messageID))
             for item in eligible {
-                let there = after.tgt[item.messageID] ?? [], here = after.src[item.messageID] ?? []
+                let there = after.there(item.messageID), here = after.here(item.messageID)
                 if there.count == 1 && here.isEmpty {
                     movedHere += 1
                     if there[0] == item.mailID { outcome.idsKept += 1 } else { outcome.idsChanged += 1 }
@@ -344,12 +384,18 @@ public struct MailMover: Sendable {
                     }
                 } else if there.isEmpty && here.count == 1 && !timedOut {
                     unmoved.append(item.messageID)
+                } else if !there.isEmpty && !here.isEmpty {
+                    // Copied but not deleted (IMAP), still after the bound: in both folders. Pippa deletes neither copy.
+                    unclearHere += 1
+                    outcome.inBoth += 1
+                    if let id = rows[item.messageID] { doubled.append(id) }
                 } else {
                     unclearHere += 1
                     if let id = rows[item.messageID] { results.append(RunActionResult(id: id, verified: false)) }
                 }
             }
             if let journal, !results.isEmpty { _ = try? await journal.executor.completeRunActions(results) }
+            if let journal, !doubled.isEmpty { try? await journal.executor.unclearRunActions(doubled, note: Self.inBothNote) }
             await drop(unmoved)
             outcome.verified += movedHere
             outcome.notMoved += unmoved.count
@@ -374,18 +420,21 @@ public struct MailMover: Sendable {
         return outcome
     }
 
-    private func lookup(account: String, source: [String], target: [String], _ ids: [String]) async throws -> (src: [String: [Int]], tgt: [String: [Int]]) {
-        guard !ids.isEmpty else { return ([:], [:]) }
+    /// The journal's note on a row whose mail is live in both folders.
+    public static let inBothNote = "in_both"
+
+    private func lookup(account: String, source: [String], target: [String], _ ids: [String]) async throws -> MailFound {
+        guard !ids.isEmpty else { return MailFound(src: [:], tgt: [:]) }
         let src = try await reader.locate(account: account, path: source, messageIDs: ids)
         let tgt = try await reader.locate(account: account, path: target, messageIDs: ids)
-        return (src, tgt)
+        return MailFound(src: src, tgt: tgt)
     }
 
     /// Looks `ids` up in source and target until every id of `waitingFor` is `arrived`, `bound` passed or `stopped`. The
     /// last lookup is the answer; whatever has not arrived is for the caller to judge (unclear, left, failed).
     func settled(account: String, source: [String], target: [String], _ ids: [String], waitingFor: Set<String>,
                  stats: inout MailMoveSettleStats, stopped: () -> Bool = { false },
-                 arrived: ([Int], [Int]) -> Bool) async throws -> (src: [String: [Int]], tgt: [String: [Int]]) {
+                 arrived: ([Int], [Int]) -> Bool) async throws -> MailFound {
         let start = settle.now()
         var waited = MailMoveSettleStats()
         defer {
@@ -394,8 +443,8 @@ public struct MailMover: Sendable {
             waited.longestMs = waited.waitedMs
             stats.add(waited)
         }
-        func done(_ r: (src: [String: [Int]], tgt: [String: [Int]])) -> Bool {
-            waitingFor.allSatisfy { arrived(r.src[$0] ?? [], r.tgt[$0] ?? []) }
+        func done(_ r: MailFound) -> Bool {
+            waitingFor.allSatisfy { arrived(r.here($0), r.there($0)) }
         }
         var result = try await lookup(account: account, source: source, target: target, ids)
         waited.lookups += 1
@@ -416,11 +465,14 @@ public struct MailMover: Sendable {
     /// folder pair go together, up to `batchSize`: one settled lookup, one move, one settled read-back per batch. A mail
     /// goes back only when its Message-ID is exactly once in the target folder and not in the source; anything else
     /// stays and counts as left (`changed`). A row the move left unclear is looked up again: in the target it goes back
-    /// like the others, in the source it was never moved (`nothing`). `failed` only when Mail returned an error for the
-    /// move back, or the mail is in neither folder afterwards.
-    public func undo(_ rows: [RunAction]) async -> (outcomes: [UUID: RunUndoOutcome], settle: MailMoveSettleStats) {
+    /// like the others, in the source it was never moved (`nothing`). Live in both folders, before or after the move
+    /// back, is `inBoth`: nothing more is moved and nothing deleted. `failed` only when Mail returned an error for the
+    /// move back, or the mail is in neither folder afterwards. Only live messages count; `deleted` counts the mails
+    /// whose lookups also found entries marked deleted.
+    public func undo(_ rows: [RunAction]) async -> (outcomes: [UUID: RunUndoOutcome], settle: MailMoveSettleStats, deleted: Int) {
         var outcomes: [UUID: RunUndoOutcome] = [:]
         var stats = MailMoveSettleStats()
+        var deleted = 0
         struct Pair: Equatable { var account: String, from: [String], to: [String] }
         var batches: [(pair: Pair, rows: [(row: RunAction, id: String)])] = []
         for row in rows {
@@ -445,12 +497,13 @@ public struct MailMover: Sendable {
                 }
                 var eligible: [(row: RunAction, item: MailMoveItem)] = []
                 for (row, id) in batch {
-                    let there = before.tgt[id] ?? [], here = before.src[id] ?? []
+                    let there = before.there(id), here = before.here(id)
                     if there.count == 1 && here.isEmpty { eligible.append((row, MailMoveItem(mailID: there[0], messageID: id))) }
                     else if row.state == .unclear && here.count == 1 && there.isEmpty { outcomes[row.id] = .nothing }
+                    else if !here.isEmpty && !there.isEmpty { outcomes[row.id] = .inBoth }
                     else { outcomes[row.id] = .changed }
                 }
-                guard !eligible.isEmpty else { continue }
+                guard !eligible.isEmpty else { deleted += before.deleted(ids); continue }
                 var errors = Set<String>(), reported = Set<String>()
                 sent = true
                 do {
@@ -464,11 +517,14 @@ public struct MailMover: Sendable {
                 }
                 let after = try await settled(account: pair.account, source: pair.from, target: pair.to, eligible.map(\.item.messageID),
                                               waitingFor: reported, stats: &stats) { src, tgt in src.count == 1 && tgt.isEmpty }
+                deleted += after.deleted(ids)
                 for (row, item) in eligible {
-                    let back = after.src[item.messageID] ?? [], still = after.tgt[item.messageID] ?? []
+                    let back = after.here(item.messageID), still = after.there(item.messageID)
                     if back.count == 1 && still.isEmpty { outcomes[row.id] = .undone }
                     // Mail did not move it and said no error: it stays in the target, as it was.
                     else if still.count == 1 && back.isEmpty && !errors.contains(item.messageID) { outcomes[row.id] = .changed }
+                    // Copied back but not deleted from the target after the bound: Pippa deletes neither copy.
+                    else if !back.isEmpty && !still.isEmpty { outcomes[row.id] = .inBoth }
                     else { outcomes[row.id] = .failed }
                 }
             } catch MailMoveProblem.noFolder where !sent {
@@ -478,7 +534,7 @@ public struct MailMover: Sendable {
                 for (row, _) in batch where outcomes[row.id] == nil { outcomes[row.id] = .failed }
             }
         }
-        return (outcomes, stats)
+        return (outcomes, stats, deleted)
     }
 
     // MARK: Helpers
