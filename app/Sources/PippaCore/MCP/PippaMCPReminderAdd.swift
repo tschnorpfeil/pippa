@@ -90,6 +90,7 @@ extension PippaMCPWriteTools {
             let result = Self.blocked(status, tell, receipt: .init(action: "reminderAdd", outcome: "failed", name: record.label, reason: status))
             return await finishReminderFailure(result, record: record, journal: journal, lease: lease)
         }
+        var row: PippaMCPRunRow?
         do {
             try lease.check()
             let target: NativeReminderTarget
@@ -98,6 +99,10 @@ extension PippaMCPWriteTools {
             record = try await journal.prepareNativeReminder(id: record.id, target: target)
             lease.bindOperationID(record.id, nativeRevision: record.revision)
             try lease.check()
+            // The run row is on disk before the reminder's own dispatch, so either one shows an interrupted save.
+            row = try await PippaMCPRunRow.dispatch(host, lease: lease, tool: "reminder_add",
+                                                    object: RunObject(kind: "reminder", fields: ["marker": record.marker.absoluteString]),
+                                                    label: record.label, after: ["list": target.title])
             record = try await journal.dispatchNativeReminder(id: record.id)
             lease.bindOperationID(record.id, nativeRevision: record.revision)
             // A Stop during the journal commit still prevents the actual native dispatch.
@@ -105,9 +110,19 @@ extension PippaMCPWriteTools {
             let result = try await writer.addReminder(record.reminder, target: target, marker: record.marker)
             // Do not check cancellation here: the OS result is evidence, including after Stop or a lost Pi reply.
             record = try await journal.completeNativeReminder(id: record.id, result: result)
-            return reminderCompleted(record, repeated: false)
+            var matched = true
+            if let row {
+                matched = Self.readBackMatches(await writer.readBack(result.item), result.item, title: record.reminder.title,
+                                               container: target.identifier)
+                var object = RunObject.created(result.item)
+                object.fields["marker"] = record.marker.absoluteString
+                await row.complete(verified: matched, object: object, after: ["list": result.container])
+            }
+            let completed = reminderCompleted(record, repeated: false)
+            return row == nil ? completed : Self.verified(completed, matched: matched, integration: .reminders)
         } catch {
             let result = failure(error, .reminders, receipt: .init(action: "reminderAdd", outcome: "failed", name: record.label, reason: "failed"))
+            await row?.abandon(dispatched: lease.hasDispatched)
             return await finishReminderFailure(result, record: record, journal: journal, lease: lease)
         }
     }

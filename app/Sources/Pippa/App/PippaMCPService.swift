@@ -187,8 +187,46 @@ enum PippaMCPService {
         return await Confirmations.ask(request) == .confirmed(true)
     }
 
-    /// Undo from the receipt row: removes the event or reminder only if it is unchanged since Pippa added it.
-    static func undo(_ receipt: PippaMCPWriteReceipt) async -> PippaMCPWriteReceipt { await currentHost.undo(receipt) }
+    /// Undo from the receipt row: removes the event or reminder only if it is unchanged since Pippa added it. Its row
+    /// in the run journal then counts as undone, so Undo for the whole answer leaves it alone.
+    static func undo(_ receipt: PippaMCPWriteReceipt) async -> PippaMCPWriteReceipt {
+        let result = await currentHost.undo(receipt)
+        if result.undo == "removed", let key = result.created?.identifier { try? await currentHost.reminderJournal?.markRunObjectUndone(key: key) }
+        return result
+    }
+
+    // MARK: Run journal (RunJournal.swift)
+
+    /// File changes Pi reported (`pippa-change`), recorded in order under the running answer.
+    private static var fileChanges: Task<Void, Never>?
+
+    /// Pi already changed these files; the journal reads each back and keeps it for Undo of the whole answer.
+    static func recordFileChanges(_ entry: String) {
+        guard let run = currentHost.turns.active?.id, let journal = currentHost.reminderJournal else { return }
+        let previous = fileChanges
+        fileChanges = Task {
+            await previous?.value
+            do { try await journal.recordFileChanges(run: run, entry: entry) }
+            catch { DiagnosticsLog.shared.event("lauf-journal-fehler", ["art": "pippa-change"]) }
+        }
+    }
+
+    /// The receipt for one answer, after the file changes it reported are recorded. `nil`: it changed nothing.
+    static func runSummary(_ run: UUID?) async -> RunSummary? {
+        guard let run else { return nil }
+        await fileChanges?.value
+        return await currentHost.runSummaries([run])[run]
+    }
+
+    static func runSummaries(_ runs: [UUID]) async -> [UUID: RunSummary] { await currentHost.runSummaries(runs) }
+
+    /// Undo for a whole answer. `nil` report: the journal could not be read or another Undo of it is running.
+    static func undoRun(_ run: UUID) async -> (summary: RunSummary?, report: RunUndoReport?) {
+        let report = try? await currentHost.undoRun(run)
+        DiagnosticsLog.shared.event("lauf-rueckgaengig", ["rueckgaengig": String(report?.undone.count ?? 0),
+                                                         "geblieben": String(report?.left.count ?? 0), "fehler": String(report?.failed.count ?? 0)])
+        return (await runSummary(run), report)
+    }
 
     /// Bring mail to the front ("Entwurf öffnen"). With PIPPA_DEMO=1 nothing (no real apps).
     static func showMail() async {

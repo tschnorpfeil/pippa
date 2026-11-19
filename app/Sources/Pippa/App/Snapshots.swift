@@ -129,6 +129,8 @@ enum Snapshots {
             // Still at its limit after every try: Continue counts down its minute.
             ("rate-limit-continue", { chat.showSample(sampleConversations(limited: true), current: "c1", answering: false) }, 760, false, false),
             ("cards", { chat.showSample(sampleCards() + sampleConversations(), current: "cards", answering: false) }, 1480, false, false),
+            // One receipt per answer from the run journal: all checked with Undo, unclear after a crash, and after Undo.
+            ("run-receipt", { chat.showSample(sampleRuns() + sampleConversations(), current: "runs", answering: false) }, 900, false, false),
             ("setup", {
                 chat.showSample([], current: nil, answering: false)
                 setup.showForSnapshot(.downloading(progress: 0.42, remaining: 380))
@@ -334,6 +336,25 @@ enum Snapshots {
     }
 
     /// A thesis read part by part (runtime/pippa-tools/digest.ts): the answer rests on Pippa's notes.
+    private static func sampleRuns() -> [Conversation] {
+        let sample = CreatedItem(integration: .calendar, identifier: "snapshot", modified: nil)
+        var tidy = ChatMessage(role: .assistant, text: "Erledigt: zwei Termine eingetragen und die Rechnung ins Archiv verschoben.")
+        tidy.receipts = [PippaMCPWriteReceipt(action: "calendarAdd", outcome: "done", name: "Mo., 24. Nov., 09:00 – Zahnarzt", created: sample),
+                         PippaMCPWriteReceipt(action: "calendarAdd", outcome: "done", name: "Di., 25. Nov., 18:00 – Elternabend", created: sample)]
+        tidy.run = RunSummary(run: UUID(), changes: 3, checked: 3, undoable: 3)
+        tidy.duration = 9
+        var cut = ChatMessage(role: .assistant, text: "")
+        cut.run = RunSummary(run: UUID(), changes: 2, checked: 1, unclear: 1)
+        var undone = ChatMessage(role: .assistant, text: "Drei Erinnerungen für die Steuer sind angelegt.")
+        undone.run = RunSummary(run: UUID(), changes: 3, checked: 3, undone: 2, left: 1)
+        undone.duration = 5
+        return [Conversation(id: "runs", title: "Woche vorbereiten", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Trag die Termine aus dem Brief ein und leg die Rechnung ins Archiv."), tidy,
+            ChatMessage(role: .user, text: "Und die Termine für Dezember?"), cut,
+            ChatMessage(role: .user, text: "Erinnere mich an die Steuerunterlagen."), undone,
+        ])]
+    }
+
     private static func sampleLongDocument() -> [Conversation] {
         var answer = ChatMessage(role: .assistant, text: """
         Die Arbeit untersucht, wie sich **Wärmepumpen in Altbauten** rechnen.

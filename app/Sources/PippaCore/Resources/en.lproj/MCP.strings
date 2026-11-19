@@ -103,3 +103,4 @@
 "More than one calendar is called “%@”. Rename one in Calendar, then ask again. Nothing was added." = "More than one calendar is called “%@”. Rename one in Calendar, then ask again. Nothing was added.";
 "The calendar “%@” is read-only. Choose another calendar. Nothing was added." = "The calendar “%@” is read-only. Choose another calendar. Nothing was added.";
 "Pippa can only do this when you can confirm it." = "Pippa can only do this when you can confirm it.";
+"Pippa couldn’t confirm the change in %@ when she checked it. Please look there. She won’t repeat it." = "Pippa couldn’t confirm the change in %@ when she checked it. Please look there. She won’t repeat it.";

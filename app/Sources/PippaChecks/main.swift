@@ -74,6 +74,7 @@ await focused("PIPPA_MCP_CHECKS", "MCP") {
     await runMCPChecks()
     await runMCPBrowserChecks()
     await runNativeReminderChecks()
+    await runRunJournalChecks()
 }
 
 // The memory probe's window, access states and privacy; synthetic stand-ins only.
@@ -456,6 +457,7 @@ await runMCPActionClassChecks()
 await runMCPChecks()
 await runMCPBrowserChecks()
 await runNativeReminderChecks()
+await runRunJournalChecks()
 await runPermissionRepairChecks()
 await runDownloadHangChecks()
 await runMemoryProbeChecks()

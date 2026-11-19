@@ -61,6 +61,8 @@ struct ReceiptRow: View {
             default: break
             }
         }
+        // Checked against the app and it did not match, or the save was cut off: never "not added".
+        if receipt.outcome == "unclear", ["calendarAdd", "reminderAdd"].contains(receipt.action) { return T("Unclear, please check", table: "App") }
         switch receipt.action {
         case "calendarAdd": return done ? T("Added to Calendar", table: "App") : T("Not added to Calendar", table: "App")
         case "reminderAdd": return done ? T("Reminder added", table: "App") : T("No reminder added", table: "App")
@@ -106,5 +108,59 @@ struct ReceiptRow: View {
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
         NSWorkspace.shared.openApplication(at: app, configuration: config)
+    }
+}
+
+/// The one receipt for everything an answer changed (the run journal, `RunSummary`): how many changes, how many Pippa
+/// checked against the app or the file afterwards, and one Undo for all of them. After Undo it counts what was undone,
+/// what stayed because it changed since, and what failed.
+struct RunReceiptRow: View {
+    var summary: RunSummary
+    var undoing = false
+    /// `nil`: no Undo here (while the answer is still running).
+    var undo: (() -> Void)? = nil
+    private var attention: Bool { summary.unclear > 0 || summary.failed > 0 || summary.left > 0 }
+
+    var body: some View {
+        HStack(spacing: Space.ml) {
+            Image(systemName: summary.undoTried ? "arrow.uturn.backward" : attention ? "exclamationmark.triangle" : "checkmark.seal")
+                .font(Typo.footnote.weight(.semibold))
+                .foregroundStyle(attention ? Theme.need : summary.undoTried ? Theme.ink2 : Theme.ok)
+                .frame(width: 28, height: 28)
+                .background(attention ? Theme.needTint : summary.undoTried ? Theme.fill2 : Theme.okTint,
+                            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+            Text(Self.title(summary)).font(Typo.callout.weight(.semibold)).fontDesign(.rounded).foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: Space.m)
+            // Only rows Pippa can put back count; an answer without any shows no Undo.
+            if let undo, summary.undoable > 0 {
+                if undoing { ProgressView().controlSize(.small) } else { ActionPill(title: T("Undo", table: "App"), action: undo) }
+            }
+        }
+        .padding(.horizontal, Space.card).padding(.vertical, Space.ml)
+        .frame(maxWidth: Layout.cardMax, alignment: .leading)
+        .raised(Radius.card)
+    }
+
+    /// "3 changes, all checked", "3 changes, 1 unclear, please check", "2 changes undone, 1 left because it changed since".
+    static func title(_ s: RunSummary) -> String {
+        if s.undoTried {
+            var parts: [String] = []
+            if s.undone > 0 { parts.append(s.undone == 1 ? T("1 change undone", table: "App") : T("%lld changes undone", table: "App", s.undone)) }
+            if s.left > 0 { parts.append(s.left == 1 ? T("1 left because it changed since", table: "App") : T("%lld left because they changed since", table: "App", s.left)) }
+            if s.failed > 0 { parts.append(s.failed == 1 ? T("1 couldn’t be undone", table: "App") : T("%lld couldn’t be undone", table: "App", s.failed)) }
+            if s.unclear > 0 { parts.append(T("%lld unclear, please check", table: "App", s.unclear)) }
+            return parts.joined(separator: ", ")
+        }
+        let count = s.changes == 1 ? T("1 change", table: "App") : T("%lld changes", table: "App", s.changes)
+        let status: String
+        if s.unclear > 0 {
+            status = s.unclear == s.changes ? T("unclear, please check", table: "App") : T("%lld unclear, please check", table: "App", s.unclear)
+        } else if s.checked == s.changes {
+            status = s.changes == 1 ? T("checked", table: "App") : T("all checked", table: "App")
+        } else {
+            status = T("%lld checked", table: "App", s.checked)
+        }
+        return T("%@, %@", table: "App", count, status)
     }
 }

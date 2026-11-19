@@ -29,6 +29,9 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     var steps: [ChatStep] = []
     var cards: [ResultCard] = []
     var receipts: [PippaMCPWriteReceipt] = []
+    /// Answer: the receipt for all its journaled changes (the run journal), with one Undo for the whole answer. Set
+    /// when the answer starts, so a crash mid-answer still shows its unclear changes at the next start.
+    var run: RunSummary?
     /// The model's reasoning before it answered (local models think first); shown folded.
     var thinking: String?
     /// Dates in the answer that nothing Pippa read shows (`DateEvidence`); named under the answer.
@@ -268,7 +271,56 @@ final class ChatModel: ObservableObject {
                 message.receipts[index] = result
             }
             if result.undo == "removed" { undoneNotes[id, default: []].append(result.name) }
+            if let run = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == messageID })?.run?.run,
+               let summary = await PippaMCPService.runSummary(run) {
+                update(messageID, in: id) { $0.run = summary }
+            }
             save(id)
+        }
+    }
+
+    /// Undo for everything the answer changed: backwards through its journal rows, each only if unchanged since Pippa
+    /// touched it; the receipt then counts what was undone, left because it changed, and failed.
+    func undoRun(in messageID: UUID) {
+        guard let id = currentID, let run = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == messageID })?.run,
+              run.undoable > 0 else { return }
+        let key = Self.undoKey(messageID, -1)
+        guard !undoing.contains(key) else { return }
+        undoing.insert(key)
+        Task {
+            let (summary, report) = await PippaMCPService.undoRun(run.run)
+            undoing.remove(key)
+            let undone = Set(report?.undone.compactMap(\.object.key) ?? []), left = Set(report?.left.compactMap(\.object.key) ?? [])
+            update(messageID, in: id) { message in
+                // No rows any more (pruned after 30 days): nothing left to undo.
+                message.run = summary ?? RunSummary(run: run.run, changes: run.changes, checked: run.checked, unclear: run.unclear,
+                                                    undone: run.undone, left: run.left, failed: run.failed)
+                // The answer's own receipt rows say the same as the run receipt.
+                for index in message.receipts.indices where message.receipts[index].undo == nil {
+                    guard let key = message.receipts[index].created?.identifier else { continue }
+                    if undone.contains(key) { message.receipts[index].undo = "removed" } else if left.contains(key) { message.receipts[index].undo = "changed" }
+                }
+            }
+            if let report, !report.undone.isEmpty { undoneNotes[id, default: []].append(contentsOf: report.undone.map(\.label)) }
+            save(id)
+        }
+    }
+
+    /// The run receipts as the journal has them now. A change cut off by a crash or quit shows as unclear.
+    private func refreshRuns() {
+        let runs = conversations.flatMap(\.messages).compactMap(\.run?.run)
+        guard !runs.isEmpty else { return }
+        Task {
+            let summaries = await PippaMCPService.runSummaries(runs)
+            var changed: Set<String> = []
+            for c in conversations.indices {
+                for m in conversations[c].messages.indices {
+                    guard let run = conversations[c].messages[m].run, let fresh = summaries[run.run], fresh != run else { continue }
+                    conversations[c].messages[m].run = fresh
+                    changed.insert(conversations[c].id)
+                }
+            }
+            changed.forEach(save)
         }
     }
 
@@ -332,7 +384,12 @@ final class ChatModel: ObservableObject {
             var refused = false
             var mcpTurnID: UUID?
             do {
-                try await PippaMCPService.$onBeginTurn.withValue({ mcpTurnID = $0 }) {
+                try await PippaMCPService.$onBeginTurn.withValue({ turnID in
+                    mcpTurnID = turnID
+                    // On disk with its run before any tool runs (RunJournal.swift).
+                    self.update(reply.id, in: id) { $0.run = RunSummary(run: turnID) }
+                    self.save(id)
+                }) {
                     try await PiSession.shared.ask(outgoing, conversation: id, handoff: handoff, onStarting: { self.starting($0) }) {
                         self.apply($0, in: id)
                     }
@@ -362,11 +419,13 @@ final class ChatModel: ObservableObject {
             }
             let cards = PippaMCPService.takeReadCards(turnID: mcpTurnID)
             let receipts = PippaMCPService.writeNotes.take()
+            let run = await PippaMCPService.runSummary(mcpTurnID)
             let stopped = stopRequested
             if refused { end(); save(id); return }
             update(reply.id, in: id) { message in
                 message.cards = cards
                 message.receipts = receipts
+                message.run = run
                 let dates = evidence.unsupported(in: message.text)
                 message.unsupportedDates = dates.isEmpty ? nil : dates
                 let checked = evidence.supported(in: message.text)
@@ -761,6 +820,8 @@ final class ChatModel: ObservableObject {
             }
         case .notice(let text, let kind) where kind == "error" || kind == "warning":
             updateLast(in: id) { $0.error = text }
+        case .notice(let text, "pippa-change"):
+            PippaMCPService.recordFileChanges(text)
         default:
             break
         }
@@ -820,6 +881,7 @@ final class ChatModel: ObservableObject {
                 self.conversations = (self.conversations + saved.conversations.filter { !known.contains($0.id) }).sorted { $0.updated > $1.updated }
                 self.unreadable = saved.unreadable
                 self.isLoaded = true
+                self.refreshRuns()
             }
         }
     }

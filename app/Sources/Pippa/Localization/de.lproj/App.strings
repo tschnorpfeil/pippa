@@ -269,3 +269,20 @@
 "The online AI is still at its limit. Wait a minute, then continue where it stopped." = "Die Online-KI ist noch an ihrer Grenze. Warte eine Minute und mach dann dort weiter, wo sie aufgehört hat.";
 "Continue in %lld s" = "Weiter in %lld s";
 "Continue" = "Weiter";
+
+/* Run receipt: everything one answer changed (ReceiptRow.swift) */
+"Unclear, please check" = "Unklar, bitte nachsehen";
+"1 change undone" = "1 Änderung rückgängig gemacht";
+"%lld changes undone" = "%lld Änderungen rückgängig gemacht";
+"1 left because it changed since" = "1 bleibt, weil sie seitdem geändert wurde";
+"%lld left because they changed since" = "%lld bleiben, weil sie seitdem geändert wurden";
+"1 couldn’t be undone" = "1 ließ sich nicht rückgängig machen";
+"%lld couldn’t be undone" = "%lld ließen sich nicht rückgängig machen";
+"%lld unclear, please check" = "%lld unklar, bitte nachsehen";
+"1 change" = "1 Änderung";
+"%lld changes" = "%lld Änderungen";
+"unclear, please check" = "unklar, bitte nachsehen";
+"checked" = "geprüft";
+"all checked" = "alle geprüft";
+"%lld checked" = "%lld geprüft";
+"%@, %@" = "%@, %@";
