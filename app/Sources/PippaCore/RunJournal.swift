@@ -171,9 +171,11 @@ public struct RunSummary: Codable, Sendable, Equatable {
     public var undoFinished: Bool { undoTried && undoable == 0 }
 
     /// Whether the run receipt shows next to the answer's own receipts: when the answer changed more than one thing,
-    /// something is unclear, nothing else names the change, or the run can undo more than the receipts offer.
+    /// something is unclear, nothing else names the change, or the run can undo more than the receipts offer. Rows Undo
+    /// already tried count on both sides, so a receipt shown for its Undo stays to show the outcome.
     public func shows(beside receipts: [PippaMCPWriteReceipt]) -> Bool {
-        changes > 0 && (changes > 1 || unclear > 0 || receipts.isEmpty || undoable > receipts.filter(\.canUndo).count)
+        let offered = receipts.filter { $0.outcome == "done" && $0.created != nil }.count
+        return changes > 0 && (changes > 1 || unclear > 0 || receipts.isEmpty || undoable + undone + left + failed > offered)
     }
 }
 
@@ -274,7 +276,7 @@ extension Executor {
         guard let record = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
               let changes = record["changes"] as? [[String: Any]] else { return [] }
         let tool = record["tool"] as? String ?? "write"
-        var drafts: [RunActionDraft] = [], results: [Bool?] = []
+        var drafts: [RunActionDraft] = [], results: [Bool?] = [], failed: Set<UUID> = []
         for change in changes {
             func path(_ key: String) -> String? { (change[key] as? String).flatMap { $0.hasPrefix("/") ? $0 : nil } }
             var kind = change["kind"] as? String
@@ -283,8 +285,11 @@ extension Executor {
             case "external":
                 // A shell command the person allowed online: it left the Mac, nothing to read back or undo.
                 guard let label = change["label"] as? String, !label.isEmpty else { continue }
-                drafts.append(RunActionDraft(tool: tool, actionClass: .external, object: RunObject(kind: "shell.online", fields: [:]),
-                                             label: String(label.prefix(200))))
+                let draft = RunActionDraft(tool: tool, actionClass: .external, object: RunObject(kind: "shell.online", fields: [:]),
+                                           label: String(label.prefix(200)))
+                // Failed or stopped after it started: it may have sent something, so its outcome is unclear.
+                if change["unclear"] as? Bool == true { failed.insert(draft.id) }
+                drafts.append(draft)
                 results.append(nil)
                 continue
             case "restore":
@@ -320,7 +325,9 @@ extension Executor {
         }
         guard !drafts.isEmpty else { return [] }
         let rows = try planRunActions(run: run, drafts, dispatched: true)
-        return try completeRunActions(zip(rows, results).map { RunActionResult(id: $0.id, verified: $1) })
+        try unclearRunActions(Array(failed))
+        _ = try completeRunActions(zip(rows, results).filter { !failed.contains($0.0.id) }.map { RunActionResult(id: $0.id, verified: $1) })
+        return try runActions(run: run).filter { row in rows.contains { $0.id == row.id } }
     }
 
     /// The person's Undo on one receipt row of `run`, or a stop that took the object back: its row in that run takes the

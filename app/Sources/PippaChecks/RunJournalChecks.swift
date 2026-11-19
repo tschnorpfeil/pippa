@@ -330,14 +330,18 @@ func runRunJournalChecks() async {
             && mine?.state == .undone && theirs?.state == .done
     }
 
-    check("Run receipt: shown whenever the run can undo something the single receipts do not offer") {
+    check("Run receipt: shown whenever the run can undo something the single receipts do not offer, and stays after its Undo") {
         let run = UUID()
         let one = RunSummary(run: run, changes: 1, checked: 1, undoable: 1)
         let failed = PippaMCPWriteReceipt(action: "calendarAdd", outcome: "failed", name: "Not added")
         let added = PippaMCPWriteReceipt(action: "calendarAdd", outcome: "done", name: "Added",
                                          created: CreatedItem(integration: .calendar, identifier: "x", modified: nil))
+        var undoneReceipt = added; undoneReceipt.undo = "removed"
         return one.shows(beside: [failed]) && !one.shows(beside: [added]) && one.shows(beside: [])
             && !RunSummary(run: run, changes: 1, checked: 1).shows(beside: [failed])
+            && RunSummary(run: run, changes: 1, checked: 1, undone: 1).shows(beside: [failed])
+            && RunSummary(run: run, changes: 1, checked: 1, left: 1).shows(beside: [failed])
+            && !RunSummary(run: run, changes: 1, checked: 1, undone: 1).shows(beside: [undoneReceipt])
     }
 
     await checkAsync("Run journal: a shell command allowed online becomes an external row without Undo") {
@@ -347,6 +351,15 @@ func runRunJournalChecks() async {
         let summary = await f.host.runSummaries([f.run])[f.run]
         return rows.count == 1 && rows[0].actionClass == .external && rows[0].tool == "bash" && rows[0].state == .done
             && rows[0].label == "curl -sO https://example.org/a.pdf" && summary == RunSummary(run: f.run, changes: 1, undoable: 0)
+    }
+
+    await checkAsync("Run journal: an online shell command that failed or was stopped leaves an unclear external row") {
+        let f = try RunFixture()
+        let entry: [String: Any] = ["v": 1, "tool": "bash", "changes": [["kind": "external", "label": "curl -sO https://example.org/a.pdf", "unclear": true]]]
+        let rows = try await f.journal.recordFileChanges(run: f.run, entry: String(decoding: try JSONSerialization.data(withJSONObject: entry), as: UTF8.self))
+        let summary = await f.host.runSummaries([f.run])[f.run]
+        return rows.count == 1 && rows[0].actionClass == .external && rows[0].state == .unclear
+            && summary == RunSummary(run: f.run, changes: 1, unclear: 1)
     }
 
     await checkAsync("Run journal: rows older than 30 days are pruned at open, by the journal's clock") {

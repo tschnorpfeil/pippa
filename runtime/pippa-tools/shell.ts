@@ -468,6 +468,8 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 								// call, which could send something else under the same words.
 								now.add("net");
 								reran = true;
+								// The online row is for the second run: one stopped before it started never went online.
+								dispatched = false;
 								result = withNote(await run(), "The first try failed without the internet; after the person's yes this same command ran a second time, online. Any other command that goes online asks again.");
 							} else {
 								for (const g of missing) grants.add(g);
@@ -481,8 +483,9 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						if (result?.isError && (!allowedNow || reran)) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
 					}
 					// The person allowed this command online and it ran: the app records it in the answer's run journal
-					// (pippa-assist.ts `changesOf`), by the command alone, never its output.
-					if (now.has("net") && dispatched) result = { ...result, details: { ...(result.details ?? {}), pippaOnline: { command } } };
+					// (pippa-assist.ts `changesOf`), by the command alone, never its output. A failed or stopped run may
+					// have sent something anyway: `failed` makes its row unclear.
+					if (now.has("net") && dispatched) result = { ...result, details: { ...(result.details ?? {}), pippaOnline: { command, failed: result?.isError === true } } };
 					if (kept.size) {
 						const copies = [...kept].map(([file, copy]) => ({ file, copy }));
 						result = withNote(result, copies.map(({ file, copy }) => `The previous version of ${file} is kept at ${copy}.`).join("\n"));

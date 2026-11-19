@@ -206,10 +206,10 @@ export async function pruneBackups(directory: string, days = BACKUP_DAYS, now = 
 
 /** One change Pippa can take back (app: Executor.recordFileChanges). `restore`: copy `copy` back over `file`;
  * `create`: the file is new, undo moves it to the Trash; `move`/`trash`: put `to` back at `from`. `external`: a shell
- * command the person allowed online; it gets a row, but nothing to take back. */
+ * command the person allowed online; it gets a row, but nothing to take back (`unclear` when it failed or was stopped). */
 export type Change =
 	| { kind: "restore"; file: string; copy: string }
-	| { kind: "external"; label: string }
+	| { kind: "external"; label: string; unclear?: true }
 	| { kind: "create"; file: string }
 	| { kind: "move" | "trash"; from: string; to: string };
 
@@ -224,8 +224,9 @@ export function changesOf(tool: string, details: any, isError: boolean): Change[
 			: [];
 		// A command the person allowed online (shell.ts): an `external` row, named by the command, without its output.
 		const command = details?.pippaOnline?.command;
+		const failed = isError || details?.pippaOnline?.failed === true;
 		const online: Change[] = typeof command === "string" && command.trim()
-			? [{ kind: "external", label: command.replace(/\s+/g, " ").trim().slice(0, 200) }] : [];
+			? [{ kind: "external", label: command.replace(/\s+/g, " ").trim().slice(0, 200), ...(failed ? { unclear: true } : {}) }] : [];
 		return [...kept, ...online];
 	}
 	if ((tool === "edit" || tool === "write") && before?.copy) {

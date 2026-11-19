@@ -356,7 +356,7 @@ test("tool: going online is asked per command; a later command never inherits it
 	await bash.execute("n2", { command: "curl -sO https://example.org/b.pdf" }, undefined, undefined, person.ctx("/fixture"));
 	assert.deepEqual(person.asked, ["May Pippa go online?", "May Pippa go online?"], "two network commands in one answer ask twice");
 	const offline = await bash.execute("n3", { command: "ls -la" }, undefined, undefined, person.ctx("/fixture"));
-	assert.deepEqual(first.details.pippaOnline, { command: "curl -sO https://example.org/a.pdf" }, "an allowed online command is reported for the run journal");
+	assert.deepEqual(first.details.pippaOnline, { command: "curl -sO https://example.org/a.pdf", failed: false }, "an allowed online command is reported for the run journal");
 	assert.equal(offline.details.pippaOnline, undefined, "a command that asked nothing is not");
 	const declined = await bash.execute("n4", { command: "curl -sO https://example.org/c.pdf" }, undefined, undefined, person.ctx("/fixture"));
 	assert.equal(declined.content[0].text, SHELL_DECLINED_REASON);
@@ -389,6 +389,28 @@ test("tool: a yes after a command failed offline runs that command again online 
 	assert.ok(second.isError);
 	assert.deepEqual(runs.map((run) => run.online), [false, true, false]);
 	assert.equal(person.asked.length, 2);
+	assert.deepEqual(first.details.pippaOnline, { command: "./fetch.sh", failed: false }, "the online row is for the second run");
+});
+
+test("tool: the online row reflects the second run: failed online is reported failed, never started online is not reported", async () => {
+	const offlineError = { content: [{ type: "text", text: "urllib.error.URLError: <urlopen error [Errno 8] nodename nor servname provided>" }], isError: true };
+	const tool = (second) => {
+		let calls = 0;
+		return shellTool((cwd, options) => ({ name: "bash", execute: async (id, params) => {
+			if (calls++ > 0) return second(options, params, cwd);
+			assert.ok(options.spawnHook({ command: params.command, cwd, env: {} }).command.includes("(deny network*)"), "the first run is offline");
+			return offlineError;
+		} }), { available: () => true, env: { PIPPA_LANGUAGE: "en" }, home: "/Users/renate" }).definition("/fixture");
+	};
+	// The second run spawns online and fails.
+	const failed = await tool((options, params, cwd) => { options.spawnHook({ command: params.command, cwd, env: {} }); return { ...offlineError, content: [{ type: "text", text: "HTTP 500" }] }; })
+		.execute("o1", { command: "./fetch.sh" }, undefined, undefined, ui([true]).ctx("/fixture"));
+	assert.deepEqual(failed.details.pippaOnline, { command: "./fetch.sh", failed: true });
+	// The second run ends before it spawns: nothing went online.
+	const never = await tool(() => { throw new Error("Aborted"); })
+		.execute("o2", { command: "./fetch.sh" }, undefined, undefined, ui([true]).ctx("/fixture"));
+	assert.ok(never.isError);
+	assert.equal(never.details.pippaOnline, undefined);
 });
 
 test("codemode-style script: nested bash calls through the registered tool ask per network command", async () => {
