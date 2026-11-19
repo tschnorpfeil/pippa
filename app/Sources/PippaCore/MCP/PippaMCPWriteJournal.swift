@@ -5,19 +5,25 @@ import Foundation
 struct PippaMCPRunRow: Sendable {
     let journal: Executor
     let id: UUID
+    let run: UUID
 
     /// `nil`: no run (no answer owns the lease) or a host without a journal that does not require one (checks).
     /// Throws when the host requires the journal and the row cannot be written; then nothing may run.
     static func dispatch(_ host: PippaMCPHost, lease: PippaMCPWriteLease?, tool: String, object: RunObject, label: String,
                          before: [String: String]? = nil, after: [String: String]? = nil) async throws -> PippaMCPRunRow? {
-        guard let lease, let run = lease.turnID else { return nil }
+        try await dispatch(host, run: lease?.turnID, tool: tool, object: object, label: label, before: before, after: after)
+    }
+
+    static func dispatch(_ host: PippaMCPHost, run: UUID?, tool: String, actionClass: PippaActionClass? = nil, object: RunObject,
+                         label: String, before: [String: String]? = nil, after: [String: String]? = nil) async throws -> PippaMCPRunRow? {
+        guard let run else { return nil }
         guard let journal = host.reminderJournal else {
             if host.requiresReminderJournal { throw NativeReminderJournalError.unreadable }
             return nil
         }
-        let rows = try await journal.planRunActions(run: run, [RunActionDraft(tool: tool, object: object, before: before, after: after, label: label)],
-                                                    dispatched: true)
-        return PippaMCPRunRow(journal: journal, id: rows[0].id)
+        let draft = RunActionDraft(tool: tool, actionClass: actionClass, object: object, before: before, after: after, label: label)
+        let rows = try await journal.planRunActions(run: run, [draft], dispatched: true)
+        return PippaMCPRunRow(journal: journal, id: rows[0].id, run: run)
     }
 
     /// A failed commit leaves the row dispatched, which reads as unclear: never as done.
@@ -86,13 +92,31 @@ extension PippaMCPHost {
             guard let journal = reminderJournal else { return nil }
             return { row in
                 guard let job = row.object.fields["job"].flatMap(UUID.init), let path = row.object.fields["path"] else { return .failed }
-                guard FileManager.default.fileExists(atPath: path) else { return .gone }
+                // Gone or moved away by the person: it stays as it is, never recreated or counted as undone.
                 guard (try? DurableFileIdentity.capture(URL(fileURLWithPath: path))) == row.object.fileIdentity else { return .changed }
                 do { return try await journal.undo(jobID: job).conflicts.isEmpty ? .undone : .changed } catch { return .failed }
             }
         default:
             return RunFileRecipes.recipe(kind)
         }
+    }
+
+    /// Undo from one receipt row of `run`, under the same lock as Undo of the whole answer; its run row then takes the
+    /// same outcome, so each Undo sees what the other did. Busy: the receipt comes back as it was.
+    public func undo(_ receipt: PippaMCPWriteReceipt, run: UUID?) async -> PippaMCPWriteReceipt {
+        guard let run, let journal = reminderJournal, let key = receipt.created?.identifier, receipt.canUndo else { return await undo(receipt) }
+        do { try await journal.beginRunUndo(run) } catch { return receipt }
+        let result = await undo(receipt)
+        let outcome: RunUndoOutcome? = switch result.undo {
+        case "removed": .undone
+        case "gone": .gone
+        case "changed": .changed
+        case "failed": .failed
+        default: nil
+        }
+        if let outcome { try? await journal.markRunObject(run: run, key: key, outcome) }
+        await journal.endRunUndo(run)
+        return result
     }
 
     /// Undo for a whole run (one answer), backwards, each step only on an unchanged object.

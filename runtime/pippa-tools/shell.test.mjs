@@ -352,10 +352,12 @@ test("tool: going online is asked per command; a later command never inherits it
 	const tool = shellTool(create, { available: () => true, env: { PIPPA_LANGUAGE: "en" }, home: "/Users/renate" });
 	const bash = tool.definition("/fixture");
 	const person = ui([true, true, false]);
-	await bash.execute("n1", { command: "curl -sO https://example.org/a.pdf" }, undefined, undefined, person.ctx("/fixture"));
+	const first = await bash.execute("n1", { command: "curl -sO https://example.org/a.pdf" }, undefined, undefined, person.ctx("/fixture"));
 	await bash.execute("n2", { command: "curl -sO https://example.org/b.pdf" }, undefined, undefined, person.ctx("/fixture"));
 	assert.deepEqual(person.asked, ["May Pippa go online?", "May Pippa go online?"], "two network commands in one answer ask twice");
-	await bash.execute("n3", { command: "ls -la" }, undefined, undefined, person.ctx("/fixture"));
+	const offline = await bash.execute("n3", { command: "ls -la" }, undefined, undefined, person.ctx("/fixture"));
+	assert.deepEqual(first.details.pippaOnline, { command: "curl -sO https://example.org/a.pdf" }, "an allowed online command is reported for the run journal");
+	assert.equal(offline.details.pippaOnline, undefined, "a command that asked nothing is not");
 	const declined = await bash.execute("n4", { command: "curl -sO https://example.org/c.pdf" }, undefined, undefined, person.ctx("/fixture"));
 	assert.equal(declined.content[0].text, SHELL_DECLINED_REASON);
 	assert.deepEqual(runs, [

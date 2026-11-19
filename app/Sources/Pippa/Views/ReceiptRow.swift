@@ -62,7 +62,7 @@ struct ReceiptRow: View {
             }
         }
         // Checked against the app and it did not match, or the save was cut off: never "not added".
-        if receipt.outcome == "unclear", ["calendarAdd", "reminderAdd"].contains(receipt.action) { return T("Unclear, please check", table: "App") }
+        if receipt.outcome == "unclear", ["calendarAdd", "reminderAdd", "mailDraft"].contains(receipt.action) { return T("Unclear, please check", table: "App") }
         switch receipt.action {
         case "calendarAdd": return done ? T("Added to Calendar", table: "App") : T("Not added to Calendar", table: "App")
         case "reminderAdd": return done ? T("Reminder added", table: "App") : T("No reminder added", table: "App")
@@ -123,11 +123,11 @@ struct RunReceiptRow: View {
 
     var body: some View {
         HStack(spacing: Space.ml) {
-            Image(systemName: summary.undoTried ? "arrow.uturn.backward" : attention ? "exclamationmark.triangle" : "checkmark.seal")
+            Image(systemName: summary.undoFinished ? "arrow.uturn.backward" : attention ? "exclamationmark.triangle" : "checkmark.seal")
                 .font(Typo.footnote.weight(.semibold))
-                .foregroundStyle(attention ? Theme.need : summary.undoTried ? Theme.ink2 : Theme.ok)
+                .foregroundStyle(attention ? Theme.need : summary.undoFinished ? Theme.ink2 : Theme.ok)
                 .frame(width: 28, height: 28)
-                .background(attention ? Theme.needTint : summary.undoTried ? Theme.fill2 : Theme.okTint,
+                .background(attention ? Theme.needTint : summary.undoFinished ? Theme.fill2 : Theme.okTint,
                             in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             Text(Self.title(summary)).font(Typo.callout.weight(.semibold)).fontDesign(.rounded).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
@@ -143,14 +143,15 @@ struct RunReceiptRow: View {
     }
 
     /// "3 changes, all checked", "3 changes, 1 unclear, please check", "2 changes undone, 1 left because it changed since".
+    /// While something can still be undone, the count of changes comes first and what Undo did follows.
     static func title(_ s: RunSummary) -> String {
+        var parts: [String] = []
         if s.undoTried {
-            var parts: [String] = []
             if s.undone > 0 { parts.append(s.undone == 1 ? T("1 change undone", table: "App") : T("%lld changes undone", table: "App", s.undone)) }
             if s.left > 0 { parts.append(s.left == 1 ? T("1 left because it changed since", table: "App") : T("%lld left because they changed since", table: "App", s.left)) }
             if s.failed > 0 { parts.append(s.failed == 1 ? T("1 couldn’t be undone", table: "App") : T("%lld couldn’t be undone", table: "App", s.failed)) }
-            if s.unclear > 0 { parts.append(T("%lld unclear, please check", table: "App", s.unclear)) }
-            return parts.joined(separator: ", ")
+            if s.unclear > 0, s.undoFinished { parts.append(T("%lld unclear, please check", table: "App", s.unclear)) }
+            if s.undoFinished { return parts.joined(separator: ", ") }
         }
         let count = s.changes == 1 ? T("1 change", table: "App") : T("%lld changes", table: "App", s.changes)
         let status: String
@@ -161,6 +162,6 @@ struct RunReceiptRow: View {
         } else {
             status = T("%lld checked", table: "App", s.checked)
         }
-        return T("%@, %@", table: "App", count, status)
+        return ([T("%@, %@", table: "App", count, status)] + parts).joined(separator: ", ")
     }
 }

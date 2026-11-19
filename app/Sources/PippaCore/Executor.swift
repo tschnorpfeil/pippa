@@ -239,7 +239,7 @@ public actor Executor {
         guard fm.fileExists(atPath: copy.path) else { return L("The old version is no longer there.", table: "Core") }
         if fm.fileExists(atPath: target.path) {
             guard let fp, fp.matches(FileFingerprint.of(target)) else { return L("The file has changed since then, so it stays.", table: "Core") }
-            try fm.trashItem(at: target, resultingItemURL: nil)
+            try RunFileRecipes.moveToTrash(target)
         }
         try fm.copyItem(at: copy, to: target)
         return nil
@@ -266,7 +266,7 @@ public actor Executor {
             _ = rmdir(target.deletingLastPathComponent().path)
             return true
         }
-        try fm.trashItem(at: target, resultingItemURL: nil)
+        try RunFileRecipes.moveToTrash(target)
         return true
     }
 
@@ -303,7 +303,7 @@ public actor Executor {
                 guard let fp, fp.matches(FileFingerprint.of(target)) else {
                     conflicts.append((target, L("The file has changed since then, so it stays.", table: "Core"))); continue
                 }
-                try fm.trashItem(at: target, resultingItemURL: nil)
+                try RunFileRecipes.moveToTrash(target)
                 try journalMark(jobID, seq, "undone")
                 restored += 1
             case "trash":

@@ -480,6 +480,9 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						// run that failed too gets the limits it ran under.
 						if (result?.isError && (!allowedNow || reran)) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
 					}
+					// The person allowed this command online and it ran: the app records it in the answer's run journal
+					// (pippa-assist.ts `changesOf`), by the command alone, never its output.
+					if (now.has("net") && dispatched) result = { ...result, details: { ...(result.details ?? {}), pippaOnline: { command } } };
 					if (kept.size) {
 						const copies = [...kept].map(([file, copy]) => ({ file, copy }));
 						result = withNote(result, copies.map(({ file, copy }) => `The previous version of ${file} is kept at ${copy}.`).join("\n"));

@@ -188,11 +188,9 @@ enum PippaMCPService {
     }
 
     /// Undo from the receipt row: removes the event or reminder only if it is unchanged since Pippa added it. Its row
-    /// in the run journal then counts as undone, so Undo for the whole answer leaves it alone.
-    static func undo(_ receipt: PippaMCPWriteReceipt) async -> PippaMCPWriteReceipt {
-        let result = await currentHost.undo(receipt)
-        if result.undo == "removed", let key = result.created?.identifier { try? await currentHost.reminderJournal?.markRunObjectUndone(key: key) }
-        return result
+    /// in the answer's run journal (`run`) takes the same outcome, so Undo for the whole answer sees it.
+    static func undo(_ receipt: PippaMCPWriteReceipt, run: UUID?) async -> PippaMCPWriteReceipt {
+        await currentHost.undo(receipt, run: run)
     }
 
     // MARK: Run journal (RunJournal.swift)
@@ -200,9 +198,10 @@ enum PippaMCPService {
     /// File changes Pi reported (`pippa-change`), recorded in order under the running answer.
     private static var fileChanges: Task<Void, Never>?
 
-    /// Pi already changed these files; the journal reads each back and keeps it for Undo of the whole answer.
-    static func recordFileChanges(_ entry: String) {
-        guard let run = currentHost.turns.active?.id, let journal = currentHost.reminderJournal else { return }
+    /// Pi already changed these files; the journal reads each back under the answer `run` (its turn id) and keeps it
+    /// for Undo of the whole answer.
+    static func recordFileChanges(_ entry: String, run: UUID?) {
+        guard let run, let journal = currentHost.reminderJournal else { return }
         let previous = fileChanges
         fileChanges = Task {
             await previous?.value

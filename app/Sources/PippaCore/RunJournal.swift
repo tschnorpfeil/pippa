@@ -43,6 +43,14 @@ public struct RunObject: Codable, Sendable, Equatable {
         return RunObject(kind: kind, fields: fields)
     }
 
+    /// A folder at `path`, identified by device and inode (its content may change without it moving).
+    static func folder(kind: String, path: String, entry: (device: UInt64, inode: UInt64), extra: [String: String] = [:]) -> RunObject {
+        var fields = extra
+        fields["path"] = path; fields["folder"] = "1"
+        fields["device"] = String(entry.device); fields["inode"] = String(entry.inode)
+        return RunObject(kind: kind, fields: fields)
+    }
+
     public var createdItem: CreatedItem? {
         guard let identifier = fields["identifier"], kind == "event" || kind == "reminder" else { return nil }
         return CreatedItem(integration: kind == "event" ? .calendar : .reminders, identifier: identifier,
@@ -157,8 +165,16 @@ public struct RunSummary: Codable, Sendable, Equatable {
         }
     }
 
-    /// Undo was pressed for this run.
+    /// Undo was pressed for this run, or for one of its receipts.
     public var undoTried: Bool { undone + left + failed > 0 }
+    /// Nothing is left to undo after an Undo: only then the receipt reads as the outcome of Undo.
+    public var undoFinished: Bool { undoTried && undoable == 0 }
+
+    /// Whether the run receipt shows next to the answer's own receipts: when the answer changed more than one thing,
+    /// something is unclear, nothing else names the change, or the run can undo more than the receipts offer.
+    public func shows(beside receipts: [PippaMCPWriteReceipt]) -> Bool {
+        changes > 0 && (changes > 1 || unclear > 0 || receipts.isEmpty || undoable > receipts.filter(\.canUndo).count)
+    }
 }
 
 public enum RunJournalError: Error, Sendable { case invalidState, busy }
@@ -258,12 +274,19 @@ extension Executor {
         guard let record = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
               let changes = record["changes"] as? [[String: Any]] else { return [] }
         let tool = record["tool"] as? String ?? "write"
-        var drafts: [RunActionDraft] = [], results: [Bool] = []
+        var drafts: [RunActionDraft] = [], results: [Bool?] = []
         for change in changes {
             func path(_ key: String) -> String? { (change[key] as? String).flatMap { $0.hasPrefix("/") ? $0 : nil } }
-            let kind = change["kind"] as? String
+            var kind = change["kind"] as? String
             let file: String?, extra: [String: String], before: [String: String]?
             switch kind {
+            case "external":
+                // A shell command the person allowed online: it left the Mac, nothing to read back or undo.
+                guard let label = change["label"] as? String, !label.isEmpty else { continue }
+                drafts.append(RunActionDraft(tool: tool, actionClass: .external, object: RunObject(kind: "shell.online", fields: [:]),
+                                             label: String(label.prefix(200))))
+                results.append(nil)
+                continue
             case "restore":
                 guard let target = path("file"), let copy = path("copy") else { continue }
                 file = target; extra = ["copy": copy]; before = ["copy": copy]
@@ -274,15 +297,25 @@ extension Executor {
                 file = path("to"); extra = ["from": from]; before = ["path": from]
             default: continue
             }
-            guard let file, let kind else { continue }
+            guard let file, let current = kind else { continue }
             let url = URL(fileURLWithPath: file)
             let identity = try? DurableFileIdentity.capture(url)
-            // Read back: the file is where Pi says, and for a move the old place is empty.
-            var matched = identity != nil
-            if kind == "restore", let copy = extra["copy"] { matched = matched && FileManager.default.fileExists(atPath: copy) }
-            if kind == "move" || kind == "trash", let from = extra["from"] { matched = matched && !FileManager.default.fileExists(atPath: from) }
-            drafts.append(RunActionDraft(tool: tool, object: .file(kind: "file." + kind, path: file, identity: identity, extra: extra),
-                                         before: before, after: ["path": file], label: url.lastPathComponent))
+            let folder = identity == nil ? RunFileRecipes.folderEntry(file) : nil
+            // Read back: the file or folder is where Pi says, and for a move the old place is empty (a case-only rename
+            // keeps the same entry under the new name).
+            var matched = identity != nil || folder != nil
+            if current == "restore", let copy = extra["copy"] { matched = matched && FileManager.default.fileExists(atPath: copy) }
+            if current == "move" || current == "trash", let from = extra["from"] {
+                matched = matched && RunFileRecipes.vacated(from, by: file)
+                // Moved to another volume (copied, then the original removed): it cannot be renamed back safely.
+                if current == "move", RunFileRecipes.volume(of: file) != RunFileRecipes.volume(of: (from as NSString).deletingLastPathComponent) {
+                    kind = "move.otherVolume"
+                }
+            }
+            let name = "file." + (kind ?? current)
+            let object = folder.map { RunObject.folder(kind: name, path: file, entry: $0, extra: extra) }
+                ?? .file(kind: name, path: file, identity: identity, extra: extra)
+            drafts.append(RunActionDraft(tool: tool, object: object, before: before, after: ["path": file], label: url.lastPathComponent))
             results.append(matched)
         }
         guard !drafts.isEmpty else { return [] }
@@ -290,14 +323,24 @@ extension Executor {
         return try completeRunActions(zip(rows, results).map { RunActionResult(id: $0.id, verified: $1) })
     }
 
-    /// The person's Undo on one receipt row removed this object: its run row counts as undone.
-    public func markRunObjectUndone(key: String) throws {
+    /// The person's Undo on one receipt row of `run`, or a stop that took the object back: its row in that run takes the
+    /// same outcome as Undo of the whole answer would give it. Other runs are never touched.
+    public func markRunObject(run: UUID, key: String, _ outcome: RunUndoOutcome) throws {
         try runTransaction {
-            for var row in try rows("WHERE object_key=? AND state='done'", [.text(key)]) {
-                row.state = .undone; row.note = nil
-                try save(row)
+            for row in try rows("WHERE run=? AND object_key=? AND state='done'", [.text(run.uuidString), .text(key)]) {
+                try save(Self.applying(outcome, to: row))
             }
         }
+    }
+
+    private static func applying(_ outcome: RunUndoOutcome, to row: RunAction) -> RunAction {
+        var row = row
+        switch outcome {
+        case .undone, .gone: row.state = .undone; row.note = outcome == .gone ? "gone" : nil
+        case .changed: row.note = "changed"
+        case .failed: row.state = .undoFailed; row.note = "failed"
+        }
+        return row
     }
 
     // MARK: Reading
@@ -319,22 +362,30 @@ extension Executor {
 
     // MARK: Undo
 
+    /// One Undo per answer at a time, for the whole answer and for its single receipts alike: both reach the same
+    /// objects. Throws `busy` while another Undo of `run` runs.
+    public func beginRunUndo(_ run: UUID) throws {
+        guard !undoingRuns.contains(run) else { throw RunJournalError.busy }
+        undoingRuns.insert(run)
+    }
+    public func endRunUndo(_ run: UUID) { undoingRuns.remove(run) }
+
     /// Goes backwards through the run's done rows. Each step runs only if its recipe finds the object unchanged since
     /// Pippa touched it; the rest of the run continues either way. One Undo per run at a time.
     public func undoRun(_ run: UUID, recipe: @Sendable (String) -> RunUndoRecipe?) async throws -> RunUndoReport {
-        guard !undoingRuns.contains(run) else { throw RunJournalError.busy }
-        undoingRuns.insert(run)
-        defer { undoingRuns.remove(run) }
+        try beginRunUndo(run)
+        defer { endRunUndo(run) }
         var report = RunUndoReport()
         for row in try runActions(run: run).reversed() where row.state == .done && row.note != "changed" {
             guard let undo = recipe(row.object.kind) else { continue }
             let outcome = await undo(row)
             // Only from done: a concurrent single-row Undo may have finished it meanwhile.
-            guard var current = try runTransaction({ try self.row(row.id) }), current.state == .done else { continue }
+            guard let stored = try runTransaction({ try self.row(row.id) }), stored.state == .done else { continue }
+            let current = Self.applying(outcome, to: stored)
             switch outcome {
-            case .undone, .gone: current.state = .undone; current.note = outcome == .gone ? "gone" : nil; report.undone.append(current)
-            case .changed: current.note = "changed"; report.left.append(current)
-            case .failed: current.state = .undoFailed; current.note = "failed"; report.failed.append(current)
+            case .undone, .gone: report.undone.append(current)
+            case .changed: report.left.append(current)
+            case .failed: report.failed.append(current)
             }
             try runTransaction { try save(current) }
         }
@@ -410,49 +461,100 @@ extension Executor {
 
 // MARK: Undo recipes for files
 
-/// Undo for the file kinds Pi's changes produce. Each step first checks that the file is still exactly what Pippa
-/// recorded (path, inode, hash); anything else stays and is counted as changed.
+/// Undo for the file kinds Pi's changes produce. Each step first checks that the file or folder is still exactly where
+/// and what Pippa recorded (path, inode, hash); anything else, including one that is gone or was moved away, stays and
+/// counts as changed: Undo never recreates what the person removed.
 public enum RunFileRecipes {
     public static func recipe(_ kind: String) -> RunUndoRecipe? {
         switch kind {
         case "file.create": return { row in undoCreate(row) }
         case "file.restore": return { row in undoRestore(row) }
         case "file.move", "file.trash": return { row in undoMove(row) }
+        // `file.move.otherVolume`: copied across volumes; it has a row, but no Undo.
         default: return nil
         }
     }
 
+    /// Device and inode of a folder (not followed through a symlink); `nil` for anything else.
+    static func folderEntry(_ path: String) -> (device: UInt64, inode: UInt64)? {
+        var info = stat()
+        guard lstat(path, &info) == 0, info.st_mode & S_IFMT == S_IFDIR else { return nil }
+        return (UInt64(info.st_dev), UInt64(info.st_ino))
+    }
+
+    /// The volume of `path`, or of its nearest folder that still exists (the old place of a move may be gone).
+    static func volume(of path: String) -> UInt64? {
+        var info = stat(), path = path
+        while lstat(path, &info) != 0 {
+            guard path != "/", !path.isEmpty else { return nil }
+            path = (path as NSString).deletingLastPathComponent
+        }
+        return UInt64(info.st_dev)
+    }
+
+    /// Nothing is at `from` any more, or only the same entry as `to` under another case of its name (a case-only rename
+    /// on a case-insensitive volume): the folder lists the name of `to`, not that of `from`.
+    static func vacated(_ from: String, by to: String) -> Bool {
+        var a = stat(), b = stat()
+        guard lstat(from, &a) == 0 else { return true }
+        guard lstat(to, &b) == 0, a.st_dev == b.st_dev, a.st_ino == b.st_ino, from != to else { return false }
+        let parent = (from as NSString).deletingLastPathComponent, name = (from as NSString).lastPathComponent
+        return !((try? FileManager.default.contentsOfDirectory(atPath: parent)) ?? [name]).contains(name)
+    }
+
     private static func unchanged(_ row: RunAction) -> RunUndoOutcome? {
         guard let path = row.object.fields["path"] else { return .failed }
-        guard FileManager.default.fileExists(atPath: path) else { return .gone }
+        if row.object.fields["folder"] == "1" {
+            guard let entry = folderEntry(path), String(entry.device) == row.object.fields["device"],
+                  String(entry.inode) == row.object.fields["inode"] else { return .changed }
+            return nil
+        }
         guard let expected = row.object.fileIdentity, (try? DurableFileIdentity.capture(URL(fileURLWithPath: path))) == expected else { return .changed }
         return nil
     }
 
     static func undoCreate(_ row: RunAction) -> RunUndoOutcome {
         if let stop = unchanged(row) { return stop }
-        do { try FileManager.default.trashItem(at: URL(fileURLWithPath: row.object.fields["path"]!), resultingItemURL: nil); return .undone }
+        do { try moveToTrash(URL(fileURLWithPath: row.object.fields["path"]!)); return .undone }
         catch { return .failed }
     }
 
     /// The old version comes back from the kept copy; the version Pi wrote goes to the Trash (never deleted).
     static func undoRestore(_ row: RunAction) -> RunUndoOutcome {
+        if let stop = unchanged(row) { return stop }
         guard let copy = row.object.fields["copy"], FileManager.default.fileExists(atPath: copy) else { return .failed }
-        if let stop = unchanged(row), stop != .gone { return stop }
         let target = URL(fileURLWithPath: row.object.fields["path"]!)
         do {
-            if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.trashItem(at: target, resultingItemURL: nil) }
+            try moveToTrash(target)
             try FileManager.default.copyItem(at: URL(fileURLWithPath: copy), to: target)
             return .undone
         } catch { return .failed }
     }
 
-    /// Back to the old place, only if it is free; never overwrites.
+    /// Back to the old place, only if it is free; never overwrites. A case-only rename goes back under its old name.
     static func undoMove(_ row: RunAction) -> RunUndoOutcome {
         if let stop = unchanged(row) { return stop }
         guard let from = row.object.fields["from"], let path = row.object.fields["path"] else { return .failed }
-        guard !FileManager.default.fileExists(atPath: from) else { return .changed }
+        guard vacated(from, by: path) else { return .changed }
+        if FileManager.default.fileExists(atPath: from) {
+            // The same entry under another case: an exclusive rename would refuse its own name.
+            return rename(path, from) == 0 ? .undone : .failed
+        }
         try? FileManager.default.createDirectory(at: URL(fileURLWithPath: from).deletingLastPathComponent(), withIntermediateDirectories: true)
         return renamex_np(path, from, UInt32(RENAME_EXCL)) == 0 ? .undone : .failed
+    }
+
+    /// The Trash for Undo. Debug builds with `PIPPA_CHECK_TRASH` (set by PippaChecks) use that folder instead, so
+    /// checks never touch the person's real Trash.
+    static func moveToTrash(_ url: URL) throws {
+        #if DEBUG
+        if let folder = ProcessInfo.processInfo.environment["PIPPA_CHECK_TRASH"] {
+            let trash = URL(fileURLWithPath: folder, isDirectory: true).appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try FileManager.default.createDirectory(at: trash, withIntermediateDirectories: true)
+            try FileManager.default.moveItem(at: url, to: trash.appendingPathComponent(url.lastPathComponent))
+            return
+        }
+        #endif
+        try FileManager.default.trashItem(at: url, resultingItemURL: nil)
     }
 }

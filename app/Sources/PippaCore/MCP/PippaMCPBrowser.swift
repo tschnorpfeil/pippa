@@ -300,6 +300,7 @@ public struct PippaMCPBrowserTool: Sendable {
         }
         let action: BrowserAction
         var detail = ""
+        var row: PippaMCPRunRow?
         switch request.action {
         case "open":
             let url = request.url!
@@ -356,10 +357,34 @@ public struct PippaMCPBrowserTool: Sendable {
             if writes.snapshot.cancelled {
                 return (Self.notDone("cancelled", tell: L("Not done: the answer was stopped.", table: "Tools"), isError: true), detail)
             }
+            // After the yes: a run journal row (external, no Undo) on disk before the step acts on the page.
+            do {
+                row = try await PippaMCPRunRow.dispatch(host, run: turn, tool: Self.name, actionClass: .external,
+                                                        object: RunObject(kind: "browser." + request.action, fields: ["page": page]),
+                                                        label: String(message.split(whereSeparator: \.isNewline).joined(separator: " ").prefix(200)))
+            } catch {
+                return (Self.notDone("unavailable", tell: L("Pippa’s browser isn’t available right now.", table: "Tools"), isError: true), detail)
+            }
         case "back": action = .back
         case "close": action = .close
         default: action = .snapshot
         }
+        let (result, shown) = await perform(action, request: request, browser: browser, detail: detail, mutating: mutating)
+        if let row {
+            // Done when the page took the step; unclear when it may have; no row when it provably did nothing.
+            let payload = (try? JSONSerialization.jsonObject(with: Data(result.text.utf8))) as? [String: Any] ?? [:]
+            if payload["done"] as? Bool == true || payload["status"] as? String == "handoff_required" && payload["dispatched"] as? Bool == true {
+                await row.complete(verified: nil)
+            } else {
+                await row.abandon(dispatched: payload["dispatched"] as? Bool == true)
+            }
+        }
+        return (result, shown)
+    }
+
+    private func perform(_ action: BrowserAction, request: Request, browser: any BrowserOperating, detail: String,
+                         mutating: Bool) async -> (PippaMCPToolResult, String) {
+        var detail = detail
         do {
             guard let snapshot = try await browser.perform(action) else {
                 return (Self.done(["closed": true], source: nil, next: "The browser panel is closed."), detail)

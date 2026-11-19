@@ -206,8 +206,7 @@ func runRunJournalChecks() async {
         let draftOnly = await f.host.runSummaries([f.run])[f.run]
         let g = try RunFixture()
         let added = await g.event("Single undo", 9)
-        let single = await g.host.undo(added.receipt!)
-        try await g.journal.markRunObjectUndone(key: single.created!.identifier)
+        let single = await g.host.undo(added.receipt!, run: g.run)
         let report = try await g.host.undoRun(g.run)
         let counted = await g.host.runSummaries([g.run])[g.run]
         return draftOnly == RunSummary(run: f.run, changes: 1, checked: 0, undoable: 0)
@@ -240,13 +239,114 @@ func runRunJournalChecks() async {
         let report = try await f.host.undoRun(f.run)
         let text = { (url: URL) in try? String(contentsOf: url, encoding: .utf8) }
         let all = try await f.journal.runActions(run: f.run)
-        return rows.map(\.object.kind) == ["file.restore", "file.create", "file.move", "file.trash", "file.create"]
+        // The version Pi wrote went to the checks' own Trash, never the person's.
+        let checkTrash = URL(fileURLWithPath: ProcessInfo.processInfo.environment["PIPPA_CHECK_TRASH"]!)
+        let trashed = (FileManager.default.enumerator(at: checkTrash, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? [])
+            .filter { $0.lastPathComponent == "Notes.txt" }.compactMap(text)
+        return trashed.contains("new text")
+            && rows.map(\.object.kind) == ["file.restore", "file.create", "file.move", "file.trash", "file.create"]
             && rows.map(\.verified) == [true, true, true, true, false] && rows.map(\.state) == [.done, .done, .done, .done, .unclear]
             && rows.allSatisfy { $0.tool == "move_files" && $0.run == f.run } && rows[0].object.fileIdentity?.sha256.count == 64
             && all.map(\.order) == [1, 2, 3, 4, 5, 6]
             && text(edited) == "old text" && text(movedFrom) == "letter" && !FileManager.default.fileExists(atPath: movedTo.path)
             && text(trashedFrom) == "old" && text(created) == "brand new, edited by the person"
             && report.undone.map(\.object.kind) == ["file.trash", "file.move", "file.restore", "event"] && report.left.map(\.object.kind) == ["file.create"]
+    }
+
+    await checkAsync("Run undo: a file the person deleted or moved away since stays as it is; nothing is recreated or counted as undone") {
+        let f = try RunFixture()
+        let folder = dir("run-gone-" + UUID().uuidString)
+        let edited = folder.appendingPathComponent("Notes.txt"), copy = folder.appendingPathComponent("Notes.backup.txt")
+        write("old text", copy); write("new text", edited)
+        let movedFrom = folder.appendingPathComponent("Letter.pdf"), movedTo = folder.appendingPathComponent("Archive/Letter.pdf")
+        let trashedFrom = folder.appendingPathComponent("Old.txt"), trashedTo = folder.appendingPathComponent("Trash/Old.txt")
+        for url in [movedTo, trashedTo] { try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true) }
+        write("letter", movedTo); write("old", trashedTo)
+        let entry: [String: Any] = ["v": 1, "tool": "move_files", "changes": [
+            ["kind": "restore", "file": edited.path, "copy": copy.path], ["kind": "move", "from": movedFrom.path, "to": movedTo.path],
+            ["kind": "trash", "from": trashedFrom.path, "to": trashedTo.path],
+        ]]
+        _ = try await f.journal.recordFileChanges(run: f.run, entry: String(decoding: try JSONSerialization.data(withJSONObject: entry), as: UTF8.self))
+        // The person deletes the edited file, moves the letter on, and empties the Trash.
+        try FileManager.default.removeItem(at: edited)
+        try FileManager.default.moveItem(at: movedTo, to: folder.appendingPathComponent("Elsewhere.pdf"))
+        try FileManager.default.removeItem(at: trashedTo)
+        let report = try await f.host.undoRun(f.run)
+        let summary = await f.host.runSummaries([f.run])[f.run]
+        return report.undone.isEmpty && report.failed.isEmpty && report.left.count == 3
+            && ![edited, movedFrom, trashedFrom].contains { FileManager.default.fileExists(atPath: $0.path) }
+            && summary == RunSummary(run: f.run, changes: 3, checked: 3, undoable: 0, left: 3)
+    }
+
+    await checkAsync("Run journal: a moved folder and a case-only rename are verified and put back by the run Undo") {
+        let f = try RunFixture()
+        let folder = dir("run-folders-" + UUID().uuidString)
+        let from = folder.appendingPathComponent("Inbox/Taxes"), to = folder.appendingPathComponent("Archive/Taxes")
+        try FileManager.default.createDirectory(at: from, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: to.deletingLastPathComponent(), withIntermediateDirectories: true)
+        write("receipt", from.appendingPathComponent("2026.txt"))
+        try FileManager.default.moveItem(at: from, to: to)
+        let lower = folder.appendingPathComponent("report.txt"), upper = folder.appendingPathComponent("Report.txt")
+        write("report", lower)
+        guard rename(lower.path, upper.path) == 0 else { return false }
+        let entry: [String: Any] = ["v": 1, "tool": "move_files", "changes": [
+            ["kind": "move", "from": from.path, "to": to.path], ["kind": "move", "from": lower.path, "to": upper.path],
+        ]]
+        let rows = try await f.journal.recordFileChanges(run: f.run, entry: String(decoding: try JSONSerialization.data(withJSONObject: entry), as: UTF8.self))
+        let report = try await f.host.undoRun(f.run)
+        let names = try FileManager.default.contentsOfDirectory(atPath: folder.path)
+        return rows.map(\.state) == [.done, .done] && rows.map(\.verified) == [true, true] && report.undone.count == 2
+            && (try? String(contentsOf: from.appendingPathComponent("2026.txt"), encoding: .utf8)) == "receipt"
+            && !FileManager.default.fileExists(atPath: to.path) && names.contains("report.txt") && !names.contains("Report.txt")
+    }
+
+    await checkAsync("Run undo: one lock per answer for both Undo kinds; each sees the other's outcome, marked in its own run only") {
+        let f = try RunFixture()
+        let first = await f.event("Single one", 9), second = await f.event("Single two", 10)
+        // Undo of one receipt: the run still offers the other change, and its receipt reads so.
+        let single = await f.host.undo(first.receipt!, run: f.run)
+        let partly = await f.host.runSummaries([f.run])[f.run]!
+        // While Undo of the whole answer runs, a receipt's Undo does nothing.
+        try await f.journal.beginRunUndo(f.run)
+        let busy = await f.host.undo(second.receipt!, run: f.run)
+        await f.journal.endRunUndo(f.run)
+        // Changed since: the receipt's Undo leaves it, and the run Undo then does not try it again.
+        f.writer.demo.touch(second.receipt!.created!.identifier)
+        let changed = await f.host.undo(second.receipt!, run: f.run)
+        let report = try await f.host.undoRun(f.run)
+        let after = await f.host.runSummaries([f.run])[f.run]
+        // The same object key in another run stays as it is.
+        let other = UUID(), key = "/fixture/Ready.pdf"
+        let draft = { RunActionDraft(tool: "prepare_files", object: .file(kind: "file.prepared", path: key, identity: nil), label: "Ready") }
+        let a = try await f.journal.planRunActions(run: f.run, [draft()], dispatched: true)
+        let b = try await f.journal.planRunActions(run: other, [draft()], dispatched: true)
+        try await f.journal.completeRunActions([.init(id: a[0].id, verified: true), .init(id: b[0].id, verified: true)])
+        try await f.journal.markRunObject(run: f.run, key: key, .undone)
+        let mine = try await f.journal.runActions(run: f.run).last, theirs = try await f.journal.runActions(run: other).first
+        return single.undo == "removed" && partly == RunSummary(run: f.run, changes: 2, checked: 2, undoable: 1, undone: 1)
+            && partly.undoTried && !partly.undoFinished
+            && busy.undo == nil && changed.undo == "changed" && report.undone.isEmpty && report.left.isEmpty
+            && after == RunSummary(run: f.run, changes: 2, checked: 2, undoable: 0, undone: 1, left: 1) && after?.undoFinished == true
+            && mine?.state == .undone && theirs?.state == .done
+    }
+
+    check("Run receipt: shown whenever the run can undo something the single receipts do not offer") {
+        let run = UUID()
+        let one = RunSummary(run: run, changes: 1, checked: 1, undoable: 1)
+        let failed = PippaMCPWriteReceipt(action: "calendarAdd", outcome: "failed", name: "Not added")
+        let added = PippaMCPWriteReceipt(action: "calendarAdd", outcome: "done", name: "Added",
+                                         created: CreatedItem(integration: .calendar, identifier: "x", modified: nil))
+        return one.shows(beside: [failed]) && !one.shows(beside: [added]) && one.shows(beside: [])
+            && !RunSummary(run: run, changes: 1, checked: 1).shows(beside: [failed])
+    }
+
+    await checkAsync("Run journal: a shell command allowed online becomes an external row without Undo") {
+        let f = try RunFixture()
+        let entry: [String: Any] = ["v": 1, "tool": "bash", "changes": [["kind": "external", "label": "curl -sO https://example.org/a.pdf"]]]
+        let rows = try await f.journal.recordFileChanges(run: f.run, entry: String(decoding: try JSONSerialization.data(withJSONObject: entry), as: UTF8.self))
+        let summary = await f.host.runSummaries([f.run])[f.run]
+        return rows.count == 1 && rows[0].actionClass == .external && rows[0].tool == "bash" && rows[0].state == .done
+            && rows[0].label == "curl -sO https://example.org/a.pdf" && summary == RunSummary(run: f.run, changes: 1, undoable: 0)
     }
 
     await checkAsync("Run journal: rows older than 30 days are pruned at open, by the journal's clock") {

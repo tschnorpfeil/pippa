@@ -91,6 +91,7 @@ enum ApprovalsChecks {
         host.turns.end(turnB)
 
         await actionCardChecks(approvals, check: check)
+        await runUndoChecks(check: check)
         failures += Int(await HeadlessAskChecks.run())
 
         print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
@@ -99,6 +100,46 @@ enum ApprovalsChecks {
 }
 
 extension ApprovalsChecks {
+    /// Undo for a whole answer from the chat (`ChatModel.undoRun`), on a journal in a temporary folder: the next
+    /// question tells the model what was taken back, and the receipt wording follows what is still undoable.
+    static func runUndoChecks(check: (Bool, String) -> Void) async {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("pippa-run-undo-check-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        guard let journal = try? Executor(baseDirectory: folder) else { return check(false, "a run journal opens in a temporary folder") }
+        let original = PippaMCPService.baseHost
+        PippaMCPService.baseHost = {
+            var host = PippaMCPHost.demo()
+            host.reminderJournal = journal
+            host.runRecipes["check.kind"] = { _ in .undone }
+            return host
+        }
+        defer { PippaMCPService.baseHost = original }
+        let run = UUID()
+        let rows = (try? await journal.planRunActions(run: run, [RunActionDraft(tool: "move_files", object: RunObject(kind: "check.kind", fields: [:]),
+                                                                                label: "Letter.pdf")], dispatched: true)) ?? []
+        _ = try? await journal.completeRunActions(rows.map { RunActionResult(id: $0.id, verified: true) })
+        let chat = ChatModel.shared, saved = (chat.conversations, chat.currentID)
+        let id = "run-undo-check"
+        var answer = ChatMessage(role: .assistant, text: "Moved.")
+        answer.run = RunSummary(run: run, changes: 1, checked: 1, undoable: 1)
+        chat.showSample([Conversation(id: id, title: "Synthetic", updated: Date(), messages: [answer])], current: id, answering: false)
+        chat.undoRun(in: answer.id)
+        for _ in 0..<200 where chat.undoneNotes[id] == nil { try? await Task.sleep(for: .milliseconds(10)) }
+        let notes = chat.undoneNotes[id] ?? []
+        let prompt = ChatModel.prompt("And now?", files: [], frontApp: nil, undone: notes)
+        check(notes == ["Letter.pdf"] && prompt.contains("Letter.pdf") && chat.conversations.first?.messages.first?.run?.undone == 1,
+              "after Undo of a whole answer, the next question tells the model what was taken back")
+        chat.showSample(saved.0, current: saved.1, answering: false)
+
+        let partly = RunSummary(run: run, changes: 3, checked: 3, undoable: 2, undone: 1)
+        check(RunReceiptRow.title(partly).hasPrefix(RunReceiptRow.title(RunSummary(run: run, changes: 3, checked: 3, undoable: 3))),
+              "after one receipt's Undo the run receipt still counts the changes that are still active")
+        check(RunReceiptRow.title(RunSummary(run: run, changes: 3, checked: 3, undone: 3)) == T("%lld changes undone", table: "App", 3),
+              "with nothing left to undo the run receipt reads as the outcome of Undo")
+        check(ReceiptRow.title(PippaMCPWriteReceipt(action: "mailDraft", outcome: "unclear", name: "Re: Fixture"))
+              == T("Unclear, please check", table: "App"), "an unclear Mail draft never reads as no draft")
+    }
+
     /// Irreversible and external tools ask on the same question card (`PippaMCPService.configured` → `confirmAction`),
     /// with a check-only tool: only the button dispatches, Stop and a late press do not, `--ask` never asks.
     static func actionCardChecks(_ approvals: Approvals, check expect: (Bool, String) -> Void) async {

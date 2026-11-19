@@ -249,7 +249,7 @@ final class ChatModel: ObservableObject {
     /// Receipts being undone right now (message id, receipt index): the button stays disabled meanwhile.
     @Published private(set) var undoing: Set<String> = []
     /// Conversation id → what the person undid that Pi has not heard of yet; told with the next question.
-    private var undoneNotes: [String: [String]] = [:]
+    private(set) var undoneNotes: [String: [String]] = [:]
 
     static func undoKey(_ messageID: UUID, _ index: Int) -> String { "\(messageID.uuidString)#\(index)" }
 
@@ -263,16 +263,16 @@ final class ChatModel: ObservableObject {
         let key = Self.undoKey(messageID, index)
         guard !undoing.contains(key) else { return }
         undoing.insert(key)
+        let run = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == messageID })?.run?.run
         Task {
-            let result = await PippaMCPService.undo(receipt)
+            let result = await PippaMCPService.undo(receipt, run: run)
             undoing.remove(key)
             update(messageID, in: id) { message in
                 guard message.receipts.indices.contains(index) else { return }
                 message.receipts[index] = result
             }
             if result.undo == "removed" { undoneNotes[id, default: []].append(result.name) }
-            if let run = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == messageID })?.run?.run,
-               let summary = await PippaMCPService.runSummary(run) {
+            if let run, let summary = await PippaMCPService.runSummary(run) {
                 update(messageID, in: id) { $0.run = summary }
             }
             save(id)
@@ -290,18 +290,22 @@ final class ChatModel: ObservableObject {
         Task {
             let (summary, report) = await PippaMCPService.undoRun(run.run)
             undoing.remove(key)
-            let undone = Set(report?.undone.compactMap(\.object.key) ?? []), left = Set(report?.left.compactMap(\.object.key) ?? [])
+            // Each object's outcome as its own receipt row says it.
+            var outcomes: [String: String] = [:]
+            for row in report?.undone ?? [] { if let key = row.object.key { outcomes[key] = row.note == "gone" ? "gone" : "removed" } }
+            for row in report?.left ?? [] { if let key = row.object.key { outcomes[key] = "changed" } }
+            for row in report?.failed ?? [] { if let key = row.object.key { outcomes[key] = "failed" } }
             update(messageID, in: id) { message in
                 // No rows any more (pruned after 30 days): nothing left to undo.
                 message.run = summary ?? RunSummary(run: run.run, changes: run.changes, checked: run.checked, unclear: run.unclear,
                                                     undone: run.undone, left: run.left, failed: run.failed)
                 // The answer's own receipt rows say the same as the run receipt.
                 for index in message.receipts.indices where message.receipts[index].undo == nil {
-                    guard let key = message.receipts[index].created?.identifier else { continue }
-                    if undone.contains(key) { message.receipts[index].undo = "removed" } else if left.contains(key) { message.receipts[index].undo = "changed" }
+                    guard let key = message.receipts[index].created?.identifier, let outcome = outcomes[key] else { continue }
+                    message.receipts[index].undo = outcome
                 }
             }
-            if let report, !report.undone.isEmpty { undoneNotes[id, default: []].append(contentsOf: report.undone.map(\.label)) }
+            if let report { undoneNotes[id, default: []].append(contentsOf: report.undone.filter { $0.note != "gone" }.map(\.label)) }
             save(id)
         }
     }
@@ -708,7 +712,7 @@ final class ChatModel: ObservableObject {
         if !files.isEmpty { parts.append("Files:\n" + files.map { "- \($0)" }.joined(separator: "\n")) }
         // Pi still believes what it added is there; the person undid it from the receipt row since.
         if !undone.isEmpty {
-            parts.append("[The person pressed Undo since your last answer; these are no longer on the Mac: "
+            parts.append("[The person pressed Undo since your last answer; Pippa took back these changes, so they are no longer as you left them: "
                          + undone.joined(separator: "; ") + ".]")
         }
         if let frontApp { parts.append("[Background context only: \(frontApp) was in front when Pippa opened. This is not a request to read that app. Use it only if the person asks about its content.]") }
@@ -821,7 +825,8 @@ final class ChatModel: ObservableObject {
         case .notice(let text, let kind) where kind == "error" || kind == "warning":
             updateLast(in: id) { $0.error = text }
         case .notice(let text, "pippa-change"):
-            PippaMCPService.recordFileChanges(text)
+            // Under the running answer's own turn id (set when it began), never whichever turn is active now.
+            PippaMCPService.recordFileChanges(text, run: conversations.first(where: { $0.id == id })?.messages.last?.run?.run)
         default:
             break
         }

@@ -121,7 +121,7 @@ public struct PippaMCPFilePreparation: Sendable {
                     }
                     let retired = retirement != nil
                     if retired, let row = execution.row, let file = execution.artifacts.first {
-                        try? await row.journal.markRunObjectUndone(key: file.url.path)
+                        try? await row.journal.markRunObject(run: row.run, key: file.url.path, .undone)
                     }
                     if let retirement {
                         lease.confirmNoMutation()

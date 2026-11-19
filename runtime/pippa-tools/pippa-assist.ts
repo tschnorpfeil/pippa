@@ -205,19 +205,28 @@ export async function pruneBackups(directory: string, days = BACKUP_DAYS, now = 
 }
 
 /** One change Pippa can take back (app: Executor.recordFileChanges). `restore`: copy `copy` back over `file`;
- * `create`: the file is new, undo moves it to the Trash; `move`/`trash`: put `to` back at `from`. */
+ * `create`: the file is new, undo moves it to the Trash; `move`/`trash`: put `to` back at `from`. `external`: a shell
+ * command the person allowed online; it gets a row, but nothing to take back. */
 export type Change =
 	| { kind: "restore"; file: string; copy: string }
+	| { kind: "external"; label: string }
 	| { kind: "create"; file: string }
 	| { kind: "move" | "trash"; from: string; to: string };
 
 /** What a finished tool call changed, from its own result (never from the model's text). */
 export function changesOf(tool: string, details: any, isError: boolean): Change[] {
 	const before = details?.pippaBefore;
-	// A failed or interrupted command can already have overwritten files. Keep copies made before a write attempt.
-	if (tool === "bash" && Array.isArray(details?.pippaKept)) {
-		return details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
-			.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }));
+	if (tool === "bash") {
+		// A failed or interrupted command can already have overwritten files. Keep copies made before a write attempt.
+		const kept: Change[] = Array.isArray(details?.pippaKept)
+			? details.pippaKept.filter((k: any) => typeof k?.file === "string" && typeof k?.copy === "string")
+				.map((k: any) => ({ kind: "restore", file: k.file, copy: k.copy }))
+			: [];
+		// A command the person allowed online (shell.ts): an `external` row, named by the command, without its output.
+		const command = details?.pippaOnline?.command;
+		const online: Change[] = typeof command === "string" && command.trim()
+			? [{ kind: "external", label: command.replace(/\s+/g, " ").trim().slice(0, 200) }] : [];
+		return [...kept, ...online];
 	}
 	if ((tool === "edit" || tool === "write") && before?.copy) {
 		return [{ kind: "restore", file: before.file, copy: before.copy }];
