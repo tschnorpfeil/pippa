@@ -17,6 +17,12 @@ if CommandLine.arguments.dropFirst().contains("--mail-move-probe") {
     Task { exit(await MailMoveProbeCommand.run(arguments)) }
     dispatchMain()
 }
+// `Pippa --mail-send-probe [--account … (--read-only | --send)]`: the same, for one test mail to the account's own address.
+if CommandLine.arguments.dropFirst().contains("--mail-send-probe") {
+    let arguments = Array(CommandLine.arguments.dropFirst())
+    Task { exit(await MailSendProbeCommand.run(arguments)) }
+    dispatchMain()
+}
 #endif
 let app = NSApplication.shared
 if CommandLine.arguments.dropFirst().contains("--verify-runtime") {

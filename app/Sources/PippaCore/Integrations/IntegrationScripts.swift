@@ -28,6 +28,7 @@ public enum IntegrationScripts {
                    ("Safari", FrontAppScript.safari), ("Chrome", FrontAppScript.chrome), ("FrontDocument", FrontAppScript.documentSource)]
         #if DEBUG || PIPPA_PROBES
         all.insert(("MailMoveDiagnose", MailAccountScript.diagnoseSource), at: 5)
+        all.insert(("MailSendProbe", MailSendProbeLive.source), at: 7)
         #endif
         return all
     }

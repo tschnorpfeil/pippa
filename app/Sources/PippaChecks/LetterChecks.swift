@@ -267,7 +267,7 @@ func runLetterChecks() async {
         let reply = sources.first { $0.name == "MailReply" }?.source ?? ""
         let shape = reply.contains("set r to reply m\n") && reply.contains("visible:true") && !reply.contains("reply to all")
         let names = sources.map(\.name)
-        let expected: [String] = ["Mail", "MailReply", "MailSearch", "MailAccounts", "MailMove", "MailMoveDiagnose", "MailSend", "Excel", "PhotosSearch", "PhotosShow", "Safari", "Chrome", "FrontDocument"]
+        let expected: [String] = ["Mail", "MailReply", "MailSearch", "MailAccounts", "MailMove", "MailMoveDiagnose", "MailSend", "MailSendProbe", "Excel", "PhotosSearch", "PhotosShow", "Safari", "Chrome", "FrontDocument"]
         return clean && once && shape && names == expected
     }
     await checkAsync("Mail: reply script is among the compiled scripts") {
