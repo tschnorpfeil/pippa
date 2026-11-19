@@ -386,13 +386,13 @@ struct IslandPanelView: View {
                 IslandChainRow(node: now.writing ? .writing : .thinking, isFirst: all.isEmpty, isLast: true) {
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(alignment: .firstTextBaseline, spacing: IslandStyle.buttonGap) {
-                            Text(now.writing ? T("Writing…", table: "App")
-                                             : chat.startingAI && all.isEmpty ? T("Starting my AI…", table: "App") : T("Thinking…", table: "App"))
+                            Text(chat.retryWait.map(ChatModel.retryLabel) ?? (now.writing ? T("Writing…", table: "App")
+                                             : chat.startingAI && all.isEmpty ? T("Starting my AI…", table: "App") : T("Thinking…", table: "App")))
                                 .foregroundStyle(IslandStyle.white(IslandStyle.primary))
                                 .contentTransition(.opacity)
                             Spacer(minLength: 0)
                             // Since the last step ended (or the question went out): thinking and writing count up too.
-                            if let since = all.last?.ended ?? chat.answerStarted { ElapsedSeconds(since: since).foregroundStyle(IslandStyle.white(IslandStyle.secondary)) }
+                            if chat.retryWait == nil, let since = all.last?.ended ?? chat.answerStarted { ElapsedSeconds(since: since).foregroundStyle(IslandStyle.white(IslandStyle.secondary)) }
                         }
                         if let tail = now.tail { IslandAnswerTail(text: tail) }
                     }

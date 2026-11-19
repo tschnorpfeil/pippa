@@ -6,8 +6,15 @@ func runProviderChecks() async {
         PiProviderClient.problem(in: "401 Unauthorized: token expired") == .signedOut
             && PiProviderClient.problem(in: "invalid_grant: refresh token revoked") == .signedOut
             && PiProviderClient.problem(in: "No API key found for openai") == .signedOut
-            && PiProviderClient.problem(in: "429 Too Many Requests: usage limit reached") == .limit
             && PiProviderClient.problem(in: "socket hang up") == nil
+    }
+    check("A rate limit waits and continues; a used-up allowance is told apart, also when it comes as 429") {
+        ["429 Too Many Requests", "Rate limit exceeded, retry later", "too many requests", "{\"type\":\"rate_limit_error\"}",
+         "429 Rate limit reached for gpt-4o in organization org-x on requests per min (RPM): Limit 500"]
+            .allSatisfy { PiProviderClient.problem(in: $0) == .rateLimit }
+            && ["You have reached your usage limit", "insufficient_quota", "Monthly limit reached", "Billing hard limit hit",
+                "429 Too Many Requests: usage limit reached", "Rate limit: your quota is used up"]
+            .allSatisfy { PiProviderClient.problem(in: $0) == .quota }
     }
     check("After Sign in with ChatGPT the model in use stays, else Pi's default is preselected, never the oldest on the list") {
         let models = ["gpt-4", "gpt-5.5", "o3"].map { PiProvider.Model(id: $0, name: $0) }

@@ -51,7 +51,7 @@ if CommandLine.arguments.dropFirst().contains("--check-approvals") {
     Task { @MainActor in
         let approvals = await ApprovalsChecks.run()
         let admission = await SharingRouteChecks.admission()
-        exit(max(approvals, ConversationStoreChecks.run(), SharingRouteChecks.run(), admission))
+        exit(max(approvals, ConversationStoreChecks.run(), SharingRouteChecks.run(), admission, AnswerRetryChecks.run()))
     }
     app.run()
 }

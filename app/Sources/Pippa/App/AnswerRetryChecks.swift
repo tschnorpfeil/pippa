@@ -1,0 +1,81 @@
+import Foundation
+import PiRPC
+import PippaCore
+
+/// `Pippa --check-approvals`: what the chat makes of Pi's waits on an online AI's limit (`ChatModel.apply`): the countdown,
+/// Stop during the wait, Continue after the tries ran out, and a used-up allowance without Continue.
+@MainActor
+enum AnswerRetryChecks {
+    static func run() -> Int32 {
+        var failures = 0
+        func check(_ ok: Bool, _ name: String) {
+            print("\(ok ? "PASS" : "FAIL") \(name)")
+            if !ok { failures += 1 }
+        }
+        let limit = "429 Too Many Requests: rate limit exceeded"
+        let chat = ChatModel()
+        func start(shared: [String]? = nil) {
+            let question = ChatMessage(role: .user, text: "Sortiere meine Mails", destination: "OpenAI", shared: shared)
+            let reply = ChatMessage(role: .assistant, text: "", destination: "OpenAI")
+            chat.replaceForSnapshot([Conversation(id: "r", title: "Mails", updated: Date(), messages: [question, reply])],
+                                    current: "r", answering: true)
+        }
+        var answer: ChatMessage? { chat.conversations.first?.messages.last }
+
+        start()
+        chat.apply(.assistantEnded(text: "", stopReason: "error", error: limit), in: "r")
+        chat.apply(.retryScheduled(attempt: 1, maxAttempts: 4, delayMs: 42_000, error: limit), in: "r")
+        let waiting = chat.retryWait
+        check(waiting?.rateLimit == true && (41...42).contains(waiting?.seconds ?? 0) && answer?.error == nil,
+              "a wait on a rate limit counts down from its delay, and the failed try is no error on the answer")
+        chat.apply(.textDelta("Erledigt."), in: "r")
+        chat.apply(.retryEnded(success: true, attempt: 1, finalError: nil), in: "r")
+        check(chat.retryWait == nil && answer?.error == nil && answer?.resumeAfter == nil,
+              "a successful try ends the wait and the answer goes on as usual")
+
+        start()
+        chat.apply(.retryScheduled(attempt: 1, maxAttempts: 4, delayMs: 503_000, error: "503 Service Unavailable"), in: "r")
+        check(chat.retryWait?.rateLimit == false, "a wait after another failure is not called a limit")
+
+        // Stop during the wait: Pi ends it ("Retry cancelled"); the answer is stopped, nothing to continue.
+        start()
+        chat.apply(.retryScheduled(attempt: 1, maxAttempts: 4, delayMs: 15_000, error: limit), in: "r")
+        chat.stop()
+        chat.apply(.retryEnded(success: false, attempt: 1, finalError: limit), in: "r")
+        check(chat.retryWait == nil && answer?.resumeAfter == nil && answer?.error == nil,
+              "Stop during the wait ends the countdown and offers no Continue")
+
+        // The provider keeps answering 429: after the last try the answer offers Continue, not before a minute.
+        start()
+        let failed = Date()
+        for attempt in 1...4 {
+            chat.apply(.assistantEnded(text: "", stopReason: "error", error: limit), in: "r")
+            chat.apply(.retryScheduled(attempt: attempt, maxAttempts: 4, delayMs: 15_000, error: limit), in: "r")
+        }
+        chat.apply(.assistantEnded(text: "", stopReason: "error", error: limit), in: "r")
+        chat.apply(.retryEnded(success: false, attempt: 4, finalError: limit), in: "r")
+        let messages = chat.conversations.first?.messages ?? []
+        let after = answer?.resumeAfter?.timeIntervalSince(failed) ?? 0
+        check(chat.retryWait == nil && answer?.error != nil && (60...61).contains(after)
+              && !ChatModel.resumable(messages, now: failed.addingTimeInterval(59))
+              && ChatModel.resumable(messages, now: failed.addingTimeInterval(61)),
+              "a rate limit after every try ends the answer with a sentence and Continue, available 60 s later")
+        chat.replaceForSnapshot(chat.conversations, current: "r", answering: false)
+        chat.resume(now: failed.addingTimeInterval(30))
+        check(chat.isAnswering == false && answer?.resumeAfter != nil, "Continue before its minute sends nothing")
+
+        // An approved question ran in a session of its own: no Continue there.
+        start(shared: ["Mail"])
+        chat.apply(.assistantEnded(text: "", stopReason: "error", error: limit), in: "r")
+        chat.apply(.retryEnded(success: false, attempt: 4, finalError: limit), in: "r")
+        check(answer?.resumeAfter == nil, "an approved question's answer offers no Continue")
+
+        // A used-up allowance: Pi does not try again; today's sentence, no Continue.
+        start()
+        chat.apply(.assistantEnded(text: "", stopReason: "error", error: "429 You exceeded your current quota (insufficient_quota)"), in: "r")
+        check(answer?.error == ChatModel.limitMessage(.quota) && answer?.resumeAfter == nil && chat.retryWait == nil,
+              "a used-up allowance says so and offers no Continue")
+        chat.replaceForSnapshot([], current: nil, answering: false)
+        return failures == 0 ? 0 : 1
+    }
+}

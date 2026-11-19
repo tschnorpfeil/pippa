@@ -21,6 +21,7 @@ func assistant(_ text: String, stop: String) {
 
 if CommandLine.arguments.contains("--mode") {
     var promptCount = 0
+    var abortRetryCount = 0
     while let line = readLine(), let data = line.data(using: .utf8),
           let request = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
         let id = request["id"] as? String ?? ""
@@ -89,6 +90,9 @@ if CommandLine.arguments.contains("--mode") {
                           "result": ["content": [["type": "text", "text": call.text]], "details": call.details]])
                 }
                 emit(["type": "agent_settled", "aborted": false])
+            case "retry-recovered", "retry-exhausted", "retry-wait":
+                response("started")
+                emitRetryFixture(request["message"] as? String ?? "")
             case "handled":
                 response("handled")
             case "immediate":
@@ -120,6 +124,13 @@ if CommandLine.arguments.contains("--mode") {
             }
         case "fixture_prompt_count":
             emit(["type": "response", "id": id, "command": command, "success": true, "data": ["count": promptCount]])
+        case "fixture_abort_retry_count":
+            emit(["type": "response", "id": id, "command": command, "success": true, "data": ["count": abortRetryCount]])
+        case "abort_retry":
+            // Pi ends the wait (agent-session.js `_finishCancelledRetry`).
+            abortRetryCount += 1
+            emit(["type": "auto_retry_end", "success": false, "attempt": 1, "finalError": "Retry cancelled"])
+            response()
         case "abort":
             emit(["type": "tool_execution_end", "toolCallId": "pending-tool", "toolName": "fixture", "isError": true,
                   "result": ["content": [["type": "text", "text": "Cancelled"]]]])
@@ -232,6 +243,7 @@ check("A long document's read reports each part and the merge round; other tools
       digestProgress == [[1, 3, 0], [2, 3, 0], [3, 3, 0], [1, 1, 1]])
 check("The notes file of a long document reaches the app right before the read ends",
       notesAt != nil && endedAt != nil && notesAt! + 1 == endedAt!)
+try await runRetryChecks(client)
 try await runNativeReadinessChecks(executable: executable, temporary: temporary)
 await client.shutdown()
 print(failures == 0 ? "Pi RPC checks passed." : "\(failures) Pi RPC check(s) failed.")

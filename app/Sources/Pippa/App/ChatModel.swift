@@ -54,6 +54,9 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     var destination: String?
     /// Question: the parts the person checked and shared with `destination` ("Lease.pdf", "Calendar, next 7 days").
     var shared: [String]?
+    /// Answer: the online AI stayed at its limit after all of Pi's tries. From this time on, Continue picks the answer
+    /// up in the same Pi session (`ChatModel.resume`).
+    var resumeAfter: Date?
 }
 
 /// The review before anything from the Mac goes to an online AI: the provider, the person's words and each part Pippa
@@ -133,6 +136,9 @@ final class ChatModel: ObservableObject {
     /// Words of the answer are coming in right now. Text already there says nothing about it: after a first sentence
     /// Pippa often thinks or reads on.
     @Published private(set) var isWriting = false
+    /// Pi waits before it tries the online AI again, with the seconds left, counted down once a second.
+    @Published private(set) var retryWait: RetryWait?
+    private var retryTick: Task<Void, Never>?
     private var answer: Task<Void, Never>?
     private var pdfTask: Task<Void, Never>?
     /// "Stop" was pressed for the running answer.
@@ -524,6 +530,61 @@ final class ChatModel: ObservableObject {
         answer = nil
         pdfTask = nil
         stopRequested = false
+        waitForRetry(nil)
+    }
+
+    /// Pi waits before it tries again: how long, and whether the online AI said "too many requests".
+    struct RetryWait: Equatable {
+        var until: Date
+        var rateLimit: Bool
+        var seconds: Int
+    }
+
+    /// Continue waits this long after the last try failed: a rate limit counts per minute.
+    static let resumeDelay: TimeInterval = 60
+
+    /// What the chat and Pippa Island say during the wait.
+    static func retryLabel(_ wait: RetryWait) -> String {
+        wait.rateLimit ? T("The online AI is at its limit. Continuing in %lld s", table: "App", wait.seconds)
+            : T("The AI didn’t answer. Trying again in %lld s", table: "App", wait.seconds)
+    }
+
+    /// Starts (`until`) or ends (`nil`) the countdown.
+    private func waitForRetry(_ until: Date?, rateLimit: Bool = false) {
+        retryTick?.cancel()
+        retryTick = nil
+        guard let until else { if retryWait != nil { retryWait = nil }; return }
+        func seconds() -> Int { max(0, Int(until.timeIntervalSinceNow.rounded(.up))) }
+        retryWait = RetryWait(until: until, rateLimit: rateLimit, seconds: seconds())
+        retryTick = Task {
+            while !Task.isCancelled, let wait = retryWait, wait.seconds > 0 {
+                try? await Task.sleep(for: .seconds(1))
+                if !Task.isCancelled { retryWait?.seconds = seconds() }
+            }
+        }
+    }
+
+    /// What Pi receives with Continue: the session still holds everything the stopped answer did.
+    static let resumePrompt = "[Your last answer stopped because the online AI was at its limit. Continue where you stopped. "
+        + "Do not repeat changes that are already done; if you are unsure whether one was, check first.]"
+
+    /// Whether Continue may go now: the last answer stopped at the online AI's limit and its minute is over.
+    static func resumable(_ messages: [ChatMessage], now: Date) -> Bool {
+        guard let last = messages.last, last.role == .assistant, let after = last.resumeAfter else { return false }
+        return after <= now
+    }
+
+    /// Continue after the online AI stayed at its limit: one follow-up in the same conversation's Pi session, never the
+    /// question again. Not before `resumeAfter`.
+    func resume(now: Date = Date()) {
+        guard !isAnswering, review == nil, let id = currentID, let index = conversations.firstIndex(where: { $0.id == id }),
+              Self.resumable(conversations[index].messages, now: now), let last = conversations[index].messages.indices.last else { return }
+        let settings = SettingsModel.shared.inferenceSettings
+        let destination = ShareDestination.active(settings)
+        let limited = destination != nil && !settings.allowsMacAccess(destination)
+        guard let outgoing = Self.outgoing(Self.resumePrompt, files: [], frontApp: nil, undone: [], online: limited) else { return }
+        conversations[index].messages[last].resumeAfter = nil
+        ask(T("Continue", table: "App"), files: [], outgoing: outgoing, destination: destination?.label)
     }
 
     /// A failure mid-answer as one plain sentence: an online provider's ("401 {…}", "usage limit"), or the AI on this Mac
@@ -534,9 +595,16 @@ final class ChatModel: ObservableObject {
             return plain
         }
         guard online, let problem = PiProviderClient.problem(in: error) else { return error }
-        return problem == .limit
-            ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
-            : T("Reconnect your online AI in Settings.", table: "App")
+        return limitMessage(problem)
+    }
+
+    /// The sentence for an online AI's problem: a used-up allowance, too many requests for now, or a lost sign-in.
+    static func limitMessage(_ problem: PiProviderClient.Problem) -> String {
+        switch problem {
+        case .quota: T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
+        case .rateLimit: T("The online AI is at its limit right now. Try again in a minute.", table: "App")
+        case .signedOut: T("Reconnect your online AI in Settings.", table: "App")
+        }
     }
 
     /// What Pi receives: the person's words, then the files they added and the app they called Pippa from.
@@ -629,6 +697,21 @@ final class ChatModel: ObservableObject {
                         : T("That was too much at once for the AI on this Mac. Ask for a smaller part, for example one document at a time.", table: "App")
                 }
             }
+        case .retryScheduled(_, _, let delay, let error):
+            // The failed try is not the end of the answer: Pi waits and tries again.
+            updateLast(in: id) { $0.error = nil }
+            waitForRetry(Date().addingTimeInterval(Double(delay) / 1000), rateLimit: PiProviderClient.problem(in: error) == .rateLimit)
+        case .retryEnded(let success, _, let finalError):
+            waitForRetry(nil)
+            // Still at its limit after every try: the answer can go on later where it stopped. Only a typed question's
+            // session holds the conversation; an approved one ran in a session of its own.
+            guard !success, !stopRequested, let finalError, PiProviderClient.problem(in: finalError) == .rateLimit,
+                  let messages = conversations.first(where: { $0.id == id })?.messages, messages.count >= 2,
+                  messages[messages.count - 2].shared == nil else { break }
+            updateLast(in: id) {
+                $0.error = T("The online AI is still at its limit. Wait a minute, then continue where it stopped.", table: "App")
+                $0.resumeAfter = Date().addingTimeInterval(Self.resumeDelay)
+            }
         case .notice(let text, let kind) where kind == "error" || kind == "warning":
             updateLast(in: id) { $0.error = text }
         default:
@@ -638,7 +721,9 @@ final class ChatModel: ObservableObject {
 
     /// Snapshots only (`Snapshots`): never saved.
     func replaceForSnapshot(_ conversations: [Conversation], current: String?, answering: Bool, starting: Bool = false,
-                            writing: Bool = false) {
+                            writing: Bool = false, waiting: TimeInterval? = nil) {
+        waitForRetry(waiting.map { Date().addingTimeInterval($0) }, rateLimit: true)
+        stopRequested = false
         showsSample = true
         isLoaded = true
         self.conversations = conversations

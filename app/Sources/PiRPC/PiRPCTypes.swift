@@ -72,6 +72,11 @@ public enum PiRPCEvent: Sendable, Equatable {
     case assistantEnded(text: String, stopReason: String, error: String?)
     /// `ctx.ui.notify` of an extension.
     case notice(String, kind: String)
+    /// The provider failed for now, for example "429 Too Many Requests" (`auto_retry_start`): Pi waits `delayMs` and then
+    /// tries again, attempt `attempt` of `maxAttempts`. `error`: what the provider said.
+    case retryScheduled(attempt: Int, maxAttempts: Int, delayMs: Int, error: String)
+    /// Pi's tries end (`auto_retry_end`): a later try succeeded, or they ran out or were stopped (`finalError`).
+    case retryEnded(success: Bool, attempt: Int, finalError: String?)
     /// Pi does not continue on its own (`agent_settled`). Cancellation can happen between assistant messages,
     /// so `aborted` is authoritative even when the last assistant stopped for tool use or completed normally.
     case settled(aborted: Bool)

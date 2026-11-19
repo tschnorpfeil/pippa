@@ -364,6 +364,28 @@ func runSharingChecks() async {
             && canonical(models?[PiOnlineProvider.providerKey] ?? [:]) == canonical(PiOnlineProvider.entry(connection))
             && !fm.fileExists(atPath: snapshot.directory.appendingPathComponent("auth.json").path) && !fm.fileExists(atPath: next.directory.path)
     }
+    check("Recipient snapshot: an online Pi waits 15, 30, 60 and 60 s on a rate limit; the shared settings stay as they are") {
+        try writeAgent(models: nil, auth: nil)
+        let shared = agent.appendingPathComponent("settings.json")
+        let original = Data(#"{"defaultThinkingLevel":"high","retry":{"enabled":true,"maxRetries":9,"provider":{"maxRetries":0}}}"#.utf8)
+        try original.write(to: shared)
+        let connection = ModelConnection(id: UUID(), provider: .compatible, endpoint: URL(string: "https://llm.example.invalid/v1"), modelID: "m-fixture")
+        let snapshot = try PiRecipientSnapshot.create(connection: connection, from: agent, in: snapshots)
+        defer { snapshot.remove() }
+        let settings = readJSON(snapshot.directory.appendingPathComponent("settings.json"))
+        let retry = settings?["retry"] as? [String: Any]
+        let untouched = (try? Data(contentsOf: shared)) == original
+        try fm.removeItem(at: shared)
+        let bare = try PiRecipientSnapshot.create(connection: connection, from: agent, in: snapshots)
+        defer { bare.remove() }
+        let defaults = readJSON(bare.directory.appendingPathComponent("settings.json"))?["retry"] as? [String: Any]
+        let pippa: [String: Any] = ["maxRetries": 4, "baseDelayMs": 15_000, "maxAgentDelayMs": 60_000]
+        return retry?["maxRetries"] as? Int == 4 && retry?["baseDelayMs"] as? Int == 15_000 && retry?["maxAgentDelayMs"] as? Int == 60_000
+            && retry?["enabled"] as? Bool == true && canonical(retry?["provider"] ?? [:]) == canonical(["maxRetries": 0])
+            && settings?["defaultThinkingLevel"] as? String == "high"
+            && canonical(defaults ?? [:]) == canonical(pippa)
+            && untouched && !fm.fileExists(atPath: shared.path) && mode(snapshot.directory.appendingPathComponent("settings.json")) == 0o600
+    }
     await checkAsync("Stop does not wait for a turn's preparation; what it prepares later is removed, never used") {
         final class Log: @unchecked Sendable { let lock = NSLock(); var items: [String] = []; func add(_ s: String) { lock.withLock { items.append(s) } } }
         let log = Log()

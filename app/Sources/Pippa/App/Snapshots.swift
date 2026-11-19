@@ -124,6 +124,10 @@ enum Snapshots {
                 askSampleQuestion()
             }, 760, false, false),
             ("error", { chat.showSample(sampleConversations(failed: true), current: "c1", answering: false) }, 760, false, false),
+            // The online AI said "too many requests": Pi waits and tries again, the row counts down.
+            ("rate-limit-wait", { chat.showSample(sampleConversations(answering: true, starting: true), current: "c1", answering: true, waiting: 42) }, 760, false, false),
+            // Still at its limit after every try: Continue counts down its minute.
+            ("rate-limit-continue", { chat.showSample(sampleConversations(limited: true), current: "c1", answering: false) }, 760, false, false),
             ("cards", { chat.showSample(sampleCards() + sampleConversations(), current: "cards", answering: false) }, 1480, false, false),
             ("setup", {
                 chat.showSample([], current: nil, answering: false)
@@ -361,7 +365,7 @@ enum Snapshots {
     }
 
     private static func sampleConversations(answering: Bool = false, failed: Bool = false, starting: Bool = false,
-                                            writing: Bool = false) -> [Conversation] {
+                                            writing: Bool = false, limited: Bool = false) -> [Conversation] {
         let now = Date()
         var answer = ChatMessage(role: .assistant, text: """
         Dein aktueller Stand ist **ETF-Portfolio.md**, zuletzt geändert am 1. November 2026.
@@ -402,6 +406,13 @@ enum Snapshots {
             answer.steps = [step("1", "calendar_read", failed: true)]
             answer.error = "Pippa darf deinen Kalender nicht lesen. Erlaube es in den Systemeinstellungen unter Datenschutz & Sicherheit."
         }
+        if limited {
+            answer.text = ""
+            answer.receipts = []
+            answer.steps = [step("1", "search_files", ["query": "ETF"])]
+            answer.error = T("The online AI is still at its limit. Wait a minute, then continue where it stopped.", table: "App")
+            answer.resumeAfter = now.addingTimeInterval(38)
+        }
         var letter = ChatMessage(role: .assistant, text: """
         Die Nachzahlung von **184,37 €** musst du **bis zum 15. November 2026** überweisen.
 
@@ -416,13 +427,13 @@ enum Snapshots {
         letter.receipts = [PippaMCPWriteReceipt(action: "reminderAdd", outcome: "done", name: "Nachzahlung überweisen · Fr., 14. Nov.", created: sample), undone]
         letter.context = ContextUsage(tokens: 12_431, window: 32_768)
         letter.duration = 6
-        if !answering && !failed {
+        if !answering && !failed && !limited {
             answer.sources = [ChatSource(kind: .file, name: "ETF-Portfolio.md", location: "/Users/me/Documents/ETF-Portfolio.md", detail: nil),
                               ChatSource(kind: .file, name: "ETF-Ideen.md", location: "/Users/me/Documents/ETF-Ideen.md", detail: nil)]
             answer.checkedDates = ["1. November 2026"]
         }
         var messages = [ChatMessage(role: .user, text: "Wo ist meine aktuelle ETF-Übersicht und was steht drin?"), answer]
-        if !answering && !failed {
+        if !answering && !failed && !limited {
             messages += [ChatMessage(role: .user, text: "Bis wann muss ich hier etwas tun?", files: ["/Users/me/Downloads/Brief-Stadtwerke.pdf"]), letter]
         }
         let first = Conversation(id: "c1", title: "Wo ist meine aktuelle ETF-Übersicht?", updated: now, messages: messages)
@@ -449,7 +460,7 @@ enum Snapshots {
 extension ChatModel {
     /// Snapshots only: show sample conversations without touching the saved ones.
     func showSample(_ conversations: [Conversation], current: String?, answering: Bool, starting: Bool = false,
-                    writing: Bool = false) {
-        replaceForSnapshot(conversations, current: current, answering: answering, starting: starting, writing: writing)
+                    writing: Bool = false, waiting: TimeInterval? = nil) {
+        replaceForSnapshot(conversations, current: current, answering: answering, starting: starting, writing: writing, waiting: waiting)
     }
 }

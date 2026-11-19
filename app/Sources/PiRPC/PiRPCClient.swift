@@ -48,6 +48,8 @@ public actor PiRPCClient {
     private var userMessagesInRun = 0
     /// Pi compacts a long session between answers. Pi refuses a prompt meanwhile.
     private var compacting = false
+    /// Pi waits before it tries the provider again (`auto_retry_start` until `auto_retry_end`).
+    private var retrying = false
     private var nativeReadinessAttempt: UUID?
 
     struct Response: Sendable { let success: Bool; let error: String?; let data: Data? }
@@ -185,16 +187,19 @@ public actor PiRPCClient {
         Self.disposition(try await send(["type": "steer", "message": text])) == "queued"
     }
 
-    /// Abort; Pi replies only once the session is idle again.
+    /// Abort; Pi replies only once the session is idle again. While Pi waits to try the provider again, the wait ends
+    /// first (`abort_retry`). Both lines go in one write: Pi reads them together, so the ended wait cannot settle the
+    /// answer as finished before `abort` marks it stopped.
     public func abort(timeout: Duration = .seconds(3)) async throws {
-        _ = try await send(["type": "abort"], timeout: timeout)
+        _ = try await send(["type": "abort"], timeout: timeout, preceding: retrying ? ["type": "abort_retry"] : nil)
     }
 
     /// Arbitrary command, for trial runs (`get_state`, `get_session_stats`, …). Returns `data` as JSON.
     public func command(_ payload: [String: any Sendable], timeout: Duration? = nil) async throws -> Data? {
         try await send(payload, timeout: timeout).data
     }
-    private func send(_ payload: [String: any Sendable], timeout: Duration? = nil, admission: PiRPCPromptAdmission? = nil) async throws -> Response {
+    private func send(_ payload: [String: any Sendable], timeout: Duration? = nil, admission: PiRPCPromptAdmission? = nil,
+                      preceding: [String: any Sendable]? = nil) async throws -> Response {
         guard let stdin, process?.isRunning == true else { throw PiRPCError.notRunning }
         nextID += 1
         let id = "pippa-\(nextID)"
@@ -202,6 +207,7 @@ public actor PiRPCClient {
         command["id"] = id
         var data = try JSONSerialization.data(withJSONObject: command)
         data.append(10)
+        if let preceding { data = try JSONSerialization.data(withJSONObject: preceding) + Data([10]) + data }
         let response = try await withTaskCancellationHandler {
             try Task.checkCancellation()
             return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Response, Error>) in
@@ -315,6 +321,14 @@ public actor PiRPCClient {
                let json = try? JSONSerialization.data(withJSONObject: data) {
                 events?.yield(.notice(String(decoding: json, as: UTF8.self), kind: kind))
             }
+        case "auto_retry_start":
+            retrying = true
+            events?.yield(.retryScheduled(attempt: record["attempt"] as? Int ?? 0, maxAttempts: record["maxAttempts"] as? Int ?? 0,
+                                          delayMs: record["delayMs"] as? Int ?? 0, error: record["errorMessage"] as? String ?? ""))
+        case "auto_retry_end":
+            retrying = false
+            events?.yield(.retryEnded(success: record["success"] as? Bool == true, attempt: record["attempt"] as? Int ?? 0,
+                                      finalError: record["finalError"] as? String))
         case "compaction_start":
             compacting = true
         case "compaction_end":
@@ -357,6 +371,7 @@ public actor PiRPCClient {
     }
 
     private func finish(_ error: Error?) {
+        retrying = false
         if let error { events?.finish(throwing: error) } else { events?.finish() }
         events = nil
     }

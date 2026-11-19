@@ -133,8 +133,7 @@ final class PiSession {
                                         admission: admission, send: { try await client.prompt($0, admission: admission) })
         } catch PiRPCError.commandFailed(_, let message) {
             if route.piModel != nil, let problem = PiProviderClient.problem(in: message) {
-                throw Failure.model(problem == .limit ? T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
-                                                      : T("Reconnect your online AI in Settings.", table: "App"))
+                throw Failure.model(ChatModel.limitMessage(problem))
             }
             throw Failure.model(route.online == nil && route.piModel == nil ? ChatModel.modelError(message, online: false) : message)
         }
