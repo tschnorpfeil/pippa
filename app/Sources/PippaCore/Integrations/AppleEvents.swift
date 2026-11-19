@@ -20,6 +20,12 @@ enum AppleEvents {
         !NSRunningApplication.runningApplications(withBundleIdentifier: bundle).isEmpty
     }
 
+    /// The process id of the app when exactly one copy runs; `nil` when none or several do.
+    static func process(bundle: String) -> Int32? {
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundle)
+        return running.count == 1 ? running[0].processIdentifier : nil
+    }
+
     /// Is the app installed on this Mac? (Only asks LaunchServices, starts nothing.)
     static func isInstalled(bundle: String) -> Bool {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) != nil

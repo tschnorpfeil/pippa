@@ -83,15 +83,25 @@ struct IslandQuestionText: View {
         VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
             Text(parts.title).font(IslandStyle.title).foregroundStyle(IslandStyle.white(IslandStyle.primary))
                 .fixedSize(horizontal: false, vertical: true)
-            if !parts.message.isEmpty {
-                Text(parts.message).font(IslandStyle.small).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
-                    .lineLimit(6).fixedSize(horizontal: false, vertical: true)
+            // Everything the person allows, never cut (recipients, a whole mail): a long text scrolls inside the island,
+            // so the buttons below stay in reach.
+            ScrollView {
+                VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
+                    if !parts.message.isEmpty {
+                        Text(parts.message).font(IslandStyle.small).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if !parts.detail.isEmpty {
+                        // In full, as on the chat's card: the command or address the person allows (bounded by its sender).
+                        Text(parts.detail).font(IslandStyle.detail).foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if !parts.detail.isEmpty {
-                // In full, as on the chat's card: the command or address the person allows (bounded by its sender).
-                Text(parts.detail).font(IslandStyle.detail).foregroundStyle(IslandStyle.white(IslandStyle.primary))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            .scrollIndicators(.visible)
+            .frame(maxHeight: 220)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -117,8 +127,10 @@ struct IslandQuestionAnswers: View {
         if request.method == "confirm" {
             IslandButtonRow(lead: true) {
                 IslandOpenButton(hint: false, action: onOpen)
-                button(T("Don’t Allow", table: "App"), .confirmed(false))
-                button(T("Allow", table: "App"), .confirmed(true), prominent: true)
+                // The card's own words when it names them ("Don’t Send", "Send"), as in the chat.
+                let labels = Confirmations.confirmLabels(request)
+                button(labels.no, .confirmed(false))
+                button(labels.yes, .confirmed(true), prominent: true)
             }
         } else if request.method == "select" {
             // Every choice in sight, one row each and in full: a pop-up menu hid them behind a click and opened over

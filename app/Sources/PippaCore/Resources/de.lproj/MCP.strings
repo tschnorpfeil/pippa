@@ -28,7 +28,7 @@
 "Read Mail: folders" = "Mail gelesen: Ordner";
 "Pippa can’t move mails here." = "Pippa kann hier keine Mails verschieben.";
 "Pippa couldn’t move the mails just now. Nothing was moved." = "Pippa konnte die Mails gerade nicht verschieben. Es wurde nichts verschoben.";
-"To do this, I need access to Mail on this Mac – I only move mails into your folders and never send anything." = "Dafür brauche ich Zugriff auf Mail auf diesem Mac – ich verschiebe nur Mails in deine Ordner und verschicke nie etwas.";
+"To do this, I need access to Mail on this Mac – I only move mails into your folders and send nothing without your click on Send." = "Dafür brauche ich Zugriff auf Mail auf diesem Mac – ich verschiebe nur Mails in deine Ordner und verschicke nichts ohne deinen Klick auf Senden.";
 "%lld mails are in both “%@” and “%@”. Pippa doesn’t delete mails; please look at both folders in Mail." = "%lld Mails sind in „%@“ und in „%@“. Pippa löscht keine Mails; sieh bitte in Mail in beiden Ordnern nach.";
 "Pippa moved %lld mails into “%@” and checked them." = "Pippa hat %lld Mails nach „%@“ verschoben und geprüft.";
 "%lld mails are now neither in “%@” nor in “%@”. Please look for them in Mail. Pippa stopped and won’t repeat the move." = "%lld Mails sind jetzt weder in „%@“ noch in „%@“. Sieh bitte in Mail nach. Pippa hat aufgehört und verschiebt nichts erneut.";
@@ -122,6 +122,7 @@
 "This mail may already have gone out. Please look in Sent in Mail; Pippa doesn’t send it again." = "Diese Mail ist vielleicht schon verschickt. Sieh bitte in Mail unter „Gesendet“ nach; Pippa sendet sie nicht noch einmal.";
 "The draft has no recipient, so Pippa sent nothing. Add one in Mail, or tell Pippa who gets it." = "Der Entwurf hat keinen Empfänger, deshalb hat Pippa nichts gesendet. Trag in Mail einen ein oder sag Pippa, wer die Mail bekommt.";
 "The draft has no text, so Pippa sent nothing." = "Der Entwurf hat keinen Text, deshalb hat Pippa nichts gesendet.";
+"Pippa can’t see which address the draft would be sent from, so she sent nothing. Choose the sender (From) in Mail, then ask again." = "Pippa sieht nicht, von welcher Adresse der Entwurf gesendet würde, deshalb hat sie nichts gesendet. Wähl in Mail den Absender („Von“) und frag dann noch einmal.";
 "Pippa’s journal is unavailable, so she sent nothing." = "Pippas Protokoll ist gerade nicht verfügbar, deshalb hat sie nichts gesendet.";
 "Pippa isn’t sure whether Mail sent the mail. Please look in Sent in Mail; Pippa won’t send it again." = "Pippa ist nicht sicher, ob Mail die Mail gesendet hat. Sieh bitte in Mail unter „Gesendet“ nach; Pippa sendet sie nicht noch einmal.";
 "Mail didn’t take the mail, so nothing was sent. Try again in a moment." = "Mail hat die Mail nicht angenommen, deshalb wurde nichts gesendet. Versuch es gleich noch einmal.";

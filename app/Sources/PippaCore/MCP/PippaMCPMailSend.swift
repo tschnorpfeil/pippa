@@ -31,16 +31,17 @@ public enum PippaMCPMailSend {
 /// is sent at most once: after the send event it is `sent` or `unclear` for good.
 public final class MailSendDrafts: @unchecked Sendable {
     public enum State: String, Sendable { case open, sending, sent, unclear }
-    private struct Entry { let outgoingID: Int; let owner: String; var state: State }
-    enum Claim: Equatable { case claimed(Int), unknown, sending, sent, unclear }
+    /// `process`: the Mail process that has the window `outgoingID`; Mail numbers windows anew after a restart.
+    private struct Entry { let outgoingID: Int; let process: Int32; let owner: String; var state: State }
+    enum Claim: Equatable { case claimed(Int, process: Int32), unknown, sending, sent, unclear }
 
     private let lock = NSLock()
     private var entries: [String: Entry] = [:]
     public init() {}
 
-    func register(outgoingID: Int, owner: String) -> String {
+    func register(outgoingID: Int, process: Int32, owner: String) -> String {
         let token = "d" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(12).lowercased()
-        lock.withLock { entries[token] = Entry(outgoingID: outgoingID, owner: owner, state: .open) }
+        lock.withLock { entries[token] = Entry(outgoingID: outgoingID, process: process, owner: owner, state: .open) }
         return token
     }
 
@@ -49,7 +50,7 @@ public final class MailSendDrafts: @unchecked Sendable {
         lock.withLock {
             guard let owner, let entry = entries[token], entry.owner == owner else { return .unknown }
             switch entry.state {
-            case .open: entries[token]?.state = .sending; return .claimed(entry.outgoingID)
+            case .open: entries[token]?.state = .sending; return .claimed(entry.outgoingID, process: entry.process)
             case .sending: return .sending
             case .sent: return .sent
             case .unclear: return .unclear
@@ -89,9 +90,9 @@ extension PippaMCPWriteTools {
             return refuse("unavailable", L("Pippa can’t send mail here. Nothing was sent.", table: "MCP"))
         }
         let drafts = host.mailDrafts
-        let outgoingID: Int
+        let outgoingID: Int, process: Int32
         switch drafts.claim(token, owner: scope.draftOwner) {
-        case .claimed(let id): outgoingID = id
+        case .claimed(let id, let mail): outgoingID = id; process = mail
         case .unknown: return refuse("unknown_draft", L("Pippa sends only a draft she saved in this conversation. Nothing was sent.", table: "MCP"))
         case .sending: return refuse("busy", L("This mail is already being sent. Nothing else was sent.", table: "MCP"))
         case .sent: return refuse("already_sent", L("This mail was already sent. Pippa doesn’t send it again.", table: "MCP"))
@@ -103,11 +104,15 @@ extension PippaMCPWriteTools {
 
         if case .blocked(let status, let tell) = await ensure(.mail) { return refuse(status, tell) }
         let shown: MailOutgoing
-        switch await read(outgoingID, sender) {
+        switch await read(outgoingID, process, sender) {
         case .found(let mail): shown = mail
         case .notSent(let status, let tell): return refuse(status, tell)
         }
         name = Self.sendName(shown)
+        // Mail named no sender (yet): the card could not say who it comes from, and Sent could not confirm it.
+        guard shown.senderAddress != nil else {
+            return refuse("no_sender", L("Pippa can’t see which address the draft would be sent from, so she sent nothing. Choose the sender (From) in Mail, then ask again.", table: "MCP"))
+        }
         guard !shown.recipients.isEmpty else {
             return refuse("no_recipient", L("The draft has no recipient, so Pippa sent nothing. Add one in Mail, or tell Pippa who gets it.", table: "MCP"))
         }
@@ -125,10 +130,20 @@ extension PippaMCPWriteTools {
 
         // Right before the send event: what leaves must be exactly what the card showed.
         let current: MailOutgoing
-        switch await read(outgoingID, sender) {
+        switch await read(outgoingID, process, sender) {
         case .found(let mail) where mail.matches(shown): current = mail
         case .found: return Self.changed(receipt: receipt("failed", "draft_changed"))
         case .notSent(let status, let tell): return refuse(status, tell)
+        }
+
+        // What Sent already holds under this subject (an earlier reply in the thread): never taken for this mail.
+        let sentAt = host.now()
+        let before: Set<Int>
+        do {
+            before = Set(try await sender.sent(subject: current.subject, since: sentAt).map(\.id))
+        } catch {
+            if error is CancellationError { return refuse("cancelled", Self.stoppedText) }
+            return refuse("busy", L("Mail didn’t answer, so Pippa sent nothing. Try again in a moment.", table: "MCP"))
         }
 
         let lease = PippaMCPWriteLease.current
@@ -145,10 +160,9 @@ extension PippaMCPWriteTools {
             return refuse("unavailable", L("Pippa’s journal is unavailable, so she sent nothing.", table: "MCP"))
         }
 
-        let sentAt = host.now()
         let dispatch: MailSendDispatch
         do {
-            dispatch = try await sender.send(outgoingID, expected: current)
+            dispatch = try await sender.send(outgoingID, process: process, expected: current)
         } catch {
             if lease?.hasDispatched == true {
                 await row?.abandon(dispatched: true)
@@ -178,7 +192,7 @@ extension PippaMCPWriteTools {
                                 receipt: receipt("unclear", "unconfirmed"))
         }
 
-        guard await inSent(current, since: sentAt, sender: sender) else {
+        guard await inSent(current, since: sentAt, before: before, sender: sender) else {
             await row?.abandon(dispatched: true)
             final = .unclear
             return Self.unclear(L("Mail took the mail, but Pippa could not confirm it in Sent. Please look in Sent; Pippa won’t send it again.", table: "MCP"),
@@ -194,10 +208,10 @@ extension PippaMCPWriteTools {
 
     private enum Read { case found(MailOutgoing), notSent(String, String) }
 
-    private func read(_ id: Int, _ sender: any MailSending) async -> Read {
+    private func read(_ id: Int, _ process: Int32, _ sender: any MailSending) async -> Read {
         do {
             try PippaMCPWriteLease.current?.check()
-            switch try await sender.outgoing(id) {
+            switch try await sender.outgoing(id, process: process) {
             case .found(let mail): return .found(mail)
             case .gone: return .notSent("draft_gone", Self.goneText)
             case .several: return .notSent("ambiguous", L("Mail shows more than one window for this draft, so Pippa sent nothing.", table: "MCP"))
@@ -212,12 +226,14 @@ extension PippaMCPWriteTools {
         }
     }
 
-    /// Looks for the sent copy in Sent until `PippaMCPMailSend.sentBound`. Stop ends the wait: then it is unclear.
-    private func inSent(_ mail: MailOutgoing, since: Date, sender: any MailSending) async -> Bool {
+    /// Looks for the sent copy in Sent until `PippaMCPMailSend.sentBound`; mails that were there before the send event
+    /// (`before`) never count. Stop ends the wait: then it is unclear.
+    private func inSent(_ mail: MailOutgoing, since: Date, before: Set<Int>, sender: any MailSending) async -> Bool {
         let settle = host.mailSendSettle
         let start = settle.now()
         while !Task.isCancelled, !scope.snapshot.cancelled {
-            if let entries = try? await sender.sent(subject: mail.subject, since: since), entries.contains(where: { $0.isCopy(of: mail) }) {
+            if let entries = try? await sender.sent(subject: mail.subject, since: since),
+               entries.contains(where: { !before.contains($0.id) && $0.isCopy(of: mail) }) {
                 return true
             }
             guard settle.now() - start < PippaMCPMailSend.sentBound, !Task.isCancelled, !scope.snapshot.cancelled else { return false }

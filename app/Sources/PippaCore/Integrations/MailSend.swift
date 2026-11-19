@@ -5,11 +5,15 @@ import Foundation
 // tool a fake `MailSending` and never touch Mail.
 
 /// What `insertDraft` created: the result `mail_draft` reports, and Mail's id of the draft window when Mail confirmed
-/// its fields (`nil`: nothing `mail_send` could later find).
+/// its fields (`nil`: nothing `mail_send` could later find). The id holds only for one run of Mail, so the Mail process
+/// that made the draft comes with it: another process means the draft is gone.
 public struct MailDraftInsert: Sendable, Equatable {
     public var result: MailInsertResult
     public var outgoingID: Int?
-    public init(result: MailInsertResult, outgoingID: Int?) { self.result = result; self.outgoingID = outgoingID }
+    public var mailProcess: Int32?
+    public init(result: MailInsertResult, outgoingID: Int?, mailProcess: Int32? = nil) {
+        self.result = result; self.outgoingID = outgoingID; self.mailProcess = mailProcess
+    }
 }
 
 /// An open, unsent mail in Mail as Mail reports it right now: what would leave if it were sent.
@@ -29,14 +33,18 @@ public struct MailOutgoing: Sendable, Equatable {
     }
 
     public var recipients: [String] { to + cc + bcc }
-    /// The address in `sender` ("Name <a@b>" → "a@b").
+    /// The address in `sender` ("Name <a@b>" → "a@b"); `nil` when Mail named no sender (it reads as "").
     public var senderAddress: String? { MailAddress.parse(sender).address }
 
-    /// The same mail on another read: exact fields, recipients in any order and case.
+    /// The same mail on another read: exact fields, recipients in any order and case (each address as often).
     public func matches(_ other: MailOutgoing) -> Bool {
-        func set(_ list: [String]) -> [String] { list.map { $0.lowercased() }.sorted() }
-        return sender == other.sender && subject == other.subject && body == other.body && set(to) == set(other.to)
-            && set(cc) == set(other.cc) && set(bcc) == set(other.bcc) && attachments == other.attachments
+        sender == other.sender && subject == other.subject && body == other.body && Self.sameAddresses(to, other.to)
+            && Self.sameAddresses(cc, other.cc) && Self.sameAddresses(bcc, other.bcc) && attachments == other.attachments
+    }
+
+    /// Both lists hold the same addresses, each as often, in any order and case.
+    static func sameAddresses(_ a: [String], _ b: [String]) -> Bool {
+        a.map { $0.lowercased() }.sorted() == b.map { $0.lowercased() }.sorted()
     }
 }
 
@@ -64,43 +72,52 @@ public enum MailSendDispatch: Sendable, Equatable {
     case unclear
 }
 
-/// One mail in Sent, as the lookup reports it, for comparing in Swift.
+/// One mail in Sent, as the lookup reports it, for comparing in Swift. `id` is Mail's id of the message: a mail that
+/// was in Sent before the send event is never the one just sent.
 public struct MailSentEntry: Sendable, Equatable {
+    public var id: Int
     public var sender: String
     public var to: [String]
-    public init(sender: String, to: [String]) { self.sender = sender; self.to = to }
+    public var cc: [String]
+    public var bcc: [String]
+    public init(id: Int, sender: String, to: [String], cc: [String] = [], bcc: [String] = []) {
+        self.id = id; self.sender = sender; self.to = to; self.cc = cc; self.bcc = bcc
+    }
 }
 
 /// Mail for `mail_send`. The app uses `SystemIntegrations`; checks a fake. Only `send` changes anything.
 public protocol MailSending: Sendable {
-    /// As `AppIntegrations.insertReply`, with the id of the open draft window.
+    /// As `AppIntegrations.insertReply`, with the id of the open draft window and the Mail process that has it.
     func insertDraft(_ draft: MailDraft) async throws -> MailDraftInsert
-    /// The draft window `id` as it is now. Read only.
-    func outgoing(_ id: Int) async throws -> MailOutgoingLookup
-    /// The single mutating Apple Event: sends window `id` only while it still holds exactly `expected`. Never repeated.
-    func send(_ id: Int, expected: MailOutgoing) async throws -> MailSendDispatch
+    /// The draft window `id` as it is now, only in the Mail process `process` (another one: `.gone`). Read only.
+    func outgoing(_ id: Int, process: Int32) async throws -> MailOutgoingLookup
+    /// The single mutating Apple Event: sends window `id` of Mail process `process` only while it still holds exactly
+    /// `expected`. Never repeated.
+    func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch
     /// Mails in Sent with exactly this subject, sent since `since`. Read only.
     func sent(subject: String, since: Date) async throws -> [MailSentEntry]
 }
 
 extension MailSentEntry {
-    /// The sent copy of `mail`: same recipients (To, any order and case) and from the same address.
+    /// The sent copy of `mail`: from the same address, to the same To, Cc and Bcc (any order and case, each as often).
     public func isCopy(of mail: MailOutgoing) -> Bool {
         guard let address = mail.senderAddress?.lowercased(), MailAddress.parse(sender).address?.lowercased() == address else { return false }
-        return to.map { $0.lowercased() }.sorted() == mail.to.map { $0.lowercased() }.sorted()
+        return MailOutgoing.sameAddresses(to, mail.to) && MailOutgoing.sameAddresses(cc, mail.cc) && MailOutgoing.sameAddresses(bcc, mail.bcc)
     }
 }
 
 extension SystemIntegrations: MailSending {
-    public func insertDraft(_ draft: MailDraft) async throws -> MailDraftInsert { try await MailReplyScript.insertDraft(draft) }
-    public func outgoing(_ id: Int) async throws -> MailOutgoingLookup {
-        // A closed Mail has no open draft window; Pippa never starts it to look.
-        guard AppleEvents.isRunning(.mail) else { return .gone }
-        return try await MailSendScript.outgoing(id)
+    public func insertDraft(_ draft: MailDraft) async throws -> MailDraftInsert {
+        var inserted = try await MailReplyScript.insertDraft(draft)
+        inserted.mailProcess = AppleEvents.process(bundle: Integration.mail.bundleIdentifier)
+        return inserted
     }
-    public func send(_ id: Int, expected: MailOutgoing) async throws -> MailSendDispatch {
-        guard AppleEvents.isRunning(.mail) else { return .gone }
-        return try await MailSendScript.send(id, expected: expected)
+    public func outgoing(_ id: Int, process: Int32) async throws -> MailOutgoingLookup {
+        // A closed or restarted Mail has no window under this id; Pippa never starts it to look.
+        try await MailSendScript.outgoing(id, process: process)
+    }
+    public func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch {
+        try await MailSendScript.send(id, process: process, expected: expected)
     }
     public func sent(subject: String, since: Date) async throws -> [MailSentEntry] {
         guard AppleEvents.isRunning(.mail) else { throw PippaError.appNotOpen(Integration.mail.appName) }
@@ -112,8 +129,10 @@ extension SystemIntegrations: MailSending {
 public enum MailSendScript {
     public typealias StepRunner = MailReplyScript.StepRunner
 
-    public static func outgoing(_ id: Int) async throws -> MailOutgoingLookup { try await outgoing(id, runner: run) }
-    public static func send(_ id: Int, expected: MailOutgoing) async throws -> MailSendDispatch { try await send(id, expected: expected, runner: run) }
+    public static func outgoing(_ id: Int, process: Int32) async throws -> MailOutgoingLookup { try await outgoing(id, runner: run(in: process)) }
+    public static func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch {
+        try await send(id, expected: expected, runner: run(in: process))
+    }
     public static func sent(subject: String, since: Date) async throws -> [MailSentEntry] { try await sent(subject: subject, since: since, now: Date(), runner: run) }
 
     public static func outgoing(_ id: Int, runner: StepRunner) async throws -> MailOutgoingLookup {
@@ -151,8 +170,9 @@ public enum MailSendScript {
         guard response.count == 2, response[0].text == "ok" else { throw PippaError.notAvailable }
         return response[1].items.compactMap { entry in
             let parts = entry.items
-            guard parts.count == 2, let sender = parts[0].text else { return nil }
-            return MailSentEntry(sender: sender, to: parts[1].items.compactMap(\.text))
+            guard parts.count == 5, let id = parts[0].number, let sender = parts[1].text else { return nil }
+            return MailSentEntry(id: id, sender: sender, to: parts[2].items.compactMap(\.text), cc: parts[3].items.compactMap(\.text),
+                                 bcc: parts[4].items.compactMap(\.text))
         }
     }
 
@@ -165,7 +185,8 @@ public enum MailSendScript {
                 let texts = items.compactMap(\.text)
                 return texts.count == items.count ? texts : nil
             }
-            guard let to = texts(response[4]), let cc = texts(response[5]), let bcc = texts(response[6]), let files = texts(response[7]) else { return .unreadable }
+            guard let to = texts(response[4]), let cc = texts(response[5]), let bcc = texts(response[6]), let files = texts(response[7]),
+                  !(to + cc + bcc).contains(where: \.isEmpty) else { return .unreadable }
             return .found(MailOutgoing(sender: sender, subject: subject, body: body, to: to, cc: cc, bcc: bcc, attachments: files))
         case "gone": return .gone
         case "several": return .several
@@ -179,6 +200,19 @@ public enum MailSendScript {
         }.items
         await Task.yield()
         return result
+    }
+
+    /// As `run`, only while Mail is still the process `process`, checked on the AppleScript queue right before the
+    /// event: a draft window id of an earlier Mail may name another draft now. Otherwise the answer is "gone".
+    private static func run(in process: Int32) -> StepRunner {
+        { handler, args, mutation in
+            let result = try await AppleEvents.perform {
+                guard AppleEvents.process(bundle: Integration.mail.bundleIdentifier) == process else { return ScriptValue.list([.text("gone")]) }
+                return ScriptValue(try AppleEvents.call(source, handler: handler, args.map(\.descriptor), app: .mail, mutation: mutation))
+            }.items
+            await Task.yield()
+            return result
+        }
     }
 
     static let source = """
@@ -197,29 +231,43 @@ public enum MailSendScript {
     on snapshotOf(om)
         tell application id "com.apple.mail"
             with timeout of 15 seconds
-                set theSender to (sender of om) as text
-                set theSubject to (subject of om) as text
-                set theBody to (content of om) as text
+                set theSender to my textOf(sender of om)
+                set theSubject to my textOf(subject of om)
+                set theBody to my textOf(content of om)
                 set toList to {}
                 repeat with r in to recipients of om
-                    set end of toList to (address of r) as text
+                    set end of toList to my textOf(address of r)
                 end repeat
                 set ccList to {}
                 repeat with r in cc recipients of om
-                    set end of ccList to (address of r) as text
+                    set end of ccList to my textOf(address of r)
                 end repeat
                 set bccList to {}
                 repeat with r in bcc recipients of om
-                    set end of bccList to (address of r) as text
+                    set end of bccList to my textOf(address of r)
                 end repeat
                 set fileNames to {}
                 repeat with a in (every attachment of content of om)
-                    set end of fileNames to my lastPart((file name of a) as text)
+                    set end of fileNames to my fileName(file name of a)
                 end repeat
             end timeout
         end tell
         return {"ok", theSender, theSubject, theBody, toList, ccList, bccList, fileNames}
     end snapshotOf
+
+    -- Mail's missing value (no sender yet, no subject) is "", never the words "missing value".
+    on textOf(theValue)
+        if theValue is missing value then return ""
+        return theValue as text
+    end textOf
+
+    -- An attachment without a readable name makes the whole read fail: the card would not show what leaves.
+    on fileName(theValue)
+        if theValue is missing value then error "attachment name unreadable" number -10000
+        set theName to my lastPart(theValue as text)
+        if theName is "" then error "attachment name unreadable" number -10000
+        return theName
+    end fileName
 
     on lastPart(thePath)
         set AppleScript's text item delimiters to ":"
@@ -255,15 +303,7 @@ public enum MailSendScript {
             if errNum is -1712 then return {"busy"}
             return {"unreadable"}
         end try
-        considering case, diacriticals, hyphens, punctuation and white space
-            if (item 2 of nowMail) is not theSender then return {"changed"}
-            if (item 3 of nowMail) is not theSubject then return {"changed"}
-            if (item 4 of nowMail) is not theBody then return {"changed"}
-            if (item 8 of nowMail) is not fileNames then return {"changed"}
-        end considering
-        if not (my sameAddresses(item 5 of current, toList)) then return {"changed"}
-        if not (my sameAddresses(item 6 of current, ccList)) then return {"changed"}
-        if not (my sameAddresses(item 7 of current, bccList)) then return {"changed"}
+        if my differs(nowMail, theSender, theSubject, theBody, toList, ccList, bccList, fileNames) then return {"changed"}
         tell application id "com.apple.mail"
             try
                 with timeout of 60 seconds
@@ -278,10 +318,42 @@ public enum MailSendScript {
         return {"uncertain"}
     end sendOutgoing
 
+    -- Pure (no Mail): does the snapshot `nowMail` differ from what the card showed?
+    on differs(nowMail, theSender, theSubject, theBody, toList, ccList, bccList, fileNames)
+        considering case, diacriticals, hyphens, punctuation and white space
+            if (item 2 of nowMail) is not theSender then return true
+            if (item 3 of nowMail) is not theSubject then return true
+            if (item 4 of nowMail) is not theBody then return true
+            if (item 8 of nowMail) is not fileNames then return true
+        end considering
+        if not (my sameAddresses(item 5 of nowMail, toList)) then return true
+        if not (my sameAddresses(item 6 of nowMail, ccList)) then return true
+        if not (my sameAddresses(item 7 of nowMail, bccList)) then return true
+        return false
+    end differs
+
+    -- Pure (no Mail): the same addresses, each as often, in any order and case.
     on sameAddresses(found, expected)
         if (count of found) is not (count of expected) then return false
+        set remaining to {} & found
         repeat with wanted in expected
-            if found does not contain (contents of wanted) then return false
+            set hit to 0
+            repeat with i from 1 to (count of remaining)
+                if (item i of remaining) is (contents of wanted) then
+                    set hit to i
+                    exit repeat
+                end if
+            end repeat
+            if hit is 0 then return false
+            if (count of remaining) is 1 then
+                set remaining to {}
+            else if hit is 1 then
+                set remaining to items 2 thru -1 of remaining
+            else if hit is (count of remaining) then
+                set remaining to items 1 thru -2 of remaining
+            else
+                set remaining to (items 1 thru (hit - 1) of remaining) & (items (hit + 1) thru -1 of remaining)
+            end if
         end repeat
         return true
     end sameAddresses
@@ -294,11 +366,19 @@ public enum MailSendScript {
                     set sinceDate to (current date) - ageSeconds
                     set found to (every message of sent mailbox whose subject is theSubject and date sent is greater than or equal to sinceDate)
                     repeat with m in found
-                        set addrs to {}
+                        set toList to {}
                         repeat with r in to recipients of m
-                            set end of addrs to (address of r) as text
+                            set end of toList to my textOf(address of r)
                         end repeat
-                        set end of out to {(sender of m) as text, addrs}
+                        set ccList to {}
+                        repeat with r in cc recipients of m
+                            set end of ccList to my textOf(address of r)
+                        end repeat
+                        set bccList to {}
+                        repeat with r in bcc recipients of m
+                            set end of bccList to my textOf(address of r)
+                        end repeat
+                        set end of out to {(id of m) as integer, my textOf(sender of m), toList, ccList, bccList}
                     end repeat
                 end timeout
             on error number errNum

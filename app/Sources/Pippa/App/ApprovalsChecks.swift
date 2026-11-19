@@ -33,6 +33,12 @@ enum ApprovalsChecks {
         check(approvals.questions.isEmpty, "an answered question disappears")
         approvals.answer("q1", .confirmed(false))   // late or double click: ignored
 
+        // mail_send names its buttons; the chat's card, the island and the alert all take them from here.
+        let named = Confirmations.confirmLabels(request("q-send", options: ["Don’t Send", "Send"]))
+        let plain = Confirmations.confirmLabels(request("q-plain"))
+        check(named == ("Don’t Send", "Send") && plain == (T("Don’t Allow", table: "App"), T("Allow", table: "App")),
+              "a confirm shows its own button words (Don’t Send / Send), otherwise Don’t Allow / Allow")
+
         let pick = Task { await approvals.ask(request("q2", "select", options: ["Once", "Always"])) }
         await settle()
         approvals.answer("q2", .value("Once"))

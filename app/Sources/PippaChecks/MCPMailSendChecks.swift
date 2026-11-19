@@ -10,8 +10,15 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
     private var nextID = 100
     private var sentMails: [MailOutgoing] = []
     private var sends = 0, sendCalls = 0, polls = 0
-    /// Sent shows the mail from this look on (1 = the first look); `Int.max`: never.
+    /// Sent shows the mail from this look on (1 = the first look, the one before the send event); `Int.max`: never.
     var visibleFrom = 1
+    /// Mails in Sent from before (an earlier reply in the same thread): there on every look.
+    var earlier: [MailSentEntry] = []
+    /// Another mail that lands in Sent after the send event, whatever `visibleFrom` says.
+    var other: [MailSentEntry] = []
+    /// Mail's process now; `restartMail` gives it a new one, as after quitting and opening Mail again.
+    private var process: Int32 = 4242
+    func restartMail() { lock.withLock { process += 1 } }
     var several: Set<Int> = []
     /// What the send event reports after the mail left (`.unclear`: Mail did not confirm).
     var outcome: MailSendDispatch = .sent
@@ -34,20 +41,22 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
                                        to: draft.to.map { [$0] } ?? [])
             return id
         }
-        return MailDraftInsert(result: draft.isReply ? .reply : .newMessage, outgoingID: id)
+        return MailDraftInsert(result: draft.isReply ? .reply : .newMessage, outgoingID: id, mailProcess: lock.withLock { process })
     }
 
-    func outgoing(_ id: Int) async throws -> MailOutgoingLookup {
+    func outgoing(_ id: Int, process: Int32) async throws -> MailOutgoingLookup {
         lock.withLock {
+            // A restarted Mail numbers its windows anew: the id may name another draft now.
+            guard process == self.process else { return .gone }
             if several.contains(id) { return .several }
             return windows[id].map(MailOutgoingLookup.found) ?? .gone
         }
     }
 
-    func send(_ id: Int, expected: MailOutgoing) async throws -> MailSendDispatch {
+    func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch {
         lock.withLock { sendCalls += 1 }
         await beforeSend?(id)
-        let window: MailOutgoing? = lock.withLock { windows[id] }
+        let window: MailOutgoing? = lock.withLock { process == self.process ? windows[id] : nil }
         guard let window else { return .gone }
         guard window.matches(expected) else { return .changed }
         try PippaMCPWriteLease.current?.beginDispatch()
@@ -60,8 +69,9 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
     func sent(subject: String, since: Date) async throws -> [MailSentEntry] {
         lock.withLock {
             polls += 1
-            guard polls >= visibleFrom else { return [] }
-            return sentMails.filter { $0.subject == subject }.map { MailSentEntry(sender: $0.sender, to: $0.to) }
+            let new = polls >= visibleFrom ? sentMails.enumerated().filter { $0.element.subject == subject }
+                .map { MailSentEntry(id: 900 + $0.offset, sender: $0.element.sender, to: $0.element.to, cc: $0.element.cc, bcc: $0.element.bcc) } : []
+            return earlier + (polls >= 2 ? other : []) + new
         }
     }
 }
@@ -250,7 +260,7 @@ func runMCPMailSendChecks() async {
     // A6: verification in Sent, bounded, and Stop.
     await checkAsync("Mail send: found in Sent after a few looks is verified; never found is unclear after the bound and not sent again") {
         let late = World(answer: yes)
-        late.fake.visibleFrom = 4
+        late.fake.visibleFrom = 5
         let found = await send(late, await draft(late))
         let never = World(answer: yes)
         never.fake.visibleFrom = .max
@@ -258,11 +268,44 @@ func runMCPMailSendChecks() async {
         let unclear = await send(never, neverID)
         let again = await send(never, neverID)
         let bound = Int(PippaMCPMailSend.sentBound.components.seconds / PippaMCPMailSend.sentInterval.components.seconds)
-        return found.json["verified"] as? String == "1 of 1" && late.fake.sentPolls == 4 && late.slept.value == 3
+        return found.json["verified"] as? String == "1 of 1" && late.fake.sentPolls == 5 && late.slept.value == 3
             && unclear.json["state"] as? String == "unclear" && unclear.json["done"] as? Bool == false
-            && never.fake.sentPolls == bound + 1 && never.clock.value >= PippaMCPMailSend.sentBound
+            && never.fake.sentPolls == bound + 2 && never.clock.value >= PippaMCPMailSend.sentBound
             && never.fake.sendCount == 1 && never.fake.sendCallCount == 1
             && again.json["status"] as? String == "already_sent" && neverID.flatMap { never.host.mailDrafts.state($0) } == .unclear
+    }
+    await checkAsync("Mail send: a mail already in Sent, or another one that only shares sender, subject and To, never verifies the send") {
+        // An earlier reply in the thread: same subject, sender and To, in Sent before the send event.
+        let thread = World(answer: yes)
+        thread.fake.visibleFrom = .max
+        thread.fake.earlier = [MailSentEntry(id: 7, sender: "Pippa Check <me@example.test>", to: ["anna@example.test"])]
+        let earlier = await send(thread, await draft(thread))
+        // A Cc-only mail: another mail to nobody in To, Cc someone else, lands in Sent at the same time.
+        let ccOnly = World(answer: yes)
+        ccOnly.fake.visibleFrom = .max
+        ccOnly.fake.other = [MailSentEntry(id: 8, sender: "Pippa Check <me@example.test>", to: [], cc: ["chris@example.test"])]
+        let ccID = await draft(ccOnly, to: nil)
+        ccOnly.fake.edit(ccOnly.fake.lastID) { $0.cc = ["ben@example.test"] }
+        let cc = await send(ccOnly, ccID)
+        // The same Cc-only mail, found in Sent: verified.
+        let found = World(answer: yes)
+        let foundID = await draft(found, to: nil)
+        found.fake.edit(found.fake.lastID) { $0.cc = ["ben@example.test"]; $0.bcc = ["dora@example.test"] }
+        let verified = await send(found, foundID)
+        return [earlier, cc].allSatisfy { $0.json["state"] as? String == "unclear" && $0.json["verified"] == nil }
+            && thread.fake.sendCount == 1 && ccOnly.fake.sendCount == 1 && verified.json["verified"] as? String == "1 of 1"
+    }
+    await checkAsync("Mail send: a draft without a sender address, or from a Mail that restarted since, is refused before any card") {
+        let world = World(answer: yes)
+        let noSender = await draft(world)
+        world.fake.edit(world.fake.lastID) { $0.sender = "" }
+        let unknown = await send(world, noSender)
+        let restarted = await draft(world)
+        world.fake.restartMail()
+        let gone = await send(world, restarted)
+        return unknown.json["status"] as? String == "no_sender" && unknown.json["dispatched"] as? Bool == false
+            && gone.json["status"] as? String == "draft_gone" && gone.json["dispatched"] as? Bool == false
+            && world.cards.value.isEmpty && world.fake.sendCallCount == 0
     }
     await checkAsync("Mail send: Stop while the card is open sends nothing, a late yes does nothing; Stop while waiting for Sent leaves it unclear") {
         let box = LockedBox<World?>(nil)
@@ -279,7 +322,7 @@ func runMCPMailSendChecks() async {
         let late = await send(waiting, id)
         let rows = try await journal.runActions(run: run).filter { $0.tool == "mail_send" }
         return stopped.json["status"] as? String == "cancelled" && open.fake.sendCallCount == 0 && open.cards.value.count == 1
-            && late.json["state"] as? String == "unclear" && waiting.fake.sendCount == 1 && waiting.fake.sentPolls == 1
+            && late.json["state"] as? String == "unclear" && waiting.fake.sendCount == 1 && waiting.fake.sentPolls == 2
             && rows.count == 1 && rows[0].state == .unclear
     }
 

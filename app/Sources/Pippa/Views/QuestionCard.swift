@@ -79,9 +79,9 @@ struct QuestionCard: View {
             HStack(spacing: Space.m) {
                 Spacer(minLength: 0)
                 // A card may name its buttons in plain words (no, yes): "Don’t Send", "Send".
-                let named = request.options.count == 2
-                ActionPill(title: named ? request.options[0] : T("Don’t Allow", table: "App"), shortcut: escape) { answer(.confirmed(false)) }
-                ActionPill(title: named ? request.options[1] : T("Allow", table: "App"), primary: true) { answer(.confirmed(true)) }
+                let labels = Confirmations.confirmLabels(request)
+                ActionPill(title: labels.no, shortcut: escape) { answer(.confirmed(false)) }
+                ActionPill(title: labels.yes, primary: true) { answer(.confirmed(true)) }
             }
         case "select" where request.options.count <= 3:
             HStack(spacing: Space.m) {

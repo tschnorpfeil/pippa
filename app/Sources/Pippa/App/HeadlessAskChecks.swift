@@ -40,10 +40,10 @@ enum HeadlessAskChecks {
                 windows[id] = MailOutgoing(sender: "Check <me@example.test>", subject: draft.replySubject, body: draft.body, to: draft.to.map { [$0] } ?? [])
                 return id
             }
-            return MailDraftInsert(result: .newMessage, outgoingID: id)
+            return MailDraftInsert(result: .newMessage, outgoingID: id, mailProcess: 1)
         }
-        func outgoing(_ id: Int) async throws -> MailOutgoingLookup { lock.withLock { windows[id].map(MailOutgoingLookup.found) ?? .gone } }
-        func send(_ id: Int, expected: MailOutgoing) async throws -> MailSendDispatch {
+        func outgoing(_ id: Int, process: Int32) async throws -> MailOutgoingLookup { lock.withLock { windows[id].map(MailOutgoingLookup.found) ?? .gone } }
+        func send(_ id: Int, process: Int32, expected: MailOutgoing) async throws -> MailSendDispatch {
             try PippaMCPWriteLease.current?.beginDispatch()
             lock.withLock { sends += 1 }
             return .sent
