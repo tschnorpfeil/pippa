@@ -80,8 +80,8 @@ stays out ([pippa-next-architecture.md](pippa-next-architecture.md)).
 
 `--mail-sort-probe` is built and ran read-only on this Mac's two accounts. It works: 2.4 seconds for an iCloud
 account (8 mailboxes listed, 3 read, 4 refused as Trash, Junk, Sent and Drafts), no timeout, nothing changed. It
-measures nothing about the rule: the account has 8 inbox mails and 12 filed mails, most of them the copies in the
-test folders "Pippa Test A" and "Pippa Test B", and the second account's inbox is empty. Leave-one-out there: 9 right,
+measures nothing about the rule: the account has 8 inbox mails and 12 filed mails in three folders, two of which are
+the test folders "Pippa Test A" and "Pippa Test B" with their copies, and the second account returned no inbox mail. Leave-one-out there: 9 right,
 0 wrong, 3 without a rule (at least two mails), 6 right, 0 wrong, 6 without (at least three).
 
 The go-on condition is therefore open. It needs one run on a Mac whose Mail holds a real, sorted mailbox:
