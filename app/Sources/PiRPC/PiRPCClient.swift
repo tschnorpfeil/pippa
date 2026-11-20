@@ -32,7 +32,7 @@ public final class PiRPCPromptAdmission: Sendable {
 public actor PiRPCClient {
     /// Tested range: the pinned minor version (app/Packaging/pi-release, currently Pi 1.5.x). `start()` rejects other versions
     /// with `.versionMismatch`. scripts/bump-pi.sh aborts if that does not match the new pin.
-    public static let supportedVersionPrefix = "1.5."
+    public static let supportedVersionPrefix = "1.6."
     public nonisolated let configuration: PiRPCConfiguration
     private var generation = UUID()
     private var process: Process?
