@@ -568,6 +568,43 @@ extension MailAccountScript {
         end tell
         return {"ok", out}
     end accountDuplicate
+
+    -- The sort probe (`Pippa --mail-sort-probe`): headers of the first n messages of one mailbox, one bulk Apple event
+    -- per property: {senders, deleted statuses, read statuses, flagged statuses}, read and flagged only when withFlags.
+    -- wantedPath {} is the account's inbox. Each Apple event bounded by perEvent seconds; a timeout returns "timeout".
+    -- Reads only: no message is opened, marked or changed.
+    on accountSortHeaders(acctID, wantedPath, n, withFlags, perEvent)
+        set froms to {}
+        set gone to {}
+        set seenFlags to {}
+        set flagFlags to {}
+        tell application id "com.apple.mail"
+            try
+                with timeout of perEvent seconds
+                    if (count of wantedPath) is 0 then
+                        set box to my boxOf(acctID, "inbox")
+                    else
+                        set box to my boxAt(acctID, wantedPath)
+                        if box is missing value then return {"nobox"}
+                    end if
+                    set total to count of messages of box
+                    set k to n
+                    if total < k then set k to total
+                    if k < 1 then return {"ok", {{}, {}, {}, {}}}
+                    set froms to (sender of messages 1 thru k of box) as list
+                    set gone to (deleted status of messages 1 thru k of box) as list
+                    if withFlags then
+                        set seenFlags to (read status of messages 1 thru k of box) as list
+                        set flagFlags to (flagged status of messages 1 thru k of box) as list
+                    end if
+                end timeout
+            on error number errNum
+                if errNum is -1728 then return {"nobox"}
+                return my problem(errNum)
+            end try
+        end tell
+        return {"ok", {froms, gone, seenFlags, flagFlags}}
+    end accountSortHeaders
     """
     #else
     static let probeSource = ""
@@ -768,6 +805,17 @@ extension MailAccountScript.Live: MailMoveProbeMail {
         }) { try MailMoveParse.statuses($0, expecting: inboxIDs.count) }
     }
 }
+
+/// The sort probe on the real Mail (`MailSortProbe`): the move probe's account kinds and `mail_folders`' listing come
+/// from the conformances above; this adds the read-only header read.
+extension MailAccountScript.Live: MailSortProbeMail {
+    func headers(account: String, path: [String], limit: Int, flags: Bool, eventTimeout: Int) async throws -> [MailSortProbe.Header] {
+        try await run("accountSortHeaders", {
+            [NSAppleEventDescriptor(string: account), MailMoveParse.list(path), NSAppleEventDescriptor(int32: Int32(limit)),
+             NSAppleEventDescriptor(boolean: flags), NSAppleEventDescriptor(int32: Int32(eventTimeout))]
+        }) { try MailMoveParse.sortHeaders($0, flags: flags) }
+    }
+}
 #endif
 
 /// Checks run the pure comparison handlers (`MailAccountScript.compareSource`) through NSAppleScript: nothing in that
@@ -865,6 +913,21 @@ public enum MailMoveParse {
             throw MailAccountProblem.failed
         }
         return zip(AppleEvents.items(ids), AppleEvents.items(flags)).map { MailMoveProbe.Listed(messageID: $0.stringValue ?? "", deleted: $1.booleanValue) }
+    }
+
+    /// The sort probe's `{senders, deleted, read, flagged}`, as many of each; read and flagged empty unless asked for.
+    public static func sortHeaders(_ payload: NSAppleEventDescriptor, flags: Bool) throws -> [MailSortProbe.Header] {
+        let parts = (1...4).compactMap { payload.atIndex($0) }
+        guard payload.numberOfItems == 4, parts.count == 4, parts.allSatisfy({ $0.descriptorType == typeAEList }) else { throw MailAccountProblem.failed }
+        let senders = AppleEvents.items(parts[0]), deleted = AppleEvents.items(parts[1])
+        let read = AppleEvents.items(parts[2]), flagged = AppleEvents.items(parts[3])
+        guard deleted.count == senders.count, flags ? read.count == senders.count && flagged.count == senders.count : read.isEmpty && flagged.isEmpty else {
+            throw MailAccountProblem.failed
+        }
+        return senders.indices.map { i in
+            MailSortProbe.Header(sender: senders[i].stringValue ?? "", deleted: deleted[i].booleanValue,
+                                 read: flags && read[i].booleanValue, flagged: flags && flagged[i].booleanValue)
+        }
     }
     #endif
 

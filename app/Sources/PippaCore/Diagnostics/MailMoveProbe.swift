@@ -77,10 +77,15 @@ public enum MailMoveProbe {
     /// The first, read-only question of every mode: asked once more after `pause` when it times out (Mail sometimes
     /// does not answer the first Apple event of a launch). Never used for a mutating event.
     static func firstAccounts(_ mail: any MailMoveProbeMail, pause: @Sendable () async -> Void, retried: () -> Void) async throws -> [AccountKind] {
-        do { return try await mail.accountKinds() } catch MailAccountProblem.timeout {
+        try await firstAccounts(mail.accountKinds, pause: pause, retried: retried)
+    }
+
+    /// As above, for any probe that can list the account kinds (`MailSortProbe`).
+    static func firstAccounts(_ ask: () async throws -> [AccountKind], pause: @Sendable () async -> Void, retried: () -> Void) async throws -> [AccountKind] {
+        do { return try await ask() } catch MailAccountProblem.timeout {
             retried()
             await pause()
-            return try await mail.accountKinds()
+            return try await ask()
         }
     }
 

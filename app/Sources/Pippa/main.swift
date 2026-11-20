@@ -23,6 +23,12 @@ if CommandLine.arguments.dropFirst().contains("--mail-send-probe") {
     Task { exit(await MailSendProbeCommand.run(arguments)) }
     dispatchMain()
 }
+// `Pippa --mail-sort-probe [--account …]`: the same, read-only, for the sender-history rule of docs/mail-sort.md.
+if CommandLine.arguments.dropFirst().contains("--mail-sort-probe") {
+    let arguments = Array(CommandLine.arguments.dropFirst())
+    Task { exit(await MailSortProbeCommand.run(arguments)) }
+    dispatchMain()
+}
 #endif
 let app = NSApplication.shared
 if CommandLine.arguments.dropFirst().contains("--verify-runtime") {
