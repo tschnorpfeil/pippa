@@ -43,4 +43,6 @@ folder, without the model, and `mail_move` applies it by plan id.
   the answers differed in what they counted: moved mails or new folder totals. The move itself was right each time.
 - **The sort rule was perfect by construction.** In the invented inbox every sender files into one folder, so
   190 of 190 measures that the model drives the tool, not how well sender history sorts real mail.
-- **Not measured:** thinking off on Pippa's other tasks, real Mail, more than two runs per setting.
+- **Thinking off on Pippa's other tasks** followed the same day:
+  [thinking-off-ornith-2026-11-20.md](thinking-off-ornith-2026-11-20.md).
+- **Not measured:** real Mail, more than two runs per setting.

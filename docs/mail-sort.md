@@ -76,11 +76,29 @@ stays out ([pippa-next-architecture.md](pippa-next-architecture.md)).
 - Undo after the answer puts every moved mail back in the inbox, checked by Message-ID.
 - With no proposal at all, the tool says so and shows no card.
 
+## Step 1, first run (2026-11-20)
+
+`--mail-sort-probe` is built and ran read-only on this Mac's two accounts. It works: 2.4 seconds for an iCloud
+account (8 mailboxes listed, 3 read, 4 refused as Trash, Junk, Sent and Drafts), no timeout, nothing changed. It
+measures nothing about the rule: the account has 8 inbox mails and 12 filed mails, most of them the copies in the
+test folders "Pippa Test A" and "Pippa Test B", and the second account's inbox is empty. Leave-one-out there: 9 right,
+0 wrong, 3 without a rule (at least two mails), 6 right, 0 wrong, 6 without (at least three).
+
+The go-on condition is therefore open. It needs one run on a Mac whose Mail holds a real, sorted mailbox:
+
+    PIPPA_PROBES=1 PIPPA_SIGN_IDENTITY='…' scripts/build-app.sh
+    open -n -W --stdout sort.json dist/Pippa.app --args --mail-sort-probe --account "<name>"
+
+The report holds numbers only. Still to add before that run: leave the two test folders out of the history.
+
 ## Open
 
-1. **Thinking for Ornith.** Thinking off made the difference in the measurement. Whether it is right for Pippa's
-   other tasks is not measured, so this plan does not change it and is designed to work with thinking on. Measuring
-   the five acceptance tasks with thinking off is its own piece of work.
-2. **How well sender history sorts real mail** is unknown until step 1. In the invented inbox it was perfect by
+1. **Thinking for Ornith: stays medium.** Measured on five everyday tasks
+   ([thinking-off-ornith-2026-11-20.md](archive/measurements/thinking-off-ornith-2026-11-20.md)): off is about 2.5
+   times faster, not more often right (9 against 10 of 15), and it wrote one event on the wrong day and invented
+   details twice, where medium wrote nothing wrong. `mail_sort` is designed to work with thinking on.
+2. **How well sender history sorts real mail** is still unknown (see above). In the invented inbox it was perfect by
    construction.
-3. **32K** could not be measured on this Mac for lack of free memory.
+3. **Gmail:** "All Mail" is a folder `mail_move` may target, and every filed mail is in it too, so almost every sender
+   would count as filed in two folders. `mail_sort` has to leave it out of the history; how Mail names it is unchecked.
+4. **32K** could not be measured on this Mac for lack of free memory.
