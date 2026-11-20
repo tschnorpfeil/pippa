@@ -11,6 +11,8 @@
 //           smoke    one sentence, no tools: checks the setup
 // Online model instead: SPIKE_ONLINE_URL (OpenAI-compatible base URL), SPIKE_ONLINE_MODEL, SPIKE_ONLINE_KEY_FILE and
 // SPIKE_WINDOW; the output folder gets the model's name.
+// Local knobs: SPIKE_WINDOW (default 16384), SPIKE_MAX_TOKENS (answer limit, default 4096), SPIKE_THINKING (off|medium)
+// and SPIKE_TAG, a suffix for the output folder so a second measurement does not overwrite the first.
 // Needs the local oMLX server running (port and key file from Pippa's launch file). Uses a fake HOME under .build/, so
 // ~/.pi is never read or written. Results: .build/spike-1.0/<variant>/{events.jsonl,calls.jsonl,summary.json}.
 import { spawn } from "node:child_process";
@@ -35,8 +37,9 @@ const online = process.env.SPIKE_ONLINE_URL;
 const launch = online
 	? { modelID: process.env.SPIKE_ONLINE_MODEL, keyFile: process.env.SPIKE_ONLINE_KEY_FILE }
 	: JSON.parse(readFileSync(process.env.PIPPA_LAUNCH_FILE ?? join(homedir(), "Library/Application Support/Pippa/pippa-local-server.json"), "utf8"));
-const WINDOW = Number(process.env.SPIKE_WINDOW ?? 16384), MAX_TOKENS = online ? 16384 : 4096;
-const out = join(repo, ".build/spike-1.0", online ? `${launch.modelID.replace(/[^\w.-]/g, "_")}-${variant}` : variant);
+const WINDOW = Number(process.env.SPIKE_WINDOW ?? 16384), MAX_TOKENS = online ? 16384 : Number(process.env.SPIKE_MAX_TOKENS ?? 4096);
+const THINKING = process.env.SPIKE_THINKING ?? "medium", TAG = process.env.SPIKE_TAG ? `-${process.env.SPIKE_TAG}` : "";
+const out = join(repo, ".build/spike-1.0", online ? `${launch.modelID.replace(/[^\w.-]/g, "_")}-${variant}` : variant + TAG);
 const home = join(out, "home"), agent = join(home, ".pi/agent"), work = join(home, "work");
 await rm(out, { recursive: true, force: true });
 await Promise.all([agent, work].map((dir) => mkdir(dir, { recursive: true })));
@@ -52,7 +55,7 @@ await writeFile(join(agent, "models.json"), JSON.stringify({ providers: { "pippa
 // Compaction as PiModelTuning sets it: reserve min(maxTokens, window / 4), keep window * 3 / 8.
 const settings = online ? { ...(variant === "only" ? { codemode: { mode: "only" } } : {}) } : {
 	compaction: { modelOverrides: { [modelKey]: { reserveTokens: Math.min(MAX_TOKENS, WINDOW / 4), keepRecentTokens: WINDOW * 3 / 8 } } },
-	modelThinkingLevels: { [modelKey]: "medium" },
+	modelThinkingLevels: { [modelKey]: THINKING },
 	...(variant === "only" ? { codemode: { mode: "only" } } : {}),
 };
 await writeFile(join(agent, "settings.json"), JSON.stringify(settings, null, 1));
@@ -79,7 +82,7 @@ const child = spawn(node, args, { cwd: work, env: { HOME: home, PATH: `${join(pa
 	PI_TELEMETRY: "0", PI_OFFLINE: "1", PI_SKIP_VERSION_CHECK: "1" }, stdio: ["ignore", "pipe", "pipe"] });
 const timer = setTimeout(() => { summary.timedOut = true; child.kill("SIGTERM"); }, minutes * 60_000);
 
-const summary = { variant, window: WINDOW, timedOut: false, assistantTurns: 0, toolCalls: {}, toolErrors: 0, scriptsFailed: 0, nestedCalls: 0,
+const summary = { variant, window: WINDOW, maxTokens: MAX_TOKENS, thinking: online ? null : THINKING, timedOut: false, assistantTurns: 0, toolCalls: {}, toolErrors: 0, scriptsFailed: 0, nestedCalls: 0,
 	compactions: 0, retries: 0, peakInputTokens: 0, outputTokens: 0, finalText: "" };
 let buffer = "", events = "", stderr = "";
 child.stderr.on("data", (chunk) => { stderr += chunk; });
