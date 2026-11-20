@@ -37,9 +37,33 @@ seconds later.
 - **The first question after starting the app sometimes times out** (5 of 14 starts). The probe asks once more; the
   cause is unknown.
 
+## Sending, 2026-11-20
+
+`Pippa --mail-send-probe` on the same iCloud account, with the owner's consent for test mails to the account's own
+address. Two mails were sent in all; both arrived.
+
+| Step | What happened |
+|---|---|
+| Reading the account's address | Failed at first: the script asked a loop reference instead of the account. Fixed. |
+| Draft id | The first draft of the Mail session had id 0, later ones positive. The code had read 0 as "no id". Any integer counts now. |
+| Send one second after creating the draft | The card was shown and matched, the draft was unchanged, Mail answered `send` with true, and nothing was sent: the draft stayed open, nothing in the Outbox, Sent or inbox. Pippa looked into Sent 15 times and reported unclear. |
+| Plain `send` on the same kind of draft minutes later | Sent at once; in Sent with a Message-ID and in the inbox 37 seconds later. |
+| The product path after the fix | Waited 4.1 s for the draft to be 5 seconds old, sent, the draft closed, found in Sent after 12.4 s (6 looks), journal row done, a second `mail_send` for the same draft refused. |
+
+- **Mail drops a `send` that comes right after the draft was made** and still answers true. `mail_send` now waits
+  until the draft is five seconds old, and after the send event it checks that the draft window is gone. A draft that
+  is still open after eight seconds is reported as "Mail has not sent it", unclear, and never sent again by Pippa.
+- **Checks with a stand-in Mail did not find either problem.** Both showed up only on the real account.
+
+## Google account, 2026-11-20
+
+The move probe could not run on the Google (IMAP) account of this Mac. Mail refused to create the two test folders
+by script (`make new mailbox`, error -10000), and the folder listing showed one mailbox for that account. Moving
+mail on a Google account is unchecked.
+
 ## Not checked
 
-- Gmail and Exchange accounts.
+- Moving mail on Google and Exchange accounts; sending from them.
 - More than one batch (the test had six mails).
 - A whole triage on real mail through the model.
 - `mail_folders` on an account with many or very large folders: the listing of 8 folders took 2 seconds.

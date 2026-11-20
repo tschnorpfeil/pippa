@@ -346,7 +346,8 @@ and aggregate coverage measurements do not establish that a recall feature is us
 `Pippa --mail-move-probe` and `Pippa --mail-send-probe` are developer-only and exist only in debug builds and builds
 made with `PIPPA_PROBES=1 scripts/build-app.sh`; `release.sh` refuses that flag and `verify-app.sh` fails a
 distribution build that contains them. The move probe works only in two folders named "Pippa Test A" and "Pippa Test
-B" with copies of old inbox mails; the send probe sends one test mail to the account's own address. Both need a
+B" with copies of old inbox mails; the send probe sends one test mail to the account's own address (`--read-only`
+stops at the unsent draft, `--inspect` only counts earlier test mails and open drafts). Both need a
 Developer ID build started with `open -n dist/Pippa.app --args …`, so the app's own Mail permission applies. The move
 probe has run on iCloud ([measurement](archive/measurements/pippa-1.0-mail-probe-2026-11-19.md)). Gmail and Exchange
 are unchecked.

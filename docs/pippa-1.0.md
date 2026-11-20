@@ -20,7 +20,12 @@ The owner agreed to all seven points under [Decided by the owner](#decided-by-th
   unchanged. A row that was never confirmed stays "unclear, please check".
 - **The receipt** counts only mails read back as moved.
 - **The real-mail probe** (`Pippa --mail-move-probe`, debug and `PIPPA_PROBES=1` builds only) ran seven times on
-  iCloud ([measurement](archive/measurements/pippa-1.0-mail-probe-2026-11-19.md)). Gmail and Exchange are unchecked.
+  iCloud ([measurement](archive/measurements/pippa-1.0-mail-probe-2026-11-19.md)). On the Google account Mail refused
+  to create the test folders, so moving mail there is unchecked, as is Exchange.
+- **`mail_send`** waits until the draft is five seconds old before the send event and then checks that the draft
+  window closed: on the real account Mail answered `send` with true for a draft made a second earlier and sent
+  nothing. Mail's id for a draft can be 0. The send probe sent two test mails to the account's own address; the
+  second went through the whole product path and was found in Sent.
 - **Going online from the shell:** a yes after a command failed offline runs that same command again at once; no yes
   is kept for a later call.
 - **Codemode** is on for an online AI with Mac access and off for the AI on this Mac. On the synthetic inbox of 240
