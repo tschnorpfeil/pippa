@@ -10,6 +10,11 @@
  *   four times is stopped; after three stops the answer ends (session entry `pippa-loop-stop`, so Pippa can tell it
  *   apart from the person's Stop). Execution events also cover unknown tools, invalid arguments and blocked calls,
  *   which skip Pi's tool hooks.
+ * - Tool names: small models put a prefix they saw on other tools in front of a real name (Ornith 1.5 9B called
+ *   `web_fetch_content` four times for `fetch_content`, earlier `mcp__pippa__ask` and `mcp__pippa__list_folder`). Pi
+ *   answers an unknown name with "Tool … not found" before any hook runs, and the model rarely guesses the fix. At
+ *   `message_end`, before Pi runs the calls, a name that matches exactly one active tool after dropping such a prefix
+ *   (or adding `mcp__pippa__`) is renamed; everything else stays as the model sent it.
  * - Call budget: after `MAX_CALLS` tool calls in one answer every further call is stopped (Qwen3.5 9B once made 48
  *   calls in 4 minutes); the measured tasks needed at most 14. Calls a `codemode` script makes (`parentToolCallId`)
  *   have their own bound, `MAX_SCRIPT_CALLS` per answer, and do not use up the answer's budget; the loop brake holds
@@ -62,6 +67,35 @@ export const MAX_SCRIPT_CALLS = 200;
 export function overScriptBudget(calls: number, limit = MAX_SCRIPT_CALLS): string | undefined {
 	if (calls <= limit) return undefined;
 	return `Stopped: scripts already made ${limit} tool calls in this answer. Do not call more tools from scripts. Return what the script has so far, and answer the user with it; say in one short sentence what is left.`;
+}
+
+/** Prefixes a model may put in front of a real tool name. */
+const NAME_PREFIXES = ["functions.", "mcp__pippa__", "pippa__", "pippa_", "web_"];
+
+/** The active tool a mistyped name means, or `undefined`: the name is fine, or there is no single match. */
+export function repairedToolName(name: unknown, active: readonly string[]): string | undefined {
+	if (typeof name !== "string" || !name || active.includes(name)) return undefined;
+	let bare = name;
+	for (let changed = true; changed;) {
+		changed = false;
+		for (const prefix of NAME_PREFIXES) if (bare.startsWith(prefix) && bare.length > prefix.length) { bare = bare.slice(prefix.length); changed = true; }
+	}
+	const matches = [...new Set([bare, `mcp__pippa__${bare}`])].filter((candidate) => active.includes(candidate));
+	return matches.length === 1 ? matches[0] : undefined;
+}
+
+/** The assistant message with repaired tool names (`repairedToolName`), or `undefined` when nothing changes. */
+export function withRepairedToolNames(message: any, active: readonly string[]): any {
+	if (message?.role !== "assistant" || !Array.isArray(message.content)) return undefined;
+	let changed = false;
+	const content = message.content.map((part: any) => {
+		if (part?.type !== "toolCall") return part;
+		const name = repairedToolName(part.name, active);
+		if (!name) return part;
+		changed = true;
+		return { ...part, name };
+	});
+	return changed ? { ...message, content } : undefined;
 }
 
 /** Over budget: the reason Pi gets instead of the call. */
@@ -317,6 +351,11 @@ export default function (pi: ExtensionAPI) {
 	});
 	pi.on("agent_start", async () => reset());
 	pi.on("agent_end", async () => reset());
+	// Pi replaces the finalized message in place before it runs the calls, so the renamed call runs and is saved.
+	pi.on("message_end", (event: any) => {
+		const message = withRepairedToolNames(event?.message, pi.getActiveTools?.() ?? []);
+		return message ? { message } : undefined;
+	});
 	pi.on("tool_execution_start", (event: any) => {
 		unhandled.set(event.toolCallId, { toolName: event.toolName, input: event.args, toolCallId: event.toolCallId,
 			parentToolCallId: event.parentToolCallId });
