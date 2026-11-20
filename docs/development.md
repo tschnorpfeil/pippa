@@ -352,6 +352,10 @@ Developer ID build started with `open -n dist/Pippa.app --args …`, so the app'
 probe has run on iCloud ([measurement](archive/measurements/pippa-1.0-mail-probe-2026-11-19.md)). Gmail and Exchange
 are unchecked.
 
+`Pippa --mail-sort-probe --account <name>` is built and started the same way and changes nothing in Mail: it reads
+senders of the folders `mail_move` may target and sender, read and flagged status of the inbox, and prints only numbers
+for the sender-history rule of [mail-sort.md](mail-sort.md) (proposals, held-back mails, a leave-one-out score).
+
 **Against the real Pi.** `runtime/pippa-tools/real-pi-*.test.mjs`, `runtime/pippa-local-server/test/real-pi.test.mjs`
 and the Pi-dependent parts of `shell.test.mjs` load the pinned Pi and are skipped without one. Point them at it with
 `PIPPA_PI_CLI`:

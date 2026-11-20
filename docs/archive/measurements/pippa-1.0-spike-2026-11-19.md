@@ -79,4 +79,5 @@ model turns from 15 to 6 or 4; the time did not change, because output tokens do
 - **Nested calls are visible.** Pi reported every tool call a script made as `tool_execution_start` with
   `parentToolCallId` (54 in `only`, 12 in `both`), and the scripts received `structuredContent`.
 - **Not measured:** a 32K window, more than one run per variant, a gate
-  question in the middle of a script, and real Mail.
+  question in the middle of a script, and real Mail. Thinking off, 32K and a higher answer limit followed on
+  2026-11-20: [mail-sort-ornith-2026-11-20.md](mail-sort-ornith-2026-11-20.md).

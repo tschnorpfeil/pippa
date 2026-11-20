@@ -31,7 +31,9 @@ new work ([pippa-1.0.md](pippa-1.0.md#tools-in-10)).
    without the model. Document selection, Mail payment totals and receipt-based deadlines remain open model-quality
    limits ([plan-0.6.md](plan-0.6.md), [omlx-switch.md](omlx-switch.md)).
 2. **UI polish, second pass:** card views, onboarding text.
-3. **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
+3. **Sorting a large inbox with the AI on this Mac.** Ornith moved none of 190 mails by reading pages, and all 190 in
+   16 seconds once the app made the plan ([mail-sort.md](mail-sort.md), a plan, not built).
+4. **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
    real menu bar); motion and drag and drop at the real notch still need a look.
 
 Released in 1.0.0: Pippa acts by default on what she can undo (events, reminders, unsent drafts, file moves, mail moves) for the AI on this Mac and an online AI with Mac access; action classes (`read`, `undoable`, `irreversible`, `external`) with a card-and-button gate checked in code; `mail_folders` and `mail_move` (inbox into one existing folder per call, dry run, batches verified by Message-ID, never Trash, Junk, Sent or Drafts); `mail_send` for one draft saved in the conversation, after a card; a run journal in `journal.sqlite` with one receipt and one Undo per answer, "unclear, please check" after an interruption, kept 30 days; rate limits waited out (15, 30, 60, 60 seconds) with a countdown and Continue, quota told apart; going online from the shell asked per command; `codemode` for an online AI with Mac access. Not in 1.0: deleting for good, payments, a channel bot, creating mail folders.
