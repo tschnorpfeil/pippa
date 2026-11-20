@@ -110,7 +110,7 @@ function startPi({ root, agent, work, sessions, base, token, memoryFile, env, an
 test("real Pi with Mac access and codemode: scripts call Pippa's tools through every gate", {
 	skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 180_000,
 }, async () => {
-	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.5\./);
+	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.6\./);
 	await mkdir(build, { recursive: true });
 	const root = await mkdtemp(join(build, "pippa-codemode-realpi-"));
 	const agent = join(root, "agent"), work = join(root, "work"), sessions = join(root, "sessions");

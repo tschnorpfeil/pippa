@@ -33,7 +33,7 @@ const USEFUL = { work: "WORK-LETTER-4b5c", home: "HOME-DOCUMENT-6d7e", shell: "S
 test("real Pi: no model-facing tool reads or changes Pippa's settings, grants, history, notes or Pi's credentials", {
 	skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 90_000,
 }, async (t) => {
-	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.5\./);
+	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.6\./);
 	await mkdir(build, { recursive: true });
 	// Under /Users, so the same files are also reachable through /System/Volumes/Data.
 	const root = realpathSync(await mkdtemp(join(build, "pippa-protected-realpi-")));
