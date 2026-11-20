@@ -62,7 +62,7 @@ folder. What it receives:
 - **Follow-up questions.** Ordinary typed messages share history within the same conversation and provider account.
   Each message you approve in the review starts a separate provider session. To ask about the same excerpt again,
   include it in a new review. Switching back to the Mac resumes the local history.
-- **Public web pages**, when web search is on for the online AI. The first search in an answer asks you. Each answer
+- **Public web pages**, when web search is on for the online AI. The first search in a conversation asks you. Each answer
   opens pages in a fresh browser session with an empty cookie store. To work with a signed-in page, use the AI on this Mac.
 
 **Choose per source.** In Settings under **AI → Sharing with online AI**, set Mail, Documents, Calendar, Reminders and
@@ -98,7 +98,7 @@ until it finishes or you press Stop. Messages you approve in a review and single
 |---|---|
 | Downloading her AI | Once, after you say OK. The model comes from Hugging Face (or, when that fails, from a copy in this repository's releases), the runtime that runs it (Python with oMLX) from this repository's releases; each file is checked before use. |
 | Update checks | Once a day, from this repository's releases. Updates install when you quit or after a while without input. |
-| Web searches | The first search in an answer shows you the exact search text and waits for your OK. |
+| Web searches | The first search in a conversation shows you the exact search text and waits for your OK. Your OK covers later searches in that conversation; a new conversation asks again. |
 | Reading web pages | Pages from your own message or from that answer's search results are read without asking again. Any other address is asked for. Addresses on your Mac or your local network are never read. |
 | Pippa's browser | With the AI on this Mac, Pippa opens a page that needs clicking through in a browser panel in her window; open the window (from Pippa Island: **Open Pippa**) to watch along or to sign in. She asks before each new website and before every click, typed text or choice. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
 | Provider setup | Browser sign-in, credential setup, and model catalog refresh when requested in Settings. No conversation contents. |
