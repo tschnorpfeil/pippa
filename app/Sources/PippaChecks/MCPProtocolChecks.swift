@@ -64,6 +64,12 @@ extension MCPCheckContext {
                 && extra.isError && extra.json["status"] as? String == "invalid_arguments"
                 && wrongType.isError && wrongType.json["status"] as? String == "invalid_arguments"
         }
+        await checkAsync("MCP read_document: a web address is refused and points to fetch_content") {
+            let s = setup()
+            let web = await call(s.tools, "read_document", ["path": "https://example.org/a.pdf"])
+            return web.isError && web.json["status"] as? String == "invalid_arguments"
+                && (web.json["error"] as? String ?? "").contains("fetch_content")
+        }
         await checkAsync("MCP readers: fields from another tool are rejected before permissions, launching apps or reading") {
             let s = setup(granted: false, ask: true)
             let calls: [(String, [String: Any])] = [

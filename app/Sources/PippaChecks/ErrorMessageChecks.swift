@@ -109,5 +109,32 @@ func runErrorMessageChecks() {
         let added = ((try? String(contentsOf: log.fileURL, encoding: .utf8)) ?? "").dropFirst(before.count)
         return added.contains("bereich=Test") && added.contains("code=7") && !added.contains("Müller")
     }
+    // A failed Pi tool (not Pippa's MCP server, which logs itself): its kind reaches the log, never its text.
+    check("Log: a failed Pi tool's kind is told apart, and named without Pi's MCP prefix") {
+        let cases: [(String, PiToolFailure)] = [("Tool web_fetch_content not found", .notFound),
+                                               ("Validation failed for tool read", .invalidArguments),
+                                               ("Not done: the person said no.", .blocked),
+                                               ("Not read: blocked", .blocked),
+                                               ("Tool execution was blocked", .blocked),
+                                               ("boom", .other)]
+        let fields = PiToolFailure.fields(tool: "web_fetch_content", isError: true, result: cases[0].0)
+        let long = PiToolFailure.fields(tool: String(repeating: "a", count: 80), isError: true, result: "boom")?["name"] ?? ""
+        return cases.allSatisfy { PiToolFailure.classify($0.0) == $0.1 }
+            && fields == ["name": "web_fetch_content", "fehler": "true", "art": "not_found"]
+            && PiToolFailure.bareName("mcp__pippa__read_document") == "read_document"
+            && long.count == 60
+    }
+    check("Log: a failed Pi tool leaves a pi-werkzeug line; Pippa's MCP tools and successes leave none") {
+        let log = DiagnosticsLog.shared
+        let before = (try? String(contentsOf: log.fileURL, encoding: .utf8)) ?? ""
+        for (tool, isError, result) in [("web_fetch_content", true, "Tool web_fetch_content not found"),
+                                        ("mcp__pippa__read_document", true, "Not read: blocked"),
+                                        ("read", false, "")] {
+            if let fields = PiToolFailure.fields(tool: tool, isError: isError, result: result) { log.event("pi-werkzeug", fields) }
+        }
+        log.flush()
+        let added = ((try? String(contentsOf: log.fileURL, encoding: .utf8)) ?? "").dropFirst(before.count)
+        return added.contains("pi-werkzeug art=not_found fehler=true name=web_fetch_content") && !added.contains("not found")
+    }
     check("Log: version and build are never empty") { !AppVersion.label.isEmpty && !AppVersion.build.isEmpty }
 }
