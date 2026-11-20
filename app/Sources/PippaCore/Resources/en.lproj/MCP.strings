@@ -128,6 +128,7 @@
 "Mail didn’t take the mail, so nothing was sent. Try again in a moment." = "Mail didn’t take the mail, so nothing was sent. Try again in a moment.";
 "Mail didn’t answer, so Pippa sent nothing. Try again in a moment." = "Mail didn’t answer, so Pippa sent nothing. Try again in a moment.";
 "Mail took the mail, but Pippa could not confirm it in Sent. Please look in Sent; Pippa won’t send it again." = "Mail took the mail, but Pippa could not confirm it in Sent. Please look in Sent; Pippa won’t send it again.";
+"Mail hasn’t sent the mail: the draft is still open in Mail. Please look there and press Send in Mail; Pippa won’t send it again." = "Mail hasn’t sent the mail: the draft is still open in Mail. Please look there and press Send in Mail; Pippa won’t send it again.";
 "Mail shows more than one window for this draft, so Pippa sent nothing." = "Mail shows more than one window for this draft, so Pippa sent nothing.";
 "To: %@" = "To: %@";
 "Cc: %@" = "Cc: %@";

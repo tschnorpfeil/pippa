@@ -136,8 +136,9 @@ public enum MailReplyScript {
         return MailDraftInsert(result: .newMessage, outgoingID: created.count == 4 ? outgoingID(created[3]) : nil)
     }
 
-    /// Mail's id of an open draft window; 0 or anything else means Mail did not report one.
-    private static func outgoingID(_ value: ScriptValue) -> Int? { value.number.flatMap { $0 > 0 ? $0 : nil } }
+    /// Mail's id of an open draft window, any integer (Mail's draft ids are not always positive); a text means Mail did
+    /// not report one.
+    private static func outgoingID(_ value: ScriptValue) -> Int? { value.number }
 
     /// One short step on the AppleScript queue.
     private static func run(_ handler: String, _ args: [ScriptArgument], _ mutation: Bool) async throws -> [ScriptValue] {

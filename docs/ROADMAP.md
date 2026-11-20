@@ -3,26 +3,28 @@
 The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); the step-by-step list is
 [pippa-next-tasks.md](pippa-next-tasks.md). The plan for 1.0 (Pippa acts by default, with gates only for what
 cannot be undone or leaves the Mac, and a journal with undo for whole runs) is [pippa-1.0.md](pippa-1.0.md),
-decided on 2026-11-19. Older plans and measurements are in [archive/](archive/).
+decided on 2026-11-19 and shipped in 1.0.0. Older plans and measurements are in [archive/](archive/).
 
 ## Where Pippa stands
 
-The last release is 0.8.2. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
+The last release is 1.0.0. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
 conversation sidebar, a first-run card offering local or online AI, and settings for the AI (on this Mac, or an online
 AI with per-source sharing review and optional Mac access), optional abilities, the shortcut, login item, permissions
 and updates. Dropped photos and PDFs become one PDF with a button, without the model.
 
 Pi does the work through a fixed list of tools: Pi's `read`, `bash` and `write`; the web; Pippa's file tools
 (`search_files`, `list_folder`, `move_files`, `remember`, `ask`); and the app's MCP server for Calendar, Reminders, Mail,
-Photos, the app in front, documents and PDF building. Keyword routers, the letter and Excel lines, the tidy preview, the
+Photos, the app in front, documents and PDF building. An online AI with Mac access also gets Pi's `codemode`. Every tool
+has an action class: what can be undone runs at once and is journaled with Undo for the whole answer, and what cannot
+be undone or leaves the Mac runs only after the person presses the button on a card. Keyword routers, the letter and Excel lines, the tidy preview, the
 deadlines view, the morning overview, charts, PDF form filling, saved skills, AppleScript, dictation and the second model
 engine are gone.
 
 ## Next
 
 The [0.6 scope](plan-0.6.md) shipped the foundation and reliability work first, kept tiny apps out, and left life memory
-conditional on a bounded usefulness experiment. The five-task acceptance gate remains in force before any new production
-tool or card.
+conditional on a bounded usefulness experiment. Since 1.0 the five acceptance tasks gate each release, not the start of
+new work ([pippa-1.0.md](pippa-1.0.md#tools-in-10)).
 
 1. **Acceptance.** The five tasks in the plan, on a 16 GB Mac with Ornith 1.5 9B on oMLX: find a file in iCloud, evaluate mail
    attachments, add a calendar entry, answer a letter's deadline with the quoted sentence, and photos to one PDF
@@ -31,6 +33,8 @@ tool or card.
 2. **UI polish, second pass:** card views, onboarding text.
 3. **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
    real menu bar); motion and drag and drop at the real notch still need a look.
+
+Released in 1.0.0: Pippa acts by default on what she can undo (events, reminders, unsent drafts, file moves, mail moves) for the AI on this Mac and an online AI with Mac access; action classes (`read`, `undoable`, `irreversible`, `external`) with a card-and-button gate checked in code; `mail_folders` and `mail_move` (inbox into one existing folder per call, dry run, batches verified by Message-ID, never Trash, Junk, Sent or Drafts); `mail_send` for one draft saved in the conversation, after a card; a run journal in `journal.sqlite` with one receipt and one Undo per answer, "unclear, please check" after an interruption, kept 30 days; rate limits waited out (15, 30, 60, 60 seconds) with a countdown and Continue, quota told apart; going online from the shell asked per command; `codemode` for an online AI with Mac access. Not in 1.0: deleting for good, payments, a channel bot, creating mail folders.
 
 Released in 0.8.2: updated bundled Pi release from 1.5.0 to 1.5.2 (latest provider catalog, Anthropic OAuth / OpenRouter / OpenCode / MCP tool-schema and stdio fixes).
 
@@ -93,5 +97,3 @@ that the download falls back to. Research for the local AI:
 
 Done since 0.3.20: Undo for calendar entries and reminders in the receipt row; the oMLX runtime archive is published
 as a release asset.
-
-No new tool or card until the acceptance tasks pass.

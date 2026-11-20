@@ -7,7 +7,8 @@ import PippaCore
 final class FakeMailSend: MailSending, @unchecked Sendable {
     private let lock = NSLock()
     private var windows: [Int: MailOutgoing] = [:]
-    private var nextID = 100
+    /// Mail's id for the next draft window (Mail's first draft of a session can have id 0).
+    var nextID = 100
     /// What left, and when (the real clock: the tool's cut-offs come from it as well).
     private var sentMails: [(mail: MailOutgoing, at: Date)] = []
     private var sends = 0, sendCalls = 0, polls = 0
@@ -32,6 +33,8 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
     var outcome: MailSendDispatch = .sent
     /// Runs inside `send` before the window is compared and sent (the journal row must already be on disk).
     var beforeSend: (@Sendable (Int) async -> Void)?
+    /// Mail answers the send event with true and sends nothing: the window stays open (seen on a just-made draft).
+    var keepsOpen = false
 
     var sendCount: Int { lock.withLock { sends } }
     var sendCallCount: Int { lock.withLock { sendCalls } }
@@ -69,7 +72,9 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
         guard window.matches(expected) else { return .changed }
         try PippaMCPWriteLease.current?.beginDispatch()
         return lock.withLock {
-            sends += 1; windows[id] = nil; sentMails.append((window, Date()))
+            sends += 1
+            if keepsOpen { return outcome }
+            windows[id] = nil; sentMails.append((window, Date()))
             return outcome
         }
     }
@@ -133,10 +138,12 @@ func runMCPMailSendChecks() async {
     }
 
     func draft(_ world: World, to: String? = "anna@example.test", subject: String = "Termin am Freitag",
-               body: String = "Hallo Anna,\n\npasst dir Freitag um 10 Uhr?\n\nViele Grüße") async -> String? {
+               body: String = "Hallo Anna,\n\npasst dir Freitag um 10 Uhr?\n\nViele Grüße", aged: Bool = true) async -> String? {
         var arguments: [String: Any] = ["subject": subject, "body": body]
         if let to { arguments["to"] = to }
         let made = await context.call(world.tools, "mail_draft", arguments)
+        // `aged`: the draft is old enough for the send event by the time it is sent (see `minimumDraftAge`).
+        if aged { world.clock.mutate { $0 += PippaMCPMailSend.minimumDraftAge } }
         return (made.json["draft"] as? [String: Any])?["id"] as? String
     }
     func send(_ world: World, _ id: String?, extra: [String: Any] = [:]) async -> (json: [String: Any], isError: Bool, bytes: Int) {
@@ -236,6 +243,72 @@ func runMCPMailSendChecks() async {
         world.nextAnswer()
         let result = await send(world, id)
         return result.json["done"] as? Bool == true && world.fake.sendCount == 1
+    }
+
+    // Mail's first draft of a session can have id 0; a draft Mail gave no id ("none") gets no draft id.
+    await checkAsync("Mail send: a draft whose Mail id is 0 gets a draft id and can be sent; Mail's \"none\" gives no draft id") {
+        let world = World(answer: yes)
+        world.fake.nextID = 0
+        let id = await draft(world)
+        let result = await send(world, id)
+        func made(_ reported: ScriptValue) async throws -> Int? {
+            let mail = MailDraft(messageID: nil, to: "anna@example.test", toName: nil, subject: "Termin", body: "Hallo Anna",
+                                 isReply: false, exactSubject: true)
+            let runner: MailReplyScript.StepRunner = { _, _, _ in [.text("Termin"), .text("Hallo Anna"), .list([.text("anna@example.test")]), reported] }
+            return try await MailReplyScript.insertDraft(mail, runner: runner).outgoingID
+        }
+        let zero = try await made(.number(0)), none = try await made(.text("none")), negative = try await made(.number(-3))
+        return id != nil && world.fake.lastID == 0 && result.json["verified"] as? String == "1 of 1" && world.fake.sendCount == 1
+            && zero == 0 && none == nil && negative == -3
+    }
+
+    // Mail drops a send of a draft made a second ago (iCloud probe, November 2026): the send event waits for its age.
+    await checkAsync("Mail send: a draft made just now is sent only after minimumDraftAge; an older one at once; Stop in the wait sends nothing") {
+        let fresh = World(answer: yes)
+        let atSend = LockedBox<Duration?>(nil)
+        fresh.fake.beforeSend = { _ in atSend.mutate { $0 = fresh.clock.value } }
+        let freshResult = await send(fresh, await draft(fresh, aged: false))
+        let old = World(answer: yes)
+        let oldSlept = LockedBox<Int?>(nil)
+        old.fake.beforeSend = { _ in oldSlept.mutate { $0 = old.slept.value } }
+        let oldResult = await send(old, await draft(old))
+        let stopping = World(answer: yes)
+        let journal = try Executor(baseDirectory: root.appendingPathComponent("send-age-stop-" + UUID().uuidString))
+        stopping.host.reminderJournal = journal; stopping.host.requiresReminderJournal = true
+        let stopID = await draft(stopping, aged: false)
+        stopping.onSleep = { stopping.stop() }
+        let run = stopping.turn.id
+        let stopped = await send(stopping, stopID)
+        let rows = try await journal.runActions(run: run).filter { $0.tool == "mail_send" }
+        return freshResult.json["verified"] as? String == "1 of 1" && fresh.fake.sendCount == 1
+            && (atSend.value ?? .zero) >= PippaMCPMailSend.minimumDraftAge && fresh.slept.value >= 1
+            && oldResult.json["verified"] as? String == "1 of 1" && oldSlept.value == 0
+            && stopped.json["status"] as? String == "cancelled" && stopping.fake.sendCallCount == 0 && rows.isEmpty
+            && stopping.slept.value == 1 && stopID.flatMap { stopping.host.mailDrafts.state($0) } == .open
+    }
+
+    // Mail answered true and the draft stayed open: not sent, unclear, never sent again, Sent not searched.
+    await checkAsync("Mail send: send answers true but the draft stays open: unclear with its own reason, one send event, Sent skipped") {
+        let world = World(answer: yes)
+        world.fake.keepsOpen = true
+        let journal = try Executor(baseDirectory: root.appendingPathComponent("send-still-open-" + UUID().uuidString))
+        world.host.reminderJournal = journal; world.host.requiresReminderJournal = true
+        let receipts = LockedBox<[PippaMCPWriteReceipt]>([])
+        world.host.onWrite = { receipt in receipts.mutate { $0.append(receipt) } }
+        let id = await draft(world)
+        let run = world.turn.id
+        let start = world.clock.value
+        let result = await send(world, id)
+        let again = await send(world, id)
+        let rows = try await journal.runActions(run: run).filter { $0.tool == "mail_send" }
+        let tell = result.json["tell"] as? String ?? ""
+        let english = L("Mail hasn’t sent the mail: the draft is still open in Mail. Please look there and press Send in Mail; Pippa won’t send it again.", table: "MCP")
+        return result.json["state"] as? String == "unclear" && result.json["done"] as? Bool == false && tell == english
+            && receipts.value.first { $0.action == "mailSend" }?.reason == "stillOpen"
+            && world.fake.sendCallCount == 1 && world.fake.sendCount == 1 && world.fake.sentPolls == 1
+            && world.clock.value - start >= PippaMCPMailSend.closeBound
+            && rows.count == 1 && rows[0].state == .unclear && id.flatMap { world.host.mailDrafts.state($0) } == .unclear
+            && again.json["status"] as? String == "already_sent" && world.fake.sendCallCount == 1
     }
 
     // A4: changed between the card and the send event.

@@ -1,7 +1,8 @@
 # What Pippa can do
 
 Drop files on Pippa, bring her up with ⌥ Space, or just ask her something. She hands back the result: a file, an
-answer with the passage it comes from, a draft, an event or a reminder. The [README](../README.md) has the short
+answer with the passage it comes from, a draft, an event, a reminder or a sorted inbox. What she can undo, she
+does without asking, and one **Undo** under her answer takes it all back. The [README](../README.md) has the short
 version.
 
 <p align="center">
@@ -49,7 +50,8 @@ explicit Mac access.
 | **What's coming up** | Ask about today, this week or a range of dates. She reads your calendar, including who organized a meeting, who accepted, your own answer, meeting links and notes, and your open reminders with their notes and priority. |
 | **A file you can't find** | Ask "Where is the invoice for my helmet?" Pippa searches your Mac's Spotlight index by content, file name and folder, optionally by year or kind, and lists the newest first. |
 | **A tidier folder** | Ask her to rename a file, move it, or sort a folder's files into subfolders. Moves never overwrite another file. A file she removes goes to the Trash, never deleted for good. |
-| **A reply ready to review** | Pippa finds and reads your newest matching mails in Apple Mail, including document attachments, keeps the account and original message identity for a reply, and saves an unsent draft in the same thread, from a mail she read or an inbox/sent search result, for you to review and send. She never sends mail. |
+| **A tidier inbox** | Ask "Sort my inbox into my folders." Pippa looks at the folders you already have in each account, with how many mails they hold and a few examples, works out first what would go where without moving anything, then moves the mails from the inbox into those folders in small batches. She never creates a folder and never moves into Trash, Junk, Sent or Drafts. She checks each moved mail in its new folder. If one does not show up, she stops and names it. Large sorting jobs are for an online AI with Mac access: in a test inbox of 240 made-up mails, it sorted all 190 that belonged in a folder correctly. The AI on this Mac did not finish that test and moved nothing wrongly. |
+| **A reply ready to review** | Pippa finds and reads your newest matching mails in Apple Mail, including document attachments, keeps the account and original message identity for a reply, and saves an unsent draft in the same thread, from a mail she read or an inbox/sent search result. Review it in Mail and send it yourself, or ask Pippa to send it: a card shows recipient, subject and text, and the mail goes out only when you press **Send**. She sends nothing else. |
 | **A clearer piece of writing** | Shorten a text, make it clearer and friendlier, fix spelling, summarize it or turn notes into a checklist. |
 
 A few more things she can do when you ask:
@@ -74,9 +76,16 @@ A few more things she can do when you ask:
 - **macOS asks first.** The first time Pippa needs your Documents folder, Calendar, Reminders, Photos or Mail, macOS
   asks you. In Pippa's Settings, the Permissions page shows what is allowed and opens the right place in System
   Settings if you want to change it. More in [Privacy and permissions](privacy-and-permissions.md).
-- **Pippa asks in the conversation.** Before her first web search in an answer, or before a command that goes online
-  or changes your files, a card in the conversation asks you, with **Allow** and **Don’t Allow**. The same question
-  shows in Pippa Island, so you can answer it without switching windows.
+- **Pippa acts, then tells you.** What she can undo, such as adding a reminder, saving a draft, moving files or sorting
+  mails, she does without asking. The line under her answer says what she did and what she checked in Mail, Calendar,
+  Reminders or your files. **Undo** takes back the whole answer and leaves alone what you changed since. If she was
+  interrupted, the line says "unclear, please check" for that step, and she does not repeat it.
+- **Pippa asks in the conversation.** Before sending a mail, before her first web search in an answer, before each
+  command that goes online, and before a command that changes your files, a card in the conversation asks you. The
+  same question shows in Pippa Island, so you can answer it without switching windows.
+- **Busy online AI.** When an online AI says it has too many requests, Pippa waits 15, 30, 60 and 60 seconds, shows
+  the countdown and continues. If it is still busy, press **Continue** after a minute. When your allowance with that
+  provider is used up, she says so instead of waiting.
 - **Setting up on a new Mac.** Before the AI download, Pippa checks that there is enough free disk space and tells you
   how much more is needed. If Hugging Face is blocked or fails, she continues from a verified copy on GitHub. If her AI
   runs short of memory, she tells you briefly and what helps, and if files in her own AI installation are missing she

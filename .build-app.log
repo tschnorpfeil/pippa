@@ -1,0 +1,58 @@
+[1m==> Pippa 1.0.0 (1118)[0m
+check-default-models: OK (ornith-1.5-9b-mlx-4bit)
+[33mWarning: PIPPA_PROBES=1: developer probes compiled in; never ship this build[0m
+[1m==> swift build -c release --arch arm64 (10 jobs)[0m
+Building for production...
+[Planning deferred tasks]
+[5 / 14]
+[7 / 16] PiRPC
+[8 / 17] PippaCore
+[10 / 18] PiRPC
+[11 / 17] PippaCore
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/app/Package.swift: PippaCore: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[19 / 22] Pippa-product
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/app/Sources/Pippa/Views/IslandViews.swift:593:71: [1;33mwarning: [1;39mmain actor-isolated static property 'threeLines' can not be referenced from a Sendable closure[0;0m
+[0;36m580 |[0;0m 
+[0;36m581 |[0;0m     /// Three lines of `IslandStyle.small` (12 pt) with the 2 pt spacing below.
+[0;36m582 |[0;0m     private static let threeLines: CGFloat = {
+    [0;36m|[0;0m                        `- [1;39mnote: [1;39mstatic property declared here[0;0m
+[0;36m583 |[0;0m         let font = NSFont.systemFont(ofSize: 12)
+[0;36m584 |[0;0m         return 3 * (font.ascender - font.descender + font.leading).rounded(.up) + 2 * 2
+    [0;36m:[0;0m
+[0;36m591 |[0;0m             .fixedSize(horizontal: false, vertical: true)
+[0;36m592 |[0;0m             .frame(maxWidth: .infinity, alignment: .leading)
+[0;36m593 |[0;0m             .onGeometryChange(for: Bool.self) { $0.size.height > Self.threeLines + 0.5 } action: { overflowsState.wrappedValue = $0 }
+    [0;36m|[0;0m                                                                       `- [1;33mwarning: [1;39mmain actor-isolated static property 'threeLines' can not be referenced from a Sendable closure[0;0m
+[0;36m[20 / 23] Pippa-product
+594 |[0;0m             .frame(maxHeight: Self.threeLines, alignment: .bottom)
+[0;36m595 |[0;0m             .clipped()
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/app/Package.swift: Pippa-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/app/Package.swift: Pippa-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[22 / 23] Pippa-product
+[23 / 23] Pippa-product
+Build complete! (47,66 Sek.)
+[1m==> Assembling /Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app[0m
+    Localizations: de.lproj en.lproj
+    Resources: Pippa_Pippa.bundle
+    Resources: Pippa_PippaCore.bundle
+[1m==> Node, web access, Pi install payload, abilities[0m
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+added 322 packages in 2s
+    pippa-web: 211 packages kept, 99 only the Pi packages needed removed
+    Helpers: Node v22.23.3; Resources: pippa-web (pi-web-access,  88M)
+
+added 122 packages in 957ms
+    Resources: Pi 1.5.2 install payload (releases-v1), npm from Node v22.23.3 (167M)
+    Resources: pippa-skills (13 abilities)
+[1m==> App icon[0m
+[1m==> Signing with "Developer ID Application: Tobias Schnorpfeil (68DJF6VJKS)"[0m
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate: replacing existing signature
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app: replacing existing signature
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app/Contents/Frameworks/Sparkle.framework: replacing existing signature
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app/Contents/Resources/pi-payload/release/node_modules/@earendil-works/pi-tui/native/darwin/prebuilds/darwin-arm64/darwin-platform.node: replacing existing signature
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app/Contents/Helpers/node: replacing existing signature
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app/Contents/Helpers/fd: replacing existing signature
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app/Contents/Helpers/rg: replacing existing signature
+/Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app: replacing existing signature
+[1m==> Done: /Users/remi/.t3/worktrees/pippa/t3-4eb057cc-7f8976b8ad9d6a4e/dist/Pippa.app (402M)[0m

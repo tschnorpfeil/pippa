@@ -38,27 +38,30 @@ public enum MailSendProbe {
     static let subjectPrefix = "Pippa test "
 
     public static let usage = """
-        usage: Pippa --mail-send-probe [--account <name> (--read-only | --send)]
+        usage: Pippa --mail-send-probe [--account <name> (--read-only | --send | --inspect)]
           Without --account: lists Mail's accounts with their types and exits. Changes nothing.
+          With --account and --inspect: reads only. Counts the account's addresses and writes to stderr, as numbers and
+          class names, how Mail reports the ids of open drafts and where the probe's earlier test mails are. Changes nothing.
           With --account and --read-only: makes one new unsent draft through mail_draft ("\(subjectPrefix)<id>", one fixed
           sentence saying it is a test mail from Pippa's send check), addressed to the account's own first email address as
           Mail reports it. Reads it back as mail_send would, looks for the account's Sent mailbox and reads mail_send's
           snapshot of it. Sends nothing; the draft window stays open in Mail (close it without saving, or delete it).
           With --account and --send: the same, then runs mail_send end to end, with the probe confirming the card in place
           of the person. Sends exactly that one mail, only to the account's own address; any other recipient or sender is
-          refused before the card. Waits up to \(PippaMCPMailSend.sentBound.components.seconds) s for it in Sent, then
+          refused before the card. mail_send waits until the draft is \(PippaMCPMailSend.minimumDraftAge.components.seconds) s
+          old before the send event, then up to \(PippaMCPMailSend.closeBound.components.seconds) s for Mail to close it. Waits up to \(PippaMCPMailSend.sentBound.components.seconds) s for it in Sent, then
           checks that a second mail_send of the same draft is refused.
           Prints one JSON report without addresses, names, subjects or texts: counts, lengths, booleans, milliseconds and
           status words. On a timeout it names the step and the kind of Apple event that did not answer. Exit code 0 only
           when the run ended as intended for its mode.
         """
 
-    public enum Invocation: Equatable, Sendable { case help, list, readOnly(account: String), send(account: String) }
+    public enum Invocation: Equatable, Sendable { case help, list, inspect(account: String), readOnly(account: String), send(account: String) }
 
     /// Strict: a missing, repeated or unknown argument is an error, before Mail is asked anything.
     public static func parse(_ arguments: [String]) throws -> Invocation {
         var account: String?
-        var sawCommand = false, readOnly = false, send = false
+        var sawCommand = false, readOnly = false, send = false, inspect = false
         var rest = arguments[...]
         while let argument = rest.popFirst() {
             switch argument {
@@ -69,6 +72,9 @@ public enum MailSendProbe {
             case "--read-only":
                 guard !readOnly else { throw MailMoveProbe.UsageError(message: "--read-only given twice.") }
                 readOnly = true
+            case "--inspect":
+                guard !inspect else { throw MailMoveProbe.UsageError(message: "--inspect given twice.") }
+                inspect = true
             case "--send":
                 guard !send else { throw MailMoveProbe.UsageError(message: "--send given twice.") }
                 send = true
@@ -83,9 +89,10 @@ public enum MailSendProbe {
         }
         guard sawCommand else { throw MailMoveProbe.UsageError(message: "Missing --mail-send-probe.") }
         guard let account else {
-            if readOnly || send { throw MailMoveProbe.UsageError(message: "--read-only and --send need --account.") }
+            if readOnly || send || inspect { throw MailMoveProbe.UsageError(message: "--read-only, --send and --inspect need --account.") }
             return .list
         }
+        if inspect { guard !readOnly, !send else { throw MailMoveProbe.UsageError(message: "--inspect goes alone with --account.") }; return .inspect(account: account) }
         guard readOnly != send else { throw MailMoveProbe.UsageError(message: "--account needs exactly one of --read-only or --send.") }
         return readOnly ? .readOnly(account: account) : .send(account: account)
     }
@@ -111,6 +118,15 @@ public enum MailSendProbe {
                 return (1, MailMoveProbe.json(["probe": "mail-send-probe", "first_event_retries": retries,
                                                "error": ["step": "accounts", "kind": MailMover.describe(error)]]), "")
             }
+        case .inspect(let name):
+            // Reads only: how Mail reports open drafts and the probe's earlier test mails (numbers, to stderr).
+            do {
+                let probe = mail()
+                let kinds = try await firstAccounts(probe, pause: pause) { }
+                guard let kind = kinds.first(where: { $0.name.compare(name, options: .caseInsensitive) == .orderedSame }) else { return (1, MailMoveProbe.json(["refused": "unknown_account"]), "") }
+                let addresses = try await probe.accountAddresses(account: kind.id)
+                return (0, MailMoveProbe.json(["probe": "mail-send-probe", "mode": "inspect", "account_addresses": addresses.count]), "")
+            } catch { return (1, MailMoveProbe.json(["probe": "mail-send-probe", "mode": "inspect", "error": MailMover.describe(error)]), "") }
         case .readOnly(let name), .send(let name):
             let sending = if case .send = invocation { true } else { false }
             let directory = journalDirectory ?? FileManager.default.temporaryDirectory.appendingPathComponent("pippa-mail-send-probe-\(UUID().uuidString)")
@@ -183,7 +199,12 @@ public enum MailSendProbe {
             var host = base
             host.mailSender = mail
             host.mailDrafts = MailSendDrafts()
-            host.mailSendSettle = settle
+            // The waits before the send event are mail_send's wait for the draft's age (`minimumDraftAge`).
+            let ageWait = Waited()
+            host.mailSendSettle = MailMoveSettle(sleep: { d in
+                if mail.sendCalls == 0 { ageWait.add(d) }
+                await settle.sleep(d)
+            }, now: settle.now)
             host.reminderJournal = journal
             host.requiresReminderJournal = true
             host.turns = turns
@@ -275,6 +296,8 @@ public enum MailSendProbe {
                                        "send_event": mail.dispatchWord ?? "not_called", "sent_lookups": mail.sentCalls]
             if let ms = mail.foundAfterMs(verified: verified) { send["found_in_sent_ms"] = ms }
             send["found_in_sent"] = verified
+            send["draft_age_wait_ms"] = MailMoveProbe.milliseconds(ageWait.total)
+            send["still_open_after_send"] = receipt?.reason == "stillOpen"
             send["mail_send_ms"] = total
             if let event = mail.event { send["event"] = event }
             let outcome: String = verified ? "done" : result["state"] as? String == "unclear" ? "unclear" : "not_sent"
@@ -313,6 +336,14 @@ public enum MailSendProbe {
               let text = ((json["result"] as? [String: Any])?["content"] as? [[String: Any]])?.first?["text"] as? String,
               let result = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] else { return [:] }
         return result
+    }
+
+    /// The time `mail_send` slept before its send event.
+    final class Waited: @unchecked Sendable {
+        private let lock = NSLock()
+        private var sum: Duration = .zero
+        var total: Duration { lock.withLock { sum } }
+        func add(_ d: Duration) { lock.withLock { sum += d } }
     }
 
     /// The cards the probe was shown, and its one yes: only for the first `mail_send` card that shows exactly the probe's
@@ -443,6 +474,17 @@ struct MailSendProbeLive: MailSendProbeMail {
         guard AppleEvents.isRunning(.mail) else { throw PippaError.appNotOpen(Integration.mail.appName) }
         return try await AppleEvents.perform {
             let reply = try AppleEvents.call(Self.source, handler: "accountAddresses", [NSAppleEventDescriptor(string: account)], app: .mail)
+            // Mail's error number goes to stderr (a number only), so a failed run on a real account can be told apart.
+            if reply.atIndex(1)?.stringValue == "failed", let number = reply.atIndex(2)?.int32Value {
+                FileHandle.standardError.write(Data("accountAddresses: Mail error \(number)\n".utf8))
+            }
+            // How Mail reports the ids of open drafts (class names and error numbers only), to stderr.
+            if let kinds = try? AppleEvents.call(Self.source, handler: "outgoingKinds", [], app: .mail) {
+                FileHandle.standardError.write(Data(("outgoingKinds: " + AppleEvents.strings(kinds).joined(separator: " | ") + "\n").utf8))
+            }
+            if let traces = try? AppleEvents.call(Self.source, handler: "probeTraces", [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(string: MailSendProbe.subjectPrefix)], app: .mail) {
+                FileHandle.standardError.write(Data(("probeTraces: " + AppleEvents.strings(traces).joined(separator: " | ") + "\n").utf8))
+            }
             return AppleEvents.strings(try MailAccountParse.payload(reply))
         }
     }
@@ -463,6 +505,104 @@ struct MailSendProbeLive: MailSendProbeMail {
     func sent(subject: String, from address: String, since: Date) async throws -> [MailSentEntry] { try await system.sent(subject: subject, from: address, since: since) }
 
     static let source = """
+    -- Where the probe's earlier test mails are, as numbers: per Sent mailbox and inbox of the account, how many
+    -- messages have a subject starting with the probe's prefix, and for the newest how old its date sent is.
+    on probeTraces(acctID, thePrefix)
+        set out to {}
+        tell application id "com.apple.mail"
+            try
+                with timeout of 20 seconds
+                    set sentCount to 0
+                    repeat with box in (mailboxes of sent mailbox)
+                        set sameAcct to false
+                        try
+                            set sameAcct to (((id of (account of box)) as text) is acctID)
+                        end try
+                        if sameAcct then
+                            set sentCount to sentCount + 1
+                            set hits to (every message of box whose subject begins with thePrefix)
+                            set end of out to ("sent box hits " & (count of hits))
+                            repeat with m in hits
+                                try
+                                    set age to ((current date) - (date sent of m)) as integer
+                                    set mid to (message id of m) as text
+                                    set end of out to ("  age_s " & age & " msgid_len " & (length of mid) & " recipients " & (count of to recipients of m))
+                                on error number n
+                                    set end of out to ("  hit error " & n)
+                                end try
+                            end repeat
+                        end if
+                    end repeat
+                    set end of out to ("sent boxes of account " & sentCount)
+                    set inboxHits to 0
+                    repeat with box in (mailboxes of inbox)
+                        set sameAcct to false
+                        try
+                            set sameAcct to (((id of (account of box)) as text) is acctID)
+                        end try
+                        if sameAcct then set inboxHits to inboxHits + (count of (every message of box whose subject begins with thePrefix))
+                    end repeat
+                    set end of out to ("inbox hits " & inboxHits)
+                    set end of out to ("outgoing open " & (count of outgoing messages))
+                    repeat with om in outgoing messages
+                        try
+                            set end of out to ("  outgoing visible " & ((visible of (contents of om)) as text) & " subject_is_probe " & (((subject of (contents of om)) as text) begins with thePrefix))
+                        on error number n
+                            set end of out to ("  outgoing error " & n)
+                        end try
+                    end repeat
+                    try
+                        set end of out to ("outbox messages " & (count of messages of outbox))
+                    on error number n
+                        set end of out to ("outbox error " & n)
+                    end try
+                    try
+                        set end of out to ("windows " & (count of windows))
+                    on error number n
+                        set end of out to ("windows error " & n)
+                    end try
+                end timeout
+            on error number n
+                set end of out to ("error " & n)
+            end try
+        end tell
+        return out
+    end probeTraces
+
+    -- How Mail reports open drafts: for each outgoing message the class of its id (or the error number), and the
+    -- same for the front window. No texts.
+    on outgoingKinds()
+        set out to {}
+        tell application id "com.apple.mail"
+            try
+                with timeout of 10 seconds
+                    set oms to outgoing messages
+                    set end of out to ("count " & (count of oms))
+                    repeat with om in oms
+                        try
+                            set v to id of (contents of om)
+                            set sign to "zero"
+                            if (v as integer) > 0 then set sign to "positive"
+                            if (v as integer) < 0 then set sign to "negative"
+                            set end of out to ("id class " & ((class of v) as text) & " " & sign)
+                        on error number n
+                            set end of out to ("id error " & n)
+                        end try
+                    end repeat
+                    try
+                        set w to id of window 1
+                        set end of out to ("window id class " & ((class of w) as text))
+                    on error number n
+                        set end of out to ("window id error " & n)
+                    end try
+                end timeout
+            on error number n
+                set end of out to ("error " & n)
+            end try
+        end tell
+        return out
+    end outgoingKinds
+
     -- The email addresses of one account, by Mail's id. Reads only.
     on accountAddresses(acctID)
         set out to {}
@@ -471,9 +611,15 @@ struct MailSendProbeLive: MailSendProbeMail {
                 with timeout of 20 seconds
                     repeat with acct in accounts
                         if ((id of acct) as text) is acctID then
-                            repeat with a in (email addresses of acct)
-                                set end of out to (contents of a) as text
-                            end repeat
+                            -- The loop variable is a reference into `accounts`; ask the account itself.
+                            set theAcct to contents of acct
+                            set found to email addresses of theAcct
+                            if found is not missing value then
+                                if class of found is not list then set found to {found}
+                                repeat with a in found
+                                    set end of out to (a as text)
+                                end repeat
+                            end if
                         end if
                     end repeat
                 end timeout

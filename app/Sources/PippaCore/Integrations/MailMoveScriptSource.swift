@@ -507,6 +507,8 @@ extension MailAccountScript {
                     return {"ok", {"made"}}
                 end timeout
             on error number errNum
+                -- Mail's own number for a refused folder (seen on a Google account), for the probe's stderr.
+                if errNum is not -1712 and errNum is not -1743 then return {"ok", {"error " & errNum}}
                 return my problem(errNum)
             end try
         end tell
@@ -745,7 +747,9 @@ extension MailAccountScript.Live: MailMoveProbeMail {
 
     func makeFolder(account: String, name: String) async throws -> Bool {
         try await run("accountMakeFolder", mutation: true, { [NSAppleEventDescriptor(string: account), NSAppleEventDescriptor(string: name)] }) {
-            AppleEvents.strings($0).first == "made"
+            let answer = AppleEvents.strings($0).first ?? ""
+            if answer.hasPrefix("error ") { FileHandle.standardError.write(Data("makeFolder: Mail \(answer)\n".utf8)) }
+            return answer == "made"
         }
     }
 

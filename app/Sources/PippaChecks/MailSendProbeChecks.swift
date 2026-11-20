@@ -86,13 +86,19 @@ func runMailSendProbeChecks() async {
         let wrong = [await run(["--mail-send-probe", "--acount", "Privat"]), await run(["--mail-send-probe", "--account", "A", "--account", "B", "--send"]),
                      await run(["--mail-send-probe", "--account"]), await run(["--mail-send-probe", "--account", "A"]),
                      await run(["--mail-send-probe", "--account", "A", "--read-only", "--send"]), await run(["--mail-send-probe", "--send"]),
-                     await run(["--mail-send-probe", "--account", "A", "--send", "--send"]), await run(["--mail-send-probe", "--to", "x@example.test"])]
+                     await run(["--mail-send-probe", "--account", "A", "--send", "--send"]), await run(["--mail-send-probe", "--to", "x@example.test"]),
+                     await run(["--mail-send-probe", "--inspect"]), await run(["--mail-send-probe", "--account", "A", "--inspect", "--send"]),
+                     await run(["--mail-send-probe", "--account", "A", "--inspect", "--read-only"]),
+                     await run(["--mail-send-probe", "--account", "A", "--inspect", "--inspect"]),
+                     await run(["--mail-send-probe", "--account", "A", "--send-variants"])]
+        let inspect = try? MailSendProbe.parse(["--mail-send-probe", "--account", "A", "--inspect"])
         let untouched = made.value == 0 && fake.calls.value == 0 && hosts.value == hostsBefore
         fake.kindTimeouts.mutate { $0 = 1 }
         let list = await run(["--mail-send-probe"])
         let listed = (try? JSONSerialization.jsonObject(with: Data(list.stdout.utf8))) as? [String: Any]
         let accounts = listed?["accounts"] as? [[String: Any]] ?? []
         return help.exitCode == 0 && help.stdout.contains("usage: Pippa --mail-send-probe") && help.stdout.contains("--read-only") && help.stderr.isEmpty
+            && help.stdout.contains("--inspect") && inspect == .inspect(account: "A")
             && wrong.allSatisfy { $0.exitCode == 2 && $0.stderr.contains("usage:") && $0.stdout.isEmpty } && untouched
             && list.exitCode == 0 && listed?["first_event_retries"] as? Int == 1 && accounts.count == 2
             && fake.mail.sendCallCount == 0 && hosts.value == hostsBefore
@@ -134,6 +140,8 @@ func runMailSendProbeChecks() async {
             && send["card_matched_probe_mail"] as? Bool == true && send["draft_unchanged_before_send"] as? Bool == true
             && send["send_event"] as? String == "sent" && send["found_in_sent"] as? Bool == true && send["found_in_sent_ms"] is Int
             && send["sent_lookups"] as? Int == 2 && send["outcome"] as? String == "done"
+            && send["draft_age_wait_ms"] as? Int == Int(PippaMCPMailSend.minimumDraftAge.components.seconds) * 1000
+            && send["still_open_after_send"] as? Bool == false
             && send["journal_rows"] as? [String: Int] == ["done": 1] && send["second_send_status"] as? String == "already_sent"
             && send["second_send_refused"] as? Bool == true && result.json["send_events"] as? Int == 1
     }

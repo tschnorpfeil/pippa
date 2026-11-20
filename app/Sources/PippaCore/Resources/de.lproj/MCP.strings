@@ -128,6 +128,7 @@
 "Mail didn’t take the mail, so nothing was sent. Try again in a moment." = "Mail hat die Mail nicht angenommen, deshalb wurde nichts gesendet. Versuch es gleich noch einmal.";
 "Mail didn’t answer, so Pippa sent nothing. Try again in a moment." = "Mail hat nicht geantwortet, deshalb hat Pippa nichts gesendet. Versuch es gleich noch einmal.";
 "Mail took the mail, but Pippa could not confirm it in Sent. Please look in Sent; Pippa won’t send it again." = "Mail hat die Mail angenommen, aber Pippa konnte sie unter „Gesendet“ nicht finden. Sieh bitte dort nach; Pippa sendet sie nicht noch einmal.";
+"Mail hasn’t sent the mail: the draft is still open in Mail. Please look there and press Send in Mail; Pippa won’t send it again." = "Mail hat die Mail nicht gesendet: Der Entwurf ist in Mail noch offen. Sieh bitte dort nach und drück in Mail auf „Senden“; Pippa sendet sie nicht noch einmal.";
 "Mail shows more than one window for this draft, so Pippa sent nothing." = "Mail zeigt mehr als ein Fenster für diesen Entwurf, deshalb hat Pippa nichts gesendet.";
 "To: %@" = "An: %@";
 "Cc: %@" = "Cc: %@";

@@ -1,10 +1,35 @@
 # Pippa 1.0: she acts, and you can take it back
 
-Status: decided, 2026-11-19. Builds on [Pippa next](pippa-next-architecture.md); where things stand is in
+Status: shipped in 1.0.0. Decided 2026-11-19. What differs from this plan is under [As built](#as-built). Builds on [Pippa next](pippa-next-architecture.md); where things stand is in
 [ROADMAP.md](ROADMAP.md). Measurements behind the decisions:
 [archive/measurements/pippa-1.0-spike-2026-11-19.md](archive/measurements/pippa-1.0-spike-2026-11-19.md).
 
 The owner agreed to all seven points under [Decided by the owner](#decided-by-the-owner) on 2026-11-19.
+
+## As built
+
+1.0.0 follows this plan with these deviations:
+
+- **Journal rows** exist for MCP writes, Pi-side file changes, card-confirmed tools, acting browse steps and online
+  shell commands. Web searches, page reads and `remember` are not journaled.
+- **`mail_move`** takes one target folder per call and moves only inbox mails.
+- **Verification** looks again every second for up to 20 seconds per batch, and up to 60 once Mail did not answer.
+  Only live messages count, because a moved mail leaves a deleted-status leftover in its old folder. A lookup Mail
+  does not answer is "not known yet" and is read once more at the end of the answer and at Undo.
+- **Undo for mail** moves back only a mail whose identity in the target folder was read after the move and is
+  unchanged. A row that was never confirmed stays "unclear, please check".
+- **The receipt** counts only mails read back as moved.
+- **The real-mail probe** (`Pippa --mail-move-probe`, debug and `PIPPA_PROBES=1` builds only) ran seven times on
+  iCloud ([measurement](archive/measurements/pippa-1.0-mail-probe-2026-11-19.md)). On the Google account Mail refused
+  to create the test folders, so moving mail there is unchecked, as is Exchange.
+- **`mail_send`** waits until the draft is five seconds old before the send event and then checks that the draft
+  window closed: on the real account Mail answered `send` with true for a draft made a second earlier and sent
+  nothing. Mail's id for a draft can be 0. The send probe sent two test mails to the account's own address; the
+  second went through the whole product path and was found in Sent.
+- **Going online from the shell:** a yes after a command failed offline runs that same command again at once; no yes
+  is kept for a later call.
+- **Codemode** is on for an online AI with Mac access and off for the AI on this Mac. On the synthetic inbox of 240
+  mails, GLM 5.3 sorted all 190 sortable mails correctly, with a third of the text sent to the provider.
 
 ## The idea
 
