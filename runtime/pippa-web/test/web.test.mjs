@@ -223,3 +223,34 @@ test("every short declaration is a part of what pi-web-access really accepts", a
 		assert.deepEqual(lean.parameters.required ?? [], real.required ?? [], `${name}: same required parameters`);
 	}
 });
+
+test("the conversation's consent is saved at the end of an answer and restored when Pippa resumes that conversation", async () => {
+	const { CONSENT_ENTRY } = await import("../index.ts");
+	const saved = [];
+	const first = webGuard((data) => saved.push(data));
+	first.sessionStart([]);
+	first.agentStart();
+	const { asked, ctx } = ui(true);
+	await first.toolCall({ toolName: "web_search", input: { query: "DAX" } }, ctx);
+	first.toolResult({ toolName: "web_search", content: [{ type: "text", text: "https://example.org/dax" }] });
+	first.agentEnd();
+	assert.equal(saved.length, 1);
+	assert.equal(saved[0].search, true);
+	first.agentStart();
+	first.agentEnd();
+	assert.equal(saved.length, 1, "nothing new, nothing saved");
+	// Pippa restarted Pi for another conversation and now resumes this one.
+	const entries = [{ type: "custom", customType: CONSENT_ENTRY, data: saved[0] }];
+	const resumed = webGuard();
+	resumed.sessionStart(entries);
+	resumed.agentStart();
+	assert.equal(await resumed.toolCall({ toolName: "web_search", input: { query: "Dow" } }, ctx), undefined);
+	assert.equal(await resumed.toolCall({ toolName: "fetch_content", input: { url: "https://example.org/dax" } }, ctx), undefined);
+	assert.equal(asked.length, 1, "the resumed conversation does not ask again");
+	// A different conversation, or an entry another extension wrote, allows nothing.
+	const other = webGuard();
+	other.sessionStart([{ type: "custom", customType: "something-else", data: { v: 1, search: true, pages: [] } }]);
+	other.agentStart();
+	await other.toolCall({ toolName: "web_search", input: { query: "Dow" } }, ctx);
+	assert.equal(asked.length, 2);
+});

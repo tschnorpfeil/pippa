@@ -467,6 +467,8 @@ test("tool names: a prefixed or unprefixed real name is renamed before Pi runs i
 	assert.equal(repairedToolName("mcp__pippa__list_folder", active), "list_folder");
 	assert.equal(repairedToolName("read_document", active), "mcp__pippa__read_document");
 	assert.equal(repairedToolName("functions.calendar_read", active), "mcp__pippa__calendar_read");
+	assert.equal(repairedToolName("functions.web_search", active), "web_search");
+	assert.equal(repairedToolName("mcp__pippa__web_search", active), "web_search");
 	// Real names, invented names and names without a single match stay.
 	assert.equal(repairedToolName("fetch_content", active), undefined);
 	assert.equal(repairedToolName("invented_tool", active), undefined);

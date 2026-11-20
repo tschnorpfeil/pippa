@@ -75,12 +75,14 @@ const NAME_PREFIXES = ["functions.", "mcp__pippa__", "pippa__", "pippa_", "web_"
 /** The active tool a mistyped name means, or `undefined`: the name is fine, or there is no single match. */
 export function repairedToolName(name: unknown, active: readonly string[]): string | undefined {
 	if (typeof name !== "string" || !name || active.includes(name)) return undefined;
-	let bare = name;
-	for (let changed = true; changed;) {
+	// Every name on the way counts: `functions.web_search` means `web_search`, even though `web_` is a prefix too.
+	const candidates = new Set<string>();
+	for (let bare = name, changed = true; changed;) {
+		candidates.add(bare).add(`mcp__pippa__${bare}`);
 		changed = false;
-		for (const prefix of NAME_PREFIXES) if (bare.startsWith(prefix) && bare.length > prefix.length) { bare = bare.slice(prefix.length); changed = true; }
+		for (const prefix of NAME_PREFIXES) if (bare.startsWith(prefix) && bare.length > prefix.length) { bare = bare.slice(prefix.length); changed = true; break; }
 	}
-	const matches = [...new Set([bare, `mcp__pippa__${bare}`])].filter((candidate) => active.includes(candidate));
+	const matches = [...candidates].filter((candidate) => active.includes(candidate));
 	return matches.length === 1 ? matches[0] : undefined;
 }
 
