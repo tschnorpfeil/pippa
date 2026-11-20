@@ -130,8 +130,9 @@ extension MailReplyScript {
             on error
                 return {"shown"}
             end try
-            -- The window's id lets mail_send find exactly this draft later; 0 when Mail does not report one.
-            set outgoingID to 0
+            -- The window's id lets mail_send find exactly this draft later; "none" when Mail does not report one.
+            -- Mail's ids for drafts are not always positive (seen on a real account), so no number stands for "none".
+            set outgoingID to "none"
             try
                 with timeout of 5 seconds
                     set outgoingID to (id of r) as integer
@@ -302,7 +303,7 @@ extension MailReplyScript {
                 repeat with targetRecipient in to recipients of nm
                     set end of recipientAddresses to (address of targetRecipient) as text
                 end repeat
-                set outgoingID to 0
+                set outgoingID to "none"
                 try
                     set outgoingID to (id of nm) as integer
                 end try

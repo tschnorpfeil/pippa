@@ -21,6 +21,14 @@ public enum PippaMCPMailSend {
     /// as far, never further.
     public static let sentSlack: TimeInterval = 60
     public static let journalKind = "mail.send"
+    /// The youngest draft the send event may reach. The iCloud probe of November 2026 sent a draft about one second
+    /// after `mail_draft` made it: Mail answered `send` with true and sent nothing (the draft stayed open, nothing in
+    /// the Outbox or Sent). The same draft sent minutes later went out at once. Measured from `mail_draft`'s record.
+    public static let minimumDraftAge: Duration = .seconds(5)
+    /// After Mail answered `send` with true: how long Pippa looks whether the draft is still open in Mail, and how
+    /// often. A draft Mail really took closes within a second or two; one still open after this was not sent.
+    public static let closeBound: Duration = .seconds(8)
+    public static let closeInterval: Duration = .seconds(1)
 
     static func toolList() -> [[String: Any]] {
         let title = "Mail senden"
@@ -36,16 +44,17 @@ public enum PippaMCPMailSend {
 public final class MailSendDrafts: @unchecked Sendable {
     public enum State: String, Sendable { case open, sending, sent, unclear }
     /// `process`: the Mail process that has the window `outgoingID`; Mail numbers windows anew after a restart.
-    private struct Entry { let outgoingID: Int; let process: Int32; let owner: String; var state: State }
-    enum Claim: Equatable { case claimed(Int, process: Int32), unknown, sending, sent, unclear }
+    /// `created`: when `mail_draft` recorded it, on `PippaMCPHost.mailSendSettle`'s clock (only differences count).
+    private struct Entry { let outgoingID: Int; let process: Int32; let owner: String; let created: Duration; var state: State }
+    enum Claim: Equatable { case claimed(Int, process: Int32, created: Duration), unknown, sending, sent, unclear }
 
     private let lock = NSLock()
     private var entries: [String: Entry] = [:]
     public init() {}
 
-    func register(outgoingID: Int, process: Int32, owner: String) -> String {
+    func register(outgoingID: Int, process: Int32, owner: String, created: Duration) -> String {
         let token = "d" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(12).lowercased()
-        lock.withLock { entries[token] = Entry(outgoingID: outgoingID, process: process, owner: owner, state: .open) }
+        lock.withLock { entries[token] = Entry(outgoingID: outgoingID, process: process, owner: owner, created: created, state: .open) }
         return token
     }
 
@@ -54,7 +63,7 @@ public final class MailSendDrafts: @unchecked Sendable {
         lock.withLock {
             guard let owner, let entry = entries[token], entry.owner == owner else { return .unknown }
             switch entry.state {
-            case .open: entries[token]?.state = .sending; return .claimed(entry.outgoingID, process: entry.process)
+            case .open: entries[token]?.state = .sending; return .claimed(entry.outgoingID, process: entry.process, created: entry.created)
             case .sending: return .sending
             case .sent: return .sent
             case .unclear: return .unclear
@@ -94,9 +103,9 @@ extension PippaMCPWriteTools {
             return refuse("unavailable", L("Pippa can’t send mail here. Nothing was sent.", table: "MCP"))
         }
         let drafts = host.mailDrafts
-        let outgoingID: Int, process: Int32
+        let outgoingID: Int, process: Int32, created: Duration
         switch drafts.claim(token, owner: scope.draftOwner) {
-        case .claimed(let id, let mail): outgoingID = id; process = mail
+        case .claimed(let id, let mail, let made): outgoingID = id; process = mail; created = made
         case .unknown: return refuse("unknown_draft", L("Pippa sends only a draft she saved in this conversation. Nothing was sent.", table: "MCP"))
         case .sending: return refuse("busy", L("This mail is already being sent. Nothing else was sent.", table: "MCP"))
         case .sent: return refuse("already_sent", L("This mail was already sent. Pippa doesn’t send it again.", table: "MCP"))
@@ -131,6 +140,8 @@ extension PippaMCPWriteTools {
             return refused
         }
         do { try PippaMCPWriteLease.current?.check() } catch { return refuse("cancelled", Self.stoppedText) }
+        // Mail silently drops a send of a draft it made a moment ago (see `minimumDraftAge`): wait until it is old enough.
+        guard await waitForDraftAge(since: created) else { return refuse("cancelled", Self.stoppedText) }
 
         // Right before the send event: what leaves must be exactly what the card showed.
         let current: MailOutgoing
@@ -184,7 +195,15 @@ extension PippaMCPWriteTools {
             return refuse("not_sent", L("Mail didn’t take the mail, so nothing was sent. Try again in a moment.", table: "MCP"))
         }
         switch dispatch {
-        case .sent: final = .sent
+        case .sent:
+            // Mail's true is no proof: a draft still open after the bound was not sent. Never sent again either way.
+            if await stillOpen(outgoingID, process, sender) {
+                await row?.abandon(dispatched: true)
+                final = .unclear
+                return Self.unclear(L("Mail hasn’t sent the mail: the draft is still open in Mail. Please look there and press Send in Mail; Pippa won’t send it again.", table: "MCP"),
+                                    receipt: receipt("unclear", "stillOpen"))
+            }
+            final = .sent
         case .changed:
             await row?.abandon(dispatched: false)
             return Self.changed(receipt: receipt("failed", "draft_changed"))
@@ -216,6 +235,39 @@ extension PippaMCPWriteTools {
     }
 
     private enum Read { case found(MailOutgoing), notSent(String, String) }
+
+    /// Waits until the draft is `minimumDraftAge` old, in steps of at most a second. `false`: stopped meanwhile.
+    private func waitForDraftAge(since created: Duration) async -> Bool {
+        let settle = host.mailSendSettle
+        func stopped() -> Bool {
+            do { try PippaMCPWriteLease.current?.check() } catch { return true }
+            return Task.isCancelled || scope.snapshot.cancelled
+        }
+        while settle.now() - created < PippaMCPMailSend.minimumDraftAge {
+            if stopped() { return false }
+            await settle.sleep(min(PippaMCPMailSend.minimumDraftAge - (settle.now() - created), .seconds(1)))
+        }
+        return !stopped()
+    }
+
+    /// After Mail answered `send` with true: whether the same draft window is still open in the same Mail process
+    /// after `closeBound`. Gone at any look: `false`. A look Mail does not answer proves nothing; only an open window
+    /// at the last answered look counts. Stop ends the looks: then it is `false`, and Sent decides (unclear).
+    private func stillOpen(_ id: Int, _ process: Int32, _ sender: any MailSending) async -> Bool {
+        let settle = host.mailSendSettle
+        let start = settle.now()
+        var open = false
+        while !Task.isCancelled, !scope.snapshot.cancelled {
+            switch try? await sender.outgoing(id, process: process) {
+            case .gone: return false
+            case .found, .several: open = true
+            case .unreadable, nil: break
+            }
+            guard settle.now() - start < PippaMCPMailSend.closeBound else { return open }
+            await settle.sleep(PippaMCPMailSend.closeInterval)
+        }
+        return false
+    }
 
     private func read(_ id: Int, _ process: Int32, _ sender: any MailSending) async -> Read {
         do {

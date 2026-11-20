@@ -167,7 +167,7 @@ extension PippaMCPWriteTools {
         // Only a draft whose fields Mail confirmed gets an id `mail_send` accepts, and only for this conversation.
         // Without the Mail process that has the window, its id could later name another draft: no id then.
         let draftID: String? = if result != .replyNeedsPaste, let outgoingID, let mailProcess, let owner = scope.draftOwner {
-            host.mailDrafts.register(outgoingID: outgoingID, process: mailProcess, owner: owner)
+            host.mailDrafts.register(outgoingID: outgoingID, process: mailProcess, owner: owner, created: host.mailSendSettle.now())
         } else { nil }
         let done = inserted(draft, result: result, draftID: draftID)
         return row != nil && result == .reply ? Self.verified(done, matched: true, integration: .mail) : done
