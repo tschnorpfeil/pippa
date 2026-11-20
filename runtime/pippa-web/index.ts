@@ -17,9 +17,12 @@
  *   models; no curator, no summaries by another model, no browser cookies, no GitHub clones, no video.
  * - Page addresses are fetched from this Mac only (pi-web-access keeps hosted fetchers off by default).
  *
- * Asking first (`ctx.ui.confirm`, shown by the app): the first search of an answer shows the person the exact search
- * text, and only after their OK does it go to DuckDuckGo; later searches in the same answer run. `fetch_content` reads
- * without asking only pages whose address came from this answer's search results or from the person's own message;
+ * Asking first (`ctx.ui.confirm`, shown by the app): the first search of a conversation shows the person the exact
+ * search text, and only after their OK does it go to DuckDuckGo; later searches in the same conversation run (asking in
+ * every answer was a question per message for a person who had already said yes). A no holds for that call only; the
+ * next answer asks again. A new conversation asks again. Pippa restarts Pi when the person switches conversations, so
+ * the state is saved as a session entry (`CONSENT_ENTRY`, not shown to the model) and read back at `session_start`. `fetch_content` reads without asking only
+ * pages whose address came from this conversation's search results or from the person's own messages;
  * any other address (one a document or web page could have planted, e.g. `https://…/?iban=…`) is asked for, and this
  * Mac's own addresses (`localhost`, private networks, `file:`) are never read. No one to ask: nothing goes out.
  *
@@ -165,8 +168,8 @@ export function webAskText(kind: "search" | "page", detail: string[], language =
 	const shown = detail.slice(0, 3).map((d) => (d.length > 200 ? d.slice(0, 199) + "…" : d));
 	if (kind === "search") {
 		return de
-			? { title: "Darf Pippa im Internet suchen?", message: `Pippa möchte bei DuckDuckGo suchen nach:\n\n${shown.map((q) => `„${q}“`).join("\n")}` }
-			: { title: "May Pippa search the web?", message: `Pippa wants to search DuckDuckGo for:\n\n${shown.map((q) => `“${q}”`).join("\n")}` };
+			? { title: "Darf Pippa im Internet suchen?", message: `Pippa möchte bei DuckDuckGo suchen nach:\n\n${shown.map((q) => `„${q}“`).join("\n")}\n\nDein Ja gilt für weitere Suchen in diesem Gespräch.` }
+			: { title: "May Pippa search the web?", message: `Pippa wants to search DuckDuckGo for:\n\n${shown.map((q) => `“${q}”`).join("\n")}\n\nYour yes covers further searches in this conversation.` };
 	}
 	const hosts = [...new Set(shown.map((u) => { try { return new URL(u).hostname; } catch { return u; } }))];
 	return de
@@ -177,15 +180,20 @@ export function webAskText(kind: "search" | "page", detail: string[], language =
 export const WEB_DECLINED_REASON = "Not done: the person said no. Do not try another way to reach the internet; answer with what you have and say in one short sentence that you did not look it up.";
 export const WEB_NO_ONE_TO_ASK_REASON = "Not done: going online needs the person's OK, and there is no one to ask right now. Answer without the web.";
 
+/** Session entry with the conversation's web consent: `{ v: 1, search, pages }`. */
+export const CONSENT_ENTRY = "pippa-web-consent";
+const MAX_SAVED_PAGES = 500;
+
 /**
- * Asking before anything goes online, per answer: whether the person allowed searching, and the page addresses that
- * may be read without asking. `toolCall` also repairs a broken `queries` string. Wired to Pi's events below.
+ * Asking before anything goes online, per conversation: whether the person allowed searching, and the page addresses
+ * that may be read without asking. `toolCall` also repairs a broken `queries` string. Wired to Pi's events below.
  */
-export function webGuard() {
+export function webGuard(save: (data: { v: 1; search: boolean; pages: string[] }) => void = () => {}) {
 	let searchAllowed = false;
 	const known = new Set<string>();
 	let message = "";
-	const reset = () => { searchAllowed = false; known.clear(); for (const url of addressesIn(message)) known.add(samePage(url)); };
+	let changed = false;
+	const learnMessage = () => { for (const url of addressesIn(message)) { known.add(samePage(url)); changed = true; } };
 	const ask = async (ctx: any, kind: "search" | "page", detail: string[]): Promise<string | undefined> => {
 		if (!ctx?.hasUI || !ctx?.ui?.confirm) return WEB_NO_ONE_TO_ASK_REASON;
 		const { title, message } = webAskText(kind, detail);
@@ -196,8 +204,21 @@ export function webGuard() {
 			if (typeof event?.text === "string" && !event?.streamingBehavior) message = event.text;
 			return undefined;
 		},
-		agentStart() { reset(); },
-		agentEnd() { message = ""; reset(); },
+		/** A new or a resumed conversation: what its last saved consent entry allowed, or nothing. */
+		sessionStart(entries: any[] = []) {
+			searchAllowed = false; known.clear(); message = ""; changed = false;
+			const saved = entries.filter((entry) => entry?.type === "custom" && entry.customType === CONSENT_ENTRY && entry.data?.v === 1).at(-1)?.data;
+			if (!saved) return;
+			searchAllowed = saved.search === true;
+			if (Array.isArray(saved.pages)) for (const page of saved.pages) if (typeof page === "string") known.add(page);
+		},
+		agentStart() { learnMessage(); },
+		agentEnd() {
+			message = "";
+			if (!changed) return;
+			changed = false;
+			save({ v: 1, search: searchAllowed, pages: [...known].slice(-MAX_SAVED_PAGES) });
+		},
 		async toolCall(event: any, ctx: any): Promise<{ block: true; reason: string } | undefined> {
 			if (!event?.input) return undefined;
 			if (event.toolName === "web_search") {
@@ -210,6 +231,7 @@ export function webGuard() {
 				const no = await ask(ctx, "search", queries);
 				if (no) return { block: true, reason: no };
 				searchAllowed = true;
+				changed = true;
 				return undefined;
 			}
 			if (event.toolName === "fetch_content") {
@@ -224,14 +246,16 @@ export function webGuard() {
 				const no = await ask(ctx, "page", unknown);
 				if (no) return { block: true, reason: no };
 				for (const url of unknown) known.add(samePage(url));
+				changed = true;
 			}
 			return undefined;
 		},
-		/** Links in search results may be read in this answer without asking again. */
+		/** Links in search results may be read in this conversation without asking again. */
 		toolResult(event: any): undefined {
 			if (event?.toolName !== "web_search" || event.isError) return undefined;
 			const text = (event.content ?? []).filter((p: any) => p?.type === "text").map((p: any) => String(p.text ?? "")).join("\n");
 			for (const url of addressesIn(text)) known.add(samePage(url));
+			changed = true;
 			return undefined;
 		},
 	};
@@ -251,7 +275,8 @@ export default async function (pi: ExtensionAPI) {
 	}
 	pi.on("before_provider_request", (event: any) => leanDeclarations(event?.payload));
 
-	const guard = webGuard();
+	const guard = webGuard((data) => pi.appendEntry(CONSENT_ENTRY, data));
+	pi.on("session_start", async (_event: any, ctx: any) => guard.sessionStart(ctx?.sessionManager?.getEntries?.() ?? []));
 	pi.on("input", async (event: any) => guard.input(event));
 	pi.on("agent_start", async () => guard.agentStart());
 	pi.on("agent_end", async () => guard.agentEnd());

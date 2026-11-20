@@ -172,7 +172,7 @@ per tool (`PippaMCPCalendarAdd`, `PippaMCPReminderAdd`, `PippaMCPMailDraft`; onl
 
 **Web access (`runtime/pippa-web`).** `index.ts` loads the pinned `pi-web-access` with Pippa's settings in
 `<Application Support>/Pippa/pi-web` (`PIPPA_WEB_DIR`): DuckDuckGo only, no switch to another signed-in provider. The
-person's own `~/.pi` web settings are never read or changed. The first search of an answer asks the person.
+person's own `~/.pi` web settings are never read or changed. The first search of a conversation asks the person; the OK holds until a new conversation (`session_start`).
 
 **Local model.** One model, Ornith 1.5 9B (MLX 4-bit), the only entry in
 `app/Sources/PippaCore/Resources/catalog.json`. `ModelSelector` (`Models.swift`) only decides whether it fits: Apple
@@ -512,7 +512,7 @@ defaults domain, so back up that preferences file first.
 
 **Network.** Only these go out: the model download from Hugging Face (or, when that fails, from its mirror on Pippa's
 GitHub releases) and the oMLX runtime from Pippa's GitHub releases (both after consent), Sparkle's update check, web
-search and page reads (the first search of an answer is asked for), and the online AI the person switches on. Files,
+search and page reads (the first search of a conversation is asked for), and the online AI the person switches on. Files,
 conversations and the model otherwise stay on the Mac.
 
 **Uninstall.** Quit Pippa, move `Pippa.app` to the Trash, then remove `~/Library/Application Support/Pippa`, the

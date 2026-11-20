@@ -61,7 +61,7 @@ async function ask(root, provider) {
 test("real Pi: a provider's redirect never reaches the other address; a normal streamed answer is unchanged", {
 	skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 120_000,
 }, async () => {
-	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.5\./);
+	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.6\./);
 	await mkdir(build, { recursive: true });
 	const root = await mkdtemp(join(build, "pippa-redirect-realpi-"));
 	await mkdir(join(root, "agent"), { recursive: true });

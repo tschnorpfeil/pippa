@@ -182,6 +182,11 @@ public struct PippaMCPTurnTools: Sendable {
         if path.count > 1, let first = path.first, first == path.last, first == "\"" || first == "'" { path = String(path.dropFirst().dropLast()) }
         if path.contains("\\ ") { path = path.replacingOccurrences(of: "\\ ", with: " ") }
         if path.hasPrefix("file://"), let url = URL(string: path) { path = url.path }
+        // A web address is no file, and `expandingTildeInPath` below would collapse its "//": name the tool that reads
+        // pages, so the model does not try file paths for it.
+        if path.hasPrefix("http://") || path.hasPrefix("https://") {
+            return Self.failure("invalid_arguments", "read_document reads files on this Mac. For a web address, call fetch_content with url instead.")
+        }
         path = (path as NSString).expandingTildeInPath
         guard path.hasPrefix("/") else { return Self.failure("invalid_arguments", "Use the exact absolute path from the message.") }
         // Pippa's own folder and Pi's sign-in folders are never read for the model (ProtectedPaths), also behind a symlink.

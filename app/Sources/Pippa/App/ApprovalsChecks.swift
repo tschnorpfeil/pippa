@@ -325,6 +325,18 @@ enum ConversationStoreChecks {
               && StepLabel.progress(reading, part: 3, of: 10, merging: false).hasSuffix("Thesis.docx · " + (T("Open", table: "App") == "Öffnen" ? "Teil 3 von 10" : "Part 3 of 10"))
               && StepLabel.progress(reading, part: 1, of: 2, merging: true) != StepLabel.progress(reading, part: 1, of: 2, merging: false),
               "a long document's step says which part is being read, in the app's language")
+        // A tool the model invented is never shown by its raw name; a web address is a page, not a file.
+        let unknownTool = StepLabel.text(tool: "web_fetch_content", arguments: "{}")
+        let webAddress = StepLabel.text(tool: "mcp__pippa__read_document", arguments: #"{"path":"https://x.de/a.pdf"}"#)
+        let localFile = StepLabel.text(tool: "read_document", arguments: #"{"path":"/Users/a/b.pdf"}"#)
+        check(unknownTool == T("Using a tool", table: "App") && !unknownTool.contains("web_fetch_content")
+              && webAddress == T("Reading a web page", table: "App")
+              && localFile == T("Reading %@", table: "App", "b.pdf"),
+              "an unknown tool's step says only that a tool is used; a web address reads a page, a path reads its file")
+        let shipped = (PippaPiLaunch.tools + Array(PippaActionClasses.table.keys)).filter { !$0.contains("*") }
+        let unlabelled = shipped.filter { StepLabel.text(tool: $0, arguments: "{}") == T("Using a tool", table: "App") }
+        check(!shipped.isEmpty && unlabelled.isEmpty,
+              "every tool Pippa ships keeps its own plain-words step label\(unlabelled.isEmpty ? "" : ": " + unlabelled.joined(separator: ", "))")
         let firstMail = mailSource("old@example.test"), secondMail = mailSource("new@example.test")
         let accountMail = SourceLog.source(tool: "mail_read", arguments: #"{"mail_ref":"m123456789012"}"#,
                                           result: #"{"data":{"subject":"Repeated subject","messageID":"old@example.test","account":"Work","bodyTruncated":true}}"#)

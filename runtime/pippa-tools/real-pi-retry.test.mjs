@@ -108,7 +108,7 @@ const short = { maxRetries: 4, baseDelayMs: 50, maxAgentDelayMs: 200 };
 const of = (events, type) => events.filter((event) => event.type === type);
 
 test("real Pi: 429 twice, then 200 — Pi waits twice and finishes with the answer", { skip, timeout: 60_000 }, async () => {
-	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.5\./);
+	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.6\./);
 	const pi = await onlinePi(short, (request) => request <= 2 ? 429 : 200);
 	try {
 		const events = await pi.prompt(QUESTION);

@@ -64,8 +64,9 @@ function ui(answer) {
 	return { asked, ctx: { hasUI: true, ui: { confirm: async (title, message) => { asked.push({ title, message }); return answer; } } } };
 }
 
-test("the first search of an answer asks with the exact search text; later ones in the same answer run", async () => {
+test("the first search of a conversation asks with the exact search text; later ones in the conversation run", async () => {
 	const guard = webGuard();
+	guard.sessionStart();
 	guard.agentStart();
 	const { asked, ctx } = ui(true);
 	assert.equal(await guard.toolCall({ toolName: "web_search", input: { queries: ["Wetter Köln morgen", "Regenradar Köln"] } }, ctx), undefined);
@@ -73,11 +74,46 @@ test("the first search of an answer asks with the exact search text; later ones 
 	assert.match(asked[0].message, /Wetter Köln morgen/);
 	assert.match(asked[0].message, /Regenradar Köln/);
 	assert.equal(await guard.toolCall({ toolName: "web_search", input: { query: "Wetter Bonn" } }, ctx), undefined);
-	assert.equal(asked.length, 1, "allowed once per answer");
+	assert.equal(asked.length, 1, "allowed once in this answer");
 	guard.agentEnd();
 	guard.agentStart();
+	assert.equal(await guard.toolCall({ toolName: "web_search", input: { query: "Wetter Bonn" } }, ctx), undefined);
+	assert.equal(asked.length, 1, "the next answer in the same conversation does not ask again");
+	guard.agentEnd();
+	guard.sessionStart();
+	guard.agentStart();
 	await guard.toolCall({ toolName: "web_search", input: { query: "Wetter Bonn" } }, ctx);
-	assert.equal(asked.length, 2, "a new answer asks again");
+	assert.equal(asked.length, 2, "a new conversation asks again");
+});
+
+test("a no holds for that call only: the next answer asks again", async () => {
+	const guard = webGuard();
+	guard.agentStart();
+	const no = ui(false);
+	assert.deepEqual(await guard.toolCall({ toolName: "web_search", input: { query: "x" } }, no.ctx), { block: true, reason: WEB_DECLINED_REASON });
+	guard.agentEnd();
+	guard.agentStart();
+	const yes = ui(true);
+	assert.equal(await guard.toolCall({ toolName: "web_search", input: { query: "x" } }, yes.ctx), undefined);
+	assert.equal(yes.asked.length, 1);
+	assert.match(yes.asked[0].message, /diesem Gespräch|this conversation/);
+});
+
+test("search result links stay readable in later answers of the conversation, not in a new one", async () => {
+	const guard = webGuard();
+	guard.agentStart();
+	const { asked, ctx } = ui(true);
+	await guard.toolCall({ toolName: "web_search", input: { query: "DAX" } }, ctx);
+	guard.toolResult({ toolName: "web_search", content: [{ type: "text", text: "1. Börse\n   https://example.org/dax\n" }] });
+	guard.agentEnd();
+	guard.agentStart();
+	assert.equal(await guard.toolCall({ toolName: "fetch_content", input: { url: "https://example.org/dax" } }, ctx), undefined);
+	assert.equal(asked.length, 1);
+	guard.agentEnd();
+	guard.sessionStart();
+	guard.agentStart();
+	await guard.toolCall({ toolName: "fetch_content", input: { url: "https://example.org/dax" } }, ctx);
+	assert.equal(asked.length, 2, "a new conversation asks for the page");
 });
 
 test("a declined search, or no one to ask, sends nothing", async () => {
@@ -186,4 +222,35 @@ test("every short declaration is a part of what pi-web-access really accepts", a
 		}
 		assert.deepEqual(lean.parameters.required ?? [], real.required ?? [], `${name}: same required parameters`);
 	}
+});
+
+test("the conversation's consent is saved at the end of an answer and restored when Pippa resumes that conversation", async () => {
+	const { CONSENT_ENTRY } = await import("../index.ts");
+	const saved = [];
+	const first = webGuard((data) => saved.push(data));
+	first.sessionStart([]);
+	first.agentStart();
+	const { asked, ctx } = ui(true);
+	await first.toolCall({ toolName: "web_search", input: { query: "DAX" } }, ctx);
+	first.toolResult({ toolName: "web_search", content: [{ type: "text", text: "https://example.org/dax" }] });
+	first.agentEnd();
+	assert.equal(saved.length, 1);
+	assert.equal(saved[0].search, true);
+	first.agentStart();
+	first.agentEnd();
+	assert.equal(saved.length, 1, "nothing new, nothing saved");
+	// Pippa restarted Pi for another conversation and now resumes this one.
+	const entries = [{ type: "custom", customType: CONSENT_ENTRY, data: saved[0] }];
+	const resumed = webGuard();
+	resumed.sessionStart(entries);
+	resumed.agentStart();
+	assert.equal(await resumed.toolCall({ toolName: "web_search", input: { query: "Dow" } }, ctx), undefined);
+	assert.equal(await resumed.toolCall({ toolName: "fetch_content", input: { url: "https://example.org/dax" } }, ctx), undefined);
+	assert.equal(asked.length, 1, "the resumed conversation does not ask again");
+	// A different conversation, or an entry another extension wrote, allows nothing.
+	const other = webGuard();
+	other.sessionStart([{ type: "custom", customType: "something-else", data: { v: 1, search: true, pages: [] } }]);
+	other.agentStart();
+	await other.toolCall({ toolName: "web_search", input: { query: "Dow" } }, ctx);
+	assert.equal(asked.length, 2);
 });

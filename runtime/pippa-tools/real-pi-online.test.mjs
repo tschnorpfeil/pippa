@@ -98,7 +98,7 @@ function piRunner({ root, agent, work, sessions, base, token }) {
 test("real Pi online route: approved text only, no Mac tools, own session; local session unchanged", {
 	skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 60_000,
 }, async () => {
-	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.5\./);
+	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.6\./);
 	await mkdir(build, { recursive: true });
 	const root = await mkdtemp(join(build, "pippa-online-realpi-"));
 	const agent = join(root, "agent"), work = join(root, "work"), sessions = join(root, "sessions");
@@ -208,7 +208,7 @@ test("real Pi online route: approved text only, no Mac tools, own session; local
 test("real Pi with Mac access: local tools for the allowed online AI; revoked, the limits and none of its history", {
 	skip: !cli && "PIPPA_PI_PAYLOAD or PIPPA_PI_CLI not set", timeout: 90_000,
 }, async () => {
-	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.5\./);
+	assert.match(execFileSync(node, [cli, "--version"], { encoding: "utf8" }).trim(), /^1\.6\./);
 	await mkdir(build, { recursive: true });
 	const root = await mkdtemp(join(build, "pippa-macaccess-realpi-"));
 	const agent = join(root, "agent"), work = join(root, "work"), sessions = join(root, "sessions");

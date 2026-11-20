@@ -770,6 +770,11 @@ final class ChatModel: ObservableObject {
         case .toolNotes(let call, let path):
             pendingNotes[call] = path
         case .toolEnded(let call, let name, let isError, let result, let outcome, _, _):
+            // A failed Pi tool leaves a line; Pippa's MCP tools log themselves in the server (`mcp-werkzeug`). Only the
+            // kind goes in, never the result text.
+            if let fields = PiToolFailure.fields(tool: name, isError: isError, result: result) {
+                DiagnosticsLog.shared.event("pi-werkzeug", fields)
+            }
             let failed = isError || (outcome.map { $0 != .done } ?? false)
             let label = stepLabels.removeValue(forKey: call)
             let notes = pendingNotes.removeValue(forKey: call)
@@ -962,7 +967,11 @@ enum StepLabel {
         func file(_ key: String) -> String { (args[key] as? String).map { URL(fileURLWithPath: $0).lastPathComponent } ?? "" }
         func value(_ key: String) -> String { (args[key] as? String) ?? "" }
         switch name {
-        case "read", "read_document": return T("Reading %@", table: "App", file("path"))
+        case "read", "read_document":
+            // A web address is not a file: `read_document` refuses it, Pi's `read` cannot open it.
+            let path = value("path")
+            if path.hasPrefix("http://") || path.hasPrefix("https://") { return T("Reading a web page", table: "App") }
+            return T("Reading %@", table: "App", file("path"))
         case "write": return T("Writing %@", table: "App", file("path"))
         case "bash": return T("Running a command", table: "App")
         case "search_files": return T("Searching files for “%@”", table: "App", value("query"))
@@ -985,7 +994,8 @@ enum StepLabel {
         case "prepare_files": return T("Preparing files", table: "App")
         case "browse": return T("Browsing a web page", table: "App")
         case PiTurnReceipt.scriptTool: return T("Working through the list", table: "App")
-        default: return name
+        // A tool Pippa does not know (a model may invent one): say that a tool is used, never the raw name.
+        default: return T("Using a tool", table: "App")
         }
     }
 }

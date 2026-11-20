@@ -457,3 +457,35 @@ test("script calls: the loop brake still stops an identical change a script repe
 	assert.match(JSON.parse((await handlers.tool_call(event(2, "a"), ctx)).reason).tell, /already worked/);
 	assert.match(JSON.parse((await handlers.tool_call(event(1, "b"), ctx)).reason).tell, /already worked/);
 });
+
+test("tool names: a prefixed or unprefixed real name is renamed before Pi runs it; anything unclear stays", async () => {
+	const { repairedToolName, withRepairedToolNames } = await import("./pippa-assist.ts");
+	const active = ["read", "ask", "list_folder", "web_search", "fetch_content", "mcp__pippa__read_document", "mcp__pippa__calendar_read"];
+	// Seen with Ornith 1.5 9B (2026-11-21 and 2026-11-20).
+	assert.equal(repairedToolName("web_fetch_content", active), "fetch_content");
+	assert.equal(repairedToolName("mcp__pippa__ask", active), "ask");
+	assert.equal(repairedToolName("mcp__pippa__list_folder", active), "list_folder");
+	assert.equal(repairedToolName("read_document", active), "mcp__pippa__read_document");
+	assert.equal(repairedToolName("functions.calendar_read", active), "mcp__pippa__calendar_read");
+	assert.equal(repairedToolName("functions.web_search", active), "web_search");
+	assert.equal(repairedToolName("mcp__pippa__web_search", active), "web_search");
+	// Real names, invented names and names without a single match stay.
+	assert.equal(repairedToolName("fetch_content", active), undefined);
+	assert.equal(repairedToolName("invented_tool", active), undefined);
+	assert.equal(repairedToolName("search", active), undefined);
+	assert.equal(repairedToolName("web_fetch_content", ["read"]), undefined);
+	assert.equal(repairedToolName("pippa_read", ["read", "mcp__pippa__read"]), undefined, "two matches: no guess");
+	const message = { role: "assistant", content: [{ type: "text", text: "Ich hole die Zahlen." },
+		{ type: "toolCall", id: "c1", name: "web_fetch_content", arguments: { url: "https://example.org" } },
+		{ type: "toolCall", id: "c2", name: "web_search", arguments: { query: "DAX" } }] };
+	const repaired = withRepairedToolNames(message, active);
+	assert.deepEqual(repaired.content.map((part) => part.name), [undefined, "fetch_content", "web_search"]);
+	assert.deepEqual(repaired.content[1].arguments, { url: "https://example.org" });
+	assert.equal(withRepairedToolNames({ role: "assistant", content: [message.content[2]] }, active), undefined);
+	assert.equal(withRepairedToolNames({ role: "user", content: [message.content[1]] }, active), undefined);
+
+	const handlers = {};
+	assist({ registerTool: () => {}, on: (name, fn) => handlers[name] = fn, getActiveTools: () => active, getAllTools: () => tools, appendEntry() {} });
+	assert.equal(handlers.message_end({ message }).message.content[1].name, "fetch_content");
+	assert.equal(handlers.message_end({ message: { role: "toolResult", content: [] } }), undefined);
+});
