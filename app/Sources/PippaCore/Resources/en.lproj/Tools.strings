@@ -34,6 +34,11 @@
 "On %@, Pippa wants to choose “%@” in “%@”." = "On %@, Pippa wants to choose “%@” in “%@”.";
 "May Pippa click this?" = "May Pippa click this?";
 "On %@, Pippa wants to click “%@”." = "On %@, Pippa wants to click “%@”.";
+"May Pippa submit this?" = "May Pippa submit this?";
+"On %@, Pippa wants to click “%@” to submit this form." = "On %@, Pippa wants to click “%@” to submit this form.";
+"On %@, Pippa wants to click “%@” to submit this form to %@." = "On %@, Pippa wants to click “%@” to submit this form to %@.";
+"May Pippa open this link?" = "May Pippa open this link?";
+"On %@, Pippa wants to open “%@” (%@)." = "On %@, Pippa wants to open “%@” (%@).";
 "Nothing is open in Pippa’s browser yet." = "Nothing is open in Pippa’s browser yet.";
 "Pippa can only do this in her browser when you can confirm it." = "Pippa can only do this in her browser when you can confirm it.";
 "Not done: you said no." = "Not done: you said no.";

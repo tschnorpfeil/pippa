@@ -261,7 +261,9 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             let type = item["type"] as? String
             let sensitive = (item["sensitive"] as? Bool ?? false) || type?.lowercased() == "password"
             return BrowserElementRef(ref: ref, role: item["role"] as? String ?? "", name: item["name"] as? String ?? "", type: type,
-                                     value: sensitive ? nil : item["value"] as? String, sensitive: sensitive)
+                                     value: sensitive ? nil : item["value"] as? String, sensitive: sensitive,
+                                     submitsForm: item["submitsForm"] as? Bool ?? false, formAction: item["formAction"] as? String,
+                                     href: item["href"] as? String)
         }
         let snapshot = BrowserSnapshot(snapshotId: id, url: (raw["url"] as? String) ?? url.absoluteString, title: raw["title"] as? String ?? "",
                                        text: raw["text"] as? String ?? "", refs: refs, truncated: raw["truncated"] as? Bool ?? false,
@@ -617,7 +619,14 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         if (options.length) name = clean(name + ' [' + options.join(' | ') + ']', 160);
       } else if (type === 'checkbox' || type === 'radio') value = el.checked ? 'checked' : 'unchecked';
       else if (el.tagName === 'TEXTAREA' || (type && !['submit', 'button', 'reset', 'image'].includes(type))) value = el.value || null;
-      out.push({ ref, role: captured.role, name, type, sensitive, value: value == null ? null : clean(value, 80) });
+      const submitsForm = Boolean(
+        (el.form || captured.formactionAttr !== null) &&
+        ((el.tagName === 'BUTTON' && captured.buttonType === 'submit') ||
+         (el.tagName === 'INPUT' && (captured.type === 'submit' || captured.type === 'image'))));
+      out.push({
+        ref, role: captured.role, name, type, sensitive, value: value == null ? null : clean(value, 80),
+        submitsForm, formAction: submitsForm ? captured.formAction : null, href: captured.href || captured.ancestorHref || null,
+      });
     }
     window.__pippaRefs = refs;
     window.__pippaRefMeta = meta;
