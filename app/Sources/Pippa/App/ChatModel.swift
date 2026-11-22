@@ -375,12 +375,18 @@ final class ChatModel: ObservableObject {
         Task {
             let accepted = await PiSession.shared.steer(text)
             isSteering = false
-            guard !accepted else { return }
-            if currentID == targetID {
-                if draft.isEmpty { draft = text }
-            } else if let targetID, composers[targetID] == nil {
-                composers[targetID] = ShareComposer(text: text, files: [])
-            }
+            if !accepted { restoreDraft(text, to: targetID) }
+        }
+    }
+
+    /// Returns undelivered follow-up text to `targetID`'s composer when nothing newer was typed there.
+    func restoreDraft(_ text: String, to targetID: String?) {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+        if currentID == targetID {
+            if draft.isEmpty { draft = cleaned }
+        } else if let targetID, composers[targetID] == nil {
+            composers[targetID] = ShareComposer(text: cleaned, files: [])
         }
     }
 
@@ -597,7 +603,11 @@ final class ChatModel: ObservableObject {
         }
         waitForRetry(nil)
         let running = answer
-        Task { await PiSession.shared.stop() }
+        let targetID = answeringID
+        Task {
+            let undelivered = await PiSession.shared.stop()
+            if !undelivered.isEmpty { restoreDraft(undelivered.joined(separator: "\n"), to: targetID) }
+        }
         Task {
             try? await Task.sleep(for: .seconds(3))
             if isAnswering, answer == running { running?.cancel() }

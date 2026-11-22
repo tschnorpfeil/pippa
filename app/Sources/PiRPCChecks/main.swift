@@ -22,6 +22,8 @@ func assistant(_ text: String, stop: String) {
 if CommandLine.arguments.contains("--mode") {
     var promptCount = 0
     var abortRetryCount = 0
+    var queuedSteering: [String] = []
+    var holdSteerUntilAbort = false
     while let line = readLine(), let data = line.data(using: .utf8),
           let request = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
         let id = request["id"] as? String ?? ""
@@ -125,12 +127,28 @@ if CommandLine.arguments.contains("--mode") {
                 emit(["type": "agent_end", "messages": [], "willRetry": false])
                 emit(["type": "agent_settled", "aborted": false])
             case "steer-protocol":
+                holdSteerUntilAbort = false
                 response("started")
                 // Pi's own user message of the run comes first; only a later one is the person's follow-up.
                 emit(["type": "message_start", "message": ["role": "user", "content": [["type": "text", "text": "steer-protocol"]]]])
                 assistant("Working", stop: "toolUse")
                 emit(["type": "tool_execution_start", "toolCallId": "steer-tool", "toolName": "fixture", "args": [:]])
                 // The run waits in its tool until the follow-up arrives (`steer` below).
+            case "steer-stop-protocol":
+                holdSteerUntilAbort = true
+                response("started")
+                emit(["type": "message_start", "message": ["role": "user", "content": [["type": "text", "text": "steer-stop-protocol"]]]])
+                assistant("Working", stop: "toolUse")
+                emit(["type": "tool_execution_start", "toolCallId": "steer-stop-tool", "toolName": "fixture", "args": [:]])
+            case "after-steer-stop":
+                response("started")
+                // Mimic pinned Pi 1.6.0: if queued steering was not cleared on Stop, it would surface on the next prompt.
+                for stale in queuedSteering {
+                    emit(["type": "message_start", "message": ["role": "user", "content": [["type": "text", "text": stale]]]])
+                }
+                queuedSteering.removeAll()
+                assistant("Fresh answer", stop: "stop")
+                emit(["type": "agent_settled", "aborted": false])
             case "abort-during-tool":
                 response("started")
                 assistant("Working", stop: "toolUse")
@@ -151,14 +169,23 @@ if CommandLine.arguments.contains("--mode") {
         case "fixture_abort_retry_count":
             emit(["type": "response", "id": id, "command": command, "success": true, "data": ["count": abortRetryCount]])
         case "steer":
-            // Pi queues the follow-up, ends the running tool and reads it before its next model call.
             let text = request["message"] as? String ?? ""
             response("queued")
-            emit(["type": "tool_execution_end", "toolCallId": "steer-tool", "toolName": "fixture", "isError": false,
-                  "result": ["content": [["type": "text", "text": "Done"]]]])
-            emit(["type": "message_start", "message": ["role": "user", "content": [["type": "text", "text": text]]]])
-            assistant("Continuing: " + text, stop: "stop")
-            emit(["type": "agent_settled", "aborted": false])
+            if holdSteerUntilAbort {
+                queuedSteering.append(text)
+            } else {
+                // Pi queues the follow-up, ends the running tool and reads it before its next model call.
+                emit(["type": "tool_execution_end", "toolCallId": "steer-tool", "toolName": "fixture", "isError": false,
+                      "result": ["content": [["type": "text", "text": "Done"]]]])
+                emit(["type": "message_start", "message": ["role": "user", "content": [["type": "text", "text": text]]]])
+                assistant("Continuing: " + text, stop: "stop")
+                emit(["type": "agent_settled", "aborted": false])
+            }
+        case "clear_queue":
+            let steering = queuedSteering
+            queuedSteering.removeAll()
+            emit(["type": "response", "id": id, "command": command, "success": true,
+                  "data": ["steering": steering, "followUp": [] as [String]]])
         case "abort_retry":
             // Pi ends the wait (agent-session.js `_finishCancelledRetry`).
             abortRetryCount += 1
@@ -254,6 +281,24 @@ check("A follow-up sent with steer during a run is queued, comes back as the per
       && steered.filter { if case .userMessage = $0 { return true }; return false }.count == 1
       && steered.last == .settled(aborted: false))
 check("A steered run releases the client for the next prompt", await client.isAnswering == false)
+
+var stoppedSteer: [PiRPCEvent] = []
+var clearedOnStop: [String] = []
+for try await event in try await client.prompt("steer-stop-protocol") {
+    stoppedSteer.append(event)
+    if case .toolStarted = event {
+        let queued = try await client.steer("Undelivered correction")
+        clearedOnStop = try await client.clearQueue()
+        try await client.abort()
+        check("Clearing the queue on Stop returns the undelivered steering message", queued && clearedOnStop == ["Undelivered correction"])
+    }
+}
+let afterStop = try await collect("after-steer-stop")
+check("After Stop clears queued steering, the next prompt runs cleanly without executing the stopped correction",
+      stoppedSteer.last == .settled(aborted: true)
+      && !afterStop.contains(.userMessage("Undelivered correction"))
+      && afterStop.contains(.textDelta("Fresh answer"))
+      && afterStop.last == .settled(aborted: false))
 
 let between = try await collect("abort-between-turns")
 check("Cancellation after a completed assistant is not reported as successful settlement", between.last == .settled(aborted: true)

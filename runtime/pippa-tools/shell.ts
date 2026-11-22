@@ -351,13 +351,14 @@ function textOf(result: any): string {
  * text says what happened without the sandbox's limits, which did not cause it. Undefined for any other error.
  */
 export function stoppedMessage(message: string, aborted: boolean): string | undefined {
-	const timeout = /(?:^|\n)\s*Command timed out after (\d+(?:\.\d+)?) seconds?\s*$/.exec(message);
+	const timeout = /(?:^|\n)\s*Command timed out after (\d+(?:\.\d+)?) seconds?(\. The shell exited with code [^\n]+)?\s*$/.exec(message);
 	const cancelled = /(?:^|\n)\s*Command aborted\s*$/.exec(message);
 	const hit = timeout ?? cancelled;
 	if (!hit && !aborted) return undefined;
 	const partial = hit ? message.slice(0, hit.index).trimEnd() : "";
+	const exitDetail = timeout?.[2]?.replace(/^\.\s*/, "").trim();
 	const note = timeout
-		? `Command ran longer than its ${timeout[1]}-second limit. Narrow the command or pass a higher timeout; do not repeat the exact same command.`
+		? `Command ran longer than its ${timeout[1]}-second limit.${exitDetail ? ` ${exitDetail}` : ""} Narrow the command or pass a higher timeout; do not repeat the exact same command.`
 		: "Command was cancelled before it finished.";
 	return partial ? `${partial}\n\n${note}` : note;
 }

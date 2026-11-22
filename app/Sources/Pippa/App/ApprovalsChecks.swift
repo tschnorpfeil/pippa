@@ -165,6 +165,18 @@ extension ApprovalsChecks {
         chat.draft = "Noch etwas"
         chat.steer()
         check(chat.draft == "Noch etwas", "a refused follow-up never leaves the composer")
+        // Undelivered steering returned by Stop goes back into the answering conversation's composer, never another's.
+        chat.replaceForSnapshot([Conversation(id: id, title: "Synthetic", updated: Date(), messages: []),
+                                 Conversation(id: "other", title: "Other", updated: Date(), messages: [])], current: id, answering: false)
+        chat.draft = ""
+        chat.restoreDraft("Nur diese Woche", to: id)
+        check(chat.draft == "Nur diese Woche", "undelivered steering cleared on Stop returns to the composer when empty")
+        chat.currentID = "other"
+        chat.draft = ""
+        chat.restoreDraft("Für das erste Gespräch", to: id)
+        check(chat.draft.isEmpty, "undelivered steering for another conversation never overwrites the visible composer")
+        chat.select(id)
+        check(chat.draft == "Für das erste Gespräch", "selecting the stopped conversation restores its preserved steering text")
         chat.replaceForSnapshot([], current: nil, answering: false)
     }
 

@@ -425,6 +425,10 @@ test("tool: a timeout or a cancel says so, keeps partial output and evidence, an
 	assert.match(text(timedOut), /^partial line\n\nCommand ran longer than its 30-second limit\. Narrow the command or pass a higher timeout; do not repeat the exact same command\.$/);
 	const bare = await thrower("Command timed out after 30 seconds").execute("t2", { command: "sleep 99" }, undefined, undefined, plain("/fixture"));
 	assert.equal(text(bare), "Command ran longer than its 30-second limit. Narrow the command or pass a higher timeout; do not repeat the exact same command.");
+	const bgTimeout = await thrower("started\n\nCommand timed out after 0.1 seconds. The shell exited with code 0 after 0.01 seconds, but background processes it started kept writing output until the timeout.")
+		.execute("t2b", { command: "(sleep 1; echo later) & echo started", timeout: 0.1 }, undefined, undefined, plain("/fixture"));
+	assert.equal(bgTimeout.details.pippaExecution, "uncertain");
+	assert.equal(text(bgTimeout), "started\n\nCommand ran longer than its 0.1-second limit. The shell exited with code 0 after 0.01 seconds, but background processes it started kept writing output until the timeout. Narrow the command or pass a higher timeout; do not repeat the exact same command.");
 	const cancelled = await thrower("out\n\nCommand aborted").execute("t3", { command: "sleep 99" }, undefined, undefined, plain("/fixture"));
 	assert.equal(cancelled.details.pippaExecution, "uncertain");
 	assert.equal(text(cancelled), "out\n\nCommand was cancelled before it finished.");
@@ -438,7 +442,7 @@ test("tool: a timeout or a cancel says so, keeps partial output and evidence, an
 	assert.equal(signalled.isError, true);
 	assert.equal(signalled.details.pippaExecution, "uncertain");
 	assert.equal(text(signalled), "Command was cancelled before it finished.");
-	for (const r of [timedOut, bare, cancelled, signalled]) assert.doesNotMatch(text(r), /bash runs in Pippa's sandbox/);
+	for (const r of [timedOut, bare, bgTimeout, cancelled, signalled]) assert.doesNotMatch(text(r), /bash runs in Pippa's sandbox/);
 	const other = await thrower("spawn failed").execute("t5", { command: "x" }, undefined, undefined, plain("/fixture"));
 	assert.match(text(other), /bash runs in Pippa's sandbox/);
 });

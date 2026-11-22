@@ -97,6 +97,8 @@ final class PiSession {
     var onSteeringChange: (() -> Void)?
     private var turnSettingsRevision: Int?
     private var steeringClient: PiRPCClient?
+    /// A follow-up was sent during this turn, so Stop must clear Pi's queue before aborting.
+    private var steeredInTurn = false
 
     static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
     static var settingsDirectory: URL { Pippa.supportDirectory }
@@ -123,8 +125,9 @@ final class PiSession {
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
         defer { onStarting(false) }
         answerScope = nil
+        steeredInTurn = false
         endSteering()
-        defer { endSteering() }
+        defer { steeredInTurn = false; endSteering() }
         let admission = PiRPCPromptAdmission()
         pendingPrompt = admission
         defer { if pendingPrompt === admission { pendingPrompt = nil } }
@@ -297,6 +300,7 @@ final class PiSession {
     /// turn does not take one (anymore) or Pi did not accept it; nothing was sent then.
     func steer(_ text: String) async -> Bool {
         guard canSteer, let client = steeringClient else { return false }
+        steeredInTurn = true
         // Once Pi accepted it, the follow-up is in, whatever changed meanwhile.
         return (try? await client.steer(text)) ?? false
     }
@@ -316,7 +320,12 @@ final class PiSession {
         turnSteerable = false
     }
 
-    func stop() async {
+    /// Stops the running turn and clears any undelivered steering messages from Pi so they never fire on the next
+    /// question. Returns cleared undelivered texts so the composer can preserve them.
+    @discardableResult
+    func stop() async -> [String] {
+        let shouldClearQueue = steeredInTurn
+        steeredInTurn = false
         endSteering()
         PippaMCPService.cancelNativeTurn()
         pendingPrompt?.cancel()
@@ -326,12 +335,21 @@ final class PiSession {
             await client?.cancelNativeReadiness()
             await client?.shutdown()
             needsFreshClient = true
+            return []
         } else if let client {
-            do { try await client.abort() } catch {
+            var cleared: [String] = []
+            do {
+                if shouldClearQueue { cleared += try await client.clearQueue() }
+                try await client.abort()
+                if shouldClearQueue { cleared += try await client.clearQueue() }
+                return cleared
+            } catch {
                 await client.shutdown()
                 needsFreshClient = true
+                return cleared
             }
         }
+        return []
     }
 
     /// How full the current conversation's context is (Pi's `get_session_stats`), for the context panel.
