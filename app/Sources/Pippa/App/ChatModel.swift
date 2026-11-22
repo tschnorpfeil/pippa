@@ -126,8 +126,13 @@ final class ChatModel: ObservableObject {
     @Published private(set) var answeringID: String?
     /// Conversations whose answer arrived while the person looked at another one: a dot in the sidebar.
     @Published private(set) var unseenIDs: Set<String> = []
-    /// What the current answer read, for its dates.
-    private var evidence = DateEvidence()
+    /// What the current answer read, for its dates; the person's follow-ups while it runs count as what they said.
+    private(set) var evidence = DateEvidence()
+    /// The answer the running turn writes into now: its first reply, or the reply after the person's latest follow-up
+    /// (`steered`). `nil` when nothing runs.
+    private var activeReplyID: UUID?
+    /// A follow-up is on its way to Pi (`steer`): a second Return never sends it twice.
+    @Published private(set) var isSteering = false
     /// Sources of tool calls that have started but not ended.
     private var pendingSources: [String: ChatSource] = [:]
     /// Running steps that reported progress: their label without it. Notes files of running reads, by call.
@@ -352,6 +357,39 @@ final class ChatModel: ObservableObject {
         ask(text, files: limited ? [] : files, outgoing: outgoing, destination: destination?.label)
     }
 
+    /// The person may send a short follow-up into the answer running here: typed words only, no files, no review, no
+    /// PDF, and only while Pi's turn takes one (`PiSession.canSteer`: not a single question, an approved message or a
+    /// turn after the settings changed).
+    var canSteerHere: Bool {
+        isAnsweringHere && !isSteering && review == nil && attachments.isEmpty && pdfTask == nil && PiSession.shared.canSteer
+    }
+
+    /// Sends the draft into the running answer; Pi reads it after its current step and it shows as the person's message
+    /// (`steered`). Refused by Pi: the words go back into the composer, if nothing new was typed meanwhile.
+    func steer() {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard canSteerHere, !text.isEmpty else { return }
+        let targetID = answeringID ?? currentID
+        isSteering = true
+        draft = ""
+        Task {
+            let accepted = await PiSession.shared.steer(text)
+            isSteering = false
+            if !accepted { restoreDraft(text, to: targetID) }
+        }
+    }
+
+    /// Returns undelivered follow-up text to `targetID`'s composer when nothing newer was typed there.
+    func restoreDraft(_ text: String, to targetID: String?) {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+        if currentID == targetID {
+            if draft.isEmpty { draft = cleaned }
+        } else if let targetID, composers[targetID] == nil {
+            composers[targetID] = ShareComposer(text: cleaned, files: [])
+        }
+    }
+
     /// What goes to Pi for the composer's content: everything for the AI on this Mac; for an online AI only typed words,
     /// and `nil` (review first) as soon as files are attached. The app in front and undo notes never go online.
     static func outgoing(_ text: String, files: [String], frontApp: String?, undone: [String], online: Bool) -> PiSession.Outgoing? {
@@ -377,6 +415,7 @@ final class ChatModel: ObservableObject {
         append(reply, to: id)
         let started = Date()
         begin(started, in: id)
+        activeReplyID = reply.id
         _ = PippaMCPService.writeNotes.take()
         evidence = DateEvidence(); pendingSources = [:]; stepLabels = [:]; pendingNotes = [:]
         switch outgoing {
@@ -384,6 +423,7 @@ final class ChatModel: ObservableObject {
         case .approved(let approval): evidence.add(prompt: approval.message)
         }
         let turn = generation
+        PiSession.shared.onSteeringChange = { [weak self] in self?.objectWillChange.send() }
         answer = Task {
             var refused = false
             var mcpTurnID: UUID?
@@ -391,7 +431,7 @@ final class ChatModel: ObservableObject {
                 try await PippaMCPService.$onBeginTurn.withValue({ turnID in
                     mcpTurnID = turnID
                     // On disk with its run before any tool runs (RunJournal.swift).
-                    self.update(reply.id, in: id) { $0.run = RunSummary(run: turnID) }
+                    self.update(self.activeReplyID ?? reply.id, in: id) { $0.run = RunSummary(run: turnID) }
                     self.save(id)
                 }) {
                     try await PiSession.shared.ask(outgoing, conversation: id, handoff: handoff, onStarting: { self.starting($0) }) {
@@ -411,14 +451,16 @@ final class ChatModel: ObservableObject {
                     if currentID == id { problem = failure.localizedDescription }
                 } else {
                     // Keep both drafts: the refused question in its own conversation and the new text in the composer.
-                    update(reply.id, in: id) { $0.error = failure.localizedDescription }
+                    update(activeReplyID ?? reply.id, in: id) { $0.error = failure.localizedDescription }
                 }
             } catch {
-                if !stopRequested { update(reply.id, in: id) { $0.error = error.localizedDescription } }
+                if !stopRequested { update(activeReplyID ?? reply.id, in: id) { $0.error = error.localizedDescription } }
             }
+            // After a follow-up from the person the turn ends in the reply to it: the receipt, cards and dates go there.
+            let last = activeReplyID ?? reply.id
             // A failure Pi streamed (the provider's error, the answer cut off) counts like a thrown one.
             if let review, !refused, !stopRequested,
-               let failure = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == reply.id })?.error {
+               let failure = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == last })?.error {
                 parkFailed(review, in: id, problem: failure)
             }
             let cards = PippaMCPService.takeReadCards(turnID: mcpTurnID)
@@ -426,7 +468,7 @@ final class ChatModel: ObservableObject {
             let run = await PippaMCPService.runSummary(mcpTurnID)
             let stopped = stopRequested
             if refused { end(); save(id); return }
-            update(reply.id, in: id) { message in
+            update(last, in: id) { message in
                 message.cards = cards
                 message.receipts = receipts
                 message.run = run
@@ -457,7 +499,7 @@ final class ChatModel: ObservableObject {
             }
             save(id)
             guard let usage = await PiSession.shared.contextUsage(), generation == turn else { return }
-            update(reply.id, in: id) { $0.context = usage }
+            update(last, in: id) { $0.context = usage }
             save(id)
         }
     }
@@ -561,7 +603,11 @@ final class ChatModel: ObservableObject {
         }
         waitForRetry(nil)
         let running = answer
-        Task { await PiSession.shared.stop() }
+        let targetID = answeringID
+        Task {
+            let undelivered = await PiSession.shared.stop()
+            if !undelivered.isEmpty { restoreDraft(undelivered.joined(separator: "\n"), to: targetID) }
+        }
         Task {
             try? await Task.sleep(for: .seconds(3))
             if isAnswering, answer == running { running?.cancel() }
@@ -597,6 +643,7 @@ final class ChatModel: ObservableObject {
         answerStarted = nil
         answer = nil
         pdfTask = nil
+        activeReplyID = nil
         stopRequested = false
         waitForRetry(nil)
     }
@@ -830,6 +877,8 @@ final class ChatModel: ObservableObject {
                 $0.resumeAfter = Date().addingTimeInterval(Self.resumeDelay)
                 $0.resumeScope = scope
             }
+        case .userMessage(let text):
+            steered(text, in: id)
         case .notice(let text, let kind) where kind == "error" || kind == "warning":
             updateLast(in: id) { $0.error = text }
         case .notice(let text, "pippa-change"):
@@ -838,6 +887,40 @@ final class ChatModel: ObservableObject {
         default:
             break
         }
+    }
+
+    /// Pi took the person's follow-up (`steer`) after its last step: the reply so far ends there, the follow-up shows as
+    /// their message, and what Pi writes next goes into a new reply. The turn's run moves along, so its one receipt
+    /// shows under the last reply.
+    private func steered(_ text: String, in id: String) {
+        guard let index = conversations.firstIndex(where: { $0.id == id }),
+              let last = conversations[index].messages.indices.last, conversations[index].messages[last].role == .assistant else { return }
+        let destination = conversations[index].messages[last].destination
+        var run: RunSummary?
+        update(conversations[index].messages[last].id, in: id) { message in
+            for step in message.steps.indices where !message.steps[step].done {
+                message.steps[step].done = true
+                message.steps[step].ended = Date()
+            }
+            let dates = evidence.unsupported(in: message.text)
+            message.unsupportedDates = dates.isEmpty ? nil : dates
+            let checked = evidence.supported(in: message.text)
+            message.checkedDates = checked.isEmpty ? nil : checked
+            run = message.run
+            message.run = nil
+        }
+        // A reply that had not begun yet (no words, no steps) leaves no empty bubble behind.
+        let previous = conversations[index].messages[last]
+        if previous.text.isEmpty && previous.steps.isEmpty && (previous.thinking ?? "").isEmpty && previous.error == nil {
+            conversations[index].messages.remove(at: last)
+        }
+        evidence.add(prompt: text)
+        append(ChatMessage(role: .user, text: text, destination: destination), to: id)
+        var next = ChatMessage(role: .assistant, text: "", provenance: [], destination: destination)
+        next.run = run
+        append(next, to: id)
+        activeReplyID = next.id
+        save(id)
     }
 
     /// Snapshots only (`Snapshots`): never saved.
@@ -966,6 +1049,11 @@ enum StepLabel {
         let name = SourceLog.bareToolName(tool)
         func file(_ key: String) -> String { (args[key] as? String).map { URL(fileURLWithPath: $0).lastPathComponent } ?? "" }
         func value(_ key: String) -> String { (args[key] as? String) ?? "" }
+        /// A detail worth naming: the value, or the first of a list, on one line and short; "" when there is none.
+        func detail(_ key: String, list: String? = nil) -> String {
+            let first = (args[key] as? String) ?? list.flatMap { (args[$0] as? [Any])?.first as? String } ?? ""
+            return clip(first)
+        }
         switch name {
         case "read", "read_document":
             // A web address is not a file: `read_document` refuses it, Pi's `read` cannot open it.
@@ -977,25 +1065,70 @@ enum StepLabel {
         case "search_files": return T("Searching files for “%@”", table: "App", value("query"))
         case "list_folder": return T("Looking in %@", table: "App", file("path"))
         case "move_files": return T("Moving files", table: "App")
-        case "web_search": return T("Searching the web", table: "App")
-        case "fetch_content": return T("Reading a web page", table: "App")
+        case "web_search":
+            let query = detail("query", list: "queries")
+            return query.isEmpty ? T("Searching the web", table: "App") : T("Searching the web for “%@”", table: "App", query)
+        case "fetch_content":
+            let site = host(of: (args["url"] as? String) ?? ((args["urls"] as? [Any])?.first as? String) ?? "")
+            return site.isEmpty ? T("Reading a web page", table: "App") : T("Reading a page on %@", table: "App", site)
+        case "browse":
+            let site = value("action") == "open" ? host(of: value("url")) : ""
+            return site.isEmpty ? T("Browsing a web page", table: "App") : T("Browsing %@", table: "App", site)
         case "remember": return T("Remembering", table: "App")
         case "ask": return T("Asking you", table: "App")
         case "calendar_read": return T("Reading Calendar", table: "App")
-        case "calendar_add": return T("Adding to Calendar", table: "App")
+        case "calendar_add":
+            let title = detail("title")
+            return title.isEmpty ? T("Adding to Calendar", table: "App") : T("Adding “%@” to Calendar", table: "App", title)
         case "reminders_read": return T("Reading Reminders", table: "App")
-        case "reminder_add": return T("Adding a reminder", table: "App")
-        case "mail_search", "mail_read", "mail_folders": return T("Reading Mail", table: "App")
-        case "mail_move": return T("Moving mails", table: "App")
-        case "mail_draft": return T("Writing a Mail draft", table: "App")
+        case "reminder_add":
+            let title = detail("title")
+            return title.isEmpty ? T("Adding a reminder", table: "App") : T("Adding the reminder “%@”", table: "App", title)
+        case "mail_search":
+            let query = detail("query")
+            return query.isEmpty ? T("Reading Mail", table: "App") : T("Searching Mail for “%@”", table: "App", query)
+        case "mail_folders":
+            let account = detail("account")
+            return account.isEmpty ? T("Reading Mail", table: "App") : T("Reading the Mail folders of %@", table: "App", account)
+        case "mail_read": return T("Reading Mail", table: "App")
+        case "mail_move":
+            // The folder by its own name ("Invoices"), not its whole path ("Work/2026/Invoices").
+            let folder = clip(value("to").split(separator: "/").last.map(String.init) ?? "")
+            if args["dry_run"] as? Bool == true {
+                return folder.isEmpty ? T("Planning mail moves", table: "App") : T("Planning mail moves to %@", table: "App", folder)
+            }
+            return folder.isEmpty ? T("Moving mails", table: "App") : T("Moving mails to %@", table: "App", folder)
+        case "mail_draft":
+            let subject = detail("subject"), to = detail("to")
+            if !subject.isEmpty { return T("Writing a Mail draft: %@", table: "App", subject) }
+            return to.isEmpty ? T("Writing a Mail draft", table: "App") : T("Writing a Mail draft to %@", table: "App", to)
         case "mail_send": return T("Sending a mail", table: "App")
-        case "photos_search": return T("Searching Photos", table: "App")
+        case "photos_search":
+            let query = detail("query")
+            return query.isEmpty ? T("Searching Photos", table: "App") : T("Searching Photos for “%@”", table: "App", query)
         case "front_read": return T("Reading the app in front", table: "App")
         case "prepare_files": return T("Preparing files", table: "App")
-        case "browse": return T("Browsing a web page", table: "App")
         case PiTurnReceipt.scriptTool: return T("Working through the list", table: "App")
         // A tool Pippa does not know (a model may invent one): say that a tool is used, never the raw name.
         default: return T("Using a tool", table: "App")
         }
+    }
+
+    /// One line of at most `max` characters, cut at a word where one is near ("Quarterly report for…").
+    static func clip(_ text: String, _ max: Int = 36) -> String {
+        let line = text.split(whereSeparator: \.isNewline).joined(separator: " ")
+            .split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
+        guard line.count > max else { return line }
+        let cut = String(line.prefix(max - 1))
+        let word = cut.lastIndex(of: " ").map { String(cut[..<$0]) }
+        let kept = word.flatMap { $0.count >= max / 2 ? $0 : nil } ?? cut
+        return kept.trimmingCharacters(in: .whitespaces.union(.punctuationCharacters)) + "…"
+    }
+
+    /// The site of a web address without "www." ("zeit.de"); "" for anything that is not one.
+    static func host(of urlString: String) -> String {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let host = URL(string: trimmed)?.host()?.lowercased(), !host.isEmpty else { return "" }
+        return clip(host.hasPrefix("www.") ? String(host.dropFirst(4)) : host)
     }
 }

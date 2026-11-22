@@ -21,8 +21,17 @@ public struct BrowserElementRef: Sendable, Equatable {
     public var type: String?
     public var value: String?
     public var sensitive: Bool
-    public init(ref: String, role: String, name: String, type: String? = nil, value: String? = nil, sensitive: Bool = false) {
+    // Only for Pippa's approval card (`clickPrompt`); never part of the model-facing JSON (`data(_:)`).
+    /// True when a click submits a form (submit button or image input inside a form, or with its own `formaction`).
+    public var submitsForm: Bool
+    /// The resolved form action URL when `submitsForm` is true.
+    public var formAction: String?
+    /// The resolved link target of a link, or of the link around the element.
+    public var href: String?
+    public init(ref: String, role: String, name: String, type: String? = nil, value: String? = nil, sensitive: Bool = false,
+                submitsForm: Bool = false, formAction: String? = nil, href: String? = nil) {
         self.ref = ref; self.role = role; self.name = name; self.type = type; self.value = value; self.sensitive = sensitive
+        self.submitsForm = submitsForm; self.formAction = formAction; self.href = href
     }
 }
 
@@ -349,8 +358,7 @@ public struct PippaMCPBrowserTool: Sendable {
                 message = L("On %@, Pippa wants to choose “%@” in “%@”.", table: "Tools", page, Self.oneLine(request.value!, 120), label)
                 action = .select(ref: element.ref, value: request.value!, snapshotId: current.snapshotId)
             default:
-                title = L("May Pippa click this?", table: "Tools")
-                message = L("On %@, Pippa wants to click “%@”.", table: "Tools", page, label)
+                (title, message) = Self.clickPrompt(page: page, element: element)
                 action = .click(ref: element.ref, snapshotId: current.snapshotId)
             }
             if let refusal = await confirm(request.action, title, message) { return (refusal, detail) }
@@ -518,6 +526,43 @@ public struct PippaMCPBrowserTool: Sendable {
     }
 
     static func source(_ url: String) -> String { "Browser (\(shortHost(URL(string: url)?.host(percentEncoded: false) ?? "?")))" }
+
+    /// The approval card for a click: names what it commits to. A form submit names its destination (a path on the
+    /// same host, or `host/path` elsewhere, never a query or fragment); a link to another host names that host.
+    static func clickPrompt(page: String, element: BrowserElementRef) -> (title: String, message: String) {
+        let label = oneLine(element.name.isEmpty ? element.role : element.name, 80)
+        func web(_ raw: String?) -> URL? {
+            guard let raw, let url = URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)),
+                  let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+                  let host = url.host(percentEncoded: false), !host.isEmpty else { return nil }
+            return url
+        }
+        if element.submitsForm {
+            let title = L("May Pippa submit this?", table: "Tools")
+            guard let url = web(element.formAction), let host = url.host(percentEncoded: false) else {
+                return (title, L("On %@, Pippa wants to click “%@” to submit this form.", table: "Tools", page, label))
+            }
+            let targetHost = shortHost(host.lowercased())
+            let path = url.path(percentEncoded: false)
+            let meaningful = path.count > 1
+            let destination: String
+            if targetHost == page.lowercased() { destination = meaningful ? path : "" }
+            else { destination = targetHost + (meaningful ? path : "") }
+            if destination.isEmpty {
+                return (title, L("On %@, Pippa wants to click “%@” to submit this form.", table: "Tools", page, label))
+            }
+            return (title, L("On %@, Pippa wants to click “%@” to submit this form to %@.", table: "Tools", page, label,
+                             oneLine(destination, 100)))
+        }
+        if let url = web(element.href), let host = url.host(percentEncoded: false) {
+            let targetHost = shortHost(host.lowercased())
+            if targetHost != page.lowercased() {
+                return (L("May Pippa open this link?", table: "Tools"),
+                        L("On %@, Pippa wants to open “%@” (%@).", table: "Tools", page, label, targetHost))
+            }
+        }
+        return (L("May Pippa click this?", table: "Tools"), L("On %@, Pippa wants to click “%@”.", table: "Tools", page, label))
+    }
 
     static func shortHost(_ host: String) -> String {
         let one = oneLine(host, 100)

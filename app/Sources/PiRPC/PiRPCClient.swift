@@ -187,6 +187,15 @@ public actor PiRPCClient {
         Self.disposition(try await send(["type": "steer", "message": text])) == "queued"
     }
 
+    /// Clears queued steering and follow-up messages in Pi and returns any undelivered texts in order.
+    public func clearQueue(timeout: Duration = .seconds(2)) async throws -> [String] {
+        guard let data = try await send(["type": "clear_queue"], timeout: timeout).data,
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+        let steering = object["steering"] as? [String] ?? []
+        let followUp = object["followUp"] as? [String] ?? []
+        return steering + followUp
+    }
+
     /// Abort; Pi replies only once the session is idle again. While Pi waits to try the provider again, the wait ends
     /// first (`abort_retry`). Both lines go in one write: Pi reads them together, so the ended wait cannot settle the
     /// answer as finished before `abort` marks it stopped.

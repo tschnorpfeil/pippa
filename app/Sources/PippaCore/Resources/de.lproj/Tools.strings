@@ -34,6 +34,11 @@
 "On %@, Pippa wants to choose “%@” in “%@”." = "Auf %@ möchte Pippa „%@“ in „%@“ auswählen.";
 "May Pippa click this?" = "Darf Pippa das anklicken?";
 "On %@, Pippa wants to click “%@”." = "Auf %@ möchte Pippa auf „%@“ klicken.";
+"May Pippa submit this?" = "Darf Pippa das absenden?";
+"On %@, Pippa wants to click “%@” to submit this form." = "Auf %@ möchte Pippa auf „%@“ klicken und dieses Formular absenden.";
+"On %@, Pippa wants to click “%@” to submit this form to %@." = "Auf %@ möchte Pippa auf „%@“ klicken und dieses Formular an %@ absenden.";
+"May Pippa open this link?" = "Darf Pippa diesen Link öffnen?";
+"On %@, Pippa wants to open “%@” (%@)." = "Auf %@ möchte Pippa „%@“ öffnen (%@).";
 "Nothing is open in Pippa’s browser yet." = "In Pippas Browser ist noch nichts geöffnet.";
 "Pippa can only do this in her browser when you can confirm it." = "Das kann Pippa in ihrem Browser nur tun, wenn du es bestätigen kannst.";
 "Not done: you said no." = "Nicht erledigt: Du hast abgelehnt.";

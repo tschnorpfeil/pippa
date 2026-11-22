@@ -8,6 +8,7 @@ func runMCPBrowserChecks() async {
         let tools: PippaMCPTools
         let browser: DemoBrowserOperator
         let asked: LockedBox<[String]>
+        var prompts = LockedBox<[(title: String, message: String)]>([])
         let handoffs: LockedBox<[String]>
         let notes: LockedBox<[PippaMCPReadNote]>
         let turns: PippaMCPTurns
@@ -25,14 +26,16 @@ func runMCPBrowserChecks() async {
         turns.begin(turn)
         host.turns = turns
         let browser = DemoBrowserOperator(page: page)
-        let asked = LockedBox<[String]>([]), handoffs = LockedBox<[String]>([]), notes = LockedBox<[PippaMCPReadNote]>([])
+        let asked = LockedBox<[String]>([]), prompts = LockedBox<[(title: String, message: String)]>([]), handoffs = LockedBox<[String]>([]), notes = LockedBox<[PippaMCPReadNote]>([])
         host.browser = operating ?? browser
         host.reminderJournal = journal
         host.resolveHostIsPrivate = privateHost
-        if let confirm { host.confirmBrowser = { action, _, _ in asked.mutate { $0.append(action) }; return confirm(action) } }
+        if let confirm { host.confirmBrowser = { action, title, message in
+            asked.mutate { $0.append(action) }; prompts.mutate { $0.append((title, message)) }; return confirm(action)
+        } }
         host.onBrowserHandoff = { reason, _ in handoffs.mutate { $0.append(reason) } }
         host.onRead = { note in notes.mutate { $0.append(note) } }
-        return World(tools: PippaMCPTools(host: host), browser: browser, asked: asked, handoffs: handoffs, notes: notes, turns: turns, turn: turn)
+        return World(tools: PippaMCPTools(host: host), browser: browser, asked: asked, prompts: prompts, handoffs: handoffs, notes: notes, turns: turns, turn: turn)
     }
     func browse(_ w: World, _ arguments: [String: Any]) async -> (json: [String: Any], isError: Bool, text: String) {
         let body = try! JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": "tools/call",
@@ -227,6 +230,64 @@ func runMCPBrowserChecks() async {
         let d = data(r.json)
         return r.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes && r.text.utf8.count <= PippaMCPTools.maxResultBytes
             && d["truncated"] as? Bool == true && !(d["refs"] as? [Any] ?? []).isEmpty && r.json["done"] as? Bool == true
+    }
+
+    /// Opens `page`, clicks the one element and returns the approval card it produced.
+    func clickPrompt(_ element: BrowserElementRef) async -> (title: String, message: String, json: [String: Any], text: String)? {
+        let w = world(page: { url, id in
+            BrowserSnapshot(snapshotId: id, url: url.absoluteString, title: "Test", text: "Test", refs: [element])
+        })
+        let open = await browse(w, ["action": "open", "url": page])
+        _ = await browse(w, ["action": "click", "ref": "@e1", "snapshot_id": "s1"])
+        guard let card = w.prompts.value.last, w.asked.value.last == "click" else { return nil }
+        return (card.title, card.message, open.json, open.text)
+    }
+    let book = "https://example.org/book?secret=123#frag"
+
+    await checkAsync("MCP browse: a form submit names its destination path, never the query") {
+        guard let card = await clickPrompt(BrowserElementRef(ref: "@e1", role: "button", name: "Weiter", type: "submit",
+                                                             submitsForm: true, formAction: book)) else { return false }
+        return card.title == L("May Pippa submit this?", table: "Tools") && card.message.contains("/book")
+            && !card.message.contains("secret") && !card.message.contains("123") && !card.message.contains("frag")
+    }
+
+    await checkAsync("MCP browse: a cross-host form submit names host and path, never the query") {
+        guard let card = await clickPrompt(BrowserElementRef(ref: "@e1", role: "button", name: "Bezahlen", type: "submit",
+                                                             submitsForm: true, formAction: "https://pay.other.org/checkout?id=9")) else { return false }
+        return card.title == L("May Pippa submit this?", table: "Tools") && card.message.contains("pay.other.org/checkout")
+            && !card.message.contains("id=9")
+    }
+
+    await checkAsync("MCP browse: a link to another host names that host; same-host links and plain buttons keep the click wording") {
+        guard let link = await clickPrompt(BrowserElementRef(ref: "@e1", role: "link", name: "Shop", href: "https://shop.other.org/a?token=abc")),
+              let same = await clickPrompt(BrowserElementRef(ref: "@e1", role: "link", name: "Impressum", href: "https://www.example.org/impressum")),
+              let plain = await clickPrompt(BrowserElementRef(ref: "@e1", role: "button", name: "Mehr"))
+        else { return false }
+        let click = L("May Pippa click this?", table: "Tools")
+        return link.title == L("May Pippa open this link?", table: "Tools") && link.message.contains("shop.other.org") && !link.message.contains("token")
+            && same.title == click && same.message == L("On %@, Pippa wants to click “%@”.", table: "Tools", "example.org", "Impressum")
+            && plain.title == click && plain.message == L("On %@, Pippa wants to click “%@”.", table: "Tools", "example.org", "Mehr")
+    }
+
+    await checkAsync("MCP browse: malformed form actions and links fall back safely without leaking") {
+        for action in ["javascript:void(0)", "#section", "", "/relative?x=SECRET", "https://", "https://example.org/?q=SECRET", "mailto:a@b.c?subject=SECRET"] {
+            guard let card = await clickPrompt(BrowserElementRef(ref: "@e1", role: "button", name: "Go", type: "submit",
+                                                                 submitsForm: true, formAction: action)),
+                  card.title == L("May Pippa submit this?", table: "Tools"), !card.message.contains("SECRET") else { return false }
+        }
+        for href in ["javascript:void(0)", "#section", "", "https://", "mailto:a@b.c"] {
+            guard let card = await clickPrompt(BrowserElementRef(ref: "@e1", role: "link", name: "Go", href: href)),
+                  card.title == L("May Pippa click this?", table: "Tools") else { return false }
+        }
+        return true
+    }
+
+    await checkAsync("MCP browse: snapshot JSON for Pi carries no form action, submit flag or link target") {
+        guard let card = await clickPrompt(BrowserElementRef(ref: "@e1", role: "button", name: "Weiter", type: "submit", submitsForm: true,
+                                                             formAction: book, href: "https://shop.other.org/a?token=abc")) else { return false }
+        return card.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes
+            && !card.text.contains("formAction") && !card.text.contains("submitsForm") && !card.text.contains("href")
+            && !card.text.contains("secret=123") && !card.text.contains("token=abc")
     }
 
     await checkAsync("MCP browse: back and close need no extra OK; nothing open says so; no browser is unavailable") {

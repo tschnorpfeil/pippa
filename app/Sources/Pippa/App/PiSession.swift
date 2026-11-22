@@ -88,6 +88,17 @@ final class PiSession {
     private(set) var settingsRevision = 0
     /// The Pi session scope of the running answer when Continue may pick it up later (`resumeScope(_:)`), else `nil`.
     var answerScope: String?
+    /// The running answer takes a follow-up from the person (`steer`): a typed conversation turn admitted under
+    /// `turnSettingsRevision`. Never a single question, an approved message, or a turn after the settings changed.
+    private var turnSteerable = false {
+        didSet { if turnSteerable != oldValue { onSteeringChange?() } }
+    }
+    /// Told when `canSteer` changes, so the window shows or hides its Send beside Stop.
+    var onSteeringChange: (() -> Void)?
+    private var turnSettingsRevision: Int?
+    private var steeringClient: PiRPCClient?
+    /// A follow-up was sent during this turn, so Stop must clear Pi's queue before aborting.
+    private var steeredInTurn = false
 
     static var sessionDirectory: URL { Pippa.supportDirectory.appendingPathComponent("pi-sessions", isDirectory: true) }
     static var settingsDirectory: URL { Pippa.supportDirectory }
@@ -114,6 +125,9 @@ final class PiSession {
         defer { if !settled { needsFreshClient = true; PippaMCPService.invalidateEndpoint() } }
         defer { onStarting(false) }
         answerScope = nil
+        steeredInTurn = false
+        endSteering()
+        defer { steeredInTurn = false; endSteering() }
         let admission = PiRPCPromptAdmission()
         pendingPrompt = admission
         defer { if pendingPrompt === admission { pendingPrompt = nil } }
@@ -131,15 +145,23 @@ final class PiSession {
         turn.setExtendedBudget(route.hasMacAccess)
         try Task.checkCancellation()
         let stream: AsyncThrowingStream<PiRPCEvent, Error>
+        // The settings revision the prompt was admitted under (`admit` runs right before `send`, without awaiting).
+        var admittedRevision: Int?
         do {
             stream = try await admitted(route, text: text, outgoing: outgoing,
                                         reread: { try await self.launchRoute(outgoing, handoff: handoff) },
-                                        admission: admission, send: { try await client.prompt($0, admission: admission) })
+                                        admission: admission, send: {
+                                            admittedRevision = self.settingsRevision
+                                            return try await client.prompt($0, admission: admission)
+                                        })
         } catch PiRPCError.commandFailed(_, let message) {
             if route.piModel != nil, let problem = PiProviderClient.problem(in: message) {
                 throw Failure.model(ChatModel.limitMessage(problem))
             }
             throw Failure.model(route.online == nil && route.piModel == nil ? ChatModel.modelError(message, online: false) : message)
+        }
+        if Self.steerable(outgoing, handoff: handoff), let admittedRevision, await client.isAnswering {
+            allowSteering(client, revision: admittedRevision)
         }
         for try await event in stream {
             onEvent(event)
@@ -263,7 +285,48 @@ final class PiSession {
             && (a.destination != nil || a.key == b.key)
     }
 
-    func stop() async {
+    /// Whether a turn of this kind may take a follow-up while it runs: the person's own words in their conversation's
+    /// session, never a single question to another AI or a message the person approved for one recipient.
+    static func steerable(_ outgoing: Outgoing, handoff: Bool) -> Bool {
+        if handoff { return false }
+        if case .approved = outgoing { return false }
+        return true
+    }
+
+    /// The running answer takes a follow-up now (`steer`).
+    var canSteer: Bool { turnSteerable && steeringClient != nil && turnSettingsRevision == settingsRevision }
+
+    /// A short follow-up or correction for the running answer: Pi reads it after its current step. `false` when the
+    /// turn does not take one (anymore) or Pi did not accept it; nothing was sent then.
+    func steer(_ text: String) async -> Bool {
+        guard canSteer, let client = steeringClient else { return false }
+        steeredInTurn = true
+        // Once Pi accepted it, the follow-up is in, whatever changed meanwhile.
+        return (try? await client.steer(text)) ?? false
+    }
+
+    /// The running turn on `client`, admitted under `revision`, takes follow-ups until it ends, Stop or a settings
+    /// change. A revision older than the current one allows nothing.
+    func allowSteering(_ client: PiRPCClient, revision: Int) {
+        guard revision == settingsRevision else { return }
+        turnSettingsRevision = revision
+        steeringClient = client
+        turnSteerable = true
+    }
+
+    private func endSteering() {
+        turnSettingsRevision = nil
+        steeringClient = nil
+        turnSteerable = false
+    }
+
+    /// Stops the running turn and clears any undelivered steering messages from Pi so they never fire on the next
+    /// question. Returns cleared undelivered texts so the composer can preserve them.
+    @discardableResult
+    func stop() async -> [String] {
+        let shouldClearQueue = steeredInTurn
+        steeredInTurn = false
+        endSteering()
         PippaMCPService.cancelNativeTurn()
         pendingPrompt?.cancel()
         preloadTask?.cancel()
@@ -272,12 +335,21 @@ final class PiSession {
             await client?.cancelNativeReadiness()
             await client?.shutdown()
             needsFreshClient = true
+            return []
         } else if let client {
-            do { try await client.abort() } catch {
+            var cleared: [String] = []
+            do {
+                if shouldClearQueue { cleared += try await client.clearQueue() }
+                try await client.abort()
+                if shouldClearQueue { cleared += try await client.clearQueue() }
+                return cleared
+            } catch {
                 await client.shutdown()
                 needsFreshClient = true
+                return cleared
             }
         }
+        return []
     }
 
     /// How full the current conversation's context is (Pi's `get_session_stats`), for the context panel.
@@ -378,6 +450,7 @@ final class PiSession {
 
     /// The model's or Pi's settings changed: the next question starts Pi afresh.
     func settingsChanged() {
+        endSteering()
         settingsRevision += 1
         needsFreshClient = true
         preloadTask?.cancel()
