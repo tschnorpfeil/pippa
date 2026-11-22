@@ -346,6 +346,22 @@ function textOf(result: any): string {
 	return (result?.content ?? []).filter((p: any) => p?.type === "text").map((p: any) => String(p.text ?? "")).join("\n");
 }
 
+/**
+ * Pi ends a run by throwing "Command timed out after N seconds" or "Command aborted", after any partial output. The
+ * text says what happened without the sandbox's limits, which did not cause it. Undefined for any other error.
+ */
+export function stoppedMessage(message: string, aborted: boolean): string | undefined {
+	const timeout = /(?:^|\n)\s*Command timed out after (\d+(?:\.\d+)?) seconds?\s*$/.exec(message);
+	const cancelled = /(?:^|\n)\s*Command aborted\s*$/.exec(message);
+	const hit = timeout ?? cancelled;
+	if (!hit && !aborted) return undefined;
+	const partial = hit ? message.slice(0, hit.index).trimEnd() : "";
+	const note = timeout
+		? `Command ran longer than its ${timeout[1]}-second limit. Narrow the command or pass a higher timeout; do not repeat the exact same command.`
+		: "Command was cancelled before it finished.";
+	return partial ? `${partial}\n\n${note}` : note;
+}
+
 function withNote(result: any, note: string): any {
 	return { ...result, content: [...(result?.content ?? []), { type: "text", text: note }] };
 }
@@ -420,7 +436,7 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 					};
 					/** Grants of this one call: the answer's, plus `net` when the person allowed this command. */
 					const now = new Set(grants);
-					let ran = false, dispatched = false;
+					let ran = false, dispatched = false, halted = false;
 					const run = async () => {
 						if (signal?.aborted) return notRun("Stopped before running the command.");
 						// Copies once, before the first run: a second run must not keep what the first one left behind.
@@ -441,13 +457,17 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 								command: sandboxedCommand(spawn.command, now, places(cwd, env, home, protect), sandbox, locked, shimDir),
 							};
 						} });
+						halted = false;
 						try {
 							const result = await tool.execute(id, params, signal, onUpdate, ctx);
 							return { ...result, details: { ...(result.details ?? {}), pippaExecution: "attempted" } };
 						} catch (error) {
 							// Pi throws on abort/timeout after a command may have changed files. Return the error together
 							// with our effect evidence instead of letting Pi replace it and lose the undo copies.
-							return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+							const message = error instanceof Error ? error.message : String(error);
+							const stop = stoppedMessage(message, signal?.aborted === true);
+							halted = stop !== undefined;
+							return { content: [{ type: "text", text: stop ?? message }],
 								isError: true, details: { pippaExecution: dispatched ? "uncertain" : "not_dispatched" } };
 						}
 					};
@@ -480,7 +500,8 @@ export function shellTool(create: (cwd: string, options?: any) => any, deps: She
 						}
 						// Not after a fresh yes for the rest of the answer: the note above already says what to do. A second
 						// run that failed too gets the limits it ran under.
-						if (result?.isError && (!allowedNow || reran)) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
+						// A command stopped by its time limit or by the person fails for that reason, not for the sandbox.
+						if (result?.isError && !halted && (!allowedNow || reran)) result = withNote(result, limitsNote(now, where.work, locked.length > 0));
 					}
 					// The person allowed this command online and it ran: the app records it in the answer's run journal
 					// (pippa-assist.ts `changesOf`), by the command alone, never its output. A failed or stopped run may

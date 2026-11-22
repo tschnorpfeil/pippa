@@ -302,10 +302,21 @@ test("today's date goes in front of each new message, a skill command stays firs
 	assert.equal(withToday("/andere Vorlage", line), "/andere Vorlage");
 	const handlers = {};
 	assist({ registerTool: () => {},  on: (name, handler) => (handlers[name] = handler), registerTool() {}, getAllTools: () => tools, appendEntry() {} });
+	// A startup slash command like `/pippa-native-ready` does not receive the date and must not suppress it for the first question.
+	assert.deepEqual(await handlers.input({ type: "input", text: "/pippa-native-ready 00000000-0000-0000-0000-000000000000", source: "rpc" }), { action: "continue" });
 	const sent = await handlers.input({ type: "input", text: "Hallo", source: "rpc" });
 	assert.equal(sent.action, "transform");
 	assert.match(sent.text, /^\[\d{4}-\d\d-\d\d, \w+day\]\nHallo$/);
 	assert.deepEqual(await handlers.input({ type: "input", text: "Stopp", source: "rpc", streamingBehavior: "steer" }), { action: "continue" });
+	// The same day again: unchanged. A new session starts over; so does a new day.
+	assert.deepEqual(await handlers.input({ type: "input", text: "Und morgen?", source: "rpc" }), { action: "continue" });
+	await handlers.session_start?.({ type: "session_start" }, {});
+	assert.match((await handlers.input({ type: "input", text: "Neu", source: "rpc" })).text, /^\[\d{4}-\d\d-\d\d, \w+day\]\nNeu$/);
+	const RealDate = Date;
+	try {
+		globalThis.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [RealDate.now() + 36 * 3600 * 1000])); } };
+		assert.match((await handlers.input({ type: "input", text: "Tags drauf", source: "rpc" })).text, /^\[.*\]\nTags drauf$/);
+	} finally { globalThis.Date = RealDate; }
 });
 
 test("a copy of an old file has the backup date and survives pruning", async () => {

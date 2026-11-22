@@ -346,10 +346,19 @@ export default function (pi: ExtensionAPI) {
 		const count = key ? counts.get(key) : undefined;
 		if (count) { if (native === "uncertain") count.uncertain++; else if (native === "failure" || isError) count.failures++; else count.successes++; }
 	};
-	// Only a new message; a message sent while Pi is still working (steering) is shown back as typed.
+	// Only a new message; a message sent while Pi is still working (steering) is shown back as typed. The date goes in
+	// once per session and again when the calendar day changes, not on every turn.
+	let dateSent: string | undefined;
+	pi.on("session_start", async () => { dateSent = undefined; });
 	pi.on("input", async (event: any) => {
 		if (event?.streamingBehavior || typeof event?.text !== "string") return { action: "continue" };
-		return { action: "transform", text: withToday(event.text, todayLine(new Date())) };
+		const line = todayLine(new Date());
+		if (line === dateSent) return { action: "continue" };
+		const transformed = withToday(event.text, line);
+		// Non-skill slash commands (such as `/pippa-native-ready`) stay untouched and must not consume the day's header.
+		if (transformed === event.text) return { action: "continue" };
+		dateSent = line;
+		return { action: "transform", text: transformed };
 	});
 	pi.on("agent_start", async () => reset());
 	pi.on("agent_end", async () => reset());

@@ -413,6 +413,36 @@ test("tool: the online row reflects the second run: failed online is reported fa
 	assert.equal(never.details.pippaOnline, undefined);
 });
 
+test("tool: a timeout or a cancel says so, keeps partial output and evidence, and drops the sandbox limits note", async () => {
+	const thrower = (message) => shellTool((cwd, options) => ({ name: "bash", execute: async (id, params) => {
+		options.spawnHook({ command: params.command, cwd, env: {} });
+		throw new Error(message);
+	} }), { available: () => true, env: { PIPPA_LANGUAGE: "en" }, home: "/Users/renate" }).definition("/fixture");
+	const text = (r) => r.content.map((p) => p.text).join("\n");
+	const timedOut = await thrower("partial line\n\nCommand timed out after 30 seconds").execute("t1", { command: "sleep 99", timeout: 30 }, undefined, undefined, plain("/fixture"));
+	assert.equal(timedOut.isError, true);
+	assert.equal(timedOut.details.pippaExecution, "uncertain");
+	assert.match(text(timedOut), /^partial line\n\nCommand ran longer than its 30-second limit\. Narrow the command or pass a higher timeout; do not repeat the exact same command\.$/);
+	const bare = await thrower("Command timed out after 30 seconds").execute("t2", { command: "sleep 99" }, undefined, undefined, plain("/fixture"));
+	assert.equal(text(bare), "Command ran longer than its 30-second limit. Narrow the command or pass a higher timeout; do not repeat the exact same command.");
+	const cancelled = await thrower("out\n\nCommand aborted").execute("t3", { command: "sleep 99" }, undefined, undefined, plain("/fixture"));
+	assert.equal(cancelled.details.pippaExecution, "uncertain");
+	assert.equal(text(cancelled), "out\n\nCommand was cancelled before it finished.");
+	const abortDuring = new AbortController();
+	const abortThrower = shellTool((cwd, options) => ({ name: "bash", execute: async (id, params) => {
+		options.spawnHook({ command: params.command, cwd, env: {} });
+		abortDuring.abort();
+		throw new Error("Aborted");
+	} }), { available: () => true, env: { PIPPA_LANGUAGE: "en" }, home: "/Users/renate" }).definition("/fixture");
+	const signalled = await abortThrower.execute("t4", { command: "sleep 99" }, abortDuring.signal, undefined, plain("/fixture"));
+	assert.equal(signalled.isError, true);
+	assert.equal(signalled.details.pippaExecution, "uncertain");
+	assert.equal(text(signalled), "Command was cancelled before it finished.");
+	for (const r of [timedOut, bare, cancelled, signalled]) assert.doesNotMatch(text(r), /bash runs in Pippa's sandbox/);
+	const other = await thrower("spawn failed").execute("t5", { command: "x" }, undefined, undefined, plain("/fixture"));
+	assert.match(text(other), /bash runs in Pippa's sandbox/);
+});
+
 test("codemode-style script: nested bash calls through the registered tool ask per network command", async () => {
 	// Pi 1.5.2 runs a codemode script's tool calls through the registered definitions and the tool_call hooks. This
 	// stand-in runner does the same with the definition Pippa registers; the real Pi path is checked end to end separately.
