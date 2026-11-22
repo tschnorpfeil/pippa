@@ -300,3 +300,17 @@
 "Mail sent" = "Mail sent";
 "Mail not sent" = "Mail not sent";
 "Sending a mail" = "Sending a mail";
+"Searching the web for “%@”" = "Searching the web for “%@”";
+"Reading a page on %@" = "Reading a page on %@";
+"Browsing %@" = "Browsing %@";
+"Adding “%@” to Calendar" = "Adding “%@” to Calendar";
+"Adding the reminder “%@”" = "Adding the reminder “%@”";
+"Searching Mail for “%@”" = "Searching Mail for “%@”";
+"Reading the Mail folders of %@" = "Reading the Mail folders of %@";
+"Planning mail moves" = "Planning mail moves";
+"Planning mail moves to %@" = "Planning mail moves to %@";
+"Moving mails to %@" = "Moving mails to %@";
+"Writing a Mail draft: %@" = "Writing a Mail draft: %@";
+"Writing a Mail draft to %@" = "Writing a Mail draft to %@";
+"Searching Photos for “%@”" = "Searching Photos for “%@”";
+"Send while Pippa works" = "Send while Pippa works";

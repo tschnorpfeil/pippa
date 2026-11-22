@@ -300,3 +300,17 @@
 "Mail sent" = "Mail gesendet";
 "Mail not sent" = "Mail nicht gesendet";
 "Sending a mail" = "Sende eine Mail";
+"Searching the web for “%@”" = "Suche im Web nach „%@“";
+"Reading a page on %@" = "Lese eine Seite auf %@";
+"Browsing %@" = "Öffne %@ im Browser";
+"Adding “%@” to Calendar" = "Trage „%@“ in den Kalender ein";
+"Adding the reminder “%@”" = "Lege die Erinnerung „%@“ an";
+"Searching Mail for “%@”" = "Suche in Mail nach „%@“";
+"Reading the Mail folders of %@" = "Lese die Mail-Ordner von %@";
+"Planning mail moves" = "Plane, Mails zu verschieben";
+"Planning mail moves to %@" = "Plane, Mails nach %@ zu verschieben";
+"Moving mails to %@" = "Verschiebe Mails nach %@";
+"Writing a Mail draft: %@" = "Schreibe einen Mail-Entwurf: %@";
+"Writing a Mail draft to %@" = "Schreibe einen Mail-Entwurf an %@";
+"Searching Photos for “%@”" = "Suche in Fotos nach „%@“";
+"Send while Pippa works" = "Senden, während Pippa arbeitet";

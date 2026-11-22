@@ -20,6 +20,8 @@ struct Composer: View {
         !(chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && chat.attachments.isEmpty)
     }
     private var canSend: Bool { setup.canAnswer && !chat.isAnswering && hasContent }
+    /// A follow-up for the answer running here (`ChatModel.canSteerHere`): typed words, nothing attached.
+    private var canSteer: Bool { chat.canSteerHere && !chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -83,7 +85,7 @@ struct Composer: View {
                         PiSession.shared.prewarmForInput()
                     }
                 }
-                .onSubmit { if canSend { chat.send() } }
+                .onSubmit { if canSend { chat.send() } else if canSteer { chat.steer() } }
                 .padding(.horizontal, Space.xs)
             if let problem = chat.problem {
                 Text(problem).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
@@ -94,12 +96,14 @@ struct Composer: View {
                 Spacer(minLength: Space.m)
                 if let recipient = chat.handoffDestination { askOnlineButton(recipient) }
                 AIBadge(setup: setup)
+                if canSteer { steerButton.transition(.scale.combined(with: .opacity)) }
                 sendButton
             }
         }
         .padding(.horizontal, Space.ml).padding(.top, 13).padding(.bottom, Space.ml)
         .glass(Radius.chat, lifted: focused)
         .animation(Theme.quick, value: focused)
+        .animation(Theme.quick, value: canSteer)
     }
 
     private var plus: some View {
@@ -208,6 +212,22 @@ struct Composer: View {
         .help(stops ? T("Stop", table: "App") + " (⌘.)"
               : chat.isAnswering ? T("Pippa is still answering in another conversation.", table: "App") : T("Send", table: "App") + " (↩)")
         .accessibilityLabel(stops ? T("Stop", table: "App") : T("Send", table: "App"))
+    }
+
+    /// While the answer here runs and something is typed: Send it to Pippa as she works, beside Stop, which stays.
+    private var steerButton: some View {
+        Button { chat.steer() } label: {
+            Image(systemName: "arrow.up")
+                .font(Typo.callout.weight(.bold))
+                .foregroundStyle(Color.white)
+                .frame(width: 32, height: 32)
+                .glassCircle(tint: Theme.accentFill, fallback: Theme.accentFill)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.return, modifiers: .command)
+        .help(T("Send while Pippa works", table: "App") + " (⌘↩)")
+        .accessibilityLabel(T("Send while Pippa works", table: "App"))
     }
 
     private func addFiles() {

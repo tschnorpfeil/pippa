@@ -107,6 +107,7 @@ enum ApprovalsChecks {
 
         await actionCardChecks(approvals, check: check)
         await runUndoChecks(check: check)
+        await runSteerChecks(check: check)
         failures += Int(await HeadlessAskChecks.run())
 
         print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
@@ -115,6 +116,58 @@ enum ApprovalsChecks {
 }
 
 extension ApprovalsChecks {
+    /// A follow-up while Pippa answers (`ChatModel.steer`, `PiSession.steer`): only typed words in the conversation
+    /// that answers, never with files, a review, a single question, an approved message or after a settings change.
+    static func runSteerChecks(check: (Bool, String) -> Void) async {
+        let session = PiSession.shared
+        let approval = ShareApproval(destination: ShareDestination(key: "fixture", label: "Fixture", provider: "Fixture"),
+                                     question: "Check", parts: [])
+        check(PiSession.steerable(.typed("x"), handoff: false) && PiSession.steerable(.local("x"), handoff: false)
+              && !PiSession.steerable(.typed("x"), handoff: true) && !PiSession.steerable(.approved(approval), handoff: false)
+              && !PiSession.steerable(.approved(approval), handoff: true),
+              "only the person's own words in their conversation take follow-ups; a single question or an approved message never")
+        check(!session.canSteer, "no follow-up goes anywhere while no answer runs")
+        // A client that never started stands in for the running Pi: Pi refuses, nothing counts as sent.
+        let temporary = FileManager.default.temporaryDirectory
+        let idle = PiRPCClient(configuration: PiRPCConfiguration(executable: URL(fileURLWithPath: "/usr/bin/false"), workingDirectory: temporary))
+        session.allowSteering(idle, revision: session.settingsRevision - 1)
+        check(!session.canSteer, "a turn admitted under older settings takes no follow-up")
+        session.allowSteering(idle, revision: session.settingsRevision)
+        check(session.canSteer, "a turn admitted under the current settings takes a follow-up")
+        check(await session.steer("Nur diese Woche") == false, "a follow-up Pi does not accept reports nothing sent")
+
+        let chat = ChatModel()
+        let id = "steer-check"
+        chat.replaceForSnapshot([Conversation(id: id, title: "Synthetic", updated: Date(),
+                                              messages: [ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")])],
+                                current: id, answering: true)
+        check(chat.canSteerHere, "while the answer here runs, typed words may go into it")
+        chat.draft = "  Nur diese Woche  "
+        chat.steer()
+        let cleared = chat.draft.isEmpty
+        for _ in 0..<100 where chat.draft.isEmpty { try? await Task.sleep(for: .milliseconds(10)) }
+        check(cleared && chat.draft == "Nur diese Woche", "a follow-up leaves the composer at once and comes back when Pi refuses it")
+        chat.attachments = [URL(fileURLWithPath: "/synthetic/notice.txt")]
+        check(!chat.canSteerHere, "with files attached nothing goes into the running answer")
+        chat.attachments = []
+        chat.review = ShareReview(plan: SharePlan(destination: approval.destination, question: "Check", candidates: [], rules: SourceSharing()),
+                                  handoff: false, files: [])
+        check(!chat.canSteerHere, "while a review is open nothing goes into the running answer")
+        chat.review = nil
+        chat.replaceForSnapshot([Conversation(id: id, title: "Synthetic", updated: Date(), messages: []),
+                                 Conversation(id: "other", title: "Other", updated: Date(), messages: [])], current: id, answering: true)
+        chat.currentID = "other"
+        check(!chat.canSteerHere, "a follow-up never goes into an answer running in another conversation")
+        chat.currentID = id
+        check(chat.canSteerHere, "back in the answering conversation the follow-up may go again")
+        session.settingsChanged()
+        check(!session.canSteer && !chat.canSteerHere, "after the AI settings changed the running answer takes no follow-up")
+        chat.draft = "Noch etwas"
+        chat.steer()
+        check(chat.draft == "Noch etwas", "a refused follow-up never leaves the composer")
+        chat.replaceForSnapshot([], current: nil, answering: false)
+    }
+
     /// Undo for a whole answer from the chat (`ChatModel.undoRun`), on a journal in a temporary folder: the next
     /// question tells the model what was taken back, and the receipt wording follows what is still undoable.
     static func runUndoChecks(check: (Bool, String) -> Void) async {
@@ -333,6 +386,44 @@ enum ConversationStoreChecks {
               && webAddress == T("Reading a web page", table: "App")
               && localFile == T("Reading %@", table: "App", "b.pdf"),
               "an unknown tool's step says only that a tool is used; a web address reads a page, a path reads its file")
+        // Live steps name what they work on, short, and fall back to the plain words without it.
+        do {
+            func label(_ tool: String, _ arguments: String) -> String { StepLabel.text(tool: tool, arguments: arguments) }
+            let named: [(String, String, String)] = [
+                ("web_search", #"{"queries":["Öffnungszeiten Bürgeramt Köln"]}"#, T("Searching the web for “%@”", table: "App", "Öffnungszeiten Bürgeramt Köln")),
+                ("web_search", #"{"query":"Wetter Berlin"}"#, T("Searching the web for “%@”", table: "App", "Wetter Berlin")),
+                ("fetch_content", #"{"url":"https://www.zeit.de/politik/a"}"#, T("Reading a page on %@", table: "App", "zeit.de")),
+                ("fetch_content", #"{"urls":["https://example.org/x","https://b.test"]}"#, T("Reading a page on %@", table: "App", "example.org")),
+                ("mcp__pippa__browse", #"{"action":"open","url":"https://www.bahn.de/"}"#, T("Browsing %@", table: "App", "bahn.de")),
+                ("mcp__pippa__mail_search", #"{"query":"Stadtwerke"}"#, T("Searching Mail for “%@”", table: "App", "Stadtwerke")),
+                ("mcp__pippa__mail_move", #"{"refs":["m1"],"to":"Work/Invoices","dry_run":true}"#, T("Planning mail moves to %@", table: "App", "Invoices")),
+                ("mcp__pippa__mail_move", #"{"plan":"p1","dry_run":true}"#, T("Planning mail moves", table: "App")),
+                ("mcp__pippa__mail_move", #"{"refs":["m1"],"to":"Invoices"}"#, T("Moving mails to %@", table: "App", "Invoices")),
+                ("mcp__pippa__mail_folders", #"{"account":"Work"}"#, T("Reading the Mail folders of %@", table: "App", "Work")),
+                ("mcp__pippa__mail_draft", #"{"subject":"Termin am Freitag","to":"a@example.test"}"#, T("Writing a Mail draft: %@", table: "App", "Termin am Freitag")),
+                ("mcp__pippa__mail_draft", #"{"to":"a@example.test"}"#, T("Writing a Mail draft to %@", table: "App", "a@example.test")),
+                ("mcp__pippa__calendar_add", #"{"title":"Zahnarzt","date":"2026-11-27"}"#, T("Adding “%@” to Calendar", table: "App", "Zahnarzt")),
+                ("mcp__pippa__reminder_add", #"{"title":"Miete überweisen"}"#, T("Adding the reminder “%@”", table: "App", "Miete überweisen")),
+                ("mcp__pippa__photos_search", #"{"query":"Strand"}"#, T("Searching Photos for “%@”", table: "App", "Strand")),
+            ]
+            let wrong = named.filter { label($0.0, $0.1) != $0.2 }.map { "\($0.0) \($0.1) → \(label($0.0, $0.1))" }
+            check(wrong.isEmpty, "a live step names its search, site, folder, subject or title\(wrong.isEmpty ? "" : ": " + wrong.joined(separator: "; "))")
+            let plain: [(String, String)] = [
+                ("web_search", T("Searching the web", table: "App")), ("fetch_content", T("Reading a web page", table: "App")),
+                ("browse", T("Browsing a web page", table: "App")), ("mail_search", T("Reading Mail", table: "App")),
+                ("mail_move", T("Moving mails", table: "App")), ("mail_folders", T("Reading Mail", table: "App")),
+                ("mail_draft", T("Writing a Mail draft", table: "App")), ("calendar_add", T("Adding to Calendar", table: "App")),
+                ("reminder_add", T("Adding a reminder", table: "App")), ("photos_search", T("Searching Photos", table: "App")),
+            ]
+            let empty = [#"{}"#, #"{"query":"  ","queries":[],"url":"","title":"","subject":"","to":"","account":""}"#, "not json"]
+            let unplain = plain.filter { tool, words in empty.contains { label(tool, $0) != words } }.map(\.0)
+            check(unplain.isEmpty, "without arguments a live step keeps its plain words\(unplain.isEmpty ? "" : ": " + unplain.joined(separator: ", "))")
+            let long = label("web_search", #"{"query":"Wie lange ist die Kündigungsfrist für meinen Mietvertrag in Köln eigentlich"}"#)
+            let browseOther = label("browse", #"{"action":"snapshot","url":"https://www.bahn.de/"}"#)
+            check(long.count < T("Searching the web for “%@”", table: "App", "").count + 38 && long.contains("…") && !long.contains("eigentlich")
+                  && browseOther == T("Browsing a web page", table: "App") && StepLabel.host(of: "no address") == "",
+                  "a long detail is cut short with an ellipsis; browser steps other than open and non-addresses keep the plain words")
+        }
         let shipped = (PippaPiLaunch.tools + Array(PippaActionClasses.table.keys)).filter { !$0.contains("*") }
         let unlabelled = shipped.filter { StepLabel.text(tool: $0, arguments: "{}") == T("Using a tool", table: "App") }
         check(!shipped.isEmpty && unlabelled.isEmpty,
@@ -372,6 +463,36 @@ enum ConversationStoreChecks {
             check(scripted?.steps.map(\.label) == [T("Working through the list", table: "App")] && scripted?.steps.first?.done == true
                   && scripted?.provenance?.contains(.mail) == true,
                   "a script is one plain step, not one per call it makes; what its calls read still counts")
+            // A follow-up the person sent while she works (`ChatModel.steer`): the reply so far ends, the follow-up
+            // is their message, and everything after it goes into a new reply.
+            chat.apply(.toolStarted(id: "open-step", name: "mcp__pippa__calendar_read", arguments: "{}"), in: id)
+            chat.apply(.textDelta("Ich schaue nach."), in: id)
+            let before = chat.conversations.first?.messages.count ?? 0
+            chat.apply(.userMessage("Nur bis 19. November 2026, bitte"), in: id)
+            let afterFollowUp = chat.conversations.first?.messages ?? []
+            chat.apply(.textDelta("Bis zum 19. November 2026 ist nichts eingetragen."), in: id)
+            chat.apply(.toolStarted(id: "after", name: "mcp__pippa__reminders_read", arguments: "{}"), in: id)
+            chat.apply(.toolEnded(id: "after", name: "mcp__pippa__reminders_read", isError: false, result: "{}"), in: id)
+            let messages = chat.conversations.first?.messages ?? []
+            let followUp = messages.count >= 2 ? messages[messages.count - 2] : nil
+            let earlier = messages.count >= 3 ? messages[messages.count - 3] : nil
+            check(afterFollowUp.count == before + 2 && followUp?.role == .user && followUp?.text == "Nur bis 19. November 2026, bitte"
+                  && earlier?.role == .assistant && earlier?.text == "Ich schaue nach." && earlier?.steps.allSatisfy(\.done) == true,
+                  "a follow-up shows as the person's message after the reply so far, whose open steps end there")
+            check(messages.last?.role == .assistant && messages.last?.text == "Bis zum 19. November 2026 ist nichts eingetragen."
+                  && messages.last?.steps.map(\.id) == ["after"] && messages.last?.steps.first?.done == true
+                  && followUp?.steps.isEmpty == true,
+                  "what Pi writes and does after a follow-up goes into a new reply, never into the person's message")
+            check(chat.evidence.supported(in: "19. November 2026").isEmpty == false,
+                  "a date the person named in a follow-up counts as said, not as unsupported")
+            // A reply that had not begun leaves no empty bubble behind.
+            chat.showSample([Conversation(id: id, title: "Synthetic", updated: Date(),
+                                          messages: [ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")])],
+                            current: id, answering: true)
+            chat.apply(.userMessage("Kürzer, bitte"), in: id)
+            check(chat.conversations.first?.messages.map(\.role) == [.user, .user, .assistant]
+                  && chat.conversations.first?.messages.last?.text == "",
+                  "a follow-up before the reply began replaces the empty reply instead of leaving it behind")
             chat.showSample(saved.0, current: saved.1, answering: false)
         }
         check(firstMail?.kind == .mail && firstMail?.name == "Repeated subject" && firstMail?.location == "message://%3Cold%40example%2Etest%3E",

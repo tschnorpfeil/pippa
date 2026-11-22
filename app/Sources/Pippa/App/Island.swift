@@ -401,8 +401,16 @@ final class Island: ObservableObject {
     func send() {
         let chat = ChatModel.shared
         let text = chat.draft, files = chat.attachments
+        // While she answers here, typed words go into that answer: Pi reads them after its current step.
+        if chat.isAnswering {
+            if chat.canSteerHere, files.isEmpty, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               chat.currentID == nil || chat.answeringID == chat.currentID {
+                chat.steer()
+            }
+            return
+        }
         // Like the composer: until the AI can answer, the question stays in the field (the island shows the setup above it).
-        guard !chat.isAnswering, SetupModel.shared.canAnswer,
+        guard SetupModel.shared.canAnswer,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !files.isEmpty else { return }
         if chat.hasReviewHere, followUp?.id != chat.currentID {
             openChat(in: chat.currentID)
