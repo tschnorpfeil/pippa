@@ -8,15 +8,17 @@ import SwiftUI
 struct SetupCard: View {
     @ObservedObject var setup: SetupModel
     var showsOnlineOption = true
+    var showsPDFHint = true
     private let detailsState: State<Bool>
     private let copiedState = State(initialValue: false)
 
     /// Settings > General > Storage, where the person sees what takes up room and can free some.
     static let storageSettingsURL = URL(string: "x-apple.systempreferences:com.apple.settings.Storage")!
 
-    init(setup: SetupModel, showsOnlineOption: Bool = true) {
+    init(setup: SetupModel, showsOnlineOption: Bool = true, showsPDFHint: Bool = true) {
         self.setup = setup
         self.showsOnlineOption = showsOnlineOption
+        self.showsPDFHint = showsPDFHint
         detailsState = State(initialValue: setup.detailsOpenForSnapshot)
     }
 
@@ -53,7 +55,7 @@ struct SetupCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                 localChoice(bytes)
                 onlineChoice(primary: false)
-                pdfHint
+                if showsPDFHint { pdfHint }
             case .askDownload(let bytes):
                 Text(T("Pippa’s AI runs on this Mac. It needs a one-time download of %@.", table: "App",
                        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)))
@@ -70,15 +72,17 @@ struct SetupCard: View {
                     if showsOnlineOption { ActionPill(title: T("Use an Online AI…", table: "App")) { openOnline() } }
                     ActionPill(title: T("Stop", table: "App")) { setup.stopDownload() }
                 }
-                Label(T("Meanwhile, drop photos or PDFs here to make one PDF.", table: "Views"), systemImage: "doc.richtext")
-                    .font(Typo.footnote).foregroundStyle(Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, Space.xs)
+                if showsPDFHint {
+                    Label(T("Meanwhile, drop photos or PDFs here to make one PDF.", table: "Views"), systemImage: "doc.richtext")
+                        .font(Typo.footnote).foregroundStyle(Theme.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, Space.xs)
+                }
             case .failed(let problem) where showsOnlineOption && setup.lead == .online:
                 // This Mac can't run the AI: the online AI leads, the PDF path works without any.
                 Text(problem.message).fixedSize(horizontal: false, vertical: true)
                 onlineChoice(primary: true)
-                pdfHint
+                if showsPDFHint { pdfHint }
                 details(problem)
             case .failed(let problem):
                 Text(problem.message).fixedSize(horizontal: false, vertical: true)
