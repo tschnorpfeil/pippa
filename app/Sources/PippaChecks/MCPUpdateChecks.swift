@@ -36,7 +36,9 @@ private struct UpdateFixture {
         demo.seedReminder("upd-rent", ReminderSnapshot(title: "Pay rent", due: calendar.dateComponents([.year, .month, .day], from: tomorrow),
                                                        notes: "Landlord", list: "Erinnerungen"))
         demo.seedReminder("upd-shared", ReminderSnapshot(title: "Shared list item", list: "Family"))
+        demo.seedReminder("upd-weekly", ReminderSnapshot(title: "Take out bins", list: "Erinnerungen"))
         demo.readOnlyReminderLists = ["Family"]
+        demo.recurringReminders = ["upd-weekly"]
     }
 
     func at(_ hour: Int, _ minute: Int) -> Date { calendar.date(bySettingHour: hour, minute: minute, second: 0, of: tomorrow)! }
@@ -142,9 +144,17 @@ func runMCPUpdateChecks() async {
         g.demo.deleteReminder("upd-rent")
         let gone = try await g.host.undoRun(g.run)
         let readOnly = await g.tools.callUpdate("reminder_update", ["id": "upd-shared", "completed": true])
+        let recurring = await g.tools.callUpdate("reminder_update", ["id": "upd-weekly", "completed": true])
+        var directRecurring: CalendarUpdateError?
+        do { _ = try await g.demo.updateReminder(identifier: "upd-weekly", patch: ReminderPatch(completed: true)) }
+        catch let error as CalendarUpdateError { directRecurring = error }
         return report.left.count == 1 && report.undone.isEmpty && kept.isCompleted && kept.notes == "Paid by bank transfer"
             && cleared.due == nil && gone.undone.count == 1 && g.demo.storedReminder("upd-rent") == nil
             && readOnly.isError && updateJSON(readOnly)["status"] as? String == "read_only" && g.demo.storedReminder("upd-shared")?.isCompleted == false
+            && recurring.isError && updateJSON(recurring)["status"] as? String == "recurring"
+            && (updateJSON(recurring)["error"] as? String)?.contains("reminder") == true
+            && (updateJSON(recurring)["error"] as? String)?.contains("Reminders") == true
+            && g.demo.storedReminder("upd-weekly")?.isCompleted == false && directRecurring == .isRecurring
     }
 
     await checkAsync("calendar_update and reminder_update: invalid arguments fail before anything is read or written") {

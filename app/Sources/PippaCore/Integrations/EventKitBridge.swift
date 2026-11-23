@@ -201,6 +201,7 @@ extension EventKitBridge {
     }
 
     private func guardEditable(_ r: EKReminder) throws {
+        if r.hasRecurrenceRules { throw CalendarUpdateError.isRecurring }
         guard let list = r.calendar, list.allowsContentModifications else { throw CalendarUpdateError.readOnly(r.calendar?.title ?? "") }
     }
 

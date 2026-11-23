@@ -76,7 +76,7 @@ extension PippaMCPWriteTools {
         let why: String = switch error {
         case .notFound: "There is no \(what) with this id. Read it again (\(integration == .calendar ? "calendar_read" : "reminders_read")) and use its id; never guess one."
         case .hasAttendees: "This event has attendees: changing it could send an update to other people, so Pippa does not change it. The person can change it in Calendar."
-        case .isRecurring: "This event belongs to a repeating series, so Pippa does not change it. The person can change it in Calendar."
+        case .isRecurring: "This \(what) belongs to a repeating series, so Pippa does not change it. The person can change it in \(integration == .calendar ? "Calendar" : "Reminders")."
         case .readOnly(let name): "The \(integration == .calendar ? "calendar" : "list") \(Self.singleLine(name, max: 80)) is read-only."
         case .changed: "The \(what) changed while Pippa was about to update it. Read it again before trying once more."
         }

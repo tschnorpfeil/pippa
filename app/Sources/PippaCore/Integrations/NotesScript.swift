@@ -102,9 +102,10 @@ public enum NotesScript {
                     set foundNote to note id noteID
                 end try
                 if foundNote is missing value then return {}
-                set isLocked to false
+                set isLocked to true
                 try
-                    set isLocked to password protected of foundNote
+                    set lockState to password protected of foundNote
+                    if lockState is false then set isLocked to false
                 end try
                 set theName to ""
                 try
@@ -144,6 +145,12 @@ public enum NotesScript {
         let target = normalized(haystack)
         return words.allSatisfy { target.contains($0) }
     }
+
+    /// Fail-closed lock decoder: only an explicit boolean `false` descriptor marks a note as unlocked.
+    package static func isExplicitlyUnlocked(_ descriptor: NSAppleEventDescriptor) -> Bool {
+        descriptor.descriptorType == typeFalse
+            || (descriptor.descriptorType == typeBoolean && !descriptor.booleanValue)
+    }
 }
 
 /// Real Apple Notes reader via in-process `NSAppleScript` (zero Full Disk Access).
@@ -170,6 +177,7 @@ public struct SystemNotesReader: NotesReading {
         // Bounded plaintext fallback across the newest unlocked notes when titles/folders did not match.
         var contentMatches: [NoteSummary] = []
         for summary in unlocked.prefix(NotesScript.contentFallbackCap) {
+            if Task.isCancelled { throw CancellationError() }
             guard let note = try await readNote(id: summary.id), !note.locked else { continue }
             if NotesScript.matches(trimmed, in: note.title + "\n" + note.folder + "\n" + note.text) {
                 contentMatches.append(summary)
@@ -191,7 +199,7 @@ public struct SystemNotesReader: NotesReading {
             let title = parts[1].stringValue ?? ""
             let folder = parts[2].stringValue ?? ""
             let modified = parts[3].dateValue
-            let locked = parts[4].booleanValue
+            let locked = !NotesScript.isExplicitlyUnlocked(parts[4])
             let text = locked ? "" : (parts[5].stringValue ?? "")
             return NoteContent(id: noteID, title: title, folder: folder, modified: modified, text: text, locked: locked)
         }
@@ -211,7 +219,7 @@ public struct SystemNotesReader: NotesReading {
             var unlocked: [NoteSummary] = []
             var skippedLocked = 0
             for index in 0..<count {
-                if locks[index].booleanValue {
+                if !NotesScript.isExplicitlyUnlocked(locks[index]) {
                     skippedLocked += 1
                     continue
                 }

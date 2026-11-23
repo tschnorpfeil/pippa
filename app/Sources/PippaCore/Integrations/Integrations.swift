@@ -207,6 +207,8 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
     private var reminderEntries: [String: ReminderSnapshot] = [:]
     /// Tests: reminder lists that refuse changes.
     public var readOnlyReminderLists: Set<String> = []
+    /// Tests: reminder identifiers that belong to a repeating series (refused fail-closed).
+    public var recurringReminders: Set<String> = []
     /// Lists for `addReminder` (invented).
     public var reminderLists = ["Erinnerungen", "Privat"]
     /// Tests: what `insertReply` reports instead of a draft (error) or which result (e.g. `replyNeedsPaste`).
@@ -525,6 +527,7 @@ extension DemoIntegrations {
 
     private func editableReminder(_ id: String) throws -> ReminderSnapshot {
         guard let entry = reminderEntries[id] else { throw CalendarUpdateError.notFound }
+        if recurringReminders.contains(id) { throw CalendarUpdateError.isRecurring }
         if readOnlyReminderLists.contains(entry.list) { throw CalendarUpdateError.readOnly(entry.list) }
         return entry
     }

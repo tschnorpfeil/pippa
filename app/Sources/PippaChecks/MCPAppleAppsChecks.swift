@@ -24,15 +24,20 @@ func runMCPAppleAppsChecks() async {
             && !notesSource.contains("body of ")
             && notesSource.contains("plaintext of ")
             && notesSource.contains("password protected")
+            && notesSource.contains("set isLocked to true")
             && !notesSource.contains("\"Notizen\"")
             && !notesSource.contains("folder \"Notes\"")
+        let lockFailClosed = NotesScript.isExplicitlyUnlocked(NSAppleEventDescriptor(boolean: false))
+            && !NotesScript.isExplicitlyUnlocked(NSAppleEventDescriptor(boolean: true))
+            && !NotesScript.isExplicitlyUnlocked(NSAppleEventDescriptor.null())
+            && !NotesScript.isExplicitlyUnlocked(NSAppleEventDescriptor(string: "false"))
         let safariSafe = !safariSource.contains("do JavaScript")
             && safariSource.contains("on listTabs()")
             && safariSource.contains("on tabPage(winIdx, tabIdx)")
             && safariSource.contains("text of theTab")
         return compiled["Notes"] == true && compiled["Safari"] == true
             && notesUndef?.isEmpty == true && safariUndef?.isEmpty == true
-            && notesSafe && safariSafe
+            && notesSafe && lockFailClosed && safariSafe
     }
 
     // MARK: 2. Apple Notes (`notes_read`)
