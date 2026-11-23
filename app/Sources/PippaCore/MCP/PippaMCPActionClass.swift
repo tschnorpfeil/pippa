@@ -28,10 +28,10 @@ public enum PippaActionClasses {
     public static let table: [String: PippaActionClass] = [
         // Pippa's MCP server: readers.
         "calendar_read": .read, "reminders_read": .read, "mail_search": .read, "mail_read": .read, "mail_folders": .read,
-        "photos_search": .read, "front_read": .read, "read_document": .read,
+        "photos_search": .read, "front_read": .read, "notes_read": .read, "contacts_search": .read, "compute": .read, "read_document": .read,
         // Pippa's MCP server: changes on this Mac with a receipt and Undo (events, reminders), an unsent draft, or new
         // files next to the originals (`prepare_files`).
-        "calendar_add": .undoable, "reminder_add": .undoable, "mail_draft": .undoable, "prepare_files": .undoable,
+        "calendar_add": .undoable, "reminder_add": .undoable, "calendar_update": .undoable, "reminder_update": .undoable, "mail_draft": .undoable, "prepare_files": .undoable,
         // Moves mails between folders of one account; every move is journaled and Undo moves it back by Message-ID.
         "mail_move": .undoable,
         // `browse` goes online and acts on web pages. It keeps its own question per step (a new host, every click, fill

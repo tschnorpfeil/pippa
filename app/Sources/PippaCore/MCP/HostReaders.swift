@@ -50,6 +50,7 @@ public enum MailBoxKind: String, Codable, Sendable, CaseIterable {
 
 /// An open reminder, read only.
 public struct ReminderItem: Sendable, Equatable {
+    public var id: String?
     public var title: String
     public var list: String
     public var due: Date?
@@ -58,8 +59,8 @@ public struct ReminderItem: Sendable, Equatable {
     public var notes: String?
     /// "high", "medium" or "low" (EventKit 1–4, 5, 6–9); `nil` without priority.
     public var priority: String?
-    public init(title: String, list: String, due: Date? = nil, dueHasTime: Bool = false, notes: String? = nil, priority: String? = nil) {
-        self.title = title; self.list = list; self.due = due; self.dueHasTime = dueHasTime; self.notes = notes; self.priority = priority
+    public init(id: String? = nil, title: String, list: String, due: Date? = nil, dueHasTime: Bool = false, notes: String? = nil, priority: String? = nil) {
+        self.id = id; self.title = title; self.list = list; self.due = due; self.dueHasTime = dueHasTime; self.notes = notes; self.priority = priority
     }
 
     /// EventKit's 0–9 scale as a word.
@@ -137,7 +138,7 @@ extension SystemIntegrations: HostDataReading {
                 done.resume(returning: (found ?? []).map { r in
                     let parts = r.dueDateComponents
                     let due = parts.flatMap { Calendar.autoupdatingCurrent.date(from: $0) }
-                    return ReminderItem(title: r.title ?? "", list: r.calendar?.title ?? "", due: due, dueHasTime: parts?.hour != nil,
+                    return ReminderItem(id: r.calendarItemIdentifier, title: r.title ?? "", list: r.calendar?.title ?? "", due: due, dueHasTime: parts?.hour != nil,
                                         notes: r.notes.map { String($0.prefix(400)) }, priority: ReminderItem.priority(r.priority))
                 })
             }

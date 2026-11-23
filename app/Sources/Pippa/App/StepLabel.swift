@@ -93,10 +93,23 @@ enum StepLabel {
         case "calendar_add":
             let title = detail("title")
             return title.isEmpty ? T("Adding to Calendar", table: "App") : T("Adding “%@” to Calendar", table: "App", title)
+        case "calendar_update":
+            let title = detail("title")
+            return title.isEmpty ? T("Updating Calendar", table: "App") : T("Updating “%@” in Calendar", table: "App", title)
         case "reminders_read": return T("Reading Reminders", table: "App")
         case "reminder_add":
             let title = detail("title")
             return title.isEmpty ? T("Adding a reminder", table: "App") : T("Adding the reminder “%@”", table: "App", title)
+        case "reminder_update":
+            let title = detail("title")
+            return title.isEmpty ? T("Updating a reminder", table: "App") : T("Updating the reminder “%@”", table: "App", title)
+        case "notes_read":
+            let query = detail("query")
+            return query.isEmpty ? T("Reading Notes", table: "App") : T("Searching Notes for “%@”", table: "App", query)
+        case "contacts_search":
+            let query = detail("query")
+            return query.isEmpty ? T("Searching Contacts", table: "App") : T("Searching Contacts for “%@”", table: "App", query)
+        case "compute": return T("Calculating", table: "App")
         case "mail_search":
             let query = detail("query")
             return query.isEmpty ? T("Reading Mail", table: "App") : T("Searching Mail for “%@”", table: "App", query)
@@ -119,7 +132,11 @@ enum StepLabel {
         case "photos_search":
             let query = detail("query")
             return query.isEmpty ? T("Searching Photos", table: "App") : T("Searching Photos for “%@”", table: "App", query)
-        case "front_read": return T("Reading the app in front", table: "App")
+        case "front_read":
+            if args["tabs"] as? Bool == true || args["tab_index"] != nil || args["window_index"] != nil {
+                return T("Reading Safari tabs", table: "App")
+            }
+            return T("Reading the app in front", table: "App")
         case "prepare_files": return T("Preparing files", table: "App")
         case PiTurnReceipt.scriptTool: return T("Working through the list", table: "App")
         // A tool Pippa does not know (a model may invent one): say that a tool is used, never the raw name.

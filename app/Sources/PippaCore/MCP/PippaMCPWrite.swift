@@ -14,7 +14,7 @@ import Foundation
 // reads "Open draft".
 
 public struct PippaMCPWriteTools: Sendable {
-    public static let names = ["calendar_add", "reminder_add", "mail_draft", "mail_move"]
+    public static let names = ["calendar_add", "reminder_add", "mail_draft", "mail_move"] + updateNames
     static let mailBodyLimit = 20_000
 
     let host: PippaMCPHost
@@ -34,21 +34,21 @@ public struct PippaMCPWriteTools: Sendable {
         let date = text, time = text
         return [
             tool("calendar_add", "Termin eintragen",
-                 "date=YYYY-MM-DD/today/tomorrow/weekday; end_date=last day; time/end=HH:MM (omit=all-day); minutes=60; calendar=name; if_free=only free.",
+                 "Add event. date/end_date=YYYY-MM-DD/today/tomorrow/weekday; time/end=HH:MM; minutes=60; calendar; if_free.",
                  ["title": text, "date": date, "end_date": date, "time": time, "minutes": ["type": "integer"], "end": time,
                   "calendar": text, "location": text, "notes": text, "if_free": ["type": "boolean"]],
                  required: ["title", "date"]),
             tool("reminder_add", "Erinnerung anlegen",
-                 "date=YYYY-MM-DD/today/tomorrow/weekday; time=HH:MM needs date.",
+                 "date=YYYY-MM-DD/today/tomorrow/weekday; time=HH:MM (+date).",
                  ["title": text, "date": date, "time": time, "list": text, "notes": text], required: ["title"]),
             tool("mail_draft", "Mail-Entwurf",
-                 "Unsent Mail; reply_to=mail_ref/email path/selected; omit=new subject/to.",
+                 "Unsent draft; reply_to=mail_ref/path/selected, else subject/to.",
                  ["body": text, "reply_to": text, "subject": text, "to": text],
                  required: ["body"]),
             tool("mail_move", "Mails verschieben",
-                 "Inbox mail_refs to folder path to, same account. dry_run gives plan; then only plan (>20 refs need it).",
+                 "Move inbox mail_refs to folder to (same account). dry_run→plan (>20 needs it).",
                  ["refs": ["type": "array", "items": text], "to": text, "dry_run": ["type": "boolean"], "plan": text], required: []),
-        ]
+        ] + updateToolList()
     }
 
     /// Arguments as plain values; unknown ones and wrong types are named instead of silently ignored.

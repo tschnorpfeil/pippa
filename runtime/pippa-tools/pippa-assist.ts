@@ -37,7 +37,8 @@ import { homedir } from "node:os";
 
 type ExtensionAPI = any;
 
-const NATIVE_CHANGES = new Set(["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__mail_move", "mcp__pippa__prepare_files",
+const NATIVE_CHANGES = new Set(["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__mail_move",
+	"mcp__pippa__calendar_update", "mcp__pippa__reminder_update", "mcp__pippa__prepare_files",
 	// Sends one saved draft after the person's click (PippaMCPMailSend.swift): a change like the others for the loop brake.
 	"mcp__pippa__mail_send"]);
 /** Tools that change something: successful or uncertain changes are not repeated in one answer. */
@@ -117,6 +118,8 @@ const NATIVE_NO_EFFECT = new Set(["invalid_arguments", "cancelled", "needs_acces
 	"folders_incomplete", "not_moved", "move_running",
 	// mail_send (PippaMCPMailSend.swift): refused before the send event, or the draft changed after the card.
 	"unknown_draft", "already_sent", "draft_gone", "no_sender", "no_recipient", "empty_body", "draft_changed", "not_sent",
+	// calendar_update / reminder_update (PippaMCPCalendarUpdate.swift): refused before saving.
+	"has_attendees", "recurring", "read_only", "changed",
 	// The class gate (PippaMCPActionClass.swift): no class, or the person said no on the card.
 	"blocked", "declined"]);
 

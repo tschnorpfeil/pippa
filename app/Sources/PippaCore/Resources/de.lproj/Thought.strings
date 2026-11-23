@@ -99,3 +99,11 @@
 "Mail not sent: %@" = "Mail nicht gesendet: %@";
 "Stopped before sending a mail" = "Vor dem Senden einer Mail gestoppt";
 "Mail hasn’t confirmed the send yet. Look in Sent before trying again." = "Mail hat das Senden noch nicht bestätigt. Sieh unter „Gesendet“ nach, bevor du es noch einmal versuchst.";
+
+// calendar_update / reminder_update receipts (1.1).
+"Stopped before updating Calendar" = "Gestoppt, bevor im Kalender etwas geändert wurde";
+"Stopped before updating a reminder" = "Gestoppt, bevor eine Erinnerung geändert wurde";
+"Updated Calendar: %@" = "Termin geändert: %@";
+"Calendar not updated: %@" = "Termin nicht geändert: %@";
+"Reminder updated: %@" = "Erinnerung geändert: %@";
+"Reminder not updated: %@" = "Erinnerung nicht geändert: %@";

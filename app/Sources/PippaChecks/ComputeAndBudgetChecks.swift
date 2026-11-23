@@ -180,10 +180,10 @@ func runComputeAndBudgetChecks() async {
     // MARK: (d) prompt budget
 
     // Every request to the local model carries the whole tool list, so its size is prompt time on every turn.
-    // Measured 2026-11-23 (sorted keys): 7,118 bytes at fcec7f55, 7,209 with read_document's to_page and query. The
-    // ceiling is that plus 2,191 bytes, room for about five compact 1.1 tools (`compute` alone is 546). Raise it only
-    // with a measured reason; shorten descriptions first.
-    let toolListCeiling = 9_400
+    // Measured 2026-11-23 (sorted keys): 7,118 bytes at fcec7f55 (15 tools), ~9,550 bytes for all 20 tools in 1.1 after
+    // tightening descriptions (adding notes_read, contacts_search, compute, calendar_update, reminder_update, and Safari
+    // multi-tab arguments). Raise this ceiling only with a measured reason; shorten descriptions first.
+    let toolListCeiling = 9_800
     check("Prompt budget: PippaMCPTools.toolList() stays under \(toolListCeiling) bytes of JSON") {
         let bytes = (try? JSONSerialization.data(withJSONObject: PippaMCPTools.toolList(), options: [.sortedKeys]))?.count ?? .max
         let own = (try? JSONSerialization.data(withJSONObject: PippaMCPComputeTool.toolList(), options: [.sortedKeys]))?.count ?? .max

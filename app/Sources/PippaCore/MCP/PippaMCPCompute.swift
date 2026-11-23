@@ -32,7 +32,7 @@ public struct PippaMCPComputeTool: Sendable {
         let string: [String: Any] = ["type": "string"]
         return [[
             "name": name, "title": title,
-            "description": "Exact math. sum/subtract/multiply/divide (left to right)/stats: numbers. add_days/add_weeks/add_months: date YYYY-MM-DD, n. days_between: date, to.",
+            "description": "Math: sum/subtract/multiply/divide/stats(numbers); add_days/add_weeks/add_months(date,n); days_between(date,to).",
             "inputSchema": ["type": "object", "additionalProperties": false, "required": ["op"],
                             "properties": ["op": ["enum": (arithmetic.union(dateOps)).sorted()], "numbers": ["type": "array"],
                                            "date": string, "to": string, "n": ["type": "integer"]]] as [String: Any],

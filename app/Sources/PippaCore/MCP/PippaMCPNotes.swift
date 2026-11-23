@@ -33,7 +33,7 @@ public struct PippaMCPNotesTool: Sendable {
         return [[
             "name": name,
             "title": title,
-            "description": "Apple Notes (unlocked, plaintext). omit=newest; query=search; id=full note; limit≤50.",
+            "description": "Notes (unlocked). omit=newest; query; id=full; limit≤50.",
             "inputSchema": [
                 "type": "object",
                 "additionalProperties": false,

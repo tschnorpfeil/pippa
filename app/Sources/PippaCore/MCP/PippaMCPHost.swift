@@ -51,6 +51,10 @@ public struct PippaMCPHost: Sendable {
     public var mailFiles: URL = MailFiling.inbox
     /// Reads that app (Safari, Chrome, the front document); Mail and Excel go through their own readers.
     public var front: any FrontAppReading = SystemFrontApp()
+    /// Read-only Apple Notes access (in-process Apple Events, zero Full Disk Access).
+    public var notes: any NotesReading = SystemNotesReader()
+    /// Read-only Apple Contacts access (`CNContactStore`, zero Full Disk Access).
+    public var contacts: any ContactsReading = SystemContactsStore()
     /// Pippa's browser panel for `browse` (PippaMCPBrowser.swift). `nil`: the tool says it is not available.
     public var browser: (any BrowserOperating)?
     /// The person's OK before `browse` opens a new host or clicks, types or chooses. `nil`: nothing happens.
@@ -100,6 +104,8 @@ public struct PippaMCPHost: Sendable {
                                 now: { Date() })
         host.writer = demo
         host.front = DemoFrontApp()
+        host.notes = DemoNotesReader()
+        host.contacts = DemoContactsStore()
         host.browser = DemoBrowserOperator()
         return host
     }

@@ -31,7 +31,7 @@ the models of 2027 and does not carry workarounds that only a 9B model needs.
 - **No throwaway 9B workarounds.** A prompt rule for one observed failure, a router that guesses intent, or a patch on the
   model's answer is rejected ([pippa-next-architecture.md](pippa-next-architecture.md#rules)). If the model cannot do a
   task, the fix is a better model, a better tool, or the online AI.
-- **Models are data.** The model list is `catalog.json`, hot-swappable without an app update. The runtime is oMLX. A new
+- **Models are data.** The model list is `catalog.json`, swappable via a catalog entry without changing the app's code. The runtime is oMLX. A new
   model enters only after an automated gate (the acceptance tasks and the prompt-budget check) passes on it.
 - **Code does what code does better.** Arithmetic, dates, totals and sorting belong to helpers (`compute`, document
   tools), not to the model. This is tool quality: tools return facts, the model decides what to do with them.

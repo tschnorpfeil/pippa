@@ -22,11 +22,11 @@ export const SERVER_NAME = "pippa";
 
 /** Read-only tools of the server (app/Sources/PippaCore/MCP/PippaMCPTools.swift, PippaMCPTurn.swift). None changes
  * anything on the Mac. Web search is not here: it is the Pi package pi-web-access (runtime/pippa-web). */
-export const TOOLS = ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "read_document"];
+export const TOOLS = ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "notes_read", "contacts_search", "compute", "read_document"];
 
 /** Native changes stay on the Mac (no sending or invitation). Events, reminders and mail moves can be undone,
  * mail drafts remain unsent, and prepared PDFs preserve their original files. */
-export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files"];
+export const WRITE_TOOLS = ["calendar_add", "reminder_add", "mail_draft", "mail_move", "calendar_update", "reminder_update", "prepare_files"];
 
 /** Sends one draft Pippa saved with mail_draft in this conversation, only after the person pressed Send on Pippa's
  * card (app/Sources/PippaCore/MCP/PippaMCPMailSend.swift). The card and the gate live in the app's server. */
@@ -54,7 +54,7 @@ export function serverConfig(env: Record<string, string | undefined>) {
 		url: parsed.toString(),
 		headers: { Authorization: `Bearer ${token}` },
 		exposure,
-		description: "Pippa: read Calendar, Reminders, Mail, Excel, Photos and documents; add events, reminders and Mail drafts; send a saved draft after the person's click on Send; move mails into existing folders; prepare verified PDFs locally; browse web pages in Pippa's panel with the person's OK.",
+		description: "Pippa: read Calendar, Reminders, Mail, Notes, Contacts, Safari tabs, Excel, Photos and documents; exact math/date compute; add or update events and reminders; create and send saved Mail drafts after the person's click; move mails into existing folders; prepare verified PDFs locally; browse web pages in Pippa's panel with the person's OK.",
 		// Text recognition on many pages takes a while: 5 minutes instead of 1. The app's server keeps the connection
 		// open accordingly (PippaMCPServer).
 		timeout: 300,

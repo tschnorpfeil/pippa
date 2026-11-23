@@ -152,3 +152,7 @@
 "That tab isn’t open in Safari. List the open tabs first and try again." = "That tab isn’t open in Safari. List the open tabs first and try again.";
 "To answer this, I need to search your contacts on this Mac – only when you ask, and I don’t change anything." = "To answer this, I need to search your contacts on this Mac – only when you ask, and I don’t change anything.";
 "Pippa may not read your contacts. To change that, open System Settings → Privacy & Security → Contacts and turn on Pippa." = "Pippa may not read your contacts. To change that, open System Settings → Privacy & Security → Contacts and turn on Pippa.";
+"Read Notes: “%@”" = "Read Notes: “%@”";
+"Searched Notes for “%@”: %lld found" = "Searched Notes for “%@”: %lld found";
+"Read Notes: newest notes" = "Read Notes: newest notes";
+"Searched Contacts for “%@”: %lld found" = "Searched Contacts for “%@”: %lld found";

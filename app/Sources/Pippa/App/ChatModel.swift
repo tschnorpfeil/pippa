@@ -226,6 +226,7 @@ final class ChatModel: ObservableObject {
 
     func delete(_ id: String) {
         guard !isAnswering || id != answeringID else { return }
+        cancelTitleRefinement(for: id)
         unseenIDs.remove(id)
         conversations.removeAll { $0.id == id }
         if currentID == id { currentID = nil; draft = ""; attachments = [] }
@@ -239,6 +240,7 @@ final class ChatModel: ObservableObject {
     func rename(_ id: String, to title: String) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty, let index = conversations.firstIndex(where: { $0.id == id }) else { return }
+        cancelTitleRefinement(for: id)
         conversations[index].title = String(title.prefix(80))
         save(id)
     }
@@ -329,6 +331,7 @@ final class ChatModel: ObservableObject {
         if !conversations.contains(where: { $0.id == id }) {
             let title = String((text.isEmpty ? files.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? shared?.first ?? "" : text).prefix(60))
             startConversation(id, title: title)
+            if !text.isEmpty { refineTitleIfUnchanged(conversationID: id, initialTitle: title, prompt: text) }
         }
         let question = ChatMessage(role: .user, text: text, files: files, destination: destination, shared: shared)
         append(question, to: id)

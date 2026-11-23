@@ -16,28 +16,31 @@ extension PippaMCPTools {
         // Closed enums already restrict their value types; repeating type adds no validation.
         let readers: [[String: Any]] = [
             tool("calendar_read", "Kalender lesen",
-                 "next_days=days; dates=start/end YYYY-MM-DD (max31d).",
+                 "next_days=days; dates=start/end YYYY-MM-DD ≤31d.",
                  ["period": ["enum": ["today", "tomorrow", "rest_of_week", "next_week", "weekend", "next_days", "dates"]],
                   "days": integer, "start": string, "end": string], required: ["period"]),
             tool("reminders_read", "Erinnerungen lesen",
-                 "Open; days=due within N (1=today).", ["days": integer]),
+                 "Open; days=due in N (1=today).", ["days": integer]),
             tool("mail_search", "Mail suchen",
-                 "All accounts, newest first. query=word in subject/sender; omit=newest; read_status; mailbox; account=one from accounts; cursor=next page; limit≤100 (>20: headers).",
+                 "Newest first. query=subject/sender; unread/read_status/mailbox/account/cursor; limit≤100.",
                  ["query": string, "unread": ["type": "boolean"], "read_status": ["enum": MailReadStatus.allCases.map(\.rawValue)],
                   "mailbox": ["enum": MailBoxKind.allCases.map(\.rawValue)], "limit": integer, "account": string, "cursor": string]),
             tool("mail_read", "Mail öffnen",
-                 "Whole inbox email: use mail_ref from an account search. For combined inbox results only, use message_id or exact subject + from. Attachments saved for read_document.",
+                 "Inbox mail via mail_ref (or message_id / subject+from). Saves attachments for read_document.",
                  ["mail_ref": string, "message_id": string, "subject": string, "from": string]),
             tool("mail_folders", "Mail-Ordner",
-                 "Per account: path, count, 2 samples.", ["account": string]),
+                 "Folders per account: path, count.", ["account": string]),
             tool("photos_search", "Fotos suchen",
-                 "query=one Mac-language word; omit=newest; days=last N (no query).",
+                 "query=one word; omit=newest; days=last N (no query).",
                  ["query": string, "days": integer, "limit": integer]),
             // The message names the app ([Im Vordergrund: …], FrontApp.label); a question that points at it already brings
-            // the content (FrontQuestion), this call is for the rest.
-            tool("front_read", "Geöffnetes lesen", "Front content."),
+            // the content (FrontQuestion), this call is for the rest. Safari tabs can also be listed or read by index.
+            tool("front_read", "Geöffnetes lesen",
+                 "Front app; Safari: tabs=true lists, window_index+tab_index reads.",
+                 ["tabs": ["type": "boolean"], "window_index": integer, "tab_index": integer]),
         ]
-        return readers + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList() + PippaMCPFilePreparation.toolList()
+        return readers + PippaMCPNotesTool.toolList() + PippaMCPContactsTool.toolList() + PippaMCPComputeTool.toolList()
+            + PippaMCPTurnTools.toolList() + PippaMCPWriteTools.toolList() + PippaMCPFilePreparation.toolList()
             + PippaMCPBrowserTool.toolList() + PippaMCPMailSend.toolList()
 
     }
@@ -47,8 +50,8 @@ extension PippaMCPTools {
     struct ToolInput: Sendable {
         var period: String?, start: String?, end: String?, query: String?, subject: String?, from: String?, messageID: String?
         var account: String?, cursor: String?, mailRef: String?, readStatus: String?, mailbox: String?
-        var days: Int?, limit: Int?
-        var unread: Bool?
+        var days: Int?, limit: Int?, windowIndex: Int?, tabIndex: Int?
+        var unread: Bool?, tabs: Bool?
         var unknown: [String]
         static let allowed: [String: Set<String>] = [
             "calendar_read": ["period", "days", "start", "end"],
@@ -57,7 +60,7 @@ extension PippaMCPTools {
             "mail_read": ["subject", "from", "message_id", "mail_ref"],
             "mail_folders": ["account"],
             "photos_search": ["query", "days", "limit"],
-            "front_read": [],
+            "front_read": ["tabs", "window_index", "tab_index"],
         ]
 
         init(_ tool: String, _ raw: [String: Any]) {
@@ -67,6 +70,7 @@ extension PippaMCPTools {
             }
             period = raw["period"] as? String; start = raw["start"] as? String; end = raw["end"] as? String
             query = raw["query"] as? String; days = int("days"); limit = int("limit")
+            windowIndex = int("window_index"); tabIndex = int("tab_index")
             subject = raw["subject"] as? String; from = raw["from"] as? String; messageID = raw["message_id"] as? String
             account = raw["account"] as? String; cursor = raw["cursor"] as? String; mailRef = raw["mail_ref"] as? String
             readStatus = raw["read_status"] as? String; mailbox = raw["mailbox"] as? String
@@ -74,12 +78,12 @@ extension PippaMCPTools {
                 guard let n = raw[key] as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() else { return nil }
                 return n.boolValue
             }
-            unread = bool("unread")
+            unread = bool("unread"); tabs = bool("tabs")
             let allowed = Self.allowed[tool] ?? []
             unknown = raw.keys.filter { key in
                 guard allowed.contains(key) else { return true }
-                if key == "days" || key == "limit" { return int(key) == nil }
-                if key == "unread" { return bool(key) == nil }
+                if key == "days" || key == "limit" || key == "window_index" || key == "tab_index" { return int(key) == nil }
+                if key == "unread" || key == "tabs" { return bool(key) == nil }
                 // Optional means omitted, not null, a boolean, an array, or another scalar type.
                 return !(raw[key] is String)
             }.sorted()

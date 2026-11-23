@@ -27,7 +27,7 @@ public struct PippaMCPContactsTool: Sendable {
         return [[
             "name": name,
             "title": title,
-            "description": "Search Contacts by name, email or company. limit≤20.",
+            "description": "Contacts by name/email/company. limit≤20.",
             "inputSchema": [
                 "type": "object",
                 "additionalProperties": false,

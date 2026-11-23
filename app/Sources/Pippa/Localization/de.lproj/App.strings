@@ -315,3 +315,15 @@
 "Writing a Mail draft to %@" = "Schreibe einen Mail-Entwurf an %@";
 "Searching Photos for “%@”" = "Suche in Fotos nach „%@“";
 "Send while Pippa works" = "Senden, während Pippa arbeitet";
+
+// Pippa 1.1 tool step labels.
+"Updating Calendar" = "Ändere einen Termin";
+"Updating “%@” in Calendar" = "Ändere „%@“ im Kalender";
+"Updating a reminder" = "Ändere eine Erinnerung";
+"Updating the reminder “%@”" = "Ändere die Erinnerung „%@“";
+"Reading Notes" = "Lese Notizen";
+"Searching Notes for “%@”" = "Suche in Notizen nach „%@“";
+"Searching Contacts" = "Suche in Kontakten";
+"Searching Contacts for “%@”" = "Suche in Kontakten nach „%@“";
+"Calculating" = "Rechne";
+"Reading Safari tabs" = "Lese Safari-Tabs";

@@ -132,7 +132,7 @@ public struct PippaMCPTurnTools: Sendable {
         let string: [String: Any] = ["type": "string"]
         return [
             tool("read_document", "Dokument lesen",
-                 "PDF/scan/photo/Word/Excel/email text. [S. n] pages; from_page resumes; to_page ends; query=pages with it.",
+                 "PDF/scan/Office/mail text [S. n]. from_page/to_page; query=matching pages.",
                  ["path": string, "from_page": ["type": "integer"], "to_page": ["type": "integer"], "query": string], required: ["path"]),
         ]
     }

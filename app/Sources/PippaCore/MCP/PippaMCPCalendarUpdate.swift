@@ -5,8 +5,7 @@ import Foundation
 // as Pippa left it. Events with attendees, recurring series and read-only calendars are refused before anything is
 // saved: an update there could reach other people or other occurrences.
 //
-// Not yet in `names`/`toolList()` or the action class table: `updateNames`, `updateToolList()` and
-// `updateUndoRecipe(writer:)` are wired into the shared lists in one step.
+// Wired into `PippaMCPWriteTools.names`, `toolList()`, `PippaActionClasses.table` (`.undoable`) and `runUndoRecipe`.
 
 extension PippaMCPWriteTools {
     public static let updateNames = ["calendar_update", "reminder_update"]
@@ -21,12 +20,12 @@ extension PippaMCPWriteTools {
         let text: [String: Any] = ["type": "string"], flag: [String: Any] = ["type": "boolean"]
         return [
             tool("calendar_update", "Termin ändern",
-                 "id from calendar_read; change only what is given. date=YYYY-MM-DD/today/tomorrow/weekday; time/end=HH:MM; minutes. Not for events with attendees or repeats.",
+                 "Update event by id (given fields only). date/time/end/minutes. No attendees/repeats.",
                  ["id": text, "title": text, "date": text, "end_date": text, "time": text, "minutes": ["type": "integer"], "end": text,
                   "location": text, "notes": text],
                  required: ["id"]),
             tool("reminder_update", "Erinnerung ändern",
-                 "id from reminders_read; change only what is given. completed=true marks done. date=YYYY-MM-DD/today/tomorrow/weekday; time=HH:MM needs date; clear_due removes the date.",
+                 "Update reminder by id (given fields only). completed=true; date/time; clear_due.",
                  ["id": text, "title": text, "date": text, "time": text, "clear_due": flag, "notes": text, "completed": flag],
                  required: ["id"]),
         ]

@@ -33,7 +33,7 @@ public enum PippaMCPMailSend {
     static func toolList() -> [[String: Any]] {
         let title = "Mail senden"
         return [["name": name, "title": title,
-                 "description": "Send a mail_draft draft (draft=its id) the person asked to send. Pippa shows it and asks.",
+                 "description": "Send saved mail_draft (draft=id) if asked; Pippa previews and asks.",
                  "inputSchema": ["type": "object", "properties": ["draft": ["type": "string"]], "required": ["draft"]],
                  "annotations": PippaActionClasses.annotations(name, title: title)]]
     }

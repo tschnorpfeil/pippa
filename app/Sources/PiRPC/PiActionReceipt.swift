@@ -130,7 +130,8 @@ public struct PiTurnReceipt: Sendable {
 
     /// Pippa's native MCP tools that create a local result or change something on the Mac, or on a web page in
     /// Pippa's browser panel (`browse`: click, fill and select).
-    public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files", "browse", "mail_send"]
+    public static let pippaWriters: Set<String> = ["calendar_add", "reminder_add", "mail_draft", "mail_move",
+                                                   "calendar_update", "reminder_update", "prepare_files", "browse", "mail_send"]
 
     // Emitted before an effect by PippaMCPWrite.swift; unknown future statuses stay unconfirmed.
     private static let nativeNoEffect: Set<String> = ["invalid_arguments", "cancelled", "needs_access", "denied", "unavailable", "failed",
@@ -143,6 +144,8 @@ public struct PiTurnReceipt: Sendable {
         "blocked", "stale_ref", "handoff_required",
         // `mail_send` (PippaMCPMailSend.swift): refused before the send event, or the draft changed after the card.
         "unknown_draft", "already_sent", "draft_gone", "no_sender", "no_recipient", "empty_body", "draft_changed", "not_sent",
+        // `calendar_update` / `reminder_update` (PippaMCPCalendarUpdate.swift): refused before saving.
+        "has_attendees", "recurring", "read_only", "changed",
         // The class gate (PippaMCPActionClass.swift): the person said no on the card.
         "declined"]
 
