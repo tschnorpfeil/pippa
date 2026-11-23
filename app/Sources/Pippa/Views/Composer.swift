@@ -247,7 +247,7 @@ struct Composer: View {
 private struct StopRing: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: Theme.reduceMotion)) { context in
-            let turn = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
+            let turn = Theme.reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
             ZStack {
                 Circle().stroke(Theme.accent.opacity(0.22), lineWidth: 1.5)
                 Circle().trim(from: 0, to: 0.3)

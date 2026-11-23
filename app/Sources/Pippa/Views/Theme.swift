@@ -211,8 +211,9 @@ private struct Shimmer: ViewModifier {
     private let period = 2.0
 
     func body(content: Content) -> some View {
-        if active && !Theme.reduceMotion {
-            content.overlay {
+        // The condition sits inside the overlay, so the text keeps its identity (and its crossfade) when it turns on or off.
+        content.overlay {
+            if active && !Theme.reduceMotion {
                 TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
                     // The band's centre runs from left of the text to right of it, then rests outside until the next sweep.
                     let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
@@ -224,8 +225,6 @@ private struct Shimmer: ViewModifier {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
-        } else {
-            content
         }
     }
 }

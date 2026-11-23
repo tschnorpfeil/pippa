@@ -22,13 +22,13 @@ struct WebSourcesCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.m) {
+        VStack(alignment: .leading, spacing: 0) {
             Button { toggle() } label: { pill }
                 .buttonStyle(.plain)
                 .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
                 .onAppear { if expandsWork { openState.wrappedValue = true } }
                 .help(card.queries.map { T("“%@”", table: "Views", $0) }.joined(separator: " · "))
-                .accessibilityLabel(T("Looked up online", table: "Views") + ", " + title)
+                .accessibilityLabel(title)
             // The tiles fade in while this box grows and clips them, like the steps under "Worked for …".
             VStack(alignment: .leading, spacing: 0) {
                 if open {
@@ -43,6 +43,7 @@ struct WebSourcesCardView: View {
                             .font(Typo.caption).foregroundStyle(Theme.ink3)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .padding(.top, Space.m)
                     .transition(.opacity)
                 }
             }
