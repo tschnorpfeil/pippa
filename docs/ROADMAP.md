@@ -1,6 +1,6 @@
 # Roadmap
 
-The one plan for Pippa. The design is [Pippa next](pippa-next-architecture.md); the step-by-step list is
+The one plan for Pippa. Where she is going: [Vision](VISION.md). The design is [Pippa next](pippa-next-architecture.md); the step-by-step list is
 [pippa-next-tasks.md](pippa-next-tasks.md). The plan for 1.0 (Pippa acts by default, with gates only for what
 cannot be undone or leaves the Mac, and a journal with undo for whole runs) is [pippa-1.0.md](pippa-1.0.md),
 decided on 2026-11-19 and shipped in 1.0.0. Older plans and measurements are in [archive/](archive/).
@@ -22,19 +22,46 @@ engine are gone.
 
 ## Next
 
-The [0.6 scope](plan-0.6.md) shipped the foundation and reliability work first, kept tiny apps out, and left life memory
-conditional on a bounded usefulness experiment. Since 1.0 the five acceptance tasks gate each release, not the start of
-new work ([pippa-1.0.md](pippa-1.0.md#tools-in-10)).
+Direction: [Vision](VISION.md). The [0.6 scope](plan-0.6.md) shipped the foundation and reliability work first, kept
+tiny apps out, and left life memory conditional on a bounded usefulness experiment. Since 1.0 the five acceptance tasks
+gate each release, not the start of new work ([pippa-1.0.md](pippa-1.0.md#tools-in-10)). Document selection, Mail
+payment totals and receipt-based deadlines remain open model-quality limits ([plan-0.6.md](plan-0.6.md),
+[omlx-switch.md](omlx-switch.md)).
 
-1. **Acceptance.** The five tasks in the plan, on a 16 GB Mac with Ornith 1.5 9B on oMLX: find a file in iCloud, evaluate mail
-   attachments, add a calendar entry, answer a letter's deadline with the quoted sentence, and photos to one PDF
-   without the model. Document selection, Mail payment totals and receipt-based deadlines remain open model-quality
-   limits ([plan-0.6.md](plan-0.6.md), [omlx-switch.md](omlx-switch.md)).
-2. **UI polish, second pass:** card views, onboarding text.
-3. **Sorting a large inbox with the AI on this Mac.** Ornith moved none of 190 mails by reading pages, and all 190 in
-   16 seconds once the app made the plan ([mail-sort.md](mail-sort.md), a plan, not built).
-4. **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
-   real menu bar); motion and drag and drop at the real notch still need a look.
+### Pippa 1.1: less to carry, more apps
+
+Gate: the five acceptance tasks on a 16 GB Mac with Ornith 1.5 9B on oMLX (find a file in iCloud, evaluate mail
+attachments, add a calendar entry, answer a letter's deadline with the quoted sentence, photos to one PDF without the
+model) plus the prompt-budget gate.
+
+1. **Prompt-budget gate:** an automated check that the fixed prompt and tool list stay inside the token budget.
+2. **Compact document reading and deterministic `compute`** for sums, dates and deadlines instead of model arithmetic.
+3. **`calendar_update` and `reminder_update`** with journaled Undo.
+4. **Read-only `notes_read`.**
+5. **Safari multi-tab** in `front_read`.
+6. **`contacts_search`.**
+7. **Apple Foundation Models Tier-0:** conversation titles, with a plain fallback where Apple Intelligence is off.
+8. **Zero-friction first run:** fewer steps and less text before the first answer.
+9. **`mail_sort`** after the real-mail probe passes ([mail-sort.md](mail-sort.md): Ornith moved none of 190 mails by
+   reading pages, and all 190 in 16 seconds once the app made the plan).
+
+No Full Disk Access in any of these.
+
+### Pippa 1.2: calm proactivity
+
+Contract: [Vision, section 5](VISION.md#5-calm-proactivity-12). Opt-in, one or two nudges a day, Focus-aware, one-click mute.
+
+1. **Calm Morning Brief** on Pippa Island as a durable job.
+2. **Human-closed tasks:** Pippa opens, the person closes.
+3. **Voice brain dump** into notes and reminders.
+4. **Watched folder** with zero-token Swift watchers.
+5. **32+ GB local model shootout** for Macs that can run a larger model.
+
+### Still open
+
+- **UI polish, second pass:** card views, onboarding text.
+- **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
+  real menu bar); motion and drag and drop at the real notch still need a look.
 
 Released in 1.0.1: a tool name the model mistypes with a prefix it saw elsewhere (`web_fetch_content`, `mcp__pippa__ask`) is renamed to the one active tool it means before Pi runs it; the first web search of a conversation asks, later ones in that conversation run; failed Pi tool calls appear in `pippa.log` (`pi-werkzeug`); unknown tools show "Using a tool" instead of their raw name; `read_document` points a web address to `fetch_content`; bundled Pi 1.6.0.
 
