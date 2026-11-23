@@ -142,3 +142,13 @@
 "The draft is no longer open in Mail, so Pippa sent nothing. Open it in Mail to send it yourself, or ask Pippa for a new draft." = "Der Entwurf ist in Mail nicht mehr offen, deshalb hat Pippa nichts gesendet. Öffne ihn in Mail, um ihn selbst zu senden, oder bitte Pippa um einen neuen Entwurf.";
 "Pippa couldn’t read the draft in Mail, so she sent nothing. Try again in a moment." = "Pippa konnte den Entwurf in Mail nicht lesen, deshalb hat sie nichts gesendet. Versuch es gleich noch einmal.";
 "The mail in Mail is no longer what you saw, so Pippa didn’t send it. She can show it to you again." = "Die Mail in Mail ist nicht mehr die, die du gesehen hast, deshalb hat Pippa sie nicht gesendet. Sie kann sie dir noch einmal zeigen.";
+
+/* Apple Notes, Safari tabs, Contacts (1.1) */
+"To answer this, I need to read your notes on this Mac – only when you ask, and I don’t change anything." = "Dafür muss ich deine Notizen auf diesem Mac lesen – nur wenn du fragst, und ich ändere nichts.";
+"I couldn’t find this note in Notes." = "Diese Notiz finde ich in Notizen nicht.";
+"This note is locked in Notes, so Pippa can’t read it." = "Diese Notiz ist in Notizen gesperrt, deshalb kann Pippa sie nicht lesen.";
+"No tabs are open in Safari." = "In Safari sind keine Tabs offen.";
+"Safari tabs" = "Safari-Tabs";
+"That tab isn’t open in Safari. List the open tabs first and try again." = "Dieser Tab ist in Safari nicht offen. Lass dir zuerst die offenen Tabs anzeigen und versuch es nochmal.";
+"To answer this, I need to search your contacts on this Mac – only when you ask, and I don’t change anything." = "Dafür muss ich deine Kontakte auf diesem Mac durchsuchen – nur wenn du fragst, und ich ändere nichts.";
+"Pippa may not read your contacts. To change that, open System Settings → Privacy & Security → Contacts and turn on Pippa." = "Pippa darf deine Kontakte nicht lesen. Das änderst du in den Systemeinstellungen unter Datenschutz & Sicherheit → Kontakte: dort Pippa einschalten.";

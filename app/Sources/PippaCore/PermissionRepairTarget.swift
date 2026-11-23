@@ -2,7 +2,7 @@ import Foundation
 
 /// A code-verified access denial may offer one known macOS privacy pane. No model text or URL is accepted.
 public enum PermissionRepairTarget: String, Codable, Sendable, CaseIterable {
-    case filesAndFolders, removableVolumes, photos, automation, calendar, reminders, accessibility
+    case filesAndFolders, removableVolumes, photos, automation, calendar, reminders, accessibility, contacts
 
     public var settingsURL: URL {
         let anchor = switch self {
@@ -13,6 +13,7 @@ public enum PermissionRepairTarget: String, Codable, Sendable, CaseIterable {
         case .calendar: "Privacy_Calendars"
         case .reminders: "Privacy_Reminders"
         case .accessibility: "Privacy_Accessibility"
+        case .contacts: "Privacy_Contacts"
         }
         return URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")!
     }

@@ -401,9 +401,9 @@ await checkAsync("Script for reading mail compiles (nothing is sent)") {
     // Excel is missing from the result when Excel isn't installed (CI); its script is then not compiled.
     return result["Mail"] == true && result["MailReply"] == true && result["MailSearch"] == true && result["MailAccounts"] == true && (result["Excel"] ?? true)
         && result["MailMove"] == true && result["MailMoveDiagnose"] == true && result["MailSend"] == true && result["MailSendProbe"] == true
-        && result["PhotosSearch"] == true && result["PhotosShow"] == true
+        && result["PhotosSearch"] == true && result["PhotosShow"] == true && result["Notes"] == true
         && result["Safari"] == true && result["FrontDocument"] == true && (result["Chrome"] ?? true)
-        && Set(result.keys).isSubset(of: ["Mail", "MailReply", "MailSearch", "MailAccounts", "MailMove", "MailMoveDiagnose", "MailSend", "MailSendProbe", "Excel", "PhotosSearch", "PhotosShow", "Safari", "Chrome", "FrontDocument"])
+        && Set(result.keys).isSubset(of: ["Mail", "MailReply", "MailSearch", "MailAccounts", "MailMove", "MailMoveDiagnose", "MailSend", "MailSendProbe", "Excel", "PhotosSearch", "PhotosShow", "Notes", "Safari", "Chrome", "FrontDocument"])
 }
 
 // MARK: - Found in real runs
@@ -465,6 +465,7 @@ await runMailSortProbeChecks()
 runMailScriptVariableChecks()
 await runMCPChecks()
 await runComputeAndBudgetChecks()
+await runMCPAppleAppsChecks()
 await runMCPBrowserChecks()
 await runNativeReminderChecks()
 await runRunJournalChecks()
