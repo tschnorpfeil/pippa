@@ -137,6 +137,9 @@ enum Snapshots {
             // Still at its limit after every try: Continue counts down its minute.
             ("rate-limit-continue", { chat.showSample(sampleConversations(limited: true), current: "c1", answering: false) }, 760, false, false),
             ("cards", { chat.showSample(sampleCards() + sampleConversations(), current: "cards", answering: false) }, 1480, false, false),
+            // An answer from the web: the pill with the sites stacked, closed and open.
+            ("web-sources", { chat.showSample(sampleWeb() + sampleConversations(), current: "web", answering: false) }, 760, false, false),
+            ("web-sources-open", { chat.showSample(sampleWeb() + sampleConversations(), current: "web", answering: false) }, 760, true, false),
             // One receipt per answer from the run journal: all checked with Undo, unclear after a crash, and after Undo.
             ("run-receipt", { chat.showSample(sampleRuns() + sampleConversations(), current: "runs", answering: false) }, 900, false, false),
             ("setup", {
@@ -169,6 +172,13 @@ enum Snapshots {
             }
             chat.attachments = []
             Approvals.shared.cancelAll()
+        }
+        // The sites beside "Looked up on 6 sites": stacked at rest, fanned out under the pointer.
+        let hosts = ["wetter.com", "dwd.de", "kvb.koeln", "stadt-koeln.de"]
+        for dark in [false, true] {
+            await render(HStack(spacing: Space.xl) { SiteStack(hosts: hosts, fanned: false); SiteStack(hosts: hosts, fanned: true) }.padding(Space.l),
+                         size: NSSize(width: 220, height: 50), dark: dark, chrome: false, fits: true,
+                         to: folder.appendingPathComponent("site-stack-\(dark ? "dark" : "light").png"))
         }
         for dark in [false, true] {
             await render(StartingExplanation(), size: NSSize(width: 312, height: 160), dark: dark, chrome: false, fits: true,
@@ -370,6 +380,22 @@ enum Snapshots {
         answer.sources = [ChatSource(kind: .mail, name: "Nebenkostenabrechnung 2025", location: "", detail: "Hausverwaltung Berger")]
         return [Conversation(id: "cards", title: "Nebenkosten und Termine", updated: Date(), messages: [
             ChatMessage(role: .user, text: "Wie haben sich die Nebenkosten entwickelt, und was steht diese Woche an?"), answer,
+        ])]
+    }
+
+    private static func sampleWeb() -> [Conversation] {
+        let pages = ["https://www.wetter.com/deutschland/koeln/morgen", "https://www.dwd.de/DE/wetter/vorhersage_aktuell/nordrhein-westfalen/vhs_nrw_node.html",
+                     "https://www.kvb.koeln/fahrtinfo/betriebslage", "https://www.stadt-koeln.de/leben-in-koeln/verkehr/",
+                     "https://www.wdr.de/nachrichten/rheinland/wetter-koeln-100.html", "https://www.ksta.de/koeln"]
+        let card = WebSourcesCard(queries: ["Wetter Köln morgen", "KVB Störungen"], pagesRead: Array(pages.prefix(3)),
+                                  searchResults: [pages.dropFirst(3).joined(separator: "\n")], now: Date(timeIntervalSinceReferenceDate: 815_904_000),
+                                  calendar: .current)
+        var answer = ChatMessage(role: .assistant, text: "Morgen wird es in Köln trocken, 6 bis 11 °C, am Nachmittag etwas Sonne. Bei der KVB ist für morgen keine Störung gemeldet.")
+        answer.cards = [card.map(ResultCard.web)].compactMap { $0 }
+        answer.steps = [step("w1", "web_search", ["query": "Wetter Köln morgen"]), step("w2", "fetch_content")]
+        answer.duration = 9
+        return [Conversation(id: "web", title: "Wetter und KVB morgen", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Wie wird das Wetter morgen in Köln, und fährt die KVB normal?"), answer,
         ])]
     }
 

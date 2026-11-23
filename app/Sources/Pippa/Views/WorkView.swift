@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// What Pippa did on the way to the answer, as one row. While she works: her mark, what she is doing right now and the
-/// seconds. Afterwards: "Worked for 18 s · 3 steps". A click opens the steps and her thinking.
+/// What Pippa did on the way to the answer, as one row. While she works: her mark, what she is doing right now (with a
+/// light sweeping across it) and the seconds. Afterwards: "Worked for 18 s · 3 steps". A click opens the steps and her thinking.
 struct WorkView: View {
     var message: ChatMessage
     var live: Bool
@@ -86,6 +86,7 @@ struct WorkView: View {
                 .frame(width: 16, height: 16)
                 .animation(Theme.quick, value: writing)
                 Text(nowLabel).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle)
+                    .shimmers(waiting == nil)
                     .contentTransition(.opacity)
                     .animation(Theme.quick, value: nowLabel)
                 if let started, waiting == nil {

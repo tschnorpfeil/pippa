@@ -193,9 +193,40 @@ extension View {
         }
     }
 
+    /// A soft band of light that sweeps across the text again and again while `active`: what Pippa is doing right now.
+    /// The text keeps its own colour underneath; with Reduce Motion it stays still.
+    func shimmers(_ active: Bool) -> some View {
+        modifier(Shimmer(active: active))
+    }
+
     /// Fades in and rises a few points the first time it appears while `active`; with Reduce Motion it is simply there.
     func arrives(_ active: Bool, delay: Double = 0) -> some View {
         modifier(Arrival(active: active, delay: delay))
+    }
+}
+
+private struct Shimmer: ViewModifier {
+    var active: Bool
+    /// One sweep and a short rest, in seconds. 30 frames a second are smooth for a soft band and leave the Mac to the AI.
+    private let period = 2.0
+
+    func body(content: Content) -> some View {
+        if active && !Theme.reduceMotion {
+            content.overlay {
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                    // The band's centre runs from left of the text to right of it, then rests outside until the next sweep.
+                    let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
+                    let centre = -0.3 + phase * 1.9
+                    LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: Theme.ink, location: 0.5), .init(color: .clear, location: 1)],
+                                   startPoint: UnitPoint(x: centre - 0.3, y: 0.5), endPoint: UnitPoint(x: centre + 0.3, y: 0.5))
+                        .mask(content)
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        } else {
+            content
+        }
     }
 }
 
