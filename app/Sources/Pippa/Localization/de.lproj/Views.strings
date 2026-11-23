@@ -1,6 +1,6 @@
 "Copy" = "Kopieren";
-"Looked up online" = "Online nachgesehen";
-"More sources: %lld" = "Weitere Quellen: %lld";
+"Looked up on 1 site" = "Auf 1 Website nachgesehen";
+"Looked up on %lld sites" = "Auf %lld Websites nachgesehen";
 "Newest in Mail" = "Neueste in Mail";
 "Newest in Photos" = "Neueste in Fotos";
 "Find this email in Mail in the account shown. Pippa can’t open this exact copy for you." = "Such diese E-Mail in Mail im angezeigten Konto. Genau diese Kopie kann Pippa nicht für dich öffnen.";
@@ -8,7 +8,6 @@
 "Open in Photos" = "In Fotos öffnen";
 "Open in Reminders" = "In Erinnerungen öffnen";
 "Open in browser" = "Im Browser öffnen";
-"Sources" = "Quellen";
 "Unread in Mail" = "Ungelesen in Mail";
 "overdue" = "überfällig";
 "read" = "gelesen";

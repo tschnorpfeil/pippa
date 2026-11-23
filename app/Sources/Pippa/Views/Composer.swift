@@ -191,7 +191,7 @@ struct Composer: View {
     }
 
     /// One 32 pt circle in one place: Send (the accent as soon as there is something to send, quiet grey before), or
-    /// Stop while the answer here runs, a quiet disc with a square. The symbol turns into the other.
+    /// Stop while the answer here runs, a quiet disc with a square inside a turning ring. The symbol turns into the other.
     private var sendButton: some View {
         let stops = chat.isAnsweringHere
         let fill = !stops && canSend ? Theme.accentFill : nil
@@ -202,6 +202,8 @@ struct Composer: View {
                 .contentTransition(.symbolEffect(.replace))
                 .frame(width: 32, height: 32)
                 .glassCircle(tint: fill, fallback: fill ?? Theme.sendDisabled)
+                // While the answer runs, a thin accent ring turns around Stop: this is the button that ends it.
+                .overlay { if stops { StopRing().transition(.opacity) } }
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -236,6 +238,26 @@ struct Composer: View {
         panel.canChooseDirectories = true
         guard panel.runModal() == .OK else { return }
         for url in panel.urls where !chat.attachments.contains(url) { chat.attachments.append(url) }
+    }
+}
+
+/// The ring around Stop: an accent arc that turns once every 1.4 s, with Reduce Motion a still one. It reads the time
+/// from a timeline instead of starting a repeating animation, which would carry over into the layout of the
+/// conversation that appears with it.
+private struct StopRing: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: Theme.reduceMotion)) { context in
+            let turn = Theme.reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
+            ZStack {
+                Circle().stroke(Theme.accent.opacity(0.22), lineWidth: 1.5)
+                Circle().trim(from: 0, to: 0.3)
+                    .stroke(Theme.accent, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                    .rotationEffect(.degrees(turn * 360 - 90))
+            }
+        }
+        .frame(width: 37, height: 37)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
