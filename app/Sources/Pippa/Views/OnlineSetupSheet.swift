@@ -16,6 +16,11 @@ struct OnlineSetupSheet: View {
         get { pickedState.wrappedValue }
         nonmutating set { pickedState.wrappedValue = newValue }
     }
+    private let modelSearchState = State(initialValue: "")
+    private var modelSearch: String {
+        get { modelSearchState.wrappedValue }
+        nonmutating set { modelSearchState.wrappedValue = newValue }
+    }
     private let loadsOnAppear: Bool
 
     /// `provider`, `picked` and `loadsOnAppear: false` are for snapshots, which can't sign in.
@@ -123,9 +128,41 @@ struct OnlineSetupSheet: View {
             SettingsNote(T("No chat models are available for this account yet. Refresh or reconnect to try again.", table: "Settings"))
             Button(T("Try again", table: "Settings")) { provider.refresh(online: true) }.pippa(.secondary).disabled(provider.busy)
         case .chooseModel(let item):
+            let matching = item.models.filter {
+                modelSearch.isEmpty || $0.name.localizedCaseInsensitiveContains(modelSearch) || $0.id.localizedCaseInsensitiveContains(modelSearch)
+            }
             VStack(alignment: .leading, spacing: Space.m) {
-                SettingsStatus(symbol: "checkmark.circle.fill", color: Theme.ok, text: T("Connected", table: "Settings"))
-                SettingsNote(T("%@ doesn’t recommend a model. Choose one under More Providers and Models.", table: "Settings", item.name))
+                HStack(spacing: Space.m) {
+                    Text(item.name).font(Typo.callout.weight(.semibold))
+                    SettingsStatus(symbol: "checkmark.circle.fill", color: Theme.ok, text: T("Connected", table: "Settings"))
+                }
+                Text(T("Choose a model", table: "Settings")).foregroundStyle(Theme.ink2)
+                if item.models.count > 6 {
+                    TextField("", text: modelSearchState.projectedValue, prompt: Text(T("Search models", table: "Settings")))
+                        .textFieldStyle(.roundedBorder).labelsHidden().accessibilityLabel(T("Search models", table: "Settings"))
+                }
+                ScrollView {
+                    LazyVStack(spacing: Space.xxs) {
+                        ForEach(matching) { model in
+                            Button { provider.modelID = model.id } label: {
+                                HStack(spacing: Space.m) {
+                                    Text(model.name.isEmpty ? model.id : model.name).foregroundStyle(Theme.ink).lineLimit(1)
+                                    Spacer(minLength: Space.xs)
+                                    Image(systemName: "chevron.right").font(Typo.caption).foregroundStyle(Theme.ink3)
+                                }
+                                .padding(.horizontal, Space.l).padding(.vertical, Space.m)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }.buttonStyle(.plain).disabled(provider.busy)
+                        }
+                        if matching.isEmpty {
+                            Text(T("No matching models", table: "Settings")).font(Typo.footnote).foregroundStyle(Theme.ink2)
+                                .padding(Space.l)
+                        }
+                    }.padding(Space.xs)
+                }
+                .frame(minHeight: 120, maxHeight: 200)
+                .background(Theme.fill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             }
         case .activate(let item, let model):
             connected(item, model: model.name.isEmpty ? model.id : model.name)

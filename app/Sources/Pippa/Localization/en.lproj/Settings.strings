@@ -98,9 +98,9 @@
 "More Providers and Models…" = "More Providers and Models…";
 "Sign in to %@" = "Sign in to %@";
 "Signing in doesn’t switch anything yet: you choose afterwards." = "Signing in doesn’t switch anything yet: you choose afterwards.";
-"%@ doesn’t recommend a model. Choose one under More Providers and Models." = "%@ doesn’t recommend a model. Choose one under More Providers and Models.";
 "Model: %@" = "Model: %@";
 "No providers are available. Try refreshing the list." = "No providers are available. Try refreshing the list.";
+"Your sign-in expired. Reconnect this provider and try again." = "Your sign-in expired. Reconnect this provider and try again.";
 
 /* Sharing with an online AI (issue #193) */
 "An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is." = "An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is.";

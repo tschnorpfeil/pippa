@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Combine
 import PippaCore
 
 /// Shortcut for "call Pippa". One default everywhere: ⌥ Space, the owner's choice (2026-11-10), as in other assistants.
@@ -71,14 +72,14 @@ enum Hotkey: String, CaseIterable, Identifiable {
 
 /// Global shortcut via Carbon (without Accessibility permissions). ID 1: ask Pippa.
 @MainActor
-final class HotkeyCenter {
+final class HotkeyCenter: ObservableObject {
     static let shared = HotkeyCenter()
     private var refs: [UInt32: EventHotKeyRef] = [:]
     private var handler: EventHandlerRef?
     var onPress: (@MainActor () -> Void)?
 
     /// Shortcuts that currently don't take effect (taken by macOS or another app).
-    private(set) var taken: Set<UInt32> = []
+    @Published private(set) var taken: Set<UInt32> = []
 
     /// `false`: the combination is already taken and Pippa does not react to it.
     @discardableResult func apply(_ hotkey: Hotkey) -> Bool {

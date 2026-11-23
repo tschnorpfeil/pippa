@@ -81,10 +81,11 @@ func runErrorMessageChecks() {
 
     // Log
     check("Log: paths, addresses, mail and keys are removed, fields shortened") {
-        let raw = "Datei /Users/anna/Dokumente/Steuer 2025.pdf an anna@example.com über https://api.example.com/v1 mit sk-abcdef1234567890 und Bearer abc.def-123456"
+        let raw = "Datei /Users/anna/Dokumente/Steuer 2025.pdf an anna@example.com über https://api.example.com/v1 mit sk-abcdef1234567890, Bearer abc.def-123456, token=short99, password=geheim und ghp_12345678"
         let out = DiagnosticsLog.redact(raw)
         let long = DiagnosticsLog.redact(String(repeating: "x", count: 500))
         return !out.contains("anna") && !out.contains("/Users") && !out.contains("example.com") && !out.contains("abcdef1234567890") && !out.contains("abc.def-123456")
+            && !out.contains("short99") && !out.contains("geheim") && !out.contains("ghp_12345678")
             && long.count <= DiagnosticsLog.maxFieldLength + 1
             && !DiagnosticsLog.redact("a\nb").contains("\n")
     }

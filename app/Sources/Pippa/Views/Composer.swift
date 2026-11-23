@@ -77,7 +77,8 @@ struct Composer: View {
     private var card: some View {
         VStack(alignment: .leading, spacing: Space.ml) {
             if chat.review == nil, let parked = chat.parkedReview { parkedRow(parked) }
-            TextField(T("Ask Pippa…", table: "App"), text: $chat.draft, axis: .vertical)
+            TextField(setup.canAnswer ? T("Ask Pippa…", table: "App") : T("Drop photos or PDFs for One PDF, or set up an AI above…", table: "App"),
+                      text: $chat.draft, axis: .vertical)
                 .textFieldStyle(.plain).font(Typo.body).lineSpacing(4).lineLimit(1...10)
                 .focused($focused)
                 .onChange(of: chat.draft) { _, text in

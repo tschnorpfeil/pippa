@@ -31,12 +31,17 @@ public enum ModelConnectionTest {
         return request
     }
 
-    /// Response status -> error in everyday language (401/403 key, 400/404/422 rejected,
-    /// otherwise unreachable). `nil`: the connection works.
-    public static func failure(status: Int) -> AnswerFailure? {
+    /// Response status and body -> error in everyday language (401/403 key, 429/503/529 busy or quota,
+    /// 400/404/405/422 rejected, otherwise unreachable). `nil`: the connection works.
+    public static func failure(status: Int, body: String = "") -> AnswerFailure? {
         switch status {
         case 200..<300: nil
         case 401, 403: .pi(.authFailed, AnswerFailureCode.authFailed.fallbackText)
+        case 429:
+            PiProviderClient.problem(in: body) == .quota
+                ? .pi(.providerRejected, L("Your online AI limit is reached for now. Try again later, or check your account.", table: "Core"))
+                : .pi(.providerBusy, AnswerFailureCode.providerBusy.fallbackText)
+        case 503, 529: .pi(.providerBusy, AnswerFailureCode.providerBusy.fallbackText)
         case 400, 404, 405, 422: .pi(.providerRejected, AnswerFailureCode.providerRejected.fallbackText)
         default: .pi(.providerUnreachable, AnswerFailureCode.providerUnreachable.fallbackText)
         }
@@ -54,11 +59,13 @@ public enum ModelConnectionTest {
         let request = try request(connection, apiKey: apiKey)
         let transport = session ?? URLSession(configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
         defer { if session == nil { transport.finishTasksAndInvalidate() } }
+        let data: Data
         let response: URLResponse
-        do { (_, response) = try await transport.data(for: request) } catch is CancellationError { throw CancellationError() } catch {
+        do { (data, response) = try await transport.data(for: request) } catch is CancellationError { throw CancellationError() } catch {
             throw AnswerFailure.pi(.providerUnreachable, AnswerFailureCode.providerUnreachable.fallbackText)
         }
-        if let failure = failure(status: (response as? HTTPURLResponse)?.statusCode ?? 0) { throw failure }
+        let body = String(decoding: data.prefix(4096), as: UTF8.self)
+        if let failure = failure(status: (response as? HTTPURLResponse)?.statusCode ?? 0, body: body) { throw failure }
     }
 
     private final class NoRedirects: NSObject, URLSessionTaskDelegate {

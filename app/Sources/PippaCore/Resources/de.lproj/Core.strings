@@ -55,6 +55,8 @@
 "The answer didn’t come through just now. Please try again in a moment." = "Die Antwort kam gerade nicht zustande. Versuch es gleich noch einmal.";
 "The request was turned down. Please check the online AI and address under Settings › Online AI." = "Die Anfrage wurde abgelehnt. Prüf die Online-KI und die Adresse unter Einstellungen › Online-KI.";
 "The online AI you chose didn’t let me in. Please check the key under Settings › Online AI." = "Die gewählte Online-KI hat den Zugang abgelehnt. Prüf den Schlüssel unter Einstellungen › Online-KI.";
+"The online AI is busy right now. Your connection works; try again in a moment." = "Die Online-KI ist gerade ausgelastet. Deine Verbindung klappt; versuch es gleich noch einmal.";
+"Your online AI limit is reached for now. Try again later, or check your account." = "Dein Online-KI-Limit ist vorerst erreicht. Versuch es später noch einmal oder prüf dein Konto.";
 "Pippa needs a Mac with Apple silicon (M1 or later)." = "Pippa braucht einen Mac mit Apple-Chip (M1 oder neuer).";
 "%.1f GB" = "%.1f GB";
 "a few minutes" = "wenige Minuten";

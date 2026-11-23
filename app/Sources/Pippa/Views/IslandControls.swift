@@ -70,15 +70,7 @@ struct IslandQuestionText: View {
     /// More of the text lies below what shows (a long recipient list, a whole mail). No `@State`: no SwiftUI macros.
     private let continues = State(initialValue: false)
 
-    private var parts: (title: String, message: String, detail: String) {
-        var title = request.title, message = request.message
-        if request.method == "select", message.isEmpty, let cut = title.range(of: "\n\n") {
-            message = String(title[cut.upperBound...]); title = String(title[..<cut.lowerBound])
-        }
-        let paragraphs = message.components(separatedBy: "\n\n")
-        return (title.isEmpty ? T("May Pippa do this?", table: "App") : title, paragraphs.first ?? message,
-                paragraphs.dropFirst().joined(separator: "\n\n"))
-    }
+    private var parts: ApprovalPresentation { ApprovalPresentation.parse(request) }
 
     var body: some View {
         let parts = parts
@@ -89,13 +81,17 @@ struct IslandQuestionText: View {
             // so the buttons below stay in reach.
             ScrollView {
                 VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
-                    if !parts.message.isEmpty {
-                        Text(parts.message).font(IslandStyle.small).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                    if let message = parts.summary, !message.isEmpty {
+                        Text(ApprovalPresentation.formatted(message, baseFont: IslandStyle.small, valueFont: IslandStyle.small.weight(.semibold),
+                                                            labelColor: IslandStyle.white(IslandStyle.secondary),
+                                                            valueColor: IslandStyle.white(IslandStyle.primary)))
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    if !parts.detail.isEmpty {
+                    if let detail = parts.detail, !detail.isEmpty {
                         // In full, as on the chat's card: the command or address the person allows (bounded by its sender).
-                        Text(parts.detail).font(IslandStyle.detail).foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                        Text(ApprovalPresentation.formatted(detail, baseFont: IslandStyle.detail, valueFont: IslandStyle.detail.weight(.semibold),
+                                                            labelColor: IslandStyle.white(IslandStyle.secondary),
+                                                            valueColor: IslandStyle.white(IslandStyle.primary)))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }

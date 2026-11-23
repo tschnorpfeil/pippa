@@ -21,17 +21,7 @@ struct QuestionCard: View {
     /// Escape says no or cancels, on the oldest question only.
     private var escape: KeyboardShortcut? { handlesKeys ? .cancelAction : nil }
 
-    /// Pi's `select` has no message, only a title and answers; "question\n\nsentence" may come in the title.
-    private var text: (title: String, paragraphs: [String]) {
-        var title = request.title, message = request.message
-        if request.method == "select", message.isEmpty, let cut = title.range(of: "\n\n") {
-            message = String(title[cut.upperBound...])
-            title = String(title[..<cut.lowerBound])
-        }
-        let paragraphs = message.components(separatedBy: "\n\n")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        return (title.isEmpty ? T("May Pippa do this?", table: "App") : title, paragraphs)
-    }
+    private var text: ApprovalPresentation { ApprovalPresentation.parse(request) }
 
     var body: some View {
         let text = self.text
@@ -43,15 +33,18 @@ struct QuestionCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
             }
-            if let first = text.paragraphs.first {
-                Text(first).font(Typo.callout).foregroundStyle(Theme.ink2)
+            if let first = text.summary {
+                Text(ApprovalPresentation.formatted(first, baseFont: Typo.callout, valueFont: Typo.callout.weight(.semibold),
+                                                    labelColor: Theme.ink2, valueColor: Theme.ink))
                     .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
             // What exactly would happen (the search words, the address): right on the card, selectable to check.
-            if text.paragraphs.count > 1 {
-                let detail = text.paragraphs.dropFirst().joined(separator: "\n\n")
-                let shown = Text(detail)
-                    .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink).lineSpacing(2)
+            if let detail = text.detail {
+                let shown = Text(ApprovalPresentation.formatted(detail, baseFont: Typo.callout.weight(.medium),
+                                                                valueFont: Typo.callout.weight(.semibold),
+                                                                labelColor: Theme.ink2, valueColor: Theme.ink))
+                    .lineSpacing(2)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)

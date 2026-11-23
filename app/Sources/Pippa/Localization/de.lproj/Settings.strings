@@ -98,9 +98,9 @@
 "More Providers and Models…" = "Weitere Anbieter und Modelle …";
 "Sign in to %@" = "Bei %@ anmelden";
 "Signing in doesn’t switch anything yet: you choose afterwards." = "Die Anmeldung stellt noch nichts um: Das entscheidest du danach.";
-"%@ doesn’t recommend a model. Choose one under More Providers and Models." = "%@ empfiehlt kein Modell. Wähle eins unter „Weitere Anbieter und Modelle“.";
 "Model: %@" = "Modell: %@";
 "No providers are available. Try refreshing the list." = "Es sind keine Anbieter verfügbar. Versuche, die Liste zu aktualisieren.";
+"Your sign-in expired. Reconnect this provider and try again." = "Deine Anmeldung ist abgelaufen. Verbinde diesen Anbieter erneut und versuch es noch einmal.";
 
 /* Sharing with an online AI (issue #193) */
 "An online AI never reads these by itself. Before anything from them is sent, Pippa shows which provider gets it and the exact text, which you can edit. What you type yourself is sent as it is." = "Eine Online-KI liest hier nie selbst. Bevor etwas daraus gesendet wird, zeigt Pippa, welcher Anbieter es bekommt, und den genauen Text, den du ändern kannst. Was du selbst schreibst, wird so gesendet, wie es ist.";

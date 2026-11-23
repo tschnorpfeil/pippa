@@ -265,10 +265,32 @@ struct IslandPanelView: View {
         case .setup:
             setupAction
         case .failed:
-            Text(lastAnswer?.message.error ?? "")
-                .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.primary - 0.1))
-                .lineSpacing(2).fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
+                Text(lastAnswer?.message.error ?? "")
+                    .font(IslandStyle.body).foregroundStyle(IslandStyle.white(IslandStyle.primary - 0.1))
+                    .lineSpacing(2).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let failed = lastAnswer, !chat.isAnswering {
+                    HStack(spacing: IslandStyle.buttonGap) {
+                        if chat.offersResume(failed.message), let resumeAfter = failed.message.resumeAfter {
+                            TimelineView(.explicit(ChatModel.resumeTicks(until: resumeAfter))) { context in
+                                let left = Int(resumeAfter.timeIntervalSince(context.date).rounded(.up))
+                                Button(left > 0 ? T("Continue in %lld s", table: "App", left) : T("Continue", table: "App")) {
+                                    chat.resume(in: failed.conversationID)
+                                }
+                                .buttonStyle(IslandButtonStyle(prominent: left <= 0))
+                                .monospacedDigit()
+                                .disabled(left > 0)
+                            }
+                        } else {
+                            Button(T("Try Again", table: "App")) {
+                                chat.retry(in: failed.conversationID)
+                            }
+                            .buttonStyle(IslandButtonStyle(prominent: true))
+                        }
+                    }
+                }
+            }
         case .answer:
             // The answer as in the chat (bold, lists, headings, tables), scrolling inside the island when it is long.
             ScrollView {

@@ -1,5 +1,75 @@
 import AppKit
 import PiRPC
+import SwiftUI
+
+/// Parsed display parts of a Pi UI request, shared by `QuestionCard`, `IslandQuestionText` and the fallback alert.
+struct ApprovalPresentation: Equatable {
+    var title: String
+    var summary: String?
+    var detail: String?
+
+    /// Pi's `select` has no message, only a title and answers; "question\n\nsentence" may come in the title.
+    static func parse(_ request: PiUIRequest) -> Self {
+        var title = request.title, message = request.message
+        if request.method == "select", message.isEmpty, let cut = title.range(of: "\n\n") {
+            message = String(title[cut.upperBound...])
+            title = String(title[..<cut.lowerBound])
+        }
+        let paragraphs = message.components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        let fallback = title.isEmpty ? T("May Pippa do this?", table: "App") : title
+        let detail = paragraphs.count > 1 ? paragraphs.dropFirst().joined(separator: "\n\n") : nil
+        return Self(title: fallback, summary: paragraphs.first, detail: detail)
+    }
+
+    /// Splits a structured metadata line ("To: anna@example.org", "Betreff: Vertrag") into its label and value.
+    /// Rejects URLs and prose sentences so only real header fields are highlighted.
+    static func keyValueLine(_ line: String) -> (label: String, value: String)? {
+        guard let colon = line.firstIndex(of: ":") else { return nil }
+        let after = line.index(after: colon)
+        guard after < line.endIndex, line[after] == " " else { return nil }
+        let label = String(line[..<colon]).trimmingCharacters(in: .whitespaces)
+        let value = String(line[line.index(after: after)...]).trimmingCharacters(in: .whitespaces)
+        guard !label.isEmpty, label.count <= 24, !value.isEmpty,
+              let first = label.first, first.isLetter,
+              label.allSatisfy({ $0.isLetter || $0 == " " || $0 == "-" }) else { return nil }
+        let lower = label.lowercased()
+        guard lower != "http" && lower != "https" && lower != "mailto" else { return nil }
+        return (label, value)
+    }
+
+    /// Highlights structured key-value paragraphs (recipients, subject, sender, attachments) while leaving free text plain.
+    static func formatted(_ text: String, baseFont: Font, valueFont: Font, labelColor: Color, valueColor: Color) -> AttributedString {
+        let paragraphs = text.components(separatedBy: "\n\n")
+        var result = AttributedString()
+        for (pIndex, paragraph) in paragraphs.enumerated() {
+            if pIndex > 0 { result.append(AttributedString("\n\n")) }
+            let lines = paragraph.components(separatedBy: "\n")
+            let parsed = lines.map(keyValueLine)
+            let isMetadata = !lines.isEmpty && parsed.allSatisfy { $0 != nil }
+            if isMetadata {
+                for (lIndex, pair) in parsed.enumerated() {
+                    guard let pair else { continue }
+                    if lIndex > 0 { result.append(AttributedString("\n")) }
+                    var label = AttributedString(pair.label + ": ")
+                    label.font = baseFont
+                    label.foregroundColor = labelColor
+                    var value = AttributedString(pair.value)
+                    value.font = valueFont
+                    value.foregroundColor = valueColor
+                    result.append(label)
+                    result.append(value)
+                }
+            } else {
+                var plain = AttributedString(paragraph)
+                plain.font = baseFont
+                plain.foregroundColor = valueColor
+                result.append(plain)
+            }
+        }
+        return result
+    }
+}
 
 /// Questions Pi's extensions ask before a risky step (a shell command that changes things, a web search). They are
 /// answered inside Pippa (`Approvals`); this alert is the fallback while no view that can show them is on screen.
@@ -29,16 +99,10 @@ enum Confirmations {
 
     static func alert(_ request: PiUIRequest) -> PiUIResponse {
         let alert = NSAlert()
-        // Pi's `select` has no message, only a title and answers; "question\n\nsentence" may come in the title.
-        var title = request.title, message = request.message
-        if request.method == "select", message.isEmpty, let cut = title.range(of: "\n\n") {
-            message = String(title[cut.upperBound...]); title = String(title[..<cut.lowerBound])
-        }
-        alert.messageText = title.isEmpty ? T("May Pippa do this?", table: "App") : title
-        let parts = message.components(separatedBy: "\n\n")
-        alert.informativeText = parts.first ?? message
-        if parts.count > 1 {
-            let text = parts.dropFirst().joined(separator: "\n\n")
+        let parsed = ApprovalPresentation.parse(request)
+        alert.messageText = parsed.title
+        alert.informativeText = parsed.summary ?? ""
+        if let text = parsed.detail {
             if text.count > QuestionCard.scrollsAfter {
                 // A long text (a whole mail) scrolls, so the buttons stay on screen; nothing is cut.
                 let scroll = NSTextView.scrollableTextView()

@@ -5,7 +5,7 @@ import Foundation
 
 /// Error codes of a connection (today: "Test connection", ModelConnectionTest). The message is already everyday language.
 public enum AnswerFailureCode: String, Sendable, CaseIterable {
-    case providerUnreachable = "provider_unreachable", providerRejected = "provider_rejected", authFailed = "auth_failed"
+    case providerUnreachable = "provider_unreachable", providerRejected = "provider_rejected", authFailed = "auth_failed", providerBusy = "provider_busy"
 }
 public enum AnswerFailure: LocalizedError, Sendable {
     case runtime(String)

@@ -45,7 +45,7 @@ public final class DiagnosticsLog: @unchecked Sendable {
 
     private static let redactionRules: [(expression: NSRegularExpression, template: String)] = [
         (#"[\w.+\-]+@[\w\-]+\.[\w.\-]+"#, "<mail>"),
-        (#"(?i)(bearer\s+|sk-|key[=:\s]+)[A-Za-z0-9._\-]{6,}"#, "<schluessel>"),
+        (#"(?i)(bearer\s+|basic\s+|authorization[:\s]+|sk-|gh[pousr]_|github_pat_|xox[baprs]-|(?:api[_-]?key|key|token|secret|password|passwd|pwd|otp)[=:\s]+)[A-Za-z0-9._\-+/=]{4,}"#, "<schluessel>"),
         (#"[A-Za-z][A-Za-z0-9+.\-]*://\S+"#, "<adresse>"),
         (#"(~|/)[^\s]*/[^\s]*"#, "<pfad>"),
         (#"\b[A-Za-z0-9_\-]{32,}\b"#, "<kennung>"),
@@ -128,6 +128,7 @@ public extension AnswerFailureCode {
         case .providerUnreachable: L("The answer didn’t come through just now. Please try again in a moment.", table: "Core")
         case .providerRejected: L("The request was turned down. Please check the online AI and address under Settings › Online AI.", table: "Core")
         case .authFailed: L("The online AI you chose didn’t let me in. Please check the key under Settings › Online AI.", table: "Core")
+        case .providerBusy: L("The online AI is busy right now. Your connection works; try again in a moment.", table: "Core")
         }
     }
 }

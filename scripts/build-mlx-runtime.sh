@@ -45,21 +45,21 @@ RESOURCE_MANIFEST="$ROOT/app/Sources/PippaCore/Resources/mlx-runtime.json"
 CACHE="${PIPPA_CACHE:-$HOME/Library/Caches/pippa-build}/mlx-runtime"
 
 # --- Pins --------------------------------------------------------------------
-OMLX_VERSION="0.7.3"
-BUILD_REVISION="2"                       # bump when the archive changes without a new oMLX (2: native kernels)
+OMLX_VERSION="0.8.3"
+BUILD_REVISION="1"                       # bump when the archive changes without a new oMLX
 VERSION="$OMLX_VERSION-$BUILD_REVISION"
 PYTHON_VERSION="3.11.14"                 # python-build-standalone as uv ships it
 OMLX_URL="https://github.com/jundot/omlx/archive/refs/tags/v$OMLX_VERSION.tar.gz"
-OMLX_SHA256="ff0d649ba4e550c031a5d27bb7a4a89b30b35607483fd42010bda2164c0547ad"
+OMLX_SHA256="ccc4939f6ee9ec57a56b8b26333d1e5c0f5b4723d8165ba33cb87832ddac01ac"
 # Resolution date for PyPI packages: a relock picks what existed then, not whatever is newest.
-EXCLUDE_NEWER="2026-11-01T00:00:00Z"
+EXCLUDE_NEWER="2026-11-24T00:00:00Z"
 NAME="pippa-mlx-runtime-$VERSION-arm64"
 ARCHIVE="$OUT/$NAME.tar.gz"
 MANIFEST="$OUT/$NAME.json"
 RELEASE_URL="https://github.com/tschnorpfeil/pippa/releases/download/mlx-runtime-$VERSION/$NAME.tar.gz"
 # The kernels' Mach-O files target oMLX's own default; the NAX library sets 26.2 itself (oMLX's setup.py).
 KERNEL_DEPLOYMENT_TARGET="15.0"
-KERNEL_PACKAGES=(attention lowbit quant_matmul sparse_index)
+KERNEL_PACKAGES=(attention lowbit oqh quant_matmul sparse_index)
 
 say() { printf '\033[1m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mWarning: %s\033[0m\n' "$*" >&2; }

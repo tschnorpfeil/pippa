@@ -20,6 +20,14 @@ func runModelConnectionChecks() async {
         try await ModelConnectionTest.check(direct, apiKey: "fixture-key")
         return receiver.requests == 1 && receiver.sawFixturePOST
     }
+    check("Connection test treats 429 rate-limit and 503 as busy, and 429 quota as rejected") {
+        guard case .pi(.providerBusy, _) = ModelConnectionTest.failure(status: 429, body: "429 Too Many Requests: model is at capacity"),
+              case .pi(.providerBusy, _) = ModelConnectionTest.failure(status: 503),
+              case .pi(.providerRejected, _) = ModelConnectionTest.failure(status: 429, body: "insufficient_quota: billing limit reached"),
+              case .pi(.authFailed, _) = ModelConnectionTest.failure(status: 401),
+              ModelConnectionTest.failure(status: 200) == nil else { return false }
+        return true
+    }
 }
 
 private final class ConnectionFixture: @unchecked Sendable {
