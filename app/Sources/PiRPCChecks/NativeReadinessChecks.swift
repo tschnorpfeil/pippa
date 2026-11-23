@@ -103,8 +103,12 @@ func handleReadinessFixture(_ request: [String: Any]) -> Bool {
     }
     check("Native file preparation is required for registration and Pi may call every Pippa MCP tool",
           PiNativeReadiness.tools.contains("mcp__pippa__prepare_files") && PippaPiLaunch.tools.contains("mcp__pippa__*"))
-    check("Pippa's browser tool is required for registration, exactly once, among fifteen native tools",
-          PiNativeReadiness.tools.filter { $0 == "mcp__pippa__browse" }.count == 1 && PiNativeReadiness.tools.count == 15)
+    check("Pippa's browser tool is required for registration, exactly once, among twenty native tools",
+          PiNativeReadiness.tools.filter { $0 == "mcp__pippa__browse" }.count == 1 && PiNativeReadiness.tools.count == 20)
+    check("Pippa 1.1 tools (notes, contacts, compute, calendar/reminder updates) are registered and classified",
+          ["notes_read", "contacts_search", "compute", "calendar_update", "reminder_update"].allSatisfy { PiNativeReadiness.tools.contains("mcp__pippa__" + $0) }
+          && PiTurnReceipt.pippaWriters.contains("calendar_update") && PiTurnReceipt.pippaWriters.contains("reminder_update")
+          && !PiTurnReceipt.pippaWriters.contains("notes_read") && !PiTurnReceipt.pippaWriters.contains("contacts_search") && !PiTurnReceipt.pippaWriters.contains("compute"))
     check("Sending a saved draft is required for registration and is a native change with a receipt",
           PiNativeReadiness.tools.filter { $0 == "mcp__pippa__mail_send" }.count == 1 && PiTurnReceipt.pippaWriters.contains("mail_send"))
     check("Mail folders and mail moves are required for registration, and a mail move is a native write with a receipt",

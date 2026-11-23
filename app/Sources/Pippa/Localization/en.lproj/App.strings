@@ -91,6 +91,7 @@
 "1 step" = "1 step";
 "Added to Calendar" = "Added to Calendar";
 "Ask Pippa…" = "Ask Pippa…";
+"Drop photos or PDFs for One PDF, or set up an AI above…" = "Drop photos or PDFs for One PDF, or set up an AI above…";
 "Change in Settings" = "Change in Settings";
 "Copied" = "Copied";
 "Draft in Mail, not sent" = "Draft in Mail, not sent";
@@ -314,3 +315,15 @@
 "Writing a Mail draft to %@" = "Writing a Mail draft to %@";
 "Searching Photos for “%@”" = "Searching Photos for “%@”";
 "Send while Pippa works" = "Send while Pippa works";
+
+// Pippa 1.1 tool step labels.
+"Updating Calendar" = "Updating Calendar";
+"Updating “%@” in Calendar" = "Updating “%@” in Calendar";
+"Updating a reminder" = "Updating a reminder";
+"Updating the reminder “%@”" = "Updating the reminder “%@”";
+"Reading Notes" = "Reading Notes";
+"Searching Notes for “%@”" = "Searching Notes for “%@”";
+"Searching Contacts" = "Searching Contacts";
+"Searching Contacts for “%@”" = "Searching Contacts for “%@”";
+"Calculating" = "Calculating";
+"Reading Safari tabs" = "Reading Safari tabs";

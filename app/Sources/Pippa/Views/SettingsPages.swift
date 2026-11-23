@@ -6,6 +6,7 @@ import SwiftUI
 /// General: the shortcut, opening at login, Pippa Island, moving to Applications.
 struct GeneralSettings: View {
     @ObservedObject var island = Island.shared
+    @ObservedObject private var hotkeys = HotkeyCenter.shared
     private let hotkeyState = State(initialValue: Hotkey.current)
     private let opensAtLoginState = State(initialValue: SMAppService.mainApp.status == .enabled)
     /// Asked once: where the app lies does not change while it runs.
@@ -20,6 +21,12 @@ struct GeneralSettings: View {
                     }
                     .labelsHidden()
                     .onChange(of: hotkeyState.wrappedValue) { _, value in Hotkey.current = value; HotkeyCenter.shared.apply(value) }
+                }
+                if hotkeys.mainTaken {
+                    Text(HotkeyCenter.takenText)
+                        .font(Typo.footnote).foregroundStyle(Theme.need)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, Space.xl).padding(.bottom, Space.ml)
                 }
                 SettingsDivider()
                 SettingsRow(title: T("Open at login", table: "App")) {

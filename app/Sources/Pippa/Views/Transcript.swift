@@ -37,6 +37,15 @@ struct Transcript: View {
                         cards: last.cards.count, receipts: last.receipts.count, failed: last.error != nil)
     }
 
+    private func errorFallback(for message: ChatMessage, isLast: Bool) -> MessageView.ErrorFallback? {
+        guard isLast, let error = message.error, message.destination != nil,
+              SettingsModel.shared.inferenceSettings.usesOnlineAI else { return nil }
+        if error == ChatModel.limitMessage(.signedOut) { return .openSettings }
+        if setup.isReady { return .useLocal }
+        if error == ChatModel.limitMessage(.quota) { return .openSettings }
+        return nil
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -52,6 +61,7 @@ struct Transcript: View {
                                     answering: chat.isAnswering, started: answeringHere && last ? chat.answerStarted : nil,
                                     waiting: answeringHere && last ? chat.retryWait.map(ChatModel.retryLabel) : nil,
                                     resumes: last && chat.offersResume(message),
+                                    fallback: errorFallback(for: message, isLast: last),
                                     undoing: chat.undoing)
                             .equatable()
                             .arrives(arrives, delay: message.role == .assistant ? Theme.stagger : 0)

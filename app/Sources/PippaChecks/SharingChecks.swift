@@ -713,8 +713,11 @@ func runSharingChecks() async {
         let (online, demo) = host(log: log)
         var replies: [(String, Bool)] = []
         for (name, args) in [("mail_read", ["subject": "Nebenkostenabrechnung 2025"]), ("mail_search", [:]), ("calendar_read", ["period": "today"]),
-                             ("reminders_read", [:]), ("photos_search", [:]), ("front_read", [:]), ("read_document", ["path": "/tmp/x.pdf"]),
-                             ("prepare_files", ["paths": ["/tmp/a.jpg"]]), ("browse", ["url": "https://example.com"])] as [(String, [String: Any])] {
+                             ("reminders_read", [:]), ("photos_search", [:]), ("front_read", [:]), ("front_read", ["tabs": true]),
+                             ("notes_read", [:]), ("contacts_search", ["query": "Berger"]), ("compute", ["op": "sum", "numbers": [1, 2]]),
+                             ("calendar_update", ["id": "demo-zahnarzt", "title": "Moved"]), ("reminder_update", ["id": "demo-r1", "completed": true]),
+                             ("read_document", ["path": "/tmp/x.pdf"]), ("prepare_files", ["paths": ["/tmp/a.jpg"]]),
+                             ("browse", ["url": "https://example.com"])] as [(String, [String: Any])] {
             replies.append(await mcpCall(online, name, args))
         }
         let text = replies.map(\.0).joined()

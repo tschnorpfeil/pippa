@@ -56,6 +56,8 @@
 	<string>When you ask, Pippa reads the email you selected in Mail and the table you’re looking at in Excel, opens Numbers tables you give her to read them, and searches your photos and notes. Nothing is sent without your approval.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>When you ask, Pippa reads your appointments for the period you ask about, and adds deadlines from your letters to Calendar, which it can remove again.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>When you ask, Pippa looks up contact details in your Contacts on this Mac. She doesn’t change or upload anything.</string>
 	<key>NSDesktopFolderUsageDescription</key>
 	<string>Pippa reads and tidies files on your Desktop when you ask her to. You can undo her changes.</string>
 	<key>NSDocumentsFolderUsageDescription</key>

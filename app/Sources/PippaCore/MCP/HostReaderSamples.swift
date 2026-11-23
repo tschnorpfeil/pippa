@@ -29,8 +29,8 @@ extension DemoHostData {
         let today = calendar.startOfDay(for: now)
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
         return [
-            ReminderItem(title: "Nebenkosten überweisen (Beispiel)", list: "Erinnerungen", due: tomorrow),
-            ReminderItem(title: "Geschenk für Oma besorgen (Beispiel)", list: "Privat"),
+            ReminderItem(id: "demo-rem-1", title: "Nebenkosten überweisen (Beispiel)", list: "Erinnerungen", due: tomorrow),
+            ReminderItem(id: "demo-rem-2", title: "Geschenk für Oma besorgen (Beispiel)", list: "Privat"),
         ]
     }
 }

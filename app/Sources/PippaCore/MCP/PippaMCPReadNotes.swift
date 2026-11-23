@@ -11,6 +11,8 @@ extension PippaMCPTools {
         case "reminders_read": Integration.reminders.appName
         case "mail_selected", "mail_search", "mail_folders": Integration.mail.appName
         case "photos_search": PhotosLibrary.appName
+        case "notes_read": NotesScript.appName
+        case "contacts_search": ContactsStore.appName
         case "front_read": Self.frontAppName(outcome)
         default: ExcelScript.appName
         }
@@ -47,6 +49,17 @@ extension PippaMCPTools {
             case let (nil, days?): L("Read Photos: pictures from the last %lld days", table: "MCP", days)
             case (nil, nil): L("Read Photos: newest pictures", table: "MCP")
             }
+        case "notes_read":
+            if let title = data["title"] as? String, !title.isEmpty {
+                line = L("Read Notes: “%@”", table: "MCP", short(title))
+            } else if let query = data["query"] as? String, !query.isEmpty {
+                line = L("Searched Notes for “%@”: %lld found", table: "MCP", short(query), data["total"] as? Int ?? 0)
+            } else {
+                line = L("Read Notes: newest notes", table: "MCP")
+            }
+        case "contacts_search":
+            let query = (data["query"] as? String) ?? ""
+            line = L("Searched Contacts for “%@”: %lld found", table: "MCP", short(query), data["shown"] as? Int ?? 0)
         case "front_read": line = L("Read %@: “%@”", table: "MCP", app, short(data["title"] as? String ?? ""))
         default: line = L("Read Excel: active sheet", table: "MCP")
         }

@@ -52,13 +52,13 @@ test("codemode only on explicit request (measuring)", () => {
 });
 
 test("tool names as in the Swift server, none writes or sends", () => {
-	assert.deepEqual(TOOLS, ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "read_document"]);
+	assert.deepEqual(TOOLS, ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "notes_read", "contacts_search", "compute", "read_document"]);
 	assert.ok(TOOLS.every((name) => !/send|write|add|delete|create|draft/.test(name)));
 });
 
 test("admission requires exactly the readers and writers of the Swift server", () => {
-	assert.deepEqual(REQUIRED_TOOLS, ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "read_document",
-		"calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files", "browse", "mail_send"].map((name) => `mcp__pippa__${name}`));
+	assert.deepEqual(REQUIRED_TOOLS, ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "notes_read", "contacts_search", "compute", "read_document",
+		"calendar_add", "reminder_add", "mail_draft", "mail_move", "calendar_update", "reminder_update", "prepare_files", "browse", "mail_send"].map((name) => `mcp__pippa__${name}`));
 });
 
 test("the one sending tool is separate from the Mac-only writers", () => {
@@ -72,7 +72,7 @@ test("the browser tool is separate from the readers and the Mac-only writers", (
 });
 
 test("writing tools as in the Swift server, none sends or deletes", () => {
-	assert.deepEqual(WRITE_TOOLS, ["calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files"]);
+	assert.deepEqual(WRITE_TOOLS, ["calendar_add", "reminder_add", "mail_draft", "mail_move", "calendar_update", "reminder_update", "prepare_files"]);
 	assert.ok(WRITE_TOOLS.every((name) => !/send|delete|remove|invite/.test(name)));
 });
 

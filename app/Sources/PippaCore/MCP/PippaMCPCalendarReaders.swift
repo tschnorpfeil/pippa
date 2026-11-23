@@ -37,6 +37,7 @@ extension PippaMCPTools {
             let fetch = try await host.hostData.openReminders(dueBefore: end, limit: 40)
             let items = fetch.items.map { item -> [String: Any] in
                 var value: [String: Any] = ["title": item.title, "list": item.list]
+                if let id = item.id, !id.isEmpty { value["id"] = id }
                 if let notes = CalendarDigest.oneLine(item.notes.map(Self.compact), max: 200) { value["notes"] = notes }
                 if let priority = item.priority { value["priority"] = priority }
                 if let due = item.due {

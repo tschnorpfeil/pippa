@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 
 /// A kind of personal data Pippa can read on this Mac.
 public enum SharingSource: String, Codable, Sendable, CaseIterable, Hashable, Comparable {
-    case mail, documents, calendar, reminders, photos
+    case mail, documents, calendar, reminders, photos, contacts
 
     public static func < (a: Self, b: Self) -> Bool { a.order < b.order }
 
@@ -19,6 +19,7 @@ public enum SharingSource: String, Codable, Sendable, CaseIterable, Hashable, Co
         case .calendar: 2
         case .reminders: 3
         case .photos: 4
+        case .contacts: 5
         }
     }
 
@@ -29,18 +30,22 @@ public enum SharingSource: String, Codable, Sendable, CaseIterable, Hashable, Co
         case .calendar: L("Calendar", table: "Core")
         case .reminders: L("Reminders", table: "Core")
         case .photos: L("Photos", table: "Core")
+        case .contacts: L("Contacts", table: "Core")
         }
     }
 
     /// What a tool call read, from the tool's own name (Pi's events), never from the model's text. `front_read` can read
-    /// Mail or any document app, so it counts as both. Web tools read none of the five.
+    /// Mail or any document app, so it counts as all sources. Web and compute tools read none.
     public static func read(byTool tool: String) -> Set<SharingSource> {
         let name = tool.hasPrefix("mcp__pippa__") ? String(tool.dropFirst("mcp__pippa__".count)) : tool
         switch name {
         case "mail_search", "mail_read", "mail_selected", "mail_draft", "mail_folders", "mail_move", "mail_send": return [.mail]
-        case "calendar_read", "calendar_add": return [.calendar]
-        case "reminders_read", "reminder_add": return [.reminders]
+        case "calendar_read", "calendar_add", "calendar_update": return [.calendar]
+        case "reminders_read", "reminder_add", "reminder_update": return [.reminders]
         case "photos_search": return [.photos]
+        case "contacts_search": return [.contacts]
+        case "notes_read": return [.documents]
+        case "compute": return []
         case "prepare_files": return [.photos, .documents]
         case "front_read", "bash", "read", "read_document", "browse": return Set(allCases)
         case "write", "edit", "search_files", "list_folder", "move_files": return Set(allCases)
@@ -72,7 +77,7 @@ public enum SharingRule: String, Codable, Sendable, CaseIterable {
     case localOnly
 }
 
-/// The five rules, saved with the AI settings. A rule that is missing (settings from before 0.8) is "Ask before sharing":
+/// The sharing rules, saved with the AI settings. A rule that is missing (settings from before 0.8 or 1.0) is "Ask before sharing":
 /// nothing is ever sent without the review, so the default adds a question, not a permission.
 public struct SourceSharing: Codable, Sendable, Equatable {
     public var mail: SharingRule
@@ -80,10 +85,12 @@ public struct SourceSharing: Codable, Sendable, Equatable {
     public var calendar: SharingRule
     public var reminders: SharingRule
     public var photos: SharingRule
+    public var contacts: SharingRule
 
     public init(mail: SharingRule = .ask, documents: SharingRule = .ask, calendar: SharingRule = .ask,
-                reminders: SharingRule = .ask, photos: SharingRule = .ask) {
-        self.mail = mail; self.documents = documents; self.calendar = calendar; self.reminders = reminders; self.photos = photos
+                reminders: SharingRule = .ask, photos: SharingRule = .ask, contacts: SharingRule = .ask) {
+        self.mail = mail; self.documents = documents; self.calendar = calendar
+        self.reminders = reminders; self.photos = photos; self.contacts = contacts
     }
 
     public init(from decoder: Decoder) throws {
@@ -93,7 +100,8 @@ public struct SourceSharing: Codable, Sendable, Equatable {
             guard let raw = try? values.decodeIfPresent(String.self, forKey: key) else { return values.contains(key) ? .localOnly : .ask }
             return SharingRule(rawValue: raw) ?? .localOnly
         }
-        mail = rule(.mail); documents = rule(.documents); calendar = rule(.calendar); reminders = rule(.reminders); photos = rule(.photos)
+        mail = rule(.mail); documents = rule(.documents); calendar = rule(.calendar)
+        reminders = rule(.reminders); photos = rule(.photos); contacts = rule(.contacts)
     }
 
     public subscript(source: SharingSource) -> SharingRule {
@@ -104,6 +112,7 @@ public struct SourceSharing: Codable, Sendable, Equatable {
             case .calendar: calendar
             case .reminders: reminders
             case .photos: photos
+            case .contacts: contacts
             }
         }
         set {
@@ -113,6 +122,7 @@ public struct SourceSharing: Codable, Sendable, Equatable {
             case .calendar: calendar = newValue
             case .reminders: reminders = newValue
             case .photos: photos = newValue
+            case .contacts: contacts = newValue
             }
         }
     }

@@ -124,7 +124,7 @@ public struct PippaMCPBrowserTool: Sendable {
     public static func toolList() -> [[String: Any]] {
         let string: [String: Any] = ["type": "string"]
         return [["name": name, "title": "Browser",
-                  "description": "Pippa's browser panel. open url→page+@eN refs; click/fill/select ref with snapshot_id. Person does logins/2FA/CAPTCHA.",
+                  "description": "Browser panel. open url→@eN refs; click/fill/select ref+snapshot_id. Person does login/CAPTCHA.",
                   "inputSchema": ["type": "object", "additionalProperties": false, "required": ["action"], "properties": [
                     "action": ["enum": actions], "url": string, "ref": ["type": "string", "pattern": "^@e[1-9][0-9]*$"],
                     "text": string, "value": string, "snapshot_id": string,

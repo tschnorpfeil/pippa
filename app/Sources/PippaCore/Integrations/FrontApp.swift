@@ -60,6 +60,23 @@ public struct FrontContent: Sendable, Equatable {
     }
 }
 
+/// One open tab in Safari (1-based window and tab indices, matching AppleScript).
+public struct SafariTab: Sendable, Equatable {
+    public var windowIndex: Int
+    public var tabIndex: Int
+    public var title: String
+    public var url: String
+    public var active: Bool
+
+    public init(windowIndex: Int, tabIndex: Int, title: String, url: String, active: Bool = false) {
+        self.windowIndex = windowIndex
+        self.tabIndex = tabIndex
+        self.title = title
+        self.url = url
+        self.active = active
+    }
+}
+
 /// Reading the app in front, for Pippa's MCP server. The real one asks the apps via Apple Events; checks use a stand-in.
 public protocol FrontAppReading: Sendable {
     /// May Pippa ask this app? `ask: true` shows the system prompt.
@@ -68,10 +85,16 @@ public protocol FrontAppReading: Sendable {
     func readFront(_ app: FrontApp) async throws -> FrontContent?
     /// The second way in, when Apple Events bring nothing (FrontAppAccessibility.swift). `nil`: none.
     var accessibility: (any AccessibilityFrontReading)? { get }
+    /// All open Safari tabs across windows (via Apple Events, no JavaScript).
+    func listSafariTabs() async throws -> [SafariTab]
+    /// Native text of one specific Safari tab (`window` and `tab` are 1-based; `nil` if out of range).
+    func readSafariTab(window: Int, tab: Int) async throws -> FrontContent?
 }
 
 public extension FrontAppReading {
     var accessibility: (any AccessibilityFrontReading)? { nil }
+    func listSafariTabs() async throws -> [SafariTab] { [] }
+    func readSafariTab(window: Int, tab: Int) async throws -> FrontContent? { nil }
 }
 
 /// The chip of the running answer: set by the app for one answer (PiRPCChat+Shown.swift), read by `front_read`.
@@ -113,25 +136,65 @@ public struct SystemFrontApp: FrontAppReading {
         default: return try await FrontAppScript.document(app)
         }
     }
+
+    public func listSafariTabs() async throws -> [SafariTab] {
+        try await FrontAppScript.safariTabs()
+    }
+
+    public func readSafariTab(window: Int, tab: Int) async throws -> FrontContent? {
+        guard window >= 1, tab >= 1 else { return nil }
+        return try await FrontAppScript.safariTabPage(window: window, tab: tab)
+    }
 }
 
 /// Invented data only (PIPPA_DEMO=1, checks): never touches real apps.
 public final class DemoFrontApp: FrontAppReading, @unchecked Sendable {
+    public static var defaultSafariTabs: [SafariTab] {
+        [
+            SafariTab(windowIndex: 1, tabIndex: 1, title: "Mietkaution – Beispielseite", url: "https://beispiel.example/kaution", active: true),
+            SafariTab(windowIndex: 1, tabIndex: 2, title: "Bahnverbindung Köln – München", url: "https://beispiel.example/bahn", active: false),
+            SafariTab(windowIndex: 2, tabIndex: 1, title: "Stromtarif Vergleich 2026", url: "https://beispiel.example/strom", active: true),
+        ]
+    }
+
+    public static var defaultSafariTabContents: [String: FrontContent] {
+        [
+            "1:1": FrontContent(kind: .page, title: "Mietkaution – Beispielseite", url: "https://beispiel.example/kaution",
+                                text: "Die Kaution darf höchstens drei Nettokaltmieten betragen (Beispieltext)."),
+            "1:2": FrontContent(kind: .page, title: "Bahnverbindung Köln – München", url: "https://beispiel.example/bahn",
+                                text: "ICE 515 ab Köln Hbf 08:55, an München Hbf 13:26, Gleis 6 (Beispieltext)."),
+            "2:1": FrontContent(kind: .page, title: "Stromtarif Vergleich 2026", url: "https://beispiel.example/strom",
+                                text: "Arbeitspreis 31,4 ct/kWh, Grundpreis 14,90 € pro Monat (Beispieltext)."),
+        ]
+    }
+
     public var access: IntegrationAccess
     public var content: FrontContent?
     /// No Accessibility fallback unless a check sets one.
     public var accessibility: (any AccessibilityFrontReading)?
+    public var safariTabs: [SafariTab]
+    public var safariTabContents: [String: FrontContent]
     public init(access: IntegrationAccess = .granted,
                 content: FrontContent? = FrontContent(kind: .page, title: "Mietkaution – Beispielseite", url: "https://beispiel.example/kaution",
                                                       text: "Die Kaution darf höchstens drei Nettokaltmieten betragen (Beispieltext)."),
-                accessibility: (any AccessibilityFrontReading)? = nil) {
+                accessibility: (any AccessibilityFrontReading)? = nil,
+                safariTabs: [SafariTab] = DemoFrontApp.defaultSafariTabs,
+                safariTabContents: [String: FrontContent] = DemoFrontApp.defaultSafariTabContents) {
         self.access = access; self.content = content; self.accessibility = accessibility
+        self.safariTabs = safariTabs; self.safariTabContents = safariTabContents
     }
     public func frontAccess(_ app: FrontApp, ask: Bool) async -> IntegrationAccess {
         if access == .notDetermined && ask { access = .granted }
         return access
     }
     public func readFront(_ app: FrontApp) async throws -> FrontContent? { content }
+    public func listSafariTabs() async throws -> [SafariTab] { safariTabs }
+    public func readSafariTab(window: Int, tab: Int) async throws -> FrontContent? {
+        guard window >= 1, tab >= 1 else { return nil }
+        if let found = safariTabContents["\(window):\(tab)"] { return found }
+        guard let info = safariTabs.first(where: { $0.windowIndex == window && $0.tabIndex == tab }) else { return nil }
+        return FrontContent(kind: .page, title: info.title, url: info.url.isEmpty ? nil : info.url, text: "")
+    }
 }
 
 /// Read only: the front tab's title, address and text; the front document's path. Never changes anything.
@@ -173,6 +236,69 @@ enum FrontAppScript {
             return {name of d, theURL, theText}
         end tell
     end frontPage
+
+    on listTabs()
+        tell application id "com.apple.Safari"
+            set out to {}
+            set winCount to count of windows
+            repeat with w from 1 to winCount
+                try
+                    set win to window w
+                    set curIdx to 0
+                    try
+                        set curIdx to index of current tab of win
+                    end try
+                    set tabList to tabs of win
+                    set tabCount to count of tabList
+                    repeat with t from 1 to tabCount
+                        set theTab to item t of tabList
+                        set theName to ""
+                        try
+                            set v to name of theTab
+                            if v is not missing value then set theName to v as text
+                        end try
+                        set theURL to ""
+                        try
+                            set v to URL of theTab
+                            if v is not missing value then set theURL to v as text
+                        end try
+                        set isActive to (t is curIdx)
+                        set end of out to {w, t, theName, theURL, isActive}
+                    end repeat
+                end try
+            end repeat
+            return out
+        end tell
+    end listTabs
+
+    on tabPage(winIdx, tabIdx)
+        tell application id "com.apple.Safari"
+            if winIdx < 1 or winIdx > (count of windows) then return {}
+            set win to window winIdx
+            set tabCount to 0
+            try
+                set tabCount to count of tabs of win
+            end try
+            if tabIdx < 1 or tabIdx > tabCount then return {}
+            set theTab to tab tabIdx of win
+            set theName to ""
+            try
+                set v to name of theTab
+                if v is not missing value then set theName to v as text
+            end try
+            set theURL to ""
+            try
+                set v to URL of theTab
+                if v is not missing value then set theURL to v as text
+            end try
+            set theText to ""
+            try
+                set v to text of theTab
+                if v is not missing value then set theText to v as text
+            end try
+            return {theName, theURL, theText}
+        end tell
+    end tabPage
     """
 
     /// The page text needs Chrome's "Allow JavaScript from Apple Events"; without it title and address only.
@@ -222,6 +348,28 @@ enum FrontAppScript {
     static func page(_ source: String, app: FrontApp) async throws -> FrontContent? {
         let parts = try await AppleEvents.perform { () throws -> [String] in
             let reply = try AppleEvents.call(source, handler: "frontPage", appName: app.name)
+            return AppleEvents.strings(reply)
+        }
+        guard parts.count >= 3 else { return nil }
+        return FrontContent(kind: .page, title: parts[0], url: parts[1].isEmpty ? nil : parts[1], text: parts[2])
+    }
+
+    static func safariTabs() async throws -> [SafariTab] {
+        try await AppleEvents.perform { () throws -> [SafariTab] in
+            let reply = try AppleEvents.call(safari, handler: "listTabs", appName: "Safari")
+            return ScriptValue(reply).items.compactMap { row -> SafariTab? in
+                let f = row.items
+                guard f.count >= 5, let w = f[0].number, let t = f[1].number else { return nil }
+                return SafariTab(windowIndex: w, tabIndex: t, title: f[2].text ?? "", url: f[3].text ?? "", active: f[4].flag ?? false)
+            }
+        }
+    }
+
+    static func safariTabPage(window: Int, tab: Int) async throws -> FrontContent? {
+        let parts = try await AppleEvents.perform { () throws -> [String] in
+            let reply = try AppleEvents.call(safari, handler: "tabPage",
+                                             [NSAppleEventDescriptor(int32: Int32(window)), NSAppleEventDescriptor(int32: Int32(tab))],
+                                             appName: "Safari")
             return AppleEvents.strings(reply)
         }
         guard parts.count >= 3 else { return nil }

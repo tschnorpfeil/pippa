@@ -40,12 +40,13 @@ extension MCPCheckContext {
                 return a["readOnlyHint"] as? Bool == true && a["destructiveHint"] as? Bool == false && a["openWorldHint"] as? Bool == false
                     && (tool["inputSchema"] as? [String: Any])?["type"] as? String == "object"
             }
-            // Keep the reader list under 3,500 bytes and the full 15-tool `tools/list` under 7,300 bytes (6,000 for 12 tools before
-            // mail_folders and mail_move, 7,000 for 14 before mail_send).
+            // Keep the reader list under 5,000 bytes and the full 20-tool `tools/list` under 9,800 bytes (1.0 was 15 tools / 7,118 bytes;
+            // 1.1 adds notes_read, contacts_search, compute, calendar_update, reminder_update and Safari multi-tab args).
+            // The whole list also has its own ceiling in ComputeAndBudgetChecks.swift.
             let readerBytes = (try? JSONSerialization.data(withJSONObject: tools))?.count ?? .max
             let allBytes = (try? JSONSerialization.data(withJSONObject: all))?.count ?? .max
-            if readerBytes >= 3500 || allBytes >= 7300 { print("  tools/list bytes: readers \(readerBytes), all \(allBytes)") }
-            return names == PippaMCPTools.toolNames && hintsOK && readerBytes < 3500 && allBytes < 7300 && tools.count == 8 && all.count == 15
+            if readerBytes >= 5000 || allBytes >= 9800 { print("  tools/list bytes: readers \(readerBytes), all \(allBytes)") }
+            return names == PippaMCPTools.toolNames && hintsOK && readerBytes < 5000 && allBytes < 9800 && tools.count == 11 && all.count == 20
         }
         await checkAsync("MCP: browse is listed once, open world, not destructive, not read-only") {
             let s = setup()

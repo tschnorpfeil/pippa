@@ -22,7 +22,11 @@ struct MessageView: View, Equatable {
     var waiting: String?
     /// The answer stopped at the online AI's limit and typed words still go to its session (`ChatModel.offersResume`).
     var resumes = false
+    /// Quick recovery action beside Try Again when an online answer fails.
+    var fallback: ErrorFallback? = nil
     var undoing: Set<String>
+
+    enum ErrorFallback: Equatable { case useLocal, openSettings }
     private let hoverState = State(initialValue: false)
     /// Cards, receipts and an error already there when the answer came on screen; ones that come later arrive.
     private let seenState = State<(cards: Int, receipts: Int, error: Bool)?>(initialValue: nil)
@@ -31,7 +35,7 @@ struct MessageView: View, Equatable {
 
     nonisolated static func == (a: MessageView, b: MessageView) -> Bool {
         a.message == b.message && a.live == b.live && a.isLast == b.isLast && a.starting == b.starting && a.writing == b.writing && a.answering == b.answering
-            && a.started == b.started && a.waiting == b.waiting && a.resumes == b.resumes && a.undoing == b.undoing
+            && a.started == b.started && a.waiting == b.waiting && a.resumes == b.resumes && a.fallback == b.fallback && a.undoing == b.undoing
     }
 
     var body: some View {
@@ -115,7 +119,8 @@ struct MessageView: View, Equatable {
             }
             if let error = message.error {
                 ErrorBox(text: error, retry: isLast && !answering ? { chat.retry() } : nil,
-                         resumeAfter: isLast && !answering && resumes ? message.resumeAfter : nil, resume: { chat.resume() })
+                         resumeAfter: isLast && !answering && resumes ? message.resumeAfter : nil, resume: { chat.resume() },
+                         fallback: isLast && !answering ? fallback : nil)
                     .arrives(seen.map { !$0.error } ?? false)
             }
             if !live { footer }
@@ -174,6 +179,7 @@ private struct ErrorBox: View {
     /// The online AI stayed at its limit: Continue instead of Try Again, counting down until it may go.
     var resumeAfter: Date?
     var resume: () -> Void = {}
+    var fallback: MessageView.ErrorFallback? = nil
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Space.ml) {
@@ -181,16 +187,29 @@ private struct ErrorBox: View {
             Text(text).font(Typo.callout).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             Spacer(minLength: Space.m)
-            if let resumeAfter {
-                // Once a second until Continue may go, then no more ticks.
-                TimelineView(.explicit(ChatModel.resumeTicks(until: resumeAfter))) { context in
-                    let left = Int(resumeAfter.timeIntervalSince(context.date).rounded(.up))
-                    ActionPill(title: left > 0 ? T("Continue in %lld s", table: "App", left) : T("Continue", table: "App"),
-                               primary: left <= 0, action: resume)
-                        .monospacedDigit()
-                        .disabled(left > 0)
+            HStack(spacing: Space.s) {
+                if let fallback {
+                    switch fallback {
+                    case .useLocal:
+                        ActionPill(title: T("Use this Mac", table: "Settings")) {
+                            try? SettingsModel.shared.saveInferenceSettings(SettingsModel.shared.inferenceSettings.onThisMac())
+                        }
+                    case .openSettings:
+                        ActionPill(title: T("Settings…", table: "App")) { SettingsWindow.shared.show(.ai) }
+                    }
                 }
-            } else if let retry { ActionPill(title: T("Try Again", table: "App"), action: retry) }
+                if let resumeAfter {
+                    // Once a second until Continue may go, then no more ticks.
+                    TimelineView(.explicit(ChatModel.resumeTicks(until: resumeAfter))) { context in
+                        let left = Int(resumeAfter.timeIntervalSince(context.date).rounded(.up))
+                        ActionPill(title: left > 0 ? T("Continue in %lld s", table: "App", left) : T("Continue", table: "App"),
+                                   primary: left <= 0, action: resume)
+                            .monospacedDigit()
+                            .disabled(left > 0)
+                    }
+                } else if let retry { ActionPill(title: T("Try Again", table: "App"), action: retry) }
+            }
+            .fixedSize()
         }
         .padding(.horizontal, Space.card).padding(.vertical, Space.l)
         .frame(maxWidth: Layout.cardMax, alignment: .leading)

@@ -34,6 +34,18 @@ enum ApprovalsChecks {
         check(approvals.questions.isEmpty, "an answered question disappears")
         approvals.answer("q1", .confirmed(false))   // late or double click: ignored
 
+        // Shared approval parser + structured key-value detection (used by QuestionCard, Island and fallback alert).
+        let selectParsed = ApprovalPresentation.parse(PiUIRequest(id: "p1", method: "select", title: "Pick one\n\nDetails below", message: "", options: ["A"]))
+        let mailParsed = ApprovalPresentation.parse(PiUIRequest(id: "p2", method: "confirm", title: "Send this mail?",
+                                                                message: "To: anna@example.test\n\nSubject: Vertrag\nFrom: ich@example.test\n\nHallo Anna."))
+        let kv = ApprovalPresentation.keyValueLine("To: anna@example.test")
+        let notURL = ApprovalPresentation.keyValueLine("https: //example.com")
+        let notProse = ApprovalPresentation.keyValueLine("Hinweis zur Kündigung 2026: Bitte prüfen")
+        check(selectParsed.title == "Pick one" && selectParsed.summary == "Details below" && selectParsed.detail == nil
+              && mailParsed.summary == "To: anna@example.test" && mailParsed.detail == "Subject: Vertrag\nFrom: ich@example.test\n\nHallo Anna."
+              && kv?.label == "To" && kv?.value == "anna@example.test" && notURL == nil && notProse == nil,
+              "approval parser splits select titles and detects structured metadata lines without matching URLs or prose")
+
         // mail_send names its buttons; the chat's card, the island and the alert all take them from here.
         let named = Confirmations.confirmLabels(request("q-send", options: ["Don’t Send", "Send"]))
         let plain = Confirmations.confirmLabels(request("q-plain"))

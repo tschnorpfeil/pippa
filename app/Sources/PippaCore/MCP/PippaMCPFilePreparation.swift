@@ -41,7 +41,7 @@ public struct PippaMCPFilePreparation: Sendable {
 
     public static func toolList() -> [[String: Any]] {
         [["name": name, "title": "Prepare files",
-          "description": "Ordered PDFs/photos to verified PDF; originals kept; no send/upload. size_limit_mb=goal.",
+          "description": "PDFs/photos→verified PDF; originals kept, no upload. size_limit_mb=goal.",
           "inputSchema": ["type": "object", "additionalProperties": false, "required": ["paths"], "properties": [
             "paths": ["type": "array", "items": ["type": "string"], "minItems": 1, "maxItems": 50],
             "quality": ["enum": ["original", "balanced", "compact"]],

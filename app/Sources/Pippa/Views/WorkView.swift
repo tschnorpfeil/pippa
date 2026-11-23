@@ -86,6 +86,7 @@ struct WorkView: View {
                 .frame(width: 16, height: 16)
                 .animation(Theme.quick, value: writing)
                 Text(nowLabel).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle)
+                    .help(nowLabel)
                     .shimmers(waiting == nil)
                     .contentTransition(.opacity)
                     .animation(Theme.quick, value: nowLabel)
@@ -139,15 +140,18 @@ struct WorkView: View {
     }
 
     private func stepRow(_ step: ChatStep) -> some View {
-        HStack(spacing: Space.m) {
+        HStack(alignment: .top, spacing: Space.m) {
             Group {
                 if !step.done && live { SpinRing(size: 11, lineWidth: 1.5) }
                 else if step.failed { Image(systemName: "exclamationmark").font(Typo.caption.weight(.bold)).foregroundStyle(Theme.need) }
                 else { Image(systemName: "checkmark").font(Typo.caption.weight(.semibold)).foregroundStyle(Theme.ink3) }
             }
             .frame(width: 14, height: 14)
+            .padding(.top, 2)
             .contentTransition(.symbolEffect(.replace))
-            Text(step.label).lineLimit(1).truncationMode(.middle).foregroundStyle(step.done || !live ? Theme.ink3 : Theme.ink2)
+            Text(step.label)
+                .foregroundStyle(step.done || !live ? Theme.ink3 : Theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
             // Where the time goes: the running step counts up, a finished one of a second or more says how long it took.
             if !step.done && live, let started = step.started {
                 ElapsedSeconds(since: started).foregroundStyle(Theme.ink3)
@@ -156,7 +160,8 @@ struct WorkView: View {
             }
         }
         .font(Typo.footnote)
-        .frame(height: 24)
+        .padding(.vertical, 3)
+        .frame(minHeight: 24, alignment: .leading)
     }
 
     /// What she is doing right now: the running step, the AI starting, words coming in, else thinking. With the steps

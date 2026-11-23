@@ -24,7 +24,7 @@ public enum IntegrationScripts {
     public static var sources: [(name: String, source: String)] {
         var all = [("Mail", MailScript.source), ("MailReply", MailReplyScript.source), ("MailSearch", MailSearchScript.source), ("MailAccounts", MailAccountScript.source),
                    ("MailMove", MailAccountScript.moveSource), ("MailSend", MailSendScript.source), ("Excel", ExcelScript.source),
-                   ("PhotosSearch", PhotosSearchScript.source), ("PhotosShow", PhotosShowScript.source),
+                   ("PhotosSearch", PhotosSearchScript.source), ("PhotosShow", PhotosShowScript.source), ("Notes", NotesScript.source),
                    ("Safari", FrontAppScript.safari), ("Chrome", FrontAppScript.chrome), ("FrontDocument", FrontAppScript.documentSource)]
         #if DEBUG || PIPPA_PROBES
         all.insert(("MailMoveDiagnose", MailAccountScript.diagnoseSource), at: 5)

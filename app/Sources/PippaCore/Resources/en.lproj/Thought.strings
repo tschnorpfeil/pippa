@@ -99,3 +99,11 @@
 "Mail not sent: %@" = "Mail not sent: %@";
 "Stopped before sending a mail" = "Stopped before sending a mail";
 "Mail hasn’t confirmed the send yet. Look in Sent before trying again." = "Mail hasn’t confirmed the send yet. Look in Sent before trying again.";
+
+// calendar_update / reminder_update receipts (1.1).
+"Stopped before updating Calendar" = "Stopped before updating Calendar";
+"Stopped before updating a reminder" = "Stopped before updating a reminder";
+"Updated Calendar: %@" = "Updated Calendar: %@";
+"Calendar not updated: %@" = "Calendar not updated: %@";
+"Reminder updated: %@" = "Reminder updated: %@";
+"Reminder not updated: %@" = "Reminder not updated: %@";

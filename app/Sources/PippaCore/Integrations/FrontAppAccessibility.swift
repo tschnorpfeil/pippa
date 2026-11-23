@@ -146,8 +146,8 @@ public struct SystemAccessibilityFrontReader: AccessibilityFrontReading {
     static let promptedKey = "accessibilityPromptShown"
     /// Per attribute call, so a hanging app cannot hold the walk for long.
     static let messagingTimeout: Float = 1
-    /// For the whole walk.
-    static let walkLimit: TimeInterval = 3
+    /// For the whole walk (enough room for cold Electron/Chromium trees and large Mail windows).
+    static let walkLimit: TimeInterval = 6
 
     public init() {}
 
@@ -184,9 +184,13 @@ public struct SystemAccessibilityFrontReader: AccessibilityFrontReading {
         guard AXIsProcessTrusted(), NSRunningApplication(processIdentifier: app.pid)?.bundleIdentifier == app.bundleID else { return nil }
         let deadline = Date().addingTimeInterval(walkLimit)
         let element = AXUIElementCreateApplication(app.pid)
+        let fallbackWindow: () -> AXUIElement? = {
+            guard let windows = element.ax(kAXWindowsAttribute, as: [AXUIElement].self, before: deadline) else { return nil }
+            return windows.first { $0.ax(kAXMinimizedAttribute, as: Bool.self, before: deadline) != true } ?? windows.first
+        }
         guard let window = element.ax(kAXFocusedWindowAttribute, as: AXUIElement.self, before: deadline)
                 ?? element.ax(kAXMainWindowAttribute, as: AXUIElement.self, before: deadline)
-                ?? element.ax(kAXWindowsAttribute, as: [AXUIElement].self, before: deadline)?.first else { return nil }
+                ?? fallbackWindow() else { return nil }
         let walk = AccessibilityText.collect(
             window,
             role: { $0.ax(kAXRoleAttribute, as: String.self, before: deadline) ?? "" },

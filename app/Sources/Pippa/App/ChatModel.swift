@@ -106,7 +106,7 @@ struct Conversation: Codable, Identifiable, Equatable {
 final class ChatModel: ObservableObject {
     static let shared = ChatModel()
 
-    @Published private(set) var conversations: [Conversation] = []
+    @Published var conversations: [Conversation] = []
     @Published var currentID: String?
     private var composers: [String: ShareComposer] = [:]
     var hasReviewHere: Bool {
@@ -147,12 +147,12 @@ final class ChatModel: ObservableObject {
     /// Pippa often thinks or reads on.
     @Published private(set) var isWriting = false
     /// Pi waits before it tries the online AI again, with the seconds left, counted down once a second.
-    @Published private(set) var retryWait: RetryWait?
-    private var retryTick: Task<Void, Never>?
+    @Published var retryWait: RetryWait?
+    var retryTick: Task<Void, Never>?
     private var answer: Task<Void, Never>?
     private var pdfTask: Task<Void, Never>?
     /// "Stop" was pressed for the running answer.
-    private var stopRequested = false
+    var stopRequested = false
     /// Counts answers, so a late result of an earlier one never lands on a newer one.
     private var generation = 0
     /// The review open while the person checks what goes to an online AI, and the ones parked with their edits.
@@ -226,6 +226,7 @@ final class ChatModel: ObservableObject {
 
     func delete(_ id: String) {
         guard !isAnswering || id != answeringID else { return }
+        cancelTitleRefinement(for: id)
         unseenIDs.remove(id)
         conversations.removeAll { $0.id == id }
         if currentID == id { currentID = nil; draft = ""; attachments = [] }
@@ -239,6 +240,7 @@ final class ChatModel: ObservableObject {
     func rename(_ id: String, to title: String) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty, let index = conversations.firstIndex(where: { $0.id == id }) else { return }
+        cancelTitleRefinement(for: id)
         conversations[index].title = String(title.prefix(80))
         save(id)
     }
@@ -252,86 +254,9 @@ final class ChatModel: ObservableObject {
     // MARK: Undo
 
     /// Receipts being undone right now (message id, receipt index): the button stays disabled meanwhile.
-    @Published private(set) var undoing: Set<String> = []
+    @Published var undoing: Set<String> = []
     /// Conversation id → what the person undid that Pi has not heard of yet; told with the next question.
-    private(set) var undoneNotes: [String: [String]] = [:]
-
-    static func undoKey(_ messageID: UUID, _ index: Int) -> String { "\(messageID.uuidString)#\(index)" }
-
-    /// Removes the event or reminder a receipt names, only if it is unchanged since Pippa added it, and keeps the
-    /// outcome on the receipt (shown in the row, saved with the conversation).
-    func undo(receiptAt index: Int, in messageID: UUID) {
-        guard let id = currentID,
-              let receipts = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == messageID })?.receipts,
-              receipts.indices.contains(index), receipts[index].canUndo else { return }
-        let receipt = receipts[index]
-        let key = Self.undoKey(messageID, index)
-        guard !undoing.contains(key) else { return }
-        undoing.insert(key)
-        let run = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == messageID })?.run?.run
-        Task {
-            let result = await PippaMCPService.undo(receipt, run: run)
-            undoing.remove(key)
-            update(messageID, in: id) { message in
-                guard message.receipts.indices.contains(index) else { return }
-                message.receipts[index] = result
-            }
-            if result.undo == "removed" { undoneNotes[id, default: []].append(result.name) }
-            if let run, let summary = await PippaMCPService.runSummary(run) {
-                update(messageID, in: id) { $0.run = summary }
-            }
-            save(id)
-        }
-    }
-
-    /// Undo for everything the answer changed: backwards through its journal rows, each only if unchanged since Pippa
-    /// touched it; the receipt then counts what was undone, left because it changed, and failed.
-    func undoRun(in messageID: UUID) {
-        guard let id = currentID, let run = conversations.first(where: { $0.id == id })?.messages.first(where: { $0.id == messageID })?.run,
-              run.undoable > 0 else { return }
-        let key = Self.undoKey(messageID, -1)
-        guard !undoing.contains(key) else { return }
-        undoing.insert(key)
-        Task {
-            let (summary, report) = await PippaMCPService.undoRun(run.run)
-            undoing.remove(key)
-            // Each object's outcome as its own receipt row says it.
-            var outcomes: [String: String] = [:]
-            for row in report?.undone ?? [] { if let key = row.object.key { outcomes[key] = row.note == "gone" ? "gone" : "removed" } }
-            for row in report?.left ?? [] { if let key = row.object.key { outcomes[key] = "changed" } }
-            for row in report?.failed ?? [] { if let key = row.object.key { outcomes[key] = "failed" } }
-            update(messageID, in: id) { message in
-                // No rows any more (pruned after 30 days): nothing left to undo.
-                message.run = summary ?? RunSummary(run: run.run, changes: run.changes, checked: run.checked, unclear: run.unclear,
-                                                    undone: run.undone, left: run.left, failed: run.failed)
-                // The answer's own receipt rows say the same as the run receipt.
-                for index in message.receipts.indices where message.receipts[index].undo == nil {
-                    guard let key = message.receipts[index].created?.identifier, let outcome = outcomes[key] else { continue }
-                    message.receipts[index].undo = outcome
-                }
-            }
-            if let report { undoneNotes[id, default: []].append(contentsOf: report.undone.filter { $0.note != "gone" }.map(\.label)) }
-            save(id)
-        }
-    }
-
-    /// The run receipts as the journal has them now. A change cut off by a crash or quit shows as unclear.
-    private func refreshRuns() {
-        let runs = conversations.flatMap(\.messages).compactMap(\.run?.run)
-        guard !runs.isEmpty else { return }
-        Task {
-            let summaries = await PippaMCPService.runSummaries(runs)
-            var changed: Set<String> = []
-            for c in conversations.indices {
-                for m in conversations[c].messages.indices {
-                    guard let run = conversations[c].messages[m].run, let fresh = summaries[run.run], fresh != run else { continue }
-                    conversations[c].messages[m].run = fresh
-                    changed.insert(conversations[c].id)
-                }
-            }
-            changed.forEach(save)
-        }
-    }
+    var undoneNotes: [String: [String]] = [:]
 
     // MARK: Asking
 
@@ -406,6 +331,7 @@ final class ChatModel: ObservableObject {
         if !conversations.contains(where: { $0.id == id }) {
             let title = String((text.isEmpty ? files.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? shared?.first ?? "" : text).prefix(60))
             startConversation(id, title: title)
+            if !text.isEmpty { refineTitleIfUnchanged(conversationID: id, initialTitle: title, prompt: text) }
         }
         let question = ChatMessage(role: .user, text: text, files: files, destination: destination, shared: shared)
         append(question, to: id)
@@ -514,34 +440,6 @@ final class ChatModel: ObservableObject {
         attachments = message.files.map { URL(fileURLWithPath: $0) }
     }
 
-    /// The last answer failed: ask the same question again.
-    /// An approved question is never sent again as it was: it goes back through the review (no replay).
-    func retry() {
-        guard !isAnswering, review == nil, let id = currentID, let index = conversations.firstIndex(where: { $0.id == id }) else { return }
-        let messages = conversations[index].messages
-        guard messages.count >= 2, messages[messages.count - 1].role == .assistant, messages[messages.count - 2].role == .user else { return }
-        let question = messages[messages.count - 2]
-        let files = question.files.map { URL(fileURLWithPath: $0) }
-        if question.shared != nil, let route = reviewRoute {
-            // Back through the review, with the edits of the one that failed when it is parked here. The composer keeps
-            // whatever was typed since.
-            conversations[index].removeTurnForRetry()
-            save(id)
-            let parked = desk.parked(in: id, handoff: route.handoff) != nil
-            startReview(route.destination, handoff: route.handoff, composer: ShareComposer(text: question.text, files: files), explicit: parked)
-            return
-        }
-        guard question.shared == nil else {
-            // No online AI to check it for any more: the words go back into an empty composer, nothing is sent.
-            if draft.isEmpty && attachments.isEmpty { draft = question.text; attachments = files }
-            return
-        }
-        conversations[index].removeTurnForRetry()
-        draft = question.text
-        attachments = files
-        send()
-    }
-
     /// Dropped photos or PDFs, one PDF: done by the app itself, no model needed.
     func makePDF() {
         guard !isAnswering, !attachments.isEmpty else { return }
@@ -646,111 +544,6 @@ final class ChatModel: ObservableObject {
         activeReplyID = nil
         stopRequested = false
         waitForRetry(nil)
-    }
-
-    /// Pi waits before it tries again: how long, and whether the online AI said "too many requests".
-    struct RetryWait: Equatable {
-        var until: Date
-        var rateLimit: Bool
-        var seconds: Int
-    }
-
-    /// Continue waits this long after the last try failed: a rate limit counts per minute.
-    static let resumeDelay: TimeInterval = 60
-
-    /// What the chat and Pippa Island say during the wait.
-    static func retryLabel(_ wait: RetryWait) -> String {
-        wait.rateLimit ? T("The online AI is at its limit. Continuing in %lld s", table: "App", wait.seconds)
-            : T("The AI didn’t answer. Trying again in %lld s", table: "App", wait.seconds)
-    }
-
-    /// Starts (`until`) or ends (`nil`) the countdown.
-    private func waitForRetry(_ until: Date?, rateLimit: Bool = false) {
-        retryTick?.cancel()
-        retryTick = nil
-        guard let until else { if retryWait != nil { retryWait = nil }; return }
-        func seconds() -> Int { max(0, Int(until.timeIntervalSinceNow.rounded(.up))) }
-        retryWait = RetryWait(until: until, rateLimit: rateLimit, seconds: seconds())
-        retryTick = Task {
-            while !Task.isCancelled, let wait = retryWait, wait.seconds > 0 {
-                try? await Task.sleep(for: .seconds(1))
-                if !Task.isCancelled { retryWait?.seconds = seconds() }
-            }
-            // The wait is over and Pi tries again: the answer shows its work, not "Continuing in 0 s".
-            if !Task.isCancelled { retryWait = nil }
-        }
-    }
-
-    /// What Pi receives with Continue: the session still holds everything the stopped answer did.
-    static let resumePrompt = "[Your last answer stopped because the online AI was at its limit. Continue where you stopped. "
-        + "Do not repeat changes that are already done; if you are unsure whether one was, check first.]"
-
-    /// Whether Continue may go now: the last answer stopped at the online AI's limit, its minute is over, and typed
-    /// words still go to its Pi session (`scope`, `PiSession.typedScope`).
-    static func resumable(_ messages: [ChatMessage], now: Date, scope: String?) -> Bool {
-        guard let last = messages.last, last.role == .assistant, let after = last.resumeAfter, scope != nil,
-              last.resumeScope == scope else { return false }
-        return after <= now
-    }
-
-    /// When the Continue countdown changes: each whole second from `now` until `until`, none after it.
-    static func resumeTicks(until: Date, now: Date = Date()) -> [Date] {
-        let left = max(0, Int(until.timeIntervalSince(now).rounded(.up)))
-        return [now] + (0..<left).map { until.addingTimeInterval(-Double(left - 1 - $0)) }
-    }
-
-    /// The session typed words go to now (`PiSession.typedScope`).
-    private static func typedScope() -> String? {
-        let settings = SettingsModel.shared.inferenceSettings
-        return PiSession.typedScope(settings, ShareDestination.active(settings))
-    }
-
-    /// The answer offers Continue: it stopped at the limit. Whether the route still leads to its session is checked when
-    /// the button is pressed (`resume`), not on every redraw: that reads the provider's files and the Keychain.
-    func offersResume(_ message: ChatMessage) -> Bool { message.resumeAfter != nil }
-
-    /// Continue after the online AI stayed at its limit: one follow-up in the same conversation's Pi session, never the
-    /// question again. Not before `resumeAfter`.
-    func resume(now: Date = Date()) {
-        guard !isAnswering, review == nil, let id = currentID, let index = conversations.firstIndex(where: { $0.id == id }),
-              let last = conversations[index].messages.indices.last, let after = conversations[index].messages[last].resumeAfter,
-              after <= now else { return }
-        let scope = Self.typedScope()
-        // Another AI, account or Mac access since the answer stopped: its session is not reachable from here. Continue
-        // goes, and the answer offers Try Again like any other failed one.
-        if scope == nil || conversations[index].messages[last].resumeScope != scope {
-            conversations[index].messages[last].resumeAfter = nil
-            conversations[index].messages[last].resumeScope = nil
-            return
-        }
-        guard Self.resumable(conversations[index].messages, now: now, scope: scope) else { return }
-        let settings = SettingsModel.shared.inferenceSettings
-        let destination = ShareDestination.active(settings)
-        let limited = destination != nil && !settings.allowsMacAccess(destination)
-        guard let outgoing = Self.outgoing(Self.resumePrompt, files: [], frontApp: nil, undone: [], online: limited) else { return }
-        conversations[index].messages[last].resumeAfter = nil
-        conversations[index].messages[last].resumeScope = nil
-        ask(T("Continue", table: "App"), files: [], outgoing: outgoing, destination: destination?.label)
-    }
-
-    /// A failure mid-answer as one plain sentence: an online provider's ("401 {…}", "usage limit"), or the AI on this Mac
-    /// running out of memory (the raw text goes to the log, not the chat); anything else as Pi said it.
-    static func modelError(_ error: String, online: Bool) -> String {
-        if let plain = OMLXServer.plainFailure(error, online: online) {
-            DiagnosticsLog.shared.event("ki-zu-wenig-speicher", ["text": error])
-            return plain
-        }
-        guard online, let problem = PiProviderClient.problem(in: error) else { return error }
-        return limitMessage(problem)
-    }
-
-    /// The sentence for an online AI's problem: a used-up allowance, too many requests for now, or a lost sign-in.
-    static func limitMessage(_ problem: PiProviderClient.Problem) -> String {
-        switch problem {
-        case .quota: T("Your online AI limit is reached for now. Try again later, or switch to the AI on this Mac in Settings.", table: "App")
-        case .rateLimit: T("The online AI is at its limit right now. Try again in a minute.", table: "App")
-        case .signedOut: T("Reconnect your online AI in Settings.", table: "App")
-        }
     }
 
     /// What Pi receives: the person's words, then the files they added and the app they called Pippa from.
@@ -954,7 +747,7 @@ final class ChatModel: ObservableObject {
     }
 
     /// Changes one message by its id (not "the last one": a new question may have come since).
-    private func update(_ messageID: UUID, in id: String, _ change: (inout ChatMessage) -> Void) {
+    func update(_ messageID: UUID, in id: String, _ change: (inout ChatMessage) -> Void) {
         guard let index = conversations.firstIndex(where: { $0.id == id }),
               let message = conversations[index].messages.firstIndex(where: { $0.id == messageID }) else { return }
         change(&conversations[index].messages[message])
@@ -983,152 +776,8 @@ final class ChatModel: ObservableObject {
     }
 
     /// Hands a copy to the background writer; files are written in the order they were saved.
-    private func save(_ id: String) {
+    func save(_ id: String) {
         guard !showsSample, let conversation = conversations.first(where: { $0.id == id }) else { return }
         store.save(conversation)
-    }
-}
-
-/// The conversation files, read and written on one background queue: encoding and writing never hold up the window,
-/// and saves land on disk in the order they were made (a later save of a conversation never loses to an earlier one).
-final class ConversationStore: Sendable {
-    private let folder: URL
-    private let queue = DispatchQueue(label: "Pippa.conversations", qos: .utility)
-
-    init(folder: URL) { self.folder = folder }
-
-    /// Called off the main actor (at launch). Every file that can be read counts; a missing folder is a first run. The
-    /// folder or files that cannot be read are counted and logged, so they never pass for an empty history.
-    func load() -> (conversations: [Conversation], unreadable: Int) {
-        queue.sync {
-            let files: [URL]
-            do { files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) }
-            catch {
-                if (error as NSError).code == NSFileReadNoSuchFileError { return ([], 0) }
-                UserMessage.record(error, context: "gespraeche-ordner")
-                return ([], 1)
-            }
-            let decoder = JSONDecoder()
-            var conversations: [Conversation] = [], unreadable = 0
-            for file in files where file.pathExtension == "json" {
-                do { conversations.append(try decoder.decode(Conversation.self, from: Data(contentsOf: file))) }
-                catch { unreadable += 1; UserMessage.record(error, context: "gespraech-lesen") }
-            }
-            return (conversations.sorted { $0.updated > $1.updated }, unreadable)
-        }
-    }
-
-    func save(_ conversation: Conversation) {
-        let folder = self.folder
-        queue.async {
-            guard let data = try? JSONEncoder().encode(conversation) else { return }
-            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try? data.write(to: folder.appendingPathComponent("\(conversation.id).json"), options: .atomic)
-        }
-    }
-
-    /// After any save still waiting, so a late write never brings a deleted conversation back.
-    func trash(_ id: String) {
-        let file = folder.appendingPathComponent("\(id).json")
-        queue.async { try? FileManager.default.trashItem(at: file, resultingItemURL: nil) }
-    }
-
-    /// Waits until every save so far is on disk (when Pippa quits).
-    func flush() { queue.sync {} }
-}
-
-/// A short everyday line for a tool call ("Reading Lease.pdf"). Display only; Pi never sees it.
-enum StepLabel {
-    /// A running step's label with where it is in a long document: "Reading Thesis.docx · Part 3 of 10".
-    static func progress(_ label: String, part: Int, of: Int, merging: Bool) -> String {
-        merging ? T("%@ · merging the notes", table: "App", label) : T("%@ · Part %lld of %lld", table: "App", label, part, of)
-    }
-
-    static func text(tool: String, arguments: String) -> String {
-        let args = (try? JSONSerialization.jsonObject(with: Data(arguments.utf8))) as? [String: Any] ?? [:]
-        let name = SourceLog.bareToolName(tool)
-        func file(_ key: String) -> String { (args[key] as? String).map { URL(fileURLWithPath: $0).lastPathComponent } ?? "" }
-        func value(_ key: String) -> String { (args[key] as? String) ?? "" }
-        /// A detail worth naming: the value, or the first of a list, on one line and short; "" when there is none.
-        func detail(_ key: String, list: String? = nil) -> String {
-            let first = (args[key] as? String) ?? list.flatMap { (args[$0] as? [Any])?.first as? String } ?? ""
-            return clip(first)
-        }
-        switch name {
-        case "read", "read_document":
-            // A web address is not a file: `read_document` refuses it, Pi's `read` cannot open it.
-            let path = value("path")
-            if path.hasPrefix("http://") || path.hasPrefix("https://") { return T("Reading a web page", table: "App") }
-            return T("Reading %@", table: "App", file("path"))
-        case "write": return T("Writing %@", table: "App", file("path"))
-        case "bash": return T("Running a command", table: "App")
-        case "search_files": return T("Searching files for “%@”", table: "App", value("query"))
-        case "list_folder": return T("Looking in %@", table: "App", file("path"))
-        case "move_files": return T("Moving files", table: "App")
-        case "web_search":
-            let query = detail("query", list: "queries")
-            return query.isEmpty ? T("Searching the web", table: "App") : T("Searching the web for “%@”", table: "App", query)
-        case "fetch_content":
-            let site = host(of: (args["url"] as? String) ?? ((args["urls"] as? [Any])?.first as? String) ?? "")
-            return site.isEmpty ? T("Reading a web page", table: "App") : T("Reading a page on %@", table: "App", site)
-        case "browse":
-            let site = value("action") == "open" ? host(of: value("url")) : ""
-            return site.isEmpty ? T("Browsing a web page", table: "App") : T("Browsing %@", table: "App", site)
-        case "remember": return T("Remembering", table: "App")
-        case "ask": return T("Asking you", table: "App")
-        case "calendar_read": return T("Reading Calendar", table: "App")
-        case "calendar_add":
-            let title = detail("title")
-            return title.isEmpty ? T("Adding to Calendar", table: "App") : T("Adding “%@” to Calendar", table: "App", title)
-        case "reminders_read": return T("Reading Reminders", table: "App")
-        case "reminder_add":
-            let title = detail("title")
-            return title.isEmpty ? T("Adding a reminder", table: "App") : T("Adding the reminder “%@”", table: "App", title)
-        case "mail_search":
-            let query = detail("query")
-            return query.isEmpty ? T("Reading Mail", table: "App") : T("Searching Mail for “%@”", table: "App", query)
-        case "mail_folders":
-            let account = detail("account")
-            return account.isEmpty ? T("Reading Mail", table: "App") : T("Reading the Mail folders of %@", table: "App", account)
-        case "mail_read": return T("Reading Mail", table: "App")
-        case "mail_move":
-            // The folder by its own name ("Invoices"), not its whole path ("Work/2026/Invoices").
-            let folder = clip(value("to").split(separator: "/").last.map(String.init) ?? "")
-            if args["dry_run"] as? Bool == true {
-                return folder.isEmpty ? T("Planning mail moves", table: "App") : T("Planning mail moves to %@", table: "App", folder)
-            }
-            return folder.isEmpty ? T("Moving mails", table: "App") : T("Moving mails to %@", table: "App", folder)
-        case "mail_draft":
-            let subject = detail("subject"), to = detail("to")
-            if !subject.isEmpty { return T("Writing a Mail draft: %@", table: "App", subject) }
-            return to.isEmpty ? T("Writing a Mail draft", table: "App") : T("Writing a Mail draft to %@", table: "App", to)
-        case "mail_send": return T("Sending a mail", table: "App")
-        case "photos_search":
-            let query = detail("query")
-            return query.isEmpty ? T("Searching Photos", table: "App") : T("Searching Photos for “%@”", table: "App", query)
-        case "front_read": return T("Reading the app in front", table: "App")
-        case "prepare_files": return T("Preparing files", table: "App")
-        case PiTurnReceipt.scriptTool: return T("Working through the list", table: "App")
-        // A tool Pippa does not know (a model may invent one): say that a tool is used, never the raw name.
-        default: return T("Using a tool", table: "App")
-        }
-    }
-
-    /// One line of at most `max` characters, cut at a word where one is near ("Quarterly report for…").
-    static func clip(_ text: String, _ max: Int = 36) -> String {
-        let line = text.split(whereSeparator: \.isNewline).joined(separator: " ")
-            .split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
-        guard line.count > max else { return line }
-        let cut = String(line.prefix(max - 1))
-        let word = cut.lastIndex(of: " ").map { String(cut[..<$0]) }
-        let kept = word.flatMap { $0.count >= max / 2 ? $0 : nil } ?? cut
-        return kept.trimmingCharacters(in: .whitespaces.union(.punctuationCharacters)) + "…"
-    }
-
-    /// The site of a web address without "www." ("zeit.de"); "" for anything that is not one.
-    static func host(of urlString: String) -> String {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let host = URL(string: trimmed)?.host()?.lowercased(), !host.isEmpty else { return "" }
-        return clip(host.hasPrefix("www.") ? String(host.dropFirst(4)) : host)
     }
 }

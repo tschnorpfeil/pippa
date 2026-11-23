@@ -89,6 +89,201 @@ public enum CreatedItemReadBack: Sendable, Equatable {
     case unavailable
 }
 
+// MARK: Updating events and reminders
+
+/// An event's editable fields as they were (journaled before an update, restored by Undo).
+public struct CalendarEventSnapshot: Sendable, Equatable, Codable {
+    public var title: String
+    public var start: Date
+    public var end: Date
+    public var allDay: Bool
+    public var location: String?
+    public var notes: String?
+    /// The calendar's title (never changed by an update).
+    public var calendar: String
+    public init(title: String, start: Date, end: Date, allDay: Bool = false, location: String? = nil, notes: String? = nil, calendar: String) {
+        self.title = title; self.start = start; self.end = end; self.allDay = allDay; self.location = location; self.notes = notes
+        self.calendar = calendar
+    }
+}
+
+/// What to change on an event, already computed by Pippa's server. `nil` = leave as it is.
+public struct CalendarEventPatch: Sendable, Equatable {
+    public var title: String?
+    public var start: Date?
+    public var end: Date?
+    public var allDay: Bool?
+    public var location: String?
+    public var notes: String?
+    /// The fingerprint Pippa saw when she computed the patch: anything else at save time refuses (`.changed`).
+    public var expectedFingerprint: String?
+    public init(title: String? = nil, start: Date? = nil, end: Date? = nil, allDay: Bool? = nil, location: String? = nil,
+                notes: String? = nil, expectedFingerprint: String? = nil) {
+        self.title = title; self.start = start; self.end = end; self.allDay = allDay; self.location = location; self.notes = notes
+        self.expectedFingerprint = expectedFingerprint
+    }
+
+    /// The snapshot with this patch applied, and the names of the fields that actually change.
+    public func applied(to s: CalendarEventSnapshot) -> (CalendarEventSnapshot, [String]) {
+        var after = s
+        if let title { after.title = title }
+        if let start { after.start = start }
+        if let end { after.end = end }
+        if let allDay { after.allDay = allDay }
+        if let location { after.location = location }
+        if let notes { after.notes = notes }
+        var changed: [String] = []
+        if after.title != s.title { changed.append("title") }
+        if after.start != s.start || after.end != s.end || after.allDay != s.allDay { changed.append("time") }
+        if after.location != s.location { changed.append("location") }
+        if after.notes != s.notes { changed.append("notes") }
+        return (after, changed)
+    }
+}
+
+/// An event as the store has it now, by its identifier, after the update guards passed.
+public struct EventLookup: Sendable, Equatable {
+    /// The identifier Undo uses (EventKit's `calendarItemIdentifier`).
+    public var identifier: String
+    public var snapshot: CalendarEventSnapshot
+    public var fingerprint: String?
+    public init(identifier: String, snapshot: CalendarEventSnapshot, fingerprint: String?) {
+        self.identifier = identifier; self.snapshot = snapshot; self.fingerprint = fingerprint
+    }
+}
+
+public struct EventUpdateResult: Sendable, Equatable {
+    public var identifier: String
+    public var before: CalendarEventSnapshot
+    public var after: CalendarEventSnapshot
+    /// Fingerprint and modification time right after the save: Undo restores only while they still match.
+    public var fingerprint: String?
+    public var modified: Date?
+    public var container: String
+    public var changed: [String]
+    public init(identifier: String, before: CalendarEventSnapshot, after: CalendarEventSnapshot, fingerprint: String?, modified: Date?,
+                container: String, changed: [String]) {
+        self.identifier = identifier; self.before = before; self.after = after; self.fingerprint = fingerprint; self.modified = modified
+        self.container = container; self.changed = changed
+    }
+}
+
+/// An update that must not happen. Thrown before anything is saved; never a silent fallback.
+public enum CalendarUpdateError: Error, Equatable {
+    case notFound
+    /// The event has attendees: changing it could send updates to other people.
+    case hasAttendees
+    /// The event belongs to a recurring series (or is a detached occurrence of one).
+    case isRecurring
+    /// The calendar or list does not allow changes.
+    case readOnly(String)
+    /// It changed between Pippa's look and the save.
+    case changed
+
+    public var status: String {
+        switch self {
+        case .notFound: "not_found"
+        case .hasAttendees: "has_attendees"
+        case .isRecurring: "recurring"
+        case .readOnly: "read_only"
+        case .changed: "changed"
+        }
+    }
+
+    var receiptReason: String {
+        switch self {
+        case .notFound: "notFound"
+        case .hasAttendees: "hasAttendees"
+        case .isRecurring: "recurring"
+        case .readOnly: "readOnly"
+        case .changed: "changed"
+        }
+    }
+}
+
+/// A reminder's editable fields as they were (journaled before an update, restored by Undo).
+public struct ReminderSnapshot: Sendable, Equatable, Codable {
+    public var title: String
+    /// Year, month, day and optionally hour/minute; `nil` = no due date.
+    public var due: DateComponents?
+    public var notes: String?
+    public var isCompleted: Bool
+    /// The list's title (never changed by an update).
+    public var list: String
+    /// Absolute alarm dates (relative alarms are never touched).
+    public var alarms: [Date]
+    public init(title: String, due: DateComponents? = nil, notes: String? = nil, isCompleted: Bool = false, list: String, alarms: [Date] = []) {
+        self.title = title; self.due = due.map(Self.normalized); self.notes = notes; self.isCompleted = isCompleted; self.list = list
+        self.alarms = alarms
+    }
+
+    /// Only year, month, day, hour and minute: EventKit adds calendar and other parts that would never compare equal.
+    public static func normalized(_ c: DateComponents) -> DateComponents {
+        DateComponents(year: c.year, month: c.month, day: c.day, hour: c.hour, minute: c.minute)
+    }
+}
+
+/// What to change on a reminder. `nil` = leave as it is; `clearDue` removes the due date.
+public struct ReminderPatch: Sendable, Equatable {
+    public var title: String?
+    public var due: DateComponents?
+    public var clearDue: Bool
+    public var notes: String?
+    public var completed: Bool?
+    public var expectedFingerprint: String?
+    public init(title: String? = nil, due: DateComponents? = nil, clearDue: Bool = false, notes: String? = nil, completed: Bool? = nil,
+                expectedFingerprint: String? = nil) {
+        self.title = title; self.due = due.map(ReminderSnapshot.normalized); self.clearDue = clearDue; self.notes = notes
+        self.completed = completed; self.expectedFingerprint = expectedFingerprint
+    }
+
+    /// The snapshot with this patch applied (alarms are the writer's business), and the fields that actually change.
+    public func applied(to s: ReminderSnapshot) -> (ReminderSnapshot, [String]) {
+        var after = s
+        if let title { after.title = title }
+        if clearDue { after.due = nil } else if let due { after.due = due }
+        if let notes { after.notes = notes }
+        if let completed { after.isCompleted = completed }
+        var changed: [String] = []
+        if after.title != s.title { changed.append("title") }
+        if after.due != s.due { changed.append("due") }
+        if after.notes != s.notes { changed.append("notes") }
+        if after.isCompleted != s.isCompleted { changed.append("completed") }
+        return (after, changed)
+    }
+
+    /// When the reminder alerts for a due date: at its time of day, else at 9:00 (as `addReminder`).
+    static func alertDate(_ due: DateComponents?) -> Date? {
+        guard var alert = due else { return nil }
+        if alert.hour == nil { alert.hour = 9; alert.minute = 0 }
+        return Calendar(identifier: .gregorian).date(from: alert)
+    }
+}
+
+public struct ReminderLookup: Sendable, Equatable {
+    public var identifier: String
+    public var snapshot: ReminderSnapshot
+    public var fingerprint: String?
+    public init(identifier: String, snapshot: ReminderSnapshot, fingerprint: String?) {
+        self.identifier = identifier; self.snapshot = snapshot; self.fingerprint = fingerprint
+    }
+}
+
+public struct ReminderUpdateResult: Sendable, Equatable {
+    public var identifier: String
+    public var before: ReminderSnapshot
+    public var after: ReminderSnapshot
+    public var fingerprint: String?
+    public var modified: Date?
+    public var container: String
+    public var changed: [String]
+    public init(identifier: String, before: ReminderSnapshot, after: ReminderSnapshot, fingerprint: String?, modified: Date?,
+                container: String, changed: [String]) {
+        self.identifier = identifier; self.before = before; self.after = after; self.fingerprint = fingerprint; self.modified = modified
+        self.container = container; self.changed = changed
+    }
+}
+
 /// Create events and reminders. Never asks for permissions itself; without permission `PippaError.accessDenied`.
 public protocol HostWriting: Sendable {
     func addEvent(_ event: NewCalendarEvent) async throws -> HostWrite
@@ -99,6 +294,16 @@ public protocol HostWriting: Sendable {
     /// Reads what Pippa created back from the store, never from the object she saved. `container`: the calendar or
     /// list identifier for reminders, the calendar title for events.
     func readBack(_ item: CreatedItem) async -> CreatedItemReadBack
+    /// The event by identifier, only if it may be updated: refuses (`CalendarUpdateError`) attendees, recurring series and
+    /// read-only calendars. Read only.
+    func eventSnapshot(identifier: String) async throws -> EventLookup
+    /// Saves the patch after checking the same guards again, and the patch's expected fingerprint.
+    func updateEvent(identifier: String, patch: CalendarEventPatch) async throws -> EventUpdateResult
+    /// Undo: puts `snapshot` back only while the event still has `expectedFingerprint` (else `.changed`; deleted: `.gone`).
+    func restoreEvent(identifier: String, expectedFingerprint: String?, snapshot: CalendarEventSnapshot) async -> RunUndoOutcome
+    func reminderSnapshot(identifier: String) async throws -> ReminderLookup
+    func updateReminder(identifier: String, patch: ReminderPatch) async throws -> ReminderUpdateResult
+    func restoreReminder(identifier: String, expectedFingerprint: String?, snapshot: ReminderSnapshot) async -> RunUndoOutcome
 }
 
 extension HostWriting {
@@ -108,6 +313,13 @@ extension HostWriting {
     public func lookupReminder(marker: URL, target: NativeReminderTarget, identifier: String?) async -> NativeReminderLookup { .unavailable }
     /// A writer that cannot read back confirms nothing.
     public func readBack(_ item: CreatedItem) async -> CreatedItemReadBack { .unavailable }
+    // Writers without update support refuse; Undo of a row they cannot see fails rather than guessing.
+    public func eventSnapshot(identifier: String) async throws -> EventLookup { throw PippaError.notAvailable }
+    public func updateEvent(identifier: String, patch: CalendarEventPatch) async throws -> EventUpdateResult { throw PippaError.notAvailable }
+    public func restoreEvent(identifier: String, expectedFingerprint: String?, snapshot: CalendarEventSnapshot) async -> RunUndoOutcome { .failed }
+    public func reminderSnapshot(identifier: String) async throws -> ReminderLookup { throw PippaError.notAvailable }
+    public func updateReminder(identifier: String, patch: ReminderPatch) async throws -> ReminderUpdateResult { throw PippaError.notAvailable }
+    public func restoreReminder(identifier: String, expectedFingerprint: String?, snapshot: ReminderSnapshot) async -> RunUndoOutcome { .failed }
 }
 
 extension SystemIntegrations: HostWriting {
@@ -121,6 +333,20 @@ extension SystemIntegrations: HostWriting {
         await eventKit.lookupReminder(marker: marker, target: target, identifier: identifier)
     }
     public func readBack(_ item: CreatedItem) async -> CreatedItemReadBack { eventKit.readBack(item) }
+    public func eventSnapshot(identifier: String) async throws -> EventLookup { try eventKit.eventSnapshot(identifier: identifier) }
+    public func updateEvent(identifier: String, patch: CalendarEventPatch) async throws -> EventUpdateResult {
+        try eventKit.updateEvent(identifier: identifier, patch: patch)
+    }
+    public func restoreEvent(identifier: String, expectedFingerprint: String?, snapshot: CalendarEventSnapshot) async -> RunUndoOutcome {
+        eventKit.restoreEvent(identifier: identifier, expectedFingerprint: expectedFingerprint, snapshot: snapshot)
+    }
+    public func reminderSnapshot(identifier: String) async throws -> ReminderLookup { try eventKit.reminderSnapshot(identifier: identifier) }
+    public func updateReminder(identifier: String, patch: ReminderPatch) async throws -> ReminderUpdateResult {
+        try eventKit.updateReminder(identifier: identifier, patch: patch)
+    }
+    public func restoreReminder(identifier: String, expectedFingerprint: String?, snapshot: ReminderSnapshot) async -> RunUndoOutcome {
+        eventKit.restoreReminder(identifier: identifier, expectedFingerprint: expectedFingerprint, snapshot: snapshot)
+    }
 }
 
 extension EventKitBridge {

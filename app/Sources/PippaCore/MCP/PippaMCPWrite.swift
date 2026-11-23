@@ -14,7 +14,7 @@ import Foundation
 // reads "Open draft".
 
 public struct PippaMCPWriteTools: Sendable {
-    public static let names = ["calendar_add", "reminder_add", "mail_draft", "mail_move"]
+    public static let names = ["calendar_add", "reminder_add", "mail_draft", "mail_move"] + updateNames
     static let mailBodyLimit = 20_000
 
     let host: PippaMCPHost
@@ -34,21 +34,21 @@ public struct PippaMCPWriteTools: Sendable {
         let date = text, time = text
         return [
             tool("calendar_add", "Termin eintragen",
-                 "date=YYYY-MM-DD/today/tomorrow/weekday; end_date=last day; time/end=HH:MM (omit=all-day); minutes=60; calendar=name; if_free=only free.",
+                 "Add event. date/end_date=YYYY-MM-DD/today/tomorrow/weekday; time/end=HH:MM; minutes=60; calendar; if_free.",
                  ["title": text, "date": date, "end_date": date, "time": time, "minutes": ["type": "integer"], "end": time,
                   "calendar": text, "location": text, "notes": text, "if_free": ["type": "boolean"]],
                  required: ["title", "date"]),
             tool("reminder_add", "Erinnerung anlegen",
-                 "date=YYYY-MM-DD/today/tomorrow/weekday; time=HH:MM needs date.",
+                 "date=YYYY-MM-DD/today/tomorrow/weekday; time=HH:MM (+date).",
                  ["title": text, "date": date, "time": time, "list": text, "notes": text], required: ["title"]),
             tool("mail_draft", "Mail-Entwurf",
-                 "Unsent Mail; reply_to=mail_ref/email path/selected; omit=new subject/to.",
+                 "Unsent draft; reply_to=mail_ref/path/selected, else subject/to.",
                  ["body": text, "reply_to": text, "subject": text, "to": text],
                  required: ["body"]),
             tool("mail_move", "Mails verschieben",
-                 "Inbox mail_refs to folder path to, same account. dry_run gives plan; then only plan (>20 refs need it).",
+                 "Move inbox mail_refs to folder to (same account). dry_run→plan (>20 needs it).",
                  ["refs": ["type": "array", "items": text], "to": text, "dry_run": ["type": "boolean"], "plan": text], required: []),
-        ]
+        ] + updateToolList()
     }
 
     /// Arguments as plain values; unknown ones and wrong types are named instead of silently ignored.
@@ -58,6 +58,8 @@ public struct PippaMCPWriteTools: Sendable {
         var ifFree: Bool?
         var refs: [String]?
         var dryRun: Bool?
+        var completed: Bool?
+        var clearDue: Bool?
         var unknown: [String] = []
 
         static let allowed: [String: Set<String>] = [
@@ -65,6 +67,8 @@ public struct PippaMCPWriteTools: Sendable {
             "reminder_add": ["title", "date", "time", "list", "notes"],
             "mail_draft": ["body", "reply_to", "subject", "to"],
             "mail_move": ["refs", "to", "dry_run", "plan"],
+            "calendar_update": ["id", "title", "date", "end_date", "time", "minutes", "end", "location", "notes"],
+            "reminder_update": ["id", "title", "date", "time", "clear_due", "notes", "completed"],
         ]
 
         init(_ tool: String, _ raw: [String: Any]) {
@@ -75,9 +79,14 @@ public struct PippaMCPWriteTools: Sendable {
                 case "minutes":
                     if let n = value as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(), n.doubleValue == n.doubleValue.rounded() { minutes = n.intValue }
                     else { unknown.append(key) }
-                case "if_free", "dry_run":
+                case "if_free", "dry_run", "completed", "clear_due":
                     if let n = value as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() {
-                        if key == "if_free" { ifFree = n.boolValue } else { dryRun = n.boolValue }
+                        switch key {
+                        case "if_free": ifFree = n.boolValue
+                        case "dry_run": dryRun = n.boolValue
+                        case "completed": completed = n.boolValue
+                        default: clearDue = n.boolValue
+                        }
                     } else { unknown.append(key) }
                 case "refs":
                     if let list = value as? [Any], let strings = list as? [String], strings.count == list.count { refs = strings } else { unknown.append(key) }
@@ -96,7 +105,8 @@ public struct PippaMCPWriteTools: Sendable {
     }
 
     public func call(_ name: String, _ raw: [String: Any]) async -> PippaMCPToolResult {
-        let action = ["calendar_add": "calendarAdd", "reminder_add": "reminderAdd", "mail_draft": "mailDraft", "mail_move": "mailMove"][name] ?? name
+        let action = ["calendar_add": "calendarAdd", "reminder_add": "reminderAdd", "mail_draft": "mailDraft", "mail_move": "mailMove",
+                      "calendar_update": "calendarUpdate", "reminder_update": "reminderUpdate"][name] ?? name
         return await withLease(action: action) { await callScoped(name, raw) }
     }
 
@@ -130,6 +140,8 @@ public struct PippaMCPWriteTools: Sendable {
             case "calendar_add": outcome = await calendarAdd(input)
             case "reminder_add": outcome = await reminderAdd(input)
             case "mail_move": outcome = await mailMove(input)
+            case "calendar_update": outcome = await calendarUpdate(input)
+            case "reminder_update": outcome = await reminderUpdate(input)
             default: outcome = await mailDraft(input)
             }
         }

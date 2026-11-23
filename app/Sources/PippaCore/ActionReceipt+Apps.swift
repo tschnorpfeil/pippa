@@ -5,7 +5,7 @@ import Foundation
 // the receipt through the app (`PippaMCPService.writeNotes`). Mail: exact states (created, opened, unclear), never "sent".
 extension ActionReceipt.Item {
     /// Actions of the writing MCP tools.
-    public static let appActions: Set<String> = ["calendarAdd", "reminderAdd", "mailDraft", "mailSend"]
+    public static let appActions: Set<String> = ["calendarAdd", "reminderAdd", "calendarUpdate", "reminderUpdate", "mailDraft", "mailSend"]
 
     func appLine(language: String?) -> String {
         if action == "mailSend" { return sendLine(language: language) }
@@ -13,13 +13,15 @@ extension ActionReceipt.Item {
             return switch action {
             case "calendarAdd": L("Stopped before adding anything to Calendar", table: "Thought", language: language)
             case "reminderAdd": L("Stopped before adding a reminder", table: "Thought", language: language)
+            case "calendarUpdate": L("Stopped before updating Calendar", table: "Thought", language: language)
+            case "reminderUpdate": L("Stopped before updating a reminder", table: "Thought", language: language)
             default: L("Stopped before creating a draft in Mail", table: "Thought", language: language)
             }
         }
         if reason == "pending" {
             return switch action {
-            case "calendarAdd": L("Calendar hasn’t confirmed the result yet. Check Calendar before trying again.", table: "Thought", language: language)
-            case "reminderAdd": L("Reminders hasn’t confirmed the result yet. Check Reminders before trying again.", table: "Thought", language: language)
+            case "calendarAdd", "calendarUpdate": L("Calendar hasn’t confirmed the result yet. Check Calendar before trying again.", table: "Thought", language: language)
+            case "reminderAdd", "reminderUpdate": L("Reminders hasn’t confirmed the result yet. Check Reminders before trying again.", table: "Thought", language: language)
             default: L("Mail hasn’t confirmed the draft yet. Check Mail before trying again. Nothing was sent.", table: "Thought", language: language)
             }
         }
@@ -42,6 +44,20 @@ extension ActionReceipt.Item {
                     return L("%@ (I can’t find the email in Mail anymore)", table: "Thought", language: language, base)
                 }
                 return suffix(base, language: language)
+            }
+        }
+        if action == "calendarUpdate" || action == "reminderUpdate" {
+            let calendar = action == "calendarUpdate"
+            switch outcome {
+            case "done":
+                return calendar ? L("Updated Calendar: %@", table: "Thought", language: language, what)
+                                : L("Reminder updated: %@", table: "Thought", language: language, what)
+            case "declined", "blocked", "failed":
+                let base = calendar ? L("Calendar not updated: %@", table: "Thought", language: language, what)
+                                    : L("Reminder not updated: %@", table: "Thought", language: language, what)
+                return suffix(base, language: language)
+            default:
+                return L("Unclear whether it happened: %@", table: "Thought", language: language, what)
             }
         }
         let calendar = action == "calendarAdd"

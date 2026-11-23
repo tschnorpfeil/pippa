@@ -27,7 +27,7 @@ extension ChatModel {
     func share(_ source: SharingSource) {
         guard !isAnswering, let route = review.map({ ($0.plan.destination, $0.handoff) }) ?? reviewRoute else { return }
         let rules = SettingsModel.shared.inferenceSettings.sharing
-        guard rules[source] == .ask, source != .photos, source != .documents else { return }
+        guard rules[source] == .ask, source != .photos, source != .documents, source != .contacts else { return }
         if review == nil { startReview(route.destination, handoff: route.handoff) }
         let extraction = ShareExtraction(host: PippaMCPService.currentHost)
         guard let reviewID = review?.id else { return }
@@ -40,7 +40,7 @@ extension ChatModel {
                 case .mail: piece = try await extraction.selectedMail()
                 case .calendar: piece = try await extraction.calendar()
                 case .reminders: piece = try await extraction.reminders()
-                case .documents, .photos: piece = nil
+                case .documents, .photos, .contacts: piece = nil
                 }
             } catch {
                 piece = nil; problem = error.localizedDescription

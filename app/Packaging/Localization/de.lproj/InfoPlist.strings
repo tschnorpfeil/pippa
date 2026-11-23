@@ -5,6 +5,7 @@
 */
 "NSHumanReadableCopyright" = "© __YEAR__ Tobias Schnorpfeil.";
 "NSCalendarsFullAccessUsageDescription" = "Wenn du fragst, liest Pippa deine Termine für den Zeitraum, nach dem du fragst, und trägt Fristen aus deinen Briefen in den Kalender ein, die Pippa auch wieder entfernen kann.";
+"NSContactsUsageDescription" = "Wenn du fragst, schlägt Pippa Kontaktdaten in deinen Kontakten auf diesem Mac nach. Sie ändert nichts und lädt nichts hoch.";
 "NSRemindersFullAccessUsageDescription" = "Pippa trägt Fristen aus deinen Briefen in Erinnerungen ein, wenn du es sagst, und kann sie wieder entfernen.";
 "NSAppleEventsUsageDescription" = "Wenn du fragst, liest Pippa die Mail, die du in Mail ausgewählt hast, und die Tabelle, die du in Excel ansiehst, öffnet Numbers-Tabellen, die du ihr gibst, um sie zu lesen, und durchsucht deine Fotos und Notizen. Ohne deine Freigabe wird nichts verschickt.";
 "NSPhotoLibraryUsageDescription" = "Wenn du nach Bildern fragst, zeigt Pippa dir die passenden Fotos aus deiner Mediathek. Sie ändert nichts und lädt nichts hoch.";

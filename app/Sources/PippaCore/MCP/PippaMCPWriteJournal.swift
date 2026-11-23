@@ -88,6 +88,9 @@ extension PippaMCPHost {
                     }
                 } catch { return .failed }
             }
+        case "event.update", "reminder.update":
+            guard let writer else { return nil }
+            return PippaMCPWriteTools.updateUndoRecipe(writer: writer)(kind)
         case MailMover.kind:
             guard let reader = mailAccounts else { return nil }
             let mover = MailMover(reader: reader, settle: mailMoveSettle)

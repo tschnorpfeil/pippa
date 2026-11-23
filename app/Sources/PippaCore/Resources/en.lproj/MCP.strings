@@ -142,3 +142,17 @@
 "The draft is no longer open in Mail, so Pippa sent nothing. Open it in Mail to send it yourself, or ask Pippa for a new draft." = "The draft is no longer open in Mail, so Pippa sent nothing. Open it in Mail to send it yourself, or ask Pippa for a new draft.";
 "Pippa couldn’t read the draft in Mail, so she sent nothing. Try again in a moment." = "Pippa couldn’t read the draft in Mail, so she sent nothing. Try again in a moment.";
 "The mail in Mail is no longer what you saw, so Pippa didn’t send it. She can show it to you again." = "The mail in Mail is no longer what you saw, so Pippa didn’t send it. She can show it to you again.";
+
+/* Apple Notes, Safari tabs, Contacts (1.1) */
+"To answer this, I need to read your notes on this Mac – only when you ask, and I don’t change anything." = "To answer this, I need to read your notes on this Mac – only when you ask, and I don’t change anything.";
+"I couldn’t find this note in Notes." = "I couldn’t find this note in Notes.";
+"This note is locked in Notes, so Pippa can’t read it." = "This note is locked in Notes, so Pippa can’t read it.";
+"No tabs are open in Safari." = "No tabs are open in Safari.";
+"Safari tabs" = "Safari tabs";
+"That tab isn’t open in Safari. List the open tabs first and try again." = "That tab isn’t open in Safari. List the open tabs first and try again.";
+"To answer this, I need to search your contacts on this Mac – only when you ask, and I don’t change anything." = "To answer this, I need to search your contacts on this Mac – only when you ask, and I don’t change anything.";
+"Pippa may not read your contacts. To change that, open System Settings → Privacy & Security → Contacts and turn on Pippa." = "Pippa may not read your contacts. To change that, open System Settings → Privacy & Security → Contacts and turn on Pippa.";
+"Read Notes: “%@”" = "Read Notes: “%@”";
+"Searched Notes for “%@”: %lld found" = "Searched Notes for “%@”: %lld found";
+"Read Notes: newest notes" = "Read Notes: newest notes";
+"Searched Contacts for “%@”: %lld found" = "Searched Contacts for “%@”: %lld found";

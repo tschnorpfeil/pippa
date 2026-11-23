@@ -55,6 +55,8 @@
 "The answer didn’t come through just now. Please try again in a moment." = "The answer didn’t come through just now. Please try again in a moment.";
 "The request was turned down. Please check the online AI and address under Settings › Online AI." = "The request was turned down. Please check the online AI and address under Settings › Online AI.";
 "The online AI you chose didn’t let me in. Please check the key under Settings › Online AI." = "The online AI you chose didn’t let me in. Please check the key under Settings › Online AI.";
+"The online AI is busy right now. Your connection works; try again in a moment." = "The online AI is busy right now. Your connection works; try again in a moment.";
+"Your online AI limit is reached for now. Try again later, or check your account." = "Your online AI limit is reached for now. Try again later, or check your account.";
 "Pippa needs a Mac with Apple silicon (M1 or later)." = "Pippa needs a Mac with Apple silicon (M1 or later).";
 "%.1f GB" = "%.1f GB";
 "a few minutes" = "a few minutes";
@@ -113,3 +115,5 @@
 "[… shortened on this Mac]" = "[… shortened on this Mac]";
 "all day" = "all day";
 "… and %lld more" = "… and %lld more";
+"Contacts" = "Contacts";
+"Notes" = "Notes";

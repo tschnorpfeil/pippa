@@ -66,8 +66,8 @@ function loopHarness() {
 }
 
 test("uncertain native writes are terminal for this answer and never reported as successful duplicates", async () => {
-	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__mail_move", "mcp__pippa__prepare_files",
-		"mcp__pippa__mail_send"]) {
+	for (const tool of ["mcp__pippa__calendar_add", "mcp__pippa__reminder_add", "mcp__pippa__mail_draft", "mcp__pippa__mail_move",
+		"mcp__pippa__calendar_update", "mcp__pippa__reminder_update", "mcp__pippa__prepare_files", "mcp__pippa__mail_send"]) {
 		for (const isError of [false, true]) {
 			const run = loopHarness();
 			const input = { title: "Fixture", date: "2026-10-22" };
@@ -117,6 +117,8 @@ test("structured native refusals can retry; result prose and nested data do not 
 		{ done: false, status: "failed", dispatched: false },
 		{ done: false, status: "invalid_arguments" },
 		{ done: false, status: "stale_ref", dispatched: false },
+		{ done: false, status: "has_attendees", dispatched: false },
+		{ done: false, status: "changed", dispatched: false },
 		{ done: false, status: "failed", tell: "unclear dispatched" },
 		{ done: false, status: "failed", data: { state: "unclear", dispatched: true } },
 	];

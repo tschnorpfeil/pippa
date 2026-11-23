@@ -15,9 +15,9 @@ func runMCPActionClassChecks() async {
         return missing.isEmpty && PippaPiLaunch.tools.contains("mcp__pippa__*")
     }
     check("Action classes: readers read; events, reminders, drafts, prepared files, moves and write undoable") {
-        let readers = ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read", "read_document",
-                       "read", "search_files", "list_folder"]
-        let undoable = ["calendar_add", "reminder_add", "mail_draft", "mail_move", "prepare_files", "move_files", "write"]
+        let readers = ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read",
+                       "notes_read", "contacts_search", "compute", "read_document", "read", "search_files", "list_folder"]
+        let undoable = ["calendar_add", "reminder_add", "calendar_update", "reminder_update", "mail_draft", "mail_move", "prepare_files", "move_files", "write"]
         return readers.allSatisfy { PippaActionClasses.of($0) == .read } && undoable.allSatisfy { PippaActionClasses.of($0) == .undoable }
             && ["bash", "browse", "web_search", "fetch_content", "mail_send"].allSatisfy { PippaActionClasses.of($0) == .external }
     }

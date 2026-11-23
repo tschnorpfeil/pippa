@@ -264,7 +264,7 @@ public struct CalendarDigest: Sendable, Equatable {
             "count": activeCount, "shown": shown, "total": total, "truncated": truncated,
             "days": days.map { day -> [String: Any] in
                 ["date": day.date.iso, "label": day.label, "events": day.entries.map { entry -> [String: Any] in
-                    var value: [String: Any] = ["time": entry.time, "title": entry.title, "calendar": entry.calendar, "state": entry.state.rawValue,
+                    var value: [String: Any] = ["id": entry.eventID, "time": entry.time, "title": entry.title, "calendar": entry.calendar, "state": entry.state.rawValue,
                                                 "allDay": entry.allDay, "recurring": entry.recurring]
                     if let span = entry.span { value["span"] = span }
                     if let zone = entry.otherZone { value["otherZone"] = zone }
