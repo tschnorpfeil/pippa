@@ -132,8 +132,8 @@ public struct PippaMCPTurnTools: Sendable {
         let string: [String: Any] = ["type": "string"]
         return [
             tool("read_document", "Dokument lesen",
-                 "PDF/scan/photo/Word/Excel/email text. [S. n] pages; from_page resumes.",
-                 ["path": string, "from_page": ["type": "integer"]], required: ["path"]),
+                 "PDF/scan/photo/Word/Excel/email text. [S. n] pages; from_page resumes; to_page ends; query=pages with it.",
+                 ["path": string, "from_page": ["type": "integer"], "to_page": ["type": "integer"], "query": string], required: ["path"]),
         ]
     }
 
@@ -141,14 +141,27 @@ public struct PippaMCPTurnTools: Sendable {
     struct Input: Sendable {
         var path: String?
         var fromPage: Int?
+        var toPage: Int?
+        /// Case-insensitive text a page must contain to be returned.
+        var query: String?
         var unknown: [String]
         init(_ raw: [String: Any]) {
             path = raw["path"] as? String
-            if let n = raw["from_page"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(), n.doubleValue == n.doubleValue.rounded() { fromPage = n.intValue }
-            // Small models often send numbers as text ("2").
-            if let text = raw["from_page"] as? String, let n = Int(text.trimmingCharacters(in: .whitespaces)) { fromPage = n }
-            unknown = raw.keys.filter { !["path", "from_page"].contains($0) }.sorted()
-            if raw["from_page"] != nil && fromPage == nil { unknown.append("from_page") }
+            func page(_ key: String) -> Int? {
+                if let n = raw[key] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(), n.doubleValue == n.doubleValue.rounded() { return n.intValue }
+                // Small models often send numbers as text ("2").
+                if let text = raw[key] as? String, let n = Int(text.trimmingCharacters(in: .whitespaces)) { return n }
+                return nil
+            }
+            fromPage = page("from_page")
+            toPage = page("to_page")
+            if let text = raw["query"] as? String {
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty && trimmed.count <= 200 { query = trimmed }
+            }
+            unknown = raw.keys.filter { !["path", "from_page", "to_page", "query"].contains($0) }.sorted()
+            for key in ["from_page", "to_page"] where raw[key] != nil && page(key) == nil { unknown.append(key) }
+            if raw["query"] != nil && query == nil { unknown.append("query") }
         }
     }
 
@@ -195,6 +208,9 @@ public struct PippaMCPTurnTools: Sendable {
         catch { return Self.failure("protected", ProtectedPaths.reason) }
         let from = input.fromPage ?? 1
         guard from >= 1 else { return Self.failure("invalid_arguments", "from_page must be 1 or more.") }
+        if let to = input.toPage, to < from {
+            return Self.failure("invalid_arguments", "to_page must be from_page (\(from)) or more.")
+        }
         let granted = url.startAccessingSecurityScopedResource()
         defer { if granted { url.stopAccessingSecurityScopedResource() } }
         let attributes: [FileAttributeKey: Any]
@@ -236,7 +252,7 @@ public struct PippaMCPTurnTools: Sendable {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         if size > 100_000_000 { return Self.failure("too_large", "This file is larger than 100 MB; Pippa does not read it.") }
 
-        let window = from - 1 + Self.pagesPerCall
+        let window = min(from - 1 + Self.pagesPerCall, input.toPage ?? .max)
         let document: DocumentText
         do {
             if let turn { document = try await turn.text(of: source, maxPages: window) }
@@ -254,42 +270,65 @@ public struct PippaMCPTurnTools: Sendable {
         case .none: break
         }
 
-        // Pages from `from` until the limit is reached. Truncation happens only at the end, and the result says so.
+        // Pages from `from` until the limit (or `to_page`) is reached. Truncation happens only at the end, and the result
+        // says so. With `query`, only pages that contain it are returned; `lastPage` is the last page looked at.
         var text = ""
         var lastPage: Int?
+        var matched: [Int] = []
         var clipped = false
         let pages = document.pages
+        let query = input.query
+        func contains(_ haystack: String) -> Bool { query.map { haystack.range(of: $0, options: .caseInsensitive) != nil } ?? true }
         if document.isPaged {
             guard from <= max(pages.count, 1) else {
                 return Self.failure("invalid_arguments", "This document has \(document.pageCount ?? pages.count) pages.")
             }
             for index in (from - 1)..<pages.count {
                 let page = pages[index].trimmingCharacters(in: .whitespacesAndNewlines)
+                guard contains(page) else { lastPage = index + 1; continue }
                 let chunk = "[S. \(index + 1)]\n" + page + "\n"
                 if text.count + chunk.count > Self.documentTextLimit {
-                    if text.isEmpty { text = String(chunk.prefix(Self.documentTextLimit)); lastPage = index + 1 }
+                    if text.isEmpty { text = String(chunk.prefix(Self.documentTextLimit)); lastPage = index + 1; matched.append(index + 1) }
                     clipped = true
                     break
                 }
                 text += chunk
                 lastPage = index + 1
+                matched.append(index + 1)
             }
         } else {
             let all = document.fullText.trimmingCharacters(in: .whitespacesAndNewlines)
-            text = String(all.prefix(Self.documentTextLimit))
-            clipped = all.count > text.count || document.isTruncated
+            if contains(all) {
+                text = String(all.prefix(Self.documentTextLimit))
+                clipped = all.count > text.count || document.isTruncated
+            }
         }
         let pageCount = document.pageCount
-        let morePages = document.isPaged && ((lastPage ?? 0) < (pageCount ?? pages.count))
+        let documentEnd = pageCount ?? pages.count
+        // `to_page` ends the requested range: reaching it is complete, not truncated.
+        let rangeEnd = min(input.toPage ?? .max, documentEnd)
+        let morePages = document.isPaged && ((lastPage ?? 0) < rangeEnd)
         let nextPage: Int? = morePages ? (clipped && lastPage == from ? nil : (lastPage ?? from) + 1) : nil
 
         var data: [String: Any] = ["name": url.lastPathComponent, "text": text, "recognizedText": document.usedOCR]
         if let pageCount { data["pageCount"] = pageCount }
         if document.isPaged, let lastPage { data["pages"] = from == lastPage ? "\(from)" : "\(from)-\(lastPage)" }
+        if query != nil && document.isPaged { data["matchedPages"] = matched }
         if clipped || morePages { data["truncated"] = true }
         if let nextPage { data["nextPage"] = nextPage }
         var next = nextPage.map { "Not all pages are shown. If the answer may be on later pages, call read_document again with from_page \($0)." }
-            ?? (clipped ? "Only the beginning is shown. Say that you read only part of it if that matters." : "This is the whole document.")
+            ?? (clipped ? "Only the beginning is shown. Say that you read only part of it if that matters."
+                : input.toPage != nil && document.isPaged && rangeEnd < documentEnd ? "These are the pages asked for; the document has \(documentEnd) pages."
+                : "This is the whole document.")
+        if let query {
+            let searched = document.isPaged ? (lastPage.map { from == $0 ? "page \(from)" : "pages \(from)-\($0)" } ?? "these pages") : "this document"
+            if text.isEmpty {
+                next = "No text in \(searched) contains \"\(query)\". Say it was not found there; do not guess."
+                    + (nextPage.map { " Later pages were not searched: call read_document again with from_page \($0) and the same query." } ?? "")
+            } else if document.isPaged {
+                next = "Only pages of \(searched) that contain \"\(query)\" are shown. " + next
+            }
+        }
         // A table of amounts: a small local model adds them up in its thinking until it runs out of length. Said here,
         // right where the numbers arrive, a tool call is far more likely than from the persona alone.
         if Self.manyAmounts(text) { next += " " + Self.calculateHint }
@@ -309,7 +348,7 @@ public struct PippaMCPTurnTools: Sendable {
         ]), isError: false)
     }
 
-    static let calculateHint = "It holds many amounts: to add or compare them, run bash with awk on the numbers you copy, never in your head."
+    static let calculateHint = "It holds many amounts: to add or compare them, call compute (or bash with awk) on the numbers you copy, never in your head."
     private static let amountPattern = try! NSRegularExpression(pattern: #"\d[\d.,\x{202F}\x{00A0}]*\s?(?:€|EUR\b|Euro\b)"#)
 
     /// Five or more amounts in euros.
