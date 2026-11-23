@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 // Connections to apps on the Mac: Reminders, Calendar (EventKit) and Mail (Apple Events, read only).
@@ -198,6 +199,14 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
     private let created = Date()
     /// Events created by Pippa's MCP server (appear on the next read).
     private var addedEvents: [String: CalendarEvent] = [:]
+    /// Synthetic events after an update (by id), shown instead of the original on the next read.
+    private var editedEvents: [String: CalendarEvent] = [:]
+    /// Content fingerprint of each added entry when it was created: back there, it has its creation fingerprint again.
+    private var addedContent: [String: String] = [:]
+    /// Reminders with their editable fields (added by Pippa or seeded by checks), for `reminder_update`.
+    private var reminderEntries: [String: ReminderSnapshot] = [:]
+    /// Tests: reminder lists that refuse changes.
+    public var readOnlyReminderLists: Set<String> = []
     /// Lists for `addReminder` (invented).
     public var reminderLists = ["Erinnerungen", "Privat"]
     /// Tests: what `insertReply` reports instead of a draft (error) or which result (e.g. `replyNeedsPaste`).
@@ -254,6 +263,7 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
             // Like EventKit: an entry changed since it was created stays.
             if let stored = items[item.identifier], let expected = item.fingerprint, stored.item.fingerprint != expected { return .changed }
             addedEvents.removeValue(forKey: item.identifier)
+            reminderEntries.removeValue(forKey: item.identifier)
             return items.removeValue(forKey: item.identifier) != nil ? .removed : .gone
         }
     }
@@ -314,8 +324,9 @@ public final class DemoIntegrations: AppIntegrations, @unchecked Sendable {
         try requireGranted(.calendar)
         lock.withLock { reads.append(interval) }
         if calendarFails { throw PippaError.entryFailed("demo") }
-        let added = lock.withLock { Array(addedEvents.values) }
-        let all = ((calendarEvents ?? Self.sampleCalendar(now: created)) + added)
+        let (added, edited) = lock.withLock { (Array(addedEvents.values), editedEvents) }
+        let base = (calendarEvents ?? Self.sampleCalendar(now: created)).map { edited[$0.id] ?? $0 }
+        let all = (base + added)
             .filter { ($0.end > interval.start || ($0.end == $0.start && $0.start >= interval.start)) && $0.start < interval.end }
             .sorted { ($0.start, $0.title) < ($1.start, $1.title) }
         return CalendarFetch(events: Array(all.prefix(limit)), total: all.count, calendars: calendarNames)
@@ -358,8 +369,10 @@ extension DemoIntegrations: HostWriting {
         try PippaMCPWriteLease.current?.beginDispatch()
         lock.withLock {
             items[id] = (item, event.title)
-            addedEvents[id] = CalendarEvent(id: id, title: event.title, start: event.start, end: event.end, allDay: event.allDay,
-                                            calendar: calendar, location: event.location)
+            let stored = CalendarEvent(id: id, title: event.title, start: event.start, end: event.end, allDay: event.allDay,
+                                       calendar: calendar, location: event.location, notes: event.notes)
+            addedEvents[id] = stored
+            addedContent[id] = Self.contentFingerprint(Self.snapshot(stored))
         }
         return HostWrite(item: item, container: calendar)
     }
@@ -371,8 +384,14 @@ extension DemoIntegrations: HostWriting {
         let wanted = reminder.list?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let named = wanted.flatMap { name in reminderLists.first { $0.lowercased() == name } }
         try PippaMCPWriteLease.current?.beginDispatch()
-        lock.withLock { items[id] = (item, reminder.title) }
-        return HostWrite(item: item, container: named ?? reminderLists.first ?? "Erinnerungen", containerMatched: wanted == nil || named != nil)
+        let list = named ?? reminderLists.first ?? "Erinnerungen"
+        lock.withLock {
+            items[id] = (item, reminder.title)
+            let entry = ReminderSnapshot(title: reminder.title, due: reminder.due, notes: reminder.notes, list: list)
+            reminderEntries[id] = entry
+            addedContent[id] = Self.contentFingerprint(entry)
+        }
+        return HostWrite(item: item, container: list, containerMatched: wanted == nil || named != nil)
     }
 
     public func readBack(_ item: CreatedItem) async -> CreatedItemReadBack {
@@ -381,5 +400,190 @@ extension DemoIntegrations: HostWriting {
             let event = addedEvents[item.identifier]
             return .found(title: stored.title, start: event?.start, end: event?.end, container: event?.calendar, fingerprint: stored.item.fingerprint)
         }
+    }
+}
+
+// Update events and reminders in memory (calendar_update, reminder_update), with the same guards as EventKit.
+extension DemoIntegrations {
+    static func snapshot(_ e: CalendarEvent) -> CalendarEventSnapshot {
+        CalendarEventSnapshot(title: e.title, start: e.start, end: e.end, allDay: e.allDay, location: e.location, notes: e.notes, calendar: e.calendar)
+    }
+
+    static func contentFingerprint<T: Encodable>(_ value: T) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return "demo-" + SHA256.hash(data: (try? encoder.encode(value)) ?? Data()).hexString
+    }
+
+    /// Under the lock: the event by id, after the update guards. Added events first, then the synthetic calendar.
+    private func editableEvent(_ id: String) throws -> CalendarEvent {
+        let found: [CalendarEvent]
+        if let added = addedEvents[id] { found = [added] }
+        else { found = (calendarEvents ?? Self.sampleCalendar(now: created)).filter { $0.id == id }.map { editedEvents[$0.id] ?? $0 } }
+        guard let event = found.first else { throw CalendarUpdateError.notFound }
+        if found.contains(where: { !$0.attendees.isEmpty }) { throw CalendarUpdateError.hasAttendees }
+        if found.count > 1 || found.contains(where: \.recurring) { throw CalendarUpdateError.isRecurring }
+        if readOnlyCalendars.contains(event.calendar) { throw CalendarUpdateError.readOnly(event.calendar) }
+        return event
+    }
+
+    /// Under the lock: an added entry keeps its own fingerprint (`touch` changes it); synthetic events hash their content.
+    private func eventFingerprint(_ event: CalendarEvent) -> String {
+        items[event.id]?.item.fingerprint ?? Self.contentFingerprint(Self.snapshot(event))
+    }
+
+    /// Under the lock: stores the event's new content, with the fingerprint EventKit would compute.
+    private func store(_ event: CalendarEvent) {
+        if addedEvents[event.id] != nil {
+            addedEvents[event.id] = event
+            let content = Self.contentFingerprint(Self.snapshot(event))
+            items[event.id]?.title = event.title
+            items[event.id]?.item.fingerprint = content == addedContent[event.id] ? "demo-\(event.id)" : content
+        } else {
+            editedEvents[event.id] = event
+        }
+    }
+
+    private static func applying(_ s: CalendarEventSnapshot, to event: CalendarEvent) -> CalendarEvent {
+        var e = event
+        e.title = s.title; e.start = s.start; e.end = s.end; e.allDay = s.allDay; e.location = s.location; e.notes = s.notes
+        return e
+    }
+
+    public func eventSnapshot(identifier: String) async throws -> EventLookup {
+        try requireGranted(.calendar)
+        return try lock.withLock {
+            let event = try editableEvent(identifier)
+            return EventLookup(identifier: event.id, snapshot: Self.snapshot(event), fingerprint: eventFingerprint(event))
+        }
+    }
+
+    public func updateEvent(identifier: String, patch: CalendarEventPatch) async throws -> EventUpdateResult {
+        try requireGranted(.calendar)
+        let (event, before) = try lock.withLock {
+            let event = try editableEvent(identifier)
+            if let expected = patch.expectedFingerprint, eventFingerprint(event) != expected { throw CalendarUpdateError.changed }
+            return (event, Self.snapshot(event))
+        }
+        try PippaMCPWriteLease.current?.beginDispatch()
+        let (after, changed) = patch.applied(to: before)
+        return lock.withLock {
+            let updated = Self.applying(after, to: event)
+            store(updated)
+            return EventUpdateResult(identifier: event.id, before: before, after: after, fingerprint: eventFingerprint(updated), modified: Date(),
+                                     container: event.calendar, changed: changed)
+        }
+    }
+
+    public func restoreEvent(identifier: String, expectedFingerprint: String?, snapshot: CalendarEventSnapshot) async -> RunUndoOutcome {
+        guard (try? requireGranted(.calendar)) != nil else { return .failed }
+        return lock.withLock {
+            let event: CalendarEvent
+            do { event = try editableEvent(identifier) }
+            catch CalendarUpdateError.notFound { return .gone }
+            catch { return .changed }
+            if let expectedFingerprint, eventFingerprint(event) != expectedFingerprint { return .changed }
+            store(Self.applying(snapshot, to: event))
+            return .undone
+        }
+    }
+
+    /// Tests only: the person edits an event in Calendar (any event, synthetic or added).
+    public func editEvent(_ identifier: String, _ change: (inout CalendarEvent) -> Void) {
+        lock.withLock {
+            guard var event = addedEvents[identifier] ?? (calendarEvents ?? Self.sampleCalendar(now: created)).first(where: { $0.id == identifier })
+                .map({ editedEvents[$0.id] ?? $0 }) else { return }
+            change(&event)
+            store(event)
+            if items[identifier] != nil { items[identifier]?.item.fingerprint = "edited-\(UUID().uuidString)" }
+        }
+    }
+
+    /// Tests only: the event as a read would show it now.
+    public func storedEvent(_ identifier: String) -> CalendarEvent? {
+        lock.withLock {
+            addedEvents[identifier] ?? (calendarEvents ?? Self.sampleCalendar(now: created)).first(where: { $0.id == identifier })
+                .map { editedEvents[$0.id] ?? $0 }
+        }
+    }
+
+    // Reminders
+
+    /// Under the lock: an added reminder keeps its creation fingerprint until its content changes.
+    private func reminderFingerprint(_ id: String, _ entry: ReminderSnapshot) -> String {
+        items[id]?.item.fingerprint ?? Self.contentFingerprint(entry)
+    }
+
+    private func storeReminder(_ id: String, _ entry: ReminderSnapshot) {
+        reminderEntries[id] = entry
+        if items[id] != nil {
+            let content = Self.contentFingerprint(entry)
+            items[id]?.title = entry.title
+            items[id]?.item.fingerprint = content == addedContent[id] ? "demo-\(id)" : content
+        }
+    }
+
+    private func editableReminder(_ id: String) throws -> ReminderSnapshot {
+        guard let entry = reminderEntries[id] else { throw CalendarUpdateError.notFound }
+        if readOnlyReminderLists.contains(entry.list) { throw CalendarUpdateError.readOnly(entry.list) }
+        return entry
+    }
+
+    public func reminderSnapshot(identifier: String) async throws -> ReminderLookup {
+        try requireGranted(.reminders)
+        return try lock.withLock {
+            let entry = try editableReminder(identifier)
+            return ReminderLookup(identifier: identifier, snapshot: entry, fingerprint: reminderFingerprint(identifier, entry))
+        }
+    }
+
+    public func updateReminder(identifier: String, patch: ReminderPatch) async throws -> ReminderUpdateResult {
+        try requireGranted(.reminders)
+        let before = try lock.withLock {
+            let entry = try editableReminder(identifier)
+            if let expected = patch.expectedFingerprint, reminderFingerprint(identifier, entry) != expected { throw CalendarUpdateError.changed }
+            return entry
+        }
+        try PippaMCPWriteLease.current?.beginDispatch()
+        let (after, changed) = patch.applied(to: before)
+        return lock.withLock {
+            storeReminder(identifier, after)
+            return ReminderUpdateResult(identifier: identifier, before: before, after: after, fingerprint: reminderFingerprint(identifier, after),
+                                        modified: Date(), container: after.list, changed: changed)
+        }
+    }
+
+    public func restoreReminder(identifier: String, expectedFingerprint: String?, snapshot: ReminderSnapshot) async -> RunUndoOutcome {
+        guard (try? requireGranted(.reminders)) != nil else { return .failed }
+        return lock.withLock {
+            let entry: ReminderSnapshot
+            do { entry = try editableReminder(identifier) }
+            catch CalendarUpdateError.notFound { return .gone }
+            catch { return .changed }
+            if let expectedFingerprint, reminderFingerprint(identifier, entry) != expectedFingerprint { return .changed }
+            storeReminder(identifier, snapshot)
+            return .undone
+        }
+    }
+
+    /// Tests only: a reminder that exists in Reminders (not created by Pippa).
+    public func seedReminder(_ identifier: String, _ entry: ReminderSnapshot) { lock.withLock { reminderEntries[identifier] = entry } }
+
+    /// Tests only: the person edits a reminder in Reminders.
+    public func editReminder(_ identifier: String, _ change: (inout ReminderSnapshot) -> Void) {
+        lock.withLock {
+            guard var entry = reminderEntries[identifier] else { return }
+            change(&entry)
+            storeReminder(identifier, entry)
+            if items[identifier] != nil { items[identifier]?.item.fingerprint = "edited-\(UUID().uuidString)" }
+        }
+    }
+
+    /// Tests only: the reminder as Reminders has it now.
+    public func storedReminder(_ identifier: String) -> ReminderSnapshot? { lock.withLock { reminderEntries[identifier] } }
+
+    /// Tests only: the person deletes a reminder.
+    public func deleteReminder(_ identifier: String) {
+        lock.withLock { reminderEntries.removeValue(forKey: identifier); items.removeValue(forKey: identifier) }
     }
 }
