@@ -24,21 +24,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DiagnosticsLog.shared.event("start", ["version": AppVersion.label, "macos": ProcessInfo.processInfo.operatingSystemVersionString])
         NSApp.mainMenu = mainMenu()
         statusItem = makeStatusItem()
-        unreadWatch = Publishers.CombineLatest(ChatModel.shared.$unseen, ChatModel.shared.$unseenIDs).sink { [weak self] unseen, conversations in
-            // A quiet Dock badge replaces focus stealing when a background answer is ready.
-            switch unseen {
-            case .failed: NSApp.dockTile.badgeLabel = "!"
-            case .answer: NSApp.dockTile.badgeLabel = "•"
-            case nil: NSApp.dockTile.badgeLabel = conversations.isEmpty ? nil : "•"
+        unreadWatch = Publishers.CombineLatest3(ChatModel.shared.$unseen, ChatModel.shared.$unseenIDs,
+                                                ProactivityCoordinator.shared.$activeNudge.map { $0 != nil })
+            .sink { [weak self] unseen, conversations, hasNudge in
+                // A quiet Dock badge replaces focus stealing when a background answer is ready.
+                switch unseen {
+                case .failed: NSApp.dockTile.badgeLabel = "!"
+                case .answer: NSApp.dockTile.badgeLabel = "•"
+                case nil: NSApp.dockTile.badgeLabel = conversations.isEmpty ? nil : "•"
+                }
+                // A calm notice waiting in the island lights only the menu bar dot: no Dock badge, no focus.
+                self?.unreadDot.isHidden = unseen == nil && conversations.isEmpty && !hasNudge
             }
-            self?.unreadDot.isHidden = unseen == nil && conversations.isEmpty
-        }
         // The shortcut opens the island's question field; with the island switched off, the chat.
         HotkeyCenter.shared.onPress = { Island.shared.isShown ? Island.shared.ask() : AppActions.callPippa() }
         HotkeyCenter.shared.apply(Hotkey.current)
         SetupModel.shared.begin()
         Island.shared.start()
         Updates.shared.start()
+        // Does nothing unless calm notices are switched on in Settings.
+        ProactivityCoordinator.shared.start()
         // Ordinary launches show the chat; respect a hidden launch requested by macOS.
         if !NSApp.isHidden { ChatWindow.shared.show() }
     }
@@ -114,11 +119,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.keyEquivalentModifierMask = modifiers
             return item
         }
+        // A waiting update turns "Check for Updates…" into "Restart to Update" (checkNow installs it then).
+        let updateItem = MenuAction.item(T("Check for Updates…", table: "App")) { Updates.shared.checkNow() }
         submenu("Pippa", [
             MenuAction.item(T("About Pippa", table: "App")) { NSApp.orderFrontStandardAboutPanel(nil) },
             .separator(),
             MenuAction.item(T("Settings…", table: "App"), key: ",", modifiers: [.command]) { SettingsWindow.shared.show() },
-            MenuAction.item(T("Check for Updates…", table: "App")) { Updates.shared.checkNow() },
+            updateItem,
             .separator(),
             edit(T("Hide Pippa", table: "App"), #selector(NSApplication.hide(_:)), "h"),
             edit(T("Hide Others", table: "App"), #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
@@ -132,6 +139,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         main.items.first?.submenu?.insertItem(servicesItem, at: 5)
         main.items.first?.submenu?.insertItem(.separator(), at: 6)
         NSApp.servicesMenu = services
+        main.items.first?.submenu?.delegate = MenuAction.stateUpdater {
+            updateItem.title = Updates.shared.readyVersion.map { T("Restart to Update (%@)", table: "App", $0) }
+                ?? T("Check for Updates…", table: "App")
+        }
         submenu(T("File", table: "App"), [
             MenuAction.newConversation(key: "n", modifiers: [.command]),
             edit(T("Close Window", table: "App"), #selector(NSWindow.performClose(_:)), "w"),
