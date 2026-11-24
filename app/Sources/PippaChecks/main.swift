@@ -83,6 +83,8 @@ await focused("PIPPA_MCP_CHECKS", "MCP") {
 
 // The memory probe's window, access states and privacy; synthetic stand-ins only.
 await focused("PIPPA_MEMORY_PROBE_CHECKS", "Memory probe") { await runMemoryProbeChecks() }
+await focused("PIPPA_UPDATE_CHECKS", "Update action") { runUpdateActionChecks() }
+await focused("PIPPA_PROACTIVITY_CHECKS", "Proactivity") { await runProactivityChecks() }
 
 func dir(_ name: String) -> URL {
     let u = root.appendingPathComponent(name, isDirectory: true)
@@ -483,6 +485,8 @@ await runPermissionRepairChecks()
 await runDownloadHangChecks()
 await runMemoryProbeChecks()
 await runLocalReflexChecks()
+runUpdateActionChecks()
+await runProactivityChecks()
 
 print(failures == 0 ? "All checks passed." : "\(failures) check(s) failed.")
 exit(failures == 0 ? 0 : 1)
