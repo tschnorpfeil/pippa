@@ -44,10 +44,11 @@ func fakeRuntimeArchive(in base: URL, padding: Int = 0) throws -> URL {
     return archive
 }
 
-/// The bundled model's files in `<Support>/omlx/models/<key>/`, marked verified. Sparse files of the pinned sizes:
+/// A catalog model's files in `<Support>/omlx/models/<key>/`, marked verified. Sparse files of the pinned sizes:
 /// nothing is read, so no real weights are needed.
-func installFakeBundledModel(support: URL) throws -> CatalogModel {
-    guard let model = ModelCatalog.bundled().models.first, let files = model.pinned?.files else { throw PippaError.modelUnavailable }
+func installFakeBundledModel(support: URL, key: String? = nil) throws -> CatalogModel {
+    let catalog = ModelCatalog.bundled()
+    guard let model = key.flatMap(catalog.model) ?? catalog.models.first, let files = model.pinned?.files else { throw PippaError.modelUnavailable }
     let folder = PiLocalServer.baseDirectory(support: support).appendingPathComponent("models/\(model.key)", isDirectory: true)
     try fm.createDirectory(at: folder, withIntermediateDirectories: true)
     for file in files {
@@ -76,6 +77,7 @@ HTTPServer(("127.0.0.1", port), Health).serve_forever()
 
 func runTerminalAutostartChecks() async {
     let ornith = ModelCatalog.bundled().models.first?.key ?? "-"
+    let inkling = "inkling-2-mini-oQ3e"
 
     /// Fake HOME with payload (metadata.json + extension), port, key, models.json, runtime and the model in place.
     func setup(_ name: String, contextWindow: Int = 16384, runtimeScript: String = "#!/bin/sh\nexit 0\n")
@@ -187,7 +189,7 @@ func runTerminalAutostartChecks() async {
             && !text.contains(plan.key) && fm.fileExists(atPath: plan.settingsFile.path)
     }
 
-    check("oMLX settings.json: port, key, model folder and sampling written (0600), the person's and oMLX's other keys stay") {
+    check("oMLX settings.json and model_settings.json: model-specific sampling, memory guard, chunked prefill and MTP flag (0600)") {
         let (roots, env) = try setup("ta-settings")
         let plan = try PiLocalServer.plan(roots: roots, modelID: ornith, physicalMemory: 16 << 30, environment: env)
         try fm.createDirectory(at: plan.baseDirectory, withIntermediateDirectories: true)
@@ -196,14 +198,33 @@ func runTerminalAutostartChecks() async {
         try PiLocalServer.writeServerSettings(plan)
         let doc = try JSONSerialization.jsonObject(with: Data(contentsOf: plan.settingsFile)) as? [String: Any] ?? [:]
         let server = doc["server"] as? [String: Any], auth = doc["auth"] as? [String: Any], model = doc["model"] as? [String: Any]
+        let memory = doc["memory"] as? [String: Any], scheduler = doc["scheduler"] as? [String: Any]
         let mode = ((try? fm.attributesOfItem(atPath: plan.settingsFile.path)[.posixPermissions] as? NSNumber)?.intValue ?? 0) & 0o777
-        return server?["port"] as? Int == plan.port && server?["host"] as? String == "127.0.0.1" && server?["custom"] as? String == "x"
+        let ornithOK = server?["port"] as? Int == plan.port && server?["host"] as? String == "127.0.0.1" && server?["custom"] as? String == "x"
             && auth?["api_key"] as? String == plan.key && auth?["allow_unauthenticated_inference"] as? Bool == false
             && model?["model_dirs"] as? [String] == [plan.modelsDirectory.path]
             && (doc["idle_timeout"] as? [String: Any])?["idle_timeout_seconds"] as? Int == PiLocalServer.idleUnloadSeconds
             && (doc["sampling"] as? [String: Any])?["temperature"] as? Double == 0.6 && (doc["sampling"] as? [String: Any])?["top_k"] as? Int == 20
             && (doc["sampling"] as? [String: Any])?["repetition_penalty"] as? Double == 1.1 && doc["version"] as? Int == 3
+            && memory?["memory_guard_tier"] as? String == "balanced" && scheduler?["chunked_prefill"] as? Bool == false
             && mode == 0o600
+        // Switching to Inkling clears stale Ornith top_k/top_p, sets aggressive guard + chunked prefill, and disables MTP in model_settings.json.
+        _ = try installFakeBundledModel(support: roots.support, key: inkling)
+        let inkPlan = try PiLocalServer.plan(roots: roots, modelID: inkling, physicalMemory: 32 << 30, environment: env)
+        try PiLocalServer.writeServerSettings(inkPlan)
+        let inkDoc = try JSONSerialization.jsonObject(with: Data(contentsOf: inkPlan.settingsFile)) as? [String: Any] ?? [:]
+        let inkSampling = inkDoc["sampling"] as? [String: Any]
+        let inkMemory = inkDoc["memory"] as? [String: Any]
+        let inkScheduler = inkDoc["scheduler"] as? [String: Any]
+        let msDoc = try JSONSerialization.jsonObject(with: Data(contentsOf: inkPlan.modelSettingsFile)) as? [String: Any] ?? [:]
+        let inkMS = (msDoc["models"] as? [String: Any])?[inkling] as? [String: Any]
+        let msMode = ((try? fm.attributesOfItem(atPath: inkPlan.modelSettingsFile.path)[.posixPermissions] as? NSNumber)?.intValue ?? 0) & 0o777
+        let inkOK = inkSampling?["temperature"] as? Double == 1.0 && inkSampling?["top_k"] == nil && inkSampling?["top_p"] == nil
+            && inkMemory?["memory_guard_tier"] as? String == "aggressive"
+            && inkScheduler?["chunked_prefill"] as? Bool == true
+            && inkMS?["temperature"] as? Double == 1.0 && inkMS?["mtp_enabled"] as? Bool == false
+            && inkMS?["vlm_mtp_enabled"] as? Bool == false && msMode == 0o600
+        return ornithOK && inkOK
     }
 
     await checkAsync("Prewarming: healthy server still loads weights, concurrent callers share a load, failure retries and later calls reload") {

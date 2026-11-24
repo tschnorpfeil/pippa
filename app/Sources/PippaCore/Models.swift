@@ -14,21 +14,50 @@ public struct CatalogModel: Sendable, Codable, Hashable {
         public init(url: String, partSize: Int64) { self.url = url; self.partSize = partSize }
     }
 
+    public struct Sampling: Sendable, Codable, Hashable {
+        public var temperature: Double?
+        public var topP: Double?
+        public var topK: Int?
+        public init(temperature: Double? = nil, topP: Double? = nil, topK: Int? = nil) {
+            self.temperature = temperature; self.topP = topP; self.topK = topK
+        }
+    }
+
     /// Also the model's folder name, the id oMLX serves it under and the id in Pi's models.json.
     public var key: String
     public var label: String
     public var repo: String
     public var approxBytes: Int64?
+    /// Minimum physical Mac memory (GiB) required for `ModelSelector` to pick this model; defaults to `ModelSelector.minimumMemoryGiB`.
+    public var minMemoryGiB: Double?
+    public var memGiB: Double?
     /// Largest context Pippa gives it; `ModelSelector` lowers it on 16 GB Macs.
     public var ctx: Int
+    /// Maximum tokens per answer written to Pi's models.json; defaults to 4096.
+    public var maxTokens: Int?
     /// Pippa's default thinking level for this model in Pi (`off`, `medium`); written to Pi's
     /// `modelThinkingLevels` (PiModelTuning). Pi clamps it to what the model supports.
     public var thinking: String?
+    /// How Pi switches this model's thinking (`enableThinking` or `reasoningEffort`).
+    public var reasoningStyle: PiReasoningStyle?
+    /// Supported input modalities for Pi (`["text"]` or `["text", "image"]`).
+    public var input: [String]?
+    /// Default sampling parameters written to oMLX's settings for this model.
+    public var sampling: Sampling?
+    /// Explicit oMLX MTP toggle written to `model_settings.json` when set.
+    public var mtpEnabled: Bool?
+    /// oMLX memory guard tier (`safe`, `balanced`, `aggressive`); defaults to `balanced`.
+    public var memoryGuardTier: String?
+    /// Whether oMLX spreads long prefills across chunks to keep peak memory down.
+    public var chunkedPrefill: Bool?
     public var pinned: Pinned?
     /// Optional: where the pinned files are mirrored. Downloads are checked against the same SHA-256 either way.
     public var mirror: Mirror?
     /// The model's license as stated by its publisher; required for a mirror (written into the mirror's release notes).
     public var license: String?
+
+    /// Effective minimum memory in GiB for selection.
+    public var requiredMemoryGiB: Double { minMemoryGiB ?? ModelSelector.minimumMemoryGiB }
 }
 
 public struct ModelCatalog: Sendable, Codable {
@@ -53,8 +82,8 @@ public struct ModelChoice: Sendable, Hashable {
     public var ctx: Int
 }
 
-/// One model for every Mac that can run it: Apple silicon with 16 GB or more. 32K context from 24 GB, 16K on 16 GB.
-/// Smaller Macs use an online AI.
+/// Selects the best-fitting catalog model for this Mac: Apple silicon with 16 GB or more (Ornith on 16–24 GB,
+/// Inkling 2 Mini on 32 GB+). 32K context from 24 GB, 16K on 16 GB. Smaller Macs use an online AI.
 public enum ModelSelector {
     public static var isAppleSilicon: Bool {
         #if arch(arm64)
@@ -70,6 +99,10 @@ public enum ModelSelector {
     /// Below this the 9B model (5 GB weights, ~6.5 GB while answering) leaves the Mac no room.
     public static let minimumMemoryGiB = 15.0
 
+    public static func contextWindow(for model: CatalogModel, physicalMemory: UInt64) -> Int {
+        min(model.ctx, ByteCount.gibibytes(physicalMemory) >= 22 ? 32768 : 16384)
+    }
+
     public static func choose(physicalMemory: UInt64, appleSilicon: Bool = isAppleSilicon,
                               catalog: ModelCatalog = .bundled()) -> Result<ModelChoice, PippaError> {
         guard appleSilicon else {
@@ -79,8 +112,12 @@ public enum ModelSelector {
         guard gib >= minimumMemoryGiB else {
             return .failure(.unsupportedHardware(L("Pippa’s AI on this Mac needs 16 GB of memory. Use an online AI in Settings instead.", table: "Core")))
         }
-        guard let model = catalog.models.first, model.pinned != nil else { return .failure(.modelUnavailable) }
-        return .success(ModelChoice(model: model, ctx: min(model.ctx, gib >= 22 ? 32768 : 16384)))
+        // Pick the highest-tier model whose memory requirement this Mac meets; refuse if that entry is unpinned.
+        let eligible = catalog.models.filter { $0.requiredMemoryGiB <= gib }
+        guard let model = eligible.max(by: { $0.requiredMemoryGiB < $1.requiredMemoryGiB }), model.pinned != nil else {
+            return .failure(.modelUnavailable)
+        }
+        return .success(ModelChoice(model: model, ctx: contextWindow(for: model, physicalMemory: physicalMemory)))
     }
 }
 

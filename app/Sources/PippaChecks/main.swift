@@ -164,6 +164,7 @@ check("Case: only the same file counts as a pure rename") {
 
 let GB: UInt64 = 1 << 30
 let ornithKey = "ornith-1.5-9b-mlx-4bit"
+let inklingKey = "inkling-2-mini-oQ3e"
 
 /// A catalog model from given files (path → content), each pinned with its real size and SHA-256.
 func fakeCatalogModel(key: String = "fake-1b-mlx", repo: String = "fixture-org/Fake-1B-MLX", files: [String: Data]) -> CatalogModel {
@@ -176,35 +177,43 @@ func fakeCatalogModel(key: String = "fake-1b-mlx", repo: String = "fixture-org/F
     return try! JSONDecoder().decode(CatalogModel.self, from: JSONSerialization.data(withJSONObject: json))
 }
 
-check("Catalog: exactly one model, Ornith 1.5 9B, every file pinned by revision, size and SHA-256") {
+check("Catalog: Ornith 1.5 9B (16–24 GB) and Inkling 2 Mini (32 GB+), every file pinned by revision, size and SHA-256") {
     let catalog = ModelCatalog.bundled()
-    guard catalog.models.count == 1, let model = catalog.models.first, model.key == ornithKey,
-          let pinned = model.pinned, !pinned.files.isEmpty,
-          pinned.revision.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil else { return false }
-    let paths = pinned.files.map(\.path)
-    return pinned.files.allSatisfy { $0.size > 0 && $0.sha256.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil }
-        && Set(paths).count == paths.count && paths.contains("model.safetensors") && paths.contains("config.json")
-        && model.approxBytes == pinned.files.reduce(0) { $0 + $1.size }
-        && model.thinking == "medium"
+    guard catalog.models.map(\.key) == [ornithKey, inklingKey] else { return false }
+    return catalog.models.allSatisfy { model in
+        guard let pinned = model.pinned, !pinned.files.isEmpty,
+              pinned.revision.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil else { return false }
+        let paths = pinned.files.map(\.path)
+        return pinned.files.allSatisfy { $0.size > 0 && $0.sha256.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil }
+            && Set(paths).count == paths.count && paths.contains("config.json")
+            && paths.contains(where: { $0.hasSuffix(".safetensors") })
+            && model.approxBytes == pinned.files.reduce(0) { $0 + $1.size }
+            && model.thinking == "medium"
+    }
 }
 check("Model: 8 GB → no local AI (online AI instead); Intel → not supported") {
     let small: Bool = { if case .failure(.unsupportedHardware) = ModelSelector.choose(physicalMemory: 8 * GB, appleSilicon: true) { return true }; return false }()
     let intel: Bool = { if case .failure(.unsupportedHardware) = ModelSelector.choose(physicalMemory: 32 * GB, appleSilicon: false) { return true }; return false }()
     return small && intel && PiSetupFlow.choice(physicalMemory: 8 * GB) == nil
 }
-check("Model: 16 GB → Ornith with 16K context, 24 GB and more → 32K") {
+check("Model: 16 GB → Ornith 16K, 24 GB → Ornith 32K, 32 GB and 64 GB → Inkling 2 Mini 32K") {
     let c16 = try? ModelSelector.choose(physicalMemory: 16 * GB, appleSilicon: true).get()
     let c24 = try? ModelSelector.choose(physicalMemory: 24 * GB, appleSilicon: true).get()
+    let c32 = try? ModelSelector.choose(physicalMemory: 32 * GB, appleSilicon: true).get()
     let c64 = try? ModelSelector.choose(physicalMemory: 64 * GB, appleSilicon: true).get()
     return c16?.model.key == ornithKey && c16?.ctx == 16384
-        && c24?.model.key == ornithKey && c24?.ctx == 32768 && c64?.ctx == 32768
+        && c24?.model.key == ornithKey && c24?.ctx == 32768
+        && c32?.model.key == inklingKey && c32?.ctx == 32768
+        && c64?.model.key == inklingKey && c64?.ctx == 32768
 }
 check("Model: an unpinned model is unavailable (never a download without a SHA-256)") {
     var catalog = ModelCatalog.bundled()
-    guard !catalog.models.isEmpty else { return false }
+    guard catalog.models.count >= 2 else { return false }
     catalog.models[0].pinned = nil
-    if case .failure(.modelUnavailable) = ModelSelector.choose(physicalMemory: 16 * GB, appleSilicon: true, catalog: catalog) { return true }
-    return false
+    catalog.models[1].pinned = nil
+    let u16: Bool = { if case .failure(.modelUnavailable) = ModelSelector.choose(physicalMemory: 16 * GB, appleSilicon: true, catalog: catalog) { return true }; return false }()
+    let u32: Bool = { if case .failure(.modelUnavailable) = ModelSelector.choose(physicalMemory: 32 * GB, appleSilicon: true, catalog: catalog) { return true }; return false }()
+    return u16 && u32
 }
 check("Existing models: matching name and size, wrong content is not adopted") {
     let home = dir("existing-wrong")

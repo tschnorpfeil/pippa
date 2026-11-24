@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "about": "Pippa's one local model, served by oMLX (docs/omlx-switch.md). Every file is pinned by revision, size and SHA-256; setup downloads them into <Support>/omlx/models/<key>/.",
+  "about": "Pippa's local models, served by oMLX (docs/models.md). Every file is pinned by revision, size and SHA-256; setup picks the best fitting model for the Mac's memory and downloads it into <Support>/omlx/models/<key>/.",
   "models": [
     {
       "key": "ornith-1.5-9b-mlx-4bit",
@@ -8,9 +8,14 @@
       "repo": "ornith-ai/Ornith-1.5-9B-MLX-4bit",
       "quant": "MLX 4-bit",
       "approxBytes": 5058243519,
+      "minMemoryGiB": 15,
       "memGiB": 6.5,
       "ctx": 32768,
+      "maxTokens": 4096,
       "thinking": "medium",
+      "reasoningStyle": "enableThinking",
+      "sampling": {"temperature": 0.6, "topP": 0.95, "topK": 20},
+      "memoryGuardTier": "balanced",
       "license": "MIT, declared on https://huggingface.co/ornith-ai/Ornith-1.5-9B",
       "mirror": {"url": "https://github.com/tschnorpfeil/pippa/releases/download/model-ornith-1.5-9b-mlx-4bit-a48173b/", "partSize": 2000000000},
       "pinned": {
@@ -22,6 +27,41 @@
           {"path": "tokenizer.json", "size": 19989325, "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"},
           {"path": "model.safetensors.index.json", "size": 81194, "sha256": "215f9abadc1cea4d465b01c036dffcac5a84c2fb2386777863eff6928b91ed0b"},
           {"path": "model.safetensors", "size": 5038161163, "sha256": "c022a4c4b8de62c75306e2442fd78161ff49bce85fe7abb308c5ad5d04454a26"}
+        ]
+      }
+    },
+    {
+      "key": "inkling-2-mini-oQ3e",
+      "label": "Inkling 2 Mini",
+      "repo": "mlx-community/Inkling-2-Mini-oQ3e-mtp",
+      "quant": "oQ3e",
+      "approxBytes": 13064539565,
+      "minMemoryGiB": 30,
+      "memGiB": 16.7,
+      "ctx": 32768,
+      "maxTokens": 16384,
+      "thinking": "medium",
+      "reasoningStyle": "reasoningEffort",
+      "input": ["text", "image"],
+      "sampling": {"temperature": 1.0},
+      "mtpEnabled": false,
+      "memoryGuardTier": "aggressive",
+      "chunkedPrefill": true,
+      "license": "Apache-2.0, declared on https://huggingface.co/mlx-community/Inkling-2-Mini-oQ3e-mtp",
+      "pinned": {
+        "revision": "5552e32ec7a50fa8e9b0bfe2002aab72f8b78975",
+        "files": [
+          {"path": "config.json", "size": 15233, "sha256": "a5d4b22244cc253668eb209b617ba4dbae591bad41ec6389f7e0059a4fa46a55"},
+          {"path": "chat_template.jinja", "size": 6868, "sha256": "53a9035f3255945704b5857657cfb00c1165090c0641c4f782a0cbf268cc16dc"},
+          {"path": "generation_config.json", "size": 98, "sha256": "a08737c07a65a8fdf69f7cf086576210e5aad4b241437090b26d7b0c4f7905f7"},
+          {"path": "processor_config.json", "size": 461, "sha256": "d7350adce18c8be4b607f261c8f0f7eabbf720bb7aaf648a43d4f8372bbacc2d"},
+          {"path": "special_tokens_map.json", "size": 529, "sha256": "c16f44b3594563d82743ddb0417a2be1bfe3e2000dfad2da4b8f32554593e1a0"},
+          {"path": "tokenizer.json", "size": 26178678, "sha256": "7f332727f9a3f093dd452a39cc978e6757627e5dad1b0673aa4e75174f236dd6"},
+          {"path": "tokenizer_config.json", "size": 13235, "sha256": "bf09342d285139fd37ce10c70878af1d52cb390e9901e10248654293a80ee636"},
+          {"path": "model.safetensors.index.json", "size": 90189, "sha256": "68a565a3c8561dd2ebf03a120a212e8806f61148dbd43ee3989e077c3ca63079"},
+          {"path": "model-00001-of-00003.safetensors", "size": 5210355613, "sha256": "2f5073870e115e83651541a125b1f12e231f1ea8d800920549fadb8dc2a4e8e8"},
+          {"path": "model-00002-of-00003.safetensors", "size": 5262058719, "sha256": "151d2d41b0c6cf1c5d8885bd0f76620804c21d0f4ba894fcbbf65ab0a8049421"},
+          {"path": "model-00003-of-00003.safetensors", "size": 2565819942, "sha256": "651d791ec135667bce1669b270899c7afea516970b4a014354fc3a863cf5bc60"}
         ]
       }
     }

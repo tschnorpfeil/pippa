@@ -7,12 +7,17 @@ public struct PiProviderModel: Sendable, Equatable {
     public var name: String
     public var contextWindow: Int
     public var maxTokens: Int
-    public init(id: String, name: String, contextWindow: Int, maxTokens: Int = 4096) {
-        self.id = id; self.name = name; self.contextWindow = contextWindow; self.maxTokens = maxTokens
+    public var input: [String]?
+    public init(id: String, name: String, contextWindow: Int, maxTokens: Int = 4096, input: [String]? = nil) {
+        self.id = id; self.name = name; self.contextWindow = contextWindow; self.maxTokens = maxTokens; self.input = input
+    }
+    /// From a catalog model and context window.
+    public init(model: CatalogModel, contextWindow: Int) {
+        self.init(id: model.key, name: model.label, contextWindow: contextWindow, maxTokens: model.maxTokens ?? 4096, input: model.input)
     }
     /// From Pippa's choice: id = catalog key (also the model's folder name, which oMLX serves it under), context as the server.
     public init(_ choice: ModelChoice) {
-        self.init(id: choice.model.key, name: choice.model.label, contextWindow: choice.ctx)
+        self.init(model: choice.model, contextWindow: choice.ctx)
     }
 }
 
@@ -119,7 +124,7 @@ public final class PiInstaller: @unchecked Sendable {
             guard let folder = modelDirectory(model), ModelDownloader(directory: folder).isInstalled(model) else {
                 return finish(.ready, .failed(.missingStep(.model)))
             }
-            for old in Self.oldModelFiles(support: roots.support, home: roots.home, state: state) {
+            for old in Self.oldModelFiles(support: roots.support, home: roots.home, state: state, keeping: model.key) {
                 try? fm.trashItem(at: old, resultingItemURL: nil)
             }
         }
