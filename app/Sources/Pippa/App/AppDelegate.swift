@@ -78,6 +78,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.menuMark.setWriting(writing)
             }
         let menu = NSMenu()
+        let noticeItem = MenuAction.item("") {
+            if let nudge = ProactivityCoordinator.shared.activeNudge {
+                ProactivityCoordinator.shared.openInChat(nudge)
+            }
+        }
+        let noticeSeparator = NSMenuItem.separator()
+        noticeItem.isHidden = true
+        noticeSeparator.isHidden = true
+        menu.addItem(noticeItem)
+        menu.addItem(noticeSeparator)
         menu.addItem(MenuAction.item(T("Ask Pippa", table: "App")) { AppActions.callPippa() })
         menu.addItem(MenuAction.newConversation())
         menu.addItem(.separator())
@@ -86,7 +96,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(MenuAction.item(T("Settings…", table: "App")) { SettingsWindow.shared.show() })
         menu.addItem(.separator())
         menu.addItem(MenuAction.item(T("Quit Pippa", table: "App")) { NSApp.terminate(nil) })
-        menu.delegate = MenuAction.stateUpdater { island.state = Island.shared.isShown ? .on : .off }
+        menu.delegate = MenuAction.stateUpdater {
+            island.state = Island.shared.isShown ? .on : .off
+            if let nudge = ProactivityCoordinator.shared.activeNudge {
+                noticeItem.title = nudge.title
+                noticeItem.isHidden = false
+                noticeSeparator.isHidden = false
+            } else {
+                noticeItem.isHidden = true
+                noticeSeparator.isHidden = true
+            }
+        }
         statusMenu = menu
         return item
     }

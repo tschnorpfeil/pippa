@@ -133,7 +133,7 @@
 "Preview today’s brief" = "Heutigen Morgenbrief ansehen";
 "Preview now" = "Jetzt ansehen";
 "Nothing on your calendar or reminders today. On a day like this Pippa stays quiet." = "Heute steht nichts in Kalender oder Erinnerungen. An so einem Tag bleibt Pippa still.";
-"Pippa reads only Calendar and Reminders you already allowed. You can allow them under Permissions." = "Pippa liest nur Kalender und Erinnerungen, die du schon erlaubt hast. Erlauben kannst du sie unter „Berechtigungen“.";
+"Pippa reads only Calendar and Reminders you already allowed. You can allow them under Permissions." = "Pippa liest nur Kalender und Erinnerungen, die du schon erlaubt hast. Erlauben kannst du sie unter „Zugriff“.";
 "Watched folder" = "Beobachteter Ordner";
 "None. New documents in a folder you choose get a short look by the AI built into macOS, one level deep." = "Keiner. Neue Dokumente in einem Ordner deiner Wahl schaut sich die in macOS eingebaute KI kurz an, nur die oberste Ebene.";
 "Watch Folder" = "Ordner beobachten";

@@ -86,6 +86,10 @@ struct CalmNoticeSettings: View {
                 }
             }
         }
+        .onAppear { coordinator.refreshFocusAuthorization() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            coordinator.refreshFocusAuthorization()
+        }
     }
 
     @ViewBuilder private func morningBrief(_ settings: ProactivitySettings) -> some View {

@@ -38,8 +38,13 @@ final class ProactivityCoordinator: ObservableObject {
     private var folderSource: DispatchSourceFileSystemObject?
     private var watchedFolder: URL?
     private var folderDebounceTask: Task<Void, Never>?
+    private var folderSetupTask: Task<Void, Never>?
     private var tickTask: Task<Void, Never>?
     private var scanTask: Task<Void, Never>?
+    private var tickGeneration: UInt64 = 0
+    private var scanGeneration: UInt64 = 0
+    private var folderGeneration: UInt64 = 0
+    private var needsRescan = false
     private var isWatching = false
     private let focusReader = SystemFocusStatusReader()
 
@@ -50,8 +55,13 @@ final class ProactivityCoordinator: ObservableObject {
     /// At launch: starts watching only when the person switched calm notices on.
     func start() {
         guard settings.enabled else { return }
-        focusAuthorization = SystemFocusStatusReader.currentAuthorizationState()
+        refreshFocusAuthorization()
         startWatching()
+    }
+
+    /// Re-reads Focus authorization state (for Settings on appear or app activation).
+    func refreshFocusAuthorization() {
+        focusAuthorization = SystemFocusStatusReader.currentAuthorizationState()
     }
 
     // MARK: Settings
@@ -108,12 +118,18 @@ final class ProactivityCoordinator: ObservableObject {
         settings.watchedFolderPath.map { URL(fileURLWithPath: $0).lastPathComponent }
     }
 
-    /// Changes, saves and applies the settings: watchers follow `enabled` and the folder.
+    /// Changes, saves and applies the settings: watchers follow `enabled`, folder changes and unmuting.
     private func update(_ change: (inout ProactivitySettings) -> Void) {
         var next = settings
         change(&next)
         guard next != settings else { return }
-        let folderChanged = next.watchedFolderPath != settings.watchedFolderPath || next.watchedFolderBookmark != settings.watchedFolderBookmark
+        let previous = settings
+        let folderChanged = next.watchedFolderPath != previous.watchedFolderPath || next.watchedFolderBookmark != previous.watchedFolderBookmark
+        let watchedFileUnmuted = previous.isMuted(.watchedFile) && !next.isMuted(.watchedFile)
+        let relaxed = next.mutedKinds.count < previous.mutedKinds.count
+            || (!previous.morningBriefEnabled && next.morningBriefEnabled)
+            || (previous.morningBriefHour != next.morningBriefHour)
+            || (previous.quietHoursEnabled && !next.quietHoursEnabled)
         settings = next
         save()
         if !next.enabled {
@@ -124,8 +140,13 @@ final class ProactivityCoordinator: ObservableObject {
         }
         if !isWatching {
             startWatching()
-        } else if folderChanged {
-            restartFolderWatch()
+        } else {
+            if folderChanged || watchedFileUnmuted {
+                restartFolderWatch()
+            }
+            if relaxed {
+                tick()
+            }
         }
         if let nudge = activeNudge, next.isMuted(nudge.kind) || (nudge.kind == .morningBrief && !next.morningBriefEnabled) {
             activeNudge = nil
@@ -163,13 +184,31 @@ final class ProactivityCoordinator: ObservableObject {
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         wakeObserver = nil
         stopFolderWatch()
+        tickGeneration &+= 1
         tickTask?.cancel()
         tickTask = nil
     }
 
     private func restartFolderWatch() {
         stopFolderWatch()
-        guard settings.enabled, !settings.isMuted(.watchedFile), let url = resolveFolder() else { return }
+        guard settings.enabled, !settings.isMuted(.watchedFile) else { return }
+        let bookmark = settings.watchedFolderBookmark
+        let fallbackPath = settings.watchedFolderPath
+        guard bookmark != nil || fallbackPath != nil else { return }
+        folderGeneration &+= 1
+        let gen = folderGeneration
+        folderSetupTask = Task { [weak self] in
+            // Resolve bookmark off MainActor with `.withoutMounting` so offline network/external volumes never block launch.
+            let resolved: URL? = await Task.detached(priority: .utility) {
+                Self.resolveFolderOffMain(bookmark: bookmark, fallbackPath: fallbackPath)
+            }.value
+            guard !Task.isCancelled, let self, self.folderGeneration == gen,
+                  self.settings.enabled, !self.settings.isMuted(.watchedFile), let url = resolved else { return }
+            self.attachFolderSource(url: url)
+        }
+    }
+
+    private func attachFolderSource(url: URL) {
         let accessed = url.startAccessingSecurityScopedResource()
         let descriptor = open(url.path, O_EVTONLY)
         guard descriptor >= 0 else {
@@ -179,8 +218,15 @@ final class ProactivityCoordinator: ObservableObject {
         }
         let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor,
                                                                eventMask: [.write, .rename, .delete, .extend], queue: .main)
-        source.setEventHandler {
-            MainActor.assumeIsolated { ProactivityCoordinator.shared.folderChanged() }
+        source.setEventHandler { [weak source] in
+            let flags = source?.data ?? []
+            MainActor.assumeIsolated {
+                if flags.contains(.delete) || flags.contains(.rename) {
+                    ProactivityCoordinator.shared.restartFolderWatch()
+                } else {
+                    ProactivityCoordinator.shared.folderChanged()
+                }
+            }
         }
         source.setCancelHandler {
             close(descriptor)
@@ -194,25 +240,32 @@ final class ProactivityCoordinator: ObservableObject {
     }
 
     private func stopFolderWatch() {
+        folderGeneration &+= 1
+        folderSetupTask?.cancel()
+        folderSetupTask = nil
         folderDebounceTask?.cancel()
         folderDebounceTask = nil
+        scanGeneration &+= 1
+        scanTask?.cancel()
+        scanTask = nil
+        needsRescan = false
         folderSource?.cancel()
         folderSource = nil
         watchedFolder = nil
     }
 
-    /// The folder from its security-scoped bookmark; the plain path only when there is no bookmark.
-    private func resolveFolder() -> URL? {
-        if let bookmark = settings.watchedFolderBookmark {
+    /// Resolves the watched folder from its security-scoped bookmark off MainActor without mounting offline volumes.
+    private nonisolated static func resolveFolderOffMain(bookmark: Data?, fallbackPath: String?) -> URL? {
+        if let bookmark {
             var stale = false
-            if let url = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale) {
+            if let url = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutMounting], relativeTo: nil, bookmarkDataIsStale: &stale) {
                 return url
             }
-            if let url = try? URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) {
+            if let url = try? URL(resolvingBookmarkData: bookmark, options: [.withoutMounting], relativeTo: nil, bookmarkDataIsStale: &stale) {
                 return url
             }
         }
-        return settings.watchedFolderPath.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        return fallbackPath.map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
     private func folderChanged() { scheduleScan(after: Self.folderDebounce) }
@@ -227,19 +280,40 @@ final class ProactivityCoordinator: ObservableObject {
     }
 
     private func scanFolder() {
-        guard settings.enabled, !settings.isMuted(.watchedFile), let folder = watchedFolder, scanTask == nil,
-              let store = openMatterStore() else { return }
-        let scanner = WatchedFolderScanner(store: store, language: Self.language)
+        guard settings.enabled, !settings.isMuted(.watchedFile), let folder = watchedFolder else { return }
+        if scanTask != nil {
+            needsRescan = true
+            return
+        }
+        needsRescan = false
+        scanGeneration &+= 1
+        let gen = scanGeneration
+        let lang = Self.language
         scanTask = Task { [weak self] in
+            guard let self else { return }
+            guard let store = await self.ensureMatterStore() else {
+                if self.scanGeneration == gen { self.scanTask = nil }
+                return
+            }
+            let scanner = WatchedFolderScanner(store: store, language: lang)
             do {
                 let report = try await scanner.scan(folderURL: folder)
-                DiagnosticsLog.shared.event("proaktiv-ordner", ["dateien": String(report.scannedFiles), "hinweise": String(report.actionableMatters.count)])
+                if !Task.isCancelled {
+                    DiagnosticsLog.shared.event("proaktiv-ordner", ["dateien": String(report.scannedFiles), "hinweise": String(report.actionableMatters.count)])
+                }
             } catch {
-                DiagnosticsLog.shared.event("proaktiv-ordner-fehler", [:])
+                if !Task.isCancelled {
+                    DiagnosticsLog.shared.event("proaktiv-ordner-fehler", [:])
+                }
             }
-            guard let self else { return }
+            guard self.scanGeneration == gen else { return }
             self.scanTask = nil
-            self.tick()
+            if self.needsRescan {
+                self.needsRescan = false
+                self.scheduleScan(after: Self.folderDebounce)
+            } else {
+                self.tick()
+            }
         }
     }
 
@@ -248,22 +322,42 @@ final class ProactivityCoordinator: ObservableObject {
     /// Prepares today's brief when it is due and offers at most one matter, if the gate lets it through.
     func tick() {
         guard settings.enabled, isWatching, tickTask == nil, activeNudge == nil else { return }
+        tickGeneration &+= 1
+        let gen = tickGeneration
         tickTask = Task { [weak self] in
-            await self?.runTick()
-            self?.tickTask = nil
+            guard let self else { return }
+            await self.runTick()
+            if self.tickGeneration == gen { self.tickTask = nil }
         }
     }
 
     private func runTick() async {
-        guard let store = openMatterStore() else { return }
+        guard let store = await ensureMatterStore() else { return }
         let now = Date()
+        let todayKey = ProactiveMatterStore.dayKey(for: now)
+
+        // Restore a still-valid previously offered notice after app restart without re-spending daily budget.
+        let offered = (try? await store.matters(states: [.offered])) ?? []
+        for matter in offered.sorted(by: { $0.updatedAt > $1.updatedAt }) {
+            guard !Task.isCancelled, settings.enabled, activeNudge == nil else { return }
+            if settings.isMuted(matter.kind) { continue }
+            if matter.kind == .morningBrief && (!settings.morningBriefEnabled || matter.matterKey != MorningBriefBuilder.matterKey(for: todayKey)) {
+                continue
+            }
+            let fresh = (try? await store.isFresh(matterID: matter.id, expectedSourceVersion: matter.sourceVersion)) ?? false
+            if fresh {
+                activeNudge = matter
+                return
+            }
+        }
+
         var candidates: [ProactiveMatter] = []
-        if settings.morningBriefEnabled, !settings.isMuted(.morningBrief), morningBriefDue(now: now), let brief = await buildBrief(day: now) {
+        if settings.morningBriefEnabled, !settings.isMuted(.morningBrief), morningBriefDue(now: now), let brief = await buildBrief(day: now, store: store) {
             candidates.append(brief)
         }
         let waiting = (try? await store.matters(states: [.open, .snoozed])) ?? []
         candidates += waiting
-            .filter { $0.kind != .morningBrief || $0.matterKey == MorningBriefBuilder.matterKey(for: ProactiveMatterStore.dayKey(for: now)) }
+            .filter { $0.kind != .morningBrief || $0.matterKey == MorningBriefBuilder.matterKey(for: todayKey) }
             .filter { $0.state == .open || ($0.snoozedUntil.map { $0 <= now } ?? false) }
             .sorted { $0.createdAt < $1.createdAt }
         var seen = Set<UUID>()
@@ -300,9 +394,16 @@ final class ProactivityCoordinator: ObservableObject {
         return now >= due
     }
 
-    /// Today's brief from already allowed data only. `nil` on an empty day (the builder stays silent then).
-    private func buildBrief(day: Date) async -> ProactiveMatter? {
-        guard let store = openMatterStore(), let jobs = openJobStore() else { return nil }
+    /// Today's brief from already allowed data only. Short-circuits before reading EventKit if today's job already completed.
+    private func buildBrief(day: Date, store: ProactiveMatterStore) async -> ProactiveMatter? {
+        guard let jobs = await ensureJobStore() else { return nil }
+        let dayKey = ProactiveMatterStore.dayKey(for: day)
+        let reqKey = MorningBriefBuilder.requestKey(for: dayKey)
+        let matKey = MorningBriefBuilder.matterKey(for: dayKey)
+        if let existing = try? await jobs.record(requestKey: reqKey),
+           existing.state == .completed || existing.state == .running {
+            return (try? await store.matter(key: matKey)) ?? nil
+        }
         let input = await briefInput(day: day, store: store)
         do {
             switch try await MorningBriefBuilder.build(input: input, jobStore: jobs, matterStore: store) {
@@ -343,7 +444,8 @@ final class ProactivityCoordinator: ObservableObject {
         isPreviewing = true
         Task { [weak self] in
             guard let self else { return }
-            let input = await self.briefInput(day: Date(), store: self.settings.enabled ? self.openMatterStore() : nil)
+            let store = self.settings.enabled ? await self.ensureMatterStore() : nil
+            let input = await self.briefInput(day: Date(), store: store)
             let allowed = EKEventStore.authorizationStatus(for: .event) == .fullAccess
                 && EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
             var text: String
@@ -362,8 +464,8 @@ final class ProactivityCoordinator: ObservableObject {
 
     // MARK: The person's answers
 
-    /// "Open in Chat": a new conversation with the prepared question and files. The matter stays offered until the
-    /// person marks it done, so it does not come back by itself.
+    /// "Open in Chat": starts a clean conversation with the prepared question and files, and marks the notice
+    /// resolved via `PersonAction` so it does not stay orphaned in `.offered` forever.
     func openInChat(_ matter: ProactiveMatter) {
         Island.shared.close()
         let chat = ChatModel.shared
@@ -371,9 +473,10 @@ final class ProactivityCoordinator: ObservableObject {
         ChatWindow.shared.show()
         let files = matter.preparedFiles.map { URL(fileURLWithPath: $0) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
-        chat.attachments += files.filter { !chat.attachments.contains($0) }
+        chat.attachments = files
+        chat.frontApp = nil
         chat.draft = matter.preparedPrompt
-        clear(matter)
+        apply(.resolve(surface: .island), to: matter)
     }
 
     func markDone(_ matter: ProactiveMatter) {
@@ -396,8 +499,8 @@ final class ProactivityCoordinator: ObservableObject {
 
     private func apply(_ action: PersonAction, to matter: ProactiveMatter) {
         clear(matter)
-        guard let store = openMatterStore() else { return }
-        Task {
+        Task { [weak self] in
+            guard let self, let store = await self.ensureMatterStore() else { return }
             do { _ = try await store.apply(action, to: matter.id) }
             catch { DiagnosticsLog.shared.event("proaktiv-aktion-fehler", [:]) }
         }
@@ -409,21 +512,35 @@ final class ProactivityCoordinator: ObservableObject {
 
     // MARK: Stores
 
-    /// Opened on first use while enabled, so a switched-off Pippa never touches the database.
-    private func openMatterStore() -> ProactiveMatterStore? {
+    /// Opened off MainActor on first use while enabled, so a switched-off Pippa never touches SQLite and launch never stalls.
+    private func ensureMatterStore() async -> ProactiveMatterStore? {
         if let matterStore { return matterStore }
         guard settings.enabled else { return nil }
-        do { matterStore = try ProactiveMatterStore(baseDirectory: PiSession.settingsDirectory) }
-        catch { DiagnosticsLog.shared.event("proaktiv-speicher-fehler", [:]) }
-        return matterStore
+        let base = PiSession.settingsDirectory
+        let opened: ProactiveMatterStore? = await Task.detached(priority: .utility) {
+            try? ProactiveMatterStore(baseDirectory: base)
+        }.value
+        if let opened {
+            if matterStore == nil { matterStore = opened }
+            return matterStore
+        }
+        DiagnosticsLog.shared.event("proaktiv-speicher-fehler", [:])
+        return nil
     }
 
-    private func openJobStore() -> DurableJobStore? {
+    private func ensureJobStore() async -> DurableJobStore? {
         if let jobStore { return jobStore }
         guard settings.enabled else { return nil }
-        do { jobStore = try DurableJobStore(baseDirectory: PiSession.settingsDirectory) }
-        catch { DiagnosticsLog.shared.event("proaktiv-auftraege-fehler", [:]) }
-        return jobStore
+        let base = PiSession.settingsDirectory
+        let opened: DurableJobStore? = await Task.detached(priority: .utility) {
+            try? DurableJobStore(baseDirectory: base)
+        }.value
+        if let opened {
+            if jobStore == nil { jobStore = opened }
+            return jobStore
+        }
+        DiagnosticsLog.shared.event("proaktiv-auftraege-fehler", [:])
+        return nil
     }
 
     /// The language Pippa's UI runs in, for the brief and the file triage.
