@@ -45,7 +45,7 @@ The chat window, Pippa Island and Settings share one look. The window and Settin
 
 <p align="center"><a href="https://github.com/tschnorpfeil/pippa/releases/latest/download/Pippa.dmg"><b>Download Pippa.dmg</b></a> (under 100 MB, signed and notarized) · <a href="https://heypippa.app/en/">Website</a> · <a href="https://github.com/tschnorpfeil/pippa/releases/latest">What's new</a></p>
 
-<p align="center"><sub>Apple silicon (M1 or later), macOS 26.2 or later. One PDF from photos works right away. For the rest, her AI on your Mac needs 16 GB of memory; she checks your free disk space and asks before downloading it, about 5.4 GB (<a href="#will-it-run-on-my-mac">details</a>). If oMLX, LM Studio or Hugging Face already has the same model, she uses it instead of downloading it again. Smaller Mac, or prefer an online AI? Sign in with ChatGPT or add your own key.</sub></p>
+<p align="center"><sub>Apple silicon (M1 or later), macOS 26.2 or later. One PDF from photos works right away. For the rest, her AI on your Mac needs 16 GB of memory; she checks your free disk space and asks before downloading it — about 5.4 GB on 16–24 GB Macs or about 13.4 GB on 32 GB+ Macs (<a href="#will-it-run-on-my-mac">details</a>). If oMLX, LM Studio or Hugging Face already has the same model, she uses it instead of downloading it again. Smaller Mac, or prefer an online AI? Sign in with ChatGPT or add your own key.</sub></p>
 
 <p align="center"><img src="docs/images/demo-letter.gif" width="960" alt="Scripted website demo with made-up files: asked when notice is due before moving out at the end of March, Pippa answers 'By December 31', explains the three-month notice period and quotes the passage from the lease"><br>
 <sub>Scripted demo from an earlier version of the website, with made-up files. Not a live AI session.</sub></p>
@@ -84,13 +84,14 @@ More, with examples and limits: [What Pippa can do](docs/what-pippa-can-do.md).
 
 You need a Mac with **Apple silicon (M1 or later)** and **macOS 26.2 or later**. Every Apple silicon Mac can update to it for free in System Settings > General > Software Update. Intel Macs are not supported.
 
-One PDF from photos and scans works without any AI download. For everything else, Pippa uses one AI on your Mac, Ornith 1.5 9B, and asks before downloading it. With an online AI switched on, she works without the download.
+One PDF from photos and scans works without any AI download. For everything else, Pippa picks the local AI that fits your Mac's memory (Ornith 1.5 9B on 16–24 GB Macs, Inkling 2 Mini on 32 GB+ Macs) and asks before downloading it. With an online AI switched on, she works without the download.
 
 | Your Mac's memory | Pippa's AI on your Mac |
 |---|---|
 | Less than 16 GB | None; use an online AI (ChatGPT or your own key) |
-| 16 or 18 GB | Download about 5.4 GB, shorter context |
-| 24 GB or more | Download about 5.4 GB |
+| 16 or 18 GB | Ornith 1.5 9B — download about 5.4 GB, shorter context |
+| 24 GB | Ornith 1.5 9B — download about 5.4 GB |
+| 32 GB or more | Inkling 2 Mini (with image vision) — download about 13.4 GB |
 
 Before the download, Pippa checks that there is enough free disk space and tells you how much more is needed. If Hugging Face is blocked or drops, she continues from a verified copy on GitHub Releases. If her AI runs short of memory on your Mac, she tells you briefly and what helps. She never brings up Apple's window asking you to install developer tools. If the same model is already on your Mac from oMLX, LM Studio or Hugging Face, Pippa uses it instead of downloading it again. Which AI, and why: [Pippa's local AI](docs/models.md).
 

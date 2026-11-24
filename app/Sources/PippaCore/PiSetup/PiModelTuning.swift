@@ -9,20 +9,34 @@ import Foundation
 /// Compaction: Pi compacts when `context > contextWindow − reserveTokens` (compaction.md). The defaults
 /// (`reserveTokens` 16384, `keepRecentTokens` 20000) would put that threshold at 0 for a 16k model, so Pippa sets
 /// both per `pippa-local/<id>` in `compaction.modelOverrides`.
-public enum PiReasoningStyle: String, Sendable, Equatable {
+public enum PiReasoningStyle: String, Codable, Sendable, Equatable {
     /// Qwen 3.5 and its fine-tunes (Ornith): `chat_template_kwargs.enable_thinking`.
     case enableThinking
+    /// OpenAI-style `reasoning_effort` (Inkling 2 Mini: none/minimal/low/medium/high/xhigh).
+    case reasoningEffort
 
-    public static func of(modelKey key: String) -> PiReasoningStyle? {
-        key.hasPrefix("ornith") || key.hasPrefix("qwen3") ? .enableThinking : nil
+    public static func of(modelKey key: String, catalog: ModelCatalog = .bundled()) -> PiReasoningStyle? {
+        if let declared = catalog.model(key)?.reasoningStyle { return declared }
+        if key.hasPrefix("ornith") || key.hasPrefix("qwen3") { return .enableThinking }
+        if key.hasPrefix("inkling") { return .reasoningEffort }
+        return nil
     }
 
     /// Fields added to the model's entry in models.json.
     public var modelFields: [String: Any] {
-        ["reasoning": true,
-         "thinkingLevelMap": ["off": "off", "minimal": NSNull(), "low": NSNull(), "medium": "medium", "high": NSNull(),
-                              "xhigh": NSNull(), "max": NSNull()] as [String: Any],
-         "compat": ["thinkingFormat": "qwen-chat-template"]]
+        switch self {
+        case .enableThinking:
+            ["reasoning": true,
+             "thinkingLevelMap": ["off": "off", "minimal": NSNull(), "low": NSNull(), "medium": "medium", "high": NSNull(),
+                                  "xhigh": NSNull(), "max": NSNull()] as [String: Any],
+             "compat": ["thinkingFormat": "qwen-chat-template"]]
+        case .reasoningEffort:
+            ["reasoning": true,
+             "thinkingLevelMap": ["off": "none", "minimal": "minimal", "low": "low", "medium": "medium", "high": "high",
+                                  "xhigh": "xhigh", "max": NSNull()] as [String: Any],
+             "compat": ["supportsReasoningEffort": true, "maxTokensField": "max_tokens",
+                        "supportsDeveloperRole": false, "supportsStore": false, "supportsUsageInStreaming": true] as [String: Any]]
+        }
     }
 }
 
@@ -52,7 +66,7 @@ public enum PiModelTuning {
             let key = settingsKey(modelID: model.id)
             overrides[key] = ["reserveTokens": reserveTokens(contextWindow: model.contextWindow, maxTokens: model.maxTokens),
                               "keepRecentTokens": keepRecentTokens(contextWindow: model.contextWindow)]
-            guard PiReasoningStyle.of(modelKey: model.id) != nil, let level = catalog.model(model.id)?.thinking else { continue }
+            guard PiReasoningStyle.of(modelKey: model.id, catalog: catalog) != nil, let level = catalog.model(model.id)?.thinking else { continue }
             if levels[key] == nil { levels[key] = level }
         }
         compaction["modelOverrides"] = overrides

@@ -1,23 +1,27 @@
 # Pippa's local AI
 
-Pippa has no model picker. Her AI on your Mac is one model, **Ornith 1.5 9B** in MLX 4-bit
-([`ornith-ai/Ornith-1.5-9B-MLX-4bit`](https://huggingface.co/ornith-ai/Ornith-1.5-9B-MLX-4bit)), served by
-[oMLX](https://github.com/jundot/omlx). She tells you the download size and asks before downloading. With an online AI
-switched on, she works without that download.
+Pippa has no model picker. She picks the local model that fits your Mac's memory and serves it through
+[oMLX](https://github.com/jundot/omlx): **Inkling 2 Mini** in oQ3e
+([`mlx-community/Inkling-2-Mini-oQ3e-mtp`](https://huggingface.co/mlx-community/Inkling-2-Mini-oQ3e-mtp)) on 32 GB Macs
+and up, and **Ornith 1.5 9B** in MLX 4-bit
+([`ornith-ai/Ornith-1.5-9B-MLX-4bit`](https://huggingface.co/ornith-ai/Ornith-1.5-9B-MLX-4bit)) on 16 and 24 GB Macs.
+She tells you the download size and asks before downloading. With an online AI switched on, she works without that
+download.
 
 The [README](../README.md#will-it-run-on-my-mac) has the short version.
 
 ## Which Macs
 
-| Mac | Local AI | Context | Thinking |
-|---|---|---|---|
-| Apple silicon, 24 GB or more | Ornith 1.5 9B | 32K tokens | Medium |
-| Apple silicon, 16 or 18 GB | Ornith 1.5 9B | 16K tokens | Medium |
-| Less than 16 GB | None; use an online AI | | |
+| Mac | Local AI | Context | Thinking | Download | Memory in use |
+|---|---|---|---|---|---|
+| Apple silicon, 32 GB or more | Inkling 2 Mini (oQ3e, vision) | 32K tokens | Medium (`reasoning_effort`) | ~13.4 GB | ~16.7 GB |
+| Apple silicon, 24 GB | Ornith 1.5 9B (MLX 4-bit) | 32K tokens | Medium | ~5.4 GB | ~6.5 GB |
+| Apple silicon, 16 or 18 GB | Ornith 1.5 9B (MLX 4-bit) | 16K tokens | Medium | ~5.4 GB | ~6.5 GB |
+| Less than 16 GB | None; use an online AI | | | | |
 
-The download is about 5.4 GB: the model (5.06 GB) and a Python runtime with oMLX (0.35 GB). Sizes are decimal
-gigabytes. While answering, the model needs about 6.5 GB of memory; oMLX unloads it by itself when Pippa has been idle
-for a while.
+Sizes are decimal gigabytes and include the Python runtime with oMLX (~0.33 GB). oMLX unloads the model by itself when
+Pippa has been idle for a while, and upgrading a Mac to a new catalog model moves the old model folder to the Trash once
+the new one is verified.
 
 ## Why this model and engine
 

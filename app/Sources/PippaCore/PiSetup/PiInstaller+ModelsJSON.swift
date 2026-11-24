@@ -103,12 +103,13 @@ extension PiInstaller {
     /// timeout), trimmed stdout is the key; for models.json **fresh on every request, no cache**. The path
     /// is in single quotes (`Application Support` has a space), `cat` with absolute path so that
     /// a foreign `cat` in the terminal's PATH changes nothing.
-    public static func providerEntry(models: [PiProviderModel], port: Int, keyFile: URL) -> [String: Any] {
+    public static func providerEntry(models: [PiProviderModel], port: Int, keyFile: URL, catalog: ModelCatalog = .bundled()) -> [String: Any] {
         ["baseUrl": "http://127.0.0.1:\(port)/v1", "api": "openai-completions", "apiKey": "!/bin/cat " + shellQuoted(keyFile.path),
          "models": models.map { model -> [String: Any] in
              var entry: [String: Any] = ["id": model.id, "name": model.name, "contextWindow": model.contextWindow, "maxTokens": model.maxTokens]
+             if let input = model.input, !input.isEmpty { entry["input"] = input }
              // How Pi switches the model's thinking (PiModelTuning); without it Pi never asks for any.
-             if let style = PiReasoningStyle.of(modelKey: model.id) { entry.merge(style.modelFields) { $1 } }
+             if let style = PiReasoningStyle.of(modelKey: model.id, catalog: catalog) { entry.merge(style.modelFields) { $1 } }
              return entry
          }]
     }

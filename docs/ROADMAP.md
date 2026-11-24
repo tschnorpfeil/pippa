@@ -7,7 +7,7 @@ decided on 2026-11-19 and shipped in 1.0.0. Older plans and measurements are in 
 
 ## Where Pippa stands
 
-The last release is 1.0.1. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
+The last release is 1.0.5. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
 conversation sidebar, a first-run card offering local or online AI, and settings for the AI (on this Mac, or an online
 AI with per-source sharing review and optional Mac access), optional abilities, the shortcut, login item, permissions
 and updates. Dropped photos and PDFs become one PDF with a button, without the model.
@@ -62,6 +62,8 @@ Contract: [Vision, section 5](VISION.md#5-calm-proactivity-12). Opt-in, one or t
 - **UI polish, second pass:** card views, onboarding text.
 - **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
   real menu bar); motion and drag and drop at the real notch still need a look.
+
+Released in 1.0.5: native Inkling 2 Mini (`inkling-2-mini-oQ3e`, 32K context, native vision, oMLX 0.8.3 with native kernels and aggressive memory guard) on Macs with 32 GB of memory or more while 16–24 GB Macs keep Ornith 1.5 9B and upgraded Macs move old bundled model weights to Trash; mid-turn follow-up messages while Pippa works; live step status line, Stop progress ring, and compact source links; Apple Notes read, Contacts search, Safari multi-tab read, Calendar and Reminders updates with Undo, deterministic `compute`, and automatic conversation titles via Apple Foundation Models with fallback.
 
 Released in 1.0.1: a tool name the model mistypes with a prefix it saw elsewhere (`web_fetch_content`, `mcp__pippa__ask`) is renamed to the one active tool it means before Pi runs it; the first web search of a conversation asks, later ones in that conversation run; failed Pi tool calls appear in `pippa.log` (`pi-werkzeug`); unknown tools show "Using a tool" instead of their raw name; `read_document` points a web address to `fetch_content`; bundled Pi 1.6.0.
 

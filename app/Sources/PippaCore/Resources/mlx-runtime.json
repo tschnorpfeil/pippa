@@ -1,10 +1,10 @@
 {
-  "version": "0.7.3-2",
-  "omlx": "0.7.3",
+  "version": "0.8.3-1",
+  "omlx": "0.8.3",
   "python": "3.11.14",
   "native_kernels": true,
-  "file": "pippa-mlx-runtime-0.7.3-2-arm64.tar.gz",
-  "size": 351195100,
-  "sha256": "c5378a21ef95e09c864c3ad853484697b7f123313e03b6cf8f914e1e2f733940",
-  "url": "https://github.com/tschnorpfeil/pippa/releases/download/mlx-runtime-0.7.3-2/pippa-mlx-runtime-0.7.3-2-arm64.tar.gz"
+  "file": "pippa-mlx-runtime-0.8.3-1-arm64.tar.gz",
+  "size": 330272616,
+  "sha256": "aaff26c094f861cdc81ac86e8023b9441134696dd632e6d90dd23b81da60c79b",
+  "url": "https://github.com/tschnorpfeil/pippa/releases/download/mlx-runtime-0.8.3-1/pippa-mlx-runtime-0.8.3-1-arm64.tar.gz"
 }

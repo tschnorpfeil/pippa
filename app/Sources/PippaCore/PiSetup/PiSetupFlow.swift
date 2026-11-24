@@ -55,7 +55,7 @@ public final class PiSetupFlow: @unchecked Sendable {
         self.model = model
         self.runtime = runtime ?? MLXRuntime(support: roots.support)
         options = PiInstallOptions(model: model, modelSearchRoots: searchRoots,
-                                   providerModels: [PiProviderModel(id: model.key, name: model.label, contextWindow: contextWindow)],
+                                   providerModels: [PiProviderModel(model: model, contextWindow: contextWindow)],
                                    port: port ?? PiInstaller.stablePort(support: roots.support))
         self.download = download
         self.freeSpace = freeSpace

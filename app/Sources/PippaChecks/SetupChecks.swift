@@ -142,18 +142,21 @@ private func prepareConcurrently(_ r: PiInstallRoots) -> Bool {
 }
 
 func runSetupChecks() async {
-    check("Upgrade from 0.3: Pippa's old GGUF folder, prompt cache and her own files in ~/models go; the person's stay") {
+    check("Upgrade: old GGUF folders, Pippa's ~/models files, and superseded catalog models go; foreign folders stay") {
         let home = fakeHome("old-models"); defer { discard(home) }
         let support = home.appendingPathComponent("Library/Application Support/Pippa", isDirectory: true)
         let shared = home.appendingPathComponent("models", isDirectory: true)
-        for folder in ["models", "llama-slots", "omlx/models"] { try fm.createDirectory(at: support.appendingPathComponent(folder), withIntermediateDirectories: true) }
+        for folder in ["models", "llama-slots", "omlx/models/ornith-1.5-9b-mlx-4bit", "omlx/models/inkling-2-mini-oQ3e", "omlx/models/custom-user"] {
+            try fm.createDirectory(at: support.appendingPathComponent(folder), withIntermediateDirectories: true)
+        }
         try fm.createDirectory(at: shared, withIntermediateDirectories: true)
         let mine = shared.appendingPathComponent("Qwen3.5-9B-Q4_K_M.gguf"), theirs = shared.appendingPathComponent("their.gguf")
         for file in [mine, theirs] { try Data("x".utf8).write(to: file) }
+        let oldCatalog = support.appendingPathComponent("omlx/models/ornith-1.5-9b-mlx-4bit")
         var state = PiInstallState()
-        state.created = [mine.standardizedFileURL.path]
-        let found = Set(PiInstaller.oldModelFiles(support: support, home: home, state: state).map(\.lastPathComponent))
-        return found == ["models", "llama-slots", "Qwen3.5-9B-Q4_K_M.gguf"]
+        state.created = [mine.standardizedFileURL.path, oldCatalog.standardizedFileURL.path]
+        let found = Set(PiInstaller.oldModelFiles(support: support, home: home, state: state, keeping: "inkling-2-mini-oQ3e").map(\.lastPathComponent))
+        return found == ["models", "llama-slots", "Qwen3.5-9B-Q4_K_M.gguf", "ornith-1.5-9b-mlx-4bit"]
     }
     check("Installer: fresh HOME gets the official layout (marker, current-version, launcher, ~/.local/bin/pi, Node)") {
         let home = fakeHome("fresh"); defer { discard(home) }
@@ -325,37 +328,52 @@ func runSetupChecks() async {
             && (try? fm.contentsOfDirectory(atPath: r2.agentDirectory.path)) == ["models.json"]
     }
 
-    check("Installer: Pi settings get compaction and thinking per pippa-local model; the person's own values stay") {
+    check("Installer: Pi settings get compaction and thinking per pippa-local model (Ornith + Inkling); the person's own values stay") {
         let home = fakeHome("pi-settings"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))
         let r = roots(home, payload)
         let ornith = "ornith-1.5-9b-mlx-4bit"
+        let inkling = "inkling-2-mini-oQ3e"
         try fm.createDirectory(at: r.agentDirectory, withIntermediateDirectories: true)
         write(#"{"theme": "dark", "modelThinkingLevels": {"pippa-local/other-model": "high"}}"#, r.piSettingsJSON)
         let models = [PiProviderModel(id: ornith, name: "Ornith", contextWindow: 16384),
+                      PiProviderModel(id: inkling, name: "Inkling 2 Mini", contextWindow: 32768, maxTokens: 16384, input: ["text", "image"]),
                       PiProviderModel(id: "other-model", name: "Other", contextWindow: 32768)]
         let wrote = PiInstaller(roots: r).writeModelTuning(models: models)
         let doc = try JSONSerialization.jsonObject(with: Data(contentsOf: r.piSettingsJSON)) as? [String: Any]
         let overrides = (doc?["compaction"] as? [String: Any])?["modelOverrides"] as? [String: [String: Int]]
         let levels = doc?["modelThinkingLevels"] as? [String: String]
-        let small = overrides?["pippa-local/\(ornith)"], large = overrides?["pippa-local/other-model"]
+        let small = overrides?["pippa-local/\(ornith)"], ink = overrides?["pippa-local/\(inkling)"], large = overrides?["pippa-local/other-model"]
         // A level the person chose stays; Pippa's default (the catalog's "medium") only goes where none is set.
         let kept = PiModelTuning.merge(into: ["modelThinkingLevels": ["pippa-local/\(ornith)": "off"]],
                                        models: [models[0]])["modelThinkingLevels"] as? [String: String]
-        // Provider entry: Ornith thinks via enable_thinking (Qwen chat template), only off and medium.
+        // Provider entry: Ornith thinks via enable_thinking; Inkling via reasoning_effort + vision input.
         let entry = PiInstaller.providerEntry(models: models, port: 1, keyFile: PiInstaller.keyFile(support: r.support))
         let listed = entry["models"] as? [[String: Any]] ?? []
         let map = listed.first?["thinkingLevelMap"] as? [String: Any]
         let compat = listed.first?["compat"] as? [String: Any]
+        let inkEntry = listed.count > 1 ? listed[1] : nil
+        let inkMap = inkEntry?["thinkingLevelMap"] as? [String: Any]
+        let inkCompat = inkEntry?["compat"] as? [String: Any]
         return wrote && doc?["theme"] as? String == "dark"
             && small?["reserveTokens"] == 4096 && small?["keepRecentTokens"] == 6144
+            && ink?["reserveTokens"] == 8192 && ink?["keepRecentTokens"] == 12288
             && large?["reserveTokens"] == 4096 && large?["keepRecentTokens"] == 12288
-            && levels?["pippa-local/\(ornith)"] == "medium" && levels?["pippa-local/other-model"] == "high"
+            && levels?["pippa-local/\(ornith)"] == "medium" && levels?["pippa-local/\(inkling)"] == "medium"
+            && levels?["pippa-local/other-model"] == "high"
             && kept?["pippa-local/\(ornith)"] == "off"
-            && PiReasoningStyle.of(modelKey: ornith) == .enableThinking && PiReasoningStyle.of(modelKey: "other-model") == nil
+            && PiReasoningStyle.of(modelKey: ornith) == .enableThinking
+            && PiReasoningStyle.of(modelKey: inkling) == .reasoningEffort
+            && PiReasoningStyle.of(modelKey: "other-model") == nil
             && listed.first?["reasoning"] as? Bool == true
             && map?["off"] as? String == "off" && map?["medium"] as? String == "medium" && map?["high"] is NSNull && map?["low"] is NSNull
             && compat?["thinkingFormat"] as? String == "qwen-chat-template"
+            && inkEntry?["reasoning"] as? Bool == true
+            && inkEntry?["maxTokens"] as? Int == 16384
+            && inkEntry?["input"] as? [String] == ["text", "image"]
+            && inkMap?["off"] as? String == "none" && inkMap?["medium"] as? String == "medium" && inkMap?["high"] as? String == "high"
+            && inkCompat?["supportsReasoningEffort"] as? Bool == true
+            && inkCompat?["maxTokensField"] as? String == "max_tokens"
             && listed.last?["reasoning"] == nil && listed.last?["thinkingLevelMap"] == nil
     }
 

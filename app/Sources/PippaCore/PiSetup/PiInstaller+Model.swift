@@ -22,15 +22,23 @@ extension PiInstaller {
         state.modelsFolder.map { URL(fileURLWithPath: $0, isDirectory: true).appendingPathComponent(model.key, isDirectory: true) }
     }
 
-    /// What Pippa before 0.4 left for llama.cpp, once the new model is ready: her GGUF model folder `<Support>/models`,
-    /// the saved prompt cache `<Support>/llama-slots`, and in a shared `~/models` only the files she put there herself.
-    /// Several GB on most Macs; they go to the Trash, never deleted for good.
-    public static func oldModelFiles(support: URL, home: URL, state: PiInstallState) -> [URL] {
+    /// What earlier versions left behind once the active model is ready: pre-0.4 GGUF folders (`<Support>/models`,
+    /// `<Support>/llama-slots`, Pippa's own `.gguf` files in `~/models`) and superseded catalog model folders in
+    /// `<Support>/omlx/models` that Pippa created herself. Several GB on most Macs; they go to the Trash, never deleted for good.
+    public static func oldModelFiles(support: URL, home: URL, state: PiInstallState, keeping activeModelKey: String? = nil,
+                                     catalog: ModelCatalog = .bundled()) -> [URL] {
         let fm = FileManager.default
         var result = ["models", "llama-slots"].map { support.appendingPathComponent($0, isDirectory: true) }.filter { fm.fileExists(atPath: $0.path) }
         let shared = home.appendingPathComponent("models", isDirectory: true).standardizedFileURL.path + "/"
         result += state.created.filter { $0.hasPrefix(shared) && ($0.hasSuffix(".gguf") || $0.hasSuffix(".gguf.ok")) }
             .map { URL(fileURLWithPath: $0) }.filter { fm.fileExists(atPath: $0.path) }
+        if let activeModelKey {
+            let modelsDir = PiLocalServer.baseDirectory(support: support).appendingPathComponent("models", isDirectory: true)
+            for candidate in catalog.models where candidate.key != activeModelKey {
+                let folder = modelsDir.appendingPathComponent(candidate.key, isDirectory: true)
+                if state.didCreate(folder), fm.fileExists(atPath: folder.path) { result.append(folder) }
+            }
+        }
         return result
     }
 

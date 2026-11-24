@@ -224,5 +224,5 @@ struct SettingsView: View {
     }
 
     /// Read once: `ModelCatalog.bundled()` decodes a file, and views ask for the name on every redraw.
-    static let localModelName: String = ModelCatalog.bundled().models.first?.label ?? ""
+    static let localModelName: String = PiSetupFlow.choice()?.model.label ?? ModelCatalog.bundled().models.first?.label ?? ""
 }

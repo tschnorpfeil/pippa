@@ -30,6 +30,7 @@ public enum PiLocalServer {
             ["-c", "from omlx.cli import main; main()", "serve", "--base-path", baseDirectory.path, "--headless"]
         }
         public var settingsFile: URL { baseDirectory.appendingPathComponent("settings.json") }
+        public var modelSettingsFile: URL { baseDirectory.appendingPathComponent("model_settings.json") }
         public var modelsDirectory: URL { baseDirectory.appendingPathComponent("models", isDirectory: true) }
     }
 
@@ -68,7 +69,7 @@ public enum PiLocalServer {
         guard ModelDownloader(directory: base.appendingPathComponent("models/\(model.key)", isDirectory: true)).isInstalled(model) else {
             throw Failure.modelMissing(modelID)
         }
-        var choice = (try? ModelSelector.choose(physicalMemory: physicalMemory, catalog: catalog).get()) ?? ModelChoice(model: model, ctx: 16384)
+        var choice = ModelChoice(model: model, ctx: ModelSelector.contextWindow(for: model, physicalMemory: physicalMemory))
         if let listed = PiInstaller.providerContextWindow(modelsJSON: modelsJSON, id: modelID) { choice.ctx = min(listed, choice.ctx) }
         return Plan(choice: choice, python: runtime.python, baseDirectory: base, port: port,
                     key: try PiInstaller.stableKey(support: roots.support), modelID: modelID,
@@ -85,31 +86,69 @@ public enum PiLocalServer {
         return env
     }
 
-    /// oMLX's settings.json in Pippa's base folder (0600: it holds the key). Merged into what oMLX itself wrote, so its own
-    /// defaults stay; Pippa's values win.
+    /// oMLX's settings.json and per-model model_settings.json in Pippa's base folder (0600: settings.json holds the key).
+    /// Merged into what oMLX itself wrote, so its own defaults stay; Pippa's values win.
     public static func writeServerSettings(_ plan: Plan) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: plan.modelsDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try fm.createDirectory(at: plan.baseDirectory.appendingPathComponent("home"), withIntermediateDirectories: true)
         var document = JSONFile.readObject(plan.settingsFile) ?? [:]
-        func merge(_ section: String, _ values: [String: Any]) {
+        func merge(_ section: String, _ values: [String: Any], remove: [String] = []) {
             var current = document[section] as? [String: Any] ?? [:]
+            for key in remove { current.removeValue(forKey: key) }
             for (key, value) in values { current[key] = value }
             document[section] = current
         }
+        let model = plan.choice.model
         merge("server", ["host": "127.0.0.1", "port": plan.port, "log_level": "info"])
         merge("model", ["model_dirs": [plan.modelsDirectory.path], "model_dir": plan.modelsDirectory.path])
         merge("auth", ["api_key": plan.key, "skip_api_key_verification": false, "allow_unauthenticated_inference": false])
         merge("cache", ["enabled": true, "ssd_cache_max_size": "8GB"])
         merge("huggingface", ["endpoint": ""])
         merge("idle_timeout", ["idle_timeout_seconds": idleUnloadSeconds])
-        // Pi sends no sampling of its own, so these are what the model runs with. oMLX's defaults (temperature 1, no
-        // top-k) let stray tokens through: Cyrillic and English fragments in German answers. Qwen 3.5's values for
-        // precise work, which Ornith is fine-tuned from.
-        merge("sampling", ["temperature": 0.6, "top_k": 20, "top_p": 0.95])
+        merge("memory", ["prefill_memory_guard": true, "memory_guard_tier": model.memoryGuardTier ?? "balanced",
+                         "memory_guard_custom_ceiling_gb": 0])
+        merge("scheduler", ["chunked_prefill": model.chunkedPrefill ?? false, "max_concurrent_requests": 4])
+        // Pi sends no sampling of its own, so these come from the active catalog model (falling back to Qwen 3.5's
+        // defaults when unspecified). Keys omitted by the active model are cleared so an earlier model's knobs never leak.
+        let sampling = model.sampling ?? CatalogModel.Sampling(temperature: 0.6, topP: 0.95, topK: 20)
+        var samplingValues: [String: Any] = [:]
+        var samplingRemove: [String] = []
+        if let t = sampling.temperature { samplingValues["temperature"] = t } else { samplingRemove.append("temperature") }
+        if let p = sampling.topP { samplingValues["top_p"] = p } else { samplingRemove.append("top_p") }
+        if let k = sampling.topK { samplingValues["top_k"] = k } else { samplingRemove.append("top_k") }
+        merge("sampling", samplingValues, remove: samplingRemove)
         let data = try JSONSerialization.data(withJSONObject: document, options: JSONFile.writingOptions)
-        if (try? Data(contentsOf: plan.settingsFile)) == data { return }
-        try JSONFile.writeAtomically(data, to: plan.settingsFile, mode: 0o600)
+        if (try? Data(contentsOf: plan.settingsFile)) != data {
+            try JSONFile.writeAtomically(data, to: plan.settingsFile, mode: 0o600)
+        }
+        try writeModelSettings(plan)
+    }
+
+    /// Per-model settings in `<Support>/omlx/model_settings.json` (sampling + MTP flag) so oMLX never falls back to
+    /// mismatched defaults or loads a slow draft head when the catalog disables it.
+    private static func writeModelSettings(_ plan: Plan) throws {
+        let model = plan.choice.model
+        guard model.sampling != nil || model.mtpEnabled != nil else { return }
+        var document = JSONFile.readObject(plan.modelSettingsFile) ?? ["version": 2]
+        if document["version"] == nil { document["version"] = 2 }
+        var models = document["models"] as? [String: Any] ?? [:]
+        var entry = models[plan.modelID] as? [String: Any] ?? [:]
+        if let sampling = model.sampling {
+            if let t = sampling.temperature { entry["temperature"] = t } else { entry.removeValue(forKey: "temperature") }
+            if let p = sampling.topP { entry["top_p"] = p } else { entry.removeValue(forKey: "top_p") }
+            if let k = sampling.topK { entry["top_k"] = k } else { entry.removeValue(forKey: "top_k") }
+            entry["force_sampling"] = false
+        }
+        if let mtp = model.mtpEnabled {
+            entry["mtp_enabled"] = mtp
+            entry["vlm_mtp_enabled"] = mtp
+        }
+        models[plan.modelID] = entry
+        document["models"] = models
+        let data = try JSONSerialization.data(withJSONObject: document, options: JSONFile.writingOptions)
+        if (try? Data(contentsOf: plan.modelSettingsFile)) == data { return }
+        try JSONFile.writeAtomically(data, to: plan.modelSettingsFile, mode: 0o600)
     }
 
     /// The server for it (not yet started). Log `<Support>/local-server.log`.
