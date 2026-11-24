@@ -32,7 +32,7 @@ func runUpdateActionChecks() {
         state.readyToInstall(version: "2.0")
         return !state.isChecking && !state.isInstalling && state.readyVersion == "2.0"
     }
-    check("Updates: a finished or aborted cycle clears checking and keeps the waiting update") {
+    check("Updates: a finished or aborted cycle clears checking and any dead waiting update") {
         var plain = UpdateState()
         plain.checkStarted()
         plain.cycleEnded()
@@ -40,16 +40,14 @@ func runUpdateActionChecks() {
         waiting.checkStarted()
         waiting.cycleEnded()
         return plain == UpdateState() && decide(plain) == .checkNow
-            && waiting.readyVersion == "1.0.6" && !waiting.isChecking
-            && decide(waiting) == .installReady(version: "1.0.6", needsConfirmWhileAnswering: false)
+            && waiting == UpdateState() && decide(waiting) == .checkNow
     }
-    check("Updates: a started install is busy, and waits again when the cycle ends without relaunch") {
+    check("Updates: a started install is busy, and clears completely when the cycle ends") {
         var installing = ready
         installing.installStarted()
         let busy = installing.isInstalling && decide(installing) == .busy
         installing.cycleEnded()
-        return busy && !installing.isInstalling
-            && decide(installing) == .installReady(version: "1.0.6", needsConfirmWhileAnswering: false)
+        return busy && installing == UpdateState() && decide(installing) == .checkNow
     }
     check("Updates: starting an install without a waiting update changes nothing") {
         var state = UpdateState()

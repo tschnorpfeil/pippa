@@ -59,10 +59,11 @@ public struct UpdateState: Equatable, Sendable {
         isInstalling = true
     }
 
-    /// `didFinishUpdateCycleFor` or `didAbortWithError`. Clears the stale checking flag. A waiting
-    /// update is kept: Sparkle's block stays valid and may be invoked again (Sparkle 2.3+), e.g. when
-    /// the relaunch was cancelled. An install that ended this way did not happen, so it waits again.
+    /// `didFinishUpdateCycleFor` or `didAbortWithError`. Sparkle tears down its driver and invalidates
+    /// the installer connection before calling these delegates, so any previously held install block is
+    /// dead. While an update legitimately waits for quit, Sparkle does not fire these delegates.
     public mutating func cycleEnded() {
+        readyVersion = nil
         isChecking = false
         isInstalling = false
     }

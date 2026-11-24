@@ -47,8 +47,12 @@ final class Updates: NSObject, ObservableObject {
         canCheck = controller.updater.canCheckForUpdates
         canCheckObservation = controller.updater.observe(\.canCheckForUpdates, options: [.new]) { _, change in
             let value = change.newValue ?? false
-            DispatchQueue.main.async {
+            if Thread.isMainThread {
                 MainActor.assumeIsolated { Updates.shared.canCheck = value }
+            } else {
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { Updates.shared.canCheck = value }
+                }
             }
         }
     }
@@ -56,8 +60,10 @@ final class Updates: NSObject, ObservableObject {
     /// "Check for Updates …": Sparkle may show its window here, the person asked for it.
     /// A waiting update is installed instead, because Sparkle would ignore the check.
     func checkNow() {
+        let liveCanCheck = controller?.updater.canCheckForUpdates ?? false
+        canCheck = liveCanCheck
         let decision = UpdateCheckDecision.decide(hasController: controller != nil, state: state,
-                                                  canCheckForUpdates: canCheck,
+                                                  canCheckForUpdates: liveCanCheck,
                                                   isAnswering: ChatModel.shared.isAnswering)
         DiagnosticsLog.shared.event("update-pruefen", ["entscheidung": String(describing: decision)])
         switch decision {
@@ -74,13 +80,10 @@ final class Updates: NSObject, ObservableObject {
         }
     }
 
-    /// For a direct "Install and Restart" button: installs the waiting update, asking first while Pippa answers.
+    /// For a direct "Install and Restart" button: routes through `UpdateCheckDecision` so double-clicks
+    /// while an install is already starting cannot re-enter `installReady` or show a duplicate alert.
     func installReadyNow() {
-        guard let version = state.readyVersion else {
-            checkNow()
-            return
-        }
-        installReady(version: version, confirm: ChatModel.shared.isAnswering)
+        checkNow()
     }
 
     private func installReady(version: String, confirm: Bool) {
@@ -106,11 +109,12 @@ final class Updates: NSObject, ObservableObject {
     private func showBusy() {
         NSApp.activate()
         let sparkleWindow = NSApp.windows.first { window in
-            guard window.isVisible, let controller = window.windowController else { return false }
+            guard window.isVisible || window.isMiniaturized, let controller = window.windowController else { return false }
             let name = String(describing: type(of: controller))
             return name.hasPrefix("SPU") || name.hasPrefix("SU")
         }
         if let sparkleWindow {
+            if sparkleWindow.isMiniaturized { sparkleWindow.deminiaturize(nil) }
             sparkleWindow.makeKeyAndOrderFront(nil)
             return
         }
@@ -120,12 +124,14 @@ final class Updates: NSObject, ObservableObject {
         alert.runModal()
     }
 
-    private func startInstall(reason: String, version: String) {
+    private func startInstall(reason: String, version: String, idleSeconds: Int? = nil) {
         guard let install = pendingInstall else { return }
         idleTimer?.invalidate()
         idleTimer = nil
         state.installStarted()
-        DiagnosticsLog.shared.event("update-neustart", ["grund": reason, "version": version])
+        var fields = ["grund": reason, "version": version]
+        if let idleSeconds { fields["ruhig_s"] = String(idleSeconds) }
+        DiagnosticsLog.shared.event("update-neustart", fields)
         install()
     }
 
@@ -150,8 +156,7 @@ final class Updates: NSObject, ObservableObject {
         guard !ChatModel.shared.isAnswering, NSApp.modalWindow == nil, NSApp.keyWindow == nil else { return }
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: UInt32.max)!)
         guard idle >= Self.quietSeconds else { return }
-        DiagnosticsLog.shared.event("update-neustart", ["ruhig_s": String(Int(idle))])
-        startInstall(reason: "ruhig", version: version)
+        startInstall(reason: "ruhig", version: version, idleSeconds: Int(idle))
     }
 
     fileprivate func updateReady(version: String, install: @escaping () -> Void) {
@@ -160,9 +165,10 @@ final class Updates: NSObject, ObservableObject {
     }
 
     fileprivate func cycleEnded() {
+        idleTimer?.invalidate()
+        idleTimer = nil
+        pendingInstall = nil
         state.cycleEnded()
-        // A waiting update keeps its block; if an install attempt ended here, wait for quiet again.
-        if state.readyVersion != nil, idleTimer == nil, let install = pendingInstall { installWhenQuiet(install) }
     }
 }
 
