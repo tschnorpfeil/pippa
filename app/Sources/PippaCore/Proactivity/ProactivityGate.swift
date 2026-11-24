@@ -4,14 +4,29 @@ import Foundation
 import Intents
 #endif
 
+/// Authorization state of macOS Focus status reporting (never requires Full Disk Access).
+public enum FocusAuthorizationState: String, Sendable, Equatable {
+    case authorized
+    case notDetermined
+    case denied
+    case restricted
+    case unavailable
+}
+
 /// Snapshot of system interruption state read without Full Disk Access or TCC prompts.
 public struct FocusStatus: Sendable, Equatable {
     public var isFocusActive: Bool
     public var isScreenLocked: Bool
+    public var authorizationState: FocusAuthorizationState
 
-    public init(isFocusActive: Bool = false, isScreenLocked: Bool = false) {
+    public init(
+        isFocusActive: Bool = false,
+        isScreenLocked: Bool = false,
+        authorizationState: FocusAuthorizationState = .authorized
+    ) {
         self.isFocusActive = isFocusActive
         self.isScreenLocked = isScreenLocked
+        self.authorizationState = authorizationState
     }
 }
 
@@ -38,21 +53,57 @@ public struct StubFocusStatusReader: FocusStatusReading {
 }
 
 /// Native macOS focus and screen-lock reader.
-/// Never asks for Full Disk Access, never reads `~/Library/DoNotDisturb`, and never triggers a Focus TCC prompt.
+/// Never asks for Full Disk Access, never reads `~/Library/DoNotDisturb`, and never triggers a Focus TCC prompt during background reads.
 public struct SystemFocusStatusReader: FocusStatusReading {
     public init() {}
 
     public func currentStatus() -> FocusStatus {
-        FocusStatus(
-            isFocusActive: Self.readAuthorizedFocusState(),
-            isScreenLocked: Self.isScreenLocked()
+        let auth = Self.currentAuthorizationState()
+        return FocusStatus(
+            isFocusActive: auth == .authorized ? Self.readAuthorizedFocusState() : false,
+            isScreenLocked: Self.isScreenLocked(),
+            authorizationState: auth
         )
+    }
+
+    public static func currentAuthorizationState() -> FocusAuthorizationState {
+        #if canImport(Intents)
+        switch INFocusStatusCenter.default.authorizationStatus {
+        case .authorized: return .authorized
+        case .notDetermined: return .notDetermined
+        case .denied: return .denied
+        case .restricted: return .restricted
+        @unknown default: return .unavailable
+        }
+        #else
+        return .unavailable
+        #endif
+    }
+
+    /// Requests Focus status access strictly from an explicit user opt-in flow in Settings.
+    public static func requestAuthorizationIfNeeded() async -> FocusAuthorizationState {
+        #if canImport(Intents)
+        let current = currentAuthorizationState()
+        guard current == .notDetermined else { return current }
+        return await withCheckedContinuation { continuation in
+            INFocusStatusCenter.default.requestAuthorization { status in
+                switch status {
+                case .authorized: continuation.resume(returning: .authorized)
+                case .notDetermined: continuation.resume(returning: .notDetermined)
+                case .denied: continuation.resume(returning: .denied)
+                case .restricted: continuation.resume(returning: .restricted)
+                @unknown default: continuation.resume(returning: .unavailable)
+                }
+            }
+        }
+        #else
+        return .unavailable
+        #endif
     }
 
     private static func readAuthorizedFocusState() -> Bool {
         #if canImport(Intents)
         let center = INFocusStatusCenter.default
-        // Strictly read-only when already authorized; never call `requestAuthorization` here.
         guard center.authorizationStatus == .authorized else { return false }
         return center.focusStatus.isFocused ?? false
         #else

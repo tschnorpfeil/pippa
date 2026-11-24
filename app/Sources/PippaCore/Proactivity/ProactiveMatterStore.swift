@@ -161,11 +161,15 @@ public struct WatchedFileRecord: Codable, Sendable, Equatable {
 
     /// Compares file metadata and SHA-256 identity with sub-millisecond timestamp tolerance.
     public func matches(_ other: DurableFileIdentity) -> Bool {
-        identity.size == other.size
+        matchesContent(other)
             && identity.device == other.device
             && identity.inode == other.inode
-            && identity.sha256 == other.sha256
             && abs(identity.modified.timeIntervalSince1970 - other.modified.timeIntervalSince1970) < 0.001
+    }
+
+    /// True when file size and SHA-256 content are identical, even if mtime or inode changed (e.g. atomic save or sync touch).
+    public func matchesContent(_ other: DurableFileIdentity) -> Bool {
+        identity.size == other.size && identity.sha256 == other.sha256
     }
 }
 
@@ -476,7 +480,7 @@ public actor ProactiveMatterStore {
                 id: UUID(),
                 dayKey: dayKey,
                 matterID: matterID,
-                kind: kind,
+                kind: current.kind,
                 shownAt: shownAt
             )
             let ts = shownAt.timeIntervalSince1970
@@ -609,6 +613,7 @@ public actor ProactiveMatterStore {
                 [.text(matter.matterKey), .text(matter.state.rawValue), .text(matter.sourceVersion), .real(actedTs)]
             )
         case .snooze(let until):
+            guard !matter.state.isHumanClosed else { throw ProactiveMatterStoreError.invalidRequest }
             let untilTs = until.timeIntervalSince1970
             guard untilTs.isFinite else { throw ProactiveMatterStoreError.invalidRequest }
             matter.state = .snoozed

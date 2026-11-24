@@ -218,19 +218,35 @@ public enum MorningBriefBuilder {
         let matKey = matterKey(for: dayKey)
 
         if let existingJob = try await jobStore.record(requestKey: reqKey) {
-            if existingJob.state != .queued {
+            switch existingJob.state {
+            case .completed:
+                let existingMatter = try await matterStore.matter(key: matKey)
+                return .alreadyBuilt(job: existingJob, matter: existingMatter, dayKey: dayKey)
+            case .queued:
+                return try await executeQueued(
+                    job: existingJob,
+                    input: input,
+                    dayKey: dayKey,
+                    matterKey: matKey,
+                    jobStore: jobStore,
+                    matterStore: matterStore,
+                    now: now
+                )
+            case .needsAttention, .failed, .cancelled:
+                let retried = try await jobStore.retry(id: existingJob.id, expectedRevision: existingJob.revision)
+                return try await executeQueued(
+                    job: retried,
+                    input: input,
+                    dayKey: dayKey,
+                    matterKey: matKey,
+                    jobStore: jobStore,
+                    matterStore: matterStore,
+                    now: now
+                )
+            case .running:
                 let existingMatter = try await matterStore.matter(key: matKey)
                 return .alreadyBuilt(job: existingJob, matter: existingMatter, dayKey: dayKey)
             }
-            return try await executeQueued(
-                job: existingJob,
-                input: input,
-                dayKey: dayKey,
-                matterKey: matKey,
-                jobStore: jobStore,
-                matterStore: matterStore,
-                now: now
-            )
         }
 
         let isGerman = resolvedLanguage(input.language, calendar: input.calendar) == "de"
@@ -268,30 +284,38 @@ public enum MorningBriefBuilder {
         now: Date
     ) async throws -> MorningBriefBuildResult {
         let run = try await jobStore.start(id: job.id, expectedRevision: job.revision)
-        guard let content = format(input) else {
-            let silentData = Data("{\"silent\":true,\"dayKey\":\"\(dayKey)\"}".utf8)
-            let completed = try await jobStore.finish(run: run, state: .completed, resultData: silentData)
+        do {
+            guard let content = format(input) else {
+                let silentData = Data("{\"silent\":true,\"dayKey\":\"\(dayKey)\"}".utf8)
+                let completed = try await jobStore.finish(run: run, state: .completed, resultData: silentData)
+                return .silent(job: completed, dayKey: dayKey)
+            }
+
+            let draft = ProactiveMatterDraft(
+                kind: .morningBrief,
+                matterKey: matterKey,
+                sourceRef: requestKey(for: dayKey),
+                sourceVersion: content.sourceVersion,
+                title: content.title,
+                summary: content.summary,
+                preparedPrompt: content.preparedPrompt,
+                preparedFiles: []
+            )
+            let upsert = try await matterStore.upsertPrepared(draft, now: now)
+            let resultData = try JSONEncoder().encode(content)
+            let completed = try await jobStore.finish(run: run, state: .completed, resultData: resultData)
+
+            if case .keptClosed = upsert {
+                return .silent(job: completed, dayKey: dayKey)
+            }
+            if let matter = upsert.matter {
+                return .prepared(job: completed, matter: matter, dayKey: dayKey)
+            }
             return .silent(job: completed, dayKey: dayKey)
+        } catch {
+            _ = try? await jobStore.finish(run: run, state: .failed, issue: String(describing: error))
+            throw error
         }
-
-        let draft = ProactiveMatterDraft(
-            kind: .morningBrief,
-            matterKey: matterKey,
-            sourceRef: requestKey(for: dayKey),
-            sourceVersion: content.sourceVersion,
-            title: content.title,
-            summary: content.summary,
-            preparedPrompt: content.preparedPrompt,
-            preparedFiles: []
-        )
-        let upsert = try await matterStore.upsertPrepared(draft, now: now)
-        let resultData = try JSONEncoder().encode(content)
-        let completed = try await jobStore.finish(run: run, state: .completed, resultData: resultData)
-
-        if let matter = upsert.matter {
-            return .prepared(job: completed, matter: matter, dayKey: dayKey)
-        }
-        return .silent(job: completed, dayKey: dayKey)
     }
 
     private static func resolvedLanguage(_ explicit: String?, calendar: Calendar) -> String {

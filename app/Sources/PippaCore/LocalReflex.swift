@@ -461,11 +461,16 @@ public struct AppleFoundationReflex: LocalReflexModel {
     }
 
     static func triagePrompt(fileName: String, fileExtension: String, excerpt: String) -> String {
-        """
-        FILE_NAME: \(fileName)
-        FILE_EXT: \(fileExtension)
+        let neutralize: (String) -> String = { raw in
+            raw
+                .replacingOccurrences(of: "UNTRUSTED_DOCUMENT_EXCERPT_BEGIN", with: "[marker]")
+                .replacingOccurrences(of: "UNTRUSTED_DOCUMENT_EXCERPT_END", with: "[marker]")
+        }
+        return """
+        FILE_NAME: \(neutralize(fileName))
+        FILE_EXT: \(neutralize(fileExtension))
         UNTRUSTED_DOCUMENT_EXCERPT_BEGIN
-        \(excerpt)
+        \(neutralize(excerpt))
         UNTRUSTED_DOCUMENT_EXCERPT_END
         """
     }
