@@ -140,7 +140,7 @@ struct CalmNoticeSettings: View {
         }
         SettingsNote(coordinator.focusAuthorization == .authorized
                      ? T("Pippa also waits while a Focus is on.", table: "Settings")
-                     : T("Pippa can’t see your Focus yet, so she waits only during quiet hours and while the screen is locked. You can allow Focus status in System Settings › Privacy & Security › Focus.", table: "Settings"))
+                     : T("Pippa waits during quiet hours and while the screen is locked.", table: "Settings"))
             .padding(.bottom, Space.ml)
     }
 }

@@ -141,7 +141,7 @@
 "Quiet hours" = "Quiet hours";
 "No notices from 22:00 to 08:00." = "No notices from 22:00 to 08:00.";
 "Pippa also waits while a Focus is on." = "Pippa also waits while a Focus is on.";
-"Pippa can’t see your Focus yet, so she waits only during quiet hours and while the screen is locked. You can allow Focus status in System Settings › Privacy & Security › Focus." = "Pippa can’t see your Focus yet, so she waits only during quiet hours and while the screen is locked. You can allow Focus status in System Settings › Privacy & Security › Focus.";
+"Pippa waits during quiet hours and while the screen is locked." = "Pippa waits during quiet hours and while the screen is locked.";
 "Pippa %@ is ready to install." = "Pippa %@ is ready to install.";
 "Install the update" = "Install the update";
 "Pippa restarts and is back in a few seconds." = "Pippa restarts and is back in a few seconds.";

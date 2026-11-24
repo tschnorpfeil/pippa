@@ -41,7 +41,7 @@ const sitemap = read('sitemap.xml');
 for (const loc of ['https://heypippa.app/', 'https://heypippa.app/en/']) {
   if (!sitemap.includes(`<loc>${loc}</loc>`)) errors.push(`Missing ${loc} in sitemap`);
 }
-for (const asset of ['og.jpg', 'og-en.jpg', 'favicon.ico', 'favicon.svg', 'apple-touch-icon.png', 'pippaMark.js', 'legal.css', 'fonts/bagel-fat-one.ttf']) {
+for (const asset of ['site.css', 'og.jpg', 'og-en.jpg', 'favicon.ico', 'favicon.svg', 'apple-touch-icon.png', 'pippaMark.js', 'legal.css', 'fonts/bagel-fat-one.ttf']) {
   if (!fs.existsSync(path.join(site, asset))) errors.push(`Missing ${asset}`);
 }
 if (errors.length) {

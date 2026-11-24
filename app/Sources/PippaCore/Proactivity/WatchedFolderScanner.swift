@@ -396,7 +396,7 @@ public struct WatchedFolderScanner: Sendable {
     }
 
     private static func isRegularNonSymlink(_ url: URL) -> Bool {
-        let fd = open(url.path, O_RDONLY | O_NOFOLLOW)
+        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
         guard fd >= 0 else { return false }
         defer { close(fd) }
         var st = stat()
