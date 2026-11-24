@@ -276,13 +276,16 @@ func runDownloadHangChecks() async {
         let mirror = CatalogModel.Mirror(url: "https://github.com/tschnorpfeil/pippa/releases/download/model-x-abc1234/", partSize: 2_000_000_000)
         let whole = ModelDownloader.mirrorURLs(mirror, path: "sub/dir/config.json", size: 2_000_000_000)?.map(\.absoluteString)
         let split = ModelDownloader.mirrorURLs(mirror, path: "model.safetensors", size: 5_038_161_163)?.map(\.lastPathComponent)
-        let bundled = ModelCatalog.bundled().models.first
+        let bundled = ModelCatalog.bundled().models
         return whole == ["https://github.com/tschnorpfeil/pippa/releases/download/model-x-abc1234/sub--dir--config.json"]
             && split == ["model.safetensors.part-0", "model.safetensors.part-1", "model.safetensors.part-2"]
             && ModelDownloader.mirrorURLs(CatalogModel.Mirror(url: "not a url", partSize: 1), path: "a", size: 1) == nil
             && ModelDownloader.mirrorURLs(CatalogModel.Mirror(url: mirror.url, partSize: 0), path: "a", size: 1) == nil
-            && bundled?.mirror?.partSize == 2_000_000_000 && bundled?.license?.isEmpty == false
-            && bundled?.pinned?.files.allSatisfy { ModelDownloader.mirrorURLs(bundled!.mirror!, path: $0.path, size: $0.size) != nil } == true
+            && !bundled.isEmpty
+            && bundled.allSatisfy { m in
+                m.mirror?.partSize == 2_000_000_000 && m.license?.isEmpty == false
+                    && m.pinned?.files.allSatisfy { ModelDownloader.mirrorURLs(m.mirror!, path: $0.path, size: $0.size) != nil } == true
+            }
     }
     let payload = Data((0..<300_000).map { UInt8(($0 * 7) % 251) })
     let hash = SHA256.hash(data: payload).hexString

@@ -48,6 +48,7 @@
       "memoryGuardTier": "aggressive",
       "chunkedPrefill": true,
       "license": "Apache-2.0, declared on https://huggingface.co/mlx-community/Inkling-2-Mini-oQ3e-mtp",
+      "mirror": {"url": "https://github.com/tschnorpfeil/pippa/releases/download/model-inkling-2-mini-oQ3e-5552e32/", "partSize": 2000000000},
       "pinned": {
         "revision": "5552e32ec7a50fa8e9b0bfe2002aab72f8b78975",
         "files": [

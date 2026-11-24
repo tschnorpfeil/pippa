@@ -304,9 +304,15 @@ def main(argv=None, home=None, catalog=None):
         print(f"split and verified {entry['path']} into {len(written)} asset(s)")
         uploads += [p for p in written if p.name not in have]
     if "MODEL-CARD.md" not in have:
-        request = urllib.request.Request(card_url(model), headers={"User-Agent": "pippa-mirror-model"})
-        with urllib.request.urlopen(request, timeout=60) as response:
-            (work / "MODEL-CARD.md").write_bytes(response.read())
+        try:
+            request = urllib.request.Request(card_url(model), headers={"User-Agent": "pippa-mirror-model"})
+            with urllib.request.urlopen(request, timeout=60) as response:
+                (work / "MODEL-CARD.md").write_bytes(response.read())
+        except OSError:
+            local_cards = [p.parent / "README.md" for p, _ in found.values() if (p.parent / "README.md").is_file()]
+            if not local_cards:
+                raise
+            shutil.copyfile(local_cards[0], work / "MODEL-CARD.md")
         uploads.append(work / "MODEL-CARD.md")
     if existing is None:
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as notes:
