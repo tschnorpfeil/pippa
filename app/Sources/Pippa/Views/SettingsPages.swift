@@ -43,6 +43,7 @@ struct GeneralSettings: View {
                     Toggle(T("Show Pippa Island", table: "Settings"), isOn: $island.isShown).labelsHidden().toggleStyle(.switch)
                 }
             }
+            CalmNoticeSettings()
             if Self.outsideApplications {
                 SettingsSection {
                     SettingsRow(title: T("Pippa isn’t in Applications", table: "App"),
@@ -52,6 +53,95 @@ struct GeneralSettings: View {
                 }
             }
         }
+    }
+}
+
+/// Calm notices (opt-in proactivity): off by default; switched on, the morning brief, one watched folder and quiet
+/// hours. Everything below the switch shows only while it is on.
+struct CalmNoticeSettings: View {
+    @ObservedObject private var coordinator = ProactivityCoordinator.shared
+
+    var body: some View {
+        let settings = coordinator.settings
+        SettingsSection(title: T("Calm notices", table: "Settings"),
+                        footer: T("Off unless you turn it on. At most two a day, shown quietly in Pippa Island, never on top of your work. Pippa never wakes her local AI in the background and waits during quiet hours, a Focus and while the screen is locked.", table: "Settings")) {
+            SettingsRow(title: T("Calm notices", table: "Settings"),
+                        detail: T("Pippa prepares things for you and waits until you open the island.", table: "Settings")) {
+                Toggle(T("Calm notices", table: "Settings"), isOn: Binding(get: { settings.enabled }, set: { coordinator.setEnabled($0) }))
+                    .labelsHidden().toggleStyle(.switch)
+            }
+            if settings.enabled {
+                SettingsDivider()
+                morningBrief(settings)
+                SettingsDivider()
+                watchedFolder
+                SettingsDivider()
+                quietHours(settings)
+                if !settings.mutedKinds.isEmpty {
+                    SettingsDivider()
+                    SettingsRow(title: T("Muted kinds: %lld", table: "Settings", settings.mutedKinds.count),
+                                detail: T("Notices you muted from the island.", table: "Settings")) {
+                        Button(T("Reset muted", table: "Settings")) { coordinator.resetMuted() }.pippa(.quiet)
+                    }
+                }
+            }
+        }
+        .onAppear { coordinator.refreshFocusAuthorization() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            coordinator.refreshFocusAuthorization()
+        }
+    }
+
+    @ViewBuilder private func morningBrief(_ settings: ProactivitySettings) -> some View {
+        SettingsRow(title: T("Morning brief", table: "Settings"),
+                    detail: T("Today’s appointments and reminders, put together without AI. Reads only Calendar and Reminders you already allowed. Nothing on an empty day.", table: "Settings")) {
+            Toggle(T("Morning brief", table: "Settings"),
+                   isOn: Binding(get: { settings.morningBriefEnabled }, set: { coordinator.setMorningBrief(enabled: $0) }))
+                .labelsHidden().toggleStyle(.switch)
+        }
+        if settings.morningBriefEnabled {
+            SettingsRow(title: T("From", table: "Settings")) {
+                Picker(T("From", table: "Settings"), selection: Binding(
+                    get: { min(max(settings.morningBriefHour, ProactivityCoordinator.morningBriefHours.lowerBound),
+                               ProactivityCoordinator.morningBriefHours.upperBound) },
+                    set: { coordinator.setMorningBrief(hour: $0) })) {
+                    ForEach(Array(ProactivityCoordinator.morningBriefHours), id: \.self) { hour in
+                        Text(verbatim: String(format: "%02d:00", hour)).tag(hour)
+                    }
+                }
+                .labelsHidden().fixedSize()
+            }
+            SettingsRow(title: T("Preview today’s brief", table: "Settings"), detail: coordinator.previewText) {
+                Button(T("Preview now", table: "Settings")) { coordinator.previewMorningBriefNow() }
+                    .pippa(.secondary)
+                    .disabled(coordinator.isPreviewing)
+            }
+        }
+    }
+
+    private var watchedFolder: some View {
+        SettingsRow(title: T("Watched folder", table: "Settings"),
+                    detail: coordinator.watchedFolderName
+                        ?? T("None. New documents in a folder you choose get a short look by the AI built into macOS, one level deep.", table: "Settings")) {
+            HStack(spacing: Space.s) {
+                if coordinator.watchedFolderName != nil {
+                    Button(T("Remove", table: "Settings")) { coordinator.removeFolder() }.pippa(.quiet)
+                }
+                Button(T("Choose…", table: "Settings")) { coordinator.chooseFolder() }.pippa(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder private func quietHours(_ settings: ProactivitySettings) -> some View {
+        SettingsRow(title: T("Quiet hours", table: "Settings"), detail: T("No notices from 22:00 to 08:00.", table: "Settings")) {
+            Toggle(T("Quiet hours", table: "Settings"),
+                   isOn: Binding(get: { settings.quietHoursEnabled }, set: { coordinator.setQuietHours(enabled: $0) }))
+                .labelsHidden().toggleStyle(.switch)
+        }
+        SettingsNote(coordinator.focusAuthorization == .authorized
+                     ? T("Pippa also waits while a Focus is on.", table: "Settings")
+                     : T("Pippa waits during quiet hours and while the screen is locked.", table: "Settings"))
+            .padding(.bottom, Space.ml)
     }
 }
 
@@ -238,13 +328,33 @@ struct OptionalCapabilitySettings: View {
     }
 }
 
-/// Updates: the version and checking by hand.
+/// Updates: the version and checking by hand, or installing an update that already waits.
 struct UpdateSettings: View {
+    @ObservedObject private var updates = Updates.shared
+
     var body: some View {
         SettingsScroll {
             SettingsSection {
-                SettingsRow(title: T("Version", table: "App"), detail: AppVersion.label) {
-                    Button(T("Check for Updates…", table: "App")) { Updates.shared.checkNow() }.pippa(.secondary)
+                if let ready = updates.readyVersion {
+                    SettingsRow(title: T("Version", table: "App"), detail: AppVersion.label) {
+                        SettingsStatus(symbol: "arrow.down.circle.fill", color: Theme.ok,
+                                       text: T("Pippa %@ is ready to install.", table: "Settings", ready))
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: T("Install the update", table: "Settings"),
+                                detail: T("Pippa restarts and is back in a few seconds.", table: "Settings")) {
+                        Button(T("Install and Restart", table: "App")) { updates.installReadyNow() }
+                            .pippa(.primary)
+                            .disabled(updates.isChecking)
+                    }
+                } else {
+                    SettingsRow(title: T("Version", table: "App"), detail: AppVersion.label) {
+                        Button(updates.isChecking ? T("Checking…", table: "Settings") : T("Check for Updates…", table: "App")) {
+                            updates.checkNow()
+                        }
+                        .pippa(.secondary)
+                        .disabled(updates.isChecking)
+                    }
                 }
             }
         }

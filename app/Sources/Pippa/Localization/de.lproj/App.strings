@@ -327,3 +327,10 @@
 "Searching Contacts for “%@”" = "Suche in Kontakten nach „%@“";
 "Calculating" = "Rechne";
 "Reading Safari tabs" = "Lese Safari-Tabs";
+"Pippa is answering right now." = "Pippa antwortet gerade.";
+"Install the update now and restart? The current answer will stop." = "Update jetzt installieren und neu starten? Die laufende Antwort wird abgebrochen.";
+"Install and Restart" = "Installieren und neu starten";
+"Later" = "Später";
+"Pippa is already checking for updates." = "Pippa sucht schon nach Updates.";
+"Please try again in a moment." = "Versuch es gleich noch einmal.";
+"Restart to Update (%@)" = "Neu starten & aktualisieren (%@)";

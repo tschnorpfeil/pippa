@@ -532,8 +532,8 @@ node scripts/check-site-launch.cjs    # publication gate: required files
 ```
 
 **Social preview images.** `site/og.jpg` and `site/og-en.jpg` (1200×630, under 150 KB) are drawn by
-`scripts/render-og.swift`, not taken from a screenshot: Pippa blue, so they stand out among white link previews; her
-icon, name, the page's headline in Bagel Fat One and "free for Mac" on the left; on the right Pippa Island with one
+`scripts/render-og.swift`, not taken from a screenshot: warm paper matching the homepage on the left with her
+icon, name, the page's two-line SF Pro headline and "free for Mac"; on the right Pippa Island in dark obsidian with one
 answer to the website's made-up letter, in each page's language and large enough to read at half size. After changing
 the island's look or the headline, render both, look at them at about 500 px wide, and bump `?v=` on every og/twitter
 image URL in both pages so link previews refresh.

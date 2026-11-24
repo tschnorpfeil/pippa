@@ -153,6 +153,7 @@ struct IslandPanelView: View {
     var menuBarRow: MenuBarRow?
     @FocusState private var fieldFocused: Bool
     @ObservedObject private var drop = DropFeedback.island
+    @ObservedObject private var proactivity = ProactivityCoordinator.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     struct MenuBarRow: Equatable {
@@ -162,7 +163,9 @@ struct IslandPanelView: View {
     }
 
     /// What the panel shows above its field: one at a time, crossfading.
-    private enum Phase: Hashable { case question(String), working, download, setup, failed, answer, empty }
+    /// `proactive` is a calm notice: it ranks right above `empty`, so it never pushes a question, work, a download,
+    /// the setup, an error or a fresh answer aside.
+    private enum Phase: Hashable { case question(String), working, download, setup, failed, answer, proactive(UUID), empty }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -247,6 +250,7 @@ struct IslandPanelView: View {
         if setupNeedsYou { return .setup }
         if let error = lastAnswer?.message.error, !error.isEmpty { return .failed }
         if let text = lastAnswer?.message.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .answer }
+        if let nudge = proactivity.activeNudge { return .proactive(nudge.id) }
         return .empty
     }
 
@@ -309,6 +313,8 @@ struct IslandPanelView: View {
                     LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: IslandStyle.gap)
                 }
             }
+        case .proactive:
+            if let nudge = proactivity.activeNudge { IslandNudgeCard(matter: nudge, coordinator: proactivity).id(nudge.id) }
         case .empty:
             VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
                 // With a conversation to follow up, the field says "Follow up…": an invitation to ask anything would
@@ -554,6 +560,71 @@ struct IslandPanelView: View {
                     IslandNewConversationButton(island: island).padding(.trailing, 4).transition(.opacity)
                 }
             }
+    }
+}
+
+/// A calm notice: what kind it is, its title and short summary, and the person's four answers. Nothing happens
+/// until one of them is clicked.
+struct IslandNudgeCard: View {
+    let matter: ProactiveMatter
+    let coordinator: ProactivityCoordinator
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(kindLabel)
+                    .font(IslandStyle.caption.weight(.semibold))
+                    .foregroundStyle(IslandStyle.accent)
+                Text(matter.title)
+                    .font(IslandStyle.title).foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            if !matter.summary.isEmpty {
+                // A long brief scrolls inside the island instead of growing it.
+                ScrollView {
+                    Text(matter.summary)
+                        .font(IslandStyle.small).foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                        .lineSpacing(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .scrollIndicators(.never)
+                .frame(maxHeight: 160)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: IslandStyle.buttonGap) { mainButtons; Spacer(minLength: 0); muteButton }
+                VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
+                    HStack(spacing: IslandStyle.buttonGap) { mainButtons }
+                    muteButton
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var mainButtons: some View {
+        Button(T("Open in Chat", table: "Island")) { coordinator.openInChat(matter) }
+            .buttonStyle(IslandButtonStyle(prominent: true))
+        Button(T("Done", table: "Island")) { coordinator.markDone(matter) }
+            .buttonStyle(IslandButtonStyle())
+        Button(T("Later", table: "Island")) { coordinator.snooze(matter) }
+            .buttonStyle(IslandButtonStyle())
+            .help(T("Again in about three hours", table: "Island"))
+    }
+
+    private var muteButton: some View {
+        Button(T("Mute this kind", table: "Island")) { coordinator.muteKind(matter.kind, dismissing: matter) }
+            .buttonStyle(IslandButtonStyle())
+            .opacity(0.75)
+    }
+
+    private var kindLabel: String {
+        switch matter.kind {
+        case .morningBrief: T("Morning brief", table: "Island")
+        case .watchedFile: T("New file", table: "Island")
+        case .followUp: T("Follow-up", table: "Island")
+        }
     }
 }
 

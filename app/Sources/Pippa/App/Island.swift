@@ -124,7 +124,9 @@ final class Island: ObservableObject {
             chat.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
             SetupModel.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
             Approvals.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-            DropFeedback.island.objectWillChange.map { _ in () }.eraseToAnyPublisher())
+            DropFeedback.island.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+            // A calm notice only changes what the open island shows; it never opens the island.
+            ProactivityCoordinator.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher())
         // objectWillChange comes before the change: read the models on the next turn of the run loop.
         watches.append(changes.receive(on: RunLoop.main).sink { [weak self] in self?.refresh() })
         // Not deduplicated: `unseen` stays `.answer` until the chat is opened, and every later answer flashes too.

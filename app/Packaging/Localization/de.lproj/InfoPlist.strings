@@ -8,6 +8,7 @@
 "NSContactsUsageDescription" = "Wenn du fragst, schlägt Pippa Kontaktdaten in deinen Kontakten auf diesem Mac nach. Sie ändert nichts und lädt nichts hoch.";
 "NSRemindersFullAccessUsageDescription" = "Pippa trägt Fristen aus deinen Briefen in Erinnerungen ein, wenn du es sagst, und kann sie wieder entfernen.";
 "NSAppleEventsUsageDescription" = "Wenn du fragst, liest Pippa die Mail, die du in Mail ausgewählt hast, und die Tabelle, die du in Excel ansiehst, öffnet Numbers-Tabellen, die du ihr gibst, um sie zu lesen, und durchsucht deine Fotos und Notizen. Ohne deine Freigabe wird nichts verschickt.";
+"NSFocusStatusUsageDescription" = "Wenn du ruhige Hinweise einschaltest, prüft Pippa, ob ein Fokus an ist, und wartet dann mit ihren Hinweisen. Welcher Fokus es ist, liest sie nicht.";
 "NSPhotoLibraryUsageDescription" = "Wenn du nach Bildern fragst, zeigt Pippa dir die passenden Fotos aus deiner Mediathek. Sie ändert nichts und lädt nichts hoch.";
 "NSDesktopFolderUsageDescription" = "Pippa liest und ordnet Dateien auf deinem Schreibtisch, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";
 "NSDocumentsFolderUsageDescription" = "Pippa liest und ordnet Dateien in deinem Ordner „Dokumente“, wenn du sie darum bittest. Ihre Änderungen kannst du rückgängig machen.";

@@ -10,13 +10,22 @@ public struct PippaSettings: Codable, Sendable, Equatable {
     /// The model whose first download the person agreed to ("Set Up"): an interrupted download goes on by itself at
     /// the next start. `nil`: no consent kept.
     public var downloadConsent: String?
+    /// Opt-in settings for calm proactivity (`nil` = completely off by default).
+    public var proactivity: ProactivitySettings?
 
-    enum CodingKeys: String, CodingKey {
-        case serverPort = "llamaPort", piInlineShortText, downloadConsent
+    /// Resolved proactivity settings; defaults to disabled when unset.
+    public var effectiveProactivity: ProactivitySettings {
+        proactivity ?? .defaultDisabled
     }
 
-    public init(serverPort: Int? = nil, piInlineShortText: Bool? = nil) {
-        self.serverPort = serverPort; self.piInlineShortText = piInlineShortText
+    enum CodingKeys: String, CodingKey {
+        case serverPort = "llamaPort", piInlineShortText, downloadConsent, proactivity
+    }
+
+    public init(serverPort: Int? = nil, piInlineShortText: Bool? = nil, proactivity: ProactivitySettings? = nil) {
+        self.serverPort = serverPort
+        self.piInlineShortText = piInlineShortText
+        self.proactivity = proactivity
     }
 
     /// Change only the kept download consent (load, change, save); nothing is written when it is already so.
