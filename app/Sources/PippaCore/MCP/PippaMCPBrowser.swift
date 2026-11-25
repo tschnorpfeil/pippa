@@ -668,13 +668,16 @@ public struct PippaMCPBrowserTool: Sendable {
             var refs = data["refs"] as? [[String: Any]] ?? []
             let body = data["text"] as? String ?? ""
             if refs.count > 40 || (body.count <= 300 && !refs.isEmpty) { refs.removeLast(); data["refs"] = refs }
-            else if body.count > 1 {
-                let plain = body.hasSuffix(" …") ? String(body.dropLast(2)) : body
+            else if case let plain = body.hasSuffix(" …") ? String(body.dropLast(2)) : body, plain.count > 1 {
                 let kept = String(plain.prefix(plain.count / 2))
                 data["text"] = kept + " …"
                 data["more_from"] = (data["text_from"] as? Int ?? 0) + kept.count
-                if let next = value["next"] as? String, !next.contains("more_from") {
-                    value["next"] = "More page text: browse read with from=more_from. " + next
+                // Only an answer from data reads on; a handoff keeps its own instruction.
+                if value["done"] as? Bool == true {
+                    if data["text_from"] != nil { value["next"] = "Answer from data, or call browse read with from=more_from for the next part." }
+                    else if let next = value["next"] as? String, !next.contains("more_from") {
+                        value["next"] = "More page text: browse read with from=more_from. " + next
+                    }
                 }
             }
             else { break }

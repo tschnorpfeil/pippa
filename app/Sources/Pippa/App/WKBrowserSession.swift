@@ -653,6 +653,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     static let actionScript = sharedPageHelpers + #"""
     if (window.__pippaSnapshot !== snapshotId || !window.__pippaRefs || !window.__pippaRefMeta) return { error: 'stale' };
     const resolve = (key) => {
+      if (window.__pippaSnapshot !== snapshotId) return null;
       const el = window.__pippaRefs.get(key);
       const expected = window.__pippaRefMeta.get(key);
       if (!el || !expected || !el.isConnected || el.disabled || !visible(el)) return null;
@@ -701,7 +702,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
       if (why) return { error: why };
       targets.push([el, step]);
     }
-    if (submit) targets.pop();
+    const button = submit ? targets.pop()[0] : null;
     // Typing runs the page's own scripts: before each further step the element must still be the one the card
     // named (same meaning, still not a password or code field), or the step stops there.
     for (const [index, [el, step]] of targets.entries()) {
@@ -711,8 +712,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     if (submit) {
       // Pages often re-render after typing: give them a moment, then click only the very same, unchanged button.
       await new Promise((done) => setTimeout(done, 150));
-      const button = resolve(submit.ref);
-      if (!button) return { error: 'failed' };
+      if (resolve(submit.ref) !== button) return { error: 'failed' };
       apply(button, submit);
     }
     return { ok: true };

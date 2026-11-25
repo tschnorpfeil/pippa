@@ -381,6 +381,7 @@ func runMCPBrowserChecks() async {
         return open.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes && dense.hasPrefix(shown)
             && d["more_from"] as? Int == shown.count && (open.json["next"] as? String)?.contains("more_from") == true
             && last.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes && (last.json["next"] as? String)?.contains("more_from") == true
+            && (last.json["next"] as? String)?.contains("end of the page") == false
             && lastData["more_from"] as? Int == 2500 + lastShown.count && lastShown.count > 100
     }
 
