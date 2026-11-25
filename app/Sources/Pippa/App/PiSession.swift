@@ -699,6 +699,12 @@ final class PiSession {
         return server
     }
 
+    /// Starts the local oMLX server for an isolated read-only routine without touching chat state or any online provider.
+    func ensureLocalModelForRoutine() async throws {
+        let server = try await localModelServer()
+        try await server.ensureRunning()
+    }
+
     /// Typing is intent to ask. Never send the draft, start an online provider, or load on merely opening a window.
     /// Keep typing responsive and coalesce changes, including edits to an already nonempty draft after a long pause.
     func prewarmForInput() {
