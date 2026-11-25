@@ -33,9 +33,9 @@ export function writeArgLimit(contextWindow) {
 	return Math.max(1_024, Math.floor(windowOf(contextWindow) / 8));
 }
 
-/** Characters one tool result may bring in: three quarters of the window in tokens, at most 24,000. */
+/** Characters one tool result may bring in: half of the window in tokens, at most 16,000 (16k → 8,192, 32k → 16,000). */
 export function resultCharLimit(contextWindow) {
-	return Math.min(24_000, Math.max(4_000, Math.round(windowOf(contextWindow) * 0.75)));
+	return Math.min(16_000, Math.max(4_000, Math.round(windowOf(contextWindow) * 0.5)));
 }
 
 function stub(kind, text, path) {
@@ -188,6 +188,7 @@ export function buildLengthDeadlockRescue(branch) {
 	}
 	const files = [];
 	const requests = [];
+	let lastTool;
 	for (const e of branch.slice(start, index)) {
 		if (!isMessage(e)) continue;
 		const m = e.message;
@@ -201,6 +202,10 @@ export function buildLengthDeadlockRescue(branch) {
 			const text = plainText(m.content).trim();
 			if (text) requests.push(text);
 		}
+		if (m.role === "toolResult") {
+			const text = plainText(m.content).trim();
+			if (text) lastTool = { name: String(m.toolName ?? "tool"), isError: m.isError === true, text };
+		}
 	}
 
 	const lines = [
@@ -210,6 +215,10 @@ export function buildLengthDeadlockRescue(branch) {
 	if (earlier) lines.push("", "Summary before that:", clip(earlier, SUMMARY_PART_CHARS));
 	if (requests.length) lines.push("", "Requests since then (oldest first):", ...requests.slice(-3).map((t) => `- ${clip(t, SUMMARY_PART_CHARS / 2)}`));
 	if (files.length) lines.push("", "Files written or edited since then (read them for their current content):", ...files.slice(-MAX_LISTED_FILES).map((p) => `- ${p}`));
+	if (!keepPrompt && lastTool) {
+		const status = lastTool.isError ? " (error)" : "";
+		lines.push("", `Last tool result (${lastTool.name}${status}):`, clip(lastTool.text, SUMMARY_PART_CHARS / 2));
+	}
 	lines.push("", keepPrompt ? "Continue with the request that follows." : "Continue with the latest request.");
 	return { type: "compaction", summary: lines.join("\n"), firstKeptEntryId };
 }
@@ -247,7 +256,7 @@ export function registerLocalContextGuard(pi, { capToolResults = false } = {}) {
 	}
 
 	pi.on("agent_before_settle", (event, ctx) => {
-		if (rescued || !isLocal(ctx)) return undefined;
+		if (rescued || !isLocal(ctx) || event?.outcome === "aborted" || event?.context?.canContinue === false) return undefined;
 		const drafts = Array.isArray(event?.entries) ? event.entries : [];
 		if (drafts.some((d) => d?.type === "compaction")) return undefined;
 		const rescue = buildLengthDeadlockRescue(ctx.sessionManager?.getBranch?.());

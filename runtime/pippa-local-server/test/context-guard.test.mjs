@@ -67,10 +67,11 @@ test("stubLargeToolCalls stubs successful big write/edit calls and leaves everyt
 
 test("capTerminalToolResult: bash keeps the end, read whole lines with offset, others the start; mcp and short skipped", () => {
 	const limit = resultCharLimit(32768);
-	assert.equal(limit, 24000);
+	assert.equal(limit, 16000);
+	assert.equal(resultCharLimit(16384), 8192);
 	const long = "a".repeat(10) + "b".repeat(30000) + "END";
 	const bash = capTerminalToolResult("bash", [{ type: "text", text: long }], 32768);
-	assert.match(bash[0].text, /^\[Only the last 24000 of 30013 characters/);
+	assert.match(bash[0].text, /^\[Only the last 16000 of 30013 characters/);
 	assert.ok(bash[0].text.endsWith("END"));
 	const lines = Array.from({ length: 3000 }, (_, i) => `line ${i + 1} ${"z".repeat(10)}`).join("\n");
 	const read = capTerminalToolResult("read", [{ type: "text", text: lines }], 32768, { path: "f", offset: 101 });
@@ -83,7 +84,7 @@ test("capTerminalToolResult: bash keeps the end, read whole lines with offset, o
 	assert.match(text, new RegExp(`\\[Only lines 101-${100 + shown.length} are shown.*offset=${101 + shown.length} to read on\\.\\]$`));
 	const other = capTerminalToolResult("grep", [{ type: "text", text: long }, { type: "image", data: "x", mimeType: "image/png" }], 32768);
 	assert.ok(other[0].text.startsWith("aaaaaaaaaab"));
-	assert.match(other[0].text, /\[Only the first 24000 of 30013 characters/);
+	assert.match(other[0].text, /\[Only the first 16000 of 30013 characters/);
 	assert.equal(other[1].type, "image");
 	assert.equal(capTerminalToolResult("mcp__pippa__search", [{ type: "text", text: long }], 32768), undefined);
 	assert.equal(capTerminalToolResult("bash", [{ type: "text", text: "short" }], 32768), undefined);
@@ -122,13 +123,14 @@ test("buildLengthDeadlockRescue: keeps a short trailing prompt, else restarts at
 	assert.match(rescue.summary, /- page\.html/);
 	assert.doesNotMatch(rescue.summary, /Add a footer/, "the kept prompt is not repeated");
 
-	// Ends on a tool result: keeping it would orphan it from its call, so nothing is kept.
+	// Ends on a tool result: keeping it would orphan it from its call, so nothing is kept, and the last tool result is noted.
 	const a2 = assistant([{ type: "toolCall", id: "c2", name: "read", arguments: { path: "page.html" } }], "toolUse");
 	const t2 = toolResult("c2", "read");
 	const cut2 = assistant([{ type: "text", text: "<foo" }], "length");
 	const afterTool = buildLengthDeadlockRescue(stuckBranch([u2, a2, t2, cut2, omit(cut2)]));
 	assert.equal(afterTool.firstKeptEntryId, null);
 	assert.match(afterTool.summary, /- Add a footer/);
+	assert.match(afterTool.summary, /Last tool result \(read\):\nok/);
 
 	// An oversized prompt is not kept either; it is summarized (clipped).
 	const huge = user("y".repeat(9000));
@@ -161,9 +163,12 @@ test("registerLocalContextGuard: hooks, at most one rescue per run, only pippa-l
 	const cut = assistant([{ type: "text", text: "<footer" }], "length");
 	const branch = stuckBranch([u2, cut, omit(cut)]);
 	const ctx = (model) => ({ model, sessionManager: { getBranch: () => branch } });
-	const settle = (model, entries = []) => handlers.agent_before_settle({ type: "agent_before_settle", entries, continue: false }, ctx(model));
+	const settle = (model, entries = [], extra = {}) =>
+		handlers.agent_before_settle({ type: "agent_before_settle", entries, continue: false, outcome: "completed", context: { canContinue: true }, ...extra }, ctx(model));
 
 	assert.equal(settle({ ...local, provider: "openai" }), undefined, "other providers untouched");
+	assert.equal(settle(local, [], { outcome: "aborted" }), undefined, "aborted runs are never continued");
+	assert.equal(settle(local, [], { context: { canContinue: false } }), undefined, "non-continuable context stays settled");
 	const other = { type: "custom", customType: "x" };
 	const first = settle(local, [other]);
 	assert.equal(first.continue, true);
@@ -193,7 +198,7 @@ test("registerLocalContextGuard: hooks, at most one rescue per run, only pippa-l
 
 	// tool_result: capped for pippa-local, never for a script's own calls or other providers.
 	const result = (model, extra = {}) => handlers.tool_result({ type: "tool_result", toolName: "bash", toolCallId: "t", input: {}, content: [{ type: "text", text: "q".repeat(40000) }], isError: false, ...extra }, { model });
-	assert.match(result(local).content[0].text, /^\[Only the last 24000/);
+	assert.match(result(local).content[0].text, /^\[Only the last 16000/);
 	assert.equal(result(local, { parentToolCallId: "p" }), undefined);
 	assert.equal(result({ ...local, provider: "openai" }), undefined);
 });
