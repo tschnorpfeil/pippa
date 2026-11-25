@@ -61,7 +61,8 @@ A few more things she can do when you ask:
 - **Photos.** Find matching photos in your Photos library.
 - **The web.** Look something up online, after showing you the exact search text and getting your OK. When a page needs
   clicking through, she opens it in a browser panel in her window, asks before each new site and each click, typed text
-  or choice, and leaves sign-ins, passwords and codes to you.
+  or choice, asks once for a whole form with every value on the card, reads long pages to the end, and leaves sign-ins,
+  passwords and codes to you.
 - **The app in front.** Ask about what's open and she reads it; for apps that can't hand over their content, she reads
   the text its window hands to macOS Accessibility, read only, after you allow it.
 - **Remembering.** Tell her a fact about yourself, such as your doctor's name, and she keeps it for later

@@ -52,3 +52,11 @@
 "Chose in the browser: “%@”" = "Chose in the browser: “%@”";
 "Closed the browser" = "Closed the browser";
 "Viewed in the browser: %@" = "Viewed in the browser: %@";
+"May Pippa fill in this form?" = "May Pippa fill in this form?";
+"May Pippa fill in and submit this form?" = "May Pippa fill in and submit this form?";
+"On %@, Pippa wants to fill in this form:" = "On %@, Pippa wants to fill in this form:";
+"• “%@”: %@" = "• “%@”: %@";
+"• “%@”: choose “%@”" = "• “%@”: choose “%@”";
+"(empty)" = "(empty)";
+"Then: %@" = "Then: %@";
+"Filled in the browser: %@" = "Filled in the browser: %@";

@@ -27,7 +27,7 @@ Cloud assistants read your documents on their servers, and most local AI apps st
 - **Ready to send.** Photos and scans become one PDF in your order; she checks that every page made it in and can aim for a size limit you set (say, 10 MB). Drop them and press **One PDF**: that works without any AI download.
 - **Found and sorted.** Files by what's in them, the newest version first. Ask her to rename or move them; a file she removes goes to the Trash, never deleted for good.
 
-Also: reply drafts in Mail (sent only when you press **Send** on her card), mails sorted into the folders you already have, Calendar entries, reminders, photos from your library and the web after she asks you. When a web page needs clicking through, she does it in a browser panel in her window, where you can watch along, and asks before each new site and each click.
+Also: reply drafts in Mail (sent only when you press **Send** on her card), mails sorted into the folders you already have, Calendar entries, reminders, photos from your library and the web after she asks you. When a web page needs clicking through, she does it in a browser panel in her window, where you can watch along, and asks before each new site and each click; a whole form is one question that shows everything she will type.
 
 Open Pippa from the Dock or press ⌥ Space, then just ask.
 
@@ -73,7 +73,7 @@ Keep ChatGPT if you like it: Pippa can use your subscription as her online AI.
 - **Letters and documents:** what a letter wants and by when, with the passage that says so; questions about PDFs, Word files, spreadsheets and photos of documents; summaries, shorter or clearer text, checklists from your notes.
 - **Mail, Calendar and Reminders:** triage inboxes per account (unread or read, checking Sent and Drafts so replied threads aren't flagged again), read matching mails and their document attachments, write unsent reply drafts in the right thread and send one after you press **Send** on its card, and sort inbox mails into your existing folders, checking each one in its new folder; read your calendar (organizers, attendees, links, notes) and reminders, and add single- or multi-day appointments (to your default or a named calendar) and reminders when you ask.
 - **Finding things:** files on your Mac and in iCloud Drive, photos in your library, and the web after she asks you.
-- **The web:** pages that need clicking through open in a browser panel in her window. She asks before each new site and before every click, typed text or choice, and leaves sign-ins, passwords and codes to you.
+- **The web:** pages that need clicking through open in a browser panel in her window. She asks before each new site and before every click, typed text or choice, asks once for a whole form with every value on the card, reads long pages to the end, and leaves sign-ins, passwords and codes to you.
 - **The app in front:** ask about what's open, and she reads it. For apps that can't hand over their content, she reads the text its window hands to macOS Accessibility, read only, after you allow it.
 - **Remembering:** a short list of facts you tell her about yourself, such as your doctor's name. You can ask her to forget them.
 - **Quick questions:** press ⌥ Space and ask in Pippa Island at the top of the screen, or drop a file on it. Click your latest conversation from the past 24 hours to keep asking there. **Open Pippa** takes the conversation to the full window.

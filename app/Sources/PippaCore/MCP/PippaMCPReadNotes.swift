@@ -85,6 +85,7 @@ extension PippaMCPTools {
             case "click": L("Clicked in the browser: “%@”", table: "Tools", detail)
             case "fill": L("Typed in the browser: “%@”", table: "Tools", detail)
             case "select": L("Chose in the browser: “%@”", table: "Tools", detail)
+            case "form": L("Filled in the browser: %@", table: "Tools", detail)
             case "close": L("Closed the browser", table: "Tools")
             default: L("Viewed in the browser: %@", table: "Tools", detail)
             }

@@ -57,7 +57,9 @@ answer no. MCP annotations are derived from the class. Pi's own tools are gated 
 sandbox, which also see calls from codemode scripts. `bash` is `external`: `runtime/pippa-tools/shell.ts` asks per
 command before a command goes online and keeps no yes for a later call. Changing files in the person's folders is
 still asked once per answer, with copies of the files the command names. `browse` keeps its own question per step
-(`PippaActionClasses.asksPerStep`).
+(`PippaActionClasses.asksPerStep`): a `form` step (several fields and an optional submit) is one question that lists every
+value, a link to a host allowed in the same answer loads like `open` without one, and `read` pages through the text of
+the latest snapshot (up to 40,000 characters, 2,500 at a time).
 
 **Run journal.** `app/Sources/PippaCore/RunJournal.swift` writes one row per action into `journal.sqlite` before the
 action starts, as `dispatched`, and after it reads the object back from its source (a mail by Message-ID in the target

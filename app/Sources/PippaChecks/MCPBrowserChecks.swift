@@ -48,7 +48,7 @@ func runMCPBrowserChecks() async {
     func data(_ json: [String: Any]) -> [String: Any] { json["data"] as? [String: Any] ?? [:] }
     let page = "https://example.org/kontakt"
 
-    check("MCP browse: compact strict schema with the seven actions, ref pattern and open-world hints") {
+    check("MCP browse: compact strict schema with the nine actions, ref pattern and open-world hints") {
         let tool = PippaMCPBrowserTool.toolList().first ?? [:]
         let schema = tool["inputSchema"] as? [String: Any] ?? [:]
         let properties = schema["properties"] as? [String: Any] ?? [:]
@@ -56,11 +56,12 @@ func runMCPBrowserChecks() async {
         let bytes = (try? JSONSerialization.data(withJSONObject: [tool]))?.count ?? .max
         return tool["name"] as? String == "browse" && schema["additionalProperties"] as? Bool == false
             && schema["required"] as? [String] == ["action"]
-            && properties.keys.sorted() == ["action", "ref", "snapshot_id", "text", "url", "value"]
-            && (properties["action"] as? [String: Any])?["enum"] as? [String] == ["open", "snapshot", "click", "fill", "select", "back", "close"]
+            && properties.keys.sorted() == ["action", "fields", "from", "ref", "snapshot_id", "submit", "text", "url", "value"]
+            && (properties["action"] as? [String: Any])?["enum"] as? [String] == ["open", "snapshot", "read", "click", "fill", "select", "form", "back", "close"]
+            && (properties["submit"] as? [String: Any])?["pattern"] as? String == "^@e[1-9][0-9]*$"
             && (properties["ref"] as? [String: Any])?["pattern"] as? String == "^@e[1-9][0-9]*$"
             && a["openWorldHint"] as? Bool == true && a["destructiveHint"] as? Bool == false && a["readOnlyHint"] as? Bool == false
-            && bytes < 800 && PippaMCPTools.toolNames.filter { $0 == "browse" }.count == 1
+            && bytes < 1100 && PippaMCPTools.toolNames.filter { $0 == "browse" }.count == 1
     }
 
     await checkAsync("MCP browse: invalid arguments fail before asking or touching the browser") {
@@ -68,7 +69,17 @@ func runMCPBrowserChecks() async {
         let bad: [[String: Any]] = [[:], ["action": "download"], ["action": 1], ["action": "open"], ["action": "open", "url": 5],
             ["action": "open", "url": page, "ref": "@e1"], ["action": "click"], ["action": "click", "ref": "e1"], ["action": "click", "ref": "@e0"],
             ["action": "fill", "ref": "@e2"], ["action": "fill", "ref": "@e2", "text": NSNull()], ["action": "select", "ref": "@e4"],
-            ["action": "snapshot", "url": page], ["action": "click", "ref": "@e1", "snapshot_id": ""], ["action": "back", "extra": "x"]]
+            ["action": "snapshot", "url": page], ["action": "click", "ref": "@e1", "snapshot_id": ""], ["action": "back", "extra": "x"],
+            ["action": "read", "from": -1], ["action": "read", "from": "10"], ["action": "read", "from": 1.5], ["action": "read", "from": true],
+            ["action": "form"], ["action": "form", "fields": []], ["action": "form", "fields": "@e2"],
+            ["action": "form", "fields": [["ref": "@e2"]]], ["action": "form", "fields": [["ref": "e2", "text": "x"]]],
+            ["action": "form", "fields": [["ref": "@e2", "text": "x", "value": "y"]]],
+            ["action": "form", "fields": [["ref": "@e2", "text": "x"], ["ref": "@e2", "text": "y"]]],
+            ["action": "form", "fields": [["ref": "@e4", "value": ""]]],
+            ["action": "form", "fields": [["ref": "@e2", "text": "x"]], "submit": "@e2"],
+            ["action": "form", "fields": [["ref": "@e2", "text": "x"]], "submit": "e3"],
+            ["action": "form", "fields": (1...13).map { ["ref": "@e\($0)", "text": "x"] }],
+            ["action": "form", "fields": [["ref": "@e2", "text": "x"]], "url": page]]
         for arguments in bad {
             let r = await browse(w, arguments)
             guard r.isError, r.json["status"] as? String == "invalid_arguments", r.json["done"] as? Bool == false,
@@ -258,15 +269,141 @@ func runMCPBrowserChecks() async {
             && !card.message.contains("id=9")
     }
 
-    await checkAsync("MCP browse: a link to another host names that host; same-host links and plain buttons keep the click wording") {
+    await checkAsync("MCP browse: a link to another host names that host; a same-host link to an unallowed host and plain buttons keep the click wording") {
         guard let link = await clickPrompt(BrowserElementRef(ref: "@e1", role: "link", name: "Shop", href: "https://shop.other.org/a?token=abc")),
               let same = await clickPrompt(BrowserElementRef(ref: "@e1", role: "link", name: "Impressum", href: "https://www.example.org/impressum")),
               let plain = await clickPrompt(BrowserElementRef(ref: "@e1", role: "button", name: "Mehr"))
         else { return false }
         let click = L("May Pippa click this?", table: "Tools")
+        // `www.example.org` is another host than the allowed `example.org`: it still asks, with the click wording.
         return link.title == L("May Pippa open this link?", table: "Tools") && link.message.contains("shop.other.org") && !link.message.contains("token")
             && same.title == click && same.message == L("On %@, Pippa wants to click “%@”.", table: "Tools", "example.org", "Impressum")
             && plain.title == click && plain.message == L("On %@, Pippa wants to click “%@”.", table: "Tools", "example.org", "Mehr")
+    }
+
+    let links: DemoBrowserOperator.Page = { url, id in
+        BrowserSnapshot(snapshotId: id, url: url.absoluteString, title: "Kontakt", text: "Kontakt",
+                        refs: [BrowserElementRef(ref: "@e1", role: "link", name: "Impressum", href: "https://example.org/impressum"),
+                               BrowserElementRef(ref: "@e2", role: "link", name: "Partner", href: "https://example.net/"),
+                               BrowserElementRef(ref: "@e3", role: "button", name: "Weiter", type: "submit", submitsForm: true,
+                                                 formAction: "https://example.org/weiter", href: "https://example.org/weiter")])
+    }
+    await checkAsync("MCP browse: a link to a host allowed in this answer opens its address without a card or journal row") {
+        let journal = try Executor(baseDirectory: root.appendingPathComponent("browse-links-" + UUID().uuidString))
+        let w = world(page: links, journal: journal)
+        _ = await browse(w, ["action": "open", "url": page])
+        let follow = await browse(w, ["action": "click", "ref": "@e1", "snapshot_id": "s1"])
+        let opened = w.browser.actions.last == .open(URL(string: "https://example.org/impressum")!)
+        let other = await browse(w, ["action": "click", "ref": "@e2"])
+        let submit = await browse(w, ["action": "click", "ref": "@e3"])
+        let rows = try await journal.runActions(run: w.turn.id)
+        return follow.json["done"] as? Bool == true && opened && w.notes.value.last(where: { $0.line.contains("Impressum") }) != nil
+            && other.json["done"] as? Bool == true && submit.json["done"] as? Bool == true
+            && w.asked.value == ["open", "click", "click"]
+            && w.prompts.value[1].title == L("May Pippa open this link?", table: "Tools")
+            && w.prompts.value[2].title == L("May Pippa submit this?", table: "Tools")
+            && rows.map(\.object.kind) == ["browser.click", "browser.click"]
+            && !w.browser.actions.contains(.click(ref: "@e1", snapshotId: "s1"))
+    }
+
+    await checkAsync("MCP browse: a link is followed without a card only in the answer that allowed its host") {
+        let w = world(page: links)
+        _ = await browse(w, ["action": "open", "url": page])
+        w.turns.begin(PippaMCPTurn())
+        let later = await browse(w, ["action": "click", "ref": "@e1", "snapshot_id": "s1"])
+        return later.json["done"] as? Bool == true && w.asked.value == ["open", "click"]
+            && w.browser.actions.last == .click(ref: "@e1", snapshotId: "s1")
+    }
+
+    let longText = (1...300).map { "Satz \($0) über Öffnungszeiten." }.joined(separator: " ")
+    await checkAsync("MCP browse: a long page is read in parts without asking or reloading, up to its end") {
+        let w = world(page: { url, id in BrowserSnapshot(snapshotId: id, url: url.absoluteString, title: "Lang", text: longText, refs: []) })
+        let open = await browse(w, ["action": "open", "url": page])
+        let first = data(open.json)
+        var collected = String((first["text"] as? String ?? "").dropLast(2))
+        var from = first["more_from"] as? Int
+        var parts = 0
+        var last: [String: Any] = [:]
+        while let start = from, parts < 20 {
+            let r = await browse(w, ["action": "read", "from": start])
+            guard !r.isError, r.json["done"] as? Bool == true, r.json["untrusted"] as? Bool == true,
+                  r.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes else { return false }
+            last = data(r.json)
+            guard last["text_from"] as? Int == start, last["refs"] == nil else { return false }
+            let text = last["text"] as? String ?? ""
+            from = last["more_from"] as? Int
+            collected += from == nil ? text : String(text.dropLast(2))
+            parts += 1
+        }
+        let past = await browse(w, ["action": "read", "from": 1_000_000])
+        let fresh = world()
+        let nothing = await browse(fresh, ["action": "read"])
+        return first["truncated"] as? Bool == true && first["more_from"] as? Int == PippaMCPBrowserTool.maxText
+            && collected == longText && parts >= 3 && last["truncated"] as? Bool == false
+            && (open.json["next"] as? String)?.contains("read") == true
+            && data(past.json)["text"] as? String == "" && data(past.json)["more_from"] == nil
+            && w.asked.value == ["open"] && w.browser.actions.count == 1
+            && nothing.isError && nothing.json["status"] as? String == "stale_ref" && fresh.browser.actions.isEmpty
+    }
+
+    await checkAsync("MCP browse: when a snapshot is cut to fit, more_from points at the first character not shown") {
+        let dense = (1...2000).map { "ä\($0)" }.joined(separator: "\"")
+        let w = world(page: { url, id in BrowserSnapshot(snapshotId: id, url: url.absoluteString, title: "Dicht", text: dense, refs: []) })
+        let open = await browse(w, ["action": "open", "url": page])
+        let d = data(open.json)
+        let shown = String((d["text"] as? String ?? "").dropLast(2))
+        return open.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes && dense.hasPrefix(shown)
+            && d["more_from"] as? Int == shown.count
+    }
+
+    let formPage: DemoBrowserOperator.Page = { url, id in
+        BrowserSnapshot(snapshotId: id, url: url.absoluteString, title: "Termin", text: "Termin buchen",
+                        refs: [BrowserElementRef(ref: "@e1", role: "textbox", name: "Name", type: "text"),
+                               BrowserElementRef(ref: "@e2", role: "textbox", name: "E-Mail", type: "email"),
+                               BrowserElementRef(ref: "@e3", role: "combobox", name: "Uhrzeit", value: "9:00"),
+                               BrowserElementRef(ref: "@e4", role: "button", name: "Buchen", type: "submit", submitsForm: true,
+                                                 formAction: "https://example.org/termin?token=SECRET"),
+                               BrowserElementRef(ref: "@e5", role: "textbox", name: "Passwort", type: "password")])
+    }
+    let formFields: [[String: Any]] = [["ref": "@e1", "text": "Anna Muster"], ["ref": "@e2", "text": "anna@example.org"], ["ref": "@e3", "value": "10:30"]]
+
+    await checkAsync("MCP browse: a whole form with its submit is one card that lists every value and the destination, and one journal row") {
+        let journal = try Executor(baseDirectory: root.appendingPathComponent("browse-form-" + UUID().uuidString))
+        let w = world(page: formPage, journal: journal)
+        _ = await browse(w, ["action": "open", "url": page])
+        let r = await browse(w, ["action": "form", "fields": formFields, "submit": "@e4", "snapshot_id": "s1"])
+        let card = w.prompts.value.last
+        let rows = try await journal.runActions(run: w.turn.id)
+        let expected = BrowserAction.form(fields: [BrowserFormField(ref: "@e1", text: "Anna Muster"), BrowserFormField(ref: "@e2", text: "anna@example.org"),
+                                                   BrowserFormField(ref: "@e3", text: "10:30", choose: true)], submit: "@e4", snapshotId: "s1")
+        return r.json["done"] as? Bool == true && w.asked.value == ["open", "form"]
+            && card?.title == L("May Pippa fill in and submit this form?", table: "Tools")
+            && ["Name", "Anna Muster", "anna@example.org", "Uhrzeit", "10:30", "Buchen", "/termin"].allSatisfy { card?.message.contains($0) == true }
+            && card?.message.contains("SECRET") == false
+            && w.browser.actions.last == expected
+            && rows.map(\.object.kind) == ["browser.form"] && rows.first?.state == .done
+            && w.notes.value.last?.line == L("Filled in the browser: %@", table: "Tools", "Name, E-Mail, Uhrzeit")
+    }
+
+    await checkAsync("MCP browse: a form without submit only fills; a no, a stale ref or a password field changes nothing") {
+        let w = world(page: formPage)
+        _ = await browse(w, ["action": "open", "url": page])
+        let fillOnly = await browse(w, ["action": "form", "fields": [["ref": "@e1", "text": ""]]])
+        let fillCard = w.prompts.value.last
+        let filled = (data(fillOnly.json)["refs"] as? [[String: Any]] ?? []).first { $0["ref"] as? String == "@e1" }
+        let no = world(confirm: { $0 == "open" }, page: formPage)
+        _ = await browse(no, ["action": "open", "url": page])
+        let declined = await browse(no, ["action": "form", "fields": formFields, "submit": "@e4"])
+        let stale = await browse(no, ["action": "form", "fields": [["ref": "@e1", "text": "x"], ["ref": "@e99", "text": "y"]]])
+        let oldId = await browse(no, ["action": "form", "fields": formFields, "snapshot_id": "s0"])
+        let password = await browse(no, ["action": "form", "fields": [["ref": "@e1", "text": "x"], ["ref": "@e5", "text": "hunter2"]]])
+        let isForm: (BrowserAction) -> Bool = { if case .form = $0 { true } else { false } }
+        return fillOnly.json["done"] as? Bool == true && fillCard?.title == L("May Pippa fill in this form?", table: "Tools")
+            && fillCard?.message.contains(L("(empty)", table: "Tools")) == true && filled?["value"] as? String == ""
+            && declined.json["status"] as? String == "cancelled" && declined.json["dispatched"] as? Bool == false
+            && [stale, oldId].allSatisfy { $0.json["status"] as? String == "stale_ref" && $0.json["dispatched"] as? Bool == false }
+            && password.json["status"] as? String == "handoff_required" && !password.text.contains("hunter2")
+            && no.asked.value == ["open", "form"] && !no.browser.actions.contains(where: isForm)
     }
 
     await checkAsync("MCP browse: malformed form actions and links fall back safely without leaking") {

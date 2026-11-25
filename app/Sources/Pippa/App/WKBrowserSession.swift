@@ -168,6 +168,8 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             try await act("fill", ref: ref, snapshotId: snapshotId, text: text)
         case .select(let ref, let value, let snapshotId):
             try await act("select", ref: ref, snapshotId: snapshotId, text: value)
+        case .form(let fields, let submit, let snapshotId):
+            try await act("form", ref: submit ?? "", snapshotId: snapshotId, text: "", fields: fields)
         case .back:
             guard currentURL != nil else { throw BrowserError.nothingOpen }
             blockedNavigation = false; declinedNavigation = false; navigationFailed = false
@@ -229,13 +231,14 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         sync()
     }
 
-    private func act(_ kind: String, ref: String, snapshotId: String?, text: String) async throws {
+    private func act(_ kind: String, ref: String, snapshotId: String?, text: String, fields: [BrowserFormField] = []) async throws {
         guard currentURL != nil else { throw BrowserError.nothingOpen }
         guard let snapshotId = snapshotId ?? latest?.snapshotId else { throw BrowserError.staleRef }
         awaitingNavigationStart = false
         blockedNavigation = false; declinedNavigation = false; navigationFailed = false
-        let reply = try? await webView.callAsyncJavaScript(Self.actionScript, arguments: ["kind": kind, "ref": ref, "snapshotId": snapshotId, "text": text],
-                                                           in: nil, contentWorld: world) as? [String: Any]
+        let steps: [[String: String]] = fields.map { ["ref": $0.ref, "kind": $0.choose ? "select" : "fill", "text": $0.text] }
+        let arguments: [String: Any] = ["kind": kind, "ref": ref, "snapshotId": snapshotId, "text": text, "fields": steps]
+        let reply = try? await webView.callAsyncJavaScript(Self.actionScript, arguments: arguments, in: nil, contentWorld: world) as? [String: Any]
         switch reply?["error"] as? String {
         case nil where reply?["ok"] as? Bool == true: break
         case "stale": throw BrowserError.staleRef
@@ -253,7 +256,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         guard let url = currentURL else { throw BrowserError.nothingOpen }
         counter += 1
         let id = "s\(counter)-" + UUID().uuidString.prefix(8).lowercased()
-        let arguments: [String: Any] = ["snapshotId": id, "maxRefs": PippaMCPBrowserTool.maxRefs, "maxText": PippaMCPBrowserTool.maxText]
+        let arguments: [String: Any] = ["snapshotId": id, "maxRefs": PippaMCPBrowserTool.maxRefs, "maxText": PippaMCPBrowserTool.maxPageText]
         guard let raw = try? await webView.callAsyncJavaScript(Self.snapshotScript, arguments: arguments, in: nil, contentWorld: world)
                 as? [String: Any] else { throw BrowserError.failed }
         let refs = (raw["refs"] as? [[String: Any]] ?? []).compactMap { item -> BrowserElementRef? in
@@ -641,41 +644,68 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     };
     """#
 
-    /// One click, fill or select on an element of exactly this snapshot whose meaning hasn't changed. Never fills
-    /// password or verification-code fields.
+    /// One click, fill or select, or a whole form (`kind` "form": every field of `fields`, then a click on `ref` when it
+    /// is set), on elements of exactly this snapshot whose meaning hasn't changed. Every element is checked before the
+    /// first one changes. Never fills password or verification-code fields.
     static let actionScript = sharedPageHelpers + #"""
     if (window.__pippaSnapshot !== snapshotId || !window.__pippaRefs || !window.__pippaRefMeta) return { error: 'stale' };
-    const el = window.__pippaRefs.get(ref);
-    const expected = window.__pippaRefMeta.get(ref);
-    if (!el || !expected || !el.isConnected || el.disabled || !visible(el)) return { error: 'stale' };
-    const current = metaOf(el);
-    for (const key of Object.keys(expected)) {
-      if (current[key] !== expected[key]) return { error: 'stale' };
-    }
-    const fire = () => {
+    const resolve = (key) => {
+      const el = window.__pippaRefs.get(key);
+      const expected = window.__pippaRefMeta.get(key);
+      if (!el || !expected || !el.isConnected || el.disabled || !visible(el)) return null;
+      const current = metaOf(el);
+      for (const name of Object.keys(expected)) {
+        if (current[name] !== expected[name]) return null;
+      }
+      return el;
+    };
+    const optionFor = (el, wanted) => Array.from(el.options).find((o) => o.value === wanted || o.text.trim() === wanted.trim());
+    const problem = (el, step) => {
+      if (step.kind === 'fill') {
+        if (isSensitive(el)) return 'password';
+        if (el.isContentEditable) return null;
+        const setter = Object.getOwnPropertyDescriptor(el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value')?.set;
+        return setter && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) ? null : 'failed';
+      }
+      if (step.kind === 'select') return el.tagName === 'SELECT' && optionFor(el, step.text) ? null : 'option';
+      return null;
+    };
+    const fire = (el) => {
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
     };
-    if (kind === 'fill') {
-      if (isSensitive(el)) return { error: 'password' };
-      el.focus();
-      if (el.isContentEditable) el.textContent = text;
-      else {
-        const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-        const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-        if (!setter || !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return { error: 'failed' };
-        setter.call(el, text);
+    const apply = (el, step) => {
+      if (step.kind === 'fill') {
+        el.focus();
+        if (el.isContentEditable) el.textContent = step.text;
+        else Object.getOwnPropertyDescriptor(el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value').set.call(el, step.text);
+        fire(el);
+      } else if (step.kind === 'select') {
+        el.value = optionFor(el, step.text).value;
+        fire(el);
+      } else {
+        el.scrollIntoView({ block: 'center' });
+        el.click();
       }
-      fire();
-    } else if (kind === 'select') {
-      if (el.tagName !== 'SELECT') return { error: 'option' };
-      const option = Array.from(el.options).find((o) => o.value === text || o.text.trim() === text.trim());
-      if (!option) return { error: 'option' };
-      el.value = option.value;
-      fire();
-    } else {
-      el.scrollIntoView({ block: 'center' });
-      el.click();
+    };
+    const steps = kind === 'form' ? fields.map((field) => ({ ref: field.ref, kind: field.kind, text: field.text })) : [{ ref, kind, text }];
+    const submit = kind === 'form' && ref ? { ref, kind: 'click', text: '' } : null;
+    const targets = [];
+    for (const step of submit ? steps.concat([submit]) : steps) {
+      const el = resolve(step.ref);
+      if (!el) return { error: 'stale' };
+      const why = problem(el, step);
+      if (why) return { error: why };
+      targets.push([el, step]);
+    }
+    if (submit) targets.pop();
+    for (const [el, step] of targets) apply(el, step);
+    if (submit) {
+      // Pages often re-render after typing: give them a moment, then click only the very same, still usable button.
+      await new Promise((done) => setTimeout(done, 150));
+      const button = window.__pippaRefs.get(submit.ref);
+      if (!button || !button.isConnected || button.disabled || !visible(button)) return { error: 'failed' };
+      apply(button, submit);
     }
     return { ok: true };
     """#

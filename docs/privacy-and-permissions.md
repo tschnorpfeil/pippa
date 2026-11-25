@@ -100,7 +100,7 @@ until it finishes or you press Stop. Messages you approve in a review and single
 | Update checks | Once a day, from this repository's releases. Updates install when you quit or after a while without input. |
 | Web searches | The first search in a conversation shows you the exact search text and waits for your OK. Your OK covers later searches in that conversation; a new conversation asks again. |
 | Reading web pages | Pages from your own message or from that answer's search results are read without asking again. Any other address is asked for. Addresses on your Mac or your local network are never read. |
-| Pippa's browser | With the AI on this Mac, Pippa opens a page that needs clicking through in a browser panel in her window; open the window (from Pippa Island: **Open Pippa**) to watch along or to sign in. She asks before each new website and before every click, typed text or choice. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
+| Pippa's browser | With the AI on this Mac, Pippa opens a page that needs clicking through in a browser panel in her window; open the window (from Pippa Island: **Open Pippa**) to watch along or to sign in. She asks before each new website and before every click, typed text or choice. A whole form is one question that lists every value she will type or choose and where the form goes. Following a link to a website you already allowed in the same answer doesn't ask again: it opens that address, the same as if she had opened it herself. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
 | Provider setup | Browser sign-in, credential setup, and model catalog refresh when requested in Settings. No conversation contents. |
 | Online AI | Only while you have it switched on, or for one question you sent with **Ask [provider]…**: what you typed and what you checked and shared (see above). When it says "too many requests", Pippa waits 15, 30, 60 and 60 seconds, shows the countdown and continues. If it is still at its limit, the answer ends with **Continue**, which you can press after a minute. A used-up allowance is named as such. |
 | Commands that go online | Pippa's command-line helper asks before each command that goes online, such as downloading a file. A yes covers that one command. |
@@ -164,7 +164,7 @@ given. Check results, especially for actions you didn't expect.
   "Prepare tomorrow" may add a reminder. This holds for the AI on this Mac and for an online AI with **Allow Mac
   access**. An online AI without it keeps the limits above.
 - **She always asks first** before anything that cannot be undone or that leaves your Mac: sending a mail, a command
-  that goes online, the first web search in an answer, each new website and each click in her browser. A command that changes files in your
+  that goes online, the first web search in an answer, each new website, each click and each form in her browser. A command that changes files in your
   own folders asks too, because Pippa can only copy the files it names. She cannot delete files for good, pay, or
   create mail folders.
 - **Mail moves are checked.** Pippa moves mails only from the inbox into an existing folder of the same account, never

@@ -52,3 +52,11 @@
 "Chose in the browser: “%@”" = "Im Browser ausgewählt: „%@“";
 "Closed the browser" = "Browser geschlossen";
 "Viewed in the browser: %@" = "Im Browser angesehen: %@";
+"May Pippa fill in this form?" = "Darf Pippa dieses Formular ausfüllen?";
+"May Pippa fill in and submit this form?" = "Darf Pippa dieses Formular ausfüllen und absenden?";
+"On %@, Pippa wants to fill in this form:" = "Auf %@ möchte Pippa dieses Formular ausfüllen:";
+"• “%@”: %@" = "• „%@“: %@";
+"• “%@”: choose “%@”" = "• „%@“: „%@“ auswählen";
+"(empty)" = "(leer)";
+"Then: %@" = "Danach: %@";
+"Filled in the browser: %@" = "Im Browser ausgefüllt: %@";
