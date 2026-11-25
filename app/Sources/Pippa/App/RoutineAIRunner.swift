@@ -23,6 +23,7 @@ final class RoutineAIRunner {
     enum Outcome: Sendable, Equatable {
         case prepared(title: String, summary: String)
         case nothingNew
+        case cancelled
         case unavailable(String)
         case busy
         case timedOut
@@ -47,13 +48,13 @@ final class RoutineAIRunner {
 
     /// Runs one `.localAIReadOnly` routine in complete isolation and returns a parsed outcome.
     func run(routine: ProactiveRoutine, now: Date = Date(), language: String? = nil) async -> Outcome {
-        guard !isShuttingDown else { return .unavailable("shutting down") }
+        guard !isShuttingDown else { return .cancelled }
         guard SetupModel.shared.isReady else { return .unavailable("local model not ready") }
         guard !isRunning, !ChatModel.shared.isAnswering else { return .busy }
 
         isRunning = true
         let task = Task<Outcome, Never> { [weak self] in
-            guard let self else { return .unavailable("runner deallocated") }
+            guard let self else { return .cancelled }
             return await self.execute(routine: routine, now: now, language: language)
         }
         activeTask = task
@@ -67,9 +68,8 @@ final class RoutineAIRunner {
         return outcome
     }
 
-    /// Cleanly terminates any in-flight background routine Pi process and MCP server on app quit.
-    func shutdown() async {
-        isShuttingDown = true
+    /// Cancels any currently running background routine without preventing future runs (e.g. when proactivity is switched off).
+    func cancelActive() async {
         let task = activeTask
         task?.cancel()
         activeServer?.revoke()
@@ -84,22 +84,36 @@ final class RoutineAIRunner {
         isRunning = false
     }
 
+    /// Cleanly terminates any in-flight background routine Pi process and MCP server on app quit.
+    func shutdown() async {
+        isShuttingDown = true
+        await cancelActive()
+    }
+
     // MARK: Execution
 
     private func execute(routine: ProactiveRoutine, now: Date, language: String?) async -> Outcome {
-        guard !Task.isCancelled, !isShuttingDown else { return .unavailable("cancelled") }
+        guard !Task.isCancelled, !isShuttingDown else { return .cancelled }
 
         let resolvedLanguage = Self.resolvedLanguage(language)
         let includeMemory = SettingsModel.shared.inferenceSettings.capabilities.local.memory
+        let deadline = ContinuousClock.now.advanced(by: Self.hardTimeout)
 
-        // Ensure the local oMLX server is running; never route to an online provider.
+        // Ensure the local oMLX server is running within the same hard timeout; never route to an online provider.
         do {
-            try await PiSession.shared.ensureLocalModelForRoutine()
+            try await withHardDeadline(deadline) {
+                try await PiSession.shared.ensureLocalModelForRoutine()
+            }
+        } catch RunnerError.timedOut {
+            DiagnosticsLog.shared.event("proaktiv-ai-timeout", ["phase": "local-server"])
+            return .timedOut
+        } catch is CancellationError {
+            return .cancelled
         } catch {
             DiagnosticsLog.shared.event("proaktiv-ai-nicht-verfuegbar", ["grund": "local-server"])
             return .unavailable("local model server unavailable")
         }
-        guard !Task.isCancelled, !isShuttingDown else { return .unavailable("cancelled") }
+        guard !Task.isCancelled, !isShuttingDown else { return .cancelled }
 
         // Read optional personal background notes off-MainActor without granting the `remember` write tool.
         let memoryNotes: String?
@@ -196,7 +210,8 @@ final class RoutineAIRunner {
         let expectedTools = PippaPiLaunch.nativeTools(capabilities)
 
         do {
-            let rawAnswer = try await runWithHardTimeout(client: client, expectedTools: expectedTools, prompt: promptText)
+            let remaining = max(.seconds(1), deadline - .now)
+            let rawAnswer = try await runWithHardTimeout(client: client, expectedTools: expectedTools, prompt: promptText, timeout: remaining)
             await client.shutdown()
             clientShutDown = true
             if activeClient === client { activeClient = nil }
@@ -219,14 +234,14 @@ final class RoutineAIRunner {
             await client.shutdown()
             clientShutDown = true
             if activeClient === client { activeClient = nil }
-            return .unavailable("cancelled")
+            return .cancelled
         } catch {
             await client.cancelNativeReadiness()
             await client.shutdown()
             clientShutDown = true
             if activeClient === client { activeClient = nil }
             DiagnosticsLog.shared.event("proaktiv-ai-fehler", ["phase": "run"])
-            return .failed(error.localizedDescription)
+            return .failed("routine run failed")
         }
     }
 
@@ -271,7 +286,21 @@ final class RoutineAIRunner {
         }
     }
 
-    private func runWithHardTimeout(client: PiRPCClient, expectedTools: [String], prompt: String) async throws -> String {
+    private func withHardDeadline(_ deadline: ContinuousClock.Instant, operation: @escaping @MainActor () async throws -> Void) async throws {
+        let remaining = deadline - .now
+        guard remaining > .zero else { throw RunnerError.timedOut }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(for: remaining)
+                throw RunnerError.timedOut
+            }
+            defer { group.cancelAll() }
+            try await group.next()
+        }
+    }
+
+    private func runWithHardTimeout(client: PiRPCClient, expectedTools: [String], prompt: String, timeout: Duration) async throws -> String {
         try await withTaskCancellationHandler {
             try await withThrowingTaskGroup(of: String.self) { group in
                 group.addTask {
@@ -314,9 +343,8 @@ final class RoutineAIRunner {
                     return final
                 }
                 group.addTask {
-                    try await Task.sleep(for: Self.hardTimeout)
-                    await client.cancelNativeReadiness()
-                    await client.shutdown()
+                    try await Task.sleep(for: timeout)
+                    // Throw before shutting down Pi so `.timedOut` wins the race instead of `processExited`.
                     throw RunnerError.timedOut
                 }
                 defer { group.cancelAll() }
@@ -338,12 +366,38 @@ final class RoutineAIRunner {
     nonisolated static func readBoundedMemoryNotes(from url: URL, maxCharacters: Int) -> String? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        // Read enough bytes to hold `maxCharacters` even for multi-byte UTF-8 text.
-        guard let data = try? handle.read(upToCount: maxCharacters * 4), !data.isEmpty else { return nil }
-        let decoded = String(decoding: data, as: UTF8.self)
+        let maxBytes = maxCharacters * 4
+        guard var data = try? handle.read(upToCount: maxBytes), !data.isEmpty else { return nil }
+        // If we hit the byte cap, trim any trailing incomplete UTF-8 sequence so decoding never inserts U+FFFD.
+        if data.count == maxBytes {
+            data = trimTrailingIncompleteUTF8(data)
+        }
+        var decoded = String(decoding: data, as: UTF8.self)
+        // Strip closing/opening wrapper tags so untrusted notes can never break out of `<background_notes>`.
+        decoded = decoded.replacingOccurrences(of: #"(?i)</?background_notes>"#, with: "", options: .regularExpression)
         let trimmed = decoded.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         return String(trimmed.prefix(maxCharacters))
+    }
+
+    private nonisolated static func trimTrailingIncompleteUTF8(_ data: Data) -> Data {
+        guard !data.isEmpty else { return data }
+        // Walk back over continuation bytes (10xxxxxx) to find the last lead byte.
+        var idx = data.endIndex - 1
+        var continuations = 0
+        while idx > data.startIndex && (data[idx] & 0xC0) == 0x80 && continuations < 3 {
+            idx -= 1
+            continuations += 1
+        }
+        let lead = data[idx]
+        let expectedLength: Int
+        if (lead & 0x80) == 0 { expectedLength = 1 }
+        else if (lead & 0xE0) == 0xC0 { expectedLength = 2 }
+        else if (lead & 0xF0) == 0xE0 { expectedLength = 3 }
+        else if (lead & 0xF8) == 0xF0 { expectedLength = 4 }
+        else { return data.prefix(upTo: idx) }
+        let actualLength = data.endIndex - idx
+        return actualLength < expectedLength ? data.prefix(upTo: idx) : data
     }
 
     private nonisolated static func resolvedLanguage(_ explicit: String?) -> String {

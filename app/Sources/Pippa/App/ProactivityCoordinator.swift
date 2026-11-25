@@ -163,7 +163,10 @@ final class ProactivityCoordinator: ObservableObject {
         snoozedMatters: [ProactiveMatter] = [],
         routines: [ProactiveRoutine] = [],
         recentRuns: [RoutineRunRecord] = [],
-        nextScheduledSummary: String? = nil
+        deliveredTodayCount: Int = 0,
+        isFocusActiveNow: Bool = false,
+        nextScheduledSummary: String? = nil,
+        suggestedTemplates: [ProactiveRoutineTemplate]? = nil
     ) {
         isSnapshotMode = true
         stopWatching()
@@ -176,8 +179,10 @@ final class ProactivityCoordinator: ObservableObject {
         self.routines = routines
         self.recentRuns = recentRuns
         self.runningRoutineIDs = []
+        self.deliveredTodayCount = deliveredTodayCount
+        self.isFocusActiveNow = isFocusActiveNow
         self.nextScheduledSummary = nextScheduledSummary
-        self.suggestedTemplates = computeSuggestedTemplates()
+        self.suggestedTemplates = suggestedTemplates ?? computeSuggestedTemplates()
     }
 
     // MARK: Navigation
@@ -286,6 +291,14 @@ final class ProactivityCoordinator: ObservableObject {
         if !isSnapshotMode { save() }
         if !next.enabled {
             stopWatching()
+            let tasks = Array(backgroundTasks.values)
+            backgroundTasks.removeAll()
+            for task in tasks { task.cancel() }
+            Task { await RoutineAIRunner.shared.cancelActive() }
+            matterStore = nil
+            routineStore = nil
+            jobStore = nil
+            hasSeededRoutines = false
             activeNudge = nil
             previewText = nil
             openMatters = []
@@ -1094,6 +1107,7 @@ final class ProactivityCoordinator: ObservableObject {
             else { return }
             let now = Date()
             let all = (try? await routineStore.allRoutines()) ?? self.routines
+            self.nextUpcomingMeetingLead = nil
             for routine in all where routine.enabled {
                 guard !Task.isCancelled, self.settings.enabled else { return }
                 switch routine.trigger {
@@ -1272,13 +1286,8 @@ final class ProactivityCoordinator: ObservableObject {
             }
         }
 
-        var candidates: [ProactiveMatter] = []
-        if settings.morningBriefEnabled, !settings.isMuted(.morningBrief), morningBriefDue(now: now),
-           let brief = await buildBrief(day: now, store: matterStore) {
-            candidates.append(brief)
-        }
         let waiting = (try? await matterStore.matters(states: [.open, .snoozed])) ?? []
-        candidates += waiting
+        let candidates = waiting
             .filter { $0.kind != .morningBrief || $0.matterKey == MorningBriefBuilder.matterKey(for: todayKey) }
             .filter { $0.state == .open || ($0.snoozedUntil.map { $0 <= now } ?? false) }
             .sorted { $0.createdAt < $1.createdAt }
@@ -1304,6 +1313,10 @@ final class ProactivityCoordinator: ObservableObject {
         routineStore: ProactiveRoutineStore,
         now: Date
     ) async {
+        guard !Task.isCancelled, settings.enabled else { return }
+        // Skip muted kinds early on automatic runs so neither builders nor the local AI do wasted work.
+        if !manual && settings.isMuted(routine.matterKind) { return }
+
         runningRoutineIDs.insert(routine.id)
         defer { runningRoutineIDs.remove(routine.id) }
 
@@ -1474,7 +1487,9 @@ final class ProactivityCoordinator: ObservableObject {
             let scanner = WatchedFolderScanner(store: matterStore, language: lang)
             do {
                 let report = try await Task.detached(priority: .utility) {
-                    try await scanner.scan(folderURL: url, now: now)
+                    let accessed = url.startAccessingSecurityScopedResource()
+                    defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+                    return try await scanner.scan(folderURL: url, now: now)
                 }.value
                 if let first = report.actionableMatters.first {
                     outcome = .prepared
@@ -1535,6 +1550,9 @@ final class ProactivityCoordinator: ObservableObject {
                     }
                 case .nothingNew:
                     outcome = .silent
+                case .cancelled:
+                    // Cancellation or shutdown must never consume the slot, disable a one-off, or write to SQLite.
+                    skipRecording = true
                 case .busy:
                     if manual {
                         outcome = .skipped
@@ -1556,7 +1574,7 @@ final class ProactivityCoordinator: ObservableObject {
             }
         }
 
-        guard !skipRecording else { return }
+        guard !skipRecording, !Task.isCancelled, settings.enabled else { return }
         let finishedAt = Date()
 
         // Avoid flooding recentRuns with no-op ticks from reactive watchers when nothing changed.
@@ -1951,14 +1969,23 @@ final class ProactivityCoordinator: ObservableObject {
                 ?? list.first(where: { $0.template == .reminderRadar })
         }
         if matter.kind == .watchedFile {
-            let fileDir = URL(fileURLWithPath: matter.sourceRef).deletingLastPathComponent().standardizedFileURL.path
-            if let exact = list.first(where: {
-                guard case .folder(let path, _) = $0.trigger, !path.isEmpty else { return false }
-                return URL(fileURLWithPath: path).standardizedFileURL.path == fileDir
+            let fileDir = URL(fileURLWithPath: matter.sourceRef).deletingLastPathComponent().standardizedFileURL.resolvingSymlinksInPath().path
+            // Match active resolved watcher URLs first (handles bookmarks for renamed folders) and canonical trigger paths.
+            if let exact = list.first(where: { routine in
+                if let resolved = folderWatchers[routine.id]?.resolvedURL?.standardizedFileURL.resolvingSymlinksInPath().path,
+                   resolved == fileDir {
+                    return true
+                }
+                guard case .folder(let path, _) = routine.trigger, !path.isEmpty else { return false }
+                return URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath().path == fileDir
             }) {
                 return exact
             }
-            return list.first(where: { $0.builtInKey == ProactiveRoutine.watchedFolderKey })
+            if let legacy = settings.watchedFolderPath, !legacy.isEmpty,
+               URL(fileURLWithPath: legacy).standardizedFileURL.resolvingSymlinksInPath().path == fileDir {
+                return list.first(where: { $0.builtInKey == ProactiveRoutine.watchedFolderKey })
+            }
+            return nil
         }
         return nil
     }
@@ -2010,12 +2037,13 @@ final class ProactivityCoordinator: ObservableObject {
 
     /// Opened off MainActor on first use while enabled, so a switched-off Pippa never touches SQLite and launch never stalls.
     private func ensureMatterStore() async -> ProactiveMatterStore? {
-        if let matterStore { return matterStore }
         guard settings.enabled, !isSnapshotMode else { return nil }
+        if let matterStore { return matterStore }
         let base = PiSession.settingsDirectory
         let opened: ProactiveMatterStore? = await Task.detached(priority: .utility) {
             try? ProactiveMatterStore(baseDirectory: base)
         }.value
+        guard settings.enabled, !isSnapshotMode else { return nil }
         if let opened {
             if matterStore == nil { matterStore = opened }
             return matterStore
@@ -2025,12 +2053,13 @@ final class ProactivityCoordinator: ObservableObject {
     }
 
     private func ensureRoutineStore() async -> ProactiveRoutineStore? {
-        if let routineStore { return routineStore }
         guard settings.enabled, !isSnapshotMode else { return nil }
+        if let routineStore { return routineStore }
         let base = PiSession.settingsDirectory
         let opened: ProactiveRoutineStore? = await Task.detached(priority: .utility) {
             try? ProactiveRoutineStore(baseDirectory: base)
         }.value
+        guard settings.enabled, !isSnapshotMode else { return nil }
         if let opened {
             if routineStore == nil { routineStore = opened }
             return routineStore
@@ -2040,12 +2069,13 @@ final class ProactivityCoordinator: ObservableObject {
     }
 
     private func ensureJobStore() async -> DurableJobStore? {
-        if let jobStore { return jobStore }
         guard settings.enabled, !isSnapshotMode else { return nil }
+        if let jobStore { return jobStore }
         let base = PiSession.settingsDirectory
         let opened: DurableJobStore? = await Task.detached(priority: .utility) {
             try? DurableJobStore(baseDirectory: base)
         }.value
+        guard settings.enabled, !isSnapshotMode else { return nil }
         if let opened {
             if jobStore == nil { jobStore = opened }
             return jobStore
