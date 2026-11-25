@@ -54,15 +54,21 @@ function stubEdit(args, limit) {
 	const edits = Array.isArray(args.edits) ? args.edits : [];
 	const total = [...textsOf(args), ...edits.flatMap(textsOf)].reduce((n, t) => n + t.length, 0);
 	if (total <= limit) return undefined;
+	let changed = false;
 	const shrink = (o) => {
 		if (!o || typeof o !== "object") return o;
 		const out = { ...o };
-		for (const f of fields) if (typeof o[f] === "string" && o[f].length > STUB_MIN_CHARS) out[f] = stub(f, o[f], args.path);
+		for (const f of fields) {
+			if (typeof o[f] === "string" && o[f].length > STUB_MIN_CHARS) {
+				out[f] = stub(f, o[f], args.path);
+				changed = true;
+			}
+		}
 		return out;
 	};
 	const next = shrink(args);
 	if (edits.length) next.edits = edits.map(shrink);
-	return next;
+	return changed ? next : undefined;
 }
 
 /**
@@ -232,7 +238,8 @@ const isLocal = (ctx) => ctx?.model?.provider === PROVIDER;
 export function registerLocalContextGuard(pi, { capToolResults = false } = {}) {
 	let rescued = false;
 
-	pi.on("agent_start", () => {
+	// Reset only after the whole run settles (not on agent_start, which fires again on agent.continue()).
+	pi.on("agent_settled", () => {
 		rescued = false;
 		return undefined;
 	});

@@ -360,7 +360,7 @@ func runSetupChecks() async {
             && PiModelTuning.keepRecentTokens(contextWindow: 32768) == 4096
             && [(16384, 4096), (32768, 4096), (32768, 16384)].allSatisfy { ctx, maxTokens in
                 let reserve = PiModelTuning.reserveTokens(contextWindow: ctx, maxTokens: maxTokens)
-                return ctx - reserve - safety >= 3072 && reserve + PiModelTuning.keepRecentTokens(contextWindow: ctx) < ctx
+                return min(maxTokens, reserve - safety) >= 3072 && reserve + PiModelTuning.keepRecentTokens(contextWindow: ctx) < ctx
             }
         // Provider entry: Ornith thinks via enable_thinking; Inkling via reasoning_effort + vision input.
         let entry = PiInstaller.providerEntry(models: models, port: 1, keyFile: PiInstaller.keyFile(support: r.support))

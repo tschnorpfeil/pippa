@@ -59,10 +59,15 @@ test("stubLargeToolCalls stubs successful big write/edit calls and leaves everyt
 	assert.deepEqual(out[6].arguments.edits[1], { oldText: "k", newText: "l" });
 	assert.deepEqual(out[7], content[7], "bash untouched");
 	assert.equal(content[2].arguments.content, big, "input not mutated");
-	// Nothing big, a missing result or only failures: nothing to change.
+	// Nothing big, a missing result, only failures, or many small edits (each <= 256 chars): nothing to change.
 	assert.equal(stubLargeToolCalls(content.slice(0, 4), [{ toolCallId: "w2", isError: false }], 4096), undefined);
 	assert.equal(stubLargeToolCalls([content[2]], [], 4096), undefined);
 	assert.equal(stubLargeToolCalls([content[2]], [{ toolCallId: "w1", isError: true }], 4096), undefined);
+	const manySmallEdits = {
+		type: "toolCall", id: "e3", name: "edit",
+		arguments: { path: "c.js", edits: Array.from({ length: 20 }, (_, i) => ({ oldText: `a${i}`.padEnd(150, "x"), newText: `b${i}`.padEnd(150, "y") })) },
+	};
+	assert.equal(stubLargeToolCalls([manySmallEdits], [{ toolCallId: "e3", isError: false }], 4096), undefined, "many tiny edits produce no no-op context_edit");
 });
 
 test("capTerminalToolResult: bash keeps the end, read whole lines with offset, others the start; mcp and short skipped", () => {
@@ -155,9 +160,9 @@ function loadGuard(options) {
 }
 
 test("registerLocalContextGuard: hooks, at most one rescue per run, only pippa-local", () => {
-	assert.deepEqual(Object.keys(loadGuard({ capToolResults: false })).sort(), ["agent_before_settle", "agent_start", "turn_end"]);
+	assert.deepEqual(Object.keys(loadGuard({ capToolResults: false })).sort(), ["agent_before_settle", "agent_settled", "turn_end"]);
 	const handlers = loadGuard({ capToolResults: true });
-	assert.deepEqual(Object.keys(handlers).sort(), ["agent_before_settle", "agent_start", "tool_result", "turn_end"]);
+	assert.deepEqual(Object.keys(handlers).sort(), ["agent_before_settle", "agent_settled", "tool_result", "turn_end"]);
 
 	const u2 = user("Add a footer");
 	const cut = assistant([{ type: "text", text: "<footer" }], "length");
@@ -175,9 +180,9 @@ test("registerLocalContextGuard: hooks, at most one rescue per run, only pippa-l
 	assert.deepEqual(first.entries[0], other, "earlier drafts kept");
 	assert.equal(first.entries[1].type, "compaction");
 	assert.equal(settle(local), undefined, "only once per run");
-	handlers.agent_start({ type: "agent_start" }, ctx(local));
-	assert.equal(settle(local).continue, true, "agent_start allows the next one");
-	handlers.agent_start({ type: "agent_start" }, ctx(local));
+	handlers.agent_settled({ type: "agent_settled", aborted: false }, ctx(local));
+	assert.equal(settle(local).continue, true, "agent_settled allows the next run");
+	handlers.agent_settled({ type: "agent_settled", aborted: false }, ctx(local));
 	assert.equal(settle(local, [{ type: "compaction", summary: "s", firstKeptEntryId: null }]), undefined, "a second copy adds no second compaction");
 
 	// turn_end: a stub for pippa-local, nothing for others or failed calls.
@@ -364,6 +369,56 @@ test("real Pi: a stuck session (length stop, compaction finds nothing to cut) is
 		const prompt = saved.find((e) => e.type === "message" && e.message.role === "user" && JSON.stringify(e.message.content).includes("Add a footer"));
 		assert.equal(rescues[0].firstKeptEntryId, prompt.id);
 		assert.match(rescues[0].summary, /cut off/);
+	} finally {
+		await omlx.close();
+		rmSync(setup.root, { recursive: true, force: true });
+	}
+});
+
+test("real Pi: after one rescue, a second uncompactable length stop in the same run does not rescue again", { skip }, async () => {
+	const key = "k".repeat(64);
+	// 1) Stuck session hits length -> rescued once (continue: true).
+	// 2) Rescued continuation makes a tool call (resetting Pi's _overflowRecoveryAttempted) that returns a big uncompactable result.
+	// 3) Next answer hits length again -> Pi omits it, prepareCompaction finds nothing to cut, and the guard must NOT rescue a second time in the same run.
+	const answers = [
+		chunk({ role: "assistant", content: "<footer" }) + chunk({}, "length", usageOf(27600, 1100)),
+		chunk({ role: "assistant", tool_calls: [{ index: 0, id: "call_r1", type: "function", function: { name: "read", arguments: JSON.stringify({ path: "note.txt" }) } }] })
+			+ chunk({}, "tool_calls", usageOf(1500, 30)),
+		chunk({ role: "assistant", content: "Still cut" }) + chunk({}, "length", usageOf(27600, 1100)),
+		chunk({ role: "assistant", content: "Must never be reached" }) + chunk({}, "stop", usageOf(1200, 5)),
+	];
+	const omlx = await fakeOMLX(key, answers);
+	const setup = setupHome(omlx.port, key);
+	try {
+		writeFileSync(join(setup.work, "note.txt"), "small note\n");
+		const ms = Date.now() - 60_000;
+		let t = 0;
+		const at = () => ms + 1000 * ++t;
+		const usage = (input, output) => ({ input, output, cacheRead: 0, cacheWrite: 0, totalTokens: input + output,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } });
+		const msg = (id, parentId, message) => ({ type: "message", id, parentId, timestamp: new Date(message.timestamp).toISOString(), message });
+		const meta = { api: "openai-completions", provider: "pippa-local", model: modelID };
+		const page = `<!doctype html><html><body>${"<div class=row>Tile</div>\n".repeat(900)}</body></html>`;
+		const entries = [
+			{ type: "model_change", id: "e0000001", parentId: null, timestamp: new Date(at()).toISOString(), provider: "pippa-local", modelId: modelID },
+			msg("e0000002", "e0000001", { role: "user", content: [{ type: "text", text: "Build page.html" }], timestamp: at() }),
+			msg("e0000003", "e0000002", { role: "assistant", content: [{ type: "toolCall", id: "call_w1", name: "write", arguments: { path: "page.html", content: page } }],
+				...meta, usage: usage(3000, 7000), stopReason: "toolUse", timestamp: at() }),
+			msg("e0000004", "e0000003", { role: "toolResult", toolCallId: "call_w1", toolName: "write", content: [{ type: "text", text: "ok" }], isError: false, timestamp: at() }),
+			{ type: "compaction", id: "e0000005", parentId: "e0000004", timestamp: new Date(at()).toISOString(), summary: "Prior.",
+				firstKeptEntryId: "e0000003", tokensBefore: 20000, fromHook: false },
+			msg("e0000006", "e0000005", { role: "assistant", content: [{ type: "text", text: "Saved." }], ...meta, usage: usage(27400, 20), stopReason: "stop", timestamp: at() }),
+		];
+		const file = join(setup.root, "double-stuck.jsonl");
+		const header = { type: "session", version: 3, id: randomUUID(), timestamp: new Date(ms).toISOString(), cwd: setup.work };
+		writeFileSync(file, [header, ...entries].map((e) => JSON.stringify(e)).join("\n") + "\n");
+
+		const run = await runPi(setup, ["--session", file, "Add a footer"]);
+		assert.equal(omlx.requests.length, 3, `expected 3 requests (stuck, rescued tool call, second length stop), got ${omlx.requests.length}`);
+		assert.doesNotMatch(run.stdout, /Must never be reached/);
+		const saved = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+		const rescues = saved.filter((e) => e.type === "compaction" && e.fromHook === true);
+		assert.equal(rescues.length, 1, "at most one rescue compaction per run");
 	} finally {
 		await omlx.close();
 		rmSync(setup.root, { recursive: true, force: true });
