@@ -286,7 +286,10 @@ func runMCPBrowserChecks() async {
                         refs: [BrowserElementRef(ref: "@e1", role: "link", name: "Impressum", href: "https://example.org/impressum"),
                                BrowserElementRef(ref: "@e2", role: "link", name: "Partner", href: "https://example.net/"),
                                BrowserElementRef(ref: "@e3", role: "button", name: "Weiter", type: "submit", submitsForm: true,
-                                                 formAction: "https://example.org/weiter", href: "https://example.org/weiter")])
+                                                 formAction: "https://example.org/weiter", href: "https://example.org/weiter"),
+                               BrowserElementRef(ref: "@e4", role: "link", name: "Abmelden", href: "https://example.org/logout?token=abc"),
+                               BrowserElementRef(ref: "@e5", role: "link", name: "Nach oben", href: "https://example.org/kontakt#top"),
+                               BrowserElementRef(ref: "@e6", role: "link", name: "Menü", href: "https://example.org/kontakt")])
     }
     await checkAsync("MCP browse: a link to a host allowed in this answer opens its address without a card or journal row") {
         let journal = try Executor(baseDirectory: root.appendingPathComponent("browse-links-" + UUID().uuidString))
@@ -304,6 +307,22 @@ func runMCPBrowserChecks() async {
             && w.prompts.value[2].title == L("May Pippa submit this?", table: "Tools")
             && rows.map(\.object.kind) == ["browser.click", "browser.click"]
             && !w.browser.actions.contains(.click(ref: "@e1", snapshotId: "s1"))
+    }
+
+    await checkAsync("MCP browse: links with a query, to this same page or to another allowed host keep their card and are clicked") {
+        let w = world(page: links)
+        _ = await browse(w, ["action": "open", "url": "https://example.net/"])
+        _ = await browse(w, ["action": "open", "url": page])
+        var clicked: [String] = []
+        for ref in ["@e2", "@e4", "@e5", "@e6"] {
+            let snap = await browse(w, ["action": "snapshot"])
+            let id = data(snap.json)["snapshot_id"] as? String ?? ""
+            let r = await browse(w, ["action": "click", "ref": ref, "snapshot_id": id])
+            guard r.json["done"] as? Bool == true, w.browser.actions.last == .click(ref: ref, snapshotId: id) else { return false }
+            clicked.append(ref)
+        }
+        return clicked.count == 4 && w.asked.value == ["open", "open", "click", "click", "click", "click"]
+            && !w.prompts.value.contains { $0.message.contains("token") }
     }
 
     await checkAsync("MCP browse: a link is followed without a card only in the answer that allowed its host") {
@@ -352,8 +371,17 @@ func runMCPBrowserChecks() async {
         let open = await browse(w, ["action": "open", "url": page])
         let d = data(open.json)
         let shown = String((d["text"] as? String ?? "").dropLast(2))
+        // The last part of a page, made only of characters JSON escapes to six bytes: cut to fit, it must still point on.
+        let control = String(repeating: "\u{1}", count: 5000)
+        let c = world(page: { url, id in BrowserSnapshot(snapshotId: id, url: url.absoluteString, title: "Steuer", text: control, refs: []) })
+        _ = await browse(c, ["action": "open", "url": page])
+        let last = await browse(c, ["action": "read", "from": 2500])
+        let lastData = data(last.json)
+        let lastShown = String((lastData["text"] as? String ?? "").dropLast(2))
         return open.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes && dense.hasPrefix(shown)
-            && d["more_from"] as? Int == shown.count
+            && d["more_from"] as? Int == shown.count && (open.json["next"] as? String)?.contains("more_from") == true
+            && last.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes && (last.json["next"] as? String)?.contains("more_from") == true
+            && lastData["more_from"] as? Int == 2500 + lastShown.count && lastShown.count > 100
     }
 
     let formPage: DemoBrowserOperator.Page = { url, id in

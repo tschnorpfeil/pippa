@@ -34,7 +34,7 @@ export const SEND_TOOLS = ["mail_send"];
 
 /** Pippa's browser panel (app/Sources/PippaCore/MCP/PippaMCPBrowser.swift): goes online, so the app asks the person
  * before it opens a new site and before every click, typed text or choice (a whole form is one question). Following a
- * link to a host allowed in the same answer opens it like `open`. Logins stay with the person. */
+ * plain link (no query) to another page of the same allowed host opens it like `open`. Logins stay with the person. */
 export const BROWSER_TOOLS = ["browse"];
 
 /** Entry as in `mcp.json`, or `undefined` if the environment does not fit (then no server, no error). */

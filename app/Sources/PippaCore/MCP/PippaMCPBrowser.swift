@@ -7,9 +7,9 @@ import Foundation
 // Rules:
 // - only http(s) pages on the internet (`isAllowedURL`), never this Mac or its local network;
 // - opening a new host needs the person's OK (`PippaMCPHost.confirmBrowser`), and so does every click, fill,
-//   select and form step; a whole form (fields and its submit) is one OK that lists every value. Following a link
-//   whose target host is already allowed in this answer is opening that address, so it loads the link's own
-//   address (no click on the page) without a second card. No one to ask means nothing happens;
+//   select and form step; a whole form (fields and its submit) is one OK that lists every value. Following a plain
+//   link without a query to another page of the current host, allowed in this answer, is opening that address, so
+//   it loads the link's own address (no click on the page) without a second card (`allowedLinkTarget`). No one to ask means nothing happens;
 // - page text is read in parts (`read` with `from`): the first part comes with the snapshot;
 // - passwords, 2FA and CAPTCHAs are the person's: values of password fields are never captured, filling them is
 //   refused, and login or verification pages hand over to the person (`PippaMCPHost.onBrowserHandoff`);
@@ -372,7 +372,7 @@ public struct PippaMCPBrowserTool: Sendable {
         guard let browser = host.browser else {
             return (Self.notDone("unavailable", tell: L("Pippa’s browser isn’t available right now.", table: "Tools"), isError: true), "")
         }
-        let mutating = ["click", "fill", "select", "form"].contains(request.action)
+        var mutating = ["click", "fill", "select", "form"].contains(request.action)
         if (mutating || request.action == "open"), writes.snapshot.cancelled {
             return (Self.notDone("cancelled", tell: L("Not done: the answer was stopped.", table: "Tools"), isError: true), "")
         }
@@ -454,9 +454,13 @@ public struct PippaMCPBrowserTool: Sendable {
             default:
                 let element = elements[request.ref!]!
                 detail = label(element)
-                if let target = await allowedLinkTarget(element) {
-                    // Same as `open` on a host allowed in this answer: load the link's address, no click on the page.
+                if let target = await allowedLinkTarget(element, page: current.url) {
+                    // Same as `open` on this page's host, allowed in this answer: load the link's address, no click on the page.
+                    if writes.snapshot.cancelled {
+                        return (Self.notDone("cancelled", tell: L("Not done: the answer was stopped.", table: "Tools"), isError: true), detail)
+                    }
                     needsOK = false
+                    mutating = false
                     action = .open(target)
                 } else {
                     (title, message) = Self.clickPrompt(page: page, element: element)
@@ -530,12 +534,23 @@ public struct PippaMCPBrowserTool: Sendable {
         }
     }
 
-    /// The address of a plain link whose host the person already allowed in this answer. Following it is the same as
-    /// `open` on that address, so it needs no second card; `nil` for anything else (buttons, form submits, other hosts).
-    private func allowedLinkTarget(_ element: BrowserElementRef) async -> URL? {
+    /// The address of a plain link to another page on this page's own host, allowed in this answer, with no query.
+    /// Following it is the same as `open` on an address Pi could name, so it needs no second card. `nil` for anything
+    /// else, which keeps its card: buttons and form submits, other hosts, links with a query (Pi never sees `href`, so a
+    /// query may carry a token the page put there, such as `?token=` on a delete or unsubscribe link), and links to
+    /// this same page (`#`, `""`, `#section`), which usually run the page's own script.
+    private func allowedLinkTarget(_ element: BrowserElementRef, page: String) async -> URL? {
+        func withoutFragment(_ url: URL) -> String? {
+            guard var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+            parts.fragment = nil
+            return parts.string
+        }
         guard element.role == "link", !element.submitsForm, let raw = element.href,
               let url = URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)), Self.isAllowedURL(url),
-              let name = Self.normalizedHost(url), host.browserApprovals.approved(name, turn: turn),
+              url.query == nil, let current = URL(string: page),
+              let name = Self.normalizedHost(url), name == Self.normalizedHost(current),
+              let target = withoutFragment(url), target != withoutFragment(current),
+              host.browserApprovals.approved(name, turn: turn),
               !(await host.resolveHostIsPrivate(name)) else { return nil }
         return url
     }
@@ -654,9 +669,13 @@ public struct PippaMCPBrowserTool: Sendable {
             let body = data["text"] as? String ?? ""
             if refs.count > 40 || (body.count <= 300 && !refs.isEmpty) { refs.removeLast(); data["refs"] = refs }
             else if body.count > 1 {
-                let kept = String(body.prefix(body.count / 2))
+                let plain = body.hasSuffix(" …") ? String(body.dropLast(2)) : body
+                let kept = String(plain.prefix(plain.count / 2))
                 data["text"] = kept + " …"
                 data["more_from"] = (data["text_from"] as? Int ?? 0) + kept.count
+                if let next = value["next"] as? String, !next.contains("more_from") {
+                    value["next"] = "More page text: browse read with from=more_from. " + next
+                }
             }
             else { break }
             data["truncated"] = true

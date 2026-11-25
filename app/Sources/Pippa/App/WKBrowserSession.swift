@@ -244,7 +244,10 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         case "stale": throw BrowserError.staleRef
         case "password": throw BrowserError.passwordField
         case "option": throw BrowserError.noSuchOption
-        default: throw BrowserError.failed
+        default:
+            // The step may have changed the page before it stopped: its refs are no longer trusted.
+            latest = nil
+            throw BrowserError.failed
         }
         latest = nil
         await settle(after: .milliseconds(400), timeout: .seconds(10))
@@ -699,12 +702,17 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
       targets.push([el, step]);
     }
     if (submit) targets.pop();
-    for (const [el, step] of targets) apply(el, step);
+    // Typing runs the page's own scripts: before each further step the element must still be the one the card
+    // named (same meaning, still not a password or code field), or the step stops there.
+    for (const [index, [el, step]] of targets.entries()) {
+      if (index > 0 && (resolve(step.ref) !== el || problem(el, step))) return { error: 'failed' };
+      apply(el, step);
+    }
     if (submit) {
-      // Pages often re-render after typing: give them a moment, then click only the very same, still usable button.
+      // Pages often re-render after typing: give them a moment, then click only the very same, unchanged button.
       await new Promise((done) => setTimeout(done, 150));
-      const button = window.__pippaRefs.get(submit.ref);
-      if (!button || !button.isConnected || button.disabled || !visible(button)) return { error: 'failed' };
+      const button = resolve(submit.ref);
+      if (!button) return { error: 'failed' };
       apply(button, submit);
     }
     return { ok: true };
